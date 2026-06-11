@@ -153,44 +153,12 @@
   .text-balance { text-wrap: balance; }
   .text-pretty { text-wrap: pretty; }
 
-  /* Public guide always uses the warm boutique daylight palette, even when
-     the user agent / app is in dark mode. Tokens mirror :root above. */
-  .guide-surface,
-  .dark .guide-surface {
-    --background: oklch(0.985 0.005 80);
-    --foreground: oklch(0.22 0.02 60);
-    --surface: oklch(0.97 0.008 75);
-    --surface-elevated: oklch(1 0 0);
-    --card: oklch(1 0 0);
-    --card-foreground: oklch(0.22 0.02 60);
-    --popover: oklch(1 0 0);
-    --popover-foreground: oklch(0.22 0.02 60);
-    --primary: oklch(0.28 0.025 60);
-    --primary-foreground: oklch(0.985 0.005 80);
-    --secondary: oklch(0.94 0.012 75);
-    --secondary-foreground: oklch(0.28 0.025 60);
-    --muted: oklch(0.94 0.012 75);
-    --muted-foreground: oklch(0.52 0.018 60);
-    --accent: oklch(0.62 0.14 38);
-    --accent-foreground: oklch(0.985 0.005 80);
-    --destructive: oklch(0.55 0.21 27);
-    --destructive-foreground: oklch(0.985 0.005 80);
-    --border: oklch(0.22 0.02 60 / 0.08);
-    --input: oklch(0.22 0.02 60 / 0.1);
-    --ring: oklch(0.62 0.14 38 / 0.4);
-    --shadow-soft: 0 1px 2px oklch(0.22 0.02 60 / 0.04), 0 4px 16px oklch(0.22 0.02 60 / 0.04);
-    --shadow-elevated: 0 8px 32px oklch(0.22 0.02 60 / 0.12);
-    background-color: var(--background);
-    color: var(--foreground);
-    color-scheme: light;
-  }
-
-  /* Soft warm ambient gradient for the public guide background */
+  /* Soft ambient gradient for the public guide background — adapts to theme */
   .guide-ambient {
     background-image:
       radial-gradient(60% 40% at 100% 0%, oklch(from var(--accent) l c h / 0.10), transparent 60%),
-      radial-gradient(50% 35% at 0% 30%, oklch(from var(--accent) 0.96 0.04 h) 0%, transparent 65%),
-      radial-gradient(80% 60% at 50% 100%, oklch(from var(--accent) 0.97 0.02 h) 0%, transparent 70%);
+      radial-gradient(50% 35% at 0% 30%, oklch(from var(--accent) l c h / 0.06) 0%, transparent 65%),
+      radial-gradient(80% 60% at 50% 100%, oklch(from var(--accent) l c h / 0.05) 0%, transparent 70%);
   }
 }
 
