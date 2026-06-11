@@ -39,6 +39,7 @@ type FormState = {
     slug: string;
     tagline: string;
     hero_image_url: string;
+    gallery_images: string[];
     address: string;
     maps_url: string;
     lat: number | null;
