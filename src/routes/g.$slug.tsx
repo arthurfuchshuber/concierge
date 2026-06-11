@@ -439,30 +439,31 @@ function WifiStripe({ ssid, password }: { ssid: string; password: string }) {
     setTimeout(() => setCopied(false), 1800);
   }
   return (
-    <section className="px-4 mt-5">
+    <section className="px-5 mt-7">
       <button
         onClick={copy}
-        className="w-full relative overflow-hidden rounded-2xl border border-accent/20 bg-gradient-to-r from-accent/20 via-accent/5 to-transparent p-5 flex items-center gap-4 text-left active:scale-[0.99] transition-transform"
+        className="w-full flex items-center gap-4 py-4 px-1 text-left border-y border-border active:opacity-70 transition-opacity"
       >
-        <div className="size-12 rounded-2xl bg-gradient-to-br from-accent to-accent/70 text-accent-foreground grid place-items-center shrink-0 shadow-soft">
-          <Wifi className="size-5" strokeWidth={2} />
-        </div>
+        <span className="size-9 rounded-full border border-border grid place-items-center text-accent shrink-0">
+          <Wifi className="size-4" strokeWidth={1.6} />
+        </span>
         <div className="flex-1 min-w-0">
-          <p className="text-[10px] uppercase tracking-[0.28em] text-accent font-semibold">Wi-Fi</p>
-          <p className="text-[15px] font-medium truncate mt-1">{ssid}</p>
+          <p className="text-[9.5px] uppercase tracking-[0.28em] text-muted-foreground font-semibold">Wi-Fi</p>
+          <p className="text-[14px] font-medium truncate mt-0.5 text-foreground">{ssid}</p>
           {password && (
-            <p className="text-[12px] font-mono text-muted-foreground truncate mt-0.5">{password}</p>
+            <p className="text-[11.5px] font-mono text-muted-foreground truncate mt-0.5">{password}</p>
           )}
         </div>
         {password && (
-          <div className="size-9 rounded-full bg-card border border-border grid place-items-center shrink-0">
-            {copied ? <Check className="size-4 text-accent" /> : <Copy className="size-4 text-muted-foreground" />}
-          </div>
+          <span className="text-[10px] uppercase tracking-[0.22em] font-semibold text-accent inline-flex items-center gap-1.5 shrink-0">
+            {copied ? <><Check className="size-3.5" /> Copiado</> : <><Copy className="size-3.5" /> Copiar</>}
+          </span>
         )}
       </button>
     </section>
   );
 }
+
 
 
 function ChapterRow({
