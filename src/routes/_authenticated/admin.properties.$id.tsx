@@ -585,3 +585,73 @@ function RecGroup({ title, desc, items, onChange, scope }: { title: string; desc
     </Section>
   );
 }
+
+function Stepper({
+  steps,
+  current,
+  onChange,
+}: {
+  steps: { value: string; label: string; icon: React.ComponentType<{ className?: string; strokeWidth?: number }> }[];
+  current: string;
+  onChange: (v: string) => void;
+}) {
+  const currentIdx = steps.findIndex((s) => s.value === current);
+  return (
+    <div className="mb-6">
+      <div className="overflow-x-auto no-scrollbar -mx-2 px-2">
+        <div className="flex items-center gap-2 min-w-max">
+          {steps.map((s, i) => {
+            const done = i < currentIdx;
+            const active = i === currentIdx;
+            const Icon = s.icon;
+            return (
+              <div key={s.value} className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => onChange(s.value)}
+                  className={[
+                    "group inline-flex items-center gap-2 rounded-full px-3.5 py-2 text-xs font-medium whitespace-nowrap transition-all border",
+                    active
+                      ? "bg-primary text-primary-foreground border-primary shadow-soft"
+                      : done
+                      ? "bg-accent/10 text-foreground border-accent/30 hover:bg-accent/15"
+                      : "bg-background text-muted-foreground border-border hover:text-foreground hover:border-foreground/30",
+                  ].join(" ")}
+                >
+                  <span
+                    className={[
+                      "grid place-items-center size-5 rounded-full shrink-0",
+                      active
+                        ? "bg-primary-foreground/15"
+                        : done
+                        ? "bg-accent text-accent-foreground"
+                        : "bg-secondary",
+                    ].join(" ")}
+                  >
+                    {done ? (
+                      <Check className="size-3" strokeWidth={2.5} />
+                    ) : (
+                      <Icon className="size-3" strokeWidth={2} />
+                    )}
+                  </span>
+                  {s.label}
+                </button>
+                {i < steps.length - 1 && (
+                  <span
+                    className={[
+                      "h-px w-6 sm:w-10 shrink-0 transition-colors",
+                      i < currentIdx ? "bg-accent/40" : "bg-border",
+                    ].join(" ")}
+                  />
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+      <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground/70 font-semibold mt-3">
+        Passo {currentIdx + 1} de {steps.length}
+      </p>
+    </div>
+  );
+}
