@@ -118,18 +118,9 @@ function Guide({ data }: { data: GuideOk }) {
   const galleryRaw: string[] = Array.isArray(p.gallery_images) ? p.gallery_images : [];
   const photos: string[] = (galleryRaw.length ? galleryRaw : p.hero_image_url ? [p.hero_image_url] : []).slice(0, 4);
 
-  // Public guide is always presented in the warm light palette (matches admin painel).
-  useEffect(() => {
-    const root = document.documentElement;
-    const had = root.classList.contains("dark");
-    root.classList.remove("dark");
-    return () => {
-      if (had) root.classList.add("dark");
-    };
-  }, []);
-
   return (
-    <div className="min-h-screen bg-background text-foreground pb-16">
+    <div className="guide-surface guide-ambient min-h-screen text-foreground pb-16">
+
 
       <div className="mx-auto w-full max-w-md">
         {/* Hero — shorter, photo gallery */}
