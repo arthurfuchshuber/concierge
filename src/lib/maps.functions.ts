@@ -32,6 +32,7 @@ type EnrichResult = {
   country: string;
   tagline: string;
   hero_image_url: string | null;
+  gallery_images: string[];
   recommendations: PlaceItem[];
 };
 
