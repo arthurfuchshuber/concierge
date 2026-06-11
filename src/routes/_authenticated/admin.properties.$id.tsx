@@ -238,6 +238,7 @@ function PropertyEditor() {
           slug: form.property.slug || slugify(form.property.name),
           tagline: form.property.tagline || null,
           hero_image_url: form.property.hero_image_url || null,
+          gallery_images: form.property.gallery_images.filter((u) => u.trim()).slice(0, 4),
           address: form.property.address || null,
           maps_url: form.property.maps_url || null,
           city: form.property.city || null,
