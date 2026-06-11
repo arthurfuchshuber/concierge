@@ -109,7 +109,7 @@ function Guide({ data }: { data: GuideOk }) {
   const city = data.recommendations.filter((r: any) => r.scope === "city");
 
   return (
-    <div className="min-h-screen bg-background text-foreground pb-20">
+    <div className="min-h-screen bg-background text-foreground pb-32">
       <div className="mx-auto w-full max-w-md">
         {/* Hero */}
         <section className="px-4 pt-4">
@@ -136,25 +136,17 @@ function Guide({ data }: { data: GuideOk }) {
           </div>
         </section>
 
-        {/* Wi-Fi */}
-        {p.wifi_ssid && (
-          <section className="px-4 mt-5">
-            <CopyCard
-              icon={<Wifi className="size-5 text-accent" />}
-              eyebrow="Wi-Fi"
-              label={p.wifi_ssid}
-              value={p.wifi_password ?? ""}
-            />
-          </section>
-        )}
+        {/* Wi-Fi stripe */}
+        {p.wifi_ssid && <WifiStripe ssid={p.wifi_ssid} password={p.wifi_password ?? ""} />}
 
         {/* Tabs */}
         <Tabs defaultValue="checkin" className="px-4 mt-6">
-          <TabsList className="grid grid-cols-4 w-full">
-            <TabsTrigger value="checkin"><KeyRound className="size-4" /></TabsTrigger>
-            <TabsTrigger value="house"><BookOpen className="size-4" /></TabsTrigger>
-            <TabsTrigger value="explore"><Compass className="size-4" /></TabsTrigger>
-            <TabsTrigger value="info"><HelpCircle className="size-4" /></TabsTrigger>
+          {/* Quadrants — bottom floating glass nav */}
+          <TabsList className="fixed bottom-4 left-1/2 -translate-x-1/2 z-40 grid grid-cols-4 gap-1 p-1.5 rounded-2xl bg-foreground/85 backdrop-blur-xl backdrop-saturate-150 border border-white/10 shadow-elevated h-auto w-[min(92vw,360px)]">
+            <QuadrantTrigger value="checkin" icon={<KeyRound className="size-4" strokeWidth={1.75} />} label="Chegada" />
+            <QuadrantTrigger value="house" icon={<BookOpen className="size-4" strokeWidth={1.75} />} label="A casa" />
+            <QuadrantTrigger value="explore" icon={<Compass className="size-4" strokeWidth={1.75} />} label="Explorar" />
+            <QuadrantTrigger value="info" icon={<HelpCircle className="size-4" strokeWidth={1.75} />} label="Info" />
           </TabsList>
 
           <TabsContent value="checkin" className="mt-5 space-y-4">
@@ -378,5 +370,52 @@ function RecBlock({ title, desc, items }: { title: string; desc: string; items: 
         ))}
       </div>
     </div>
+  );
+}
+
+function WifiStripe({ ssid, password }: { ssid: string; password: string }) {
+  const [copied, setCopied] = useState(false);
+  function copy() {
+    if (!password) return;
+    navigator.clipboard.writeText(password);
+    setCopied(true);
+    toast.success("Senha copiada!");
+    setTimeout(() => setCopied(false), 1800);
+  }
+  return (
+    <section className="px-4 mt-5">
+      <button
+        onClick={copy}
+        className="w-full relative overflow-hidden rounded-2xl border border-border bg-gradient-to-r from-accent/15 via-card to-card p-4 flex items-center gap-4 text-left active:scale-[0.99] transition-transform"
+      >
+        <div className="size-11 rounded-xl bg-foreground text-background grid place-items-center shrink-0">
+          <Wifi className="size-5" strokeWidth={1.75} />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-[10px] uppercase tracking-[0.22em] text-accent font-semibold">Wi-Fi</p>
+          <p className="text-sm font-medium truncate mt-0.5">{ssid}</p>
+          {password && (
+            <p className="text-xs font-mono text-muted-foreground truncate">{password}</p>
+          )}
+        </div>
+        {password && (
+          <div className="shrink-0 text-muted-foreground">
+            {copied ? <Check className="size-4 text-accent" /> : <Copy className="size-4" />}
+          </div>
+        )}
+      </button>
+    </section>
+  );
+}
+
+function QuadrantTrigger({ value, icon, label }: { value: string; icon: React.ReactNode; label: string }) {
+  return (
+    <TabsTrigger
+      value={value}
+      className="flex flex-col items-center justify-center gap-1 h-auto py-2.5 rounded-xl text-white/80 data-[state=active]:bg-white data-[state=active]:text-foreground data-[state=active]:shadow-soft transition-all"
+    >
+      {icon}
+      <span className="text-[9px] uppercase tracking-[0.14em] font-semibold">{label}</span>
+    </TabsTrigger>
   );
 }
