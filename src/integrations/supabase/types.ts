@@ -14,16 +14,367 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          full_name: string | null
+          id: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          full_name?: string | null
+          id: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          full_name?: string | null
+          id?: string
+        }
+        Relationships: []
+      }
+      properties: {
+        Row: {
+          access_mode: Database["public"]["Enums"]["access_mode"]
+          address: string | null
+          address_note: string | null
+          checkin_time: string | null
+          checkout_time: string | null
+          city: string | null
+          country: string | null
+          created_at: string
+          default_language: Database["public"]["Enums"]["guide_language"]
+          gate_code: string | null
+          hero_image_url: string | null
+          host_name: string | null
+          host_phone: string | null
+          id: string
+          lat: number | null
+          lng: number | null
+          lock_code: string | null
+          maps_url: string | null
+          name: string
+          owner_id: string
+          pin_code: string | null
+          pin_expires_at: string | null
+          published: boolean
+          slug: string
+          tagline: string | null
+          updated_at: string
+          wifi_password: string | null
+          wifi_ssid: string | null
+        }
+        Insert: {
+          access_mode?: Database["public"]["Enums"]["access_mode"]
+          address?: string | null
+          address_note?: string | null
+          checkin_time?: string | null
+          checkout_time?: string | null
+          city?: string | null
+          country?: string | null
+          created_at?: string
+          default_language?: Database["public"]["Enums"]["guide_language"]
+          gate_code?: string | null
+          hero_image_url?: string | null
+          host_name?: string | null
+          host_phone?: string | null
+          id?: string
+          lat?: number | null
+          lng?: number | null
+          lock_code?: string | null
+          maps_url?: string | null
+          name: string
+          owner_id: string
+          pin_code?: string | null
+          pin_expires_at?: string | null
+          published?: boolean
+          slug: string
+          tagline?: string | null
+          updated_at?: string
+          wifi_password?: string | null
+          wifi_ssid?: string | null
+        }
+        Update: {
+          access_mode?: Database["public"]["Enums"]["access_mode"]
+          address?: string | null
+          address_note?: string | null
+          checkin_time?: string | null
+          checkout_time?: string | null
+          city?: string | null
+          country?: string | null
+          created_at?: string
+          default_language?: Database["public"]["Enums"]["guide_language"]
+          gate_code?: string | null
+          hero_image_url?: string | null
+          host_name?: string | null
+          host_phone?: string | null
+          id?: string
+          lat?: number | null
+          lng?: number | null
+          lock_code?: string | null
+          maps_url?: string | null
+          name?: string
+          owner_id?: string
+          pin_code?: string | null
+          pin_expires_at?: string | null
+          published?: boolean
+          slug?: string
+          tagline?: string | null
+          updated_at?: string
+          wifi_password?: string | null
+          wifi_ssid?: string | null
+        }
+        Relationships: []
+      }
+      property_checkout_items: {
+        Row: {
+          id: string
+          label: string
+          position: number
+          property_id: string
+        }
+        Insert: {
+          id?: string
+          label: string
+          position?: number
+          property_id: string
+        }
+        Update: {
+          id?: string
+          label?: string
+          position?: number
+          property_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "property_checkout_items_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      property_emergency_contacts: {
+        Row: {
+          id: string
+          label: string
+          number: string
+          position: number
+          property_id: string
+        }
+        Insert: {
+          id?: string
+          label: string
+          number: string
+          position?: number
+          property_id: string
+        }
+        Update: {
+          id?: string
+          label?: string
+          number?: string
+          position?: number
+          property_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "property_emergency_contacts_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      property_faqs: {
+        Row: {
+          answer: string
+          id: string
+          position: number
+          property_id: string
+          question: string
+        }
+        Insert: {
+          answer: string
+          id?: string
+          position?: number
+          property_id: string
+          question: string
+        }
+        Update: {
+          answer?: string
+          id?: string
+          position?: number
+          property_id?: string
+          question?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "property_faqs_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      property_manual_items: {
+        Row: {
+          body: string | null
+          created_at: string
+          description: string | null
+          id: string
+          position: number
+          property_id: string
+          title: string
+        }
+        Insert: {
+          body?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          position?: number
+          property_id: string
+          title: string
+        }
+        Update: {
+          body?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          position?: number
+          property_id?: string
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "property_manual_items_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      property_recommendations: {
+        Row: {
+          category: string | null
+          created_at: string
+          distance_meters: number | null
+          distance_text: string | null
+          drive_minutes: number | null
+          id: string
+          image_url: string | null
+          maps_url: string | null
+          name: string
+          note: string | null
+          place_id: string | null
+          position: number
+          property_id: string
+          rating: number | null
+          scope: Database["public"]["Enums"]["rec_scope"]
+          type: Database["public"]["Enums"]["rec_type"]
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string
+          distance_meters?: number | null
+          distance_text?: string | null
+          drive_minutes?: number | null
+          id?: string
+          image_url?: string | null
+          maps_url?: string | null
+          name: string
+          note?: string | null
+          place_id?: string | null
+          position?: number
+          property_id: string
+          rating?: number | null
+          scope: Database["public"]["Enums"]["rec_scope"]
+          type: Database["public"]["Enums"]["rec_type"]
+        }
+        Update: {
+          category?: string | null
+          created_at?: string
+          distance_meters?: number | null
+          distance_text?: string | null
+          drive_minutes?: number | null
+          id?: string
+          image_url?: string | null
+          maps_url?: string | null
+          name?: string
+          note?: string | null
+          place_id?: string | null
+          position?: number
+          property_id?: string
+          rating?: number | null
+          scope?: Database["public"]["Enums"]["rec_scope"]
+          type?: Database["public"]["Enums"]["rec_type"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "property_recommendations_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      access_mode: "public" | "pin"
+      app_role: "admin" | "host"
+      guide_language: "pt" | "en"
+      rec_scope: "nearby" | "city"
+      rec_type:
+        | "restaurant"
+        | "bar"
+        | "cafe"
+        | "beach"
+        | "attraction"
+        | "market"
+        | "pharmacy"
+        | "park"
+        | "nightlife"
+        | "shopping"
+        | "other"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +501,24 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      access_mode: ["public", "pin"],
+      app_role: ["admin", "host"],
+      guide_language: ["pt", "en"],
+      rec_scope: ["nearby", "city"],
+      rec_type: [
+        "restaurant",
+        "bar",
+        "cafe",
+        "beach",
+        "attraction",
+        "market",
+        "pharmacy",
+        "park",
+        "nightlife",
+        "shopping",
+        "other",
+      ],
+    },
   },
 } as const

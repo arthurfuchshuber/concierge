@@ -1,0 +1,87 @@
+import { createServerFn } from "@tanstack/react-start";
+import { z } from "zod";
+import { getCookie, setCookie } from "@tanstack/react-start/server";
+
+const SlugInput = z.object({ slug: z.string().regex(/^[a-z0-9-]{1,64}$/) });
+
+async function loadFullGuide(supabaseAdmin: typeof import("@/integrations/supabase/client.server").supabaseAdmin, propertyId: string) {
+  const [manual, recs, emerg, faqs, checkout] = await Promise.all([
+    supabaseAdmin.from("property_manual_items").select("*").eq("property_id", propertyId).order("position"),
+    supabaseAdmin.from("property_recommendations").select("*").eq("property_id", propertyId).order("scope").order("type").order("position"),
+    supabaseAdmin.from("property_emergency_contacts").select("*").eq("property_id", propertyId).order("position"),
+    supabaseAdmin.from("property_faqs").select("*").eq("property_id", propertyId).order("position"),
+    supabaseAdmin.from("property_checkout_items").select("*").eq("property_id", propertyId).order("position"),
+  ]);
+  return {
+    manual: manual.data ?? [],
+    recommendations: recs.data ?? [],
+    emergency: emerg.data ?? [],
+    faqs: faqs.data ?? [],
+    checkout: checkout.data ?? [],
+  };
+}
+
+export const getPublicGuide = createServerFn({ method: "POST" })
+  .inputValidator((i: unknown) => SlugInput.parse(i))
+  .handler(async ({ data }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: prop, error } = await supabaseAdmin
+      .from("properties")
+      .select("*")
+      .eq("slug", data.slug)
+      .eq("published", true)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!prop) return { status: "not_found" as const };
+
+    // Expiration check
+    if (prop.access_mode === "pin" && prop.pin_expires_at && new Date(prop.pin_expires_at) < new Date()) {
+      return { status: "expired" as const, propertyName: prop.name };
+    }
+
+    if (prop.access_mode === "pin") {
+      const cookie = getCookie(`sg-pin-${prop.id}`);
+      if (cookie !== "ok") {
+        return { status: "locked" as const, propertyName: prop.name, expiresAt: prop.pin_expires_at };
+      }
+    }
+
+    // Strip pin_code before returning
+    const { pin_code: _omit, ...safeProp } = prop;
+    void _omit;
+    const children = await loadFullGuide(supabaseAdmin, prop.id);
+    return { status: "ok" as const, property: safeProp, ...children };
+  });
+
+const PinSubmit = z.object({
+  slug: z.string().regex(/^[a-z0-9-]{1,64}$/),
+  pin: z.string().min(1).max(20),
+});
+
+export const submitPin = createServerFn({ method: "POST" })
+  .inputValidator((i: unknown) => PinSubmit.parse(i))
+  .handler(async ({ data }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: prop, error } = await supabaseAdmin
+      .from("properties")
+      .select("id, pin_code, pin_expires_at, access_mode")
+      .eq("slug", data.slug)
+      .eq("published", true)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!prop || prop.access_mode !== "pin") return { ok: false as const, reason: "not_found" };
+    if (prop.pin_expires_at && new Date(prop.pin_expires_at) < new Date()) {
+      return { ok: false as const, reason: "expired" };
+    }
+    if (!prop.pin_code || prop.pin_code !== data.pin) {
+      return { ok: false as const, reason: "wrong" };
+    }
+    setCookie(`sg-pin-${prop.id}`, "ok", {
+      httpOnly: true,
+      secure: true,
+      sameSite: "lax",
+      path: "/",
+      maxAge: 60 * 60 * 24, // 24h
+    });
+    return { ok: true as const };
+  });
