@@ -104,12 +104,16 @@ function PinGate({ slug, status, name }: { slug: string; status: "locked" | "exp
 
 type GuideOk = Extract<Awaited<ReturnType<typeof getPublicGuide>>, { status: "ok" }>;
 
+type Section = "home" | "checkin" | "house" | "explore" | "info";
+
 function Guide({ data }: { data: GuideOk }) {
   const p = data.property as Record<string, any>;
   const { lang, setLang } = useI18n();
+  const [section, setSection] = useState<Section>("home");
   const nearby = data.recommendations.filter((r: any) => r.scope === "nearby");
   const city = data.recommendations.filter((r: any) => r.scope === "city");
   const monogram = (p.name as string)?.trim()?.[0]?.toUpperCase() ?? "S";
+
 
   const galleryRaw: string[] = Array.isArray(p.gallery_images) ? p.gallery_images : [];
   const photos: string[] = (galleryRaw.length ? galleryRaw : p.hero_image_url ? [p.hero_image_url] : []).slice(0, 4);
