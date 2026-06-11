@@ -144,13 +144,28 @@ function Guide({ data }: { data: GuideOk }) {
           <TabsContent value="checkin" className="mt-6 space-y-4">
             <SectionTitle eyebrow="Chegada" title="Sua entrada" intro="Tudo o que você precisa para chegar e se acomodar." />
             {p.address && (
-              <InfoRow icon={<MapPin className="size-[18px]" strokeWidth={1.75} />} label="Endereço" value={p.address}
-                action={p.maps_url ? (
-                  <a href={p.maps_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 rounded-full bg-accent text-accent-foreground px-3.5 py-1.5 text-[11px] uppercase tracking-[0.16em] font-semibold">
-                    Abrir mapa <ExternalLink className="size-3" />
+              <div className="bg-card border border-border rounded-2xl p-5 relative overflow-hidden">
+                <div className="absolute left-0 top-5 bottom-5 w-[3px] rounded-r-full bg-accent/70" />
+                <div className="flex items-start gap-4">
+                  <div className="size-11 rounded-xl bg-accent/10 text-accent grid place-items-center shrink-0">
+                    <MapPin className="size-[18px]" strokeWidth={1.75} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground font-semibold">Endereço</p>
+                    <p className="text-[15px] mt-1 leading-snug">{p.address}</p>
+                  </div>
+                </div>
+                {p.maps_url && (
+                  <a
+                    href={p.maps_url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="mt-4 flex items-center justify-center gap-2 w-full rounded-xl bg-foreground text-background h-11 text-[12px] uppercase tracking-[0.18em] font-semibold active:scale-[0.98] transition-transform"
+                  >
+                    <MapPin className="size-4" strokeWidth={2} /> Abrir no mapa
                   </a>
-                ) : null}
-              />
+                )}
+              </div>
             )}
             {p.address_note && (
               <div className="border-l-2 border-accent/60 pl-4 py-1 mx-1">
