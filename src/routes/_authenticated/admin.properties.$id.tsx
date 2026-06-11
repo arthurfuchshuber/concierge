@@ -12,7 +12,7 @@ import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Loader2, Sparkles, Plus, Trash2, MapPin, ArrowLeft } from "lucide-react";
+import { Loader2, Sparkles, Plus, Trash2, MapPin, ArrowLeft, FileText, KeyRound, Home, Compass, LifeBuoy, Check } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/admin/properties/$id")({
   component: PropertyEditor,
@@ -98,6 +98,7 @@ function PropertyEditor() {
   const enrich = useServerFn(enrichFromMapsLink);
 
   const [form, setForm] = useState<FormState>(() => emptyForm());
+  const [step, setStep] = useState<string>("basics");
   const [enriching, setEnriching] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -289,14 +290,19 @@ function PropertyEditor() {
         </div>
       </div>
 
-      <Tabs defaultValue="basics">
-        <TabsList className="grid grid-cols-5 w-full">
-          <TabsTrigger value="basics">Básico</TabsTrigger>
-          <TabsTrigger value="access">Acesso</TabsTrigger>
-          <TabsTrigger value="house">A casa</TabsTrigger>
-          <TabsTrigger value="recs">Recomendações</TabsTrigger>
-          <TabsTrigger value="extras">Extras</TabsTrigger>
-        </TabsList>
+      <Tabs value={step} onValueChange={setStep}>
+        <Stepper
+          current={step}
+          onChange={setStep}
+          steps={[
+            { value: "basics", label: "Básico", icon: FileText },
+            { value: "access", label: "Acesso", icon: KeyRound },
+            { value: "house", label: "A casa", icon: Home },
+            { value: "recs", label: "Recomendações", icon: Compass },
+            { value: "extras", label: "Extras", icon: LifeBuoy },
+          ]}
+        />
+
 
         <TabsContent value="basics" className="space-y-5 mt-6">
           <Section title="Identificação">
@@ -478,11 +484,34 @@ function PropertyEditor() {
 
       <div className="fixed bottom-0 left-0 right-0 border-t border-border bg-background/90 backdrop-blur p-4 z-50">
         <div className="max-w-4xl mx-auto flex items-center justify-between gap-3">
-          <p className="text-xs text-muted-foreground hidden sm:block">
-            {form.property.slug && <>Pré-visualizar: <a href={`/g/${form.property.slug}`} target="_blank" rel="noreferrer" className="underline">/g/{form.property.slug}</a></>}
-          </p>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                const order = ["basics", "access", "house", "recs", "extras"];
+                const i = order.indexOf(step);
+                if (i > 0) setStep(order[i - 1]);
+              }}
+              disabled={step === "basics"}
+            >
+              <ArrowLeft className="size-3.5 mr-1" /> Anterior
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                const order = ["basics", "access", "house", "recs", "extras"];
+                const i = order.indexOf(step);
+                if (i < order.length - 1) setStep(order[i + 1]);
+              }}
+              disabled={step === "extras"}
+            >
+              Próximo <ArrowLeft className="size-3.5 ml-1 rotate-180" />
+            </Button>
+          </div>
           <div className="flex items-center gap-2 ml-auto">
-            <Button variant="outline" onClick={() => navigate({ to: "/admin" })}>Cancelar</Button>
+            <Button variant="ghost" onClick={() => navigate({ to: "/admin" })}>Cancelar</Button>
             <Button onClick={handleSave} disabled={saving || !form.property.name}>
               {saving ? <Loader2 className="size-4 animate-spin mr-1.5" /> : null}
               Salvar guia
@@ -490,6 +519,7 @@ function PropertyEditor() {
           </div>
         </div>
       </div>
+
     </div>
   );
 }
@@ -577,5 +607,75 @@ function RecGroup({ title, desc, items, onChange, scope }: { title: string; desc
         </ItemCard>
       ))}
     </Section>
+  );
+}
+
+function Stepper({
+  steps,
+  current,
+  onChange,
+}: {
+  steps: { value: string; label: string; icon: React.ComponentType<{ className?: string; strokeWidth?: number }> }[];
+  current: string;
+  onChange: (v: string) => void;
+}) {
+  const currentIdx = steps.findIndex((s) => s.value === current);
+  return (
+    <div className="mb-6">
+      <div className="overflow-x-auto no-scrollbar -mx-2 px-2">
+        <div className="flex items-center gap-2 min-w-max">
+          {steps.map((s, i) => {
+            const done = i < currentIdx;
+            const active = i === currentIdx;
+            const Icon = s.icon;
+            return (
+              <div key={s.value} className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => onChange(s.value)}
+                  className={[
+                    "group inline-flex items-center gap-2 rounded-full px-3.5 py-2 text-xs font-medium whitespace-nowrap transition-all border",
+                    active
+                      ? "bg-primary text-primary-foreground border-primary shadow-soft"
+                      : done
+                      ? "bg-accent/10 text-foreground border-accent/30 hover:bg-accent/15"
+                      : "bg-background text-muted-foreground border-border hover:text-foreground hover:border-foreground/30",
+                  ].join(" ")}
+                >
+                  <span
+                    className={[
+                      "grid place-items-center size-5 rounded-full shrink-0",
+                      active
+                        ? "bg-primary-foreground/15"
+                        : done
+                        ? "bg-accent text-accent-foreground"
+                        : "bg-secondary",
+                    ].join(" ")}
+                  >
+                    {done ? (
+                      <Check className="size-3" strokeWidth={2.5} />
+                    ) : (
+                      <Icon className="size-3" strokeWidth={2} />
+                    )}
+                  </span>
+                  {s.label}
+                </button>
+                {i < steps.length - 1 && (
+                  <span
+                    className={[
+                      "h-px w-6 sm:w-10 shrink-0 transition-colors",
+                      i < currentIdx ? "bg-accent/40" : "bg-border",
+                    ].join(" ")}
+                  />
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+      <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground/70 font-semibold mt-3">
+        Passo {currentIdx + 1} de {steps.length}
+      </p>
+    </div>
   );
 }
