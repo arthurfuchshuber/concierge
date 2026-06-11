@@ -548,16 +548,17 @@ function HeroGallery({
           </div>
         )}
 
-        {/* Bottom content */}
-        <div className="absolute bottom-0 left-0 right-0 p-7 text-white z-10">
-          <p className="text-[10px] uppercase tracking-[0.32em] text-white/65 font-semibold mb-3">Bem-vindo</p>
-          <h1 className="font-serif text-[2.5rem] leading-[1.02] text-balance font-medium drop-shadow-[0_2px_12px_rgba(0,0,0,0.5)]">{name}</h1>
-          {tagline && <p className="text-[13px] text-white/80 mt-3 leading-relaxed max-w-[28ch]">{tagline}</p>}
-          <div className="mt-5 inline-flex items-center gap-2 text-[10px] uppercase tracking-[0.22em] text-white/60">
-            <span className="h-px w-6 bg-white/50" />
+        {/* Bottom content — light tokens when no photo, white when over image */}
+        <div className={`absolute bottom-0 left-0 right-0 p-7 z-10 ${hasPhotos ? "text-white" : "text-foreground"}`}>
+          <p className={`text-[10px] uppercase tracking-[0.32em] font-semibold mb-3 ${hasPhotos ? "text-white/70" : "text-accent"}`}>Bem-vindo</p>
+          <h1 className={`font-serif text-[2.5rem] leading-[1.02] text-balance font-medium ${hasPhotos ? "drop-shadow-[0_2px_12px_rgba(0,0,0,0.5)]" : ""}`}>{name}</h1>
+          {tagline && <p className={`text-[13px] mt-3 leading-relaxed max-w-[28ch] ${hasPhotos ? "text-white/85" : "text-muted-foreground"}`}>{tagline}</p>}
+          <div className={`mt-5 inline-flex items-center gap-2 text-[10px] uppercase tracking-[0.22em] ${hasPhotos ? "text-white/65" : "text-muted-foreground"}`}>
+            <span className={`h-px w-6 ${hasPhotos ? "bg-white/55" : "bg-accent/60"}`} />
             Seu guia digital
           </div>
         </div>
+
       </div>
     </section>
   );
