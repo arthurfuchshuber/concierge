@@ -29,6 +29,8 @@ type EnrichResult = {
   lng: number;
   city: string;
   country: string;
+  tagline: string;
+  hero_image_url: string | null;
   recommendations: PlaceItem[];
 };
 
@@ -128,11 +130,12 @@ async function placesNearby(lat: number, lng: number, includedTypes: string[]) {
     headers: {
       "Content-Type": "application/json",
       "X-Goog-FieldMask":
-        "places.id,places.displayName,places.location,places.rating,places.googleMapsUri,places.photos",
+        "places.id,places.displayName,places.location,places.rating,places.userRatingCount,places.googleMapsUri,places.photos,places.primaryType",
     },
     body: JSON.stringify({
       includedTypes,
-      maxResultCount: 8,
+      maxResultCount: 15,
+      rankPreference: "POPULARITY",
       locationRestriction: { circle: { center: { latitude: lat, longitude: lng }, radius: 1500 } },
     }),
   });
@@ -147,12 +150,12 @@ async function placesText(query: string, lat: number, lng: number, includedType:
     headers: {
       "Content-Type": "application/json",
       "X-Goog-FieldMask":
-        "places.id,places.displayName,places.location,places.rating,places.googleMapsUri,places.photos",
+        "places.id,places.displayName,places.location,places.rating,places.userRatingCount,places.googleMapsUri,places.photos,places.primaryType",
     },
     body: JSON.stringify({
       textQuery: query,
       includedType,
-      maxResultCount: 8,
+      maxResultCount: 15,
       locationBias: { circle: { center: { latitude: lat, longitude: lng }, radius: 15000 } },
     }),
   });
@@ -161,13 +164,44 @@ async function placesText(query: string, lat: number, lng: number, includedType:
   return j.places ?? [];
 }
 
+async function findPropertyPlace(lat: number, lng: number, hint: string) {
+  const res = await gatewayFetch(`/places/v1/places:searchText`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-Goog-FieldMask":
+        "places.id,places.displayName,places.formattedAddress,places.editorialSummary,places.generativeSummary,places.photos,places.location",
+    },
+    body: JSON.stringify({
+      textQuery: hint,
+      maxResultCount: 1,
+      locationBias: { circle: { center: { latitude: lat, longitude: lng }, radius: 200 } },
+    }),
+  });
+  if (!res.ok) return null;
+  const j = (await res.json()) as {
+    places?: Array<{
+      id: string;
+      displayName?: { text?: string };
+      formattedAddress?: string;
+      editorialSummary?: { text?: string };
+      generativeSummary?: { overview?: { text?: string } };
+      photos?: Array<{ name: string }>;
+      location?: { latitude: number; longitude: number };
+    }>;
+  };
+  return j.places?.[0] ?? null;
+}
+
 type PlaceRaw = {
   id: string;
   displayName?: { text?: string };
   location?: { latitude: number; longitude: number };
   rating?: number;
+  userRatingCount?: number;
   googleMapsUri?: string;
   photos?: Array<{ name: string }>;
+  primaryType?: string;
 };
 
 function buildPhotoUrl(photoName: string | undefined): string | null {
