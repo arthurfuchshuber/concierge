@@ -492,17 +492,38 @@ function WifiStripe({ ssid, password }: { ssid: string; password: string }) {
 }
 
 
-function QuadrantTrigger({ value, icon, label }: { value: string; icon: React.ReactNode; label: string }) {
+function QuadrantCard({
+  onClick,
+  icon,
+  eyebrow,
+  title,
+  desc,
+}: {
+  onClick: () => void;
+  icon: React.ReactNode;
+  eyebrow: string;
+  title: string;
+  desc: string;
+}) {
   return (
-    <TabsTrigger
-      value={value}
-      className="flex flex-col items-center justify-center gap-1 h-auto py-2.5 rounded-[16px] text-foreground/55 data-[state=active]:bg-foreground data-[state=active]:text-background data-[state=active]:shadow-[0_4px_14px_-4px_rgba(0,0,0,0.45)] transition-all duration-300"
+    <button
+      onClick={onClick}
+      className="group relative text-left bg-card border border-border rounded-2xl p-4 hover:border-accent/40 hover:shadow-soft active:scale-[0.98] transition-all overflow-hidden"
     >
-      {icon}
-      <span className="text-[9px] uppercase tracking-[0.14em] font-semibold">{label}</span>
-    </TabsTrigger>
+      <div className="absolute -top-6 -right-6 size-24 rounded-full bg-accent/5 group-hover:bg-accent/10 transition-colors" />
+      <div className="relative">
+        <div className="size-10 rounded-xl bg-accent/10 text-accent grid place-items-center mb-4">
+          {icon}
+        </div>
+        <p className="text-[9px] uppercase tracking-[0.24em] text-accent font-semibold">{eyebrow}</p>
+        <p className="font-serif text-[1.05rem] leading-tight mt-1.5">{title}</p>
+        <p className="text-[11px] text-muted-foreground mt-1.5 leading-snug">{desc}</p>
+        <ChevronRight className="size-3.5 text-muted-foreground/50 group-hover:text-accent absolute right-0 top-0 transition-colors" />
+      </div>
+    </button>
   );
 }
+
 
 function HeroGallery({
   photos,
