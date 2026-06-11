@@ -465,48 +465,43 @@ function WifiStripe({ ssid, password }: { ssid: string; password: string }) {
 }
 
 
-function QuadrantCard({
-  onClick,
-  icon,
+function ChapterRow({
+  num,
   eyebrow,
   title,
   desc,
+  icon,
+  onClick,
 }: {
-  onClick: () => void;
-  icon: React.ReactNode;
+  num: string;
   eyebrow: string;
   title: string;
   desc: string;
+  icon: React.ReactNode;
+  onClick: () => void;
 }) {
   return (
-    <button
-      onClick={onClick}
-      className="group relative text-left bg-card border border-border rounded-3xl p-5 hover:border-accent/30 hover:-translate-y-0.5 active:scale-[0.98] transition-all overflow-hidden"
-      style={{ boxShadow: "var(--shadow-soft)" }}
-    >
-      {/* Soft warm wash inside the card */}
-      <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-transparent via-transparent to-[oklch(from_var(--accent)_l_c_h/0.05)]" />
-      <div className="pointer-events-none absolute -top-10 -right-10 size-28 rounded-full bg-[radial-gradient(circle,oklch(from_var(--accent)_l_c_h/0.10),transparent_70%)]" />
-
-      <div className="relative">
-        <div className="size-12 rounded-2xl bg-gradient-to-br from-accent to-[oklch(from_var(--accent)_calc(l-0.06)_c_h)] text-accent-foreground grid place-items-center mb-5 shadow-[0_8px_20px_-8px_oklch(from_var(--accent)_l_c_h/0.6)]">
+    <li>
+      <button
+        onClick={onClick}
+        className="group w-full text-left flex items-center gap-5 py-5 active:opacity-70 transition-opacity"
+      >
+        <span className="font-serif text-[1.4rem] text-muted-foreground/60 w-8 shrink-0 tabular-nums tracking-tight">{num}</span>
+        <span className="size-9 rounded-full border border-border grid place-items-center text-muted-foreground shrink-0 group-hover:border-accent/40 group-hover:text-accent transition-colors">
           {icon}
-        </div>
-        <p className="text-[9px] uppercase tracking-[0.26em] text-accent font-semibold">{eyebrow}</p>
-        <p className="font-serif text-[1.15rem] leading-[1.15] mt-1.5 text-foreground">{title}</p>
-        <p className="text-[11.5px] text-muted-foreground mt-1.5 leading-snug">{desc}</p>
-
-        <span className="absolute right-0 top-0 size-7 rounded-full grid place-items-center bg-secondary text-muted-foreground group-hover:bg-accent group-hover:text-accent-foreground transition-colors">
-          <ChevronRight className="size-3.5" />
         </span>
-      </div>
-    </button>
+        <span className="flex-1 min-w-0">
+          <span className="block text-[9.5px] uppercase tracking-[0.26em] text-accent font-semibold mb-0.5">{eyebrow}</span>
+          <span className="block font-serif text-[1.35rem] leading-[1.1] text-foreground">{title}</span>
+          <span className="block text-[11.5px] text-muted-foreground mt-1 leading-snug">{desc}</span>
+        </span>
+        <ChevronRight className="size-4 text-muted-foreground/50 shrink-0 group-hover:text-accent group-hover:translate-x-0.5 transition-all" strokeWidth={1.5} />
+      </button>
+    </li>
   );
 }
 
-
-
-function HeroGallery({
+function HeroEditorial({
   photos,
   name,
   tagline,
@@ -537,72 +532,72 @@ function HeroGallery({
   const hasPhotos = photos.length > 0;
 
   return (
-    <section className="px-4 pt-4">
-      <div className="relative overflow-hidden rounded-[28px] border border-white/5 shadow-elevated">
+    <section className="px-5 pt-5">
+      {/* Top chrome — outside the image */}
+      <div className="flex items-center justify-between mb-5">
+        <span className="text-[9.5px] uppercase tracking-[0.32em] font-semibold text-muted-foreground">SigmaGuide</span>
+        <button
+          onClick={onToggleLang}
+          className="rounded-full border border-border px-3 py-1 text-[10px] uppercase tracking-[0.22em] font-medium text-muted-foreground hover:text-foreground hover:border-accent/40 transition-colors"
+        >
+          {lang === "pt" ? "EN" : "PT"}
+        </button>
+      </div>
+
+      {/* Photo plate */}
+      <div className="relative overflow-hidden rounded-2xl border border-border" style={{ boxShadow: "var(--shadow-soft)" }}>
         {hasPhotos ? (
           <div ref={emblaRef} className="overflow-hidden">
             <div className="flex">
               {photos.map((src, i) => (
                 <div key={i} className="relative shrink-0 grow-0 basis-full">
-                  <img src={src} alt={`${name} — foto ${i + 1}`} className="w-full aspect-[16/10] object-cover" />
+                  <img src={src} alt={`${name} — foto ${i + 1}`} className="w-full aspect-[4/5] object-cover" />
                 </div>
               ))}
             </div>
           </div>
         ) : (
-          <div className="relative w-full aspect-[16/10] overflow-hidden bg-card">
-            <div className="absolute inset-0 bg-[radial-gradient(120%_80%_at_20%_15%,oklch(from_var(--accent)_l_c_h/0.35),transparent_60%),radial-gradient(120%_80%_at_85%_85%,oklch(from_var(--accent)_l_c_h/0.18),transparent_65%)]" />
-            <div className="absolute inset-0 bg-gradient-to-br from-[oklch(from_var(--accent)_0.92_0.04_h)] via-card to-[oklch(from_var(--accent)_0.96_0.02_h)]" />
-            <div className="absolute inset-0 opacity-[0.05] mix-blend-multiply" style={{ backgroundImage: "radial-gradient(circle at 1px 1px, oklch(from var(--foreground) l c h) 1px, transparent 0)", backgroundSize: "4px 4px" }} />
-            <span className="absolute right-4 top-1/2 -translate-y-1/2 font-serif text-[20rem] leading-none text-accent/[0.10] select-none">{monogram}</span>
+          <div className="relative w-full aspect-[4/5] overflow-hidden bg-secondary">
+            <div className="absolute inset-0 bg-[radial-gradient(120%_80%_at_20%_15%,oklch(from_var(--accent)_l_c_h/0.25),transparent_60%)]" />
+            <span className="absolute inset-0 grid place-items-center font-serif text-[14rem] leading-none text-accent/15 select-none">{monogram}</span>
           </div>
         )}
 
-        {/* Soft warm gradient fade for legibility — fades into page background */}
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-background via-background/70 to-transparent" />
-        {photos.length > 0 && (
-          <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/55 via-black/10 to-transparent" />
-        )}
-
-
-        {/* Top chrome */}
-        <div className="absolute top-5 left-5 right-5 flex items-center justify-between z-10">
-          <span className={`rounded-full backdrop-blur-md px-3 py-1.5 text-[9px] uppercase tracking-[0.24em] font-semibold border ${hasPhotos ? "bg-black/45 text-white/95 border-white/10" : "bg-card/80 text-accent border-accent/20"}`}>SigmaGuide</span>
-          <button
-            onClick={onToggleLang}
-            className={`rounded-full backdrop-blur-md px-3 py-1.5 text-[10px] uppercase tracking-[0.2em] font-medium border ${hasPhotos ? "bg-white/15 text-white border-white/20" : "bg-card/80 text-foreground border-border"}`}
-          >
-            {lang === "pt" ? "EN" : "PT"}
-          </button>
-        </div>
-
-
-        {/* Dots */}
+        {/* Subtle bottom scrim for dots */}
         {photos.length > 1 && (
-          <div className="absolute top-5 left-1/2 -translate-x-1/2 z-10 flex items-center gap-1.5">
-            {photos.map((_, i) => (
-              <button
-                key={i}
-                aria-label={`Foto ${i + 1}`}
-                onClick={() => emblaApi?.scrollTo(i)}
-                className={`h-1 rounded-full transition-all ${i === selected ? "w-6 bg-white" : "w-3 bg-white/40"}`}
-              />
-            ))}
-          </div>
+          <>
+            <div className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black/40 to-transparent" />
+            <div className="absolute bottom-3 left-0 right-0 z-10 flex items-center justify-center gap-1.5">
+              {photos.map((_, i) => (
+                <button
+                  key={i}
+                  aria-label={`Foto ${i + 1}`}
+                  onClick={() => emblaApi?.scrollTo(i)}
+                  className={`h-1 rounded-full transition-all ${i === selected ? "w-5 bg-white" : "w-1 bg-white/50"}`}
+                />
+              ))}
+            </div>
+          </>
         )}
+      </div>
 
-        {/* Bottom content — light tokens when no photo, white when over image */}
-        <div className={`absolute bottom-0 left-0 right-0 p-7 z-10 ${hasPhotos ? "text-white" : "text-foreground"}`}>
-          <p className={`text-[10px] uppercase tracking-[0.32em] font-semibold mb-3 ${hasPhotos ? "text-white/70" : "text-accent"}`}>Bem-vindo</p>
-          <h1 className={`font-serif text-[2.5rem] leading-[1.02] text-balance font-medium ${hasPhotos ? "drop-shadow-[0_2px_12px_rgba(0,0,0,0.5)]" : ""}`}>{name}</h1>
-          {tagline && <p className={`text-[13px] mt-3 leading-relaxed max-w-[28ch] ${hasPhotos ? "text-white/85" : "text-muted-foreground"}`}>{tagline}</p>}
-          <div className={`mt-5 inline-flex items-center gap-2 text-[10px] uppercase tracking-[0.22em] ${hasPhotos ? "text-white/65" : "text-muted-foreground"}`}>
-            <span className={`h-px w-6 ${hasPhotos ? "bg-white/55" : "bg-accent/60"}`} />
-            Seu guia digital
-          </div>
+      {/* Title block — BELOW photo, editorial */}
+      <div className="mt-7 px-1">
+        <div className="flex items-center gap-2 mb-3">
+          <span className="h-px w-6 bg-accent/70" />
+          <p className="text-[9.5px] uppercase tracking-[0.32em] text-accent font-semibold">Bem-vindo</p>
         </div>
-
+        <h1 className="font-serif text-[2rem] leading-[1.05] text-balance tracking-tight text-foreground">
+          {name}
+        </h1>
+        {tagline && (
+          <p className="text-[13px] mt-3 leading-relaxed text-muted-foreground max-w-[32ch]">{tagline}</p>
+        )}
+        <p className="mt-4 text-[10px] uppercase tracking-[0.28em] text-muted-foreground/70 font-medium">
+          Seu guia digital
+        </p>
       </div>
     </section>
   );
 }
+
