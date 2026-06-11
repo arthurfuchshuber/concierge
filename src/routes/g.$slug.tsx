@@ -6,9 +6,9 @@ import { getPublicGuide, submitPin } from "@/lib/guide.functions";
 import { useI18n } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
-import { Lock, MapPin, Wifi, Phone, KeyRound, BookOpen, Compass, ListChecks, LifeBuoy, HelpCircle, ExternalLink, Copy, Check } from "lucide-react";
+import { Lock, MapPin, Wifi, Phone, KeyRound, BookOpen, Compass, ListChecks, LifeBuoy, HelpCircle, ExternalLink, Copy, Check, ArrowLeft, ChevronRight } from "lucide-react";
 import useEmblaCarousel from "embla-carousel-react";
 import { useEffect } from "react";
 import { toast } from "sonner";
@@ -104,12 +104,16 @@ function PinGate({ slug, status, name }: { slug: string; status: "locked" | "exp
 
 type GuideOk = Extract<Awaited<ReturnType<typeof getPublicGuide>>, { status: "ok" }>;
 
+type Section = "home" | "checkin" | "house" | "explore" | "info";
+
 function Guide({ data }: { data: GuideOk }) {
   const p = data.property as Record<string, any>;
   const { lang, setLang } = useI18n();
+  const [section, setSection] = useState<Section>("home");
   const nearby = data.recommendations.filter((r: any) => r.scope === "nearby");
   const city = data.recommendations.filter((r: any) => r.scope === "city");
   const monogram = (p.name as string)?.trim()?.[0]?.toUpperCase() ?? "S";
+
 
   const galleryRaw: string[] = Array.isArray(p.gallery_images) ? p.gallery_images : [];
   const photos: string[] = (galleryRaw.length ? galleryRaw : p.hero_image_url ? [p.hero_image_url] : []).slice(0, 4);
@@ -125,10 +129,10 @@ function Guide({ data }: { data: GuideOk }) {
   }, []);
 
   return (
-    <div className="min-h-screen bg-background text-foreground pb-32">
+    <div className="min-h-screen bg-background text-foreground pb-16">
 
       <div className="mx-auto w-full max-w-md">
-        {/* Hero — photo gallery with gradient fade */}
+        {/* Hero — shorter, photo gallery */}
         <HeroGallery
           photos={photos}
           name={p.name}
@@ -138,22 +142,58 @@ function Guide({ data }: { data: GuideOk }) {
           onToggleLang={() => setLang(lang === "pt" ? "en" : "pt")}
         />
 
-        {/* Wi-Fi stripe */}
+        {/* Wi-Fi faixa elegante */}
         {p.wifi_ssid && <WifiStripe ssid={p.wifi_ssid} password={p.wifi_password ?? ""} />}
 
-        {/* Tabs */}
-        <Tabs defaultValue="checkin" className="px-4 mt-6">
-          {/* Quadrants — frosted ice glass nav */}
-          <TabsList className="fixed bottom-5 left-1/2 -translate-x-1/2 z-40 grid grid-cols-4 gap-1 p-1.5 rounded-[22px] bg-white/75 backdrop-blur-2xl backdrop-saturate-150 border border-white/60 shadow-[0_8px_32px_-4px_rgba(0,0,0,0.25),0_2px_8px_-2px_rgba(0,0,0,0.15)] h-auto w-[min(92vw,360px)] ring-1 ring-black/[0.04]">
-            <QuadrantTrigger value="checkin" icon={<KeyRound className="size-[18px]" strokeWidth={1.6} />} label="Chegada" />
-            <QuadrantTrigger value="house" icon={<BookOpen className="size-[18px]" strokeWidth={1.6} />} label="A casa" />
-            <QuadrantTrigger value="explore" icon={<Compass className="size-[18px]" strokeWidth={1.6} />} label="Explorar" />
-            <QuadrantTrigger value="info" icon={<HelpCircle className="size-[18px]" strokeWidth={1.6} />} label="Info" />
-          </TabsList>
+        {/* Home: quadrantes; ou seção aberta */}
+        <Tabs value={section} onValueChange={(v) => setSection(v as Section)} className="px-4 mt-6">
+          {section !== "home" && (
+            <button
+              onClick={() => setSection("home")}
+              className="inline-flex items-center gap-1.5 text-[11px] uppercase tracking-[0.18em] font-semibold text-muted-foreground hover:text-foreground transition-colors mb-4"
+            >
+              <ArrowLeft className="size-3.5" /> Início
+            </button>
+          )}
+
+          {section === "home" && (
+            <div className="grid grid-cols-2 gap-3">
+              <QuadrantCard
+                onClick={() => setSection("checkin")}
+                icon={<KeyRound className="size-5" strokeWidth={1.7} />}
+                eyebrow="Estadia"
+                title="Chegada & Saída"
+                desc="Endereço, códigos, horários"
+              />
+              <QuadrantCard
+                onClick={() => setSection("house")}
+                icon={<BookOpen className="size-5" strokeWidth={1.7} />}
+                eyebrow="A casa"
+                title="Manual & Regras"
+                desc="Como funciona cada detalhe"
+              />
+              <QuadrantCard
+                onClick={() => setSection("explore")}
+                icon={<Compass className="size-5" strokeWidth={1.7} />}
+                eyebrow="Concierge"
+                title="Explorar a Região"
+                desc="Onde comer, o que visitar"
+              />
+              <QuadrantCard
+                onClick={() => setSection("info")}
+                icon={<HelpCircle className="size-5" strokeWidth={1.7} />}
+                eyebrow="Suporte"
+                title="Informações & FAQ"
+                desc="Anfitrião, emergências, dúvidas"
+              />
+            </div>
+          )}
 
 
-          <TabsContent value="checkin" className="mt-6 space-y-4">
+
+          <TabsContent value="checkin" className="mt-2 space-y-4">
             <SectionTitle eyebrow="Chegada" title="Sua entrada" intro="Tudo o que você precisa para chegar e se acomodar." />
+
             {p.address && (
               <div className="bg-card border border-border rounded-2xl p-5 relative overflow-hidden">
                 <div className="absolute left-0 top-5 bottom-5 w-[3px] rounded-r-full bg-accent/70" />
@@ -452,17 +492,38 @@ function WifiStripe({ ssid, password }: { ssid: string; password: string }) {
 }
 
 
-function QuadrantTrigger({ value, icon, label }: { value: string; icon: React.ReactNode; label: string }) {
+function QuadrantCard({
+  onClick,
+  icon,
+  eyebrow,
+  title,
+  desc,
+}: {
+  onClick: () => void;
+  icon: React.ReactNode;
+  eyebrow: string;
+  title: string;
+  desc: string;
+}) {
   return (
-    <TabsTrigger
-      value={value}
-      className="flex flex-col items-center justify-center gap-1 h-auto py-2.5 rounded-[16px] text-foreground/55 data-[state=active]:bg-foreground data-[state=active]:text-background data-[state=active]:shadow-[0_4px_14px_-4px_rgba(0,0,0,0.45)] transition-all duration-300"
+    <button
+      onClick={onClick}
+      className="group relative text-left bg-card border border-border rounded-2xl p-4 hover:border-accent/40 hover:shadow-soft active:scale-[0.98] transition-all overflow-hidden"
     >
-      {icon}
-      <span className="text-[9px] uppercase tracking-[0.14em] font-semibold">{label}</span>
-    </TabsTrigger>
+      <div className="absolute -top-6 -right-6 size-24 rounded-full bg-accent/5 group-hover:bg-accent/10 transition-colors" />
+      <div className="relative">
+        <div className="size-10 rounded-xl bg-accent/10 text-accent grid place-items-center mb-4">
+          {icon}
+        </div>
+        <p className="text-[9px] uppercase tracking-[0.24em] text-accent font-semibold">{eyebrow}</p>
+        <p className="font-serif text-[1.05rem] leading-tight mt-1.5">{title}</p>
+        <p className="text-[11px] text-muted-foreground mt-1.5 leading-snug">{desc}</p>
+        <ChevronRight className="size-3.5 text-muted-foreground/50 group-hover:text-accent absolute right-0 top-0 transition-colors" />
+      </div>
+    </button>
   );
 }
+
 
 function HeroGallery({
   photos,
@@ -502,13 +563,13 @@ function HeroGallery({
             <div className="flex">
               {photos.map((src, i) => (
                 <div key={i} className="relative shrink-0 grow-0 basis-full">
-                  <img src={src} alt={`${name} — foto ${i + 1}`} className="w-full aspect-[3/4] object-cover" />
+                  <img src={src} alt={`${name} — foto ${i + 1}`} className="w-full aspect-[16/10] object-cover" />
                 </div>
               ))}
             </div>
           </div>
         ) : (
-          <div className="relative w-full aspect-[3/4] overflow-hidden bg-card">
+          <div className="relative w-full aspect-[16/10] overflow-hidden bg-card">
             <div className="absolute inset-0 bg-[radial-gradient(120%_80%_at_20%_15%,oklch(from_var(--accent)_l_c_h/0.35),transparent_60%),radial-gradient(120%_80%_at_85%_85%,oklch(from_var(--accent)_l_c_h/0.18),transparent_65%)]" />
             <div className="absolute inset-0 bg-gradient-to-br from-[oklch(from_var(--accent)_0.92_0.04_h)] via-card to-[oklch(from_var(--accent)_0.96_0.02_h)]" />
             <div className="absolute inset-0 opacity-[0.05] mix-blend-multiply" style={{ backgroundImage: "radial-gradient(circle at 1px 1px, oklch(from var(--foreground) l c h) 1px, transparent 0)", backgroundSize: "4px 4px" }} />
