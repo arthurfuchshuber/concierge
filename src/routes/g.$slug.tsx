@@ -525,14 +525,15 @@ function HeroGallery({
 
         {/* Top chrome */}
         <div className="absolute top-5 left-5 right-5 flex items-center justify-between z-10">
-          <span className="rounded-full bg-black/45 backdrop-blur-md px-3 py-1.5 text-[9px] uppercase tracking-[0.24em] font-semibold text-white/95 border border-white/10">SigmaGuide</span>
+          <span className={`rounded-full backdrop-blur-md px-3 py-1.5 text-[9px] uppercase tracking-[0.24em] font-semibold border ${hasPhotos ? "bg-black/45 text-white/95 border-white/10" : "bg-card/80 text-accent border-accent/20"}`}>SigmaGuide</span>
           <button
             onClick={onToggleLang}
-            className="rounded-full bg-white/15 backdrop-blur-md px-3 py-1.5 text-[10px] uppercase tracking-[0.2em] font-medium text-white border border-white/20"
+            className={`rounded-full backdrop-blur-md px-3 py-1.5 text-[10px] uppercase tracking-[0.2em] font-medium border ${hasPhotos ? "bg-white/15 text-white border-white/20" : "bg-card/80 text-foreground border-border"}`}
           >
             {lang === "pt" ? "EN" : "PT"}
           </button>
         </div>
+
 
         {/* Dots */}
         {photos.length > 1 && (
