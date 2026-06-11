@@ -10,7 +10,9 @@ import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
-import { AppShell } from "../components/AppShell";
+import { I18nProvider } from "../lib/i18n";
+import { Toaster } from "../components/ui/sonner";
+import { supabase } from "../integrations/supabase/client";
 
 function NotFoundComponent() {
   return (
@@ -19,7 +21,7 @@ function NotFoundComponent() {
         <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground font-semibold mb-2">404</p>
         <h1 className="font-serif text-4xl">Página não encontrada</h1>
         <p className="mt-3 text-sm text-muted-foreground">
-          O caminho que você procura não existe neste guia.
+          O caminho que você procura não existe.
         </p>
         <a
           href="/"
@@ -62,10 +64,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1, viewport-fit=cover" },
       { name: "theme-color", content: "#1c1c1c" },
-      { title: "SigmaGuide — Seu guia de hospedagem" },
-      { name: "description", content: "Concierge digital para hóspedes — check-in, Wi-Fi, manual da casa e recomendações locais." },
+      { title: "SigmaGuide — Guia digital para hospedagem" },
+      { name: "description", content: "Crie guias digitais elegantes para seus hóspedes em minutos. Auto-preenchimento com Google Maps." },
       { property: "og:title", content: "SigmaGuide" },
-      { property: "og:description", content: "Concierge digital premium para hóspedes de aluguel por temporada." },
+      { property: "og:description", content: "Concierge digital premium para anfitriões de aluguel por temporada." },
       { property: "og:type", content: "website" },
     ],
     links: [
@@ -105,11 +107,23 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  const router = useRouter();
+
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event !== "SIGNED_IN" && event !== "SIGNED_OUT" && event !== "USER_UPDATED") return;
+      router.invalidate();
+      if (event !== "SIGNED_OUT") queryClient.invalidateQueries();
+    });
+    return () => subscription.unsubscribe();
+  }, [router, queryClient]);
+
   return (
     <QueryClientProvider client={queryClient}>
-      <AppShell>
+      <I18nProvider>
         <Outlet />
-      </AppShell>
+        <Toaster position="top-center" />
+      </I18nProvider>
     </QueryClientProvider>
   );
 }
