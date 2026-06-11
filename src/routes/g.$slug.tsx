@@ -563,13 +563,13 @@ function HeroGallery({
             <div className="flex">
               {photos.map((src, i) => (
                 <div key={i} className="relative shrink-0 grow-0 basis-full">
-                  <img src={src} alt={`${name} — foto ${i + 1}`} className="w-full aspect-[3/4] object-cover" />
+                  <img src={src} alt={`${name} — foto ${i + 1}`} className="w-full aspect-[16/10] object-cover" />
                 </div>
               ))}
             </div>
           </div>
         ) : (
-          <div className="relative w-full aspect-[3/4] overflow-hidden bg-card">
+          <div className="relative w-full aspect-[16/10] overflow-hidden bg-card">
             <div className="absolute inset-0 bg-[radial-gradient(120%_80%_at_20%_15%,oklch(from_var(--accent)_l_c_h/0.35),transparent_60%),radial-gradient(120%_80%_at_85%_85%,oklch(from_var(--accent)_l_c_h/0.18),transparent_65%)]" />
             <div className="absolute inset-0 bg-gradient-to-br from-[oklch(from_var(--accent)_0.92_0.04_h)] via-card to-[oklch(from_var(--accent)_0.96_0.02_h)]" />
             <div className="absolute inset-0 opacity-[0.05] mix-blend-multiply" style={{ backgroundImage: "radial-gradient(circle at 1px 1px, oklch(from var(--foreground) l c h) 1px, transparent 0)", backgroundSize: "4px 4px" }} />
