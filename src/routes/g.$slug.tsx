@@ -6,7 +6,7 @@ import { getPublicGuide, submitPin } from "@/lib/guide.functions";
 import { useI18n } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
 import { Lock, MapPin, Wifi, Phone, KeyRound, BookOpen, Compass, ListChecks, LifeBuoy, HelpCircle, ExternalLink, Copy, Check, ArrowLeft, ChevronRight } from "lucide-react";
 import useEmblaCarousel from "embla-carousel-react";
