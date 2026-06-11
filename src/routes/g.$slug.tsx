@@ -372,3 +372,50 @@ function RecBlock({ title, desc, items }: { title: string; desc: string; items: 
     </div>
   );
 }
+
+function WifiStripe({ ssid, password }: { ssid: string; password: string }) {
+  const [copied, setCopied] = useState(false);
+  function copy() {
+    if (!password) return;
+    navigator.clipboard.writeText(password);
+    setCopied(true);
+    toast.success("Senha copiada!");
+    setTimeout(() => setCopied(false), 1800);
+  }
+  return (
+    <section className="px-4 mt-5">
+      <button
+        onClick={copy}
+        className="w-full relative overflow-hidden rounded-2xl border border-border bg-gradient-to-r from-accent/15 via-card to-card p-4 flex items-center gap-4 text-left active:scale-[0.99] transition-transform"
+      >
+        <div className="size-11 rounded-xl bg-foreground text-background grid place-items-center shrink-0">
+          <Wifi className="size-5" strokeWidth={1.75} />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-[10px] uppercase tracking-[0.22em] text-accent font-semibold">Wi-Fi</p>
+          <p className="text-sm font-medium truncate mt-0.5">{ssid}</p>
+          {password && (
+            <p className="text-xs font-mono text-muted-foreground truncate">{password}</p>
+          )}
+        </div>
+        {password && (
+          <div className="shrink-0 text-muted-foreground">
+            {copied ? <Check className="size-4 text-accent" /> : <Copy className="size-4" />}
+          </div>
+        )}
+      </button>
+    </section>
+  );
+}
+
+function QuadrantTrigger({ value, icon, label }: { value: string; icon: React.ReactNode; label: string }) {
+  return (
+    <TabsTrigger
+      value={value}
+      className="flex flex-col items-center justify-center gap-1 h-auto py-2.5 rounded-xl text-white/80 data-[state=active]:bg-white data-[state=active]:text-foreground data-[state=active]:shadow-soft transition-all"
+    >
+      {icon}
+      <span className="text-[9px] uppercase tracking-[0.14em] font-semibold">{label}</span>
+    </TabsTrigger>
+  );
+}
