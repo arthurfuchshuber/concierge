@@ -76,12 +76,13 @@ async function resolveShortUrl(url: string): Promise<string> {
 }
 
 function extractCoords(url: string): { lat: number; lng: number } | null {
-  const at = url.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
-  if (at) return { lat: parseFloat(at[1]), lng: parseFloat(at[2]) };
+  // Prefer !3d!4d (actual place coords) over @ (viewport center, often shifted).
   const bang = url.match(/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/);
   if (bang) return { lat: parseFloat(bang[1]), lng: parseFloat(bang[2]) };
   const q = url.match(/[?&]q=(-?\d+\.\d+)[%2C,](-?\d+\.\d+)/);
   if (q) return { lat: parseFloat(q[1]), lng: parseFloat(q[2]) };
+  const at = url.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
+  if (at) return { lat: parseFloat(at[1]), lng: parseFloat(at[2]) };
   return null;
 }
 
