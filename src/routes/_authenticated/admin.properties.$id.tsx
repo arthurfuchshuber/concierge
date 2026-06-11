@@ -98,6 +98,7 @@ function PropertyEditor() {
   const enrich = useServerFn(enrichFromMapsLink);
 
   const [form, setForm] = useState<FormState>(() => emptyForm());
+  const [step, setStep] = useState<string>("basics");
   const [enriching, setEnriching] = useState(false);
   const [saving, setSaving] = useState(false);
 
