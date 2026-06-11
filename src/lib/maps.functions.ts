@@ -359,6 +359,7 @@ export const enrichFromMapsLink = createServerFn({ method: "POST" })
       country,
       tagline,
       hero_image_url,
+      gallery_images,
       recommendations,
     };
   });
