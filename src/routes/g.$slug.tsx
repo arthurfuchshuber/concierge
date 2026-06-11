@@ -366,29 +366,37 @@ function RecBlock({ title, desc, items }: { title: string; desc: string; items: 
   }, {});
   return (
     <div>
-      <div className="mb-3">
-        <h3 className="font-serif text-2xl">{title}</h3>
-        <p className="text-xs text-muted-foreground mt-0.5">{desc}</p>
+      <div className="mb-4">
+        <h3 className="font-serif text-[1.7rem] leading-tight">{title}</h3>
+        <p className="text-[12px] text-muted-foreground mt-1">{desc}</p>
       </div>
-      <div className="space-y-5">
+      <div className="space-y-6">
         {Object.entries(grouped).map(([cat, list]) => (
           <div key={cat}>
-            <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground font-semibold mb-2">{cat}</p>
-            <div className="space-y-2">
+            <div className="flex items-center gap-2 mb-3">
+              <span className="h-px flex-1 bg-border" />
+              <p className="text-[10px] uppercase tracking-[0.24em] text-muted-foreground font-semibold">{cat}</p>
+              <span className="h-px flex-1 bg-border" />
+            </div>
+            <div className="space-y-3">
               {list.map((r) => (
                 <a key={r.id} href={r.maps_url ?? "#"} target="_blank" rel="noreferrer"
-                  className="flex items-center gap-3 bg-card border border-border rounded-xl p-3 active:scale-[0.99] transition-transform">
-                  {r.image_url && (
-                    <img src={r.image_url} alt={r.name} className="size-14 rounded-lg object-cover shrink-0" />
+                  className="group flex items-stretch gap-3.5 bg-card border border-border rounded-2xl p-3 active:scale-[0.99] transition-all hover:border-accent/40 hover:shadow-soft">
+                  {r.image_url ? (
+                    <img src={r.image_url} alt={r.name} className="size-20 rounded-xl object-cover shrink-0" />
+                  ) : (
+                    <div className="size-20 rounded-xl bg-gradient-to-br from-accent/20 to-accent/5 grid place-items-center shrink-0">
+                      <Compass className="size-6 text-accent/70" strokeWidth={1.5} />
+                    </div>
                   )}
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">{r.name}</p>
-                    <p className="text-xs text-muted-foreground truncate">
+                  <div className="flex-1 min-w-0 py-0.5 flex flex-col justify-center">
+                    <p className="text-[15px] font-medium truncate leading-tight">{r.name}</p>
+                    <p className="text-[12px] text-muted-foreground truncate mt-1">
                       {r.distance_text}{r.rating ? ` · ★ ${r.rating}` : ""}
                     </p>
-                    {r.note && <p className="text-xs text-muted-foreground/80 mt-0.5 italic line-clamp-2">{r.note}</p>}
+                    {r.note && <p className="text-[12px] text-muted-foreground/80 mt-1 italic line-clamp-2 leading-snug">{r.note}</p>}
                   </div>
-                  <ExternalLink className="size-3.5 text-muted-foreground shrink-0" />
+                  <ExternalLink className="size-3.5 text-muted-foreground/60 shrink-0 mt-1 group-hover:text-accent transition-colors" />
                 </a>
               ))}
             </div>
@@ -398,6 +406,8 @@ function RecBlock({ title, desc, items }: { title: string; desc: string; items: 
     </div>
   );
 }
+
+
 
 function WifiStripe({ ssid, password }: { ssid: string; password: string }) {
   const [copied, setCopied] = useState(false);
