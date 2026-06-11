@@ -294,35 +294,40 @@ function Guide({ data }: { data: GuideOk }) {
   );
 }
 
-function SectionTitle({ eyebrow, title }: { eyebrow: string; title: string }) {
+function SectionTitle({ eyebrow, title, intro }: { eyebrow: string; title: string; intro?: string }) {
   return (
-    <div>
-      <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground font-semibold mb-1">{eyebrow}</p>
-      <h2 className="font-serif text-3xl">{title}</h2>
+    <div className="pt-2 pb-1">
+      <div className="flex items-center gap-2 mb-2">
+        <span className="h-px w-6 bg-accent/70" />
+        <p className="text-[10px] uppercase tracking-[0.28em] text-accent font-semibold">{eyebrow}</p>
+      </div>
+      <h2 className="font-serif text-[1.9rem] leading-[1.1] tracking-tight">{title}</h2>
+      {intro && <p className="text-[13px] text-muted-foreground mt-2 leading-relaxed max-w-[36ch]">{intro}</p>}
     </div>
   );
 }
 
 function InfoRow({ icon, label, value, action }: { icon: React.ReactNode; label: string; value: string; action?: React.ReactNode }) {
   return (
-    <div className="bg-card border border-border rounded-xl p-4">
-      <div className="flex items-start gap-3">
-        <div className="text-muted-foreground mt-0.5">{icon}</div>
+    <div className="relative bg-card border border-border rounded-2xl p-5 overflow-hidden">
+      <div className="absolute left-0 top-5 bottom-5 w-[3px] rounded-r-full bg-accent/70" />
+      <div className="flex items-start gap-4">
+        <div className="size-10 rounded-xl bg-accent/10 text-accent grid place-items-center shrink-0">{icon}</div>
         <div className="flex-1 min-w-0">
-          <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">{label}</p>
-          <p className="text-sm mt-0.5">{value}</p>
+          <p className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground font-semibold">{label}</p>
+          <p className="text-[15px] mt-1 leading-snug">{value}</p>
+          {action && <div className="mt-3">{action}</div>}
         </div>
       </div>
-      {action && <div className="mt-2 pl-7">{action}</div>}
     </div>
   );
 }
 
-function InfoTile({ label, value }: { label: string; value: string }) {
+function InfoTile({ label, value, border }: { label: string; value: string; border?: boolean }) {
   return (
-    <div className="bg-card border border-border rounded-xl p-3">
-      <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">{label}</p>
-      <p className="text-sm mt-1 font-medium">{value}</p>
+    <div className={`p-5 ${border ? "border-l border-border" : ""}`}>
+      <p className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground font-semibold">{label}</p>
+      <p className="text-[15px] mt-1.5 font-medium leading-tight">{value}</p>
     </div>
   );
 }
@@ -336,19 +341,22 @@ function CopyCard({ icon, eyebrow, label, value }: { icon?: React.ReactNode; eye
     setTimeout(() => setCopied(false), 1800);
   }
   return (
-    <button onClick={copy} className="w-full bg-card border border-border rounded-2xl p-4 flex items-center justify-between gap-3 active:scale-[0.99] transition-transform">
-      <div className="flex items-center gap-3 min-w-0">
-        {icon && <div className="size-10 rounded-xl bg-secondary grid place-items-center shrink-0">{icon}</div>}
+    <button onClick={copy} className="w-full bg-card border border-border rounded-2xl p-5 flex items-center justify-between gap-4 active:scale-[0.99] transition-transform hover:border-accent/40">
+      <div className="flex items-center gap-4 min-w-0">
+        {icon && <div className="size-12 rounded-xl bg-gradient-to-br from-accent/20 to-accent/5 text-accent grid place-items-center shrink-0">{icon}</div>}
         <div className="min-w-0 text-left">
-          {eyebrow && <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">{eyebrow}</p>}
-          <p className="text-xs text-muted-foreground">{label}</p>
-          <p className="text-base font-mono font-medium truncate">{value}</p>
+          {eyebrow && <p className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground font-semibold">{eyebrow}</p>}
+          <p className="text-[1.35rem] font-mono font-medium truncate tracking-wider mt-0.5">{value}</p>
+          <p className="text-[11px] text-muted-foreground mt-0.5">{label}</p>
         </div>
       </div>
-      {copied ? <Check className="size-4 text-accent shrink-0" /> : <Copy className="size-4 text-muted-foreground shrink-0" />}
+      <div className="size-9 rounded-full bg-secondary grid place-items-center shrink-0">
+        {copied ? <Check className="size-4 text-accent" /> : <Copy className="size-4 text-muted-foreground" />}
+      </div>
     </button>
   );
 }
+
 
 function RecBlock({ title, desc, items }: { title: string; desc: string; items: any[] }) {
   const grouped = items.reduce<Record<string, any[]>>((acc, r) => {
