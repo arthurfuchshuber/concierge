@@ -71,7 +71,7 @@ type FormState = {
 function emptyForm(): FormState {
   return {
     property: {
-      name: "", slug: "", tagline: "", hero_image_url: "", address: "", maps_url: "",
+      name: "", slug: "", tagline: "", hero_image_url: "", gallery_images: [], address: "", maps_url: "",
       lat: null, lng: null, city: "", country: "", checkin_time: "15:00", checkout_time: "11:00",
       lock_code: "", gate_code: "", address_note: "", wifi_ssid: "", wifi_password: "",
       host_name: "", host_phone: "", access_mode: "public", pin_code: "", pin_expires_at: "",
