@@ -107,31 +107,42 @@ function Guide({ data }: { data: GuideOk }) {
   const { lang, setLang } = useI18n();
   const nearby = data.recommendations.filter((r: any) => r.scope === "nearby");
   const city = data.recommendations.filter((r: any) => r.scope === "city");
+  const monogram = (p.name as string)?.trim()?.[0]?.toUpperCase() ?? "S";
 
   return (
     <div className="min-h-screen bg-background text-foreground pb-32">
       <div className="mx-auto w-full max-w-md">
         {/* Hero */}
         <section className="px-4 pt-4">
-          <div className="relative overflow-hidden rounded-3xl border border-border shadow-elevated">
+          <div className="relative overflow-hidden rounded-[28px] border border-white/5 shadow-elevated">
             {p.hero_image_url ? (
-              <img src={p.hero_image_url} alt={p.name} className="w-full aspect-[4/5] object-cover" />
+              <img src={p.hero_image_url} alt={p.name} className="w-full aspect-[3/4] object-cover" />
             ) : (
-              <div className="w-full aspect-[4/5] bg-gradient-to-br from-primary/30 to-accent/30" />
+              <div className="relative w-full aspect-[3/4] overflow-hidden">
+                <div className="absolute inset-0 bg-[radial-gradient(120%_80%_at_20%_10%,oklch(from_var(--accent)_l_c_h/0.45),transparent_55%),radial-gradient(120%_80%_at_85%_90%,oklch(from_var(--primary)_l_c_h/0.55),transparent_60%)]" />
+                <div className="absolute inset-0 bg-gradient-to-br from-stone-900 via-stone-900/80 to-stone-950" />
+                <div className="absolute inset-0 opacity-[0.06] mix-blend-overlay" style={{ backgroundImage: "radial-gradient(circle at 1px 1px, white 1px, transparent 0)", backgroundSize: "3px 3px" }} />
+                <span className="absolute right-6 top-1/2 -translate-y-1/2 font-serif text-[18rem] leading-none text-white/[0.04] select-none">{monogram}</span>
+              </div>
             )}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-black/10" />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-black/10" />
             <div className="absolute top-5 left-5 right-5 flex items-center justify-between">
-              <span className="glass rounded-full px-3 py-1 text-[10px] uppercase tracking-[0.2em] font-semibold text-white/90 border border-white/15">SigmaGuide</span>
+              <span className="rounded-full bg-black/40 backdrop-blur-md px-3 py-1.5 text-[9px] uppercase tracking-[0.24em] font-semibold text-white/90 border border-white/10">SigmaGuide</span>
               <button
                 onClick={() => setLang(lang === "pt" ? "en" : "pt")}
-                className="glass rounded-full px-3 py-1 text-[10px] uppercase tracking-wider font-medium text-white/90 border border-white/15"
+                className="rounded-full bg-white/10 backdrop-blur-md px-3 py-1.5 text-[10px] uppercase tracking-[0.2em] font-medium text-white/90 border border-white/15"
               >
                 {lang === "pt" ? "EN" : "PT"}
               </button>
             </div>
-            <div className="absolute bottom-0 left-0 right-0 p-6 text-white">
-              <h1 className="font-serif text-[2.4rem] leading-[1.05] text-balance">{p.name}</h1>
-              {p.tagline && <p className="text-sm opacity-80 mt-2">{p.tagline}</p>}
+            <div className="absolute bottom-0 left-0 right-0 p-7 text-white">
+              <p className="text-[10px] uppercase tracking-[0.32em] text-white/60 font-semibold mb-3">Bem-vindo</p>
+              <h1 className="font-serif text-[2.5rem] leading-[1.02] text-balance font-medium">{p.name}</h1>
+              {p.tagline && <p className="text-[13px] text-white/75 mt-3 leading-relaxed max-w-[28ch]">{p.tagline}</p>}
+              <div className="mt-5 inline-flex items-center gap-2 text-[10px] uppercase tracking-[0.22em] text-white/55">
+                <span className="h-px w-6 bg-white/40" />
+                Seu guia digital
+              </div>
             </div>
           </div>
         </section>
