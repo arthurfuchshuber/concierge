@@ -3,7 +3,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { listMyProperties, deleteProperty } from "@/lib/properties.functions";
 import { Button } from "@/components/ui/button";
-import { Plus, ExternalLink, Pencil, Trash2, Lock, Globe, BookOpen, PiggyBank, Sparkles, PlayCircle, CreditCard, TrendingUp, LayoutGrid, List } from "lucide-react";
+import { Plus, ExternalLink, Pencil, Trash2, Lock, Globe, BookOpen, PlayCircle, CreditCard, LayoutGrid, List } from "lucide-react";
 import { toast } from "sonner";
 import { useState } from "react";
 
