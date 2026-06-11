@@ -242,6 +242,7 @@ export const enrichFromMapsLink = createServerFn({ method: "POST" })
     // Lookup do próprio imóvel para tagline + foto de capa
     let tagline = "";
     let hero_image_url: string | null = null;
+    let gallery_images: string[] = [];
     const placeNameFromUrl = decodeURIComponent(resolved.split("/place/")[1]?.split("/")[0] ?? "").replace(/\+/g, " ");
     const hint = placeNameFromUrl || address;
     if (hint) {
@@ -251,7 +252,12 @@ export const enrichFromMapsLink = createServerFn({ method: "POST" })
           self.editorialSummary?.text ??
           self.generativeSummary?.overview?.text ??
           "";
-        hero_image_url = buildPhotoUrl(self.photos?.[0]?.name);
+        const photoUrls = (self.photos ?? [])
+          .slice(0, 4)
+          .map((p) => buildPhotoUrl(p.name))
+          .filter((u): u is string => !!u);
+        hero_image_url = photoUrls[0] ?? null;
+        gallery_images = photoUrls;
       }
     }
 
