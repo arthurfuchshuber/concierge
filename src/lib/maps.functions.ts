@@ -214,6 +214,7 @@ function buildPhotoUrl(photoName: string | undefined): string | null {
 }
 
 export const enrichFromMapsLink = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => InputSchema.parse(input))
   .handler(async ({ data }): Promise<EnrichResult> => {
     const resolved = await resolveShortUrl(data.mapsUrl);
