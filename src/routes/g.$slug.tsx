@@ -412,27 +412,28 @@ function WifiStripe({ ssid, password }: { ssid: string; password: string }) {
     <section className="px-4 mt-5">
       <button
         onClick={copy}
-        className="w-full relative overflow-hidden rounded-2xl border border-border bg-gradient-to-r from-accent/15 via-card to-card p-4 flex items-center gap-4 text-left active:scale-[0.99] transition-transform"
+        className="w-full relative overflow-hidden rounded-2xl border border-accent/20 bg-gradient-to-r from-accent/20 via-accent/5 to-transparent p-5 flex items-center gap-4 text-left active:scale-[0.99] transition-transform"
       >
-        <div className="size-11 rounded-xl bg-foreground text-background grid place-items-center shrink-0">
-          <Wifi className="size-5" strokeWidth={1.75} />
+        <div className="size-12 rounded-2xl bg-gradient-to-br from-accent to-accent/70 text-accent-foreground grid place-items-center shrink-0 shadow-soft">
+          <Wifi className="size-5" strokeWidth={2} />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-[10px] uppercase tracking-[0.22em] text-accent font-semibold">Wi-Fi</p>
-          <p className="text-sm font-medium truncate mt-0.5">{ssid}</p>
+          <p className="text-[10px] uppercase tracking-[0.28em] text-accent font-semibold">Wi-Fi</p>
+          <p className="text-[15px] font-medium truncate mt-1">{ssid}</p>
           {password && (
-            <p className="text-xs font-mono text-muted-foreground truncate">{password}</p>
+            <p className="text-[12px] font-mono text-muted-foreground truncate mt-0.5">{password}</p>
           )}
         </div>
         {password && (
-          <div className="shrink-0 text-muted-foreground">
-            {copied ? <Check className="size-4 text-accent" /> : <Copy className="size-4" />}
+          <div className="size-9 rounded-full bg-card border border-border grid place-items-center shrink-0">
+            {copied ? <Check className="size-4 text-accent" /> : <Copy className="size-4 text-muted-foreground" />}
           </div>
         )}
       </button>
     </section>
   );
 }
+
 
 function QuadrantTrigger({ value, icon, label }: { value: string; icon: React.ReactNode; label: string }) {
   return (
