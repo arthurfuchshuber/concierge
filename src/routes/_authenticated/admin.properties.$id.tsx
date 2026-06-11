@@ -290,14 +290,19 @@ function PropertyEditor() {
         </div>
       </div>
 
-      <Tabs defaultValue="basics">
-        <TabsList className="grid grid-cols-5 w-full">
-          <TabsTrigger value="basics">Básico</TabsTrigger>
-          <TabsTrigger value="access">Acesso</TabsTrigger>
-          <TabsTrigger value="house">A casa</TabsTrigger>
-          <TabsTrigger value="recs">Recomendações</TabsTrigger>
-          <TabsTrigger value="extras">Extras</TabsTrigger>
-        </TabsList>
+      <Tabs value={step} onValueChange={setStep}>
+        <Stepper
+          current={step}
+          onChange={setStep}
+          steps={[
+            { value: "basics", label: "Básico", icon: FileText },
+            { value: "access", label: "Acesso", icon: KeyRound },
+            { value: "house", label: "A casa", icon: Home },
+            { value: "recs", label: "Recomendações", icon: Compass },
+            { value: "extras", label: "Extras", icon: LifeBuoy },
+          ]}
+        />
+
 
         <TabsContent value="basics" className="space-y-5 mt-6">
           <Section title="Identificação">
