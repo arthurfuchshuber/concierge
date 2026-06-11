@@ -52,7 +52,7 @@ export const listMyProperties = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     const { data, error } = await context.supabase
       .from("properties")
-      .select("id, slug, name, tagline, hero_image_url, access_mode, pin_expires_at, published, city, country, updated_at")
+      .select("id, slug, name, tagline, hero_image_url, gallery_images, access_mode, pin_expires_at, published, city, country, updated_at")
       .order("updated_at", { ascending: false });
     if (error) throw new Error(error.message);
     return data ?? [];
