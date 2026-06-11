@@ -142,7 +142,7 @@ function Guide({ data }: { data: GuideOk }) {
         {/* Tabs */}
         <Tabs defaultValue="checkin" className="px-4 mt-6">
           {/* Quadrants — bottom floating glass nav */}
-          <TabsList className="fixed bottom-4 left-1/2 -translate-x-1/2 z-40 grid grid-cols-4 gap-1 p-1.5 rounded-2xl glass border border-white/15 shadow-elevated h-auto w-[min(92vw,360px)]">
+          <TabsList className="fixed bottom-4 left-1/2 -translate-x-1/2 z-40 grid grid-cols-4 gap-1 p-1.5 rounded-2xl bg-foreground/85 backdrop-blur-xl backdrop-saturate-150 border border-white/10 shadow-elevated h-auto w-[min(92vw,360px)]">
             <QuadrantTrigger value="checkin" icon={<KeyRound className="size-4" strokeWidth={1.75} />} label="Chegada" />
             <QuadrantTrigger value="house" icon={<BookOpen className="size-4" strokeWidth={1.75} />} label="A casa" />
             <QuadrantTrigger value="explore" icon={<Compass className="size-4" strokeWidth={1.75} />} label="Explorar" />
