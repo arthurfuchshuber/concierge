@@ -3,7 +3,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { listMyProperties, deleteProperty } from "@/lib/properties.functions";
 import { Button } from "@/components/ui/button";
-import { Plus, ExternalLink, Pencil, Trash2, Lock, Globe, BookOpen, PiggyBank, Sparkles, PlayCircle, CreditCard, TrendingUp, LayoutGrid, List } from "lucide-react";
+import { Plus, ExternalLink, Pencil, Trash2, Lock, Globe, BookOpen, PlayCircle, CreditCard, LayoutGrid, List } from "lucide-react";
 import { toast } from "sonner";
 import { useState } from "react";
 
@@ -39,8 +39,6 @@ function Dashboard() {
   const count = data?.length ?? 0;
   const remaining = Math.max(0, PLAN_LIMIT - count);
   const pct = Math.min(100, (count / PLAN_LIMIT) * 100);
-  const savingsLow = count * 40;
-  const savingsHigh = count * 120;
 
   return (
     <div className="px-6 lg:px-10 py-8 lg:py-10 max-w-7xl mx-auto w-full">
@@ -70,24 +68,8 @@ function Dashboard() {
         </div>
       </div>
 
-      {/* Promo banner */}
-      <div className="mb-6 rounded-2xl border border-accent/30 bg-accent/5 p-5 flex flex-col md:flex-row md:items-center gap-4">
-        <div className="size-10 rounded-xl bg-accent/15 grid place-items-center shrink-0">
-          <Sparkles className="size-5 text-accent" />
-        </div>
-        <div className="flex-1">
-          <p className="font-semibold text-accent">Oferta especial de lançamento</p>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            Aproveite todos os recursos do SigmaGuide com preço promocional. Crie até {PLAN_LIMIT} guias com o mesmo plano.
-          </p>
-        </div>
-        <Button className="rounded-full shrink-0 bg-accent hover:bg-accent/90 text-accent-foreground">
-          Assinar agora
-        </Button>
-      </div>
-
       {/* Stat cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 mb-10">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-10">
         {/* Plano */}
         <div className="rounded-2xl border border-border bg-card p-5">
           <div className="flex items-center justify-between mb-3">
@@ -117,36 +99,8 @@ function Dashboard() {
           </div>
           <p className="text-xs text-muted-foreground mt-2">{remaining} guias restantes</p>
         </div>
-
-        {/* Economia */}
-        <div className="rounded-2xl border border-accent/20 bg-accent/5 p-5">
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-sm font-medium text-foreground/80">Economia estimada</span>
-            <PiggyBank className="size-4 text-accent" />
-          </div>
-          <div className="text-2xl font-serif text-accent">
-            R$ {savingsLow} <span className="text-base">–</span> R$ {savingsHigh}
-          </div>
-          <p className="text-xs text-muted-foreground mt-2">
-            vs. welcome books impressos
-          </p>
-        </div>
-
-        {/* CTA */}
-        <button
-          onClick={() => navigate({ to: "/admin/properties/$id", params: { id: "new" } })}
-          className="rounded-2xl border border-dashed border-accent/40 bg-accent/[0.03] hover:bg-accent/10 p-5 text-left transition-colors group"
-        >
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-sm font-medium text-foreground">Criar novo guia</span>
-            <Plus className="size-4 text-accent" />
-          </div>
-          <div className="text-2xl font-serif">+1 guia</div>
-          <p className="text-xs text-muted-foreground mt-2 inline-flex items-center gap-1">
-            <TrendingUp className="size-3" /> Em menos de 2 minutos
-          </p>
-        </button>
       </div>
+
 
       {/* Guias section */}
       <div className="flex items-center justify-between mb-5">
