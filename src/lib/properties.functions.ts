@@ -9,6 +9,7 @@ const PropertyInput = z.object({
   tagline: z.string().trim().max(200).optional().nullable(),
   slug: z.string().regex(slugRe, "Slug inválido (use letras minúsculas, números e hífens)"),
   hero_image_url: z.string().url().max(1024).optional().nullable(),
+  gallery_images: z.array(z.string().url().max(1024)).max(4).default([]),
   address: z.string().max(500).optional().nullable(),
   maps_url: z.string().url().max(2048).optional().nullable(),
   lat: z.number().optional().nullable(),
@@ -51,7 +52,7 @@ export const listMyProperties = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     const { data, error } = await context.supabase
       .from("properties")
-      .select("id, slug, name, tagline, hero_image_url, access_mode, pin_expires_at, published, city, country, updated_at")
+      .select("id, slug, name, tagline, hero_image_url, gallery_images, access_mode, pin_expires_at, published, city, country, updated_at")
       .order("updated_at", { ascending: false });
     if (error) throw new Error(error.message);
     return data ?? [];

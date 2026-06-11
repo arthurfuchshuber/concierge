@@ -39,6 +39,7 @@ type FormState = {
     slug: string;
     tagline: string;
     hero_image_url: string;
+    gallery_images: string[];
     address: string;
     maps_url: string;
     lat: number | null;
@@ -70,7 +71,7 @@ type FormState = {
 function emptyForm(): FormState {
   return {
     property: {
-      name: "", slug: "", tagline: "", hero_image_url: "", address: "", maps_url: "",
+      name: "", slug: "", tagline: "", hero_image_url: "", gallery_images: [], address: "", maps_url: "",
       lat: null, lng: null, city: "", country: "", checkin_time: "15:00", checkout_time: "11:00",
       lock_code: "", gate_code: "", address_note: "", wifi_ssid: "", wifi_password: "",
       host_name: "", host_phone: "", access_mode: "public", pin_code: "", pin_expires_at: "",
@@ -118,6 +119,7 @@ function PropertyEditor() {
         slug: (p.slug as string) ?? "",
         tagline: (p.tagline as string) ?? "",
         hero_image_url: (p.hero_image_url as string) ?? "",
+        gallery_images: ((p.gallery_images as string[] | null) ?? []).slice(0, 4),
         address: (p.address as string) ?? "",
         maps_url: (p.maps_url as string) ?? "",
         lat: (p.lat as number) ?? null,
@@ -195,6 +197,7 @@ function PropertyEditor() {
           country: r.country || f.property.country,
           tagline: f.property.tagline || r.tagline || f.property.tagline,
           hero_image_url: f.property.hero_image_url || r.hero_image_url || f.property.hero_image_url,
+          gallery_images: f.property.gallery_images.length ? f.property.gallery_images : (r.gallery_images ?? []).slice(0, 4),
         },
         recommendations: r.recommendations.map((rec) => ({
           scope: rec.scope,
@@ -235,6 +238,7 @@ function PropertyEditor() {
           slug: form.property.slug || slugify(form.property.name),
           tagline: form.property.tagline || null,
           hero_image_url: form.property.hero_image_url || null,
+          gallery_images: form.property.gallery_images.filter((u) => u.trim()).slice(0, 4),
           address: form.property.address || null,
           maps_url: form.property.maps_url || null,
           city: form.property.city || null,
@@ -316,8 +320,21 @@ function PropertyEditor() {
             <Field label="Tagline" hint="Frase curta abaixo do título">
               <Input value={form.property.tagline} maxLength={200} onChange={(e) => update("tagline", e.target.value)} />
             </Field>
-            <Field label="URL da imagem hero" hint="Foto principal (URL pública)">
-              <Input value={form.property.hero_image_url} onChange={(e) => update("hero_image_url", e.target.value)} placeholder="https://..." />
+            <Field label="Fotos da residência" hint="Até 4 fotos. A primeira é a capa. URLs preenchidas automaticamente pelo Auto-preencher.">
+              <GalleryEditor
+                value={form.property.gallery_images}
+                heroFallback={form.property.hero_image_url}
+                onChange={(next) => {
+                  setForm((f) => ({
+                    ...f,
+                    property: {
+                      ...f.property,
+                      gallery_images: next,
+                      hero_image_url: next[0] ?? f.property.hero_image_url,
+                    },
+                  }));
+                }}
+              />
             </Field>
           </Section>
 
@@ -676,6 +693,67 @@ function Stepper({
       <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground/70 font-semibold mt-3">
         Passo {currentIdx + 1} de {steps.length}
       </p>
+    </div>
+  );
+}
+
+function GalleryEditor({
+  value,
+  heroFallback,
+  onChange,
+}: {
+  value: string[];
+  heroFallback: string;
+  onChange: (next: string[]) => void;
+}) {
+  const slots: string[] = [0, 1, 2, 3].map((i) => value[i] ?? "");
+  function setAt(i: number, v: string) {
+    const next = [...slots];
+    next[i] = v;
+    onChange(next.filter((x) => x.trim()));
+  }
+  function remove(i: number) {
+    const next = slots.filter((_, idx) => idx !== i).concat([""]).slice(0, 4);
+    onChange(next.filter((x) => x.trim()));
+  }
+  return (
+    <div className="space-y-2.5">
+      <div className="grid grid-cols-4 gap-2">
+        {slots.map((url, i) => {
+          const preview = url || (i === 0 ? heroFallback : "");
+          return (
+            <div key={i} className="relative aspect-square rounded-lg border border-border bg-muted/40 overflow-hidden">
+              {preview ? (
+                <img src={preview} alt="" className="size-full object-cover" />
+              ) : (
+                <div className="size-full grid place-items-center text-[10px] text-muted-foreground uppercase tracking-wider">
+                  {i === 0 ? "Capa" : `+ Foto`}
+                </div>
+              )}
+              {i === 0 && preview && (
+                <span className="absolute top-1 left-1 rounded bg-background/85 text-[8px] uppercase tracking-widest px-1.5 py-0.5 font-bold">Capa</span>
+              )}
+            </div>
+          );
+        })}
+      </div>
+      <div className="space-y-1.5">
+        {slots.map((url, i) => (
+          <div key={i} className="flex gap-1.5">
+            <Input
+              value={url}
+              onChange={(e) => setAt(i, e.target.value)}
+              placeholder={i === 0 ? "URL da foto principal (capa)" : `URL da foto ${i + 1}`}
+              className="text-xs"
+            />
+            {url && (
+              <Button type="button" variant="ghost" size="sm" onClick={() => remove(i)} className="text-xs text-muted-foreground">
+                Remover
+              </Button>
+            )}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
