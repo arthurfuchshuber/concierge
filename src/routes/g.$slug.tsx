@@ -119,7 +119,7 @@ function Guide({ data }: { data: GuideOk }) {
   const photos: string[] = (galleryRaw.length ? galleryRaw : p.hero_image_url ? [p.hero_image_url] : []).slice(0, 4);
 
   return (
-    <div className="guide-surface guide-ambient min-h-screen text-foreground pb-16">
+    <div className="guide-ambient min-h-screen bg-background text-foreground pb-16">
 
 
       <div className="mx-auto w-full max-w-md">
