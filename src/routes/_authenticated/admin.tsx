@@ -1,16 +1,33 @@
 import { createFileRoute, Outlet, Link, useNavigate, useRouterState } from "@tanstack/react-router";
-import { Sparkles, LogOut } from "lucide-react";
+import { Sparkles, LogOut, LayoutDashboard, BookOpen, CreditCard, Receipt, User, Menu, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
 
 export const Route = createFileRoute("/_authenticated/admin")({
   component: AdminLayout,
 });
 
+const nav = [
+  { to: "/admin", label: "Painel", icon: LayoutDashboard, exact: true },
+  { to: "/admin", label: "Guias", icon: BookOpen, exact: false, hash: "guias" },
+  { to: "/admin", label: "Planos", icon: CreditCard, exact: false, hash: "planos" },
+  { to: "/admin", label: "Pagamentos", icon: Receipt, exact: false, hash: "pagamentos" },
+  { to: "/admin", label: "Perfil", icon: User, exact: false, hash: "perfil" },
+];
+
 function AdminLayout() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const [email, setEmail] = useState<string>("");
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => setEmail(data.user?.email ?? ""));
+  }, []);
+
+  useEffect(() => { setOpen(false); }, [pathname]);
 
   async function signOut() {
     await qc.cancelQueries();
@@ -19,28 +36,92 @@ function AdminLayout() {
     navigate({ to: "/auth", replace: true });
   }
 
+  const initials = (email || "?").slice(0, 2).toUpperCase();
+
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      <header className="border-b border-border">
-        <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
-          <Link to="/admin" className="inline-flex items-center gap-2">
-            <div className="size-8 rounded-xl bg-primary grid place-items-center">
+    <div className="min-h-screen bg-background text-foreground flex">
+      {/* Sidebar */}
+      <aside
+        className={`fixed lg:sticky top-0 left-0 z-40 h-screen w-72 shrink-0 border-r border-border bg-surface flex flex-col transition-transform duration-300 ${open ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}`}
+      >
+        <div className="px-6 py-6 border-b border-border">
+          <Link to="/admin" className="inline-flex items-center gap-2.5">
+            <div className="size-9 rounded-xl bg-primary grid place-items-center shadow-sm">
               <Sparkles className="size-4 text-primary-foreground" strokeWidth={2} />
             </div>
-            <span className="font-serif text-xl">SigmaGuide</span>
-            <span className="text-xs text-muted-foreground ml-2 hidden sm:inline">Admin</span>
+            <div className="leading-tight">
+              <div className="font-serif text-xl">SigmaGuide</div>
+              <div className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground font-semibold mt-0.5">Painel</div>
+            </div>
           </Link>
-          <div className="flex items-center gap-2">
-            {pathname !== "/admin" && (
-              <Link to="/admin" className="text-sm px-3 py-1.5 rounded-full hover:bg-secondary">Meus guias</Link>
-            )}
-            <button onClick={signOut} className="text-sm px-3 py-1.5 rounded-full hover:bg-secondary inline-flex items-center gap-1.5">
-              <LogOut className="size-3.5" /> Sair
-            </button>
-          </div>
         </div>
-      </header>
-      <main><Outlet /></main>
+
+        <nav className="flex-1 px-3 py-4 space-y-1">
+          {nav.map((item) => {
+            const active = item.exact && pathname === "/admin";
+            const Icon = item.icon;
+            return (
+              <Link
+                key={item.label}
+                to={item.to}
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-colors ${
+                  active
+                    ? "bg-primary text-primary-foreground font-medium shadow-sm"
+                    : "text-foreground/70 hover:bg-secondary hover:text-foreground"
+                }`}
+              >
+                <Icon className="size-4" strokeWidth={2} />
+                {item.label}
+              </Link>
+            );
+          })}
+        </nav>
+
+        <div className="border-t border-border p-4 flex items-center gap-3">
+          <div className="size-9 rounded-full bg-accent text-accent-foreground grid place-items-center text-xs font-semibold shrink-0">
+            {initials}
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="text-sm font-medium truncate">Anfitrião</div>
+            <div className="text-[11px] text-muted-foreground truncate">{email || "—"}</div>
+          </div>
+          <button
+            onClick={signOut}
+            className="size-8 grid place-items-center rounded-lg hover:bg-secondary text-muted-foreground hover:text-foreground"
+            aria-label="Sair"
+          >
+            <LogOut className="size-4" />
+          </button>
+        </div>
+      </aside>
+
+      {/* Backdrop mobile */}
+      {open && (
+        <div className="lg:hidden fixed inset-0 z-30 bg-black/40" onClick={() => setOpen(false)} />
+      )}
+
+      {/* Main */}
+      <div className="flex-1 min-w-0 flex flex-col">
+        {/* Mobile topbar */}
+        <header className="lg:hidden sticky top-0 z-20 glass border-b border-border px-4 py-3 flex items-center justify-between">
+          <button
+            onClick={() => setOpen(true)}
+            className="size-9 grid place-items-center rounded-lg hover:bg-secondary"
+            aria-label="Abrir menu"
+          >
+            <Menu className="size-5" />
+          </button>
+          <Link to="/admin" className="inline-flex items-center gap-2">
+            <div className="size-7 rounded-lg bg-primary grid place-items-center">
+              <Sparkles className="size-3.5 text-primary-foreground" />
+            </div>
+            <span className="font-serif text-lg">SigmaGuide</span>
+          </Link>
+          <div className="size-9" />
+        </header>
+
+        <main className="flex-1"><Outlet /></main>
+      </div>
     </div>
   );
 }
