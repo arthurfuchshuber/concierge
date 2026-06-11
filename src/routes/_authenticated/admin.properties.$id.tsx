@@ -119,6 +119,7 @@ function PropertyEditor() {
         slug: (p.slug as string) ?? "",
         tagline: (p.tagline as string) ?? "",
         hero_image_url: (p.hero_image_url as string) ?? "",
+        gallery_images: ((p.gallery_images as string[] | null) ?? []).slice(0, 4),
         address: (p.address as string) ?? "",
         maps_url: (p.maps_url as string) ?? "",
         lat: (p.lat as number) ?? null,
