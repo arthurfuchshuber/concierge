@@ -160,25 +160,32 @@ function Guide({ data }: { data: GuideOk }) {
             <QuadrantTrigger value="info" icon={<HelpCircle className="size-4" strokeWidth={1.75} />} label="Info" />
           </TabsList>
 
-          <TabsContent value="checkin" className="mt-5 space-y-4">
-            <SectionTitle eyebrow="Chegada" title="Sua entrada" />
+          <TabsContent value="checkin" className="mt-6 space-y-4">
+            <SectionTitle eyebrow="Chegada" title="Sua entrada" intro="Tudo o que você precisa para chegar e se acomodar." />
             {p.address && (
-              <InfoRow icon={<MapPin className="size-4" />} label="Endereço" value={p.address}
+              <InfoRow icon={<MapPin className="size-[18px]" strokeWidth={1.75} />} label="Endereço" value={p.address}
                 action={p.maps_url ? (
-                  <a href={p.maps_url} target="_blank" rel="noreferrer" className="text-xs text-primary inline-flex items-center gap-1">
+                  <a href={p.maps_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 rounded-full bg-accent text-accent-foreground px-3.5 py-1.5 text-[11px] uppercase tracking-[0.16em] font-semibold">
                     Abrir mapa <ExternalLink className="size-3" />
                   </a>
                 ) : null}
               />
             )}
-            {p.address_note && <p className="text-sm text-muted-foreground px-1 leading-relaxed">{p.address_note}</p>}
-            <div className="grid grid-cols-2 gap-3">
-              {p.checkin_time && <InfoTile label="Check-in" value={`a partir de ${p.checkin_time}`} />}
-              {p.checkout_time && <InfoTile label="Check-out" value={`até ${p.checkout_time}`} />}
-            </div>
-            {p.gate_code && <CopyCard eyebrow="Portão" label="Código" value={p.gate_code} />}
-            {p.lock_code && <CopyCard eyebrow="Fechadura" label="Código" value={p.lock_code} />}
+            {p.address_note && (
+              <div className="border-l-2 border-accent/60 pl-4 py-1 mx-1">
+                <p className="text-sm text-muted-foreground leading-relaxed italic">{p.address_note}</p>
+              </div>
+            )}
+            {(p.checkin_time || p.checkout_time) && (
+              <div className="grid grid-cols-2 bg-card border border-border rounded-2xl overflow-hidden">
+                {p.checkin_time && <InfoTile label="Check-in" value={`a partir de ${p.checkin_time}`} />}
+                {p.checkout_time && <InfoTile label="Check-out" value={`até ${p.checkout_time}`} border />}
+              </div>
+            )}
+            {p.gate_code && <CopyCard icon={<KeyRound className="size-5" strokeWidth={1.75} />} eyebrow="Portão" label="Toque para copiar" value={p.gate_code} />}
+            {p.lock_code && <CopyCard icon={<Lock className="size-5" strokeWidth={1.75} />} eyebrow="Fechadura" label="Toque para copiar" value={p.lock_code} />}
           </TabsContent>
+
 
           <TabsContent value="house" className="mt-5 space-y-4">
             <SectionTitle eyebrow="A casa" title="Manual" />
