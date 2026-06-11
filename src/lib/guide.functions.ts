@@ -21,16 +21,13 @@ async function loadFullGuide(supabaseAdmin: typeof import("@/integrations/supaba
   };
 }
 
-const PUBLIC_PROPERTY_FIELDS =
-  "id, slug, name, tagline, hero_image_url, address, maps_url, lat, lng, city, country, checkin_time, checkout_time, lock_code, gate_code, address_note, wifi_ssid, wifi_password, host_name, host_phone, access_mode, pin_expires_at, default_language, published";
-
 export const getPublicGuide = createServerFn({ method: "POST" })
   .inputValidator((i: unknown) => SlugInput.parse(i))
   .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: prop, error } = await supabaseAdmin
       .from("properties")
-      .select(PUBLIC_PROPERTY_FIELDS + ", pin_code")
+      .select("*")
       .eq("slug", data.slug)
       .eq("published", true)
       .maybeSingle();
