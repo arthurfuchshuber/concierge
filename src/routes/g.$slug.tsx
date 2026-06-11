@@ -183,6 +183,9 @@ function Guide({ data }: { data: GuideOk }) {
                 desc="Anfitrião, emergências, dúvidas"
               />
             </div>
+          )}
+
+
 
           <TabsContent value="checkin" className="mt-2 space-y-4">
             <SectionTitle eyebrow="Chegada" title="Sua entrada" intro="Tudo o que você precisa para chegar e se acomodar." />
