@@ -9,8 +9,56 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as WifiRouteImport } from './routes/wifi'
+import { Route as ManualRouteImport } from './routes/manual'
+import { Route as FaqRouteImport } from './routes/faq'
+import { Route as EmergencyRouteImport } from './routes/emergency'
+import { Route as ConciergeRouteImport } from './routes/concierge'
+import { Route as CheckOutRouteImport } from './routes/check-out'
+import { Route as CheckInRouteImport } from './routes/check-in'
+import { Route as ChatRouteImport } from './routes/chat'
 import { Route as IndexRouteImport } from './routes/index'
 
+const WifiRoute = WifiRouteImport.update({
+  id: '/wifi',
+  path: '/wifi',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ManualRoute = ManualRouteImport.update({
+  id: '/manual',
+  path: '/manual',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FaqRoute = FaqRouteImport.update({
+  id: '/faq',
+  path: '/faq',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const EmergencyRoute = EmergencyRouteImport.update({
+  id: '/emergency',
+  path: '/emergency',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ConciergeRoute = ConciergeRouteImport.update({
+  id: '/concierge',
+  path: '/concierge',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CheckOutRoute = CheckOutRouteImport.update({
+  id: '/check-out',
+  path: '/check-out',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CheckInRoute = CheckInRouteImport.update({
+  id: '/check-in',
+  path: '/check-in',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ChatRoute = ChatRouteImport.update({
+  id: '/chat',
+  path: '/chat',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
@@ -19,28 +67,144 @@ const IndexRoute = IndexRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/chat': typeof ChatRoute
+  '/check-in': typeof CheckInRoute
+  '/check-out': typeof CheckOutRoute
+  '/concierge': typeof ConciergeRoute
+  '/emergency': typeof EmergencyRoute
+  '/faq': typeof FaqRoute
+  '/manual': typeof ManualRoute
+  '/wifi': typeof WifiRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/chat': typeof ChatRoute
+  '/check-in': typeof CheckInRoute
+  '/check-out': typeof CheckOutRoute
+  '/concierge': typeof ConciergeRoute
+  '/emergency': typeof EmergencyRoute
+  '/faq': typeof FaqRoute
+  '/manual': typeof ManualRoute
+  '/wifi': typeof WifiRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/chat': typeof ChatRoute
+  '/check-in': typeof CheckInRoute
+  '/check-out': typeof CheckOutRoute
+  '/concierge': typeof ConciergeRoute
+  '/emergency': typeof EmergencyRoute
+  '/faq': typeof FaqRoute
+  '/manual': typeof ManualRoute
+  '/wifi': typeof WifiRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/chat'
+    | '/check-in'
+    | '/check-out'
+    | '/concierge'
+    | '/emergency'
+    | '/faq'
+    | '/manual'
+    | '/wifi'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/chat'
+    | '/check-in'
+    | '/check-out'
+    | '/concierge'
+    | '/emergency'
+    | '/faq'
+    | '/manual'
+    | '/wifi'
+  id:
+    | '__root__'
+    | '/'
+    | '/chat'
+    | '/check-in'
+    | '/check-out'
+    | '/concierge'
+    | '/emergency'
+    | '/faq'
+    | '/manual'
+    | '/wifi'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ChatRoute: typeof ChatRoute
+  CheckInRoute: typeof CheckInRoute
+  CheckOutRoute: typeof CheckOutRoute
+  ConciergeRoute: typeof ConciergeRoute
+  EmergencyRoute: typeof EmergencyRoute
+  FaqRoute: typeof FaqRoute
+  ManualRoute: typeof ManualRoute
+  WifiRoute: typeof WifiRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/wifi': {
+      id: '/wifi'
+      path: '/wifi'
+      fullPath: '/wifi'
+      preLoaderRoute: typeof WifiRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/manual': {
+      id: '/manual'
+      path: '/manual'
+      fullPath: '/manual'
+      preLoaderRoute: typeof ManualRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/faq': {
+      id: '/faq'
+      path: '/faq'
+      fullPath: '/faq'
+      preLoaderRoute: typeof FaqRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/emergency': {
+      id: '/emergency'
+      path: '/emergency'
+      fullPath: '/emergency'
+      preLoaderRoute: typeof EmergencyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/concierge': {
+      id: '/concierge'
+      path: '/concierge'
+      fullPath: '/concierge'
+      preLoaderRoute: typeof ConciergeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/check-out': {
+      id: '/check-out'
+      path: '/check-out'
+      fullPath: '/check-out'
+      preLoaderRoute: typeof CheckOutRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/check-in': {
+      id: '/check-in'
+      path: '/check-in'
+      fullPath: '/check-in'
+      preLoaderRoute: typeof CheckInRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/chat': {
+      id: '/chat'
+      path: '/chat'
+      fullPath: '/chat'
+      preLoaderRoute: typeof ChatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -53,17 +217,15 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ChatRoute: ChatRoute,
+  CheckInRoute: CheckInRoute,
+  CheckOutRoute: CheckOutRoute,
+  ConciergeRoute: ConciergeRoute,
+  EmergencyRoute: EmergencyRoute,
+  FaqRoute: FaqRoute,
+  ManualRoute: ManualRoute,
+  WifiRoute: WifiRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
