@@ -114,8 +114,19 @@ function Guide({ data }: { data: GuideOk }) {
   const galleryRaw: string[] = Array.isArray(p.gallery_images) ? p.gallery_images : [];
   const photos: string[] = (galleryRaw.length ? galleryRaw : p.hero_image_url ? [p.hero_image_url] : []).slice(0, 4);
 
+  // Public guide is always presented in the warm light palette (matches admin painel).
+  useEffect(() => {
+    const root = document.documentElement;
+    const had = root.classList.contains("dark");
+    root.classList.remove("dark");
+    return () => {
+      if (had) root.classList.add("dark");
+    };
+  }, []);
+
   return (
     <div className="min-h-screen bg-background text-foreground pb-32">
+
       <div className="mx-auto w-full max-w-md">
         {/* Hero — photo gallery with gradient fade */}
         <HeroGallery
@@ -497,29 +508,32 @@ function HeroGallery({
             </div>
           </div>
         ) : (
-          <div className="relative w-full aspect-[3/4] overflow-hidden">
-            <div className="absolute inset-0 bg-[radial-gradient(120%_80%_at_20%_10%,oklch(from_var(--accent)_l_c_h/0.45),transparent_55%),radial-gradient(120%_80%_at_85%_90%,oklch(from_var(--primary)_l_c_h/0.55),transparent_60%)]" />
-            <div className="absolute inset-0 bg-gradient-to-br from-stone-900 via-stone-900/80 to-stone-950" />
-            <div className="absolute inset-0 opacity-[0.06] mix-blend-overlay" style={{ backgroundImage: "radial-gradient(circle at 1px 1px, white 1px, transparent 0)", backgroundSize: "3px 3px" }} />
-            <span className="absolute right-6 top-1/2 -translate-y-1/2 font-serif text-[18rem] leading-none text-white/[0.04] select-none">{monogram}</span>
+          <div className="relative w-full aspect-[3/4] overflow-hidden bg-card">
+            <div className="absolute inset-0 bg-[radial-gradient(120%_80%_at_20%_15%,oklch(from_var(--accent)_l_c_h/0.35),transparent_60%),radial-gradient(120%_80%_at_85%_85%,oklch(from_var(--accent)_l_c_h/0.18),transparent_65%)]" />
+            <div className="absolute inset-0 bg-gradient-to-br from-[oklch(from_var(--accent)_0.92_0.04_h)] via-card to-[oklch(from_var(--accent)_0.96_0.02_h)]" />
+            <div className="absolute inset-0 opacity-[0.05] mix-blend-multiply" style={{ backgroundImage: "radial-gradient(circle at 1px 1px, oklch(from var(--foreground) l c h) 1px, transparent 0)", backgroundSize: "4px 4px" }} />
+            <span className="absolute right-4 top-1/2 -translate-y-1/2 font-serif text-[20rem] leading-none text-accent/[0.10] select-none">{monogram}</span>
           </div>
         )}
 
-        {/* Strong gradient fade from bottom for legibility + smooth degradê into page */}
-        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-background via-background/30 to-transparent" />
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-background to-transparent" />
-        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/55 via-black/15 to-black/25" />
+        {/* Soft warm gradient fade for legibility — fades into page background */}
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-background via-background/70 to-transparent" />
+        {photos.length > 0 && (
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/55 via-black/10 to-transparent" />
+        )}
+
 
         {/* Top chrome */}
         <div className="absolute top-5 left-5 right-5 flex items-center justify-between z-10">
-          <span className="rounded-full bg-black/45 backdrop-blur-md px-3 py-1.5 text-[9px] uppercase tracking-[0.24em] font-semibold text-white/95 border border-white/10">SigmaGuide</span>
+          <span className={`rounded-full backdrop-blur-md px-3 py-1.5 text-[9px] uppercase tracking-[0.24em] font-semibold border ${hasPhotos ? "bg-black/45 text-white/95 border-white/10" : "bg-card/80 text-accent border-accent/20"}`}>SigmaGuide</span>
           <button
             onClick={onToggleLang}
-            className="rounded-full bg-white/15 backdrop-blur-md px-3 py-1.5 text-[10px] uppercase tracking-[0.2em] font-medium text-white border border-white/20"
+            className={`rounded-full backdrop-blur-md px-3 py-1.5 text-[10px] uppercase tracking-[0.2em] font-medium border ${hasPhotos ? "bg-white/15 text-white border-white/20" : "bg-card/80 text-foreground border-border"}`}
           >
             {lang === "pt" ? "EN" : "PT"}
           </button>
         </div>
+
 
         {/* Dots */}
         {photos.length > 1 && (
@@ -535,16 +549,17 @@ function HeroGallery({
           </div>
         )}
 
-        {/* Bottom content */}
-        <div className="absolute bottom-0 left-0 right-0 p-7 text-white z-10">
-          <p className="text-[10px] uppercase tracking-[0.32em] text-white/65 font-semibold mb-3">Bem-vindo</p>
-          <h1 className="font-serif text-[2.5rem] leading-[1.02] text-balance font-medium drop-shadow-[0_2px_12px_rgba(0,0,0,0.5)]">{name}</h1>
-          {tagline && <p className="text-[13px] text-white/80 mt-3 leading-relaxed max-w-[28ch]">{tagline}</p>}
-          <div className="mt-5 inline-flex items-center gap-2 text-[10px] uppercase tracking-[0.22em] text-white/60">
-            <span className="h-px w-6 bg-white/50" />
+        {/* Bottom content — light tokens when no photo, white when over image */}
+        <div className={`absolute bottom-0 left-0 right-0 p-7 z-10 ${hasPhotos ? "text-white" : "text-foreground"}`}>
+          <p className={`text-[10px] uppercase tracking-[0.32em] font-semibold mb-3 ${hasPhotos ? "text-white/70" : "text-accent"}`}>Bem-vindo</p>
+          <h1 className={`font-serif text-[2.5rem] leading-[1.02] text-balance font-medium ${hasPhotos ? "drop-shadow-[0_2px_12px_rgba(0,0,0,0.5)]" : ""}`}>{name}</h1>
+          {tagline && <p className={`text-[13px] mt-3 leading-relaxed max-w-[28ch] ${hasPhotos ? "text-white/85" : "text-muted-foreground"}`}>{tagline}</p>}
+          <div className={`mt-5 inline-flex items-center gap-2 text-[10px] uppercase tracking-[0.22em] ${hasPhotos ? "text-white/65" : "text-muted-foreground"}`}>
+            <span className={`h-px w-6 ${hasPhotos ? "bg-white/55" : "bg-accent/60"}`} />
             Seu guia digital
           </div>
         </div>
+
       </div>
     </section>
   );
