@@ -111,56 +111,35 @@ function Guide({ data }: { data: GuideOk }) {
   const city = data.recommendations.filter((r: any) => r.scope === "city");
   const monogram = (p.name as string)?.trim()?.[0]?.toUpperCase() ?? "S";
 
+  const galleryRaw: string[] = Array.isArray(p.gallery_images) ? p.gallery_images : [];
+  const photos: string[] = (galleryRaw.length ? galleryRaw : p.hero_image_url ? [p.hero_image_url] : []).slice(0, 4);
+
   return (
     <div className="min-h-screen bg-background text-foreground pb-32">
       <div className="mx-auto w-full max-w-md">
-        {/* Hero */}
-        <section className="px-4 pt-4">
-          <div className="relative overflow-hidden rounded-[28px] border border-white/5 shadow-elevated">
-            {p.hero_image_url ? (
-              <img src={p.hero_image_url} alt={p.name} className="w-full aspect-[3/4] object-cover" />
-            ) : (
-              <div className="relative w-full aspect-[3/4] overflow-hidden">
-                <div className="absolute inset-0 bg-[radial-gradient(120%_80%_at_20%_10%,oklch(from_var(--accent)_l_c_h/0.45),transparent_55%),radial-gradient(120%_80%_at_85%_90%,oklch(from_var(--primary)_l_c_h/0.55),transparent_60%)]" />
-                <div className="absolute inset-0 bg-gradient-to-br from-stone-900 via-stone-900/80 to-stone-950" />
-                <div className="absolute inset-0 opacity-[0.06] mix-blend-overlay" style={{ backgroundImage: "radial-gradient(circle at 1px 1px, white 1px, transparent 0)", backgroundSize: "3px 3px" }} />
-                <span className="absolute right-6 top-1/2 -translate-y-1/2 font-serif text-[18rem] leading-none text-white/[0.04] select-none">{monogram}</span>
-              </div>
-            )}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-black/10" />
-            <div className="absolute top-5 left-5 right-5 flex items-center justify-between">
-              <span className="rounded-full bg-black/40 backdrop-blur-md px-3 py-1.5 text-[9px] uppercase tracking-[0.24em] font-semibold text-white/90 border border-white/10">SigmaGuide</span>
-              <button
-                onClick={() => setLang(lang === "pt" ? "en" : "pt")}
-                className="rounded-full bg-white/10 backdrop-blur-md px-3 py-1.5 text-[10px] uppercase tracking-[0.2em] font-medium text-white/90 border border-white/15"
-              >
-                {lang === "pt" ? "EN" : "PT"}
-              </button>
-            </div>
-            <div className="absolute bottom-0 left-0 right-0 p-7 text-white">
-              <p className="text-[10px] uppercase tracking-[0.32em] text-white/60 font-semibold mb-3">Bem-vindo</p>
-              <h1 className="font-serif text-[2.5rem] leading-[1.02] text-balance font-medium">{p.name}</h1>
-              {p.tagline && <p className="text-[13px] text-white/75 mt-3 leading-relaxed max-w-[28ch]">{p.tagline}</p>}
-              <div className="mt-5 inline-flex items-center gap-2 text-[10px] uppercase tracking-[0.22em] text-white/55">
-                <span className="h-px w-6 bg-white/40" />
-                Seu guia digital
-              </div>
-            </div>
-          </div>
-        </section>
+        {/* Hero — photo gallery with gradient fade */}
+        <HeroGallery
+          photos={photos}
+          name={p.name}
+          tagline={p.tagline}
+          monogram={monogram}
+          lang={lang}
+          onToggleLang={() => setLang(lang === "pt" ? "en" : "pt")}
+        />
 
         {/* Wi-Fi stripe */}
         {p.wifi_ssid && <WifiStripe ssid={p.wifi_ssid} password={p.wifi_password ?? ""} />}
 
         {/* Tabs */}
         <Tabs defaultValue="checkin" className="px-4 mt-6">
-          {/* Quadrants — bottom floating glass nav */}
-          <TabsList className="fixed bottom-4 left-1/2 -translate-x-1/2 z-40 grid grid-cols-4 gap-1 p-1.5 rounded-2xl bg-foreground/85 backdrop-blur-xl backdrop-saturate-150 border border-white/10 shadow-elevated h-auto w-[min(92vw,360px)]">
-            <QuadrantTrigger value="checkin" icon={<KeyRound className="size-4" strokeWidth={1.75} />} label="Chegada" />
-            <QuadrantTrigger value="house" icon={<BookOpen className="size-4" strokeWidth={1.75} />} label="A casa" />
-            <QuadrantTrigger value="explore" icon={<Compass className="size-4" strokeWidth={1.75} />} label="Explorar" />
-            <QuadrantTrigger value="info" icon={<HelpCircle className="size-4" strokeWidth={1.75} />} label="Info" />
+          {/* Quadrants — frosted ice glass nav */}
+          <TabsList className="fixed bottom-5 left-1/2 -translate-x-1/2 z-40 grid grid-cols-4 gap-1 p-1.5 rounded-[22px] bg-white/75 backdrop-blur-2xl backdrop-saturate-150 border border-white/60 shadow-[0_8px_32px_-4px_rgba(0,0,0,0.25),0_2px_8px_-2px_rgba(0,0,0,0.15)] h-auto w-[min(92vw,360px)] ring-1 ring-black/[0.04]">
+            <QuadrantTrigger value="checkin" icon={<KeyRound className="size-[18px]" strokeWidth={1.6} />} label="Chegada" />
+            <QuadrantTrigger value="house" icon={<BookOpen className="size-[18px]" strokeWidth={1.6} />} label="A casa" />
+            <QuadrantTrigger value="explore" icon={<Compass className="size-[18px]" strokeWidth={1.6} />} label="Explorar" />
+            <QuadrantTrigger value="info" icon={<HelpCircle className="size-[18px]" strokeWidth={1.6} />} label="Info" />
           </TabsList>
+
 
           <TabsContent value="checkin" className="mt-6 space-y-4">
             <SectionTitle eyebrow="Chegada" title="Sua entrada" intro="Tudo o que você precisa para chegar e se acomodar." />
