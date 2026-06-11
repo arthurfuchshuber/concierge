@@ -125,10 +125,10 @@ function Guide({ data }: { data: GuideOk }) {
   }, []);
 
   return (
-    <div className="min-h-screen bg-background text-foreground pb-32">
+    <div className="min-h-screen bg-background text-foreground pb-16">
 
       <div className="mx-auto w-full max-w-md">
-        {/* Hero — photo gallery with gradient fade */}
+        {/* Hero — shorter, photo gallery */}
         <HeroGallery
           photos={photos}
           name={p.name}
@@ -138,21 +138,54 @@ function Guide({ data }: { data: GuideOk }) {
           onToggleLang={() => setLang(lang === "pt" ? "en" : "pt")}
         />
 
-        {/* Wi-Fi stripe */}
+        {/* Wi-Fi faixa elegante */}
         {p.wifi_ssid && <WifiStripe ssid={p.wifi_ssid} password={p.wifi_password ?? ""} />}
 
-        {/* Tabs */}
-        <Tabs defaultValue="checkin" className="px-4 mt-6">
-          {/* Quadrants — frosted ice glass nav */}
-          <TabsList className="fixed bottom-5 left-1/2 -translate-x-1/2 z-40 grid grid-cols-4 gap-1 p-1.5 rounded-[22px] bg-white/75 backdrop-blur-2xl backdrop-saturate-150 border border-white/60 shadow-[0_8px_32px_-4px_rgba(0,0,0,0.25),0_2px_8px_-2px_rgba(0,0,0,0.15)] h-auto w-[min(92vw,360px)] ring-1 ring-black/[0.04]">
-            <QuadrantTrigger value="checkin" icon={<KeyRound className="size-[18px]" strokeWidth={1.6} />} label="Chegada" />
-            <QuadrantTrigger value="house" icon={<BookOpen className="size-[18px]" strokeWidth={1.6} />} label="A casa" />
-            <QuadrantTrigger value="explore" icon={<Compass className="size-[18px]" strokeWidth={1.6} />} label="Explorar" />
-            <QuadrantTrigger value="info" icon={<HelpCircle className="size-[18px]" strokeWidth={1.6} />} label="Info" />
-          </TabsList>
+        {/* Home: quadrantes; ou seção aberta */}
+        <Tabs value={section} onValueChange={(v) => setSection(v as Section)} className="px-4 mt-6">
+          {section !== "home" && (
+            <button
+              onClick={() => setSection("home")}
+              className="inline-flex items-center gap-1.5 text-[11px] uppercase tracking-[0.18em] font-semibold text-muted-foreground hover:text-foreground transition-colors mb-4"
+            >
+              <ArrowLeft className="size-3.5" /> Início
+            </button>
+          )}
+
+          {section === "home" && (
+            <div className="grid grid-cols-2 gap-3">
+              <QuadrantCard
+                onClick={() => setSection("checkin")}
+                icon={<KeyRound className="size-5" strokeWidth={1.7} />}
+                eyebrow="Estadia"
+                title="Chegada & Saída"
+                desc="Endereço, códigos, horários"
+              />
+              <QuadrantCard
+                onClick={() => setSection("house")}
+                icon={<BookOpen className="size-5" strokeWidth={1.7} />}
+                eyebrow="A casa"
+                title="Manual & Regras"
+                desc="Como funciona cada detalhe"
+              />
+              <QuadrantCard
+                onClick={() => setSection("explore")}
+                icon={<Compass className="size-5" strokeWidth={1.7} />}
+                eyebrow="Concierge"
+                title="Explorar a Região"
+                desc="Onde comer, o que visitar"
+              />
+              <QuadrantCard
+                onClick={() => setSection("info")}
+                icon={<HelpCircle className="size-5" strokeWidth={1.7} />}
+                eyebrow="Suporte"
+                title="Informações & FAQ"
+                desc="Anfitrião, emergências, dúvidas"
+              />
+            </div>
+          )}
 
 
-          <TabsContent value="checkin" className="mt-6 space-y-4">
             <SectionTitle eyebrow="Chegada" title="Sua entrada" intro="Tudo o que você precisa para chegar e se acomodar." />
             {p.address && (
               <div className="bg-card border border-border rounded-2xl p-5 relative overflow-hidden">
