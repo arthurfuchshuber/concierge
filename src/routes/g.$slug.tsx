@@ -445,10 +445,107 @@ function QuadrantTrigger({ value, icon, label }: { value: string; icon: React.Re
   return (
     <TabsTrigger
       value={value}
-      className="flex flex-col items-center justify-center gap-1 h-auto py-2.5 rounded-xl text-white/80 data-[state=active]:bg-white data-[state=active]:text-foreground data-[state=active]:shadow-soft transition-all"
+      className="flex flex-col items-center justify-center gap-1 h-auto py-2.5 rounded-[16px] text-foreground/55 data-[state=active]:bg-foreground data-[state=active]:text-background data-[state=active]:shadow-[0_4px_14px_-4px_rgba(0,0,0,0.45)] transition-all duration-300"
     >
       {icon}
       <span className="text-[9px] uppercase tracking-[0.14em] font-semibold">{label}</span>
     </TabsTrigger>
+  );
+}
+
+function HeroGallery({
+  photos,
+  name,
+  tagline,
+  monogram,
+  lang,
+  onToggleLang,
+}: {
+  photos: string[];
+  name: string;
+  tagline?: string;
+  monogram: string;
+  lang: string;
+  onToggleLang: () => void;
+}) {
+  const [emblaRef, emblaApi] = useEmblaCarousel({ loop: photos.length > 1, align: "start" });
+  const [selected, setSelected] = useState(0);
+
+  useEffect(() => {
+    if (!emblaApi) return;
+    const onSelect = () => setSelected(emblaApi.selectedScrollSnap());
+    emblaApi.on("select", onSelect);
+    onSelect();
+    return () => {
+      emblaApi.off("select", onSelect);
+    };
+  }, [emblaApi]);
+
+  const hasPhotos = photos.length > 0;
+
+  return (
+    <section className="px-4 pt-4">
+      <div className="relative overflow-hidden rounded-[28px] border border-white/5 shadow-elevated">
+        {hasPhotos ? (
+          <div ref={emblaRef} className="overflow-hidden">
+            <div className="flex">
+              {photos.map((src, i) => (
+                <div key={i} className="relative shrink-0 grow-0 basis-full">
+                  <img src={src} alt={`${name} — foto ${i + 1}`} className="w-full aspect-[3/4] object-cover" />
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <div className="relative w-full aspect-[3/4] overflow-hidden">
+            <div className="absolute inset-0 bg-[radial-gradient(120%_80%_at_20%_10%,oklch(from_var(--accent)_l_c_h/0.45),transparent_55%),radial-gradient(120%_80%_at_85%_90%,oklch(from_var(--primary)_l_c_h/0.55),transparent_60%)]" />
+            <div className="absolute inset-0 bg-gradient-to-br from-stone-900 via-stone-900/80 to-stone-950" />
+            <div className="absolute inset-0 opacity-[0.06] mix-blend-overlay" style={{ backgroundImage: "radial-gradient(circle at 1px 1px, white 1px, transparent 0)", backgroundSize: "3px 3px" }} />
+            <span className="absolute right-6 top-1/2 -translate-y-1/2 font-serif text-[18rem] leading-none text-white/[0.04] select-none">{monogram}</span>
+          </div>
+        )}
+
+        {/* Strong gradient fade from bottom for legibility + smooth degradê into page */}
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-background via-background/30 to-transparent" />
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-background to-transparent" />
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/55 via-black/15 to-black/25" />
+
+        {/* Top chrome */}
+        <div className="absolute top-5 left-5 right-5 flex items-center justify-between z-10">
+          <span className="rounded-full bg-black/45 backdrop-blur-md px-3 py-1.5 text-[9px] uppercase tracking-[0.24em] font-semibold text-white/95 border border-white/10">SigmaGuide</span>
+          <button
+            onClick={onToggleLang}
+            className="rounded-full bg-white/15 backdrop-blur-md px-3 py-1.5 text-[10px] uppercase tracking-[0.2em] font-medium text-white border border-white/20"
+          >
+            {lang === "pt" ? "EN" : "PT"}
+          </button>
+        </div>
+
+        {/* Dots */}
+        {photos.length > 1 && (
+          <div className="absolute top-5 left-1/2 -translate-x-1/2 z-10 flex items-center gap-1.5">
+            {photos.map((_, i) => (
+              <button
+                key={i}
+                aria-label={`Foto ${i + 1}`}
+                onClick={() => emblaApi?.scrollTo(i)}
+                className={`h-1 rounded-full transition-all ${i === selected ? "w-6 bg-white" : "w-3 bg-white/40"}`}
+              />
+            ))}
+          </div>
+        )}
+
+        {/* Bottom content */}
+        <div className="absolute bottom-0 left-0 right-0 p-7 text-white z-10">
+          <p className="text-[10px] uppercase tracking-[0.32em] text-white/65 font-semibold mb-3">Bem-vindo</p>
+          <h1 className="font-serif text-[2.5rem] leading-[1.02] text-balance font-medium drop-shadow-[0_2px_12px_rgba(0,0,0,0.5)]">{name}</h1>
+          {tagline && <p className="text-[13px] text-white/80 mt-3 leading-relaxed max-w-[28ch]">{tagline}</p>}
+          <div className="mt-5 inline-flex items-center gap-2 text-[10px] uppercase tracking-[0.22em] text-white/60">
+            <span className="h-px w-6 bg-white/50" />
+            Seu guia digital
+          </div>
+        </div>
+      </div>
+    </section>
   );
 }
