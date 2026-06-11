@@ -484,11 +484,34 @@ function PropertyEditor() {
 
       <div className="fixed bottom-0 left-0 right-0 border-t border-border bg-background/90 backdrop-blur p-4 z-50">
         <div className="max-w-4xl mx-auto flex items-center justify-between gap-3">
-          <p className="text-xs text-muted-foreground hidden sm:block">
-            {form.property.slug && <>Pré-visualizar: <a href={`/g/${form.property.slug}`} target="_blank" rel="noreferrer" className="underline">/g/{form.property.slug}</a></>}
-          </p>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                const order = ["basics", "access", "house", "recs", "extras"];
+                const i = order.indexOf(step);
+                if (i > 0) setStep(order[i - 1]);
+              }}
+              disabled={step === "basics"}
+            >
+              <ArrowLeft className="size-3.5 mr-1" /> Anterior
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                const order = ["basics", "access", "house", "recs", "extras"];
+                const i = order.indexOf(step);
+                if (i < order.length - 1) setStep(order[i + 1]);
+              }}
+              disabled={step === "extras"}
+            >
+              Próximo <ArrowLeft className="size-3.5 ml-1 rotate-180" />
+            </Button>
+          </div>
           <div className="flex items-center gap-2 ml-auto">
-            <Button variant="outline" onClick={() => navigate({ to: "/admin" })}>Cancelar</Button>
+            <Button variant="ghost" onClick={() => navigate({ to: "/admin" })}>Cancelar</Button>
             <Button onClick={handleSave} disabled={saving || !form.property.name}>
               {saving ? <Loader2 className="size-4 animate-spin mr-1.5" /> : null}
               Salvar guia
@@ -496,6 +519,7 @@ function PropertyEditor() {
           </div>
         </div>
       </div>
+
     </div>
   );
 }
