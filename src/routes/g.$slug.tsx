@@ -183,10 +183,10 @@ function Guide({ data }: { data: GuideOk }) {
                 desc="Anfitrião, emergências, dúvidas"
               />
             </div>
-          )}
 
-
+          <TabsContent value="checkin" className="mt-2 space-y-4">
             <SectionTitle eyebrow="Chegada" title="Sua entrada" intro="Tudo o que você precisa para chegar e se acomodar." />
+
             {p.address && (
               <div className="bg-card border border-border rounded-2xl p-5 relative overflow-hidden">
                 <div className="absolute left-0 top-5 bottom-5 w-[3px] rounded-r-full bg-accent/70" />
