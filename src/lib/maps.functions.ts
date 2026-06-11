@@ -236,12 +236,43 @@ export const enrichFromMapsLink = createServerFn({ method: "POST" })
     const { city, country } = extractCityCountry(geocoded?.address_components);
     const address = geocoded?.formatted_address ?? "";
 
+    // Lookup do próprio imóvel para tagline + foto de capa
+    let tagline = "";
+    let hero_image_url: string | null = null;
+    const placeNameFromUrl = decodeURIComponent(resolved.split("/place/")[1]?.split("/")[0] ?? "").replace(/\+/g, " ");
+    const hint = placeNameFromUrl || address;
+    if (hint) {
+      const self = await findPropertyPlace(coords.lat, coords.lng, hint);
+      if (self) {
+        tagline =
+          self.editorialSummary?.text ??
+          self.generativeSummary?.overview?.text ??
+          "";
+        hero_image_url = buildPhotoUrl(self.photos?.[0]?.name);
+      }
+    }
+
+    // Filtros de qualidade para recomendações
+    const MIN_RATING = 4.2;
+    const MIN_REVIEWS_NEARBY = 30;
+    const MIN_REVIEWS_CITY = 100;
+    const MAX_PER_TYPE = 4;
+
+    const isQuality = (p: PlaceRaw, minReviews: number) =>
+      typeof p.rating === "number" &&
+      p.rating >= MIN_RATING &&
+      typeof p.userRatingCount === "number" &&
+      p.userRatingCount >= minReviews;
+
     const recommendations: PlaceItem[] = [];
     const seen = new Set<string>();
 
     // 1) Nearby por categoria
     for (const cat of TYPE_MAP) {
-      const items = await placesNearby(coords.lat, coords.lng, cat.placesTypes);
+      const items = (await placesNearby(coords.lat, coords.lng, cat.placesTypes))
+        .filter((p) => isQuality(p, MIN_REVIEWS_NEARBY))
+        .sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0))
+        .slice(0, MAX_PER_TYPE);
       for (const p of items) {
         if (!p.id || !p.location || seen.has(p.id)) continue;
         seen.add(p.id);
@@ -265,15 +296,23 @@ export const enrichFromMapsLink = createServerFn({ method: "POST" })
       }
     }
 
-    // 2) City-wide para os mesmos tipos, deduplicando
+    // 2) City-wide: só categorias mais "destino" e top-rated
+    const CITY_CATS = TYPE_MAP.filter((c) => ["restaurant", "bar", "cafe", "beach", "attraction", "nightlife"].includes(c.type));
     if (city) {
-      for (const cat of TYPE_MAP) {
+      for (const cat of CITY_CATS) {
         const primary = cat.placesTypes[0];
-        const items = await placesText(`${cat.category} em ${city}`, coords.lat, coords.lng, primary);
+        const items = (await placesText(`melhores ${cat.category.toLowerCase()} em ${city}`, coords.lat, coords.lng, primary))
+          .filter((p) => !seen.has(p.id) && isQuality(p, MIN_REVIEWS_CITY))
+          .filter((p) => {
+            if (!p.location) return false;
+            const d = haversineMeters(coords, { lat: p.location.latitude, lng: p.location.longitude });
+            return d >= 1500; // já não cabe em nearby
+          })
+          .sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0))
+          .slice(0, MAX_PER_TYPE);
         for (const p of items) {
-          if (!p.id || !p.location || seen.has(p.id)) continue;
+          if (!p.id || !p.location) continue;
           const dist = haversineMeters(coords, { lat: p.location.latitude, lng: p.location.longitude });
-          if (dist < 1500) continue; // pertence a "nearby"
           seen.add(p.id);
           const { text, driveMin } = formatDistance(dist);
           recommendations.push({
@@ -309,6 +348,8 @@ export const enrichFromMapsLink = createServerFn({ method: "POST" })
       lng: coords.lng,
       city,
       country,
+      tagline,
+      hero_image_url,
       recommendations,
     };
   });
