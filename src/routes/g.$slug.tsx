@@ -499,21 +499,29 @@ function QuadrantCard({
   return (
     <button
       onClick={onClick}
-      className="group relative text-left bg-card border border-border rounded-2xl p-4 hover:border-accent/40 hover:shadow-soft active:scale-[0.98] transition-all overflow-hidden"
+      className="group relative text-left bg-card border border-border rounded-3xl p-5 hover:border-accent/30 hover:-translate-y-0.5 active:scale-[0.98] transition-all overflow-hidden"
+      style={{ boxShadow: "var(--shadow-soft)" }}
     >
-      <div className="absolute -top-6 -right-6 size-24 rounded-full bg-accent/5 group-hover:bg-accent/10 transition-colors" />
+      {/* Soft warm wash inside the card */}
+      <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-transparent via-transparent to-[oklch(from_var(--accent)_l_c_h/0.05)]" />
+      <div className="pointer-events-none absolute -top-10 -right-10 size-28 rounded-full bg-[radial-gradient(circle,oklch(from_var(--accent)_l_c_h/0.10),transparent_70%)]" />
+
       <div className="relative">
-        <div className="size-10 rounded-xl bg-accent/10 text-accent grid place-items-center mb-4">
+        <div className="size-12 rounded-2xl bg-gradient-to-br from-accent to-[oklch(from_var(--accent)_calc(l-0.06)_c_h)] text-accent-foreground grid place-items-center mb-5 shadow-[0_8px_20px_-8px_oklch(from_var(--accent)_l_c_h/0.6)]">
           {icon}
         </div>
-        <p className="text-[9px] uppercase tracking-[0.24em] text-accent font-semibold">{eyebrow}</p>
-        <p className="font-serif text-[1.05rem] leading-tight mt-1.5">{title}</p>
-        <p className="text-[11px] text-muted-foreground mt-1.5 leading-snug">{desc}</p>
-        <ChevronRight className="size-3.5 text-muted-foreground/50 group-hover:text-accent absolute right-0 top-0 transition-colors" />
+        <p className="text-[9px] uppercase tracking-[0.26em] text-accent font-semibold">{eyebrow}</p>
+        <p className="font-serif text-[1.15rem] leading-[1.15] mt-1.5 text-foreground">{title}</p>
+        <p className="text-[11.5px] text-muted-foreground mt-1.5 leading-snug">{desc}</p>
+
+        <span className="absolute right-0 top-0 size-7 rounded-full grid place-items-center bg-secondary text-muted-foreground group-hover:bg-accent group-hover:text-accent-foreground transition-colors">
+          <ChevronRight className="size-3.5" />
+        </span>
       </div>
     </button>
   );
 }
+
 
 
 function HeroGallery({
