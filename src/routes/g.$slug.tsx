@@ -119,12 +119,10 @@ function Guide({ data }: { data: GuideOk }) {
   const photos: string[] = (galleryRaw.length ? galleryRaw : p.hero_image_url ? [p.hero_image_url] : []).slice(0, 4);
 
   return (
-    <div className="guide-ambient min-h-screen bg-background text-foreground pb-16">
-
-
+    <div className="guide-ambient min-h-screen bg-background text-foreground pb-20">
       <div className="mx-auto w-full max-w-md">
-        {/* Hero — shorter, photo gallery */}
-        <HeroGallery
+        {/* Editorial Hero — photo framed, title below */}
+        <HeroEditorial
           photos={photos}
           name={p.name}
           tagline={p.tagline}
@@ -133,52 +131,36 @@ function Guide({ data }: { data: GuideOk }) {
           onToggleLang={() => setLang(lang === "pt" ? "en" : "pt")}
         />
 
-        {/* Wi-Fi faixa elegante */}
+        {/* Wi-Fi — discreet utility row */}
         {p.wifi_ssid && <WifiStripe ssid={p.wifi_ssid} password={p.wifi_password ?? ""} />}
 
-        {/* Home: quadrantes; ou seção aberta */}
-        <Tabs value={section} onValueChange={(v) => setSection(v as Section)} className="px-4 mt-6">
+        {/* Sections */}
+        <Tabs value={section} onValueChange={(v) => setSection(v as Section)} className="px-5 mt-8">
           {section !== "home" && (
             <button
               onClick={() => setSection("home")}
-              className="inline-flex items-center gap-1.5 text-[11px] uppercase tracking-[0.18em] font-semibold text-muted-foreground hover:text-foreground transition-colors mb-4"
+              className="inline-flex items-center gap-1.5 text-[10px] uppercase tracking-[0.24em] font-semibold text-muted-foreground hover:text-foreground transition-colors mb-5"
             >
-              <ArrowLeft className="size-3.5" /> Início
+              <ArrowLeft className="size-3" /> Voltar ao índice
             </button>
           )}
 
           {section === "home" && (
-            <div className="grid grid-cols-2 gap-3">
-              <QuadrantCard
-                onClick={() => setSection("checkin")}
-                icon={<KeyRound className="size-5" strokeWidth={1.7} />}
-                eyebrow="Estadia"
-                title="Chegada & Saída"
-                desc="Endereço, códigos, horários"
-              />
-              <QuadrantCard
-                onClick={() => setSection("house")}
-                icon={<BookOpen className="size-5" strokeWidth={1.7} />}
-                eyebrow="A casa"
-                title="Manual & Regras"
-                desc="Como funciona cada detalhe"
-              />
-              <QuadrantCard
-                onClick={() => setSection("explore")}
-                icon={<Compass className="size-5" strokeWidth={1.7} />}
-                eyebrow="Concierge"
-                title="Explorar a Região"
-                desc="Onde comer, o que visitar"
-              />
-              <QuadrantCard
-                onClick={() => setSection("info")}
-                icon={<HelpCircle className="size-5" strokeWidth={1.7} />}
-                eyebrow="Suporte"
-                title="Informações & FAQ"
-                desc="Anfitrião, emergências, dúvidas"
-              />
+            <div>
+              <div className="flex items-center gap-3 mb-5">
+                <span className="h-px flex-1 bg-border" />
+                <p className="text-[10px] uppercase tracking-[0.32em] text-muted-foreground font-semibold">Índice</p>
+                <span className="h-px flex-1 bg-border" />
+              </div>
+              <ul className="divide-y divide-border">
+                <ChapterRow num="01" eyebrow="Estadia" title="Chegada & Saída" desc="Endereço, códigos e horários" icon={<KeyRound className="size-4" strokeWidth={1.5} />} onClick={() => setSection("checkin")} />
+                <ChapterRow num="02" eyebrow="A casa" title="Manual & Regras" desc="Como funciona cada detalhe" icon={<BookOpen className="size-4" strokeWidth={1.5} />} onClick={() => setSection("house")} />
+                <ChapterRow num="03" eyebrow="Concierge" title="Explorar a Região" desc="Onde comer, o que visitar" icon={<Compass className="size-4" strokeWidth={1.5} />} onClick={() => setSection("explore")} />
+                <ChapterRow num="04" eyebrow="Suporte" title="Informações & FAQ" desc="Anfitrião, emergências, dúvidas" icon={<HelpCircle className="size-4" strokeWidth={1.5} />} onClick={() => setSection("info")} />
+              </ul>
             </div>
           )}
+
 
 
 
