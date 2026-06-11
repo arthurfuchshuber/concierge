@@ -109,7 +109,7 @@ function Guide({ data }: { data: GuideOk }) {
   const city = data.recommendations.filter((r: any) => r.scope === "city");
 
   return (
-    <div className="min-h-screen bg-background text-foreground pb-20">
+    <div className="min-h-screen bg-background text-foreground pb-32">
       <div className="mx-auto w-full max-w-md">
         {/* Hero */}
         <section className="px-4 pt-4">
@@ -136,25 +136,17 @@ function Guide({ data }: { data: GuideOk }) {
           </div>
         </section>
 
-        {/* Wi-Fi */}
-        {p.wifi_ssid && (
-          <section className="px-4 mt-5">
-            <CopyCard
-              icon={<Wifi className="size-5 text-accent" />}
-              eyebrow="Wi-Fi"
-              label={p.wifi_ssid}
-              value={p.wifi_password ?? ""}
-            />
-          </section>
-        )}
+        {/* Wi-Fi stripe */}
+        {p.wifi_ssid && <WifiStripe ssid={p.wifi_ssid} password={p.wifi_password ?? ""} />}
 
         {/* Tabs */}
         <Tabs defaultValue="checkin" className="px-4 mt-6">
-          <TabsList className="grid grid-cols-4 w-full">
-            <TabsTrigger value="checkin"><KeyRound className="size-4" /></TabsTrigger>
-            <TabsTrigger value="house"><BookOpen className="size-4" /></TabsTrigger>
-            <TabsTrigger value="explore"><Compass className="size-4" /></TabsTrigger>
-            <TabsTrigger value="info"><HelpCircle className="size-4" /></TabsTrigger>
+          {/* Quadrants — bottom floating glass nav */}
+          <TabsList className="fixed bottom-4 left-1/2 -translate-x-1/2 z-40 grid grid-cols-4 gap-1 p-1.5 rounded-2xl glass border border-white/15 shadow-elevated h-auto w-[min(92vw,360px)]">
+            <QuadrantTrigger value="checkin" icon={<KeyRound className="size-4" strokeWidth={1.75} />} label="Chegada" />
+            <QuadrantTrigger value="house" icon={<BookOpen className="size-4" strokeWidth={1.75} />} label="A casa" />
+            <QuadrantTrigger value="explore" icon={<Compass className="size-4" strokeWidth={1.75} />} label="Explorar" />
+            <QuadrantTrigger value="info" icon={<HelpCircle className="size-4" strokeWidth={1.75} />} label="Info" />
           </TabsList>
 
           <TabsContent value="checkin" className="mt-5 space-y-4">
