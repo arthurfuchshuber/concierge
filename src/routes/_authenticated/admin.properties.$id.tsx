@@ -197,6 +197,7 @@ function PropertyEditor() {
           country: r.country || f.property.country,
           tagline: f.property.tagline || r.tagline || f.property.tagline,
           hero_image_url: f.property.hero_image_url || r.hero_image_url || f.property.hero_image_url,
+          gallery_images: f.property.gallery_images.length ? f.property.gallery_images : (r.gallery_images ?? []).slice(0, 4),
         },
         recommendations: r.recommendations.map((rec) => ({
           scope: rec.scope,
