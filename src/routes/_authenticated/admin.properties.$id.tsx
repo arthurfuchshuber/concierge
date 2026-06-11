@@ -192,6 +192,8 @@ function PropertyEditor() {
           lng: r.lng,
           city: r.city || f.property.city,
           country: r.country || f.property.country,
+          tagline: f.property.tagline || r.tagline || f.property.tagline,
+          hero_image_url: f.property.hero_image_url || r.hero_image_url || f.property.hero_image_url,
         },
         recommendations: r.recommendations.map((rec) => ({
           scope: rec.scope,
@@ -210,7 +212,11 @@ function PropertyEditor() {
       }));
       const nearby = r.recommendations.filter((x) => x.scope === "nearby").length;
       const city = r.recommendations.filter((x) => x.scope === "city").length;
-      toast.success(`Preenchido! ${nearby} arredores · ${city} pela cidade`);
+      const extras: string[] = [];
+      if (r.tagline) extras.push("descrição");
+      if (r.hero_image_url) extras.push("foto de capa");
+      const extraStr = extras.length ? ` · ${extras.join(" + ")}` : "";
+      toast.success(`Preenchido! ${nearby} arredores · ${city} pela cidade${extraStr}`);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Erro ao enriquecer");
     } finally {
