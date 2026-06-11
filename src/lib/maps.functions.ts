@@ -1,4 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
 
 const GATEWAY = "https://connector-gateway.lovable.dev/google_maps";
@@ -213,6 +214,7 @@ function buildPhotoUrl(photoName: string | undefined): string | null {
 }
 
 export const enrichFromMapsLink = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => InputSchema.parse(input))
   .handler(async ({ data }): Promise<EnrichResult> => {
     const resolved = await resolveShortUrl(data.mapsUrl);
