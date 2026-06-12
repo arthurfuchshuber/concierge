@@ -228,6 +228,9 @@ function Dashboard() {
                 {p.access_mode === "pin" ? <><Lock className="size-2.5" /> PIN</> : <><Globe className="size-2.5" /> Público</>}
               </span>
               <div className="flex items-center gap-1">
+                <button onClick={() => handleCopyLink(p.slug, p.id)} className="size-8 grid place-items-center rounded-full hover:bg-secondary" aria-label="Copiar link público">
+                  {copiedId === p.id ? <Check className="size-3.5 text-accent" /> : <Link2 className="size-3.5" />}
+                </button>
                 <Link to="/admin/properties/$id" params={{ id: p.id }} className="size-8 grid place-items-center rounded-full hover:bg-secondary" aria-label="Editar">
                   <Pencil className="size-3.5" />
                 </Link>
