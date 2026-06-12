@@ -543,5 +543,3 @@ function CopyCard({ icon, eyebrow, label, value }: { icon?: React.ReactNode; eye
   );
 }
 
-// Avoid unused-import warnings for items kept available for future use
-void BookOpen; void ExternalLink; void useEffect;
