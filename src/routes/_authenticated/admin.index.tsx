@@ -181,24 +181,22 @@ function Dashboard() {
               <div className="p-4">
                 <h3 className="font-semibold leading-tight truncate">{p.name}</h3>
                 <p className="text-xs text-muted-foreground mt-1 truncate">{p.tagline || `${p.city ?? ""}${p.country ? `, ${p.country}` : ""}`}</p>
-                <button
-                  onClick={() => handleCopyLink(p.slug, p.id)}
-                  className="mt-4 w-full inline-flex items-center justify-center gap-1.5 text-xs font-medium rounded-full py-2 border border-border bg-background/40 hover:bg-secondary/70 transition-colors"
-                >
-                  {copiedId === p.id ? (
-                    <><Check className="size-3.5 text-accent" /> Link copiado</>
-                  ) : (
-                    <><Link2 className="size-3.5" /> Copiar link público</>
-                  )}
-                </button>
-                <div className="flex items-center gap-2 mt-2">
+                <div className="flex items-center gap-2 mt-4">
                   <Link to="/admin/properties/$id" params={{ id: p.id }} className="flex-1 inline-flex items-center justify-center gap-1 text-xs font-medium bg-secondary rounded-full py-2 hover:bg-secondary/70">
                     <Pencil className="size-3" /> Editar
                   </Link>
                   <a href={`/g/${p.slug}`} target="_blank" rel="noreferrer" className="flex-1 inline-flex items-center justify-center gap-1 text-xs font-medium bg-secondary rounded-full py-2 hover:bg-secondary/70">
                     <ExternalLink className="size-3" /> Ver
                   </a>
-                  <button onClick={() => handleDelete(p.id, p.name)} className="p-2 rounded-full hover:bg-destructive/10 text-muted-foreground hover:text-destructive" aria-label="Excluir">
+                  <button
+                    onClick={() => handleCopyLink(p.slug, p.id)}
+                    title="Copiar link público"
+                    aria-label="Copiar link público"
+                    className="p-2 rounded-full hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    {copiedId === p.id ? <Check className="size-3.5 text-accent" /> : <Link2 className="size-3.5" />}
+                  </button>
+                  <button onClick={() => handleDelete(p.id, p.name)} title="Excluir" className="p-2 rounded-full hover:bg-destructive/10 text-muted-foreground hover:text-destructive" aria-label="Excluir">
                     <Trash2 className="size-3.5" />
                   </button>
                 </div>
