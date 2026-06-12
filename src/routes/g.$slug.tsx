@@ -555,7 +555,7 @@ function SubItem({
   );
 }
 
-
+function SectionTitle({ eyebrow, title, intro }: { eyebrow: string; title: string; intro?: string }) {
   return (
     <div className="pt-2 pb-1">
       <div className="flex items-center gap-2 mb-2">
