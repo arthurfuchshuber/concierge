@@ -6,7 +6,7 @@
 
 @theme inline {
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
-  --font-serif: "Instrument Serif", "Cormorant Garamond", ui-serif, Georgia, serif;
+  --font-serif: "Cormorant Garamond", "Instrument Serif", ui-serif, Georgia, serif;
   --font-mono: "JetBrains Mono", ui-monospace, monospace;
 
   --radius-sm: calc(var(--radius) - 4px);
@@ -128,8 +128,19 @@
 
   .font-serif {
     font-family: var(--font-serif);
-    letter-spacing: -0.005em;
+    letter-spacing: 0;
     font-weight: 400;
+  }
+
+  .sigma-public-guide {
+    --background: oklch(0.055 0.014 45);
+    --foreground: oklch(0.985 0.008 80);
+    --card: oklch(0.105 0.014 48);
+    --card-foreground: oklch(0.985 0.008 80);
+    --muted-foreground: oklch(0.72 0.012 70);
+    --accent: oklch(0.74 0.13 63);
+    --accent-foreground: oklch(0.075 0.014 45);
+    --border: oklch(0.74 0.13 63 / 0.22);
   }
 
   .font-mono {
@@ -157,9 +168,8 @@
   /* Soft ambient gradient for the public guide background — adapts to theme */
   .guide-ambient {
     background-image:
-      radial-gradient(60% 40% at 100% 0%, oklch(from var(--accent) l c h / 0.10), transparent 60%),
-      radial-gradient(50% 35% at 0% 30%, oklch(from var(--accent) l c h / 0.06) 0%, transparent 65%),
-      radial-gradient(80% 60% at 50% 100%, oklch(from var(--accent) l c h / 0.05) 0%, transparent 70%);
+      radial-gradient(60% 40% at 100% 0%, oklch(from var(--accent) l c h / 0.08), transparent 60%),
+      linear-gradient(180deg, var(--background), oklch(0.025 0.008 45));
   }
 }
 
