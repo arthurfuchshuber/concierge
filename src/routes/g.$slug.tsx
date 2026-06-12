@@ -181,7 +181,7 @@ function Guide({ data }: { data: GuideOk }) {
               image={heroImg}
             />
 
-            <section id="guide-actions" className="px-5 -mt-1 relative z-10">
+            <section id="guide-actions" className="px-5 -mt-8 relative z-10">
               <div className="flex items-center gap-5 mb-5">
                 <p className="shrink-0 text-[10px] uppercase tracking-[0.34em] text-accent font-semibold">
                   O que você deseja acessar?
@@ -404,10 +404,10 @@ function HeroCompact({
   name: string; tagline?: string; city?: string; image?: string;
 }) {
   return (
-    <section className="relative min-h-[710px] overflow-hidden px-6 pb-16 pt-8">
-      {image && <img src={image} alt="" className="absolute inset-0 size-full object-cover" />}
-      <div className="absolute inset-0 bg-[linear-gradient(90deg,oklch(0.02_0.004_40/0.98)_0%,oklch(0.02_0.004_40/0.82)_37%,transparent_82%)]" />
-      <div className="absolute inset-0 bg-[linear-gradient(180deg,oklch(0.02_0.004_40/0.72)_0%,transparent_32%,oklch(0.02_0.004_40/0.92)_86%,oklch(0.02_0.004_40)_100%)]" />
+    <section className="relative min-h-[705px] overflow-hidden px-6 pb-20 pt-8">
+      {image && <img src={image} alt="" className="absolute inset-0 size-full object-cover object-[62%_50%] opacity-95" />}
+      <div className="absolute inset-0 bg-[linear-gradient(90deg,oklch(0.02_0.004_40/0.94)_0%,oklch(0.02_0.004_40/0.7)_42%,oklch(0.02_0.004_40/0.18)_100%)]" />
+      <div className="absolute inset-0 bg-[linear-gradient(180deg,oklch(0.02_0.004_40/0.68)_0%,transparent_34%,oklch(0.02_0.004_40/0.78)_82%,oklch(0.02_0.004_40)_100%)]" />
 
       <header className="relative z-10 flex items-center justify-between">
         <div className="flex items-center gap-4">
@@ -426,18 +426,18 @@ function HeroCompact({
         </button>
       </header>
 
-      <div className="relative z-10 mt-[136px] max-w-[350px]">
-        <p className="mb-6 text-[13px] font-semibold uppercase tracking-[0.42em] text-accent">Bem-vindo</p>
-        <h1 className="font-serif text-[4rem] leading-[0.98] text-foreground text-balance sm:text-[4.4rem]">
+      <div className="relative z-10 mt-[118px] max-w-[350px]">
+        <p className="mb-5 text-[13px] font-semibold uppercase tracking-[0.42em] text-accent">Bem-vindo</p>
+        <h1 className="font-serif text-[3.25rem] leading-[0.96] text-foreground text-balance sm:text-[3.65rem]">
           {name}
         </h1>
         {city && (
-          <p className="mt-7 inline-flex items-center gap-3 text-[1.35rem] leading-none text-foreground/80">
-            <MapPin className="size-6 text-foreground/80 fill-foreground/80" strokeWidth={0} /> {city}
+          <p className="mt-6 inline-flex items-center gap-3 text-[1.25rem] leading-none text-foreground/82">
+            <MapPin className="size-5 text-foreground/82 fill-foreground/82" strokeWidth={0} /> {city}
           </p>
         )}
-        <span className="mt-9 block h-[2px] w-16 bg-accent" />
-        <p className="mt-8 max-w-[290px] text-[1.35rem] leading-[1.48] text-foreground/82">
+        <span className="mt-8 block h-[2px] w-16 bg-accent" />
+        <p className="mt-7 max-w-[300px] text-[1.22rem] leading-[1.46] text-foreground/82">
           {tagline || "Tudo o que você precisa para aproveitar cada momento."}
         </p>
       </div>
