@@ -183,15 +183,15 @@ function Guide({ data }: { data: GuideOk }) {
               image={heroImg}
             />
 
-            <section id="guide-actions" className="px-5 -mt-8 relative z-10">
-              <div className="flex items-center gap-5 mb-5">
-                <p className="shrink-0 text-[10px] uppercase tracking-[0.34em] text-accent font-semibold">
+            <section id="guide-actions" className="px-5 -mt-4 relative z-10">
+              <div className="flex items-center gap-3 mb-3">
+                <p className="shrink-0 text-[9px] uppercase tracking-[0.3em] text-accent font-semibold">
                   O que você deseja acessar?
                 </p>
-                <span className="h-px flex-1 bg-accent/45" />
+                <span className="h-px flex-1 bg-accent/40" />
               </div>
 
-              <div className="space-y-4">
+              <div className="space-y-2.5">
                 {cards.map((c) =>
                   c.to?.kind === "link" ? (
                     <Link key={c.key} to={c.to.to as any}>
@@ -210,9 +210,9 @@ function Guide({ data }: { data: GuideOk }) {
               </div>
             </section>
 
-            <footer className="mt-14 px-6 text-center flex items-center justify-center gap-3">
-              <GuideMark className="size-5 text-accent" />
-              <p className="text-[10px] uppercase tracking-[0.34em] text-muted-foreground/65 font-semibold">
+            <footer className="mt-10 px-6 text-center flex items-center justify-center gap-2.5">
+              <GuideMark className="size-3.5 text-accent" />
+              <p className="text-[9px] uppercase tracking-[0.3em] text-muted-foreground/65 font-semibold">
                 Seu guia. Sua experiência.
               </p>
             </footer>
