@@ -389,84 +389,82 @@ function Guide({ data }: { data: GuideOk }) {
   );
 }
 
+function GuideMark({ className = "" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 32 32" aria-hidden="true" className={className} fill="none">
+      <path d="M16 3v7.5M16 21.5V29M3 16h7.5M21.5 16H29" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" />
+      <path d="M16 10.5c0 3.04-2.46 5.5-5.5 5.5 3.04 0 5.5 2.46 5.5 5.5 0-3.04 2.46-5.5 5.5-5.5-3.04 0-5.5-2.46-5.5-5.5Z" stroke="currentColor" strokeWidth="2.4" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 function HeroCompact({
-  name, tagline, city, image, lang, onToggleLang,
+  name, tagline, city, image,
 }: {
   name: string; tagline?: string; city?: string; image?: string;
-  lang: string; onToggleLang: () => void;
 }) {
   return (
-    <section className="px-5 pt-5">
-      <div className="flex items-center justify-between mb-5">
-        <span className="text-[11px] uppercase tracking-[0.28em] font-semibold">
-          <span className="text-accent">Sigma</span>
-          <span className="text-foreground">Guide</span>
-        </span>
-        <button
-          onClick={onToggleLang}
-          className="rounded-full border border-border px-3 py-1 text-[10px] uppercase tracking-[0.22em] font-medium text-muted-foreground hover:text-foreground hover:border-accent/40 transition-colors"
-        >
-          {lang === "pt" ? "EN" : "PT"}
-        </button>
-      </div>
+    <section className="relative min-h-[710px] overflow-hidden px-6 pb-16 pt-8">
+      {image && <img src={image} alt="" className="absolute inset-0 size-full object-cover" />}
+      <div className="absolute inset-0 bg-[linear-gradient(90deg,oklch(0.02_0.004_40/0.98)_0%,oklch(0.02_0.004_40/0.82)_37%,transparent_82%)]" />
+      <div className="absolute inset-0 bg-[linear-gradient(180deg,oklch(0.02_0.004_40/0.72)_0%,transparent_32%,oklch(0.02_0.004_40/0.92)_86%,oklch(0.02_0.004_40)_100%)]" />
 
-      <div
-        className="relative overflow-hidden rounded-[26px] border border-border bg-card"
-        style={{ boxShadow: "var(--shadow-soft)" }}
-      >
-        {image && (
-          <img
-            src={image}
-            alt=""
-            className="absolute inset-0 w-full h-full object-cover opacity-[0.14]"
-          />
-        )}
-        <div className="absolute inset-0 bg-[radial-gradient(70%_55%_at_88%_8%,oklch(from_var(--accent)_l_c_h/0.28),transparent_60%)]" />
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-card/30 to-card/80" />
-
-        <div className="relative px-7 py-10 min-h-[440px] flex flex-col justify-center">
-          <p className="text-[11px] uppercase tracking-[0.34em] text-accent font-semibold mb-5">
-            Bem-vindo
+      <header className="relative z-10 flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <GuideMark className="size-9 text-accent" />
+          <p className="font-serif text-[2.15rem] leading-none text-foreground">
+            <span>Sigma</span><span className="text-accent">Guide</span>
           </p>
-          <h1 className="font-serif text-[2.5rem] leading-[1.05] tracking-tight text-foreground text-balance">
-            {name}
-          </h1>
-          {city && (
-            <p className="mt-5 inline-flex items-center gap-2 text-[14px] text-foreground/90">
-              <MapPin className="size-4 text-accent" strokeWidth={1.75} /> {city}
-            </p>
-          )}
-          <span className="block h-px w-12 bg-accent/70 mt-4" />
-          {tagline && (
-            <p className="text-[13px] mt-5 leading-relaxed text-muted-foreground max-w-[32ch]">
-              {tagline}
-            </p>
-          )}
         </div>
+        <button
+          aria-label="Menu"
+          className="grid size-[66px] place-items-center rounded-full border border-accent/65 bg-background/10 text-foreground/90 backdrop-blur-sm"
+        >
+          <span className="relative block h-5 w-6 before:absolute before:left-0 before:top-0 before:h-px before:w-6 before:bg-current after:absolute after:bottom-0 after:left-0 after:h-px after:w-6 after:bg-current">
+            <span className="absolute left-0 top-1/2 h-px w-6 -translate-y-1/2 bg-current" />
+          </span>
+        </button>
+      </header>
+
+      <div className="relative z-10 mt-[136px] max-w-[350px]">
+        <p className="mb-6 text-[13px] font-semibold uppercase tracking-[0.42em] text-accent">Bem-vindo</p>
+        <h1 className="font-serif text-[4rem] leading-[0.98] text-foreground text-balance sm:text-[4.4rem]">
+          {name}
+        </h1>
+        {city && (
+          <p className="mt-7 inline-flex items-center gap-3 text-[1.35rem] leading-none text-foreground/80">
+            <MapPin className="size-6 text-foreground/80 fill-foreground/80" strokeWidth={0} /> {city}
+          </p>
+        )}
+        <span className="mt-9 block h-[2px] w-16 bg-accent" />
+        <p className="mt-8 max-w-[290px] text-[1.35rem] leading-[1.48] text-foreground/82">
+          {tagline || "Tudo o que você precisa para aproveitar cada momento."}
+        </p>
       </div>
     </section>
   );
 }
 
 function ThemeCard({
-  eyebrow, title, desc, icon,
+  title, desc, icon, image,
 }: {
   eyebrow: string; title: string; desc: string; icon: React.ReactNode; image?: string;
 }) {
   return (
-    <div className="group relative overflow-hidden rounded-2xl border border-border bg-card active:scale-[0.99] transition-all hover:border-accent/40">
-      <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity bg-[radial-gradient(80%_120%_at_100%_50%,oklch(from_var(--accent)_l_c_h/0.08),transparent_70%)] pointer-events-none" />
-      <div className="relative flex items-center gap-4 px-5 py-5">
-        <span className="size-[58px] rounded-full border border-accent/40 text-accent grid place-items-center shrink-0">
+    <div className="group relative min-h-[204px] overflow-hidden rounded-[18px] border border-accent/40 bg-card active:scale-[0.99] transition-all duration-300 hover:border-accent/80">
+      {image && <img src={image} alt="" className="absolute inset-0 size-full object-cover opacity-75 transition-transform duration-500 group-hover:scale-105" />}
+      <div className="absolute inset-0 bg-[linear-gradient(90deg,oklch(0.02_0.004_40/0.98)_0%,oklch(0.02_0.004_40/0.82)_34%,oklch(0.02_0.004_40/0.25)_70%,oklch(0.02_0.004_40/0.6)_100%)]" />
+      <div className="absolute inset-0 bg-[linear-gradient(180deg,oklch(0.02_0.004_40/0.1),oklch(0.02_0.004_40/0.62))]" />
+      <div className="relative flex min-h-[204px] items-center gap-8 px-7 py-6 pr-[5.25rem]">
+        <span className="grid size-[74px] shrink-0 place-items-center rounded-full border border-accent/45 bg-background/18 text-accent backdrop-blur-sm">
           {icon}
         </span>
         <div className="flex-1 min-w-0">
-          <p className="text-[10px] uppercase tracking-[0.28em] text-accent font-semibold mb-1.5">{eyebrow}</p>
-          <h3 className="font-serif text-[1.35rem] leading-[1.05] text-foreground truncate">{title}</h3>
-          <p className="text-[12px] text-muted-foreground mt-1.5 leading-snug line-clamp-1">{desc}</p>
+          <h3 className="font-serif text-[2rem] leading-[1.02] text-foreground text-balance">{title}</h3>
+          <p className="mt-4 text-[1rem] leading-[1.35] text-foreground/76 line-clamp-2">{desc}</p>
         </div>
-        <span className="size-11 rounded-full border border-accent/40 text-accent grid place-items-center shrink-0 group-hover:bg-accent group-hover:text-accent-foreground transition-colors">
-          <ArrowRight className="size-4" strokeWidth={1.75} />
+        <span className="absolute right-6 top-1/2 grid size-[58px] -translate-y-1/2 place-items-center rounded-full border border-accent/80 text-foreground transition-colors group-hover:bg-accent group-hover:text-background">
+          <ArrowRight className="size-7" strokeWidth={1.4} />
         </span>
       </div>
     </div>
