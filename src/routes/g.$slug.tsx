@@ -254,10 +254,10 @@ function Guide({ data }: { data: GuideOk }) {
                         label="Horário"
                         hint={
                           p.checkin_time && p.checkout_time
-                            ? `${p.checkin_time} → ${p.checkout_time}`
+                            ? `Check-in ${p.checkin_time} · Check-out ${p.checkout_time}`
                             : p.checkin_time
-                              ? `entrada ${p.checkin_time}`
-                              : `saída ${p.checkout_time}`
+                              ? `Check-in ${p.checkin_time}`
+                              : `Check-out ${p.checkout_time}`
                         }
                       >
                         <div className="grid grid-cols-2 bg-background border border-border rounded-xl overflow-hidden">
