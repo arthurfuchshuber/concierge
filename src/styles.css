@@ -186,14 +186,13 @@
     background: linear-gradient(
       90deg,
       transparent 0%,
-      oklch(from var(--accent) l c h / 0.0) 30%,
-      oklch(from var(--accent) l c h / 0.18) 48%,
-      oklch(1 0 0 / 0.22) 50%,
-      oklch(from var(--accent) l c h / 0.18) 52%,
-      transparent 70%
+      oklch(from var(--accent) l c h / 0.06) 35%,
+      oklch(from var(--accent) l c h / 0.10) 50%,
+      oklch(from var(--accent) l c h / 0.06) 65%,
+      transparent 100%
     );
-    width: 45%;
-    animation: wifi-shimmer 4.5s ease-in-out infinite;
+    width: 100%;
+    animation: wifi-shimmer 6s ease-in-out infinite;
     mix-blend-mode: screen;
   }
 
