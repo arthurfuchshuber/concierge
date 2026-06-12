@@ -431,30 +431,30 @@ function HeroCompact({
         </button>
       </div>
 
-      {/* Compact hero with overlaid title */}
+      {/* Compact hero — image on right, title overlaid on left */}
       <div className="relative overflow-hidden rounded-2xl border border-border" style={{ boxShadow: "var(--shadow-soft)" }}>
         {image ? (
-          <img src={image} alt={name} className="w-full aspect-[16/11] object-cover" />
+          <img src={image} alt={name} className="absolute inset-0 w-full h-full object-cover" />
         ) : (
-          <div className="w-full aspect-[16/11] bg-gradient-to-br from-accent/20 to-accent/5" />
+          <div className="absolute inset-0 bg-[radial-gradient(120%_80%_at_85%_30%,oklch(from_var(--accent)_l_c_h/0.35),transparent_60%)] bg-secondary" />
         )}
-        {/* Gradient scrim from bottom-left for legibility */}
-        <div className="absolute inset-0 bg-gradient-to-r from-background/90 via-background/55 to-transparent" />
-        <div className="absolute inset-0 bg-gradient-to-t from-background/70 to-transparent" />
+        {/* Side gradient: dark on left where text lives, fades to reveal image on right */}
+        <div className="absolute inset-0 bg-gradient-to-r from-background via-background/70 to-background/10" />
+        <div className="absolute inset-0 bg-gradient-to-t from-background/60 via-transparent to-transparent" />
 
-        <div className="absolute inset-0 p-5 flex flex-col justify-end">
-          <p className="text-[10px] uppercase tracking-[0.32em] text-accent font-semibold mb-2">Bem-vindo</p>
-          <h1 className="font-serif text-[2rem] leading-[1.02] tracking-tight text-foreground text-balance max-w-[11ch]">
+        <div className="relative aspect-[4/5] p-6 flex flex-col justify-center">
+          <p className="text-[10px] uppercase tracking-[0.32em] text-accent font-semibold mb-3">Bem-vindo</p>
+          <h1 className="font-serif text-[2.2rem] leading-[1.02] tracking-tight text-foreground text-balance max-w-[10ch]">
             {name}
           </h1>
           {city && (
-            <p className="mt-2 inline-flex items-center gap-1.5 text-[12px] text-foreground/85">
+            <p className="mt-4 inline-flex items-center gap-1.5 text-[13px] text-foreground/85">
               <MapPin className="size-3.5 text-accent" strokeWidth={1.75} /> {city}
             </p>
           )}
           <span className="block h-px w-10 bg-accent/70 mt-3" />
           {tagline && (
-            <p className="text-[12.5px] mt-3 leading-relaxed text-muted-foreground max-w-[28ch]">
+            <p className="text-[12.5px] mt-4 leading-relaxed text-muted-foreground max-w-[26ch]">
               {tagline}
             </p>
           )}
@@ -470,25 +470,29 @@ function ThemeCard({
   eyebrow: string; title: string; desc: string; icon: React.ReactNode; image?: string;
 }) {
   return (
-    <div className="group relative overflow-hidden rounded-2xl border border-border bg-card h-[110px] flex items-stretch active:scale-[0.99] transition-transform hover:border-accent/40">
-      {/* Background image on the right */}
-      {image && (
-        <div className="absolute inset-y-0 right-0 w-3/5 pointer-events-none">
-          <img src={image} alt="" className="h-full w-full object-cover" />
-          <div className="absolute inset-0 bg-gradient-to-r from-card via-card/85 to-card/30" />
-        </div>
-      )}
+    <div className="group relative overflow-hidden rounded-2xl border border-border bg-card h-[124px] flex items-stretch active:scale-[0.99] transition-transform hover:border-accent/40">
+      {/* Background image on the right ~55% — clearly visible */}
+      <div className="absolute inset-0 pointer-events-none">
+        {image ? (
+          <img src={image} alt="" className="absolute inset-y-0 right-0 h-full w-[60%] object-cover" />
+        ) : (
+          <div className="absolute inset-y-0 right-0 h-full w-[60%] bg-[radial-gradient(120%_80%_at_80%_40%,oklch(from_var(--accent)_l_c_h/0.35),transparent_65%)] bg-secondary" />
+        )}
+        {/* Smooth fade from card on the left to image on the right */}
+        <div className="absolute inset-0 bg-gradient-to-r from-card via-card/85 to-card/0" />
+        <div className="absolute inset-0 bg-gradient-to-t from-card/30 to-transparent" />
+      </div>
       {/* Content */}
       <div className="relative flex items-center gap-4 px-4 pr-3 flex-1 min-w-0">
-        <span className="size-12 rounded-full border border-accent/40 text-accent grid place-items-center shrink-0 bg-card/40 backdrop-blur-sm">
+        <span className="size-12 rounded-full border border-accent/40 text-accent grid place-items-center shrink-0">
           {icon}
         </span>
         <div className="flex-1 min-w-0">
-          <p className="hidden text-[9.5px] uppercase tracking-[0.24em] text-accent font-semibold mb-0.5 sm:block">{eyebrow}</p>
-          <h3 className="font-serif text-[1.25rem] leading-[1.1] text-foreground truncate">{title}</h3>
-          <p className="text-[11.5px] text-muted-foreground mt-1 leading-snug line-clamp-2">{desc}</p>
+          <p className="text-[9.5px] uppercase tracking-[0.26em] text-accent font-semibold mb-1">{eyebrow}</p>
+          <h3 className="font-serif text-[1.3rem] leading-[1.05] text-foreground truncate">{title}</h3>
+          <p className="text-[11.5px] text-muted-foreground mt-1 leading-snug line-clamp-2 max-w-[22ch]">{desc}</p>
         </div>
-        <span className="size-10 rounded-full border border-accent/40 text-accent grid place-items-center shrink-0 bg-card/40 backdrop-blur-sm group-hover:bg-accent group-hover:text-accent-foreground transition-colors">
+        <span className="size-10 rounded-full border border-accent/40 text-accent grid place-items-center shrink-0 group-hover:bg-accent group-hover:text-accent-foreground transition-colors">
           <ArrowRight className="size-4" strokeWidth={1.75} />
         </span>
       </div>
