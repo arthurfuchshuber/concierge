@@ -235,73 +235,135 @@ function Guide({ data }: { data: GuideOk }) {
             <TabsContent value="checkin" className="space-y-5">
               <SectionTitle eyebrow="Estadia" title="Chegada & Saída" intro="Tudo o que você precisa para chegar e se acomodar." />
 
-              <SubList>
-                <SubItem
-                  icon={<KeyRound className="size-[18px]" strokeWidth={1.6} />}
-                  label="Check-in"
-                  hint={p.checkin_time ? `a partir de ${p.checkin_time}` : undefined}
-                >
-                  <div className="space-y-3">
-                    {(p.checkin_time || p.checkout_time) && (
-                      <div className="grid grid-cols-2 bg-background border border-border rounded-xl overflow-hidden">
-                        {p.checkin_time && <InfoTile label="Check-in" value={`a partir de ${p.checkin_time}`} />}
-                        {p.checkout_time && <InfoTile label="Check-out" value={`até ${p.checkout_time}`} border />}
-                      </div>
+              {(() => {
+                const hasHorario = !!(p.checkin_time || p.checkout_time);
+                const hasChegada = !!(p.address || p.maps_url || p.address_note);
+                const hasAcesso = !!(p.gate_code || p.lock_code);
+                const hasWifi = !!p.wifi_ssid;
+                if (!hasHorario && !hasChegada && !hasAcesso && !hasWifi) {
+                  return <p className="text-sm text-muted-foreground">Sem informações cadastradas.</p>;
+                }
+                const uberUrl = p.address
+                  ? `https://m.uber.com/ul/?action=setPickup&pickup=my_location&dropoff[formatted_address]=${encodeURIComponent(p.address)}${p.lat && p.lng ? `&dropoff[latitude]=${p.lat}&dropoff[longitude]=${p.lng}` : ""}`
+                  : null;
+                return (
+                  <SubList>
+                    {hasHorario && (
+                      <SubItem
+                        icon={<Clock className="size-[18px]" strokeWidth={1.6} />}
+                        label="Horário"
+                        hint={
+                          p.checkin_time && p.checkout_time
+                            ? `${p.checkin_time} → ${p.checkout_time}`
+                            : p.checkin_time
+                              ? `entrada ${p.checkin_time}`
+                              : `saída ${p.checkout_time}`
+                        }
+                      >
+                        <div className="grid grid-cols-2 bg-background border border-border rounded-xl overflow-hidden">
+                          {p.checkin_time && <InfoTile label="Check-in" value={`a partir de ${p.checkin_time}`} />}
+                          {p.checkout_time && (
+                            <InfoTile label="Check-out" value={`até ${p.checkout_time}`} border={!!p.checkin_time} />
+                          )}
+                        </div>
+                      </SubItem>
                     )}
-                    {p.gate_code && <CopyCard icon={<KeyRound className="size-5" strokeWidth={1.75} />} eyebrow="Portão" label="Toque para copiar" value={p.gate_code} />}
-                    {p.lock_code && <CopyCard icon={<Lock className="size-5" strokeWidth={1.75} />} eyebrow="Fechadura" label="Toque para copiar" value={p.lock_code} />}
-                    {!p.checkin_time && !p.checkout_time && !p.gate_code && !p.lock_code && (
-                      <p className="text-sm text-muted-foreground">Sem informações de check-in.</p>
-                    )}
-                  </div>
-                </SubItem>
 
-                <SubItem
-                  icon={<MapPin className="size-[18px]" strokeWidth={1.6} />}
-                  label="Como chegar"
-                  hint={p.city}
-                >
-                  <div className="space-y-3">
-                    {p.address ? (
-                      <div className="bg-background border border-border rounded-xl p-4 relative overflow-hidden">
-                        <div className="absolute left-0 top-4 bottom-4 w-[3px] rounded-r-full bg-accent/70" />
-                        <p className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground font-semibold">Endereço</p>
-                        <p className="text-[15px] mt-1 leading-snug">{p.address}</p>
-                        {p.maps_url && (
-                          <a href={p.maps_url} target="_blank" rel="noreferrer"
-                            className="mt-4 flex items-center justify-center gap-2 w-full rounded-xl bg-foreground text-background h-11 text-[12px] uppercase tracking-[0.18em] font-semibold active:scale-[0.98] transition-transform">
-                            <MapPin className="size-4" strokeWidth={2} /> Abrir no mapa
-                          </a>
-                        )}
-                      </div>
-                    ) : (
-                      <p className="text-sm text-muted-foreground">Endereço não informado.</p>
+                    {hasChegada && (
+                      <SubItem
+                        icon={<MapPin className="size-[18px]" strokeWidth={1.6} />}
+                        label="Chegada"
+                        hint={p.city || (p.address ? "Como chegar" : undefined)}
+                      >
+                        <div className="space-y-4">
+                          {p.address_note && (
+                            <div className="space-y-3 text-[14px] leading-relaxed text-foreground/85">
+                              {String(p.address_note)
+                                .split(/\n\s*\n/)
+                                .map((para: string, i: number) => (
+                                  <p key={i} className="whitespace-pre-line">{para}</p>
+                                ))}
+                            </div>
+                          )}
+                          {(p.address || p.maps_url || uberUrl) && (
+                            <div>
+                              <p className="text-[10px] uppercase tracking-[0.24em] text-muted-foreground font-semibold mb-2">Localização</p>
+                              <div className="space-y-2">
+                                {(p.maps_url || p.address) && (
+                                  <a
+                                    href={p.maps_url || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(p.address)}`}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="flex items-center gap-3 bg-background border border-border rounded-xl p-3 active:scale-[0.99] transition-transform hover:border-accent/50"
+                                  >
+                                    <span className="size-10 rounded-lg bg-accent/15 text-accent grid place-items-center shrink-0">
+                                      <MapPin className="size-[18px]" strokeWidth={1.75} />
+                                    </span>
+                                    <div className="flex-1 min-w-0 text-left">
+                                      <p className="text-[13px] font-medium leading-tight">Abrir no Google Maps</p>
+                                      {p.address && <p className="text-[11.5px] text-muted-foreground truncate mt-0.5">{p.address}</p>}
+                                    </div>
+                                    <ExternalLink className="size-3.5 text-muted-foreground shrink-0" />
+                                  </a>
+                                )}
+                                {uberUrl && (
+                                  <a
+                                    href={uberUrl}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="flex items-center gap-3 bg-background border border-border rounded-xl p-3 active:scale-[0.99] transition-transform hover:border-accent/50"
+                                  >
+                                    <span className="size-10 rounded-lg bg-foreground text-background grid place-items-center shrink-0">
+                                      <Car className="size-[18px]" strokeWidth={1.75} />
+                                    </span>
+                                    <div className="flex-1 min-w-0 text-left">
+                                      <p className="text-[13px] font-medium leading-tight">Pedir Uber</p>
+                                      <p className="text-[11.5px] text-muted-foreground mt-0.5">Corrida até o endereço</p>
+                                    </div>
+                                    <ExternalLink className="size-3.5 text-muted-foreground shrink-0" />
+                                  </a>
+                                )}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </SubItem>
                     )}
-                    {p.address_note && (
-                      <div className="border-l-2 border-accent/60 pl-4 py-1 mx-1">
-                        <p className="text-sm text-muted-foreground leading-relaxed italic">{p.address_note}</p>
-                      </div>
-                    )}
-                  </div>
-                </SubItem>
 
-                <SubItem
-                  icon={<Wifi className="size-[18px]" strokeWidth={1.6} />}
-                  label="Wi-Fi"
-                  hint={p.wifi_ssid || undefined}
-                >
-                  {p.wifi_ssid ? (
-                    <div className="space-y-3">
-                      <CopyCard icon={<Wifi className="size-5" strokeWidth={1.75} />} eyebrow="Rede" label="Toque para copiar" value={p.wifi_ssid} />
-                      {p.wifi_password && (
-                        <CopyCard icon={<KeyRound className="size-5" strokeWidth={1.75} />} eyebrow="Senha" label="Toque para copiar" value={p.wifi_password} />
-                      )}
-                    </div>
-                  ) : (
-                    <p className="text-sm text-muted-foreground">Sem informações de Wi-Fi.</p>
-                  )}
-                </SubItem>
-              </SubList>
+                    {hasAcesso && (
+                      <SubItem
+                        icon={<KeyRound className="size-[18px]" strokeWidth={1.6} />}
+                        label="Acesso"
+                        hint={p.gate_code && p.lock_code ? "Portão e fechadura" : p.gate_code ? "Portão" : "Fechadura"}
+                      >
+                        <div className="space-y-3">
+                          {p.gate_code && (
+                            <CopyCard icon={<KeyRound className="size-5" strokeWidth={1.75} />} eyebrow="Portão" label="Toque para copiar" value={p.gate_code} />
+                          )}
+                          {p.lock_code && (
+                            <CopyCard icon={<Lock className="size-5" strokeWidth={1.75} />} eyebrow="Fechadura" label="Toque para copiar" value={p.lock_code} />
+                          )}
+                        </div>
+                      </SubItem>
+                    )}
+
+                    {hasWifi && (
+                      <SubItem
+                        icon={<Wifi className="size-[18px]" strokeWidth={1.6} />}
+                        label="Wi-Fi"
+                        hint={p.wifi_ssid || undefined}
+                      >
+                        <div className="space-y-3">
+                          <CopyCard icon={<Wifi className="size-5" strokeWidth={1.75} />} eyebrow="Rede" label="Toque para copiar" value={p.wifi_ssid} />
+                          {p.wifi_password && (
+                            <CopyCard icon={<KeyRound className="size-5" strokeWidth={1.75} />} eyebrow="Senha" label="Toque para copiar" value={p.wifi_password} />
+                          )}
+                        </div>
+                      </SubItem>
+                    )}
+                  </SubList>
+                );
+              })()}
             </TabsContent>
 
             <TabsContent value="wifi" className="space-y-4">
