@@ -460,20 +460,20 @@ function ThemeCard({
   title: string; desc: string; icon: React.ReactNode; image?: string;
 }) {
   return (
-    <div className="group relative min-h-[204px] overflow-hidden rounded-[18px] border border-accent/40 bg-card active:scale-[0.99] transition-all duration-300 hover:border-accent/80">
-      {image && <img src={image} alt="" className="absolute inset-0 size-full object-cover opacity-75 transition-transform duration-500 group-hover:scale-105" />}
-      <div className="absolute inset-0 bg-[linear-gradient(90deg,oklch(0.02_0.004_40/0.98)_0%,oklch(0.02_0.004_40/0.82)_34%,oklch(0.02_0.004_40/0.25)_70%,oklch(0.02_0.004_40/0.6)_100%)]" />
-      <div className="absolute inset-0 bg-[linear-gradient(180deg,oklch(0.02_0.004_40/0.1),oklch(0.02_0.004_40/0.62))]" />
-      <div className="relative flex min-h-[204px] items-center gap-8 px-7 py-6 pr-[5.25rem]">
-        <span className="grid size-[74px] shrink-0 place-items-center rounded-full border border-accent/45 bg-background/18 text-accent backdrop-blur-sm">
+    <div className="group relative min-h-[112px] overflow-hidden rounded-2xl border border-accent/35 bg-card active:scale-[0.99] transition-all duration-300 hover:border-accent/70">
+      {image && <img src={image} alt="" className="absolute inset-0 size-full object-cover opacity-70 transition-transform duration-500 group-hover:scale-105" />}
+      <div className="absolute inset-0 bg-[linear-gradient(90deg,oklch(0.02_0.004_40/0.96)_0%,oklch(0.02_0.004_40/0.78)_38%,oklch(0.02_0.004_40/0.28)_72%,oklch(0.02_0.004_40/0.55)_100%)]" />
+      <div className="absolute inset-0 bg-[linear-gradient(180deg,oklch(0.02_0.004_40/0.1),oklch(0.02_0.004_40/0.55))]" />
+      <div className="relative flex min-h-[112px] items-center gap-4 px-4 py-3.5 pr-14">
+        <span className="grid size-11 shrink-0 place-items-center rounded-full border border-accent/45 bg-background/20 text-accent backdrop-blur-sm">
           {icon}
         </span>
         <div className="flex-1 min-w-0">
-          <h3 className="font-serif text-[2rem] leading-[1.02] text-foreground text-balance">{title}</h3>
-          <p className="mt-4 text-[1rem] leading-[1.35] text-foreground/76 line-clamp-2">{desc}</p>
+          <h3 className="font-serif text-[1.15rem] leading-[1.1] text-foreground text-balance">{title}</h3>
+          <p className="mt-1 text-[11.5px] leading-[1.4] text-foreground/72 line-clamp-2">{desc}</p>
         </div>
-        <span className="absolute right-6 top-1/2 grid size-[58px] -translate-y-1/2 place-items-center rounded-full border border-accent/80 text-foreground transition-colors group-hover:bg-accent group-hover:text-background">
-          <ArrowRight className="size-7" strokeWidth={1.4} />
+        <span className="absolute right-3.5 top-1/2 grid size-9 -translate-y-1/2 place-items-center rounded-full border border-accent/75 text-foreground transition-colors group-hover:bg-accent group-hover:text-background">
+          <ArrowRight className="size-4" strokeWidth={1.6} />
         </span>
       </div>
     </div>
