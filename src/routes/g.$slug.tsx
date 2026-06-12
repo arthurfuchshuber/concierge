@@ -448,7 +448,7 @@ function HeroCompact({
 function ThemeCard({
   title, desc, icon, image,
 }: {
-  eyebrow: string; title: string; desc: string; icon: React.ReactNode; image?: string;
+  title: string; desc: string; icon: React.ReactNode; image?: string;
 }) {
   return (
     <div className="group relative min-h-[204px] overflow-hidden rounded-[18px] border border-accent/40 bg-card active:scale-[0.99] transition-all duration-300 hover:border-accent/80">
