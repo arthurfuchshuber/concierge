@@ -3,7 +3,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { listMyProperties, deleteProperty } from "@/lib/properties.functions";
 import { Button } from "@/components/ui/button";
-import { Plus, ExternalLink, Pencil, Trash2, Lock, Globe, BookOpen, PlayCircle, CreditCard, LayoutGrid, List } from "lucide-react";
+import { Plus, ExternalLink, Pencil, Trash2, Lock, Globe, BookOpen, PlayCircle, CreditCard, LayoutGrid, List, Link2, Check } from "lucide-react";
 import { toast } from "sonner";
 import { useState } from "react";
 
@@ -20,6 +20,19 @@ function Dashboard() {
   const del = useServerFn(deleteProperty);
   const navigate = useNavigate();
   const [view, setView] = useState<"grid" | "list">("grid");
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  async function handleCopyLink(slug: string, id: string) {
+    const url = `${window.location.origin}/g/${slug}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopiedId(id);
+      toast.success("Link público copiado");
+      setTimeout(() => setCopiedId((c) => (c === id ? null : c)), 1800);
+    } catch {
+      toast.error("Não foi possível copiar o link");
+    }
+  }
   const { data, isLoading, refetch } = useQuery({
     queryKey: ["my-properties"],
     queryFn: () => list(),
@@ -168,7 +181,17 @@ function Dashboard() {
               <div className="p-4">
                 <h3 className="font-semibold leading-tight truncate">{p.name}</h3>
                 <p className="text-xs text-muted-foreground mt-1 truncate">{p.tagline || `${p.city ?? ""}${p.country ? `, ${p.country}` : ""}`}</p>
-                <div className="flex items-center gap-2 mt-4">
+                <button
+                  onClick={() => handleCopyLink(p.slug, p.id)}
+                  className="mt-4 w-full inline-flex items-center justify-center gap-1.5 text-xs font-medium rounded-full py-2 border border-border bg-background/40 hover:bg-secondary/70 transition-colors"
+                >
+                  {copiedId === p.id ? (
+                    <><Check className="size-3.5 text-accent" /> Link copiado</>
+                  ) : (
+                    <><Link2 className="size-3.5" /> Copiar link público</>
+                  )}
+                </button>
+                <div className="flex items-center gap-2 mt-2">
                   <Link to="/admin/properties/$id" params={{ id: p.id }} className="flex-1 inline-flex items-center justify-center gap-1 text-xs font-medium bg-secondary rounded-full py-2 hover:bg-secondary/70">
                     <Pencil className="size-3" /> Editar
                   </Link>
@@ -205,6 +228,9 @@ function Dashboard() {
                 {p.access_mode === "pin" ? <><Lock className="size-2.5" /> PIN</> : <><Globe className="size-2.5" /> Público</>}
               </span>
               <div className="flex items-center gap-1">
+                <button onClick={() => handleCopyLink(p.slug, p.id)} className="size-8 grid place-items-center rounded-full hover:bg-secondary" aria-label="Copiar link público">
+                  {copiedId === p.id ? <Check className="size-3.5 text-accent" /> : <Link2 className="size-3.5" />}
+                </button>
                 <Link to="/admin/properties/$id" params={{ id: p.id }} className="size-8 grid place-items-center rounded-full hover:bg-secondary" aria-label="Editar">
                   <Pencil className="size-3.5" />
                 </Link>
