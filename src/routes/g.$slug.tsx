@@ -546,7 +546,7 @@ function WifiStrip({ ssid, password }: { ssid?: string | null; password?: string
   const masked = password ? "•".repeat(Math.min(password.length, 12)) : "—";
   return (
     <div className="relative rounded-2xl p-[1px] bg-[linear-gradient(135deg,oklch(var(--accent)/0.7),oklch(var(--accent)/0.15)_42%,transparent_75%)] shadow-[0_8px_30px_-12px_oklch(var(--accent)/0.45)]">
-      <div className="relative overflow-hidden rounded-[15px] bg-[linear-gradient(135deg,oklch(0.18_0.04_55/0.95)_0%,oklch(0.12_0.02_50/0.92)_60%,oklch(0.08_0.01_45/0.95)_100%)] backdrop-blur-sm">
+      <div className="wifi-shimmer relative overflow-hidden rounded-[15px] bg-[linear-gradient(135deg,oklch(0.18_0.04_55/0.95)_0%,oklch(0.12_0.02_50/0.92)_60%,oklch(0.08_0.01_45/0.95)_100%)] backdrop-blur-sm">
         {/* subtle dot pattern */}
         <div className="pointer-events-none absolute inset-0 opacity-[0.08] [background-image:radial-gradient(oklch(var(--accent))_1px,transparent_1px)] [background-size:14px_14px]" />
         {/* corner glow */}
@@ -554,7 +554,8 @@ function WifiStrip({ ssid, password }: { ssid?: string | null; password?: string
 
         <div className="relative flex items-center gap-3.5 px-4 py-3.5">
           <span className="relative grid size-10 shrink-0 place-items-center rounded-full bg-[radial-gradient(circle_at_30%_30%,oklch(var(--accent)/0.35),oklch(var(--accent)/0.05))] text-accent ring-1 ring-accent/45">
-            <Wifi className="size-[18px]" strokeWidth={1.75} />
+            <span className="wifi-pulse pointer-events-none absolute inset-0 rounded-full bg-accent/25 blur-md" />
+            <Wifi className="relative size-[18px]" strokeWidth={1.75} />
           </span>
           <div className="flex-1 min-w-0">
             <div className="flex items-baseline gap-2">
