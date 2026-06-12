@@ -531,7 +531,7 @@ function CopyCard({ icon, eyebrow, label, value }: { icon?: React.ReactNode; eye
   );
 }
 
-function WifiStrip({ ssid, password }: { ssid: string; password?: string | null }) {
+function WifiStrip({ ssid, password }: { ssid?: string | null; password?: string | null }) {
   const [reveal, setReveal] = useState(false);
   const [copied, setCopied] = useState(false);
   function copyPwd() {
