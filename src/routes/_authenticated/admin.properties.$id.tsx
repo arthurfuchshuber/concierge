@@ -351,7 +351,38 @@ function PropertyEditor() {
                 }}
               />
             </Field>
+            <Field label="Imagens das categorias" hint="Cole a URL de uma imagem para cada categoria do guia público. Deixe em branco para usar a foto da capa.">
+              <div className="space-y-2">
+                {([
+                  { k: "checkin", label: "Chegada & Saída" },
+                  { k: "residencia", label: "A Residência" },
+                  { k: "faq", label: "Dúvidas Frequentes" },
+                  { k: "explore", label: "Explore a Região" },
+                ] as const).map(({ k, label }) => {
+                  const url = form.property.theme_images[k];
+                  return (
+                    <div key={k} className="flex items-center gap-2">
+                      <div className="size-12 shrink-0 rounded-lg border border-border bg-muted/40 overflow-hidden">
+                        {url ? <img src={url} alt="" className="size-full object-cover" /> : (
+                          <div className="size-full grid place-items-center text-[9px] text-muted-foreground uppercase tracking-wider">—</div>
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-1">{label}</p>
+                        <Input
+                          value={url}
+                          onChange={(e) => setForm((f) => ({ ...f, property: { ...f.property, theme_images: { ...f.property.theme_images, [k]: e.target.value } } }))}
+                          placeholder="https://..."
+                          className="text-xs h-8"
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </Field>
           </Section>
+
 
           <Section title="Endereço e auto-preenchimento" desc="Cole o link do Google Maps do imóvel e clique em 'Auto-preencher' para obter endereço, coordenadas e pontos de interesse.">
             <Field label="Link do Google Maps" required>
