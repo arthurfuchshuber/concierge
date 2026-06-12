@@ -121,8 +121,10 @@ function Guide({ data }: { data: GuideOk }) {
   const rules = data.manual.filter(isRule);
   const houseManual = data.manual.filter((m: any) => !isRule(m));
 
-  // Pick images for cards (fall back to hero)
+  // Pick images for cards: theme_images first, then gallery fallback, then hero
+  const themeImages = (p.theme_images ?? {}) as Record<string, string | undefined>;
   const pick = (i: number) => photos[i % Math.max(photos.length, 1)] ?? heroImg;
+  const themePick = (key: string, fallbackIdx: number) => themeImages[key] || pick(fallbackIdx);
 
   const cards: Array<{
     key: Exclude<Section, "home"> | "explore";
