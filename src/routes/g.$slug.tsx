@@ -185,7 +185,7 @@ function Guide({ data }: { data: GuideOk }) {
               image={heroImg}
             />
 
-            <div className="px-5 -mt-10 relative z-10 mb-4">
+            <div className="px-5 -mt-12 relative z-10 mb-4">
               <WifiStrip ssid={p.wifi_ssid} password={p.wifi_password} />
             </div>
 
