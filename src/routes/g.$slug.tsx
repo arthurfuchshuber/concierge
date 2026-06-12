@@ -168,7 +168,7 @@ function Guide({ data }: { data: GuideOk }) {
       title: "Explore a Região",
       desc: "Restaurantes, atrações e experiências.",
       icon: <Compass className="size-5" strokeWidth={1.5} />,
-      image: pick(4),
+      image: themePick("explore", 4),
       to: { kind: "link", to: `/g/${slug}/explorar` },
     },
   ];
