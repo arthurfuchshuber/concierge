@@ -9,7 +9,7 @@ import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
 import {
   Lock, MapPin, Wifi, Phone, KeyRound, Compass, ListChecks, LifeBuoy, HelpCircle,
-  Copy, Check, ArrowLeft, ArrowRight, Home, Eye, EyeOff,
+  Copy, Check, ArrowLeft, ArrowRight, Home, Eye, EyeOff, Clock, ExternalLink, Car,
 } from "lucide-react";
 import { toast } from "sonner";
 
