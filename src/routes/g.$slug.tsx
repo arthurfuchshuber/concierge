@@ -470,25 +470,29 @@ function ThemeCard({
   eyebrow: string; title: string; desc: string; icon: React.ReactNode; image?: string;
 }) {
   return (
-    <div className="group relative overflow-hidden rounded-2xl border border-border bg-card h-[110px] flex items-stretch active:scale-[0.99] transition-transform hover:border-accent/40">
-      {/* Background image on the right */}
-      {image && (
-        <div className="absolute inset-y-0 right-0 w-3/5 pointer-events-none">
-          <img src={image} alt="" className="h-full w-full object-cover" />
-          <div className="absolute inset-0 bg-gradient-to-r from-card via-card/85 to-card/30" />
-        </div>
-      )}
+    <div className="group relative overflow-hidden rounded-2xl border border-border bg-card h-[124px] flex items-stretch active:scale-[0.99] transition-transform hover:border-accent/40">
+      {/* Background image on the right ~55% — clearly visible */}
+      <div className="absolute inset-0 pointer-events-none">
+        {image ? (
+          <img src={image} alt="" className="absolute inset-y-0 right-0 h-full w-[60%] object-cover" />
+        ) : (
+          <div className="absolute inset-y-0 right-0 h-full w-[60%] bg-[radial-gradient(120%_80%_at_80%_40%,oklch(from_var(--accent)_l_c_h/0.35),transparent_65%)] bg-secondary" />
+        )}
+        {/* Smooth fade from card on the left to image on the right */}
+        <div className="absolute inset-0 bg-gradient-to-r from-card via-card/85 to-card/0" />
+        <div className="absolute inset-0 bg-gradient-to-t from-card/30 to-transparent" />
+      </div>
       {/* Content */}
       <div className="relative flex items-center gap-4 px-4 pr-3 flex-1 min-w-0">
-        <span className="size-12 rounded-full border border-accent/40 text-accent grid place-items-center shrink-0 bg-card/40 backdrop-blur-sm">
+        <span className="size-12 rounded-full border border-accent/40 text-accent grid place-items-center shrink-0">
           {icon}
         </span>
         <div className="flex-1 min-w-0">
-          <p className="hidden text-[9.5px] uppercase tracking-[0.24em] text-accent font-semibold mb-0.5 sm:block">{eyebrow}</p>
-          <h3 className="font-serif text-[1.25rem] leading-[1.1] text-foreground truncate">{title}</h3>
-          <p className="text-[11.5px] text-muted-foreground mt-1 leading-snug line-clamp-2">{desc}</p>
+          <p className="text-[9.5px] uppercase tracking-[0.26em] text-accent font-semibold mb-1">{eyebrow}</p>
+          <h3 className="font-serif text-[1.3rem] leading-[1.05] text-foreground truncate">{title}</h3>
+          <p className="text-[11.5px] text-muted-foreground mt-1 leading-snug line-clamp-2 max-w-[22ch]">{desc}</p>
         </div>
-        <span className="size-10 rounded-full border border-accent/40 text-accent grid place-items-center shrink-0 bg-card/40 backdrop-blur-sm group-hover:bg-accent group-hover:text-accent-foreground transition-colors">
+        <span className="size-10 rounded-full border border-accent/40 text-accent grid place-items-center shrink-0 group-hover:bg-accent group-hover:text-accent-foreground transition-colors">
           <ArrowRight className="size-4" strokeWidth={1.75} />
         </span>
       </div>
