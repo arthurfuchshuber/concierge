@@ -433,11 +433,11 @@ function HeroCompact({
         </div>
         <button
           aria-label="Menu"
-          className="grid size-9 place-items-center rounded-full border border-accent/55 bg-background/10 text-foreground/90 backdrop-blur-sm"
+          className="flex size-9 shrink-0 flex-col items-center justify-center gap-[3px] rounded-full border border-accent/55 bg-background/10 text-foreground/90 backdrop-blur-sm"
         >
-          <span className="relative block h-3 w-4 before:absolute before:left-0 before:top-0 before:h-px before:w-4 before:bg-current after:absolute after:bottom-0 after:left-0 after:h-px after:w-4 after:bg-current">
-            <span className="absolute left-0 top-1/2 h-px w-4 -translate-y-1/2 bg-current" />
-          </span>
+          <span className="block h-px w-4 bg-current" />
+          <span className="block h-px w-4 bg-current" />
+          <span className="block h-px w-4 bg-current" />
         </button>
       </header>
 
