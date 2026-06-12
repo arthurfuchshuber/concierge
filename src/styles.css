@@ -128,8 +128,9 @@
 
   .font-serif {
     font-family: var(--font-serif);
-    letter-spacing: 0;
-    font-weight: 400;
+    letter-spacing: -0.022em;
+    font-weight: 600;
+    font-feature-settings: "ss01", "cv11";
   }
 
   .sigma-public-guide {
