@@ -159,7 +159,7 @@ function Guide({ data }: { data: GuideOk }) {
       title: "Dúvidas Frequentes",
       desc: "Anfitrião, emergências e respostas rápidas.",
       icon: <HelpCircle className="size-5" strokeWidth={1.5} />,
-      image: pick(3),
+      image: themePick("faq", 3),
       to: { kind: "section", value: "faq" },
     },
     {
