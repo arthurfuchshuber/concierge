@@ -9,7 +9,7 @@ import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
 import {
   Lock, MapPin, Wifi, Phone, KeyRound, Compass, ListChecks, LifeBuoy, HelpCircle,
-  Copy, Check, ArrowLeft, ArrowRight, ScrollText, Home,
+  Copy, Check, ArrowLeft, ArrowRight, Home,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -110,7 +110,6 @@ function isRule(item: { title: string; description?: string | null }) {
 function Guide({ data }: { data: GuideOk }) {
   const p = data.property as Record<string, any>;
   const { slug } = Route.useParams();
-  const { lang, setLang } = useI18n();
   const [section, setSection] = useState<Section>("home");
 
   const galleryRaw: string[] = Array.isArray(p.gallery_images) ? p.gallery_images : [];
@@ -138,35 +137,17 @@ function Guide({ data }: { data: GuideOk }) {
       title: "Chegada & Saída",
       desc: "Endereço, códigos de acesso e horários.",
       icon: <KeyRound className="size-5" strokeWidth={1.5} />,
-      image: pick(0),
-      to: { kind: "section", value: "checkin" },
-    },
-    {
-      key: "wifi",
-      eyebrow: "Conexão",
-      title: "Wi-Fi",
-      desc: "Rede e senha para você ficar conectado.",
-      icon: <Wifi className="size-5" strokeWidth={1.5} />,
       image: pick(1),
-      to: { kind: "section", value: "wifi" },
+      to: { kind: "section", value: "checkin" },
     },
     {
       key: "residencia",
       eyebrow: "A casa",
       title: "A Residência",
-      desc: "Manual e como funciona cada detalhe.",
+      desc: "Manual, comodidades e detalhes da casa.",
       icon: <Home className="size-5" strokeWidth={1.5} />,
       image: pick(2),
       to: { kind: "section", value: "residencia" },
-    },
-    {
-      key: "regras",
-      eyebrow: "Combinados",
-      title: "Regras",
-      desc: "Boas práticas durante sua estadia.",
-      icon: <ScrollText className="size-5" strokeWidth={1.5} />,
-      image: pick(3),
-      to: { kind: "section", value: "regras" },
     },
     {
       key: "faq",
@@ -174,7 +155,7 @@ function Guide({ data }: { data: GuideOk }) {
       title: "Dúvidas Frequentes",
       desc: "Anfitrião, emergências e respostas rápidas.",
       icon: <HelpCircle className="size-5" strokeWidth={1.5} />,
-      image: pick(4),
+      image: pick(3),
       to: { kind: "section", value: "faq" },
     },
     {
@@ -183,13 +164,13 @@ function Guide({ data }: { data: GuideOk }) {
       title: "Explore a Região",
       desc: "Restaurantes, atrações e experiências.",
       icon: <Compass className="size-5" strokeWidth={1.5} />,
-      image: pick(5),
+      image: pick(4),
       to: { kind: "link", to: `/g/${slug}/explorar` },
     },
   ];
 
   return (
-    <div className="guide-ambient min-h-screen bg-background text-foreground pb-16">
+    <div className="sigma-public-guide guide-ambient min-h-screen bg-background text-foreground pb-16">
       <div className="mx-auto w-full max-w-md">
         {section === "home" ? (
           <>
@@ -198,19 +179,17 @@ function Guide({ data }: { data: GuideOk }) {
               tagline={p.tagline}
               city={p.city}
               image={heroImg}
-              lang={lang}
-              onToggleLang={() => setLang(lang === "pt" ? "en" : "pt")}
             />
 
-            <section className="px-5 mt-9">
-              <div className="flex items-center gap-3 mb-5">
-                <p className="text-[10px] uppercase tracking-[0.28em] text-accent font-semibold">
+            <section id="guide-actions" className="px-5 -mt-1 relative z-10">
+              <div className="flex items-center gap-5 mb-5">
+                <p className="shrink-0 text-[10px] uppercase tracking-[0.34em] text-accent font-semibold">
                   O que você deseja acessar?
                 </p>
-                <span className="h-px flex-1 bg-border" />
+                <span className="h-px flex-1 bg-accent/45" />
               </div>
 
-              <div className="space-y-3.5">
+              <div className="space-y-4">
                 {cards.map((c) =>
                   c.to?.kind === "link" ? (
                     <Link key={c.key} to={c.to.to as any}>
@@ -229,8 +208,9 @@ function Guide({ data }: { data: GuideOk }) {
               </div>
             </section>
 
-            <footer className="mt-12 px-6 text-center">
-              <p className="text-[10px] uppercase tracking-[0.28em] text-muted-foreground/60 font-semibold">
+            <footer className="mt-14 px-6 text-center flex items-center justify-center gap-3">
+              <GuideMark className="size-5 text-accent" />
+              <p className="text-[10px] uppercase tracking-[0.34em] text-muted-foreground/65 font-semibold">
                 Seu guia. Sua experiência.
               </p>
             </footer>
