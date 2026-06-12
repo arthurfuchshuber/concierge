@@ -1,0 +1,1 @@
+ALTER TABLE public.properties ADD COLUMN IF NOT EXISTS checkin_time_max text, ADD COLUMN IF NOT EXISTS checkout_time_min text;
