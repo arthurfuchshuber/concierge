@@ -261,9 +261,26 @@ function Guide({ data }: { data: GuideOk }) {
                         }
                       >
                         <div className="grid grid-cols-2 bg-background border border-border rounded-xl overflow-hidden">
-                          {p.checkin_time && <InfoTile label="Check-in" value={`a partir de ${p.checkin_time}`} />}
+                          {p.checkin_time && (
+                            <InfoTile
+                              label="Check-in"
+                              value={
+                                p.checkin_time_max
+                                  ? `A partir de ${p.checkin_time} · até ${p.checkin_time_max}`
+                                  : `A partir de ${p.checkin_time}`
+                              }
+                            />
+                          )}
                           {p.checkout_time && (
-                            <InfoTile label="Check-out" value={`até ${p.checkout_time}`} border={!!p.checkin_time} />
+                            <InfoTile
+                              label="Check-out"
+                              value={
+                                p.checkout_time_min
+                                  ? `A partir de ${p.checkout_time_min} · até ${p.checkout_time}`
+                                  : `Até ${p.checkout_time}`
+                              }
+                              border={!!p.checkin_time}
+                            />
                           )}
                         </div>
                       </SubItem>

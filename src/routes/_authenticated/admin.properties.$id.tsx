@@ -48,7 +48,9 @@ type FormState = {
     city: string;
     country: string;
     checkin_time: string;
+    checkin_time_max: string;
     checkout_time: string;
+    checkout_time_min: string;
     lock_code: string;
     gate_code: string;
     address_note: string;
@@ -75,7 +77,7 @@ function emptyForm(): FormState {
       name: "", slug: "", tagline: "", hero_image_url: "", gallery_images: [],
       theme_images: { checkin: "", residencia: "", faq: "", explore: "" },
       address: "", maps_url: "",
-      lat: null, lng: null, city: "", country: "", checkin_time: "15:00", checkout_time: "11:00",
+      lat: null, lng: null, city: "", country: "", checkin_time: "15:00", checkin_time_max: "", checkout_time: "11:00", checkout_time_min: "",
       lock_code: "", gate_code: "", address_note: "", wifi_ssid: "", wifi_password: "",
       host_name: "", host_phone: "", access_mode: "public", pin_code: "", pin_expires_at: "",
       default_language: "pt", published: true,
@@ -136,7 +138,9 @@ function PropertyEditor() {
         city: (p.city as string) ?? "",
         country: (p.country as string) ?? "",
         checkin_time: (p.checkin_time as string) ?? "15:00",
+        checkin_time_max: (p.checkin_time_max as string) ?? "",
         checkout_time: (p.checkout_time as string) ?? "11:00",
+        checkout_time_min: (p.checkout_time_min as string) ?? "",
         lock_code: (p.lock_code as string) ?? "",
         gate_code: (p.gate_code as string) ?? "",
         address_note: (p.address_note as string) ?? "",
@@ -259,7 +263,9 @@ function PropertyEditor() {
           city: form.property.city || null,
           country: form.property.country || null,
           checkin_time: form.property.checkin_time || null,
+          checkin_time_max: form.property.checkin_time_max || null,
           checkout_time: form.property.checkout_time || null,
+          checkout_time_min: form.property.checkout_time_min || null,
           lock_code: form.property.lock_code || null,
           gate_code: form.property.gate_code || null,
           address_note: form.property.address_note || null,
@@ -454,6 +460,8 @@ function PropertyEditor() {
           <Section title="Horários">
             <div className="grid grid-cols-2 gap-3">
               <Field label="Check-in a partir de"><Input value={form.property.checkin_time} maxLength={5} onChange={(e) => update("checkin_time", e.target.value)} placeholder="15:00" /></Field>
+              <Field label="Check-in até (opcional)"><Input value={form.property.checkin_time_max} maxLength={5} onChange={(e) => update("checkin_time_max", e.target.value)} placeholder="22:00" /></Field>
+              <Field label="Check-out a partir de (opcional)"><Input value={form.property.checkout_time_min} maxLength={5} onChange={(e) => update("checkout_time_min", e.target.value)} placeholder="08:00" /></Field>
               <Field label="Check-out até"><Input value={form.property.checkout_time} maxLength={5} onChange={(e) => update("checkout_time", e.target.value)} placeholder="11:00" /></Field>
             </div>
           </Section>

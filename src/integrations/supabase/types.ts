@@ -41,7 +41,9 @@ export type Database = {
           address: string | null
           address_note: string | null
           checkin_time: string | null
+          checkin_time_max: string | null
           checkout_time: string | null
+          checkout_time_min: string | null
           city: string | null
           country: string | null
           created_at: string
@@ -73,7 +75,9 @@ export type Database = {
           address?: string | null
           address_note?: string | null
           checkin_time?: string | null
+          checkin_time_max?: string | null
           checkout_time?: string | null
+          checkout_time_min?: string | null
           city?: string | null
           country?: string | null
           created_at?: string
@@ -105,7 +109,9 @@ export type Database = {
           address?: string | null
           address_note?: string | null
           checkin_time?: string | null
+          checkin_time_max?: string | null
           checkout_time?: string | null
+          checkout_time_min?: string | null
           city?: string | null
           country?: string | null
           created_at?: string
