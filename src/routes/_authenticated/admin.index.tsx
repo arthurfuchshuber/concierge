@@ -181,7 +181,17 @@ function Dashboard() {
               <div className="p-4">
                 <h3 className="font-semibold leading-tight truncate">{p.name}</h3>
                 <p className="text-xs text-muted-foreground mt-1 truncate">{p.tagline || `${p.city ?? ""}${p.country ? `, ${p.country}` : ""}`}</p>
-                <div className="flex items-center gap-2 mt-4">
+                <button
+                  onClick={() => handleCopyLink(p.slug, p.id)}
+                  className="mt-4 w-full inline-flex items-center justify-center gap-1.5 text-xs font-medium rounded-full py-2 border border-border bg-background/40 hover:bg-secondary/70 transition-colors"
+                >
+                  {copiedId === p.id ? (
+                    <><Check className="size-3.5 text-accent" /> Link copiado</>
+                  ) : (
+                    <><Link2 className="size-3.5" /> Copiar link público</>
+                  )}
+                </button>
+                <div className="flex items-center gap-2 mt-2">
                   <Link to="/admin/properties/$id" params={{ id: p.id }} className="flex-1 inline-flex items-center justify-center gap-1 text-xs font-medium bg-secondary rounded-full py-2 hover:bg-secondary/70">
                     <Pencil className="size-3" /> Editar
                   </Link>
