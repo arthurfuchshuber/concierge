@@ -121,18 +121,25 @@ function Guide({ data }: { data: GuideOk }) {
   const rules = data.manual.filter(isRule);
   const houseManual = data.manual.filter((m: any) => !isRule(m));
 
+  // Category availability — hide a card entirely when no sub-item has content
+  const hasCheckin = !!(p.checkin_time || p.checkout_time || p.address || p.maps_url || p.address_note || p.gate_code || p.lock_code || p.wifi_ssid);
+  const hasResidencia = houseManual.length > 0;
+  const hasFaq = !!(p.host_name || p.host_phone) || data.emergency.length > 0 || data.faqs.length > 0;
+  const hasExplore = Array.isArray(data.recommendations) && data.recommendations.length > 0;
+
   // Pick images for cards: theme_images first, then gallery fallback, then hero
   const themeImages = (p.theme_images ?? {}) as Record<string, string | undefined>;
   const pick = (i: number) => photos[i % Math.max(photos.length, 1)] ?? heroImg;
   const themePick = (key: string, fallbackIdx: number) => themeImages[key] || pick(fallbackIdx);
 
-  const cards: Array<{
+  const allCards: Array<{
     key: Exclude<Section, "home"> | "explore";
     eyebrow: string;
     title: string;
     desc: string;
     icon: React.ReactNode;
     image?: string;
+    visible: boolean;
     to?: { kind: "section"; value: Section } | { kind: "link"; to: string };
   }> = [
     {
@@ -142,6 +149,7 @@ function Guide({ data }: { data: GuideOk }) {
       desc: "Endereço, códigos de acesso e horários.",
       icon: <KeyRound className="size-5" strokeWidth={1.5} />,
       image: themePick("checkin", 1),
+      visible: hasCheckin,
       to: { kind: "section", value: "checkin" },
     },
     {
@@ -151,6 +159,7 @@ function Guide({ data }: { data: GuideOk }) {
       desc: "Manual, comodidades e detalhes da casa.",
       icon: <Home className="size-5" strokeWidth={1.5} />,
       image: themePick("residencia", 2),
+      visible: hasResidencia,
       to: { kind: "section", value: "residencia" },
     },
     {
@@ -160,6 +169,7 @@ function Guide({ data }: { data: GuideOk }) {
       desc: "Anfitrião, emergências e respostas rápidas.",
       icon: <HelpCircle className="size-5" strokeWidth={1.5} />,
       image: themePick("faq", 3),
+      visible: hasFaq,
       to: { kind: "section", value: "faq" },
     },
     {
@@ -169,9 +179,11 @@ function Guide({ data }: { data: GuideOk }) {
       desc: "Restaurantes, atrações e experiências.",
       icon: <Compass className="size-5" strokeWidth={1.5} />,
       image: themePick("explore", 4),
+      visible: hasExplore,
       to: { kind: "link", to: `/g/${slug}/explorar` },
     },
   ];
+  const cards = allCards.filter((c) => c.visible);
 
   return (
     <div className="sigma-public-guide guide-ambient min-h-screen bg-background text-foreground pb-16">
