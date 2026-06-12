@@ -183,15 +183,15 @@ function Guide({ data }: { data: GuideOk }) {
               image={heroImg}
             />
 
-            <section id="guide-actions" className="px-5 -mt-8 relative z-10">
-              <div className="flex items-center gap-5 mb-5">
-                <p className="shrink-0 text-[10px] uppercase tracking-[0.34em] text-accent font-semibold">
+            <section id="guide-actions" className="px-5 -mt-4 relative z-10">
+              <div className="flex items-center gap-3 mb-3">
+                <p className="shrink-0 text-[9px] uppercase tracking-[0.3em] text-accent font-semibold">
                   O que você deseja acessar?
                 </p>
-                <span className="h-px flex-1 bg-accent/45" />
+                <span className="h-px flex-1 bg-accent/40" />
               </div>
 
-              <div className="space-y-4">
+              <div className="space-y-2.5">
                 {cards.map((c) =>
                   c.to?.kind === "link" ? (
                     <Link key={c.key} to={c.to.to as any}>
@@ -210,9 +210,9 @@ function Guide({ data }: { data: GuideOk }) {
               </div>
             </section>
 
-            <footer className="mt-14 px-6 text-center flex items-center justify-center gap-3">
-              <GuideMark className="size-5 text-accent" />
-              <p className="text-[10px] uppercase tracking-[0.34em] text-muted-foreground/65 font-semibold">
+            <footer className="mt-10 px-6 text-center flex items-center justify-center gap-2.5">
+              <GuideMark className="size-3.5 text-accent" />
+              <p className="text-[9px] uppercase tracking-[0.3em] text-muted-foreground/65 font-semibold">
                 Seu guia. Sua experiência.
               </p>
             </footer>
@@ -413,40 +413,40 @@ function HeroCompact({
   name: string; tagline?: string; city?: string; image?: string;
 }) {
   return (
-    <section className="relative min-h-[705px] overflow-hidden px-6 pb-20 pt-8">
+    <section className="relative min-h-[420px] overflow-hidden px-5 pb-12 pt-4">
       {image && <img src={image} alt="" className="absolute inset-0 size-full object-cover object-[62%_50%] opacity-95" />}
       <div className="absolute inset-0 bg-[linear-gradient(90deg,oklch(0.02_0.004_40/0.94)_0%,oklch(0.02_0.004_40/0.7)_42%,oklch(0.02_0.004_40/0.18)_100%)]" />
       <div className="absolute inset-0 bg-[linear-gradient(180deg,oklch(0.02_0.004_40/0.68)_0%,transparent_34%,oklch(0.02_0.004_40/0.78)_82%,oklch(0.02_0.004_40)_100%)]" />
 
       <header className="relative z-10 flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <GuideMark className="size-9 text-accent" />
-          <p className="font-serif text-[2.15rem] leading-none text-foreground">
+        <div className="flex items-center gap-2">
+          <GuideMark className="size-5 text-accent" />
+          <p className="font-serif text-[1.25rem] leading-none text-foreground">
             <span>Sigma</span><span className="text-accent">Guide</span>
           </p>
         </div>
         <button
           aria-label="Menu"
-          className="grid size-[66px] place-items-center rounded-full border border-accent/65 bg-background/10 text-foreground/90 backdrop-blur-sm"
+          className="grid size-9 place-items-center rounded-full border border-accent/55 bg-background/10 text-foreground/90 backdrop-blur-sm"
         >
-          <span className="relative block h-5 w-6 before:absolute before:left-0 before:top-0 before:h-px before:w-6 before:bg-current after:absolute after:bottom-0 after:left-0 after:h-px after:w-6 after:bg-current">
-            <span className="absolute left-0 top-1/2 h-px w-6 -translate-y-1/2 bg-current" />
+          <span className="relative block h-3 w-4 before:absolute before:left-0 before:top-0 before:h-px before:w-4 before:bg-current after:absolute after:bottom-0 after:left-0 after:h-px after:w-4 after:bg-current">
+            <span className="absolute left-0 top-1/2 h-px w-4 -translate-y-1/2 bg-current" />
           </span>
         </button>
       </header>
 
-      <div className="relative z-10 mt-[118px] max-w-[350px]">
-        <p className="mb-5 text-[13px] font-semibold uppercase tracking-[0.42em] text-accent">Bem-vindo</p>
-        <h1 className="font-serif text-[3.25rem] leading-[0.96] text-foreground text-balance sm:text-[3.65rem]">
+      <div className="relative z-10 mt-14 max-w-[300px]">
+        <p className="mb-2.5 text-[10px] font-semibold uppercase tracking-[0.36em] text-accent">Bem-vindo</p>
+        <h1 className="font-serif text-[2.25rem] leading-[0.98] text-foreground text-balance">
           {name}
         </h1>
         {city && (
-          <p className="mt-6 inline-flex items-center gap-3 text-[1.25rem] leading-none text-foreground/82">
-            <MapPin className="size-5 text-foreground/82 fill-foreground/82" strokeWidth={0} /> {city}
+          <p className="mt-3 inline-flex items-center gap-2 text-[0.85rem] leading-none text-foreground/82">
+            <MapPin className="size-3.5 text-foreground/82 fill-foreground/82" strokeWidth={0} /> {city}
           </p>
         )}
-        <span className="mt-8 block h-[2px] w-16 bg-accent" />
-        <p className="mt-7 max-w-[300px] text-[1.22rem] leading-[1.46] text-foreground/82">
+        <span className="mt-4 block h-[2px] w-10 bg-accent" />
+        <p className="mt-3.5 max-w-[280px] text-[0.85rem] leading-[1.5] text-foreground/78">
           {tagline || "Tudo o que você precisa para aproveitar cada momento."}
         </p>
       </div>
@@ -460,20 +460,20 @@ function ThemeCard({
   title: string; desc: string; icon: React.ReactNode; image?: string;
 }) {
   return (
-    <div className="group relative min-h-[204px] overflow-hidden rounded-[18px] border border-accent/40 bg-card active:scale-[0.99] transition-all duration-300 hover:border-accent/80">
-      {image && <img src={image} alt="" className="absolute inset-0 size-full object-cover opacity-75 transition-transform duration-500 group-hover:scale-105" />}
-      <div className="absolute inset-0 bg-[linear-gradient(90deg,oklch(0.02_0.004_40/0.98)_0%,oklch(0.02_0.004_40/0.82)_34%,oklch(0.02_0.004_40/0.25)_70%,oklch(0.02_0.004_40/0.6)_100%)]" />
-      <div className="absolute inset-0 bg-[linear-gradient(180deg,oklch(0.02_0.004_40/0.1),oklch(0.02_0.004_40/0.62))]" />
-      <div className="relative flex min-h-[204px] items-center gap-8 px-7 py-6 pr-[5.25rem]">
-        <span className="grid size-[74px] shrink-0 place-items-center rounded-full border border-accent/45 bg-background/18 text-accent backdrop-blur-sm">
+    <div className="group relative min-h-[112px] overflow-hidden rounded-2xl border border-accent/35 bg-card active:scale-[0.99] transition-all duration-300 hover:border-accent/70">
+      {image && <img src={image} alt="" className="absolute inset-0 size-full object-cover opacity-70 transition-transform duration-500 group-hover:scale-105" />}
+      <div className="absolute inset-0 bg-[linear-gradient(90deg,oklch(0.02_0.004_40/0.96)_0%,oklch(0.02_0.004_40/0.78)_38%,oklch(0.02_0.004_40/0.28)_72%,oklch(0.02_0.004_40/0.55)_100%)]" />
+      <div className="absolute inset-0 bg-[linear-gradient(180deg,oklch(0.02_0.004_40/0.1),oklch(0.02_0.004_40/0.55))]" />
+      <div className="relative flex min-h-[112px] items-center gap-4 px-4 py-3.5 pr-14">
+        <span className="grid size-11 shrink-0 place-items-center rounded-full border border-accent/45 bg-background/20 text-accent backdrop-blur-sm">
           {icon}
         </span>
         <div className="flex-1 min-w-0">
-          <h3 className="font-serif text-[2rem] leading-[1.02] text-foreground text-balance">{title}</h3>
-          <p className="mt-4 text-[1rem] leading-[1.35] text-foreground/76 line-clamp-2">{desc}</p>
+          <h3 className="font-serif text-[1.15rem] leading-[1.1] text-foreground text-balance">{title}</h3>
+          <p className="mt-1 text-[11.5px] leading-[1.4] text-foreground/72 line-clamp-2">{desc}</p>
         </div>
-        <span className="absolute right-6 top-1/2 grid size-[58px] -translate-y-1/2 place-items-center rounded-full border border-accent/80 text-foreground transition-colors group-hover:bg-accent group-hover:text-background">
-          <ArrowRight className="size-7" strokeWidth={1.4} />
+        <span className="absolute right-3.5 top-1/2 grid size-9 -translate-y-1/2 place-items-center rounded-full border border-accent/75 text-foreground transition-colors group-hover:bg-accent group-hover:text-background">
+          <ArrowRight className="size-4" strokeWidth={1.6} />
         </span>
       </div>
     </div>
