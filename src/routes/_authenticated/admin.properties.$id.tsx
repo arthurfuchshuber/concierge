@@ -460,6 +460,8 @@ function PropertyEditor() {
           <Section title="Horários">
             <div className="grid grid-cols-2 gap-3">
               <Field label="Check-in a partir de"><Input value={form.property.checkin_time} maxLength={5} onChange={(e) => update("checkin_time", e.target.value)} placeholder="15:00" /></Field>
+              <Field label="Check-in até (opcional)"><Input value={form.property.checkin_time_max} maxLength={5} onChange={(e) => update("checkin_time_max", e.target.value)} placeholder="22:00" /></Field>
+              <Field label="Check-out a partir de (opcional)"><Input value={form.property.checkout_time_min} maxLength={5} onChange={(e) => update("checkout_time_min", e.target.value)} placeholder="08:00" /></Field>
               <Field label="Check-out até"><Input value={form.property.checkout_time} maxLength={5} onChange={(e) => update("checkout_time", e.target.value)} placeholder="11:00" /></Field>
             </div>
           </Section>
