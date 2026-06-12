@@ -183,7 +183,13 @@ function Guide({ data }: { data: GuideOk }) {
               image={heroImg}
             />
 
-            <section id="guide-actions" className="px-5 -mt-4 relative z-10">
+            {p.wifi_ssid && (
+              <div className="px-5 -mt-2 relative z-10 mb-5">
+                <WifiStrip ssid={p.wifi_ssid} password={p.wifi_password} />
+              </div>
+            )}
+
+            <section id="guide-actions" className="px-5 relative z-10">
               <div className="flex items-center gap-3 mb-3">
                 <p className="shrink-0 text-[9px] uppercase tracking-[0.3em] text-accent font-semibold">
                   O que você deseja acessar?
