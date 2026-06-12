@@ -113,8 +113,10 @@ function Guide({ data }: { data: GuideOk }) {
   const [section, setSection] = useState<Section>("home");
 
   const galleryRaw: string[] = Array.isArray(p.gallery_images) ? p.gallery_images : [];
-  const photos: string[] = (galleryRaw.length ? galleryRaw : p.hero_image_url ? [p.hero_image_url] : []);
+  const recPhotos = data.recommendations.map((r: any) => r.image_url).filter(Boolean) as string[];
+  const photos: string[] = (galleryRaw.length ? galleryRaw : p.hero_image_url ? [p.hero_image_url] : recPhotos);
   const heroImg = photos[0];
+  const heroTitle = cleanGuideTitle(p.name, p.city);
 
   const rules = data.manual.filter(isRule);
   const houseManual = data.manual.filter((m: any) => !isRule(m));
@@ -175,7 +177,7 @@ function Guide({ data }: { data: GuideOk }) {
         {section === "home" ? (
           <>
             <HeroCompact
-              name={p.name}
+              name={heroTitle}
               tagline={p.tagline}
               city={p.city}
               image={heroImg}
@@ -387,6 +389,13 @@ function Guide({ data }: { data: GuideOk }) {
       </div>
     </div>
   );
+}
+
+function cleanGuideTitle(name?: string, city?: string) {
+  return String(name ?? "")
+    .replace(/^Entrada\/Saída\s+da\s+/i, "")
+    .replace(city ? new RegExp(`\\s+em\\s+${String(city).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i") : /\s+em\s+[^,]+$/i, "")
+    .trim() || String(name ?? "Guia");
 }
 
 function GuideMark({ className = "" }: { className?: string }) {
