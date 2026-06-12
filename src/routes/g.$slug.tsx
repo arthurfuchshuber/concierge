@@ -8,8 +8,8 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
 import {
-  Lock, MapPin, Wifi, Phone, KeyRound, BookOpen, Compass, ListChecks, LifeBuoy, HelpCircle,
-  ExternalLink, Copy, Check, ArrowLeft, ArrowRight, ScrollText, Home,
+  Lock, MapPin, Wifi, Phone, KeyRound, Compass, ListChecks, LifeBuoy, HelpCircle,
+  Copy, Check, ArrowLeft, ArrowRight, ScrollText, Home,
 } from "lucide-react";
 import { toast } from "sonner";
 
