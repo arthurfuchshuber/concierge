@@ -183,11 +183,9 @@ function Guide({ data }: { data: GuideOk }) {
               image={heroImg}
             />
 
-            {p.wifi_ssid && (
-              <div className="px-5 -mt-2 relative z-10 mb-5">
-                <WifiStrip ssid={p.wifi_ssid} password={p.wifi_password} />
-              </div>
-            )}
+            <div className="px-5 -mt-10 relative z-10 mb-4">
+              <WifiStrip ssid={p.wifi_ssid} password={p.wifi_password} />
+            </div>
 
             <section id="guide-actions" className="px-5 relative z-10">
               <div className="flex items-center gap-3 mb-3">
