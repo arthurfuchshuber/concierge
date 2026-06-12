@@ -533,3 +533,53 @@ function CopyCard({ icon, eyebrow, label, value }: { icon?: React.ReactNode; eye
   );
 }
 
+function WifiStrip({ ssid, password }: { ssid: string; password?: string | null }) {
+  const [reveal, setReveal] = useState(false);
+  const [copied, setCopied] = useState(false);
+  function copyPwd() {
+    if (!password) return;
+    navigator.clipboard.writeText(password);
+    setCopied(true);
+    toast.success("Senha copiada");
+    setTimeout(() => setCopied(false), 1600);
+  }
+  const masked = password ? "•".repeat(Math.min(password.length, 12)) : "—";
+  return (
+    <div className="relative overflow-hidden rounded-2xl border border-accent/30 bg-gradient-to-r from-accent/[0.08] via-background/40 to-background/10 backdrop-blur-sm">
+      <div className="absolute inset-y-0 left-0 w-[3px] bg-gradient-to-b from-accent/80 via-accent/40 to-transparent" />
+      <div className="flex items-center gap-3 px-4 py-3">
+        <span className="grid size-9 shrink-0 place-items-center rounded-full border border-accent/40 bg-background/30 text-accent">
+          <Wifi className="size-4" strokeWidth={1.75} />
+        </span>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-baseline gap-2">
+            <p className="text-[9px] uppercase tracking-[0.28em] text-accent/90 font-semibold">Wi-Fi</p>
+            <p className="text-[12px] text-foreground/85 truncate font-medium">{ssid}</p>
+          </div>
+          <p className="font-mono text-[13px] tracking-[0.18em] text-foreground/90 mt-0.5 truncate">
+            {password ? (reveal ? password : masked) : "—"}
+          </p>
+        </div>
+        {password && (
+          <div className="flex items-center gap-1.5 shrink-0">
+            <button
+              onClick={() => setReveal((v) => !v)}
+              aria-label={reveal ? "Ocultar senha" : "Revelar senha"}
+              className="grid size-8 place-items-center rounded-full border border-border/60 text-foreground/75 hover:text-foreground hover:border-accent/60 transition-colors"
+            >
+              {reveal ? <EyeOff className="size-3.5" strokeWidth={1.75} /> : <Eye className="size-3.5" strokeWidth={1.75} />}
+            </button>
+            <button
+              onClick={copyPwd}
+              aria-label="Copiar senha"
+              className="grid size-8 place-items-center rounded-full border border-accent/50 text-accent hover:bg-accent hover:text-accent-foreground transition-colors"
+            >
+              {copied ? <Check className="size-3.5" strokeWidth={2} /> : <Copy className="size-3.5" strokeWidth={1.75} />}
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
