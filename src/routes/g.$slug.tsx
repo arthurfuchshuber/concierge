@@ -552,7 +552,7 @@ function WifiStrip({ ssid, password }: { ssid?: string | null; password?: string
         <div className="flex-1 min-w-0">
           <div className="flex items-baseline gap-2">
             <p className="text-[9px] uppercase tracking-[0.28em] text-accent/90 font-semibold">Wi-Fi</p>
-            <p className="text-[12px] text-foreground/85 truncate font-medium">{ssid}</p>
+            <p className="text-[12px] text-foreground/85 truncate font-medium">{ssid || "Rede da casa"}</p>
           </div>
           <p className="font-mono text-[13px] tracking-[0.18em] text-foreground/90 mt-0.5 truncate">
             {password ? (reveal ? password : masked) : "—"}
