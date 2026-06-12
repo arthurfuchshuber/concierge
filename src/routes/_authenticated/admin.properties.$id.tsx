@@ -123,6 +123,12 @@ function PropertyEditor() {
         tagline: (p.tagline as string) ?? "",
         hero_image_url: (p.hero_image_url as string) ?? "",
         gallery_images: ((p.gallery_images as string[] | null) ?? []).slice(0, 4),
+        theme_images: {
+          checkin: ((p.theme_images as Record<string, string> | null)?.checkin) ?? "",
+          residencia: ((p.theme_images as Record<string, string> | null)?.residencia) ?? "",
+          faq: ((p.theme_images as Record<string, string> | null)?.faq) ?? "",
+          explore: ((p.theme_images as Record<string, string> | null)?.explore) ?? "",
+        },
         address: (p.address as string) ?? "",
         maps_url: (p.maps_url as string) ?? "",
         lat: (p.lat as number) ?? null,
