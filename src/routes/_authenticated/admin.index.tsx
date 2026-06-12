@@ -20,6 +20,19 @@ function Dashboard() {
   const del = useServerFn(deleteProperty);
   const navigate = useNavigate();
   const [view, setView] = useState<"grid" | "list">("grid");
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  async function handleCopyLink(slug: string, id: string) {
+    const url = `${window.location.origin}/g/${slug}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopiedId(id);
+      toast.success("Link público copiado");
+      setTimeout(() => setCopiedId((c) => (c === id ? null : c)), 1800);
+    } catch {
+      toast.error("Não foi possível copiar o link");
+    }
+  }
   const { data, isLoading, refetch } = useQuery({
     queryKey: ["my-properties"],
     queryFn: () => list(),
