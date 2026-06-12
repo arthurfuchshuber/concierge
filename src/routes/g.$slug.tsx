@@ -232,41 +232,76 @@ function Guide({ data }: { data: GuideOk }) {
               <ArrowLeft className="size-3" /> Voltar ao guia
             </button>
 
-            <TabsContent value="checkin" className="space-y-4">
+            <TabsContent value="checkin" className="space-y-5">
               <SectionTitle eyebrow="Estadia" title="Chegada & Saída" intro="Tudo o que você precisa para chegar e se acomodar." />
-              {p.address && (
-                <div className="bg-card border border-border rounded-2xl p-5 relative overflow-hidden">
-                  <div className="absolute left-0 top-5 bottom-5 w-[3px] rounded-r-full bg-accent/70" />
-                  <div className="flex items-start gap-4">
-                    <div className="size-11 rounded-xl bg-accent/10 text-accent grid place-items-center shrink-0">
-                      <MapPin className="size-[18px]" strokeWidth={1.75} />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground font-semibold">Endereço</p>
-                      <p className="text-[15px] mt-1 leading-snug">{p.address}</p>
-                    </div>
+
+              <SubList>
+                <SubItem
+                  icon={<KeyRound className="size-[18px]" strokeWidth={1.6} />}
+                  label="Check-in"
+                  hint={p.checkin_time ? `a partir de ${p.checkin_time}` : undefined}
+                >
+                  <div className="space-y-3">
+                    {(p.checkin_time || p.checkout_time) && (
+                      <div className="grid grid-cols-2 bg-background border border-border rounded-xl overflow-hidden">
+                        {p.checkin_time && <InfoTile label="Check-in" value={`a partir de ${p.checkin_time}`} />}
+                        {p.checkout_time && <InfoTile label="Check-out" value={`até ${p.checkout_time}`} border />}
+                      </div>
+                    )}
+                    {p.gate_code && <CopyCard icon={<KeyRound className="size-5" strokeWidth={1.75} />} eyebrow="Portão" label="Toque para copiar" value={p.gate_code} />}
+                    {p.lock_code && <CopyCard icon={<Lock className="size-5" strokeWidth={1.75} />} eyebrow="Fechadura" label="Toque para copiar" value={p.lock_code} />}
+                    {!p.checkin_time && !p.checkout_time && !p.gate_code && !p.lock_code && (
+                      <p className="text-sm text-muted-foreground">Sem informações de check-in.</p>
+                    )}
                   </div>
-                  {p.maps_url && (
-                    <a href={p.maps_url} target="_blank" rel="noreferrer"
-                      className="mt-4 flex items-center justify-center gap-2 w-full rounded-xl bg-foreground text-background h-11 text-[12px] uppercase tracking-[0.18em] font-semibold active:scale-[0.98] transition-transform">
-                      <MapPin className="size-4" strokeWidth={2} /> Abrir no mapa
-                    </a>
+                </SubItem>
+
+                <SubItem
+                  icon={<MapPin className="size-[18px]" strokeWidth={1.6} />}
+                  label="Como chegar"
+                  hint={p.city}
+                >
+                  <div className="space-y-3">
+                    {p.address ? (
+                      <div className="bg-background border border-border rounded-xl p-4 relative overflow-hidden">
+                        <div className="absolute left-0 top-4 bottom-4 w-[3px] rounded-r-full bg-accent/70" />
+                        <p className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground font-semibold">Endereço</p>
+                        <p className="text-[15px] mt-1 leading-snug">{p.address}</p>
+                        {p.maps_url && (
+                          <a href={p.maps_url} target="_blank" rel="noreferrer"
+                            className="mt-4 flex items-center justify-center gap-2 w-full rounded-xl bg-foreground text-background h-11 text-[12px] uppercase tracking-[0.18em] font-semibold active:scale-[0.98] transition-transform">
+                            <MapPin className="size-4" strokeWidth={2} /> Abrir no mapa
+                          </a>
+                        )}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">Endereço não informado.</p>
+                    )}
+                    {p.address_note && (
+                      <div className="border-l-2 border-accent/60 pl-4 py-1 mx-1">
+                        <p className="text-sm text-muted-foreground leading-relaxed italic">{p.address_note}</p>
+                      </div>
+                    )}
+                  </div>
+                </SubItem>
+
+                <SubItem
+                  icon={<Wifi className="size-[18px]" strokeWidth={1.6} />}
+                  label="Wi-Fi"
+                  hint={p.wifi_ssid || undefined}
+                >
+                  {p.wifi_ssid ? (
+                    <div className="space-y-3">
+                      <CopyCard icon={<Wifi className="size-5" strokeWidth={1.75} />} eyebrow="Rede" label="Toque para copiar" value={p.wifi_ssid} />
+                      {p.wifi_password && (
+                        <CopyCard icon={<KeyRound className="size-5" strokeWidth={1.75} />} eyebrow="Senha" label="Toque para copiar" value={p.wifi_password} />
+                      )}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">Sem informações de Wi-Fi.</p>
                   )}
-                </div>
-              )}
-              {p.address_note && (
-                <div className="border-l-2 border-accent/60 pl-4 py-1 mx-1">
-                  <p className="text-sm text-muted-foreground leading-relaxed italic">{p.address_note}</p>
-                </div>
-              )}
-              {(p.checkin_time || p.checkout_time) && (
-                <div className="grid grid-cols-2 bg-card border border-border rounded-2xl overflow-hidden">
-                  {p.checkin_time && <InfoTile label="Check-in" value={`a partir de ${p.checkin_time}`} />}
-                  {p.checkout_time && <InfoTile label="Check-out" value={`até ${p.checkout_time}`} border />}
-                </div>
-              )}
-              {p.gate_code && <CopyCard icon={<KeyRound className="size-5" strokeWidth={1.75} />} eyebrow="Portão" label="Toque para copiar" value={p.gate_code} />}
-              {p.lock_code && <CopyCard icon={<Lock className="size-5" strokeWidth={1.75} />} eyebrow="Fechadura" label="Toque para copiar" value={p.lock_code} />}
+                </SubItem>
+              </SubList>
             </TabsContent>
 
             <TabsContent value="wifi" className="space-y-4">
