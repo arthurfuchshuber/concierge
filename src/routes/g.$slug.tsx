@@ -141,7 +141,7 @@ function Guide({ data }: { data: GuideOk }) {
       title: "Chegada & Saída",
       desc: "Endereço, códigos de acesso e horários.",
       icon: <KeyRound className="size-5" strokeWidth={1.5} />,
-      image: pick(1),
+      image: themePick("checkin", 1),
       to: { kind: "section", value: "checkin" },
     },
     {
