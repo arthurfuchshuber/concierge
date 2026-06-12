@@ -413,40 +413,40 @@ function HeroCompact({
   name: string; tagline?: string; city?: string; image?: string;
 }) {
   return (
-    <section className="relative min-h-[705px] overflow-hidden px-6 pb-20 pt-8">
+    <section className="relative min-h-[420px] overflow-hidden px-5 pb-12 pt-4">
       {image && <img src={image} alt="" className="absolute inset-0 size-full object-cover object-[62%_50%] opacity-95" />}
       <div className="absolute inset-0 bg-[linear-gradient(90deg,oklch(0.02_0.004_40/0.94)_0%,oklch(0.02_0.004_40/0.7)_42%,oklch(0.02_0.004_40/0.18)_100%)]" />
       <div className="absolute inset-0 bg-[linear-gradient(180deg,oklch(0.02_0.004_40/0.68)_0%,transparent_34%,oklch(0.02_0.004_40/0.78)_82%,oklch(0.02_0.004_40)_100%)]" />
 
       <header className="relative z-10 flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <GuideMark className="size-9 text-accent" />
-          <p className="font-serif text-[2.15rem] leading-none text-foreground">
+        <div className="flex items-center gap-2">
+          <GuideMark className="size-5 text-accent" />
+          <p className="font-serif text-[1.25rem] leading-none text-foreground">
             <span>Sigma</span><span className="text-accent">Guide</span>
           </p>
         </div>
         <button
           aria-label="Menu"
-          className="grid size-[66px] place-items-center rounded-full border border-accent/65 bg-background/10 text-foreground/90 backdrop-blur-sm"
+          className="grid size-9 place-items-center rounded-full border border-accent/55 bg-background/10 text-foreground/90 backdrop-blur-sm"
         >
-          <span className="relative block h-5 w-6 before:absolute before:left-0 before:top-0 before:h-px before:w-6 before:bg-current after:absolute after:bottom-0 after:left-0 after:h-px after:w-6 after:bg-current">
-            <span className="absolute left-0 top-1/2 h-px w-6 -translate-y-1/2 bg-current" />
+          <span className="relative block h-3 w-4 before:absolute before:left-0 before:top-0 before:h-px before:w-4 before:bg-current after:absolute after:bottom-0 after:left-0 after:h-px after:w-4 after:bg-current">
+            <span className="absolute left-0 top-1/2 h-px w-4 -translate-y-1/2 bg-current" />
           </span>
         </button>
       </header>
 
-      <div className="relative z-10 mt-[118px] max-w-[350px]">
-        <p className="mb-5 text-[13px] font-semibold uppercase tracking-[0.42em] text-accent">Bem-vindo</p>
-        <h1 className="font-serif text-[3.25rem] leading-[0.96] text-foreground text-balance sm:text-[3.65rem]">
+      <div className="relative z-10 mt-14 max-w-[300px]">
+        <p className="mb-2.5 text-[10px] font-semibold uppercase tracking-[0.36em] text-accent">Bem-vindo</p>
+        <h1 className="font-serif text-[2.25rem] leading-[0.98] text-foreground text-balance">
           {name}
         </h1>
         {city && (
-          <p className="mt-6 inline-flex items-center gap-3 text-[1.25rem] leading-none text-foreground/82">
-            <MapPin className="size-5 text-foreground/82 fill-foreground/82" strokeWidth={0} /> {city}
+          <p className="mt-3 inline-flex items-center gap-2 text-[0.85rem] leading-none text-foreground/82">
+            <MapPin className="size-3.5 text-foreground/82 fill-foreground/82" strokeWidth={0} /> {city}
           </p>
         )}
-        <span className="mt-8 block h-[2px] w-16 bg-accent" />
-        <p className="mt-7 max-w-[300px] text-[1.22rem] leading-[1.46] text-foreground/82">
+        <span className="mt-4 block h-[2px] w-10 bg-accent" />
+        <p className="mt-3.5 max-w-[280px] text-[0.85rem] leading-[1.5] text-foreground/78">
           {tagline || "Tudo o que você precisa para aproveitar cada momento."}
         </p>
       </div>
