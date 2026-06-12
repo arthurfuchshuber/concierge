@@ -441,18 +441,18 @@ function HeroCompact({
         </button>
       </header>
 
-      <div className="relative z-10 mt-14 max-w-[300px]">
+      <div className="relative z-10 mt-14">
         <p className="mb-2.5 text-[10px] font-semibold uppercase tracking-[0.36em] text-accent">Bem-vindo</p>
-        <h1 className="font-serif text-[2.25rem] leading-[0.98] text-foreground text-balance">
+        <h1 className="font-serif text-[1.75rem] leading-[1.0] text-foreground text-balance max-w-[300px]">
           {name}
         </h1>
         {city && (
-          <p className="mt-3 inline-flex items-center gap-2 text-[0.85rem] leading-none text-foreground/82">
+          <p className="mt-2.5 inline-flex items-center gap-2 text-[0.8rem] leading-none text-foreground/82">
             <MapPin className="size-3.5 text-foreground/82 fill-foreground/82" strokeWidth={0} /> {city}
           </p>
         )}
-        <span className="mt-4 block h-[2px] w-10 bg-accent" />
-        <p className="mt-3.5 max-w-[280px] text-[0.85rem] leading-[1.5] text-foreground/78">
+        <span className="mt-3.5 block h-[2px] w-10 bg-accent" />
+        <p className="mt-3 text-[0.85rem] leading-[1.5] text-foreground/78">
           {tagline || "Tudo o que você precisa para aproveitar cada momento."}
         </p>
       </div>
@@ -545,39 +545,46 @@ function WifiStrip({ ssid, password }: { ssid?: string | null; password?: string
   }
   const masked = password ? "•".repeat(Math.min(password.length, 12)) : "—";
   return (
-    <div className="relative overflow-hidden rounded-2xl border border-accent/30 bg-gradient-to-r from-accent/[0.08] via-background/40 to-background/10 backdrop-blur-sm">
-      <div className="absolute inset-y-0 left-0 w-[3px] bg-gradient-to-b from-accent/80 via-accent/40 to-transparent" />
-      <div className="flex items-center gap-3 px-4 py-3">
-        <span className="grid size-9 shrink-0 place-items-center rounded-full border border-accent/40 bg-background/30 text-accent">
-          <Wifi className="size-4" strokeWidth={1.75} />
-        </span>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-baseline gap-2">
-            <p className="text-[9px] uppercase tracking-[0.28em] text-accent/90 font-semibold">Wi-Fi</p>
-            <p className="text-[12px] text-foreground/85 truncate font-medium">{ssid || "Rede da casa"}</p>
+    <div className="relative rounded-2xl p-[1px] bg-[linear-gradient(135deg,oklch(var(--accent)/0.7),oklch(var(--accent)/0.15)_42%,transparent_75%)] shadow-[0_8px_30px_-12px_oklch(var(--accent)/0.45)]">
+      <div className="relative overflow-hidden rounded-[15px] bg-[linear-gradient(135deg,oklch(0.18_0.04_55/0.95)_0%,oklch(0.12_0.02_50/0.92)_60%,oklch(0.08_0.01_45/0.95)_100%)] backdrop-blur-sm">
+        {/* subtle dot pattern */}
+        <div className="pointer-events-none absolute inset-0 opacity-[0.08] [background-image:radial-gradient(oklch(var(--accent))_1px,transparent_1px)] [background-size:14px_14px]" />
+        {/* corner glow */}
+        <div className="pointer-events-none absolute -top-10 -right-10 size-32 rounded-full bg-accent/20 blur-3xl" />
+
+        <div className="relative flex items-center gap-3.5 px-4 py-3.5">
+          <span className="relative grid size-10 shrink-0 place-items-center rounded-full bg-[radial-gradient(circle_at_30%_30%,oklch(var(--accent)/0.35),oklch(var(--accent)/0.05))] text-accent ring-1 ring-accent/45">
+            <Wifi className="size-[18px]" strokeWidth={1.75} />
+          </span>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-baseline gap-2">
+              <p className="text-[9px] uppercase tracking-[0.32em] text-accent font-semibold">Wi-Fi</p>
+              <span className="h-px flex-1 bg-gradient-to-r from-accent/40 to-transparent" />
+            </div>
+            <p className="text-[13px] text-foreground/90 truncate font-medium mt-0.5">{ssid || "Rede da casa"}</p>
+            <p className="font-mono text-[13px] tracking-[0.2em] text-foreground/85 mt-0.5 truncate">
+              {password ? (reveal ? password : masked) : "—"}
+            </p>
           </div>
-          <p className="font-mono text-[13px] tracking-[0.18em] text-foreground/90 mt-0.5 truncate">
-            {password ? (reveal ? password : masked) : "—"}
-          </p>
+          {password && (
+            <div className="flex items-center gap-1.5 shrink-0">
+              <button
+                onClick={() => setReveal((v) => !v)}
+                aria-label={reveal ? "Ocultar senha" : "Revelar senha"}
+                className="grid size-8 place-items-center rounded-full border border-border/50 bg-background/30 text-foreground/75 hover:text-foreground hover:border-accent/60 transition-colors"
+              >
+                {reveal ? <EyeOff className="size-3.5" strokeWidth={1.75} /> : <Eye className="size-3.5" strokeWidth={1.75} />}
+              </button>
+              <button
+                onClick={copyPwd}
+                aria-label="Copiar senha"
+                className="grid size-8 place-items-center rounded-full bg-accent text-accent-foreground hover:brightness-110 transition-all shadow-[0_4px_12px_-4px_oklch(var(--accent)/0.6)]"
+              >
+                {copied ? <Check className="size-3.5" strokeWidth={2.25} /> : <Copy className="size-3.5" strokeWidth={2} />}
+              </button>
+            </div>
+          )}
         </div>
-        {password && (
-          <div className="flex items-center gap-1.5 shrink-0">
-            <button
-              onClick={() => setReveal((v) => !v)}
-              aria-label={reveal ? "Ocultar senha" : "Revelar senha"}
-              className="grid size-8 place-items-center rounded-full border border-border/60 text-foreground/75 hover:text-foreground hover:border-accent/60 transition-colors"
-            >
-              {reveal ? <EyeOff className="size-3.5" strokeWidth={1.75} /> : <Eye className="size-3.5" strokeWidth={1.75} />}
-            </button>
-            <button
-              onClick={copyPwd}
-              aria-label="Copiar senha"
-              className="grid size-8 place-items-center rounded-full border border-accent/50 text-accent hover:bg-accent hover:text-accent-foreground transition-colors"
-            >
-              {copied ? <Check className="size-3.5" strokeWidth={2} /> : <Copy className="size-3.5" strokeWidth={1.75} />}
-            </button>
-          </div>
-        )}
       </div>
     </div>
   );
