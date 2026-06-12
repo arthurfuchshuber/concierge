@@ -521,7 +521,41 @@ function ThemeCard({
   );
 }
 
-function SectionTitle({ eyebrow, title, intro }: { eyebrow: string; title: string; intro?: string }) {
+function SubList({ children }: { children: React.ReactNode }) {
+  return (
+    <Accordion type="single" collapsible className="bg-card border border-border rounded-2xl overflow-hidden divide-y divide-border/70">
+      {children}
+    </Accordion>
+  );
+}
+
+function SubItem({
+  icon, label, hint, children,
+}: {
+  icon: React.ReactNode; label: string; hint?: string; children: React.ReactNode;
+}) {
+  const id = label.toLowerCase().replace(/\s+/g, "-");
+  return (
+    <AccordionItem value={id} className="border-0">
+      <AccordionTrigger className="px-4 py-3.5 hover:no-underline">
+        <div className="flex items-center gap-3.5 flex-1 min-w-0">
+          <span className="grid size-10 shrink-0 place-items-center rounded-full bg-secondary text-foreground/80">
+            {icon}
+          </span>
+          <div className="flex-1 min-w-0 text-left">
+            <p className="text-[15px] leading-tight font-medium text-foreground">{label}</p>
+            {hint && <p className="text-[11.5px] text-muted-foreground mt-0.5 truncate">{hint}</p>}
+          </div>
+        </div>
+      </AccordionTrigger>
+      <AccordionContent className="px-4 pb-4 pt-1">
+        {children}
+      </AccordionContent>
+    </AccordionItem>
+  );
+}
+
+
   return (
     <div className="pt-2 pb-1">
       <div className="flex items-center gap-2 mb-2">
