@@ -172,5 +172,36 @@
       radial-gradient(60% 40% at 100% 0%, oklch(from var(--accent) l c h / 0.08), transparent 60%),
       linear-gradient(180deg, var(--background), oklch(0.025 0.008 45));
   }
+
+  /* Wifi shimmer — slow light sweep */
+  @keyframes wifi-shimmer {
+    0% { transform: translateX(-120%) skewX(-18deg); }
+    100% { transform: translateX(260%) skewX(-18deg); }
+  }
+  .wifi-shimmer::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      oklch(from var(--accent) l c h / 0.0) 30%,
+      oklch(from var(--accent) l c h / 0.18) 48%,
+      oklch(1 0 0 / 0.22) 50%,
+      oklch(from var(--accent) l c h / 0.18) 52%,
+      transparent 70%
+    );
+    width: 45%;
+    animation: wifi-shimmer 4.5s ease-in-out infinite;
+    mix-blend-mode: screen;
+  }
+
+  /* Slow pulse for the wifi icon halo */
+  @keyframes wifi-pulse {
+    0%, 100% { opacity: 0.45; transform: scale(1); }
+    50% { opacity: 0.9; transform: scale(1.08); }
+  }
+  .wifi-pulse { animation: wifi-pulse 3s ease-in-out infinite; }
 }
 
