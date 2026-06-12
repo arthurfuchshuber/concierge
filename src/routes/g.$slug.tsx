@@ -193,7 +193,7 @@ function Guide({ data }: { data: GuideOk }) {
                 {cards.map((c) =>
                   c.to?.kind === "link" ? (
                     <Link key={c.key} to={c.to.to as any}>
-                      <ThemeCard {...c} />
+                      <ThemeCard title={c.title} desc={c.desc} icon={c.icon} image={c.image} />
                     </Link>
                   ) : (
                     <button
@@ -201,7 +201,7 @@ function Guide({ data }: { data: GuideOk }) {
                       onClick={() => c.to?.kind === "section" && setSection(c.to.value)}
                       className="w-full text-left"
                     >
-                      <ThemeCard {...c} />
+                      <ThemeCard title={c.title} desc={c.desc} icon={c.icon} image={c.image} />
                     </button>
                   ),
                 )}
