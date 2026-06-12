@@ -10,6 +10,12 @@ const PropertyInput = z.object({
   slug: z.string().regex(slugRe, "Slug inválido (use letras minúsculas, números e hífens)"),
   hero_image_url: z.string().url().max(1024).optional().nullable(),
   gallery_images: z.array(z.string().url().max(1024)).max(4).default([]),
+  theme_images: z.object({
+    checkin: z.string().url().max(1024).optional().nullable(),
+    residencia: z.string().url().max(1024).optional().nullable(),
+    faq: z.string().url().max(1024).optional().nullable(),
+    explore: z.string().url().max(1024).optional().nullable(),
+  }).partial().default({}),
   address: z.string().max(500).optional().nullable(),
   maps_url: z.string().url().max(2048).optional().nullable(),
   lat: z.number().optional().nullable(),

@@ -40,6 +40,7 @@ type FormState = {
     tagline: string;
     hero_image_url: string;
     gallery_images: string[];
+    theme_images: { checkin: string; residencia: string; faq: string; explore: string };
     address: string;
     maps_url: string;
     lat: number | null;
@@ -71,7 +72,9 @@ type FormState = {
 function emptyForm(): FormState {
   return {
     property: {
-      name: "", slug: "", tagline: "", hero_image_url: "", gallery_images: [], address: "", maps_url: "",
+      name: "", slug: "", tagline: "", hero_image_url: "", gallery_images: [],
+      theme_images: { checkin: "", residencia: "", faq: "", explore: "" },
+      address: "", maps_url: "",
       lat: null, lng: null, city: "", country: "", checkin_time: "15:00", checkout_time: "11:00",
       lock_code: "", gate_code: "", address_note: "", wifi_ssid: "", wifi_password: "",
       host_name: "", host_phone: "", access_mode: "public", pin_code: "", pin_expires_at: "",
@@ -120,6 +123,12 @@ function PropertyEditor() {
         tagline: (p.tagline as string) ?? "",
         hero_image_url: (p.hero_image_url as string) ?? "",
         gallery_images: ((p.gallery_images as string[] | null) ?? []).slice(0, 4),
+        theme_images: {
+          checkin: ((p.theme_images as Record<string, string> | null)?.checkin) ?? "",
+          residencia: ((p.theme_images as Record<string, string> | null)?.residencia) ?? "",
+          faq: ((p.theme_images as Record<string, string> | null)?.faq) ?? "",
+          explore: ((p.theme_images as Record<string, string> | null)?.explore) ?? "",
+        },
         address: (p.address as string) ?? "",
         maps_url: (p.maps_url as string) ?? "",
         lat: (p.lat as number) ?? null,
@@ -239,6 +248,12 @@ function PropertyEditor() {
           tagline: form.property.tagline || null,
           hero_image_url: form.property.hero_image_url || null,
           gallery_images: form.property.gallery_images.filter((u) => u.trim()).slice(0, 4),
+          theme_images: {
+            checkin: form.property.theme_images.checkin || undefined,
+            residencia: form.property.theme_images.residencia || undefined,
+            faq: form.property.theme_images.faq || undefined,
+            explore: form.property.theme_images.explore || undefined,
+          },
           address: form.property.address || null,
           maps_url: form.property.maps_url || null,
           city: form.property.city || null,
@@ -336,7 +351,38 @@ function PropertyEditor() {
                 }}
               />
             </Field>
+            <Field label="Imagens das categorias" hint="Cole a URL de uma imagem para cada categoria do guia público. Deixe em branco para usar a foto da capa.">
+              <div className="space-y-2">
+                {([
+                  { k: "checkin", label: "Chegada & Saída" },
+                  { k: "residencia", label: "A Residência" },
+                  { k: "faq", label: "Dúvidas Frequentes" },
+                  { k: "explore", label: "Explore a Região" },
+                ] as const).map(({ k, label }) => {
+                  const url = form.property.theme_images[k];
+                  return (
+                    <div key={k} className="flex items-center gap-2">
+                      <div className="size-12 shrink-0 rounded-lg border border-border bg-muted/40 overflow-hidden">
+                        {url ? <img src={url} alt="" className="size-full object-cover" /> : (
+                          <div className="size-full grid place-items-center text-[9px] text-muted-foreground uppercase tracking-wider">—</div>
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-1">{label}</p>
+                        <Input
+                          value={url}
+                          onChange={(e) => setForm((f) => ({ ...f, property: { ...f.property, theme_images: { ...f.property.theme_images, [k]: e.target.value } } }))}
+                          placeholder="https://..."
+                          className="text-xs h-8"
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </Field>
           </Section>
+
 
           <Section title="Endereço e auto-preenchimento" desc="Cole o link do Google Maps do imóvel e clique em 'Auto-preencher' para obter endereço, coordenadas e pontos de interesse.">
             <Field label="Link do Google Maps" required>

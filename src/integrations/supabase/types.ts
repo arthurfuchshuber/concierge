@@ -63,6 +63,7 @@ export type Database = {
           published: boolean
           slug: string
           tagline: string | null
+          theme_images: Json
           updated_at: string
           wifi_password: string | null
           wifi_ssid: string | null
@@ -94,6 +95,7 @@ export type Database = {
           published?: boolean
           slug: string
           tagline?: string | null
+          theme_images?: Json
           updated_at?: string
           wifi_password?: string | null
           wifi_ssid?: string | null
@@ -125,6 +127,7 @@ export type Database = {
           published?: boolean
           slug?: string
           tagline?: string | null
+          theme_images?: Json
           updated_at?: string
           wifi_password?: string | null
           wifi_ssid?: string | null

@@ -121,8 +121,10 @@ function Guide({ data }: { data: GuideOk }) {
   const rules = data.manual.filter(isRule);
   const houseManual = data.manual.filter((m: any) => !isRule(m));
 
-  // Pick images for cards (fall back to hero)
+  // Pick images for cards: theme_images first, then gallery fallback, then hero
+  const themeImages = (p.theme_images ?? {}) as Record<string, string | undefined>;
   const pick = (i: number) => photos[i % Math.max(photos.length, 1)] ?? heroImg;
+  const themePick = (key: string, fallbackIdx: number) => themeImages[key] || pick(fallbackIdx);
 
   const cards: Array<{
     key: Exclude<Section, "home"> | "explore";
@@ -139,7 +141,7 @@ function Guide({ data }: { data: GuideOk }) {
       title: "Chegada & Saída",
       desc: "Endereço, códigos de acesso e horários.",
       icon: <KeyRound className="size-5" strokeWidth={1.5} />,
-      image: pick(1),
+      image: themePick("checkin", 1),
       to: { kind: "section", value: "checkin" },
     },
     {
@@ -148,7 +150,7 @@ function Guide({ data }: { data: GuideOk }) {
       title: "A Residência",
       desc: "Manual, comodidades e detalhes da casa.",
       icon: <Home className="size-5" strokeWidth={1.5} />,
-      image: pick(2),
+      image: themePick("residencia", 2),
       to: { kind: "section", value: "residencia" },
     },
     {
@@ -157,7 +159,7 @@ function Guide({ data }: { data: GuideOk }) {
       title: "Dúvidas Frequentes",
       desc: "Anfitrião, emergências e respostas rápidas.",
       icon: <HelpCircle className="size-5" strokeWidth={1.5} />,
-      image: pick(3),
+      image: themePick("faq", 3),
       to: { kind: "section", value: "faq" },
     },
     {
@@ -166,7 +168,7 @@ function Guide({ data }: { data: GuideOk }) {
       title: "Explore a Região",
       desc: "Restaurantes, atrações e experiências.",
       icon: <Compass className="size-5" strokeWidth={1.5} />,
-      image: pick(4),
+      image: themePick("explore", 4),
       to: { kind: "link", to: `/g/${slug}/explorar` },
     },
   ];
