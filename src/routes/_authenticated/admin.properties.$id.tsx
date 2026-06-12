@@ -40,6 +40,7 @@ type FormState = {
     tagline: string;
     hero_image_url: string;
     gallery_images: string[];
+    theme_images: { checkin: string; residencia: string; faq: string; explore: string };
     address: string;
     maps_url: string;
     lat: number | null;
