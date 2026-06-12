@@ -185,7 +185,7 @@ function Guide({ data }: { data: GuideOk }) {
               image={heroImg}
             />
 
-            <div className="px-5 mt-4 relative z-10 mb-4">
+            <div className="px-5 -mt-20 relative z-10 mb-4">
               <WifiStrip ssid={p.wifi_ssid} password={p.wifi_password} />
             </div>
 
@@ -419,7 +419,7 @@ function HeroCompact({
   name: string; tagline?: string; city?: string; image?: string;
 }) {
   return (
-    <section className="relative min-h-[320px] overflow-hidden px-5 pb-6 pt-4">
+    <section className="relative min-h-[360px] overflow-hidden px-5 pb-16 pt-4">
       {image && <img src={image} alt="" className="absolute inset-0 size-full object-cover object-[62%_50%] opacity-95" />}
       <div className="absolute inset-0 bg-[linear-gradient(90deg,oklch(0.02_0.004_40/0.94)_0%,oklch(0.02_0.004_40/0.7)_42%,oklch(0.02_0.004_40/0.18)_100%)]" />
       <div className="absolute inset-0 bg-[linear-gradient(180deg,oklch(0.02_0.004_40/0.68)_0%,transparent_34%,oklch(0.02_0.004_40/0.78)_82%,oklch(0.02_0.004_40)_100%)]" />
