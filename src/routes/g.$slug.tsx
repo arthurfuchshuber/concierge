@@ -150,7 +150,7 @@ function Guide({ data }: { data: GuideOk }) {
       title: "A Residência",
       desc: "Manual, comodidades e detalhes da casa.",
       icon: <Home className="size-5" strokeWidth={1.5} />,
-      image: pick(2),
+      image: themePick("residencia", 2),
       to: { kind: "section", value: "residencia" },
     },
     {
