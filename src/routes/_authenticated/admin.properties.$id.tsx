@@ -248,6 +248,12 @@ function PropertyEditor() {
           tagline: form.property.tagline || null,
           hero_image_url: form.property.hero_image_url || null,
           gallery_images: form.property.gallery_images.filter((u) => u.trim()).slice(0, 4),
+          theme_images: {
+            checkin: form.property.theme_images.checkin || undefined,
+            residencia: form.property.theme_images.residencia || undefined,
+            faq: form.property.theme_images.faq || undefined,
+            explore: form.property.theme_images.explore || undefined,
+          },
           address: form.property.address || null,
           maps_url: form.property.maps_url || null,
           city: form.property.city || null,
