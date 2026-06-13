@@ -244,6 +244,9 @@ function PropertyEditor() {
           distance_text: rec.distance_text,
           distance_meters: rec.distance_meters,
           drive_minutes: rec.drive_minutes,
+          walk_minutes: rec.walk_minutes,
+          opening_hours: rec.opening_hours,
+
           image_url: rec.image_url,
           maps_url: rec.maps_url,
           place_id: rec.place_id,
