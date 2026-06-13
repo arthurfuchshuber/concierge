@@ -161,6 +161,7 @@ function PropertyEditor() {
         pin_code: (p.pin_code as string) ?? "",
         pin_expires_at: p.pin_expires_at ? new Date(p.pin_expires_at as string).toISOString().slice(0, 16) : "",
         default_language: ((p.default_language as "pt" | "en") ?? "pt"),
+        guide_theme: ((p.guide_theme as "dark" | "light") ?? "dark"),
         published: (p.published as boolean) ?? true,
       },
       manual: (data.manual ?? []).map((m: Record<string, unknown>) => ({
