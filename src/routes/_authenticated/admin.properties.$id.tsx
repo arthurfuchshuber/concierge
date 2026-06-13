@@ -703,28 +703,57 @@ function PropertyEditor() {
   );
 }
 
-function Section({ title, desc, action, children }: { title?: string; desc?: string; action?: React.ReactNode; children: React.ReactNode }) {
+type IconType = React.ComponentType<{ className?: string; strokeWidth?: number }>;
+
+function Section({
+  icon: Icon,
+  title,
+  desc,
+  action,
+  tone = "default",
+  children,
+}: {
+  icon?: IconType;
+  title?: string;
+  desc?: string;
+  action?: React.ReactNode;
+  tone?: "default" | "accent";
+  children: React.ReactNode;
+}) {
+  const accent = tone === "accent";
   return (
-    <section className="border border-border/70 bg-card/40 rounded-2xl p-4 sm:p-5 shadow-sm space-y-3.5">
+    <section
+      className={[
+        "rounded-2xl border shadow-sm",
+        accent
+          ? "border-primary/25 bg-gradient-to-br from-primary/[0.06] to-primary/[0.02]"
+          : "border-border/60 bg-card",
+      ].join(" ")}
+    >
       {(title || action) && (
-        <header className="flex items-start justify-between gap-3">
-          {title ? (
+        <header className="flex items-start justify-between gap-3 px-4 sm:px-5 pt-4 sm:pt-5 pb-3.5">
+          <div className="flex items-start gap-3 min-w-0">
+            {Icon && (
+              <span
+                className={[
+                  "grid place-items-center size-8 rounded-lg shrink-0 mt-0.5",
+                  accent ? "bg-primary/15 text-primary" : "bg-muted text-foreground/70",
+                ].join(" ")}
+              >
+                <Icon className="size-4" strokeWidth={2} />
+              </span>
+            )}
             <div className="min-w-0">
-              <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground font-semibold">{title}</p>
-              {desc && <p className="text-xs text-muted-foreground/80 mt-1.5 leading-relaxed">{desc}</p>}
+              {title && <h3 className="text-sm font-semibold leading-tight text-foreground">{title}</h3>}
+              {desc && <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{desc}</p>}
             </div>
-          ) : desc ? (
-            <p className="text-xs text-muted-foreground/80 leading-relaxed">{desc}</p>
-          ) : (
-            <span />
-          )}
+          </div>
           {action}
         </header>
       )}
-      {!title && !action && desc && (
-        <p className="text-xs text-muted-foreground/80 leading-relaxed">{desc}</p>
-      )}
-      <div className="space-y-3">{children}</div>
+      <div className={`${title || action ? "border-t border-border/50" : ""} px-4 sm:px-5 py-4 sm:py-5 space-y-3.5`}>
+        {children}
+      </div>
     </section>
   );
 }
@@ -733,27 +762,41 @@ function Section({ title, desc, action, children }: { title?: string; desc?: str
 function Field({ label, hint, required, children }: { label: string; hint?: string; required?: boolean; children: React.ReactNode }) {
   return (
     <div>
-      <Label className="text-xs">{label} {required && <span className="text-destructive">*</span>}</Label>
+      <Label className="text-xs font-medium text-foreground/80">
+        {label} {required && <span className="text-destructive">*</span>}
+      </Label>
       <div className="mt-1.5">{children}</div>
-      {hint && <p className="text-[11px] text-muted-foreground mt-1">{hint}</p>}
+      {hint && <p className="text-[11px] text-muted-foreground mt-1.5 leading-relaxed">{hint}</p>}
     </div>
   );
 }
 
 function AddBtn({ onClick }: { onClick: () => void }) {
   return (
-    <Button size="sm" variant="ghost" onClick={onClick} className="shrink-0">
-      <Plus className="size-3.5 mr-1" /> Adicionar
+    <Button size="sm" variant="outline" onClick={onClick} className="shrink-0 h-8 rounded-full text-xs">
+      <Plus className="size-3.5" /> Adicionar
     </Button>
+  );
+}
+
+function EmptyHint({ text }: { text: string }) {
+  return (
+    <div className="rounded-xl border border-dashed border-border/70 bg-muted/30 px-4 py-5 text-center text-xs text-muted-foreground leading-relaxed">
+      {text}
+    </div>
   );
 }
 
 function ItemCard({ children, onRemove }: { children: React.ReactNode; onRemove: () => void }) {
   return (
-    <div className="bg-secondary/40 rounded-xl p-3 space-y-2 relative">
+    <div className="group bg-background border border-border/60 rounded-xl p-3.5 pr-10 space-y-2.5 relative hover:border-border transition-colors">
       {children}
-      <button onClick={onRemove} className="absolute top-2 right-2 p-1.5 rounded-full hover:bg-destructive/10 text-muted-foreground hover:text-destructive">
-        <Trash2 className="size-3" />
+      <button
+        onClick={onRemove}
+        aria-label="Remover"
+        className="absolute top-2.5 right-2.5 p-1.5 rounded-md text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors opacity-60 group-hover:opacity-100"
+      >
+        <Trash2 className="size-3.5" />
       </button>
     </div>
   );
