@@ -805,12 +805,13 @@ function ItemCard({ children, onRemove }: { children: React.ReactNode; onRemove:
 function RecGroup({ title, desc, items, onChange, scope }: { title: string; desc: string; items: RecItem[]; onChange: (i: RecItem[]) => void; scope: "nearby" | "city" }) {
   return (
     <Section
+      icon={scope === "nearby" ? MapPin : Compass}
       title={title}
       desc={desc}
       action={<AddBtn onClick={() => onChange([...items, { scope, type: "restaurant", name: "" }])} />}
     >
       {items.length === 0 ? (
-        <p className="text-xs text-muted-foreground italic">Nenhuma recomendação. Use o auto-preenchimento ou adicione manualmente.</p>
+        <EmptyHint text="Nenhuma recomendação. Use o auto-preenchimento ou adicione manualmente." />
       ) : items.map((r, i) => (
         <ItemCard key={i} onRemove={() => onChange(items.filter((_, j) => j !== i))}>
           <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-2">
