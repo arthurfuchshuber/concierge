@@ -247,6 +247,43 @@ function PropertyEditor() {
     }
   }
 
+  async function handleImportAirbnb() {
+    if (!airbnbUrl.trim()) {
+      toast.error("Cole o link público do anúncio do Airbnb");
+      return;
+    }
+    setImportingAirbnb(true);
+    try {
+      const r = await importAirbnb({ data: { url: airbnbUrl.trim() } });
+      setForm((f) => ({
+        ...f,
+        property: {
+          ...f.property,
+          name: f.property.name || r.name || f.property.name,
+          slug: f.property.slug || (r.name ? slugify(r.name) : f.property.slug),
+          tagline: f.property.tagline || r.tagline || f.property.tagline,
+          city: f.property.city || r.city || f.property.city,
+          country: f.property.country || r.country || f.property.country,
+          checkin_time: f.property.checkin_time || r.checkin_time || f.property.checkin_time,
+          checkout_time: f.property.checkout_time || r.checkout_time || f.property.checkout_time,
+          gallery_images: f.property.gallery_images.length ? f.property.gallery_images : r.gallery_images,
+          hero_image_url: f.property.hero_image_url || r.hero_image_url || f.property.hero_image_url,
+        },
+      }));
+      const bits: string[] = [];
+      if (r.name) bits.push("nome");
+      if (r.gallery_images.length) bits.push(`${r.gallery_images.length} fotos`);
+      if (r.city) bits.push("localização");
+      if (r.checkin_time || r.checkout_time) bits.push("horários");
+      toast.success(bits.length ? `Importado: ${bits.join(" · ")}` : "Importado");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erro ao importar");
+    } finally {
+      setImportingAirbnb(false);
+    }
+  }
+
+
   async function handleSave() {
     setSaving(true);
     try {
