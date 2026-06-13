@@ -598,7 +598,7 @@ function PropertyEditor() {
 
 function Section({ title, desc, action, children }: { title: string; desc?: string; action?: React.ReactNode; children: React.ReactNode }) {
   return (
-    <section className="border border-border rounded-2xl p-5 space-y-4">
+    <section className="border border-border rounded-2xl p-4 sm:p-5 space-y-4">
       <div className="flex items-start justify-between gap-3">
         <div>
           <h2 className="text-sm font-semibold">{title}</h2>
