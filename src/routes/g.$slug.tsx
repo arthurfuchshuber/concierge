@@ -558,9 +558,10 @@ function GuideMark({ className = "" }: { className?: string }) {
 }
 
 function HeroCompact({
-  name, tagline, city, image,
+  name, tagline, city, image, theme, onToggleTheme,
 }: {
   name: string; tagline?: string; city?: string; image?: string;
+  theme: "dark" | "light"; onToggleTheme: () => void;
 }) {
   return (
     <section className="relative min-h-[360px] md:min-h-[480px] overflow-hidden px-5 md:px-10 lg:px-16 pb-16 md:pb-24 pt-4 md:pt-8">
@@ -571,19 +572,21 @@ function HeroCompact({
       <header className="relative z-10 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <GuideMark className="size-5 text-accent" />
-          <p className="font-serif text-[1.25rem] leading-none text-foreground">
+          <p className="font-serif text-[1.25rem] leading-none text-white">
             <span>Sigma</span><span className="text-accent">Guide</span>
           </p>
         </div>
         <button
-          aria-label="Menu"
-          className="flex size-9 shrink-0 flex-col items-center justify-center gap-[3px] rounded-full border border-accent/55 bg-background/10 text-foreground/90 backdrop-blur-sm"
+          type="button"
+          onClick={onToggleTheme}
+          aria-label={theme === "dark" ? "Mudar para tema claro" : "Mudar para tema escuro"}
+          title={theme === "dark" ? "Tema claro" : "Tema escuro"}
+          className="grid size-9 shrink-0 place-items-center rounded-full border border-accent/55 bg-background/10 text-white/95 backdrop-blur-sm transition-colors hover:bg-accent/25 hover:text-white"
         >
-          <span className="block h-px w-4 bg-current" />
-          <span className="block h-px w-4 bg-current" />
-          <span className="block h-px w-4 bg-current" />
+          {theme === "dark" ? <Sun className="size-4" strokeWidth={1.75} /> : <Moon className="size-4" strokeWidth={1.75} />}
         </button>
       </header>
+
 
       <div className="relative z-10 mt-14 md:mt-24">
         <p className="mb-2.5 text-[10px] font-semibold uppercase tracking-[0.36em] text-accent">Bem-vindo</p>
