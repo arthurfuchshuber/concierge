@@ -657,16 +657,15 @@ function PropertyEditor() {
   );
 }
 
-function Section({ title, desc, action, children }: { title: string; desc?: string; action?: React.ReactNode; children: React.ReactNode }) {
+function Section({ title: _title, desc, action, children }: { title?: string; desc?: string; action?: React.ReactNode; children: React.ReactNode }) {
   return (
-    <section className="border border-border rounded-2xl p-4 sm:p-5 space-y-4">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <h2 className="text-sm font-semibold">{title}</h2>
-          {desc && <p className="text-xs text-muted-foreground mt-1">{desc}</p>}
+    <section className="border border-border rounded-2xl p-3 sm:p-4 space-y-3">
+      {(desc || action) && (
+        <div className="flex items-start justify-between gap-3">
+          {desc ? <p className="text-xs text-muted-foreground">{desc}</p> : <span />}
+          {action}
         </div>
-        {action}
-      </div>
+      )}
       <div className="space-y-3">{children}</div>
     </section>
   );
