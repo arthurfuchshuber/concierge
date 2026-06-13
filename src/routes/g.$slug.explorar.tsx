@@ -9,6 +9,8 @@ import {
   Footprints,
   Car,
   ArrowUpDown,
+  LayoutGrid,
+  List as ListIcon,
   Utensils,
   Landmark,
   Coffee,
@@ -16,6 +18,7 @@ import {
   Cross,
   ShoppingBag,
 } from "lucide-react";
+
 
 export const Route = createFileRoute("/g/$slug/explorar")({
   loader: async ({ params }) => {
