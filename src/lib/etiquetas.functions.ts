@@ -12,7 +12,7 @@ export const getEtiquetaOptions = createServerFn({ method: "GET" })
       .select("etiqueta_options")
       .eq("id", context.userId)
       .maybeSingle();
-    if (error) throw new Error(error.message);
+    if (error) throw (await import("@/lib/db-errors.server")).safeDbError("properties", error);
     const opts = (data?.etiqueta_options as string[] | null) ?? null;
     return opts && opts.length ? opts : DEFAULTS;
   });
@@ -34,6 +34,6 @@ export const setEtiquetaOptions = createServerFn({ method: "POST" })
       .from("profiles")
       .update({ etiqueta_options: data.options })
       .eq("id", context.userId);
-    if (error) throw new Error(error.message);
+    if (error) throw (await import("@/lib/db-errors.server")).safeDbError("properties", error);
     return { options: data.options };
   });

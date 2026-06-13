@@ -31,7 +31,7 @@ export const getPublicGuide = createServerFn({ method: "POST" })
       .eq("slug", data.slug)
       .eq("published", true)
       .maybeSingle();
-    if (error) throw new Error(error.message);
+    if (error) throw (await import("@/lib/db-errors.server")).safeDbError("properties", error);
     if (!prop) return { status: "not_found" as const };
 
     // Expiration check
@@ -68,7 +68,7 @@ export const submitPin = createServerFn({ method: "POST" })
       .eq("slug", data.slug)
       .eq("published", true)
       .maybeSingle();
-    if (error) throw new Error(error.message);
+    if (error) throw (await import("@/lib/db-errors.server")).safeDbError("properties", error);
     if (!prop || prop.access_mode !== "pin") return { ok: false as const, reason: "not_found" };
     if (prop.pin_expires_at && new Date(prop.pin_expires_at) < new Date()) {
       return { ok: false as const, reason: "expired" };
