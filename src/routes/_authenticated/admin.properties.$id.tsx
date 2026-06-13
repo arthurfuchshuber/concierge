@@ -651,11 +651,11 @@ function RecGroup({ title, desc, items, onChange, scope }: { title: string; desc
         <p className="text-xs text-muted-foreground italic">Nenhuma recomendação. Use o auto-preenchimento ou adicione manualmente.</p>
       ) : items.map((r, i) => (
         <ItemCard key={i} onRemove={() => onChange(items.filter((_, j) => j !== i))}>
-          <div className="grid grid-cols-[1fr_auto] gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-2">
             <Input placeholder="Nome" value={r.name} maxLength={200}
               onChange={(e) => onChange(items.map((x, j) => j === i ? { ...x, name: e.target.value } : x))} />
             <Select value={r.type} onValueChange={(v) => onChange(items.map((x, j) => j === i ? { ...x, type: v } : x))}>
-              <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="w-full sm:w-36"><SelectValue /></SelectTrigger>
               <SelectContent>
                 {["restaurant","bar","cafe","beach","attraction","market","pharmacy","park","nightlife","shopping","other"].map((t) => (
                   <SelectItem key={t} value={t}>{t}</SelectItem>
