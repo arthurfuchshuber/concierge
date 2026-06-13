@@ -289,6 +289,7 @@ export type Database = {
           maps_url: string | null
           name: string
           note: string | null
+          opening_hours: string[] | null
           place_id: string | null
           position: number
           property_id: string
@@ -296,6 +297,7 @@ export type Database = {
           scope: Database["public"]["Enums"]["rec_scope"]
           type: Database["public"]["Enums"]["rec_type"]
           user_ratings_total: number | null
+          walk_minutes: number | null
         }
         Insert: {
           category?: string | null
@@ -308,6 +310,7 @@ export type Database = {
           maps_url?: string | null
           name: string
           note?: string | null
+          opening_hours?: string[] | null
           place_id?: string | null
           position?: number
           property_id: string
@@ -315,6 +318,7 @@ export type Database = {
           scope: Database["public"]["Enums"]["rec_scope"]
           type: Database["public"]["Enums"]["rec_type"]
           user_ratings_total?: number | null
+          walk_minutes?: number | null
         }
         Update: {
           category?: string | null
@@ -327,6 +331,7 @@ export type Database = {
           maps_url?: string | null
           name?: string
           note?: string | null
+          opening_hours?: string[] | null
           place_id?: string | null
           position?: number
           property_id?: string
@@ -334,6 +339,7 @@ export type Database = {
           scope?: Database["public"]["Enums"]["rec_scope"]
           type?: Database["public"]["Enums"]["rec_type"]
           user_ratings_total?: number | null
+          walk_minutes?: number | null
         }
         Relationships: [
           {

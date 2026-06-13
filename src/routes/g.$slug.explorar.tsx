@@ -17,7 +17,9 @@ import {
   PartyPopper,
   Cross,
   ShoppingBag,
+  Clock,
 } from "lucide-react";
+
 
 
 export const Route = createFileRoute("/g/$slug/explorar")({
@@ -52,10 +54,13 @@ type Rec = {
   distance_text?: string | null;
   distance_meters?: number | null;
   drive_minutes?: number | null;
+  walk_minutes?: number | null;
+  opening_hours?: string[] | null;
   note?: string | null;
   image_url?: string | null;
   maps_url?: string | null;
 };
+
 
 const TYPE_LABEL: Record<string, string> = {
   restaurant: "Restaurante",
@@ -121,14 +126,22 @@ function hasMeaningfulInfo(r: Rec): boolean {
 }
 
 function formatWalking(r: Rec): string | null {
+  const mins =
+    r.walk_minutes != null && r.walk_minutes > 0
+      ? r.walk_minutes
+      : r.distance_meters != null
+        ? Math.max(1, Math.round(r.distance_meters / 80))
+        : null;
   if (r.distance_meters != null) {
     const m = r.distance_meters;
-    if (m < 1000) return `${m} m a pé`;
-    return `${(m / 1000).toFixed(1).replace(/\.0$/, "")} km a pé`;
+    const dist = m < 1000 ? `${m} m` : `${(m / 1000).toFixed(1).replace(/\.0$/, "")} km`;
+    return mins ? `${dist} · ${mins} min a pé` : `${dist} a pé`;
   }
+  if (mins) return `${mins} min a pé`;
   if (r.distance_text) return r.distance_text;
   return null;
 }
+
 
 function formatDriving(r: Rec): string | null {
   if (r.drive_minutes != null && r.drive_minutes > 0) return `${r.drive_minutes} min de carro`;
@@ -138,6 +151,48 @@ function formatDriving(r: Rec): string | null {
   }
   return null;
 }
+
+// Google retorna `weekdayDescriptions` começando por segunda-feira (índice 0).
+// JS Date.getDay(): 0 = domingo … 6 = sábado. Mapeia para o índice do array.
+function todayOpening(hours: string[] | null | undefined): string | null {
+  if (!hours || hours.length === 0) return null;
+  const jsDay = new Date().getDay(); // 0..6, dom..sáb
+  const idx = (jsDay + 6) % 7; // 0 = seg
+  const line = hours[idx] ?? hours[0];
+  if (!line) return null;
+  // Remove rótulo do dia ("Monday: 09:00 – 18:00" → "09:00 – 18:00").
+  const i = line.indexOf(":");
+  return i > 0 && i < 12 ? line.slice(i + 1).trim() : line;
+}
+
+function OpeningHours({ hours }: { hours: string[] | null | undefined }) {
+  const today = todayOpening(hours);
+  if (!today) return null;
+  return (
+    <details
+      className="group/oh text-[11.5px] text-muted-foreground"
+      onClick={(e) => e.stopPropagation()}
+    >
+      <summary
+        className="inline-flex items-center gap-1.5 cursor-pointer list-none hover:text-foreground transition-colors"
+        onClick={(e) => {
+          // Evita navegação ao clicar no toggle dentro do <a> do card
+          e.stopPropagation();
+        }}
+      >
+        <Clock className="size-3.5" strokeWidth={1.75} />
+        <span className="truncate max-w-[28ch]">Hoje: {today}</span>
+      </summary>
+      <ul className="mt-1.5 ml-5 space-y-0.5 text-[11px] leading-relaxed">
+        {(hours ?? []).map((h, i) => (
+          <li key={i} className="text-muted-foreground/85">{h}</li>
+        ))}
+      </ul>
+    </details>
+  );
+
+}
+
 
 type SortKey = "distance" | "rating" | "alpha";
 
@@ -520,7 +575,7 @@ function RecCard({ rec }: { rec: Rec }) {
         )}
 
         {(walking || driving) && (
-          <div className="mt-auto pt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-[11.5px] text-muted-foreground">
+          <div className="pt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-[11.5px] text-muted-foreground">
             {walking && (
               <span className="inline-flex items-center gap-1.5">
                 <Footprints className="size-3.5" strokeWidth={1.75} />
@@ -535,7 +590,12 @@ function RecCard({ rec }: { rec: Rec }) {
             )}
           </div>
         )}
+
+        <div className="mt-auto pt-1">
+          <OpeningHours hours={rec.opening_hours} />
+        </div>
       </div>
+
     </div>
   );
 
@@ -613,6 +673,8 @@ function RecRow({ rec }: { rec: Rec }) {
             </span>
           )}
         </div>
+        <OpeningHours hours={rec.opening_hours} />
+
       </div>
     </div>
   );

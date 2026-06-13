@@ -21,10 +21,13 @@ type PlaceItem = {
   distance_meters: number;
   distance_text: string;
   drive_minutes: number | null;
+  walk_minutes: number | null;
+  opening_hours: string[] | null;
   image_url: string | null;
-  maps_url: string;
+  maps_url: string | null;
   note: string | null;
 };
+
 
 type EnrichResult = {
   address: string;
@@ -72,14 +75,17 @@ function haversineMeters(a: { lat: number; lng: number }, b: { lat: number; lng:
   return Math.round(2 * R * Math.asin(Math.sqrt(h)));
 }
 
-function formatDistance(meters: number): { text: string; driveMin: number | null } {
-  if (meters < 1000) return { text: `${meters} m`, driveMin: null };
+function formatDistance(meters: number): { text: string; driveMin: number | null; walkMin: number } {
+  // 80 m/min ≈ 4.8 km/h — caminhada conservadora.
+  const walkMin = Math.max(1, Math.round(meters / 80));
+  if (meters < 1000) return { text: `${meters} m · ${walkMin} min a pé`, driveMin: null, walkMin };
   const km = meters / 1000;
-  if (meters <= 1500) return { text: `${km.toFixed(1)} km a pé`, driveMin: null };
+  if (meters <= 1500) return { text: `${km.toFixed(1)} km · ${walkMin} min a pé`, driveMin: null, walkMin };
   // ~40 km/h average urban speed
   const driveMin = Math.max(2, Math.round((km / 40) * 60));
-  return { text: `${km.toFixed(1)} km · ${driveMin} min de carro`, driveMin };
+  return { text: `${km.toFixed(1)} km · ${driveMin} min de carro`, driveMin, walkMin };
 }
+
 
 async function resolveShortUrl(url: string): Promise<string> {
   if (!/maps\.app\.goo\.gl|goo\.gl\/maps/.test(url)) return url;
@@ -144,7 +150,8 @@ async function placesNearby(lat: number, lng: number, includedTypes: string[]) {
     headers: {
       "Content-Type": "application/json",
       "X-Goog-FieldMask":
-        "places.id,places.displayName,places.location,places.rating,places.userRatingCount,places.googleMapsUri,places.photos,places.primaryType,places.editorialSummary,places.generativeSummary",
+        "places.id,places.displayName,places.location,places.rating,places.userRatingCount,places.googleMapsUri,places.photos,places.primaryType,places.editorialSummary,places.generativeSummary,places.regularOpeningHours",
+
 
     },
     body: JSON.stringify({
@@ -165,7 +172,8 @@ async function placesText(query: string, lat: number, lng: number, includedType:
     headers: {
       "Content-Type": "application/json",
       "X-Goog-FieldMask":
-        "places.id,places.displayName,places.location,places.rating,places.userRatingCount,places.googleMapsUri,places.photos,places.primaryType,places.editorialSummary,places.generativeSummary",
+        "places.id,places.displayName,places.location,places.rating,places.userRatingCount,places.googleMapsUri,places.photos,places.primaryType,places.editorialSummary,places.generativeSummary,places.regularOpeningHours",
+
 
     },
     body: JSON.stringify({
@@ -220,7 +228,9 @@ type PlaceRaw = {
   primaryType?: string;
   editorialSummary?: { text?: string };
   generativeSummary?: { overview?: { text?: string } };
+  regularOpeningHours?: { weekdayDescriptions?: string[] };
 };
+
 
 
 function buildPhotoUrl(photoName: string | undefined): string | null {
@@ -324,7 +334,8 @@ export const enrichFromMapsLink = createServerFn({ method: "POST" })
       seenIds.add(p.id);
       seenNames.add(nm);
       const dist = haversineMeters(coords!, { lat: p.location.latitude, lng: p.location.longitude });
-      const { text, driveMin } = formatDistance(dist);
+      const { text, driveMin, walkMin } = formatDistance(dist);
+      const openingHours = p.regularOpeningHours?.weekdayDescriptions ?? null;
       recommendations.push({
         place_id: p.id,
         name: p.displayName?.text ?? "Sem nome",
@@ -338,11 +349,14 @@ export const enrichFromMapsLink = createServerFn({ method: "POST" })
         distance_meters: dist,
         distance_text: text,
         drive_minutes: driveMin,
+        walk_minutes: walkMin,
+        opening_hours: openingHours && openingHours.length > 0 ? openingHours : null,
         image_url: buildPhotoUrl(p.photos?.[0]?.name),
         maps_url: p.googleMapsUri ?? `https://www.google.com/maps/search/?api=1&query_place_id=${p.id}`,
         note: buildNote(p),
       });
     };
+
 
     // 1) Nearby por categoria
     for (const cat of TYPE_MAP) {

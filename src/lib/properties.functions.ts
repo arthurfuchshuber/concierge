@@ -51,6 +51,9 @@ const RecInput = z.object({
   distance_text: z.string().max(80).optional().nullable(),
   distance_meters: z.number().int().optional().nullable(),
   drive_minutes: z.number().int().optional().nullable(),
+  walk_minutes: z.number().int().optional().nullable(),
+  opening_hours: z.array(z.string().max(200)).max(14).optional().nullable(),
+
   note: z.string().max(1000).optional().nullable(),
   image_url: z.string().max(2048).optional().nullable(),
   maps_url: z.string().max(2048).optional().nullable(),
