@@ -13,7 +13,7 @@ import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Loader2, Sparkles, Plus, Trash2, MapPin, ArrowLeft, FileText, KeyRound, Home, Compass, LifeBuoy, Check, Eye } from "lucide-react";
+import { Loader2, Sparkles, Plus, Trash2, MapPin, ArrowLeft, FileText, KeyRound, Home, Compass, LifeBuoy, Check, Eye, Image as ImageIcon, MapPinned, Clock, DoorOpen, Wifi, UserRound, BookOpen, ClipboardCheck, Shield, Globe, Power, Phone, HelpCircle } from "lucide-react";
 import { ImageUpload } from "@/components/ImageUpload";
 import { EtiquetaSelect } from "@/components/EtiquetaSelect";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -347,15 +347,18 @@ function PropertyEditor() {
   const cityRecs = form.recommendations.filter((r) => r.scope === "city");
 
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 sm:py-8 pb-40 sm:pb-32">
-      <Link to="/admin" className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground mb-4">
+    <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6 sm:py-10 pb-40 sm:pb-32">
+      <Link to="/admin" className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground mb-5 transition-colors">
         <ArrowLeft className="size-3.5" /> Voltar
       </Link>
-      <div className="mb-6 sm:mb-8">
+      <div className="mb-7 sm:mb-9 pb-6 border-b border-border/60">
         <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground font-semibold mb-2">
           {isNew ? "Novo guia" : "Editar guia"}
         </p>
         <h1 className="font-serif text-2xl sm:text-4xl break-words leading-tight">{form.property.name || "Sem título"}</h1>
+        {form.property.tagline && (
+          <p className="text-sm text-muted-foreground mt-2">{form.property.tagline}</p>
+        )}
       </div>
 
       <Tabs value={step} onValueChange={setStep}>
@@ -372,8 +375,13 @@ function PropertyEditor() {
         />
 
 
-        <TabsContent value="basics" className="space-y-3 mt-5">
-          <Section title="Importar do Airbnb" desc="Cole o link público do anúncio (airbnb.com/h/... ou /rooms/...) e preencha automaticamente nome, fotos, localização e horários. Tudo continua editável depois.">
+        <TabsContent value="basics" className="space-y-5 mt-6">
+          <Section
+            icon={Sparkles}
+            tone="accent"
+            title="Importar do Airbnb"
+            desc="Cole o link público do anúncio e preencha nome, fotos, localização e horários automaticamente. Tudo continua editável depois."
+          >
             <Field label="Link do anúncio">
               <div className="flex gap-2">
                 <Input
@@ -389,7 +397,7 @@ function PropertyEditor() {
             </Field>
           </Section>
 
-          <Section>
+          <Section icon={FileText} title="Identidade do guia" desc="Como o guia se apresenta aos hóspedes.">
             <Field label="Nome do imóvel" required>
               <Input value={form.property.name} maxLength={120}
                 onChange={(e) => { update("name", e.target.value); if (isNew && !form.property.slug) update("slug", slugify(e.target.value)); }} />
@@ -397,29 +405,32 @@ function PropertyEditor() {
             <Field label="URL pública (slug)" hint="Aparece em /g/seu-slug">
               <Input value={form.property.slug} maxLength={60} onChange={(e) => update("slug", slugify(e.target.value))} />
             </Field>
-            <Field label="Tipo do Guia" hint="Aparece abaixo do título no guia público.">
+            <Field label="Tipo do guia" hint="Aparece abaixo do título no guia público.">
               <EtiquetaSelect value={form.property.tagline} onChange={(v) => update("tagline", v)} />
-            </Field>
-            <Field label="Fotos da residência" hint="Até 4 fotos. A primeira é a capa. Você também pode usar o Auto-preencher abaixo para importar as 4 primeiras fotos do link do Google Maps.">
-              <GalleryEditor
-                value={form.property.gallery_images}
-                onChange={(next) => {
-                  setForm((f) => ({
-                    ...f,
-                    property: {
-                      ...f.property,
-                      gallery_images: next,
-                      hero_image_url: next[0] ?? "",
-                    },
-                  }));
-                }}
-              />
             </Field>
           </Section>
 
+          <Section icon={ImageIcon} title="Fotos da residência" desc="Até 4 fotos. A primeira será usada como capa.">
+            <GalleryEditor
+              value={form.property.gallery_images}
+              onChange={(next) => {
+                setForm((f) => ({
+                  ...f,
+                  property: {
+                    ...f.property,
+                    gallery_images: next,
+                    hero_image_url: next[0] ?? "",
+                  },
+                }));
+              }}
+            />
+          </Section>
 
-
-          <Section title="Endereço e auto-preenchimento" desc="Cole o link do Google Maps do imóvel e clique em 'Auto-preencher' para obter endereço, coordenadas e pontos de interesse.">
+          <Section
+            icon={MapPinned}
+            title="Endereço e localização"
+            desc="Cole o link do Google Maps e use Auto-preencher para obter endereço, coordenadas e pontos de interesse."
+          >
             <Field label="Link do Google Maps" required>
               <div className="flex gap-2">
                 <Input value={form.property.maps_url} onChange={(e) => update("maps_url", e.target.value)} placeholder="https://maps.app.goo.gl/..." />
@@ -442,8 +453,8 @@ function PropertyEditor() {
           </Section>
         </TabsContent>
 
-        <TabsContent value="access" className="space-y-3 mt-5">
-          <Section title="Visibilidade">
+        <TabsContent value="access" className="space-y-5 mt-6">
+          <Section icon={Shield} title="Modo de acesso" desc="Quem pode visualizar este guia.">
             <Field label="Modo de acesso do Guia">
               <Select value={form.property.access_mode} onValueChange={(v) => update("access_mode", v as "public" | "pin")}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
@@ -455,7 +466,7 @@ function PropertyEditor() {
             </Field>
 
             {form.property.access_mode === "pin" && (
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-3 rounded-xl bg-muted/40 p-3 border border-border/60">
                 <Field label="Código de acesso" required>
                   <Input value={form.property.pin_code} maxLength={20} onChange={(e) => update("pin_code", e.target.value)} placeholder="ex: 4729" />
                 </Field>
@@ -464,7 +475,9 @@ function PropertyEditor() {
                 </Field>
               </div>
             )}
+          </Section>
 
+          <Section icon={Globe} title="Idioma">
             <Field label="Idioma padrão">
               <Select value={form.property.default_language} onValueChange={(v) => update("default_language", v as "pt" | "en")}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
@@ -474,51 +487,62 @@ function PropertyEditor() {
                 </SelectContent>
               </Select>
             </Field>
+          </Section>
 
-            <div className="flex items-center justify-between border border-border rounded-xl p-4">
-              <div className="flex items-center gap-2">
-                <span className={`inline-block size-2.5 rounded-full ${form.property.published ? "bg-emerald-500" : "bg-muted-foreground/50"}`} />
-                <p className="text-sm font-medium">Status do Guia: {form.property.published ? "Ativo" : "Inativo"}</p>
+          <Section icon={Power} title="Publicação" desc="Controla se o link público está disponível agora.">
+            <div className="flex items-center justify-between rounded-xl bg-muted/40 px-4 py-3.5 border border-border/60">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <span className={`inline-block size-2.5 rounded-full shrink-0 ${form.property.published ? "bg-emerald-500" : "bg-muted-foreground/50"}`} />
+                <div className="min-w-0">
+                  <p className="text-sm font-medium leading-tight">Status do Guia</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">{form.property.published ? "Ativo — acessível pelo link" : "Inativo — link público desabilitado"}</p>
+                </div>
               </div>
               <Switch checked={form.property.published} onCheckedChange={(v) => update("published", v)} />
             </div>
           </Section>
-
         </TabsContent>
 
-        <TabsContent value="house" className="space-y-3 mt-5">
-          <Section title="Horários">
+        <TabsContent value="house" className="space-y-5 mt-6">
+          <Section icon={Clock} title="Horários" desc="Janelas de check-in e check-out.">
             <div className="grid grid-cols-2 gap-3">
               <Field label="Check-in a partir de"><Input value={form.property.checkin_time} maxLength={5} onChange={(e) => update("checkin_time", e.target.value)} placeholder="15:00" /></Field>
-              <Field label="Check-in até (opcional)"><Input value={form.property.checkin_time_max} maxLength={5} onChange={(e) => update("checkin_time_max", e.target.value)} placeholder="22:00" /></Field>
-              <Field label="Check-out a partir de (opcional)"><Input value={form.property.checkout_time_min} maxLength={5} onChange={(e) => update("checkout_time_min", e.target.value)} placeholder="08:00" /></Field>
+              <Field label="Check-in até" hint="opcional"><Input value={form.property.checkin_time_max} maxLength={5} onChange={(e) => update("checkin_time_max", e.target.value)} placeholder="22:00" /></Field>
+              <Field label="Check-out a partir de" hint="opcional"><Input value={form.property.checkout_time_min} maxLength={5} onChange={(e) => update("checkout_time_min", e.target.value)} placeholder="08:00" /></Field>
               <Field label="Check-out até"><Input value={form.property.checkout_time} maxLength={5} onChange={(e) => update("checkout_time", e.target.value)} placeholder="11:00" /></Field>
             </div>
           </Section>
 
-          <Section title="Entrada">
+          <Section icon={DoorOpen} title="Entrada" desc="Códigos de acesso ao imóvel.">
             <div className="grid grid-cols-2 gap-3">
               <Field label="Código do portão"><Input value={form.property.gate_code} maxLength={40} onChange={(e) => update("gate_code", e.target.value)} /></Field>
               <Field label="Código da fechadura"><Input value={form.property.lock_code} maxLength={40} onChange={(e) => update("lock_code", e.target.value)} /></Field>
             </div>
           </Section>
 
-          <Section title="Wi-Fi">
+          <Section icon={Wifi} title="Wi-Fi">
             <div className="grid grid-cols-2 gap-3">
               <Field label="Rede (SSID)"><Input value={form.property.wifi_ssid} maxLength={64} onChange={(e) => update("wifi_ssid", e.target.value)} /></Field>
               <Field label="Senha"><Input value={form.property.wifi_password} maxLength={64} onChange={(e) => update("wifi_password", e.target.value)} /></Field>
             </div>
           </Section>
 
-          <Section title="Contato do anfitrião">
+          <Section icon={UserRound} title="Contato do anfitrião">
             <div className="grid grid-cols-2 gap-3">
               <Field label="Nome"><Input value={form.property.host_name} maxLength={120} onChange={(e) => update("host_name", e.target.value)} /></Field>
               <Field label="Telefone (WhatsApp)"><Input value={form.property.host_phone} maxLength={40} onChange={(e) => update("host_phone", e.target.value)} /></Field>
             </div>
           </Section>
 
-          <Section title="Manual da casa" action={<AddBtn onClick={() => setForm((f) => ({ ...f, manual: [...f.manual, { title: "", description: "", body: "" }] }))} />}>
-            {form.manual.map((m, i) => (
+          <Section
+            icon={BookOpen}
+            title="Manual da casa"
+            desc="Instruções de equipamentos e funcionamento."
+            action={<AddBtn onClick={() => setForm((f) => ({ ...f, manual: [...f.manual, { title: "", description: "", body: "" }] }))} />}
+          >
+            {form.manual.length === 0 ? (
+              <EmptyHint text="Nenhum item ainda. Adicione instruções para ar-condicionado, TV, fechadura, etc." />
+            ) : form.manual.map((m, i) => (
               <ItemCard key={i} onRemove={() => setForm((f) => ({ ...f, manual: f.manual.filter((_, j) => j !== i) }))}>
                 <Input placeholder="Título (ex: Ar-condicionado)" value={m.title} maxLength={120}
                   onChange={(e) => setForm((f) => ({ ...f, manual: f.manual.map((x, j) => j === i ? { ...x, title: e.target.value } : x) }))} />
@@ -530,8 +554,15 @@ function PropertyEditor() {
             ))}
           </Section>
 
-          <Section title="Checklist de check-out" action={<AddBtn onClick={() => setForm((f) => ({ ...f, checkout: [...f.checkout, { label: "" }] }))} />}>
-            {form.checkout.map((c, i) => (
+          <Section
+            icon={ClipboardCheck}
+            title="Checklist de check-out"
+            desc="O que o hóspede deve fazer antes de sair."
+            action={<AddBtn onClick={() => setForm((f) => ({ ...f, checkout: [...f.checkout, { label: "" }] }))} />}
+          >
+            {form.checkout.length === 0 ? (
+              <EmptyHint text="Ex: trancar a porta, deixar a chave na mesa, fechar janelas." />
+            ) : form.checkout.map((c, i) => (
               <ItemCard key={i} onRemove={() => setForm((f) => ({ ...f, checkout: f.checkout.filter((_, j) => j !== i) }))}>
                 <Input placeholder="ex: Trancar a porta" value={c.label} maxLength={200}
                   onChange={(e) => setForm((f) => ({ ...f, checkout: f.checkout.map((x, j) => j === i ? { label: e.target.value } : x) }))} />
@@ -540,29 +571,36 @@ function PropertyEditor() {
           </Section>
         </TabsContent>
 
-        <TabsContent value="recs" className="space-y-3 mt-5">
-          <p className="text-sm text-muted-foreground">
+        <TabsContent value="recs" className="space-y-5 mt-6">
+          <div className="rounded-xl border border-dashed border-border/70 bg-muted/30 px-4 py-3 text-xs text-muted-foreground leading-relaxed">
             Recomendações vêm do auto-preenchimento do Google Maps. Você pode editar, remover ou adicionar manualmente.
-          </p>
+          </div>
           <RecGroup
-            title="Aqui pertinho (arredores do imóvel)"
-            desc="A poucos minutos a pé"
+            title="Aqui pertinho"
+            desc="Arredores do imóvel — a poucos minutos a pé."
             items={nearbyRecs}
             onChange={(items) => setForm((f) => ({ ...f, recommendations: [...items, ...cityRecs] }))}
             scope="nearby"
           />
           <RecGroup
             title="Pela cidade"
-            desc="Vale a visita — alguns minutos de carro"
+            desc="Vale a visita — alguns minutos de carro."
             items={cityRecs}
             onChange={(items) => setForm((f) => ({ ...f, recommendations: [...nearbyRecs, ...items] }))}
             scope="city"
           />
         </TabsContent>
 
-        <TabsContent value="extras" className="space-y-3 mt-5">
-          <Section title="Emergências" action={<AddBtn onClick={() => setForm((f) => ({ ...f, emergency: [...f.emergency, { label: "", number: "" }] }))} />}>
-            {form.emergency.map((m, i) => (
+        <TabsContent value="extras" className="space-y-5 mt-6">
+          <Section
+            icon={Phone}
+            title="Emergências"
+            desc="Telefones úteis em caso de urgência."
+            action={<AddBtn onClick={() => setForm((f) => ({ ...f, emergency: [...f.emergency, { label: "", number: "" }] }))} />}
+          >
+            {form.emergency.length === 0 ? (
+              <EmptyHint text="Adicione contatos como polícia, bombeiros, médico de plantão." />
+            ) : form.emergency.map((m, i) => (
               <ItemCard key={i} onRemove={() => setForm((f) => ({ ...f, emergency: f.emergency.filter((_, j) => j !== i) }))}>
                 <div className="grid grid-cols-2 gap-2">
                   <Input placeholder="Rótulo" value={m.label} maxLength={120} onChange={(e) => setForm((f) => ({ ...f, emergency: f.emergency.map((x, j) => j === i ? { ...x, label: e.target.value } : x) }))} />
@@ -572,8 +610,15 @@ function PropertyEditor() {
             ))}
           </Section>
 
-          <Section title="FAQ" action={<AddBtn onClick={() => setForm((f) => ({ ...f, faqs: [...f.faqs, { question: "", answer: "" }] }))} />}>
-            {form.faqs.map((m, i) => (
+          <Section
+            icon={HelpCircle}
+            title="Perguntas frequentes"
+            desc="Antecipe dúvidas comuns dos hóspedes."
+            action={<AddBtn onClick={() => setForm((f) => ({ ...f, faqs: [...f.faqs, { question: "", answer: "" }] }))} />}
+          >
+            {form.faqs.length === 0 ? (
+              <EmptyHint text="Ex: posso fumar? tem estacionamento? aceita pets?" />
+            ) : form.faqs.map((m, i) => (
               <ItemCard key={i} onRemove={() => setForm((f) => ({ ...f, faqs: f.faqs.filter((_, j) => j !== i) }))}>
                 <Input placeholder="Pergunta" value={m.question} maxLength={200} onChange={(e) => setForm((f) => ({ ...f, faqs: f.faqs.map((x, j) => j === i ? { ...x, question: e.target.value } : x) }))} />
                 <Textarea placeholder="Resposta" value={m.answer} maxLength={2000} onChange={(e) => setForm((f) => ({ ...f, faqs: f.faqs.map((x, j) => j === i ? { ...x, answer: e.target.value } : x) }))} />
@@ -658,28 +703,57 @@ function PropertyEditor() {
   );
 }
 
-function Section({ title, desc, action, children }: { title?: string; desc?: string; action?: React.ReactNode; children: React.ReactNode }) {
+type IconType = React.ComponentType<{ className?: string; strokeWidth?: number }>;
+
+function Section({
+  icon: Icon,
+  title,
+  desc,
+  action,
+  tone = "default",
+  children,
+}: {
+  icon?: IconType;
+  title?: string;
+  desc?: string;
+  action?: React.ReactNode;
+  tone?: "default" | "accent";
+  children: React.ReactNode;
+}) {
+  const accent = tone === "accent";
   return (
-    <section className="border border-border/70 bg-card/40 rounded-2xl p-4 sm:p-5 shadow-sm space-y-3.5">
+    <section
+      className={[
+        "rounded-2xl border shadow-sm",
+        accent
+          ? "border-primary/25 bg-gradient-to-br from-primary/[0.06] to-primary/[0.02]"
+          : "border-border/60 bg-card",
+      ].join(" ")}
+    >
       {(title || action) && (
-        <header className="flex items-start justify-between gap-3">
-          {title ? (
+        <header className="flex items-start justify-between gap-3 px-4 sm:px-5 pt-4 sm:pt-5 pb-3.5">
+          <div className="flex items-start gap-3 min-w-0">
+            {Icon && (
+              <span
+                className={[
+                  "grid place-items-center size-8 rounded-lg shrink-0 mt-0.5",
+                  accent ? "bg-primary/15 text-primary" : "bg-muted text-foreground/70",
+                ].join(" ")}
+              >
+                <Icon className="size-4" strokeWidth={2} />
+              </span>
+            )}
             <div className="min-w-0">
-              <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground font-semibold">{title}</p>
-              {desc && <p className="text-xs text-muted-foreground/80 mt-1.5 leading-relaxed">{desc}</p>}
+              {title && <h3 className="text-sm font-semibold leading-tight text-foreground">{title}</h3>}
+              {desc && <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{desc}</p>}
             </div>
-          ) : desc ? (
-            <p className="text-xs text-muted-foreground/80 leading-relaxed">{desc}</p>
-          ) : (
-            <span />
-          )}
+          </div>
           {action}
         </header>
       )}
-      {!title && !action && desc && (
-        <p className="text-xs text-muted-foreground/80 leading-relaxed">{desc}</p>
-      )}
-      <div className="space-y-3">{children}</div>
+      <div className={`${title || action ? "border-t border-border/50" : ""} px-4 sm:px-5 py-4 sm:py-5 space-y-3.5`}>
+        {children}
+      </div>
     </section>
   );
 }
@@ -688,27 +762,41 @@ function Section({ title, desc, action, children }: { title?: string; desc?: str
 function Field({ label, hint, required, children }: { label: string; hint?: string; required?: boolean; children: React.ReactNode }) {
   return (
     <div>
-      <Label className="text-xs">{label} {required && <span className="text-destructive">*</span>}</Label>
+      <Label className="text-xs font-medium text-foreground/80">
+        {label} {required && <span className="text-destructive">*</span>}
+      </Label>
       <div className="mt-1.5">{children}</div>
-      {hint && <p className="text-[11px] text-muted-foreground mt-1">{hint}</p>}
+      {hint && <p className="text-[11px] text-muted-foreground mt-1.5 leading-relaxed">{hint}</p>}
     </div>
   );
 }
 
 function AddBtn({ onClick }: { onClick: () => void }) {
   return (
-    <Button size="sm" variant="ghost" onClick={onClick} className="shrink-0">
-      <Plus className="size-3.5 mr-1" /> Adicionar
+    <Button size="sm" variant="outline" onClick={onClick} className="shrink-0 h-8 rounded-full text-xs">
+      <Plus className="size-3.5" /> Adicionar
     </Button>
+  );
+}
+
+function EmptyHint({ text }: { text: string }) {
+  return (
+    <div className="rounded-xl border border-dashed border-border/70 bg-muted/30 px-4 py-5 text-center text-xs text-muted-foreground leading-relaxed">
+      {text}
+    </div>
   );
 }
 
 function ItemCard({ children, onRemove }: { children: React.ReactNode; onRemove: () => void }) {
   return (
-    <div className="bg-secondary/40 rounded-xl p-3 space-y-2 relative">
+    <div className="group bg-background border border-border/60 rounded-xl p-3.5 pr-10 space-y-2.5 relative hover:border-border transition-colors">
       {children}
-      <button onClick={onRemove} className="absolute top-2 right-2 p-1.5 rounded-full hover:bg-destructive/10 text-muted-foreground hover:text-destructive">
-        <Trash2 className="size-3" />
+      <button
+        onClick={onRemove}
+        aria-label="Remover"
+        className="absolute top-2.5 right-2.5 p-1.5 rounded-md text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors opacity-60 group-hover:opacity-100"
+      >
+        <Trash2 className="size-3.5" />
       </button>
     </div>
   );
@@ -717,12 +805,13 @@ function ItemCard({ children, onRemove }: { children: React.ReactNode; onRemove:
 function RecGroup({ title, desc, items, onChange, scope }: { title: string; desc: string; items: RecItem[]; onChange: (i: RecItem[]) => void; scope: "nearby" | "city" }) {
   return (
     <Section
+      icon={scope === "nearby" ? MapPin : Compass}
       title={title}
       desc={desc}
       action={<AddBtn onClick={() => onChange([...items, { scope, type: "restaurant", name: "" }])} />}
     >
       {items.length === 0 ? (
-        <p className="text-xs text-muted-foreground italic">Nenhuma recomendação. Use o auto-preenchimento ou adicione manualmente.</p>
+        <EmptyHint text="Nenhuma recomendação. Use o auto-preenchimento ou adicione manualmente." />
       ) : items.map((r, i) => (
         <ItemCard key={i} onRemove={() => onChange(items.filter((_, j) => j !== i))}>
           <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-2">
