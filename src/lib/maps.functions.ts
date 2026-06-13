@@ -21,10 +21,13 @@ type PlaceItem = {
   distance_meters: number;
   distance_text: string;
   drive_minutes: number | null;
+  walk_minutes: number | null;
+  opening_hours: string[] | null;
   image_url: string | null;
-  maps_url: string;
+  maps_url: string | null;
   note: string | null;
 };
+
 
 type EnrichResult = {
   address: string;
