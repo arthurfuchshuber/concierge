@@ -755,60 +755,87 @@ function Stepper({
   const currentIdx = steps.findIndex((s) => s.value === current);
   return (
     <div className="mb-6">
-      <div className="overflow-x-auto no-scrollbar -mx-2 px-2">
-        <div className="flex items-center gap-2 min-w-max">
+      {/* Mobile: compact dot stepper */}
+      <div className="sm:hidden">
+        <div className="flex items-center gap-1.5">
           {steps.map((s, i) => {
             const done = i < currentIdx;
             const active = i === currentIdx;
             const Icon = s.icon;
             return (
-              <div key={s.value} className="flex items-center gap-2">
+              <div key={s.value} className="flex items-center gap-1.5 flex-1 last:flex-none">
                 <button
                   type="button"
                   onClick={() => onChange(s.value)}
+                  aria-label={s.label}
                   className={[
-                    "group inline-flex items-center gap-2 rounded-full px-3.5 py-2 text-xs font-medium whitespace-nowrap transition-all border",
+                    "grid place-items-center size-9 rounded-full shrink-0 transition-all border",
                     active
-                      ? "bg-primary text-primary-foreground border-primary shadow-soft"
+                      ? "bg-primary text-primary-foreground border-primary shadow-soft scale-110"
                       : done
-                      ? "bg-accent/10 text-foreground border-accent/30 hover:bg-accent/15"
-                      : "bg-background text-muted-foreground border-border hover:text-foreground hover:border-foreground/30",
+                      ? "bg-accent text-accent-foreground border-accent"
+                      : "bg-background text-muted-foreground border-border",
                   ].join(" ")}
                 >
-                  <span
-                    className={[
-                      "grid place-items-center size-5 rounded-full shrink-0",
-                      active
-                        ? "bg-primary-foreground/15"
-                        : done
-                        ? "bg-accent text-accent-foreground"
-                        : "bg-secondary",
-                    ].join(" ")}
-                  >
-                    {done ? (
-                      <Check className="size-3" strokeWidth={2.5} />
-                    ) : (
-                      <Icon className="size-3" strokeWidth={2} />
-                    )}
-                  </span>
-                  {s.label}
+                  {done ? <Check className="size-4" strokeWidth={2.5} /> : <Icon className="size-4" strokeWidth={2} />}
                 </button>
                 {i < steps.length - 1 && (
-                  <span
-                    className={[
-                      "h-px w-6 sm:w-10 shrink-0 transition-colors",
-                      i < currentIdx ? "bg-accent/40" : "bg-border",
-                    ].join(" ")}
-                  />
+                  <span className={["h-px flex-1 min-w-3 transition-colors", i < currentIdx ? "bg-accent/50" : "bg-border"].join(" ")} />
                 )}
               </div>
             );
           })}
         </div>
+        <p className="text-[11px] font-medium text-foreground mt-3">
+          <span className="text-muted-foreground/70 tracking-[0.18em] uppercase mr-2">Passo {currentIdx + 1}/{steps.length}</span>
+          {steps[currentIdx]?.label}
+        </p>
       </div>
-      <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground/70 font-semibold mt-3">
-        Passo {currentIdx + 1} de {steps.length}
-      </p>
+
+      {/* Desktop: full pill stepper */}
+      <div className="hidden sm:block">
+        <div className="overflow-x-auto no-scrollbar -mx-2 px-2">
+          <div className="flex items-center gap-2 min-w-max">
+            {steps.map((s, i) => {
+              const done = i < currentIdx;
+              const active = i === currentIdx;
+              const Icon = s.icon;
+              return (
+                <div key={s.value} className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => onChange(s.value)}
+                    className={[
+                      "group inline-flex items-center gap-2 rounded-full px-3.5 py-2 text-xs font-medium whitespace-nowrap transition-all border",
+                      active
+                        ? "bg-primary text-primary-foreground border-primary shadow-soft"
+                        : done
+                        ? "bg-accent/10 text-foreground border-accent/30 hover:bg-accent/15"
+                        : "bg-background text-muted-foreground border-border hover:text-foreground hover:border-foreground/30",
+                    ].join(" ")}
+                  >
+                    <span
+                      className={[
+                        "grid place-items-center size-5 rounded-full shrink-0",
+                        active ? "bg-primary-foreground/15" : done ? "bg-accent text-accent-foreground" : "bg-secondary",
+                      ].join(" ")}
+                    >
+                      {done ? <Check className="size-3" strokeWidth={2.5} /> : <Icon className="size-3" strokeWidth={2} />}
+                    </span>
+                    {s.label}
+                  </button>
+                  {i < steps.length - 1 && (
+                    <span className={["h-px w-10 shrink-0 transition-colors", i < currentIdx ? "bg-accent/40" : "bg-border"].join(" ")} />
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+        <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground/70 font-semibold mt-3">
+          Passo {currentIdx + 1} de {steps.length}
+        </p>
+      </div>
     </div>
   );
 }
