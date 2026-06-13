@@ -334,7 +334,8 @@ export const enrichFromMapsLink = createServerFn({ method: "POST" })
       seenIds.add(p.id);
       seenNames.add(nm);
       const dist = haversineMeters(coords!, { lat: p.location.latitude, lng: p.location.longitude });
-      const { text, driveMin } = formatDistance(dist);
+      const { text, driveMin, walkMin } = formatDistance(dist);
+      const openingHours = p.regularOpeningHours?.weekdayDescriptions ?? null;
       recommendations.push({
         place_id: p.id,
         name: p.displayName?.text ?? "Sem nome",
@@ -348,11 +349,14 @@ export const enrichFromMapsLink = createServerFn({ method: "POST" })
         distance_meters: dist,
         distance_text: text,
         drive_minutes: driveMin,
+        walk_minutes: walkMin,
+        opening_hours: openingHours && openingHours.length > 0 ? openingHours : null,
         image_url: buildPhotoUrl(p.photos?.[0]?.name),
         maps_url: p.googleMapsUri ?? `https://www.google.com/maps/search/?api=1&query_place_id=${p.id}`,
         note: buildNote(p),
       });
     };
+
 
     // 1) Nearby por categoria
     for (const cat of TYPE_MAP) {
