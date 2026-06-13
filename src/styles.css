@@ -142,6 +142,24 @@
     --accent: oklch(0.74 0.13 63);
     --accent-foreground: oklch(0.075 0.014 45);
     --border: oklch(0.74 0.13 63 / 0.22);
+    --secondary: oklch(0.16 0.012 48);
+    --muted: oklch(0.14 0.01 48);
+    --primary: oklch(0.985 0.008 80);
+  }
+
+  /* Tema branco gelo — claro, suave, levemente quente */
+  .sigma-public-guide.theme-light {
+    --background: oklch(0.985 0.008 85);
+    --foreground: oklch(0.22 0.014 50);
+    --card: oklch(0.995 0.005 85);
+    --card-foreground: oklch(0.22 0.014 50);
+    --muted-foreground: oklch(0.46 0.014 60);
+    --accent: oklch(0.58 0.14 55);
+    --accent-foreground: oklch(0.985 0.008 85);
+    --border: oklch(0.58 0.14 55 / 0.22);
+    --secondary: oklch(0.94 0.012 80);
+    --muted: oklch(0.95 0.01 80);
+    --primary: oklch(0.22 0.014 50);
   }
 
   .font-mono {
