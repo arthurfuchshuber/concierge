@@ -218,7 +218,10 @@ type PlaceRaw = {
   googleMapsUri?: string;
   photos?: Array<{ name: string }>;
   primaryType?: string;
+  editorialSummary?: { text?: string };
+  generativeSummary?: { overview?: { text?: string } };
 };
+
 
 function buildPhotoUrl(photoName: string | undefined): string | null {
   if (!photoName) return null;
