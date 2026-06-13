@@ -12,6 +12,7 @@ type PlaceItem = {
   place_id: string;
   name: string;
   rating: number | null;
+  user_ratings_total: number | null;
   category: string;
   type: string;
   scope: "nearby" | "city";
@@ -22,6 +23,7 @@ type PlaceItem = {
   drive_minutes: number | null;
   image_url: string | null;
   maps_url: string;
+  note: string | null;
 };
 
 type EnrichResult = {
@@ -36,18 +38,28 @@ type EnrichResult = {
   recommendations: PlaceItem[];
 };
 
-const TYPE_MAP: { type: PlaceItem["type"]; placesTypes: string[]; category: string }[] = [
-  { type: "restaurant", placesTypes: ["restaurant"], category: "Restaurantes" },
-  { type: "bar", placesTypes: ["bar"], category: "Bares" },
-  { type: "cafe", placesTypes: ["cafe", "coffee_shop"], category: "Cafés" },
-  { type: "beach", placesTypes: ["beach"], category: "Praias" },
-  { type: "attraction", placesTypes: ["tourist_attraction"], category: "Atrações" },
-  { type: "market", placesTypes: ["supermarket", "grocery_store"], category: "Mercados" },
-  { type: "pharmacy", placesTypes: ["pharmacy"], category: "Farmácias" },
-  { type: "park", placesTypes: ["park"], category: "Parques" },
-  { type: "nightlife", placesTypes: ["night_club"], category: "Vida noturna" },
-  { type: "shopping", placesTypes: ["shopping_mall"], category: "Compras" },
+// `placesTypes` é o filtro enviado ao Places (includedTypes/includedType).
+// `acceptedPrimaryTypes` é o que validamos no resultado — Google às vezes devolve
+// estabelecimentos cujo primaryType não bate (ex.: salão de beleza retornado em "bar").
+// Só aceitamos o item se o primaryType estiver na lista permitida.
+const TYPE_MAP: {
+  type: PlaceItem["type"];
+  placesTypes: string[];
+  acceptedPrimaryTypes: string[];
+  category: string;
+}[] = [
+  { type: "restaurant", placesTypes: ["restaurant"], acceptedPrimaryTypes: ["restaurant", "pizza_restaurant", "italian_restaurant", "brazilian_restaurant", "steak_house", "seafood_restaurant", "japanese_restaurant", "sushi_restaurant", "mexican_restaurant", "fast_food_restaurant", "hamburger_restaurant", "barbecue_restaurant", "vegetarian_restaurant", "vegan_restaurant", "meal_takeaway", "meal_delivery"], category: "Restaurantes" },
+  { type: "bar", placesTypes: ["bar"], acceptedPrimaryTypes: ["bar", "pub", "wine_bar", "sports_bar", "bar_and_grill", "night_club"], category: "Bares" },
+  { type: "cafe", placesTypes: ["cafe", "coffee_shop"], acceptedPrimaryTypes: ["cafe", "coffee_shop", "bakery", "tea_house", "dessert_shop", "ice_cream_shop"], category: "Cafés" },
+  { type: "beach", placesTypes: ["beach"], acceptedPrimaryTypes: ["beach"], category: "Praias" },
+  { type: "attraction", placesTypes: ["tourist_attraction"], acceptedPrimaryTypes: ["tourist_attraction", "museum", "art_gallery", "amusement_park", "aquarium", "zoo", "historical_landmark", "monument", "cultural_center", "national_park"], category: "Atrações" },
+  { type: "market", placesTypes: ["supermarket", "grocery_store"], acceptedPrimaryTypes: ["supermarket", "grocery_store", "convenience_store", "food_store"], category: "Mercados" },
+  { type: "pharmacy", placesTypes: ["pharmacy"], acceptedPrimaryTypes: ["pharmacy", "drugstore"], category: "Farmácias" },
+  { type: "park", placesTypes: ["park"], acceptedPrimaryTypes: ["park", "national_park", "state_park"], category: "Parques" },
+  { type: "nightlife", placesTypes: ["night_club"], acceptedPrimaryTypes: ["night_club", "bar", "pub"], category: "Vida noturna" },
+  { type: "shopping", placesTypes: ["shopping_mall"], acceptedPrimaryTypes: ["shopping_mall", "department_store"], category: "Compras" },
 ];
+
 
 function haversineMeters(a: { lat: number; lng: number }, b: { lat: number; lng: number }) {
   const R = 6371000;
