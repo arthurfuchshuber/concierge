@@ -165,6 +165,8 @@ function ExplorePage() {
   const { slug } = Route.useParams();
   const [activeKey, setActiveKey] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<SortKey>("distance");
+  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+
 
   if (r.status !== "ok") {
     return (
