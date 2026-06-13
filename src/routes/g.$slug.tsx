@@ -236,10 +236,10 @@ function Guide({ data }: { data: GuideOk }) {
             </footer>
           </>
         ) : (
-          <Tabs value={section} onValueChange={(v) => setSection(v as Section)} className="px-5 pt-6">
+          <Tabs value={section} onValueChange={(v) => setSection(v as Section)} className="px-5 md:px-10 pt-6 md:pt-10">
             <button
               onClick={() => setSection("home")}
-              className="inline-flex items-center gap-1.5 text-[10px] uppercase tracking-[0.24em] font-semibold text-muted-foreground hover:text-foreground transition-colors mb-6"
+              className="inline-flex items-center gap-1.5 text-[10px] uppercase tracking-[0.24em] font-semibold text-muted-foreground hover:text-foreground transition-colors mb-6 md:mb-8"
             >
               <ArrowLeft className="size-3" /> Voltar ao guia
             </button>
