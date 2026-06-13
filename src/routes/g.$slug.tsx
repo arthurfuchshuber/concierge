@@ -208,7 +208,7 @@ function Guide({ data }: { data: GuideOk }) {
               name={heroTitle}
               tagline={p.tagline}
               city={p.city}
-              image={heroImg}
+              photos={photos}
               theme={theme}
               onToggleTheme={toggleTheme}
             />
