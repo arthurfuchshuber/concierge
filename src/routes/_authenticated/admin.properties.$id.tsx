@@ -302,17 +302,15 @@ function PropertyEditor() {
   const cityRecs = form.recommendations.filter((r) => r.scope === "city");
 
   return (
-    <div className="max-w-4xl mx-auto px-6 py-8 pb-32">
+    <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 sm:py-8 pb-40 sm:pb-32">
       <Link to="/admin" className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground mb-4">
         <ArrowLeft className="size-3.5" /> Voltar
       </Link>
-      <div className="flex items-end justify-between gap-4 mb-8">
-        <div>
-          <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground font-semibold mb-2">
-            {isNew ? "Novo guia" : "Editar guia"}
-          </p>
-          <h1 className="font-serif text-4xl">{form.property.name || "Sem título"}</h1>
-        </div>
+      <div className="mb-6 sm:mb-8">
+        <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground font-semibold mb-2">
+          {isNew ? "Novo guia" : "Editar guia"}
+        </p>
+        <h1 className="font-serif text-2xl sm:text-4xl break-words leading-tight">{form.property.name || "Sem título"}</h1>
       </div>
 
       <Tabs value={step} onValueChange={setStep}>
@@ -553,39 +551,42 @@ function PropertyEditor() {
         </TabsContent>
       </Tabs>
 
-      <div className="fixed bottom-0 left-0 right-0 border-t border-border bg-background/90 backdrop-blur p-4 z-50">
-        <div className="max-w-4xl mx-auto flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                const order = ["basics", "access", "house", "recs", "extras"];
-                const i = order.indexOf(step);
-                if (i > 0) setStep(order[i - 1]);
-              }}
-              disabled={step === "basics"}
-            >
-              <ArrowLeft className="size-3.5 mr-1" /> Anterior
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                const order = ["basics", "access", "house", "recs", "extras"];
-                const i = order.indexOf(step);
-                if (i < order.length - 1) setStep(order[i + 1]);
-              }}
-              disabled={step === "extras"}
-            >
-              Próximo <ArrowLeft className="size-3.5 ml-1 rotate-180" />
-            </Button>
-          </div>
-          <div className="flex items-center gap-2 ml-auto">
-            <Button variant="ghost" onClick={() => navigate({ to: "/admin" })}>Cancelar</Button>
-            <Button onClick={handleSave} disabled={saving || !form.property.name}>
+      <div className="fixed bottom-0 left-0 right-0 border-t border-border bg-background/95 backdrop-blur p-3 sm:p-4 z-50">
+        <div className="max-w-4xl mx-auto flex flex-wrap items-center gap-2 sm:gap-3">
+          <Button
+            variant="outline"
+            size="sm"
+            className="flex-1 sm:flex-none"
+            onClick={() => {
+              const order = ["basics", "access", "house", "recs", "extras"];
+              const i = order.indexOf(step);
+              if (i > 0) setStep(order[i - 1]);
+            }}
+            disabled={step === "basics"}
+          >
+            <ArrowLeft className="size-3.5" />
+            <span className="ml-1 hidden sm:inline">Anterior</span>
+            <span className="ml-1 sm:hidden">Anterior</span>
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="flex-1 sm:flex-none"
+            onClick={() => {
+              const order = ["basics", "access", "house", "recs", "extras"];
+              const i = order.indexOf(step);
+              if (i < order.length - 1) setStep(order[i + 1]);
+            }}
+            disabled={step === "extras"}
+          >
+            <span className="mr-1">Próximo</span>
+            <ArrowLeft className="size-3.5 rotate-180" />
+          </Button>
+          <div className="flex items-center gap-2 w-full sm:w-auto sm:ml-auto">
+            <Button variant="ghost" size="sm" className="flex-1 sm:flex-none" onClick={() => navigate({ to: "/admin" })}>Cancelar</Button>
+            <Button size="sm" className="flex-1 sm:flex-none" onClick={handleSave} disabled={saving || !form.property.name}>
               {saving ? <Loader2 className="size-4 animate-spin mr-1.5" /> : null}
-              Salvar guia
+              Salvar
             </Button>
           </div>
         </div>
@@ -597,7 +598,7 @@ function PropertyEditor() {
 
 function Section({ title, desc, action, children }: { title: string; desc?: string; action?: React.ReactNode; children: React.ReactNode }) {
   return (
-    <section className="border border-border rounded-2xl p-5 space-y-4">
+    <section className="border border-border rounded-2xl p-4 sm:p-5 space-y-4">
       <div className="flex items-start justify-between gap-3">
         <div>
           <h2 className="text-sm font-semibold">{title}</h2>
@@ -650,11 +651,11 @@ function RecGroup({ title, desc, items, onChange, scope }: { title: string; desc
         <p className="text-xs text-muted-foreground italic">Nenhuma recomendação. Use o auto-preenchimento ou adicione manualmente.</p>
       ) : items.map((r, i) => (
         <ItemCard key={i} onRemove={() => onChange(items.filter((_, j) => j !== i))}>
-          <div className="grid grid-cols-[1fr_auto] gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-2">
             <Input placeholder="Nome" value={r.name} maxLength={200}
               onChange={(e) => onChange(items.map((x, j) => j === i ? { ...x, name: e.target.value } : x))} />
             <Select value={r.type} onValueChange={(v) => onChange(items.map((x, j) => j === i ? { ...x, type: v } : x))}>
-              <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="w-full sm:w-36"><SelectValue /></SelectTrigger>
               <SelectContent>
                 {["restaurant","bar","cafe","beach","attraction","market","pharmacy","park","nightlife","shopping","other"].map((t) => (
                   <SelectItem key={t} value={t}>{t}</SelectItem>
