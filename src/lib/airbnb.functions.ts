@@ -6,9 +6,11 @@ const AirbnbInput = z.object({
   url: z
     .string()
     .trim()
-    .url("Cole um link válido")
-    .refine((u) => /airbnb\.[a-z.]+\/(rooms|h)\//i.test(u), "Use um link público do anúncio (airbnb.com/h/... ou /rooms/...)")
-    .max(2048),
+    .min(1)
+    .max(2048)
+    .transform((u) => (/^https?:\/\//i.test(u) ? u : `https://${u}`))
+    .pipe(z.string().url("Cole um link válido"))
+    .refine((u) => /airbnb\.[a-z.]+\/(rooms|h)\//i.test(u), "Use um link público do anúncio (airbnb.com/h/... ou /rooms/...)"),
 });
 
 export type AirbnbImportResult = {
