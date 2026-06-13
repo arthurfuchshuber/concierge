@@ -975,19 +975,26 @@ function Stepper({
 
       {/* Desktop: full pill stepper */}
       <div className="hidden sm:block">
-        <div className="overflow-x-auto no-scrollbar -mx-2 px-2">
-          <div className="flex items-center gap-2 min-w-max">
+        <div
+          className="overflow-x-auto no-scrollbar -mx-2 px-2"
+          onWheel={(e) => {
+            if (e.deltaY !== 0 && e.deltaX === 0) {
+              e.currentTarget.scrollLeft += e.deltaY;
+            }
+          }}
+        >
+          <div className="flex items-center gap-1.5 min-w-max pr-2">
             {steps.map((s, i) => {
               const done = i < currentIdx;
               const active = i === currentIdx;
               const Icon = s.icon;
               return (
-                <div key={s.value} className="flex items-center gap-2">
+                <div key={s.value} className="flex items-center gap-1.5">
                   <button
                     type="button"
                     onClick={() => onChange(s.value)}
                     className={[
-                      "group inline-flex items-center gap-2 rounded-full px-3.5 py-2 text-xs font-medium whitespace-nowrap transition-all border",
+                      "group inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium whitespace-nowrap transition-all border shrink-0",
                       active
                         ? "bg-primary text-primary-foreground border-primary shadow-soft"
                         : done
@@ -1006,7 +1013,7 @@ function Stepper({
                     {s.label}
                   </button>
                   {i < steps.length - 1 && (
-                    <span className={["h-px w-10 shrink-0 transition-colors", i < currentIdx ? "bg-accent/40" : "bg-border"].join(" ")} />
+                    <span className={["h-px w-4 lg:w-6 shrink-0 transition-colors", i < currentIdx ? "bg-accent/40" : "bg-border"].join(" ")} />
                   )}
                 </div>
               );
