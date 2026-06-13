@@ -596,13 +596,13 @@ function HeroCompact({
             key={`${src}-${i}`}
             src={src}
             alt=""
-            className={`absolute inset-0 size-full object-cover object-[62%_50%] transition-opacity duration-500 ${i === idx ? "opacity-95" : "opacity-0"}`}
+            className={`absolute inset-0 size-full object-cover object-[62%_50%] transition-opacity duration-500 ${i === idx ? "opacity-100" : "opacity-0"}`}
           />
         ))}
       </div>
       {/* darken photo for legibility (always dark on photo) */}
-      <div className="absolute inset-0 bg-[linear-gradient(90deg,oklch(0.02_0.004_40/0.94)_0%,oklch(0.02_0.004_40/0.7)_42%,oklch(0.02_0.004_40/0.18)_100%)]" />
-      <div className="absolute inset-0 bg-[linear-gradient(180deg,oklch(0.02_0.004_40/0.68)_0%,transparent_34%,oklch(0.02_0.004_40/0.78)_82%,oklch(0.02_0.004_40)_100%)]" />
+      <div className="absolute inset-0 bg-[linear-gradient(90deg,oklch(0.02_0.004_40/0.7)_0%,oklch(0.02_0.004_40/0.38)_45%,oklch(0.02_0.004_40/0.05)_100%)]" />
+      <div className="absolute inset-0 bg-[linear-gradient(180deg,oklch(0.02_0.004_40/0.32)_0%,transparent_34%,oklch(0.02_0.004_40/0.55)_82%,oklch(0.02_0.004_40)_100%)]" />
       {/* bottom fade INTO the page background so the transition is seamless in any theme */}
       <div className="absolute inset-x-0 bottom-0 h-32 md:h-40 bg-[linear-gradient(180deg,transparent_0%,var(--background)_100%)]" />
 
