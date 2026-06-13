@@ -274,8 +274,15 @@ function Guide({ data }: { data: GuideOk }) {
                 if (!hasHorario && !hasChegada && !hasAcesso && !hasWifi) {
                   return <p className="text-sm text-muted-foreground">Sem informações cadastradas.</p>;
                 }
-                const uberUrl = p.address
-                  ? `https://m.uber.com/ul/?action=setPickup&pickup=my_location&dropoff[formatted_address]=${encodeURIComponent(p.address)}${p.lat && p.lng ? `&dropoff[latitude]=${p.lat}&dropoff[longitude]=${p.lng}` : ""}`
+                const hasCoords = p.lat != null && p.lng != null;
+                const mapsHref = p.maps_url
+                  || (hasCoords
+                    ? `https://www.google.com/maps/search/?api=1&query=${p.lat}%2C${p.lng}`
+                    : p.address
+                      ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(p.address)}`
+                      : null);
+                const uberUrl = (p.address || hasCoords)
+                  ? `https://m.uber.com/ul/?action=setPickup&pickup=my_location${p.address ? `&dropoff%5Bformatted_address%5D=${encodeURIComponent(p.address)}` : ""}${hasCoords ? `&dropoff%5Blatitude%5D=${p.lat}&dropoff%5Blongitude%5D=${p.lng}` : ""}`
                   : null;
                 return (
                   <SubList>
