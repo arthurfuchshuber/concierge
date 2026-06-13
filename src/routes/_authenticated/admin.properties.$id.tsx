@@ -580,6 +580,21 @@ function PropertyEditor() {
         </TabsContent>
       </Tabs>
 
+      {form.property.slug && (
+        <a
+          href={`/g/${form.property.slug}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          title="Pré-visualizar guia em nova aba"
+          aria-label="Pré-visualizar guia"
+          className="fixed right-4 bottom-24 sm:bottom-24 z-40 inline-flex items-center justify-center size-12 rounded-full bg-primary text-primary-foreground shadow-lg hover:scale-105 transition-transform"
+        >
+          <Eye className="size-5" />
+        </a>
+      )}
+
+
+
       <div className="fixed bottom-0 left-0 right-0 border-t border-border bg-background/95 backdrop-blur p-3 sm:p-4 z-50">
         <div className="max-w-4xl mx-auto flex flex-wrap items-center gap-2 sm:gap-3">
           <Button
