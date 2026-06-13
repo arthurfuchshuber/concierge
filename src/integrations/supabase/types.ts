@@ -295,6 +295,7 @@ export type Database = {
           rating: number | null
           scope: Database["public"]["Enums"]["rec_scope"]
           type: Database["public"]["Enums"]["rec_type"]
+          user_ratings_total: number | null
         }
         Insert: {
           category?: string | null
@@ -313,6 +314,7 @@ export type Database = {
           rating?: number | null
           scope: Database["public"]["Enums"]["rec_scope"]
           type: Database["public"]["Enums"]["rec_type"]
+          user_ratings_total?: number | null
         }
         Update: {
           category?: string | null
@@ -331,6 +333,7 @@ export type Database = {
           rating?: number | null
           scope?: Database["public"]["Enums"]["rec_scope"]
           type?: Database["public"]["Enums"]["rec_type"]
+          user_ratings_total?: number | null
         }
         Relationships: [
           {
