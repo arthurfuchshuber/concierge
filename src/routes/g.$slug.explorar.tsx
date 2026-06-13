@@ -84,7 +84,7 @@ const META_CATEGORIES: MetaCategory[] = [
     title: "Bares e Restaurantes",
     desc: "Onde comer, beber e brindar.",
     Icon: Utensils,
-    types: ["restaurant", "bar", "nightlife"],
+    types: ["restaurant", "bar"],
   },
   {
     key: "sights",
@@ -102,14 +102,14 @@ const META_CATEGORIES: MetaCategory[] = [
   },
   {
     key: "fun",
-    title: "Lazer e Entretenimento",
-    desc: "Para um programa diferente.",
+    title: "Lazer e Compras",
+    desc: "Mercados, shoppings e vida noturna.",
     Icon: PartyPopper,
-    types: ["shopping", "market"],
+    types: ["shopping", "market", "nightlife"],
   },
   {
     key: "health",
-    title: "Hospitais e Farmácias",
+    title: "Saúde e Farmácias",
     desc: "Cuidados e emergências por perto.",
     Icon: Cross,
     types: ["pharmacy"],
