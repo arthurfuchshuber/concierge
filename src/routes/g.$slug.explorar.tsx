@@ -169,8 +169,17 @@ function OpeningHours({ hours }: { hours: string[] | null | undefined }) {
   const today = todayOpening(hours);
   if (!today) return null;
   return (
-    <details className="group/oh text-[11.5px] text-muted-foreground">
-      <summary className="inline-flex items-center gap-1.5 cursor-pointer list-none hover:text-foreground transition-colors">
+    <details
+      className="group/oh text-[11.5px] text-muted-foreground"
+      onClick={(e) => e.stopPropagation()}
+    >
+      <summary
+        className="inline-flex items-center gap-1.5 cursor-pointer list-none hover:text-foreground transition-colors"
+        onClick={(e) => {
+          // Evita navegação ao clicar no toggle dentro do <a> do card
+          e.stopPropagation();
+        }}
+      >
         <Clock className="size-3.5" strokeWidth={1.75} />
         <span className="truncate max-w-[28ch]">Hoje: {today}</span>
       </summary>
@@ -181,6 +190,7 @@ function OpeningHours({ hours }: { hours: string[] | null | undefined }) {
       </ul>
     </details>
   );
+
 }
 
 
