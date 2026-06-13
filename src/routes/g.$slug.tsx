@@ -884,7 +884,7 @@ function WifiStrip({ ssid, password, theme }: { ssid?: string | null; password?:
           )}
         </div>
       </div>
-    </div>
+
   );
 }
 
