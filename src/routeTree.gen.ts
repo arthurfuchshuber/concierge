@@ -14,6 +14,7 @@ import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as GSlugRouteImport } from './routes/g.$slug'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
+import { Route as GSlugIndexRouteImport } from './routes/g.$slug.index'
 import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin.index'
 import { Route as GSlugExplorarRouteImport } from './routes/g.$slug.explorar'
 import { Route as AuthenticatedAdminPropertiesIdRouteImport } from './routes/_authenticated/admin.properties.$id'
@@ -42,6 +43,11 @@ const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
   path: '/admin',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const GSlugIndexRoute = GSlugIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => GSlugRoute,
+} as any)
 const AuthenticatedAdminIndexRoute = AuthenticatedAdminIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -66,14 +72,15 @@ export interface FileRoutesByFullPath {
   '/g/$slug': typeof GSlugRouteWithChildren
   '/g/$slug/explorar': typeof GSlugExplorarRoute
   '/admin/': typeof AuthenticatedAdminIndexRoute
+  '/g/$slug/': typeof GSlugIndexRoute
   '/admin/properties/$id': typeof AuthenticatedAdminPropertiesIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
-  '/g/$slug': typeof GSlugRouteWithChildren
   '/g/$slug/explorar': typeof GSlugExplorarRoute
   '/admin': typeof AuthenticatedAdminIndexRoute
+  '/g/$slug': typeof GSlugIndexRoute
   '/admin/properties/$id': typeof AuthenticatedAdminPropertiesIdRoute
 }
 export interface FileRoutesById {
@@ -85,6 +92,7 @@ export interface FileRoutesById {
   '/g/$slug': typeof GSlugRouteWithChildren
   '/g/$slug/explorar': typeof GSlugExplorarRoute
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
+  '/g/$slug/': typeof GSlugIndexRoute
   '/_authenticated/admin/properties/$id': typeof AuthenticatedAdminPropertiesIdRoute
 }
 export interface FileRouteTypes {
@@ -96,14 +104,15 @@ export interface FileRouteTypes {
     | '/g/$slug'
     | '/g/$slug/explorar'
     | '/admin/'
+    | '/g/$slug/'
     | '/admin/properties/$id'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/auth'
-    | '/g/$slug'
     | '/g/$slug/explorar'
     | '/admin'
+    | '/g/$slug'
     | '/admin/properties/$id'
   id:
     | '__root__'
@@ -114,6 +123,7 @@ export interface FileRouteTypes {
     | '/g/$slug'
     | '/g/$slug/explorar'
     | '/_authenticated/admin/'
+    | '/g/$slug/'
     | '/_authenticated/admin/properties/$id'
   fileRoutesById: FileRoutesById
 }
@@ -160,6 +170,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/admin'
       preLoaderRoute: typeof AuthenticatedAdminRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/g/$slug/': {
+      id: '/g/$slug/'
+      path: '/'
+      fullPath: '/g/$slug/'
+      preLoaderRoute: typeof GSlugIndexRouteImport
+      parentRoute: typeof GSlugRoute
     }
     '/_authenticated/admin/': {
       id: '/_authenticated/admin/'
@@ -211,10 +228,12 @@ const AuthenticatedRouteRouteWithChildren =
 
 interface GSlugRouteChildren {
   GSlugExplorarRoute: typeof GSlugExplorarRoute
+  GSlugIndexRoute: typeof GSlugIndexRoute
 }
 
 const GSlugRouteChildren: GSlugRouteChildren = {
   GSlugExplorarRoute: GSlugExplorarRoute,
+  GSlugIndexRoute: GSlugIndexRoute,
 }
 
 const GSlugRouteWithChildren = GSlugRoute._addFileChildren(GSlugRouteChildren)
