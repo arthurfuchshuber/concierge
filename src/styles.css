@@ -188,7 +188,7 @@
   .guide-ambient {
     background-image:
       radial-gradient(60% 40% at 100% 0%, oklch(from var(--accent) l c h / 0.08), transparent 60%),
-      linear-gradient(180deg, var(--background), oklch(0.025 0.008 45));
+      linear-gradient(180deg, var(--background), oklch(from var(--background) calc(l - 0.04) c h));
   }
 
   /* Wifi shimmer — slow light sweep */
