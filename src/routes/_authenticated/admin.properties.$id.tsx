@@ -32,6 +32,9 @@ type RecItem = {
   distance_text?: string | null;
   distance_meters?: number | null;
   drive_minutes?: number | null;
+  walk_minutes?: number | null;
+  opening_hours?: string[] | null;
+
   note?: string | null;
   image_url?: string | null;
   maps_url?: string | null;
