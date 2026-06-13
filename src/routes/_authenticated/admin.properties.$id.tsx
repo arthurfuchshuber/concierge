@@ -640,17 +640,35 @@ function PropertyEditor() {
             <Eye className="size-[18px]" />
           </button>
           <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
-            <DialogContent className="p-0 max-w-md sm:max-w-lg h-[85vh] gap-0 overflow-hidden">
-              <DialogHeader className="px-4 py-2.5 border-b border-border">
-                <DialogTitle className="text-xs font-medium text-muted-foreground">Pré-visualização — /g/{form.property.slug}</DialogTitle>
-              </DialogHeader>
-              {previewOpen && (
-                <iframe
-                  src={`/g/${form.property.slug}`}
-                  title="Pré-visualização do guia"
-                  className="w-full flex-1 border-0 bg-background"
-                />
-              )}
+            <DialogContent
+              className="p-0 gap-0 overflow-hidden border-0 bg-transparent shadow-none sm:max-w-[400px] w-[min(92vw,400px)] [&>button]:hidden"
+            >
+              <DialogTitle className="sr-only">Pré-visualização do guia</DialogTitle>
+              <div className="flex flex-col h-[85vh] max-h-[820px] rounded-[2.25rem] overflow-hidden bg-background shadow-2xl ring-1 ring-border/50 border-[6px] border-foreground/90">
+                <div className="flex items-center justify-between gap-3 px-4 py-2.5 bg-foreground/95 text-background/90 shrink-0">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="inline-flex size-1.5 rounded-full bg-emerald-400" />
+                    <p className="text-[11px] font-medium tracking-wide truncate opacity-80">
+                      /g/{form.property.slug}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setPreviewOpen(false)}
+                    aria-label="Fechar"
+                    className="size-7 grid place-items-center rounded-full hover:bg-background/10 transition-colors"
+                  >
+                    <span className="text-base leading-none">×</span>
+                  </button>
+                </div>
+                {previewOpen && (
+                  <iframe
+                    src={`/g/${form.property.slug}`}
+                    title="Pré-visualização do guia"
+                    className="w-full flex-1 border-0 bg-background"
+                  />
+                )}
+              </div>
             </DialogContent>
           </Dialog>
         </>
