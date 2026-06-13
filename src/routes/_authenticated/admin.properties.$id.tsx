@@ -13,6 +13,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { toast } from "sonner";
 import { Loader2, Sparkles, Plus, Trash2, MapPin, ArrowLeft, FileText, KeyRound, Home, Compass, LifeBuoy, Check } from "lucide-react";
+import { ImageUpload } from "@/components/ImageUpload";
 
 export const Route = createFileRoute("/_authenticated/admin/properties/$id")({
   component: PropertyEditor,
@@ -339,50 +340,40 @@ function PropertyEditor() {
             <Field label="Tagline" hint="Frase curta abaixo do título">
               <Input value={form.property.tagline} maxLength={200} onChange={(e) => update("tagline", e.target.value)} />
             </Field>
-            <Field label="Fotos da residência" hint="Até 4 fotos. A primeira é a capa. URLs preenchidas automaticamente pelo Auto-preencher.">
+            <Field label="Fotos da residência" hint="Até 4 fotos. A primeira é a capa. Você também pode usar o Auto-preencher abaixo para importar as 4 primeiras fotos do link do Google Maps.">
               <GalleryEditor
                 value={form.property.gallery_images}
-                heroFallback={form.property.hero_image_url}
                 onChange={(next) => {
                   setForm((f) => ({
                     ...f,
                     property: {
                       ...f.property,
                       gallery_images: next,
-                      hero_image_url: next[0] ?? f.property.hero_image_url,
+                      hero_image_url: next[0] ?? "",
                     },
                   }));
                 }}
               />
             </Field>
-            <Field label="Imagens das categorias" hint="Cole a URL de uma imagem para cada categoria do guia público. Deixe em branco para usar a foto da capa.">
-              <div className="space-y-2">
+            <Field label="Imagens das categorias" hint="Envie uma imagem para cada categoria do guia público. Deixe em branco para usar a foto da capa.">
+              <div className="grid grid-cols-2 gap-3">
                 {([
                   { k: "checkin", label: "Chegada & Saída" },
                   { k: "residencia", label: "A Residência" },
                   { k: "faq", label: "Dúvidas Frequentes" },
                   { k: "explore", label: "Explore a Região" },
-                ] as const).map(({ k, label }) => {
-                  const url = form.property.theme_images[k];
-                  return (
-                    <div key={k} className="flex items-center gap-2">
-                      <div className="size-12 shrink-0 rounded-lg border border-border bg-muted/40 overflow-hidden">
-                        {url ? <img src={url} alt="" className="size-full object-cover" /> : (
-                          <div className="size-full grid place-items-center text-[9px] text-muted-foreground uppercase tracking-wider">—</div>
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-1">{label}</p>
-                        <Input
-                          value={url}
-                          onChange={(e) => setForm((f) => ({ ...f, property: { ...f.property, theme_images: { ...f.property.theme_images, [k]: e.target.value } } }))}
-                          placeholder="https://..."
-                          className="text-xs h-8"
-                        />
-                      </div>
-                    </div>
-                  );
-                })}
+                ] as const).map(({ k, label }) => (
+                  <div key={k}>
+                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-1.5">{label}</p>
+                    <ImageUpload
+                      value={form.property.theme_images[k]}
+                      folder={`themes/${k}`}
+                      aspect="video"
+                      placeholder="Enviar foto"
+                      onChange={(url) => setForm((f) => ({ ...f, property: { ...f.property, theme_images: { ...f.property.theme_images, [k]: url } } }))}
+                    />
+                  </div>
+                ))}
               </div>
             </Field>
           </Section>
@@ -754,11 +745,9 @@ function Stepper({
 
 function GalleryEditor({
   value,
-  heroFallback,
   onChange,
 }: {
   value: string[];
-  heroFallback: string;
   onChange: (next: string[]) => void;
 }) {
   const slots: string[] = [0, 1, 2, 3].map((i) => value[i] ?? "");
@@ -767,48 +756,22 @@ function GalleryEditor({
     next[i] = v;
     onChange(next.filter((x) => x.trim()));
   }
-  function remove(i: number) {
-    const next = slots.filter((_, idx) => idx !== i).concat([""]).slice(0, 4);
-    onChange(next.filter((x) => x.trim()));
-  }
   return (
-    <div className="space-y-2.5">
-      <div className="grid grid-cols-4 gap-2">
-        {slots.map((url, i) => {
-          const preview = url || (i === 0 ? heroFallback : "");
-          return (
-            <div key={i} className="relative aspect-square rounded-lg border border-border bg-muted/40 overflow-hidden">
-              {preview ? (
-                <img src={preview} alt="" className="size-full object-cover" />
-              ) : (
-                <div className="size-full grid place-items-center text-[10px] text-muted-foreground uppercase tracking-wider">
-                  {i === 0 ? "Capa" : `+ Foto`}
-                </div>
-              )}
-              {i === 0 && preview && (
-                <span className="absolute top-1 left-1 rounded bg-background/85 text-[8px] uppercase tracking-widest px-1.5 py-0.5 font-bold">Capa</span>
-              )}
-            </div>
-          );
-        })}
-      </div>
-      <div className="space-y-1.5">
-        {slots.map((url, i) => (
-          <div key={i} className="flex gap-1.5">
-            <Input
-              value={url}
-              onChange={(e) => setAt(i, e.target.value)}
-              placeholder={i === 0 ? "URL da foto principal (capa)" : `URL da foto ${i + 1}`}
-              className="text-xs"
-            />
-            {url && (
-              <Button type="button" variant="ghost" size="sm" onClick={() => remove(i)} className="text-xs text-muted-foreground">
-                Remover
-              </Button>
-            )}
-          </div>
-        ))}
-      </div>
+    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+      {slots.map((url, i) => (
+        <div key={i} className="relative">
+          <ImageUpload
+            value={url}
+            folder="gallery"
+            aspect="square"
+            placeholder={i === 0 ? "Capa" : `Foto ${i + 1}`}
+            onChange={(v) => setAt(i, v)}
+          />
+          {i === 0 && url && (
+            <span className="absolute top-1 left-1 rounded bg-background/85 text-[8px] uppercase tracking-widest px-1.5 py-0.5 font-bold z-10 pointer-events-none">Capa</span>
+          )}
+        </div>
+      ))}
     </div>
   );
 }
