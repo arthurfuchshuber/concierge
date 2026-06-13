@@ -201,7 +201,7 @@ function Guide({ data }: { data: GuideOk }) {
   const cards = allCards.filter((c) => c.visible);
 
   return (
-    <div className="sigma-public-guide guide-ambient min-h-screen bg-background text-foreground pb-16">
+    <div className={`sigma-public-guide guide-ambient min-h-screen bg-background text-foreground pb-16 ${theme === "light" ? "theme-light" : ""}`}>
       <div className="mx-auto w-full max-w-md md:max-w-none">
         {section === "home" ? (
           <>
@@ -210,7 +210,10 @@ function Guide({ data }: { data: GuideOk }) {
               tagline={p.tagline}
               city={p.city}
               image={heroImg}
+              theme={theme}
+              onToggleTheme={toggleTheme}
             />
+
 
             <div className="px-5 md:px-10 lg:px-16 -mt-20 md:-mt-24 relative z-10 mb-4 md:mb-6">
               <WifiStrip ssid={p.wifi_ssid} password={p.wifi_password} />
