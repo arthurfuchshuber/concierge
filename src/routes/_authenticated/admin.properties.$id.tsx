@@ -66,6 +66,7 @@ type FormState = {
     pin_code: string;
     pin_expires_at: string;
     default_language: "pt" | "en";
+    guide_theme: "dark" | "light";
     published: boolean;
   };
   manual: { title: string; description: string; body: string }[];
