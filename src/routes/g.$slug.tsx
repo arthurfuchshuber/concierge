@@ -216,7 +216,7 @@ function Guide({ data }: { data: GuideOk }) {
 
 
             <div className="px-5 md:px-10 lg:px-16 -mt-20 md:-mt-24 relative z-10 mb-4 md:mb-6">
-              <WifiStrip ssid={p.wifi_ssid} password={p.wifi_password} />
+              <WifiStrip ssid={p.wifi_ssid} password={p.wifi_password} theme={theme} />
             </div>
 
             <section id="guide-actions" className="px-5 md:px-10 lg:px-16 relative z-10">
