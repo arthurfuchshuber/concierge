@@ -275,14 +275,22 @@ function Guide({ data }: { data: GuideOk }) {
                   return <p className="text-sm text-muted-foreground">Sem informações cadastradas.</p>;
                 }
                 const hasCoords = p.lat != null && p.lng != null;
-                const mapsHref = p.maps_url
-                  || (hasCoords
-                    ? `https://www.google.com/maps/search/?api=1&query=${p.lat}%2C${p.lng}`
+                // Prefer lat/lng-based search URL — reliable on any device and not blocked.
+                // Use a stored maps_url only when it's a share short link (maps.app.goo.gl / goo.gl/maps).
+                const isShortMaps = typeof p.maps_url === "string" && /(?:maps\.app\.goo\.gl|goo\.gl\/maps)/i.test(p.maps_url);
+                const mapsHref = hasCoords
+                  ? `https://www.google.com/maps/search/?api=1&query=${p.lat}%2C${p.lng}`
+                  : isShortMaps
+                    ? p.maps_url
                     : p.address
                       ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(p.address)}`
-                      : null);
-                const uberUrl = (p.address || hasCoords)
-                  ? `https://m.uber.com/ul/?action=setPickup&pickup=my_location${p.address ? `&dropoff%5Bformatted_address%5D=${encodeURIComponent(p.address)}` : ""}${hasCoords ? `&dropoff%5Blatitude%5D=${p.lat}&dropoff%5Blongitude%5D=${p.lng}` : ""}`
+                      : (p.maps_url || null);
+                // Uber: the new "looking" deep link works without a client_id on desktop & mobile.
+                const uberDrop = hasCoords
+                  ? { latitude: Number(p.lat), longitude: Number(p.lng), ...(p.address ? { addressLine1: String(p.address) } : {}) }
+                  : p.address ? { addressLine1: String(p.address) } : null;
+                const uberUrl = uberDrop
+                  ? `https://m.uber.com/looking?drop[0]=${encodeURIComponent(JSON.stringify(uberDrop))}`
                   : null;
                 return (
                   <SubList>
@@ -607,9 +615,9 @@ function HeroCompact({
           />
         ))}
       </div>
-      {/* darken photo for legibility (always dark on photo) */}
-      <div className="absolute inset-0 bg-[linear-gradient(90deg,oklch(0.02_0.004_40/0.7)_0%,oklch(0.02_0.004_40/0.38)_45%,oklch(0.02_0.004_40/0.05)_100%)]" />
-      <div className="absolute inset-0 bg-[linear-gradient(180deg,oklch(0.02_0.004_40/0.32)_0%,transparent_34%,oklch(0.02_0.004_40/0.55)_82%,oklch(0.02_0.004_40)_100%)]" />
+      {/* lighter overlay so the photo stays vivid in both themes; just enough for text legibility */}
+      <div className="absolute inset-0 bg-[linear-gradient(90deg,oklch(0.02_0.004_40/0.48)_0%,oklch(0.02_0.004_40/0.18)_45%,oklch(0.02_0.004_40/0)_100%)]" />
+      <div className="absolute inset-0 bg-[linear-gradient(180deg,oklch(0.02_0.004_40/0.18)_0%,transparent_30%,oklch(0.02_0.004_40/0.32)_82%,oklch(0.02_0.004_40/0.85)_100%)]" />
       {/* bottom fade INTO the page background so the transition is seamless in any theme */}
       <div className="absolute inset-x-0 bottom-0 h-32 md:h-40 bg-[linear-gradient(180deg,transparent_0%,var(--background)_100%)]" />
 
