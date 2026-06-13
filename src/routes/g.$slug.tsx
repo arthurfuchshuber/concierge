@@ -344,11 +344,11 @@ function Guide({ data }: { data: GuideOk }) {
                             <div>
                               <p className="text-[10px] uppercase tracking-[0.24em] text-muted-foreground font-semibold mb-2">Localização</p>
                               <div className="space-y-2">
-                                {(p.maps_url || p.address) && (
+                                {mapsHref && (
                                   <a
-                                    href={p.maps_url || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(p.address)}`}
+                                    href={mapsHref}
                                     target="_blank"
-                                    rel="noreferrer"
+                                    rel="noopener noreferrer"
                                     className="flex items-center gap-3 bg-background border border-border rounded-xl p-3 active:scale-[0.99] transition-transform hover:border-accent/50"
                                   >
                                     <span className="size-10 rounded-lg bg-accent/15 text-accent grid place-items-center shrink-0">
