@@ -559,14 +559,47 @@ function GuideMark({ className = "" }: { className?: string }) {
 }
 
 function HeroCompact({
-  name, tagline, city, image, theme, onToggleTheme,
+  name, tagline, city, photos, theme, onToggleTheme,
 }: {
-  name: string; tagline?: string; city?: string; image?: string;
+  name: string; tagline?: string; city?: string; photos: string[];
   theme: "dark" | "light"; onToggleTheme: () => void;
 }) {
+  const [idx, setIdx] = useState(0);
+  const touchStartX = useRef<number | null>(null);
+  const total = photos.length;
+  const hasMany = total > 1;
+
+  function go(dir: number) {
+    if (!hasMany) return;
+    setIdx((i) => (i + dir + total) % total);
+  }
+  function onTouchStart(e: React.TouchEvent) {
+    touchStartX.current = e.touches[0].clientX;
+  }
+  function onTouchEnd(e: React.TouchEvent) {
+    if (touchStartX.current == null) return;
+    const dx = e.changedTouches[0].clientX - touchStartX.current;
+    touchStartX.current = null;
+    if (Math.abs(dx) > 40) go(dx < 0 ? 1 : -1);
+  }
+
   return (
-    <section className="relative min-h-[360px] md:min-h-[480px] overflow-hidden px-5 md:px-10 lg:px-16 pb-16 md:pb-24 pt-4 md:pt-8">
-      {image && <img src={image} alt="" className="absolute inset-0 size-full object-cover object-[62%_50%] opacity-95" />}
+    <section
+      className="relative min-h-[360px] md:min-h-[480px] overflow-hidden px-5 md:px-10 lg:px-16 pb-16 md:pb-24 pt-4 md:pt-8"
+      onTouchStart={onTouchStart}
+      onTouchEnd={onTouchEnd}
+    >
+      {/* Photo slides */}
+      <div className="absolute inset-0">
+        {photos.map((src, i) => (
+          <img
+            key={`${src}-${i}`}
+            src={src}
+            alt=""
+            className={`absolute inset-0 size-full object-cover object-[62%_50%] transition-opacity duration-500 ${i === idx ? "opacity-95" : "opacity-0"}`}
+          />
+        ))}
+      </div>
       {/* darken photo for legibility (always dark on photo) */}
       <div className="absolute inset-0 bg-[linear-gradient(90deg,oklch(0.02_0.004_40/0.94)_0%,oklch(0.02_0.004_40/0.7)_42%,oklch(0.02_0.004_40/0.18)_100%)]" />
       <div className="absolute inset-0 bg-[linear-gradient(180deg,oklch(0.02_0.004_40/0.68)_0%,transparent_34%,oklch(0.02_0.004_40/0.78)_82%,oklch(0.02_0.004_40)_100%)]" />
@@ -609,9 +642,42 @@ function HeroCompact({
           </p>
         )}
       </div>
+
+      {hasMany && (
+        <>
+          <button
+            type="button"
+            onClick={() => go(-1)}
+            aria-label="Foto anterior"
+            className="hidden md:grid absolute left-3 top-1/2 -translate-y-1/2 z-10 size-10 place-items-center rounded-full border border-white/30 bg-black/30 text-white backdrop-blur-sm hover:bg-black/50"
+          >
+            <ArrowLeft className="size-4" />
+          </button>
+          <button
+            type="button"
+            onClick={() => go(1)}
+            aria-label="Próxima foto"
+            className="hidden md:grid absolute right-3 top-1/2 -translate-y-1/2 z-10 size-10 place-items-center rounded-full border border-white/30 bg-black/30 text-white backdrop-blur-sm hover:bg-black/50"
+          >
+            <ArrowRight className="size-4" />
+          </button>
+          <div className="absolute bottom-20 md:bottom-28 left-0 right-0 z-10 flex justify-center gap-1.5">
+            {photos.map((_, i) => (
+              <button
+                key={i}
+                type="button"
+                onClick={() => setIdx(i)}
+                aria-label={`Ir para foto ${i + 1}`}
+                className={`h-1.5 rounded-full transition-all ${i === idx ? "w-6 bg-accent" : "w-1.5 bg-white/50 hover:bg-white/80"}`}
+              />
+            ))}
+          </div>
+        </>
+      )}
     </section>
   );
 }
+
 
 function ThemeCard({
   title, desc, icon, image, theme,
