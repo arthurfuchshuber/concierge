@@ -256,7 +256,7 @@ function Guide({ data }: { data: GuideOk }) {
             </footer>
           </>
         ) : (
-          <Tabs value={section} onValueChange={(v) => setSection(v as Section)} className="px-5 md:px-10 lg:px-16 pt-6 md:pt-10">
+          <Tabs value={section} onValueChange={(v) => setSection(v as Section)} className="px-5 md:px-10 lg:px-16 pt-6 md:pt-10 lg:max-w-3xl lg:mx-auto">
             <button
               onClick={() => setSection("home")}
               className="inline-flex items-center gap-1.5 text-[10px] uppercase tracking-[0.24em] font-semibold text-muted-foreground hover:text-foreground transition-colors mb-6 md:mb-8"
