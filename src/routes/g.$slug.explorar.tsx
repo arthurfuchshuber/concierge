@@ -38,7 +38,7 @@ function ExplorePage() {
   const city = r.recommendations.filter((x: any) => x.scope === "city");
   return (
     <div className="guide-ambient min-h-screen bg-background text-foreground pb-20">
-      <div className="mx-auto w-full max-w-md px-5 pt-5">
+      <div className="mx-auto w-full max-w-md md:max-w-3xl lg:max-w-5xl px-5 md:px-10 pt-5 md:pt-10">
         <Link
           to="/g/$slug"
           params={{ slug }}
@@ -88,7 +88,7 @@ function RecBlock({ title, desc, items }: { title: string; desc: string; items: 
               <p className="text-[10px] uppercase tracking-[0.24em] text-muted-foreground font-semibold">{cat}</p>
               <span className="h-px flex-1 bg-border" />
             </div>
-            <div className="space-y-3">
+            <div className="space-y-3 md:space-y-0 md:grid md:grid-cols-2 md:gap-3">
               {list.map((r) => (
                 <a key={r.id} href={r.maps_url ?? "#"} target="_blank" rel="noreferrer"
                   className="group flex items-stretch gap-3.5 bg-card border border-border rounded-2xl p-3 active:scale-[0.99] transition-all hover:border-accent/40">

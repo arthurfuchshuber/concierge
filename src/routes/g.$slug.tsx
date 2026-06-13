@@ -187,7 +187,7 @@ function Guide({ data }: { data: GuideOk }) {
 
   return (
     <div className="sigma-public-guide guide-ambient min-h-screen bg-background text-foreground pb-16">
-      <div className="mx-auto w-full max-w-md">
+      <div className="mx-auto w-full max-w-md md:max-w-3xl lg:max-w-5xl">
         {section === "home" ? (
           <>
             <HeroCompact
@@ -197,19 +197,19 @@ function Guide({ data }: { data: GuideOk }) {
               image={heroImg}
             />
 
-            <div className="px-5 -mt-20 relative z-10 mb-4">
+            <div className="px-5 md:px-10 -mt-20 md:-mt-24 relative z-10 mb-4 md:mb-6">
               <WifiStrip ssid={p.wifi_ssid} password={p.wifi_password} />
             </div>
 
-            <section id="guide-actions" className="px-5 relative z-10">
-              <div className="flex items-center gap-3 mb-3">
+            <section id="guide-actions" className="px-5 md:px-10 relative z-10">
+              <div className="flex items-center gap-3 mb-3 md:mb-5">
                 <p className="shrink-0 text-[9px] uppercase tracking-[0.3em] text-accent font-semibold">
                   O que você deseja acessar?
                 </p>
                 <span className="h-px flex-1 bg-accent/40" />
               </div>
 
-              <div className="space-y-2.5">
+              <div className="space-y-2.5 md:space-y-0 md:grid md:grid-cols-2 md:gap-4">
                 {cards.map((c) =>
                   c.to?.kind === "link" ? (
                     <Link key={c.key} to={c.to.to as any}>
@@ -236,10 +236,10 @@ function Guide({ data }: { data: GuideOk }) {
             </footer>
           </>
         ) : (
-          <Tabs value={section} onValueChange={(v) => setSection(v as Section)} className="px-5 pt-6">
+          <Tabs value={section} onValueChange={(v) => setSection(v as Section)} className="px-5 md:px-10 pt-6 md:pt-10">
             <button
               onClick={() => setSection("home")}
-              className="inline-flex items-center gap-1.5 text-[10px] uppercase tracking-[0.24em] font-semibold text-muted-foreground hover:text-foreground transition-colors mb-6"
+              className="inline-flex items-center gap-1.5 text-[10px] uppercase tracking-[0.24em] font-semibold text-muted-foreground hover:text-foreground transition-colors mb-6 md:mb-8"
             >
               <ArrowLeft className="size-3" /> Voltar ao guia
             </button>
@@ -545,7 +545,7 @@ function HeroCompact({
   name: string; tagline?: string; city?: string; image?: string;
 }) {
   return (
-    <section className="relative min-h-[360px] overflow-hidden px-5 pb-16 pt-4">
+    <section className="relative min-h-[360px] md:min-h-[480px] overflow-hidden px-5 md:px-10 pb-16 md:pb-24 pt-4 md:pt-8">
       {image && <img src={image} alt="" className="absolute inset-0 size-full object-cover object-[62%_50%] opacity-95" />}
       <div className="absolute inset-0 bg-[linear-gradient(90deg,oklch(0.02_0.004_40/0.94)_0%,oklch(0.02_0.004_40/0.7)_42%,oklch(0.02_0.004_40/0.18)_100%)]" />
       <div className="absolute inset-0 bg-[linear-gradient(180deg,oklch(0.02_0.004_40/0.68)_0%,transparent_34%,oklch(0.02_0.004_40/0.78)_82%,oklch(0.02_0.004_40)_100%)]" />
@@ -567,18 +567,18 @@ function HeroCompact({
         </button>
       </header>
 
-      <div className="relative z-10 mt-14">
+      <div className="relative z-10 mt-14 md:mt-24">
         <p className="mb-2.5 text-[10px] font-semibold uppercase tracking-[0.36em] text-accent">Bem-vindo</p>
-        <h1 className="font-serif text-[1.75rem] leading-[1.0] text-foreground text-balance max-w-[300px]">
+        <h1 className="font-serif text-[1.75rem] md:text-[3rem] leading-[1.0] text-foreground text-balance max-w-[300px] md:max-w-[640px]">
           {name}
         </h1>
         {city && (
-          <p className="mt-2.5 inline-flex items-center gap-2 text-[0.8rem] leading-none text-foreground/82">
+          <p className="mt-2.5 md:mt-4 inline-flex items-center gap-2 text-[0.8rem] md:text-[0.95rem] leading-none text-foreground/82">
             <MapPin className="size-3.5 text-foreground/82 fill-foreground/82" strokeWidth={0} /> {city}
           </p>
         )}
-        <span className="mt-3.5 block h-[2px] w-10 bg-accent" />
-        <p className="mt-3 text-[0.85rem] leading-[1.5] text-foreground/78">
+        <span className="mt-3.5 md:mt-5 block h-[2px] w-10 md:w-14 bg-accent" />
+        <p className="mt-3 md:mt-4 text-[0.85rem] md:text-[1rem] leading-[1.5] text-foreground/78 md:max-w-[52ch]">
           {tagline || "Tudo o que você precisa para aproveitar cada momento."}
         </p>
       </div>
