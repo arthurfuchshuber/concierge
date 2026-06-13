@@ -741,7 +741,7 @@ function CopyCard({ icon, eyebrow, label, value }: { icon?: React.ReactNode; eye
   );
 }
 
-function WifiStrip({ ssid, password }: { ssid?: string | null; password?: string | null }) {
+function WifiStrip({ ssid, password, theme }: { ssid?: string | null; password?: string | null; theme: "dark" | "light" }) {
   const [reveal, setReveal] = useState(false);
   const [copied, setCopied] = useState(false);
   function copyPwd() {
@@ -752,9 +752,15 @@ function WifiStrip({ ssid, password }: { ssid?: string | null; password?: string
     setTimeout(() => setCopied(false), 1600);
   }
   const masked = password ? "•".repeat(Math.min(password.length, 12)) : "—";
+  const isLight = theme === "light";
   return (
-    <div className="relative rounded-2xl p-[1px] bg-[linear-gradient(135deg,oklch(var(--accent)/0.7),oklch(var(--accent)/0.15)_42%,transparent_75%)] shadow-[0_8px_30px_-12px_oklch(var(--accent)/0.45)]">
-      <div className="wifi-shimmer relative overflow-hidden rounded-[15px] bg-[linear-gradient(135deg,oklch(0.18_0.04_55/0.95)_0%,oklch(0.12_0.02_50/0.92)_60%,oklch(0.08_0.01_45/0.95)_100%)] backdrop-blur-sm">
+    <div className="relative rounded-2xl p-[1px] bg-[linear-gradient(135deg,oklch(from_var(--accent)_l_c_h/0.7),oklch(from_var(--accent)_l_c_h/0.15)_42%,transparent_75%)] shadow-[0_8px_30px_-12px_oklch(from_var(--accent)_l_c_h/0.45)]">
+      <div className={`wifi-shimmer relative overflow-hidden rounded-[15px] backdrop-blur-sm ${
+        isLight
+          ? "bg-[linear-gradient(135deg,oklch(from_var(--card)_l_c_h/0.98)_0%,oklch(from_var(--card)_l_c_h/0.94)_60%,oklch(from_var(--card)_l_c_h/0.98)_100%)]"
+          : "bg-[linear-gradient(135deg,oklch(0.18_0.04_55/0.95)_0%,oklch(0.12_0.02_50/0.92)_60%,oklch(0.08_0.01_45/0.95)_100%)]"
+      }`}>
+
         {/* subtle dot pattern */}
         <div className="pointer-events-none absolute inset-0 opacity-[0.08] [background-image:radial-gradient(oklch(var(--accent))_1px,transparent_1px)] [background-size:14px_14px]" />
         {/* corner glow */}
