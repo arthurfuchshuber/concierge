@@ -105,11 +105,14 @@ function PropertyEditor() {
   const fetchProp = useServerFn(getMyProperty);
   const save = useServerFn(upsertProperty);
   const enrich = useServerFn(enrichFromMapsLink);
+  const importAirbnb = useServerFn(importFromAirbnb);
 
   const [form, setForm] = useState<FormState>(() => emptyForm());
   const [step, setStep] = useState<string>("basics");
   const [enriching, setEnriching] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [airbnbUrl, setAirbnbUrl] = useState("");
+  const [importingAirbnb, setImportingAirbnb] = useState(false);
 
   const { data, isLoading } = useQuery({
     queryKey: ["property", id],
