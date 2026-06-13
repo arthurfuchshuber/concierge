@@ -228,7 +228,9 @@ type PlaceRaw = {
   primaryType?: string;
   editorialSummary?: { text?: string };
   generativeSummary?: { overview?: { text?: string } };
+  regularOpeningHours?: { weekdayDescriptions?: string[] };
 };
+
 
 
 function buildPhotoUrl(photoName: string | undefined): string | null {
