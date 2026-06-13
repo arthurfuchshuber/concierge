@@ -216,7 +216,9 @@ function Guide({ data }: { data: GuideOk }) {
 
 
             <div className="px-5 md:px-10 lg:px-16 -mt-20 md:-mt-24 relative z-10 mb-4 md:mb-6">
-              <WifiStrip ssid={p.wifi_ssid} password={p.wifi_password} theme={theme} />
+              <div className="md:max-w-md lg:max-w-lg">
+                <WifiStrip ssid={p.wifi_ssid} password={p.wifi_password} theme={theme} />
+              </div>
             </div>
 
             <section id="guide-actions" className="px-5 md:px-10 lg:px-16 relative z-10">
@@ -254,7 +256,7 @@ function Guide({ data }: { data: GuideOk }) {
             </footer>
           </>
         ) : (
-          <Tabs value={section} onValueChange={(v) => setSection(v as Section)} className="px-5 md:px-10 lg:px-16 pt-6 md:pt-10">
+          <Tabs value={section} onValueChange={(v) => setSection(v as Section)} className="px-5 md:px-10 lg:px-16 pt-6 md:pt-10 lg:max-w-3xl lg:mx-auto">
             <button
               onClick={() => setSection("home")}
               className="inline-flex items-center gap-1.5 text-[10px] uppercase tracking-[0.24em] font-semibold text-muted-foreground hover:text-foreground transition-colors mb-6 md:mb-8"
