@@ -444,15 +444,7 @@ function PropertyEditor() {
 
         <TabsContent value="access" className="space-y-3 mt-5">
           <Section title="Visibilidade">
-            <div className="flex items-center justify-between border border-border rounded-xl p-4">
-              <div>
-                <p className="text-sm font-medium">Publicar guia</p>
-                <p className="text-xs text-muted-foreground">Quando desativado, o guia não fica acessível para hóspedes.</p>
-              </div>
-              <Switch checked={form.property.published} onCheckedChange={(v) => update("published", v)} />
-            </div>
-
-            <Field label="Modo de acesso">
+            <Field label="Modo de acesso do Guia">
               <Select value={form.property.access_mode} onValueChange={(v) => update("access_mode", v as "public" | "pin")}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -482,7 +474,16 @@ function PropertyEditor() {
                 </SelectContent>
               </Select>
             </Field>
+
+            <div className="flex items-center justify-between border border-border rounded-xl p-4">
+              <div className="flex items-center gap-2">
+                <span className={`inline-block size-2.5 rounded-full ${form.property.published ? "bg-emerald-500" : "bg-muted-foreground/50"}`} />
+                <p className="text-sm font-medium">Status do Guia: {form.property.published ? "Ativo" : "Inativo"}</p>
+              </div>
+              <Switch checked={form.property.published} onCheckedChange={(v) => update("published", v)} />
+            </div>
           </Section>
+
         </TabsContent>
 
         <TabsContent value="house" className="space-y-3 mt-5">
