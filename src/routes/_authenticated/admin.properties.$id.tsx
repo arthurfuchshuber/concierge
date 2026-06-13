@@ -13,6 +13,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { toast } from "sonner";
 import { Loader2, Sparkles, Plus, Trash2, MapPin, ArrowLeft, FileText, KeyRound, Home, Compass, LifeBuoy, Check } from "lucide-react";
+import { ImageUpload } from "@/components/ImageUpload";
 
 export const Route = createFileRoute("/_authenticated/admin/properties/$id")({
   component: PropertyEditor,
