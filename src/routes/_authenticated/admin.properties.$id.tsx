@@ -16,6 +16,7 @@ import { toast } from "sonner";
 import { Loader2, Sparkles, Plus, Trash2, MapPin, ArrowLeft, FileText, KeyRound, Home, Compass, LifeBuoy, Check, Eye } from "lucide-react";
 import { ImageUpload } from "@/components/ImageUpload";
 import { EtiquetaSelect } from "@/components/EtiquetaSelect";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 export const Route = createFileRoute("/_authenticated/admin/properties/$id")({
   component: PropertyEditor,
@@ -113,6 +114,7 @@ function PropertyEditor() {
   const [saving, setSaving] = useState(false);
   const [airbnbUrl, setAirbnbUrl] = useState("");
   const [importingAirbnb, setImportingAirbnb] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
 
   const { data, isLoading } = useQuery({
     queryKey: ["property", id],
@@ -370,7 +372,7 @@ function PropertyEditor() {
         />
 
 
-        <TabsContent value="basics" className="space-y-5 mt-6">
+        <TabsContent value="basics" className="space-y-3 mt-5">
           <Section title="Importar do Airbnb" desc="Cole o link público do anúncio (airbnb.com/h/... ou /rooms/...) e preencha automaticamente nome, fotos, localização e horários. Tudo continua editável depois.">
             <Field label="Link do anúncio">
               <div className="flex gap-2">
@@ -440,7 +442,7 @@ function PropertyEditor() {
           </Section>
         </TabsContent>
 
-        <TabsContent value="access" className="space-y-5 mt-6">
+        <TabsContent value="access" className="space-y-3 mt-5">
           <Section title="Visibilidade">
             <div className="flex items-center justify-between border border-border rounded-xl p-4">
               <div>
@@ -483,7 +485,7 @@ function PropertyEditor() {
           </Section>
         </TabsContent>
 
-        <TabsContent value="house" className="space-y-5 mt-6">
+        <TabsContent value="house" className="space-y-3 mt-5">
           <Section title="Horários">
             <div className="grid grid-cols-2 gap-3">
               <Field label="Check-in a partir de"><Input value={form.property.checkin_time} maxLength={5} onChange={(e) => update("checkin_time", e.target.value)} placeholder="15:00" /></Field>
@@ -537,7 +539,7 @@ function PropertyEditor() {
           </Section>
         </TabsContent>
 
-        <TabsContent value="recs" className="space-y-5 mt-6">
+        <TabsContent value="recs" className="space-y-3 mt-5">
           <p className="text-sm text-muted-foreground">
             Recomendações vêm do auto-preenchimento do Google Maps. Você pode editar, remover ou adicionar manualmente.
           </p>
@@ -557,7 +559,7 @@ function PropertyEditor() {
           />
         </TabsContent>
 
-        <TabsContent value="extras" className="space-y-5 mt-6">
+        <TabsContent value="extras" className="space-y-3 mt-5">
           <Section title="Emergências" action={<AddBtn onClick={() => setForm((f) => ({ ...f, emergency: [...f.emergency, { label: "", number: "" }] }))} />}>
             {form.emergency.map((m, i) => (
               <ItemCard key={i} onRemove={() => setForm((f) => ({ ...f, emergency: f.emergency.filter((_, j) => j !== i) }))}>
@@ -581,16 +583,31 @@ function PropertyEditor() {
       </Tabs>
 
       {form.property.slug && (
-        <a
-          href={`/g/${form.property.slug}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          title="Pré-visualizar guia em nova aba"
-          aria-label="Pré-visualizar guia"
-          className="fixed right-4 bottom-24 sm:bottom-24 z-40 inline-flex items-center justify-center size-12 rounded-full bg-primary text-primary-foreground shadow-lg hover:scale-105 transition-transform"
-        >
-          <Eye className="size-5" />
-        </a>
+        <>
+          <button
+            type="button"
+            onClick={() => setPreviewOpen(true)}
+            title="Pré-visualizar guia"
+            aria-label="Pré-visualizar guia"
+            className="fixed right-3 bottom-24 z-40 inline-flex items-center justify-center size-9 rounded-full bg-background/70 backdrop-blur border border-border text-muted-foreground hover:text-foreground hover:bg-background transition-colors"
+          >
+            <Eye className="size-4" />
+          </button>
+          <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
+            <DialogContent className="p-0 max-w-md sm:max-w-lg h-[85vh] gap-0 overflow-hidden">
+              <DialogHeader className="px-4 py-2.5 border-b border-border">
+                <DialogTitle className="text-xs font-medium text-muted-foreground">Pré-visualização — /g/{form.property.slug}</DialogTitle>
+              </DialogHeader>
+              {previewOpen && (
+                <iframe
+                  src={`/g/${form.property.slug}`}
+                  title="Pré-visualização do guia"
+                  className="w-full flex-1 border-0 bg-background"
+                />
+              )}
+            </DialogContent>
+          </Dialog>
+        </>
       )}
 
 
@@ -640,16 +657,15 @@ function PropertyEditor() {
   );
 }
 
-function Section({ title, desc, action, children }: { title: string; desc?: string; action?: React.ReactNode; children: React.ReactNode }) {
+function Section({ title: _title, desc, action, children }: { title?: string; desc?: string; action?: React.ReactNode; children: React.ReactNode }) {
   return (
-    <section className="border border-border rounded-2xl p-4 sm:p-5 space-y-4">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <h2 className="text-sm font-semibold">{title}</h2>
-          {desc && <p className="text-xs text-muted-foreground mt-1">{desc}</p>}
+    <section className="border border-border rounded-2xl p-3 sm:p-4 space-y-3">
+      {(desc || action) && (
+        <div className="flex items-start justify-between gap-3">
+          {desc ? <p className="text-xs text-muted-foreground">{desc}</p> : <span />}
+          {action}
         </div>
-        {action}
-      </div>
+      )}
       <div className="space-y-3">{children}</div>
     </section>
   );
