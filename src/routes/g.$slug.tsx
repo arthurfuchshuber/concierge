@@ -187,7 +187,7 @@ function Guide({ data }: { data: GuideOk }) {
 
   return (
     <div className="sigma-public-guide guide-ambient min-h-screen bg-background text-foreground pb-16">
-      <div className="mx-auto w-full max-w-md">
+      <div className="mx-auto w-full max-w-md md:max-w-3xl lg:max-w-5xl">
         {section === "home" ? (
           <>
             <HeroCompact
@@ -197,19 +197,19 @@ function Guide({ data }: { data: GuideOk }) {
               image={heroImg}
             />
 
-            <div className="px-5 -mt-20 relative z-10 mb-4">
+            <div className="px-5 md:px-10 -mt-20 md:-mt-24 relative z-10 mb-4 md:mb-6">
               <WifiStrip ssid={p.wifi_ssid} password={p.wifi_password} />
             </div>
 
-            <section id="guide-actions" className="px-5 relative z-10">
-              <div className="flex items-center gap-3 mb-3">
+            <section id="guide-actions" className="px-5 md:px-10 relative z-10">
+              <div className="flex items-center gap-3 mb-3 md:mb-5">
                 <p className="shrink-0 text-[9px] uppercase tracking-[0.3em] text-accent font-semibold">
                   O que você deseja acessar?
                 </p>
                 <span className="h-px flex-1 bg-accent/40" />
               </div>
 
-              <div className="space-y-2.5">
+              <div className="space-y-2.5 md:space-y-0 md:grid md:grid-cols-2 md:gap-4">
                 {cards.map((c) =>
                   c.to?.kind === "link" ? (
                     <Link key={c.key} to={c.to.to as any}>
