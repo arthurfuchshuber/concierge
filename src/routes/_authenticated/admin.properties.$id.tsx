@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { getMyProperty, upsertProperty } from "@/lib/properties.functions";
 import { enrichFromMapsLink } from "@/lib/maps.functions";
+import { importFromAirbnb } from "@/lib/airbnb.functions";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -14,6 +15,7 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@
 import { toast } from "sonner";
 import { Loader2, Sparkles, Plus, Trash2, MapPin, ArrowLeft, FileText, KeyRound, Home, Compass, LifeBuoy, Check } from "lucide-react";
 import { ImageUpload } from "@/components/ImageUpload";
+import { EtiquetaSelect } from "@/components/EtiquetaSelect";
 
 export const Route = createFileRoute("/_authenticated/admin/properties/$id")({
   component: PropertyEditor,
