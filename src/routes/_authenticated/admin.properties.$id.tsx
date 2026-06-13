@@ -551,39 +551,42 @@ function PropertyEditor() {
         </TabsContent>
       </Tabs>
 
-      <div className="fixed bottom-0 left-0 right-0 border-t border-border bg-background/90 backdrop-blur p-4 z-50">
-        <div className="max-w-4xl mx-auto flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                const order = ["basics", "access", "house", "recs", "extras"];
-                const i = order.indexOf(step);
-                if (i > 0) setStep(order[i - 1]);
-              }}
-              disabled={step === "basics"}
-            >
-              <ArrowLeft className="size-3.5 mr-1" /> Anterior
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                const order = ["basics", "access", "house", "recs", "extras"];
-                const i = order.indexOf(step);
-                if (i < order.length - 1) setStep(order[i + 1]);
-              }}
-              disabled={step === "extras"}
-            >
-              Próximo <ArrowLeft className="size-3.5 ml-1 rotate-180" />
-            </Button>
-          </div>
-          <div className="flex items-center gap-2 ml-auto">
-            <Button variant="ghost" onClick={() => navigate({ to: "/admin" })}>Cancelar</Button>
-            <Button onClick={handleSave} disabled={saving || !form.property.name}>
+      <div className="fixed bottom-0 left-0 right-0 border-t border-border bg-background/95 backdrop-blur p-3 sm:p-4 z-50">
+        <div className="max-w-4xl mx-auto flex flex-wrap items-center gap-2 sm:gap-3">
+          <Button
+            variant="outline"
+            size="sm"
+            className="flex-1 sm:flex-none"
+            onClick={() => {
+              const order = ["basics", "access", "house", "recs", "extras"];
+              const i = order.indexOf(step);
+              if (i > 0) setStep(order[i - 1]);
+            }}
+            disabled={step === "basics"}
+          >
+            <ArrowLeft className="size-3.5" />
+            <span className="ml-1 hidden sm:inline">Anterior</span>
+            <span className="ml-1 sm:hidden">Anterior</span>
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="flex-1 sm:flex-none"
+            onClick={() => {
+              const order = ["basics", "access", "house", "recs", "extras"];
+              const i = order.indexOf(step);
+              if (i < order.length - 1) setStep(order[i + 1]);
+            }}
+            disabled={step === "extras"}
+          >
+            <span className="mr-1">Próximo</span>
+            <ArrowLeft className="size-3.5 rotate-180" />
+          </Button>
+          <div className="flex items-center gap-2 w-full sm:w-auto sm:ml-auto">
+            <Button variant="ghost" size="sm" className="flex-1 sm:flex-none" onClick={() => navigate({ to: "/admin" })}>Cancelar</Button>
+            <Button size="sm" className="flex-1 sm:flex-none" onClick={handleSave} disabled={saving || !form.property.name}>
               {saving ? <Loader2 className="size-4 animate-spin mr-1.5" /> : null}
-              Salvar guia
+              Salvar
             </Button>
           </div>
         </div>
