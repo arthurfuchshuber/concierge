@@ -12,19 +12,16 @@ type Props = {
 };
 
 export function EtiquetaSelect({ value, onChange }: Props) {
-  // If a legacy value exists outside the fixed set, surface it so it isn't silently lost
-  const allOptions = value && !ETIQUETA_OPTIONS.includes(value as typeof ETIQUETA_OPTIONS[number])
-    ? [value, ...ETIQUETA_OPTIONS]
-    : ETIQUETA_OPTIONS;
+  const knownValue = ETIQUETA_OPTIONS.includes(value as typeof ETIQUETA_OPTIONS[number]) ? value : undefined;
 
   return (
-    <Select value={value || undefined} onValueChange={(v) => onChange(v === "__clear__" ? "" : v)}>
+    <Select value={knownValue} onValueChange={(v) => onChange(v === "__clear__" ? "" : v)}>
       <SelectTrigger>
         <SelectValue placeholder="Selecione uma etiqueta" />
       </SelectTrigger>
       <SelectContent>
-        {value && <SelectItem value="__clear__">Sem etiqueta</SelectItem>}
-        {allOptions.map((o) => (
+        {knownValue && <SelectItem value="__clear__">Sem etiqueta</SelectItem>}
+        {ETIQUETA_OPTIONS.map((o) => (
           <SelectItem key={o} value={o}>{o}</SelectItem>
         ))}
       </SelectContent>

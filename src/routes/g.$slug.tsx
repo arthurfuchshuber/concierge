@@ -128,8 +128,7 @@ function Guide({ data }: { data: GuideOk }) {
 
 
   const galleryRaw: string[] = Array.isArray(p.gallery_images) ? p.gallery_images : [];
-  const recPhotos = data.recommendations.map((r: any) => r.image_url).filter(Boolean) as string[];
-  const photos: string[] = (galleryRaw.length ? galleryRaw : p.hero_image_url ? [p.hero_image_url] : recPhotos);
+  const photos: string[] = galleryRaw.length ? galleryRaw : p.hero_image_url ? [p.hero_image_url] : [];
   const heroImg = photos[0];
   const heroTitle = cleanGuideTitle(p.name, p.city);
 
@@ -604,9 +603,11 @@ function HeroCompact({
           </p>
         )}
         <span className="mt-3.5 md:mt-5 block h-[2px] w-10 md:w-14 bg-accent" />
-        <p className="mt-3 md:mt-4 text-[0.85rem] md:text-[1rem] leading-[1.5] text-white/80 md:max-w-[52ch]">
-          {tagline || "Tudo o que você precisa para aproveitar cada momento."}
-        </p>
+        {tagline && (
+          <p className="mt-3 md:mt-4 text-[0.85rem] md:text-[1rem] leading-[1.5] text-white/80 md:max-w-[52ch]">
+            {tagline}
+          </p>
+        )}
       </div>
     </section>
   );
