@@ -274,8 +274,15 @@ function Guide({ data }: { data: GuideOk }) {
                 if (!hasHorario && !hasChegada && !hasAcesso && !hasWifi) {
                   return <p className="text-sm text-muted-foreground">Sem informações cadastradas.</p>;
                 }
-                const uberUrl = p.address
-                  ? `https://m.uber.com/ul/?action=setPickup&pickup=my_location&dropoff[formatted_address]=${encodeURIComponent(p.address)}${p.lat && p.lng ? `&dropoff[latitude]=${p.lat}&dropoff[longitude]=${p.lng}` : ""}`
+                const hasCoords = p.lat != null && p.lng != null;
+                const mapsHref = p.maps_url
+                  || (hasCoords
+                    ? `https://www.google.com/maps/search/?api=1&query=${p.lat}%2C${p.lng}`
+                    : p.address
+                      ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(p.address)}`
+                      : null);
+                const uberUrl = (p.address || hasCoords)
+                  ? `https://m.uber.com/ul/?action=setPickup&pickup=my_location${p.address ? `&dropoff%5Bformatted_address%5D=${encodeURIComponent(p.address)}` : ""}${hasCoords ? `&dropoff%5Blatitude%5D=${p.lat}&dropoff%5Blongitude%5D=${p.lng}` : ""}`
                   : null;
                 return (
                   <SubList>
@@ -337,11 +344,11 @@ function Guide({ data }: { data: GuideOk }) {
                             <div>
                               <p className="text-[10px] uppercase tracking-[0.24em] text-muted-foreground font-semibold mb-2">Localização</p>
                               <div className="space-y-2">
-                                {(p.maps_url || p.address) && (
+                                {mapsHref && (
                                   <a
-                                    href={p.maps_url || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(p.address)}`}
+                                    href={mapsHref}
                                     target="_blank"
-                                    rel="noreferrer"
+                                    rel="noopener noreferrer"
                                     className="flex items-center gap-3 bg-background border border-border rounded-xl p-3 active:scale-[0.99] transition-transform hover:border-accent/50"
                                   >
                                     <span className="size-10 rounded-lg bg-accent/15 text-accent grid place-items-center shrink-0">
