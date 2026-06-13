@@ -124,14 +124,22 @@ function hasMeaningfulInfo(r: Rec): boolean {
 }
 
 function formatWalking(r: Rec): string | null {
+  const mins =
+    r.walk_minutes != null && r.walk_minutes > 0
+      ? r.walk_minutes
+      : r.distance_meters != null
+        ? Math.max(1, Math.round(r.distance_meters / 80))
+        : null;
   if (r.distance_meters != null) {
     const m = r.distance_meters;
-    if (m < 1000) return `${m} m a pé`;
-    return `${(m / 1000).toFixed(1).replace(/\.0$/, "")} km a pé`;
+    const dist = m < 1000 ? `${m} m` : `${(m / 1000).toFixed(1).replace(/\.0$/, "")} km`;
+    return mins ? `${dist} · ${mins} min a pé` : `${dist} a pé`;
   }
+  if (mins) return `${mins} min a pé`;
   if (r.distance_text) return r.distance_text;
   return null;
 }
+
 
 function formatDriving(r: Rec): string | null {
   if (r.drive_minutes != null && r.drive_minutes > 0) return `${r.drive_minutes} min de carro`;
