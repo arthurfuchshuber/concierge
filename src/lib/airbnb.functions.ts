@@ -68,15 +68,27 @@ export const importFromAirbnb = createServerFn({ method: "POST" })
     };
 
     let result: unknown;
-    try {
-      result = await firecrawl.scrape(data.url, {
-        formats: [{ type: "json", schema: extractionSchema }],
-        onlyMainContent: false,
-        waitFor: 2500,
-      });
-    } catch (e) {
+    let lastErr: unknown;
+    const attempts: Parameters<typeof firecrawl.scrape>[1][] = [
+      { formats: [{ type: "json", schema: extractionSchema }], onlyMainContent: false, waitFor: 2500 },
+      { formats: [{ type: "json", schema: extractionSchema }], onlyMainContent: false },
+      { formats: [{ type: "json", prompt: "Extract title, description (tagline), city, country, checkin_time, checkout_time, and up to 4 photo URLs from muscache.com." }], onlyMainContent: false },
+    ];
+    for (const opts of attempts) {
+      try {
+        result = await firecrawl.scrape(data.url, opts);
+        lastErr = undefined;
+        break;
+      } catch (e) {
+        lastErr = e;
+      }
+    }
+    if (lastErr) {
+      const msg = lastErr instanceof Error ? lastErr.message : String(lastErr);
       throw new Error(
-        e instanceof Error ? `Não foi possível ler o anúncio: ${e.message}` : "Não foi possível ler o anúncio"
+        /exception ID|unexpected error/i.test(msg)
+          ? "O Airbnb bloqueou a leitura deste anúncio agora. Tente novamente em alguns minutos ou preencha os campos manualmente."
+          : `Não foi possível ler o anúncio: ${msg}`
       );
     }
 
