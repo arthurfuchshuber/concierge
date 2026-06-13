@@ -275,14 +275,22 @@ function Guide({ data }: { data: GuideOk }) {
                   return <p className="text-sm text-muted-foreground">Sem informações cadastradas.</p>;
                 }
                 const hasCoords = p.lat != null && p.lng != null;
-                const mapsHref = p.maps_url
-                  || (hasCoords
-                    ? `https://www.google.com/maps/search/?api=1&query=${p.lat}%2C${p.lng}`
+                // Prefer lat/lng-based search URL — reliable on any device and not blocked.
+                // Use a stored maps_url only when it's a share short link (maps.app.goo.gl / goo.gl/maps).
+                const isShortMaps = typeof p.maps_url === "string" && /(?:maps\.app\.goo\.gl|goo\.gl\/maps)/i.test(p.maps_url);
+                const mapsHref = hasCoords
+                  ? `https://www.google.com/maps/search/?api=1&query=${p.lat}%2C${p.lng}`
+                  : isShortMaps
+                    ? p.maps_url
                     : p.address
                       ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(p.address)}`
-                      : null);
-                const uberUrl = (p.address || hasCoords)
-                  ? `https://m.uber.com/ul/?action=setPickup&pickup=my_location${p.address ? `&dropoff%5Bformatted_address%5D=${encodeURIComponent(p.address)}` : ""}${hasCoords ? `&dropoff%5Blatitude%5D=${p.lat}&dropoff%5Blongitude%5D=${p.lng}` : ""}`
+                      : (p.maps_url || null);
+                // Uber: the new "looking" deep link works without a client_id on desktop & mobile.
+                const uberDrop = hasCoords
+                  ? { latitude: Number(p.lat), longitude: Number(p.lng), ...(p.address ? { addressLine1: String(p.address) } : {}) }
+                  : p.address ? { addressLine1: String(p.address) } : null;
+                const uberUrl = uberDrop
+                  ? `https://m.uber.com/looking?drop[0]=${encodeURIComponent(JSON.stringify(uberDrop))}`
                   : null;
                 return (
                   <SubList>
