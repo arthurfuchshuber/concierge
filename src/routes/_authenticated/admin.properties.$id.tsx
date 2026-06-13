@@ -13,7 +13,7 @@ import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Loader2, Sparkles, Plus, Trash2, MapPin, ArrowLeft, FileText, KeyRound, Home, Compass, LifeBuoy, Check, Eye, Image as ImageIcon, MapPinned, Clock, DoorOpen, Wifi, UserRound, BookOpen, ClipboardCheck, Shield, Globe, Power, Phone, HelpCircle } from "lucide-react";
+import { Loader2, Sparkles, Plus, Trash2, MapPin, ArrowLeft, FileText, KeyRound, Home, Compass, LifeBuoy, Check, Eye, Image as ImageIcon, MapPinned, Clock, DoorOpen, Wifi, UserRound, BookOpen, ClipboardCheck, Shield, Globe, Power, Phone, HelpCircle, Sun, Moon, Palette } from "lucide-react";
 import { ImageUpload } from "@/components/ImageUpload";
 import { EtiquetaSelect } from "@/components/EtiquetaSelect";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -66,6 +66,7 @@ type FormState = {
     pin_code: string;
     pin_expires_at: string;
     default_language: "pt" | "en";
+    guide_theme: "dark" | "light";
     published: boolean;
   };
   manual: { title: string; description: string; body: string }[];
@@ -84,7 +85,7 @@ function emptyForm(): FormState {
       lat: null, lng: null, city: "", country: "", checkin_time: "15:00", checkin_time_max: "", checkout_time: "11:00", checkout_time_min: "",
       lock_code: "", gate_code: "", address_note: "", wifi_ssid: "", wifi_password: "",
       host_name: "", host_phone: "", access_mode: "public", pin_code: "", pin_expires_at: "",
-      default_language: "pt", published: true,
+      default_language: "pt", guide_theme: "dark", published: true,
     },
     manual: [],
     emergency: [{ label: "Polícia", number: "190" }, { label: "Bombeiros / SAMU", number: "192" }],
@@ -160,6 +161,7 @@ function PropertyEditor() {
         pin_code: (p.pin_code as string) ?? "",
         pin_expires_at: p.pin_expires_at ? new Date(p.pin_expires_at as string).toISOString().slice(0, 16) : "",
         default_language: ((p.default_language as "pt" | "en") ?? "pt"),
+        guide_theme: ((p.guide_theme as "dark" | "light") ?? "dark"),
         published: (p.published as boolean) ?? true,
       },
       manual: (data.manual ?? []).map((m: Record<string, unknown>) => ({
@@ -488,6 +490,55 @@ function PropertyEditor() {
               </Select>
             </Field>
           </Section>
+
+          <Section icon={Palette} title="Aparência" desc="Tom visual padrão do guia público. O hóspede também pode alternar pelo botão no topo.">
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => update("guide_theme", "dark")}
+                className={`group relative overflow-hidden rounded-xl border p-4 text-left transition-all ${
+                  form.property.guide_theme === "dark"
+                    ? "border-foreground ring-2 ring-foreground/15"
+                    : "border-border hover:border-foreground/40"
+                }`}
+              >
+                <div className="absolute inset-0 bg-gradient-to-br from-[#0d0a08] to-[#1c1410]" />
+                <div className="relative flex items-center gap-2.5">
+                  <span className="grid size-9 place-items-center rounded-full bg-white/10 text-amber-300 backdrop-blur-sm">
+                    <Moon className="size-4" strokeWidth={1.75} />
+                  </span>
+                  <div className="min-w-0">
+                    <p className="text-[13px] font-medium text-white">Black</p>
+                    <p className="text-[11px] text-white/60 mt-0.5">Sofisticado, noturno</p>
+                  </div>
+                  {form.property.guide_theme === "dark" && <Check className="ml-auto size-4 text-amber-300" />}
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => update("guide_theme", "light")}
+                className={`group relative overflow-hidden rounded-xl border p-4 text-left transition-all ${
+                  form.property.guide_theme === "light"
+                    ? "border-foreground ring-2 ring-foreground/15"
+                    : "border-border hover:border-foreground/40"
+                }`}
+              >
+                <div className="absolute inset-0 bg-gradient-to-br from-[#fafaf7] to-[#eee8df]" />
+                <div className="relative flex items-center gap-2.5">
+                  <span className="grid size-9 place-items-center rounded-full bg-white text-amber-700 border border-amber-700/15 shadow-sm">
+                    <Sun className="size-4" strokeWidth={1.75} />
+                  </span>
+                  <div className="min-w-0">
+                    <p className="text-[13px] font-medium text-stone-900">Branco gelo</p>
+                    <p className="text-[11px] text-stone-600 mt-0.5">Claro, sereno</p>
+                  </div>
+                  {form.property.guide_theme === "light" && <Check className="ml-auto size-4 text-amber-700" />}
+                </div>
+              </button>
+            </div>
+          </Section>
+
 
           <Section icon={Power} title="Publicação" desc="Controla se o link público está disponível agora.">
             <div className="flex items-center justify-between rounded-xl bg-muted/40 px-4 py-3.5 border border-border/60">

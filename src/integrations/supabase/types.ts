@@ -53,6 +53,7 @@ export type Database = {
           default_language: Database["public"]["Enums"]["guide_language"]
           gallery_images: string[]
           gate_code: string | null
+          guide_theme: string
           hero_image_url: string | null
           host_name: string | null
           host_phone: string | null
@@ -87,6 +88,7 @@ export type Database = {
           default_language?: Database["public"]["Enums"]["guide_language"]
           gallery_images?: string[]
           gate_code?: string | null
+          guide_theme?: string
           hero_image_url?: string | null
           host_name?: string | null
           host_phone?: string | null
@@ -121,6 +123,7 @@ export type Database = {
           default_language?: Database["public"]["Enums"]["guide_language"]
           gallery_images?: string[]
           gate_code?: string | null
+          guide_theme?: string
           hero_image_url?: string | null
           host_name?: string | null
           host_phone?: string | null

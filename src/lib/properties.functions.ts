@@ -37,6 +37,7 @@ const PropertyInput = z.object({
   pin_code: z.string().max(20).optional().nullable(),
   pin_expires_at: z.string().datetime().optional().nullable(),
   default_language: z.enum(["pt", "en"]).default("pt"),
+  guide_theme: z.enum(["dark", "light"]).default("dark"),
   published: z.boolean().default(true),
 });
 
