@@ -279,10 +279,10 @@ export const enrichFromMapsLink = createServerFn({ method: "POST" })
     }
 
     // Filtros de qualidade para recomendações
-    const MIN_RATING = 4.2;
-    const MIN_REVIEWS_NEARBY = 30;
-    const MIN_REVIEWS_CITY = 100;
-    const MAX_PER_TYPE = 4;
+    const MIN_RATING = 4.3;
+    const MIN_REVIEWS_NEARBY = 100;
+    const MIN_REVIEWS_CITY = 400;
+    const MAX_PER_TYPE = 5;
 
     const isQuality = (p: PlaceRaw, minReviews: number) =>
       typeof p.rating === "number" &&
@@ -290,14 +290,24 @@ export const enrichFromMapsLink = createServerFn({ method: "POST" })
       typeof p.userRatingCount === "number" &&
       p.userRatingCount >= minReviews;
 
+    const matchesCategory = (p: PlaceRaw, accepted: string[]) =>
+      !!p.primaryType && accepted.includes(p.primaryType);
+
+    const buildNote = (p: PlaceRaw): string | null => {
+      const t = p.editorialSummary?.text ?? p.generativeSummary?.overview?.text ?? null;
+      if (!t) return null;
+      return t.length > 240 ? t.slice(0, 237).trimEnd() + "…" : t;
+    };
+
     const recommendations: PlaceItem[] = [];
     const seen = new Set<string>();
 
     // 1) Nearby por categoria
     for (const cat of TYPE_MAP) {
       const items = (await placesNearby(coords.lat, coords.lng, cat.placesTypes))
+        .filter((p) => matchesCategory(p, cat.acceptedPrimaryTypes))
         .filter((p) => isQuality(p, MIN_REVIEWS_NEARBY))
-        .sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0))
+        .sort((a, b) => (b.userRatingCount ?? 0) - (a.userRatingCount ?? 0))
         .slice(0, MAX_PER_TYPE);
       for (const p of items) {
         if (!p.id || !p.location || seen.has(p.id)) continue;
@@ -308,6 +318,7 @@ export const enrichFromMapsLink = createServerFn({ method: "POST" })
           place_id: p.id,
           name: p.displayName?.text ?? "Sem nome",
           rating: typeof p.rating === "number" ? Number(p.rating.toFixed(1)) : null,
+          user_ratings_total: typeof p.userRatingCount === "number" ? p.userRatingCount : null,
           category: cat.category,
           type: cat.type,
           scope: "nearby",
@@ -318,6 +329,7 @@ export const enrichFromMapsLink = createServerFn({ method: "POST" })
           drive_minutes: driveMin,
           image_url: buildPhotoUrl(p.photos?.[0]?.name),
           maps_url: p.googleMapsUri ?? `https://www.google.com/maps/search/?api=1&query_place_id=${p.id}`,
+          note: buildNote(p),
         });
       }
     }
@@ -328,13 +340,18 @@ export const enrichFromMapsLink = createServerFn({ method: "POST" })
       for (const cat of CITY_CATS) {
         const primary = cat.placesTypes[0];
         const items = (await placesText(`melhores ${cat.category.toLowerCase()} em ${city}`, coords.lat, coords.lng, primary))
-          .filter((p) => !seen.has(p.id) && isQuality(p, MIN_REVIEWS_CITY))
+          .filter((p) => !seen.has(p.id) && matchesCategory(p, cat.acceptedPrimaryTypes) && isQuality(p, MIN_REVIEWS_CITY))
           .filter((p) => {
             if (!p.location) return false;
             const d = haversineMeters(coords, { lat: p.location.latitude, lng: p.location.longitude });
             return d >= 1500; // já não cabe em nearby
           })
-          .sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0))
+          .sort((a, b) => {
+            const ra = a.rating ?? 0;
+            const rb = b.rating ?? 0;
+            if (rb !== ra) return rb - ra;
+            return (b.userRatingCount ?? 0) - (a.userRatingCount ?? 0);
+          })
           .slice(0, MAX_PER_TYPE);
         for (const p of items) {
           if (!p.id || !p.location) continue;
@@ -345,6 +362,7 @@ export const enrichFromMapsLink = createServerFn({ method: "POST" })
             place_id: p.id,
             name: p.displayName?.text ?? "Sem nome",
             rating: typeof p.rating === "number" ? Number(p.rating.toFixed(1)) : null,
+            user_ratings_total: typeof p.userRatingCount === "number" ? p.userRatingCount : null,
             category: cat.category,
             type: cat.type,
             scope: "city",
@@ -355,10 +373,12 @@ export const enrichFromMapsLink = createServerFn({ method: "POST" })
             drive_minutes: driveMin,
             image_url: buildPhotoUrl(p.photos?.[0]?.name),
             maps_url: p.googleMapsUri ?? `https://www.google.com/maps/search/?api=1&query_place_id=${p.id}`,
+            note: buildNote(p),
           });
         }
       }
     }
+
 
     // Ordena: nearby por distância, city por rating desc dentro de cada categoria
     recommendations.sort((a, b) => {
