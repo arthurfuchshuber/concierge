@@ -347,15 +347,18 @@ function PropertyEditor() {
   const cityRecs = form.recommendations.filter((r) => r.scope === "city");
 
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 sm:py-8 pb-40 sm:pb-32">
-      <Link to="/admin" className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground mb-4">
+    <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6 sm:py-10 pb-40 sm:pb-32">
+      <Link to="/admin" className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground mb-5 transition-colors">
         <ArrowLeft className="size-3.5" /> Voltar
       </Link>
-      <div className="mb-6 sm:mb-8">
+      <div className="mb-7 sm:mb-9 pb-6 border-b border-border/60">
         <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground font-semibold mb-2">
           {isNew ? "Novo guia" : "Editar guia"}
         </p>
         <h1 className="font-serif text-2xl sm:text-4xl break-words leading-tight">{form.property.name || "Sem título"}</h1>
+        {form.property.tagline && (
+          <p className="text-sm text-muted-foreground mt-2">{form.property.tagline}</p>
+        )}
       </div>
 
       <Tabs value={step} onValueChange={setStep}>
@@ -372,8 +375,13 @@ function PropertyEditor() {
         />
 
 
-        <TabsContent value="basics" className="space-y-3 mt-5">
-          <Section title="Importar do Airbnb" desc="Cole o link público do anúncio (airbnb.com/h/... ou /rooms/...) e preencha automaticamente nome, fotos, localização e horários. Tudo continua editável depois.">
+        <TabsContent value="basics" className="space-y-5 mt-6">
+          <Section
+            icon={Sparkles}
+            tone="accent"
+            title="Importar do Airbnb"
+            desc="Cole o link público do anúncio e preencha nome, fotos, localização e horários automaticamente. Tudo continua editável depois."
+          >
             <Field label="Link do anúncio">
               <div className="flex gap-2">
                 <Input
@@ -389,7 +397,7 @@ function PropertyEditor() {
             </Field>
           </Section>
 
-          <Section>
+          <Section icon={FileText} title="Identidade do guia" desc="Como o guia se apresenta aos hóspedes.">
             <Field label="Nome do imóvel" required>
               <Input value={form.property.name} maxLength={120}
                 onChange={(e) => { update("name", e.target.value); if (isNew && !form.property.slug) update("slug", slugify(e.target.value)); }} />
@@ -397,29 +405,32 @@ function PropertyEditor() {
             <Field label="URL pública (slug)" hint="Aparece em /g/seu-slug">
               <Input value={form.property.slug} maxLength={60} onChange={(e) => update("slug", slugify(e.target.value))} />
             </Field>
-            <Field label="Tipo do Guia" hint="Aparece abaixo do título no guia público.">
+            <Field label="Tipo do guia" hint="Aparece abaixo do título no guia público.">
               <EtiquetaSelect value={form.property.tagline} onChange={(v) => update("tagline", v)} />
-            </Field>
-            <Field label="Fotos da residência" hint="Até 4 fotos. A primeira é a capa. Você também pode usar o Auto-preencher abaixo para importar as 4 primeiras fotos do link do Google Maps.">
-              <GalleryEditor
-                value={form.property.gallery_images}
-                onChange={(next) => {
-                  setForm((f) => ({
-                    ...f,
-                    property: {
-                      ...f.property,
-                      gallery_images: next,
-                      hero_image_url: next[0] ?? "",
-                    },
-                  }));
-                }}
-              />
             </Field>
           </Section>
 
+          <Section icon={ImageIcon} title="Fotos da residência" desc="Até 4 fotos. A primeira será usada como capa.">
+            <GalleryEditor
+              value={form.property.gallery_images}
+              onChange={(next) => {
+                setForm((f) => ({
+                  ...f,
+                  property: {
+                    ...f.property,
+                    gallery_images: next,
+                    hero_image_url: next[0] ?? "",
+                  },
+                }));
+              }}
+            />
+          </Section>
 
-
-          <Section title="Endereço e auto-preenchimento" desc="Cole o link do Google Maps do imóvel e clique em 'Auto-preencher' para obter endereço, coordenadas e pontos de interesse.">
+          <Section
+            icon={MapPinned}
+            title="Endereço e localização"
+            desc="Cole o link do Google Maps e use Auto-preencher para obter endereço, coordenadas e pontos de interesse."
+          >
             <Field label="Link do Google Maps" required>
               <div className="flex gap-2">
                 <Input value={form.property.maps_url} onChange={(e) => update("maps_url", e.target.value)} placeholder="https://maps.app.goo.gl/..." />
