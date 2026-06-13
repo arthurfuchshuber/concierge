@@ -171,7 +171,7 @@ async function placesText(query: string, lat: number, lng: number, includedType:
     body: JSON.stringify({
       textQuery: query,
       includedType,
-      maxResultCount: 15,
+      maxResultCount: 20,
       locationBias: { circle: { center: { latitude: lat, longitude: lng }, radius: 15000 } },
     }),
   });
