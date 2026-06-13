@@ -589,9 +589,9 @@ function PropertyEditor() {
             onClick={() => setPreviewOpen(true)}
             title="Pré-visualizar guia"
             aria-label="Pré-visualizar guia"
-            className="fixed right-3 bottom-24 z-40 inline-flex items-center justify-center size-9 rounded-full bg-background/70 backdrop-blur border border-border text-muted-foreground hover:text-foreground hover:bg-background transition-colors"
+            className="fixed right-4 bottom-24 z-40 inline-flex items-center justify-center size-11 rounded-full bg-foreground text-background shadow-md hover:shadow-lg hover:scale-105 transition-all"
           >
-            <Eye className="size-4" />
+            <Eye className="size-[18px]" />
           </button>
           <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
             <DialogContent className="p-0 max-w-md sm:max-w-lg h-[85vh] gap-0 overflow-hidden">
