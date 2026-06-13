@@ -372,7 +372,7 @@ function PropertyEditor() {
         />
 
 
-        <TabsContent value="basics" className="space-y-5 mt-6">
+        <TabsContent value="basics" className="space-y-3 mt-5">
           <Section title="Importar do Airbnb" desc="Cole o link público do anúncio (airbnb.com/h/... ou /rooms/...) e preencha automaticamente nome, fotos, localização e horários. Tudo continua editável depois.">
             <Field label="Link do anúncio">
               <div className="flex gap-2">
@@ -442,7 +442,7 @@ function PropertyEditor() {
           </Section>
         </TabsContent>
 
-        <TabsContent value="access" className="space-y-5 mt-6">
+        <TabsContent value="access" className="space-y-3 mt-5">
           <Section title="Visibilidade">
             <div className="flex items-center justify-between border border-border rounded-xl p-4">
               <div>
@@ -485,7 +485,7 @@ function PropertyEditor() {
           </Section>
         </TabsContent>
 
-        <TabsContent value="house" className="space-y-5 mt-6">
+        <TabsContent value="house" className="space-y-3 mt-5">
           <Section title="Horários">
             <div className="grid grid-cols-2 gap-3">
               <Field label="Check-in a partir de"><Input value={form.property.checkin_time} maxLength={5} onChange={(e) => update("checkin_time", e.target.value)} placeholder="15:00" /></Field>
@@ -539,7 +539,7 @@ function PropertyEditor() {
           </Section>
         </TabsContent>
 
-        <TabsContent value="recs" className="space-y-5 mt-6">
+        <TabsContent value="recs" className="space-y-3 mt-5">
           <p className="text-sm text-muted-foreground">
             Recomendações vêm do auto-preenchimento do Google Maps. Você pode editar, remover ou adicionar manualmente.
           </p>
@@ -559,7 +559,7 @@ function PropertyEditor() {
           />
         </TabsContent>
 
-        <TabsContent value="extras" className="space-y-5 mt-6">
+        <TabsContent value="extras" className="space-y-3 mt-5">
           <Section title="Emergências" action={<AddBtn onClick={() => setForm((f) => ({ ...f, emergency: [...f.emergency, { label: "", number: "" }] }))} />}>
             {form.emergency.map((m, i) => (
               <ItemCard key={i} onRemove={() => setForm((f) => ({ ...f, emergency: f.emergency.filter((_, j) => j !== i) }))}>
