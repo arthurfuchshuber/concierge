@@ -673,6 +673,8 @@ function RecRow({ rec }: { rec: Rec }) {
             </span>
           )}
         </div>
+        <OpeningHours hours={rec.opening_hours} />
+
       </div>
     </div>
   );
