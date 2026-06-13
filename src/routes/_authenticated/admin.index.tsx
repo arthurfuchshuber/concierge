@@ -269,6 +269,45 @@ function Dashboard() {
           ))}
         </div>
       )}
+
+      <Dialog open={viewSlug !== null} onOpenChange={(o) => { if (!o) setViewSlug(null); }}>
+        <DialogContent className="p-0 gap-0 overflow-hidden sm:max-w-[420px] w-[min(92vw,420px)]">
+          <DialogTitle className="sr-only">Como deseja visualizar?</DialogTitle>
+          <div className="p-6 bg-background">
+            <div className="text-center mb-5">
+              <h3 className="font-serif text-xl">Como deseja visualizar?</h3>
+              <p className="text-xs text-muted-foreground mt-1">Escolha como abrir o guia.</p>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => viewSlug && openGuide(viewSlug, "mobile")}
+                className="group flex flex-col items-center gap-2 rounded-2xl border border-border bg-card hover:border-foreground/40 hover:bg-secondary/40 transition-colors p-5"
+              >
+                <div className="w-10 h-14 rounded-md border-2 border-foreground/70 group-hover:border-foreground transition-colors" />
+                <span className="text-sm font-medium">Mobile</span>
+                <span className="text-[11px] text-muted-foreground">Tela do celular</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => viewSlug && openGuide(viewSlug, "desktop")}
+                className="group flex flex-col items-center gap-2 rounded-2xl border border-border bg-card hover:border-foreground/40 hover:bg-secondary/40 transition-colors p-5"
+              >
+                <div className="w-14 h-10 rounded-md border-2 border-foreground/70 group-hover:border-foreground transition-colors" />
+                <span className="text-sm font-medium">Navegador</span>
+                <span className="text-[11px] text-muted-foreground">Tela ampla</span>
+              </button>
+            </div>
+            <button
+              type="button"
+              onClick={() => setViewSlug(null)}
+              className="mt-5 w-full text-xs text-muted-foreground hover:text-foreground transition-colors"
+            >
+              Cancelar
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
