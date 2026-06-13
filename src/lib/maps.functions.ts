@@ -165,7 +165,8 @@ async function placesText(query: string, lat: number, lng: number, includedType:
     headers: {
       "Content-Type": "application/json",
       "X-Goog-FieldMask":
-        "places.id,places.displayName,places.location,places.rating,places.userRatingCount,places.googleMapsUri,places.photos,places.primaryType",
+        "places.id,places.displayName,places.location,places.rating,places.userRatingCount,places.googleMapsUri,places.photos,places.primaryType,places.editorialSummary,places.generativeSummary",
+
     },
     body: JSON.stringify({
       textQuery: query,
