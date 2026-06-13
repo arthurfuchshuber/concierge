@@ -494,18 +494,16 @@ function PropertyEditor() {
 
 
 
-          <Section icon={Power} title="Publicação" desc="Controla se o link público está disponível agora.">
-            <div className="flex items-center justify-between rounded-xl bg-muted/40 px-4 py-3.5 border border-border/60">
-              <div className="flex items-center gap-2.5 min-w-0">
-                <span className={`inline-block size-2.5 rounded-full shrink-0 ${form.property.published ? "bg-emerald-500" : "bg-muted-foreground/50"}`} />
-                <div className="min-w-0">
-                  <p className="text-sm font-medium leading-tight">Status do Guia</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">{form.property.published ? "Ativo — acessível pelo link" : "Inativo — link público desabilitado"}</p>
-                </div>
+          <div className="flex items-center justify-between rounded-xl bg-muted/40 px-4 py-3.5 border border-border/60">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <span className={`inline-block size-2.5 rounded-full shrink-0 ${form.property.published ? "bg-emerald-500" : "bg-muted-foreground/50"}`} />
+              <div className="min-w-0">
+                <p className="text-sm font-medium leading-tight">Status do Guia</p>
+                <p className="text-xs text-muted-foreground mt-0.5">{form.property.published ? "Ativo — acessível pelo link" : "Inativo — link público desabilitado"}</p>
               </div>
-              <Switch checked={form.property.published} onCheckedChange={(v) => update("published", v)} />
             </div>
-          </Section>
+            <Switch checked={form.property.published} onCheckedChange={(v) => update("published", v)} />
+          </div>
         </TabsContent>
 
         <TabsContent value="house" className="space-y-5 mt-6">
