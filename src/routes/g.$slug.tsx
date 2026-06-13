@@ -590,16 +590,16 @@ function HeroCompact({
 
       <div className="relative z-10 mt-14 md:mt-24">
         <p className="mb-2.5 text-[10px] font-semibold uppercase tracking-[0.36em] text-accent">Bem-vindo</p>
-        <h1 className="font-serif text-[1.75rem] md:text-[3rem] leading-[1.0] text-foreground text-balance max-w-[300px] md:max-w-[640px]">
+        <h1 className="font-serif text-[1.75rem] md:text-[3rem] leading-[1.0] text-white text-balance max-w-[300px] md:max-w-[640px]">
           {name}
         </h1>
         {city && (
-          <p className="mt-2.5 md:mt-4 inline-flex items-center gap-2 text-[0.8rem] md:text-[0.95rem] leading-none text-foreground/82">
-            <MapPin className="size-3.5 text-foreground/82 fill-foreground/82" strokeWidth={0} /> {city}
+          <p className="mt-2.5 md:mt-4 inline-flex items-center gap-2 text-[0.8rem] md:text-[0.95rem] leading-none text-white/85">
+            <MapPin className="size-3.5 text-white/85 fill-white/85" strokeWidth={0} /> {city}
           </p>
         )}
         <span className="mt-3.5 md:mt-5 block h-[2px] w-10 md:w-14 bg-accent" />
-        <p className="mt-3 md:mt-4 text-[0.85rem] md:text-[1rem] leading-[1.5] text-foreground/78 md:max-w-[52ch]">
+        <p className="mt-3 md:mt-4 text-[0.85rem] md:text-[1rem] leading-[1.5] text-white/80 md:max-w-[52ch]">
           {tagline || "Tudo o que você precisa para aproveitar cada momento."}
         </p>
       </div>
