@@ -622,10 +622,10 @@ function ThemeCard({
           {icon}
         </span>
         <div className="flex-1 min-w-0">
-          <h3 className="font-serif text-[1.15rem] leading-[1.1] text-foreground text-balance">{title}</h3>
-          <p className="mt-1 text-[11.5px] leading-[1.4] text-foreground/72 line-clamp-2">{desc}</p>
+          <h3 className="font-serif text-[1.15rem] leading-[1.1] text-white text-balance">{title}</h3>
+          <p className="mt-1 text-[11.5px] leading-[1.4] text-white/72 line-clamp-2">{desc}</p>
         </div>
-        <span className="absolute right-3.5 top-1/2 grid size-9 -translate-y-1/2 place-items-center rounded-full border border-accent/75 text-foreground transition-colors group-hover:bg-accent group-hover:text-background">
+        <span className="absolute right-3.5 top-1/2 grid size-9 -translate-y-1/2 place-items-center rounded-full border border-accent/75 text-white transition-colors group-hover:bg-accent group-hover:text-background">
           <ArrowRight className="size-4" strokeWidth={1.6} />
         </span>
       </div>
