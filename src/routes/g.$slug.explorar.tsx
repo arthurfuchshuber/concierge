@@ -17,7 +17,9 @@ import {
   PartyPopper,
   Cross,
   ShoppingBag,
+  Clock,
 } from "lucide-react";
+
 
 
 export const Route = createFileRoute("/g/$slug/explorar")({
