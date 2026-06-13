@@ -389,7 +389,7 @@ function PropertyEditor() {
             </Field>
           </Section>
 
-          <Section title="Identificação">
+          <Section>
             <Field label="Nome do imóvel" required>
               <Input value={form.property.name} maxLength={120}
                 onChange={(e) => { update("name", e.target.value); if (isNew && !form.property.slug) update("slug", slugify(e.target.value)); }} />
