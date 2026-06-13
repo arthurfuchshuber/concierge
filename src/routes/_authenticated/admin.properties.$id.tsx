@@ -193,6 +193,7 @@ function PropertyEditor() {
         name: (r.name as string) ?? "",
         category: (r.category as string) ?? null,
         rating: (r.rating as number) ?? null,
+        user_ratings_total: (r.user_ratings_total as number) ?? null,
         distance_text: (r.distance_text as string) ?? null,
         distance_meters: (r.distance_meters as number) ?? null,
         drive_minutes: (r.drive_minutes as number) ?? null,
@@ -201,6 +202,7 @@ function PropertyEditor() {
         maps_url: (r.maps_url as string) ?? null,
         place_id: (r.place_id as string) ?? null,
       })),
+
     });
   }, [data, isNew]);
 
