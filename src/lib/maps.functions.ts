@@ -144,7 +144,8 @@ async function placesNearby(lat: number, lng: number, includedTypes: string[]) {
     headers: {
       "Content-Type": "application/json",
       "X-Goog-FieldMask":
-        "places.id,places.displayName,places.location,places.rating,places.userRatingCount,places.googleMapsUri,places.photos,places.primaryType",
+        "places.id,places.displayName,places.location,places.rating,places.userRatingCount,places.googleMapsUri,places.photos,places.primaryType,places.editorialSummary,places.generativeSummary",
+
     },
     body: JSON.stringify({
       includedTypes,
