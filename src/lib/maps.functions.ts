@@ -149,9 +149,9 @@ async function placesNearby(lat: number, lng: number, includedTypes: string[]) {
     },
     body: JSON.stringify({
       includedTypes,
-      maxResultCount: 15,
+      maxResultCount: 20,
       rankPreference: "POPULARITY",
-      locationRestriction: { circle: { center: { latitude: lat, longitude: lng }, radius: 1500 } },
+      locationRestriction: { circle: { center: { latitude: lat, longitude: lng }, radius: 3000 } },
     }),
   });
   if (!res.ok) return [];
