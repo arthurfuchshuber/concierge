@@ -78,7 +78,7 @@ export const getMyProperty = createServerFn({ method: "POST" })
       context.supabase.from("property_faqs").select("*").eq("property_id", data.id).order("position"),
       context.supabase.from("property_checkout_items").select("*").eq("property_id", data.id).order("position"),
     ]);
-    if (p.error) throw new Error(p.error.message);
+    if (p.error) throw (await import("@/lib/db-errors.server")).safeDbError("properties", p.error);
     return {
       property: p.data,
       manual: manual.data ?? [],
