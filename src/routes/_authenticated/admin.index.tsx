@@ -211,9 +211,9 @@ function Dashboard() {
                   <Link to="/admin/properties/$id" params={{ id: p.id }} className="flex-1 inline-flex items-center justify-center gap-1 text-xs font-medium bg-secondary rounded-full py-2 hover:bg-secondary/70">
                     <Pencil className="size-3" /> Editar
                   </Link>
-                  <a href={`/g/${p.slug}`} target="_blank" rel="noreferrer" className="flex-1 inline-flex items-center justify-center gap-1 text-xs font-medium bg-secondary rounded-full py-2 hover:bg-secondary/70">
+                  <button type="button" onClick={() => setViewSlug(p.slug)} className="flex-1 inline-flex items-center justify-center gap-1 text-xs font-medium bg-secondary rounded-full py-2 hover:bg-secondary/70">
                     <ExternalLink className="size-3" /> Ver
-                  </a>
+                  </button>
                   <button
                     onClick={() => handleCopyLink(p.slug, p.id)}
                     title="Copiar link público"
