@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
-export const Route = createFileRoute("/g/$slug")({
+export const Route = createFileRoute("/g/$slug/")({
   loader: async ({ params }) => {
     const r = await getPublicGuide({ data: { slug: params.slug } });
     if (r.status === "not_found") throw notFound();
