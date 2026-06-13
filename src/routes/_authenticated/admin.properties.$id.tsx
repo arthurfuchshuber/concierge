@@ -15,7 +15,7 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@
 import { toast } from "sonner";
 import { Loader2, Sparkles, Plus, Trash2, MapPin, ArrowLeft, FileText, KeyRound, Home, Compass, LifeBuoy, Check, Eye, Image as ImageIcon, MapPinned, Clock, DoorOpen, Wifi, UserRound, BookOpen, ClipboardCheck, Shield, Globe, Power, Phone, HelpCircle, Sun, Moon, Palette } from "lucide-react";
 import { ImageUpload } from "@/components/ImageUpload";
-import { EtiquetaSelect } from "@/components/EtiquetaSelect";
+import { EtiquetaSelect, ETIQUETA_OPTIONS } from "@/components/EtiquetaSelect";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 export const Route = createFileRoute("/_authenticated/admin/properties/$id")({
@@ -98,6 +98,10 @@ function emptyForm(): FormState {
 function slugify(s: string) {
   return s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
     .replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 60);
+}
+
+function isEtiqueta(value: string) {
+  return (ETIQUETA_OPTIONS as readonly string[]).includes(value);
 }
 
 function PropertyEditor() {
@@ -260,19 +264,20 @@ function PropertyEditor() {
     setImportingAirbnb(true);
     try {
       const r = await importAirbnb({ data: { url: airbnbUrl.trim() } });
+      const importedGallery = r.gallery_images.filter((url) => url.trim()).slice(0, 4);
       setForm((f) => ({
         ...f,
         property: {
           ...f.property,
           name: r.name ?? f.property.name,
           slug: r.name ? slugify(r.name) : f.property.slug,
-          tagline: r.tagline ?? f.property.tagline,
+          tagline: isEtiqueta(f.property.tagline) ? f.property.tagline : "",
           city: r.city ?? f.property.city,
           country: r.country ?? f.property.country,
           checkin_time: r.checkin_time ?? f.property.checkin_time,
           checkout_time: r.checkout_time ?? f.property.checkout_time,
-          gallery_images: r.gallery_images.length ? r.gallery_images : f.property.gallery_images,
-          hero_image_url: r.hero_image_url ?? f.property.hero_image_url,
+          gallery_images: importedGallery.length ? importedGallery : f.property.gallery_images,
+          hero_image_url: importedGallery[0] ?? r.hero_image_url ?? f.property.hero_image_url,
         },
       }));
       const bits: string[] = [];
@@ -292,14 +297,15 @@ function PropertyEditor() {
   async function handleSave() {
     setSaving(true);
     try {
+      const galleryImages = form.property.gallery_images.filter((u) => u.trim()).slice(0, 4);
       const payload = {
         id: isNew ? null : id,
         property: {
           ...form.property,
           slug: form.property.slug || slugify(form.property.name),
           tagline: form.property.tagline || null,
-          hero_image_url: form.property.hero_image_url || null,
-          gallery_images: form.property.gallery_images.filter((u) => u.trim()).slice(0, 4),
+          hero_image_url: galleryImages[0] || form.property.hero_image_url || null,
+          gallery_images: galleryImages,
           theme_images: {
             checkin: form.property.theme_images.checkin || undefined,
             residencia: form.property.theme_images.residencia || undefined,
