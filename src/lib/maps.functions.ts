@@ -75,14 +75,17 @@ function haversineMeters(a: { lat: number; lng: number }, b: { lat: number; lng:
   return Math.round(2 * R * Math.asin(Math.sqrt(h)));
 }
 
-function formatDistance(meters: number): { text: string; driveMin: number | null } {
-  if (meters < 1000) return { text: `${meters} m`, driveMin: null };
+function formatDistance(meters: number): { text: string; driveMin: number | null; walkMin: number } {
+  // 80 m/min ≈ 4.8 km/h — caminhada conservadora.
+  const walkMin = Math.max(1, Math.round(meters / 80));
+  if (meters < 1000) return { text: `${meters} m · ${walkMin} min a pé`, driveMin: null, walkMin };
   const km = meters / 1000;
-  if (meters <= 1500) return { text: `${km.toFixed(1)} km a pé`, driveMin: null };
+  if (meters <= 1500) return { text: `${km.toFixed(1)} km · ${walkMin} min a pé`, driveMin: null, walkMin };
   // ~40 km/h average urban speed
   const driveMin = Math.max(2, Math.round((km / 40) * 60));
-  return { text: `${km.toFixed(1)} km · ${driveMin} min de carro`, driveMin };
+  return { text: `${km.toFixed(1)} km · ${driveMin} min de carro`, driveMin, walkMin };
 }
+
 
 async function resolveShortUrl(url: string): Promise<string> {
   if (!/maps\.app\.goo\.gl|goo\.gl\/maps/.test(url)) return url;
