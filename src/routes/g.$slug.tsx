@@ -113,6 +113,20 @@ function Guide({ data }: { data: GuideOk }) {
   const { slug } = Route.useParams();
   const [section, setSection] = useState<Section>("home");
 
+  // Theme: admin default, override per-visitor via localStorage
+  const adminTheme: "dark" | "light" = p.guide_theme === "light" ? "light" : "dark";
+  const [theme, setTheme] = useState<"dark" | "light">(() => {
+    if (typeof window === "undefined") return adminTheme;
+    const stored = window.localStorage.getItem(`guide-theme:${slug}`);
+    return stored === "dark" || stored === "light" ? stored : adminTheme;
+  });
+  function toggleTheme() {
+    const next = theme === "dark" ? "light" : "dark";
+    setTheme(next);
+    try { window.localStorage.setItem(`guide-theme:${slug}`, next); } catch {}
+  }
+
+
   const galleryRaw: string[] = Array.isArray(p.gallery_images) ? p.gallery_images : [];
   const recPhotos = data.recommendations.map((r: any) => r.image_url).filter(Boolean) as string[];
   const photos: string[] = (galleryRaw.length ? galleryRaw : p.hero_image_url ? [p.hero_image_url] : recPhotos);
