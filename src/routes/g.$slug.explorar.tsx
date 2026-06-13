@@ -319,21 +319,29 @@ function CategoryDetail({
   city,
   sortBy,
   setSortBy,
+  viewMode,
+  setViewMode,
 }: {
   nearby: Rec[];
   city: Rec[];
   sortBy: SortKey;
   setSortBy: (s: SortKey) => void;
+  viewMode: "grid" | "list";
+  setViewMode: (v: "grid" | "list") => void;
 }) {
   return (
     <>
-      <SortBar sortBy={sortBy} setSortBy={setSortBy} />
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <SortBar sortBy={sortBy} setSortBy={setSortBy} />
+        <ViewToggle viewMode={viewMode} setViewMode={setViewMode} />
+      </div>
       <div className="mt-8 space-y-12">
         {nearby.length > 0 && (
           <Section
             eyebrow="A poucos minutos"
             title="Pertinho da Residência"
             items={nearby}
+            viewMode={viewMode}
           />
         )}
         {city.length > 0 && (
@@ -341,6 +349,7 @@ function CategoryDetail({
             eyebrow="Vale o deslocamento"
             title="Referências na Cidade"
             items={city}
+            viewMode={viewMode}
           />
         )}
         {nearby.length === 0 && city.length === 0 && (
@@ -351,7 +360,43 @@ function CategoryDetail({
   );
 }
 
-function SortBar({ sortBy, setSortBy }: { sortBy: SortKey; setSortBy: (s: SortKey) => void }) {
+function ViewToggle({
+  viewMode,
+  setViewMode,
+}: {
+  viewMode: "grid" | "list";
+  setViewMode: (v: "grid" | "list") => void;
+}) {
+  const opts: { key: "grid" | "list"; label: string; Icon: typeof LayoutGrid }[] = [
+    { key: "grid", label: "Grade", Icon: LayoutGrid },
+    { key: "list", label: "Lista", Icon: ListIcon },
+  ];
+  return (
+    <div className="inline-flex items-center rounded-full border border-border bg-card/60 backdrop-blur p-1">
+      {opts.map((o) => {
+        const on = viewMode === o.key;
+        const Icon = o.Icon;
+        return (
+          <button
+            key={o.key}
+            type="button"
+            onClick={() => setViewMode(o.key)}
+            aria-label={o.label}
+            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11.5px] font-medium transition-colors ${
+              on
+                ? "bg-accent text-accent-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <Icon className="size-3.5" />
+            <span className="hidden sm:inline">{o.label}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
   const opts: { key: SortKey; label: string }[] = [
     { key: "distance", label: "Distância" },
     { key: "rating", label: "Avaliação" },
