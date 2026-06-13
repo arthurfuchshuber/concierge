@@ -395,7 +395,7 @@ function PropertyEditor() {
             <Field label="URL pública (slug)" hint="Aparece em /g/seu-slug">
               <Input value={form.property.slug} maxLength={60} onChange={(e) => update("slug", slugify(e.target.value))} />
             </Field>
-            <Field label="Etiqueta" hint="Aparece abaixo do título no guia público. Use o ícone do lápis para gerenciar suas etiquetas.">
+            <Field label="Tipo do Guia" hint="Aparece abaixo do título no guia público.">
               <EtiquetaSelect value={form.property.tagline} onChange={(v) => update("tagline", v)} />
             </Field>
             <Field label="Fotos da residência" hint="Até 4 fotos. A primeira é a capa. Você também pode usar o Auto-preencher abaixo para importar as 4 primeiras fotos do link do Google Maps.">
