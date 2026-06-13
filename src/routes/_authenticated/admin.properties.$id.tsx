@@ -658,19 +658,32 @@ function PropertyEditor() {
   );
 }
 
-function Section({ title: _title, desc, action, children }: { title?: string; desc?: string; action?: React.ReactNode; children: React.ReactNode }) {
+function Section({ title, desc, action, children }: { title?: string; desc?: string; action?: React.ReactNode; children: React.ReactNode }) {
   return (
-    <section className="border border-border rounded-2xl p-3 sm:p-4 space-y-3">
-      {(desc || action) && (
-        <div className="flex items-start justify-between gap-3">
-          {desc ? <p className="text-xs text-muted-foreground">{desc}</p> : <span />}
+    <section className="border border-border/70 bg-card/40 rounded-2xl p-4 sm:p-5 shadow-sm space-y-3.5">
+      {(title || action) && (
+        <header className="flex items-start justify-between gap-3">
+          {title ? (
+            <div className="min-w-0">
+              <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground font-semibold">{title}</p>
+              {desc && <p className="text-xs text-muted-foreground/80 mt-1.5 leading-relaxed">{desc}</p>}
+            </div>
+          ) : desc ? (
+            <p className="text-xs text-muted-foreground/80 leading-relaxed">{desc}</p>
+          ) : (
+            <span />
+          )}
           {action}
-        </div>
+        </header>
+      )}
+      {!title && !action && desc && (
+        <p className="text-xs text-muted-foreground/80 leading-relaxed">{desc}</p>
       )}
       <div className="space-y-3">{children}</div>
     </section>
   );
 }
+
 
 function Field({ label, hint, required, children }: { label: string; hint?: string; required?: boolean; children: React.ReactNode }) {
   return (
