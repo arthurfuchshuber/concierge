@@ -745,11 +745,9 @@ function Stepper({
 
 function GalleryEditor({
   value,
-  heroFallback,
   onChange,
 }: {
   value: string[];
-  heroFallback: string;
   onChange: (next: string[]) => void;
 }) {
   const slots: string[] = [0, 1, 2, 3].map((i) => value[i] ?? "");
@@ -758,48 +756,22 @@ function GalleryEditor({
     next[i] = v;
     onChange(next.filter((x) => x.trim()));
   }
-  function remove(i: number) {
-    const next = slots.filter((_, idx) => idx !== i).concat([""]).slice(0, 4);
-    onChange(next.filter((x) => x.trim()));
-  }
   return (
-    <div className="space-y-2.5">
-      <div className="grid grid-cols-4 gap-2">
-        {slots.map((url, i) => {
-          const preview = url || (i === 0 ? heroFallback : "");
-          return (
-            <div key={i} className="relative aspect-square rounded-lg border border-border bg-muted/40 overflow-hidden">
-              {preview ? (
-                <img src={preview} alt="" className="size-full object-cover" />
-              ) : (
-                <div className="size-full grid place-items-center text-[10px] text-muted-foreground uppercase tracking-wider">
-                  {i === 0 ? "Capa" : `+ Foto`}
-                </div>
-              )}
-              {i === 0 && preview && (
-                <span className="absolute top-1 left-1 rounded bg-background/85 text-[8px] uppercase tracking-widest px-1.5 py-0.5 font-bold">Capa</span>
-              )}
-            </div>
-          );
-        })}
-      </div>
-      <div className="space-y-1.5">
-        {slots.map((url, i) => (
-          <div key={i} className="flex gap-1.5">
-            <Input
-              value={url}
-              onChange={(e) => setAt(i, e.target.value)}
-              placeholder={i === 0 ? "URL da foto principal (capa)" : `URL da foto ${i + 1}`}
-              className="text-xs"
-            />
-            {url && (
-              <Button type="button" variant="ghost" size="sm" onClick={() => remove(i)} className="text-xs text-muted-foreground">
-                Remover
-              </Button>
-            )}
-          </div>
-        ))}
-      </div>
+    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+      {slots.map((url, i) => (
+        <div key={i} className="relative">
+          <ImageUpload
+            value={url}
+            folder="gallery"
+            aspect="square"
+            placeholder={i === 0 ? "Capa" : `Foto ${i + 1}`}
+            onChange={(v) => setAt(i, v)}
+          />
+          {i === 0 && url && (
+            <span className="absolute top-1 left-1 rounded bg-background/85 text-[8px] uppercase tracking-widest px-1.5 py-0.5 font-bold z-10 pointer-events-none">Capa</span>
+          )}
+        </div>
+      ))}
     </div>
   );
 }
