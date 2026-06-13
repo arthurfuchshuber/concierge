@@ -3,6 +3,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { listMyProperties, deleteProperty } from "@/lib/properties.functions";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Plus, ExternalLink, Pencil, Trash2, Lock, Globe, BookOpen, PlayCircle, CreditCard, LayoutGrid, List, Link2, Check } from "lucide-react";
 import { toast } from "sonner";
 import { useState } from "react";
@@ -21,6 +22,17 @@ function Dashboard() {
   const navigate = useNavigate();
   const [view, setView] = useState<"grid" | "list">("grid");
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [viewSlug, setViewSlug] = useState<string | null>(null);
+
+  function openGuide(slug: string, mode: "mobile" | "desktop") {
+    const url = `${getPublicBaseUrl()}/g/${slug}`;
+    if (mode === "mobile") {
+      window.open(url, "_blank", "noopener,noreferrer,width=420,height=860");
+    } else {
+      window.open(url, "_blank", "noopener,noreferrer");
+    }
+    setViewSlug(null);
+  }
 
   function getPublicBaseUrl() {
     if (typeof window === "undefined") return "";
@@ -199,9 +211,9 @@ function Dashboard() {
                   <Link to="/admin/properties/$id" params={{ id: p.id }} className="flex-1 inline-flex items-center justify-center gap-1 text-xs font-medium bg-secondary rounded-full py-2 hover:bg-secondary/70">
                     <Pencil className="size-3" /> Editar
                   </Link>
-                  <a href={`/g/${p.slug}`} target="_blank" rel="noreferrer" className="flex-1 inline-flex items-center justify-center gap-1 text-xs font-medium bg-secondary rounded-full py-2 hover:bg-secondary/70">
+                  <button type="button" onClick={() => setViewSlug(p.slug)} className="flex-1 inline-flex items-center justify-center gap-1 text-xs font-medium bg-secondary rounded-full py-2 hover:bg-secondary/70">
                     <ExternalLink className="size-3" /> Ver
-                  </a>
+                  </button>
                   <button
                     onClick={() => handleCopyLink(p.slug, p.id)}
                     title="Copiar link público"
@@ -246,9 +258,9 @@ function Dashboard() {
                 <Link to="/admin/properties/$id" params={{ id: p.id }} className="size-8 grid place-items-center rounded-full hover:bg-secondary" aria-label="Editar">
                   <Pencil className="size-3.5" />
                 </Link>
-                <a href={`/g/${p.slug}`} target="_blank" rel="noreferrer" className="size-8 grid place-items-center rounded-full hover:bg-secondary" aria-label="Ver">
+                <button type="button" onClick={() => setViewSlug(p.slug)} className="size-8 grid place-items-center rounded-full hover:bg-secondary" aria-label="Ver">
                   <ExternalLink className="size-3.5" />
-                </a>
+                </button>
                 <button onClick={() => handleDelete(p.id, p.name)} className="size-8 grid place-items-center rounded-full hover:bg-destructive/10 text-muted-foreground hover:text-destructive" aria-label="Excluir">
                   <Trash2 className="size-3.5" />
                 </button>
@@ -257,6 +269,45 @@ function Dashboard() {
           ))}
         </div>
       )}
+
+      <Dialog open={viewSlug !== null} onOpenChange={(o) => { if (!o) setViewSlug(null); }}>
+        <DialogContent className="p-0 gap-0 overflow-hidden sm:max-w-[420px] w-[min(92vw,420px)]">
+          <DialogTitle className="sr-only">Como deseja visualizar?</DialogTitle>
+          <div className="p-6 bg-background">
+            <div className="text-center mb-5">
+              <h3 className="font-serif text-xl">Como deseja visualizar?</h3>
+              <p className="text-xs text-muted-foreground mt-1">Escolha como abrir o guia.</p>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => viewSlug && openGuide(viewSlug, "mobile")}
+                className="group flex flex-col items-center gap-2 rounded-2xl border border-border bg-card hover:border-foreground/40 hover:bg-secondary/40 transition-colors p-5"
+              >
+                <div className="w-10 h-14 rounded-md border-2 border-foreground/70 group-hover:border-foreground transition-colors" />
+                <span className="text-sm font-medium">Mobile</span>
+                <span className="text-[11px] text-muted-foreground">Tela do celular</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => viewSlug && openGuide(viewSlug, "desktop")}
+                className="group flex flex-col items-center gap-2 rounded-2xl border border-border bg-card hover:border-foreground/40 hover:bg-secondary/40 transition-colors p-5"
+              >
+                <div className="w-14 h-10 rounded-md border-2 border-foreground/70 group-hover:border-foreground transition-colors" />
+                <span className="text-sm font-medium">Navegador</span>
+                <span className="text-[11px] text-muted-foreground">Tela ampla</span>
+              </button>
+            </div>
+            <button
+              type="button"
+              onClick={() => setViewSlug(null)}
+              className="mt-5 w-full text-xs text-muted-foreground hover:text-foreground transition-colors"
+            >
+              Cancelar
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
