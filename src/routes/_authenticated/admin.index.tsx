@@ -258,9 +258,9 @@ function Dashboard() {
                 <Link to="/admin/properties/$id" params={{ id: p.id }} className="size-8 grid place-items-center rounded-full hover:bg-secondary" aria-label="Editar">
                   <Pencil className="size-3.5" />
                 </Link>
-                <a href={`/g/${p.slug}`} target="_blank" rel="noreferrer" className="size-8 grid place-items-center rounded-full hover:bg-secondary" aria-label="Ver">
+                <button type="button" onClick={() => setViewSlug(p.slug)} className="size-8 grid place-items-center rounded-full hover:bg-secondary" aria-label="Ver">
                   <ExternalLink className="size-3.5" />
-                </a>
+                </button>
                 <button onClick={() => handleDelete(p.id, p.name)} className="size-8 grid place-items-center rounded-full hover:bg-destructive/10 text-muted-foreground hover:text-destructive" aria-label="Excluir">
                   <Trash2 className="size-3.5" />
                 </button>
