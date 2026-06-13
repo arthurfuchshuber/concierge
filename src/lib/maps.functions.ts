@@ -279,10 +279,20 @@ export const enrichFromMapsLink = createServerFn({ method: "POST" })
     }
 
     // Filtros de qualidade para recomendações
-    const MIN_RATING = 4.3;
-    const MIN_REVIEWS_NEARBY = 100;
-    const MIN_REVIEWS_CITY = 400;
-    const MAX_PER_TYPE = 5;
+    const MIN_RATING = 4.2;
+    // Thresholds por tipo: serviços do dia-a-dia precisam de menos reviews;
+    // restaurantes/bares/atrações são abundantes — exigem mais para ser "referência".
+    const NEARBY_MIN_REVIEWS: Record<string, number> = {
+      restaurant: 80, bar: 50, cafe: 40, nightlife: 60,
+      attraction: 80, beach: 50, park: 40,
+      market: 25, pharmacy: 20, shopping: 60,
+    };
+    const CITY_MIN_REVIEWS: Record<string, number> = {
+      restaurant: 300, bar: 200, cafe: 200, nightlife: 200,
+      attraction: 300, beach: 150, park: 150,
+      market: 100, pharmacy: 80, shopping: 200,
+    };
+    const MAX_PER_TYPE = 8;
 
     const isQuality = (p: PlaceRaw, minReviews: number) =>
       typeof p.rating === "number" &&
@@ -299,52 +309,68 @@ export const enrichFromMapsLink = createServerFn({ method: "POST" })
       return t.length > 240 ? t.slice(0, 237).trimEnd() + "…" : t;
     };
 
+    const normalizeName = (s: string) =>
+      s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, " ").trim();
+
     const recommendations: PlaceItem[] = [];
-    const seen = new Set<string>();
+    const seenIds = new Set<string>();
+    const seenNames = new Set<string>();
+
+    const push = (p: PlaceRaw, cat: typeof TYPE_MAP[number], scope: "nearby" | "city") => {
+      if (!p.id || !p.location) return;
+      if (seenIds.has(p.id)) return;
+      const nm = normalizeName(p.displayName?.text ?? "");
+      if (!nm || seenNames.has(nm)) return;
+      seenIds.add(p.id);
+      seenNames.add(nm);
+      const dist = haversineMeters(coords!, { lat: p.location.latitude, lng: p.location.longitude });
+      const { text, driveMin } = formatDistance(dist);
+      recommendations.push({
+        place_id: p.id,
+        name: p.displayName?.text ?? "Sem nome",
+        rating: typeof p.rating === "number" ? Number(p.rating.toFixed(1)) : null,
+        user_ratings_total: typeof p.userRatingCount === "number" ? p.userRatingCount : null,
+        category: cat.category,
+        type: cat.type,
+        scope,
+        lat: p.location.latitude,
+        lng: p.location.longitude,
+        distance_meters: dist,
+        distance_text: text,
+        drive_minutes: driveMin,
+        image_url: buildPhotoUrl(p.photos?.[0]?.name),
+        maps_url: p.googleMapsUri ?? `https://www.google.com/maps/search/?api=1&query_place_id=${p.id}`,
+        note: buildNote(p),
+      });
+    };
 
     // 1) Nearby por categoria
     for (const cat of TYPE_MAP) {
+      const min = NEARBY_MIN_REVIEWS[cat.type] ?? 40;
       const items = (await placesNearby(coords.lat, coords.lng, cat.placesTypes))
         .filter((p) => matchesCategory(p, cat.acceptedPrimaryTypes))
-        .filter((p) => isQuality(p, MIN_REVIEWS_NEARBY))
-        .sort((a, b) => (b.userRatingCount ?? 0) - (a.userRatingCount ?? 0))
+        .filter((p) => isQuality(p, min))
+        .sort((a, b) => {
+          const ra = a.rating ?? 0;
+          const rb = b.rating ?? 0;
+          if (rb !== ra) return rb - ra;
+          return (b.userRatingCount ?? 0) - (a.userRatingCount ?? 0);
+        })
         .slice(0, MAX_PER_TYPE);
-      for (const p of items) {
-        if (!p.id || !p.location || seen.has(p.id)) continue;
-        seen.add(p.id);
-        const dist = haversineMeters(coords, { lat: p.location.latitude, lng: p.location.longitude });
-        const { text, driveMin } = formatDistance(dist);
-        recommendations.push({
-          place_id: p.id,
-          name: p.displayName?.text ?? "Sem nome",
-          rating: typeof p.rating === "number" ? Number(p.rating.toFixed(1)) : null,
-          user_ratings_total: typeof p.userRatingCount === "number" ? p.userRatingCount : null,
-          category: cat.category,
-          type: cat.type,
-          scope: "nearby",
-          lat: p.location.latitude,
-          lng: p.location.longitude,
-          distance_meters: dist,
-          distance_text: text,
-          drive_minutes: driveMin,
-          image_url: buildPhotoUrl(p.photos?.[0]?.name),
-          maps_url: p.googleMapsUri ?? `https://www.google.com/maps/search/?api=1&query_place_id=${p.id}`,
-          note: buildNote(p),
-        });
-      }
+      for (const p of items) push(p, cat, "nearby");
     }
 
-    // 2) City-wide: só categorias mais "destino" e top-rated
-    const CITY_CATS = TYPE_MAP.filter((c) => ["restaurant", "bar", "cafe", "beach", "attraction", "nightlife"].includes(c.type));
+    // 2) City-wide: agora cobre todas as categorias (incluindo mercados e farmácias)
     if (city) {
-      for (const cat of CITY_CATS) {
+      for (const cat of TYPE_MAP) {
+        const min = CITY_MIN_REVIEWS[cat.type] ?? 150;
         const primary = cat.placesTypes[0];
         const items = (await placesText(`melhores ${cat.category.toLowerCase()} em ${city}`, coords.lat, coords.lng, primary))
-          .filter((p) => !seen.has(p.id) && matchesCategory(p, cat.acceptedPrimaryTypes) && isQuality(p, MIN_REVIEWS_CITY))
+          .filter((p) => matchesCategory(p, cat.acceptedPrimaryTypes) && isQuality(p, min))
           .filter((p) => {
             if (!p.location) return false;
-            const d = haversineMeters(coords, { lat: p.location.latitude, lng: p.location.longitude });
-            return d >= 1500; // já não cabe em nearby
+            const d = haversineMeters(coords!, { lat: p.location.latitude, lng: p.location.longitude });
+            return d >= 1500;
           })
           .sort((a, b) => {
             const ra = a.rating ?? 0;
@@ -353,29 +379,7 @@ export const enrichFromMapsLink = createServerFn({ method: "POST" })
             return (b.userRatingCount ?? 0) - (a.userRatingCount ?? 0);
           })
           .slice(0, MAX_PER_TYPE);
-        for (const p of items) {
-          if (!p.id || !p.location) continue;
-          const dist = haversineMeters(coords, { lat: p.location.latitude, lng: p.location.longitude });
-          seen.add(p.id);
-          const { text, driveMin } = formatDistance(dist);
-          recommendations.push({
-            place_id: p.id,
-            name: p.displayName?.text ?? "Sem nome",
-            rating: typeof p.rating === "number" ? Number(p.rating.toFixed(1)) : null,
-            user_ratings_total: typeof p.userRatingCount === "number" ? p.userRatingCount : null,
-            category: cat.category,
-            type: cat.type,
-            scope: "city",
-            lat: p.location.latitude,
-            lng: p.location.longitude,
-            distance_meters: dist,
-            distance_text: text,
-            drive_minutes: driveMin,
-            image_url: buildPhotoUrl(p.photos?.[0]?.name),
-            maps_url: p.googleMapsUri ?? `https://www.google.com/maps/search/?api=1&query_place_id=${p.id}`,
-            note: buildNote(p),
-          });
-        }
+        for (const p of items) push(p, cat, "city");
       }
     }
 
