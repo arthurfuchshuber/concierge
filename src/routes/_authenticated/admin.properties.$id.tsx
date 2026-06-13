@@ -302,17 +302,15 @@ function PropertyEditor() {
   const cityRecs = form.recommendations.filter((r) => r.scope === "city");
 
   return (
-    <div className="max-w-4xl mx-auto px-6 py-8 pb-32">
+    <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 sm:py-8 pb-40 sm:pb-32">
       <Link to="/admin" className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground mb-4">
         <ArrowLeft className="size-3.5" /> Voltar
       </Link>
-      <div className="flex items-end justify-between gap-4 mb-8">
-        <div>
-          <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground font-semibold mb-2">
-            {isNew ? "Novo guia" : "Editar guia"}
-          </p>
-          <h1 className="font-serif text-4xl">{form.property.name || "Sem título"}</h1>
-        </div>
+      <div className="mb-6 sm:mb-8">
+        <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground font-semibold mb-2">
+          {isNew ? "Novo guia" : "Editar guia"}
+        </p>
+        <h1 className="font-serif text-2xl sm:text-4xl break-words leading-tight">{form.property.name || "Sem título"}</h1>
       </div>
 
       <Tabs value={step} onValueChange={setStep}>
