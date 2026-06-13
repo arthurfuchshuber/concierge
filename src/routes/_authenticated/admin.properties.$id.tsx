@@ -583,16 +583,31 @@ function PropertyEditor() {
       </Tabs>
 
       {form.property.slug && (
-        <a
-          href={`/g/${form.property.slug}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          title="Pré-visualizar guia em nova aba"
-          aria-label="Pré-visualizar guia"
-          className="fixed right-4 bottom-24 sm:bottom-24 z-40 inline-flex items-center justify-center size-12 rounded-full bg-primary text-primary-foreground shadow-lg hover:scale-105 transition-transform"
-        >
-          <Eye className="size-5" />
-        </a>
+        <>
+          <button
+            type="button"
+            onClick={() => setPreviewOpen(true)}
+            title="Pré-visualizar guia"
+            aria-label="Pré-visualizar guia"
+            className="fixed right-3 bottom-24 z-40 inline-flex items-center justify-center size-9 rounded-full bg-background/70 backdrop-blur border border-border text-muted-foreground hover:text-foreground hover:bg-background transition-colors"
+          >
+            <Eye className="size-4" />
+          </button>
+          <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
+            <DialogContent className="p-0 max-w-md sm:max-w-lg h-[85vh] gap-0 overflow-hidden">
+              <DialogHeader className="px-4 py-2.5 border-b border-border">
+                <DialogTitle className="text-xs font-medium text-muted-foreground">Pré-visualização — /g/{form.property.slug}</DialogTitle>
+              </DialogHeader>
+              {previewOpen && (
+                <iframe
+                  src={`/g/${form.property.slug}`}
+                  title="Pré-visualização do guia"
+                  className="w-full flex-1 border-0 bg-background"
+                />
+              )}
+            </DialogContent>
+          </Dialog>
+        </>
       )}
 
 
