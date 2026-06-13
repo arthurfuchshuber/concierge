@@ -340,17 +340,16 @@ function PropertyEditor() {
             <Field label="Tagline" hint="Frase curta abaixo do título">
               <Input value={form.property.tagline} maxLength={200} onChange={(e) => update("tagline", e.target.value)} />
             </Field>
-            <Field label="Fotos da residência" hint="Até 4 fotos. A primeira é a capa. URLs preenchidas automaticamente pelo Auto-preencher.">
+            <Field label="Fotos da residência" hint="Até 4 fotos. A primeira é a capa. Você também pode usar o Auto-preencher abaixo para importar as 4 primeiras fotos do link do Google Maps.">
               <GalleryEditor
                 value={form.property.gallery_images}
-                heroFallback={form.property.hero_image_url}
                 onChange={(next) => {
                   setForm((f) => ({
                     ...f,
                     property: {
                       ...f.property,
                       gallery_images: next,
-                      hero_image_url: next[0] ?? f.property.hero_image_url,
+                      hero_image_url: next[0] ?? "",
                     },
                   }));
                 }}
