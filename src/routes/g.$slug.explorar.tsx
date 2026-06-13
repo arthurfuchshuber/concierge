@@ -152,6 +152,38 @@ function formatDriving(r: Rec): string | null {
   return null;
 }
 
+// Google retorna `weekdayDescriptions` começando por segunda-feira (índice 0).
+// JS Date.getDay(): 0 = domingo … 6 = sábado. Mapeia para o índice do array.
+function todayOpening(hours: string[] | null | undefined): string | null {
+  if (!hours || hours.length === 0) return null;
+  const jsDay = new Date().getDay(); // 0..6, dom..sáb
+  const idx = (jsDay + 6) % 7; // 0 = seg
+  const line = hours[idx] ?? hours[0];
+  if (!line) return null;
+  // Remove rótulo do dia ("Monday: 09:00 – 18:00" → "09:00 – 18:00").
+  const i = line.indexOf(":");
+  return i > 0 && i < 12 ? line.slice(i + 1).trim() : line;
+}
+
+function OpeningHours({ hours }: { hours: string[] | null | undefined }) {
+  const today = todayOpening(hours);
+  if (!today) return null;
+  return (
+    <details className="group/oh text-[11.5px] text-muted-foreground">
+      <summary className="inline-flex items-center gap-1.5 cursor-pointer list-none hover:text-foreground transition-colors">
+        <Clock className="size-3.5" strokeWidth={1.75} />
+        <span className="truncate max-w-[28ch]">Hoje: {today}</span>
+      </summary>
+      <ul className="mt-1.5 ml-5 space-y-0.5 text-[11px] leading-relaxed">
+        {(hours ?? []).map((h, i) => (
+          <li key={i} className="text-muted-foreground/85">{h}</li>
+        ))}
+      </ul>
+    </details>
+  );
+}
+
+
 type SortKey = "distance" | "rating" | "alpha";
 
 function sortRecs(list: Rec[], by: SortKey): Rec[] {
