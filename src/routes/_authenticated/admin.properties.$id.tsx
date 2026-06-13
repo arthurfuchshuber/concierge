@@ -355,34 +355,25 @@ function PropertyEditor() {
                 }}
               />
             </Field>
-            <Field label="Imagens das categorias" hint="Cole a URL de uma imagem para cada categoria do guia público. Deixe em branco para usar a foto da capa.">
-              <div className="space-y-2">
+            <Field label="Imagens das categorias" hint="Envie uma imagem para cada categoria do guia público. Deixe em branco para usar a foto da capa.">
+              <div className="grid grid-cols-2 gap-3">
                 {([
                   { k: "checkin", label: "Chegada & Saída" },
                   { k: "residencia", label: "A Residência" },
                   { k: "faq", label: "Dúvidas Frequentes" },
                   { k: "explore", label: "Explore a Região" },
-                ] as const).map(({ k, label }) => {
-                  const url = form.property.theme_images[k];
-                  return (
-                    <div key={k} className="flex items-center gap-2">
-                      <div className="size-12 shrink-0 rounded-lg border border-border bg-muted/40 overflow-hidden">
-                        {url ? <img src={url} alt="" className="size-full object-cover" /> : (
-                          <div className="size-full grid place-items-center text-[9px] text-muted-foreground uppercase tracking-wider">—</div>
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-1">{label}</p>
-                        <Input
-                          value={url}
-                          onChange={(e) => setForm((f) => ({ ...f, property: { ...f.property, theme_images: { ...f.property.theme_images, [k]: e.target.value } } }))}
-                          placeholder="https://..."
-                          className="text-xs h-8"
-                        />
-                      </div>
-                    </div>
-                  );
-                })}
+                ] as const).map(({ k, label }) => (
+                  <div key={k}>
+                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-1.5">{label}</p>
+                    <ImageUpload
+                      value={form.property.theme_images[k]}
+                      folder={`themes/${k}`}
+                      aspect="video"
+                      placeholder="Enviar foto"
+                      onChange={(url) => setForm((f) => ({ ...f, property: { ...f.property, theme_images: { ...f.property.theme_images, [k]: url } } }))}
+                    />
+                  </div>
+                ))}
               </div>
             </Field>
           </Section>
