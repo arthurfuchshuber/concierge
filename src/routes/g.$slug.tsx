@@ -231,7 +231,12 @@ function Guide({ data }: { data: GuideOk }) {
               <div className="space-y-2.5 md:space-y-0 md:grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 md:gap-4">
                 {cards.map((c) =>
                   c.to?.kind === "link" ? (
-                    <Link key={c.key} to={c.to.to as any}>
+                    <Link
+                      key={c.key}
+                      to="/g/$slug/explorar"
+                      params={{ slug }}
+                      className="block"
+                    >
                       <ThemeCard title={c.title} desc={c.desc} icon={c.icon} image={c.image} theme={theme} />
                     </Link>
                   ) : (
