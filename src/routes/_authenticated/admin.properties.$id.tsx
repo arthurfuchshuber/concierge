@@ -355,27 +355,6 @@ function PropertyEditor() {
                 }}
               />
             </Field>
-            <Field label="Imagens das categorias" hint="Envie uma imagem para cada categoria do guia público. Deixe em branco para usar a foto da capa.">
-              <div className="grid grid-cols-2 gap-3">
-                {([
-                  { k: "checkin", label: "Chegada & Saída" },
-                  { k: "residencia", label: "A Residência" },
-                  { k: "faq", label: "Dúvidas Frequentes" },
-                  { k: "explore", label: "Explore a Região" },
-                ] as const).map(({ k, label }) => (
-                  <div key={k}>
-                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-1.5">{label}</p>
-                    <ImageUpload
-                      value={form.property.theme_images[k]}
-                      folder={`themes/${k}`}
-                      aspect="video"
-                      placeholder="Enviar foto"
-                      onChange={(url) => setForm((f) => ({ ...f, property: { ...f.property, theme_images: { ...f.property.theme_images, [k]: url } } }))}
-                    />
-                  </div>
-                ))}
-              </div>
-            </Field>
           </Section>
 
 
