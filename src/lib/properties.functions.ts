@@ -62,7 +62,7 @@ export const listMyProperties = createServerFn({ method: "GET" })
       .from("properties")
       .select("id, slug, name, tagline, hero_image_url, gallery_images, access_mode, pin_expires_at, published, city, country, updated_at")
       .order("updated_at", { ascending: false });
-    if (error) throw new Error(error.message);
+    if (error) throw (await import("@/lib/db-errors.server")).safeDbError("properties", error);
     return data ?? [];
   });
 
@@ -78,7 +78,7 @@ export const getMyProperty = createServerFn({ method: "POST" })
       context.supabase.from("property_faqs").select("*").eq("property_id", data.id).order("position"),
       context.supabase.from("property_checkout_items").select("*").eq("property_id", data.id).order("position"),
     ]);
-    if (p.error) throw new Error(p.error.message);
+    if (p.error) throw (await import("@/lib/db-errors.server")).safeDbError("properties", p.error);
     return {
       property: p.data,
       manual: manual.data ?? [],
@@ -123,14 +123,14 @@ export const upsertProperty = createServerFn({ method: "POST" })
         .from("properties")
         .update({ ...data.property })
         .eq("id", propertyId);
-      if (error) throw new Error(error.message);
+      if (error) throw (await import("@/lib/db-errors.server")).safeDbError("properties", error);
     } else {
       const { data: inserted, error } = await supabase
         .from("properties")
         .insert({ ...data.property, owner_id: userId })
         .select("id")
         .single();
-      if (error) throw new Error(error.message);
+      if (error) throw (await import("@/lib/db-errors.server")).safeDbError("properties", error);
       propertyId = inserted.id;
     }
 
@@ -147,27 +147,27 @@ export const upsertProperty = createServerFn({ method: "POST" })
     if (data.recommendations.length) {
       const rows = data.recommendations.map((r, i) => ({ ...r, property_id: id, position: i }));
       const { error } = await supabase.from("property_recommendations").insert(rows);
-      if (error) throw new Error(error.message);
+      if (error) throw (await import("@/lib/db-errors.server")).safeDbError("properties", error);
     }
     if (data.manual.length) {
       const rows = data.manual.map((m, i) => ({ ...m, property_id: id, position: i }));
       const { error } = await supabase.from("property_manual_items").insert(rows);
-      if (error) throw new Error(error.message);
+      if (error) throw (await import("@/lib/db-errors.server")).safeDbError("properties", error);
     }
     if (data.emergency.length) {
       const rows = data.emergency.map((m, i) => ({ ...m, property_id: id, position: i }));
       const { error } = await supabase.from("property_emergency_contacts").insert(rows);
-      if (error) throw new Error(error.message);
+      if (error) throw (await import("@/lib/db-errors.server")).safeDbError("properties", error);
     }
     if (data.faqs.length) {
       const rows = data.faqs.map((m, i) => ({ ...m, property_id: id, position: i }));
       const { error } = await supabase.from("property_faqs").insert(rows);
-      if (error) throw new Error(error.message);
+      if (error) throw (await import("@/lib/db-errors.server")).safeDbError("properties", error);
     }
     if (data.checkout.length) {
       const rows = data.checkout.map((m, i) => ({ ...m, property_id: id, position: i }));
       const { error } = await supabase.from("property_checkout_items").insert(rows);
-      if (error) throw new Error(error.message);
+      if (error) throw (await import("@/lib/db-errors.server")).safeDbError("properties", error);
     }
     return { id };
   });
@@ -177,6 +177,6 @@ export const deleteProperty = createServerFn({ method: "POST" })
   .inputValidator((i: unknown) => z.object({ id: z.string().uuid() }).parse(i))
   .handler(async ({ data, context }) => {
     const { error } = await context.supabase.from("properties").delete().eq("id", data.id);
-    if (error) throw new Error(error.message);
+    if (error) throw (await import("@/lib/db-errors.server")).safeDbError("properties", error);
     return { ok: true };
   });
