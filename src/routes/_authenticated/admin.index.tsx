@@ -22,8 +22,22 @@ function Dashboard() {
   const [view, setView] = useState<"grid" | "list">("grid");
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
+  function getPublicBaseUrl() {
+    if (typeof window === "undefined") return "";
+    const { origin, hostname } = window.location;
+    // Sandbox/preview hosts -> use stable published URL
+    if (
+      hostname.endsWith(".lovableproject.com") ||
+      hostname.includes("id-preview--") ||
+      hostname.endsWith(".lovable.dev")
+    ) {
+      return "https://home-welcome-compass.lovable.app";
+    }
+    return origin;
+  }
+
   async function handleCopyLink(slug: string, id: string) {
-    const url = `${window.location.origin}/g/${slug}`;
+    const url = `${getPublicBaseUrl()}/g/${slug}`;
     try {
       await navigator.clipboard.writeText(url);
       setCopiedId(id);
