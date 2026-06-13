@@ -197,6 +197,9 @@ function PropertyEditor() {
         distance_text: (r.distance_text as string) ?? null,
         distance_meters: (r.distance_meters as number) ?? null,
         drive_minutes: (r.drive_minutes as number) ?? null,
+        walk_minutes: (r.walk_minutes as number) ?? null,
+        opening_hours: (r.opening_hours as string[]) ?? null,
+
         note: (r.note as string) ?? null,
         image_url: (r.image_url as string) ?? null,
         maps_url: (r.maps_url as string) ?? null,
