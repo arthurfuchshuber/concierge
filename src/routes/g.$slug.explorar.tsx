@@ -575,7 +575,7 @@ function RecCard({ rec }: { rec: Rec }) {
         )}
 
         {(walking || driving) && (
-          <div className="mt-auto pt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-[11.5px] text-muted-foreground">
+          <div className="pt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-[11.5px] text-muted-foreground">
             {walking && (
               <span className="inline-flex items-center gap-1.5">
                 <Footprints className="size-3.5" strokeWidth={1.75} />
@@ -590,7 +590,12 @@ function RecCard({ rec }: { rec: Rec }) {
             )}
           </div>
         )}
+
+        <div className="mt-auto pt-1">
+          <OpeningHours hours={rec.opening_hours} />
+        </div>
       </div>
+
     </div>
   );
 
