@@ -397,6 +397,7 @@ function ViewToggle({
   );
 }
 
+function SortBar({ sortBy, setSortBy }: { sortBy: SortKey; setSortBy: (s: SortKey) => void }) {
   const opts: { key: SortKey; label: string }[] = [
     { key: "distance", label: "Distância" },
     { key: "rating", label: "Avaliação" },
@@ -435,10 +436,12 @@ function Section({
   eyebrow,
   title,
   items,
+  viewMode,
 }: {
   eyebrow: string;
   title: string;
   items: Rec[];
+  viewMode: "grid" | "list";
 }) {
   return (
     <section>
@@ -449,14 +452,23 @@ function Section({
         </div>
         <h3 className="font-serif text-[1.55rem] md:text-[1.85rem] leading-tight">{title}</h3>
       </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {items.map((rec) => (
-          <RecCard key={rec.id} rec={rec} />
-        ))}
-      </div>
+      {viewMode === "grid" ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {items.map((rec) => (
+            <RecCard key={rec.id} rec={rec} />
+          ))}
+        </div>
+      ) : (
+        <div className="flex flex-col gap-3">
+          {items.map((rec) => (
+            <RecRow key={rec.id} rec={rec} />
+          ))}
+        </div>
+      )}
     </section>
   );
 }
+
 
 function RecCard({ rec }: { rec: Rec }) {
   const walking = formatWalking(rec);
