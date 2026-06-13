@@ -88,7 +88,7 @@ function RecBlock({ title, desc, items }: { title: string; desc: string; items: 
               <p className="text-[10px] uppercase tracking-[0.24em] text-muted-foreground font-semibold">{cat}</p>
               <span className="h-px flex-1 bg-border" />
             </div>
-            <div className="space-y-3">
+            <div className="space-y-3 md:space-y-0 md:grid md:grid-cols-2 md:gap-3">
               {list.map((r) => (
                 <a key={r.id} href={r.maps_url ?? "#"} target="_blank" rel="noreferrer"
                   className="group flex items-stretch gap-3.5 bg-card border border-border rounded-2xl p-3 active:scale-[0.99] transition-all hover:border-accent/40">
