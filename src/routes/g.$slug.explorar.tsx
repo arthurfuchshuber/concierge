@@ -38,7 +38,7 @@ function ExplorePage() {
   const city = r.recommendations.filter((x: any) => x.scope === "city");
   return (
     <div className="guide-ambient min-h-screen bg-background text-foreground pb-20">
-      <div className="mx-auto w-full max-w-md md:max-w-3xl lg:max-w-5xl px-5 md:px-10 pt-5 md:pt-10">
+      <div className="mx-auto w-full max-w-md md:max-w-none px-5 md:px-10 lg:px-16 pt-5 md:pt-10">
         <Link
           to="/g/$slug"
           params={{ slug }}
