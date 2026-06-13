@@ -22,6 +22,17 @@ function Dashboard() {
   const navigate = useNavigate();
   const [view, setView] = useState<"grid" | "list">("grid");
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [viewSlug, setViewSlug] = useState<string | null>(null);
+
+  function openGuide(slug: string, mode: "mobile" | "desktop") {
+    const url = `${getPublicBaseUrl()}/g/${slug}`;
+    if (mode === "mobile") {
+      window.open(url, "_blank", "noopener,noreferrer,width=420,height=860");
+    } else {
+      window.open(url, "_blank", "noopener,noreferrer");
+    }
+    setViewSlug(null);
+  }
 
   function getPublicBaseUrl() {
     if (typeof window === "undefined") return "";
