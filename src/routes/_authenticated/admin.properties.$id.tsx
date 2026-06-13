@@ -348,6 +348,8 @@ function PropertyEditor() {
 
   const nearbyRecs = form.recommendations.filter((r) => r.scope === "nearby");
   const cityRecs = form.recommendations.filter((r) => r.scope === "city");
+  const savedSlug = !isNew ? ((data?.property as Record<string, unknown> | undefined)?.slug as string | undefined) : undefined;
+  const previewSlug = savedSlug || form.property.slug;
 
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6 sm:py-10 pb-40 sm:pb-32">
@@ -631,7 +633,7 @@ function PropertyEditor() {
         </TabsContent>
       </Tabs>
 
-      {form.property.slug && (
+      {previewSlug && (
         <>
           <button
             type="button"
@@ -693,7 +695,7 @@ function PropertyEditor() {
                     <div className="flex items-center gap-2 min-w-0">
                       <span className="inline-flex size-1.5 rounded-full bg-emerald-500/80" />
                       <p className="text-[11px] font-medium text-muted-foreground/80 truncate">
-                        /g/{form.property.slug}
+                        /g/{previewSlug}
                       </p>
                     </div>
                     <div className="flex items-center gap-1">
@@ -716,7 +718,7 @@ function PropertyEditor() {
                     </div>
                   </div>
                   <iframe
-                    src={`/g/${form.property.slug}`}
+                    src={`/g/${previewSlug}`}
                     title="Pré-visualização do guia"
                     className="w-full flex-1 border-0 bg-background"
                   />
