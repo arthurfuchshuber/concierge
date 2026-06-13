@@ -238,7 +238,10 @@ function ExplorePage() {
             city={sortRecs(active.city, sortBy)}
             sortBy={sortBy}
             setSortBy={setSortBy}
+            viewMode={viewMode}
+            setViewMode={setViewMode}
           />
+
         )}
 
         {categories.length === 0 && (
