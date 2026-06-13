@@ -28,6 +28,7 @@ type RecItem = {
   name: string;
   category?: string | null;
   rating?: number | null;
+  user_ratings_total?: number | null;
   distance_text?: string | null;
   distance_meters?: number | null;
   drive_minutes?: number | null;
@@ -36,6 +37,7 @@ type RecItem = {
   maps_url?: string | null;
   place_id?: string | null;
 };
+
 
 type FormState = {
   property: {
