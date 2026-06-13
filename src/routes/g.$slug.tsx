@@ -216,7 +216,7 @@ function Guide({ data }: { data: GuideOk }) {
 
 
             <div className="px-5 md:px-10 lg:px-16 -mt-20 md:-mt-24 relative z-10 mb-4 md:mb-6">
-              <WifiStrip ssid={p.wifi_ssid} password={p.wifi_password} />
+              <WifiStrip ssid={p.wifi_ssid} password={p.wifi_password} theme={theme} />
             </div>
 
             <section id="guide-actions" className="px-5 md:px-10 lg:px-16 relative z-10">
@@ -231,7 +231,7 @@ function Guide({ data }: { data: GuideOk }) {
                 {cards.map((c) =>
                   c.to?.kind === "link" ? (
                     <Link key={c.key} to={c.to.to as any}>
-                      <ThemeCard title={c.title} desc={c.desc} icon={c.icon} image={c.image} />
+                      <ThemeCard title={c.title} desc={c.desc} icon={c.icon} image={c.image} theme={theme} />
                     </Link>
                   ) : (
                     <button
@@ -239,7 +239,7 @@ function Guide({ data }: { data: GuideOk }) {
                       onClick={() => c.to?.kind === "section" && setSection(c.to.value)}
                       className="w-full text-left"
                     >
-                      <ThemeCard title={c.title} desc={c.desc} icon={c.icon} image={c.image} />
+                      <ThemeCard title={c.title} desc={c.desc} icon={c.icon} image={c.image} theme={theme} />
                     </button>
                   ),
                 )}
@@ -566,8 +566,11 @@ function HeroCompact({
   return (
     <section className="relative min-h-[360px] md:min-h-[480px] overflow-hidden px-5 md:px-10 lg:px-16 pb-16 md:pb-24 pt-4 md:pt-8">
       {image && <img src={image} alt="" className="absolute inset-0 size-full object-cover object-[62%_50%] opacity-95" />}
+      {/* darken photo for legibility (always dark on photo) */}
       <div className="absolute inset-0 bg-[linear-gradient(90deg,oklch(0.02_0.004_40/0.94)_0%,oklch(0.02_0.004_40/0.7)_42%,oklch(0.02_0.004_40/0.18)_100%)]" />
       <div className="absolute inset-0 bg-[linear-gradient(180deg,oklch(0.02_0.004_40/0.68)_0%,transparent_34%,oklch(0.02_0.004_40/0.78)_82%,oklch(0.02_0.004_40)_100%)]" />
+      {/* bottom fade INTO the page background so the transition is seamless in any theme */}
+      <div className="absolute inset-x-0 bottom-0 h-32 md:h-40 bg-[linear-gradient(180deg,transparent_0%,var(--background)_100%)]" />
 
       <header className="relative z-10 flex items-center justify-between">
         <div className="flex items-center gap-2">
@@ -608,24 +611,48 @@ function HeroCompact({
 }
 
 function ThemeCard({
-  title, desc, icon, image,
+  title, desc, icon, image, theme,
 }: {
-  title: string; desc: string; icon: React.ReactNode; image?: string;
+  title: string; desc: string; icon: React.ReactNode; image?: string; theme: "dark" | "light";
 }) {
+  const isLight = theme === "light";
   return (
-    <div className="group relative min-h-[112px] overflow-hidden rounded-2xl border border-accent/35 bg-card transition-all duration-500 ease-out hover:border-transparent hover:shadow-[0_0_0_1px_oklch(from_var(--accent)_l_c_h/0.25),0_10px_40px_-8px_oklch(from_var(--accent)_l_c_h/0.45),0_0_60px_-10px_oklch(from_var(--accent)_l_c_h/0.35)] hover:-translate-y-0.5 active:scale-[0.99] active:translate-y-0">
-      {image && <img src={image} alt="" className="absolute inset-0 size-full object-cover opacity-70 transition-transform duration-500 group-hover:scale-105" />}
-      <div className="absolute inset-0 bg-[linear-gradient(90deg,oklch(0.02_0.004_40/0.96)_0%,oklch(0.02_0.004_40/0.78)_38%,oklch(0.02_0.004_40/0.28)_72%,oklch(0.02_0.004_40/0.55)_100%)]" />
-      <div className="absolute inset-0 bg-[linear-gradient(180deg,oklch(0.02_0.004_40/0.1),oklch(0.02_0.004_40/0.55))]" />
+    <div className="group relative min-h-[112px] overflow-hidden rounded-2xl border border-accent/30 bg-card transition-all duration-500 ease-out hover:border-transparent hover:shadow-[0_0_0_1px_oklch(from_var(--accent)_l_c_h/0.25),0_10px_40px_-8px_oklch(from_var(--accent)_l_c_h/0.45),0_0_60px_-10px_oklch(from_var(--accent)_l_c_h/0.35)] hover:-translate-y-0.5 active:scale-[0.99] active:translate-y-0">
+      {image && (
+        <img
+          src={image}
+          alt=""
+          className={`absolute inset-0 size-full object-cover transition-transform duration-500 group-hover:scale-105 ${
+            isLight ? "opacity-25" : "opacity-70"
+          }`}
+        />
+      )}
+      {isLight ? (
+        <>
+          <div className="absolute inset-0 bg-[linear-gradient(90deg,oklch(from_var(--card)_l_c_h/0.98)_0%,oklch(from_var(--card)_l_c_h/0.9)_45%,oklch(from_var(--card)_l_c_h/0.7)_80%,oklch(from_var(--card)_l_c_h/0.88)_100%)]" />
+          <div className="absolute inset-0 bg-[linear-gradient(180deg,oklch(from_var(--card)_l_c_h/0.4),oklch(from_var(--card)_l_c_h/0.85))]" />
+        </>
+      ) : (
+        <>
+          <div className="absolute inset-0 bg-[linear-gradient(90deg,oklch(0.02_0.004_40/0.96)_0%,oklch(0.02_0.004_40/0.78)_38%,oklch(0.02_0.004_40/0.28)_72%,oklch(0.02_0.004_40/0.55)_100%)]" />
+          <div className="absolute inset-0 bg-[linear-gradient(180deg,oklch(0.02_0.004_40/0.1),oklch(0.02_0.004_40/0.55))]" />
+        </>
+      )}
       <div className="relative flex min-h-[112px] items-center gap-4 px-4 py-3.5 pr-14">
-        <span className="grid size-11 shrink-0 place-items-center rounded-full border border-accent/45 bg-background/20 text-accent backdrop-blur-sm">
+        <span className={`grid size-11 shrink-0 place-items-center rounded-full border backdrop-blur-sm ${
+          isLight
+            ? "border-accent/40 bg-accent/10 text-accent"
+            : "border-accent/45 bg-background/20 text-accent"
+        }`}>
           {icon}
         </span>
         <div className="flex-1 min-w-0">
-          <h3 className="font-serif text-[1.15rem] leading-[1.1] text-white text-balance">{title}</h3>
-          <p className="mt-1 text-[11.5px] leading-[1.4] text-white/72 line-clamp-2">{desc}</p>
+          <h3 className={`font-serif text-[1.15rem] leading-[1.1] text-balance ${isLight ? "text-foreground" : "text-white"}`}>{title}</h3>
+          <p className={`mt-1 text-[11.5px] leading-[1.4] line-clamp-2 ${isLight ? "text-muted-foreground" : "text-white/72"}`}>{desc}</p>
         </div>
-        <span className="absolute right-3.5 top-1/2 grid size-9 -translate-y-1/2 place-items-center rounded-full border border-accent/75 text-white transition-colors group-hover:bg-accent group-hover:text-background">
+        <span className={`absolute right-3.5 top-1/2 grid size-9 -translate-y-1/2 place-items-center rounded-full border transition-colors group-hover:bg-accent group-hover:text-background ${
+          isLight ? "border-accent/70 text-accent" : "border-accent/75 text-white"
+        }`}>
           <ArrowRight className="size-4" strokeWidth={1.6} />
         </span>
       </div>
@@ -714,7 +741,7 @@ function CopyCard({ icon, eyebrow, label, value }: { icon?: React.ReactNode; eye
   );
 }
 
-function WifiStrip({ ssid, password }: { ssid?: string | null; password?: string | null }) {
+function WifiStrip({ ssid, password, theme }: { ssid?: string | null; password?: string | null; theme: "dark" | "light" }) {
   const [reveal, setReveal] = useState(false);
   const [copied, setCopied] = useState(false);
   function copyPwd() {
@@ -725,9 +752,15 @@ function WifiStrip({ ssid, password }: { ssid?: string | null; password?: string
     setTimeout(() => setCopied(false), 1600);
   }
   const masked = password ? "•".repeat(Math.min(password.length, 12)) : "—";
+  const isLight = theme === "light";
   return (
-    <div className="relative rounded-2xl p-[1px] bg-[linear-gradient(135deg,oklch(var(--accent)/0.7),oklch(var(--accent)/0.15)_42%,transparent_75%)] shadow-[0_8px_30px_-12px_oklch(var(--accent)/0.45)]">
-      <div className="wifi-shimmer relative overflow-hidden rounded-[15px] bg-[linear-gradient(135deg,oklch(0.18_0.04_55/0.95)_0%,oklch(0.12_0.02_50/0.92)_60%,oklch(0.08_0.01_45/0.95)_100%)] backdrop-blur-sm">
+    <div className="relative rounded-2xl p-[1px] bg-[linear-gradient(135deg,oklch(from_var(--accent)_l_c_h/0.7),oklch(from_var(--accent)_l_c_h/0.15)_42%,transparent_75%)] shadow-[0_8px_30px_-12px_oklch(from_var(--accent)_l_c_h/0.45)]">
+      <div className={`wifi-shimmer relative overflow-hidden rounded-[15px] backdrop-blur-sm ${
+        isLight
+          ? "bg-[linear-gradient(135deg,oklch(from_var(--card)_l_c_h/0.98)_0%,oklch(from_var(--card)_l_c_h/0.94)_60%,oklch(from_var(--card)_l_c_h/0.98)_100%)]"
+          : "bg-[linear-gradient(135deg,oklch(0.18_0.04_55/0.95)_0%,oklch(0.12_0.02_50/0.92)_60%,oklch(0.08_0.01_45/0.95)_100%)]"
+      }`}>
+
         {/* subtle dot pattern */}
         <div className="pointer-events-none absolute inset-0 opacity-[0.08] [background-image:radial-gradient(oklch(var(--accent))_1px,transparent_1px)] [background-size:14px_14px]" />
         {/* corner glow */}
