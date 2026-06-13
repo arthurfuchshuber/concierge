@@ -453,8 +453,8 @@ function PropertyEditor() {
           </Section>
         </TabsContent>
 
-        <TabsContent value="access" className="space-y-3 mt-5">
-          <Section title="Visibilidade">
+        <TabsContent value="access" className="space-y-5 mt-6">
+          <Section icon={Shield} title="Modo de acesso" desc="Quem pode visualizar este guia.">
             <Field label="Modo de acesso do Guia">
               <Select value={form.property.access_mode} onValueChange={(v) => update("access_mode", v as "public" | "pin")}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
@@ -466,7 +466,7 @@ function PropertyEditor() {
             </Field>
 
             {form.property.access_mode === "pin" && (
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-3 rounded-xl bg-muted/40 p-3 border border-border/60">
                 <Field label="Código de acesso" required>
                   <Input value={form.property.pin_code} maxLength={20} onChange={(e) => update("pin_code", e.target.value)} placeholder="ex: 4729" />
                 </Field>
@@ -475,7 +475,9 @@ function PropertyEditor() {
                 </Field>
               </div>
             )}
+          </Section>
 
+          <Section icon={Globe} title="Idioma">
             <Field label="Idioma padrão">
               <Select value={form.property.default_language} onValueChange={(v) => update("default_language", v as "pt" | "en")}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
@@ -485,51 +487,62 @@ function PropertyEditor() {
                 </SelectContent>
               </Select>
             </Field>
+          </Section>
 
-            <div className="flex items-center justify-between border border-border rounded-xl p-4">
-              <div className="flex items-center gap-2">
-                <span className={`inline-block size-2.5 rounded-full ${form.property.published ? "bg-emerald-500" : "bg-muted-foreground/50"}`} />
-                <p className="text-sm font-medium">Status do Guia: {form.property.published ? "Ativo" : "Inativo"}</p>
+          <Section icon={Power} title="Publicação" desc="Controla se o link público está disponível agora.">
+            <div className="flex items-center justify-between rounded-xl bg-muted/40 px-4 py-3.5 border border-border/60">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <span className={`inline-block size-2.5 rounded-full shrink-0 ${form.property.published ? "bg-emerald-500" : "bg-muted-foreground/50"}`} />
+                <div className="min-w-0">
+                  <p className="text-sm font-medium leading-tight">Status do Guia</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">{form.property.published ? "Ativo — acessível pelo link" : "Inativo — link público desabilitado"}</p>
+                </div>
               </div>
               <Switch checked={form.property.published} onCheckedChange={(v) => update("published", v)} />
             </div>
           </Section>
-
         </TabsContent>
 
-        <TabsContent value="house" className="space-y-3 mt-5">
-          <Section title="Horários">
+        <TabsContent value="house" className="space-y-5 mt-6">
+          <Section icon={Clock} title="Horários" desc="Janelas de check-in e check-out.">
             <div className="grid grid-cols-2 gap-3">
               <Field label="Check-in a partir de"><Input value={form.property.checkin_time} maxLength={5} onChange={(e) => update("checkin_time", e.target.value)} placeholder="15:00" /></Field>
-              <Field label="Check-in até (opcional)"><Input value={form.property.checkin_time_max} maxLength={5} onChange={(e) => update("checkin_time_max", e.target.value)} placeholder="22:00" /></Field>
-              <Field label="Check-out a partir de (opcional)"><Input value={form.property.checkout_time_min} maxLength={5} onChange={(e) => update("checkout_time_min", e.target.value)} placeholder="08:00" /></Field>
+              <Field label="Check-in até" hint="opcional"><Input value={form.property.checkin_time_max} maxLength={5} onChange={(e) => update("checkin_time_max", e.target.value)} placeholder="22:00" /></Field>
+              <Field label="Check-out a partir de" hint="opcional"><Input value={form.property.checkout_time_min} maxLength={5} onChange={(e) => update("checkout_time_min", e.target.value)} placeholder="08:00" /></Field>
               <Field label="Check-out até"><Input value={form.property.checkout_time} maxLength={5} onChange={(e) => update("checkout_time", e.target.value)} placeholder="11:00" /></Field>
             </div>
           </Section>
 
-          <Section title="Entrada">
+          <Section icon={DoorOpen} title="Entrada" desc="Códigos de acesso ao imóvel.">
             <div className="grid grid-cols-2 gap-3">
               <Field label="Código do portão"><Input value={form.property.gate_code} maxLength={40} onChange={(e) => update("gate_code", e.target.value)} /></Field>
               <Field label="Código da fechadura"><Input value={form.property.lock_code} maxLength={40} onChange={(e) => update("lock_code", e.target.value)} /></Field>
             </div>
           </Section>
 
-          <Section title="Wi-Fi">
+          <Section icon={Wifi} title="Wi-Fi">
             <div className="grid grid-cols-2 gap-3">
               <Field label="Rede (SSID)"><Input value={form.property.wifi_ssid} maxLength={64} onChange={(e) => update("wifi_ssid", e.target.value)} /></Field>
               <Field label="Senha"><Input value={form.property.wifi_password} maxLength={64} onChange={(e) => update("wifi_password", e.target.value)} /></Field>
             </div>
           </Section>
 
-          <Section title="Contato do anfitrião">
+          <Section icon={UserRound} title="Contato do anfitrião">
             <div className="grid grid-cols-2 gap-3">
               <Field label="Nome"><Input value={form.property.host_name} maxLength={120} onChange={(e) => update("host_name", e.target.value)} /></Field>
               <Field label="Telefone (WhatsApp)"><Input value={form.property.host_phone} maxLength={40} onChange={(e) => update("host_phone", e.target.value)} /></Field>
             </div>
           </Section>
 
-          <Section title="Manual da casa" action={<AddBtn onClick={() => setForm((f) => ({ ...f, manual: [...f.manual, { title: "", description: "", body: "" }] }))} />}>
-            {form.manual.map((m, i) => (
+          <Section
+            icon={BookOpen}
+            title="Manual da casa"
+            desc="Instruções de equipamentos e funcionamento."
+            action={<AddBtn onClick={() => setForm((f) => ({ ...f, manual: [...f.manual, { title: "", description: "", body: "" }] }))} />}
+          >
+            {form.manual.length === 0 ? (
+              <EmptyHint text="Nenhum item ainda. Adicione instruções para ar-condicionado, TV, fechadura, etc." />
+            ) : form.manual.map((m, i) => (
               <ItemCard key={i} onRemove={() => setForm((f) => ({ ...f, manual: f.manual.filter((_, j) => j !== i) }))}>
                 <Input placeholder="Título (ex: Ar-condicionado)" value={m.title} maxLength={120}
                   onChange={(e) => setForm((f) => ({ ...f, manual: f.manual.map((x, j) => j === i ? { ...x, title: e.target.value } : x) }))} />
@@ -541,8 +554,15 @@ function PropertyEditor() {
             ))}
           </Section>
 
-          <Section title="Checklist de check-out" action={<AddBtn onClick={() => setForm((f) => ({ ...f, checkout: [...f.checkout, { label: "" }] }))} />}>
-            {form.checkout.map((c, i) => (
+          <Section
+            icon={ClipboardCheck}
+            title="Checklist de check-out"
+            desc="O que o hóspede deve fazer antes de sair."
+            action={<AddBtn onClick={() => setForm((f) => ({ ...f, checkout: [...f.checkout, { label: "" }] }))} />}
+          >
+            {form.checkout.length === 0 ? (
+              <EmptyHint text="Ex: trancar a porta, deixar a chave na mesa, fechar janelas." />
+            ) : form.checkout.map((c, i) => (
               <ItemCard key={i} onRemove={() => setForm((f) => ({ ...f, checkout: f.checkout.filter((_, j) => j !== i) }))}>
                 <Input placeholder="ex: Trancar a porta" value={c.label} maxLength={200}
                   onChange={(e) => setForm((f) => ({ ...f, checkout: f.checkout.map((x, j) => j === i ? { label: e.target.value } : x) }))} />
@@ -551,29 +571,36 @@ function PropertyEditor() {
           </Section>
         </TabsContent>
 
-        <TabsContent value="recs" className="space-y-3 mt-5">
-          <p className="text-sm text-muted-foreground">
+        <TabsContent value="recs" className="space-y-5 mt-6">
+          <div className="rounded-xl border border-dashed border-border/70 bg-muted/30 px-4 py-3 text-xs text-muted-foreground leading-relaxed">
             Recomendações vêm do auto-preenchimento do Google Maps. Você pode editar, remover ou adicionar manualmente.
-          </p>
+          </div>
           <RecGroup
-            title="Aqui pertinho (arredores do imóvel)"
-            desc="A poucos minutos a pé"
+            title="Aqui pertinho"
+            desc="Arredores do imóvel — a poucos minutos a pé."
             items={nearbyRecs}
             onChange={(items) => setForm((f) => ({ ...f, recommendations: [...items, ...cityRecs] }))}
             scope="nearby"
           />
           <RecGroup
             title="Pela cidade"
-            desc="Vale a visita — alguns minutos de carro"
+            desc="Vale a visita — alguns minutos de carro."
             items={cityRecs}
             onChange={(items) => setForm((f) => ({ ...f, recommendations: [...nearbyRecs, ...items] }))}
             scope="city"
           />
         </TabsContent>
 
-        <TabsContent value="extras" className="space-y-3 mt-5">
-          <Section title="Emergências" action={<AddBtn onClick={() => setForm((f) => ({ ...f, emergency: [...f.emergency, { label: "", number: "" }] }))} />}>
-            {form.emergency.map((m, i) => (
+        <TabsContent value="extras" className="space-y-5 mt-6">
+          <Section
+            icon={Phone}
+            title="Emergências"
+            desc="Telefones úteis em caso de urgência."
+            action={<AddBtn onClick={() => setForm((f) => ({ ...f, emergency: [...f.emergency, { label: "", number: "" }] }))} />}
+          >
+            {form.emergency.length === 0 ? (
+              <EmptyHint text="Adicione contatos como polícia, bombeiros, médico de plantão." />
+            ) : form.emergency.map((m, i) => (
               <ItemCard key={i} onRemove={() => setForm((f) => ({ ...f, emergency: f.emergency.filter((_, j) => j !== i) }))}>
                 <div className="grid grid-cols-2 gap-2">
                   <Input placeholder="Rótulo" value={m.label} maxLength={120} onChange={(e) => setForm((f) => ({ ...f, emergency: f.emergency.map((x, j) => j === i ? { ...x, label: e.target.value } : x) }))} />
@@ -583,8 +610,15 @@ function PropertyEditor() {
             ))}
           </Section>
 
-          <Section title="FAQ" action={<AddBtn onClick={() => setForm((f) => ({ ...f, faqs: [...f.faqs, { question: "", answer: "" }] }))} />}>
-            {form.faqs.map((m, i) => (
+          <Section
+            icon={HelpCircle}
+            title="Perguntas frequentes"
+            desc="Antecipe dúvidas comuns dos hóspedes."
+            action={<AddBtn onClick={() => setForm((f) => ({ ...f, faqs: [...f.faqs, { question: "", answer: "" }] }))} />}
+          >
+            {form.faqs.length === 0 ? (
+              <EmptyHint text="Ex: posso fumar? tem estacionamento? aceita pets?" />
+            ) : form.faqs.map((m, i) => (
               <ItemCard key={i} onRemove={() => setForm((f) => ({ ...f, faqs: f.faqs.filter((_, j) => j !== i) }))}>
                 <Input placeholder="Pergunta" value={m.question} maxLength={200} onChange={(e) => setForm((f) => ({ ...f, faqs: f.faqs.map((x, j) => j === i ? { ...x, question: e.target.value } : x) }))} />
                 <Textarea placeholder="Resposta" value={m.answer} maxLength={2000} onChange={(e) => setForm((f) => ({ ...f, faqs: f.faqs.map((x, j) => j === i ? { ...x, answer: e.target.value } : x) }))} />
