@@ -371,6 +371,22 @@ function PropertyEditor() {
 
 
         <TabsContent value="basics" className="space-y-5 mt-6">
+          <Section title="Importar do Airbnb" desc="Cole o link público do anúncio (airbnb.com/h/... ou /rooms/...) e preencha automaticamente nome, fotos, localização e horários. Tudo continua editável depois.">
+            <Field label="Link do anúncio">
+              <div className="flex gap-2">
+                <Input
+                  value={airbnbUrl}
+                  onChange={(e) => setAirbnbUrl(e.target.value)}
+                  placeholder="https://airbnb.com.br/h/seu-anuncio"
+                />
+                <Button onClick={handleImportAirbnb} disabled={importingAirbnb} variant="secondary" className="shrink-0">
+                  {importingAirbnb ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
+                  <span className="ml-1.5 hidden sm:inline">{importingAirbnb ? "Importando…" : "Importar"}</span>
+                </Button>
+              </div>
+            </Field>
+          </Section>
+
           <Section title="Identificação">
             <Field label="Nome do imóvel" required>
               <Input value={form.property.name} maxLength={120}
@@ -379,8 +395,8 @@ function PropertyEditor() {
             <Field label="URL pública (slug)" hint="Aparece em /g/seu-slug">
               <Input value={form.property.slug} maxLength={60} onChange={(e) => update("slug", slugify(e.target.value))} />
             </Field>
-            <Field label="Tagline" hint="Frase curta abaixo do título">
-              <Input value={form.property.tagline} maxLength={200} onChange={(e) => update("tagline", e.target.value)} />
+            <Field label="Etiqueta" hint="Aparece abaixo do título no guia público. Use o ícone do lápis para gerenciar suas etiquetas.">
+              <EtiquetaSelect value={form.property.tagline} onChange={(v) => update("tagline", v)} />
             </Field>
             <Field label="Fotos da residência" hint="Até 4 fotos. A primeira é a capa. Você também pode usar o Auto-preencher abaixo para importar as 4 primeiras fotos do link do Google Maps.">
               <GalleryEditor
@@ -398,6 +414,7 @@ function PropertyEditor() {
               />
             </Field>
           </Section>
+
 
 
           <Section title="Endereço e auto-preenchimento" desc="Cole o link do Google Maps do imóvel e clique em 'Auto-preencher' para obter endereço, coordenadas e pontos de interesse.">
