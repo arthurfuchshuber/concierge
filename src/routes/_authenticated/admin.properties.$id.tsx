@@ -28,6 +28,7 @@ type RecItem = {
   name: string;
   category?: string | null;
   rating?: number | null;
+  user_ratings_total?: number | null;
   distance_text?: string | null;
   distance_meters?: number | null;
   drive_minutes?: number | null;
@@ -36,6 +37,7 @@ type RecItem = {
   maps_url?: string | null;
   place_id?: string | null;
 };
+
 
 type FormState = {
   property: {
@@ -191,6 +193,7 @@ function PropertyEditor() {
         name: (r.name as string) ?? "",
         category: (r.category as string) ?? null,
         rating: (r.rating as number) ?? null,
+        user_ratings_total: (r.user_ratings_total as number) ?? null,
         distance_text: (r.distance_text as string) ?? null,
         distance_meters: (r.distance_meters as number) ?? null,
         drive_minutes: (r.drive_minutes as number) ?? null,
@@ -199,6 +202,7 @@ function PropertyEditor() {
         maps_url: (r.maps_url as string) ?? null,
         place_id: (r.place_id as string) ?? null,
       })),
+
     });
   }, [data, isNew]);
 
@@ -233,14 +237,16 @@ function PropertyEditor() {
           name: rec.name,
           category: rec.category,
           rating: rec.rating,
+          user_ratings_total: rec.user_ratings_total,
           distance_text: rec.distance_text,
           distance_meters: rec.distance_meters,
           drive_minutes: rec.drive_minutes,
           image_url: rec.image_url,
           maps_url: rec.maps_url,
           place_id: rec.place_id,
-          note: null,
+          note: rec.note,
         })),
+
       }));
       const nearby = r.recommendations.filter((x) => x.scope === "nearby").length;
       const city = r.recommendations.filter((x) => x.scope === "city").length;

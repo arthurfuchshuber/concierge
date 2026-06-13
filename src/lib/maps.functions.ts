@@ -12,6 +12,7 @@ type PlaceItem = {
   place_id: string;
   name: string;
   rating: number | null;
+  user_ratings_total: number | null;
   category: string;
   type: string;
   scope: "nearby" | "city";
@@ -22,6 +23,7 @@ type PlaceItem = {
   drive_minutes: number | null;
   image_url: string | null;
   maps_url: string;
+  note: string | null;
 };
 
 type EnrichResult = {
@@ -36,18 +38,28 @@ type EnrichResult = {
   recommendations: PlaceItem[];
 };
 
-const TYPE_MAP: { type: PlaceItem["type"]; placesTypes: string[]; category: string }[] = [
-  { type: "restaurant", placesTypes: ["restaurant"], category: "Restaurantes" },
-  { type: "bar", placesTypes: ["bar"], category: "Bares" },
-  { type: "cafe", placesTypes: ["cafe", "coffee_shop"], category: "Cafés" },
-  { type: "beach", placesTypes: ["beach"], category: "Praias" },
-  { type: "attraction", placesTypes: ["tourist_attraction"], category: "Atrações" },
-  { type: "market", placesTypes: ["supermarket", "grocery_store"], category: "Mercados" },
-  { type: "pharmacy", placesTypes: ["pharmacy"], category: "Farmácias" },
-  { type: "park", placesTypes: ["park"], category: "Parques" },
-  { type: "nightlife", placesTypes: ["night_club"], category: "Vida noturna" },
-  { type: "shopping", placesTypes: ["shopping_mall"], category: "Compras" },
+// `placesTypes` é o filtro enviado ao Places (includedTypes/includedType).
+// `acceptedPrimaryTypes` é o que validamos no resultado — Google às vezes devolve
+// estabelecimentos cujo primaryType não bate (ex.: salão de beleza retornado em "bar").
+// Só aceitamos o item se o primaryType estiver na lista permitida.
+const TYPE_MAP: {
+  type: PlaceItem["type"];
+  placesTypes: string[];
+  acceptedPrimaryTypes: string[];
+  category: string;
+}[] = [
+  { type: "restaurant", placesTypes: ["restaurant"], acceptedPrimaryTypes: ["restaurant", "pizza_restaurant", "italian_restaurant", "brazilian_restaurant", "steak_house", "seafood_restaurant", "japanese_restaurant", "sushi_restaurant", "mexican_restaurant", "fast_food_restaurant", "hamburger_restaurant", "barbecue_restaurant", "vegetarian_restaurant", "vegan_restaurant", "meal_takeaway", "meal_delivery"], category: "Restaurantes" },
+  { type: "bar", placesTypes: ["bar"], acceptedPrimaryTypes: ["bar", "pub", "wine_bar", "sports_bar", "bar_and_grill", "night_club"], category: "Bares" },
+  { type: "cafe", placesTypes: ["cafe", "coffee_shop"], acceptedPrimaryTypes: ["cafe", "coffee_shop", "bakery", "tea_house", "dessert_shop", "ice_cream_shop"], category: "Cafés" },
+  { type: "beach", placesTypes: ["beach"], acceptedPrimaryTypes: ["beach"], category: "Praias" },
+  { type: "attraction", placesTypes: ["tourist_attraction"], acceptedPrimaryTypes: ["tourist_attraction", "museum", "art_gallery", "amusement_park", "aquarium", "zoo", "historical_landmark", "monument", "cultural_center", "national_park"], category: "Atrações" },
+  { type: "market", placesTypes: ["supermarket", "grocery_store"], acceptedPrimaryTypes: ["supermarket", "grocery_store", "convenience_store", "food_store"], category: "Mercados" },
+  { type: "pharmacy", placesTypes: ["pharmacy"], acceptedPrimaryTypes: ["pharmacy", "drugstore"], category: "Farmácias" },
+  { type: "park", placesTypes: ["park"], acceptedPrimaryTypes: ["park", "national_park", "state_park"], category: "Parques" },
+  { type: "nightlife", placesTypes: ["night_club"], acceptedPrimaryTypes: ["night_club", "bar", "pub"], category: "Vida noturna" },
+  { type: "shopping", placesTypes: ["shopping_mall"], acceptedPrimaryTypes: ["shopping_mall", "department_store"], category: "Compras" },
 ];
+
 
 function haversineMeters(a: { lat: number; lng: number }, b: { lat: number; lng: number }) {
   const R = 6371000;
@@ -132,7 +144,8 @@ async function placesNearby(lat: number, lng: number, includedTypes: string[]) {
     headers: {
       "Content-Type": "application/json",
       "X-Goog-FieldMask":
-        "places.id,places.displayName,places.location,places.rating,places.userRatingCount,places.googleMapsUri,places.photos,places.primaryType",
+        "places.id,places.displayName,places.location,places.rating,places.userRatingCount,places.googleMapsUri,places.photos,places.primaryType,places.editorialSummary,places.generativeSummary",
+
     },
     body: JSON.stringify({
       includedTypes,
@@ -152,7 +165,8 @@ async function placesText(query: string, lat: number, lng: number, includedType:
     headers: {
       "Content-Type": "application/json",
       "X-Goog-FieldMask":
-        "places.id,places.displayName,places.location,places.rating,places.userRatingCount,places.googleMapsUri,places.photos,places.primaryType",
+        "places.id,places.displayName,places.location,places.rating,places.userRatingCount,places.googleMapsUri,places.photos,places.primaryType,places.editorialSummary,places.generativeSummary",
+
     },
     body: JSON.stringify({
       textQuery: query,
@@ -204,7 +218,10 @@ type PlaceRaw = {
   googleMapsUri?: string;
   photos?: Array<{ name: string }>;
   primaryType?: string;
+  editorialSummary?: { text?: string };
+  generativeSummary?: { overview?: { text?: string } };
 };
+
 
 function buildPhotoUrl(photoName: string | undefined): string | null {
   if (!photoName) return null;
@@ -262,10 +279,10 @@ export const enrichFromMapsLink = createServerFn({ method: "POST" })
     }
 
     // Filtros de qualidade para recomendações
-    const MIN_RATING = 4.2;
-    const MIN_REVIEWS_NEARBY = 30;
-    const MIN_REVIEWS_CITY = 100;
-    const MAX_PER_TYPE = 4;
+    const MIN_RATING = 4.3;
+    const MIN_REVIEWS_NEARBY = 100;
+    const MIN_REVIEWS_CITY = 400;
+    const MAX_PER_TYPE = 5;
 
     const isQuality = (p: PlaceRaw, minReviews: number) =>
       typeof p.rating === "number" &&
@@ -273,14 +290,24 @@ export const enrichFromMapsLink = createServerFn({ method: "POST" })
       typeof p.userRatingCount === "number" &&
       p.userRatingCount >= minReviews;
 
+    const matchesCategory = (p: PlaceRaw, accepted: string[]) =>
+      !!p.primaryType && accepted.includes(p.primaryType);
+
+    const buildNote = (p: PlaceRaw): string | null => {
+      const t = p.editorialSummary?.text ?? p.generativeSummary?.overview?.text ?? null;
+      if (!t) return null;
+      return t.length > 240 ? t.slice(0, 237).trimEnd() + "…" : t;
+    };
+
     const recommendations: PlaceItem[] = [];
     const seen = new Set<string>();
 
     // 1) Nearby por categoria
     for (const cat of TYPE_MAP) {
       const items = (await placesNearby(coords.lat, coords.lng, cat.placesTypes))
+        .filter((p) => matchesCategory(p, cat.acceptedPrimaryTypes))
         .filter((p) => isQuality(p, MIN_REVIEWS_NEARBY))
-        .sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0))
+        .sort((a, b) => (b.userRatingCount ?? 0) - (a.userRatingCount ?? 0))
         .slice(0, MAX_PER_TYPE);
       for (const p of items) {
         if (!p.id || !p.location || seen.has(p.id)) continue;
@@ -291,6 +318,7 @@ export const enrichFromMapsLink = createServerFn({ method: "POST" })
           place_id: p.id,
           name: p.displayName?.text ?? "Sem nome",
           rating: typeof p.rating === "number" ? Number(p.rating.toFixed(1)) : null,
+          user_ratings_total: typeof p.userRatingCount === "number" ? p.userRatingCount : null,
           category: cat.category,
           type: cat.type,
           scope: "nearby",
@@ -301,6 +329,7 @@ export const enrichFromMapsLink = createServerFn({ method: "POST" })
           drive_minutes: driveMin,
           image_url: buildPhotoUrl(p.photos?.[0]?.name),
           maps_url: p.googleMapsUri ?? `https://www.google.com/maps/search/?api=1&query_place_id=${p.id}`,
+          note: buildNote(p),
         });
       }
     }
@@ -311,13 +340,18 @@ export const enrichFromMapsLink = createServerFn({ method: "POST" })
       for (const cat of CITY_CATS) {
         const primary = cat.placesTypes[0];
         const items = (await placesText(`melhores ${cat.category.toLowerCase()} em ${city}`, coords.lat, coords.lng, primary))
-          .filter((p) => !seen.has(p.id) && isQuality(p, MIN_REVIEWS_CITY))
+          .filter((p) => !seen.has(p.id) && matchesCategory(p, cat.acceptedPrimaryTypes) && isQuality(p, MIN_REVIEWS_CITY))
           .filter((p) => {
             if (!p.location) return false;
             const d = haversineMeters(coords, { lat: p.location.latitude, lng: p.location.longitude });
             return d >= 1500; // já não cabe em nearby
           })
-          .sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0))
+          .sort((a, b) => {
+            const ra = a.rating ?? 0;
+            const rb = b.rating ?? 0;
+            if (rb !== ra) return rb - ra;
+            return (b.userRatingCount ?? 0) - (a.userRatingCount ?? 0);
+          })
           .slice(0, MAX_PER_TYPE);
         for (const p of items) {
           if (!p.id || !p.location) continue;
@@ -328,6 +362,7 @@ export const enrichFromMapsLink = createServerFn({ method: "POST" })
             place_id: p.id,
             name: p.displayName?.text ?? "Sem nome",
             rating: typeof p.rating === "number" ? Number(p.rating.toFixed(1)) : null,
+            user_ratings_total: typeof p.userRatingCount === "number" ? p.userRatingCount : null,
             category: cat.category,
             type: cat.type,
             scope: "city",
@@ -338,10 +373,12 @@ export const enrichFromMapsLink = createServerFn({ method: "POST" })
             drive_minutes: driveMin,
             image_url: buildPhotoUrl(p.photos?.[0]?.name),
             maps_url: p.googleMapsUri ?? `https://www.google.com/maps/search/?api=1&query_place_id=${p.id}`,
+            note: buildNote(p),
           });
         }
       }
     }
+
 
     // Ordena: nearby por distância, city por rating desc dentro de cada categoria
     recommendations.sort((a, b) => {

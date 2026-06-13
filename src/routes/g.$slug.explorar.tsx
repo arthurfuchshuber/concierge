@@ -9,6 +9,8 @@ import {
   Footprints,
   Car,
   ArrowUpDown,
+  LayoutGrid,
+  List as ListIcon,
   Utensils,
   Landmark,
   Coffee,
@@ -16,6 +18,7 @@ import {
   Cross,
   ShoppingBag,
 } from "lucide-react";
+
 
 export const Route = createFileRoute("/g/$slug/explorar")({
   loader: async ({ params }) => {
@@ -162,6 +165,8 @@ function ExplorePage() {
   const { slug } = Route.useParams();
   const [activeKey, setActiveKey] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<SortKey>("distance");
+  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+
 
   if (r.status !== "ok") {
     return (
@@ -233,7 +238,10 @@ function ExplorePage() {
             city={sortRecs(active.city, sortBy)}
             sortBy={sortBy}
             setSortBy={setSortBy}
+            viewMode={viewMode}
+            setViewMode={setViewMode}
           />
+
         )}
 
         {categories.length === 0 && (
@@ -311,21 +319,29 @@ function CategoryDetail({
   city,
   sortBy,
   setSortBy,
+  viewMode,
+  setViewMode,
 }: {
   nearby: Rec[];
   city: Rec[];
   sortBy: SortKey;
   setSortBy: (s: SortKey) => void;
+  viewMode: "grid" | "list";
+  setViewMode: (v: "grid" | "list") => void;
 }) {
   return (
     <>
-      <SortBar sortBy={sortBy} setSortBy={setSortBy} />
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <SortBar sortBy={sortBy} setSortBy={setSortBy} />
+        <ViewToggle viewMode={viewMode} setViewMode={setViewMode} />
+      </div>
       <div className="mt-8 space-y-12">
         {nearby.length > 0 && (
           <Section
             eyebrow="A poucos minutos"
             title="Pertinho da Residência"
             items={nearby}
+            viewMode={viewMode}
           />
         )}
         {city.length > 0 && (
@@ -333,6 +349,7 @@ function CategoryDetail({
             eyebrow="Vale o deslocamento"
             title="Referências na Cidade"
             items={city}
+            viewMode={viewMode}
           />
         )}
         {nearby.length === 0 && city.length === 0 && (
@@ -340,6 +357,43 @@ function CategoryDetail({
         )}
       </div>
     </>
+  );
+}
+
+function ViewToggle({
+  viewMode,
+  setViewMode,
+}: {
+  viewMode: "grid" | "list";
+  setViewMode: (v: "grid" | "list") => void;
+}) {
+  const opts: { key: "grid" | "list"; label: string; Icon: typeof LayoutGrid }[] = [
+    { key: "grid", label: "Grade", Icon: LayoutGrid },
+    { key: "list", label: "Lista", Icon: ListIcon },
+  ];
+  return (
+    <div className="inline-flex items-center rounded-full border border-border bg-card/60 backdrop-blur p-1">
+      {opts.map((o) => {
+        const on = viewMode === o.key;
+        const Icon = o.Icon;
+        return (
+          <button
+            key={o.key}
+            type="button"
+            onClick={() => setViewMode(o.key)}
+            aria-label={o.label}
+            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11.5px] font-medium transition-colors ${
+              on
+                ? "bg-accent text-accent-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <Icon className="size-3.5" />
+            <span className="hidden sm:inline">{o.label}</span>
+          </button>
+        );
+      })}
+    </div>
   );
 }
 
@@ -382,10 +436,12 @@ function Section({
   eyebrow,
   title,
   items,
+  viewMode,
 }: {
   eyebrow: string;
   title: string;
   items: Rec[];
+  viewMode: "grid" | "list";
 }) {
   return (
     <section>
@@ -396,14 +452,23 @@ function Section({
         </div>
         <h3 className="font-serif text-[1.55rem] md:text-[1.85rem] leading-tight">{title}</h3>
       </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {items.map((rec) => (
-          <RecCard key={rec.id} rec={rec} />
-        ))}
-      </div>
+      {viewMode === "grid" ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {items.map((rec) => (
+            <RecCard key={rec.id} rec={rec} />
+          ))}
+        </div>
+      ) : (
+        <div className="flex flex-col gap-3">
+          {items.map((rec) => (
+            <RecRow key={rec.id} rec={rec} />
+          ))}
+        </div>
+      )}
     </section>
   );
 }
+
 
 function RecCard({ rec }: { rec: Rec }) {
   const walking = formatWalking(rec);
@@ -483,5 +548,85 @@ function RecCard({ rec }: { rec: Rec }) {
   }
   return inner;
 }
+
+function RecRow({ rec }: { rec: Rec }) {
+  const walking = formatWalking(rec);
+  const driving = formatDriving(rec);
+  const href = rec.maps_url || undefined;
+  const typeLabel = TYPE_LABEL[rec.type] || rec.category || rec.type;
+
+  const inner = (
+    <div className="group flex gap-4 bg-card border border-border rounded-2xl p-3 hover:border-accent/40 hover:shadow-lg transition-all">
+      <div className="relative size-24 sm:size-28 shrink-0 overflow-hidden rounded-xl bg-secondary">
+        {rec.image_url ? (
+          <img
+            src={rec.image_url}
+            alt={rec.name}
+            loading="lazy"
+            className="absolute inset-0 size-full object-cover group-hover:scale-[1.04] transition-transform duration-500"
+          />
+        ) : (
+          <div className="absolute inset-0 grid place-items-center bg-gradient-to-br from-accent/15 to-accent/5">
+            <Compass className="size-7 text-accent/60" strokeWidth={1.25} />
+          </div>
+        )}
+      </div>
+      <div className="flex-1 min-w-0 flex flex-col gap-1.5 py-0.5">
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0">
+            <h4 className="text-[15px] font-medium leading-snug line-clamp-2">{rec.name}</h4>
+            <p className="mt-0.5 text-[10.5px] uppercase tracking-[0.18em] text-muted-foreground/80 font-semibold">
+              {typeLabel}
+            </p>
+          </div>
+          {href && (
+            <ExternalLink className="size-3.5 text-muted-foreground/70 shrink-0 mt-1 group-hover:text-accent transition-colors" />
+          )}
+        </div>
+
+        {rec.note && (
+          <p className="text-[12.5px] text-muted-foreground leading-relaxed line-clamp-2">{rec.note}</p>
+        )}
+
+        <div className="mt-auto flex flex-wrap items-center gap-x-3 gap-y-1 text-[11.5px] text-muted-foreground">
+          {rec.rating != null && (
+            <span className="inline-flex items-center gap-1 text-foreground/85 font-semibold">
+              <Star className="size-3 fill-current text-accent" strokeWidth={0} />
+              <span className="tabular-nums">{Number(rec.rating).toFixed(1)}</span>
+              {rec.user_ratings_total ? (
+                <span className="font-normal text-muted-foreground">
+                  ({rec.user_ratings_total.toLocaleString("pt-BR")})
+                </span>
+              ) : null}
+            </span>
+          )}
+          {walking && (
+            <span className="inline-flex items-center gap-1.5">
+              <Footprints className="size-3.5" strokeWidth={1.75} />
+              {walking}
+            </span>
+          )}
+          {driving && (
+            <span className="inline-flex items-center gap-1.5">
+              <Car className="size-3.5" strokeWidth={1.75} />
+              {driving}
+            </span>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+
+  if (href) {
+    return (
+      <a href={href} target="_blank" rel="noopener noreferrer" className="block">
+        {inner}
+      </a>
+    );
+  }
+  return inner;
+}
+
 // Silence unused import warnings for icons that may be tree-shaken in dev
 void ShoppingBag;
+

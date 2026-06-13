@@ -47,6 +47,7 @@ const RecInput = z.object({
   name: z.string().min(1).max(200),
   category: z.string().max(80).optional().nullable(),
   rating: z.number().min(0).max(5).optional().nullable(),
+  user_ratings_total: z.number().int().min(0).max(10_000_000).optional().nullable(),
   distance_text: z.string().max(80).optional().nullable(),
   distance_meters: z.number().int().optional().nullable(),
   drive_minutes: z.number().int().optional().nullable(),
@@ -55,6 +56,7 @@ const RecInput = z.object({
   maps_url: z.string().max(2048).optional().nullable(),
   place_id: z.string().max(200).optional().nullable(),
 });
+
 
 export const listMyProperties = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
