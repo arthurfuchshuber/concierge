@@ -237,14 +237,16 @@ function PropertyEditor() {
           name: rec.name,
           category: rec.category,
           rating: rec.rating,
+          user_ratings_total: rec.user_ratings_total,
           distance_text: rec.distance_text,
           distance_meters: rec.distance_meters,
           drive_minutes: rec.drive_minutes,
           image_url: rec.image_url,
           maps_url: rec.maps_url,
           place_id: rec.place_id,
-          note: null,
+          note: rec.note,
         })),
+
       }));
       const nearby = r.recommendations.filter((x) => x.scope === "nearby").length;
       const city = r.recommendations.filter((x) => x.scope === "city").length;
