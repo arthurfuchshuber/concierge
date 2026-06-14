@@ -464,3 +464,40 @@ function EditDialog({
     </Dialog>
   );
 }
+
+function StatCard({ label, value, tone }: { label: string; value: number; tone?: "emerald" | "amber" | "muted" }) {
+  const toneClass =
+    tone === "emerald"
+      ? "text-emerald-600 dark:text-emerald-400"
+      : tone === "amber"
+        ? "text-amber-600 dark:text-amber-400"
+        : tone === "muted"
+          ? "text-muted-foreground"
+          : "text-foreground";
+  return (
+    <div className="rounded-xl border border-border bg-card px-4 py-3">
+      <div className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground font-semibold">{label}</div>
+      <div className={`text-2xl font-serif mt-1 tabular-nums ${toneClass}`}>{value}</div>
+    </div>
+  );
+}
+
+function StatusBadge({ status }: { status?: string | null }) {
+  const map: Record<string, { label: string; className: string; dot: string }> = {
+    active: { label: "Ativo", className: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20", dot: "bg-emerald-500" },
+    trialing: { label: "Trial", className: "bg-sky-500/10 text-sky-700 dark:text-sky-400 border-sky-500/20", dot: "bg-sky-500" },
+    past_due: { label: "Atrasado", className: "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20", dot: "bg-amber-500" },
+    paused: { label: "Pausado", className: "bg-secondary text-muted-foreground border-border", dot: "bg-muted-foreground" },
+    canceled: { label: "Cancelado", className: "bg-secondary text-muted-foreground border-border", dot: "bg-muted-foreground/60" },
+  };
+  const info = status ? map[status] : null;
+  if (!info) {
+    return <span className="text-xs text-muted-foreground/60">sem plano</span>;
+  }
+  return (
+    <span className={`inline-flex items-center gap-1.5 text-[10px] uppercase tracking-wider font-semibold px-2 py-1 rounded-full border ${info.className}`}>
+      <span className={`size-1.5 rounded-full ${info.dot}`} />
+      {info.label}
+    </span>
+  );
+}
