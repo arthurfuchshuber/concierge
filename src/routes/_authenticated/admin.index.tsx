@@ -313,42 +313,95 @@ function Dashboard() {
         </div>
       )}
 
-      <Dialog open={viewSlug !== null} onOpenChange={(o) => { if (!o) setViewSlug(null); }}>
-        <DialogContent className="p-0 gap-0 overflow-hidden sm:max-w-[420px] w-[min(92vw,420px)]">
-          <DialogTitle className="sr-only">Como deseja visualizar?</DialogTitle>
-          <div className="p-6 bg-background">
-            <div className="text-center mb-5">
-              <h3 className="font-serif text-xl">Como deseja visualizar?</h3>
-              <p className="text-xs text-muted-foreground mt-1">Escolha como abrir o guia.</p>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
+      <Dialog open={viewSlug !== null} onOpenChange={(o) => { if (!o) closePreview(); }}>
+        <DialogContent
+          className={
+            previewMode === "desktop"
+              ? "p-0 gap-0 overflow-hidden border-0 bg-transparent shadow-none sm:max-w-[1100px] w-[min(95vw,1100px)] [&>button]:hidden"
+              : previewMode === "mobile"
+              ? "p-0 gap-0 overflow-hidden border-0 bg-transparent shadow-none sm:max-w-[400px] w-[min(92vw,400px)] [&>button]:hidden"
+              : "p-0 gap-0 overflow-hidden sm:max-w-[420px] w-[min(92vw,420px)] [&>button]:hidden"
+          }
+        >
+          <DialogTitle className="sr-only">Pré-visualização do guia</DialogTitle>
+          {previewMode === null ? (
+            <div className="p-6 bg-background">
+              <div className="text-center mb-5">
+                <h3 className="font-serif text-xl">Como deseja visualizar?</h3>
+                <p className="text-xs text-muted-foreground mt-1">Escolha como abrir o guia.</p>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setPreviewMode("mobile")}
+                  className="group flex flex-col items-center gap-2 rounded-2xl border border-border bg-card hover:border-foreground/40 hover:bg-secondary/40 transition-colors p-5"
+                >
+                  <div className="w-10 h-14 rounded-md border-2 border-foreground/70 group-hover:border-foreground transition-colors" />
+                  <span className="text-sm font-medium">Mobile</span>
+                  <span className="text-[11px] text-muted-foreground">Tela do celular</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPreviewMode("desktop")}
+                  className="group flex flex-col items-center gap-2 rounded-2xl border border-border bg-card hover:border-foreground/40 hover:bg-secondary/40 transition-colors p-5"
+                >
+                  <div className="w-14 h-10 rounded-md border-2 border-foreground/70 group-hover:border-foreground transition-colors" />
+                  <span className="text-sm font-medium">Navegador</span>
+                  <span className="text-[11px] text-muted-foreground">Tela ampla</span>
+                </button>
+              </div>
               <button
                 type="button"
-                onClick={() => viewSlug && openGuide(viewSlug, "mobile")}
-                className="group flex flex-col items-center gap-2 rounded-2xl border border-border bg-card hover:border-foreground/40 hover:bg-secondary/40 transition-colors p-5"
+                onClick={closePreview}
+                className="mt-5 w-full text-xs text-muted-foreground hover:text-foreground transition-colors"
               >
-                <div className="w-10 h-14 rounded-md border-2 border-foreground/70 group-hover:border-foreground transition-colors" />
-                <span className="text-sm font-medium">Mobile</span>
-                <span className="text-[11px] text-muted-foreground">Tela do celular</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => viewSlug && openGuide(viewSlug, "desktop")}
-                className="group flex flex-col items-center gap-2 rounded-2xl border border-border bg-card hover:border-foreground/40 hover:bg-secondary/40 transition-colors p-5"
-              >
-                <div className="w-14 h-10 rounded-md border-2 border-foreground/70 group-hover:border-foreground transition-colors" />
-                <span className="text-sm font-medium">Navegador</span>
-                <span className="text-[11px] text-muted-foreground">Tela ampla</span>
+                Cancelar
               </button>
             </div>
-            <button
-              type="button"
-              onClick={() => setViewSlug(null)}
-              className="mt-5 w-full text-xs text-muted-foreground hover:text-foreground transition-colors"
-            >
-              Cancelar
-            </button>
-          </div>
+          ) : (
+            <div className={`flex flex-col ${previewMode === "desktop" ? "h-[85vh] max-h-[820px] rounded-2xl" : "h-[85vh] max-h-[820px] rounded-[2rem]"} overflow-hidden bg-background shadow-[0_30px_80px_-20px_rgba(0,0,0,0.45)] ring-1 ring-black/10`}>
+              <div className="flex items-center justify-between gap-3 px-4 h-9 bg-background/95 backdrop-blur border-b border-border/40 shrink-0">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="inline-flex size-1.5 rounded-full bg-emerald-500/80" />
+                  <p className="text-[11px] font-medium text-muted-foreground/80 truncate">
+                    /g/{viewSlug}
+                  </p>
+                </div>
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => setPreviewMode(null)}
+                    aria-label="Trocar modo"
+                    className="h-6 px-2 inline-flex items-center rounded-full text-[10px] uppercase tracking-wider font-medium text-muted-foreground/70 hover:text-foreground hover:bg-muted transition-colors"
+                  >
+                    {previewMode === "mobile" ? "Mobile" : "Navegador"}
+                  </button>
+                  <a
+                    href={`/g/${viewSlug}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    aria-label="Abrir em nova aba"
+                    className="size-6 grid place-items-center rounded-full text-muted-foreground/70 hover:text-foreground hover:bg-muted transition-colors"
+                  >
+                    <ExternalLink className="size-3" />
+                  </a>
+                  <button
+                    type="button"
+                    onClick={closePreview}
+                    aria-label="Fechar"
+                    className="size-6 grid place-items-center rounded-full text-muted-foreground/70 hover:text-foreground hover:bg-muted transition-colors"
+                  >
+                    <span className="text-sm leading-none">×</span>
+                  </button>
+                </div>
+              </div>
+              <iframe
+                src={`/g/${viewSlug}`}
+                title="Pré-visualização do guia"
+                className="w-full flex-1 border-0 bg-background"
+              />
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>
