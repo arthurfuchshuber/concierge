@@ -352,9 +352,7 @@ function Guide({ data }: { data: GuideOk }) {
                         </SubItem>
                       );
                     })()}
-                        </div>
-                      </SubItem>
-                    )}
+
 
                     {hasChegada && (
                       <SubItem
