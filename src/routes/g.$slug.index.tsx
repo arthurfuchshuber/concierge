@@ -799,13 +799,9 @@ function SubItem({
   );
 }
 
-function SectionTitle({ eyebrow, title, intro }: { eyebrow: string; title: string; intro?: string }) {
+function SectionTitle({ title, intro }: { eyebrow?: string; title: string; intro?: string }) {
   return (
     <div className="pt-2 pb-1">
-      <div className="flex items-center gap-2 mb-2">
-        <span className="h-px w-6 bg-accent/70" />
-        <p className="text-[10px] uppercase tracking-[0.28em] text-accent font-semibold">{eyebrow}</p>
-      </div>
       <h2 className="font-serif text-[1.9rem] leading-[1.1] tracking-tight">{title}</h2>
       {intro && <p className="text-[13px] text-muted-foreground mt-2 leading-relaxed max-w-[36ch]">{intro}</p>}
     </div>
