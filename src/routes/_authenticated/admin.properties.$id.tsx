@@ -146,6 +146,8 @@ function PropertyEditor() {
   const [importingAirbnb, setImportingAirbnb] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewMode, setPreviewMode] = useState<"mobile" | "desktop" | null>(null);
+  const [gateOpen, setGateOpen] = useState(false);
+  const [lockOpen, setLockOpen] = useState(false);
 
   const { data, isLoading } = useQuery({
     queryKey: ["property", id],
