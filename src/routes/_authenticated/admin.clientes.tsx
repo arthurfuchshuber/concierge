@@ -29,7 +29,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Search, Users, Pencil, Loader2 } from "lucide-react";
+import { Search, Users, Pencil, Loader2, Shield } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/admin/clientes")({
@@ -76,6 +76,9 @@ function ClientesPage() {
     <div className="px-5 lg:px-10 py-8 lg:py-10 max-w-7xl mx-auto w-full">
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
+          <div className="inline-flex items-center gap-2 text-[10px] uppercase tracking-[0.18em] text-accent font-semibold mb-2">
+            <Shield className="size-3" /> Admin SaaS
+          </div>
           <h1 className="font-serif text-3xl md:text-4xl flex items-center gap-2.5">
             <Users className="size-7 text-muted-foreground" /> Clientes
           </h1>
@@ -94,79 +97,133 @@ function ClientesPage() {
         </div>
       </div>
 
-      <div className="mt-6 rounded-2xl border border-border bg-card overflow-hidden">
+      {/* Stats */}
+      <div className="mt-6 grid grid-cols-2 md:grid-cols-4 gap-3">
+        <StatCard label="Total" value={customers.length} />
+        <StatCard
+          label="Ativos"
+          value={customers.filter((c) => c.subscription?.status === "active" || c.subscription?.status === "trialing").length}
+          tone="emerald"
+        />
+        <StatCard
+          label="Em trial"
+          value={customers.filter((c) => c.subscription?.status === "trialing").length}
+          tone="amber"
+        />
+        <StatCard
+          label="Cancelados"
+          value={customers.filter((c) => c.subscription?.status === "canceled" || c.subscription?.status === "past_due").length}
+          tone="muted"
+        />
+      </div>
+
+      <div className="mt-6 rounded-2xl border border-border bg-card overflow-hidden shadow-sm">
         {query.isLoading ? (
-          <div className="p-8 h-40 animate-pulse" />
+          <div className="p-8 space-y-3">
+            {[0, 1, 2].map((i) => (
+              <div key={i} className="h-14 rounded-xl bg-secondary/40 animate-pulse" />
+            ))}
+          </div>
         ) : filtered.length === 0 ? (
-          <div className="p-12 text-center text-sm text-muted-foreground">
-            Nenhum cliente encontrado.
+          <div className="p-16 text-center">
+            <Users className="size-8 text-muted-foreground/40 mx-auto mb-3" />
+            <p className="text-sm text-muted-foreground">Nenhum cliente encontrado.</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="bg-secondary/40 text-xs uppercase tracking-wider text-muted-foreground">
+              <thead className="bg-secondary/30 text-[10px] uppercase tracking-[0.14em] text-muted-foreground border-b border-border">
                 <tr>
-                  <th className="text-left font-medium px-4 py-3">Cliente</th>
-                  <th className="text-left font-medium px-4 py-3">Plano</th>
-                  <th className="text-left font-medium px-4 py-3">Status</th>
-                  <th className="text-left font-medium px-4 py-3">Valor</th>
-                  <th className="text-left font-medium px-4 py-3">Trial até</th>
-                  <th className="text-left font-medium px-4 py-3">Renova</th>
-                  <th className="text-right font-medium px-4 py-3">Ações</th>
+                  <th className="text-left font-semibold px-5 py-3.5">Cliente</th>
+                  <th className="text-left font-semibold px-4 py-3.5">Plano</th>
+                  <th className="text-left font-semibold px-4 py-3.5">Status</th>
+                  <th className="text-right font-semibold px-4 py-3.5">Valor</th>
+                  <th className="text-left font-semibold px-4 py-3.5">Trial</th>
+                  <th className="text-left font-semibold px-4 py-3.5">Renova</th>
+                  <th className="text-right font-semibold px-5 py-3.5">Ações</th>
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((c) => {
+                {filtered.map((c, idx) => {
                   const s = c.subscription;
-                  const planName = s?.plan ? PLANS[s.plan].name : "—";
-                  const price =
-                    s?.customPriceCents != null
-                      ? (s.customPriceCents / 100).toLocaleString("pt-BR", {
-                          style: "currency",
-                          currency: s.customCurrency || "BRL",
-                        }) + " (custom)"
-                      : s?.plan
-                        ? PLANS[s.plan].priceLabel
-                        : "—";
+                  const planName = s?.plan ? PLANS[s.plan].name : null;
+                  const initials = (c.fullName || c.email || "?")
+                    .split(/\s+/)
+                    .map((p) => p[0])
+                    .slice(0, 2)
+                    .join("")
+                    .toUpperCase();
+                  const hasCustom = s?.customPriceCents != null;
+                  const price = hasCustom
+                    ? (s!.customPriceCents! / 100).toLocaleString("pt-BR", {
+                        style: "currency",
+                        currency: s!.customCurrency || "BRL",
+                      })
+                    : s?.plan
+                      ? PLANS[s.plan].priceLabel
+                      : null;
                   return (
-                    <tr key={c.userId} className="border-t border-border hover:bg-secondary/20">
-                      <td className="px-4 py-3">
-                        <div className="font-medium">{c.fullName ?? "—"}</div>
-                        <div className="text-xs text-muted-foreground">{c.email ?? "—"}</div>
+                    <tr
+                      key={c.userId}
+                      className={`border-t border-border/60 hover:bg-secondary/20 transition-colors ${idx % 2 === 1 ? "bg-secondary/[0.04]" : ""}`}
+                    >
+                      <td className="px-5 py-4">
+                        <div className="flex items-center gap-3">
+                          <div className="size-9 rounded-full bg-accent/15 text-accent grid place-items-center text-[11px] font-semibold shrink-0">
+                            {initials}
+                          </div>
+                          <div className="min-w-0">
+                            <div className="font-medium truncate">{c.fullName ?? "—"}</div>
+                            <div className="text-xs text-muted-foreground truncate">{c.email ?? "—"}</div>
+                          </div>
+                        </div>
                       </td>
-                      <td className="px-4 py-3">
-                        <span className="font-medium">{planName}</span>
-                        {s?.isManual && (
-                          <span className="ml-1.5 text-[10px] uppercase tracking-wider font-semibold bg-accent/10 text-accent px-1.5 py-0.5 rounded-full">
-                            Manual
-                          </span>
+                      <td className="px-4 py-4">
+                        {planName ? (
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-medium">{planName}</span>
+                            {s?.isManual && (
+                              <span className="text-[9px] uppercase tracking-wider font-semibold bg-accent/10 text-accent px-1.5 py-0.5 rounded">
+                                Manual
+                              </span>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-muted-foreground/60">—</span>
                         )}
                       </td>
-                      <td className="px-4 py-3">
-                        <span
-                          className={`text-[10px] uppercase tracking-wider font-semibold px-2 py-0.5 rounded-full ${
-                            s?.status === "active" || s?.status === "trialing"
-                              ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
-                              : s?.status === "past_due"
-                                ? "bg-yellow-500/10 text-yellow-700 dark:text-yellow-400"
-                                : "bg-secondary text-muted-foreground"
-                          }`}
-                        >
-                          {s?.status ?? "sem plano"}
-                        </span>
+                      <td className="px-4 py-4">
+                        <StatusBadge status={s?.status} />
                       </td>
-                      <td className="px-4 py-3 text-xs">{price}</td>
-                      <td className="px-4 py-3 text-xs">
-                        {s?.trialEndsAt
-                          ? new Date(s.trialEndsAt).toLocaleDateString("pt-BR")
-                          : "—"}
+                      <td className="px-4 py-4 text-right">
+                        {price ? (
+                          <div className="font-medium tabular-nums">
+                            {price}
+                            {hasCustom && (
+                              <div className="text-[10px] uppercase tracking-wider text-accent font-semibold">
+                                personalizado
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-muted-foreground/60">—</span>
+                        )}
                       </td>
-                      <td className="px-4 py-3 text-xs">
-                        {s?.currentPeriodEnd
-                          ? new Date(s.currentPeriodEnd).toLocaleDateString("pt-BR")
-                          : "—"}
+                      <td className="px-4 py-4 text-xs tabular-nums whitespace-nowrap">
+                        {s?.trialEndsAt ? (
+                          new Date(s.trialEndsAt).toLocaleDateString("pt-BR")
+                        ) : (
+                          <span className="text-muted-foreground/60">—</span>
+                        )}
                       </td>
-                      <td className="px-4 py-3 text-right">
+                      <td className="px-4 py-4 text-xs tabular-nums whitespace-nowrap">
+                        {s?.currentPeriodEnd ? (
+                          new Date(s.currentPeriodEnd).toLocaleDateString("pt-BR")
+                        ) : (
+                          <span className="text-muted-foreground/60">—</span>
+                        )}
+                      </td>
+                      <td className="px-5 py-4 text-right">
                         <Button
                           size="sm"
                           variant="outline"
@@ -405,5 +462,42 @@ function EditDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function StatCard({ label, value, tone }: { label: string; value: number; tone?: "emerald" | "amber" | "muted" }) {
+  const toneClass =
+    tone === "emerald"
+      ? "text-emerald-600 dark:text-emerald-400"
+      : tone === "amber"
+        ? "text-amber-600 dark:text-amber-400"
+        : tone === "muted"
+          ? "text-muted-foreground"
+          : "text-foreground";
+  return (
+    <div className="rounded-xl border border-border bg-card px-4 py-3">
+      <div className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground font-semibold">{label}</div>
+      <div className={`text-2xl font-serif mt-1 tabular-nums ${toneClass}`}>{value}</div>
+    </div>
+  );
+}
+
+function StatusBadge({ status }: { status?: string | null }) {
+  const map: Record<string, { label: string; className: string; dot: string }> = {
+    active: { label: "Ativo", className: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20", dot: "bg-emerald-500" },
+    trialing: { label: "Trial", className: "bg-sky-500/10 text-sky-700 dark:text-sky-400 border-sky-500/20", dot: "bg-sky-500" },
+    past_due: { label: "Atrasado", className: "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20", dot: "bg-amber-500" },
+    paused: { label: "Pausado", className: "bg-secondary text-muted-foreground border-border", dot: "bg-muted-foreground" },
+    canceled: { label: "Cancelado", className: "bg-secondary text-muted-foreground border-border", dot: "bg-muted-foreground/60" },
+  };
+  const info = status ? map[status] : null;
+  if (!info) {
+    return <span className="text-xs text-muted-foreground/60">sem plano</span>;
+  }
+  return (
+    <span className={`inline-flex items-center gap-1.5 text-[10px] uppercase tracking-wider font-semibold px-2 py-1 rounded-full border ${info.className}`}>
+      <span className={`size-1.5 rounded-full ${info.dot}`} />
+      {info.label}
+    </span>
   );
 }
