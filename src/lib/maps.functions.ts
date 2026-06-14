@@ -4,8 +4,34 @@ import { z } from "zod";
 
 const GATEWAY = "https://connector-gateway.lovable.dev/google_maps";
 
+const ALLOWED_MAPS_HOSTS = new Set([
+  "maps.app.goo.gl",
+  "goo.gl",
+  "www.google.com",
+  "google.com",
+  "maps.google.com",
+  "www.google.com.br",
+  "google.com.br",
+  "maps.google.com.br",
+]);
+
 const InputSchema = z.object({
-  mapsUrl: z.string().min(5).max(2048),
+  mapsUrl: z
+    .string()
+    .url()
+    .max(2048)
+    .refine(
+      (s) => {
+        try {
+          const u = new URL(s);
+          if (u.protocol !== "https:" && u.protocol !== "http:") return false;
+          return ALLOWED_MAPS_HOSTS.has(u.hostname.toLowerCase());
+        } catch {
+          return false;
+        }
+      },
+      { message: "URL precisa ser um link do Google Maps." },
+    ),
 });
 
 type PlaceItem = {
