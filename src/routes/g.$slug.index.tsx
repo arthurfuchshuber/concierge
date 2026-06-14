@@ -553,20 +553,20 @@ function Guide({ data }: { data: GuideOk }) {
                     <HelpCircle className="size-4 text-muted-foreground" />
                     <h3 className="text-xs uppercase tracking-[0.18em] font-semibold text-muted-foreground">Perguntas frequentes</h3>
                   </div>
-                  <Accordion type="single" collapsible className="space-y-2.5">
+                  <Accordion type="single" collapsible className="space-y-1.5">
                     {data.faqs.map((f: any, idx: number) => (
                       <AccordionItem
                         key={f.id}
                         value={f.id}
-                        className="border border-border rounded-2xl px-4 bg-card/40 hover:bg-card transition-colors data-[state=open]:bg-card data-[state=open]:border-accent/40"
+                        className="border border-border/70 rounded-xl px-3.5 bg-card/30 hover:bg-card/60 transition-colors data-[state=open]:bg-card data-[state=open]:border-accent/40"
                       >
-                        <AccordionTrigger className="text-sm font-medium text-left hover:no-underline py-4">
-                          <span className="flex items-start gap-3">
-                            <span className="text-[10px] font-mono text-accent/80 tabular-nums tracking-wider mt-0.5 shrink-0">{String(idx + 1).padStart(2, "0")}</span>
-                            <span className="font-serif text-[15px] leading-snug">{f.question}</span>
+                        <AccordionTrigger className="text-left hover:no-underline py-2.5 gap-3">
+                          <span className="flex items-center gap-2.5 min-w-0">
+                            <span className="text-[10px] font-mono text-accent/70 tabular-nums tracking-wider shrink-0">{String(idx + 1).padStart(2, "0")}</span>
+                            <span className="text-[13.5px] font-medium leading-snug truncate">{f.question}</span>
                           </span>
                         </AccordionTrigger>
-                        <AccordionContent className="text-[14px] leading-relaxed whitespace-pre-line text-foreground/85 pl-7 pr-1 pb-4 max-w-prose">
+                        <AccordionContent className="text-[13.5px] leading-relaxed whitespace-pre-line text-foreground/80 pl-6 pr-1 pb-3.5 max-w-prose">
                           {f.answer}
                         </AccordionContent>
                       </AccordionItem>
