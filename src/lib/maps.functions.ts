@@ -4,8 +4,34 @@ import { z } from "zod";
 
 const GATEWAY = "https://connector-gateway.lovable.dev/google_maps";
 
+const ALLOWED_MAPS_HOSTS = new Set([
+  "maps.app.goo.gl",
+  "goo.gl",
+  "www.google.com",
+  "google.com",
+  "maps.google.com",
+  "www.google.com.br",
+  "google.com.br",
+  "maps.google.com.br",
+]);
+
 const InputSchema = z.object({
-  mapsUrl: z.string().min(5).max(2048),
+  mapsUrl: z
+    .string()
+    .url()
+    .max(2048)
+    .refine(
+      (s) => {
+        try {
+          const u = new URL(s);
+          if (u.protocol !== "https:" && u.protocol !== "http:") return false;
+          return ALLOWED_MAPS_HOSTS.has(u.hostname.toLowerCase());
+        } catch {
+          return false;
+        }
+      },
+      { message: "URL precisa ser um link do Google Maps." },
+    ),
 });
 
 type PlaceItem = {
@@ -88,9 +114,25 @@ function formatDistance(meters: number): { text: string; driveMin: number | null
 
 
 async function resolveShortUrl(url: string): Promise<string> {
-  if (!/maps\.app\.goo\.gl|goo\.gl\/maps/.test(url)) return url;
+  let parsed: URL;
   try {
-    const res = await fetch(url, { method: "GET", redirect: "follow" });
+    parsed = new URL(url);
+  } catch {
+    return url;
+  }
+  if (parsed.protocol !== "https:") return url;
+  const host = parsed.hostname.toLowerCase();
+  // Só seguimos redirecionamento para hosts de short-link conhecidos do Google.
+  if (host !== "maps.app.goo.gl" && host !== "goo.gl") return url;
+  try {
+    const res = await fetch(parsed.toString(), { method: "GET", redirect: "follow" });
+    // Valida que o destino final ainda é um host permitido (evita open redirect / SSRF).
+    try {
+      const finalHost = new URL(res.url).hostname.toLowerCase();
+      if (!ALLOWED_MAPS_HOSTS.has(finalHost)) return url;
+    } catch {
+      return url;
+    }
     return res.url || url;
   } catch {
     return url;
