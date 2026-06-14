@@ -68,6 +68,9 @@ type FormState = {
     address_note: string;
     checkin_instructions: string;
     checkin_media: MediaItem[];
+    access_instructions: string;
+    access_media: MediaItem[];
+    access_video_url: string;
     wifi_ssid: string;
     wifi_password: string;
     host_name: string;
