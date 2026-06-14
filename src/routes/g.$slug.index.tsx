@@ -496,8 +496,8 @@ function Guide({ data }: { data: GuideOk }) {
                         label="Saída"
                         hint="Passo a passo do check-out"
                       >
-                        <div className="rounded-xl bg-background/50 border border-border/50 p-3.5">
-                          <div className="text-[9.5px] font-medium uppercase tracking-[0.14em] text-muted-foreground mb-2">Instruções de check-out</div>
+                        <div className="pt-1">
+                          <p className="text-[11px] uppercase tracking-[0.22em] text-primary font-semibold mb-3">Instruções de check-out</p>
                           <StepList text={p.checkout_instructions as string} />
                         </div>
                       </SubItem>
