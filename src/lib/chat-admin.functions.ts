@@ -30,8 +30,11 @@ export const getConversationMessages = createServerFn({ method: "POST" })
       .eq("id", data.conversationId)
       .single();
     if (conv.error || !conv.data) throw new Error("Conversa não encontrada");
-    // @ts-expect-error nested join
-    if (conv.data.properties.owner_id !== userId) throw new Error("Não autorizado");
+    const c = conv.data as unknown as {
+      id: string; property_id: string; guest_name: string | null; guest_session_id: string;
+      created_at: string; last_message_at: string; properties: { owner_id: string; name: string };
+    };
+    if (c.properties.owner_id !== userId) throw new Error("Não autorizado");
     const { data: msgs, error } = await supabase
       .from("property_chat_messages")
       .select("id,role,content,created_at")
@@ -40,14 +43,13 @@ export const getConversationMessages = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return {
       conversation: {
-        id: conv.data.id,
-        guest_name: conv.data.guest_name,
-        guest_session_id: conv.data.guest_session_id,
-        created_at: conv.data.created_at,
-        last_message_at: conv.data.last_message_at,
-        // @ts-expect-error nested
-        property_name: conv.data.properties.name,
-        property_id: conv.data.property_id,
+        id: c.id,
+        guest_name: c.guest_name,
+        guest_session_id: c.guest_session_id,
+        created_at: c.created_at,
+        last_message_at: c.last_message_at,
+        property_name: c.properties.name,
+        property_id: c.property_id,
       },
       messages: msgs ?? [],
     };
