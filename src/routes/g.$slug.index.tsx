@@ -433,7 +433,15 @@ function Guide({ data }: { data: GuideOk }) {
                       <SubItem
                         icon={<KeyRound className="size-[18px]" strokeWidth={1.6} />}
                         label="Acesso"
-                        hint={p.gate_code && p.lock_code ? "Portão e fechadura" : p.gate_code ? "Portão" : "Fechadura"}
+                        hint={
+                          p.gate_code && p.lock_code
+                            ? "Portão e fechadura"
+                            : p.gate_code
+                            ? "Portão"
+                            : p.lock_code
+                            ? "Fechadura"
+                            : "Instruções de entrada"
+                        }
                       >
                         <div className="rounded-xl bg-background/50 border border-border/50 overflow-hidden divide-y divide-border/40">
                           {p.gate_code && (
@@ -441,6 +449,50 @@ function Guide({ data }: { data: GuideOk }) {
                           )}
                           {p.lock_code && (
                             <CopyCard flat icon={<Lock className="size-[18px]" strokeWidth={1.75} />} eyebrow="Fechadura" label="Toque para copiar" value={p.lock_code} />
+                          )}
+                          {p.access_instructions && (
+                            <div className="px-3.5 py-3 flex items-start gap-3">
+                              <div className="size-9 grid place-items-center rounded-lg bg-primary/10 text-primary shrink-0">
+                                <ListOrdered className="size-[18px]" strokeWidth={1.75} />
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <div className="text-[9.5px] font-medium uppercase tracking-[0.14em] text-muted-foreground mb-1">Passo a passo</div>
+                                <p className="text-[13.5px] leading-relaxed text-foreground/90 whitespace-pre-wrap">{p.access_instructions as string}</p>
+                              </div>
+                            </div>
+                          )}
+                          {p.access_video_url && (
+                            <a
+                              href={p.access_video_url as string}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="px-3.5 py-3 flex items-center gap-3 hover:bg-foreground/[0.03] transition-colors"
+                            >
+                              <div className="size-9 grid place-items-center rounded-lg bg-primary/10 text-primary shrink-0">
+                                <PlayCircle className="size-[18px]" strokeWidth={1.75} />
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <div className="text-[9.5px] font-medium uppercase tracking-[0.14em] text-muted-foreground">Vídeo</div>
+                                <div className="text-[13.5px] font-medium text-foreground">Assistir tutorial</div>
+                              </div>
+                              <ExternalLink className="size-4 text-muted-foreground" />
+                            </a>
+                          )}
+                          {accessMedia.length > 0 && (
+                            <div className="px-3.5 py-3">
+                              <div className="text-[9.5px] font-medium uppercase tracking-[0.14em] text-muted-foreground mb-2">Fotos & vídeos</div>
+                              <div className="grid grid-cols-2 gap-2">
+                                {accessMedia.map((m, i) => (
+                                  <div key={i} className="rounded-lg overflow-hidden border border-border/60 bg-muted/40 aspect-square">
+                                    {m.type === "video" ? (
+                                      <video src={m.url} className="size-full object-cover" controls playsInline preload="metadata" />
+                                    ) : (
+                                      <img src={m.url} alt={`Acesso ${i + 1}`} className="size-full object-cover" loading="lazy" />
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
                           )}
                         </div>
                       </SubItem>
