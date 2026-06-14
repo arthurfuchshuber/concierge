@@ -171,7 +171,7 @@ function Guide({ data }: { data: GuideOk }) {
     {
       key: "checkin",
       eyebrow: "Estadia",
-      title: "Chegada & Saída",
+      title: "Chegada",
       desc: "Endereço, códigos de acesso e horários.",
       icon: <KeyRound className="size-5" strokeWidth={1.5} />,
       image: themePick("checkin", 1),
@@ -286,7 +286,7 @@ function Guide({ data }: { data: GuideOk }) {
             </button>
 
             <TabsContent value="checkin" className="space-y-5">
-              <SectionTitle eyebrow="Estadia" title="Chegada & Saída" intro="Tudo o que você precisa para chegar e se acomodar." />
+              <SectionTitle eyebrow="Estadia" title="Chegada" intro="Tudo o que você precisa para chegar e se acomodar." />
 
               {(() => {
                 const hasHorario = !!(p.checkin_time || p.checkout_time);
@@ -320,12 +320,17 @@ function Guide({ data }: { data: GuideOk }) {
                 const uberUrl = uberDrop
                   ? `https://m.uber.com/looking?drop[0]=${encodeURIComponent(JSON.stringify(uberDrop))}`
                   : null;
+                const noveNoveUrl = hasCoords
+                  ? `https://99app.com/open/?destination_lat=${p.lat}&destination_lng=${p.lng}${p.address ? `&destination_address=${encodeURIComponent(String(p.address))}` : ""}`
+                  : p.address
+                    ? `https://99app.com/open/?destination_address=${encodeURIComponent(String(p.address))}`
+                    : null;
                 return (
                   <SubList>
                     {hasHorario && (
                       <SubItem
                         icon={<Clock className="size-[18px]" strokeWidth={1.6} />}
-                        label="Horário"
+                        label="Horários"
                         hint={
                           p.checkin_time && p.checkout_time
                             ? `Check-in ${p.checkin_time} · Check-out ${p.checkout_time}`
@@ -360,7 +365,7 @@ function Guide({ data }: { data: GuideOk }) {
                     {hasChegada && (
                       <SubItem
                         icon={<MapPin className="size-[18px]" strokeWidth={1.6} />}
-                        label="Chegada & Localização"
+                        label="Localização"
                         hint={p.city || (p.address ? "Como chegar" : undefined)}
                       >
                         <div className="space-y-7">
@@ -373,7 +378,7 @@ function Guide({ data }: { data: GuideOk }) {
                                 ))}
                             </div>
                           )}
-                          {(p.address || p.maps_url || uberUrl) && (
+                          {(p.address || p.maps_url || uberUrl || noveNoveUrl) && (
                             <div className="rounded-2xl bg-background/40 border border-border/60 overflow-hidden divide-y divide-border/40">
                               {mapsHref && (
                                 <a
@@ -409,6 +414,23 @@ function Guide({ data }: { data: GuideOk }) {
                                   <ExternalLink className="size-4 text-muted-foreground shrink-0" />
                                 </a>
                               )}
+                              {noveNoveUrl && (
+                                <a
+                                  href={noveNoveUrl}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="flex items-center gap-3 px-3.5 py-3.5 hover:bg-card/40 active:bg-card/60 transition-colors"
+                                >
+                                  <span className="size-10 rounded-xl bg-[#FFD400] text-black grid place-items-center shrink-0 font-bold text-[13px] tracking-tight">
+                                    99
+                                  </span>
+                                  <div className="flex-1 min-w-0 text-left">
+                                    <p className="text-[14px] font-medium leading-tight">Pedir 99</p>
+                                    <p className="text-[12px] text-muted-foreground mt-1">Corrida até o endereço</p>
+                                  </div>
+                                  <ExternalLink className="size-4 text-muted-foreground shrink-0" />
+                                </a>
+                              )}
                             </div>
                           )}
                         </div>
@@ -421,13 +443,14 @@ function Guide({ data }: { data: GuideOk }) {
                         label="Check-in"
                         hint="Passo a passo da chegada"
                       >
-                        <div className="pt-1">
-                          <p className="text-[11px] uppercase tracking-[0.24em] text-accent font-semibold mb-4">Instruções de check-in</p>
+                        <div className="space-y-4">
                           {p.checkin_instructions && (
-                            <StepList text={String(p.checkin_instructions)} />
+                            <div className="rounded-2xl border border-border/60 bg-background/40 px-4 py-4">
+                              <StepList text={String(p.checkin_instructions)} dense />
+                            </div>
                           )}
                           {Array.isArray(p.checkin_media) && p.checkin_media.length > 0 && (
-                            <div className="grid grid-cols-2 gap-2 mt-4">
+                            <div className="grid grid-cols-2 gap-2">
                               {(p.checkin_media as Array<{ url: string; type: "image" | "video" }>).map((m, i) => (
                                 <div key={i} className="rounded-xl overflow-hidden border border-border bg-muted/40 aspect-square">
                                   {m.type === "video" ? (
@@ -502,9 +525,8 @@ function Guide({ data }: { data: GuideOk }) {
                         label="Saída"
                         hint="Passo a passo do check-out"
                       >
-                        <div className="pt-1">
-                          <p className="text-[11px] uppercase tracking-[0.22em] text-accent font-semibold mb-3">Instruções de check-out</p>
-                          <StepList text={p.checkout_instructions as string} />
+                        <div className="rounded-2xl border border-border/60 bg-background/40 px-4 py-4">
+                          <StepList text={p.checkout_instructions as string} dense />
                         </div>
                       </SubItem>
                     )}
@@ -1010,7 +1032,7 @@ function AccessBlock({
   const [open, setOpen] = useState(false);
   const Icon = kind === "gate" ? KeyRound : Lock;
   const label = kind === "gate" ? "Portão" : "Fechadura";
-  const subtitle = kind === "gate" ? "Instruções de acesso ao portão" : "Instruções de acesso à porta";
+  
   const hasMore = !!(instructions || videoUrl || media.length > 0);
 
   return (
@@ -1026,9 +1048,6 @@ function AccessBlock({
           <p className="text-[10.5px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">{label}</p>
           <p className="font-mono text-[15px] font-semibold tracking-[0.08em] text-foreground mt-0.5 truncate">{code}</p>
         </div>
-        <div onClick={(e) => e.stopPropagation()} className="shrink-0">
-          <CopyCode value={code} />
-        </div>
         {hasMore && (
           <ChevronDown
             className={`size-4 text-muted-foreground shrink-0 transition-transform duration-200 ${open ? "rotate-180" : ""}`}
@@ -1040,8 +1059,7 @@ function AccessBlock({
       {hasMore && open && (
         <div className="px-4 pb-4 pt-1 space-y-5">
           {instructions && (
-            <div>
-              <p className="text-[11px] uppercase tracking-[0.24em] text-accent font-semibold mb-4">{subtitle}</p>
+            <div className="rounded-2xl border border-border/60 bg-background/40 px-4 py-4">
               <StepList text={instructions} dense />
             </div>
           )}
