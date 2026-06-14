@@ -435,47 +435,62 @@ export type Database = {
       }
       subscriptions: {
         Row: {
+          admin_notes: string | null
           cancel_at_period_end: boolean | null
           created_at: string | null
           current_period_end: string | null
           current_period_start: string | null
+          custom_currency: string | null
+          custom_price_cents: number | null
           environment: string
           id: string
+          is_manual: boolean
           paddle_customer_id: string
           paddle_subscription_id: string
           price_id: string
           product_id: string
           status: string
+          trial_ends_at: string | null
           updated_at: string | null
           user_id: string
         }
         Insert: {
+          admin_notes?: string | null
           cancel_at_period_end?: boolean | null
           created_at?: string | null
           current_period_end?: string | null
           current_period_start?: string | null
+          custom_currency?: string | null
+          custom_price_cents?: number | null
           environment?: string
           id?: string
+          is_manual?: boolean
           paddle_customer_id: string
           paddle_subscription_id: string
           price_id: string
           product_id: string
           status?: string
+          trial_ends_at?: string | null
           updated_at?: string | null
           user_id: string
         }
         Update: {
+          admin_notes?: string | null
           cancel_at_period_end?: boolean | null
           created_at?: string | null
           current_period_end?: string | null
           current_period_start?: string | null
+          custom_currency?: string | null
+          custom_price_cents?: number | null
           environment?: string
           id?: string
+          is_manual?: boolean
           paddle_customer_id?: string
           paddle_subscription_id?: string
           price_id?: string
           product_id?: string
           status?: string
+          trial_ends_at?: string | null
           updated_at?: string | null
           user_id?: string
         }
