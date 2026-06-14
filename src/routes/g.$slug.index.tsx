@@ -10,8 +10,10 @@ import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/
 import {
   Lock, MapPin, Wifi, Phone, KeyRound, Compass, ListChecks, LifeBuoy, HelpCircle,
   Copy, Check, ArrowLeft, ArrowRight, Home, Eye, EyeOff, Clock, ExternalLink, Car,
-  Sun, Moon, UserRound,
+  Sun, Moon, UserRound, UtensilsCrossed, Wind, Tv, ShowerHead, PawPrint, WashingMachine, Waves, Refrigerator, Flame, Lightbulb, Trash2, Bath, BedDouble, ChevronRight,
 } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { GuideAiChat } from "@/components/GuideAiChat";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/g/$slug/")({
@@ -491,22 +493,16 @@ function Guide({ data }: { data: GuideOk }) {
               )}
             </TabsContent>
 
-            <TabsContent value="residencia" className="space-y-4">
-              <SectionTitle eyebrow="A casa" title="A Residência" intro="Manual e detalhes da casa." />
+            <TabsContent value="residencia" className="space-y-5">
+              <SectionTitle title="A Residência" intro="Manual e detalhes da casa — toque em um item para saber mais." />
               {houseManual.length === 0 ? (
                 <p className="text-sm text-muted-foreground">Sem informações adicionais.</p>
               ) : (
-                <Accordion type="single" collapsible className="space-y-2">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
                   {houseManual.map((m: any) => (
-                    <AccordionItem key={m.id} value={m.id} className="border border-border rounded-xl px-4">
-                      <AccordionTrigger className="text-sm font-medium">{m.title}</AccordionTrigger>
-                      <AccordionContent>
-                        {m.description && <p className="text-sm text-muted-foreground mb-2">{m.description}</p>}
-                        {m.body && <p className="text-sm whitespace-pre-line leading-relaxed">{m.body}</p>}
-                      </AccordionContent>
-                    </AccordionItem>
+                    <ResidenciaCard key={m.id} item={m} />
                   ))}
-                </Accordion>
+                </div>
               )}
             </TabsContent>
 
@@ -648,7 +644,76 @@ function Guide({ data }: { data: GuideOk }) {
           </Tabs>
         )}
       </div>
+      <GuideAiChat slug={slug} propertyName={heroTitle} />
     </div>
+  );
+}
+
+function residenciaIcon(title: string): React.ReactNode {
+  const t = title.toLowerCase();
+  if (/cozinha|fog(ã|a)o|forno|micro|panela/.test(t)) return <UtensilsCrossed className="size-5" strokeWidth={1.5} />;
+  if (/geladeira|freezer/.test(t)) return <Refrigerator className="size-5" strokeWidth={1.5} />;
+  if (/ar[\s-]?cond|climati|ventil|aquece/.test(t)) return <Wind className="size-5" strokeWidth={1.5} />;
+  if (/tv|televis|streaming|netflix|controle/.test(t)) return <Tv className="size-5" strokeWidth={1.5} />;
+  if (/chuveiro|banheir|toalha/.test(t)) return <ShowerHead className="size-5" strokeWidth={1.5} />;
+  if (/banhei/.test(t)) return <Bath className="size-5" strokeWidth={1.5} />;
+  if (/pet|cachorro|gato|animal/.test(t)) return <PawPrint className="size-5" strokeWidth={1.5} />;
+  if (/lavanderia|m(á|a)quina|lavar|rouparia|secad/.test(t)) return <WashingMachine className="size-5" strokeWidth={1.5} />;
+  if (/piscina|hidro|jacuzzi|spa/.test(t)) return <Waves className="size-5" strokeWidth={1.5} />;
+  if (/churras|grill|fog(ã|a)o a lenha/.test(t)) return <Flame className="size-5" strokeWidth={1.5} />;
+  if (/luz|iluminaç|l(â|a)mpada|interruptor/.test(t)) return <Lightbulb className="size-5" strokeWidth={1.5} />;
+  if (/lixo|reciclag|coleta/.test(t)) return <Trash2 className="size-5" strokeWidth={1.5} />;
+  if (/cama|quarto|colch(ã|a)o|len(ç|c)ol/.test(t)) return <BedDouble className="size-5" strokeWidth={1.5} />;
+  return <Home className="size-5" strokeWidth={1.5} />;
+}
+
+function ResidenciaCard({ item }: { item: { id: string; title: string; description?: string | null; body?: string | null } }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="group relative text-left bg-card border border-border rounded-2xl p-4 hover:border-accent/50 hover:shadow-[0_8px_24px_-12px_oklch(from_var(--accent)_l_c_h/0.5)] active:scale-[0.98] transition-all min-h-[120px] flex flex-col gap-3"
+      >
+        <span className="grid size-10 place-items-center rounded-xl bg-accent/12 text-accent group-hover:bg-accent/20 transition-colors">
+          {residenciaIcon(item.title)}
+        </span>
+        <div className="flex-1 min-w-0">
+          <h3 className="font-serif text-[15px] leading-snug text-foreground line-clamp-2">{item.title}</h3>
+          {item.description && (
+            <p className="text-[11.5px] text-muted-foreground mt-1 line-clamp-2 leading-snug">{item.description}</p>
+          )}
+        </div>
+        <ChevronRight className="absolute top-3 right-3 size-4 text-muted-foreground/60 group-hover:text-accent transition-colors" />
+      </button>
+
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <div className="flex items-center gap-3 text-left">
+              <span className="grid size-10 place-items-center rounded-xl bg-accent/15 text-accent shrink-0">
+                {residenciaIcon(item.title)}
+              </span>
+              <DialogTitle className="font-serif text-xl leading-tight">{item.title}</DialogTitle>
+            </div>
+          </DialogHeader>
+          <div className="space-y-3 mt-1">
+            {item.description && (
+              <p className="text-[13.5px] text-muted-foreground leading-relaxed">{item.description}</p>
+            )}
+            {item.body && (
+              <div className="text-[14px] leading-relaxed whitespace-pre-line text-foreground/90">
+                {item.body}
+              </div>
+            )}
+            {!item.description && !item.body && (
+              <p className="text-sm text-muted-foreground">Sem detalhes adicionais.</p>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 
