@@ -21,20 +21,34 @@ async function loadFullGuide(supabaseAdmin: typeof import("@/integrations/supaba
   };
 }
 
+// Columns safe to return to guests. Excludes pin_code and owner_id.
+// Credential fields (wifi_*, lock_code, gate_code, host_phone) are the purpose of the guide
+// and are gated by access_mode + PIN cookie below.
+const PUBLIC_PROPERTY_COLUMNS = [
+  "id","slug","name","tagline","hero_image_url","gallery_images","theme_images",
+  "address","maps_url","lat","lng","city","country",
+  "checkin_time","checkin_time_max","checkout_time","checkout_time_min",
+  "address_note","host_name",
+  "access_mode","pin_expires_at","default_language","guide_theme","published",
+  "created_at","updated_at",
+].join(",");
+
+const CREDENTIAL_COLUMNS = "wifi_ssid,wifi_password,lock_code,gate_code,host_phone";
+
 export const getPublicGuide = createServerFn({ method: "POST" })
   .inputValidator((i: unknown) => SlugInput.parse(i))
   .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    // First fetch only access-control + display fields (no credentials, no pin_code).
     const { data: prop, error } = await supabaseAdmin
       .from("properties")
-      .select("*")
+      .select(PUBLIC_PROPERTY_COLUMNS)
       .eq("slug", data.slug)
       .eq("published", true)
       .maybeSingle();
     if (error) throw (await import("@/lib/db-errors.server")).safeDbError("properties", error);
     if (!prop) return { status: "not_found" as const };
 
-    // Expiration check
     if (prop.access_mode === "pin" && prop.pin_expires_at && new Date(prop.pin_expires_at) < new Date()) {
       return { status: "expired" as const, propertyName: prop.name };
     }
@@ -46,9 +60,14 @@ export const getPublicGuide = createServerFn({ method: "POST" })
       }
     }
 
-    // Strip pin_code before returning
-    const { pin_code: _omit, ...safeProp } = prop;
-    void _omit;
+    // Access granted — now fetch credential fields in a separate query.
+    const { data: creds } = await supabaseAdmin
+      .from("properties")
+      .select(CREDENTIAL_COLUMNS)
+      .eq("id", prop.id)
+      .maybeSingle();
+
+    const safeProp = { ...prop, ...(creds ?? {}) };
     const children = await loadFullGuide(supabaseAdmin, prop.id);
     const { signPropertyImages } = await import("@/lib/storage.server");
     const signedProp = await signPropertyImages(supabaseAdmin, safeProp);
