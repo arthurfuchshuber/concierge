@@ -8,7 +8,6 @@ import {
   Star,
   Footprints,
   Car,
-  ArrowUpDown,
   LayoutGrid,
   List as ListIcon,
   Utensils,
@@ -18,6 +17,7 @@ import {
   Cross,
   ShoppingBag,
   Clock,
+  ChevronDown,
 } from "lucide-react";
 
 
@@ -152,15 +152,12 @@ function formatDriving(r: Rec): string | null {
   return null;
 }
 
-// Google retorna `weekdayDescriptions` começando por segunda-feira (índice 0).
-// JS Date.getDay(): 0 = domingo … 6 = sábado. Mapeia para o índice do array.
 function todayOpening(hours: string[] | null | undefined): string | null {
   if (!hours || hours.length === 0) return null;
-  const jsDay = new Date().getDay(); // 0..6, dom..sáb
-  const idx = (jsDay + 6) % 7; // 0 = seg
+  const jsDay = new Date().getDay();
+  const idx = (jsDay + 6) % 7;
   const line = hours[idx] ?? hours[0];
   if (!line) return null;
-  // Remove rótulo do dia ("Monday: 09:00 – 18:00" → "09:00 – 18:00").
   const i = line.indexOf(":");
   return i > 0 && i < 12 ? line.slice(i + 1).trim() : line;
 }
@@ -175,10 +172,7 @@ function OpeningHours({ hours }: { hours: string[] | null | undefined }) {
     >
       <summary
         className="inline-flex items-center gap-1.5 cursor-pointer list-none hover:text-foreground transition-colors"
-        onClick={(e) => {
-          // Evita navegação ao clicar no toggle dentro do <a> do card
-          e.stopPropagation();
-        }}
+        onClick={(e) => e.stopPropagation()}
       >
         <Clock className="size-3.5" strokeWidth={1.75} />
         <span className="truncate max-w-[28ch]">Hoje: {today}</span>
@@ -222,6 +216,16 @@ function ExplorePage() {
   const [sortBy, setSortBy] = useState<SortKey>("distance");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
 
+  // Tema herdado da página inicial do guia (definido pelo visitante).
+  const adminTheme: "dark" | "light" =
+    r.status === "ok" && (r.property as Record<string, unknown>).guide_theme === "light"
+      ? "light"
+      : "dark";
+  const [theme] = useState<"dark" | "light">(() => {
+    if (typeof window === "undefined") return adminTheme;
+    const stored = window.localStorage.getItem(`guide-theme:${slug}`);
+    return stored === "dark" || stored === "light" ? stored : adminTheme;
+  });
 
   if (r.status !== "ok") {
     return (
@@ -234,7 +238,6 @@ function ExplorePage() {
   const p = r.property as Record<string, any>;
   const allRecs: Rec[] = (r.recommendations as Rec[]).filter(hasMeaningfulInfo);
 
-  // Compute per-meta-category buckets and counts
   const categories = useMemo(() => {
     return META_CATEGORIES.map((meta) => {
       const items = allRecs.filter((rec) => meta.types.includes(rec.type));
@@ -247,7 +250,11 @@ function ExplorePage() {
   const active = categories.find((c) => c.meta.key === activeKey) ?? null;
 
   return (
-    <div className="guide-ambient min-h-screen bg-background text-foreground pb-24">
+    <div
+      className={`sigma-public-guide guide-ambient min-h-screen bg-background text-foreground pb-24 ${
+        theme === "light" ? "theme-light" : ""
+      }`}
+    >
       <div className="mx-auto w-full max-w-md md:max-w-3xl lg:max-w-5xl px-5 md:px-10 pt-5 md:pt-10">
         {active ? (
           <button
@@ -268,10 +275,7 @@ function ExplorePage() {
         )}
 
         <header className="mt-6 mb-8">
-          <div className="flex items-center gap-2 mb-3">
-            <span className="h-px w-6 bg-accent/70" />
-            <p className="text-[10px] uppercase tracking-[0.32em] text-accent font-semibold">Concierge</p>
-          </div>
+          <p className="text-[10px] uppercase tracking-[0.32em] text-accent font-semibold mb-3">Concierge</p>
           <h1 className="font-serif text-[2.1rem] md:text-[2.8rem] leading-[1.02] tracking-tight">
             {active ? active.meta.title : "Explore a Região"}
           </h1>
@@ -283,10 +287,16 @@ function ExplorePage() {
         </header>
 
         {!active ? (
-          <CategoryGrid
-            categories={categories}
-            onPick={(k) => setActiveKey(k)}
-          />
+          <>
+            <div className="flex justify-end mb-4">
+              <ViewToggle viewMode={viewMode} setViewMode={setViewMode} />
+            </div>
+            {viewMode === "grid" ? (
+              <CategoryGrid categories={categories} onPick={(k) => setActiveKey(k)} />
+            ) : (
+              <CategoryList categories={categories} onPick={(k) => setActiveKey(k)} />
+            )}
+          </>
         ) : (
           <CategoryDetail
             nearby={sortRecs(active.nearby, sortBy)}
@@ -322,7 +332,6 @@ function CategoryGrid({
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
       {categories.map(({ meta, count, nearby, city }) => {
-        // Pick a hero image for the category if available
         const heroSrc =
           nearby.find((x) => x.image_url)?.image_url ??
           city.find((x) => x.image_url)?.image_url ??
@@ -369,6 +378,62 @@ function CategoryGrid({
   );
 }
 
+function CategoryList({
+  categories,
+  onPick,
+}: {
+  categories: {
+    meta: MetaCategory;
+    count: number;
+    nearby: Rec[];
+    city: Rec[];
+  }[];
+  onPick: (k: string) => void;
+}) {
+  return (
+    <div className="flex flex-col gap-3">
+      {categories.map(({ meta, count, nearby, city }) => {
+        const heroSrc =
+          nearby.find((x) => x.image_url)?.image_url ??
+          city.find((x) => x.image_url)?.image_url ??
+          null;
+        const Icon = meta.Icon;
+        return (
+          <button
+            key={meta.key}
+            type="button"
+            onClick={() => onPick(meta.key)}
+            className="group flex gap-4 bg-card border border-border rounded-2xl p-3 text-left hover:border-accent/40 hover:shadow-lg transition-all"
+          >
+            <div className="relative size-24 sm:size-28 shrink-0 overflow-hidden rounded-xl bg-secondary">
+              {heroSrc ? (
+                <img
+                  src={heroSrc}
+                  alt=""
+                  loading="lazy"
+                  className="absolute inset-0 size-full object-cover group-hover:scale-[1.04] transition-transform duration-500"
+                />
+              ) : (
+                <div className="absolute inset-0 grid place-items-center bg-gradient-to-br from-accent/20 to-accent/5">
+                  <Icon className="size-8 text-accent/70" strokeWidth={1.25} />
+                </div>
+              )}
+            </div>
+            <div className="flex-1 min-w-0 flex flex-col justify-center gap-1">
+              <p className="inline-flex items-center gap-1.5 text-[10px] uppercase tracking-[0.2em] font-semibold text-accent">
+                <Icon className="size-3.5" strokeWidth={1.75} />
+                {count} {count === 1 ? "lugar" : "lugares"}
+              </p>
+              <h2 className="font-serif text-[1.3rem] leading-tight">{meta.title}</h2>
+              <p className="text-[12.5px] text-muted-foreground leading-relaxed line-clamp-2">{meta.desc}</p>
+            </div>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 function CategoryDetail({
   nearby,
   city,
@@ -384,30 +449,28 @@ function CategoryDetail({
   viewMode: "grid" | "list";
   setViewMode: (v: "grid" | "list") => void;
 }) {
+  const sections = [
+    { key: "nearby", eyebrow: "A poucos minutos", title: "Pertinho da Residência", items: nearby },
+    { key: "city", eyebrow: "Vale o deslocamento", title: "Referências na Cidade", items: city },
+  ].filter((s) => s.items.length > 0);
+
   return (
     <>
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <SortBar sortBy={sortBy} setSortBy={setSortBy} />
         <ViewToggle viewMode={viewMode} setViewMode={setViewMode} />
       </div>
-      <div className="mt-8 space-y-12">
-        {nearby.length > 0 && (
-          <Section
-            eyebrow="A poucos minutos"
-            title="Pertinho da Residência"
-            items={nearby}
+      <div className="mt-8 space-y-6">
+        {sections.map((s) => (
+          <CollapsibleSection
+            key={s.key}
+            eyebrow={s.eyebrow}
+            title={s.title}
+            items={s.items}
             viewMode={viewMode}
           />
-        )}
-        {city.length > 0 && (
-          <Section
-            eyebrow="Vale o deslocamento"
-            title="Referências na Cidade"
-            items={city}
-            viewMode={viewMode}
-          />
-        )}
-        {nearby.length === 0 && city.length === 0 && (
+        ))}
+        {sections.length === 0 && (
           <p className="text-sm text-muted-foreground">Nada cadastrado nesta categoria.</p>
         )}
       </div>
@@ -459,35 +522,29 @@ function SortBar({ sortBy, setSortBy }: { sortBy: SortKey; setSortBy: (s: SortKe
     { key: "alpha", label: "A–Z" },
   ];
   return (
-    <div className="flex items-center gap-2.5 flex-wrap">
-      <span className="inline-flex items-center gap-1.5 text-[10px] uppercase tracking-[0.24em] font-semibold text-muted-foreground">
-        <ArrowUpDown className="size-3" />
-        Ordenar por
-      </span>
-      <div className="inline-flex items-center rounded-full border border-border bg-card/60 backdrop-blur p-1">
-        {opts.map((o) => {
-          const on = sortBy === o.key;
-          return (
-            <button
-              key={o.key}
-              type="button"
-              onClick={() => setSortBy(o.key)}
-              className={`px-3 py-1.5 rounded-full text-[11.5px] font-medium transition-colors ${
-                on
-                  ? "bg-accent text-accent-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              {o.label}
-            </button>
-          );
-        })}
-      </div>
+    <div className="inline-flex items-center rounded-full border border-border bg-card/60 backdrop-blur p-1">
+      {opts.map((o) => {
+        const on = sortBy === o.key;
+        return (
+          <button
+            key={o.key}
+            type="button"
+            onClick={() => setSortBy(o.key)}
+            className={`px-3 py-1.5 rounded-full text-[11.5px] font-medium transition-colors ${
+              on
+                ? "bg-accent text-accent-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            {o.label}
+          </button>
+        );
+      })}
     </div>
   );
 }
 
-function Section({
+function CollapsibleSection({
   eyebrow,
   title,
   items,
@@ -498,26 +555,44 @@ function Section({
   items: Rec[];
   viewMode: "grid" | "list";
 }) {
+  const [open, setOpen] = useState(false);
   return (
-    <section>
-      <div className="mb-5">
-        <div className="flex items-center gap-2 mb-2">
-          <span className="h-px w-6 bg-accent/70" />
+    <section className="border border-border rounded-2xl bg-card/40 overflow-hidden">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="w-full flex items-center justify-between gap-3 px-5 py-4 text-left hover:bg-card/80 transition-colors"
+        aria-expanded={open}
+      >
+        <div className="min-w-0">
           <p className="text-[10px] uppercase tracking-[0.28em] text-accent font-semibold">{eyebrow}</p>
+          <h3 className="font-serif text-[1.35rem] md:text-[1.55rem] leading-tight mt-0.5">
+            {title}
+            <span className="ml-2 text-[12px] text-muted-foreground font-sans font-normal">
+              ({items.length})
+            </span>
+          </h3>
         </div>
-        <h3 className="font-serif text-[1.55rem] md:text-[1.85rem] leading-tight">{title}</h3>
-      </div>
-      {viewMode === "grid" ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {items.map((rec) => (
-            <RecCard key={rec.id} rec={rec} />
-          ))}
-        </div>
-      ) : (
-        <div className="flex flex-col gap-3">
-          {items.map((rec) => (
-            <RecRow key={rec.id} rec={rec} />
-          ))}
+        <ChevronDown
+          className={`size-5 text-muted-foreground shrink-0 transition-transform ${open ? "rotate-180" : ""}`}
+          strokeWidth={1.75}
+        />
+      </button>
+      {open && (
+        <div className="px-5 pb-5 pt-1">
+          {viewMode === "grid" ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {items.map((rec) => (
+                <RecCard key={rec.id} rec={rec} />
+              ))}
+            </div>
+          ) : (
+            <div className="flex flex-col gap-3">
+              {items.map((rec) => (
+                <RecRow key={rec.id} rec={rec} />
+              ))}
+            </div>
+          )}
         </div>
       )}
     </section>
@@ -549,17 +624,6 @@ function RecCard({ rec }: { rec: Rec }) {
         <div className="absolute top-2.5 left-2.5 inline-flex items-center gap-1 px-2 py-1 rounded-full bg-background/90 backdrop-blur text-[10px] uppercase tracking-[0.18em] font-semibold text-foreground/80">
           {typeLabel}
         </div>
-        {rec.rating != null && (
-          <div className="absolute top-2.5 right-2.5 inline-flex items-center gap-1 px-2 py-1 rounded-full bg-foreground/90 backdrop-blur text-[11px] font-semibold text-background">
-            <Star className="size-3 fill-current" strokeWidth={0} />
-            <span className="tabular-nums">{Number(rec.rating).toFixed(1)}</span>
-            {rec.user_ratings_total ? (
-              <span className="opacity-70 font-normal">
-                ({rec.user_ratings_total.toLocaleString("pt-BR")})
-              </span>
-            ) : null}
-          </div>
-        )}
       </div>
 
       <div className="p-4 flex-1 flex flex-col gap-2">
@@ -574,22 +638,31 @@ function RecCard({ rec }: { rec: Rec }) {
           <p className="text-[12.5px] text-muted-foreground leading-relaxed line-clamp-3">{rec.note}</p>
         )}
 
-        {(walking || driving) && (
-          <div className="pt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-[11.5px] text-muted-foreground">
-            {walking && (
-              <span className="inline-flex items-center gap-1.5">
-                <Footprints className="size-3.5" strokeWidth={1.75} />
-                {walking}
-              </span>
-            )}
-            {driving && (
-              <span className="inline-flex items-center gap-1.5">
-                <Car className="size-3.5" strokeWidth={1.75} />
-                {driving}
-              </span>
-            )}
-          </div>
-        )}
+        <div className="pt-2 flex flex-col gap-1.5 text-[11.5px] text-muted-foreground">
+          {rec.rating != null && (
+            <span className="inline-flex items-center gap-1.5 text-foreground/85 font-semibold">
+              <Star className="size-3.5 fill-current text-accent" strokeWidth={0} />
+              <span className="tabular-nums">{Number(rec.rating).toFixed(1)}</span>
+              {rec.user_ratings_total ? (
+                <span className="font-normal text-muted-foreground">
+                  ({rec.user_ratings_total.toLocaleString("pt-BR")} avaliações)
+                </span>
+              ) : null}
+            </span>
+          )}
+          {walking && (
+            <span className="inline-flex items-center gap-1.5">
+              <Footprints className="size-3.5" strokeWidth={1.75} />
+              {walking}
+            </span>
+          )}
+          {driving && (
+            <span className="inline-flex items-center gap-1.5">
+              <Car className="size-3.5" strokeWidth={1.75} />
+              {driving}
+            </span>
+          )}
+        </div>
 
         <div className="mt-auto pt-1">
           <OpeningHours hours={rec.opening_hours} />
@@ -648,14 +721,14 @@ function RecRow({ rec }: { rec: Rec }) {
           <p className="text-[12.5px] text-muted-foreground leading-relaxed line-clamp-2">{rec.note}</p>
         )}
 
-        <div className="mt-auto flex flex-wrap items-center gap-x-3 gap-y-1 text-[11.5px] text-muted-foreground">
+        <div className="mt-auto flex flex-col gap-1 text-[11.5px] text-muted-foreground">
           {rec.rating != null && (
-            <span className="inline-flex items-center gap-1 text-foreground/85 font-semibold">
-              <Star className="size-3 fill-current text-accent" strokeWidth={0} />
+            <span className="inline-flex items-center gap-1.5 text-foreground/85 font-semibold">
+              <Star className="size-3.5 fill-current text-accent" strokeWidth={0} />
               <span className="tabular-nums">{Number(rec.rating).toFixed(1)}</span>
               {rec.user_ratings_total ? (
                 <span className="font-normal text-muted-foreground">
-                  ({rec.user_ratings_total.toLocaleString("pt-BR")})
+                  ({rec.user_ratings_total.toLocaleString("pt-BR")} avaliações)
                 </span>
               ) : null}
             </span>
@@ -689,6 +762,4 @@ function RecRow({ rec }: { rec: Rec }) {
   return inner;
 }
 
-// Silence unused import warnings for icons that may be tree-shaken in dev
 void ShoppingBag;
-

@@ -173,14 +173,14 @@ async function placesText(query: string, lat: number, lng: number, includedType:
       "Content-Type": "application/json",
       "X-Goog-FieldMask":
         "places.id,places.displayName,places.location,places.rating,places.userRatingCount,places.googleMapsUri,places.photos,places.primaryType,places.editorialSummary,places.generativeSummary,places.regularOpeningHours",
-
-
     },
     body: JSON.stringify({
       textQuery: query,
       includedType,
       maxResultCount: 20,
-      locationBias: { circle: { center: { latitude: lat, longitude: lng }, radius: 15000 } },
+      // locationRestriction (não bias) garante que resultados estejam DENTRO do raio.
+      // 18 km cobre a cidade inteira e evita "Parque Nacional dos Lençóis Maranhenses" aparecendo em Foz do Iguaçu.
+      locationRestriction: { circle: { center: { latitude: lat, longitude: lng }, radius: 18000 } },
     }),
   });
   if (!res.ok) return [];
@@ -290,19 +290,22 @@ export const enrichFromMapsLink = createServerFn({ method: "POST" })
 
     // Filtros de qualidade para recomendações
     const MIN_RATING = 4.2;
-    // Thresholds por tipo: serviços do dia-a-dia precisam de menos reviews;
-    // restaurantes/bares/atrações são abundantes — exigem mais para ser "referência".
+    // Thresholds por tipo. Atrações turísticas (mirantes, calçadões, praças)
+    // costumam ter MUITAS avaliações; locais como "Gramadão" ou "Flyfoz"
+    // precisam de um limiar mais baixo para entrar. Cidades menores também.
     const NEARBY_MIN_REVIEWS: Record<string, number> = {
       restaurant: 80, bar: 50, cafe: 40, nightlife: 60,
-      attraction: 80, beach: 50, park: 40,
+      attraction: 40, beach: 30, park: 30,
       market: 25, pharmacy: 20, shopping: 60,
     };
     const CITY_MIN_REVIEWS: Record<string, number> = {
       restaurant: 300, bar: 200, cafe: 200, nightlife: 200,
-      attraction: 300, beach: 150, park: 150,
+      attraction: 120, beach: 80, park: 80,
       market: 100, pharmacy: 80, shopping: 200,
     };
     const MAX_PER_TYPE = 8;
+    // Limita o raio "city-wide" para garantir que pontos fora da cidade não vazem.
+    const MAX_CITY_RADIUS_M = 18000;
 
     const isQuality = (p: PlaceRaw, minReviews: number) =>
       typeof p.rating === "number" &&
@@ -384,7 +387,7 @@ export const enrichFromMapsLink = createServerFn({ method: "POST" })
           .filter((p) => {
             if (!p.location) return false;
             const d = haversineMeters(coords!, { lat: p.location.latitude, lng: p.location.longitude });
-            return d >= 1500;
+            return d >= 1500 && d <= MAX_CITY_RADIUS_M;
           })
           .sort((a, b) => {
             const ra = a.rating ?? 0;
