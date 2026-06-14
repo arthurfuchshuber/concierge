@@ -46,6 +46,8 @@ const PropertyInput = z.object({
   wifi_password: z.string().max(64).optional().nullable(),
   host_name: z.string().max(120).optional().nullable(),
   host_phone: z.string().max(40).optional().nullable(),
+  brand_name: z.string().max(120).optional().nullable(),
+  brand_logo_url: HttpsUrl,
   access_mode: z.enum(["public", "pin"]).default("public"),
   pin_code: z.string().max(20).optional().nullable(),
   pin_expires_at: z.string().datetime().optional().nullable(),
@@ -53,6 +55,7 @@ const PropertyInput = z.object({
   guide_theme: z.enum(["dark", "light"]).default("dark"),
   published: z.boolean().default(true),
 });
+
 
 const RecInput = z.object({
   scope: z.enum(["nearby", "city"]),
