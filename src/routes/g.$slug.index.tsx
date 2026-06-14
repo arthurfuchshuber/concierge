@@ -103,6 +103,16 @@ function PinGate({ slug, status, name }: { slug: string; status: "locked" | "exp
 type GuideOk = Extract<Awaited<ReturnType<typeof getPublicGuide>>, { status: "ok" }>;
 type Section = "home" | "checkin" | "wifi" | "residencia" | "regras" | "faq";
 
+function safeHttpsHref(value: string | null | undefined): string | null {
+  if (!value) return null;
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:" ? url.toString() : null;
+  } catch {
+    return null;
+  }
+}
+
 function isRule(item: { title: string; description?: string | null }) {
   const s = `${item.title} ${item.description ?? ""}`.toLowerCase();
   return /(regra|norma|polít|proibi|não\s+|no\s+smoking|rule|policy)/i.test(s);
@@ -282,14 +292,15 @@ function Guide({ data }: { data: GuideOk }) {
                 const hasCoords = p.lat != null && p.lng != null;
                 // Prefer lat/lng-based search URL — reliable on any device and not blocked.
                 // Use a stored maps_url only when it's a share short link (maps.app.goo.gl / goo.gl/maps).
-                const isShortMaps = typeof p.maps_url === "string" && /(?:maps\.app\.goo\.gl|goo\.gl\/maps)/i.test(p.maps_url);
+                const safeStoredMapsUrl = safeHttpsHref(p.maps_url);
+                const isShortMaps = typeof safeStoredMapsUrl === "string" && /(?:maps\.app\.goo\.gl|goo\.gl\/maps)/i.test(safeStoredMapsUrl);
                 const mapsHref = hasCoords
                   ? `https://www.google.com/maps/search/?api=1&query=${p.lat}%2C${p.lng}`
                   : isShortMaps
-                    ? p.maps_url
+                    ? safeStoredMapsUrl
                     : p.address
                       ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(p.address)}`
-                      : (p.maps_url || null);
+                      : safeStoredMapsUrl;
                 // Uber: the new "looking" deep link works without a client_id on desktop & mobile.
                 const uberDrop = hasCoords
                   ? { latitude: Number(p.lat), longitude: Number(p.lng), ...(p.address ? { addressLine1: String(p.address) } : {}) }

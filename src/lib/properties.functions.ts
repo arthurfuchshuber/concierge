@@ -4,20 +4,33 @@ import { z } from "zod";
 
 const slugRe = /^[a-z0-9](?:[a-z0-9-]{1,60}[a-z0-9])?$/;
 
+function isHttpsUrl(value: string): boolean {
+  try {
+    return new URL(value).protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
+const HttpsUrl = z.preprocess(
+  (value) => (typeof value === "string" && value.trim() === "" ? null : value),
+  z.string().trim().url().max(2048).refine(isHttpsUrl, "Use um link HTTPS válido").optional().nullable(),
+);
+
 const PropertyInput = z.object({
   name: z.string().trim().min(1).max(120),
   tagline: z.string().trim().max(200).optional().nullable(),
   slug: z.string().regex(slugRe, "Slug inválido (use letras minúsculas, números e hífens)"),
-  hero_image_url: z.string().url().max(2048).optional().nullable(),
-  gallery_images: z.array(z.string().url().max(2048)).max(4).default([]),
+  hero_image_url: HttpsUrl,
+  gallery_images: z.array(z.string().trim().url().max(2048).refine(isHttpsUrl, "Use um link HTTPS válido")).max(4).default([]),
   theme_images: z.object({
-    checkin: z.string().url().max(2048).optional().nullable(),
-    residencia: z.string().url().max(2048).optional().nullable(),
-    faq: z.string().url().max(2048).optional().nullable(),
-    explore: z.string().url().max(2048).optional().nullable(),
+    checkin: HttpsUrl,
+    residencia: HttpsUrl,
+    faq: HttpsUrl,
+    explore: HttpsUrl,
   }).partial().default({}),
   address: z.string().max(500).optional().nullable(),
-  maps_url: z.string().url().max(2048).optional().nullable(),
+  maps_url: HttpsUrl,
   lat: z.number().optional().nullable(),
   lng: z.number().optional().nullable(),
   city: z.string().max(120).optional().nullable(),
@@ -55,8 +68,8 @@ const RecInput = z.object({
   opening_hours: z.array(z.string().max(200)).max(14).optional().nullable(),
 
   note: z.string().max(1000).optional().nullable(),
-  image_url: z.string().max(2048).optional().nullable(),
-  maps_url: z.string().max(2048).optional().nullable(),
+  image_url: HttpsUrl,
+  maps_url: HttpsUrl,
   place_id: z.string().max(200).optional().nullable(),
 });
 

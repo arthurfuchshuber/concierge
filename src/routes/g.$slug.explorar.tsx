@@ -152,6 +152,16 @@ function formatDriving(r: Rec): string | null {
   return null;
 }
 
+function safeHttpsHref(value: string | null | undefined): string | undefined {
+  if (!value) return undefined;
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:" ? url.toString() : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 function todayOpening(hours: string[] | null | undefined): string | null {
   if (!hours || hours.length === 0) return null;
   const jsDay = new Date().getDay();
@@ -603,7 +613,7 @@ function CollapsibleSection({
 function RecCard({ rec }: { rec: Rec }) {
   const walking = formatWalking(rec);
   const driving = formatDriving(rec);
-  const href = rec.maps_url || undefined;
+  const href = safeHttpsHref(rec.maps_url);
   const typeLabel = TYPE_LABEL[rec.type] || rec.category || rec.type;
 
   const inner = (
@@ -685,7 +695,7 @@ function RecCard({ rec }: { rec: Rec }) {
 function RecRow({ rec }: { rec: Rec }) {
   const walking = formatWalking(rec);
   const driving = formatDriving(rec);
-  const href = rec.maps_url || undefined;
+  const href = safeHttpsHref(rec.maps_url);
   const typeLabel = TYPE_LABEL[rec.type] || rec.category || rec.type;
 
   const inner = (
