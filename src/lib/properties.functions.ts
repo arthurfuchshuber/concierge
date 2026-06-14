@@ -4,15 +4,17 @@ import { z } from "zod";
 
 const slugRe = /^[a-z0-9](?:[a-z0-9-]{1,60}[a-z0-9])?$/;
 
+function isHttpsUrl(value: string): boolean {
+  try {
+    return new URL(value).protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
 const HttpsUrl = z.preprocess(
   (value) => (typeof value === "string" && value.trim() === "" ? null : value),
-  z.string().trim().url().max(2048).refine((value) => {
-    try {
-      return new URL(value).protocol === "https:";
-    } catch {
-      return false;
-    }
-  }, "Use um link HTTPS válido").optional().nullable(),
+  z.string().trim().url().max(2048).refine(isHttpsUrl, "Use um link HTTPS válido").optional().nullable(),
 );
 
 const PropertyInput = z.object({
@@ -20,7 +22,7 @@ const PropertyInput = z.object({
   tagline: z.string().trim().max(200).optional().nullable(),
   slug: z.string().regex(slugRe, "Slug inválido (use letras minúsculas, números e hífens)"),
   hero_image_url: HttpsUrl,
-  gallery_images: z.array(z.string().trim().url().max(2048).refine((value) => new URL(value).protocol === "https:")).max(4).default([]),
+  gallery_images: z.array(z.string().trim().url().max(2048).refine(isHttpsUrl, "Use um link HTTPS válido")).max(4).default([]),
   theme_images: z.object({
     checkin: HttpsUrl,
     residencia: HttpsUrl,
