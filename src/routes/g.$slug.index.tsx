@@ -10,7 +10,7 @@ import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/
 import {
   Lock, MapPin, Wifi, Phone, KeyRound, Compass, ListChecks, LifeBuoy, HelpCircle,
   Copy, Check, ArrowLeft, ArrowRight, Home, Eye, EyeOff, Clock, ExternalLink, Car,
-  Sun, Moon, UserRound, UtensilsCrossed, Wind, Tv, ShowerHead, PawPrint, WashingMachine, Waves, Refrigerator, Flame, Lightbulb, Trash2, Bath, BedDouble, ChevronRight, MessageCircle,
+  Sun, Moon, UserRound, UtensilsCrossed, Wind, Tv, ShowerHead, PawPrint, WashingMachine, Waves, Refrigerator, Flame, Lightbulb, Trash2, Bath, BedDouble, ChevronRight, MessageCircle, LogIn, LogOut,
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { GuideAiChat } from "@/components/GuideAiChat";
@@ -329,26 +329,23 @@ function Guide({ data }: { data: GuideOk }) {
                               : `Check-out ${p.checkout_time}`
                         }
                       >
-                        <div className="grid grid-cols-2 rounded-xl bg-background/50 border border-border/50 overflow-hidden">
+                        <div className="rounded-xl bg-background/50 border border-border/50 overflow-hidden divide-y divide-border/50">
                           {p.checkin_time && (
-                            <InfoTile
-                              label="Início"
-                              value={
-                                p.checkin_time_max
-                                  ? `A partir de ${p.checkin_time} · até ${p.checkin_time_max}`
-                                  : `A partir de ${p.checkin_time}`
-                              }
+                            <TimeRow
+                              kind="in"
+                              label="Check-in"
+                              from={p.checkin_time}
+                              to={p.checkin_time_max as string | undefined}
+                              fallbackPrefix="A partir de"
                             />
                           )}
                           {p.checkout_time && (
-                            <InfoTile
-                              label="Fim"
-                              value={
-                                p.checkout_time_min
-                                  ? `A partir de ${p.checkout_time_min} · até ${p.checkout_time}`
-                                  : `Até ${p.checkout_time}`
-                              }
-                              border={!!p.checkin_time}
+                            <TimeRow
+                              kind="out"
+                              label="Check-out"
+                              from={p.checkout_time_min as string | undefined}
+                              to={p.checkout_time}
+                              fallbackPrefix="Até"
                             />
                           )}
                         </div>
@@ -950,6 +947,46 @@ function InfoTile({ label, value, border }: { label: string; value: string; bord
     <div className={`px-4 py-3 ${border ? "border-l border-border/40" : ""}`}>
       <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground font-semibold">{label}</p>
       <p className="text-[14px] mt-1 font-medium leading-snug text-foreground/95">{value}</p>
+    </div>
+  );
+}
+
+function TimeRow({
+  kind,
+  label,
+  from,
+  to,
+  fallbackPrefix,
+}: {
+  kind: "in" | "out";
+  label: string;
+  from?: string;
+  to?: string;
+  fallbackPrefix: string;
+}) {
+  const Icon = kind === "in" ? LogIn : LogOut;
+  const hasRange = !!from && !!to;
+  const single = from || to || "";
+  return (
+    <div className="flex items-center gap-3.5 px-4 py-3.5">
+      <div className="size-9 rounded-full bg-foreground/5 flex items-center justify-center shrink-0">
+        <Icon className="size-[16px] text-foreground/70" strokeWidth={1.7} />
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="text-[10.5px] uppercase tracking-[0.18em] text-muted-foreground font-semibold">{label}</p>
+        {hasRange ? (
+          <div className="mt-0.5 flex items-baseline gap-1.5 text-[15px] font-medium text-foreground/95 leading-snug">
+            <span className="tabular-nums">{from}</span>
+            <ArrowRight className="size-3 text-muted-foreground/70 self-center" strokeWidth={2} />
+            <span className="tabular-nums">{to}</span>
+          </div>
+        ) : (
+          <p className="mt-0.5 text-[15px] font-medium text-foreground/95 leading-snug">
+            <span className="text-muted-foreground/80 font-normal">{fallbackPrefix} </span>
+            <span className="tabular-nums">{single}</span>
+          </p>
+        )}
+      </div>
     </div>
   );
 }
