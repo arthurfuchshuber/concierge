@@ -421,20 +421,31 @@ function PropertyEditor() {
             title="Importar do Airbnb"
             desc="Cole o link público do anúncio e preencha nome, fotos, localização e horários automaticamente. Tudo continua editável depois."
           >
+            {!canAirbnb && (
+              <div className="mb-3 rounded-xl border border-border bg-secondary/40 p-3 text-xs text-muted-foreground flex items-start gap-2">
+                <Lock className="size-3.5 shrink-0 mt-0.5" />
+                <span>
+                  Importação automática não está incluída no seu plano. Faça upgrade em{" "}
+                  <Link to="/precos" className="underline font-medium">Planos</Link> para usar este recurso.
+                </span>
+              </div>
+            )}
             <Field label="Link do anúncio">
               <div className="flex gap-2">
                 <Input
                   value={airbnbUrl}
                   onChange={(e) => setAirbnbUrl(e.target.value)}
                   placeholder="https://airbnb.com.br/h/seu-anuncio"
+                  disabled={!canAirbnb}
                 />
-                <Button onClick={handleImportAirbnb} disabled={importingAirbnb} variant="secondary" className="shrink-0">
+                <Button onClick={handleImportAirbnb} disabled={importingAirbnb || !canAirbnb} variant="secondary" className="shrink-0">
                   {importingAirbnb ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
                   <span className="ml-1.5 hidden sm:inline">{importingAirbnb ? "Importando…" : "Importar"}</span>
                 </Button>
               </div>
             </Field>
           </Section>
+
 
           <Section icon={FileText} title="Identidade do guia" desc="Como o guia se apresenta aos hóspedes.">
             <Field label="Nome do imóvel" required>
