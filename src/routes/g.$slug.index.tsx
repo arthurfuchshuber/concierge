@@ -363,9 +363,9 @@ function Guide({ data }: { data: GuideOk }) {
                         label="Chegada & Localização"
                         hint={p.city || (p.address ? "Como chegar" : undefined)}
                       >
-                        <div className="space-y-4">
+                        <div className="space-y-7">
                           {p.address_note && (
-                            <div className="space-y-3 text-[14px] leading-relaxed text-foreground/85">
+                            <div className="space-y-3 text-[14px] leading-relaxed text-foreground/85 px-1">
                               {String(p.address_note)
                                 .split(/\n\s*\n/)
                                 .map((para: string, i: number) => (
@@ -374,22 +374,22 @@ function Guide({ data }: { data: GuideOk }) {
                             </div>
                           )}
                           {(p.address || p.maps_url || uberUrl) && (
-                            <div className="rounded-xl bg-background/50 border border-border/50 overflow-hidden divide-y divide-border/40">
+                            <div className="rounded-2xl bg-background/40 border border-border/60 overflow-hidden divide-y divide-border/40">
                               {mapsHref && (
                                 <a
                                   href={mapsHref}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  className="flex items-center gap-3 px-3.5 py-3 hover:bg-card/40 active:bg-card/60 transition-colors"
+                                  className="flex items-center gap-3 px-3.5 py-3.5 hover:bg-card/40 active:bg-card/60 transition-colors"
                                 >
-                                  <span className="size-9 rounded-lg bg-accent/15 text-accent grid place-items-center shrink-0">
+                                  <span className="size-10 rounded-xl bg-accent/15 text-accent grid place-items-center shrink-0">
                                     <MapPin className="size-[18px]" strokeWidth={1.75} />
                                   </span>
                                   <div className="flex-1 min-w-0 text-left">
-                                    <p className="text-[13.5px] font-medium leading-tight">Abrir no Google Maps</p>
-                                    {p.address && <p className="text-[11.5px] text-muted-foreground truncate mt-0.5">{p.address}</p>}
+                                    <p className="text-[14px] font-medium leading-tight">Abrir no Google Maps</p>
+                                    {p.address && <p className="text-[12px] text-muted-foreground truncate mt-1">{p.address}</p>}
                                   </div>
-                                  <ExternalLink className="size-3.5 text-muted-foreground shrink-0" />
+                                  <ExternalLink className="size-4 text-muted-foreground shrink-0" />
                                 </a>
                               )}
                               {uberUrl && (
@@ -397,30 +397,28 @@ function Guide({ data }: { data: GuideOk }) {
                                   href={uberUrl}
                                   target="_blank"
                                   rel="noreferrer"
-                                  className="flex items-center gap-3 px-3.5 py-3 hover:bg-card/40 active:bg-card/60 transition-colors"
+                                  className="flex items-center gap-3 px-3.5 py-3.5 hover:bg-card/40 active:bg-card/60 transition-colors"
                                 >
-                                  <span className="size-9 rounded-lg bg-foreground text-background grid place-items-center shrink-0">
+                                  <span className="size-10 rounded-xl bg-foreground text-background grid place-items-center shrink-0">
                                     <Car className="size-[18px]" strokeWidth={1.75} />
                                   </span>
                                   <div className="flex-1 min-w-0 text-left">
-                                    <p className="text-[13.5px] font-medium leading-tight">Pedir Uber</p>
-                                    <p className="text-[11.5px] text-muted-foreground mt-0.5">Corrida até o endereço</p>
+                                    <p className="text-[14px] font-medium leading-tight">Pedir Uber</p>
+                                    <p className="text-[12px] text-muted-foreground mt-1">Corrida até o endereço</p>
                                   </div>
-                                  <ExternalLink className="size-3.5 text-muted-foreground shrink-0" />
+                                  <ExternalLink className="size-4 text-muted-foreground shrink-0" />
                                 </a>
                               )}
                             </div>
                           )}
                           {(p.checkin_instructions || (Array.isArray(p.checkin_media) && p.checkin_media.length > 0)) && (
-                            <div className="pt-1">
-                              <p className="text-[11px] uppercase tracking-[0.22em] text-accent font-semibold mb-3">Instruções de check-in</p>
+                            <div className="px-1">
+                              <p className="text-[11px] uppercase tracking-[0.24em] text-accent font-semibold mb-4">Instruções de check-in</p>
                               {p.checkin_instructions && (
-                                <div className="mb-3">
-                                  <StepList text={String(p.checkin_instructions)} />
-                                </div>
+                                <StepList text={String(p.checkin_instructions)} />
                               )}
                               {Array.isArray(p.checkin_media) && p.checkin_media.length > 0 && (
-                                <div className="grid grid-cols-2 gap-2 mt-3">
+                                <div className="grid grid-cols-2 gap-2 mt-4">
                                   {(p.checkin_media as Array<{ url: string; type: "image" | "video" }>).map((m, i) => (
                                     <div key={i} className="rounded-xl overflow-hidden border border-border bg-muted/40 aspect-square">
                                       {m.type === "video" ? (
@@ -437,6 +435,7 @@ function Guide({ data }: { data: GuideOk }) {
                         </div>
                       </SubItem>
                     )}
+
 
                     {hasAcesso && (
                       <SubItem
