@@ -372,43 +372,41 @@ function Guide({ data }: { data: GuideOk }) {
                             </div>
                           )}
                           {(p.address || p.maps_url || uberUrl) && (
-                            <div>
-                              <div className="space-y-2">
-                                {mapsHref && (
-                                  <a
-                                    href={mapsHref}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="flex items-center gap-3 bg-background border border-border rounded-xl p-3 active:scale-[0.99] transition-transform hover:border-accent/50"
-                                  >
-                                    <span className="size-10 rounded-lg bg-accent/15 text-accent grid place-items-center shrink-0">
-                                      <MapPin className="size-[18px]" strokeWidth={1.75} />
-                                    </span>
-                                    <div className="flex-1 min-w-0 text-left">
-                                      <p className="text-[13px] font-medium leading-tight">Abrir no Google Maps</p>
-                                      {p.address && <p className="text-[11.5px] text-muted-foreground truncate mt-0.5">{p.address}</p>}
-                                    </div>
-                                    <ExternalLink className="size-3.5 text-muted-foreground shrink-0" />
-                                  </a>
-                                )}
-                                {uberUrl && (
-                                  <a
-                                    href={uberUrl}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    className="flex items-center gap-3 bg-background border border-border rounded-xl p-3 active:scale-[0.99] transition-transform hover:border-accent/50"
-                                  >
-                                    <span className="size-10 rounded-lg bg-foreground text-background grid place-items-center shrink-0">
-                                      <Car className="size-[18px]" strokeWidth={1.75} />
-                                    </span>
-                                    <div className="flex-1 min-w-0 text-left">
-                                      <p className="text-[13px] font-medium leading-tight">Pedir Uber</p>
-                                      <p className="text-[11.5px] text-muted-foreground mt-0.5">Corrida até o endereço</p>
-                                    </div>
-                                    <ExternalLink className="size-3.5 text-muted-foreground shrink-0" />
-                                  </a>
-                                )}
-                              </div>
+                            <div className="rounded-xl bg-background/50 border border-border/50 overflow-hidden divide-y divide-border/40">
+                              {mapsHref && (
+                                <a
+                                  href={mapsHref}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="flex items-center gap-3 px-3.5 py-3 hover:bg-card/40 active:bg-card/60 transition-colors"
+                                >
+                                  <span className="size-9 rounded-lg bg-accent/15 text-accent grid place-items-center shrink-0">
+                                    <MapPin className="size-[18px]" strokeWidth={1.75} />
+                                  </span>
+                                  <div className="flex-1 min-w-0 text-left">
+                                    <p className="text-[13.5px] font-medium leading-tight">Abrir no Google Maps</p>
+                                    {p.address && <p className="text-[11.5px] text-muted-foreground truncate mt-0.5">{p.address}</p>}
+                                  </div>
+                                  <ExternalLink className="size-3.5 text-muted-foreground shrink-0" />
+                                </a>
+                              )}
+                              {uberUrl && (
+                                <a
+                                  href={uberUrl}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="flex items-center gap-3 px-3.5 py-3 hover:bg-card/40 active:bg-card/60 transition-colors"
+                                >
+                                  <span className="size-9 rounded-lg bg-foreground text-background grid place-items-center shrink-0">
+                                    <Car className="size-[18px]" strokeWidth={1.75} />
+                                  </span>
+                                  <div className="flex-1 min-w-0 text-left">
+                                    <p className="text-[13.5px] font-medium leading-tight">Pedir Uber</p>
+                                    <p className="text-[11.5px] text-muted-foreground mt-0.5">Corrida até o endereço</p>
+                                  </div>
+                                  <ExternalLink className="size-3.5 text-muted-foreground shrink-0" />
+                                </a>
+                              )}
                             </div>
                           )}
                           {(p.checkin_instructions || (Array.isArray(p.checkin_media) && p.checkin_media.length > 0)) && (
