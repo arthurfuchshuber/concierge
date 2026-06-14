@@ -40,10 +40,7 @@ export type Database = {
       }
       properties: {
         Row: {
-          access_instructions: string | null
-          access_media: Json
           access_mode: Database["public"]["Enums"]["access_mode"]
-          access_video_url: string | null
           address: string | null
           address_note: string | null
           brand_logo_url: string | null
@@ -61,6 +58,9 @@ export type Database = {
           default_language: Database["public"]["Enums"]["guide_language"]
           gallery_images: string[]
           gate_code: string | null
+          gate_instructions: string | null
+          gate_media: Json
+          gate_video_url: string | null
           guide_theme: string
           hero_image_url: string | null
           host_name: string | null
@@ -69,6 +69,9 @@ export type Database = {
           lat: number | null
           lng: number | null
           lock_code: string | null
+          lock_instructions: string | null
+          lock_media: Json
+          lock_video_url: string | null
           maps_url: string | null
           name: string
           owner_id: string
@@ -83,10 +86,7 @@ export type Database = {
           wifi_ssid: string | null
         }
         Insert: {
-          access_instructions?: string | null
-          access_media?: Json
           access_mode?: Database["public"]["Enums"]["access_mode"]
-          access_video_url?: string | null
           address?: string | null
           address_note?: string | null
           brand_logo_url?: string | null
@@ -104,6 +104,9 @@ export type Database = {
           default_language?: Database["public"]["Enums"]["guide_language"]
           gallery_images?: string[]
           gate_code?: string | null
+          gate_instructions?: string | null
+          gate_media?: Json
+          gate_video_url?: string | null
           guide_theme?: string
           hero_image_url?: string | null
           host_name?: string | null
@@ -112,6 +115,9 @@ export type Database = {
           lat?: number | null
           lng?: number | null
           lock_code?: string | null
+          lock_instructions?: string | null
+          lock_media?: Json
+          lock_video_url?: string | null
           maps_url?: string | null
           name: string
           owner_id: string
@@ -126,10 +132,7 @@ export type Database = {
           wifi_ssid?: string | null
         }
         Update: {
-          access_instructions?: string | null
-          access_media?: Json
           access_mode?: Database["public"]["Enums"]["access_mode"]
-          access_video_url?: string | null
           address?: string | null
           address_note?: string | null
           brand_logo_url?: string | null
@@ -147,6 +150,9 @@ export type Database = {
           default_language?: Database["public"]["Enums"]["guide_language"]
           gallery_images?: string[]
           gate_code?: string | null
+          gate_instructions?: string | null
+          gate_media?: Json
+          gate_video_url?: string | null
           guide_theme?: string
           hero_image_url?: string | null
           host_name?: string | null
@@ -155,6 +161,9 @@ export type Database = {
           lat?: number | null
           lng?: number | null
           lock_code?: string | null
+          lock_instructions?: string | null
+          lock_media?: Json
+          lock_video_url?: string | null
           maps_url?: string | null
           name?: string
           owner_id?: string
