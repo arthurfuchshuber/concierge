@@ -9,6 +9,10 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as TermosRouteImport } from './routes/termos'
+import { Route as ReembolsoRouteImport } from './routes/reembolso'
+import { Route as PrivacidadeRouteImport } from './routes/privacidade'
+import { Route as PrecosRouteImport } from './routes/precos'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
@@ -17,8 +21,30 @@ import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/
 import { Route as GSlugIndexRouteImport } from './routes/g.$slug.index'
 import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin.index'
 import { Route as GSlugExplorarRouteImport } from './routes/g.$slug.explorar'
+import { Route as AuthenticatedAdminAssinaturaRouteImport } from './routes/_authenticated/admin.assinatura'
+import { Route as ApiPublicPaymentsWebhookRouteImport } from './routes/api/public/payments/webhook'
 import { Route as AuthenticatedAdminPropertiesIdRouteImport } from './routes/_authenticated/admin.properties.$id'
 
+const TermosRoute = TermosRouteImport.update({
+  id: '/termos',
+  path: '/termos',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ReembolsoRoute = ReembolsoRouteImport.update({
+  id: '/reembolso',
+  path: '/reembolso',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PrivacidadeRoute = PrivacidadeRouteImport.update({
+  id: '/privacidade',
+  path: '/privacidade',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PrecosRoute = PrecosRouteImport.update({
+  id: '/precos',
+  path: '/precos',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
   path: '/auth',
@@ -58,6 +84,18 @@ const GSlugExplorarRoute = GSlugExplorarRouteImport.update({
   path: '/explorar',
   getParentRoute: () => GSlugRoute,
 } as any)
+const AuthenticatedAdminAssinaturaRoute =
+  AuthenticatedAdminAssinaturaRouteImport.update({
+    id: '/assinatura',
+    path: '/assinatura',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
+const ApiPublicPaymentsWebhookRoute =
+  ApiPublicPaymentsWebhookRouteImport.update({
+    id: '/api/public/payments/webhook',
+    path: '/api/public/payments/webhook',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const AuthenticatedAdminPropertiesIdRoute =
   AuthenticatedAdminPropertiesIdRouteImport.update({
     id: '/properties/$id',
@@ -68,74 +106,143 @@ const AuthenticatedAdminPropertiesIdRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/precos': typeof PrecosRoute
+  '/privacidade': typeof PrivacidadeRoute
+  '/reembolso': typeof ReembolsoRoute
+  '/termos': typeof TermosRoute
   '/admin': typeof AuthenticatedAdminRouteWithChildren
   '/g/$slug': typeof GSlugRouteWithChildren
+  '/admin/assinatura': typeof AuthenticatedAdminAssinaturaRoute
   '/g/$slug/explorar': typeof GSlugExplorarRoute
   '/admin/': typeof AuthenticatedAdminIndexRoute
   '/g/$slug/': typeof GSlugIndexRoute
   '/admin/properties/$id': typeof AuthenticatedAdminPropertiesIdRoute
+  '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/precos': typeof PrecosRoute
+  '/privacidade': typeof PrivacidadeRoute
+  '/reembolso': typeof ReembolsoRoute
+  '/termos': typeof TermosRoute
+  '/admin/assinatura': typeof AuthenticatedAdminAssinaturaRoute
   '/g/$slug/explorar': typeof GSlugExplorarRoute
   '/admin': typeof AuthenticatedAdminIndexRoute
   '/g/$slug': typeof GSlugIndexRoute
   '/admin/properties/$id': typeof AuthenticatedAdminPropertiesIdRoute
+  '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
+  '/precos': typeof PrecosRoute
+  '/privacidade': typeof PrivacidadeRoute
+  '/reembolso': typeof ReembolsoRoute
+  '/termos': typeof TermosRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRouteWithChildren
   '/g/$slug': typeof GSlugRouteWithChildren
+  '/_authenticated/admin/assinatura': typeof AuthenticatedAdminAssinaturaRoute
   '/g/$slug/explorar': typeof GSlugExplorarRoute
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
   '/g/$slug/': typeof GSlugIndexRoute
   '/_authenticated/admin/properties/$id': typeof AuthenticatedAdminPropertiesIdRoute
+  '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
     | '/auth'
+    | '/precos'
+    | '/privacidade'
+    | '/reembolso'
+    | '/termos'
     | '/admin'
     | '/g/$slug'
+    | '/admin/assinatura'
     | '/g/$slug/explorar'
     | '/admin/'
     | '/g/$slug/'
     | '/admin/properties/$id'
+    | '/api/public/payments/webhook'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/auth'
+    | '/precos'
+    | '/privacidade'
+    | '/reembolso'
+    | '/termos'
+    | '/admin/assinatura'
     | '/g/$slug/explorar'
     | '/admin'
     | '/g/$slug'
     | '/admin/properties/$id'
+    | '/api/public/payments/webhook'
   id:
     | '__root__'
     | '/'
     | '/_authenticated'
     | '/auth'
+    | '/precos'
+    | '/privacidade'
+    | '/reembolso'
+    | '/termos'
     | '/_authenticated/admin'
     | '/g/$slug'
+    | '/_authenticated/admin/assinatura'
     | '/g/$slug/explorar'
     | '/_authenticated/admin/'
     | '/g/$slug/'
     | '/_authenticated/admin/properties/$id'
+    | '/api/public/payments/webhook'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
+  PrecosRoute: typeof PrecosRoute
+  PrivacidadeRoute: typeof PrivacidadeRoute
+  ReembolsoRoute: typeof ReembolsoRoute
+  TermosRoute: typeof TermosRoute
   GSlugRoute: typeof GSlugRouteWithChildren
+  ApiPublicPaymentsWebhookRoute: typeof ApiPublicPaymentsWebhookRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/termos': {
+      id: '/termos'
+      path: '/termos'
+      fullPath: '/termos'
+      preLoaderRoute: typeof TermosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/reembolso': {
+      id: '/reembolso'
+      path: '/reembolso'
+      fullPath: '/reembolso'
+      preLoaderRoute: typeof ReembolsoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/privacidade': {
+      id: '/privacidade'
+      path: '/privacidade'
+      fullPath: '/privacidade'
+      preLoaderRoute: typeof PrivacidadeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/precos': {
+      id: '/precos'
+      path: '/precos'
+      fullPath: '/precos'
+      preLoaderRoute: typeof PrecosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/auth': {
       id: '/auth'
       path: '/auth'
@@ -192,6 +299,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof GSlugExplorarRouteImport
       parentRoute: typeof GSlugRoute
     }
+    '/_authenticated/admin/assinatura': {
+      id: '/_authenticated/admin/assinatura'
+      path: '/assinatura'
+      fullPath: '/admin/assinatura'
+      preLoaderRoute: typeof AuthenticatedAdminAssinaturaRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/api/public/payments/webhook': {
+      id: '/api/public/payments/webhook'
+      path: '/api/public/payments/webhook'
+      fullPath: '/api/public/payments/webhook'
+      preLoaderRoute: typeof ApiPublicPaymentsWebhookRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_authenticated/admin/properties/$id': {
       id: '/_authenticated/admin/properties/$id'
       path: '/properties/$id'
@@ -203,11 +324,13 @@ declare module '@tanstack/react-router' {
 }
 
 interface AuthenticatedAdminRouteChildren {
+  AuthenticatedAdminAssinaturaRoute: typeof AuthenticatedAdminAssinaturaRoute
   AuthenticatedAdminIndexRoute: typeof AuthenticatedAdminIndexRoute
   AuthenticatedAdminPropertiesIdRoute: typeof AuthenticatedAdminPropertiesIdRoute
 }
 
 const AuthenticatedAdminRouteChildren: AuthenticatedAdminRouteChildren = {
+  AuthenticatedAdminAssinaturaRoute: AuthenticatedAdminAssinaturaRoute,
   AuthenticatedAdminIndexRoute: AuthenticatedAdminIndexRoute,
   AuthenticatedAdminPropertiesIdRoute: AuthenticatedAdminPropertiesIdRoute,
 }
@@ -242,18 +365,13 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
+  PrecosRoute: PrecosRoute,
+  PrivacidadeRoute: PrivacidadeRoute,
+  ReembolsoRoute: ReembolsoRoute,
+  TermosRoute: TermosRoute,
   GSlugRoute: GSlugRouteWithChildren,
+  ApiPublicPaymentsWebhookRoute: ApiPublicPaymentsWebhookRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
