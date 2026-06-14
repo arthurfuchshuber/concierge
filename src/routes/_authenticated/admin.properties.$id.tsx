@@ -66,6 +66,8 @@ type FormState = {
     lock_code: string;
     gate_code: string;
     address_note: string;
+    checkin_instructions: string;
+    checkin_media: MediaItem[];
     wifi_ssid: string;
     wifi_password: string;
     host_name: string;
