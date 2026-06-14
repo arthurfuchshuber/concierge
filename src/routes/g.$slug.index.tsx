@@ -294,7 +294,8 @@ function Guide({ data }: { data: GuideOk }) {
                 const accessMedia = Array.isArray(p.access_media) ? (p.access_media as Array<{ url: string; type: "image" | "video" }>) : [];
                 const hasAcesso = !!(p.gate_code || p.lock_code || p.access_instructions || p.access_video_url || accessMedia.length > 0);
                 const hasWifi = !!p.wifi_ssid;
-                if (!hasHorario && !hasChegada && !hasAcesso && !hasWifi) {
+                const hasSaida = !!p.checkout_instructions;
+                if (!hasHorario && !hasChegada && !hasAcesso && !hasWifi && !hasSaida) {
                   return <p className="text-sm text-muted-foreground">Sem informações cadastradas.</p>;
                 }
                 const hasCoords = p.lat != null && p.lng != null;
