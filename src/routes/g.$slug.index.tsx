@@ -103,6 +103,16 @@ function PinGate({ slug, status, name }: { slug: string; status: "locked" | "exp
 type GuideOk = Extract<Awaited<ReturnType<typeof getPublicGuide>>, { status: "ok" }>;
 type Section = "home" | "checkin" | "wifi" | "residencia" | "regras" | "faq";
 
+function safeHttpsHref(value: string | null | undefined): string | null {
+  if (!value) return null;
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:" ? url.toString() : null;
+  } catch {
+    return null;
+  }
+}
+
 function isRule(item: { title: string; description?: string | null }) {
   const s = `${item.title} ${item.description ?? ""}`.toLowerCase();
   return /(regra|norma|polít|proibi|não\s+|no\s+smoking|rule|policy)/i.test(s);
