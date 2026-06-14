@@ -1032,7 +1032,7 @@ function AccessBlock({
   const [open, setOpen] = useState(false);
   const Icon = kind === "gate" ? KeyRound : Lock;
   const label = kind === "gate" ? "Portão" : "Fechadura";
-  const subtitle = kind === "gate" ? "Instruções de acesso ao portão" : "Instruções de acesso à porta";
+  
   const hasMore = !!(instructions || videoUrl || media.length > 0);
 
   return (
