@@ -43,6 +43,7 @@ const PropertyInput = z.object({
   gate_code: z.string().max(40).optional().nullable(),
   address_note: z.string().max(1000).optional().nullable(),
   checkin_instructions: z.string().max(3000).optional().nullable(),
+  checkout_instructions: z.string().max(3000).optional().nullable(),
   checkin_media: z.array(z.object({
     url: z.string().trim().url().max(2048).refine(isHttpsUrl, "Use um link HTTPS válido"),
     type: z.enum(["image", "video"]),
