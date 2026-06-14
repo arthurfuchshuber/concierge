@@ -15,7 +15,7 @@ import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Loader2, Sparkles, Plus, Trash2, MapPin, ArrowLeft, FileText, KeyRound, Home, Compass, LifeBuoy, Check, Eye, Image as ImageIcon, MapPinned, Clock, DoorOpen, Wifi, UserRound, BookOpen, ClipboardCheck, Shield, Globe, Power, Phone, HelpCircle, Sun, Moon, Palette } from "lucide-react";
+import { Loader2, Sparkles, Plus, Trash2, MapPin, ArrowLeft, FileText, KeyRound, Home, Compass, LifeBuoy, Check, Eye, Image as ImageIcon, MapPinned, Clock, DoorOpen, Wifi, UserRound, BookOpen, ClipboardCheck, Shield, Globe, Power, Phone, HelpCircle, Sun, Moon, Palette, Lock } from "lucide-react";
 import { ImageUpload } from "@/components/ImageUpload";
 import { EtiquetaSelect, ETIQUETA_OPTIONS } from "@/components/EtiquetaSelect";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
