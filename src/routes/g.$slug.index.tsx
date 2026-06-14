@@ -411,12 +411,8 @@ function Guide({ data }: { data: GuideOk }) {
                             <div>
                               <p className="text-[10px] uppercase tracking-[0.24em] text-muted-foreground font-semibold mb-2">Instruções de check-in</p>
                               {p.checkin_instructions && (
-                                <div className="space-y-3 text-[14px] leading-relaxed text-foreground/85 mb-3">
-                                  {String(p.checkin_instructions)
-                                    .split(/\n\s*\n/)
-                                    .map((para: string, i: number) => (
-                                      <p key={i} className="whitespace-pre-line">{para}</p>
-                                    ))}
+                                <div className="mb-3">
+                                  <StepList text={String(p.checkin_instructions)} />
                                 </div>
                               )}
                               {Array.isArray(p.checkin_media) && p.checkin_media.length > 0 && (
