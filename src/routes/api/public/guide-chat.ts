@@ -193,7 +193,11 @@ export const Route = createFileRoute("/api/public/guide-chat")({
         const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
           method: "POST",
           headers: { "Content-Type": "application/json", "Lovable-API-Key": apiKey },
-          body: JSON.stringify({ model: "google/gemini-3-flash-preview", messages }),
+          body: JSON.stringify({
+            model: "google/gemini-3-flash-preview",
+            messages,
+            tools: [{ google_search: {} }],
+          }),
         });
 
         if (aiRes.status === 429) {
