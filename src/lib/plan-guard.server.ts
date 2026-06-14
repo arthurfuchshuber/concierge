@@ -1,0 +1,96 @@
+// Server-side plan/quota enforcement. Loaded inside server-fn handlers only.
+import type { SupabaseClient } from "@supabase/supabase-js";
+import { PLANS, type PlanKey, planFromProductId } from "@/lib/payments.functions";
+
+export type PaddleEnv = "sandbox" | "live";
+
+export type ResolvedPlan = {
+  plan: PlanKey | null;
+  status: string | null;
+  maxGuides: number;
+  features: { autoImport: boolean; ai: boolean; customBrand: boolean };
+};
+
+const FREE: ResolvedPlan = {
+  plan: null,
+  status: null,
+  maxGuides: 0,
+  features: { autoImport: false, ai: false, customBrand: false },
+};
+
+function deriveEnv(): PaddleEnv {
+  const token = process.env.VITE_PAYMENTS_CLIENT_TOKEN ?? "";
+  return token.startsWith("test_") ? "sandbox" : "live";
+}
+
+// Resolves the active plan for the authenticated user using their RLS-scoped
+// supabase client. Returns FREE (no plan) when there is no active subscription.
+export async function resolveUserPlan(
+  supabase: SupabaseClient,
+  userId: string,
+  environment?: PaddleEnv,
+): Promise<ResolvedPlan> {
+  const env = environment ?? deriveEnv();
+  const { data: sub } = await supabase
+    .from("subscriptions")
+    .select("status, product_id, current_period_end")
+    .eq("user_id", userId)
+    .eq("environment", env)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (!sub) return FREE;
+  const status = (sub.status as string) ?? null;
+  const endIso = (sub.current_period_end as string | null) ?? null;
+  const endDate = endIso ? new Date(endIso) : null;
+  const periodValid = !endDate || endDate > new Date();
+
+  const isActive =
+    ((status === "active" || status === "trialing" || status === "past_due") && periodValid) ||
+    (status === "canceled" && !!endDate && endDate > new Date());
+
+  if (!isActive) return FREE;
+  const plan = planFromProductId(sub.product_id as string | null);
+  if (!plan) return FREE;
+  const cfg = PLANS[plan];
+  return { plan, status, maxGuides: cfg.maxGuides, features: { ...cfg.features } };
+}
+
+export async function assertCanCreateGuide(
+  supabase: SupabaseClient,
+  userId: string,
+): Promise<void> {
+  const plan = await resolveUserPlan(supabase, userId);
+  if (!plan.plan) {
+    throw new Error("Você precisa de um plano ativo para criar guias. Assine em /precos.");
+  }
+  const { count, error } = await supabase
+    .from("properties")
+    .select("id", { count: "exact", head: true })
+    .eq("owner_id", userId);
+  if (error) return; // soft-fail on count errors
+  if ((count ?? 0) >= plan.maxGuides) {
+    throw new Error(
+      `Limite de guias do plano ${plan.plan} atingido (${plan.maxGuides}). Faça upgrade em /precos.`,
+    );
+  }
+}
+
+export async function assertFeature(
+  supabase: SupabaseClient,
+  userId: string,
+  feature: "autoImport" | "ai" | "customBrand",
+): Promise<void> {
+  const plan = await resolveUserPlan(supabase, userId);
+  if (!plan.features[feature]) {
+    const labels = {
+      autoImport: "Importação automática (Airbnb)",
+      ai: "Concierge IA",
+      customBrand: "Marca personalizada",
+    } as const;
+    throw new Error(
+      `${labels[feature]} não está disponível no seu plano. Faça upgrade em /precos.`,
+    );
+  }
+}
