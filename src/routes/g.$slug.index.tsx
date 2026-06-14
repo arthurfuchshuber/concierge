@@ -465,10 +465,10 @@ function Guide({ data }: { data: GuideOk }) {
                         label="Wi-Fi"
                         hint={p.wifi_ssid || undefined}
                       >
-                        <div className="space-y-3">
-                          <CopyCard icon={<Wifi className="size-5" strokeWidth={1.75} />} eyebrow="Rede" label="Toque para copiar" value={p.wifi_ssid} />
+                        <div className="rounded-xl bg-background/50 border border-border/50 overflow-hidden divide-y divide-border/40">
+                          <CopyCard flat icon={<Wifi className="size-[18px]" strokeWidth={1.75} />} eyebrow="Rede" label="Toque para copiar" value={p.wifi_ssid} />
                           {p.wifi_password && (
-                            <CopyCard icon={<KeyRound className="size-5" strokeWidth={1.75} />} eyebrow="Senha" label="Toque para copiar" value={p.wifi_password} />
+                            <CopyCard flat icon={<KeyRound className="size-[18px]" strokeWidth={1.75} />} eyebrow="Senha" label="Toque para copiar" value={p.wifi_password} />
                           )}
                         </div>
                       </SubItem>
