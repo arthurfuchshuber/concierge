@@ -96,7 +96,7 @@ function emptyForm(): FormState {
       theme_images: { checkin: "", residencia: "", faq: "", explore: "" },
       address: "", maps_url: "",
       lat: null, lng: null, city: "", country: "", checkin_time: "15:00", checkin_time_max: "", checkout_time: "11:00", checkout_time_min: "",
-      lock_code: "", gate_code: "", address_note: "", wifi_ssid: "", wifi_password: "",
+      lock_code: "", gate_code: "", address_note: "", checkin_instructions: "", checkin_media: [], wifi_ssid: "", wifi_password: "",
       host_name: "", host_phone: "", brand_name: "", brand_logo_url: "", access_mode: "public", pin_code: "", pin_expires_at: "",
       default_language: "pt", guide_theme: "dark", published: true,
     },
