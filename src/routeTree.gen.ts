@@ -25,6 +25,7 @@ import { Route as ApiPublicGuideChatRouteImport } from './routes/api/public/guid
 import { Route as AuthenticatedAdminAssinaturaRouteImport } from './routes/_authenticated/admin.assinatura'
 import { Route as ApiPublicPaymentsWebhookRouteImport } from './routes/api/public/payments/webhook'
 import { Route as AuthenticatedAdminPropertiesIdRouteImport } from './routes/_authenticated/admin.properties.$id'
+import { Route as AuthenticatedAdminPropertiesIdConversasRouteImport } from './routes/_authenticated/admin.properties.$id.conversas'
 
 const TermosRoute = TermosRouteImport.update({
   id: '/termos',
@@ -108,6 +109,12 @@ const AuthenticatedAdminPropertiesIdRoute =
     path: '/properties/$id',
     getParentRoute: () => AuthenticatedAdminRoute,
   } as any)
+const AuthenticatedAdminPropertiesIdConversasRoute =
+  AuthenticatedAdminPropertiesIdConversasRouteImport.update({
+    id: '/conversas',
+    path: '/conversas',
+    getParentRoute: () => AuthenticatedAdminPropertiesIdRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -123,8 +130,9 @@ export interface FileRoutesByFullPath {
   '/g/$slug/explorar': typeof GSlugExplorarRoute
   '/admin/': typeof AuthenticatedAdminIndexRoute
   '/g/$slug/': typeof GSlugIndexRoute
-  '/admin/properties/$id': typeof AuthenticatedAdminPropertiesIdRoute
+  '/admin/properties/$id': typeof AuthenticatedAdminPropertiesIdRouteWithChildren
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
+  '/admin/properties/$id/conversas': typeof AuthenticatedAdminPropertiesIdConversasRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -138,8 +146,9 @@ export interface FileRoutesByTo {
   '/g/$slug/explorar': typeof GSlugExplorarRoute
   '/admin': typeof AuthenticatedAdminIndexRoute
   '/g/$slug': typeof GSlugIndexRoute
-  '/admin/properties/$id': typeof AuthenticatedAdminPropertiesIdRoute
+  '/admin/properties/$id': typeof AuthenticatedAdminPropertiesIdRouteWithChildren
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
+  '/admin/properties/$id/conversas': typeof AuthenticatedAdminPropertiesIdConversasRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -157,8 +166,9 @@ export interface FileRoutesById {
   '/g/$slug/explorar': typeof GSlugExplorarRoute
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
   '/g/$slug/': typeof GSlugIndexRoute
-  '/_authenticated/admin/properties/$id': typeof AuthenticatedAdminPropertiesIdRoute
+  '/_authenticated/admin/properties/$id': typeof AuthenticatedAdminPropertiesIdRouteWithChildren
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
+  '/_authenticated/admin/properties/$id/conversas': typeof AuthenticatedAdminPropertiesIdConversasRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -178,6 +188,7 @@ export interface FileRouteTypes {
     | '/g/$slug/'
     | '/admin/properties/$id'
     | '/api/public/payments/webhook'
+    | '/admin/properties/$id/conversas'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -193,6 +204,7 @@ export interface FileRouteTypes {
     | '/g/$slug'
     | '/admin/properties/$id'
     | '/api/public/payments/webhook'
+    | '/admin/properties/$id/conversas'
   id:
     | '__root__'
     | '/'
@@ -211,6 +223,7 @@ export interface FileRouteTypes {
     | '/g/$slug/'
     | '/_authenticated/admin/properties/$id'
     | '/api/public/payments/webhook'
+    | '/_authenticated/admin/properties/$id/conversas'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -340,19 +353,42 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminPropertiesIdRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
     }
+    '/_authenticated/admin/properties/$id/conversas': {
+      id: '/_authenticated/admin/properties/$id/conversas'
+      path: '/conversas'
+      fullPath: '/admin/properties/$id/conversas'
+      preLoaderRoute: typeof AuthenticatedAdminPropertiesIdConversasRouteImport
+      parentRoute: typeof AuthenticatedAdminPropertiesIdRoute
+    }
   }
 }
+
+interface AuthenticatedAdminPropertiesIdRouteChildren {
+  AuthenticatedAdminPropertiesIdConversasRoute: typeof AuthenticatedAdminPropertiesIdConversasRoute
+}
+
+const AuthenticatedAdminPropertiesIdRouteChildren: AuthenticatedAdminPropertiesIdRouteChildren =
+  {
+    AuthenticatedAdminPropertiesIdConversasRoute:
+      AuthenticatedAdminPropertiesIdConversasRoute,
+  }
+
+const AuthenticatedAdminPropertiesIdRouteWithChildren =
+  AuthenticatedAdminPropertiesIdRoute._addFileChildren(
+    AuthenticatedAdminPropertiesIdRouteChildren,
+  )
 
 interface AuthenticatedAdminRouteChildren {
   AuthenticatedAdminAssinaturaRoute: typeof AuthenticatedAdminAssinaturaRoute
   AuthenticatedAdminIndexRoute: typeof AuthenticatedAdminIndexRoute
-  AuthenticatedAdminPropertiesIdRoute: typeof AuthenticatedAdminPropertiesIdRoute
+  AuthenticatedAdminPropertiesIdRoute: typeof AuthenticatedAdminPropertiesIdRouteWithChildren
 }
 
 const AuthenticatedAdminRouteChildren: AuthenticatedAdminRouteChildren = {
   AuthenticatedAdminAssinaturaRoute: AuthenticatedAdminAssinaturaRoute,
   AuthenticatedAdminIndexRoute: AuthenticatedAdminIndexRoute,
-  AuthenticatedAdminPropertiesIdRoute: AuthenticatedAdminPropertiesIdRoute,
+  AuthenticatedAdminPropertiesIdRoute:
+    AuthenticatedAdminPropertiesIdRouteWithChildren,
 }
 
 const AuthenticatedAdminRouteWithChildren =
