@@ -355,6 +355,9 @@ function PropertyEditor() {
           wifi_password: form.property.wifi_password || null,
           host_name: form.property.host_name || null,
           host_phone: form.property.host_phone || null,
+          brand_name: canBrand ? (form.property.brand_name || null) : null,
+          brand_logo_url: canBrand ? (form.property.brand_logo_url || null) : null,
+
           pin_code: form.property.access_mode === "pin" ? (form.property.pin_code || null) : null,
           pin_expires_at: form.property.access_mode === "pin" && form.property.pin_expires_at
             ? new Date(form.property.pin_expires_at).toISOString()
