@@ -4,17 +4,17 @@ import { useQuery } from "@tanstack/react-query";
 import { listMyProperties, deleteProperty } from "@/lib/properties.functions";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
-import { Plus, ExternalLink, Pencil, Trash2, Lock, Globe, BookOpen, PlayCircle, CreditCard, LayoutGrid, List, Link2, Check } from "lucide-react";
+import { Plus, ExternalLink, Pencil, Trash2, Lock, Globe, BookOpen, PlayCircle, CreditCard, LayoutGrid, List, Link2, Check, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { useState } from "react";
+import { useSubscription } from "@/hooks/useSubscription";
+import { PLANS } from "@/lib/payments.functions";
 
 export const Route = createFileRoute("/_authenticated/admin/")({
   component: Dashboard,
 });
 
-const PLAN_LIMIT = 50;
-const PLAN_PRICE = "R$ 279";
-const PLAN_OLD_PRICE = "R$ 399";
+
 
 function Dashboard() {
   const list = useServerFn(listMyProperties);
@@ -63,6 +63,7 @@ function Dashboard() {
     queryKey: ["my-properties"],
     queryFn: () => list(),
   });
+  const { info: sub } = useSubscription();
 
   async function handleDelete(id: string, name: string) {
     if (!confirm(`Excluir "${name}"? Esta ação não pode ser desfeita.`)) return;
@@ -76,8 +77,14 @@ function Dashboard() {
   }
 
   const count = data?.length ?? 0;
-  const remaining = Math.max(0, PLAN_LIMIT - count);
-  const pct = Math.min(100, (count / PLAN_LIMIT) * 100);
+  const planConfig = sub.plan ? PLANS[sub.plan] : null;
+  const planName = planConfig?.name ?? "Sem plano";
+  const planPrice = planConfig?.priceLabel ?? "—";
+  const planLimit = sub.maxGuides;
+  const remaining = Math.max(0, planLimit - count);
+  const pct = planLimit > 0 ? Math.min(100, (count / planLimit) * 100) : 0;
+  const reachedLimit = planLimit > 0 && count >= planLimit;
+
 
   return (
     <div className="px-6 lg:px-10 py-8 lg:py-10 max-w-7xl mx-auto w-full">
@@ -101,9 +108,18 @@ function Dashboard() {
           <Button
             onClick={() => navigate({ to: "/admin/properties/$id", params: { id: "new" } })}
             className="rounded-full"
+            disabled={reachedLimit || !sub.plan}
+            title={
+              !sub.plan
+                ? "Assine um plano para criar guias"
+                : reachedLimit
+                ? "Limite do seu plano atingido. Faça upgrade."
+                : undefined
+            }
           >
             <Plus className="size-4 mr-1.5" /> Novo guia
           </Button>
+
         </div>
       </div>
 
@@ -116,14 +132,24 @@ function Dashboard() {
             <CreditCard className="size-4 text-muted-foreground" />
           </div>
           <div className="flex items-baseline gap-2">
-            <span className="text-2xl font-serif">Pro</span>
-            <span className="text-[10px] uppercase tracking-wider font-semibold text-accent bg-accent/10 px-2 py-0.5 rounded-full">Lançamento</span>
+            <span className="text-2xl font-serif">{planName}</span>
+            {sub.isTrialing && (
+              <span className="text-[10px] uppercase tracking-wider font-semibold text-accent bg-accent/10 px-2 py-0.5 rounded-full">Trial</span>
+            )}
+            {sub.isPastDue && (
+              <span className="text-[10px] uppercase tracking-wider font-semibold text-destructive bg-destructive/10 px-2 py-0.5 rounded-full">Pagamento falhou</span>
+            )}
           </div>
           <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-xs line-through text-muted-foreground">{PLAN_OLD_PRICE}</span>
-            <span className="text-lg font-semibold">{PLAN_PRICE}</span>
-            <span className="text-xs text-muted-foreground">/mês</span>
+            <span className="text-lg font-semibold">{planPrice}</span>
+            {planConfig && <span className="text-xs text-muted-foreground">/mês</span>}
           </div>
+          <Link
+            to={sub.plan ? "/admin/assinatura" : "/precos"}
+            className="text-xs text-accent hover:underline mt-3 inline-block"
+          >
+            {sub.plan ? "Gerenciar assinatura" : "Ver planos"} →
+          </Link>
         </div>
 
         {/* Uso */}
@@ -132,13 +158,34 @@ function Dashboard() {
             <span className="text-sm font-medium text-muted-foreground">Uso de guias</span>
             <BookOpen className="size-4 text-muted-foreground" />
           </div>
-          <div className="text-2xl font-serif">{count} <span className="text-sm text-muted-foreground font-sans">/ {PLAN_LIMIT}</span></div>
+          <div className="text-2xl font-serif">
+            {count} <span className="text-sm text-muted-foreground font-sans">/ {planLimit || "—"}</span>
+          </div>
           <div className="mt-3 h-1.5 rounded-full bg-secondary overflow-hidden">
             <div className="h-full bg-accent transition-all" style={{ width: `${pct}%` }} />
           </div>
-          <p className="text-xs text-muted-foreground mt-2">{remaining} guias restantes</p>
+          <p className="text-xs text-muted-foreground mt-2">
+            {planLimit > 0 ? `${remaining} guias restantes` : "Assine um plano para criar guias"}
+          </p>
         </div>
       </div>
+
+      {sub.isPastDue && (
+        <div className="mb-6 rounded-2xl border border-destructive/30 bg-destructive/5 p-4 flex items-start gap-3">
+          <AlertTriangle className="size-5 text-destructive shrink-0 mt-0.5" />
+          <div className="flex-1">
+            <p className="text-sm font-medium text-destructive">Pagamento falhou</p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Atualize seu método de pagamento para evitar a suspensão do acesso.
+            </p>
+          </div>
+          <Link to="/admin/assinatura" className="text-xs font-medium px-3 py-1.5 rounded-full bg-destructive text-destructive-foreground hover:opacity-90">
+            Resolver
+          </Link>
+        </div>
+      )}
+
+
 
 
       {/* Guias section */}

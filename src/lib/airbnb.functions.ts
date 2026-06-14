@@ -40,9 +40,12 @@ function pickTime(text?: string | null): string | null {
 export const importFromAirbnb = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((i: unknown) => AirbnbInput.parse(i))
-  .handler(async ({ data }): Promise<AirbnbImportResult> => {
+  .handler(async ({ data, context }): Promise<AirbnbImportResult> => {
+    const { assertFeature } = await import("@/lib/plan-guard.server");
+    await assertFeature(context.supabase, context.userId, "autoImport");
     const apiKey = process.env.FIRECRAWL_API_KEY;
     if (!apiKey) throw new Error("Integração Firecrawl indisponível");
+
 
     const { default: Firecrawl } = await import("@mendable/firecrawl-js");
     const firecrawl = new Firecrawl({ apiKey });

@@ -51,10 +51,13 @@ export const askConcierge = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => InputSchema.parse(input))
   .handler(async ({ data, context }) => {
+    const { assertFeature } = await import("@/lib/plan-guard.server");
+    await assertFeature(context.supabase, context.userId, "ai");
     const apiKey = process.env.LOVABLE_API_KEY;
     if (!apiKey) {
       throw new Error("LOVABLE_API_KEY não configurada.");
     }
+
 
     let systemPrompt = BASE_PROMPT;
     if (data.propertyId) {

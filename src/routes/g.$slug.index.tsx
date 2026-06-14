@@ -263,11 +263,16 @@ function Guide({ data }: { data: GuideOk }) {
             </section>
 
             <footer className="mt-10 px-6 text-center flex items-center justify-center gap-2.5">
-              <GuideMark className="size-3.5 text-accent" />
+              {p.brand_logo_url ? (
+                <img src={p.brand_logo_url} alt={p.brand_name || "Marca"} className="h-5 w-auto object-contain opacity-80" />
+              ) : (
+                <GuideMark className="size-3.5 text-accent" />
+              )}
               <p className="text-[9px] uppercase tracking-[0.3em] text-muted-foreground/65 font-semibold">
-                Seu guia. Sua experiência.
+                {p.brand_name || "Seu guia. Sua experiência."}
               </p>
             </footer>
+
           </>
         ) : (
           <Tabs value={section} onValueChange={(v) => setSection(v as Section)} className="px-5 md:px-10 lg:px-16 pt-6 md:pt-10 lg:max-w-3xl lg:mx-auto">

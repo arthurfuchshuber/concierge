@@ -32,7 +32,7 @@ export const getPublicGuide = createServerFn({ method: "POST" })
     // First fetch only access-control + display fields (no credentials, no pin_code).
     const { data: prop, error } = await supabaseAdmin
       .from("properties")
-      .select("id,slug,name,tagline,hero_image_url,gallery_images,theme_images,address,maps_url,lat,lng,city,country,checkin_time,checkin_time_max,checkout_time,checkout_time_min,address_note,host_name,access_mode,pin_expires_at,default_language,guide_theme,published,created_at,updated_at")
+      .select("id,slug,name,tagline,hero_image_url,gallery_images,theme_images,address,maps_url,lat,lng,city,country,checkin_time,checkin_time_max,checkout_time,checkout_time_min,address_note,host_name,brand_name,brand_logo_url,access_mode,pin_expires_at,default_language,guide_theme,published,created_at,updated_at")
       .eq("slug", data.slug)
       .eq("published", true)
       .maybeSingle();

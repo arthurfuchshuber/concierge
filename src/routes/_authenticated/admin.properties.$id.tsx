@@ -5,6 +5,8 @@ import { useQuery } from "@tanstack/react-query";
 import { getMyProperty, upsertProperty } from "@/lib/properties.functions";
 import { enrichFromMapsLink } from "@/lib/maps.functions";
 import { importFromAirbnb } from "@/lib/airbnb.functions";
+import { useSubscription } from "@/hooks/useSubscription";
+
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -13,7 +15,7 @@ import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Loader2, Sparkles, Plus, Trash2, MapPin, ArrowLeft, FileText, KeyRound, Home, Compass, LifeBuoy, Check, Eye, Image as ImageIcon, MapPinned, Clock, DoorOpen, Wifi, UserRound, BookOpen, ClipboardCheck, Shield, Globe, Power, Phone, HelpCircle, Sun, Moon, Palette } from "lucide-react";
+import { Loader2, Sparkles, Plus, Trash2, MapPin, ArrowLeft, FileText, KeyRound, Home, Compass, LifeBuoy, Check, Eye, Image as ImageIcon, MapPinned, Clock, DoorOpen, Wifi, UserRound, BookOpen, ClipboardCheck, Shield, Globe, Power, Phone, HelpCircle, Sun, Moon, Palette, Lock } from "lucide-react";
 import { ImageUpload } from "@/components/ImageUpload";
 import { EtiquetaSelect, ETIQUETA_OPTIONS } from "@/components/EtiquetaSelect";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -67,7 +69,10 @@ type FormState = {
     wifi_password: string;
     host_name: string;
     host_phone: string;
+    brand_name: string;
+    brand_logo_url: string;
     access_mode: "public" | "pin";
+
     pin_code: string;
     pin_expires_at: string;
     default_language: "pt" | "en";
@@ -89,7 +94,7 @@ function emptyForm(): FormState {
       address: "", maps_url: "",
       lat: null, lng: null, city: "", country: "", checkin_time: "15:00", checkin_time_max: "", checkout_time: "11:00", checkout_time_min: "",
       lock_code: "", gate_code: "", address_note: "", wifi_ssid: "", wifi_password: "",
-      host_name: "", host_phone: "", access_mode: "public", pin_code: "", pin_expires_at: "",
+      host_name: "", host_phone: "", brand_name: "", brand_logo_url: "", access_mode: "public", pin_code: "", pin_expires_at: "",
       default_language: "pt", guide_theme: "dark", published: true,
     },
     manual: [],
@@ -117,6 +122,11 @@ function PropertyEditor() {
   const save = useServerFn(upsertProperty);
   const enrich = useServerFn(enrichFromMapsLink);
   const importAirbnb = useServerFn(importFromAirbnb);
+  const { info: sub } = useSubscription();
+  const canAirbnb = sub.features.autoImport;
+  const canBrand = sub.features.customBrand;
+
+
 
   const [form, setForm] = useState<FormState>(() => emptyForm());
   const [step, setStep] = useState<string>("basics");
@@ -167,7 +177,10 @@ function PropertyEditor() {
         wifi_password: (p.wifi_password as string) ?? "",
         host_name: (p.host_name as string) ?? "",
         host_phone: (p.host_phone as string) ?? "",
+        brand_name: (p.brand_name as string) ?? "",
+        brand_logo_url: (p.brand_logo_url as string) ?? "",
         access_mode: ((p.access_mode as "public" | "pin") ?? "public"),
+
         pin_code: (p.pin_code as string) ?? "",
         pin_expires_at: p.pin_expires_at ? new Date(p.pin_expires_at as string).toISOString().slice(0, 16) : "",
         default_language: ((p.default_language as "pt" | "en") ?? "pt"),
@@ -342,6 +355,9 @@ function PropertyEditor() {
           wifi_password: form.property.wifi_password || null,
           host_name: form.property.host_name || null,
           host_phone: form.property.host_phone || null,
+          brand_name: canBrand ? (form.property.brand_name || null) : null,
+          brand_logo_url: canBrand ? (form.property.brand_logo_url || null) : null,
+
           pin_code: form.property.access_mode === "pin" ? (form.property.pin_code || null) : null,
           pin_expires_at: form.property.access_mode === "pin" && form.property.pin_expires_at
             ? new Date(form.property.pin_expires_at).toISOString()
@@ -408,20 +424,31 @@ function PropertyEditor() {
             title="Importar do Airbnb"
             desc="Cole o link público do anúncio e preencha nome, fotos, localização e horários automaticamente. Tudo continua editável depois."
           >
+            {!canAirbnb && (
+              <div className="mb-3 rounded-xl border border-border bg-secondary/40 p-3 text-xs text-muted-foreground flex items-start gap-2">
+                <Lock className="size-3.5 shrink-0 mt-0.5" />
+                <span>
+                  Importação automática não está incluída no seu plano. Faça upgrade em{" "}
+                  <Link to="/precos" className="underline font-medium">Planos</Link> para usar este recurso.
+                </span>
+              </div>
+            )}
             <Field label="Link do anúncio">
               <div className="flex gap-2">
                 <Input
                   value={airbnbUrl}
                   onChange={(e) => setAirbnbUrl(e.target.value)}
                   placeholder="https://airbnb.com.br/h/seu-anuncio"
+                  disabled={!canAirbnb}
                 />
-                <Button onClick={handleImportAirbnb} disabled={importingAirbnb} variant="secondary" className="shrink-0">
+                <Button onClick={handleImportAirbnb} disabled={importingAirbnb || !canAirbnb} variant="secondary" className="shrink-0">
                   {importingAirbnb ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
                   <span className="ml-1.5 hidden sm:inline">{importingAirbnb ? "Importando…" : "Importar"}</span>
                 </Button>
               </div>
             </Field>
           </Section>
+
 
           <Section icon={FileText} title="Identidade do guia" desc="Como o guia se apresenta aos hóspedes.">
             <Field label="Nome do imóvel" required>
@@ -559,6 +586,50 @@ function PropertyEditor() {
               <Field label="Telefone (WhatsApp)"><Input value={form.property.host_phone} maxLength={40} onChange={(e) => update("host_phone", e.target.value)} /></Field>
             </div>
           </Section>
+
+          <Section
+            icon={Palette}
+            title="Marca personalizada"
+            desc={canBrand
+              ? "Substitua a marca exibida no rodapé do guia público pela sua. Logomarca e nome aparecerão para os hóspedes."
+              : "Disponível no plano Business. Faça upgrade para exibir sua própria marca no rodapé do guia."}
+          >
+            {!canBrand && (
+              <div className="mb-3 rounded-xl border border-border bg-secondary/40 p-3 text-xs text-muted-foreground flex items-start gap-2">
+                <Lock className="size-3.5 shrink-0 mt-0.5" />
+                <span>
+                  Exclusivo Business.{" "}
+                  <Link to="/precos" className="underline font-medium">Ver planos</Link>.
+                </span>
+              </div>
+            )}
+            <Field label="Nome da marca">
+              <Input
+                value={form.property.brand_name}
+                maxLength={120}
+                placeholder="Ex: Casa Maré Hospitality"
+                onChange={(e) => update("brand_name", e.target.value)}
+                disabled={!canBrand}
+              />
+            </Field>
+            <Field label="Logomarca (URL https)">
+              <Input
+                value={form.property.brand_logo_url}
+                maxLength={2048}
+                placeholder="https://..."
+                onChange={(e) => update("brand_logo_url", e.target.value)}
+                disabled={!canBrand}
+              />
+            </Field>
+            {canBrand && form.property.brand_logo_url && (
+              <div className="mt-2 inline-flex items-center gap-2 rounded-lg border border-border bg-secondary/30 px-3 py-2">
+                <img src={form.property.brand_logo_url} alt="Preview" className="h-8 w-auto object-contain" />
+                <span className="text-xs text-muted-foreground">Pré-visualização</span>
+              </div>
+            )}
+          </Section>
+
+
 
           <Section
             icon={BookOpen}

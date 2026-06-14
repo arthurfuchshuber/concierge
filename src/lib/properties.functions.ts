@@ -46,6 +46,8 @@ const PropertyInput = z.object({
   wifi_password: z.string().max(64).optional().nullable(),
   host_name: z.string().max(120).optional().nullable(),
   host_phone: z.string().max(40).optional().nullable(),
+  brand_name: z.string().max(120).optional().nullable(),
+  brand_logo_url: HttpsUrl,
   access_mode: z.enum(["public", "pin"]).default("public"),
   pin_code: z.string().max(20).optional().nullable(),
   pin_expires_at: z.string().datetime().optional().nullable(),
@@ -53,6 +55,7 @@ const PropertyInput = z.object({
   guide_theme: z.enum(["dark", "light"]).default("dark"),
   published: z.boolean().default(true),
 });
+
 
 const RecInput = z.object({
   scope: z.enum(["nearby", "city"]),
@@ -138,23 +141,36 @@ export const upsertProperty = createServerFn({ method: "POST" })
   .inputValidator((i: unknown) => SavePropertyInput.parse(i))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
+    const { resolveUserPlan, assertCanCreateGuide } = await import("@/lib/plan-guard.server");
+    const plan = await resolveUserPlan(supabase, userId);
     let propertyId = data.id ?? null;
+
+    // Strip Business-only fields when the user is not on Business.
+    const propertyData = { ...data.property };
+    if (!plan.features.customBrand) {
+      propertyData.brand_name = null;
+      propertyData.brand_logo_url = null;
+    }
+
 
     if (propertyId) {
       const { error } = await supabase
         .from("properties")
-        .update({ ...data.property })
+        .update(propertyData)
         .eq("id", propertyId);
       if (error) throw (await import("@/lib/db-errors.server")).safeDbError("properties", error);
     } else {
+      // Enforce per-plan quota on creation.
+      await assertCanCreateGuide(supabase, userId);
       const { data: inserted, error } = await supabase
         .from("properties")
-        .insert({ ...data.property, owner_id: userId })
+        .insert({ ...propertyData, owner_id: userId })
         .select("id")
         .single();
       if (error) throw (await import("@/lib/db-errors.server")).safeDbError("properties", error);
       propertyId = inserted.id;
     }
+
 
     // Replace child tables wholesale (simpler than diff). All scoped via RLS.
     const id = propertyId!;
