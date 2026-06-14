@@ -655,91 +655,162 @@ function PropertyEditor() {
             </div>
           </Section>
 
-          <Section icon={DoorOpen} title="Entrada" desc="Cadastre os códigos. As instruções, vídeo e galeria aparecem apenas para o tipo de acesso que estiver em uso.">
-            <div className="grid grid-cols-2 gap-3">
-              <Field label="Código do portão" hint="Deixe vazio se não houver portão"><Input value={form.property.gate_code} maxLength={40} onChange={(e) => update("gate_code", e.target.value)} placeholder="Ex.: 1212" /></Field>
-              <Field label="Código da fechadura" hint="Deixe vazio se não houver fechadura"><Input value={form.property.lock_code} maxLength={40} onChange={(e) => update("lock_code", e.target.value)} placeholder="Ex.: 3333" /></Field>
+          <Section icon={DoorOpen} title="Entrada" desc="Ative apenas os tipos de acesso que existem na propriedade.">
+            <div className="space-y-3">
+              {/* Portão */}
+              <div className={`rounded-2xl border ${gateOpen ? "border-primary/40 bg-primary/[0.04]" : "border-border/60 bg-card/30"} transition-colors`}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const next = !gateOpen;
+                    setGateOpen(next);
+                    if (!next) {
+                      setForm((f) => ({
+                        ...f,
+                        property: { ...f.property, gate_code: "", gate_instructions: "", gate_video_url: "", gate_media: [] },
+                      }));
+                    }
+                  }}
+                  className="w-full flex items-center gap-3 px-4 py-3.5 text-left"
+                >
+                  <div className={`size-9 rounded-lg grid place-items-center shrink-0 ${gateOpen ? "bg-primary/15 text-primary" : "bg-muted/40 text-muted-foreground"}`}>
+                    <KeyRound className="size-[18px]" strokeWidth={1.75} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[14px] font-semibold leading-tight">Portão com código</p>
+                    <p className="text-[11.5px] text-muted-foreground mt-0.5">
+                      {gateOpen ? "Configure abaixo o código e as instruções." : "Ative se a entrada tem portão com senha."}
+                    </p>
+                  </div>
+                  <Switch
+                    checked={gateOpen}
+                    onCheckedChange={(v) => {
+                      setGateOpen(v);
+                      if (!v) {
+                        setForm((f) => ({
+                          ...f,
+                          property: { ...f.property, gate_code: "", gate_instructions: "", gate_video_url: "", gate_media: [] },
+                        }));
+                      }
+                    }}
+                    onClick={(e) => e.stopPropagation()}
+                  />
+                  <ChevronDown className={`size-4 text-muted-foreground transition-transform ${gateOpen ? "rotate-180" : ""}`} />
+                </button>
+                {gateOpen ? (
+                  <div className="px-4 pb-4 pt-1 space-y-4 border-t border-border/40">
+                    <Field label="Código do portão" hint="Digite a senha que o hóspede vai usar.">
+                      <Input value={form.property.gate_code} maxLength={40} onChange={(e) => update("gate_code", e.target.value)} placeholder="Ex.: 1212" />
+                    </Field>
+                    <Field label="Passo a passo (opcional)" hint="Cada linha vira uma etapa numerada no guia.">
+                      <Textarea
+                        value={form.property.gate_instructions}
+                        maxLength={3000}
+                        rows={5}
+                        onChange={(e) => update("gate_instructions", e.target.value)}
+                        placeholder={"Ex.: 1) Digite o código no teclado do portão e aperte #.\n2) Aguarde o clique e empurre.\n3) Se travar, gire a maçaneta enquanto digita."}
+                      />
+                    </Field>
+                    <Field label="Link de vídeo tutorial (opcional)" hint="YouTube, Vimeo ou MP4 (https).">
+                      <Input
+                        value={form.property.gate_video_url}
+                        maxLength={2048}
+                        onChange={(e) => update("gate_video_url", e.target.value)}
+                        placeholder="https://youtu.be/…"
+                      />
+                    </Field>
+                    <Field label="Fotos e vídeos do portão (opcional)" hint="Até 8 itens. Mostre o teclado, o caminho.">
+                      <MediaUpload
+                        value={form.property.gate_media}
+                        onChange={(next) => update("gate_media", next)}
+                        folder="access"
+                        max={8}
+                      />
+                    </Field>
+                  </div>
+                ) : null}
+              </div>
+
+              {/* Fechadura */}
+              <div className={`rounded-2xl border ${lockOpen ? "border-primary/40 bg-primary/[0.04]" : "border-border/60 bg-card/30"} transition-colors`}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const next = !lockOpen;
+                    setLockOpen(next);
+                    if (!next) {
+                      setForm((f) => ({
+                        ...f,
+                        property: { ...f.property, lock_code: "", lock_instructions: "", lock_video_url: "", lock_media: [] },
+                      }));
+                    }
+                  }}
+                  className="w-full flex items-center gap-3 px-4 py-3.5 text-left"
+                >
+                  <div className={`size-9 rounded-lg grid place-items-center shrink-0 ${lockOpen ? "bg-primary/15 text-primary" : "bg-muted/40 text-muted-foreground"}`}>
+                    <Lock className="size-[18px]" strokeWidth={1.75} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[14px] font-semibold leading-tight">Fechadura com código</p>
+                    <p className="text-[11.5px] text-muted-foreground mt-0.5">
+                      {lockOpen ? "Configure abaixo o código e as instruções." : "Ative se a porta tem fechadura eletrônica."}
+                    </p>
+                  </div>
+                  <Switch
+                    checked={lockOpen}
+                    onCheckedChange={(v) => {
+                      setLockOpen(v);
+                      if (!v) {
+                        setForm((f) => ({
+                          ...f,
+                          property: { ...f.property, lock_code: "", lock_instructions: "", lock_video_url: "", lock_media: [] },
+                        }));
+                      }
+                    }}
+                    onClick={(e) => e.stopPropagation()}
+                  />
+                  <ChevronDown className={`size-4 text-muted-foreground transition-transform ${lockOpen ? "rotate-180" : ""}`} />
+                </button>
+                {lockOpen ? (
+                  <div className="px-4 pb-4 pt-1 space-y-4 border-t border-border/40">
+                    <Field label="Código da fechadura" hint="Digite a senha que o hóspede vai usar.">
+                      <Input value={form.property.lock_code} maxLength={40} onChange={(e) => update("lock_code", e.target.value)} placeholder="Ex.: 3333" />
+                    </Field>
+                    <Field label="Passo a passo (opcional)" hint="Cada linha vira uma etapa numerada no guia.">
+                      <Textarea
+                        value={form.property.lock_instructions}
+                        maxLength={3000}
+                        rows={5}
+                        onChange={(e) => update("lock_instructions", e.target.value)}
+                        placeholder={"Ex.: 1) Digite o código na fechadura e pressione #.\n2) Empurre a porta enquanto o motor gira.\n3) Tranque novamente apertando o botão de cadeado."}
+                      />
+                    </Field>
+                    <Field label="Link de vídeo tutorial (opcional)" hint="YouTube, Vimeo ou MP4 (https).">
+                      <Input
+                        value={form.property.lock_video_url}
+                        maxLength={2048}
+                        onChange={(e) => update("lock_video_url", e.target.value)}
+                        placeholder="https://youtu.be/…"
+                      />
+                    </Field>
+                    <Field label="Fotos e vídeos da fechadura (opcional)" hint="Até 8 itens. Mostre a porta, a fechadura por dentro e por fora.">
+                      <MediaUpload
+                        value={form.property.lock_media}
+                        onChange={(next) => update("lock_media", next)}
+                        folder="access"
+                        max={8}
+                      />
+                    </Field>
+                  </div>
+                ) : null}
+              </div>
+
+              {!gateOpen && !lockOpen ? (
+                <p className="text-[12px] text-muted-foreground rounded-xl border border-dashed border-border/60 bg-background/30 px-4 py-3">
+                  Ative ao menos um tipo de acesso acima para cadastrar código e instruções.
+                </p>
+              ) : null}
             </div>
-
-            {form.property.gate_code ? (
-              <div className="rounded-2xl border border-border/60 bg-card/40 p-4 space-y-4">
-                <div className="flex items-center gap-2">
-                  <div className="size-8 rounded-lg bg-primary/10 text-primary grid place-items-center"><KeyRound className="size-4" strokeWidth={1.75} /></div>
-                  <div>
-                    <p className="text-[13.5px] font-semibold leading-tight">Instruções do portão</p>
-                    <p className="text-[11.5px] text-muted-foreground">Como o hóspede deve usar o código <span className="font-mono">{form.property.gate_code}</span>.</p>
-                  </div>
-                </div>
-                <Field label="Passo a passo (opcional)" hint="Cada linha vira uma etapa numerada no guia.">
-                  <Textarea
-                    value={form.property.gate_instructions}
-                    maxLength={3000}
-                    rows={5}
-                    onChange={(e) => update("gate_instructions", e.target.value)}
-                    placeholder={"Ex.: 1) Digite o código no teclado do portão e aperte #.\n2) Aguarde o clique e empurre.\n3) Se travar, gire a maçaneta enquanto digita."}
-                  />
-                </Field>
-                <Field label="Link de vídeo tutorial (opcional)" hint="YouTube, Vimeo ou MP4 (https).">
-                  <Input
-                    value={form.property.gate_video_url}
-                    maxLength={2048}
-                    onChange={(e) => update("gate_video_url", e.target.value)}
-                    placeholder="https://youtu.be/…"
-                  />
-                </Field>
-                <Field label="Fotos e vídeos do portão (opcional)" hint="Até 8 itens. Mostre o teclado, o caminho.">
-                  <MediaUpload
-                    value={form.property.gate_media}
-                    onChange={(next) => update("gate_media", next)}
-                    folder="access"
-                    max={8}
-                  />
-                </Field>
-              </div>
-            ) : null}
-
-            {form.property.lock_code ? (
-              <div className="rounded-2xl border border-border/60 bg-card/40 p-4 space-y-4">
-                <div className="flex items-center gap-2">
-                  <div className="size-8 rounded-lg bg-primary/10 text-primary grid place-items-center"><Lock className="size-4" strokeWidth={1.75} /></div>
-                  <div>
-                    <p className="text-[13.5px] font-semibold leading-tight">Instruções da fechadura</p>
-                    <p className="text-[11.5px] text-muted-foreground">Como o hóspede deve usar o código <span className="font-mono">{form.property.lock_code}</span>.</p>
-                  </div>
-                </div>
-                <Field label="Passo a passo (opcional)" hint="Cada linha vira uma etapa numerada no guia.">
-                  <Textarea
-                    value={form.property.lock_instructions}
-                    maxLength={3000}
-                    rows={5}
-                    onChange={(e) => update("lock_instructions", e.target.value)}
-                    placeholder={"Ex.: 1) Digite o código na fechadura e pressione #.\n2) Empurre a porta enquanto o motor gira.\n3) Tranque novamente apertando o botão de cadeado."}
-                  />
-                </Field>
-                <Field label="Link de vídeo tutorial (opcional)" hint="YouTube, Vimeo ou MP4 (https).">
-                  <Input
-                    value={form.property.lock_video_url}
-                    maxLength={2048}
-                    onChange={(e) => update("lock_video_url", e.target.value)}
-                    placeholder="https://youtu.be/…"
-                  />
-                </Field>
-                <Field label="Fotos e vídeos da fechadura (opcional)" hint="Até 8 itens. Mostre a porta, a fechadura por dentro e por fora.">
-                  <MediaUpload
-                    value={form.property.lock_media}
-                    onChange={(next) => update("lock_media", next)}
-                    folder="access"
-                    max={8}
-                  />
-                </Field>
-              </div>
-            ) : null}
-
-            {!form.property.gate_code && !form.property.lock_code ? (
-              <p className="text-[12px] text-muted-foreground rounded-xl border border-dashed border-border/60 bg-background/30 px-4 py-3">
-                Preencha o código do portão ou da fechadura acima para liberar as instruções, vídeo e galeria correspondentes.
-              </p>
-            ) : null}
           </Section>
 
           <Section icon={Wifi} title="Wi-Fi">
