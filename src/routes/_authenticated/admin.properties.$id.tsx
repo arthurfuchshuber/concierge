@@ -120,6 +120,11 @@ function PropertyEditor() {
   const save = useServerFn(upsertProperty);
   const enrich = useServerFn(enrichFromMapsLink);
   const importAirbnb = useServerFn(importFromAirbnb);
+  const { info: sub } = useSubscription();
+  const canAirbnb = sub.features.autoImport;
+  const canBrand = sub.features.customBrand;
+
+
 
   const [form, setForm] = useState<FormState>(() => emptyForm());
   const [step, setStep] = useState<string>("basics");
