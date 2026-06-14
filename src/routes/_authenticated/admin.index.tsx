@@ -23,15 +23,11 @@ function Dashboard() {
   const [view, setView] = useState<"grid" | "list">("grid");
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [viewSlug, setViewSlug] = useState<string | null>(null);
+  const [previewMode, setPreviewMode] = useState<"mobile" | "desktop" | null>(null);
 
-  function openGuide(slug: string, mode: "mobile" | "desktop") {
-    const url = `${getPublicBaseUrl()}/g/${slug}`;
-    if (mode === "mobile") {
-      window.open(url, "_blank", "noopener,noreferrer,width=420,height=860");
-    } else {
-      window.open(url, "_blank", "noopener,noreferrer");
-    }
+  function closePreview() {
     setViewSlug(null);
+    setPreviewMode(null);
   }
 
   function getPublicBaseUrl() {
