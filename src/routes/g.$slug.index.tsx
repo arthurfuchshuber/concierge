@@ -414,6 +414,23 @@ function Guide({ data }: { data: GuideOk }) {
                                   <ExternalLink className="size-4 text-muted-foreground shrink-0" />
                                 </a>
                               )}
+                              {noveNoveUrl && (
+                                <a
+                                  href={noveNoveUrl}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="flex items-center gap-3 px-3.5 py-3.5 hover:bg-card/40 active:bg-card/60 transition-colors"
+                                >
+                                  <span className="size-10 rounded-xl bg-[#FFD400] text-black grid place-items-center shrink-0 font-bold text-[13px] tracking-tight">
+                                    99
+                                  </span>
+                                  <div className="flex-1 min-w-0 text-left">
+                                    <p className="text-[14px] font-medium leading-tight">Pedir 99</p>
+                                    <p className="text-[12px] text-muted-foreground mt-1">Corrida até o endereço</p>
+                                  </div>
+                                  <ExternalLink className="size-4 text-muted-foreground shrink-0" />
+                                </a>
+                              )}
                             </div>
                           )}
                         </div>
