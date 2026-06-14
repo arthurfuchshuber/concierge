@@ -358,6 +358,8 @@ function PropertyEditor() {
           lock_code: form.property.lock_code || null,
           gate_code: form.property.gate_code || null,
           address_note: form.property.address_note || null,
+          checkin_instructions: form.property.checkin_instructions || null,
+          checkin_media: form.property.checkin_media,
           wifi_ssid: form.property.wifi_ssid || null,
           wifi_password: form.property.wifi_password || null,
           host_name: form.property.host_name || null,
