@@ -412,15 +412,15 @@ function Guide({ data }: { data: GuideOk }) {
                             </div>
                           )}
                           {(p.checkin_instructions || (Array.isArray(p.checkin_media) && p.checkin_media.length > 0)) && (
-                            <div>
-                              <p className="text-[10px] uppercase tracking-[0.24em] text-muted-foreground font-semibold mb-2">Instruções de check-in</p>
+                            <div className="pt-1">
+                              <p className="text-[11px] uppercase tracking-[0.22em] text-primary font-semibold mb-3">Instruções de check-in</p>
                               {p.checkin_instructions && (
                                 <div className="mb-3">
                                   <StepList text={String(p.checkin_instructions)} />
                                 </div>
                               )}
                               {Array.isArray(p.checkin_media) && p.checkin_media.length > 0 && (
-                                <div className="grid grid-cols-2 gap-2">
+                                <div className="grid grid-cols-2 gap-2 mt-3">
                                   {(p.checkin_media as Array<{ url: string; type: "image" | "video" }>).map((m, i) => (
                                     <div key={i} className="rounded-xl overflow-hidden border border-border bg-muted/40 aspect-square">
                                       {m.type === "video" ? (
