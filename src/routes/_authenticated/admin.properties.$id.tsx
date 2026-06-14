@@ -69,9 +69,12 @@ type FormState = {
     checkin_instructions: string;
     checkout_instructions: string;
     checkin_media: MediaItem[];
-    access_instructions: string;
-    access_media: MediaItem[];
-    access_video_url: string;
+    gate_instructions: string;
+    gate_media: MediaItem[];
+    gate_video_url: string;
+    lock_instructions: string;
+    lock_media: MediaItem[];
+    lock_video_url: string;
     wifi_ssid: string;
     wifi_password: string;
     host_name: string;
@@ -100,7 +103,7 @@ function emptyForm(): FormState {
       theme_images: { checkin: "", residencia: "", faq: "", explore: "" },
       address: "", maps_url: "",
       lat: null, lng: null, city: "", country: "", checkin_time: "15:00", checkin_time_max: "", checkout_time: "11:00", checkout_time_min: "",
-      lock_code: "", gate_code: "", address_note: "", checkin_instructions: "", checkout_instructions: "", checkin_media: [], access_instructions: "", access_media: [], access_video_url: "", wifi_ssid: "", wifi_password: "",
+      lock_code: "", gate_code: "", address_note: "", checkin_instructions: "", checkout_instructions: "", checkin_media: [], gate_instructions: "", gate_media: [], gate_video_url: "", lock_instructions: "", lock_media: [], lock_video_url: "", wifi_ssid: "", wifi_password: "",
       host_name: "", host_phone: "", brand_name: "", brand_logo_url: "", access_mode: "public", pin_code: "", pin_expires_at: "",
       default_language: "pt", guide_theme: "dark", published: true,
     },
@@ -185,11 +188,16 @@ function PropertyEditor() {
         checkin_media: Array.isArray(p.checkin_media)
           ? (p.checkin_media as MediaItem[]).filter((m) => m && typeof m.url === "string").slice(0, 8)
           : [],
-        access_instructions: (p.access_instructions as string) ?? "",
-        access_media: Array.isArray(p.access_media)
-          ? (p.access_media as MediaItem[]).filter((m) => m && typeof m.url === "string").slice(0, 8)
+        gate_instructions: (p.gate_instructions as string) ?? "",
+        gate_media: Array.isArray(p.gate_media)
+          ? (p.gate_media as MediaItem[]).filter((m) => m && typeof m.url === "string").slice(0, 8)
           : [],
-        access_video_url: (p.access_video_url as string) ?? "",
+        gate_video_url: (p.gate_video_url as string) ?? "",
+        lock_instructions: (p.lock_instructions as string) ?? "",
+        lock_media: Array.isArray(p.lock_media)
+          ? (p.lock_media as MediaItem[]).filter((m) => m && typeof m.url === "string").slice(0, 8)
+          : [],
+        lock_video_url: (p.lock_video_url as string) ?? "",
         wifi_ssid: (p.wifi_ssid as string) ?? "",
         wifi_password: (p.wifi_password as string) ?? "",
         host_name: (p.host_name as string) ?? "",
@@ -371,9 +379,12 @@ function PropertyEditor() {
           checkin_instructions: form.property.checkin_instructions || null,
           checkout_instructions: form.property.checkout_instructions || null,
           checkin_media: form.property.checkin_media,
-          access_instructions: form.property.access_instructions || null,
-          access_media: form.property.access_media,
-          access_video_url: form.property.access_video_url || null,
+          gate_instructions: form.property.gate_code ? (form.property.gate_instructions || null) : null,
+          gate_media: form.property.gate_code ? form.property.gate_media : [],
+          gate_video_url: form.property.gate_code ? (form.property.gate_video_url || null) : null,
+          lock_instructions: form.property.lock_code ? (form.property.lock_instructions || null) : null,
+          lock_media: form.property.lock_code ? form.property.lock_media : [],
+          lock_video_url: form.property.lock_code ? (form.property.lock_video_url || null) : null,
           wifi_ssid: form.property.wifi_ssid || null,
           wifi_password: form.property.wifi_password || null,
           host_name: form.property.host_name || null,
