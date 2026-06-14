@@ -21,19 +21,9 @@ async function loadFullGuide(supabaseAdmin: typeof import("@/integrations/supaba
   };
 }
 
-// Columns safe to return to guests. Excludes pin_code and owner_id.
-// Credential fields (wifi_*, lock_code, gate_code, host_phone) are the purpose of the guide
-// and are gated by access_mode + PIN cookie below.
-const PUBLIC_PROPERTY_COLUMNS = [
-  "id","slug","name","tagline","hero_image_url","gallery_images","theme_images",
-  "address","maps_url","lat","lng","city","country",
-  "checkin_time","checkin_time_max","checkout_time","checkout_time_min",
-  "address_note","host_name",
-  "access_mode","pin_expires_at","default_language","guide_theme","published",
-  "created_at","updated_at",
-].join(",");
-
-const CREDENTIAL_COLUMNS = "wifi_ssid,wifi_password,lock_code,gate_code,host_phone";
+// Credentials (wifi_*, lock_code, gate_code, host_phone) are the purpose of the
+// guide and are gated by access_mode + PIN cookie below. pin_code and owner_id
+// are never returned to guests.
 
 export const getPublicGuide = createServerFn({ method: "POST" })
   .inputValidator((i: unknown) => SlugInput.parse(i))
@@ -42,7 +32,7 @@ export const getPublicGuide = createServerFn({ method: "POST" })
     // First fetch only access-control + display fields (no credentials, no pin_code).
     const { data: prop, error } = await supabaseAdmin
       .from("properties")
-      .select(PUBLIC_PROPERTY_COLUMNS)
+      .select("id,slug,name,tagline,hero_image_url,gallery_images,theme_images,address,maps_url,lat,lng,city,country,checkin_time,checkin_time_max,checkout_time,checkout_time_min,address_note,host_name,access_mode,pin_expires_at,default_language,guide_theme,published,created_at,updated_at")
       .eq("slug", data.slug)
       .eq("published", true)
       .maybeSingle();
