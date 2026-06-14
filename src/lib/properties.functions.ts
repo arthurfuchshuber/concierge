@@ -48,12 +48,18 @@ const PropertyInput = z.object({
     url: z.string().trim().url().max(2048).refine(isHttpsUrl, "Use um link HTTPS válido"),
     type: z.enum(["image", "video"]),
   })).max(8).default([]),
-  access_instructions: z.string().max(3000).optional().nullable(),
-  access_media: z.array(z.object({
+  gate_instructions: z.string().max(3000).optional().nullable(),
+  gate_media: z.array(z.object({
     url: z.string().trim().url().max(2048).refine(isHttpsUrl, "Use um link HTTPS válido"),
     type: z.enum(["image", "video"]),
   })).max(8).default([]),
-  access_video_url: HttpsUrl,
+  gate_video_url: HttpsUrl,
+  lock_instructions: z.string().max(3000).optional().nullable(),
+  lock_media: z.array(z.object({
+    url: z.string().trim().url().max(2048).refine(isHttpsUrl, "Use um link HTTPS válido"),
+    type: z.enum(["image", "video"]),
+  })).max(8).default([]),
+  lock_video_url: HttpsUrl,
   wifi_ssid: z.string().max(64).optional().nullable(),
   wifi_password: z.string().max(64).optional().nullable(),
   host_name: z.string().max(120).optional().nullable(),
