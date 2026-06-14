@@ -171,7 +171,7 @@ function Guide({ data }: { data: GuideOk }) {
     {
       key: "checkin",
       eyebrow: "Estadia",
-      title: "Chegada & Saída",
+      title: "Chegada",
       desc: "Endereço, códigos de acesso e horários.",
       icon: <KeyRound className="size-5" strokeWidth={1.5} />,
       image: themePick("checkin", 1),
@@ -286,7 +286,7 @@ function Guide({ data }: { data: GuideOk }) {
             </button>
 
             <TabsContent value="checkin" className="space-y-5">
-              <SectionTitle eyebrow="Estadia" title="Chegada & Saída" intro="Tudo o que você precisa para chegar e se acomodar." />
+              <SectionTitle eyebrow="Estadia" title="Chegada" intro="Tudo o que você precisa para chegar e se acomodar." />
 
               {(() => {
                 const hasHorario = !!(p.checkin_time || p.checkout_time);
@@ -325,7 +325,7 @@ function Guide({ data }: { data: GuideOk }) {
                     {hasHorario && (
                       <SubItem
                         icon={<Clock className="size-[18px]" strokeWidth={1.6} />}
-                        label="Horário"
+                        label="Horários"
                         hint={
                           p.checkin_time && p.checkout_time
                             ? `Check-in ${p.checkin_time} · Check-out ${p.checkout_time}`
@@ -360,7 +360,7 @@ function Guide({ data }: { data: GuideOk }) {
                     {hasChegada && (
                       <SubItem
                         icon={<MapPin className="size-[18px]" strokeWidth={1.6} />}
-                        label="Chegada & Localização"
+                        label="Localização"
                         hint={p.city || (p.address ? "Como chegar" : undefined)}
                       >
                         <div className="space-y-7">
