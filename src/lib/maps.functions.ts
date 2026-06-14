@@ -114,9 +114,25 @@ function formatDistance(meters: number): { text: string; driveMin: number | null
 
 
 async function resolveShortUrl(url: string): Promise<string> {
-  if (!/maps\.app\.goo\.gl|goo\.gl\/maps/.test(url)) return url;
+  let parsed: URL;
   try {
-    const res = await fetch(url, { method: "GET", redirect: "follow" });
+    parsed = new URL(url);
+  } catch {
+    return url;
+  }
+  if (parsed.protocol !== "https:") return url;
+  const host = parsed.hostname.toLowerCase();
+  // Só seguimos redirecionamento para hosts de short-link conhecidos do Google.
+  if (host !== "maps.app.goo.gl" && host !== "goo.gl") return url;
+  try {
+    const res = await fetch(parsed.toString(), { method: "GET", redirect: "follow" });
+    // Valida que o destino final ainda é um host permitido (evita open redirect / SSRF).
+    try {
+      const finalHost = new URL(res.url).hostname.toLowerCase();
+      if (!ALLOWED_MAPS_HOSTS.has(finalHost)) return url;
+    } catch {
+      return url;
+    }
     return res.url || url;
   } catch {
     return url;
