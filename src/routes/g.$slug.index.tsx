@@ -413,7 +413,7 @@ function Guide({ data }: { data: GuideOk }) {
                           )}
                           {(p.checkin_instructions || (Array.isArray(p.checkin_media) && p.checkin_media.length > 0)) && (
                             <div className="pt-1">
-                              <p className="text-[11px] uppercase tracking-[0.22em] text-primary font-semibold mb-3">Instruções de check-in</p>
+                              <p className="text-[11px] uppercase tracking-[0.22em] text-accent font-semibold mb-3">Instruções de check-in</p>
                               {p.checkin_instructions && (
                                 <div className="mb-3">
                                   <StepList text={String(p.checkin_instructions)} />
@@ -497,7 +497,7 @@ function Guide({ data }: { data: GuideOk }) {
                         hint="Passo a passo do check-out"
                       >
                         <div className="pt-1">
-                          <p className="text-[11px] uppercase tracking-[0.22em] text-primary font-semibold mb-3">Instruções de check-out</p>
+                          <p className="text-[11px] uppercase tracking-[0.22em] text-accent font-semibold mb-3">Instruções de check-out</p>
                           <StepList text={p.checkout_instructions as string} />
                         </div>
                       </SubItem>
@@ -1009,7 +1009,7 @@ function AccessBlock({
       <div className="rounded-2xl border border-border/60 bg-background/40 px-4 pt-3.5 pb-4">
         <div className="text-[10.5px] font-semibold uppercase tracking-[0.24em] text-muted-foreground mb-3">{label}</div>
         <div className="flex items-center gap-3">
-          <div className="grid size-12 shrink-0 place-items-center rounded-xl bg-primary/15 text-primary">
+          <div className="grid size-12 shrink-0 place-items-center rounded-xl bg-accent/15 text-accent">
             <Icon className="size-[22px]" strokeWidth={1.75} />
           </div>
           <div className="font-mono text-[30px] font-bold tracking-[0.06em] text-foreground leading-none flex-1 min-w-0 truncate">
@@ -1034,8 +1034,8 @@ function AccessBlock({
           rel="noopener noreferrer"
           className="px-1 flex items-center gap-2.5 group"
         >
-          <PlayCircle className="size-[18px] text-primary shrink-0" strokeWidth={1.75} />
-          <span className="text-[14px] font-medium text-foreground flex-1 group-hover:text-primary transition-colors">Assistir tutorial em vídeo</span>
+          <PlayCircle className="size-[18px] text-accent shrink-0" strokeWidth={1.75} />
+          <span className="text-[14px] font-medium text-foreground flex-1 group-hover:text-accent transition-colors">Assistir tutorial em vídeo</span>
           <ExternalLink className="size-3.5 text-muted-foreground" />
         </a>
       )}
@@ -1071,7 +1071,7 @@ function CopyCode({ value }: { value: string }) {
       }}
       className="shrink-0 inline-flex items-center gap-1.5 rounded-xl border border-border/70 bg-background/60 px-3 py-2 text-[13px] font-medium text-foreground hover:bg-foreground/[0.04] active:bg-foreground/[0.06] transition-colors"
     >
-      {copied ? <Check className="size-3.5 text-primary" /> : <Copy className="size-3.5" />}
+      {copied ? <Check className="size-3.5 text-accent" /> : <Copy className="size-3.5" />}
       <span>{copied ? "Copiado" : "Copiar"}</span>
     </button>
   );
