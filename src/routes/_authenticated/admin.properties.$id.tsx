@@ -542,15 +542,15 @@ function PropertyEditor() {
           <Section
             icon={DoorOpen}
             title="Instruções de check-in"
-            desc="Passo a passo da chegada, com fotos ou vídeos do trajeto, entrada, fechadura, etc."
+            desc="Passo a passo da chegada. Escreva uma instrução por linha — cada linha vira uma etapa numerada no guia."
           >
-            <Field label="Passo a passo (opcional)" hint="Descreva como o hóspede deve chegar e entrar.">
+            <Field label="Passo a passo (opcional)" hint="Uma etapa por linha. Linhas em branco são ignoradas.">
               <Textarea
                 value={form.property.checkin_instructions}
                 maxLength={3000}
                 rows={6}
                 onChange={(e) => update("checkin_instructions", e.target.value)}
-                placeholder={"Ex.: 1) Estacione na vaga 12.\n2) Aponte para o portão lateral.\n3) Use o código de portão e fechadura ao lado."}
+                placeholder={"Estacione na vaga 12.\nAponte para o portão lateral.\nUse o código de portão e fechadura ao lado."}
               />
             </Field>
             <Field label="Fotos e vídeos do check-in" hint="Até 8 itens. Imagens (máx 10MB) ou vídeos (máx 60MB).">
@@ -559,6 +559,22 @@ function PropertyEditor() {
                 onChange={(next) => update("checkin_media", next)}
                 folder="checkin"
                 max={8}
+              />
+            </Field>
+          </Section>
+
+          <Section
+            icon={LogOut}
+            title="Instruções de check-out"
+            desc="Passo a passo da saída. Mesmo formato: uma instrução por linha."
+          >
+            <Field label="Passo a passo (opcional)" hint="Uma etapa por linha. Linhas em branco são ignoradas.">
+              <Textarea
+                value={form.property.checkout_instructions}
+                maxLength={3000}
+                rows={6}
+                onChange={(e) => update("checkout_instructions", e.target.value)}
+                placeholder={"Deixe as chaves sobre a mesa de jantar.\nFeche todas as janelas.\nTranque a porta principal ao sair."}
               />
             </Field>
           </Section>
