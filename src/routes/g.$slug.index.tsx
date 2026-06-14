@@ -411,25 +411,32 @@ function Guide({ data }: { data: GuideOk }) {
                               )}
                             </div>
                           )}
-                          {(p.checkin_instructions || (Array.isArray(p.checkin_media) && p.checkin_media.length > 0)) && (
-                            <div className="px-1">
-                              <p className="text-[11px] uppercase tracking-[0.24em] text-accent font-semibold mb-4">Instruções de check-in</p>
-                              {p.checkin_instructions && (
-                                <StepList text={String(p.checkin_instructions)} />
-                              )}
-                              {Array.isArray(p.checkin_media) && p.checkin_media.length > 0 && (
-                                <div className="grid grid-cols-2 gap-2 mt-4">
-                                  {(p.checkin_media as Array<{ url: string; type: "image" | "video" }>).map((m, i) => (
-                                    <div key={i} className="rounded-xl overflow-hidden border border-border bg-muted/40 aspect-square">
-                                      {m.type === "video" ? (
-                                        <video src={m.url} className="size-full object-cover" controls playsInline preload="metadata" />
-                                      ) : (
-                                        <img src={m.url} alt={`Check-in ${i + 1}`} className="size-full object-cover" loading="lazy" />
-                                      )}
-                                    </div>
-                                  ))}
+                        </div>
+                      </SubItem>
+                    )}
+
+                    {(p.checkin_instructions || (Array.isArray(p.checkin_media) && p.checkin_media.length > 0)) && (
+                      <SubItem
+                        icon={<LogIn className="size-[18px]" strokeWidth={1.6} />}
+                        label="Check-in"
+                        hint="Passo a passo da chegada"
+                      >
+                        <div className="pt-1">
+                          <p className="text-[11px] uppercase tracking-[0.24em] text-accent font-semibold mb-4">Instruções de check-in</p>
+                          {p.checkin_instructions && (
+                            <StepList text={String(p.checkin_instructions)} />
+                          )}
+                          {Array.isArray(p.checkin_media) && p.checkin_media.length > 0 && (
+                            <div className="grid grid-cols-2 gap-2 mt-4">
+                              {(p.checkin_media as Array<{ url: string; type: "image" | "video" }>).map((m, i) => (
+                                <div key={i} className="rounded-xl overflow-hidden border border-border bg-muted/40 aspect-square">
+                                  {m.type === "video" ? (
+                                    <video src={m.url} className="size-full object-cover" controls playsInline preload="metadata" />
+                                  ) : (
+                                    <img src={m.url} alt={`Check-in ${i + 1}`} className="size-full object-cover" loading="lazy" />
+                                  )}
                                 </div>
-                              )}
+                              ))}
                             </div>
                           )}
                         </div>
