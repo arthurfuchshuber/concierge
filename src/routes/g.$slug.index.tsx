@@ -970,6 +970,31 @@ function SubList({ children }: { children: React.ReactNode }) {
   );
 }
 
+function StepList({ text, dense = false }: { text: string; dense?: boolean }) {
+  const steps = text
+    .split(/\r?\n/)
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0)
+    .map((s) => s.replace(/^\s*(?:\d+[.)\-º°]\s*|[-•·*]\s*)/, "").trim())
+    .filter((s) => s.length > 0);
+  if (steps.length === 0) return null;
+  return (
+    <ol className={dense ? "space-y-1.5" : "space-y-2"}>
+      {steps.map((step, i) => (
+        <li key={i} className="flex items-start gap-2.5">
+          <span
+            aria-hidden
+            className="mt-0.5 shrink-0 grid place-items-center min-w-[22px] h-[22px] px-1.5 rounded-md bg-primary/15 text-primary text-[11.5px] font-semibold tabular-nums leading-none"
+          >
+            {i + 1}
+          </span>
+          <span className="text-[13.5px] leading-relaxed text-foreground/90">{step}</span>
+        </li>
+      ))}
+    </ol>
+  );
+}
+
 function SubItem({
   icon, label, hint, children,
 }: {
