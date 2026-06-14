@@ -931,8 +931,10 @@ function SubItem({
           </div>
         </div>
       </AccordionTrigger>
-      <AccordionContent className="px-4 pb-4 pt-1">
-        {children}
+      <AccordionContent className="pl-[3.875rem] pr-3 pb-3.5 pt-0">
+        <div className="rounded-xl bg-background/50 border border-border/50 overflow-hidden divide-y divide-border/40">
+          {children}
+        </div>
       </AccordionContent>
     </AccordionItem>
   );
@@ -949,20 +951,43 @@ function SectionTitle({ title, intro }: { eyebrow?: string; title: string; intro
 
 function InfoTile({ label, value, border }: { label: string; value: string; border?: boolean }) {
   return (
-    <div className={`p-5 ${border ? "border-l border-border" : ""}`}>
-      <p className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground font-semibold">{label}</p>
-      <p className="text-[15px] mt-1.5 font-medium leading-tight">{value}</p>
+    <div className={`px-4 py-3 ${border ? "border-l border-border/40" : ""}`}>
+      <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground font-semibold">{label}</p>
+      <p className="text-[14px] mt-1 font-medium leading-snug text-foreground/95">{value}</p>
     </div>
   );
 }
 
-function CopyCard({ icon, eyebrow, label, value }: { icon?: React.ReactNode; eyebrow?: string; label: string; value: string }) {
+function CopyCard({ icon, eyebrow, label, value, flat }: { icon?: React.ReactNode; eyebrow?: string; label: string; value: string; flat?: boolean }) {
   const [copied, setCopied] = useState(false);
   function copy() {
     navigator.clipboard.writeText(value);
     setCopied(true);
     toast.success("Copiado!");
     setTimeout(() => setCopied(false), 1800);
+  }
+  if (flat) {
+    return (
+      <button
+        onClick={copy}
+        className="w-full flex items-center justify-between gap-3 px-3.5 py-3 text-left hover:bg-card/40 active:bg-card/60 transition-colors"
+      >
+        <div className="flex items-center gap-3 min-w-0">
+          {icon && (
+            <div className="size-9 rounded-lg bg-accent/12 text-accent grid place-items-center shrink-0">
+              {icon}
+            </div>
+          )}
+          <div className="min-w-0">
+            {eyebrow && <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground font-semibold">{eyebrow}</p>}
+            <p className="text-[15px] font-semibold tracking-tight mt-0.5 break-all leading-snug">{value}</p>
+          </div>
+        </div>
+        <div className="size-8 rounded-full bg-secondary grid place-items-center shrink-0">
+          {copied ? <Check className="size-3.5 text-accent" /> : <Copy className="size-3.5 text-muted-foreground" />}
+        </div>
+      </button>
+    );
   }
   return (
     <button onClick={copy} className="w-full bg-card border border-border rounded-2xl p-5 flex items-center justify-between gap-4 active:scale-[0.99] transition-transform hover:border-accent/40">
