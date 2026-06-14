@@ -18,6 +18,7 @@ import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/
 import { Route as GSlugIndexRouteImport } from './routes/g.$slug.index'
 import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin.index'
 import { Route as GSlugExplorarRouteImport } from './routes/g.$slug.explorar'
+import { Route as AuthenticatedAdminAssinaturaRouteImport } from './routes/_authenticated/admin.assinatura'
 import { Route as ApiPublicPaymentsWebhookRouteImport } from './routes/api/public/payments/webhook'
 import { Route as AuthenticatedAdminPropertiesIdRouteImport } from './routes/_authenticated/admin.properties.$id'
 
@@ -65,6 +66,12 @@ const GSlugExplorarRoute = GSlugExplorarRouteImport.update({
   path: '/explorar',
   getParentRoute: () => GSlugRoute,
 } as any)
+const AuthenticatedAdminAssinaturaRoute =
+  AuthenticatedAdminAssinaturaRouteImport.update({
+    id: '/assinatura',
+    path: '/assinatura',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
 const ApiPublicPaymentsWebhookRoute =
   ApiPublicPaymentsWebhookRouteImport.update({
     id: '/api/public/payments/webhook',
@@ -84,6 +91,7 @@ export interface FileRoutesByFullPath {
   '/precos': typeof PrecosRoute
   '/admin': typeof AuthenticatedAdminRouteWithChildren
   '/g/$slug': typeof GSlugRouteWithChildren
+  '/admin/assinatura': typeof AuthenticatedAdminAssinaturaRoute
   '/g/$slug/explorar': typeof GSlugExplorarRoute
   '/admin/': typeof AuthenticatedAdminIndexRoute
   '/g/$slug/': typeof GSlugIndexRoute
@@ -94,6 +102,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/precos': typeof PrecosRoute
+  '/admin/assinatura': typeof AuthenticatedAdminAssinaturaRoute
   '/g/$slug/explorar': typeof GSlugExplorarRoute
   '/admin': typeof AuthenticatedAdminIndexRoute
   '/g/$slug': typeof GSlugIndexRoute
@@ -108,6 +117,7 @@ export interface FileRoutesById {
   '/precos': typeof PrecosRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRouteWithChildren
   '/g/$slug': typeof GSlugRouteWithChildren
+  '/_authenticated/admin/assinatura': typeof AuthenticatedAdminAssinaturaRoute
   '/g/$slug/explorar': typeof GSlugExplorarRoute
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
   '/g/$slug/': typeof GSlugIndexRoute
@@ -122,6 +132,7 @@ export interface FileRouteTypes {
     | '/precos'
     | '/admin'
     | '/g/$slug'
+    | '/admin/assinatura'
     | '/g/$slug/explorar'
     | '/admin/'
     | '/g/$slug/'
@@ -132,6 +143,7 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/precos'
+    | '/admin/assinatura'
     | '/g/$slug/explorar'
     | '/admin'
     | '/g/$slug'
@@ -145,6 +157,7 @@ export interface FileRouteTypes {
     | '/precos'
     | '/_authenticated/admin'
     | '/g/$slug'
+    | '/_authenticated/admin/assinatura'
     | '/g/$slug/explorar'
     | '/_authenticated/admin/'
     | '/g/$slug/'
@@ -226,6 +239,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof GSlugExplorarRouteImport
       parentRoute: typeof GSlugRoute
     }
+    '/_authenticated/admin/assinatura': {
+      id: '/_authenticated/admin/assinatura'
+      path: '/assinatura'
+      fullPath: '/admin/assinatura'
+      preLoaderRoute: typeof AuthenticatedAdminAssinaturaRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
     '/api/public/payments/webhook': {
       id: '/api/public/payments/webhook'
       path: '/api/public/payments/webhook'
@@ -244,11 +264,13 @@ declare module '@tanstack/react-router' {
 }
 
 interface AuthenticatedAdminRouteChildren {
+  AuthenticatedAdminAssinaturaRoute: typeof AuthenticatedAdminAssinaturaRoute
   AuthenticatedAdminIndexRoute: typeof AuthenticatedAdminIndexRoute
   AuthenticatedAdminPropertiesIdRoute: typeof AuthenticatedAdminPropertiesIdRoute
 }
 
 const AuthenticatedAdminRouteChildren: AuthenticatedAdminRouteChildren = {
+  AuthenticatedAdminAssinaturaRoute: AuthenticatedAdminAssinaturaRoute,
   AuthenticatedAdminIndexRoute: AuthenticatedAdminIndexRoute,
   AuthenticatedAdminPropertiesIdRoute: AuthenticatedAdminPropertiesIdRoute,
 }
