@@ -63,6 +63,7 @@ function Dashboard() {
     queryKey: ["my-properties"],
     queryFn: () => list(),
   });
+  const { info: sub } = useSubscription();
 
   async function handleDelete(id: string, name: string) {
     if (!confirm(`Excluir "${name}"? Esta ação não pode ser desfeita.`)) return;
@@ -76,8 +77,14 @@ function Dashboard() {
   }
 
   const count = data?.length ?? 0;
-  const remaining = Math.max(0, PLAN_LIMIT - count);
-  const pct = Math.min(100, (count / PLAN_LIMIT) * 100);
+  const planConfig = sub.plan ? PLANS[sub.plan] : null;
+  const planName = planConfig?.name ?? "Sem plano";
+  const planPrice = planConfig?.priceLabel ?? "—";
+  const planLimit = sub.maxGuides;
+  const remaining = Math.max(0, planLimit - count);
+  const pct = planLimit > 0 ? Math.min(100, (count / planLimit) * 100) : 0;
+  const reachedLimit = planLimit > 0 && count >= planLimit;
+
 
   return (
     <div className="px-6 lg:px-10 py-8 lg:py-10 max-w-7xl mx-auto w-full">
