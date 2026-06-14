@@ -1007,57 +1007,71 @@ function AccessBlock({
   videoUrl?: string | null;
   media: Array<{ url: string; type: "image" | "video" }>;
 }) {
+  const [open, setOpen] = useState(false);
   const Icon = kind === "gate" ? KeyRound : Lock;
   const label = kind === "gate" ? "Portão" : "Fechadura";
+  const subtitle = kind === "gate" ? "Instruções de acesso ao portão" : "Instruções de acesso à porta";
+  const hasMore = !!(instructions || videoUrl || media.length > 0);
+
   return (
-    <div className="space-y-5">
-      {/* Hero code card */}
-      <div className="rounded-2xl border border-border/60 bg-background/40 px-4 pt-3.5 pb-4">
-        <div className="text-[10.5px] font-semibold uppercase tracking-[0.24em] text-muted-foreground mb-3">{label}</div>
-        <div className="flex items-center gap-3">
-          <div className="grid size-12 shrink-0 place-items-center rounded-xl bg-accent/15 text-accent">
-            <Icon className="size-[22px]" strokeWidth={1.75} />
-          </div>
-          <div className="font-mono text-[30px] font-bold tracking-[0.06em] text-foreground leading-none flex-1 min-w-0 truncate">
-            {code}
-          </div>
+    <div className="rounded-2xl border border-border/60 bg-background/40 overflow-hidden">
+      <div
+        onClick={() => hasMore && setOpen((o) => !o)}
+        className={`flex items-center gap-3 px-4 py-3.5 ${hasMore ? "cursor-pointer select-none hover:bg-card/30 active:bg-card/50 transition-colors" : ""}`}
+      >
+        <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-accent/15 text-accent">
+          <Icon className="size-[18px]" strokeWidth={1.75} />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-[10.5px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">{label}</p>
+          <p className="font-mono text-[15px] font-semibold tracking-[0.08em] text-foreground mt-0.5 truncate">{code}</p>
+        </div>
+        <div onClick={(e) => e.stopPropagation()} className="shrink-0">
           <CopyCode value={code} />
         </div>
+        {hasMore && (
+          <ChevronDown
+            className={`size-4 text-muted-foreground shrink-0 transition-transform duration-200 ${open ? "rotate-180" : ""}`}
+            strokeWidth={2}
+          />
+        )}
       </div>
 
-      {/* Step-by-step */}
-      {instructions && (
-        <div className="px-1">
-          <StepList text={instructions} dense />
-        </div>
-      )}
-
-      {/* Video tutorial */}
-      {videoUrl && (
-        <a
-          href={videoUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="px-1 flex items-center gap-2.5 group"
-        >
-          <PlayCircle className="size-[18px] text-accent shrink-0" strokeWidth={1.75} />
-          <span className="text-[14px] font-medium text-foreground flex-1 group-hover:text-accent transition-colors">Assistir tutorial em vídeo</span>
-          <ExternalLink className="size-3.5 text-muted-foreground" />
-        </a>
-      )}
-
-      {/* Media gallery */}
-      {media.length > 0 && (
-        <div className="grid grid-cols-3 gap-1.5 px-1">
-          {media.map((m, i) => (
-            <div key={i} className="rounded-lg overflow-hidden border border-border/50 bg-muted/40 aspect-square">
-              {m.type === "video" ? (
-                <video src={m.url} className="size-full object-cover" controls playsInline preload="metadata" />
-              ) : (
-                <img src={m.url} alt={`${label} ${i + 1}`} className="size-full object-cover" loading="lazy" />
-              )}
+      {hasMore && open && (
+        <div className="px-4 pb-4 pt-1 space-y-5">
+          {instructions && (
+            <div>
+              <p className="text-[11px] uppercase tracking-[0.24em] text-accent font-semibold mb-4">{subtitle}</p>
+              <StepList text={instructions} dense />
             </div>
-          ))}
+          )}
+
+          {videoUrl && (
+            <a
+              href={videoUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2.5 group"
+            >
+              <PlayCircle className="size-[18px] text-accent shrink-0" strokeWidth={1.75} />
+              <span className="text-[14px] font-medium text-foreground flex-1 group-hover:text-accent transition-colors">Assistir tutorial em vídeo</span>
+              <ExternalLink className="size-3.5 text-muted-foreground" />
+            </a>
+          )}
+
+          {media.length > 0 && (
+            <div className="grid grid-cols-3 gap-1.5">
+              {media.map((m, i) => (
+                <div key={i} className="rounded-lg overflow-hidden border border-border/50 bg-muted/40 aspect-square">
+                  {m.type === "video" ? (
+                    <video src={m.url} className="size-full object-cover" controls playsInline preload="metadata" />
+                  ) : (
+                    <img src={m.url} alt={`${label} ${i + 1}`} className="size-full object-cover" loading="lazy" />
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>
