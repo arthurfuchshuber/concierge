@@ -21,6 +21,7 @@ import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/
 import { Route as GSlugIndexRouteImport } from './routes/g.$slug.index'
 import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin.index'
 import { Route as GSlugExplorarRouteImport } from './routes/g.$slug.explorar'
+import { Route as ApiPublicGuideChatRouteImport } from './routes/api/public/guide-chat'
 import { Route as AuthenticatedAdminAssinaturaRouteImport } from './routes/_authenticated/admin.assinatura'
 import { Route as ApiPublicPaymentsWebhookRouteImport } from './routes/api/public/payments/webhook'
 import { Route as AuthenticatedAdminPropertiesIdRouteImport } from './routes/_authenticated/admin.properties.$id'
@@ -84,6 +85,11 @@ const GSlugExplorarRoute = GSlugExplorarRouteImport.update({
   path: '/explorar',
   getParentRoute: () => GSlugRoute,
 } as any)
+const ApiPublicGuideChatRoute = ApiPublicGuideChatRouteImport.update({
+  id: '/api/public/guide-chat',
+  path: '/api/public/guide-chat',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthenticatedAdminAssinaturaRoute =
   AuthenticatedAdminAssinaturaRouteImport.update({
     id: '/assinatura',
@@ -113,6 +119,7 @@ export interface FileRoutesByFullPath {
   '/admin': typeof AuthenticatedAdminRouteWithChildren
   '/g/$slug': typeof GSlugRouteWithChildren
   '/admin/assinatura': typeof AuthenticatedAdminAssinaturaRoute
+  '/api/public/guide-chat': typeof ApiPublicGuideChatRoute
   '/g/$slug/explorar': typeof GSlugExplorarRoute
   '/admin/': typeof AuthenticatedAdminIndexRoute
   '/g/$slug/': typeof GSlugIndexRoute
@@ -127,6 +134,7 @@ export interface FileRoutesByTo {
   '/reembolso': typeof ReembolsoRoute
   '/termos': typeof TermosRoute
   '/admin/assinatura': typeof AuthenticatedAdminAssinaturaRoute
+  '/api/public/guide-chat': typeof ApiPublicGuideChatRoute
   '/g/$slug/explorar': typeof GSlugExplorarRoute
   '/admin': typeof AuthenticatedAdminIndexRoute
   '/g/$slug': typeof GSlugIndexRoute
@@ -145,6 +153,7 @@ export interface FileRoutesById {
   '/_authenticated/admin': typeof AuthenticatedAdminRouteWithChildren
   '/g/$slug': typeof GSlugRouteWithChildren
   '/_authenticated/admin/assinatura': typeof AuthenticatedAdminAssinaturaRoute
+  '/api/public/guide-chat': typeof ApiPublicGuideChatRoute
   '/g/$slug/explorar': typeof GSlugExplorarRoute
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
   '/g/$slug/': typeof GSlugIndexRoute
@@ -163,6 +172,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/g/$slug'
     | '/admin/assinatura'
+    | '/api/public/guide-chat'
     | '/g/$slug/explorar'
     | '/admin/'
     | '/g/$slug/'
@@ -177,6 +187,7 @@ export interface FileRouteTypes {
     | '/reembolso'
     | '/termos'
     | '/admin/assinatura'
+    | '/api/public/guide-chat'
     | '/g/$slug/explorar'
     | '/admin'
     | '/g/$slug'
@@ -194,6 +205,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin'
     | '/g/$slug'
     | '/_authenticated/admin/assinatura'
+    | '/api/public/guide-chat'
     | '/g/$slug/explorar'
     | '/_authenticated/admin/'
     | '/g/$slug/'
@@ -210,6 +222,7 @@ export interface RootRouteChildren {
   ReembolsoRoute: typeof ReembolsoRoute
   TermosRoute: typeof TermosRoute
   GSlugRoute: typeof GSlugRouteWithChildren
+  ApiPublicGuideChatRoute: typeof ApiPublicGuideChatRoute
   ApiPublicPaymentsWebhookRoute: typeof ApiPublicPaymentsWebhookRoute
 }
 
@@ -299,6 +312,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof GSlugExplorarRouteImport
       parentRoute: typeof GSlugRoute
     }
+    '/api/public/guide-chat': {
+      id: '/api/public/guide-chat'
+      path: '/api/public/guide-chat'
+      fullPath: '/api/public/guide-chat'
+      preLoaderRoute: typeof ApiPublicGuideChatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_authenticated/admin/assinatura': {
       id: '/_authenticated/admin/assinatura'
       path: '/assinatura'
@@ -370,6 +390,7 @@ const rootRouteChildren: RootRouteChildren = {
   ReembolsoRoute: ReembolsoRoute,
   TermosRoute: TermosRoute,
   GSlugRoute: GSlugRouteWithChildren,
+  ApiPublicGuideChatRoute: ApiPublicGuideChatRoute,
   ApiPublicPaymentsWebhookRoute: ApiPublicPaymentsWebhookRoute,
 }
 export const routeTree = rootRouteImport
