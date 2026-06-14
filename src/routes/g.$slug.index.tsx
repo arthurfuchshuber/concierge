@@ -932,9 +932,7 @@ function SubItem({
         </div>
       </AccordionTrigger>
       <AccordionContent className="pl-[3.875rem] pr-3 pb-3.5 pt-0">
-        <div className="rounded-xl bg-background/50 border border-border/50 overflow-hidden divide-y divide-border/40">
-          {children}
-        </div>
+        {children}
       </AccordionContent>
     </AccordionItem>
   );
