@@ -4,17 +4,17 @@ import { useQuery } from "@tanstack/react-query";
 import { listMyProperties, deleteProperty } from "@/lib/properties.functions";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
-import { Plus, ExternalLink, Pencil, Trash2, Lock, Globe, BookOpen, PlayCircle, CreditCard, LayoutGrid, List, Link2, Check } from "lucide-react";
+import { Plus, ExternalLink, Pencil, Trash2, Lock, Globe, BookOpen, PlayCircle, CreditCard, LayoutGrid, List, Link2, Check, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { useState } from "react";
+import { useSubscription } from "@/hooks/useSubscription";
+import { PLANS } from "@/lib/payments.functions";
 
 export const Route = createFileRoute("/_authenticated/admin/")({
   component: Dashboard,
 });
 
-const PLAN_LIMIT = 50;
-const PLAN_PRICE = "R$ 279";
-const PLAN_OLD_PRICE = "R$ 399";
+
 
 function Dashboard() {
   const list = useServerFn(listMyProperties);
