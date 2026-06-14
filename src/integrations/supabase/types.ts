@@ -43,6 +43,8 @@ export type Database = {
           access_mode: Database["public"]["Enums"]["access_mode"]
           address: string | null
           address_note: string | null
+          brand_logo_url: string | null
+          brand_name: string | null
           checkin_time: string | null
           checkin_time_max: string | null
           checkout_time: string | null
@@ -78,6 +80,8 @@ export type Database = {
           access_mode?: Database["public"]["Enums"]["access_mode"]
           address?: string | null
           address_note?: string | null
+          brand_logo_url?: string | null
+          brand_name?: string | null
           checkin_time?: string | null
           checkin_time_max?: string | null
           checkout_time?: string | null
@@ -113,6 +117,8 @@ export type Database = {
           access_mode?: Database["public"]["Enums"]["access_mode"]
           address?: string | null
           address_note?: string | null
+          brand_logo_url?: string | null
+          brand_name?: string | null
           checkin_time?: string | null
           checkin_time_max?: string | null
           checkout_time?: string | null
