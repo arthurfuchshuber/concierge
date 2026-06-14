@@ -40,7 +40,10 @@ export type Database = {
       }
       properties: {
         Row: {
+          access_instructions: string | null
+          access_media: Json
           access_mode: Database["public"]["Enums"]["access_mode"]
+          access_video_url: string | null
           address: string | null
           address_note: string | null
           brand_logo_url: string | null
@@ -79,7 +82,10 @@ export type Database = {
           wifi_ssid: string | null
         }
         Insert: {
+          access_instructions?: string | null
+          access_media?: Json
           access_mode?: Database["public"]["Enums"]["access_mode"]
+          access_video_url?: string | null
           address?: string | null
           address_note?: string | null
           brand_logo_url?: string | null
@@ -118,7 +124,10 @@ export type Database = {
           wifi_ssid?: string | null
         }
         Update: {
+          access_instructions?: string | null
+          access_media?: Json
           access_mode?: Database["public"]["Enums"]["access_mode"]
+          access_video_url?: string | null
           address?: string | null
           address_note?: string | null
           brand_logo_url?: string | null

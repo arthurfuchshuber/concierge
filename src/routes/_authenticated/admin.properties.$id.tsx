@@ -68,6 +68,9 @@ type FormState = {
     address_note: string;
     checkin_instructions: string;
     checkin_media: MediaItem[];
+    access_instructions: string;
+    access_media: MediaItem[];
+    access_video_url: string;
     wifi_ssid: string;
     wifi_password: string;
     host_name: string;
@@ -96,7 +99,7 @@ function emptyForm(): FormState {
       theme_images: { checkin: "", residencia: "", faq: "", explore: "" },
       address: "", maps_url: "",
       lat: null, lng: null, city: "", country: "", checkin_time: "15:00", checkin_time_max: "", checkout_time: "11:00", checkout_time_min: "",
-      lock_code: "", gate_code: "", address_note: "", checkin_instructions: "", checkin_media: [], wifi_ssid: "", wifi_password: "",
+      lock_code: "", gate_code: "", address_note: "", checkin_instructions: "", checkin_media: [], access_instructions: "", access_media: [], access_video_url: "", wifi_ssid: "", wifi_password: "",
       host_name: "", host_phone: "", brand_name: "", brand_logo_url: "", access_mode: "public", pin_code: "", pin_expires_at: "",
       default_language: "pt", guide_theme: "dark", published: true,
     },
@@ -180,6 +183,11 @@ function PropertyEditor() {
         checkin_media: Array.isArray(p.checkin_media)
           ? (p.checkin_media as MediaItem[]).filter((m) => m && typeof m.url === "string").slice(0, 8)
           : [],
+        access_instructions: (p.access_instructions as string) ?? "",
+        access_media: Array.isArray(p.access_media)
+          ? (p.access_media as MediaItem[]).filter((m) => m && typeof m.url === "string").slice(0, 8)
+          : [],
+        access_video_url: (p.access_video_url as string) ?? "",
         wifi_ssid: (p.wifi_ssid as string) ?? "",
         wifi_password: (p.wifi_password as string) ?? "",
         host_name: (p.host_name as string) ?? "",
@@ -360,6 +368,9 @@ function PropertyEditor() {
           address_note: form.property.address_note || null,
           checkin_instructions: form.property.checkin_instructions || null,
           checkin_media: form.property.checkin_media,
+          access_instructions: form.property.access_instructions || null,
+          access_media: form.property.access_media,
+          access_video_url: form.property.access_video_url || null,
           wifi_ssid: form.property.wifi_ssid || null,
           wifi_password: form.property.wifi_password || null,
           host_name: form.property.host_name || null,
@@ -610,11 +621,36 @@ function PropertyEditor() {
             </div>
           </Section>
 
-          <Section icon={DoorOpen} title="Entrada" desc="Códigos de acesso ao imóvel.">
+          <Section icon={DoorOpen} title="Entrada" desc="Códigos de acesso, instruções e mídia para ajudar o hóspede a entrar.">
             <div className="grid grid-cols-2 gap-3">
               <Field label="Código do portão"><Input value={form.property.gate_code} maxLength={40} onChange={(e) => update("gate_code", e.target.value)} /></Field>
               <Field label="Código da fechadura"><Input value={form.property.lock_code} maxLength={40} onChange={(e) => update("lock_code", e.target.value)} /></Field>
             </div>
+            <Field label="Instruções de acesso (opcional)" hint="Explique como usar o portão, fechadura, ordem dos passos, dicas.">
+              <Textarea
+                value={form.property.access_instructions}
+                maxLength={3000}
+                rows={5}
+                onChange={(e) => update("access_instructions", e.target.value)}
+                placeholder={"Ex.: 1) Digite o código no teclado do portão e aperte #.\n2) Empurre a porta principal e digite o código da fechadura.\n3) Se travar, gire a maçaneta enquanto digita."}
+              />
+            </Field>
+            <Field label="Link de vídeo tutorial (opcional)" hint="YouTube, Vimeo ou MP4 (https). Aparece como botão para o hóspede assistir.">
+              <Input
+                value={form.property.access_video_url}
+                maxLength={2048}
+                onChange={(e) => update("access_video_url", e.target.value)}
+                placeholder="https://youtu.be/…"
+              />
+            </Field>
+            <Field label="Fotos e vídeos do acesso (opcional)" hint="Até 8 itens. Mostre o portão, a fechadura, o caminho.">
+              <MediaUpload
+                value={form.property.access_media}
+                onChange={(next) => update("access_media", next)}
+                folder="access"
+                max={8}
+              />
+            </Field>
           </Section>
 
           <Section icon={Wifi} title="Wi-Fi">
