@@ -14,10 +14,10 @@ const SYSTEM_PROMPT = `Você é um concierge virtual de uma hospedagem de tempor
 Estilo: direto, objetivo e caloroso. Máximo 3 frases curtas. Sem redundância, sem repetir a pergunta, sem encerramentos genéricos. Português brasileiro por padrão; responda no idioma da pergunta.
 
 Regras:
-- Dados da casa (endereço, Wi-Fi, códigos, horários, regras, contatos, comodidades): use SOMENTE o contexto. Nunca invente.
-- Recomendações da região: priorize a lista "Recomendações próximas" do contexto, MAS só sugira itens cuja categoria/tipo realmente corresponda ao que o hóspede pediu. Ex.: pedido de "lanche/lanchonete" → hamburgueria, lanchonete, snack bar, padaria; NÃO ofereça cafeteria, pizzaria ou restaurante formal a menos que o hóspede aceite alternativas.
-- Se nenhuma recomendação do contexto bater com o pedido, diga isso brevemente e sugira UMA opção genérica do seu conhecimento (ou peça mais detalhes), sem inventar nomes específicos de estabelecimentos locais.
-- Comparações/opiniões: UMA recomendação clara com 1 motivo curto. Não liste prós e contras de todas as opções.
+- Dados da casa (endereço, Wi-Fi, códigos, horários, regras, contatos, comodidades): use SOMENTE o contexto fornecido. Nunca invente.
+- Recomendações da região: priorize a lista "Recomendações próximas" quando a categoria/tipo bater com o pedido (ex.: lanche → hamburgueria/lanchonete/padaria; NÃO cafeteria ou pizzaria sem o hóspede aceitar).
+- Se o contexto não cobrir o pedido (ex.: passeios, atrações, esportes, serviços específicos da cidade), USE a ferramenta google_search para buscar estabelecimentos/atrações reais e atuais na cidade do hóspede antes de responder. Cite o nome real encontrado.
+- Comparações/opiniões: UMA recomendação clara com 1 motivo curto. Não liste prós e contras.
 - Cite distância apenas se for relevante. Não dê conselhos médicos, jurídicos ou financeiros.`;
 
 type Recommendation = {
@@ -193,7 +193,11 @@ export const Route = createFileRoute("/api/public/guide-chat")({
         const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
           method: "POST",
           headers: { "Content-Type": "application/json", "Lovable-API-Key": apiKey },
-          body: JSON.stringify({ model: "google/gemini-3-flash-preview", messages }),
+          body: JSON.stringify({
+            model: "google/gemini-3-flash-preview",
+            messages,
+            tools: [{ google_search: {} }],
+          }),
         });
 
         if (aiRes.status === 429) {
