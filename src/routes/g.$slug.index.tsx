@@ -452,105 +452,24 @@ function Guide({ data }: { data: GuideOk }) {
                             : "Instruções de entrada"
                         }
                       >
-                        <div className="space-y-3">
+                        <div className="space-y-4">
                           {p.gate_code && (
-                            <div className="rounded-2xl border border-border/50 bg-background/50 overflow-hidden divide-y divide-border/40">
-                              <CopyCard flat icon={<KeyRound className="size-[18px]" strokeWidth={1.75} />} eyebrow="Portão" label="Toque para copiar" value={p.gate_code} />
-                              {p.gate_instructions && (
-                                <div className="px-3.5 py-3 flex items-start gap-3">
-                                  <div className="size-9 grid place-items-center rounded-lg bg-primary/10 text-primary shrink-0">
-                                    <ListOrdered className="size-[18px]" strokeWidth={1.75} />
-                                  </div>
-                                  <div className="min-w-0 flex-1">
-                                    <div className="text-[9.5px] font-medium uppercase tracking-[0.14em] text-muted-foreground mb-2">Passo a passo</div>
-                                    <StepList text={p.gate_instructions as string} dense />
-                                  </div>
-                                </div>
-                              )}
-                              {p.gate_video_url && (
-                                <a
-                                  href={p.gate_video_url as string}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="px-3.5 py-3 flex items-center gap-3 hover:bg-foreground/[0.03] transition-colors"
-                                >
-                                  <div className="size-9 grid place-items-center rounded-lg bg-primary/10 text-primary shrink-0">
-                                    <PlayCircle className="size-[18px]" strokeWidth={1.75} />
-                                  </div>
-                                  <div className="min-w-0 flex-1">
-                                    <div className="text-[9.5px] font-medium uppercase tracking-[0.14em] text-muted-foreground">Vídeo do portão</div>
-                                    <div className="text-[13.5px] font-medium text-foreground">Assistir tutorial</div>
-                                  </div>
-                                  <ExternalLink className="size-4 text-muted-foreground" />
-                                </a>
-                              )}
-                              {gateMedia.length > 0 && (
-                                <div className="px-3.5 py-3">
-                                  <div className="text-[9.5px] font-medium uppercase tracking-[0.14em] text-muted-foreground mb-2">Fotos & vídeos do portão</div>
-                                  <div className="grid grid-cols-2 gap-2">
-                                    {gateMedia.map((m, i) => (
-                                      <div key={i} className="rounded-lg overflow-hidden border border-border/60 bg-muted/40 aspect-square">
-                                        {m.type === "video" ? (
-                                          <video src={m.url} className="size-full object-cover" controls playsInline preload="metadata" />
-                                        ) : (
-                                          <img src={m.url} alt={`Portão ${i + 1}`} className="size-full object-cover" loading="lazy" />
-                                        )}
-                                      </div>
-                                    ))}
-                                  </div>
-                                </div>
-                              )}
-                            </div>
+                            <AccessBlock
+                              kind="gate"
+                              code={p.gate_code}
+                              instructions={p.gate_instructions as string | null}
+                              videoUrl={p.gate_video_url as string | null}
+                              media={gateMedia}
+                            />
                           )}
-
                           {p.lock_code && (
-                            <div className="rounded-2xl border border-border/50 bg-background/50 overflow-hidden divide-y divide-border/40">
-                              <CopyCard flat icon={<Lock className="size-[18px]" strokeWidth={1.75} />} eyebrow="Fechadura" label="Toque para copiar" value={p.lock_code} />
-                              {p.lock_instructions && (
-                                <div className="px-3.5 py-3 flex items-start gap-3">
-                                  <div className="size-9 grid place-items-center rounded-lg bg-primary/10 text-primary shrink-0">
-                                    <ListOrdered className="size-[18px]" strokeWidth={1.75} />
-                                  </div>
-                                  <div className="min-w-0 flex-1">
-                                    <div className="text-[9.5px] font-medium uppercase tracking-[0.14em] text-muted-foreground mb-2">Passo a passo</div>
-                                    <StepList text={p.lock_instructions as string} dense />
-                                  </div>
-                                </div>
-                              )}
-                              {p.lock_video_url && (
-                                <a
-                                  href={p.lock_video_url as string}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="px-3.5 py-3 flex items-center gap-3 hover:bg-foreground/[0.03] transition-colors"
-                                >
-                                  <div className="size-9 grid place-items-center rounded-lg bg-primary/10 text-primary shrink-0">
-                                    <PlayCircle className="size-[18px]" strokeWidth={1.75} />
-                                  </div>
-                                  <div className="min-w-0 flex-1">
-                                    <div className="text-[9.5px] font-medium uppercase tracking-[0.14em] text-muted-foreground">Vídeo da fechadura</div>
-                                    <div className="text-[13.5px] font-medium text-foreground">Assistir tutorial</div>
-                                  </div>
-                                  <ExternalLink className="size-4 text-muted-foreground" />
-                                </a>
-                              )}
-                              {lockMedia.length > 0 && (
-                                <div className="px-3.5 py-3">
-                                  <div className="text-[9.5px] font-medium uppercase tracking-[0.14em] text-muted-foreground mb-2">Fotos & vídeos da fechadura</div>
-                                  <div className="grid grid-cols-2 gap-2">
-                                    {lockMedia.map((m, i) => (
-                                      <div key={i} className="rounded-lg overflow-hidden border border-border/60 bg-muted/40 aspect-square">
-                                        {m.type === "video" ? (
-                                          <video src={m.url} className="size-full object-cover" controls playsInline preload="metadata" />
-                                        ) : (
-                                          <img src={m.url} alt={`Fechadura ${i + 1}`} className="size-full object-cover" loading="lazy" />
-                                        )}
-                                      </div>
-                                    ))}
-                                  </div>
-                                </div>
-                              )}
-                            </div>
+                            <AccessBlock
+                              kind="lock"
+                              code={p.lock_code}
+                              instructions={p.lock_instructions as string | null}
+                              videoUrl={p.lock_video_url as string | null}
+                              media={lockMedia}
+                            />
                           )}
                         </div>
                       </SubItem>
@@ -1066,10 +985,96 @@ function SubItem({
           </div>
         </div>
       </AccordionTrigger>
-      <AccordionContent className="pl-[3.875rem] pr-3 pb-3.5 pt-0">
+      <AccordionContent className="px-3 pb-3.5 pt-0">
         {children}
       </AccordionContent>
     </AccordionItem>
+  );
+}
+
+function AccessBlock({
+  kind, code, instructions, videoUrl, media,
+}: {
+  kind: "gate" | "lock";
+  code: string;
+  instructions?: string | null;
+  videoUrl?: string | null;
+  media: Array<{ url: string; type: "image" | "video" }>;
+}) {
+  const Icon = kind === "gate" ? KeyRound : Lock;
+  const label = kind === "gate" ? "Portão" : "Fechadura";
+  return (
+    <div className="rounded-2xl border border-border/50 bg-background/40 overflow-hidden">
+      {/* Hero code */}
+      <div className="px-4 pt-4 pb-3.5 flex items-center gap-3">
+        <div className="grid size-10 shrink-0 place-items-center rounded-full bg-primary/10 text-primary">
+          <Icon className="size-[18px]" strokeWidth={1.75} />
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="text-[9.5px] font-medium uppercase tracking-[0.18em] text-muted-foreground">{label}</div>
+          <CopyCode value={code} />
+        </div>
+      </div>
+
+      {/* Step-by-step — no extra row chrome */}
+      {instructions && (
+        <div className="px-4 pt-3 pb-1 border-t border-border/40">
+          <StepList text={instructions} dense />
+        </div>
+      )}
+
+      {/* Video tutorial — clean inline link */}
+      {videoUrl && (
+        <a
+          href={videoUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="px-4 py-3 flex items-center gap-2.5 border-t border-border/40 hover:bg-foreground/[0.03] transition-colors"
+        >
+          <PlayCircle className="size-4 text-primary shrink-0" strokeWidth={1.75} />
+          <span className="text-[13.5px] font-medium text-foreground flex-1">Assistir tutorial em vídeo</span>
+          <ExternalLink className="size-3.5 text-muted-foreground" />
+        </a>
+      )}
+
+      {/* Media gallery */}
+      {media.length > 0 && (
+        <div className="px-4 pt-3 pb-4 border-t border-border/40">
+          <div className="grid grid-cols-3 gap-1.5">
+            {media.map((m, i) => (
+              <div key={i} className="rounded-md overflow-hidden border border-border/50 bg-muted/40 aspect-square">
+                {m.type === "video" ? (
+                  <video src={m.url} className="size-full object-cover" controls playsInline preload="metadata" />
+                ) : (
+                  <img src={m.url} alt={`${label} ${i + 1}`} className="size-full object-cover" loading="lazy" />
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function CopyCode({ value }: { value: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        navigator.clipboard.writeText(value).then(() => {
+          setCopied(true);
+          setTimeout(() => setCopied(false), 1400);
+        }).catch(() => {});
+      }}
+      className="mt-0.5 inline-flex items-center gap-2 text-left group"
+    >
+      <span className="font-mono text-[20px] font-semibold tracking-[0.08em] text-foreground leading-none">{value}</span>
+      <span className="grid size-7 place-items-center rounded-md bg-secondary/70 text-foreground/70 group-hover:bg-secondary group-hover:text-foreground transition-colors">
+        {copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
+      </span>
+    </button>
   );
 }
 
