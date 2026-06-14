@@ -316,41 +316,32 @@ function Guide({ data }: { data: GuideOk }) {
                   ? `https://m.uber.com/looking?drop[0]=${encodeURIComponent(JSON.stringify(uberDrop))}`
                   : null;
                 return (
-                  <SubList>
+                  <>
                     {hasHorario && (
-                      <SubItem
-                        icon={<Clock className="size-[18px]" strokeWidth={1.6} />}
-                        label="Horário"
-                        hint={
-                          p.checkin_time && p.checkout_time
-                            ? `Check-in ${p.checkin_time} · Check-out ${p.checkout_time}`
-                            : p.checkin_time
-                              ? `Check-in ${p.checkin_time}`
-                              : `Check-out ${p.checkout_time}`
-                        }
-                      >
-                        <div className="rounded-xl bg-background/50 border border-border/50 overflow-hidden divide-y divide-border/50">
-                          {p.checkin_time && (
-                            <TimeRow
-                              kind="in"
-                              label="Check-in"
-                              from={p.checkin_time}
-                              to={p.checkin_time_max as string | undefined}
-                              fallbackPrefix="A partir de"
-                            />
-                          )}
-                          {p.checkout_time && (
-                            <TimeRow
-                              kind="out"
-                              label="Check-out"
-                              from={p.checkout_time_min as string | undefined}
-                              to={p.checkout_time}
-                              fallbackPrefix="Até"
-                            />
-                          )}
-                        </div>
-                      </SubItem>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-1">
+                        {p.checkin_time && (
+                          <StayBlock
+                            kind="in"
+                            eyebrow="Chegada"
+                            title="Check-in"
+                            from={p.checkin_time}
+                            to={p.checkin_time_max as string | undefined}
+                            fallbackPrefix="A partir de"
+                          />
+                        )}
+                        {p.checkout_time && (
+                          <StayBlock
+                            kind="out"
+                            eyebrow="Saída"
+                            title="Check-out"
+                            from={p.checkout_time_min as string | undefined}
+                            to={p.checkout_time}
+                            fallbackPrefix="Até"
+                          />
+                        )}
+                      </div>
                     )}
+                    <SubList>
 
                     {hasChegada && (
                       <SubItem
