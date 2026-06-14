@@ -1,5 +1,5 @@
 import { createFileRoute, Outlet, Link, useNavigate, useRouterState } from "@tanstack/react-router";
-import { Sparkles, LogOut, LayoutDashboard, BookOpen, CreditCard, Receipt, User, Menu, X } from "lucide-react";
+import { Sparkles, LogOut, LayoutDashboard, CreditCard, Menu } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
@@ -10,11 +10,8 @@ export const Route = createFileRoute("/_authenticated/admin")({
 
 const nav = [
   { to: "/admin", label: "Painel", icon: LayoutDashboard, exact: true },
-  { to: "/admin", label: "Guias", icon: BookOpen, exact: false, hash: "guias" },
-  { to: "/admin", label: "Planos", icon: CreditCard, exact: false, hash: "planos" },
-  { to: "/admin", label: "Pagamentos", icon: Receipt, exact: false, hash: "pagamentos" },
-  { to: "/admin", label: "Perfil", icon: User, exact: false, hash: "perfil" },
-];
+  { to: "/admin/assinatura", label: "Assinatura", icon: CreditCard, exact: false },
+] as const;
 
 function AdminLayout() {
   const navigate = useNavigate();
@@ -58,7 +55,7 @@ function AdminLayout() {
 
         <nav className="flex-1 px-3 py-4 space-y-1">
           {nav.map((item) => {
-            const active = item.exact && pathname === "/admin";
+            const active = item.exact ? pathname === item.to : pathname.startsWith(item.to);
             const Icon = item.icon;
             return (
               <Link
