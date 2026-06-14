@@ -10,7 +10,7 @@ import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/
 import {
   Lock, MapPin, Wifi, Phone, KeyRound, Compass, ListChecks, LifeBuoy, HelpCircle,
   Copy, Check, ArrowLeft, ArrowRight, Home, Eye, EyeOff, Clock, ExternalLink, Car,
-  Sun, Moon, UserRound, UtensilsCrossed, Wind, Tv, ShowerHead, PawPrint, WashingMachine, Waves, Refrigerator, Flame, Lightbulb, Trash2, Bath, BedDouble, ChevronRight, MessageCircle,
+  Sun, Moon, UserRound, UtensilsCrossed, Wind, Tv, ShowerHead, PawPrint, WashingMachine, Waves, Refrigerator, Flame, Lightbulb, Trash2, Bath, BedDouble, ChevronRight, MessageCircle, LogIn, LogOut,
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { GuideAiChat } from "@/components/GuideAiChat";
