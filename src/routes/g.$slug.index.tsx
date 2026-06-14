@@ -373,7 +373,6 @@ function Guide({ data }: { data: GuideOk }) {
                           )}
                           {(p.address || p.maps_url || uberUrl) && (
                             <div>
-                              <p className="text-[10px] uppercase tracking-[0.24em] text-muted-foreground font-semibold mb-2">Localização</p>
                               <div className="space-y-2">
                                 {mapsHref && (
                                   <a
