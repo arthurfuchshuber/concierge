@@ -651,36 +651,91 @@ function PropertyEditor() {
             </div>
           </Section>
 
-          <Section icon={DoorOpen} title="Entrada" desc="Códigos de acesso, instruções e mídia para ajudar o hóspede a entrar.">
+          <Section icon={DoorOpen} title="Entrada" desc="Cadastre os códigos. As instruções, vídeo e galeria aparecem apenas para o tipo de acesso que estiver em uso.">
             <div className="grid grid-cols-2 gap-3">
-              <Field label="Código do portão"><Input value={form.property.gate_code} maxLength={40} onChange={(e) => update("gate_code", e.target.value)} /></Field>
-              <Field label="Código da fechadura"><Input value={form.property.lock_code} maxLength={40} onChange={(e) => update("lock_code", e.target.value)} /></Field>
+              <Field label="Código do portão" hint="Deixe vazio se não houver portão"><Input value={form.property.gate_code} maxLength={40} onChange={(e) => update("gate_code", e.target.value)} placeholder="Ex.: 1212" /></Field>
+              <Field label="Código da fechadura" hint="Deixe vazio se não houver fechadura"><Input value={form.property.lock_code} maxLength={40} onChange={(e) => update("lock_code", e.target.value)} placeholder="Ex.: 3333" /></Field>
             </div>
-            <Field label="Instruções de acesso (opcional)" hint="Explique como usar o portão, fechadura, ordem dos passos, dicas.">
-              <Textarea
-                value={form.property.access_instructions}
-                maxLength={3000}
-                rows={5}
-                onChange={(e) => update("access_instructions", e.target.value)}
-                placeholder={"Ex.: 1) Digite o código no teclado do portão e aperte #.\n2) Empurre a porta principal e digite o código da fechadura.\n3) Se travar, gire a maçaneta enquanto digita."}
-              />
-            </Field>
-            <Field label="Link de vídeo tutorial (opcional)" hint="YouTube, Vimeo ou MP4 (https). Aparece como botão para o hóspede assistir.">
-              <Input
-                value={form.property.access_video_url}
-                maxLength={2048}
-                onChange={(e) => update("access_video_url", e.target.value)}
-                placeholder="https://youtu.be/…"
-              />
-            </Field>
-            <Field label="Fotos e vídeos do acesso (opcional)" hint="Até 8 itens. Mostre o portão, a fechadura, o caminho.">
-              <MediaUpload
-                value={form.property.access_media}
-                onChange={(next) => update("access_media", next)}
-                folder="access"
-                max={8}
-              />
-            </Field>
+
+            {form.property.gate_code ? (
+              <div className="rounded-2xl border border-border/60 bg-card/40 p-4 space-y-4">
+                <div className="flex items-center gap-2">
+                  <div className="size-8 rounded-lg bg-primary/10 text-primary grid place-items-center"><KeyRound className="size-4" strokeWidth={1.75} /></div>
+                  <div>
+                    <p className="text-[13.5px] font-semibold leading-tight">Instruções do portão</p>
+                    <p className="text-[11.5px] text-muted-foreground">Como o hóspede deve usar o código <span className="font-mono">{form.property.gate_code}</span>.</p>
+                  </div>
+                </div>
+                <Field label="Passo a passo (opcional)" hint="Cada linha vira uma etapa numerada no guia.">
+                  <Textarea
+                    value={form.property.gate_instructions}
+                    maxLength={3000}
+                    rows={5}
+                    onChange={(e) => update("gate_instructions", e.target.value)}
+                    placeholder={"Ex.: 1) Digite o código no teclado do portão e aperte #.\n2) Aguarde o clique e empurre.\n3) Se travar, gire a maçaneta enquanto digita."}
+                  />
+                </Field>
+                <Field label="Link de vídeo tutorial (opcional)" hint="YouTube, Vimeo ou MP4 (https).">
+                  <Input
+                    value={form.property.gate_video_url}
+                    maxLength={2048}
+                    onChange={(e) => update("gate_video_url", e.target.value)}
+                    placeholder="https://youtu.be/…"
+                  />
+                </Field>
+                <Field label="Fotos e vídeos do portão (opcional)" hint="Até 8 itens. Mostre o teclado, o caminho.">
+                  <MediaUpload
+                    value={form.property.gate_media}
+                    onChange={(next) => update("gate_media", next)}
+                    folder="access"
+                    max={8}
+                  />
+                </Field>
+              </div>
+            ) : null}
+
+            {form.property.lock_code ? (
+              <div className="rounded-2xl border border-border/60 bg-card/40 p-4 space-y-4">
+                <div className="flex items-center gap-2">
+                  <div className="size-8 rounded-lg bg-primary/10 text-primary grid place-items-center"><Lock className="size-4" strokeWidth={1.75} /></div>
+                  <div>
+                    <p className="text-[13.5px] font-semibold leading-tight">Instruções da fechadura</p>
+                    <p className="text-[11.5px] text-muted-foreground">Como o hóspede deve usar o código <span className="font-mono">{form.property.lock_code}</span>.</p>
+                  </div>
+                </div>
+                <Field label="Passo a passo (opcional)" hint="Cada linha vira uma etapa numerada no guia.">
+                  <Textarea
+                    value={form.property.lock_instructions}
+                    maxLength={3000}
+                    rows={5}
+                    onChange={(e) => update("lock_instructions", e.target.value)}
+                    placeholder={"Ex.: 1) Digite o código na fechadura e pressione #.\n2) Empurre a porta enquanto o motor gira.\n3) Tranque novamente apertando o botão de cadeado."}
+                  />
+                </Field>
+                <Field label="Link de vídeo tutorial (opcional)" hint="YouTube, Vimeo ou MP4 (https).">
+                  <Input
+                    value={form.property.lock_video_url}
+                    maxLength={2048}
+                    onChange={(e) => update("lock_video_url", e.target.value)}
+                    placeholder="https://youtu.be/…"
+                  />
+                </Field>
+                <Field label="Fotos e vídeos da fechadura (opcional)" hint="Até 8 itens. Mostre a porta, a fechadura por dentro e por fora.">
+                  <MediaUpload
+                    value={form.property.lock_media}
+                    onChange={(next) => update("lock_media", next)}
+                    folder="access"
+                    max={8}
+                  />
+                </Field>
+              </div>
+            ) : null}
+
+            {!form.property.gate_code && !form.property.lock_code ? (
+              <p className="text-[12px] text-muted-foreground rounded-xl border border-dashed border-border/60 bg-background/30 px-4 py-3">
+                Preencha o código do portão ou da fechadura acima para liberar as instruções, vídeo e galeria correspondentes.
+              </p>
+            ) : null}
           </Section>
 
           <Section icon={Wifi} title="Wi-Fi">
