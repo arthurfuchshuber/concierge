@@ -1,17 +1,19 @@
 import { createFileRoute, Outlet, Link, useNavigate, useRouterState } from "@tanstack/react-router";
-import { Sparkles, LogOut, LayoutDashboard, CreditCard, Menu } from "lucide-react";
+import { Sparkles, LogOut, LayoutDashboard, CreditCard, Menu, Users } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
+import { useIsAdmin } from "@/hooks/useIsAdmin";
 
 export const Route = createFileRoute("/_authenticated/admin")({
   component: AdminLayout,
 });
 
-const nav = [
+const baseNav = [
   { to: "/admin", label: "Painel", icon: LayoutDashboard, exact: true },
   { to: "/admin/assinatura", label: "Assinatura", icon: CreditCard, exact: false },
 ] as const;
+const adminNav = { to: "/admin/clientes", label: "Clientes", icon: Users, exact: false } as const;
 
 function AdminLayout() {
   const navigate = useNavigate();
