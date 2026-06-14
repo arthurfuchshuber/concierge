@@ -17,6 +17,7 @@ import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/
 import { Route as GSlugIndexRouteImport } from './routes/g.$slug.index'
 import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin.index'
 import { Route as GSlugExplorarRouteImport } from './routes/g.$slug.explorar'
+import { Route as ApiPublicPaymentsWebhookRouteImport } from './routes/api/public/payments/webhook'
 import { Route as AuthenticatedAdminPropertiesIdRouteImport } from './routes/_authenticated/admin.properties.$id'
 
 const AuthRoute = AuthRouteImport.update({
@@ -58,6 +59,12 @@ const GSlugExplorarRoute = GSlugExplorarRouteImport.update({
   path: '/explorar',
   getParentRoute: () => GSlugRoute,
 } as any)
+const ApiPublicPaymentsWebhookRoute =
+  ApiPublicPaymentsWebhookRouteImport.update({
+    id: '/api/public/payments/webhook',
+    path: '/api/public/payments/webhook',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const AuthenticatedAdminPropertiesIdRoute =
   AuthenticatedAdminPropertiesIdRouteImport.update({
     id: '/properties/$id',
@@ -74,6 +81,7 @@ export interface FileRoutesByFullPath {
   '/admin/': typeof AuthenticatedAdminIndexRoute
   '/g/$slug/': typeof GSlugIndexRoute
   '/admin/properties/$id': typeof AuthenticatedAdminPropertiesIdRoute
+  '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -82,6 +90,7 @@ export interface FileRoutesByTo {
   '/admin': typeof AuthenticatedAdminIndexRoute
   '/g/$slug': typeof GSlugIndexRoute
   '/admin/properties/$id': typeof AuthenticatedAdminPropertiesIdRoute
+  '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -94,6 +103,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
   '/g/$slug/': typeof GSlugIndexRoute
   '/_authenticated/admin/properties/$id': typeof AuthenticatedAdminPropertiesIdRoute
+  '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -106,6 +116,7 @@ export interface FileRouteTypes {
     | '/admin/'
     | '/g/$slug/'
     | '/admin/properties/$id'
+    | '/api/public/payments/webhook'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -114,6 +125,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/g/$slug'
     | '/admin/properties/$id'
+    | '/api/public/payments/webhook'
   id:
     | '__root__'
     | '/'
@@ -125,6 +137,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/'
     | '/g/$slug/'
     | '/_authenticated/admin/properties/$id'
+    | '/api/public/payments/webhook'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -132,6 +145,7 @@ export interface RootRouteChildren {
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
   GSlugRoute: typeof GSlugRouteWithChildren
+  ApiPublicPaymentsWebhookRoute: typeof ApiPublicPaymentsWebhookRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -192,6 +206,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof GSlugExplorarRouteImport
       parentRoute: typeof GSlugRoute
     }
+    '/api/public/payments/webhook': {
+      id: '/api/public/payments/webhook'
+      path: '/api/public/payments/webhook'
+      fullPath: '/api/public/payments/webhook'
+      preLoaderRoute: typeof ApiPublicPaymentsWebhookRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_authenticated/admin/properties/$id': {
       id: '/_authenticated/admin/properties/$id'
       path: '/properties/$id'
@@ -243,6 +264,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
   GSlugRoute: GSlugRouteWithChildren,
+  ApiPublicPaymentsWebhookRoute: ApiPublicPaymentsWebhookRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
