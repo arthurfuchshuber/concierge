@@ -78,7 +78,7 @@ function buildContext(p: Record<string, unknown>, kids: {
       const parts = [r.name];
       if (r.category || r.type) parts.push(`(${[r.category, r.type].filter(Boolean).join(" / ")})`);
       if (r.distance_text) parts.push(`— ${r.distance_text}`);
-      if (r.description) parts.push(`: ${r.description}`);
+      if (r.note) parts.push(`: ${r.note}`);
       lines.push(`- ${parts.join(" ")}`);
     }
   }
