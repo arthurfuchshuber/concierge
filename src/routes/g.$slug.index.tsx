@@ -601,36 +601,37 @@ function Guide({ data }: { data: GuideOk }) {
               )}
               {(p.host_name || p.host_phone) && (
                 <div>
-                  <div className="mb-3 flex items-center gap-2">
-                    <UserRound className="size-4 text-muted-foreground" />
-                    <h3 className="text-xs uppercase tracking-[0.18em] font-semibold text-muted-foreground">Anfitrião</h3>
+                  <div className="mb-2.5 flex items-center gap-2">
+                    <UserRound className="size-3.5 text-muted-foreground" />
+                    <h3 className="text-[10px] uppercase tracking-[0.2em] font-semibold text-muted-foreground">Anfitrião</h3>
                   </div>
-                  <div className="relative overflow-hidden rounded-2xl border border-border bg-gradient-to-br from-accent/10 via-card to-card p-5">
-                    <div className="pointer-events-none absolute -top-12 -right-12 size-40 rounded-full bg-accent/15 blur-3xl" />
-                    <div className="relative flex items-center gap-4">
-                      <div className="size-14 rounded-full bg-accent/20 text-accent grid place-items-center font-serif text-xl shrink-0">
-                        {(p.host_name as string | undefined)?.trim()?.charAt(0)?.toUpperCase() ?? <UserRound className="size-6" />}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        {p.host_name && <p className="font-serif text-xl leading-tight truncate">{p.host_name}</p>}
-                        <p className="text-[11px] uppercase tracking-[0.22em] text-muted-foreground font-semibold mt-1">Seu anfitrião</p>
-                      </div>
+                  <div className="flex items-center gap-3 rounded-xl border border-border/70 bg-card/40 p-3">
+                    <div className="size-10 rounded-full bg-accent/15 text-accent grid place-items-center text-sm font-semibold shrink-0">
+                      {(p.host_name as string | undefined)?.trim()?.charAt(0)?.toUpperCase() ?? <UserRound className="size-4" />}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      {p.host_name && <p className="text-[14px] font-medium leading-tight truncate">{p.host_name}</p>}
+                      {p.host_phone && (
+                        <p className="text-[11.5px] text-muted-foreground font-mono tracking-wider mt-0.5 truncate">{p.host_phone}</p>
+                      )}
                     </div>
                     {p.host_phone && (
-                      <div className="relative mt-4 flex flex-wrap gap-2">
+                      <div className="flex items-center gap-1.5 shrink-0">
                         <a
                           href={`tel:${p.host_phone}`}
-                          className="inline-flex items-center gap-2 rounded-full bg-foreground text-background px-4 py-2 text-sm font-medium hover:brightness-110 transition"
+                          aria-label="Ligar"
+                          className="grid size-9 place-items-center rounded-full bg-foreground text-background hover:brightness-110 transition"
                         >
-                          <Phone className="size-3.5" /> Ligar
+                          <Phone className="size-3.5" />
                         </a>
                         <a
                           href={`https://wa.me/${String(p.host_phone).replace(/\D/g, "")}`}
                           target="_blank"
                           rel="noreferrer"
-                          className="inline-flex items-center gap-2 rounded-full border border-border bg-background/60 px-4 py-2 text-sm font-medium hover:border-accent/50 transition"
+                          aria-label="WhatsApp"
+                          className="grid size-9 place-items-center rounded-full border border-border bg-background/60 hover:border-accent/50 transition"
                         >
-                          <Phone className="size-3.5" /> WhatsApp
+                          <Phone className="size-3.5" />
                         </a>
                       </div>
                     )}
