@@ -3,10 +3,9 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
 import { PLANS, planFromProductId, type PlanKey } from "@/lib/payments.functions";
 
-async function assertAdmin(supabase: ReturnType<typeof requireSupabaseAuth> extends { context: infer C } ? C : never, userId: string) {
-  // The real signature is awkward; use any to keep this thin
-  const { data, error } = await (supabase as any)
-    .rpc("has_role", { _user_id: userId, _role: "admin" });
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function assertAdmin(supabase: any, userId: string) {
+  const { data, error } = await supabase.rpc("has_role", { _user_id: userId, _role: "admin" });
   if (error) throw new Error("Erro ao verificar permissão");
   if (!data) throw new Error("Acesso negado: apenas administradores");
 }
