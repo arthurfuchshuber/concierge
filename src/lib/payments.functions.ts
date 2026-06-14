@@ -10,36 +10,68 @@ export const PLANS = {
     priceId: "starter_monthly",
     name: "Starter",
     priceLabel: "R$ 99",
+    priceNumeric: 99,
     maxGuides: 3,
-    features: {
-      autoImport: false,
-      ai: false,
-      customBrand: false,
-    },
+    tier: 1,
+    description: "Para começar a criar guias manualmente.",
+    features: { autoImport: false, ai: false, customBrand: false },
+    featureList: [
+      "Até 3 guias",
+      "Edição manual completa",
+      "Acesso público ou por PIN",
+      "Bilíngue (PT / EN)",
+    ],
   },
   pro: {
     id: "pro_plan",
     priceId: "pro_monthly",
     name: "Pro",
     priceLabel: "R$ 199",
+    priceNumeric: 199,
     maxGuides: 20,
-    features: {
-      autoImport: true,
-      ai: true,
-      customBrand: false,
-    },
+    tier: 2,
+    description: "Recursos completos para anfitriões profissionais.",
+    features: { autoImport: true, ai: true, customBrand: false },
+    featureList: [
+      "Até 20 guias",
+      "Importação automática (Airbnb, Google Maps)",
+      "Sugestões com IA",
+      "Tudo do Starter",
+    ],
   },
   business: {
     id: "business_plan",
     priceId: "business_monthly",
     name: "Business",
     priceLabel: "R$ 399",
+    priceNumeric: 399,
     maxGuides: 50,
-    features: {
-      autoImport: true,
-      ai: true,
-      customBrand: true,
-    },
+    tier: 3,
+    description: "Para gestores com múltiplos imóveis e marca própria.",
+    features: { autoImport: true, ai: true, customBrand: true },
+    featureList: [
+      "Até 50 guias",
+      "Marca personalizada (logo e nome)",
+      "Tudo do Pro",
+      "Suporte prioritário",
+    ],
+  },
+  enterprise: {
+    id: "enterprise_plan",
+    priceId: "enterprise_custom",
+    name: "Enterprise",
+    priceLabel: "Sob consulta",
+    priceNumeric: 0,
+    maxGuides: 9999,
+    tier: 4,
+    description: "Volume alto, integrações sob medida e SLA.",
+    features: { autoImport: true, ai: true, customBrand: true },
+    featureList: [
+      "Guias ilimitados",
+      "Onboarding dedicado",
+      "Integrações personalizadas",
+      "SLA e suporte 24/7",
+    ],
   },
 } as const;
 
@@ -50,6 +82,7 @@ export function planFromProductId(productId: string | null | undefined): PlanKey
   if (productId === "starter_plan") return "starter";
   if (productId === "pro_plan") return "pro";
   if (productId === "business_plan") return "business";
+  if (productId === "enterprise_plan") return "enterprise";
   return null;
 }
 
@@ -107,6 +140,9 @@ export const createPortalSession = createServerFn({ method: "POST" })
       .maybeSingle();
     if (error) throw (await import("@/lib/db-errors.server")).safeDbError("subscriptions", error);
     if (!sub) throw new Error("Nenhuma assinatura encontrada");
+    if (!sub.paddle_customer_id?.startsWith("ctm_") && !sub.paddle_customer_id?.startsWith("cus_")) {
+      throw new Error("Esta assinatura foi configurada manualmente e não possui portal de pagamentos.");
+    }
 
     const paddle = getPaddleClient(sub.environment as PaddleEnv);
     const session = await paddle.customerPortalSessions.create(
@@ -117,4 +153,102 @@ export const createPortalSession = createServerFn({ method: "POST" })
       overviewUrl: session.urls.general.overview,
       subscriptions: session.urls.subscriptions,
     };
+  });
+
+export type PaymentRow = {
+  id: string;
+  status: string;
+  createdAt: string;
+  amount: string;
+  currency: string;
+  invoiceUrl: string | null;
+};
+
+export const listMyPayments = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: { environment: PaddleEnv }) =>
+    z.object({ environment: PaddleEnvSchema }).parse(data),
+  )
+  .handler(async ({ data, context }): Promise<{ payments: PaymentRow[] }> => {
+    const { data: sub } = await context.supabase
+      .from("subscriptions")
+      .select("paddle_customer_id, environment")
+      .eq("user_id", context.userId)
+      .eq("environment", data.environment)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    const customerId = sub?.paddle_customer_id;
+    if (!customerId || (!customerId.startsWith("ctm_") && !customerId.startsWith("cus_"))) {
+      return { payments: [] };
+    }
+
+    try {
+      const response = await gatewayFetch(
+        data.environment,
+        `/transactions?customer_id=${encodeURIComponent(customerId)}&per_page=25&order_by=created_at[DESC]`,
+      );
+      const json = await response.json();
+      const payments: PaymentRow[] = (json.data ?? []).map((t: {
+        id: string;
+        status: string;
+        created_at: string;
+        details?: { totals?: { total?: string } };
+        currency_code: string;
+        invoice_id?: string | null;
+      }) => ({
+        id: t.id,
+        status: t.status,
+        createdAt: t.created_at,
+        amount: t.details?.totals?.total ?? "0",
+        currency: t.currency_code,
+        invoiceUrl: t.invoice_id ? `https://my.paddle.com/invoice/${t.invoice_id}` : null,
+      }));
+      return { payments };
+    } catch {
+      return { payments: [] };
+    }
+  });
+
+export const changePlan = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: { environment: PaddleEnv; targetPriceExternalId: string }) =>
+    z
+      .object({
+        environment: PaddleEnvSchema,
+        targetPriceExternalId: z.string().min(1).max(80),
+      })
+      .parse(data),
+  )
+  .handler(async ({ data, context }) => {
+    const { data: sub, error } = await context.supabase
+      .from("subscriptions")
+      .select("paddle_subscription_id, environment")
+      .eq("user_id", context.userId)
+      .eq("environment", data.environment)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (error) throw (await import("@/lib/db-errors.server")).safeDbError("subscriptions", error);
+    if (!sub) throw new Error("Nenhuma assinatura encontrada");
+    if (!sub.paddle_subscription_id?.startsWith("sub_")) {
+      throw new Error("Esta assinatura foi configurada manualmente. Entre em contato com o suporte para mudar de plano.");
+    }
+
+    // Resolve target Paddle price id
+    const priceRes = await gatewayFetch(
+      data.environment,
+      `/prices?external_id=${encodeURIComponent(data.targetPriceExternalId)}`,
+    );
+    const priceJson = await priceRes.json();
+    if (!priceJson.data?.length) throw new Error("Plano de destino não encontrado");
+    const paddlePriceId = priceJson.data[0].id as string;
+
+    const paddle = getPaddleClient(sub.environment as PaddleEnv);
+    await paddle.subscriptions.update(sub.paddle_subscription_id, {
+      items: [{ priceId: paddlePriceId, quantity: 1 }],
+      prorationBillingMode: "prorated_immediately",
+    });
+    return { ok: true };
   });
