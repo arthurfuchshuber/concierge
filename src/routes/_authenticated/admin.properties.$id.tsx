@@ -183,6 +183,11 @@ function PropertyEditor() {
         checkin_media: Array.isArray(p.checkin_media)
           ? (p.checkin_media as MediaItem[]).filter((m) => m && typeof m.url === "string").slice(0, 8)
           : [],
+        access_instructions: (p.access_instructions as string) ?? "",
+        access_media: Array.isArray(p.access_media)
+          ? (p.access_media as MediaItem[]).filter((m) => m && typeof m.url === "string").slice(0, 8)
+          : [],
+        access_video_url: (p.access_video_url as string) ?? "",
         wifi_ssid: (p.wifi_ssid as string) ?? "",
         wifi_password: (p.wifi_password as string) ?? "",
         host_name: (p.host_name as string) ?? "",
