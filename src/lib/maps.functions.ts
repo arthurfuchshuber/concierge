@@ -387,7 +387,7 @@ export const enrichFromMapsLink = createServerFn({ method: "POST" })
           .filter((p) => {
             if (!p.location) return false;
             const d = haversineMeters(coords!, { lat: p.location.latitude, lng: p.location.longitude });
-            return d >= 1500;
+            return d >= 1500 && d <= MAX_CITY_RADIUS_M;
           })
           .sort((a, b) => {
             const ra = a.rating ?? 0;
