@@ -1,94 +1,63 @@
+## Escopo
+Refinar o guia público (`/g/:slug`) sem mexer em lógica de assinatura, plano ou autenticação. Mudanças concentradas em `src/routes/g.$slug.index.tsx` e no editor admin `src/routes/_authenticated/admin.properties.$id.tsx`, com uma migração para novos campos de check-in detalhado.
 
-## Plano de execução
+## 1. Textos e rótulos (mudanças simples)
+- Remover o "eyebrow" (— ESTADIA / A CASA / SUPORTE / CONEXÃO / COMBINADOS) acima de todos os títulos de seção. Simplifica `SectionTitle` para mostrar só título + intro.
+- Em Chegada & Saída → Horário: trocar rótulos do tile "Check-in" / "Check-out" para "Início" / "Fim" (mantendo os horários e textos auxiliares já existentes).
+- Renomear o sub-item "Chegada" → "Chegada & Localização".
+- Renomear a seção "Dúvidas Frequentes" → "Dúvidas" (título e nome do cartão no home).
+- Mostrar a seção Anfitrião sempre que o admin tiver preenchido nome/telefone (sem placeholders, conforme memória).
 
-### 1. Remover qualquer dado de reserva
-Limpar `property.ts` e telas: sem `guest.firstName`, sem datas de check-in/out específicas, sem "noites". Manter apenas **horários** padrão (15:00 / 11:00) como regra da casa. Hero passa a saudar genericamente ("Bem-vindo à Casa da Falésia") sem nome do hóspede.
+## 2. Check-in detalhado com fotos e vídeos (feature nova)
+Hoje só existe `address_note` (texto). Adicionar:
 
-### 2. Backend (Lovable Cloud)
-Ativar Cloud e criar schema:
+- Migração SQL:
+  ```sql
+  ALTER TABLE public.properties
+    ADD COLUMN checkin_instructions text,
+    ADD COLUMN checkin_media jsonb NOT NULL DEFAULT '[]'::jsonb;
+  ```
+- Storage: reutilizar o bucket público de mídia já em uso pelas fotos da propriedade (mesma política RLS já existente).
+- Admin (editor): dentro de "Chegada & Localização" um bloco novo "Instruções de check-in" com:
+  - `Textarea` (max 3000 chars) — passo a passo livre.
+  - Uploader múltiplo (até 8 itens) aceitando imagens e vídeos `image/*,video/*`, com lista reordenável e botão remover.
+  - Cada item salvo como `{ url, type: "image"|"video" }` em `checkin_media`.
+- Guia público: dentro do sub-item "Chegada & Localização", renderizar abaixo do `address_note` um bloco "Instruções de check-in" com:
+  - Texto (se houver) com `whitespace-pre-line`.
+  - Galeria responsiva (mídia em cards arredondados; vídeos com `<video controls playsInline preload="metadata">`).
+- Manter a regra de memória: se texto e mídia vazios, nada aparece.
 
-- `profiles` (id, full_name, avatar_url) — trigger on auth signup
-- `user_roles` (user_id, role enum: admin | host) + `has_role()` security definer
-- `properties`:
-  - identidade: `id`, `owner_id`, `slug` (único), `name`, `tagline`, `hero_image_url`
-  - localização: `address`, `maps_url`, `lat`, `lng`, `city`, `country`
-  - regras: `checkin_time`, `checkout_time`, `lock_code`, `gate_code`, `address_note`
-  - wifi: `wifi_ssid`, `wifi_password`
-  - emergência: `host_name`, `host_phone`
-  - acesso: `access_mode` (public | pin), `pin_code`, `pin_expires_at`
-  - i18n: `default_language` (pt | en)
-- `property_manual_items` (property_id, title, desc, body, order)
-- `property_recommendations` (property_id, name, category, scope `nearby|city`, type `restaurant|bar|cafe|beach|attraction|market|pharmacy|park`, rating, distance_text, distance_meters, note, image_url, maps_url, place_id)
-- `property_emergency_contacts` (property_id, label, number)
-- `property_faqs` (property_id, q, a, order)
-- `checkout_checklist_items` (property_id, label, order)
+## 3. A Residência — visual mais atrativo (sair do estilo FAQ)
+Atualmente é um `Accordion` linha-a-linha. Trocar por grid de cards:
 
-RLS: hosts veem/editam apenas suas próprias propriedades; leitura pública de `properties` quando `access_mode='public'` (apenas colunas seguras via server fn); leitura via PIN validado server-side.
+- Layout: `grid grid-cols-1 sm:grid-cols-2 gap-3` de cards clicáveis (`button`) que abrem um `Dialog` com o conteúdo completo do item.
+- Cada card: ícone temático (mapeado por palavra-chave do título — Wi-Fi, ar, TV, cozinha, piscina, manual…), título, 1 linha de descrição truncada, chevron sutil.
+- Cabeçalho da seção ganha um intro mais leve.
+- Mantém ordenação atual; nenhum dado novo.
 
-### 3. Autenticação
-Email/senha + Google (broker Lovable). Página `/auth`. Layout `_authenticated/` gerenciado pela integração para gating do `/admin`.
+## 4. Dúvidas — reordenação e refino
+Nova ordem dentro do TabsContent `faq`:
 
-### 4. Painel admin
-Rotas sob `_authenticated/admin/`:
+```text
+1. FAQ (Accordion refinado)
+2. Emergências
+3. Contato do anfitrião (último)
+```
 
-- `/admin` — lista de propriedades do host com QR code, status e link
-- `/admin/new` — wizard de criação:
-  1. **Cole o link do Google Maps** (único campo obrigatório inicial) + nome do imóvel
-  2. Botão "Auto-preencher" chama server fn `enrichFromMapsLink`
-  3. Pré-visualização editável de tudo (endereço, lat/lng, recomendações)
-  4. Acesso: público OU PIN (com data de expiração opcional)
-  5. Wi-Fi, códigos, horários, manual, contatos
-- `/admin/$id/edit` — mesma UI do wizard, modo edição
-- `/admin/$id/qr` — QR code da URL pública
+- FAQ: cards com cantos `rounded-2xl`, sombra suave, número discreto à esquerda ("01", "02"…), pergunta serif, resposta em coluna estreita; transição mais suave no abrir/fechar.
+- Emergências: mantém grid de tels mas com ícone categórico (`Phone` colorido por tipo) e tipografia revisada.
+- Card do Anfitrião redesenhado: bloco maior com avatar (iniciais se sem foto), nome em serif, telefone como botão pill `Ligar`, opcional `WhatsApp` se o número permitir. Ocupa largura total, visual premium (gradiente sutil do accent).
 
-### 5. Auto-preenchimento (Google Maps connector)
-Server fn `enrichFromMapsLink(mapsUrl, name)`:
+## 5. Detalhes técnicos
+- Arquivos editados:
+  - `src/routes/g.$slug.index.tsx` — textos, ordem do FAQ, novos blocos.
+  - `src/routes/_authenticated/admin.properties.$id.tsx` — novos campos de check-in.
+  - `src/lib/properties.functions.ts` + tipos — passar `checkin_instructions` e `checkin_media` no upsert/get.
+  - `src/integrations/supabase/types.ts` — regenerar manualmente as colunas novas.
+  - Nova migração em `supabase/migrations/`.
+- Reuso: uploader já existente para fotos da propriedade serve de base; clonar com suporte a vídeo.
+- Sem mudança em planos, RLS, autenticação, rotas ou roteamento.
 
-1. Resolver URL curta (`maps.app.goo.gl`) seguindo redirect
-2. Extrair coordenadas (`@lat,lng` ou `!3dlat!4dlng`) ou place_id
-3. **Geocoding reverso** → endereço estruturado + cidade + país
-4. **Places API (New) — nearbySearch** (raio 1.5km) por tipo: restaurant, bar, cafe, beach, tourist_attraction, supermarket, pharmacy, park → **escopo "nearby"**
-5. **Places API (New) — searchText** filtrando pela cidade para os mesmos tipos → **escopo "city"**
-6. **Deduplicar por `place_id`** — itens já marcados como `nearby` não entram em `city`
-7. Calcular `distance_meters` via fórmula de Haversine; formatar `distance_text` (m / km / "X min de carro" quando >1.5km)
-8. Para cada item: nome, categoria amigável, rating, foto (Places Photo via gateway), maps_url, place_id
-9. Limite ~8 por categoria/escopo para não inflar
-
-Retorno: objeto pronto para o admin revisar e salvar.
-
-### 6. Guia público
-`/g/$slug` substitui a home hardcoded. Carrega via server fn pública:
-
-- Se `access_mode='pin'` e cookie de PIN ausente/expirado → tela "Digite o código" (server fn valida PIN + `pin_expires_at`, seta cookie httpOnly de sessão por 24h)
-- Caso contrário renderiza o guia completo
-- Concierge usa `recommendations`: dois grupos visuais com label claro — **"Aqui pertinho"** (scope=nearby) e **"Pela cidade"** (scope=city), tabs por categoria
-- IA Chat recebe contexto do `property` via prompt dinâmico
-
-### 7. i18n PT + EN
-Provider leve baseado em contexto (`src/lib/i18n.tsx`):
-
-- Detecta `default_language` da propriedade, com toggle PT/EN no header
-- Persiste em localStorage
-- Dicionário em `src/lib/locales/{pt,en}.ts` cobrindo toda a UI
-- Conteúdo do guia (manual, notas) fica no idioma que o anfitrião digitou — não é traduzido automaticamente
-
-### 8. Detalhes técnicos
-- Conectar Google Maps via `standard_connectors--connect`
-- `enrichFromMapsLink` no servidor, usa `LOVABLE_API_KEY` + `GOOGLE_MAPS_API_KEY` via connector gateway
-- QR code: lib `qrcode` (puro JS, Worker-safe)
-- PIN: cookie httpOnly + assinatura HMAC, sem dependência extra
-- Mantém estética atual (Boutique Minimal, animações, glassmorphism)
-
-### 9. Migração do mock atual
-Inserir "Casa da Falésia" como seed (migration de dados) com slug `casa-da-falesia` para a demo continuar funcionando em `/g/casa-da-falesia`. A home `/` vira landing page do SaaS (CTA: "Sou anfitrião → painel" / "Sou hóspede → use o link recebido").
-
-### Entregáveis nesta rodada
-1. Cloud + schema + RLS + seed
-2. Auth (email/senha + Google) + página `/auth`
-3. Painel admin completo (lista + wizard com auto-preenchimento + QR + edit)
-4. Guia público `/g/$slug` + gate de PIN
-5. i18n PT/EN
-6. Limpeza de todos os dados de reserva
-7. Refator do chat IA para receber contexto dinâmico do imóvel
-
-Confirma para eu seguir?
+## Fora de escopo
+- Não vou alterar layout do home (cards de categoria), nem o WifiStrip, nem a aba Regras.
+- Sem ajustes em assinatura/checkout/admin dashboard.

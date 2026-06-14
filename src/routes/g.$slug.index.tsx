@@ -10,7 +10,7 @@ import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/
 import {
   Lock, MapPin, Wifi, Phone, KeyRound, Compass, ListChecks, LifeBuoy, HelpCircle,
   Copy, Check, ArrowLeft, ArrowRight, Home, Eye, EyeOff, Clock, ExternalLink, Car,
-  Sun, Moon,
+  Sun, Moon, UserRound,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -189,7 +189,7 @@ function Guide({ data }: { data: GuideOk }) {
     {
       key: "faq",
       eyebrow: "Suporte",
-      title: "Dúvidas Frequentes",
+      title: "Dúvidas",
       desc: "Anfitrião, emergências e respostas rápidas.",
       icon: <HelpCircle className="size-5" strokeWidth={1.5} />,
       image: themePick("faq", 3),
@@ -288,7 +288,7 @@ function Guide({ data }: { data: GuideOk }) {
 
               {(() => {
                 const hasHorario = !!(p.checkin_time || p.checkout_time);
-                const hasChegada = !!(p.address || p.maps_url || p.address_note);
+                const hasChegada = !!(p.address || p.maps_url || p.address_note || p.checkin_instructions || (Array.isArray(p.checkin_media) && p.checkin_media.length > 0));
                 const hasAcesso = !!(p.gate_code || p.lock_code);
                 const hasWifi = !!p.wifi_ssid;
                 if (!hasHorario && !hasChegada && !hasAcesso && !hasWifi) {
@@ -330,7 +330,7 @@ function Guide({ data }: { data: GuideOk }) {
                         <div className="grid grid-cols-2 bg-background border border-border rounded-xl overflow-hidden">
                           {p.checkin_time && (
                             <InfoTile
-                              label="Check-in"
+                              label="Início"
                               value={
                                 p.checkin_time_max
                                   ? `A partir de ${p.checkin_time} · até ${p.checkin_time_max}`
@@ -340,7 +340,7 @@ function Guide({ data }: { data: GuideOk }) {
                           )}
                           {p.checkout_time && (
                             <InfoTile
-                              label="Check-out"
+                              label="Fim"
                               value={
                                 p.checkout_time_min
                                   ? `A partir de ${p.checkout_time_min} · até ${p.checkout_time}`
@@ -356,7 +356,7 @@ function Guide({ data }: { data: GuideOk }) {
                     {hasChegada && (
                       <SubItem
                         icon={<MapPin className="size-[18px]" strokeWidth={1.6} />}
-                        label="Chegada"
+                        label="Chegada & Localização"
                         hint={p.city || (p.address ? "Como chegar" : undefined)}
                       >
                         <div className="space-y-4">
@@ -408,6 +408,33 @@ function Guide({ data }: { data: GuideOk }) {
                                   </a>
                                 )}
                               </div>
+                            </div>
+                          )}
+                          {(p.checkin_instructions || (Array.isArray(p.checkin_media) && p.checkin_media.length > 0)) && (
+                            <div>
+                              <p className="text-[10px] uppercase tracking-[0.24em] text-muted-foreground font-semibold mb-2">Instruções de check-in</p>
+                              {p.checkin_instructions && (
+                                <div className="space-y-3 text-[14px] leading-relaxed text-foreground/85 mb-3">
+                                  {String(p.checkin_instructions)
+                                    .split(/\n\s*\n/)
+                                    .map((para: string, i: number) => (
+                                      <p key={i} className="whitespace-pre-line">{para}</p>
+                                    ))}
+                                </div>
+                              )}
+                              {Array.isArray(p.checkin_media) && p.checkin_media.length > 0 && (
+                                <div className="grid grid-cols-2 gap-2">
+                                  {(p.checkin_media as Array<{ url: string; type: "image" | "video" }>).map((m, i) => (
+                                    <div key={i} className="rounded-xl overflow-hidden border border-border bg-muted/40 aspect-square">
+                                      {m.type === "video" ? (
+                                        <video src={m.url} className="size-full object-cover" controls playsInline preload="metadata" />
+                                      ) : (
+                                        <img src={m.url} alt={`Check-in ${i + 1}`} className="size-full object-cover" loading="lazy" />
+                                      )}
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
                             </div>
                           )}
                         </div>
@@ -522,17 +549,33 @@ function Guide({ data }: { data: GuideOk }) {
               )}
             </TabsContent>
 
-            <TabsContent value="faq" className="space-y-5">
-              <SectionTitle eyebrow="Suporte" title="Dúvidas Frequentes" />
-              {(p.host_name || p.host_phone) && (
-                <div className="bg-card border border-border rounded-2xl p-4">
-                  <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold mb-2">Anfitrião</p>
-                  {p.host_name && <p className="text-sm font-medium">{p.host_name}</p>}
-                  {p.host_phone && (
-                    <a href={`tel:${p.host_phone}`} className="text-sm text-primary inline-flex items-center gap-1.5 mt-1">
-                      <Phone className="size-3.5" /> {p.host_phone}
-                    </a>
-                  )}
+            <TabsContent value="faq" className="space-y-6">
+              <SectionTitle title="Dúvidas" />
+              {data.faqs.length > 0 && (
+                <div>
+                  <div className="mb-3 flex items-center gap-2">
+                    <HelpCircle className="size-4 text-muted-foreground" />
+                    <h3 className="text-xs uppercase tracking-[0.18em] font-semibold text-muted-foreground">Perguntas frequentes</h3>
+                  </div>
+                  <Accordion type="single" collapsible className="space-y-2.5">
+                    {data.faqs.map((f: any, idx: number) => (
+                      <AccordionItem
+                        key={f.id}
+                        value={f.id}
+                        className="border border-border rounded-2xl px-4 bg-card/40 hover:bg-card transition-colors data-[state=open]:bg-card data-[state=open]:border-accent/40"
+                      >
+                        <AccordionTrigger className="text-sm font-medium text-left hover:no-underline py-4">
+                          <span className="flex items-start gap-3">
+                            <span className="text-[10px] font-mono text-accent/80 tabular-nums tracking-wider mt-0.5 shrink-0">{String(idx + 1).padStart(2, "0")}</span>
+                            <span className="font-serif text-[15px] leading-snug">{f.question}</span>
+                          </span>
+                        </AccordionTrigger>
+                        <AccordionContent className="text-[14px] leading-relaxed whitespace-pre-line text-foreground/85 pl-7 pr-1 pb-4 max-w-prose">
+                          {f.answer}
+                        </AccordionContent>
+                      </AccordionItem>
+                    ))}
+                  </Accordion>
                 </div>
               )}
               {data.emergency.length > 0 && (
@@ -541,30 +584,61 @@ function Guide({ data }: { data: GuideOk }) {
                     <LifeBuoy className="size-4 text-muted-foreground" />
                     <h3 className="text-xs uppercase tracking-[0.18em] font-semibold text-muted-foreground">Emergências</h3>
                   </div>
-                  <div className="space-y-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     {data.emergency.map((e: any) => (
-                      <a key={e.id} href={`tel:${e.number}`} className="flex items-center justify-between bg-card border border-border rounded-xl p-3 active:scale-[0.98] transition-transform">
-                        <span className="text-sm font-medium">{e.label}</span>
-                        <span className="text-sm text-primary font-mono">{e.number}</span>
+                      <a
+                        key={e.id}
+                        href={`tel:${e.number}`}
+                        className="flex items-center gap-3 bg-card border border-border rounded-xl p-3 active:scale-[0.98] transition-transform hover:border-accent/50"
+                      >
+                        <span className="size-10 rounded-full bg-accent/15 text-accent grid place-items-center shrink-0">
+                          <Phone className="size-[18px]" strokeWidth={1.75} />
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-medium truncate">{e.label}</p>
+                          <p className="text-[13px] text-muted-foreground font-mono tracking-wider">{e.number}</p>
+                        </div>
                       </a>
                     ))}
                   </div>
                 </div>
               )}
-              {data.faqs.length > 0 && (
+              {(p.host_name || p.host_phone) && (
                 <div>
                   <div className="mb-3 flex items-center gap-2">
-                    <HelpCircle className="size-4 text-muted-foreground" />
-                    <h3 className="text-xs uppercase tracking-[0.18em] font-semibold text-muted-foreground">FAQ</h3>
+                    <UserRound className="size-4 text-muted-foreground" />
+                    <h3 className="text-xs uppercase tracking-[0.18em] font-semibold text-muted-foreground">Anfitrião</h3>
                   </div>
-                  <Accordion type="single" collapsible className="space-y-2">
-                    {data.faqs.map((f: any) => (
-                      <AccordionItem key={f.id} value={f.id} className="border border-border rounded-xl px-4">
-                        <AccordionTrigger className="text-sm font-medium text-left">{f.question}</AccordionTrigger>
-                        <AccordionContent className="text-sm whitespace-pre-line">{f.answer}</AccordionContent>
-                      </AccordionItem>
-                    ))}
-                  </Accordion>
+                  <div className="relative overflow-hidden rounded-2xl border border-border bg-gradient-to-br from-accent/10 via-card to-card p-5">
+                    <div className="pointer-events-none absolute -top-12 -right-12 size-40 rounded-full bg-accent/15 blur-3xl" />
+                    <div className="relative flex items-center gap-4">
+                      <div className="size-14 rounded-full bg-accent/20 text-accent grid place-items-center font-serif text-xl shrink-0">
+                        {(p.host_name as string | undefined)?.trim()?.charAt(0)?.toUpperCase() ?? <UserRound className="size-6" />}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        {p.host_name && <p className="font-serif text-xl leading-tight truncate">{p.host_name}</p>}
+                        <p className="text-[11px] uppercase tracking-[0.22em] text-muted-foreground font-semibold mt-1">Seu anfitrião</p>
+                      </div>
+                    </div>
+                    {p.host_phone && (
+                      <div className="relative mt-4 flex flex-wrap gap-2">
+                        <a
+                          href={`tel:${p.host_phone}`}
+                          className="inline-flex items-center gap-2 rounded-full bg-foreground text-background px-4 py-2 text-sm font-medium hover:brightness-110 transition"
+                        >
+                          <Phone className="size-3.5" /> Ligar
+                        </a>
+                        <a
+                          href={`https://wa.me/${String(p.host_phone).replace(/\D/g, "")}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-2 rounded-full border border-border bg-background/60 px-4 py-2 text-sm font-medium hover:border-accent/50 transition"
+                        >
+                          <Phone className="size-3.5" /> WhatsApp
+                        </a>
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
               {!p.host_name && !p.host_phone && data.emergency.length === 0 && data.faqs.length === 0 && (
@@ -799,13 +873,9 @@ function SubItem({
   );
 }
 
-function SectionTitle({ eyebrow, title, intro }: { eyebrow: string; title: string; intro?: string }) {
+function SectionTitle({ title, intro }: { eyebrow?: string; title: string; intro?: string }) {
   return (
     <div className="pt-2 pb-1">
-      <div className="flex items-center gap-2 mb-2">
-        <span className="h-px w-6 bg-accent/70" />
-        <p className="text-[10px] uppercase tracking-[0.28em] text-accent font-semibold">{eyebrow}</p>
-      </div>
       <h2 className="font-serif text-[1.9rem] leading-[1.1] tracking-tight">{title}</h2>
       {intro && <p className="text-[13px] text-muted-foreground mt-2 leading-relaxed max-w-[36ch]">{intro}</p>}
     </div>

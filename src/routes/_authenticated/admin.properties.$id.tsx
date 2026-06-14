@@ -17,6 +17,7 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@
 import { toast } from "sonner";
 import { Loader2, Sparkles, Plus, Trash2, MapPin, ArrowLeft, FileText, KeyRound, Home, Compass, LifeBuoy, Check, Eye, Image as ImageIcon, MapPinned, Clock, DoorOpen, Wifi, UserRound, BookOpen, ClipboardCheck, Shield, Globe, Power, Phone, HelpCircle, Sun, Moon, Palette, Lock } from "lucide-react";
 import { ImageUpload } from "@/components/ImageUpload";
+import { MediaUpload, type MediaItem } from "@/components/MediaUpload";
 import { EtiquetaSelect, ETIQUETA_OPTIONS } from "@/components/EtiquetaSelect";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
@@ -65,6 +66,8 @@ type FormState = {
     lock_code: string;
     gate_code: string;
     address_note: string;
+    checkin_instructions: string;
+    checkin_media: MediaItem[];
     wifi_ssid: string;
     wifi_password: string;
     host_name: string;
@@ -93,7 +96,7 @@ function emptyForm(): FormState {
       theme_images: { checkin: "", residencia: "", faq: "", explore: "" },
       address: "", maps_url: "",
       lat: null, lng: null, city: "", country: "", checkin_time: "15:00", checkin_time_max: "", checkout_time: "11:00", checkout_time_min: "",
-      lock_code: "", gate_code: "", address_note: "", wifi_ssid: "", wifi_password: "",
+      lock_code: "", gate_code: "", address_note: "", checkin_instructions: "", checkin_media: [], wifi_ssid: "", wifi_password: "",
       host_name: "", host_phone: "", brand_name: "", brand_logo_url: "", access_mode: "public", pin_code: "", pin_expires_at: "",
       default_language: "pt", guide_theme: "dark", published: true,
     },
@@ -173,6 +176,10 @@ function PropertyEditor() {
         lock_code: (p.lock_code as string) ?? "",
         gate_code: (p.gate_code as string) ?? "",
         address_note: (p.address_note as string) ?? "",
+        checkin_instructions: (p.checkin_instructions as string) ?? "",
+        checkin_media: Array.isArray(p.checkin_media)
+          ? (p.checkin_media as MediaItem[]).filter((m) => m && typeof m.url === "string").slice(0, 8)
+          : [],
         wifi_ssid: (p.wifi_ssid as string) ?? "",
         wifi_password: (p.wifi_password as string) ?? "",
         host_name: (p.host_name as string) ?? "",
@@ -351,6 +358,8 @@ function PropertyEditor() {
           lock_code: form.property.lock_code || null,
           gate_code: form.property.gate_code || null,
           address_note: form.property.address_note || null,
+          checkin_instructions: form.property.checkin_instructions || null,
+          checkin_media: form.property.checkin_media,
           wifi_ssid: form.property.wifi_ssid || null,
           wifi_password: form.property.wifi_password || null,
           host_name: form.property.host_name || null,
@@ -502,6 +511,30 @@ function PropertyEditor() {
             </div>
             <Field label="Observação sobre o endereço" hint="Ponto de referência, instruções para o motorista, etc.">
               <Textarea value={form.property.address_note} maxLength={1000} onChange={(e) => update("address_note", e.target.value)} />
+            </Field>
+          </Section>
+
+          <Section
+            icon={DoorOpen}
+            title="Instruções de check-in"
+            desc="Passo a passo da chegada, com fotos ou vídeos do trajeto, entrada, fechadura, etc."
+          >
+            <Field label="Passo a passo (opcional)" hint="Descreva como o hóspede deve chegar e entrar.">
+              <Textarea
+                value={form.property.checkin_instructions}
+                maxLength={3000}
+                rows={6}
+                onChange={(e) => update("checkin_instructions", e.target.value)}
+                placeholder={"Ex.: 1) Estacione na vaga 12.\n2) Aponte para o portão lateral.\n3) Use o código de portão e fechadura ao lado."}
+              />
+            </Field>
+            <Field label="Fotos e vídeos do check-in" hint="Até 8 itens. Imagens (máx 10MB) ou vídeos (máx 60MB).">
+              <MediaUpload
+                value={form.property.checkin_media}
+                onChange={(next) => update("checkin_media", next)}
+                folder="checkin"
+                max={8}
+              />
             </Field>
           </Section>
         </TabsContent>

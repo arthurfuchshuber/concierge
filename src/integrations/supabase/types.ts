@@ -45,6 +45,8 @@ export type Database = {
           address_note: string | null
           brand_logo_url: string | null
           brand_name: string | null
+          checkin_instructions: string | null
+          checkin_media: Json
           checkin_time: string | null
           checkin_time_max: string | null
           checkout_time: string | null
@@ -82,6 +84,8 @@ export type Database = {
           address_note?: string | null
           brand_logo_url?: string | null
           brand_name?: string | null
+          checkin_instructions?: string | null
+          checkin_media?: Json
           checkin_time?: string | null
           checkin_time_max?: string | null
           checkout_time?: string | null
@@ -119,6 +123,8 @@ export type Database = {
           address_note?: string | null
           brand_logo_url?: string | null
           brand_name?: string | null
+          checkin_instructions?: string | null
+          checkin_media?: Json
           checkin_time?: string | null
           checkin_time_max?: string | null
           checkout_time?: string | null
