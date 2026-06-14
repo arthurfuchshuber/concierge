@@ -42,6 +42,11 @@ const PropertyInput = z.object({
   lock_code: z.string().max(40).optional().nullable(),
   gate_code: z.string().max(40).optional().nullable(),
   address_note: z.string().max(1000).optional().nullable(),
+  checkin_instructions: z.string().max(3000).optional().nullable(),
+  checkin_media: z.array(z.object({
+    url: z.string().trim().url().max(2048).refine(isHttpsUrl, "Use um link HTTPS válido"),
+    type: z.enum(["image", "video"]),
+  })).max(8).default([]),
   wifi_ssid: z.string().max(64).optional().nullable(),
   wifi_password: z.string().max(64).optional().nullable(),
   host_name: z.string().max(120).optional().nullable(),
