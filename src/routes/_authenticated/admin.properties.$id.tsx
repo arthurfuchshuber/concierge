@@ -621,11 +621,36 @@ function PropertyEditor() {
             </div>
           </Section>
 
-          <Section icon={DoorOpen} title="Entrada" desc="Códigos de acesso ao imóvel.">
+          <Section icon={DoorOpen} title="Entrada" desc="Códigos de acesso, instruções e mídia para ajudar o hóspede a entrar.">
             <div className="grid grid-cols-2 gap-3">
               <Field label="Código do portão"><Input value={form.property.gate_code} maxLength={40} onChange={(e) => update("gate_code", e.target.value)} /></Field>
               <Field label="Código da fechadura"><Input value={form.property.lock_code} maxLength={40} onChange={(e) => update("lock_code", e.target.value)} /></Field>
             </div>
+            <Field label="Instruções de acesso (opcional)" hint="Explique como usar o portão, fechadura, ordem dos passos, dicas.">
+              <Textarea
+                value={form.property.access_instructions}
+                maxLength={3000}
+                rows={5}
+                onChange={(e) => update("access_instructions", e.target.value)}
+                placeholder={"Ex.: 1) Digite o código no teclado do portão e aperte #.\n2) Empurre a porta principal e digite o código da fechadura.\n3) Se travar, gire a maçaneta enquanto digita."}
+              />
+            </Field>
+            <Field label="Link de vídeo tutorial (opcional)" hint="YouTube, Vimeo ou MP4 (https). Aparece como botão para o hóspede assistir.">
+              <Input
+                value={form.property.access_video_url}
+                maxLength={2048}
+                onChange={(e) => update("access_video_url", e.target.value)}
+                placeholder="https://youtu.be/…"
+              />
+            </Field>
+            <Field label="Fotos e vídeos do acesso (opcional)" hint="Até 8 itens. Mostre o portão, a fechadura, o caminho.">
+              <MediaUpload
+                value={form.property.access_media}
+                onChange={(next) => update("access_media", next)}
+                folder="access"
+                max={8}
+              />
+            </Field>
           </Section>
 
           <Section icon={Wifi} title="Wi-Fi">
