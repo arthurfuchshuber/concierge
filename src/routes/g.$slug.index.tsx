@@ -835,7 +835,7 @@ function CopyCard({ icon, eyebrow, label, value }: { icon?: React.ReactNode; eye
         {icon && <div className="size-12 rounded-xl bg-gradient-to-br from-accent/20 to-accent/5 text-accent grid place-items-center shrink-0">{icon}</div>}
         <div className="min-w-0 text-left">
           {eyebrow && <p className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground font-semibold">{eyebrow}</p>}
-          <p className="text-[1.35rem] font-mono font-medium truncate tracking-wider mt-0.5">{value}</p>
+          <p className="text-lg sm:text-xl font-semibold tracking-tight mt-0.5 break-all leading-snug">{value}</p>
           <p className="text-[11px] text-muted-foreground mt-0.5">{label}</p>
         </div>
       </div>
