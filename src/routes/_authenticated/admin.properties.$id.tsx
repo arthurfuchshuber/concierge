@@ -67,6 +67,7 @@ type FormState = {
     gate_code: string;
     address_note: string;
     checkin_instructions: string;
+    checkout_instructions: string;
     checkin_media: MediaItem[];
     access_instructions: string;
     access_media: MediaItem[];
