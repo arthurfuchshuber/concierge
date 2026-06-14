@@ -461,8 +461,8 @@ function Guide({ data }: { data: GuideOk }) {
                                 <ListOrdered className="size-[18px]" strokeWidth={1.75} />
                               </div>
                               <div className="min-w-0 flex-1">
-                                <div className="text-[9.5px] font-medium uppercase tracking-[0.14em] text-muted-foreground mb-1">Passo a passo</div>
-                                <p className="text-[13.5px] leading-relaxed text-foreground/90 whitespace-pre-wrap">{p.access_instructions as string}</p>
+                                <div className="text-[9.5px] font-medium uppercase tracking-[0.14em] text-muted-foreground mb-2">Passo a passo</div>
+                                <StepList text={p.access_instructions as string} dense />
                               </div>
                             </div>
                           )}
