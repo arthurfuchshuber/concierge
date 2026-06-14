@@ -158,6 +158,76 @@ export type Database = {
         }
         Relationships: []
       }
+      property_chat_conversations: {
+        Row: {
+          created_at: string
+          guest_name: string | null
+          guest_session_id: string
+          id: string
+          last_message_at: string
+          property_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          guest_name?: string | null
+          guest_session_id: string
+          id?: string
+          last_message_at?: string
+          property_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          guest_name?: string | null
+          guest_session_id?: string
+          id?: string
+          last_message_at?: string
+          property_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "property_chat_conversations_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      property_chat_messages: {
+        Row: {
+          content: string
+          conversation_id: string
+          created_at: string
+          id: string
+          role: string
+        }
+        Insert: {
+          content: string
+          conversation_id: string
+          created_at?: string
+          id?: string
+          role: string
+        }
+        Update: {
+          content?: string
+          conversation_id?: string
+          created_at?: string
+          id?: string
+          role?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "property_chat_messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "property_chat_conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       property_checkout_items: {
         Row: {
           id: string
