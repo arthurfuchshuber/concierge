@@ -39,8 +39,11 @@ export function ImageUpload({ value, onChange, folder = "misc", className, place
         contentType: file.type,
       });
       if (error) throw error;
-      const { data } = supabase.storage.from("property-images").getPublicUrl(path);
-      onChange(data.publicUrl);
+      const { data: signed, error: signErr } = await supabase.storage
+        .from("property-images")
+        .createSignedUrl(path, 60 * 60 * 24 * 7);
+      if (signErr || !signed?.signedUrl) throw signErr ?? new Error("Falha ao gerar URL");
+      onChange(signed.signedUrl);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Erro no upload");
     } finally {

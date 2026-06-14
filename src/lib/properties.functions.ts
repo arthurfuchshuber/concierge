@@ -8,13 +8,13 @@ const PropertyInput = z.object({
   name: z.string().trim().min(1).max(120),
   tagline: z.string().trim().max(200).optional().nullable(),
   slug: z.string().regex(slugRe, "Slug inválido (use letras minúsculas, números e hífens)"),
-  hero_image_url: z.string().url().max(1024).optional().nullable(),
-  gallery_images: z.array(z.string().url().max(1024)).max(4).default([]),
+  hero_image_url: z.string().url().max(2048).optional().nullable(),
+  gallery_images: z.array(z.string().url().max(2048)).max(4).default([]),
   theme_images: z.object({
-    checkin: z.string().url().max(1024).optional().nullable(),
-    residencia: z.string().url().max(1024).optional().nullable(),
-    faq: z.string().url().max(1024).optional().nullable(),
-    explore: z.string().url().max(1024).optional().nullable(),
+    checkin: z.string().url().max(2048).optional().nullable(),
+    residencia: z.string().url().max(2048).optional().nullable(),
+    faq: z.string().url().max(2048).optional().nullable(),
+    explore: z.string().url().max(2048).optional().nullable(),
   }).partial().default({}),
   address: z.string().max(500).optional().nullable(),
   maps_url: z.string().url().max(2048).optional().nullable(),
@@ -69,7 +69,8 @@ export const listMyProperties = createServerFn({ method: "GET" })
       .select("id, slug, name, tagline, hero_image_url, gallery_images, access_mode, pin_expires_at, published, city, country, updated_at")
       .order("updated_at", { ascending: false });
     if (error) throw (await import("@/lib/db-errors.server")).safeDbError("properties", error);
-    return data ?? [];
+    const { signPropertyImages } = await import("@/lib/storage.server");
+    return await signPropertyImages(context.supabase, data ?? []);
   });
 
 export const getMyProperty = createServerFn({ method: "POST" })
@@ -85,8 +86,10 @@ export const getMyProperty = createServerFn({ method: "POST" })
       context.supabase.from("property_checkout_items").select("*").eq("property_id", data.id).order("position"),
     ]);
     if (p.error) throw (await import("@/lib/db-errors.server")).safeDbError("properties", p.error);
+    const { signPropertyImages } = await import("@/lib/storage.server");
+    const property = await signPropertyImages(context.supabase, p.data);
     return {
-      property: p.data,
+      property,
       manual: manual.data ?? [],
       recommendations: recs.data ?? [],
       emergency: emerg.data ?? [],
