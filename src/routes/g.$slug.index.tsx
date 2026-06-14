@@ -1033,8 +1033,8 @@ function AccessBlock({
         onClick={() => hasMore && setOpen((o) => !o)}
         className={`flex items-center gap-3 px-4 py-3.5 ${hasMore ? "cursor-pointer select-none hover:bg-card/30 active:bg-card/50 transition-colors" : ""}`}
       >
-        <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-accent/15 text-accent">
-          <Icon className="size-[18px]" strokeWidth={1.75} />
+        <div className="grid size-8 shrink-0 place-items-center rounded-lg bg-accent/15 text-accent">
+          <Icon className="size-[14px]" strokeWidth={1.75} />
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-[10.5px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">{label}</p>
