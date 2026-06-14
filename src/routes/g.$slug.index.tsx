@@ -448,12 +448,12 @@ function Guide({ data }: { data: GuideOk }) {
                         label="Acesso"
                         hint={p.gate_code && p.lock_code ? "Portão e fechadura" : p.gate_code ? "Portão" : "Fechadura"}
                       >
-                        <div className="space-y-3">
+                        <div className="rounded-xl bg-background/50 border border-border/50 overflow-hidden divide-y divide-border/40">
                           {p.gate_code && (
-                            <CopyCard icon={<KeyRound className="size-5" strokeWidth={1.75} />} eyebrow="Portão" label="Toque para copiar" value={p.gate_code} />
+                            <CopyCard flat icon={<KeyRound className="size-[18px]" strokeWidth={1.75} />} eyebrow="Portão" label="Toque para copiar" value={p.gate_code} />
                           )}
                           {p.lock_code && (
-                            <CopyCard icon={<Lock className="size-5" strokeWidth={1.75} />} eyebrow="Fechadura" label="Toque para copiar" value={p.lock_code} />
+                            <CopyCard flat icon={<Lock className="size-[18px]" strokeWidth={1.75} />} eyebrow="Fechadura" label="Toque para copiar" value={p.lock_code} />
                           )}
                         </div>
                       </SubItem>
