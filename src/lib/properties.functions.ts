@@ -146,11 +146,12 @@ export const upsertProperty = createServerFn({ method: "POST" })
     let propertyId = data.id ?? null;
 
     // Strip Business-only fields when the user is not on Business.
-    const propertyData: Record<string, unknown> = { ...data.property };
+    const propertyData = { ...data.property };
     if (!plan.features.customBrand) {
       propertyData.brand_name = null;
       propertyData.brand_logo_url = null;
     }
+
 
     if (propertyId) {
       const { error } = await supabase
