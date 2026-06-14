@@ -67,7 +67,10 @@ type FormState = {
     wifi_password: string;
     host_name: string;
     host_phone: string;
+    brand_name: string;
+    brand_logo_url: string;
     access_mode: "public" | "pin";
+
     pin_code: string;
     pin_expires_at: string;
     default_language: "pt" | "en";
