@@ -1048,9 +1048,6 @@ function AccessBlock({
           <p className="text-[10.5px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">{label}</p>
           <p className="font-mono text-[15px] font-semibold tracking-[0.08em] text-foreground mt-0.5 truncate">{code}</p>
         </div>
-        <div onClick={(e) => e.stopPropagation()} className="shrink-0">
-          <CopyCode value={code} />
-        </div>
         {hasMore && (
           <ChevronDown
             className={`size-4 text-muted-foreground shrink-0 transition-transform duration-200 ${open ? "rotate-180" : ""}`}
@@ -1062,8 +1059,7 @@ function AccessBlock({
       {hasMore && open && (
         <div className="px-4 pb-4 pt-1 space-y-5">
           {instructions && (
-            <div>
-              <p className="text-[11px] uppercase tracking-[0.24em] text-accent font-semibold mb-4">{subtitle}</p>
+            <div className="rounded-2xl border border-border/60 bg-background/40 px-4 py-4">
               <StepList text={instructions} dense />
             </div>
           )}
