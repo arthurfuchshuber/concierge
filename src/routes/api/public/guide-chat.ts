@@ -22,8 +22,7 @@ type Recommendation = {
   type: string | null;
   scope: string | null;
   distance_text: string | null;
-  description: string | null;
-  notes: string | null;
+  note: string | null;
 };
 
 function buildContext(p: Record<string, unknown>, kids: {
