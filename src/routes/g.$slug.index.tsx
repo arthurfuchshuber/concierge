@@ -951,6 +951,46 @@ function InfoTile({ label, value, border }: { label: string; value: string; bord
   );
 }
 
+function TimeRow({
+  kind,
+  label,
+  from,
+  to,
+  fallbackPrefix,
+}: {
+  kind: "in" | "out";
+  label: string;
+  from?: string;
+  to?: string;
+  fallbackPrefix: string;
+}) {
+  const Icon = kind === "in" ? LogIn : LogOut;
+  const hasRange = !!from && !!to;
+  const single = from || to || "";
+  return (
+    <div className="flex items-center gap-3.5 px-4 py-3.5">
+      <div className="size-9 rounded-full bg-foreground/5 flex items-center justify-center shrink-0">
+        <Icon className="size-[16px] text-foreground/70" strokeWidth={1.7} />
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="text-[10.5px] uppercase tracking-[0.18em] text-muted-foreground font-semibold">{label}</p>
+        {hasRange ? (
+          <div className="mt-0.5 flex items-baseline gap-1.5 text-[15px] font-medium text-foreground/95 leading-snug">
+            <span className="tabular-nums">{from}</span>
+            <ArrowRight className="size-3 text-muted-foreground/70 self-center" strokeWidth={2} />
+            <span className="tabular-nums">{to}</span>
+          </div>
+        ) : (
+          <p className="mt-0.5 text-[15px] font-medium text-foreground/95 leading-snug">
+            <span className="text-muted-foreground/80 font-normal">{fallbackPrefix} </span>
+            <span className="tabular-nums">{single}</span>
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function CopyCard({ icon, eyebrow, label, value, flat }: { icon?: React.ReactNode; eyebrow?: string; label: string; value: string; flat?: boolean }) {
   const [copied, setCopied] = useState(false);
   function copy() {
