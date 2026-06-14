@@ -320,6 +320,11 @@ function Guide({ data }: { data: GuideOk }) {
                 const uberUrl = uberDrop
                   ? `https://m.uber.com/looking?drop[0]=${encodeURIComponent(JSON.stringify(uberDrop))}`
                   : null;
+                const noveNoveUrl = hasCoords
+                  ? `https://99app.com/open/?destination_lat=${p.lat}&destination_lng=${p.lng}${p.address ? `&destination_address=${encodeURIComponent(String(p.address))}` : ""}`
+                  : p.address
+                    ? `https://99app.com/open/?destination_address=${encodeURIComponent(String(p.address))}`
+                    : null;
                 return (
                   <SubList>
                     {hasHorario && (
@@ -373,7 +378,7 @@ function Guide({ data }: { data: GuideOk }) {
                                 ))}
                             </div>
                           )}
-                          {(p.address || p.maps_url || uberUrl) && (
+                          {(p.address || p.maps_url || uberUrl || noveNoveUrl) && (
                             <div className="rounded-2xl bg-background/40 border border-border/60 overflow-hidden divide-y divide-border/40">
                               {mapsHref && (
                                 <a
