@@ -329,7 +329,7 @@ function Guide({ data }: { data: GuideOk }) {
                               : `Check-out ${p.checkout_time}`
                         }
                       >
-                        <div className="grid grid-cols-2 bg-background border border-border rounded-xl overflow-hidden">
+                        <div className="grid grid-cols-2 rounded-xl bg-background/50 border border-border/50 overflow-hidden">
                           {p.checkin_time && (
                             <InfoTile
                               label="Início"
@@ -372,43 +372,41 @@ function Guide({ data }: { data: GuideOk }) {
                             </div>
                           )}
                           {(p.address || p.maps_url || uberUrl) && (
-                            <div>
-                              <div className="space-y-2">
-                                {mapsHref && (
-                                  <a
-                                    href={mapsHref}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="flex items-center gap-3 bg-background border border-border rounded-xl p-3 active:scale-[0.99] transition-transform hover:border-accent/50"
-                                  >
-                                    <span className="size-10 rounded-lg bg-accent/15 text-accent grid place-items-center shrink-0">
-                                      <MapPin className="size-[18px]" strokeWidth={1.75} />
-                                    </span>
-                                    <div className="flex-1 min-w-0 text-left">
-                                      <p className="text-[13px] font-medium leading-tight">Abrir no Google Maps</p>
-                                      {p.address && <p className="text-[11.5px] text-muted-foreground truncate mt-0.5">{p.address}</p>}
-                                    </div>
-                                    <ExternalLink className="size-3.5 text-muted-foreground shrink-0" />
-                                  </a>
-                                )}
-                                {uberUrl && (
-                                  <a
-                                    href={uberUrl}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    className="flex items-center gap-3 bg-background border border-border rounded-xl p-3 active:scale-[0.99] transition-transform hover:border-accent/50"
-                                  >
-                                    <span className="size-10 rounded-lg bg-foreground text-background grid place-items-center shrink-0">
-                                      <Car className="size-[18px]" strokeWidth={1.75} />
-                                    </span>
-                                    <div className="flex-1 min-w-0 text-left">
-                                      <p className="text-[13px] font-medium leading-tight">Pedir Uber</p>
-                                      <p className="text-[11.5px] text-muted-foreground mt-0.5">Corrida até o endereço</p>
-                                    </div>
-                                    <ExternalLink className="size-3.5 text-muted-foreground shrink-0" />
-                                  </a>
-                                )}
-                              </div>
+                            <div className="rounded-xl bg-background/50 border border-border/50 overflow-hidden divide-y divide-border/40">
+                              {mapsHref && (
+                                <a
+                                  href={mapsHref}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="flex items-center gap-3 px-3.5 py-3 hover:bg-card/40 active:bg-card/60 transition-colors"
+                                >
+                                  <span className="size-9 rounded-lg bg-accent/15 text-accent grid place-items-center shrink-0">
+                                    <MapPin className="size-[18px]" strokeWidth={1.75} />
+                                  </span>
+                                  <div className="flex-1 min-w-0 text-left">
+                                    <p className="text-[13.5px] font-medium leading-tight">Abrir no Google Maps</p>
+                                    {p.address && <p className="text-[11.5px] text-muted-foreground truncate mt-0.5">{p.address}</p>}
+                                  </div>
+                                  <ExternalLink className="size-3.5 text-muted-foreground shrink-0" />
+                                </a>
+                              )}
+                              {uberUrl && (
+                                <a
+                                  href={uberUrl}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="flex items-center gap-3 px-3.5 py-3 hover:bg-card/40 active:bg-card/60 transition-colors"
+                                >
+                                  <span className="size-9 rounded-lg bg-foreground text-background grid place-items-center shrink-0">
+                                    <Car className="size-[18px]" strokeWidth={1.75} />
+                                  </span>
+                                  <div className="flex-1 min-w-0 text-left">
+                                    <p className="text-[13.5px] font-medium leading-tight">Pedir Uber</p>
+                                    <p className="text-[11.5px] text-muted-foreground mt-0.5">Corrida até o endereço</p>
+                                  </div>
+                                  <ExternalLink className="size-3.5 text-muted-foreground shrink-0" />
+                                </a>
+                              )}
                             </div>
                           )}
                           {(p.checkin_instructions || (Array.isArray(p.checkin_media) && p.checkin_media.length > 0)) && (
@@ -448,12 +446,12 @@ function Guide({ data }: { data: GuideOk }) {
                         label="Acesso"
                         hint={p.gate_code && p.lock_code ? "Portão e fechadura" : p.gate_code ? "Portão" : "Fechadura"}
                       >
-                        <div className="space-y-3">
+                        <div className="rounded-xl bg-background/50 border border-border/50 overflow-hidden divide-y divide-border/40">
                           {p.gate_code && (
-                            <CopyCard icon={<KeyRound className="size-5" strokeWidth={1.75} />} eyebrow="Portão" label="Toque para copiar" value={p.gate_code} />
+                            <CopyCard flat icon={<KeyRound className="size-[18px]" strokeWidth={1.75} />} eyebrow="Portão" label="Toque para copiar" value={p.gate_code} />
                           )}
                           {p.lock_code && (
-                            <CopyCard icon={<Lock className="size-5" strokeWidth={1.75} />} eyebrow="Fechadura" label="Toque para copiar" value={p.lock_code} />
+                            <CopyCard flat icon={<Lock className="size-[18px]" strokeWidth={1.75} />} eyebrow="Fechadura" label="Toque para copiar" value={p.lock_code} />
                           )}
                         </div>
                       </SubItem>
@@ -465,10 +463,10 @@ function Guide({ data }: { data: GuideOk }) {
                         label="Wi-Fi"
                         hint={p.wifi_ssid || undefined}
                       >
-                        <div className="space-y-3">
-                          <CopyCard icon={<Wifi className="size-5" strokeWidth={1.75} />} eyebrow="Rede" label="Toque para copiar" value={p.wifi_ssid} />
+                        <div className="rounded-xl bg-background/50 border border-border/50 overflow-hidden divide-y divide-border/40">
+                          <CopyCard flat icon={<Wifi className="size-[18px]" strokeWidth={1.75} />} eyebrow="Rede" label="Toque para copiar" value={p.wifi_ssid} />
                           {p.wifi_password && (
-                            <CopyCard icon={<KeyRound className="size-5" strokeWidth={1.75} />} eyebrow="Senha" label="Toque para copiar" value={p.wifi_password} />
+                            <CopyCard flat icon={<KeyRound className="size-[18px]" strokeWidth={1.75} />} eyebrow="Senha" label="Toque para copiar" value={p.wifi_password} />
                           )}
                         </div>
                       </SubItem>
@@ -931,7 +929,7 @@ function SubItem({
           </div>
         </div>
       </AccordionTrigger>
-      <AccordionContent className="px-4 pb-4 pt-1">
+      <AccordionContent className="pl-[3.875rem] pr-3 pb-3.5 pt-0">
         {children}
       </AccordionContent>
     </AccordionItem>
@@ -949,20 +947,43 @@ function SectionTitle({ title, intro }: { eyebrow?: string; title: string; intro
 
 function InfoTile({ label, value, border }: { label: string; value: string; border?: boolean }) {
   return (
-    <div className={`p-5 ${border ? "border-l border-border" : ""}`}>
-      <p className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground font-semibold">{label}</p>
-      <p className="text-[15px] mt-1.5 font-medium leading-tight">{value}</p>
+    <div className={`px-4 py-3 ${border ? "border-l border-border/40" : ""}`}>
+      <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground font-semibold">{label}</p>
+      <p className="text-[14px] mt-1 font-medium leading-snug text-foreground/95">{value}</p>
     </div>
   );
 }
 
-function CopyCard({ icon, eyebrow, label, value }: { icon?: React.ReactNode; eyebrow?: string; label: string; value: string }) {
+function CopyCard({ icon, eyebrow, label, value, flat }: { icon?: React.ReactNode; eyebrow?: string; label: string; value: string; flat?: boolean }) {
   const [copied, setCopied] = useState(false);
   function copy() {
     navigator.clipboard.writeText(value);
     setCopied(true);
     toast.success("Copiado!");
     setTimeout(() => setCopied(false), 1800);
+  }
+  if (flat) {
+    return (
+      <button
+        onClick={copy}
+        className="w-full flex items-center justify-between gap-3 px-3.5 py-3 text-left hover:bg-card/40 active:bg-card/60 transition-colors"
+      >
+        <div className="flex items-center gap-3 min-w-0">
+          {icon && (
+            <div className="size-9 rounded-lg bg-accent/12 text-accent grid place-items-center shrink-0">
+              {icon}
+            </div>
+          )}
+          <div className="min-w-0">
+            {eyebrow && <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground font-semibold">{eyebrow}</p>}
+            <p className="text-[15px] font-semibold tracking-tight mt-0.5 break-all leading-snug">{value}</p>
+          </div>
+        </div>
+        <div className="size-8 rounded-full bg-secondary grid place-items-center shrink-0">
+          {copied ? <Check className="size-3.5 text-accent" /> : <Copy className="size-3.5 text-muted-foreground" />}
+        </div>
+      </button>
+    );
   }
   return (
     <button onClick={copy} className="w-full bg-card border border-border rounded-2xl p-5 flex items-center justify-between gap-4 active:scale-[0.99] transition-transform hover:border-accent/40">
