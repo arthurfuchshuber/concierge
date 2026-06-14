@@ -396,8 +396,8 @@ function Guide({ data }: { data: GuideOk }) {
                                   rel="noreferrer"
                                   className="flex items-center gap-3 px-3.5 py-3.5 hover:bg-card/40 active:bg-card/60 transition-colors"
                                 >
-                                  <span className="size-10 rounded-xl bg-foreground text-background grid place-items-center shrink-0">
-                                    <Car className="size-[18px]" strokeWidth={1.75} />
+                                  <span className="size-8 rounded-lg bg-foreground text-background grid place-items-center shrink-0">
+                                    <Car className="size-[14px]" strokeWidth={1.75} />
                                   </span>
                                   <div className="flex-1 min-w-0 text-left">
                                     <p className="text-[14px] font-medium leading-tight">Pedir Uber</p>
@@ -413,7 +413,7 @@ function Guide({ data }: { data: GuideOk }) {
                                   rel="noreferrer"
                                   className="flex items-center gap-3 px-3.5 py-3.5 hover:bg-card/40 active:bg-card/60 transition-colors"
                                 >
-                                  <span className="size-10 rounded-xl bg-[#FFD400] text-black grid place-items-center shrink-0 font-bold text-[13px] tracking-tight">
+                                  <span className="size-8 rounded-lg bg-[#FFD400] text-black grid place-items-center shrink-0 font-bold text-[11px] tracking-tight">
                                     99
                                   </span>
                                   <div className="flex-1 min-w-0 text-left">
