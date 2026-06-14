@@ -329,7 +329,7 @@ function Guide({ data }: { data: GuideOk }) {
                               : `Check-out ${p.checkout_time}`
                         }
                       >
-                        <div className="grid grid-cols-2 bg-background border border-border rounded-xl overflow-hidden">
+                        <div className="grid grid-cols-2 rounded-xl bg-background/50 border border-border/50 overflow-hidden">
                           {p.checkin_time && (
                             <InfoTile
                               label="Início"
