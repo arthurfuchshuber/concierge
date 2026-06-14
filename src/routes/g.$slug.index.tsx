@@ -356,7 +356,7 @@ function Guide({ data }: { data: GuideOk }) {
                     {hasChegada && (
                       <SubItem
                         icon={<MapPin className="size-[18px]" strokeWidth={1.6} />}
-                        label="Chegada"
+                        label="Chegada & Localização"
                         hint={p.city || (p.address ? "Como chegar" : undefined)}
                       >
                         <div className="space-y-4">
@@ -408,6 +408,33 @@ function Guide({ data }: { data: GuideOk }) {
                                   </a>
                                 )}
                               </div>
+                            </div>
+                          )}
+                          {(p.checkin_instructions || (Array.isArray(p.checkin_media) && p.checkin_media.length > 0)) && (
+                            <div>
+                              <p className="text-[10px] uppercase tracking-[0.24em] text-muted-foreground font-semibold mb-2">Instruções de check-in</p>
+                              {p.checkin_instructions && (
+                                <div className="space-y-3 text-[14px] leading-relaxed text-foreground/85 mb-3">
+                                  {String(p.checkin_instructions)
+                                    .split(/\n\s*\n/)
+                                    .map((para: string, i: number) => (
+                                      <p key={i} className="whitespace-pre-line">{para}</p>
+                                    ))}
+                                </div>
+                              )}
+                              {Array.isArray(p.checkin_media) && p.checkin_media.length > 0 && (
+                                <div className="grid grid-cols-2 gap-2">
+                                  {(p.checkin_media as Array<{ url: string; type: "image" | "video" }>).map((m, i) => (
+                                    <div key={i} className="rounded-xl overflow-hidden border border-border bg-muted/40 aspect-square">
+                                      {m.type === "video" ? (
+                                        <video src={m.url} className="size-full object-cover" controls playsInline preload="metadata" />
+                                      ) : (
+                                        <img src={m.url} alt={`Check-in ${i + 1}`} className="size-full object-cover" loading="lazy" />
+                                      )}
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
                             </div>
                           )}
                         </div>
