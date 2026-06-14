@@ -291,8 +291,11 @@ function Guide({ data }: { data: GuideOk }) {
               {(() => {
                 const hasHorario = !!(p.checkin_time || p.checkout_time);
                 const hasChegada = !!(p.address || p.maps_url || p.address_note || p.checkin_instructions || (Array.isArray(p.checkin_media) && p.checkin_media.length > 0));
-                const accessMedia = Array.isArray(p.access_media) ? (p.access_media as Array<{ url: string; type: "image" | "video" }>) : [];
-                const hasAcesso = !!(p.gate_code || p.lock_code || p.access_instructions || p.access_video_url || accessMedia.length > 0);
+                const gateMedia = Array.isArray(p.gate_media) ? (p.gate_media as Array<{ url: string; type: "image" | "video" }>) : [];
+                const lockMedia = Array.isArray(p.lock_media) ? (p.lock_media as Array<{ url: string; type: "image" | "video" }>) : [];
+                const hasGateExtras = !!(p.gate_code && (p.gate_instructions || p.gate_video_url || gateMedia.length > 0));
+                const hasLockExtras = !!(p.lock_code && (p.lock_instructions || p.lock_video_url || lockMedia.length > 0));
+                const hasAcesso = !!(p.gate_code || p.lock_code || hasGateExtras || hasLockExtras);
                 const hasWifi = !!p.wifi_ssid;
                 const hasSaida = !!p.checkout_instructions;
                 if (!hasHorario && !hasChegada && !hasAcesso && !hasWifi && !hasSaida) {
