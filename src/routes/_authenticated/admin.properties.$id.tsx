@@ -176,6 +176,10 @@ function PropertyEditor() {
         lock_code: (p.lock_code as string) ?? "",
         gate_code: (p.gate_code as string) ?? "",
         address_note: (p.address_note as string) ?? "",
+        checkin_instructions: (p.checkin_instructions as string) ?? "",
+        checkin_media: Array.isArray(p.checkin_media)
+          ? (p.checkin_media as MediaItem[]).filter((m) => m && typeof m.url === "string").slice(0, 8)
+          : [],
         wifi_ssid: (p.wifi_ssid as string) ?? "",
         wifi_password: (p.wifi_password as string) ?? "",
         host_name: (p.host_name as string) ?? "",
