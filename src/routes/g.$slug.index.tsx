@@ -291,7 +291,8 @@ function Guide({ data }: { data: GuideOk }) {
               {(() => {
                 const hasHorario = !!(p.checkin_time || p.checkout_time);
                 const hasChegada = !!(p.address || p.maps_url || p.address_note || p.checkin_instructions || (Array.isArray(p.checkin_media) && p.checkin_media.length > 0));
-                const hasAcesso = !!(p.gate_code || p.lock_code);
+                const accessMedia = Array.isArray(p.access_media) ? (p.access_media as Array<{ url: string; type: "image" | "video" }>) : [];
+                const hasAcesso = !!(p.gate_code || p.lock_code || p.access_instructions || p.access_video_url || accessMedia.length > 0);
                 const hasWifi = !!p.wifi_ssid;
                 if (!hasHorario && !hasChegada && !hasAcesso && !hasWifi) {
                   return <p className="text-sm text-muted-foreground">Sem informações cadastradas.</p>;
