@@ -53,7 +53,7 @@ export const getPublicGuide = createServerFn({ method: "POST" })
     // Access granted — now fetch credential fields in a separate query.
     const { data: creds } = await supabaseAdmin
       .from("properties")
-      .select(CREDENTIAL_COLUMNS)
+      .select("wifi_ssid,wifi_password,lock_code,gate_code,host_phone")
       .eq("id", prop.id)
       .maybeSingle();
 
