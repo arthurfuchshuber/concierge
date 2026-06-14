@@ -1066,7 +1066,7 @@ function SubItem({
           </div>
         </div>
       </AccordionTrigger>
-      <AccordionContent className="pl-[3.875rem] pr-3 pb-3.5 pt-0">
+      <AccordionContent className="px-3 pb-3.5 pt-0">
         {children}
       </AccordionContent>
     </AccordionItem>
