@@ -159,6 +159,8 @@ function PropertyEditor() {
     if (!data || isNew) return;
     const p = data.property as Record<string, unknown> | null;
     if (!p) return;
+    setGateOpen(!!(p.gate_code as string));
+    setLockOpen(!!(p.lock_code as string));
     setForm({
       property: {
         name: (p.name as string) ?? "",
