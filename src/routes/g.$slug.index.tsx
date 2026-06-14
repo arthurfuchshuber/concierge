@@ -518,6 +518,19 @@ function Guide({ data }: { data: GuideOk }) {
                         </div>
                       </SubItem>
                     )}
+
+                    {hasSaida && (
+                      <SubItem
+                        icon={<LogOut className="size-[18px]" strokeWidth={1.6} />}
+                        label="Saída"
+                        hint="Passo a passo do check-out"
+                      >
+                        <div className="rounded-xl bg-background/50 border border-border/50 p-3.5">
+                          <div className="text-[9.5px] font-medium uppercase tracking-[0.14em] text-muted-foreground mb-2">Instruções de check-out</div>
+                          <StepList text={p.checkout_instructions as string} />
+                        </div>
+                      </SubItem>
+                    )}
                   </SubList>
                 );
               })()}
