@@ -170,7 +170,10 @@ function PropertyEditor() {
         wifi_password: (p.wifi_password as string) ?? "",
         host_name: (p.host_name as string) ?? "",
         host_phone: (p.host_phone as string) ?? "",
+        brand_name: (p.brand_name as string) ?? "",
+        brand_logo_url: (p.brand_logo_url as string) ?? "",
         access_mode: ((p.access_mode as "public" | "pin") ?? "public"),
+
         pin_code: (p.pin_code as string) ?? "",
         pin_expires_at: p.pin_expires_at ? new Date(p.pin_expires_at as string).toISOString().slice(0, 16) : "",
         default_language: ((p.default_language as "pt" | "en") ?? "pt"),
