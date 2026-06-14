@@ -24,7 +24,7 @@ function AdminLayout() {
   const { isAdmin } = useIsAdmin();
   const [email, setEmail] = useState<string>("");
   const [open, setOpen] = useState(false);
-  const nav = isAdmin ? [...baseNav, adminNav] : baseNav;
+  const nav = baseNav;
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setEmail(data.user?.email ?? ""));
