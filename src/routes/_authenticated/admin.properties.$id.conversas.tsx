@@ -134,5 +134,3 @@ function ConversationsPage() {
   );
 }
 
-// keep Link reference (unused but kept for future nav use)
-void Link;
