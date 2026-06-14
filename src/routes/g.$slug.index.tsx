@@ -630,7 +630,7 @@ function Guide({ data }: { data: GuideOk }) {
                           aria-label="WhatsApp"
                           className="grid size-9 place-items-center rounded-full border border-border bg-background/60 hover:border-accent/50 transition"
                         >
-                          <Phone className="size-3.5" />
+                          <MessageCircle className="size-3.5" />
                         </a>
                       </div>
                     )}
