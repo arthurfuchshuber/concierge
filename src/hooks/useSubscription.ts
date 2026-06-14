@@ -30,7 +30,20 @@ export function useSubscription() {
   const [userId, setUserId] = useState<string | null>(null);
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => setUserId(data.user?.id ?? null));
+    let mounted = true;
+    const sync = async () => {
+      const { data } = await supabase.auth.getSession();
+      if (!mounted) return;
+      setUserId(data.session?.access_token ? data.session.user.id : null);
+    };
+    sync();
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUserId(session?.access_token ? session.user.id : null);
+    });
+    return () => {
+      mounted = false;
+      listener.subscription.unsubscribe();
+    };
   }, []);
 
   const query = useQuery({
