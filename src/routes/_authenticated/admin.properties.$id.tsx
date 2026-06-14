@@ -402,13 +402,24 @@ function PropertyEditor() {
       <Link to="/admin" className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground mb-5 transition-colors">
         <ArrowLeft className="size-3.5" /> Voltar
       </Link>
-      <div className="mb-7 sm:mb-9 pb-6 border-b border-border/60">
-        <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground font-semibold mb-2">
-          {isNew ? "Novo guia" : "Editar guia"}
-        </p>
-        <h1 className="font-serif text-2xl sm:text-4xl break-words leading-tight">{form.property.name || "Sem título"}</h1>
-        {form.property.tagline && (
-          <p className="text-sm text-muted-foreground mt-2">{form.property.tagline}</p>
+      <div className="mb-7 sm:mb-9 pb-6 border-b border-border/60 flex items-start justify-between gap-4">
+        <div>
+          <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground font-semibold mb-2">
+            {isNew ? "Novo guia" : "Editar guia"}
+          </p>
+          <h1 className="font-serif text-2xl sm:text-4xl break-words leading-tight">{form.property.name || "Sem título"}</h1>
+          {form.property.tagline && (
+            <p className="text-sm text-muted-foreground mt-2">{form.property.tagline}</p>
+          )}
+        </div>
+        {!isNew && (
+          <Link
+            to="/admin/properties/$id/conversas"
+            params={{ id: id! }}
+            className="shrink-0 inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-border bg-surface text-xs hover:bg-secondary transition-colors"
+          >
+            <MessageSquare className="size-3.5" /> Conversas
+          </Link>
         )}
       </div>
 
