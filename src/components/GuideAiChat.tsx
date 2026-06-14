@@ -118,12 +118,10 @@ export function GuideAiChat({ slug, propertyName }: { slug: string; propertyName
           type="button"
           onClick={() => setOpen(true)}
           aria-label="Abrir assistente do guia"
-          className="fixed bottom-5 right-5 z-40 inline-flex items-center gap-2 rounded-full bg-accent text-accent-foreground pl-3 pr-4 py-3 shadow-[0_12px_36px_-12px_oklch(from_var(--accent)_l_c_h/0.7)] hover:brightness-110 active:scale-95 transition-all"
+          title="Pergunte à IA"
+          className="fixed bottom-5 right-5 z-40 grid size-14 place-items-center rounded-full bg-accent text-accent-foreground shadow-[0_12px_36px_-12px_oklch(from_var(--accent)_l_c_h/0.7)] hover:brightness-110 active:scale-95 transition-all"
         >
-          <span className="relative grid size-7 place-items-center rounded-full bg-background/25">
-            <Sparkles className="size-4" strokeWidth={2} />
-          </span>
-          <span className="text-[13px] font-semibold tracking-tight">Pergunte à IA</span>
+          <Sparkles className="size-6" strokeWidth={2} />
         </button>
       )}
 
