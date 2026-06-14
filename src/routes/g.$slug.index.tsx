@@ -329,26 +329,23 @@ function Guide({ data }: { data: GuideOk }) {
                               : `Check-out ${p.checkout_time}`
                         }
                       >
-                        <div className="grid grid-cols-2 rounded-xl bg-background/50 border border-border/50 overflow-hidden">
+                        <div className="rounded-xl bg-background/50 border border-border/50 overflow-hidden divide-y divide-border/50">
                           {p.checkin_time && (
-                            <InfoTile
-                              label="Início"
-                              value={
-                                p.checkin_time_max
-                                  ? `A partir de ${p.checkin_time} · até ${p.checkin_time_max}`
-                                  : `A partir de ${p.checkin_time}`
-                              }
+                            <TimeRow
+                              kind="in"
+                              label="Check-in"
+                              from={p.checkin_time}
+                              to={p.checkin_time_max as string | undefined}
+                              fallbackPrefix="A partir de"
                             />
                           )}
                           {p.checkout_time && (
-                            <InfoTile
-                              label="Fim"
-                              value={
-                                p.checkout_time_min
-                                  ? `A partir de ${p.checkout_time_min} · até ${p.checkout_time}`
-                                  : `Até ${p.checkout_time}`
-                              }
-                              border={!!p.checkin_time}
+                            <TimeRow
+                              kind="out"
+                              label="Check-out"
+                              from={p.checkout_time_min as string | undefined}
+                              to={p.checkout_time}
+                              fallbackPrefix="Até"
                             />
                           )}
                         </div>
