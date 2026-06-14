@@ -18,44 +18,36 @@ const FREE: ResolvedPlan = {
   features: { autoImport: false, ai: false, customBrand: false },
 };
 
-function deriveEnv(): PaddleEnv {
-  const token = process.env.VITE_PAYMENTS_CLIENT_TOKEN ?? "";
-  return token.startsWith("test_") ? "sandbox" : "live";
-}
-
 // Resolves the active plan for the authenticated user using their RLS-scoped
-// supabase client. Returns FREE (no plan) when there is no active subscription.
+// supabase client. Checks both environments and returns the active one.
 export async function resolveUserPlan(
   supabase: SupabaseClient,
   userId: string,
-  environment?: PaddleEnv,
 ): Promise<ResolvedPlan> {
-  const env = environment ?? deriveEnv();
-  const { data: sub } = await supabase
+  const { data: subs } = await supabase
     .from("subscriptions")
-    .select("status, product_id, current_period_end")
+    .select("status, product_id, current_period_end, environment, created_at")
     .eq("user_id", userId)
-    .eq("environment", env)
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+    .order("created_at", { ascending: false });
 
-  if (!sub) return FREE;
-  const status = (sub.status as string) ?? null;
-  const endIso = (sub.current_period_end as string | null) ?? null;
-  const endDate = endIso ? new Date(endIso) : null;
-  const periodValid = !endDate || endDate > new Date();
-
-  const isActive =
-    ((status === "active" || status === "trialing" || status === "past_due") && periodValid) ||
-    (status === "canceled" && !!endDate && endDate > new Date());
-
-  if (!isActive) return FREE;
-  const plan = planFromProductId(sub.product_id as string | null);
-  if (!plan) return FREE;
-  const cfg = PLANS[plan];
-  return { plan, status, maxGuides: cfg.maxGuides, features: { ...cfg.features } };
+  const candidates = subs ?? [];
+  for (const sub of candidates) {
+    const status = (sub.status as string) ?? null;
+    const endIso = (sub.current_period_end as string | null) ?? null;
+    const endDate = endIso ? new Date(endIso) : null;
+    const periodValid = !endDate || endDate > new Date();
+    const isActive =
+      ((status === "active" || status === "trialing" || status === "past_due") && periodValid) ||
+      (status === "canceled" && !!endDate && endDate > new Date());
+    if (!isActive) continue;
+    const plan = planFromProductId(sub.product_id as string | null);
+    if (!plan) continue;
+    const cfg = PLANS[plan];
+    return { plan, status, maxGuides: cfg.maxGuides, features: { ...cfg.features } };
+  }
+  return FREE;
 }
+
 
 export async function assertCanCreateGuide(
   supabase: SupabaseClient,
