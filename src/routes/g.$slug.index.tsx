@@ -171,7 +171,7 @@ function Guide({ data }: { data: GuideOk }) {
     {
       key: "checkin",
       eyebrow: "Estadia",
-      title: "Chegada",
+      title: "Chegada & Saída",
       desc: "Endereço, códigos de acesso e horários.",
       icon: <KeyRound className="size-5" strokeWidth={1.5} />,
       image: themePick("checkin", 1),
@@ -289,7 +289,7 @@ function Guide({ data }: { data: GuideOk }) {
               <SectionTitle eyebrow="Estadia" title="Chegada" intro="Tudo o que você precisa para chegar e se acomodar." />
 
               {(() => {
-                const hasHorario = !!(p.checkin_time || p.checkout_time);
+                const hasHorario = !!p.checkin_time;
                 const hasChegada = !!(p.address || p.maps_url || p.address_note || p.checkin_instructions || (Array.isArray(p.checkin_media) && p.checkin_media.length > 0));
                 const gateMedia = Array.isArray(p.gate_media) ? (p.gate_media as Array<{ url: string; type: "image" | "video" }>) : [];
                 const lockMedia = Array.isArray(p.lock_media) ? (p.lock_media as Array<{ url: string; type: "image" | "video" }>) : [];
@@ -327,37 +327,31 @@ function Guide({ data }: { data: GuideOk }) {
                     : null;
                 return (
                   <SubList>
-                    {hasHorario && (
-                      <SubItem
-                        icon={<Clock className="size-[18px]" strokeWidth={1.6} />}
-                        label="Horários"
-                        hint={
-                          p.checkin_time && p.checkout_time
-                            ? `Check-in ${p.checkin_time} · Check-out ${p.checkout_time}`
-                            : p.checkin_time
-                              ? `Check-in ${p.checkin_time}`
-                              : `Check-out ${p.checkout_time}`
-                        }
-                      >
-                        <div className="rounded-xl bg-background/50 border border-border/50 overflow-hidden divide-y divide-border/50">
-                          {p.checkin_time && (
-                            <TimeRow
-                              kind="in"
-                              label="Check-in"
-                              from={p.checkin_time}
-                              to={p.checkin_time_max as string | undefined}
-                              fallbackPrefix="A partir de"
-                            />
-                          )}
-                          {p.checkout_time && (
-                            <TimeRow
-                              kind="out"
-                              label="Check-out"
-                              from={p.checkout_time_min as string | undefined}
-                              to={p.checkout_time}
-                              fallbackPrefix="Até"
-                            />
-                          )}
+                    {hasHorario && (() => {
+                      const raw = String(p.checkin_time ?? "").trim();
+                      const rawMax = String(p.checkin_time_max ?? "").trim();
+                      const lower = raw.toLowerCase();
+                      const fmt = (s: string) => {
+                        const m = s.match(/^(\d{1,2}):(\d{2})/);
+                        return m ? `${m[1].padStart(2, "0")}h${m[2]}` : s;
+                      };
+                      let summary: string;
+                      if (/flex/i.test(lower)) summary = "Check-In flexível.";
+                      else if (/agend/i.test(lower)) summary = "Check-In sob agendamento.";
+                      else if (raw && rawMax) summary = `Check-In entre ${fmt(raw)} e ${fmt(rawMax)}`;
+                      else summary = `Check-In a partir de ${fmt(raw)}`;
+                      return (
+                        <SubItem
+                          icon={<Clock className="size-[18px]" strokeWidth={1.6} />}
+                          label="Horários"
+                          hint={summary}
+                        >
+                          <div className="rounded-2xl border border-border/60 bg-background/40 px-4 py-3.5">
+                            <p className="text-[15px] font-medium text-foreground/95 leading-snug">{summary}</p>
+                          </div>
+                        </SubItem>
+                      );
+                    })()}
                         </div>
                       </SubItem>
                     )}
