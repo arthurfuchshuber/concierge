@@ -141,23 +141,35 @@ export const upsertProperty = createServerFn({ method: "POST" })
   .inputValidator((i: unknown) => SavePropertyInput.parse(i))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
+    const { resolveUserPlan, assertCanCreateGuide } = await import("@/lib/plan-guard.server");
+    const plan = await resolveUserPlan(supabase, userId);
     let propertyId = data.id ?? null;
+
+    // Strip Business-only fields when the user is not on Business.
+    const propertyData: Record<string, unknown> = { ...data.property };
+    if (!plan.features.customBrand) {
+      propertyData.brand_name = null;
+      propertyData.brand_logo_url = null;
+    }
 
     if (propertyId) {
       const { error } = await supabase
         .from("properties")
-        .update({ ...data.property })
+        .update(propertyData)
         .eq("id", propertyId);
       if (error) throw (await import("@/lib/db-errors.server")).safeDbError("properties", error);
     } else {
+      // Enforce per-plan quota on creation.
+      await assertCanCreateGuide(supabase, userId);
       const { data: inserted, error } = await supabase
         .from("properties")
-        .insert({ ...data.property, owner_id: userId })
+        .insert({ ...propertyData, owner_id: userId })
         .select("id")
         .single();
       if (error) throw (await import("@/lib/db-errors.server")).safeDbError("properties", error);
       propertyId = inserted.id;
     }
+
 
     // Replace child tables wholesale (simpler than diff). All scoped via RLS.
     const id = propertyId!;
