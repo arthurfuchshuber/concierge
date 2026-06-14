@@ -15,7 +15,7 @@ import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Loader2, Sparkles, Plus, Trash2, MapPin, ArrowLeft, FileText, KeyRound, Home, Compass, LifeBuoy, Check, Eye, Image as ImageIcon, MapPinned, Clock, DoorOpen, Wifi, UserRound, BookOpen, ClipboardCheck, Shield, Globe, Power, Phone, HelpCircle, Sun, Moon, Palette, Lock, MessageSquare } from "lucide-react";
+import { Loader2, Sparkles, Plus, Trash2, MapPin, ArrowLeft, FileText, KeyRound, Home, Compass, LifeBuoy, Check, Eye, Image as ImageIcon, MapPinned, Clock, DoorOpen, Wifi, UserRound, BookOpen, ClipboardCheck, Shield, Globe, Power, Phone, HelpCircle, Sun, Moon, Palette, Lock, MessageSquare, LogOut } from "lucide-react";
 import { ImageUpload } from "@/components/ImageUpload";
 import { MediaUpload, type MediaItem } from "@/components/MediaUpload";
 import { EtiquetaSelect, ETIQUETA_OPTIONS } from "@/components/EtiquetaSelect";
@@ -67,6 +67,7 @@ type FormState = {
     gate_code: string;
     address_note: string;
     checkin_instructions: string;
+    checkout_instructions: string;
     checkin_media: MediaItem[];
     access_instructions: string;
     access_media: MediaItem[];
@@ -99,7 +100,7 @@ function emptyForm(): FormState {
       theme_images: { checkin: "", residencia: "", faq: "", explore: "" },
       address: "", maps_url: "",
       lat: null, lng: null, city: "", country: "", checkin_time: "15:00", checkin_time_max: "", checkout_time: "11:00", checkout_time_min: "",
-      lock_code: "", gate_code: "", address_note: "", checkin_instructions: "", checkin_media: [], access_instructions: "", access_media: [], access_video_url: "", wifi_ssid: "", wifi_password: "",
+      lock_code: "", gate_code: "", address_note: "", checkin_instructions: "", checkout_instructions: "", checkin_media: [], access_instructions: "", access_media: [], access_video_url: "", wifi_ssid: "", wifi_password: "",
       host_name: "", host_phone: "", brand_name: "", brand_logo_url: "", access_mode: "public", pin_code: "", pin_expires_at: "",
       default_language: "pt", guide_theme: "dark", published: true,
     },
@@ -180,6 +181,7 @@ function PropertyEditor() {
         gate_code: (p.gate_code as string) ?? "",
         address_note: (p.address_note as string) ?? "",
         checkin_instructions: (p.checkin_instructions as string) ?? "",
+        checkout_instructions: (p.checkout_instructions as string) ?? "",
         checkin_media: Array.isArray(p.checkin_media)
           ? (p.checkin_media as MediaItem[]).filter((m) => m && typeof m.url === "string").slice(0, 8)
           : [],
@@ -367,6 +369,7 @@ function PropertyEditor() {
           gate_code: form.property.gate_code || null,
           address_note: form.property.address_note || null,
           checkin_instructions: form.property.checkin_instructions || null,
+          checkout_instructions: form.property.checkout_instructions || null,
           checkin_media: form.property.checkin_media,
           access_instructions: form.property.access_instructions || null,
           access_media: form.property.access_media,
@@ -539,15 +542,15 @@ function PropertyEditor() {
           <Section
             icon={DoorOpen}
             title="Instruções de check-in"
-            desc="Passo a passo da chegada, com fotos ou vídeos do trajeto, entrada, fechadura, etc."
+            desc="Passo a passo da chegada. Escreva uma instrução por linha — cada linha vira uma etapa numerada no guia."
           >
-            <Field label="Passo a passo (opcional)" hint="Descreva como o hóspede deve chegar e entrar.">
+            <Field label="Passo a passo (opcional)" hint="Uma etapa por linha. Linhas em branco são ignoradas.">
               <Textarea
                 value={form.property.checkin_instructions}
                 maxLength={3000}
                 rows={6}
                 onChange={(e) => update("checkin_instructions", e.target.value)}
-                placeholder={"Ex.: 1) Estacione na vaga 12.\n2) Aponte para o portão lateral.\n3) Use o código de portão e fechadura ao lado."}
+                placeholder={"Estacione na vaga 12.\nAponte para o portão lateral.\nUse o código de portão e fechadura ao lado."}
               />
             </Field>
             <Field label="Fotos e vídeos do check-in" hint="Até 8 itens. Imagens (máx 10MB) ou vídeos (máx 60MB).">
@@ -556,6 +559,22 @@ function PropertyEditor() {
                 onChange={(next) => update("checkin_media", next)}
                 folder="checkin"
                 max={8}
+              />
+            </Field>
+          </Section>
+
+          <Section
+            icon={LogOut}
+            title="Instruções de check-out"
+            desc="Passo a passo da saída. Mesmo formato: uma instrução por linha."
+          >
+            <Field label="Passo a passo (opcional)" hint="Uma etapa por linha. Linhas em branco são ignoradas.">
+              <Textarea
+                value={form.property.checkout_instructions}
+                maxLength={3000}
+                rows={6}
+                onChange={(e) => update("checkout_instructions", e.target.value)}
+                placeholder={"Deixe as chaves sobre a mesa de jantar.\nFeche todas as janelas.\nTranque a porta principal ao sair."}
               />
             </Field>
           </Section>

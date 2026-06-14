@@ -294,7 +294,8 @@ function Guide({ data }: { data: GuideOk }) {
                 const accessMedia = Array.isArray(p.access_media) ? (p.access_media as Array<{ url: string; type: "image" | "video" }>) : [];
                 const hasAcesso = !!(p.gate_code || p.lock_code || p.access_instructions || p.access_video_url || accessMedia.length > 0);
                 const hasWifi = !!p.wifi_ssid;
-                if (!hasHorario && !hasChegada && !hasAcesso && !hasWifi) {
+                const hasSaida = !!p.checkout_instructions;
+                if (!hasHorario && !hasChegada && !hasAcesso && !hasWifi && !hasSaida) {
                   return <p className="text-sm text-muted-foreground">Sem informações cadastradas.</p>;
                 }
                 const hasCoords = p.lat != null && p.lng != null;
@@ -411,12 +412,8 @@ function Guide({ data }: { data: GuideOk }) {
                             <div>
                               <p className="text-[10px] uppercase tracking-[0.24em] text-muted-foreground font-semibold mb-2">Instruções de check-in</p>
                               {p.checkin_instructions && (
-                                <div className="space-y-3 text-[14px] leading-relaxed text-foreground/85 mb-3">
-                                  {String(p.checkin_instructions)
-                                    .split(/\n\s*\n/)
-                                    .map((para: string, i: number) => (
-                                      <p key={i} className="whitespace-pre-line">{para}</p>
-                                    ))}
+                                <div className="mb-3">
+                                  <StepList text={String(p.checkin_instructions)} />
                                 </div>
                               )}
                               {Array.isArray(p.checkin_media) && p.checkin_media.length > 0 && (
@@ -465,8 +462,8 @@ function Guide({ data }: { data: GuideOk }) {
                                 <ListOrdered className="size-[18px]" strokeWidth={1.75} />
                               </div>
                               <div className="min-w-0 flex-1">
-                                <div className="text-[9.5px] font-medium uppercase tracking-[0.14em] text-muted-foreground mb-1">Passo a passo</div>
-                                <p className="text-[13.5px] leading-relaxed text-foreground/90 whitespace-pre-wrap">{p.access_instructions as string}</p>
+                                <div className="text-[9.5px] font-medium uppercase tracking-[0.14em] text-muted-foreground mb-2">Passo a passo</div>
+                                <StepList text={p.access_instructions as string} dense />
                               </div>
                             </div>
                           )}
@@ -518,6 +515,19 @@ function Guide({ data }: { data: GuideOk }) {
                           {p.wifi_password && (
                             <CopyCard flat icon={<KeyRound className="size-[18px]" strokeWidth={1.75} />} eyebrow="Senha" label="Toque para copiar" value={p.wifi_password} />
                           )}
+                        </div>
+                      </SubItem>
+                    )}
+
+                    {hasSaida && (
+                      <SubItem
+                        icon={<LogOut className="size-[18px]" strokeWidth={1.6} />}
+                        label="Saída"
+                        hint="Passo a passo do check-out"
+                      >
+                        <div className="rounded-xl bg-background/50 border border-border/50 p-3.5">
+                          <div className="text-[9.5px] font-medium uppercase tracking-[0.14em] text-muted-foreground mb-2">Instruções de check-out</div>
+                          <StepList text={p.checkout_instructions as string} />
                         </div>
                       </SubItem>
                     )}
@@ -957,6 +967,31 @@ function SubList({ children }: { children: React.ReactNode }) {
     <Accordion type="single" collapsible className="bg-card border border-border rounded-2xl overflow-hidden divide-y divide-border/70">
       {children}
     </Accordion>
+  );
+}
+
+function StepList({ text, dense = false }: { text: string; dense?: boolean }) {
+  const steps = text
+    .split(/\r?\n/)
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0)
+    .map((s) => s.replace(/^\s*(?:\d+[.)\-º°]\s*|[-•·*]\s*)/, "").trim())
+    .filter((s) => s.length > 0);
+  if (steps.length === 0) return null;
+  return (
+    <ol className={dense ? "space-y-1.5" : "space-y-2"}>
+      {steps.map((step, i) => (
+        <li key={i} className="flex items-start gap-2.5">
+          <span
+            aria-hidden
+            className="mt-0.5 shrink-0 grid place-items-center min-w-[22px] h-[22px] px-1.5 rounded-md bg-primary/15 text-primary text-[11.5px] font-semibold tabular-nums leading-none"
+          >
+            {i + 1}
+          </span>
+          <span className="text-[13.5px] leading-relaxed text-foreground/90">{step}</span>
+        </li>
+      ))}
+    </ol>
   );
 }
 

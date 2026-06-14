@@ -52,6 +52,7 @@ export type Database = {
           checkin_media: Json
           checkin_time: string | null
           checkin_time_max: string | null
+          checkout_instructions: string | null
           checkout_time: string | null
           checkout_time_min: string | null
           city: string | null
@@ -94,6 +95,7 @@ export type Database = {
           checkin_media?: Json
           checkin_time?: string | null
           checkin_time_max?: string | null
+          checkout_instructions?: string | null
           checkout_time?: string | null
           checkout_time_min?: string | null
           city?: string | null
@@ -136,6 +138,7 @@ export type Database = {
           checkin_media?: Json
           checkin_time?: string | null
           checkin_time_max?: string | null
+          checkout_instructions?: string | null
           checkout_time?: string | null
           checkout_time_min?: string | null
           city?: string | null
