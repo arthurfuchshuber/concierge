@@ -412,15 +412,15 @@ function Guide({ data }: { data: GuideOk }) {
                             </div>
                           )}
                           {(p.checkin_instructions || (Array.isArray(p.checkin_media) && p.checkin_media.length > 0)) && (
-                            <div>
-                              <p className="text-[10px] uppercase tracking-[0.24em] text-muted-foreground font-semibold mb-2">Instruções de check-in</p>
+                            <div className="pt-1">
+                              <p className="text-[11px] uppercase tracking-[0.22em] text-primary font-semibold mb-3">Instruções de check-in</p>
                               {p.checkin_instructions && (
                                 <div className="mb-3">
                                   <StepList text={String(p.checkin_instructions)} />
                                 </div>
                               )}
                               {Array.isArray(p.checkin_media) && p.checkin_media.length > 0 && (
-                                <div className="grid grid-cols-2 gap-2">
+                                <div className="grid grid-cols-2 gap-2 mt-3">
                                   {(p.checkin_media as Array<{ url: string; type: "image" | "video" }>).map((m, i) => (
                                     <div key={i} className="rounded-xl overflow-hidden border border-border bg-muted/40 aspect-square">
                                       {m.type === "video" ? (
@@ -496,8 +496,8 @@ function Guide({ data }: { data: GuideOk }) {
                         label="Saída"
                         hint="Passo a passo do check-out"
                       >
-                        <div className="rounded-xl bg-background/50 border border-border/50 p-3.5">
-                          <div className="text-[9.5px] font-medium uppercase tracking-[0.14em] text-muted-foreground mb-2">Instruções de check-out</div>
+                        <div className="pt-1">
+                          <p className="text-[11px] uppercase tracking-[0.22em] text-primary font-semibold mb-3">Instruções de check-out</p>
                           <StepList text={p.checkout_instructions as string} />
                         </div>
                       </SubItem>
@@ -950,16 +950,16 @@ function StepList({ text, dense = false }: { text: string; dense?: boolean }) {
     .filter((s) => s.length > 0);
   if (steps.length === 0) return null;
   return (
-    <ol className={dense ? "space-y-1.5" : "space-y-2"}>
+    <ol className={dense ? "space-y-3" : "space-y-3.5"}>
       {steps.map((step, i) => (
-        <li key={i} className="flex items-start gap-2.5">
+        <li key={i} className="flex items-start gap-3">
           <span
             aria-hidden
-            className="mt-0.5 shrink-0 grid place-items-center min-w-[22px] h-[22px] px-1.5 rounded-md bg-primary/15 text-primary text-[11.5px] font-semibold tabular-nums leading-none"
+            className="mt-px shrink-0 grid place-items-center size-6 rounded-full border border-border/70 text-muted-foreground text-[12px] font-medium tabular-nums leading-none"
           >
             {i + 1}
           </span>
-          <span className="text-[13.5px] leading-relaxed text-foreground/90">{step}</span>
+          <span className="text-[14px] leading-[1.55] text-foreground/90 pt-0.5">{step}</span>
         </li>
       ))}
     </ol>
@@ -976,16 +976,16 @@ function SubItem({
     <AccordionItem value={id} className="border-0">
       <AccordionTrigger className="px-4 py-3.5 hover:no-underline">
         <div className="flex items-center gap-3.5 flex-1 min-w-0">
-          <span className="grid size-10 shrink-0 place-items-center rounded-full bg-secondary text-foreground/80">
+          <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-secondary text-foreground/80">
             {icon}
           </span>
           <div className="flex-1 min-w-0 text-left">
             <p className="text-[15px] leading-tight font-medium text-foreground">{label}</p>
-            {hint && <p className="text-[11.5px] text-muted-foreground mt-0.5 truncate">{hint}</p>}
+            {hint && <p className="text-[12px] text-muted-foreground mt-0.5 truncate">{hint}</p>}
           </div>
         </div>
       </AccordionTrigger>
-      <AccordionContent className="px-3 pb-3.5 pt-0">
+      <AccordionContent className="px-3 pb-4 pt-0">
         {children}
       </AccordionContent>
     </AccordionItem>
@@ -1004,53 +1004,54 @@ function AccessBlock({
   const Icon = kind === "gate" ? KeyRound : Lock;
   const label = kind === "gate" ? "Portão" : "Fechadura";
   return (
-    <div className="rounded-2xl border border-border/50 bg-background/40 overflow-hidden">
-      {/* Hero code */}
-      <div className="px-4 pt-4 pb-3.5 flex items-center gap-3">
-        <div className="grid size-10 shrink-0 place-items-center rounded-full bg-primary/10 text-primary">
-          <Icon className="size-[18px]" strokeWidth={1.75} />
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className="text-[9.5px] font-medium uppercase tracking-[0.18em] text-muted-foreground">{label}</div>
+    <div className="space-y-5">
+      {/* Hero code card */}
+      <div className="rounded-2xl border border-border/60 bg-background/40 px-4 pt-3.5 pb-4">
+        <div className="text-[10.5px] font-semibold uppercase tracking-[0.24em] text-muted-foreground mb-3">{label}</div>
+        <div className="flex items-center gap-3">
+          <div className="grid size-12 shrink-0 place-items-center rounded-xl bg-primary/15 text-primary">
+            <Icon className="size-[22px]" strokeWidth={1.75} />
+          </div>
+          <div className="font-mono text-[30px] font-bold tracking-[0.06em] text-foreground leading-none flex-1 min-w-0 truncate">
+            {code}
+          </div>
           <CopyCode value={code} />
         </div>
       </div>
 
-      {/* Step-by-step — no extra row chrome */}
+      {/* Step-by-step */}
       {instructions && (
-        <div className="px-4 pt-3 pb-1 border-t border-border/40">
+        <div className="px-1">
           <StepList text={instructions} dense />
         </div>
       )}
 
-      {/* Video tutorial — clean inline link */}
+      {/* Video tutorial */}
       {videoUrl && (
         <a
           href={videoUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="px-4 py-3 flex items-center gap-2.5 border-t border-border/40 hover:bg-foreground/[0.03] transition-colors"
+          className="px-1 flex items-center gap-2.5 group"
         >
-          <PlayCircle className="size-4 text-primary shrink-0" strokeWidth={1.75} />
-          <span className="text-[13.5px] font-medium text-foreground flex-1">Assistir tutorial em vídeo</span>
+          <PlayCircle className="size-[18px] text-primary shrink-0" strokeWidth={1.75} />
+          <span className="text-[14px] font-medium text-foreground flex-1 group-hover:text-primary transition-colors">Assistir tutorial em vídeo</span>
           <ExternalLink className="size-3.5 text-muted-foreground" />
         </a>
       )}
 
       {/* Media gallery */}
       {media.length > 0 && (
-        <div className="px-4 pt-3 pb-4 border-t border-border/40">
-          <div className="grid grid-cols-3 gap-1.5">
-            {media.map((m, i) => (
-              <div key={i} className="rounded-md overflow-hidden border border-border/50 bg-muted/40 aspect-square">
-                {m.type === "video" ? (
-                  <video src={m.url} className="size-full object-cover" controls playsInline preload="metadata" />
-                ) : (
-                  <img src={m.url} alt={`${label} ${i + 1}`} className="size-full object-cover" loading="lazy" />
-                )}
-              </div>
-            ))}
-          </div>
+        <div className="grid grid-cols-3 gap-1.5 px-1">
+          {media.map((m, i) => (
+            <div key={i} className="rounded-lg overflow-hidden border border-border/50 bg-muted/40 aspect-square">
+              {m.type === "video" ? (
+                <video src={m.url} className="size-full object-cover" controls playsInline preload="metadata" />
+              ) : (
+                <img src={m.url} alt={`${label} ${i + 1}`} className="size-full object-cover" loading="lazy" />
+              )}
+            </div>
+          ))}
         </div>
       )}
     </div>
@@ -1068,15 +1069,14 @@ function CopyCode({ value }: { value: string }) {
           setTimeout(() => setCopied(false), 1400);
         }).catch(() => {});
       }}
-      className="mt-0.5 inline-flex items-center gap-2 text-left group"
+      className="shrink-0 inline-flex items-center gap-1.5 rounded-xl border border-border/70 bg-background/60 px-3 py-2 text-[13px] font-medium text-foreground hover:bg-foreground/[0.04] active:bg-foreground/[0.06] transition-colors"
     >
-      <span className="font-mono text-[20px] font-semibold tracking-[0.08em] text-foreground leading-none">{value}</span>
-      <span className="grid size-7 place-items-center rounded-md bg-secondary/70 text-foreground/70 group-hover:bg-secondary group-hover:text-foreground transition-colors">
-        {copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
-      </span>
+      {copied ? <Check className="size-3.5 text-primary" /> : <Copy className="size-3.5" />}
+      <span>{copied ? "Copiado" : "Copiar"}</span>
     </button>
   );
 }
+
 
 function SectionTitle({ title, intro }: { eyebrow?: string; title: string; intro?: string }) {
   return (
