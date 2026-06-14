@@ -132,14 +132,24 @@ function Dashboard() {
             <CreditCard className="size-4 text-muted-foreground" />
           </div>
           <div className="flex items-baseline gap-2">
-            <span className="text-2xl font-serif">Pro</span>
-            <span className="text-[10px] uppercase tracking-wider font-semibold text-accent bg-accent/10 px-2 py-0.5 rounded-full">Lançamento</span>
+            <span className="text-2xl font-serif">{planName}</span>
+            {sub.isTrialing && (
+              <span className="text-[10px] uppercase tracking-wider font-semibold text-accent bg-accent/10 px-2 py-0.5 rounded-full">Trial</span>
+            )}
+            {sub.isPastDue && (
+              <span className="text-[10px] uppercase tracking-wider font-semibold text-destructive bg-destructive/10 px-2 py-0.5 rounded-full">Pagamento falhou</span>
+            )}
           </div>
           <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-xs line-through text-muted-foreground">{PLAN_OLD_PRICE}</span>
-            <span className="text-lg font-semibold">{PLAN_PRICE}</span>
-            <span className="text-xs text-muted-foreground">/mês</span>
+            <span className="text-lg font-semibold">{planPrice}</span>
+            {planConfig && <span className="text-xs text-muted-foreground">/mês</span>}
           </div>
+          <Link
+            to={sub.plan ? "/admin/assinatura" : "/precos"}
+            className="text-xs text-accent hover:underline mt-3 inline-block"
+          >
+            {sub.plan ? "Gerenciar assinatura" : "Ver planos"} →
+          </Link>
         </div>
 
         {/* Uso */}
@@ -148,13 +158,34 @@ function Dashboard() {
             <span className="text-sm font-medium text-muted-foreground">Uso de guias</span>
             <BookOpen className="size-4 text-muted-foreground" />
           </div>
-          <div className="text-2xl font-serif">{count} <span className="text-sm text-muted-foreground font-sans">/ {PLAN_LIMIT}</span></div>
+          <div className="text-2xl font-serif">
+            {count} <span className="text-sm text-muted-foreground font-sans">/ {planLimit || "—"}</span>
+          </div>
           <div className="mt-3 h-1.5 rounded-full bg-secondary overflow-hidden">
             <div className="h-full bg-accent transition-all" style={{ width: `${pct}%` }} />
           </div>
-          <p className="text-xs text-muted-foreground mt-2">{remaining} guias restantes</p>
+          <p className="text-xs text-muted-foreground mt-2">
+            {planLimit > 0 ? `${remaining} guias restantes` : "Assine um plano para criar guias"}
+          </p>
         </div>
       </div>
+
+      {sub.isPastDue && (
+        <div className="mb-6 rounded-2xl border border-destructive/30 bg-destructive/5 p-4 flex items-start gap-3">
+          <AlertTriangle className="size-5 text-destructive shrink-0 mt-0.5" />
+          <div className="flex-1">
+            <p className="text-sm font-medium text-destructive">Pagamento falhou</p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Atualize seu método de pagamento para evitar a suspensão do acesso.
+            </p>
+          </div>
+          <Link to="/admin/assinatura" className="text-xs font-medium px-3 py-1.5 rounded-full bg-destructive text-destructive-foreground hover:opacity-90">
+            Resolver
+          </Link>
+        </div>
+      )}
+
+
 
 
       {/* Guias section */}
