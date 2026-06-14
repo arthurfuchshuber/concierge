@@ -493,22 +493,16 @@ function Guide({ data }: { data: GuideOk }) {
               )}
             </TabsContent>
 
-            <TabsContent value="residencia" className="space-y-4">
-              <SectionTitle eyebrow="A casa" title="A Residência" intro="Manual e detalhes da casa." />
+            <TabsContent value="residencia" className="space-y-5">
+              <SectionTitle title="A Residência" intro="Manual e detalhes da casa — toque em um item para saber mais." />
               {houseManual.length === 0 ? (
                 <p className="text-sm text-muted-foreground">Sem informações adicionais.</p>
               ) : (
-                <Accordion type="single" collapsible className="space-y-2">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
                   {houseManual.map((m: any) => (
-                    <AccordionItem key={m.id} value={m.id} className="border border-border rounded-xl px-4">
-                      <AccordionTrigger className="text-sm font-medium">{m.title}</AccordionTrigger>
-                      <AccordionContent>
-                        {m.description && <p className="text-sm text-muted-foreground mb-2">{m.description}</p>}
-                        {m.body && <p className="text-sm whitespace-pre-line leading-relaxed">{m.body}</p>}
-                      </AccordionContent>
-                    </AccordionItem>
+                    <ResidenciaCard key={m.id} item={m} />
                   ))}
-                </Accordion>
+                </div>
               )}
             </TabsContent>
 
