@@ -108,9 +108,18 @@ function Dashboard() {
           <Button
             onClick={() => navigate({ to: "/admin/properties/$id", params: { id: "new" } })}
             className="rounded-full"
+            disabled={reachedLimit || !sub.plan}
+            title={
+              !sub.plan
+                ? "Assine um plano para criar guias"
+                : reachedLimit
+                ? "Limite do seu plano atingido. Faça upgrade."
+                : undefined
+            }
           >
             <Plus className="size-4 mr-1.5" /> Novo guia
           </Button>
+
         </div>
       </div>
 
