@@ -588,6 +588,50 @@ function PropertyEditor() {
           </Section>
 
           <Section
+            icon={Palette}
+            title="Marca personalizada"
+            desc={canBrand
+              ? "Substitua a marca exibida no rodapé do guia público pela sua. Logomarca e nome aparecerão para os hóspedes."
+              : "Disponível no plano Business. Faça upgrade para exibir sua própria marca no rodapé do guia."}
+          >
+            {!canBrand && (
+              <div className="mb-3 rounded-xl border border-border bg-secondary/40 p-3 text-xs text-muted-foreground flex items-start gap-2">
+                <Lock className="size-3.5 shrink-0 mt-0.5" />
+                <span>
+                  Exclusivo Business.{" "}
+                  <Link to="/precos" className="underline font-medium">Ver planos</Link>.
+                </span>
+              </div>
+            )}
+            <Field label="Nome da marca">
+              <Input
+                value={form.property.brand_name}
+                maxLength={120}
+                placeholder="Ex: Casa Maré Hospitality"
+                onChange={(e) => update("brand_name", e.target.value)}
+                disabled={!canBrand}
+              />
+            </Field>
+            <Field label="Logomarca (URL https)">
+              <Input
+                value={form.property.brand_logo_url}
+                maxLength={2048}
+                placeholder="https://..."
+                onChange={(e) => update("brand_logo_url", e.target.value)}
+                disabled={!canBrand}
+              />
+            </Field>
+            {canBrand && form.property.brand_logo_url && (
+              <div className="mt-2 inline-flex items-center gap-2 rounded-lg border border-border bg-secondary/30 px-3 py-2">
+                <img src={form.property.brand_logo_url} alt="Preview" className="h-8 w-auto object-contain" />
+                <span className="text-xs text-muted-foreground">Pré-visualização</span>
+              </div>
+            )}
+          </Section>
+
+
+
+          <Section
             icon={BookOpen}
             title="Manual da casa"
             desc="Instruções de equipamentos e funcionamento."
