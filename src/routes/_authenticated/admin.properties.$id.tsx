@@ -181,6 +181,7 @@ function PropertyEditor() {
         gate_code: (p.gate_code as string) ?? "",
         address_note: (p.address_note as string) ?? "",
         checkin_instructions: (p.checkin_instructions as string) ?? "",
+        checkout_instructions: (p.checkout_instructions as string) ?? "",
         checkin_media: Array.isArray(p.checkin_media)
           ? (p.checkin_media as MediaItem[]).filter((m) => m && typeof m.url === "string").slice(0, 8)
           : [],
