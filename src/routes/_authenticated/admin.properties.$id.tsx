@@ -513,6 +513,30 @@ function PropertyEditor() {
               <Textarea value={form.property.address_note} maxLength={1000} onChange={(e) => update("address_note", e.target.value)} />
             </Field>
           </Section>
+
+          <Section
+            icon={DoorOpen}
+            title="Instruções de check-in"
+            desc="Passo a passo da chegada, com fotos ou vídeos do trajeto, entrada, fechadura, etc."
+          >
+            <Field label="Passo a passo (opcional)" hint="Descreva como o hóspede deve chegar e entrar.">
+              <Textarea
+                value={form.property.checkin_instructions}
+                maxLength={3000}
+                rows={6}
+                onChange={(e) => update("checkin_instructions", e.target.value)}
+                placeholder={"Ex.: 1) Estacione na vaga 12.\n2) Aponte para o portão lateral.\n3) Use o código de portão e fechadura ao lado."}
+              />
+            </Field>
+            <Field label="Fotos e vídeos do check-in" hint="Até 8 itens. Imagens (máx 10MB) ou vídeos (máx 60MB).">
+              <MediaUpload
+                value={form.property.checkin_media}
+                onChange={(next) => update("checkin_media", next)}
+                folder="checkin"
+                max={8}
+              />
+            </Field>
+          </Section>
         </TabsContent>
 
         <TabsContent value="access" className="space-y-5 mt-6">
