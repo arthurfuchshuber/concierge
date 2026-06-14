@@ -443,13 +443,14 @@ function Guide({ data }: { data: GuideOk }) {
                         label="Check-in"
                         hint="Passo a passo da chegada"
                       >
-                        <div className="pt-1">
-                          <p className="text-[11px] uppercase tracking-[0.24em] text-accent font-semibold mb-4">Instruções de check-in</p>
+                        <div className="space-y-4">
                           {p.checkin_instructions && (
-                            <StepList text={String(p.checkin_instructions)} />
+                            <div className="rounded-2xl border border-border/60 bg-background/40 px-4 py-4">
+                              <StepList text={String(p.checkin_instructions)} dense />
+                            </div>
                           )}
                           {Array.isArray(p.checkin_media) && p.checkin_media.length > 0 && (
-                            <div className="grid grid-cols-2 gap-2 mt-4">
+                            <div className="grid grid-cols-2 gap-2">
                               {(p.checkin_media as Array<{ url: string; type: "image" | "video" }>).map((m, i) => (
                                 <div key={i} className="rounded-xl overflow-hidden border border-border bg-muted/40 aspect-square">
                                   {m.type === "video" ? (
@@ -524,9 +525,8 @@ function Guide({ data }: { data: GuideOk }) {
                         label="Saída"
                         hint="Passo a passo do check-out"
                       >
-                        <div className="pt-1">
-                          <p className="text-[11px] uppercase tracking-[0.22em] text-accent font-semibold mb-3">Instruções de check-out</p>
-                          <StepList text={p.checkout_instructions as string} />
+                        <div className="rounded-2xl border border-border/60 bg-background/40 px-4 py-4">
+                          <StepList text={p.checkout_instructions as string} dense />
                         </div>
                       </SubItem>
                     )}
