@@ -125,7 +125,7 @@ export const Route = createFileRoute("/api/public/guide-chat")({
           supabaseAdmin.from("property_faqs").select("question, answer").eq("property_id", prop.id).order("position"),
           supabaseAdmin.from("property_emergency_contacts").select("label, number").eq("property_id", prop.id).order("position"),
           supabaseAdmin.from("property_checkout_items").select("label").eq("property_id", prop.id).order("position"),
-          supabaseAdmin.from("property_recommendations").select("name, category, type, scope, distance_text, description, notes").eq("property_id", prop.id).order("position"),
+          supabaseAdmin.from("property_recommendations").select("name, category, type, scope, distance_text, note").eq("property_id", prop.id).order("position"),
         ]);
 
         const systemContext = buildContext(prop as Record<string, unknown>, {
