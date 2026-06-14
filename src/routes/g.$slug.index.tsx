@@ -944,15 +944,17 @@ function InfoTile({ label, value, border }: { label: string; value: string; bord
   );
 }
 
-function TimeRow({
+function StayBlock({
   kind,
-  label,
+  eyebrow,
+  title,
   from,
   to,
   fallbackPrefix,
 }: {
   kind: "in" | "out";
-  label: string;
+  eyebrow: string;
+  title: string;
   from?: string;
   to?: string;
   fallbackPrefix: string;
@@ -960,24 +962,34 @@ function TimeRow({
   const Icon = kind === "in" ? LogIn : LogOut;
   const hasRange = !!from && !!to;
   const single = from || to || "";
+  const accent =
+    kind === "in"
+      ? "from-emerald-500/15 to-emerald-500/0 text-emerald-300/90"
+      : "from-rose-500/15 to-rose-500/0 text-rose-300/90";
   return (
-    <div className="flex items-center gap-3.5 px-4 py-3.5">
-      <div className="size-9 rounded-full bg-foreground/5 flex items-center justify-center shrink-0">
-        <Icon className="size-[16px] text-foreground/70" strokeWidth={1.7} />
+    <div className="relative overflow-hidden rounded-2xl border border-border/60 bg-card/40 p-4 sm:p-5">
+      <div className={`pointer-events-none absolute -top-10 -right-10 size-32 rounded-full bg-gradient-to-br ${accent} blur-2xl opacity-70`} />
+      <div className="relative flex items-center gap-2.5 mb-3">
+        <span className={`size-8 rounded-full bg-foreground/5 grid place-items-center ${kind === "in" ? "text-emerald-300/90" : "text-rose-300/90"}`}>
+          <Icon className="size-[15px]" strokeWidth={1.8} />
+        </span>
+        <div className="min-w-0">
+          <p className="text-[9.5px] uppercase tracking-[0.24em] text-muted-foreground font-semibold leading-none">{eyebrow}</p>
+          <p className="text-[12.5px] text-foreground/70 mt-1 leading-none">{title}</p>
+        </div>
       </div>
-      <div className="min-w-0 flex-1">
-        <p className="text-[10.5px] uppercase tracking-[0.18em] text-muted-foreground font-semibold">{label}</p>
+      <div className="relative">
         {hasRange ? (
-          <div className="mt-0.5 flex items-baseline gap-1.5 text-[15px] font-medium text-foreground/95 leading-snug">
-            <span className="tabular-nums">{from}</span>
-            <ArrowRight className="size-3 text-muted-foreground/70 self-center" strokeWidth={2} />
-            <span className="tabular-nums">{to}</span>
+          <div className="flex items-baseline gap-2 text-foreground">
+            <span className="text-[22px] sm:text-[24px] font-semibold tabular-nums leading-none">{from}</span>
+            <ArrowRight className="size-3.5 text-muted-foreground/70 self-center" strokeWidth={2} />
+            <span className="text-[22px] sm:text-[24px] font-semibold tabular-nums leading-none">{to}</span>
           </div>
         ) : (
-          <p className="mt-0.5 text-[15px] font-medium text-foreground/95 leading-snug">
-            <span className="text-muted-foreground/80 font-normal">{fallbackPrefix} </span>
-            <span className="tabular-nums">{single}</span>
-          </p>
+          <div className="flex items-baseline gap-2">
+            <span className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground font-medium">{fallbackPrefix}</span>
+            <span className="text-[22px] sm:text-[24px] font-semibold tabular-nums leading-none text-foreground">{single}</span>
+          </div>
         )}
       </div>
     </div>
