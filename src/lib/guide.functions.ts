@@ -50,7 +50,9 @@ export const getPublicGuide = createServerFn({ method: "POST" })
     const { pin_code: _omit, ...safeProp } = prop;
     void _omit;
     const children = await loadFullGuide(supabaseAdmin, prop.id);
-    return { status: "ok" as const, property: safeProp, ...children };
+    const { signPropertyImages } = await import("@/lib/storage.server");
+    const signedProp = await signPropertyImages(supabaseAdmin, safeProp);
+    return { status: "ok" as const, property: signedProp, ...children };
   });
 
 const PinSubmit = z.object({
