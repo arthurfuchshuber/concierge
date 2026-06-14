@@ -5,6 +5,8 @@ import { useQuery } from "@tanstack/react-query";
 import { getMyProperty, upsertProperty } from "@/lib/properties.functions";
 import { enrichFromMapsLink } from "@/lib/maps.functions";
 import { importFromAirbnb } from "@/lib/airbnb.functions";
+import { useSubscription } from "@/hooks/useSubscription";
+
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
