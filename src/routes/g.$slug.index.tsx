@@ -549,17 +549,33 @@ function Guide({ data }: { data: GuideOk }) {
               )}
             </TabsContent>
 
-            <TabsContent value="faq" className="space-y-5">
-              <SectionTitle eyebrow="Suporte" title="Dúvidas Frequentes" />
-              {(p.host_name || p.host_phone) && (
-                <div className="bg-card border border-border rounded-2xl p-4">
-                  <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold mb-2">Anfitrião</p>
-                  {p.host_name && <p className="text-sm font-medium">{p.host_name}</p>}
-                  {p.host_phone && (
-                    <a href={`tel:${p.host_phone}`} className="text-sm text-primary inline-flex items-center gap-1.5 mt-1">
-                      <Phone className="size-3.5" /> {p.host_phone}
-                    </a>
-                  )}
+            <TabsContent value="faq" className="space-y-6">
+              <SectionTitle title="Dúvidas" />
+              {data.faqs.length > 0 && (
+                <div>
+                  <div className="mb-3 flex items-center gap-2">
+                    <HelpCircle className="size-4 text-muted-foreground" />
+                    <h3 className="text-xs uppercase tracking-[0.18em] font-semibold text-muted-foreground">Perguntas frequentes</h3>
+                  </div>
+                  <Accordion type="single" collapsible className="space-y-2.5">
+                    {data.faqs.map((f: any, idx: number) => (
+                      <AccordionItem
+                        key={f.id}
+                        value={f.id}
+                        className="border border-border rounded-2xl px-4 bg-card/40 hover:bg-card transition-colors data-[state=open]:bg-card data-[state=open]:border-accent/40"
+                      >
+                        <AccordionTrigger className="text-sm font-medium text-left hover:no-underline py-4">
+                          <span className="flex items-start gap-3">
+                            <span className="text-[10px] font-mono text-accent/80 tabular-nums tracking-wider mt-0.5 shrink-0">{String(idx + 1).padStart(2, "0")}</span>
+                            <span className="font-serif text-[15px] leading-snug">{f.question}</span>
+                          </span>
+                        </AccordionTrigger>
+                        <AccordionContent className="text-[14px] leading-relaxed whitespace-pre-line text-foreground/85 pl-7 pr-1 pb-4 max-w-prose">
+                          {f.answer}
+                        </AccordionContent>
+                      </AccordionItem>
+                    ))}
+                  </Accordion>
                 </div>
               )}
               {data.emergency.length > 0 && (
@@ -568,30 +584,61 @@ function Guide({ data }: { data: GuideOk }) {
                     <LifeBuoy className="size-4 text-muted-foreground" />
                     <h3 className="text-xs uppercase tracking-[0.18em] font-semibold text-muted-foreground">Emergências</h3>
                   </div>
-                  <div className="space-y-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     {data.emergency.map((e: any) => (
-                      <a key={e.id} href={`tel:${e.number}`} className="flex items-center justify-between bg-card border border-border rounded-xl p-3 active:scale-[0.98] transition-transform">
-                        <span className="text-sm font-medium">{e.label}</span>
-                        <span className="text-sm text-primary font-mono">{e.number}</span>
+                      <a
+                        key={e.id}
+                        href={`tel:${e.number}`}
+                        className="flex items-center gap-3 bg-card border border-border rounded-xl p-3 active:scale-[0.98] transition-transform hover:border-accent/50"
+                      >
+                        <span className="size-10 rounded-full bg-accent/15 text-accent grid place-items-center shrink-0">
+                          <Phone className="size-[18px]" strokeWidth={1.75} />
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-medium truncate">{e.label}</p>
+                          <p className="text-[13px] text-muted-foreground font-mono tracking-wider">{e.number}</p>
+                        </div>
                       </a>
                     ))}
                   </div>
                 </div>
               )}
-              {data.faqs.length > 0 && (
+              {(p.host_name || p.host_phone) && (
                 <div>
                   <div className="mb-3 flex items-center gap-2">
-                    <HelpCircle className="size-4 text-muted-foreground" />
-                    <h3 className="text-xs uppercase tracking-[0.18em] font-semibold text-muted-foreground">FAQ</h3>
+                    <UserRound className="size-4 text-muted-foreground" />
+                    <h3 className="text-xs uppercase tracking-[0.18em] font-semibold text-muted-foreground">Anfitrião</h3>
                   </div>
-                  <Accordion type="single" collapsible className="space-y-2">
-                    {data.faqs.map((f: any) => (
-                      <AccordionItem key={f.id} value={f.id} className="border border-border rounded-xl px-4">
-                        <AccordionTrigger className="text-sm font-medium text-left">{f.question}</AccordionTrigger>
-                        <AccordionContent className="text-sm whitespace-pre-line">{f.answer}</AccordionContent>
-                      </AccordionItem>
-                    ))}
-                  </Accordion>
+                  <div className="relative overflow-hidden rounded-2xl border border-border bg-gradient-to-br from-accent/10 via-card to-card p-5">
+                    <div className="pointer-events-none absolute -top-12 -right-12 size-40 rounded-full bg-accent/15 blur-3xl" />
+                    <div className="relative flex items-center gap-4">
+                      <div className="size-14 rounded-full bg-accent/20 text-accent grid place-items-center font-serif text-xl shrink-0">
+                        {(p.host_name as string | undefined)?.trim()?.charAt(0)?.toUpperCase() ?? <UserRound className="size-6" />}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        {p.host_name && <p className="font-serif text-xl leading-tight truncate">{p.host_name}</p>}
+                        <p className="text-[11px] uppercase tracking-[0.22em] text-muted-foreground font-semibold mt-1">Seu anfitrião</p>
+                      </div>
+                    </div>
+                    {p.host_phone && (
+                      <div className="relative mt-4 flex flex-wrap gap-2">
+                        <a
+                          href={`tel:${p.host_phone}`}
+                          className="inline-flex items-center gap-2 rounded-full bg-foreground text-background px-4 py-2 text-sm font-medium hover:brightness-110 transition"
+                        >
+                          <Phone className="size-3.5" /> Ligar
+                        </a>
+                        <a
+                          href={`https://wa.me/${String(p.host_phone).replace(/\D/g, "")}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-2 rounded-full border border-border bg-background/60 px-4 py-2 text-sm font-medium hover:border-accent/50 transition"
+                        >
+                          <Phone className="size-3.5" /> WhatsApp
+                        </a>
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
               {!p.host_name && !p.host_phone && data.emergency.length === 0 && data.faqs.length === 0 && (
