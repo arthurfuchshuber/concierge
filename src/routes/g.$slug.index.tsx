@@ -189,7 +189,7 @@ function Guide({ data }: { data: GuideOk }) {
     {
       key: "faq",
       eyebrow: "Suporte",
-      title: "Dúvidas Frequentes",
+      title: "Dúvidas",
       desc: "Anfitrião, emergências e respostas rápidas.",
       icon: <HelpCircle className="size-5" strokeWidth={1.5} />,
       image: themePick("faq", 3),
