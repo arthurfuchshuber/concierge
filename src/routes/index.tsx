@@ -87,6 +87,12 @@ function Nav() {
         </Link>
         <div className="flex items-center gap-1">
           <Link
+            to="/precos"
+            className="text-xs md:text-sm font-medium px-3 py-1.5 rounded-full hover:bg-secondary transition-colors hidden sm:inline-flex"
+          >
+            Planos
+          </Link>
+          <Link
             to="/auth"
             className="text-xs md:text-sm font-medium px-3 py-1.5 rounded-full hover:bg-secondary transition-colors"
           >
@@ -100,6 +106,7 @@ function Nav() {
             <ArrowRight className="size-3.5" strokeWidth={2} />
           </Link>
         </div>
+
       </div>
     </header>
   );
