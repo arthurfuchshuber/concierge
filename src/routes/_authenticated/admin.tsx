@@ -13,7 +13,9 @@ const baseNav = [
   { to: "/admin", label: "Painel", icon: LayoutDashboard, exact: true },
   { to: "/admin/assinatura", label: "Assinatura", icon: CreditCard, exact: false },
 ] as const;
-const adminNav = { to: "/admin/clientes", label: "Clientes", icon: Users, exact: false } as const;
+const adminOnlyNav = [
+  { to: "/admin/clientes", label: "Clientes", icon: Users, exact: false },
+] as const;
 
 function AdminLayout() {
   const navigate = useNavigate();
