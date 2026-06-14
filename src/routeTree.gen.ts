@@ -22,6 +22,7 @@ import { Route as GSlugIndexRouteImport } from './routes/g.$slug.index'
 import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin.index'
 import { Route as GSlugExplorarRouteImport } from './routes/g.$slug.explorar'
 import { Route as ApiPublicGuideChatRouteImport } from './routes/api/public/guide-chat'
+import { Route as AuthenticatedAdminClientesRouteImport } from './routes/_authenticated/admin.clientes'
 import { Route as AuthenticatedAdminAssinaturaRouteImport } from './routes/_authenticated/admin.assinatura'
 import { Route as ApiPublicPaymentsWebhookRouteImport } from './routes/api/public/payments/webhook'
 import { Route as AuthenticatedAdminPropertiesIdRouteImport } from './routes/_authenticated/admin.properties.$id'
@@ -91,6 +92,12 @@ const ApiPublicGuideChatRoute = ApiPublicGuideChatRouteImport.update({
   path: '/api/public/guide-chat',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedAdminClientesRoute =
+  AuthenticatedAdminClientesRouteImport.update({
+    id: '/clientes',
+    path: '/clientes',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
 const AuthenticatedAdminAssinaturaRoute =
   AuthenticatedAdminAssinaturaRouteImport.update({
     id: '/assinatura',
@@ -126,6 +133,7 @@ export interface FileRoutesByFullPath {
   '/admin': typeof AuthenticatedAdminRouteWithChildren
   '/g/$slug': typeof GSlugRouteWithChildren
   '/admin/assinatura': typeof AuthenticatedAdminAssinaturaRoute
+  '/admin/clientes': typeof AuthenticatedAdminClientesRoute
   '/api/public/guide-chat': typeof ApiPublicGuideChatRoute
   '/g/$slug/explorar': typeof GSlugExplorarRoute
   '/admin/': typeof AuthenticatedAdminIndexRoute
@@ -142,6 +150,7 @@ export interface FileRoutesByTo {
   '/reembolso': typeof ReembolsoRoute
   '/termos': typeof TermosRoute
   '/admin/assinatura': typeof AuthenticatedAdminAssinaturaRoute
+  '/admin/clientes': typeof AuthenticatedAdminClientesRoute
   '/api/public/guide-chat': typeof ApiPublicGuideChatRoute
   '/g/$slug/explorar': typeof GSlugExplorarRoute
   '/admin': typeof AuthenticatedAdminIndexRoute
@@ -162,6 +171,7 @@ export interface FileRoutesById {
   '/_authenticated/admin': typeof AuthenticatedAdminRouteWithChildren
   '/g/$slug': typeof GSlugRouteWithChildren
   '/_authenticated/admin/assinatura': typeof AuthenticatedAdminAssinaturaRoute
+  '/_authenticated/admin/clientes': typeof AuthenticatedAdminClientesRoute
   '/api/public/guide-chat': typeof ApiPublicGuideChatRoute
   '/g/$slug/explorar': typeof GSlugExplorarRoute
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
@@ -182,6 +192,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/g/$slug'
     | '/admin/assinatura'
+    | '/admin/clientes'
     | '/api/public/guide-chat'
     | '/g/$slug/explorar'
     | '/admin/'
@@ -198,6 +209,7 @@ export interface FileRouteTypes {
     | '/reembolso'
     | '/termos'
     | '/admin/assinatura'
+    | '/admin/clientes'
     | '/api/public/guide-chat'
     | '/g/$slug/explorar'
     | '/admin'
@@ -217,6 +229,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin'
     | '/g/$slug'
     | '/_authenticated/admin/assinatura'
+    | '/_authenticated/admin/clientes'
     | '/api/public/guide-chat'
     | '/g/$slug/explorar'
     | '/_authenticated/admin/'
@@ -332,6 +345,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicGuideChatRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/admin/clientes': {
+      id: '/_authenticated/admin/clientes'
+      path: '/clientes'
+      fullPath: '/admin/clientes'
+      preLoaderRoute: typeof AuthenticatedAdminClientesRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
     '/_authenticated/admin/assinatura': {
       id: '/_authenticated/admin/assinatura'
       path: '/assinatura'
@@ -380,12 +400,14 @@ const AuthenticatedAdminPropertiesIdRouteWithChildren =
 
 interface AuthenticatedAdminRouteChildren {
   AuthenticatedAdminAssinaturaRoute: typeof AuthenticatedAdminAssinaturaRoute
+  AuthenticatedAdminClientesRoute: typeof AuthenticatedAdminClientesRoute
   AuthenticatedAdminIndexRoute: typeof AuthenticatedAdminIndexRoute
   AuthenticatedAdminPropertiesIdRoute: typeof AuthenticatedAdminPropertiesIdRouteWithChildren
 }
 
 const AuthenticatedAdminRouteChildren: AuthenticatedAdminRouteChildren = {
   AuthenticatedAdminAssinaturaRoute: AuthenticatedAdminAssinaturaRoute,
+  AuthenticatedAdminClientesRoute: AuthenticatedAdminClientesRoute,
   AuthenticatedAdminIndexRoute: AuthenticatedAdminIndexRoute,
   AuthenticatedAdminPropertiesIdRoute:
     AuthenticatedAdminPropertiesIdRouteWithChildren,
