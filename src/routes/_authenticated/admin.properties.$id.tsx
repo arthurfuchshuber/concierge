@@ -946,6 +946,41 @@ function PropertyEditor() {
             onChange={(items) => setForm((f) => ({ ...f, recommendations: [...nearbyRecs, ...items] }))}
             scope="city"
           />
+
+          <Section
+            icon={Ticket}
+            title="Reservas & marketplace"
+            desc="Links para venda de ingressos, passeios, transfers, produtos ou qualquer experiência que você queira oferecer ao hóspede."
+            action={<AddBtn onClick={() => setForm((f) => ({ ...f, property: { ...f.property, marketplace_links: [...f.property.marketplace_links, { label: "", url: "", description: "" }] } }))} />}
+          >
+            {form.property.marketplace_links.length === 0 ? (
+              <EmptyHint text="Ex: tour de barco, transfer do aeroporto, kit de boas-vindas." />
+            ) : form.property.marketplace_links.map((m, i) => (
+              <ItemCard
+                key={i}
+                onRemove={() => setForm((f) => ({ ...f, property: { ...f.property, marketplace_links: f.property.marketplace_links.filter((_, j) => j !== i) } }))}
+              >
+                <Input
+                  placeholder="Título (ex: Tour de barco)"
+                  value={m.label}
+                  maxLength={120}
+                  onChange={(e) => setForm((f) => ({ ...f, property: { ...f.property, marketplace_links: f.property.marketplace_links.map((x, j) => j === i ? { ...x, label: e.target.value } : x) } }))}
+                />
+                <Input
+                  placeholder="https://link-de-venda.com"
+                  value={m.url}
+                  maxLength={2048}
+                  onChange={(e) => setForm((f) => ({ ...f, property: { ...f.property, marketplace_links: f.property.marketplace_links.map((x, j) => j === i ? { ...x, url: e.target.value } : x) } }))}
+                />
+                <Textarea
+                  placeholder="Descrição curta (opcional)"
+                  value={m.description}
+                  maxLength={280}
+                  onChange={(e) => setForm((f) => ({ ...f, property: { ...f.property, marketplace_links: f.property.marketplace_links.map((x, j) => j === i ? { ...x, description: e.target.value } : x) } }))}
+                />
+              </ItemCard>
+            ))}
+          </Section>
         </TabsContent>
 
         <TabsContent value="extras" className="space-y-5 mt-6">
