@@ -523,6 +523,7 @@ function Guide({ data }: { data: GuideOk }) {
                   </SubList>
                 );
               })()}
+              <TaggedFaqs faqs={data.faqs} tag="chegada" />
             </TabsContent>
 
             <TabsContent value="saida" className="space-y-5">
