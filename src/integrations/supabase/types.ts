@@ -14,6 +14,72 @@ export type Database = {
   }
   public: {
     Tables: {
+      host_faqs: {
+        Row: {
+          answer: string
+          created_at: string
+          id: string
+          owner_id: string
+          position: number
+          question: string
+          tags: string[]
+          updated_at: string
+        }
+        Insert: {
+          answer: string
+          created_at?: string
+          id?: string
+          owner_id: string
+          position?: number
+          question: string
+          tags?: string[]
+          updated_at?: string
+        }
+        Update: {
+          answer?: string
+          created_at?: string
+          id?: string
+          owner_id?: string
+          position?: number
+          question?: string
+          tags?: string[]
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      host_knowledge: {
+        Row: {
+          body: string
+          created_at: string
+          enabled: boolean
+          id: string
+          owner_id: string
+          position: number
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          enabled?: boolean
+          id?: string
+          owner_id: string
+          position?: number
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          enabled?: boolean
+          id?: string
+          owner_id?: string
+          position?: number
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
