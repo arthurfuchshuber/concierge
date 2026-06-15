@@ -279,44 +279,177 @@ function Dashboard() {
           ))}
         </div>
       ) : (
-        <div className="rounded-2xl border border-border bg-card overflow-hidden divide-y divide-border">
-          {data.map((p) => (
-            <div key={p.id} className="flex items-center gap-4 p-4 hover:bg-secondary/40 transition-colors">
-              <div className="size-14 rounded-xl bg-secondary overflow-hidden shrink-0">
-                {p.hero_image_url ? (
-                  <img src={p.hero_image_url} alt={p.name} className="w-full h-full object-cover" />
-                ) : null}
+        (() => {
+          const norm = (s?: string | null) =>
+            (s ?? "").toLowerCase().trim().replace(/\s+/g, " ");
+          const keyOf = (p: typeof data[number]) => {
+            if (p.lat != null && p.lng != null) {
+              return `geo:${Number(p.lat).toFixed(4)},${Number(p.lng).toFixed(4)}`;
+            }
+            const a = norm(p.address);
+            return a ? `addr:${a}` : "none";
+          };
+          const groups = new Map<string, { label: string; items: typeof data }>();
+          for (const p of data) {
+            const k = keyOf(p);
+            if (!groups.has(k)) {
+              groups.set(k, {
+                label:
+                  k === "none"
+                    ? "Sem endereço"
+                    : p.address || `${p.lat},${p.lng}`,
+                items: [],
+              });
+            }
+            groups.get(k)!.items.push(p);
+          }
+          const groupList = Array.from(groups.entries());
+          const allSelected = selected.size > 0 && selected.size === data.length;
+          return (
+            <div className="space-y-3">
+              <div className="flex items-center gap-3 px-1">
+                <Checkbox
+                  checked={allSelected}
+                  onCheckedChange={(v) => {
+                    if (v) setSelected(new Set(data.map((p) => p.id)));
+                    else setSelected(new Set());
+                  }}
+                />
+                <span className="text-xs text-muted-foreground">
+                  {selected.size > 0
+                    ? `${selected.size} selecionado${selected.size > 1 ? "s" : ""}`
+                    : "Selecione para editar em massa"}
+                </span>
+                <div className="flex-1" />
+                {selected.size > 0 && (
+                  <>
+                    <button
+                      onClick={() => setSelected(new Set())}
+                      className="text-xs text-muted-foreground hover:text-foreground"
+                    >
+                      Limpar
+                    </button>
+                    <Button size="sm" className="rounded-full" onClick={() => setBulkOpen(true)}>
+                      <PenSquare className="size-3.5 mr-1.5" /> Editar selecionados
+                    </Button>
+                  </>
+                )}
               </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <h3 className="font-semibold truncate">{p.name}</h3>
-                  {!p.published && (
-                    <span className="text-[10px] uppercase tracking-wider font-semibold bg-yellow-500/20 text-yellow-700 dark:text-yellow-400 px-2 py-0.5 rounded-full">Rascunho</span>
-                  )}
-                </div>
-                <p className="text-xs text-muted-foreground truncate">{p.tagline || `${p.city ?? ""}${p.country ? `, ${p.country}` : ""}`}</p>
-              </div>
-              <span className="hidden sm:inline-flex glass rounded-full px-2.5 py-1 text-[10px] uppercase tracking-wider font-semibold items-center gap-1">
-                {p.access_mode === "pin" ? <><Lock className="size-2.5" /> PIN</> : <><Globe className="size-2.5" /> Público</>}
-              </span>
-              <div className="flex items-center gap-1">
-                <button onClick={() => handleCopyLink(p.slug, p.id)} className="size-8 grid place-items-center rounded-full hover:bg-secondary" aria-label="Copiar link público">
-                  {copiedId === p.id ? <Check className="size-3.5 text-accent" /> : <Link2 className="size-3.5" />}
-                </button>
-                <Link to="/admin/properties/$id" params={{ id: p.id }} className="size-8 grid place-items-center rounded-full hover:bg-secondary" aria-label="Editar">
-                  <Pencil className="size-3.5" />
-                </Link>
-                <button type="button" onClick={() => setViewSlug(p.slug)} className="size-8 grid place-items-center rounded-full hover:bg-secondary" aria-label="Ver">
-                  <ExternalLink className="size-3.5" />
-                </button>
-                <button onClick={() => handleDelete(p.id, p.name)} className="size-8 grid place-items-center rounded-full hover:bg-destructive/10 text-muted-foreground hover:text-destructive" aria-label="Excluir">
-                  <Trash2 className="size-3.5" />
-                </button>
-              </div>
+
+              {groupList.map(([gk, grp]) => {
+                const collapsed = collapsedGroups.has(gk);
+                const groupIds = grp.items.map((i) => i.id);
+                const allInGroupSelected = groupIds.every((id) => selected.has(id));
+                return (
+                  <div key={gk} className="rounded-2xl border border-border bg-card overflow-hidden">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setCollapsedGroups((s) => {
+                          const ns = new Set(s);
+                          if (ns.has(gk)) ns.delete(gk);
+                          else ns.add(gk);
+                          return ns;
+                        })
+                      }
+                      className="w-full flex items-center gap-2.5 px-4 py-3 bg-secondary/40 hover:bg-secondary/60 transition-colors text-left"
+                    >
+                      {collapsed ? (
+                        <ChevronRight className="size-3.5 text-muted-foreground shrink-0" />
+                      ) : (
+                        <ChevronDown className="size-3.5 text-muted-foreground shrink-0" />
+                      )}
+                      <MapPin className="size-3.5 text-muted-foreground shrink-0" />
+                      <span className="text-sm font-medium truncate flex-1">{grp.label}</span>
+                      <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
+                        {grp.items.length} {grp.items.length === 1 ? "guia" : "guias"}
+                      </span>
+                      <span
+                        role="button"
+                        tabIndex={0}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelected((s) => {
+                            const ns = new Set(s);
+                            if (allInGroupSelected) groupIds.forEach((id) => ns.delete(id));
+                            else groupIds.forEach((id) => ns.add(id));
+                            return ns;
+                          });
+                        }}
+                        className="text-[11px] text-accent hover:underline"
+                      >
+                        {allInGroupSelected ? "Desmarcar" : "Selecionar todos"}
+                      </span>
+                    </button>
+                    {!collapsed && (
+                      <div className="divide-y divide-border">
+                        {grp.items.map((p) => {
+                          const isSel = selected.has(p.id);
+                          return (
+                            <div key={p.id} className={`flex items-center gap-4 p-4 hover:bg-secondary/40 transition-colors ${isSel ? "bg-accent/5" : ""}`}>
+                              <Checkbox
+                                checked={isSel}
+                                onCheckedChange={(v) =>
+                                  setSelected((s) => {
+                                    const ns = new Set(s);
+                                    if (v) ns.add(p.id);
+                                    else ns.delete(p.id);
+                                    return ns;
+                                  })
+                                }
+                              />
+                              <div className="size-12 rounded-xl bg-secondary overflow-hidden shrink-0">
+                                {p.hero_image_url ? <img src={p.hero_image_url} alt={p.name} className="w-full h-full object-cover" /> : null}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <h3 className="font-semibold truncate">{p.name}</h3>
+                                  {!p.published && (
+                                    <span className="text-[10px] uppercase tracking-wider font-semibold bg-yellow-500/20 text-yellow-700 dark:text-yellow-400 px-2 py-0.5 rounded-full">Rascunho</span>
+                                  )}
+                                </div>
+                                <p className="text-xs text-muted-foreground truncate">{p.tagline || `${p.city ?? ""}${p.country ? `, ${p.country}` : ""}`}</p>
+                              </div>
+                              <span className="hidden sm:inline-flex glass rounded-full px-2.5 py-1 text-[10px] uppercase tracking-wider font-semibold items-center gap-1">
+                                {p.access_mode === "pin" ? <><Lock className="size-2.5" /> PIN</> : <><Globe className="size-2.5" /> Público</>}
+                              </span>
+                              <div className="flex items-center gap-1">
+                                <button onClick={() => handleCopyLink(p.slug, p.id)} className="size-8 grid place-items-center rounded-full hover:bg-secondary" aria-label="Copiar link público">
+                                  {copiedId === p.id ? <Check className="size-3.5 text-accent" /> : <Link2 className="size-3.5" />}
+                                </button>
+                                <Link to="/admin/properties/$id" params={{ id: p.id }} className="size-8 grid place-items-center rounded-full hover:bg-secondary" aria-label="Editar">
+                                  <Pencil className="size-3.5" />
+                                </Link>
+                                <button type="button" onClick={() => setViewSlug(p.slug)} className="size-8 grid place-items-center rounded-full hover:bg-secondary" aria-label="Ver">
+                                  <ExternalLink className="size-3.5" />
+                                </button>
+                                <button onClick={() => handleDelete(p.id, p.name)} className="size-8 grid place-items-center rounded-full hover:bg-destructive/10 text-muted-foreground hover:text-destructive" aria-label="Excluir">
+                                  <Trash2 className="size-3.5" />
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
-          ))}
-        </div>
+          );
+        })()
       )}
+
+      <BulkEditDialog
+        open={bulkOpen}
+        onOpenChange={setBulkOpen}
+        ids={Array.from(selected)}
+        onSaved={() => {
+          setSelected(new Set());
+          refetch();
+        }}
+      />
+
 
       <Dialog open={viewSlug !== null} onOpenChange={(o) => { if (!o) closePreview(); }}>
         <DialogContent
