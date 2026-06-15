@@ -91,7 +91,7 @@ type FormState = {
   };
   manual: { title: string; description: string; body: string }[];
   emergency: { label: string; number: string }[];
-  faqs: { question: string; answer: string }[];
+  faqs: { question: string; answer: string; tags: ("chegada" | "saida" | "residencia" | "explore")[] }[];
   checkout: { label: string }[];
   recommendations: RecItem[];
 };
