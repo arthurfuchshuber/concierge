@@ -53,6 +53,12 @@ function buildContext(p: Record<string, unknown>, kids: {
   if (p.host_name) lines.push(`Anfitrião: ${p.host_name}`);
   if (p.host_phone) lines.push(`Telefone do anfitrião: ${p.host_phone}`);
 
+  if (kids.knowledge.length) {
+    lines.push("\n## Conhecimento do anfitrião");
+    for (const k of kids.knowledge) {
+      lines.push(`### ${k.title}\n${k.body}`);
+    }
+  }
   if (kids.manual.length) {
     lines.push("\n## Manual da casa");
     for (const m of kids.manual) {
