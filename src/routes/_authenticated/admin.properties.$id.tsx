@@ -3,6 +3,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { getMyProperty, upsertProperty } from "@/lib/properties.functions";
+import { listHostFaqs } from "@/lib/host-library.functions";
 import { enrichFromMapsLink } from "@/lib/maps.functions";
 import { importFromAirbnb } from "@/lib/airbnb.functions";
 import { useSubscription } from "@/hooks/useSubscription";
@@ -150,6 +151,14 @@ function PropertyEditor() {
   const [previewMode, setPreviewMode] = useState<"mobile" | "desktop" | null>(null);
   const [gateOpen, setGateOpen] = useState(false);
   const [lockOpen, setLockOpen] = useState(false);
+  const [faqLibOpen, setFaqLibOpen] = useState(false);
+  const [faqLibSelected, setFaqLibSelected] = useState<Record<string, boolean>>({});
+  const fetchHostFaqs = useServerFn(listHostFaqs);
+  const { data: hostFaqsData } = useQuery({
+    queryKey: ["host-faqs-library"],
+    queryFn: () => fetchHostFaqs(),
+    enabled: faqLibOpen,
+  });
 
   const { data, isLoading } = useQuery({
     queryKey: ["property", id],
@@ -1006,7 +1015,18 @@ function PropertyEditor() {
             icon={HelpCircle}
             title="Perguntas frequentes"
             desc="Antecipe dúvidas comuns dos hóspedes."
-            action={<AddBtn onClick={() => setForm((f) => ({ ...f, faqs: [...f.faqs, { question: "", answer: "", tags: [] }] }))} />}
+            action={
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => { setFaqLibSelected({}); setFaqLibOpen(true); }}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-border bg-background text-xs text-muted-foreground hover:text-foreground hover:border-accent/50 transition-colors"
+                >
+                  <BookOpen className="size-3.5" /> Importar da biblioteca
+                </button>
+                <AddBtn onClick={() => setForm((f) => ({ ...f, faqs: [...f.faqs, { question: "", answer: "", tags: [] }] }))} />
+              </div>
+            }
           >
             {form.faqs.length === 0 ? (
               <EmptyHint text="Ex: posso fumar? tem estacionamento? aceita pets?" />
@@ -1190,6 +1210,71 @@ function PropertyEditor() {
           </div>
         </div>
       </div>
+
+      <Dialog open={faqLibOpen} onOpenChange={setFaqLibOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Importar da biblioteca</DialogTitle>
+          </DialogHeader>
+          <div className="max-h-[60vh] overflow-y-auto -mx-1 px-1 space-y-2">
+            {!hostFaqsData ? (
+              <p className="text-sm text-muted-foreground py-6 text-center">Carregando…</p>
+            ) : hostFaqsData.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-6 text-center">
+                Nenhuma pergunta na sua biblioteca ainda. Crie-as em <strong>Biblioteca</strong>.
+              </p>
+            ) : (
+              hostFaqsData.map((f) => {
+                const checked = !!faqLibSelected[f.id];
+                return (
+                  <label
+                    key={f.id}
+                    className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-colors ${checked ? "border-accent bg-accent/5" : "border-border hover:bg-secondary/50"}`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={(e) => setFaqLibSelected((s) => ({ ...s, [f.id]: e.target.checked }))}
+                      className="mt-1 size-4 accent-accent"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium leading-snug">{f.question}</p>
+                      <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{f.answer}</p>
+                    </div>
+                  </label>
+                );
+              })
+            )}
+          </div>
+          <div className="flex items-center justify-end gap-2 pt-2 border-t border-border">
+            <Button variant="ghost" size="sm" onClick={() => setFaqLibOpen(false)}>Cancelar</Button>
+            <Button
+              size="sm"
+              disabled={!hostFaqsData || Object.values(faqLibSelected).every((v) => !v)}
+              onClick={() => {
+                const toImport = (hostFaqsData ?? []).filter((f) => faqLibSelected[f.id]);
+                if (!toImport.length) return;
+                setForm((prev) => ({
+                  ...prev,
+                  faqs: [
+                    ...prev.faqs,
+                    ...toImport.map((f) => ({
+                      question: f.question,
+                      answer: f.answer,
+                      tags: (Array.isArray(f.tags) ? f.tags.filter((t: string) => ["chegada", "saida", "residencia", "explore"].includes(t)) : []) as ("chegada" | "saida" | "residencia" | "explore")[],
+                    })),
+                  ],
+                }));
+                setFaqLibOpen(false);
+                setFaqLibSelected({});
+                toast.success(`${toImport.length} pergunta${toImport.length === 1 ? "" : "s"} importada${toImport.length === 1 ? "" : "s"}`);
+              }}
+            >
+              Importar selecionadas
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
     </div>
   );

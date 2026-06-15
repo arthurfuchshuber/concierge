@@ -35,6 +35,7 @@ function buildContext(p: Record<string, unknown>, kids: {
   emergency: Array<Record<string, unknown>>;
   checkout: Array<Record<string, unknown>>;
   recommendations: Recommendation[];
+  knowledge: Array<Record<string, unknown>>;
 }) {
   const lines: string[] = [];
   lines.push(`# Hospedagem: ${p.name ?? ""}`);
@@ -52,6 +53,12 @@ function buildContext(p: Record<string, unknown>, kids: {
   if (p.host_name) lines.push(`Anfitrião: ${p.host_name}`);
   if (p.host_phone) lines.push(`Telefone do anfitrião: ${p.host_phone}`);
 
+  if (kids.knowledge.length) {
+    lines.push("\n## Conhecimento do anfitrião");
+    for (const k of kids.knowledge) {
+      lines.push(`### ${k.title}\n${k.body}`);
+    }
+  }
   if (kids.manual.length) {
     lines.push("\n## Manual da casa");
     for (const m of kids.manual) {
@@ -124,12 +131,13 @@ export const Route = createFileRoute("/api/public/guide-chat")({
           }
         }
 
-        const [manualR, faqsR, emergR, checkoutR, recsR] = await Promise.all([
+        const [manualR, faqsR, emergR, checkoutR, recsR, knowledgeR] = await Promise.all([
           supabaseAdmin.from("property_manual_items").select("title, description, body").eq("property_id", prop.id).order("position"),
           supabaseAdmin.from("property_faqs").select("question, answer").eq("property_id", prop.id).order("position"),
           supabaseAdmin.from("property_emergency_contacts").select("label, number").eq("property_id", prop.id).order("position"),
           supabaseAdmin.from("property_checkout_items").select("label").eq("property_id", prop.id).order("position"),
           supabaseAdmin.from("property_recommendations").select("name, category, type, scope, distance_text, note").eq("property_id", prop.id).order("position"),
+          supabaseAdmin.from("host_knowledge").select("title, body").eq("owner_id", prop.owner_id).eq("enabled", true).order("position"),
         ]);
 
         const systemContext = buildContext(prop as Record<string, unknown>, {
@@ -138,6 +146,7 @@ export const Route = createFileRoute("/api/public/guide-chat")({
           emergency: (emergR.data as Array<Record<string, unknown>>) ?? [],
           checkout: (checkoutR.data as Array<Record<string, unknown>>) ?? [],
           recommendations: (recsR.data as Recommendation[]) ?? [],
+          knowledge: (knowledgeR.data as Array<Record<string, unknown>>) ?? [],
         });
 
         // Get or create conversation
