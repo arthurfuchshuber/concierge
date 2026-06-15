@@ -100,11 +100,57 @@ export const listMyProperties = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     const { data, error } = await context.supabase
       .from("properties")
-      .select("id, slug, name, tagline, hero_image_url, gallery_images, access_mode, pin_expires_at, published, city, country, updated_at")
+      .select("id, slug, name, tagline, hero_image_url, gallery_images, access_mode, pin_expires_at, published, city, country, address, lat, lng, updated_at")
       .order("updated_at", { ascending: false });
     if (error) throw (await import("@/lib/db-errors.server")).safeDbError("properties", error);
     const { signPropertyImages } = await import("@/lib/storage.server");
     return await signPropertyImages(context.supabase, data ?? []);
+  });
+
+const BulkPatch = z.object({
+  checkin_time: z.string().max(8).optional(),
+  checkin_time_max: z.string().max(8).optional(),
+  checkout_time: z.string().max(8).optional(),
+  checkout_time_min: z.string().max(8).optional(),
+  address_note: z.string().max(1000).optional(),
+  checkin_instructions: z.string().max(3000).optional(),
+  checkout_instructions: z.string().max(3000).optional(),
+  gate_code: z.string().max(40).optional(),
+  gate_instructions: z.string().max(3000).optional(),
+  lock_code: z.string().max(40).optional(),
+  lock_instructions: z.string().max(3000).optional(),
+  wifi_ssid: z.string().max(64).optional(),
+  wifi_password: z.string().max(64).optional(),
+  host_name: z.string().max(120).optional(),
+  host_phone: z.string().max(40).optional(),
+  brand_name: z.string().max(120).optional(),
+  brand_logo_url: HttpsUrl.optional(),
+  guide_theme: z.enum(["dark", "light"]).optional(),
+}).strict();
+
+export const bulkUpdateProperties = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) =>
+    z.object({
+      ids: z.array(z.string().uuid()).min(1).max(200),
+      patch: BulkPatch,
+    }).parse(i),
+  )
+  .handler(async ({ data, context }) => {
+    const patch = Object.fromEntries(
+      Object.entries(data.patch).map(([k, v]) => [k, v === "" ? null : v]),
+    );
+    if (Object.keys(patch).length === 0) {
+      return { updated: 0 };
+    }
+    // RLS automatically scopes to owner_id = auth.uid()
+    const { data: rows, error } = await context.supabase
+      .from("properties")
+      .update(patch)
+      .in("id", data.ids)
+      .select("id");
+    if (error) throw (await import("@/lib/db-errors.server")).safeDbError("properties", error);
+    return { updated: rows?.length ?? 0 };
   });
 
 export const getMyProperty = createServerFn({ method: "POST" })
