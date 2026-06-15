@@ -184,9 +184,47 @@ function BibliotecaPage() {
             </p>
           ) : (
             <div className="space-y-3">
+              {selectedFaqIds.size > 0 && (
+                <div className="flex items-center gap-3 rounded-2xl border border-accent/40 bg-accent/5 px-4 py-2.5">
+                  <span className="text-xs font-medium">
+                    {selectedFaqIds.size} pergunta{selectedFaqIds.size > 1 ? "s" : ""} selecionada{selectedFaqIds.size > 1 ? "s" : ""}
+                  </span>
+                  <div className="flex-1" />
+                  <button
+                    onClick={() => setSelectedFaqIds(new Set())}
+                    className="text-xs text-muted-foreground hover:text-foreground"
+                  >
+                    Limpar
+                  </button>
+                  <Button
+                    size="sm"
+                    className="rounded-full"
+                    onClick={() => setApplyOpen(true)}
+                  >
+                    <Send className="size-3.5 mr-1.5" /> Aplicar a guias
+                  </Button>
+                </div>
+              )}
               {faqs.map((f, i) => (
                 <div key={i} className="rounded-2xl border border-border bg-card p-4 space-y-3">
                   <div className="flex items-start gap-2">
+                    {f.id ? (
+                      <Checkbox
+                        className="mt-2 shrink-0"
+                        checked={selectedFaqIds.has(f.id)}
+                        onCheckedChange={(v) =>
+                          setSelectedFaqIds((s) => {
+                            const ns = new Set(s);
+                            if (v) ns.add(f.id!);
+                            else ns.delete(f.id!);
+                            return ns;
+                          })
+                        }
+                        aria-label="Selecionar pergunta"
+                      />
+                    ) : (
+                      <div className="mt-2 shrink-0 size-4" title="Salve para poder aplicar" />
+                    )}
                     <div className="flex-1 space-y-3">
                       <Input
                         placeholder="Pergunta"
