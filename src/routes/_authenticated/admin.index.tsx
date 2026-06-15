@@ -5,9 +5,12 @@ import { listMyProperties, deleteProperty } from "@/lib/properties.functions";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, ExternalLink, Pencil, Trash2, Lock, Globe, BookOpen, PlayCircle, CreditCard, LayoutGrid, List, Link2, Check, AlertTriangle, MapPin, ChevronDown, ChevronRight, PenSquare } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Plus, ExternalLink, Pencil, Trash2, Lock, Globe, BookOpen, PlayCircle, CreditCard, LayoutGrid, List, Link2, Check, AlertTriangle, MapPin, ChevronDown, ChevronRight, PenSquare, Search, X } from "lucide-react";
 import { toast } from "sonner";
 import { useState, useMemo } from "react";
+type StatusFilter = "all" | "published" | "draft";
+type AccessFilter = "all" | "public" | "pin";
 import { useSubscription } from "@/hooks/useSubscription";
 import { PLANS } from "@/lib/payments.functions";
 import { BulkEditDialog } from "@/components/BulkEditDialog";
@@ -29,6 +32,9 @@ function Dashboard() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkOpen, setBulkOpen] = useState(false);
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [accessFilter, setAccessFilter] = useState<AccessFilter>("all");
 
   function closePreview() {
     setViewSlug(null);
@@ -85,6 +91,28 @@ function Dashboard() {
   const remaining = Math.max(0, planLimit - count);
   const pct = planLimit > 0 ? Math.min(100, (count / planLimit) * 100) : 0;
   const reachedLimit = planLimit > 0 && count >= planLimit;
+
+  const filtered = useMemo(() => {
+    if (!data) return [];
+    const q = search.trim().toLowerCase();
+    return data.filter((p) => {
+      if (statusFilter === "published" && !p.published) return false;
+      if (statusFilter === "draft" && p.published) return false;
+      if (accessFilter !== "all" && p.access_mode !== accessFilter) return false;
+      if (!q) return true;
+      return [p.name, p.tagline, p.address, p.city, p.country, p.slug]
+        .filter(Boolean)
+        .some((s) => String(s).toLowerCase().includes(q));
+    });
+  }, [data, search, statusFilter, accessFilter]);
+
+  const hasActiveFilters =
+    search.trim() !== "" || statusFilter !== "all" || accessFilter !== "all";
+  function clearFilters() {
+    setSearch("");
+    setStatusFilter("all");
+    setAccessFilter("all");
+  }
 
 
   return (
@@ -190,24 +218,96 @@ function Dashboard() {
 
 
       {/* Guias section */}
-      <div className="flex items-center justify-between mb-5">
-        <h2 className="font-serif text-2xl">Seus guias</h2>
-        <div className="flex items-center gap-1 rounded-full border border-border p-1 bg-card">
-          <button
-            onClick={() => setView("grid")}
-            className={`size-8 grid place-items-center rounded-full transition-colors ${view === "grid" ? "bg-secondary text-foreground" : "text-muted-foreground"}`}
-            aria-label="Grade"
-          >
-            <LayoutGrid className="size-3.5" />
-          </button>
-          <button
-            onClick={() => setView("list")}
-            className={`size-8 grid place-items-center rounded-full transition-colors ${view === "list" ? "bg-secondary text-foreground" : "text-muted-foreground"}`}
-            aria-label="Lista"
-          >
-            <List className="size-3.5" />
-          </button>
+      <div className="flex flex-col gap-4 mb-5">
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="font-serif text-2xl">Seus guias</h2>
+          <div className="flex items-center gap-1 rounded-full border border-border p-1 bg-card">
+            <button
+              onClick={() => setView("grid")}
+              className={`size-8 grid place-items-center rounded-full transition-colors ${view === "grid" ? "bg-secondary text-foreground" : "text-muted-foreground"}`}
+              aria-label="Grade"
+            >
+              <LayoutGrid className="size-3.5" />
+            </button>
+            <button
+              onClick={() => setView("list")}
+              className={`size-8 grid place-items-center rounded-full transition-colors ${view === "list" ? "bg-secondary text-foreground" : "text-muted-foreground"}`}
+              aria-label="Lista"
+            >
+              <List className="size-3.5" />
+            </button>
+          </div>
         </div>
+
+        {data && data.length > 0 && (
+          <div className="flex flex-col md:flex-row md:items-center gap-3">
+            <div className="relative flex-1 min-w-0">
+              <Search className="size-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2" />
+              <Input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Buscar por nome, endereço, cidade…"
+                className="pl-9 pr-9 rounded-full"
+              />
+              {search && (
+                <button
+                  type="button"
+                  onClick={() => setSearch("")}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 size-6 grid place-items-center rounded-full text-muted-foreground hover:bg-secondary"
+                  aria-label="Limpar busca"
+                >
+                  <X className="size-3.5" />
+                </button>
+              )}
+            </div>
+            <div className="flex flex-wrap items-center gap-1.5">
+              {([
+                { v: "all", label: "Todos" },
+                { v: "published", label: "Publicados" },
+                { v: "draft", label: "Rascunhos" },
+              ] as { v: StatusFilter; label: string }[]).map((opt) => (
+                <button
+                  key={opt.v}
+                  type="button"
+                  onClick={() => setStatusFilter(opt.v)}
+                  className={`px-3 py-1.5 rounded-full text-xs border transition-colors ${statusFilter === opt.v ? "bg-foreground text-background border-foreground" : "bg-background border-border text-muted-foreground hover:border-foreground/40"}`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+              <span className="mx-1 h-4 w-px bg-border" />
+              {([
+                { v: "all", label: "Acesso" },
+                { v: "public", label: "Público" },
+                { v: "pin", label: "PIN" },
+              ] as { v: AccessFilter; label: string }[]).map((opt) => (
+                <button
+                  key={opt.v}
+                  type="button"
+                  onClick={() => setAccessFilter(opt.v)}
+                  className={`px-3 py-1.5 rounded-full text-xs border transition-colors ${accessFilter === opt.v ? "bg-foreground text-background border-foreground" : "bg-background border-border text-muted-foreground hover:border-foreground/40"}`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+              {hasActiveFilters && (
+                <button
+                  type="button"
+                  onClick={clearFilters}
+                  className="ml-1 text-xs text-muted-foreground hover:text-foreground underline-offset-2 hover:underline"
+                >
+                  Limpar
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
+        {data && data.length > 0 && hasActiveFilters && (
+          <p className="text-xs text-muted-foreground">
+            Mostrando {filtered.length} de {data.length} guia{data.length > 1 ? "s" : ""}
+          </p>
+        )}
       </div>
 
       {isLoading ? (
@@ -235,9 +335,22 @@ function Dashboard() {
             <Plus className="size-4 mr-1.5" /> Criar guia
           </Button>
         </div>
+      ) : filtered.length === 0 ? (
+        <div className="rounded-2xl border border-dashed border-border bg-card/30 p-12 text-center">
+          <div className="size-12 rounded-2xl bg-secondary grid place-items-center mx-auto mb-4">
+            <Search className="size-5 text-muted-foreground" />
+          </div>
+          <h3 className="font-serif text-xl mb-2">Nenhum guia encontrado</h3>
+          <p className="text-sm text-muted-foreground mb-5 max-w-md mx-auto">
+            Tente ajustar a busca ou limpar os filtros.
+          </p>
+          <Button variant="outline" onClick={clearFilters} className="rounded-full">
+            Limpar filtros
+          </Button>
+        </div>
       ) : view === "grid" ? (
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {data.map((p) => (
+          {filtered.map((p) => (
             <div key={p.id} className="rounded-2xl border border-border bg-card overflow-hidden group hover:shadow-elevated transition-shadow">
               <div className="aspect-[16/10] bg-secondary relative">
                 {p.hero_image_url ? (
@@ -282,15 +395,15 @@ function Dashboard() {
         (() => {
           const norm = (s?: string | null) =>
             (s ?? "").toLowerCase().trim().replace(/\s+/g, " ");
-          const keyOf = (p: typeof data[number]) => {
+          const keyOf = (p: typeof filtered[number]) => {
             if (p.lat != null && p.lng != null) {
               return `geo:${Number(p.lat).toFixed(4)},${Number(p.lng).toFixed(4)}`;
             }
             const a = norm(p.address);
             return a ? `addr:${a}` : "none";
           };
-          const groups = new Map<string, { label: string; items: typeof data }>();
-          for (const p of data) {
+          const groups = new Map<string, { label: string; items: typeof filtered }>();
+          for (const p of filtered) {
             const k = keyOf(p);
             if (!groups.has(k)) {
               groups.set(k, {
@@ -304,14 +417,14 @@ function Dashboard() {
             groups.get(k)!.items.push(p);
           }
           const groupList = Array.from(groups.entries());
-          const allSelected = selected.size > 0 && selected.size === data.length;
+          const allSelected = selected.size > 0 && selected.size === filtered.length;
           return (
             <div className="space-y-3">
               <div className="flex items-center gap-3 px-1">
                 <Checkbox
                   checked={allSelected}
                   onCheckedChange={(v) => {
-                    if (v) setSelected(new Set(data.map((p) => p.id)));
+                    if (v) setSelected(new Set(filtered.map((p) => p.id)));
                     else setSelected(new Set());
                   }}
                 />
