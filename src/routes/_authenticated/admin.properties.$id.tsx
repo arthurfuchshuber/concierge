@@ -102,6 +102,7 @@ function emptyForm(): FormState {
     property: {
       name: "", slug: "", tagline: "", hero_image_url: "", gallery_images: [],
       theme_images: { checkin: "", residencia: "", faq: "", explore: "" },
+      marketplace_links: [],
       address: "", maps_url: "",
       lat: null, lng: null, city: "", country: "", checkin_time: "15:00", checkin_time_max: "", checkout_time: "11:00", checkout_time_min: "",
       lock_code: "", gate_code: "", address_note: "", checkin_instructions: "", checkout_instructions: "", checkin_media: [], gate_instructions: "", gate_media: [], gate_video_url: "", lock_instructions: "", lock_media: [], lock_video_url: "", wifi_ssid: "", wifi_password: "",
