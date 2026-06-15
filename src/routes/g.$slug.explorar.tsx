@@ -322,9 +322,50 @@ function ExplorePage() {
 
         )}
 
-        {categories.length === 0 && (
+        {categories.length === 0 && (!Array.isArray(p.marketplace_links) || p.marketplace_links.length === 0) && (
           <p className="text-sm text-muted-foreground">Sem recomendações cadastradas ainda.</p>
         )}
+
+        {!active && (() => {
+          const links = (Array.isArray(p.marketplace_links) ? p.marketplace_links : []).filter(
+            (m: any) => m && typeof m.label === "string" && m.label.trim() && typeof m.url === "string" && m.url.trim(),
+          );
+          if (links.length === 0) return null;
+          return (
+            <div className="mt-12">
+              <div className="mb-3 flex items-center gap-2">
+                <Ticket className="size-4 text-muted-foreground" />
+                <h3 className="text-xs uppercase tracking-[0.18em] font-semibold text-muted-foreground">Reservas & experiências</h3>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {links.map((m: any, i: number) => (
+                  <a
+                    key={i}
+                    href={m.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="group flex items-start gap-3 rounded-2xl border border-border bg-card/40 hover:bg-card hover:border-accent/50 hover:shadow-md transition-all p-4"
+                  >
+                    <span className="shrink-0 inline-flex size-9 items-center justify-center rounded-full bg-accent/15 text-accent">
+                      <Ticket className="size-4" strokeWidth={1.75} />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="flex items-center gap-1.5">
+                        <span className="font-medium text-[14px] leading-tight truncate">{m.label}</span>
+                        <ExternalLink className="size-3 text-muted-foreground shrink-0 group-hover:text-accent transition-colors" />
+                      </span>
+                      {typeof m.description === "string" && m.description.trim() && (
+                        <span className="block text-[12.5px] text-muted-foreground mt-1 leading-relaxed">
+                          {m.description}
+                        </span>
+                      )}
+                    </span>
+                  </a>
+                ))}
+              </div>
+            </div>
+          );
+        })()}
 
         {!active && (() => {
           const tagged = (r.faqs ?? []).filter((f: any) => Array.isArray(f?.tags) && f.tags.includes("explore"));
