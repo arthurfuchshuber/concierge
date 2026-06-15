@@ -172,12 +172,22 @@ function Guide({ data }: { data: GuideOk }) {
     {
       key: "checkin",
       eyebrow: "Estadia",
-      title: "Chegada & Saída",
+      title: "Chegada",
       desc: "Endereço, códigos de acesso e horários.",
       icon: <KeyRound className="size-5" strokeWidth={1.5} />,
       image: themePick("checkin", 1),
       visible: hasCheckin,
       to: { kind: "section", value: "checkin" },
+    },
+    {
+      key: "saida",
+      eyebrow: "Estadia",
+      title: "Saída",
+      desc: "Horário e instruções para o check-out.",
+      icon: <LogOut className="size-5" strokeWidth={1.5} />,
+      image: themePick("saida", 5),
+      visible: hasSaida,
+      to: { kind: "section", value: "saida" },
     },
     {
       key: "residencia",
