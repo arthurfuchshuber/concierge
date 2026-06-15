@@ -163,7 +163,7 @@ export const getMyProperty = createServerFn({ method: "POST" })
   .inputValidator((i: unknown) => z.object({ id: z.string().uuid() }).parse(i))
   .handler(async ({ data, context }) => {
     const [p, manual, recs, emerg, faqs, checkout] = await Promise.all([
-      context.supabase.from("properties").select("*").eq("id", data.id).single(),
+      context.supabase.from("properties").select("*").eq("id", data.id).maybeSingle(),
       context.supabase.from("property_manual_items").select("*").eq("property_id", data.id).order("position"),
       context.supabase.from("property_recommendations").select("*").eq("property_id", data.id).order("scope").order("type").order("position"),
       context.supabase.from("property_emergency_contacts").select("*").eq("property_id", data.id).order("position"),
@@ -171,6 +171,7 @@ export const getMyProperty = createServerFn({ method: "POST" })
       context.supabase.from("property_checkout_items").select("*").eq("property_id", data.id).order("position"),
     ]);
     if (p.error) throw (await import("@/lib/db-errors.server")).safeDbError("properties", p.error);
+    if (!p.data) throw new Error("Guia não encontrado.");
     const { signPropertyImages } = await import("@/lib/storage.server");
     const property = await signPropertyImages(context.supabase, p.data);
     return {
