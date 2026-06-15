@@ -646,7 +646,7 @@ function Guide({ data }: { data: GuideOk }) {
             </TabsContent>
 
             <TabsContent value="faq" className="space-y-6">
-              <SectionTitle title="Dúvidas" />
+              <SectionTitle title="Dúvidas & Contatos" />
               {data.faqs.length > 0 && (
                 <div>
                   <div className="mb-3 flex items-center gap-2">
