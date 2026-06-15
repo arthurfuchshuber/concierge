@@ -23,6 +23,7 @@ import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authentic
 import { Route as GSlugExplorarRouteImport } from './routes/g.$slug.explorar'
 import { Route as ApiPublicGuideChatRouteImport } from './routes/api/public/guide-chat'
 import { Route as AuthenticatedAdminClientesRouteImport } from './routes/_authenticated/admin.clientes'
+import { Route as AuthenticatedAdminBibliotecaRouteImport } from './routes/_authenticated/admin.biblioteca'
 import { Route as AuthenticatedAdminAssinaturaRouteImport } from './routes/_authenticated/admin.assinatura'
 import { Route as ApiPublicPaymentsWebhookRouteImport } from './routes/api/public/payments/webhook'
 import { Route as AuthenticatedAdminPropertiesIdRouteImport } from './routes/_authenticated/admin.properties.$id'
@@ -98,6 +99,12 @@ const AuthenticatedAdminClientesRoute =
     path: '/clientes',
     getParentRoute: () => AuthenticatedAdminRoute,
   } as any)
+const AuthenticatedAdminBibliotecaRoute =
+  AuthenticatedAdminBibliotecaRouteImport.update({
+    id: '/biblioteca',
+    path: '/biblioteca',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
 const AuthenticatedAdminAssinaturaRoute =
   AuthenticatedAdminAssinaturaRouteImport.update({
     id: '/assinatura',
@@ -133,6 +140,7 @@ export interface FileRoutesByFullPath {
   '/admin': typeof AuthenticatedAdminRouteWithChildren
   '/g/$slug': typeof GSlugRouteWithChildren
   '/admin/assinatura': typeof AuthenticatedAdminAssinaturaRoute
+  '/admin/biblioteca': typeof AuthenticatedAdminBibliotecaRoute
   '/admin/clientes': typeof AuthenticatedAdminClientesRoute
   '/api/public/guide-chat': typeof ApiPublicGuideChatRoute
   '/g/$slug/explorar': typeof GSlugExplorarRoute
@@ -150,6 +158,7 @@ export interface FileRoutesByTo {
   '/reembolso': typeof ReembolsoRoute
   '/termos': typeof TermosRoute
   '/admin/assinatura': typeof AuthenticatedAdminAssinaturaRoute
+  '/admin/biblioteca': typeof AuthenticatedAdminBibliotecaRoute
   '/admin/clientes': typeof AuthenticatedAdminClientesRoute
   '/api/public/guide-chat': typeof ApiPublicGuideChatRoute
   '/g/$slug/explorar': typeof GSlugExplorarRoute
@@ -171,6 +180,7 @@ export interface FileRoutesById {
   '/_authenticated/admin': typeof AuthenticatedAdminRouteWithChildren
   '/g/$slug': typeof GSlugRouteWithChildren
   '/_authenticated/admin/assinatura': typeof AuthenticatedAdminAssinaturaRoute
+  '/_authenticated/admin/biblioteca': typeof AuthenticatedAdminBibliotecaRoute
   '/_authenticated/admin/clientes': typeof AuthenticatedAdminClientesRoute
   '/api/public/guide-chat': typeof ApiPublicGuideChatRoute
   '/g/$slug/explorar': typeof GSlugExplorarRoute
@@ -192,6 +202,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/g/$slug'
     | '/admin/assinatura'
+    | '/admin/biblioteca'
     | '/admin/clientes'
     | '/api/public/guide-chat'
     | '/g/$slug/explorar'
@@ -209,6 +220,7 @@ export interface FileRouteTypes {
     | '/reembolso'
     | '/termos'
     | '/admin/assinatura'
+    | '/admin/biblioteca'
     | '/admin/clientes'
     | '/api/public/guide-chat'
     | '/g/$slug/explorar'
@@ -229,6 +241,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin'
     | '/g/$slug'
     | '/_authenticated/admin/assinatura'
+    | '/_authenticated/admin/biblioteca'
     | '/_authenticated/admin/clientes'
     | '/api/public/guide-chat'
     | '/g/$slug/explorar'
@@ -352,6 +365,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminClientesRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
     }
+    '/_authenticated/admin/biblioteca': {
+      id: '/_authenticated/admin/biblioteca'
+      path: '/biblioteca'
+      fullPath: '/admin/biblioteca'
+      preLoaderRoute: typeof AuthenticatedAdminBibliotecaRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
     '/_authenticated/admin/assinatura': {
       id: '/_authenticated/admin/assinatura'
       path: '/assinatura'
@@ -400,6 +420,7 @@ const AuthenticatedAdminPropertiesIdRouteWithChildren =
 
 interface AuthenticatedAdminRouteChildren {
   AuthenticatedAdminAssinaturaRoute: typeof AuthenticatedAdminAssinaturaRoute
+  AuthenticatedAdminBibliotecaRoute: typeof AuthenticatedAdminBibliotecaRoute
   AuthenticatedAdminClientesRoute: typeof AuthenticatedAdminClientesRoute
   AuthenticatedAdminIndexRoute: typeof AuthenticatedAdminIndexRoute
   AuthenticatedAdminPropertiesIdRoute: typeof AuthenticatedAdminPropertiesIdRouteWithChildren
@@ -407,6 +428,7 @@ interface AuthenticatedAdminRouteChildren {
 
 const AuthenticatedAdminRouteChildren: AuthenticatedAdminRouteChildren = {
   AuthenticatedAdminAssinaturaRoute: AuthenticatedAdminAssinaturaRoute,
+  AuthenticatedAdminBibliotecaRoute: AuthenticatedAdminBibliotecaRoute,
   AuthenticatedAdminClientesRoute: AuthenticatedAdminClientesRoute,
   AuthenticatedAdminIndexRoute: AuthenticatedAdminIndexRoute,
   AuthenticatedAdminPropertiesIdRoute:

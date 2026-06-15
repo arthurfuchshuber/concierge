@@ -1,63 +1,100 @@
-## Escopo
-Refinar o guia público (`/g/:slug`) sem mexer em lógica de assinatura, plano ou autenticação. Mudanças concentradas em `src/routes/g.$slug.index.tsx` e no editor admin `src/routes/_authenticated/admin.properties.$id.tsx`, com uma migração para novos campos de check-in detalhado.
 
-## 1. Textos e rótulos (mudanças simples)
-- Remover o "eyebrow" (— ESTADIA / A CASA / SUPORTE / CONEXÃO / COMBINADOS) acima de todos os títulos de seção. Simplifica `SectionTitle` para mostrar só título + intro.
-- Em Chegada & Saída → Horário: trocar rótulos do tile "Check-in" / "Check-out" para "Início" / "Fim" (mantendo os horários e textos auxiliares já existentes).
-- Renomear o sub-item "Chegada" → "Chegada & Localização".
-- Renomear a seção "Dúvidas Frequentes" → "Dúvidas" (título e nome do cartão no home).
-- Mostrar a seção Anfitrião sempre que o admin tiver preenchido nome/telefone (sem placeholders, conforme memória).
+# Plano: Gestão em massa, FAQ global, base de conhecimento e agrupamento por endereço
 
-## 2. Check-in detalhado com fotos e vídeos (feature nova)
-Hoje só existe `address_note` (texto). Adicionar:
+## 1. Edição em massa na visão lista
 
-- Migração SQL:
-  ```sql
-  ALTER TABLE public.properties
-    ADD COLUMN checkin_instructions text,
-    ADD COLUMN checkin_media jsonb NOT NULL DEFAULT '[]'::jsonb;
-  ```
-- Storage: reutilizar o bucket público de mídia já em uso pelas fotos da propriedade (mesma política RLS já existente).
-- Admin (editor): dentro de "Chegada & Localização" um bloco novo "Instruções de check-in" com:
-  - `Textarea` (max 3000 chars) — passo a passo livre.
-  - Uploader múltiplo (até 8 itens) aceitando imagens e vídeos `image/*,video/*`, com lista reordenável e botão remover.
-  - Cada item salvo como `{ url, type: "image"|"video" }` em `checkin_media`.
-- Guia público: dentro do sub-item "Chegada & Localização", renderizar abaixo do `address_note` um bloco "Instruções de check-in" com:
-  - Texto (se houver) com `whitespace-pre-line`.
-  - Galeria responsiva (mídia em cards arredondados; vídeos com `<video controls playsInline preload="metadata">`).
-- Manter a regra de memória: se texto e mídia vazios, nada aparece.
+Na rota `/admin` (Painel), quando o usuário ativa a visão "lista", cada linha ganha checkbox e aparece uma barra de ações no topo: "Selecionar todos", "Limpar seleção", contador, botão **Editar selecionados**.
 
-## 3. A Residência — visual mais atrativo (sair do estilo FAQ)
-Atualmente é um `Accordion` linha-a-linha. Trocar por grid de cards:
+Ao clicar em editar selecionados, abre um modal de edição em massa com abas espelhando os campos editáveis de um guia:
 
-- Layout: `grid grid-cols-1 sm:grid-cols-2 gap-3` de cards clicáveis (`button`) que abrem um `Dialog` com o conteúdo completo do item.
-- Cada card: ícone temático (mapeado por palavra-chave do título — Wi-Fi, ar, TV, cozinha, piscina, manual…), título, 1 linha de descrição truncada, chevron sutil.
-- Cabeçalho da seção ganha um intro mais leve.
-- Mantém ordenação atual; nenhum dado novo.
+- **Chegada**: `checkin_time`, `checkin_time_max`, `address_note`, `checkin_instructions`
+- **Saída**: `checkout_time`, `checkout_time_min`, `checkout_instructions`
+- **Acesso**: `gate_code`, `gate_instructions`, `lock_code`, `lock_instructions`
+- **Wi-Fi**: `wifi_ssid`, `wifi_password`
+- **Anfitrião**: `host_name`, `host_phone`
+- **Marca**: `brand_name`, `brand_logo_url` (apenas plano Business)
+- **Tema**: `guide_theme`
 
-## 4. Dúvidas — reordenação e refino
-Nova ordem dentro do TabsContent `faq`:
+Cada campo tem um toggle "Aplicar a todos" — só os campos marcados são enviados. Campos não marcados ficam intocados nos guias selecionados. Não inclui endereço/coordenadas/galeria/manual/recomendações/FAQs (esses são específicos de cada guia).
 
-```text
-1. FAQ (Accordion refinado)
-2. Emergências
-3. Contato do anfitrião (último)
+Não inclui edição em massa de tabelas filhas (manual, FAQs, recomendações, emergências) — apenas campos diretos da tabela `properties`.
+
+## 2. FAQ global e base de conhecimento
+
+Nova aba no menu lateral do admin: **Biblioteca**, com duas seções:
+
+### 2a. FAQ Global
+Perguntas/respostas reutilizáveis que o anfitrião gerencia uma vez e pode aplicar em vários guias. No editor de cada guia, na seção de FAQs, aparece um botão "Importar da biblioteca" que abre um seletor multi-seleção de FAQs globais e copia para o guia (cópia, não link — assim o usuário pode editar localmente sem afetar a global).
+
+Cada FAQ global tem o mesmo shape do FAQ por-guia (pergunta, resposta, tags de categoria).
+
+### 2b. Base de conhecimento da IA
+Texto livre / blocos de conhecimento que o anfitrião adiciona globalmente (ex: "sou anfitrião de imóveis em Foz do Iguaçu", "minha política de quebras é X", "minha empresa atende 24h via WhatsApp"). Cada bloco tem título + corpo (markdown simples).
+
+O chat da IA (`/api/public/guide-chat`) passa a injetar esses blocos no system prompt além do contexto do guia atual, dando à IA conhecimento transversal do anfitrião.
+
+## 3. Agrupamento automático por endereço na visão lista
+
+Na visão lista (não na de cards), guias com o mesmo endereço normalizado são agrupados sob um cabeçalho colapsável com o endereço.
+
+Critério de agrupamento: `lat`/`lng` quando ambos preenchidos (arredondados a ~10m), com fallback para `address` normalizado (lowercase + trim + colapso de espaços). Guias sem endereço ficam em um grupo "Sem endereço".
+
+Cabeçalho do grupo mostra: endereço, contador de guias, ação **Editar todos do grupo** (atalho para selecionar todos do grupo e abrir o modal de edição em massa).
+
+## Detalhes técnicos
+
+### Banco
+Migrações (tudo escopado por `owner_id`):
+
+```sql
+-- FAQ global por anfitrião
+CREATE TABLE public.host_faqs (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  owner_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  question text NOT NULL,
+  answer text NOT NULL,
+  tags text[] NOT NULL DEFAULT '{}',
+  position integer NOT NULL DEFAULT 0,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.host_faqs TO authenticated;
+GRANT ALL ON public.host_faqs TO service_role;
+ALTER TABLE public.host_faqs ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "owner all" ON public.host_faqs FOR ALL
+  USING (owner_id = auth.uid()) WITH CHECK (owner_id = auth.uid());
+
+-- Base de conhecimento da IA
+CREATE TABLE public.host_knowledge (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  owner_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  title text NOT NULL,
+  body text NOT NULL,
+  enabled boolean NOT NULL DEFAULT true,
+  position integer NOT NULL DEFAULT 0,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.host_knowledge TO authenticated;
+GRANT ALL ON public.host_knowledge TO service_role;
+ALTER TABLE public.host_knowledge ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "owner all" ON public.host_knowledge FOR ALL
+  USING (owner_id = auth.uid()) WITH CHECK (owner_id = auth.uid());
 ```
 
-- FAQ: cards com cantos `rounded-2xl`, sombra suave, número discreto à esquerda ("01", "02"…), pergunta serif, resposta em coluna estreita; transição mais suave no abrir/fechar.
-- Emergências: mantém grid de tels mas com ícone categórico (`Phone` colorido por tipo) e tipografia revisada.
-- Card do Anfitrião redesenhado: bloco maior com avatar (iniciais se sem foto), nome em serif, telefone como botão pill `Ligar`, opcional `WhatsApp` se o número permitir. Ocupa largura total, visual premium (gradiente sutil do accent).
+### Server functions novas (em `src/lib/properties.functions.ts` e novos arquivos)
+- `bulkUpdateProperties({ ids: string[], patch: Partial<PropertyFields> })` — RLS garante que só atualiza guias do `owner_id`.
+- `listHostFaqs` / `saveHostFaqs` (replace-all)
+- `listHostKnowledge` / `saveHostKnowledge`
 
-## 5. Detalhes técnicos
-- Arquivos editados:
-  - `src/routes/g.$slug.index.tsx` — textos, ordem do FAQ, novos blocos.
-  - `src/routes/_authenticated/admin.properties.$id.tsx` — novos campos de check-in.
-  - `src/lib/properties.functions.ts` + tipos — passar `checkin_instructions` e `checkin_media` no upsert/get.
-  - `src/integrations/supabase/types.ts` — regenerar manualmente as colunas novas.
-  - Nova migração em `supabase/migrations/`.
-- Reuso: uploader já existente para fotos da propriedade serve de base; clonar com suporte a vídeo.
-- Sem mudança em planos, RLS, autenticação, rotas ou roteamento.
+### Frontend
+- `src/routes/_authenticated/admin.index.tsx`: já tem toggle grid/lista — estender lista com checkboxes, barra de ações, agrupamento.
+- `src/components/BulkEditDialog.tsx`: modal com abas e toggles "aplicar".
+- `src/routes/_authenticated/admin.biblioteca.tsx`: nova rota com tabs "FAQ global" e "Base de conhecimento".
+- `src/routes/_authenticated/admin.properties.$id.tsx`: botão "Importar da biblioteca" na seção FAQ.
+- `src/routes/api/public/guide-chat.ts`: anexar `host_knowledge` enabled do owner do guia no system prompt.
 
-## Fora de escopo
-- Não vou alterar layout do home (cards de categoria), nem o WifiStrip, nem a aba Regras.
-- Sem ajustes em assinatura/checkout/admin dashboard.
+### Não-objetivos
+- Não substituir as FAQs por-guia (continuam existindo, a importação copia).
+- Não vincular FAQs globais aos guias por foreign key — é cópia explícita.
+- Edição em massa não toca galeria, manual, recomendações, emergências, FAQs ou checkout-list.
