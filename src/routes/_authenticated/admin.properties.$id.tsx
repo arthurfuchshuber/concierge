@@ -228,6 +228,7 @@ function PropertyEditor() {
       faqs: (data.faqs ?? []).map((m: Record<string, unknown>) => ({
         question: (m.question as string) ?? "",
         answer: (m.answer as string) ?? "",
+        tags: (Array.isArray(m.tags) ? (m.tags as string[]).filter((t) => ["chegada", "saida", "residencia", "explore"].includes(t)) : []) as ("chegada" | "saida" | "residencia" | "explore")[],
       })),
       checkout: (data.checkout ?? []).map((m: Record<string, unknown>) => ({
         label: (m.label as string) ?? "",
