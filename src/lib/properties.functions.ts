@@ -148,6 +148,7 @@ const SavePropertyInput = z.object({
   faqs: z.array(z.object({
     question: z.string().min(1).max(200),
     answer: z.string().min(1).max(2000),
+    tags: z.array(z.enum(["chegada", "saida", "residencia", "explore"])).max(4).default([]),
   })).max(40).default([]),
   checkout: z.array(z.object({
     label: z.string().min(1).max(200),
