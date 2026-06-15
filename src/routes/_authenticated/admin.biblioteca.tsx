@@ -406,6 +406,121 @@ function BibliotecaPage() {
           </div>
         </TabsContent>
       </Tabs>
+
+      <Dialog open={applyOpen} onOpenChange={setApplyOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Aplicar perguntas a guias</DialogTitle>
+            <DialogDescription>
+              Selecione os guias que vão receber as {selectedFaqIds.size} pergunta{selectedFaqIds.size > 1 ? "s" : ""} selecionada{selectedFaqIds.size > 1 ? "s" : ""}.
+              Perguntas com o mesmo enunciado já existentes no guia são ignoradas.
+            </DialogDescription>
+          </DialogHeader>
+
+          <Input
+            placeholder="Buscar por nome, endereço ou cidade…"
+            value={applySearch}
+            onChange={(e) => setApplySearch(e.target.value)}
+            className="mb-2"
+          />
+
+          {(() => {
+            const list = propsQuery.data ?? [];
+            const q = applySearch.trim().toLowerCase();
+            const filtered = q
+              ? list.filter((p) =>
+                  [p.name, p.address, p.city]
+                    .filter(Boolean)
+                    .some((s) => String(s).toLowerCase().includes(q)),
+                )
+              : list;
+            const allSelected =
+              filtered.length > 0 && filtered.every((p) => applyTargets.has(p.id));
+            return (
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 px-1">
+                  <Checkbox
+                    checked={allSelected}
+                    onCheckedChange={(v) =>
+                      setApplyTargets((s) => {
+                        const ns = new Set(s);
+                        if (v) filtered.forEach((p) => ns.add(p.id));
+                        else filtered.forEach((p) => ns.delete(p.id));
+                        return ns;
+                      })
+                    }
+                  />
+                  <span className="text-xs text-muted-foreground">
+                    {applyTargets.size > 0
+                      ? `${applyTargets.size} selecionado${applyTargets.size > 1 ? "s" : ""}`
+                      : "Selecionar todos visíveis"}
+                  </span>
+                </div>
+                <div className="max-h-72 overflow-y-auto rounded-xl border border-border divide-y divide-border">
+                  {filtered.length === 0 ? (
+                    <p className="text-xs text-muted-foreground text-center py-6">
+                      Nenhum guia encontrado.
+                    </p>
+                  ) : (
+                    filtered.map((p) => {
+                      const checked = applyTargets.has(p.id);
+                      return (
+                        <label
+                          key={p.id}
+                          className="flex items-center gap-3 p-3 hover:bg-secondary/40 cursor-pointer"
+                        >
+                          <Checkbox
+                            checked={checked}
+                            onCheckedChange={(v) =>
+                              setApplyTargets((s) => {
+                                const ns = new Set(s);
+                                if (v) ns.add(p.id);
+                                else ns.delete(p.id);
+                                return ns;
+                              })
+                            }
+                          />
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-medium truncate">{p.name}</p>
+                            {(p.address || p.city) && (
+                              <p className="text-xs text-muted-foreground truncate flex items-center gap-1">
+                                <MapPin className="size-3" />
+                                {p.address || p.city}
+                              </p>
+                            )}
+                          </div>
+                        </label>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+            );
+          })()}
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setApplyOpen(false)}
+              className="rounded-full"
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleApply}
+              disabled={applying || applyTargets.size === 0}
+              className="rounded-full"
+            >
+              {applying ? (
+                <Loader2 className="size-4 mr-1.5 animate-spin" />
+              ) : (
+                <Send className="size-4 mr-1.5" />
+              )}
+              Aplicar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
