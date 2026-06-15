@@ -29,6 +29,11 @@ const PropertyInput = z.object({
     faq: HttpsUrl,
     explore: HttpsUrl,
   }).partial().default({}),
+  marketplace_links: z.array(z.object({
+    label: z.string().trim().min(1).max(120),
+    url: z.string().trim().url().max(2048).refine(isHttpsUrl, "Use um link HTTPS válido"),
+    description: z.string().trim().max(280).optional().nullable(),
+  })).max(20).default([]),
   address: z.string().max(500).optional().nullable(),
   maps_url: HttpsUrl,
   lat: z.number().optional().nullable(),

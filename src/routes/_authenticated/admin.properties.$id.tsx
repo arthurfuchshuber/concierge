@@ -15,7 +15,7 @@ import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Loader2, Sparkles, Plus, Trash2, MapPin, ArrowLeft, FileText, KeyRound, Home, Compass, LifeBuoy, Check, Eye, Image as ImageIcon, MapPinned, Clock, DoorOpen, Wifi, UserRound, BookOpen, ClipboardCheck, Shield, Globe, Power, Phone, HelpCircle, Sun, Moon, Palette, Lock, MessageSquare, LogOut, ChevronDown } from "lucide-react";
+import { Loader2, Sparkles, Plus, Trash2, MapPin, ArrowLeft, FileText, KeyRound, Home, Compass, LifeBuoy, Check, Eye, Image as ImageIcon, MapPinned, Clock, DoorOpen, Wifi, UserRound, BookOpen, ClipboardCheck, Shield, Globe, Power, Phone, HelpCircle, Sun, Moon, Palette, Lock, MessageSquare, LogOut, ChevronDown, Ticket } from "lucide-react";
 import { ImageUpload } from "@/components/ImageUpload";
 import { MediaUpload, type MediaItem } from "@/components/MediaUpload";
 import { EtiquetaSelect, ETIQUETA_OPTIONS } from "@/components/EtiquetaSelect";
@@ -53,6 +53,7 @@ type FormState = {
     hero_image_url: string;
     gallery_images: string[];
     theme_images: { checkin: string; residencia: string; faq: string; explore: string };
+    marketplace_links: { label: string; url: string; description: string }[];
     address: string;
     maps_url: string;
     lat: number | null;
@@ -101,6 +102,7 @@ function emptyForm(): FormState {
     property: {
       name: "", slug: "", tagline: "", hero_image_url: "", gallery_images: [],
       theme_images: { checkin: "", residencia: "", faq: "", explore: "" },
+      marketplace_links: [],
       address: "", maps_url: "",
       lat: null, lng: null, city: "", country: "", checkin_time: "15:00", checkin_time_max: "", checkout_time: "11:00", checkout_time_min: "",
       lock_code: "", gate_code: "", address_note: "", checkin_instructions: "", checkout_instructions: "", checkin_media: [], gate_instructions: "", gate_media: [], gate_video_url: "", lock_instructions: "", lock_media: [], lock_video_url: "", wifi_ssid: "", wifi_password: "",
@@ -174,6 +176,16 @@ function PropertyEditor() {
           faq: ((p.theme_images as Record<string, string> | null)?.faq) ?? "",
           explore: ((p.theme_images as Record<string, string> | null)?.explore) ?? "",
         },
+        marketplace_links: Array.isArray((p as Record<string, unknown>).marketplace_links)
+          ? ((p as Record<string, unknown>).marketplace_links as Array<Record<string, unknown>>)
+              .filter((m) => m && typeof m.label === "string" && typeof m.url === "string")
+              .map((m) => ({
+                label: String(m.label ?? ""),
+                url: String(m.url ?? ""),
+                description: typeof m.description === "string" ? m.description : "",
+              }))
+              .slice(0, 20)
+          : [],
         address: (p.address as string) ?? "",
         maps_url: (p.maps_url as string) ?? "",
         lat: (p.lat as number) ?? null,
@@ -370,6 +382,13 @@ function PropertyEditor() {
             faq: form.property.theme_images.faq || undefined,
             explore: form.property.theme_images.explore || undefined,
           },
+          marketplace_links: form.property.marketplace_links
+            .map((m) => ({
+              label: m.label.trim(),
+              url: m.url.trim(),
+              description: m.description.trim() || null,
+            }))
+            .filter((m) => m.label && m.url),
           address: form.property.address || null,
           maps_url: form.property.maps_url || null,
           city: form.property.city || null,
@@ -927,6 +946,41 @@ function PropertyEditor() {
             onChange={(items) => setForm((f) => ({ ...f, recommendations: [...nearbyRecs, ...items] }))}
             scope="city"
           />
+
+          <Section
+            icon={Ticket}
+            title="Reservas & marketplace"
+            desc="Links para venda de ingressos, passeios, transfers, produtos ou qualquer experiência que você queira oferecer ao hóspede."
+            action={<AddBtn onClick={() => setForm((f) => ({ ...f, property: { ...f.property, marketplace_links: [...f.property.marketplace_links, { label: "", url: "", description: "" }] } }))} />}
+          >
+            {form.property.marketplace_links.length === 0 ? (
+              <EmptyHint text="Ex: tour de barco, transfer do aeroporto, kit de boas-vindas." />
+            ) : form.property.marketplace_links.map((m, i) => (
+              <ItemCard
+                key={i}
+                onRemove={() => setForm((f) => ({ ...f, property: { ...f.property, marketplace_links: f.property.marketplace_links.filter((_, j) => j !== i) } }))}
+              >
+                <Input
+                  placeholder="Título (ex: Tour de barco)"
+                  value={m.label}
+                  maxLength={120}
+                  onChange={(e) => setForm((f) => ({ ...f, property: { ...f.property, marketplace_links: f.property.marketplace_links.map((x, j) => j === i ? { ...x, label: e.target.value } : x) } }))}
+                />
+                <Input
+                  placeholder="https://link-de-venda.com"
+                  value={m.url}
+                  maxLength={2048}
+                  onChange={(e) => setForm((f) => ({ ...f, property: { ...f.property, marketplace_links: f.property.marketplace_links.map((x, j) => j === i ? { ...x, url: e.target.value } : x) } }))}
+                />
+                <Textarea
+                  placeholder="Descrição curta (opcional)"
+                  value={m.description}
+                  maxLength={280}
+                  onChange={(e) => setForm((f) => ({ ...f, property: { ...f.property, marketplace_links: f.property.marketplace_links.map((x, j) => j === i ? { ...x, description: e.target.value } : x) } }))}
+                />
+              </ItemCard>
+            ))}
+          </Section>
         </TabsContent>
 
         <TabsContent value="extras" className="space-y-5 mt-6">
