@@ -382,6 +382,13 @@ function PropertyEditor() {
             faq: form.property.theme_images.faq || undefined,
             explore: form.property.theme_images.explore || undefined,
           },
+          marketplace_links: form.property.marketplace_links
+            .map((m) => ({
+              label: m.label.trim(),
+              url: m.url.trim(),
+              description: m.description.trim() || null,
+            }))
+            .filter((m) => m.label && m.url),
           address: form.property.address || null,
           maps_url: form.property.maps_url || null,
           city: form.property.city || null,
