@@ -1,0 +1,1 @@
+ALTER TABLE public.properties ADD COLUMN IF NOT EXISTS marketplace_links jsonb NOT NULL DEFAULT '[]'::jsonb;

@@ -139,6 +139,7 @@ export type Database = {
           lock_media: Json
           lock_video_url: string | null
           maps_url: string | null
+          marketplace_links: Json
           name: string
           owner_id: string
           pin_code: string | null
@@ -185,6 +186,7 @@ export type Database = {
           lock_media?: Json
           lock_video_url?: string | null
           maps_url?: string | null
+          marketplace_links?: Json
           name: string
           owner_id: string
           pin_code?: string | null
@@ -231,6 +233,7 @@ export type Database = {
           lock_media?: Json
           lock_video_url?: string | null
           maps_url?: string | null
+          marketplace_links?: Json
           name?: string
           owner_id?: string
           pin_code?: string | null
