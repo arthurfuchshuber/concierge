@@ -7,13 +7,24 @@ import {
   saveHostFaqs,
   listHostKnowledge,
   saveHostKnowledge,
+  listPropertiesBrief,
+  applyHostFaqsToProperties,
 } from "@/lib/host-library.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
-import { Plus, Trash2, Save, HelpCircle, BrainCircuit, Loader2 } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Plus, Trash2, Save, HelpCircle, BrainCircuit, Loader2, Send, MapPin } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/admin/biblioteca")({
