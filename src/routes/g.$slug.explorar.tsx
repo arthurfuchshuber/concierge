@@ -19,6 +19,7 @@ import {
   Clock,
   ChevronDown,
   HelpCircle,
+  Ticket,
 } from "lucide-react";
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
 
