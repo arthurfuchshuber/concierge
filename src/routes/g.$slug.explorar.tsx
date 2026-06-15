@@ -18,7 +18,9 @@ import {
   ShoppingBag,
   Clock,
   ChevronDown,
+  HelpCircle,
 } from "lucide-react";
+import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
 
 
 
@@ -322,6 +324,38 @@ function ExplorePage() {
         {categories.length === 0 && (
           <p className="text-sm text-muted-foreground">Sem recomendações cadastradas ainda.</p>
         )}
+
+        {!active && (() => {
+          const tagged = (r.faqs ?? []).filter((f: any) => Array.isArray(f?.tags) && f.tags.includes("explore"));
+          if (tagged.length === 0) return null;
+          return (
+            <div className="mt-10">
+              <div className="mb-3 flex items-center gap-2">
+                <HelpCircle className="size-4 text-muted-foreground" />
+                <h3 className="text-xs uppercase tracking-[0.18em] font-semibold text-muted-foreground">Perguntas frequentes</h3>
+              </div>
+              <Accordion type="single" collapsible className="space-y-1.5">
+                {tagged.map((f: any, idx: number) => (
+                  <AccordionItem
+                    key={f.id}
+                    value={f.id}
+                    className="border border-border/70 rounded-xl px-3.5 bg-card/30 hover:bg-card/60 transition-colors data-[state=open]:bg-card data-[state=open]:border-accent/40"
+                  >
+                    <AccordionTrigger className="text-left hover:no-underline py-2.5 gap-3">
+                      <span className="flex items-center gap-2.5 min-w-0">
+                        <span className="text-[10px] font-mono text-accent/70 tabular-nums tracking-wider shrink-0">{String(idx + 1).padStart(2, "0")}</span>
+                        <span className="text-[13.5px] font-medium leading-snug truncate">{f.question}</span>
+                      </span>
+                    </AccordionTrigger>
+                    <AccordionContent className="text-[13.5px] leading-relaxed whitespace-pre-line text-foreground/80 pl-6 pr-1 pb-3.5 max-w-prose">
+                      {f.answer}
+                    </AccordionContent>
+                  </AccordionItem>
+                ))}
+              </Accordion>
+            </div>
+          );
+        })()}
       </div>
     </div>
   );

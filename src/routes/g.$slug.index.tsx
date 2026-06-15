@@ -200,16 +200,6 @@ function Guide({ data }: { data: GuideOk }) {
       to: { kind: "section", value: "residencia" },
     },
     {
-      key: "faq",
-      eyebrow: "Suporte",
-      title: "Dúvidas",
-      desc: "Anfitrião, emergências e respostas rápidas.",
-      icon: <HelpCircle className="size-5" strokeWidth={1.5} />,
-      image: themePick("faq", 3),
-      visible: hasFaq,
-      to: { kind: "section", value: "faq" },
-    },
-    {
       key: "explore",
       eyebrow: "Concierge",
       title: "Explore a Região",
@@ -218,6 +208,16 @@ function Guide({ data }: { data: GuideOk }) {
       image: themePick("explore", 4),
       visible: hasExplore,
       to: { kind: "link", to: `/g/${slug}/explorar` },
+    },
+    {
+      key: "faq",
+      eyebrow: "Suporte",
+      title: "Dúvidas & Contatos",
+      desc: "Anfitrião, emergências e respostas rápidas.",
+      icon: <HelpCircle className="size-5" strokeWidth={1.5} />,
+      image: themePick("faq", 3),
+      visible: hasFaq,
+      to: { kind: "section", value: "faq" },
     },
   ];
   const cards = allCards.filter((c) => c.visible);
@@ -523,6 +523,7 @@ function Guide({ data }: { data: GuideOk }) {
                   </SubList>
                 );
               })()}
+              <TaggedFaqs faqs={data.faqs} tag="chegada" />
             </TabsContent>
 
             <TabsContent value="saida" className="space-y-5">
@@ -576,6 +577,7 @@ function Guide({ data }: { data: GuideOk }) {
                   </SubList>
                 );
               })()}
+              <TaggedFaqs faqs={data.faqs} tag="saida" />
             </TabsContent>
 
 
@@ -604,6 +606,7 @@ function Guide({ data }: { data: GuideOk }) {
                   ))}
                 </div>
               )}
+              <TaggedFaqs faqs={data.faqs} tag="residencia" />
             </TabsContent>
 
             <TabsContent value="regras" className="space-y-4">
@@ -646,7 +649,7 @@ function Guide({ data }: { data: GuideOk }) {
             </TabsContent>
 
             <TabsContent value="faq" className="space-y-6">
-              <SectionTitle title="Dúvidas" />
+              <SectionTitle title="Dúvidas & Contatos" />
               {data.faqs.length > 0 && (
                 <div>
                   <div className="mb-3 flex items-center gap-2">
@@ -1165,6 +1168,38 @@ function SectionTitle({ title, intro }: { eyebrow?: string; title: string; intro
     <div className="pt-2 pb-1">
       <h2 className="font-serif text-[1.9rem] leading-[1.1] tracking-tight">{title}</h2>
       {intro && <p className="text-[13px] text-muted-foreground mt-2 leading-relaxed max-w-[36ch]">{intro}</p>}
+    </div>
+  );
+}
+
+function TaggedFaqs({ faqs, tag }: { faqs: any[]; tag: "chegada" | "saida" | "residencia" | "explore" }) {
+  const filtered = (faqs ?? []).filter((f) => Array.isArray(f?.tags) && f.tags.includes(tag));
+  if (filtered.length === 0) return null;
+  return (
+    <div className="pt-2">
+      <div className="mb-3 flex items-center gap-2">
+        <HelpCircle className="size-4 text-muted-foreground" />
+        <h3 className="text-xs uppercase tracking-[0.18em] font-semibold text-muted-foreground">Perguntas frequentes</h3>
+      </div>
+      <Accordion type="single" collapsible className="space-y-1.5">
+        {filtered.map((f: any, idx: number) => (
+          <AccordionItem
+            key={f.id}
+            value={f.id}
+            className="border border-border/70 rounded-xl px-3.5 bg-card/30 hover:bg-card/60 transition-colors data-[state=open]:bg-card data-[state=open]:border-accent/40"
+          >
+            <AccordionTrigger className="text-left hover:no-underline py-2.5 gap-3">
+              <span className="flex items-center gap-2.5 min-w-0">
+                <span className="text-[10px] font-mono text-accent/70 tabular-nums tracking-wider shrink-0">{String(idx + 1).padStart(2, "0")}</span>
+                <span className="text-[13.5px] font-medium leading-snug truncate">{f.question}</span>
+              </span>
+            </AccordionTrigger>
+            <AccordionContent className="text-[13.5px] leading-relaxed whitespace-pre-line text-foreground/80 pl-6 pr-1 pb-3.5 max-w-prose">
+              {f.answer}
+            </AccordionContent>
+          </AccordionItem>
+        ))}
+      </Accordion>
     </div>
   );
 }

@@ -317,6 +317,7 @@ export type Database = {
           position: number
           property_id: string
           question: string
+          tags: string[]
         }
         Insert: {
           answer: string
@@ -324,6 +325,7 @@ export type Database = {
           position?: number
           property_id: string
           question: string
+          tags?: string[]
         }
         Update: {
           answer?: string
@@ -331,6 +333,7 @@ export type Database = {
           position?: number
           property_id?: string
           question?: string
+          tags?: string[]
         }
         Relationships: [
           {
