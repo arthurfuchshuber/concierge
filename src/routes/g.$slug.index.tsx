@@ -308,8 +308,7 @@ function Guide({ data }: { data: GuideOk }) {
                 const hasLockExtras = !!(p.lock_code && (p.lock_instructions || p.lock_video_url || lockMedia.length > 0));
                 const hasAcesso = !!(p.gate_code || p.lock_code || hasGateExtras || hasLockExtras);
                 const hasWifi = !!p.wifi_ssid;
-                const hasSaida = !!p.checkout_instructions;
-                if (!hasHorario && !hasChegada && !hasAcesso && !hasWifi && !hasSaida) {
+                if (!hasHorario && !hasChegada && !hasAcesso && !hasWifi) {
                   return <p className="text-sm text-muted-foreground">Sem informações cadastradas.</p>;
                 }
                 const hasCoords = p.lat != null && p.lng != null;
