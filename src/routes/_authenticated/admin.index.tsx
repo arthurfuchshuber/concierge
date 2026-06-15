@@ -32,6 +32,9 @@ function Dashboard() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkOpen, setBulkOpen] = useState(false);
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [accessFilter, setAccessFilter] = useState<AccessFilter>("all");
 
   function closePreview() {
     setViewSlug(null);
