@@ -56,14 +56,22 @@ function BibliotecaPage() {
   const persistFaqs = useServerFn(saveHostFaqs);
   const loadKnow = useServerFn(listHostKnowledge);
   const persistKnow = useServerFn(saveHostKnowledge);
+  const loadProps = useServerFn(listPropertiesBrief);
+  const applyFaqs = useServerFn(applyHostFaqsToProperties);
 
   const faqQuery = useQuery({ queryKey: ["host-faqs"], queryFn: () => loadFaqs() });
   const knowQuery = useQuery({ queryKey: ["host-knowledge"], queryFn: () => loadKnow() });
+  const propsQuery = useQuery({ queryKey: ["host-properties-brief"], queryFn: () => loadProps() });
 
   const [faqs, setFaqs] = useState<FaqItem[]>([]);
   const [knowledge, setKnowledge] = useState<KnowledgeItem[]>([]);
   const [savingFaqs, setSavingFaqs] = useState(false);
   const [savingKnow, setSavingKnow] = useState(false);
+  const [selectedFaqIds, setSelectedFaqIds] = useState<Set<string>>(new Set());
+  const [applyOpen, setApplyOpen] = useState(false);
+  const [applyTargets, setApplyTargets] = useState<Set<string>>(new Set());
+  const [applySearch, setApplySearch] = useState("");
+  const [applying, setApplying] = useState(false);
 
   useEffect(() => {
     if (faqQuery.data) {
