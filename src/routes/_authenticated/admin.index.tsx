@@ -335,9 +335,22 @@ function Dashboard() {
             <Plus className="size-4 mr-1.5" /> Criar guia
           </Button>
         </div>
+      ) : filtered.length === 0 ? (
+        <div className="rounded-2xl border border-dashed border-border bg-card/30 p-12 text-center">
+          <div className="size-12 rounded-2xl bg-secondary grid place-items-center mx-auto mb-4">
+            <Search className="size-5 text-muted-foreground" />
+          </div>
+          <h3 className="font-serif text-xl mb-2">Nenhum guia encontrado</h3>
+          <p className="text-sm text-muted-foreground mb-5 max-w-md mx-auto">
+            Tente ajustar a busca ou limpar os filtros.
+          </p>
+          <Button variant="outline" onClick={clearFilters} className="rounded-full">
+            Limpar filtros
+          </Button>
+        </div>
       ) : view === "grid" ? (
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {data.map((p) => (
+          {filtered.map((p) => (
             <div key={p.id} className="rounded-2xl border border-border bg-card overflow-hidden group hover:shadow-elevated transition-shadow">
               <div className="aspect-[16/10] bg-secondary relative">
                 {p.hero_image_url ? (
