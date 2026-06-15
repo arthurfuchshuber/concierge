@@ -577,6 +577,7 @@ function Guide({ data }: { data: GuideOk }) {
                   </SubList>
                 );
               })()}
+              <TaggedFaqs faqs={data.faqs} tag="saida" />
             </TabsContent>
 
 
