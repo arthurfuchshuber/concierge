@@ -1015,7 +1015,18 @@ function PropertyEditor() {
             icon={HelpCircle}
             title="Perguntas frequentes"
             desc="Antecipe dúvidas comuns dos hóspedes."
-            action={<AddBtn onClick={() => setForm((f) => ({ ...f, faqs: [...f.faqs, { question: "", answer: "", tags: [] }] }))} />}
+            action={
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => { setFaqLibSelected({}); setFaqLibOpen(true); }}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-border bg-background text-xs text-muted-foreground hover:text-foreground hover:border-accent/50 transition-colors"
+                >
+                  <BookOpen className="size-3.5" /> Importar da biblioteca
+                </button>
+                <AddBtn onClick={() => setForm((f) => ({ ...f, faqs: [...f.faqs, { question: "", answer: "", tags: [] }] }))} />
+              </div>
+            }
           >
             {form.faqs.length === 0 ? (
               <EmptyHint text="Ex: posso fumar? tem estacionamento? aceita pets?" />
