@@ -200,16 +200,6 @@ function Guide({ data }: { data: GuideOk }) {
       to: { kind: "section", value: "residencia" },
     },
     {
-      key: "faq",
-      eyebrow: "Suporte",
-      title: "Dúvidas",
-      desc: "Anfitrião, emergências e respostas rápidas.",
-      icon: <HelpCircle className="size-5" strokeWidth={1.5} />,
-      image: themePick("faq", 3),
-      visible: hasFaq,
-      to: { kind: "section", value: "faq" },
-    },
-    {
       key: "explore",
       eyebrow: "Concierge",
       title: "Explore a Região",
@@ -218,6 +208,16 @@ function Guide({ data }: { data: GuideOk }) {
       image: themePick("explore", 4),
       visible: hasExplore,
       to: { kind: "link", to: `/g/${slug}/explorar` },
+    },
+    {
+      key: "faq",
+      eyebrow: "Suporte",
+      title: "Dúvidas & Contatos",
+      desc: "Anfitrião, emergências e respostas rápidas.",
+      icon: <HelpCircle className="size-5" strokeWidth={1.5} />,
+      image: themePick("faq", 3),
+      visible: hasFaq,
+      to: { kind: "section", value: "faq" },
     },
   ];
   const cards = allCards.filter((c) => c.visible);
