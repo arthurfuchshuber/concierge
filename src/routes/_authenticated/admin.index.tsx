@@ -395,15 +395,15 @@ function Dashboard() {
         (() => {
           const norm = (s?: string | null) =>
             (s ?? "").toLowerCase().trim().replace(/\s+/g, " ");
-          const keyOf = (p: typeof data[number]) => {
+          const keyOf = (p: typeof filtered[number]) => {
             if (p.lat != null && p.lng != null) {
               return `geo:${Number(p.lat).toFixed(4)},${Number(p.lng).toFixed(4)}`;
             }
             const a = norm(p.address);
             return a ? `addr:${a}` : "none";
           };
-          const groups = new Map<string, { label: string; items: typeof data }>();
-          for (const p of data) {
+          const groups = new Map<string, { label: string; items: typeof filtered }>();
+          for (const p of filtered) {
             const k = keyOf(p);
             if (!groups.has(k)) {
               groups.set(k, {
@@ -417,14 +417,14 @@ function Dashboard() {
             groups.get(k)!.items.push(p);
           }
           const groupList = Array.from(groups.entries());
-          const allSelected = selected.size > 0 && selected.size === data.length;
+          const allSelected = selected.size > 0 && selected.size === filtered.length;
           return (
             <div className="space-y-3">
               <div className="flex items-center gap-3 px-1">
                 <Checkbox
                   checked={allSelected}
                   onCheckedChange={(v) => {
-                    if (v) setSelected(new Set(data.map((p) => p.id)));
+                    if (v) setSelected(new Set(filtered.map((p) => p.id)));
                     else setSelected(new Set());
                   }}
                 />
