@@ -882,21 +882,19 @@ function PropertyEditor() {
                 disabled={!canBrand}
               />
             </Field>
-            <Field label="Logomarca (URL https)">
-              <Input
-                value={form.property.brand_logo_url}
-                maxLength={2048}
-                placeholder="https://..."
-                onChange={(e) => update("brand_logo_url", e.target.value)}
-                disabled={!canBrand}
-              />
+            <Field label="Logomarca">
+              {canBrand ? (
+                <ImageUpload
+                  value={form.property.brand_logo_url}
+                  folder="brand"
+                  aspect="square"
+                  placeholder="Enviar logomarca"
+                  onChange={(v) => update("brand_logo_url", v)}
+                />
+              ) : (
+                <Input value="" placeholder="Disponível em planos com marca própria" disabled />
+              )}
             </Field>
-            {canBrand && form.property.brand_logo_url && (
-              <div className="mt-2 inline-flex items-center gap-2 rounded-lg border border-border bg-secondary/30 px-3 py-2">
-                <img src={form.property.brand_logo_url} alt="Preview" className="h-8 w-auto object-contain" />
-                <span className="text-xs text-muted-foreground">Pré-visualização</span>
-              </div>
-            )}
           </Section>
 
 
