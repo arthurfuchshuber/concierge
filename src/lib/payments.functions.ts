@@ -108,20 +108,26 @@ export const getMySubscription = createServerFn({ method: "GET" })
     z.object({ environment: PaddleEnvSchema }).parse(data),
   )
   .handler(async ({ data, context }) => {
+    // Fetch the user's most recent subscription. We prefer rows matching the
+    // caller's runtime environment, but fall back to manual rows from the
+    // other environment so admin-granted plans work in both preview and
+    // published builds.
     const { data: rows, error } = await context.supabase
       .from("subscriptions")
       .select(
-        "id, paddle_subscription_id, paddle_customer_id, product_id, price_id, status, current_period_start, current_period_end, cancel_at_period_end, environment, created_at",
+        "id, paddle_subscription_id, paddle_customer_id, product_id, price_id, status, current_period_start, current_period_end, cancel_at_period_end, environment, is_manual, created_at",
       )
       .eq("user_id", context.userId)
-      .eq("environment", data.environment)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
+      .order("created_at", { ascending: false });
     if (error) throw (await import("@/lib/db-errors.server")).safeDbError("subscriptions", error);
-    if (!rows) return { subscription: null, plan: null as PlanKey | null };
-    const plan = planFromProductId(rows.product_id);
-    return { subscription: rows, plan };
+    const list = rows ?? [];
+    const match =
+      list.find((r) => r.environment === data.environment) ??
+      list.find((r) => r.is_manual) ??
+      null;
+    if (!match) return { subscription: null, plan: null as PlanKey | null };
+    const plan = planFromProductId(match.product_id);
+    return { subscription: match, plan };
   });
 
 export const createPortalSession = createServerFn({ method: "POST" })
