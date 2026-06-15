@@ -103,7 +103,7 @@ function PinGate({ slug, status, name }: { slug: string; status: "locked" | "exp
 }
 
 type GuideOk = Extract<Awaited<ReturnType<typeof getPublicGuide>>, { status: "ok" }>;
-type Section = "home" | "checkin" | "wifi" | "residencia" | "regras" | "faq";
+type Section = "home" | "checkin" | "saida" | "wifi" | "residencia" | "regras" | "faq";
 
 function safeHttpsHref(value: string | null | undefined): string | null {
   if (!value) return null;
