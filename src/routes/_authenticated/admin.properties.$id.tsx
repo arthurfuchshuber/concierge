@@ -53,6 +53,7 @@ type FormState = {
     hero_image_url: string;
     gallery_images: string[];
     theme_images: { checkin: string; residencia: string; faq: string; explore: string };
+    marketplace_links: { label: string; url: string; description: string }[];
     address: string;
     maps_url: string;
     lat: number | null;
