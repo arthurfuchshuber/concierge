@@ -92,6 +92,28 @@ function Dashboard() {
   const pct = planLimit > 0 ? Math.min(100, (count / planLimit) * 100) : 0;
   const reachedLimit = planLimit > 0 && count >= planLimit;
 
+  const filtered = useMemo(() => {
+    if (!data) return [];
+    const q = search.trim().toLowerCase();
+    return data.filter((p) => {
+      if (statusFilter === "published" && !p.published) return false;
+      if (statusFilter === "draft" && p.published) return false;
+      if (accessFilter !== "all" && p.access_mode !== accessFilter) return false;
+      if (!q) return true;
+      return [p.name, p.tagline, p.address, p.city, p.country, p.slug]
+        .filter(Boolean)
+        .some((s) => String(s).toLowerCase().includes(q));
+    });
+  }, [data, search, statusFilter, accessFilter]);
+
+  const hasActiveFilters =
+    search.trim() !== "" || statusFilter !== "all" || accessFilter !== "all";
+  function clearFilters() {
+    setSearch("");
+    setStatusFilter("all");
+    setAccessFilter("all");
+  }
+
 
   return (
     <div className="px-6 lg:px-10 py-8 lg:py-10 max-w-7xl mx-auto w-full">
