@@ -606,6 +606,7 @@ function Guide({ data }: { data: GuideOk }) {
                   ))}
                 </div>
               )}
+              <TaggedFaqs faqs={data.faqs} tag="residencia" />
             </TabsContent>
 
             <TabsContent value="regras" className="space-y-4">
