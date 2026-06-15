@@ -520,12 +520,53 @@ function Guide({ data }: { data: GuideOk }) {
                         </div>
                       </SubItem>
                     )}
+                  </SubList>
+                );
+              })()}
+            </TabsContent>
 
-                    {hasSaida && (
+            <TabsContent value="saida" className="space-y-5">
+              <SectionTitle eyebrow="Estadia" title="Saída" intro="Tudo o que você precisa para o check-out." />
+
+              {(() => {
+                const hasHorarioOut = !!p.checkout_time;
+                const hasInstr = !!p.checkout_instructions;
+                if (!hasHorarioOut && !hasInstr) {
+                  return <p className="text-sm text-muted-foreground">Sem informações cadastradas.</p>;
+                }
+                return (
+                  <SubList>
+                    {hasHorarioOut && (() => {
+                      const raw = String(p.checkout_time ?? "").trim();
+                      const rawMin = String(p.checkout_time_min ?? "").trim();
+                      const lower = raw.toLowerCase();
+                      const fmt = (s: string) => {
+                        const m = s.match(/^(\d{1,2}):(\d{2})/);
+                        return m ? `${m[1].padStart(2, "0")}h${m[2]}` : s;
+                      };
+                      let summary: string;
+                      if (/flex/i.test(lower)) summary = "Check-out flexível.";
+                      else if (/agend/i.test(lower)) summary = "Check-out sob agendamento.";
+                      else if (raw && rawMin) summary = `Check-out entre ${fmt(rawMin)} e ${fmt(raw)}`;
+                      else summary = `Check-out até ${fmt(raw)}`;
+                      return (
+                        <SubItem
+                          icon={<Clock className="size-[18px]" strokeWidth={1.6} />}
+                          label="Horários"
+                          hint={summary}
+                        >
+                          <div className="rounded-2xl border border-border/60 bg-background/40 px-4 py-3.5">
+                            <p className="text-[15px] font-medium text-foreground/95 leading-snug">{summary}</p>
+                          </div>
+                        </SubItem>
+                      );
+                    })()}
+
+                    {hasInstr && (
                       <SubItem
                         icon={<LogOut className="size-[18px]" strokeWidth={1.6} />}
-                        label="Saída"
-                        hint="Passo a passo do check-out"
+                        label="Check-out"
+                        hint="Passo a passo da saída"
                       >
                         <div className="rounded-2xl border border-border/60 bg-background/40 px-4 py-4">
                           <StepList text={p.checkout_instructions as string} dense />
@@ -536,6 +577,7 @@ function Guide({ data }: { data: GuideOk }) {
                 );
               })()}
             </TabsContent>
+
 
             <TabsContent value="wifi" className="space-y-4">
               <SectionTitle eyebrow="Conexão" title="Wi-Fi" intro="Conecte-se à rede da casa." />
