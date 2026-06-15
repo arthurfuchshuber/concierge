@@ -239,6 +239,20 @@ export const upsertProperty = createServerFn({ method: "POST" })
         .single();
       if (error) throw (await import("@/lib/db-errors.server")).safeDbError("properties", error);
       propertyId = inserted.id;
+
+      // Auto-generate default FAQs on first creation when the user didn't
+      // provide any. Only fields that are actually filled produce a question.
+      if (!data.faqs.length) {
+        const { buildDefaultFaqs } = await import("@/lib/default-faqs");
+        const defaults = buildDefaultFaqs(propertyData);
+        if (defaults.length) {
+          data.faqs = defaults.map((f) => ({
+            question: f.question,
+            answer: f.answer,
+            tags: f.tags,
+          }));
+        }
+      }
     }
 
 
