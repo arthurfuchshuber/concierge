@@ -1169,6 +1169,38 @@ function SectionTitle({ title, intro }: { eyebrow?: string; title: string; intro
   );
 }
 
+function TaggedFaqs({ faqs, tag }: { faqs: any[]; tag: "chegada" | "saida" | "residencia" | "explore" }) {
+  const filtered = (faqs ?? []).filter((f) => Array.isArray(f?.tags) && f.tags.includes(tag));
+  if (filtered.length === 0) return null;
+  return (
+    <div className="pt-2">
+      <div className="mb-3 flex items-center gap-2">
+        <HelpCircle className="size-4 text-muted-foreground" />
+        <h3 className="text-xs uppercase tracking-[0.18em] font-semibold text-muted-foreground">Perguntas frequentes</h3>
+      </div>
+      <Accordion type="single" collapsible className="space-y-1.5">
+        {filtered.map((f: any, idx: number) => (
+          <AccordionItem
+            key={f.id}
+            value={f.id}
+            className="border border-border/70 rounded-xl px-3.5 bg-card/30 hover:bg-card/60 transition-colors data-[state=open]:bg-card data-[state=open]:border-accent/40"
+          >
+            <AccordionTrigger className="text-left hover:no-underline py-2.5 gap-3">
+              <span className="flex items-center gap-2.5 min-w-0">
+                <span className="text-[10px] font-mono text-accent/70 tabular-nums tracking-wider shrink-0">{String(idx + 1).padStart(2, "0")}</span>
+                <span className="text-[13.5px] font-medium leading-snug truncate">{f.question}</span>
+              </span>
+            </AccordionTrigger>
+            <AccordionContent className="text-[13.5px] leading-relaxed whitespace-pre-line text-foreground/80 pl-6 pr-1 pb-3.5 max-w-prose">
+              {f.answer}
+            </AccordionContent>
+          </AccordionItem>
+        ))}
+      </Accordion>
+    </div>
+  );
+}
+
 function InfoTile({ label, value, border }: { label: string; value: string; border?: boolean }) {
   return (
     <div className={`px-4 py-3 ${border ? "border-l border-border/40" : ""}`}>
