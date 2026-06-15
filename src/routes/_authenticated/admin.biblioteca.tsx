@@ -128,6 +128,29 @@ function BibliotecaPage() {
     }
   }
 
+  async function handleApply() {
+    if (selectedFaqIds.size === 0 || applyTargets.size === 0) return;
+    setApplying(true);
+    try {
+      const res = await applyFaqs({
+        data: {
+          faqIds: Array.from(selectedFaqIds),
+          propertyIds: Array.from(applyTargets),
+        },
+      });
+      toast.success(
+        `${res.inserted} pergunta${res.inserted === 1 ? "" : "s"} aplicada${res.inserted === 1 ? "" : "s"}`,
+      );
+      setApplyOpen(false);
+      setSelectedFaqIds(new Set());
+      setApplyTargets(new Set());
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erro ao aplicar");
+    } finally {
+      setApplying(false);
+    }
+  }
+
   return (
     <div className="px-6 lg:px-10 py-8 lg:py-10 max-w-5xl mx-auto w-full">
       <div className="mb-8">
