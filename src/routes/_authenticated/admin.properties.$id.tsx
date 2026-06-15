@@ -151,6 +151,14 @@ function PropertyEditor() {
   const [previewMode, setPreviewMode] = useState<"mobile" | "desktop" | null>(null);
   const [gateOpen, setGateOpen] = useState(false);
   const [lockOpen, setLockOpen] = useState(false);
+  const [faqLibOpen, setFaqLibOpen] = useState(false);
+  const [faqLibSelected, setFaqLibSelected] = useState<Record<string, boolean>>({});
+  const fetchHostFaqs = useServerFn(listHostFaqs);
+  const { data: hostFaqsData } = useQuery({
+    queryKey: ["host-faqs-library"],
+    queryFn: () => fetchHostFaqs(),
+    enabled: faqLibOpen,
+  });
 
   const { data, isLoading } = useQuery({
     queryKey: ["property", id],
