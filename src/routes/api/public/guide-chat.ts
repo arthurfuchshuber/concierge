@@ -124,12 +124,13 @@ export const Route = createFileRoute("/api/public/guide-chat")({
           }
         }
 
-        const [manualR, faqsR, emergR, checkoutR, recsR] = await Promise.all([
+        const [manualR, faqsR, emergR, checkoutR, recsR, knowledgeR] = await Promise.all([
           supabaseAdmin.from("property_manual_items").select("title, description, body").eq("property_id", prop.id).order("position"),
           supabaseAdmin.from("property_faqs").select("question, answer").eq("property_id", prop.id).order("position"),
           supabaseAdmin.from("property_emergency_contacts").select("label, number").eq("property_id", prop.id).order("position"),
           supabaseAdmin.from("property_checkout_items").select("label").eq("property_id", prop.id).order("position"),
           supabaseAdmin.from("property_recommendations").select("name, category, type, scope, distance_text, note").eq("property_id", prop.id).order("position"),
+          supabaseAdmin.from("host_knowledge").select("title, body").eq("owner_id", prop.owner_id).eq("enabled", true).order("position"),
         ]);
 
         const systemContext = buildContext(prop as Record<string, unknown>, {
@@ -138,6 +139,7 @@ export const Route = createFileRoute("/api/public/guide-chat")({
           emergency: (emergR.data as Array<Record<string, unknown>>) ?? [],
           checkout: (checkoutR.data as Array<Record<string, unknown>>) ?? [],
           recommendations: (recsR.data as Recommendation[]) ?? [],
+          knowledge: (knowledgeR.data as Array<Record<string, unknown>>) ?? [],
         });
 
         // Get or create conversation
