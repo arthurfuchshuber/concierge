@@ -18,7 +18,9 @@ import {
   ShoppingBag,
   Clock,
   ChevronDown,
+  HelpCircle,
 } from "lucide-react";
+import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
 
 
 
