@@ -176,6 +176,16 @@ function PropertyEditor() {
           faq: ((p.theme_images as Record<string, string> | null)?.faq) ?? "",
           explore: ((p.theme_images as Record<string, string> | null)?.explore) ?? "",
         },
+        marketplace_links: Array.isArray((p as Record<string, unknown>).marketplace_links)
+          ? ((p as Record<string, unknown>).marketplace_links as Array<Record<string, unknown>>)
+              .filter((m) => m && typeof m.label === "string" && typeof m.url === "string")
+              .map((m) => ({
+                label: String(m.label ?? ""),
+                url: String(m.url ?? ""),
+                description: typeof m.description === "string" ? m.description : "",
+              }))
+              .slice(0, 20)
+          : [],
         address: (p.address as string) ?? "",
         maps_url: (p.maps_url as string) ?? "",
         lat: (p.lat as number) ?? null,
