@@ -137,8 +137,8 @@ export const bulkUpdateProperties = createServerFn({ method: "POST" })
     }).parse(i),
   )
   .handler(async ({ data, context }) => {
-    const patch = Object.fromEntries(
-      Object.entries(data.patch).map(([k, v]) => [k, v === "" ? null : v]),
+    const patch: Record<string, string | null> = Object.fromEntries(
+      Object.entries(data.patch).map(([k, v]) => [k, v === "" ? null : (v as string)]),
     );
     if (Object.keys(patch).length === 0) {
       return { updated: 0 };
@@ -146,7 +146,7 @@ export const bulkUpdateProperties = createServerFn({ method: "POST" })
     // RLS automatically scopes to owner_id = auth.uid()
     const { data: rows, error } = await context.supabase
       .from("properties")
-      .update(patch)
+      .update(patch as never)
       .in("id", data.ids)
       .select("id");
     if (error) throw (await import("@/lib/db-errors.server")).safeDbError("properties", error);
