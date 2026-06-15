@@ -84,3 +84,64 @@ export const saveHostKnowledge = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return { saved: inserted?.length ?? 0 };
   });
+
+export const listPropertiesBrief = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { data, error } = await context.supabase
+      .from("properties")
+      .select("id, name, city, address")
+      .order("name", { ascending: true });
+    if (error) throw new Error(error.message);
+    return data ?? [];
+  });
+
+export const applyHostFaqsToProperties = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) =>
+    z.object({
+      faqIds: z.array(z.string().uuid()).min(1).max(200),
+      propertyIds: z.array(z.string().uuid()).min(1).max(200),
+    }).parse(i),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    // Fetch the selected FAQs (scoped to current user)
+    const { data: faqs, error: fErr } = await supabase
+      .from("host_faqs")
+      .select("question, answer, tags")
+      .eq("owner_id", userId)
+      .in("id", data.faqIds);
+    if (fErr) throw new Error(fErr.message);
+    if (!faqs?.length) return { inserted: 0 };
+
+    // For each property, fetch existing questions to avoid duplicates and compute next position
+    const allowedTags = new Set(["chegada", "saida", "residencia", "explore"]);
+    let totalInserted = 0;
+    for (const propertyId of data.propertyIds) {
+      const { data: existing, error: eErr } = await supabase
+        .from("property_faqs")
+        .select("question, position")
+        .eq("property_id", propertyId);
+      if (eErr) throw new Error(eErr.message);
+      const existingQs = new Set((existing ?? []).map((r) => r.question.trim().toLowerCase()));
+      const startPos = (existing ?? []).reduce((m, r) => Math.max(m, (r.position ?? 0) + 1), 0);
+      const rows = faqs
+        .filter((f) => !existingQs.has(f.question.trim().toLowerCase()))
+        .map((f, i) => ({
+          property_id: propertyId,
+          question: f.question,
+          answer: f.answer,
+          tags: (f.tags ?? []).filter((t: string) => allowedTags.has(t)),
+          position: startPos + i,
+        }));
+      if (!rows.length) continue;
+      const { error: insErr, data: ins } = await supabase
+        .from("property_faqs")
+        .insert(rows)
+        .select("id");
+      if (insErr) throw new Error(insErr.message);
+      totalInserted += ins?.length ?? 0;
+    }
+    return { inserted: totalInserted };
+  });
