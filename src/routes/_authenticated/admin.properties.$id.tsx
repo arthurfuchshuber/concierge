@@ -952,16 +952,48 @@ function PropertyEditor() {
             icon={HelpCircle}
             title="Perguntas frequentes"
             desc="Antecipe dúvidas comuns dos hóspedes."
-            action={<AddBtn onClick={() => setForm((f) => ({ ...f, faqs: [...f.faqs, { question: "", answer: "" }] }))} />}
+            action={<AddBtn onClick={() => setForm((f) => ({ ...f, faqs: [...f.faqs, { question: "", answer: "", tags: [] }] }))} />}
           >
             {form.faqs.length === 0 ? (
               <EmptyHint text="Ex: posso fumar? tem estacionamento? aceita pets?" />
-            ) : form.faqs.map((m, i) => (
-              <ItemCard key={i} onRemove={() => setForm((f) => ({ ...f, faqs: f.faqs.filter((_, j) => j !== i) }))}>
-                <Input placeholder="Pergunta" value={m.question} maxLength={200} onChange={(e) => setForm((f) => ({ ...f, faqs: f.faqs.map((x, j) => j === i ? { ...x, question: e.target.value } : x) }))} />
-                <Textarea placeholder="Resposta" value={m.answer} maxLength={2000} onChange={(e) => setForm((f) => ({ ...f, faqs: f.faqs.map((x, j) => j === i ? { ...x, answer: e.target.value } : x) }))} />
-              </ItemCard>
-            ))}
+            ) : form.faqs.map((m, i) => {
+              const FAQ_TAGS: { value: "chegada" | "saida" | "residencia" | "explore"; label: string }[] = [
+                { value: "chegada", label: "Chegada" },
+                { value: "saida", label: "Saída" },
+                { value: "residencia", label: "Residência" },
+                { value: "explore", label: "Explore" },
+              ];
+              const toggleTag = (tag: "chegada" | "saida" | "residencia" | "explore") => {
+                setForm((f) => ({
+                  ...f,
+                  faqs: f.faqs.map((x, j) => j === i ? { ...x, tags: x.tags.includes(tag) ? x.tags.filter((t) => t !== tag) : [...x.tags, tag] } : x),
+                }));
+              };
+              return (
+                <ItemCard key={i} onRemove={() => setForm((f) => ({ ...f, faqs: f.faqs.filter((_, j) => j !== i) }))}>
+                  <Input placeholder="Pergunta" value={m.question} maxLength={200} onChange={(e) => setForm((f) => ({ ...f, faqs: f.faqs.map((x, j) => j === i ? { ...x, question: e.target.value } : x) }))} />
+                  <Textarea placeholder="Resposta" value={m.answer} maxLength={2000} onChange={(e) => setForm((f) => ({ ...f, faqs: f.faqs.map((x, j) => j === i ? { ...x, answer: e.target.value } : x) }))} />
+                  <div className="space-y-1.5">
+                    <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Exibir também em</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {FAQ_TAGS.map((t) => {
+                        const active = m.tags.includes(t.value);
+                        return (
+                          <button
+                            key={t.value}
+                            type="button"
+                            onClick={() => toggleTag(t.value)}
+                            className={`px-2.5 py-1 rounded-full text-xs border transition-colors ${active ? "bg-accent text-accent-foreground border-accent" : "bg-background border-border text-muted-foreground hover:border-accent/50"}`}
+                          >
+                            {t.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </ItemCard>
+              );
+            })}
           </Section>
         </TabsContent>
       </Tabs>
