@@ -201,6 +201,15 @@ function OpeningHours({ hours }: { hours: string[] | null | undefined }) {
 }
 
 
+// Escolhe a melhor foto para capa da categoria: prioriza nearby, depois city,
+// e dentro de cada grupo escolhe o lugar com melhor rating × log(reviews).
+function pickBestPhoto(nearby: Rec[], city: Rec[]): string | null {
+  const score = (r: Rec) => (r.rating ?? 0) * Math.log10((r.user_ratings_total ?? 1) + 10);
+  const best = (arr: Rec[]) =>
+    arr.filter((x) => x.image_url).sort((a, b) => score(b) - score(a))[0]?.image_url ?? null;
+  return best(nearby) ?? best(city);
+}
+
 type SortKey = "distance" | "rating" | "alpha";
 
 function sortRecs(list: Rec[], by: SortKey): Rec[] {
