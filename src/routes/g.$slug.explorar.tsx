@@ -347,8 +347,6 @@ function ExplorePage() {
             setSortBy={setSortBy}
             viewMode={viewMode}
             setViewMode={setViewMode}
-            minReviews={minReviews}
-            setMinReviews={setMinReviews}
             isTouristCategory={active.meta.key === "sights"}
           />
 
