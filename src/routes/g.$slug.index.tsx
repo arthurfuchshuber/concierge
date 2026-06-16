@@ -593,17 +593,20 @@ function Guide({ data }: { data: GuideOk }) {
                     )}
 
 
-                    {hasAcesso && (
+                    {hasAcesso && (() => {
+                      const gateLabel = ((p.gate_label as string | null) || "Portão").trim() || "Portão";
+                      const lockLabel = ((p.lock_label as string | null) || "Fechadura").trim() || "Fechadura";
+                      return (
                       <SubItem
                         icon={<KeyRound className="size-[18px]" strokeWidth={1.6} />}
                         label="Acesso"
                         hint={
                           p.gate_code && p.lock_code
-                            ? "Portão e fechadura"
+                            ? `${gateLabel} e ${lockLabel.toLowerCase()}`
                             : p.gate_code
-                            ? "Portão"
+                            ? gateLabel
                             : p.lock_code
-                            ? "Fechadura"
+                            ? lockLabel
                             : "Instruções de entrada"
                         }
                       >
@@ -612,6 +615,7 @@ function Guide({ data }: { data: GuideOk }) {
                             {p.gate_code && (
                               <AccessBlock
                                 kind="gate"
+                                label={gateLabel}
                                 code={p.gate_code}
                                 instructions={p.gate_instructions as string | null}
                                 videoUrl={p.gate_video_url as string | null}
@@ -621,6 +625,7 @@ function Guide({ data }: { data: GuideOk }) {
                             {p.lock_code && (
                               <AccessBlock
                                 kind="lock"
+                                label={lockLabel}
                                 code={p.lock_code}
                                 instructions={p.lock_instructions as string | null}
                                 videoUrl={p.lock_video_url as string | null}
@@ -630,7 +635,8 @@ function Guide({ data }: { data: GuideOk }) {
                           </div>
                         </Lockable>
                       </SubItem>
-                    )}
+                      );
+                    })()}
 
                     {hasWifi && (
                       <SubItem
