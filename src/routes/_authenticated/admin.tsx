@@ -16,6 +16,7 @@ const baseNav = [
 ] as const;
 const adminOnlyNav = [
   { to: "/admin/clientes", label: "Clientes", icon: Users, exact: false },
+  { to: "/admin/admins", label: "Administradores", icon: ShieldCheck, exact: false },
 ] as const;
 
 function AdminLayout() {
