@@ -662,7 +662,7 @@ function PropertyEditor() {
                   <Input value={form.property.pin_code} maxLength={20} onChange={(e) => update("pin_code", e.target.value)} placeholder="ex: 4729" />
                 </Field>
                 <Field label="Expira em" hint="Deixe em branco para nunca expirar">
-                  <Input type="datetime-local" value={form.property.pin_expires_at} onChange={(e) => update("pin_expires_at", e.target.value)} />
+                  <DateTimePicker value={form.property.pin_expires_at} onChange={(v) => update("pin_expires_at", v)} />
                 </Field>
               </div>
             )}
