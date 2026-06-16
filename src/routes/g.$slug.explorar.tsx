@@ -476,10 +476,7 @@ function CategoryList({
   return (
     <div className="flex flex-col gap-3">
       {categories.map(({ meta, count, nearby, city }) => {
-        const heroSrc =
-          nearby.find((x) => x.image_url)?.image_url ??
-          city.find((x) => x.image_url)?.image_url ??
-          null;
+        const heroSrc = pickBestPhoto(nearby, city);
         const Icon = meta.Icon;
         return (
           <button
