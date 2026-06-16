@@ -291,7 +291,7 @@ function Guide({ data }: { data: GuideOk }) {
               <div className="md:max-w-md lg:max-w-lg">
                 <WifiStrip ssid={p.wifi_ssid} password={p.wifi_password} theme={theme} />
               </div>
-              {(p.gate_code || p.lock_code) && (
+              {gateEnabled && (p.gate_code || p.lock_code) && (
                 <div className="md:max-w-md lg:max-w-lg">
                   <AccessCodesStrip
                     gateCode={p.gate_code as string | null}
