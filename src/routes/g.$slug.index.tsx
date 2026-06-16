@@ -426,25 +426,48 @@ function Guide({ data }: { data: GuideOk }) {
                                 ))}
                             </div>
                           )}
-                          {(p.address || p.maps_url || uberUrl || noveNoveUrl) && (
-                            <div className="rounded-2xl bg-background/40 border border-border/60 overflow-hidden divide-y divide-border/40">
-                              {mapsHref && (
-                                <a
-                                  href={mapsHref}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="flex items-center gap-3 px-3.5 py-3.5 hover:bg-card/40 active:bg-card/60 transition-colors"
-                                >
-                                  <span className="size-8 rounded-lg bg-accent/15 text-accent grid place-items-center shrink-0">
-                                    <MapPin className="size-[14px]" strokeWidth={1.75} />
-                                  </span>
-                                  <div className="flex-1 min-w-0 text-left">
-                                    <p className="text-[14px] font-medium leading-tight">Abrir no Google Maps</p>
-                                    {p.address && <p className="text-[12px] text-muted-foreground truncate mt-1">{p.address}</p>}
-                                  </div>
-                                  <ExternalLink className="size-4 text-muted-foreground shrink-0" />
-                                </a>
-                              )}
+                          {(() => {
+                            const garageHref = safeHttpsHref(p.garage_maps_url);
+                            const hasAnyLink = !!(p.address || p.maps_url || garageHref || uberUrl || noveNoveUrl);
+                            if (!hasAnyLink) return null;
+                            return (
+                              <div className="rounded-2xl bg-background/40 border border-border/60 overflow-hidden divide-y divide-border/40">
+                                {mapsHref && (
+                                  <a
+                                    href={mapsHref}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="flex items-center gap-3 px-3.5 py-3.5 hover:bg-card/40 active:bg-card/60 transition-colors"
+                                  >
+                                    <span className="size-8 rounded-lg bg-accent/15 text-accent grid place-items-center shrink-0">
+                                      <MapPin className="size-[14px]" strokeWidth={1.75} />
+                                    </span>
+                                    <div className="flex-1 min-w-0 text-left">
+                                      <p className="text-[14px] font-medium leading-tight">
+                                        {garageHref ? "Como chegar — Entrada principal" : "Abrir no Google Maps"}
+                                      </p>
+                                      {p.address && <p className="text-[12px] text-muted-foreground truncate mt-1">{p.address}</p>}
+                                    </div>
+                                    <ExternalLink className="size-4 text-muted-foreground shrink-0" />
+                                  </a>
+                                )}
+                                {garageHref && (
+                                  <a
+                                    href={garageHref}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="flex items-center gap-3 px-3.5 py-3.5 hover:bg-card/40 active:bg-card/60 transition-colors"
+                                  >
+                                    <span className="size-8 rounded-lg bg-accent/15 text-accent grid place-items-center shrink-0">
+                                      <Car className="size-[14px]" strokeWidth={1.75} />
+                                    </span>
+                                    <div className="flex-1 min-w-0 text-left">
+                                      <p className="text-[14px] font-medium leading-tight">Como chegar — Garagem</p>
+                                      <p className="text-[12px] text-muted-foreground mt-1">Entrada pelo acesso da garagem</p>
+                                    </div>
+                                    <ExternalLink className="size-4 text-muted-foreground shrink-0" />
+                                  </a>
+                                )}
                               {uberUrl && (
                                 <a
                                   href={uberUrl}
