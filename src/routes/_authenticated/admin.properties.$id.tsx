@@ -666,6 +666,26 @@ function PropertyEditor() {
             )}
           </Section>
 
+          <Section icon={Lock} title="Portal de segurança" desc="Exige que o hóspede informe nome, código da reserva e data de check-in antes de acessar o guia. Os acessos ficam registrados na aba Acessos.">
+            <div className="flex items-center justify-between rounded-xl bg-muted/40 px-4 py-3.5 border border-border/60">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <span className={`inline-block size-2.5 rounded-full shrink-0 ${form.property.require_access_gate ? "bg-emerald-500" : "bg-muted-foreground/50"}`} />
+                <div className="min-w-0">
+                  <p className="text-sm font-medium leading-tight">Exigir identificação do hóspede</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {form.property.require_access_gate
+                      ? "Ativo — o guia abre apenas após o preenchimento dos dados da reserva."
+                      : "Inativo — qualquer visitante com o link vê o guia diretamente."}
+                  </p>
+                </div>
+              </div>
+              <Switch checked={form.property.require_access_gate} onCheckedChange={(v) => update("require_access_gate", v)} />
+            </div>
+            <p className="text-[11px] text-muted-foreground mt-2">
+              Quando ativo, as informações de check-in (códigos, senha do wi-fi e instruções de chegada) ficam ofuscadas 12 horas após o horário de check-in informado pelo hóspede.
+            </p>
+          </Section>
+
           <Section icon={Globe} title="Idioma">
             <Field label="Idioma padrão">
               <Select value={form.property.default_language} onValueChange={(v) => update("default_language", v as "pt" | "en")}>
