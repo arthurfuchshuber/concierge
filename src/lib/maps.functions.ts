@@ -283,6 +283,58 @@ function buildPhotoUrl(photoName: string | undefined): string | null {
   return `https://places.googleapis.com/v1/${photoName}/media?maxWidthPx=800&key=${browserKey}`;
 }
 
+// Curadoria via Gemini: lista os lugares mais famosos/queridos da cidade por categoria.
+// Retorna { restaurant: [...], bar: [...], ... }. Em caso de erro, retorna {}.
+async function fetchIconicPlacesFromGemini(
+  city: string,
+  country: string,
+): Promise<Record<string, string[]>> {
+  const apiKey = process.env.LOVABLE_API_KEY;
+  if (!apiKey || !city) return {};
+
+  const categoriesPrompt = TYPE_MAP.map((c) => `- ${c.type}: ${c.category}`).join("\n");
+  const prompt = `Liste os lugares mais famosos, queridos e visitados de ${city}${country ? `, ${country}` : ""} em cada categoria abaixo. Inclua marcos turísticos clássicos, grandes redes/estabelecimentos populares (shoppings, supermercados conhecidos), áreas de lazer importantes e locais "que todo mundo conhece". Use o nome exato como aparece no Google Maps.
+
+Categorias:
+${categoriesPrompt}
+
+Para cada categoria, retorne entre 3 e 8 nomes (apenas os realmente famosos/relevantes). Se não houver nada notável, retorne lista vazia. Responda APENAS com JSON válido no formato:
+{"restaurant": ["Nome 1", "Nome 2"], "bar": [...], "cafe": [...], "beach": [...], "attraction": [...], "market": [...], "pharmacy": [...], "park": [...], "nightlife": [...], "shopping": [...]}`;
+
+  try {
+    const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: "google/gemini-2.5-flash",
+        messages: [
+          { role: "system", content: "Você é um concierge local que conhece em profundidade as cidades brasileiras. Responda sempre com JSON válido, sem markdown." },
+          { role: "user", content: prompt },
+        ],
+        response_format: { type: "json_object" },
+      }),
+    });
+    if (!res.ok) return {};
+    const j = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
+    const content = j.choices?.[0]?.message?.content ?? "";
+    const cleaned = content.replace(/^```json\s*/i, "").replace(/```\s*$/, "").trim();
+    const parsed = JSON.parse(cleaned) as Record<string, unknown>;
+    const out: Record<string, string[]> = {};
+    for (const cat of TYPE_MAP) {
+      const arr = parsed[cat.type];
+      if (Array.isArray(arr)) {
+        out[cat.type] = arr.filter((x): x is string => typeof x === "string" && x.trim().length > 0).slice(0, 8);
+      }
+    }
+    return out;
+  } catch {
+    return {};
+  }
+}
+
 export const enrichFromMapsLink = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => InputSchema.parse(input))
