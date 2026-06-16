@@ -1620,6 +1620,8 @@ function WifiStrip({
 function AccessCodesStrip({
   gateCode,
   lockCode,
+  gateLabel,
+  lockLabel,
   accessPin,
   checkinLocked,
   hasAccessRec,
@@ -1628,6 +1630,8 @@ function AccessCodesStrip({
 }: {
   gateCode: string | null;
   lockCode: string | null;
+  gateLabel: string;
+  lockLabel: string;
   accessPin: string;
   checkinLocked: boolean;
   hasAccessRec: boolean;
@@ -1639,6 +1643,8 @@ function AccessCodesStrip({
   const [unlocked, setUnlocked] = useState(false);
   const needsPin = !!accessPin && !unlocked;
   const isLight = theme === "light";
+  const gLabel = (gateLabel || "").trim() || "Portão";
+  const lLabel = (lockLabel || "").trim() || "Fechadura";
 
   function handleEyeClick() {
     if (gateEnabled && !hasAccessRec) {
@@ -1670,7 +1676,7 @@ function AccessCodesStrip({
     toast.success(`${label} copiado`);
   }
 
-  const hint = gateCode && lockCode ? "Portão e fechadura" : gateCode ? "Portão" : "Fechadura";
+  const hint = gateCode && lockCode ? `${gLabel} e ${lLabel.toLowerCase()}` : gateCode ? gLabel : lLabel;
 
   return (
     <>
