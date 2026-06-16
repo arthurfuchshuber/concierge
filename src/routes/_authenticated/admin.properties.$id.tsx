@@ -199,6 +199,7 @@ function PropertyEditor() {
           : [],
         address: (p.address as string) ?? "",
         maps_url: (p.maps_url as string) ?? "",
+        garage_maps_url: ((p as Record<string, unknown>).garage_maps_url as string) ?? "",
         lat: (p.lat as number) ?? null,
         lng: (p.lng as number) ?? null,
         city: (p.city as string) ?? "",
