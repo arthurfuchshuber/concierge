@@ -67,10 +67,13 @@ type FormState = {
     country: string;
     checkin_time: string;
     checkin_time_max: string;
+    checkin_note: string;
     checkout_time: string;
     checkout_time_min: string;
+    checkout_note: string;
     lock_code: string;
     gate_code: string;
+    access_codes_pin: string;
     address_note: string;
     checkin_instructions: string;
     checkout_instructions: string;
@@ -110,8 +113,8 @@ function emptyForm(): FormState {
       theme_images: { checkin: "", residencia: "", faq: "", explore: "" },
       marketplace_links: [],
       address: "", maps_url: "", garage_maps_url: "",
-      lat: null, lng: null, city: "", country: "", checkin_time: "15:00", checkin_time_max: "", checkout_time: "11:00", checkout_time_min: "",
-      lock_code: "", gate_code: "", address_note: "", checkin_instructions: "", checkout_instructions: "", checkin_media: [], gate_instructions: "", gate_media: [], gate_video_url: "", lock_instructions: "", lock_media: [], lock_video_url: "", wifi_ssid: "", wifi_password: "",
+      lat: null, lng: null, city: "", country: "", checkin_time: "15:00", checkin_time_max: "", checkin_note: "", checkout_time: "11:00", checkout_time_min: "", checkout_note: "",
+      lock_code: "", gate_code: "", access_codes_pin: "", address_note: "", checkin_instructions: "", checkout_instructions: "", checkin_media: [], gate_instructions: "", gate_media: [], gate_video_url: "", lock_instructions: "", lock_media: [], lock_video_url: "", wifi_ssid: "", wifi_password: "",
       host_name: "", host_phone: "", brand_name: "", brand_logo_url: "", access_mode: "public", pin_code: "", pin_expires_at: "",
       default_language: "pt", guide_theme: "dark", published: true, require_access_gate: false,
     },
@@ -209,10 +212,13 @@ function PropertyEditor() {
         country: (p.country as string) ?? "",
         checkin_time: (p.checkin_time as string) ?? "15:00",
         checkin_time_max: (p.checkin_time_max as string) ?? "",
+        checkin_note: (p.checkin_note as string) ?? "",
         checkout_time: (p.checkout_time as string) ?? "11:00",
         checkout_time_min: (p.checkout_time_min as string) ?? "",
+        checkout_note: (p.checkout_note as string) ?? "",
         lock_code: (p.lock_code as string) ?? "",
         gate_code: (p.gate_code as string) ?? "",
+        access_codes_pin: (p.access_codes_pin as string) ?? "",
         address_note: (p.address_note as string) ?? "",
         checkin_instructions: (p.checkin_instructions as string) ?? "",
         checkout_instructions: (p.checkout_instructions as string) ?? "",
@@ -412,10 +418,13 @@ function PropertyEditor() {
           country: form.property.country || null,
           checkin_time: form.property.checkin_time || null,
           checkin_time_max: form.property.checkin_time_max || null,
+          checkin_note: form.property.checkin_note || null,
           checkout_time: form.property.checkout_time || null,
           checkout_time_min: form.property.checkout_time_min || null,
+          checkout_note: form.property.checkout_note || null,
           lock_code: form.property.lock_code || null,
           gate_code: form.property.gate_code || null,
+          access_codes_pin: (form.property.gate_code || form.property.lock_code) ? (form.property.access_codes_pin.trim() || null) : null,
           address_note: form.property.address_note || null,
           checkin_instructions: form.property.checkin_instructions || null,
           checkout_instructions: form.property.checkout_instructions || null,
@@ -722,6 +731,26 @@ function PropertyEditor() {
               <Field label="Check-out a partir de" hint="opcional"><TimePicker value={form.property.checkout_time_min} onChange={(v) => update("checkout_time_min", v)} placeholder="08:00" /></Field>
               <Field label="Check-out até"><TimePicker value={form.property.checkout_time} onChange={(v) => update("checkout_time", v)} placeholder="11:00" /></Field>
             </div>
+            <div className="grid grid-cols-1 gap-3 mt-3">
+              <Field label="Observação do check-in (opcional)" hint="Aparece abaixo dos horários no guia. Deixe em branco para ocultar.">
+                <Textarea
+                  value={form.property.checkin_note}
+                  maxLength={1000}
+                  rows={3}
+                  onChange={(e) => update("checkin_note", e.target.value)}
+                  placeholder="Ex.: Após às 22h, avise pelo WhatsApp com 1h de antecedência."
+                />
+              </Field>
+              <Field label="Observação do check-out (opcional)" hint="Aparece abaixo dos horários no guia. Deixe em branco para ocultar.">
+                <Textarea
+                  value={form.property.checkout_note}
+                  maxLength={1000}
+                  rows={3}
+                  onChange={(e) => update("checkout_note", e.target.value)}
+                  placeholder="Ex.: Late check-out mediante disponibilidade — consulte o anfitrião."
+                />
+              </Field>
+            </div>
           </Section>
 
           <Section icon={DoorOpen} title="Entrada" desc="Ative apenas os tipos de acesso que existem na propriedade.">
@@ -873,6 +902,29 @@ function PropertyEditor() {
                   </div>
                 ) : null}
               </div>
+
+              {(gateOpen || lockOpen) && (
+                <div className="rounded-2xl border border-border/60 bg-card/30 px-4 py-3.5 space-y-2">
+                  <div className="flex items-center gap-2.5">
+                    <div className="size-9 rounded-lg grid place-items-center shrink-0 bg-muted/40 text-muted-foreground">
+                      <Lock className="size-[18px]" strokeWidth={1.75} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[14px] font-semibold leading-tight">Senha para liberar os códigos na home</p>
+                      <p className="text-[11.5px] text-muted-foreground mt-0.5">
+                        Opcional. Quando preenchida, o hóspede precisa digitá-la para visualizar os códigos no atalho da página inicial. Mesmo com a senha correta, a visualização só funciona dentro da janela do check-in (24h antes até 12h depois). Deixe em branco para liberar apenas pela janela de horário.
+                      </p>
+                    </div>
+                  </div>
+                  <Input
+                    value={form.property.access_codes_pin}
+                    maxLength={20}
+                    onChange={(e) => update("access_codes_pin", e.target.value)}
+                    placeholder="Ex.: 8421"
+                  />
+                </div>
+              )}
+
 
               {!gateOpen && !lockOpen ? (
                 <p className="text-[12px] text-muted-foreground rounded-xl border border-dashed border-border/60 bg-background/30 px-4 py-3">
