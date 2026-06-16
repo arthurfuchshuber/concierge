@@ -127,6 +127,26 @@ function Guide({ data }: { data: GuideOk }) {
   const { slug } = Route.useParams();
   const [section, setSection] = useState<Section>("home");
 
+  // Access gate: required when the guide carries check-in credentials.
+  const hasCheckinSecrets = !!(p.gate_code || p.lock_code || p.wifi_password || p.checkin_instructions);
+  const [accessRec, setAccessRec] = useState<AccessRecord | null>(() =>
+    typeof window === "undefined" ? null : readAccessRecord(slug),
+  );
+  const needsGate = hasCheckinSecrets && !accessRec;
+
+  // 12h lock: once 12h have passed from check-in start, sensitive fields blur.
+  const checkinLocked = (() => {
+    if (!accessRec) return false;
+    const time = String(p.checkin_time ?? "").match(/^(\d{1,2}):(\d{2})/);
+    const hh = time ? Number(time[1]) : 15;
+    const mm = time ? Number(time[2]) : 0;
+    const [y, mo, d] = accessRec.checkinDate.split("-").map(Number);
+    if (!y || !mo || !d) return false;
+    const start = new Date(y, mo - 1, d, hh, mm, 0, 0);
+    const deadline = new Date(start.getTime() + 12 * 60 * 60 * 1000);
+    return Date.now() > deadline.getTime();
+  })();
+
   // Theme: admin default, override per-visitor via localStorage
   const adminTheme: "dark" | "light" = p.guide_theme === "light" ? "light" : "dark";
   const [theme, setTheme] = useState<"dark" | "light">(() => {
