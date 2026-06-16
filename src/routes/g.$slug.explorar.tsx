@@ -418,10 +418,7 @@ function CategoryGrid({
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
       {categories.map(({ meta, count, nearby, city }) => {
-        const heroSrc =
-          nearby.find((x) => x.image_url)?.image_url ??
-          city.find((x) => x.image_url)?.image_url ??
-          null;
+        const heroSrc = pickBestPhoto(nearby, city);
         const Icon = meta.Icon;
         return (
           <button
