@@ -92,6 +92,7 @@ type FormState = {
     default_language: "pt" | "en";
     guide_theme: "dark" | "light";
     published: boolean;
+    require_access_gate: boolean;
   };
   manual: { title: string; description: string; body: string }[];
   emergency: { label: string; number: string }[];
