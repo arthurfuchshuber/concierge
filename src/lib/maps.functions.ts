@@ -398,13 +398,13 @@ export const enrichFromMapsLink = createServerFn({ method: "POST" })
       market: 10, pharmacy: 10, shopping: 20,
     };
     const CITY_MIN_REVIEWS: Record<string, number> = {
-      restaurant: 150, bar: 80, cafe: 80, nightlife: 80,
-      attraction: 50, beach: 30, park: 30,
-      market: 40, pharmacy: 30, shopping: 80,
+      restaurant: 80, bar: 40, cafe: 40, nightlife: 40,
+      attraction: 30, beach: 20, park: 20,
+      market: 20, pharmacy: 15, shopping: 40,
     };
     const MAX_PER_TYPE = 10;
-    // Aumentado de 18 km para 30 km — Foz tem atrações (Cataratas, Itaipu) longe do centro.
-    const MAX_CITY_RADIUS_M = 30000;
+    // 35 km — Foz tem atrações (Cataratas, Itaipu) longe do centro.
+    const MAX_CITY_RADIUS_M = 35000;
 
     const isQuality = (p: PlaceRaw, minReviews: number) =>
       typeof p.rating === "number" &&
