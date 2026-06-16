@@ -240,6 +240,7 @@ function PropertyEditor() {
         default_language: ((p.default_language as "pt" | "en") ?? "pt"),
         guide_theme: ((p.guide_theme as "dark" | "light") ?? "dark"),
         published: (p.published as boolean) ?? true,
+        require_access_gate: (p.require_access_gate as boolean) ?? false,
       },
       manual: (data.manual ?? []).map((m: Record<string, unknown>) => ({
         title: (m.title as string) ?? "",
