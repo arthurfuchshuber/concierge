@@ -144,13 +144,21 @@ export const importFromAirbnb = createServerFn({ method: "POST" })
           .slice(0, 4)
       : [];
 
+    const checkinRaw = typeof j.checkin_time === "string" ? j.checkin_time : null;
+    const checkinMaxRaw = typeof j.checkin_time_max === "string" ? j.checkin_time_max : null;
+    const checkinTimes = pickTimes(checkinRaw);
+    const checkoutTime = pickTime(typeof j.checkout_time === "string" ? j.checkout_time : null);
+    const checkinTime = checkinTimes[0] ?? null;
+    const checkinTimeMax = pickTime(checkinMaxRaw) ?? checkinTimes[1] ?? null;
+
     return {
       name: title,
       tagline: description,
       city,
       country,
-      checkin_time: pickTime(typeof j.checkin_time === "string" ? j.checkin_time : null),
-      checkout_time: pickTime(typeof j.checkout_time === "string" ? j.checkout_time : null),
+      checkin_time: checkinTime,
+      checkin_time_max: checkinTimeMax,
+      checkout_time: checkoutTime,
       gallery_images: photos,
       hero_image_url: photos[0] ?? null,
     };
