@@ -122,7 +122,28 @@ function isRule(item: { title: string; description?: string | null }) {
   return /(regra|norma|polít|proibi|não\s+|no\s+smoking|rule|policy)/i.test(s);
 }
 
+function Lockable({ locked, children }: { locked: boolean; children: React.ReactNode }) {
+  if (!locked) return <>{children}</>;
+  return (
+    <div className="relative">
+      <div className="blur-md select-none pointer-events-none" aria-hidden>
+        {children}
+      </div>
+      <div className="absolute inset-0 grid place-items-center px-4">
+        <div className="rounded-2xl bg-background/90 backdrop-blur-sm border border-border/60 px-4 py-3 max-w-[280px] text-center shadow-lg">
+          <Lock className="size-4 mx-auto text-muted-foreground mb-1.5" strokeWidth={1.75} />
+          <p className="text-[12px] font-semibold text-foreground">Acesso encerrado</p>
+          <p className="text-[11px] text-muted-foreground mt-1 leading-snug">
+            As informações de check-in ficam disponíveis até 12h após o início do check-in.
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function Guide({ data }: { data: GuideOk }) {
+
   const p = data.property as Record<string, any>;
   const { slug } = Route.useParams();
   const [section, setSection] = useState<Section>("home");
