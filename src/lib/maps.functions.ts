@@ -208,7 +208,21 @@ async function placesNearby(lat: number, lng: number, includedTypes: string[]) {
   return j.places ?? [];
 }
 
-async function placesText(query: string, lat: number, lng: number, includedType: string) {
+async function placesText(
+  query: string,
+  lat: number,
+  lng: number,
+  includedType?: string,
+  radiusMeters = 30000,
+) {
+  const body: Record<string, unknown> = {
+    textQuery: query,
+    maxResultCount: 20,
+    // locationBias (não restriction) — permite marcos famosos um pouco fora do raio
+    // (Cataratas/Itaipu em Foz ficam a 20-25km do centro), mas mantém viés geográfico.
+    locationBias: { circle: { center: { latitude: lat, longitude: lng }, radius: radiusMeters } },
+  };
+  if (includedType) body.includedType = includedType;
   const res = await gatewayFetch(`/places/v1/places:searchText`, {
     method: "POST",
     headers: {
@@ -216,14 +230,7 @@ async function placesText(query: string, lat: number, lng: number, includedType:
       "X-Goog-FieldMask":
         "places.id,places.displayName,places.location,places.rating,places.userRatingCount,places.googleMapsUri,places.photos,places.primaryType,places.editorialSummary,places.generativeSummary,places.regularOpeningHours",
     },
-    body: JSON.stringify({
-      textQuery: query,
-      includedType,
-      maxResultCount: 20,
-      // locationRestriction (não bias) garante que resultados estejam DENTRO do raio.
-      // 18 km cobre a cidade inteira e evita "Parque Nacional dos Lençóis Maranhenses" aparecendo em Foz do Iguaçu.
-      locationRestriction: { circle: { center: { latitude: lat, longitude: lng }, radius: 18000 } },
-    }),
+    body: JSON.stringify(body),
   });
   if (!res.ok) return [];
   const j = (await res.json()) as { places?: PlaceRaw[] };
