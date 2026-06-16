@@ -371,6 +371,7 @@ function PropertyEditor() {
           city: r.city ?? f.property.city,
           country: r.country ?? f.property.country,
           checkin_time: r.checkin_time ?? f.property.checkin_time,
+          checkin_time_max: r.checkin_time_max ?? f.property.checkin_time_max,
           checkout_time: r.checkout_time ?? f.property.checkout_time,
           gallery_images: importedGallery.length ? importedGallery : f.property.gallery_images,
           hero_image_url: importedGallery[0] ?? r.hero_image_url ?? f.property.hero_image_url,
