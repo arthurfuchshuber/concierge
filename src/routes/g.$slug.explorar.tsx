@@ -263,12 +263,18 @@ function ExplorePage() {
 
   const categories = useMemo(() => {
     return META_CATEGORIES.map((meta) => {
-      const items = allRecs.filter((rec) => meta.types.includes(rec.type));
-      const nearby = items.filter((x) => x.scope === "nearby");
-      const city = items.filter((x) => x.scope === "city");
-      return { meta, items, nearby, city, count: items.length };
+      // Pontos turísticos não devem ser filtrados pelo mínimo de avaliações.
+      const isTouristMeta = meta.key === "sights";
+      const filtered = allRecs.filter((rec) => {
+        if (!meta.types.includes(rec.type)) return false;
+        if (isTouristMeta || minReviews <= 0) return true;
+        return (rec.user_ratings_total ?? 0) >= minReviews;
+      });
+      const nearby = filtered.filter((x) => x.scope === "nearby");
+      const city = filtered.filter((x) => x.scope === "city");
+      return { meta, items: filtered, nearby, city, count: filtered.length };
     }).filter((c) => c.count > 0);
-  }, [allRecs]);
+  }, [allRecs, minReviews]);
 
   const active = categories.find((c) => c.meta.key === activeKey) ?? null;
 
