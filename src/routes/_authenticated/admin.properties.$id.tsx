@@ -72,7 +72,9 @@ type FormState = {
     checkout_time_min: string;
     checkout_note: string;
     lock_code: string;
+    lock_label: string;
     gate_code: string;
+    gate_label: string;
     access_codes_pin: string;
     address_note: string;
     checkin_instructions: string;
