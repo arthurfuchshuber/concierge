@@ -197,3 +197,98 @@ export const adminUpdateSubscription = createServerFn({ method: "POST" })
 
     return { ok: true };
   });
+
+// ───────────────── SaaS Admins (user_roles management) ─────────────────
+
+export type SaasAdminRow = {
+  userId: string;
+  email: string | null;
+  fullName: string | null;
+  createdAt: string | null;
+};
+
+export const adminListSaasAdmins = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<{ admins: SaasAdminRow[]; selfUserId: string }> => {
+    await assertAdmin(context.supabase, context.userId);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    const { data: roleRows, error: rolesErr } = await supabaseAdmin
+      .from("user_roles")
+      .select("user_id")
+      .eq("role", "admin");
+    if (rolesErr) throw new Error("Erro ao listar admins");
+
+    const ids = Array.from(new Set((roleRows ?? []).map((r) => r.user_id)));
+    if (ids.length === 0) return { admins: [], selfUserId: context.userId };
+
+    const { data: profiles } = await supabaseAdmin
+      .from("profiles")
+      .select("id, full_name")
+      .in("id", ids);
+    const profileMap = new Map((profiles ?? []).map((p) => [p.id, p.full_name]));
+
+    const { data: usersData } = await supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 1000 });
+    const userMap = new Map((usersData?.users ?? []).map((u) => [u.id, u]));
+
+    const admins: SaasAdminRow[] = ids.map((id) => {
+      const u = userMap.get(id);
+      return {
+        userId: id,
+        email: u?.email ?? null,
+        fullName: profileMap.get(id) ?? null,
+        createdAt: u?.created_at ?? null,
+      };
+    });
+    admins.sort((a, b) => (a.email ?? "").localeCompare(b.email ?? ""));
+    return { admins, selfUserId: context.userId };
+  });
+
+export const adminGrantSaasAdmin = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { email: string }) =>
+    z.object({ email: z.string().email() }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context.supabase, context.userId);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    const target = data.email.trim().toLowerCase();
+    let found: { id: string; email?: string | null } | null = null;
+    for (let page = 1; page <= 10; page++) {
+      const { data: list, error } = await supabaseAdmin.auth.admin.listUsers({ page, perPage: 1000 });
+      if (error) throw new Error("Erro ao buscar usuário");
+      const match = list.users.find((u) => (u.email ?? "").toLowerCase() === target);
+      if (match) { found = match; break; }
+      if (list.users.length < 1000) break;
+    }
+    if (!found) throw new Error("Usuário não encontrado. Ele precisa criar conta primeiro.");
+
+    const { error } = await supabaseAdmin
+      .from("user_roles")
+      .insert({ user_id: found.id, role: "admin" });
+    if (error && !String(error.message).toLowerCase().includes("duplicate")) {
+      throw new Error("Erro ao conceder admin");
+    }
+    return { ok: true, userId: found.id };
+  });
+
+export const adminRevokeSaasAdmin = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { userId: string }) =>
+    z.object({ userId: z.string().uuid() }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context.supabase, context.userId);
+    if (data.userId === context.userId) {
+      throw new Error("Você não pode remover seu próprio acesso admin.");
+    }
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await supabaseAdmin
+      .from("user_roles")
+      .delete()
+      .eq("user_id", data.userId)
+      .eq("role", "admin");
+    if (error) throw new Error("Erro ao revogar admin");
+    return { ok: true };
+  });
