@@ -565,7 +565,7 @@ function CategoryDetail({
   const [minReviews, setMinReviews] = useState(0);
 
   const applyFilter = (arr: Rec[]) => {
-    if (isTouristCategory || minReviews <= 0) return arr;
+    if (minReviews <= 0) return arr;
     return arr.filter((rec) => (rec.user_ratings_total ?? 0) >= minReviews);
   };
 
