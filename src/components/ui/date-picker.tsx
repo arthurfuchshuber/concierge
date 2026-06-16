@@ -80,7 +80,7 @@ export function DatePicker({
           onSelect={(d) => onChange(d ? format(d, "yyyy-MM-dd") : "")}
           initialFocus
           locale={ptBR}
-          captionLayout="dropdown-buttons"
+          captionLayout="dropdown"
           fromYear={fromYear}
           toYear={toYear}
           className={cn("p-3 pointer-events-auto")}
