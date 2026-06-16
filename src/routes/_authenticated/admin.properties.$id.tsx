@@ -92,6 +92,7 @@ type FormState = {
     default_language: "pt" | "en";
     guide_theme: "dark" | "light";
     published: boolean;
+    require_access_gate: boolean;
   };
   manual: { title: string; description: string; body: string }[];
   emergency: { label: string; number: string }[];
@@ -110,7 +111,7 @@ function emptyForm(): FormState {
       lat: null, lng: null, city: "", country: "", checkin_time: "15:00", checkin_time_max: "", checkout_time: "11:00", checkout_time_min: "",
       lock_code: "", gate_code: "", address_note: "", checkin_instructions: "", checkout_instructions: "", checkin_media: [], gate_instructions: "", gate_media: [], gate_video_url: "", lock_instructions: "", lock_media: [], lock_video_url: "", wifi_ssid: "", wifi_password: "",
       host_name: "", host_phone: "", brand_name: "", brand_logo_url: "", access_mode: "public", pin_code: "", pin_expires_at: "",
-      default_language: "pt", guide_theme: "dark", published: true,
+      default_language: "pt", guide_theme: "dark", published: true, require_access_gate: false,
     },
     manual: [],
     emergency: [{ label: "Polícia", number: "190" }, { label: "Bombeiros / SAMU", number: "192" }],
@@ -239,6 +240,7 @@ function PropertyEditor() {
         default_language: ((p.default_language as "pt" | "en") ?? "pt"),
         guide_theme: ((p.guide_theme as "dark" | "light") ?? "dark"),
         published: (p.published as boolean) ?? true,
+        require_access_gate: (p.require_access_gate as boolean) ?? false,
       },
       manual: (data.manual ?? []).map((m: Record<string, unknown>) => ({
         title: (m.title as string) ?? "",
@@ -662,6 +664,26 @@ function PropertyEditor() {
                 </Field>
               </div>
             )}
+          </Section>
+
+          <Section icon={Lock} title="Portal de segurança" desc="Exige que o hóspede informe nome, código da reserva e data de check-in antes de acessar o guia. Os acessos ficam registrados na aba Acessos.">
+            <div className="flex items-center justify-between rounded-xl bg-muted/40 px-4 py-3.5 border border-border/60">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <span className={`inline-block size-2.5 rounded-full shrink-0 ${form.property.require_access_gate ? "bg-emerald-500" : "bg-muted-foreground/50"}`} />
+                <div className="min-w-0">
+                  <p className="text-sm font-medium leading-tight">Exigir identificação do hóspede</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {form.property.require_access_gate
+                      ? "Ativo — o guia abre apenas após o preenchimento dos dados da reserva."
+                      : "Inativo — qualquer visitante com o link vê o guia diretamente."}
+                  </p>
+                </div>
+              </div>
+              <Switch checked={form.property.require_access_gate} onCheckedChange={(v) => update("require_access_gate", v)} />
+            </div>
+            <p className="text-[11px] text-muted-foreground mt-2">
+              Quando ativo, as informações de check-in (códigos, senha do wi-fi e instruções de chegada) ficam ofuscadas 12 horas após o horário de check-in informado pelo hóspede.
+            </p>
           </Section>
 
           <Section icon={Globe} title="Idioma">

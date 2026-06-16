@@ -1,0 +1,1 @@
+ALTER TABLE public.properties ADD COLUMN IF NOT EXISTS require_access_gate boolean NOT NULL DEFAULT false;

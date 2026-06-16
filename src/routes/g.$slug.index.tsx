@@ -148,12 +148,13 @@ function Guide({ data }: { data: GuideOk }) {
   const { slug } = Route.useParams();
   const [section, setSection] = useState<Section>("home");
 
-  // Access gate: required when the guide carries check-in credentials.
+  // Access gate: required only when the host enables it AND the guide carries check-in credentials.
   const hasCheckinSecrets = !!(p.gate_code || p.lock_code || p.wifi_password || p.checkin_instructions);
+  const gateEnabled = !!p.require_access_gate;
   const [accessRec, setAccessRec] = useState<AccessRecord | null>(() =>
     typeof window === "undefined" ? null : readAccessRecord(slug),
   );
-  const needsGate = hasCheckinSecrets && !accessRec;
+  const needsGate = gateEnabled && hasCheckinSecrets && !accessRec;
 
   // 12h lock: once 12h have passed from check-in start, sensitive fields blur.
   const checkinLocked = (() => {
