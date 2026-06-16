@@ -403,6 +403,7 @@ function PropertyEditor() {
             .filter((m) => m.label && m.url),
           address: form.property.address || null,
           maps_url: form.property.maps_url || null,
+          garage_maps_url: form.property.garage_maps_url || null,
           city: form.property.city || null,
           country: form.property.country || null,
           checkin_time: form.property.checkin_time || null,
