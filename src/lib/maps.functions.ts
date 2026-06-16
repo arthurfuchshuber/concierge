@@ -472,12 +472,12 @@ export const enrichFromMapsLink = createServerFn({ method: "POST" })
       for (const p of items) push(p, cat, "nearby");
     }
 
-    // 2) City-wide via Places Text Search — sem filtro de primaryType, sem distância mínima
+    // 2) City-wide via Places Text Search — sem filtro de includedType (permite marcos
+    //    classificados em primaryType "inesperado", ex.: Marco das Três Fronteiras).
     if (city) {
       for (const cat of TYPE_MAP) {
-        const min = CITY_MIN_REVIEWS[cat.type] ?? 80;
-        const primary = cat.placesTypes[0];
-        const items = (await placesText(`melhores ${cat.category.toLowerCase()} em ${city}`, coords.lat, coords.lng, primary))
+        const min = CITY_MIN_REVIEWS[cat.type] ?? 40;
+        const items = (await placesText(`melhores ${cat.category.toLowerCase()} em ${city}`, coords.lat, coords.lng, undefined, MAX_CITY_RADIUS_M))
           .filter((p) => isQuality(p, min))
           .filter((p) => {
             if (!p.location) return false;
@@ -496,14 +496,14 @@ export const enrichFromMapsLink = createServerFn({ method: "POST" })
     }
 
     // 3) Curadoria via Gemini: pede os lugares icônicos da cidade por categoria
-    //    e resolve cada nome via Places Text Search (para obter foto, rating, link Maps).
+    //    e resolve cada nome via Places Text Search (sem includedType — o nome já é específico).
     if (city) {
       const iconic = await fetchIconicPlacesFromGemini(city, country);
       for (const cat of TYPE_MAP) {
         const names = iconic[cat.type] ?? [];
         for (const name of names) {
           if (seenNames.has(normalizeName(name))) continue;
-          const resolved = await placesText(`${name} ${city}`, coords.lat, coords.lng, cat.placesTypes[0]);
+          const resolved = await placesText(`${name} ${city}`, coords.lat, coords.lng, undefined, MAX_CITY_RADIUS_M);
           const best = resolved
             .filter((p) => p.location && typeof p.rating === "number" && (p.userRatingCount ?? 0) >= 10)
             .filter((p) => {
