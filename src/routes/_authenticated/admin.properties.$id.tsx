@@ -806,7 +806,7 @@ function PropertyEditor() {
                     <Field label="Código do portão" hint="Digite a senha que o hóspede vai usar.">
                       <Input value={form.property.gate_code} maxLength={40} onChange={(e) => update("gate_code", e.target.value)} placeholder="Ex.: 1212" />
                     </Field>
-                    <Field label="Nome do portão" hint="Como esse acesso aparece no guia. Ex.: Portão, Garagem, Cancela.">
+                    <Field label="Defina um nome" hint="Como esse acesso aparece no guia. Ex.: Portão, Garagem, Cancela.">
                       <Input value={form.property.gate_label} maxLength={40} onChange={(e) => update("gate_label", e.target.value)} placeholder="Portão" />
                     </Field>
                     <Field label="Passo a passo (opcional)" hint="Cada linha vira uma etapa numerada no guia.">
@@ -883,7 +883,7 @@ function PropertyEditor() {
                     <Field label="Código da fechadura" hint="Digite a senha que o hóspede vai usar.">
                       <Input value={form.property.lock_code} maxLength={40} onChange={(e) => update("lock_code", e.target.value)} placeholder="Ex.: 3333" />
                     </Field>
-                    <Field label="Nome da fechadura" hint="Como esse acesso aparece no guia. Ex.: Fechadura, Porta principal, Smart lock.">
+                    <Field label="Defina um nome" hint="Como esse acesso aparece no guia. Ex.: Fechadura, Porta principal, Smart lock.">
                       <Input value={form.property.lock_label} maxLength={40} onChange={(e) => update("lock_label", e.target.value)} placeholder="Fechadura" />
                     </Field>
                     <Field label="Passo a passo (opcional)" hint="Cada linha vira uma etapa numerada no guia.">
