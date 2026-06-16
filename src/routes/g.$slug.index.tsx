@@ -646,20 +646,41 @@ function Guide({ data }: { data: GuideOk }) {
                         const m = s.match(/^(\d{1,2}):(\d{2})/);
                         return m ? `${m[1].padStart(2, "0")}h${m[2]}` : s;
                       };
+                      const isFlex = /flex/i.test(lower);
+                      const isAgend = /agend/i.test(lower);
                       let summary: string;
-                      if (/flex/i.test(lower)) summary = "Check-out flexível.";
-                      else if (/agend/i.test(lower)) summary = "Check-out sob agendamento.";
-                      else if (raw && rawMin) summary = `Check-out entre ${fmt(rawMin)} e ${fmt(raw)}`;
-                      else summary = `Check-out até ${fmt(raw)}`;
+                      if (isFlex) summary = "Check-out flexível";
+                      else if (isAgend) summary = "Check-out sob agendamento";
+                      else if (raw && rawMin) summary = `Entre ${fmt(rawMin)} e ${fmt(raw)}`;
+                      else summary = `Até ${fmt(raw)}`;
                       return (
                         <SubItem
                           icon={<Clock className="size-[18px]" strokeWidth={1.6} />}
-                          label="Horários"
+                          label="Horários de check-out"
                           hint={summary}
                         >
-                          <div className="rounded-2xl border border-border/60 bg-background/40 px-4 py-3.5">
-                            <p className="text-[15px] font-medium text-foreground/95 leading-snug">{summary}</p>
-                          </div>
+                          {isFlex || isAgend ? (
+                            <div className="rounded-2xl border border-border/60 bg-background/40 px-4 py-3.5">
+                              <p className="text-[14px] text-foreground/80 leading-relaxed">
+                                {isFlex
+                                  ? "A saída pode ser feita em horário flexível — alinhe com o anfitrião."
+                                  : "Combine seu horário de saída diretamente com o anfitrião."}
+                              </p>
+                            </div>
+                          ) : (
+                            <div className="rounded-2xl border border-border/60 bg-background/40 overflow-hidden divide-y divide-border/40">
+                              {rawMin && (
+                                <div className="flex items-center justify-between px-4 py-3">
+                                  <span className="text-[13px] uppercase tracking-wide text-muted-foreground">A partir de</span>
+                                  <span className="text-[15px] font-semibold tabular-nums text-foreground">{fmt(rawMin)}</span>
+                                </div>
+                              )}
+                              <div className="flex items-center justify-between px-4 py-3">
+                                <span className="text-[13px] uppercase tracking-wide text-muted-foreground">Até</span>
+                                <span className="text-[15px] font-semibold tabular-nums text-foreground">{fmt(raw)}</span>
+                              </div>
+                            </div>
+                          )}
                         </SubItem>
                       );
                     })()}
