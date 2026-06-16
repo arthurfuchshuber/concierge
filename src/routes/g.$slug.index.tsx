@@ -531,26 +531,28 @@ function Guide({ data }: { data: GuideOk }) {
                             : "Instruções de entrada"
                         }
                       >
-                        <div className="space-y-4">
-                          {p.gate_code && (
-                            <AccessBlock
-                              kind="gate"
-                              code={p.gate_code}
-                              instructions={p.gate_instructions as string | null}
-                              videoUrl={p.gate_video_url as string | null}
-                              media={gateMedia}
-                            />
-                          )}
-                          {p.lock_code && (
-                            <AccessBlock
-                              kind="lock"
-                              code={p.lock_code}
-                              instructions={p.lock_instructions as string | null}
-                              videoUrl={p.lock_video_url as string | null}
-                              media={lockMedia}
-                            />
-                          )}
-                        </div>
+                        <Lockable locked={checkinLocked}>
+                          <div className="space-y-4">
+                            {p.gate_code && (
+                              <AccessBlock
+                                kind="gate"
+                                code={p.gate_code}
+                                instructions={p.gate_instructions as string | null}
+                                videoUrl={p.gate_video_url as string | null}
+                                media={gateMedia}
+                              />
+                            )}
+                            {p.lock_code && (
+                              <AccessBlock
+                                kind="lock"
+                                code={p.lock_code}
+                                instructions={p.lock_instructions as string | null}
+                                videoUrl={p.lock_video_url as string | null}
+                                media={lockMedia}
+                              />
+                            )}
+                          </div>
+                        </Lockable>
                       </SubItem>
                     )}
 
