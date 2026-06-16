@@ -1763,7 +1763,7 @@ function AccessCodesStrip({
                   className="w-full text-left rounded-2xl border border-border/60 bg-background/40 px-4 py-3.5 flex items-center justify-between gap-3 hover:border-accent/40 transition-colors"
                 >
                   <div className="min-w-0">
-                    <p className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground font-semibold">Fechadura</p>
+                    <p className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground font-semibold">{lLabel}</p>
                     <p className="font-mono text-lg font-semibold tracking-[0.18em] mt-0.5 break-all">{lockCode}</p>
                   </div>
                   <div className="size-9 rounded-full bg-secondary grid place-items-center shrink-0">
