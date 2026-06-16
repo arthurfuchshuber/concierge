@@ -208,7 +208,21 @@ async function placesNearby(lat: number, lng: number, includedTypes: string[]) {
   return j.places ?? [];
 }
 
-async function placesText(query: string, lat: number, lng: number, includedType: string) {
+async function placesText(
+  query: string,
+  lat: number,
+  lng: number,
+  includedType?: string,
+  radiusMeters = 30000,
+) {
+  const body: Record<string, unknown> = {
+    textQuery: query,
+    maxResultCount: 20,
+    // locationBias (não restriction) — permite marcos famosos um pouco fora do raio
+    // (Cataratas/Itaipu em Foz ficam a 20-25km do centro), mas mantém viés geográfico.
+    locationBias: { circle: { center: { latitude: lat, longitude: lng }, radius: radiusMeters } },
+  };
+  if (includedType) body.includedType = includedType;
   const res = await gatewayFetch(`/places/v1/places:searchText`, {
     method: "POST",
     headers: {
@@ -216,14 +230,7 @@ async function placesText(query: string, lat: number, lng: number, includedType:
       "X-Goog-FieldMask":
         "places.id,places.displayName,places.location,places.rating,places.userRatingCount,places.googleMapsUri,places.photos,places.primaryType,places.editorialSummary,places.generativeSummary,places.regularOpeningHours",
     },
-    body: JSON.stringify({
-      textQuery: query,
-      includedType,
-      maxResultCount: 20,
-      // locationRestriction (não bias) garante que resultados estejam DENTRO do raio.
-      // 18 km cobre a cidade inteira e evita "Parque Nacional dos Lençóis Maranhenses" aparecendo em Foz do Iguaçu.
-      locationRestriction: { circle: { center: { latitude: lat, longitude: lng }, radius: 18000 } },
-    }),
+    body: JSON.stringify(body),
   });
   if (!res.ok) return [];
   const j = (await res.json()) as { places?: PlaceRaw[] };
@@ -391,13 +398,13 @@ export const enrichFromMapsLink = createServerFn({ method: "POST" })
       market: 10, pharmacy: 10, shopping: 20,
     };
     const CITY_MIN_REVIEWS: Record<string, number> = {
-      restaurant: 150, bar: 80, cafe: 80, nightlife: 80,
-      attraction: 50, beach: 30, park: 30,
-      market: 40, pharmacy: 30, shopping: 80,
+      restaurant: 80, bar: 40, cafe: 40, nightlife: 40,
+      attraction: 30, beach: 20, park: 20,
+      market: 20, pharmacy: 15, shopping: 40,
     };
     const MAX_PER_TYPE = 10;
-    // Aumentado de 18 km para 30 km — Foz tem atrações (Cataratas, Itaipu) longe do centro.
-    const MAX_CITY_RADIUS_M = 30000;
+    // 35 km — Foz tem atrações (Cataratas, Itaipu) longe do centro.
+    const MAX_CITY_RADIUS_M = 35000;
 
     const isQuality = (p: PlaceRaw, minReviews: number) =>
       typeof p.rating === "number" &&
@@ -465,12 +472,12 @@ export const enrichFromMapsLink = createServerFn({ method: "POST" })
       for (const p of items) push(p, cat, "nearby");
     }
 
-    // 2) City-wide via Places Text Search — sem filtro de primaryType, sem distância mínima
+    // 2) City-wide via Places Text Search — sem filtro de includedType (permite marcos
+    //    classificados em primaryType "inesperado", ex.: Marco das Três Fronteiras).
     if (city) {
       for (const cat of TYPE_MAP) {
-        const min = CITY_MIN_REVIEWS[cat.type] ?? 80;
-        const primary = cat.placesTypes[0];
-        const items = (await placesText(`melhores ${cat.category.toLowerCase()} em ${city}`, coords.lat, coords.lng, primary))
+        const min = CITY_MIN_REVIEWS[cat.type] ?? 40;
+        const items = (await placesText(`melhores ${cat.category.toLowerCase()} em ${city}`, coords.lat, coords.lng, undefined, MAX_CITY_RADIUS_M))
           .filter((p) => isQuality(p, min))
           .filter((p) => {
             if (!p.location) return false;
@@ -489,14 +496,14 @@ export const enrichFromMapsLink = createServerFn({ method: "POST" })
     }
 
     // 3) Curadoria via Gemini: pede os lugares icônicos da cidade por categoria
-    //    e resolve cada nome via Places Text Search (para obter foto, rating, link Maps).
+    //    e resolve cada nome via Places Text Search (sem includedType — o nome já é específico).
     if (city) {
       const iconic = await fetchIconicPlacesFromGemini(city, country);
       for (const cat of TYPE_MAP) {
         const names = iconic[cat.type] ?? [];
         for (const name of names) {
           if (seenNames.has(normalizeName(name))) continue;
-          const resolved = await placesText(`${name} ${city}`, coords.lat, coords.lng, cat.placesTypes[0]);
+          const resolved = await placesText(`${name} ${city}`, coords.lat, coords.lng, undefined, MAX_CITY_RADIUS_M);
           const best = resolved
             .filter((p) => p.location && typeof p.rating === "number" && (p.userRatingCount ?? 0) >= 10)
             .filter((p) => {
