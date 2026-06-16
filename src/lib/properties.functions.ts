@@ -78,6 +78,7 @@ const PropertyInput = z.object({
   default_language: z.enum(["pt", "en"]).default("pt"),
   guide_theme: z.enum(["dark", "light"]).default("dark"),
   published: z.boolean().default(true),
+  require_access_gate: z.boolean().default(false),
 });
 
 
