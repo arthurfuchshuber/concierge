@@ -1229,9 +1229,10 @@ function SubItem({
 }
 
 function AccessBlock({
-  kind, code, instructions, videoUrl, media,
+  kind, label, code, instructions, videoUrl, media,
 }: {
   kind: "gate" | "lock";
+  label?: string;
   code: string;
   instructions?: string | null;
   videoUrl?: string | null;
@@ -1239,7 +1240,7 @@ function AccessBlock({
 }) {
   const [open, setOpen] = useState(false);
   const Icon = kind === "gate" ? KeyRound : Lock;
-  const label = kind === "gate" ? "Portão" : "Fechadura";
+  const resolvedLabel = label?.trim() || (kind === "gate" ? "Portão" : "Fechadura");
   
   const hasMore = !!(instructions || videoUrl || media.length > 0);
 
