@@ -195,8 +195,8 @@ function Guide({ data }: { data: GuideOk }) {
   const houseManual = data.manual.filter((m: any) => !isRule(m));
 
   // Category availability — hide a card entirely when no sub-item has content
-  const hasCheckin = !!(p.checkin_time || p.address || p.maps_url || p.address_note || p.gate_code || p.lock_code || p.wifi_ssid || p.checkin_instructions);
-  const hasSaida = !!(p.checkout_time || p.checkout_instructions);
+  const hasCheckin = !!(p.checkin_time || p.checkin_note || p.address || p.maps_url || p.address_note || p.gate_code || p.lock_code || p.wifi_ssid || p.checkin_instructions);
+  const hasSaida = !!(p.checkout_time || p.checkout_note || p.checkout_instructions);
   const hasResidencia = houseManual.length > 0;
   const hasFaq = !!(p.host_name || p.host_phone) || data.emergency.length > 0 || data.faqs.length > 0;
   const hasExplore = Array.isArray(data.recommendations) && data.recommendations.length > 0;
