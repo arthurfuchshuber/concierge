@@ -30,6 +30,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Search, Users, Pencil, Loader2, Shield } from "lucide-react";
+import { DatePicker } from "@/components/ui/date-picker";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/admin/clientes")({
