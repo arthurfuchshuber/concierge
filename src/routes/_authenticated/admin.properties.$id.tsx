@@ -5,7 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { getMyProperty, upsertProperty } from "@/lib/properties.functions";
 import { listHostFaqs } from "@/lib/host-library.functions";
 import { buildDefaultFaqs, mergeDefaultFaqs } from "@/lib/default-faqs";
-import { enrichFromMapsLink } from "@/lib/maps.functions";
+import { enrichFromMapsLink, searchPlacesForRec, type PlaceSearchResult } from "@/lib/maps.functions";
 import { importFromAirbnb } from "@/lib/airbnb.functions";
 import { useSubscription } from "@/hooks/useSubscription";
 
