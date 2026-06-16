@@ -300,12 +300,22 @@ async function fetchIconicPlacesFromGemini(
   if (!apiKey || !city) return {};
 
   const categoriesPrompt = TYPE_MAP.map((c) => `- ${c.type}: ${c.category}`).join("\n");
-  const prompt = `Liste os lugares mais famosos, queridos e visitados de ${city}${country ? `, ${country}` : ""} em cada categoria abaixo. Inclua marcos turísticos clássicos, grandes redes/estabelecimentos populares (shoppings, supermercados conhecidos), áreas de lazer importantes e locais "que todo mundo conhece". Use o nome exato como aparece no Google Maps.
+  const prompt = `Você é um concierge local com profundo conhecimento de ${city}${country ? `, ${country}` : ""}. Sua missão é montar uma curadoria EXAUSTIVA e MINUCIOSA dos lugares de relevância local em cada categoria abaixo.
+
+REGRAS CRÍTICAS:
+1. Inclua TODOS os estabelecimentos icônicos da cidade, mesmo que tenham poucas avaliações no Google. Pense: "se um morador local recomendasse, indicaria este lugar?"
+2. Para "attraction" (pontos turísticos), seja AINDA MAIS abrangente: inclua passeios icônicos (sobrevoos de helicóptero como Helisul/FlyFoz, safáris, tours de barco), marcos urbanos famosos (avenidas, praças, gramadões, mirantes), monumentos, museus, parques temáticos, e qualquer experiência turística clássica da cidade — SEM exceção.
+3. Para restaurantes/bares/cafés/padarias/confeitarias: inclua os clássicos locais que "todo mundo da cidade conhece" (churrascarias tradicionais, chopperias famosas, confeitarias históricas, padarias renomadas, redes locais consagradas).
+4. Para market/shopping/pharmacy: inclua redes nacionais grandes presentes na cidade E redes/lojas locais relevantes.
+5. Use o nome EXATO como aparece no Google Maps (incluindo "Restaurante", "Bar", "Cafeteria" no nome se for assim que o estabelecimento se chama).
+6. Não invente lugares. Se não tiver certeza, omita.
 
 Categorias:
 ${categoriesPrompt}
 
-Para cada categoria, retorne entre 3 e 8 nomes (apenas os realmente famosos/relevantes). Se não houver nada notável, retorne lista vazia. Responda APENAS com JSON válido no formato:
+Para cada categoria, retorne entre 15 e 30 nomes (quanto mais completo, melhor — desde que sejam realmente relevantes localmente). Para "attraction" especificamente, retorne até 40 nomes incluindo TODAS as experiências turísticas da cidade.
+
+Responda APENAS com JSON válido (sem markdown) no formato:
 {"restaurant": ["Nome 1", "Nome 2"], "bar": [...], "cafe": [...], "beach": [...], "attraction": [...], "market": [...], "pharmacy": [...], "park": [...], "nightlife": [...], "shopping": [...]}`;
 
   try {
