@@ -1744,7 +1744,7 @@ function AccessCodesStrip({
               {gateCode && (
                 <button
                   type="button"
-                  onClick={() => copyCode(gateCode, "Código do portão")}
+                  onClick={() => copyCode(gateCode, `Código d${gLabel.toLowerCase().startsWith("a") ? "a" : "o"} ${gLabel.toLowerCase()}`)}
                   className="w-full text-left rounded-2xl border border-border/60 bg-background/40 px-4 py-3.5 flex items-center justify-between gap-3 hover:border-accent/40 transition-colors"
                 >
                   <div className="min-w-0">
