@@ -1511,3 +1511,163 @@ function WifiStrip({ ssid, password, theme }: { ssid?: string | null; password?:
   );
 }
 
+function AccessCodesStrip({
+  gateCode,
+  lockCode,
+  accessPin,
+  checkinLocked,
+  hasAccessRec,
+  gateEnabled,
+  theme,
+}: {
+  gateCode: string | null;
+  lockCode: string | null;
+  accessPin: string;
+  checkinLocked: boolean;
+  hasAccessRec: boolean;
+  gateEnabled: boolean;
+  theme: "dark" | "light";
+}) {
+  const [open, setOpen] = useState(false);
+  const [pinInput, setPinInput] = useState("");
+  const [unlocked, setUnlocked] = useState(false);
+  const needsPin = !!accessPin && !unlocked;
+  const isLight = theme === "light";
+
+  function handleEyeClick() {
+    if (gateEnabled && !hasAccessRec) {
+      toast.error("Informe seus dados de check-in para liberar os códigos.");
+      return;
+    }
+    if (checkinLocked) {
+      toast.error(
+        "Os códigos de acesso ficam disponíveis somente a partir de 24h antes do início do check-in até 12h depois. Fora dessa janela, fale com o time pelo chat do guia.",
+        { duration: 9000 },
+      );
+      return;
+    }
+    setOpen(true);
+  }
+
+  function submitPin(e: React.FormEvent) {
+    e.preventDefault();
+    if (pinInput.trim() === accessPin) {
+      setUnlocked(true);
+      setPinInput("");
+    } else {
+      toast.error("Senha incorreta. Confira com o anfitrião.");
+    }
+  }
+
+  function copyCode(code: string, label: string) {
+    navigator.clipboard.writeText(code);
+    toast.success(`${label} copiado`);
+  }
+
+  const hint = gateCode && lockCode ? "Portão e fechadura" : gateCode ? "Portão" : "Fechadura";
+
+  return (
+    <>
+      <div className={`relative overflow-hidden rounded-2xl backdrop-blur-sm shadow-[0_8px_30px_-12px_oklch(from_var(--accent)_l_c_h/0.35)] ${
+        isLight
+          ? "bg-[linear-gradient(135deg,oklch(from_var(--card)_l_c_h/0.98)_0%,oklch(from_var(--card)_l_c_h/0.94)_60%,oklch(from_var(--card)_l_c_h/0.98)_100%)]"
+          : "bg-[linear-gradient(135deg,oklch(0.18_0.04_55/0.95)_0%,oklch(0.12_0.02_50/0.92)_60%,oklch(0.08_0.01_45/0.95)_100%)]"
+      }`}>
+        <div className="pointer-events-none absolute inset-0 opacity-[0.08] [background-image:radial-gradient(oklch(var(--accent))_1px,transparent_1px)] [background-size:14px_14px]" />
+        <div className="pointer-events-none absolute -top-10 -right-10 size-32 rounded-full bg-accent/20 blur-3xl" />
+        <div className="relative flex items-center gap-3.5 px-4 py-3.5">
+          <span className="relative grid size-10 shrink-0 place-items-center rounded-full bg-[radial-gradient(circle_at_30%_30%,oklch(var(--accent)/0.35),oklch(var(--accent)/0.05))] text-accent ring-1 ring-accent/45">
+            <KeyRound className="relative size-[18px]" strokeWidth={1.75} />
+          </span>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-baseline gap-2">
+              <p className="text-[9px] uppercase tracking-[0.32em] text-accent font-semibold">Códigos de acesso</p>
+              <span className="h-px flex-1 bg-gradient-to-r from-accent/40 to-transparent" />
+            </div>
+            <p className="text-[13px] text-foreground/90 truncate font-medium mt-0.5">{hint}</p>
+            <p className="font-mono text-[13px] tracking-[0.2em] text-foreground/60 mt-0.5 truncate">
+              {"•".repeat(8)}
+            </p>
+          </div>
+          <button
+            onClick={handleEyeClick}
+            aria-label="Visualizar códigos"
+            className="grid size-9 place-items-center rounded-full bg-accent text-accent-foreground hover:brightness-110 transition-all shadow-[0_4px_12px_-4px_oklch(var(--accent)/0.6)] shrink-0"
+          >
+            <Eye className="size-4" strokeWidth={2} />
+          </button>
+        </div>
+      </div>
+
+      <Dialog
+        open={open}
+        onOpenChange={(v) => {
+          setOpen(v);
+          if (!v) setPinInput("");
+        }}
+      >
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <KeyRound className="size-4 text-accent" />
+              Códigos de acesso
+            </DialogTitle>
+          </DialogHeader>
+          {needsPin ? (
+            <form onSubmit={submitPin} className="space-y-3">
+              <p className="text-sm text-muted-foreground">
+                Digite a senha de acesso informada pelo anfitrião para visualizar os códigos.
+              </p>
+              <Input
+                value={pinInput}
+                onChange={(e) => setPinInput(e.target.value)}
+                placeholder="Senha"
+                autoFocus
+                maxLength={20}
+              />
+              <Button type="submit" className="w-full">Liberar</Button>
+            </form>
+          ) : (
+            <div className="space-y-3">
+              {gateCode && (
+                <button
+                  type="button"
+                  onClick={() => copyCode(gateCode, "Código do portão")}
+                  className="w-full text-left rounded-2xl border border-border/60 bg-background/40 px-4 py-3.5 flex items-center justify-between gap-3 hover:border-accent/40 transition-colors"
+                >
+                  <div className="min-w-0">
+                    <p className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground font-semibold">Portão</p>
+                    <p className="font-mono text-lg font-semibold tracking-[0.18em] mt-0.5 break-all">{gateCode}</p>
+                  </div>
+                  <div className="size-9 rounded-full bg-secondary grid place-items-center shrink-0">
+                    <Copy className="size-4 text-muted-foreground" />
+                  </div>
+                </button>
+              )}
+              {lockCode && (
+                <button
+                  type="button"
+                  onClick={() => copyCode(lockCode, "Código da fechadura")}
+                  className="w-full text-left rounded-2xl border border-border/60 bg-background/40 px-4 py-3.5 flex items-center justify-between gap-3 hover:border-accent/40 transition-colors"
+                >
+                  <div className="min-w-0">
+                    <p className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground font-semibold">Fechadura</p>
+                    <p className="font-mono text-lg font-semibold tracking-[0.18em] mt-0.5 break-all">{lockCode}</p>
+                  </div>
+                  <div className="size-9 rounded-full bg-secondary grid place-items-center shrink-0">
+                    <Copy className="size-4 text-muted-foreground" />
+                  </div>
+                </button>
+              )}
+              <p className="text-[11px] text-muted-foreground text-center pt-1">
+                Toque em um código para copiar.
+              </p>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
+
