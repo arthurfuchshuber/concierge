@@ -36,6 +36,7 @@ const PropertyInput = z.object({
   })).max(20).default([]),
   address: z.string().max(500).optional().nullable(),
   maps_url: HttpsUrl,
+  garage_maps_url: HttpsUrl,
   lat: z.number().optional().nullable(),
   lng: z.number().optional().nullable(),
   city: z.string().max(120).optional().nullable(),
