@@ -542,6 +542,9 @@ function CategoryDetail({
   setSortBy,
   viewMode,
   setViewMode,
+  minReviews,
+  setMinReviews,
+  isTouristCategory,
 }: {
   nearby: Rec[];
   city: Rec[];
@@ -549,6 +552,9 @@ function CategoryDetail({
   setSortBy: (s: SortKey) => void;
   viewMode: "grid" | "list";
   setViewMode: (v: "grid" | "list") => void;
+  minReviews: number;
+  setMinReviews: (n: number) => void;
+  isTouristCategory: boolean;
 }) {
   const sections = [
     { key: "nearby", eyebrow: "A poucos minutos", title: "Pertinho da Residência", items: nearby },
@@ -559,7 +565,12 @@ function CategoryDetail({
     <>
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <SortBar sortBy={sortBy} setSortBy={setSortBy} />
-        <ViewToggle viewMode={viewMode} setViewMode={setViewMode} />
+        <div className="flex items-center gap-2 flex-wrap">
+          {!isTouristCategory && (
+            <MinReviewsFilter value={minReviews} onChange={setMinReviews} />
+          )}
+          <ViewToggle viewMode={viewMode} setViewMode={setViewMode} />
+        </div>
       </div>
       <div className="mt-8 space-y-6">
         {sections.map((s) => (
@@ -578,6 +589,39 @@ function CategoryDetail({
     </>
   );
 }
+
+function MinReviewsFilter({ value, onChange }: { value: number; onChange: (n: number) => void }) {
+  const opts: { v: number; label: string }[] = [
+    { v: 0, label: "Todas" },
+    { v: 50, label: "50+" },
+    { v: 200, label: "200+" },
+    { v: 1000, label: "1k+" },
+    { v: 5000, label: "5k+" },
+  ];
+  return (
+    <div className="inline-flex items-center rounded-full border border-border bg-card/60 backdrop-blur p-1">
+      <span className="px-2.5 text-[10px] uppercase tracking-[0.18em] font-semibold text-muted-foreground">
+        Avaliações
+      </span>
+      {opts.map((o) => {
+        const on = value === o.v;
+        return (
+          <button
+            key={o.v}
+            type="button"
+            onClick={() => onChange(o.v)}
+            className={`px-2.5 py-1.5 rounded-full text-[11.5px] font-medium transition-colors ${
+              on ? "bg-accent text-accent-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            {o.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 
 function ViewToggle({
   viewMode,
