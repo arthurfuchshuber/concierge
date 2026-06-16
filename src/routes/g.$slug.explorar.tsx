@@ -562,15 +562,30 @@ function CategoryDetail({
   setViewMode: (v: "grid" | "list") => void;
   isTouristCategory: boolean;
 }) {
+  const [minReviews, setMinReviews] = useState(0);
+
+  const applyFilter = (arr: Rec[]) => {
+    if (isTouristCategory || minReviews <= 0) return arr;
+    return arr.filter((rec) => (rec.user_ratings_total ?? 0) >= minReviews);
+  };
+
+  const nearbyFiltered = applyFilter(nearby);
+  const cityFiltered = applyFilter(city);
+
   const sections = [
-    { key: "nearby", eyebrow: "A poucos minutos", title: "Pertinho da Residência", items: nearby },
-    { key: "city", eyebrow: "Vale o deslocamento", title: "Referências na Cidade", items: city },
-  ].filter((s) => s.items.length > 0);
+    { key: "nearby", eyebrow: "A poucos minutos", title: "Pertinho da Residência", items: nearbyFiltered, total: nearby.length },
+    { key: "city", eyebrow: "Vale o deslocamento", title: "Referências na Cidade", items: cityFiltered, total: city.length },
+  ].filter((s) => s.total > 0);
 
   return (
     <>
       <div className="flex items-center justify-between gap-3 flex-wrap">
-        <SortBar sortBy={sortBy} setSortBy={setSortBy} />
+        <div className="flex items-center gap-3 flex-wrap">
+          <SortBar sortBy={sortBy} setSortBy={setSortBy} />
+          {!isTouristCategory && (
+            <MinReviewsFilter value={minReviews} onChange={setMinReviews} />
+          )}
+        </div>
         <ViewToggle viewMode={viewMode} setViewMode={setViewMode} />
       </div>
       <div className="mt-8 space-y-6">
@@ -580,8 +595,8 @@ function CategoryDetail({
             eyebrow={s.eyebrow}
             title={s.title}
             items={s.items}
+            totalCount={s.total}
             viewMode={viewMode}
-            allowReviewFilter={!isTouristCategory}
           />
         ))}
         {sections.length === 0 && (
