@@ -1482,27 +1482,41 @@ function WifiStrip({
   hasAccessRec: boolean;
   gateEnabled: boolean;
 }) {
-  const [open, setOpen] = useState(false);
+  const [pinOpen, setPinOpen] = useState(false);
   const [pinInput, setPinInput] = useState("");
   const [unlocked, setUnlocked] = useState(false);
+  const [copied, setCopied] = useState(false);
   const needsPin = !!accessPin && !unlocked;
   const isLight = theme === "light";
   const masked = password ? "•".repeat(Math.min(password.length, 12)) : "—";
 
-  function handleEyeClick() {
-    if (!password) return;
+  function gateOk() {
+    if (!password) return false;
     if (gateEnabled && !hasAccessRec) {
       toast.error("Informe seus dados de check-in para liberar a senha do Wi-Fi.");
-      return;
+      return false;
     }
     if (checkinLocked) {
       toast.error(
         "A senha do Wi-Fi fica disponível somente a partir de 24h antes do início do check-in até 12h depois. Fora dessa janela, fale com o time pelo chat do guia.",
         { duration: 9000 },
       );
+      return false;
+    }
+    return true;
+  }
+
+  function handleEyeClick() {
+    if (unlocked) {
+      setUnlocked(false);
       return;
     }
-    setOpen(true);
+    if (!gateOk()) return;
+    if (needsPin) {
+      setPinOpen((v) => !v);
+    } else {
+      setUnlocked(true);
+    }
   }
 
   function submitPin(e: React.FormEvent) {
@@ -1510,6 +1524,7 @@ function WifiStrip({
     if (pinInput.trim() === accessPin) {
       setUnlocked(true);
       setPinInput("");
+      setPinOpen(false);
     } else {
       toast.error("Senha incorreta. Confira com o anfitrião.");
     }
@@ -1517,103 +1532,76 @@ function WifiStrip({
 
   function copyPwd() {
     if (!password) return;
+    if (!unlocked) {
+      if (!gateOk()) return;
+      if (needsPin) {
+        setPinOpen(true);
+        return;
+      }
+      setUnlocked(true);
+    }
     navigator.clipboard.writeText(password);
+    setCopied(true);
     toast.success("Senha copiada");
+    setTimeout(() => setCopied(false), 1500);
   }
 
   return (
-    <>
-      <div className={`wifi-shimmer relative overflow-hidden rounded-2xl backdrop-blur-sm shadow-[0_8px_30px_-12px_oklch(from_var(--accent)_l_c_h/0.35)] ${
-        isLight
-          ? "bg-[linear-gradient(135deg,oklch(from_var(--card)_l_c_h/0.98)_0%,oklch(from_var(--card)_l_c_h/0.94)_60%,oklch(from_var(--card)_l_c_h/0.98)_100%)]"
-          : "bg-[linear-gradient(135deg,oklch(0.18_0.04_55/0.95)_0%,oklch(0.12_0.02_50/0.92)_60%,oklch(0.08_0.01_45/0.95)_100%)]"
-      }`}>
-        <div className="pointer-events-none absolute inset-0 opacity-[0.08] [background-image:radial-gradient(oklch(var(--accent))_1px,transparent_1px)] [background-size:14px_14px]" />
-        <div className="pointer-events-none absolute -top-10 -right-10 size-32 rounded-full bg-accent/20 blur-3xl" />
-        <div className="relative flex items-center gap-3.5 px-4 py-3.5">
-          <span className="relative grid size-10 shrink-0 place-items-center rounded-full bg-[radial-gradient(circle_at_30%_30%,oklch(var(--accent)/0.35),oklch(var(--accent)/0.05))] text-accent ring-1 ring-accent/45">
-            <span className="wifi-pulse pointer-events-none absolute inset-0 rounded-full bg-accent/25 blur-md" />
-            <Wifi className="relative size-[18px]" strokeWidth={1.75} />
-          </span>
-          <div className="flex-1 min-w-0">
-            <div className="flex items-baseline gap-2">
-              <p className="text-[9px] uppercase tracking-[0.32em] text-accent font-semibold">Wi-Fi</p>
-              <span className="h-px flex-1 bg-gradient-to-r from-accent/40 to-transparent" />
-            </div>
-            <p className="text-[13px] text-foreground/90 truncate font-medium mt-0.5">{ssid || "Rede da casa"}</p>
-            <p className="font-mono text-[13px] tracking-[0.2em] text-foreground/85 mt-0.5 truncate">
-              {password ? masked : "—"}
-            </p>
+    <div className={`wifi-shimmer relative overflow-hidden rounded-2xl backdrop-blur-sm shadow-[0_8px_30px_-12px_oklch(from_var(--accent)_l_c_h/0.35)] ${
+      isLight
+        ? "bg-[linear-gradient(135deg,oklch(from_var(--card)_l_c_h/0.98)_0%,oklch(from_var(--card)_l_c_h/0.94)_60%,oklch(from_var(--card)_l_c_h/0.98)_100%)]"
+        : "bg-[linear-gradient(135deg,oklch(0.18_0.04_55/0.95)_0%,oklch(0.12_0.02_50/0.92)_60%,oklch(0.08_0.01_45/0.95)_100%)]"
+    }`}>
+      <div className="pointer-events-none absolute inset-0 opacity-[0.08] [background-image:radial-gradient(oklch(var(--accent))_1px,transparent_1px)] [background-size:14px_14px]" />
+      <div className="pointer-events-none absolute -top-10 -right-10 size-32 rounded-full bg-accent/20 blur-3xl" />
+      <div className="relative flex items-center gap-3.5 px-4 py-3.5">
+        <span className="relative grid size-10 shrink-0 place-items-center rounded-full bg-[radial-gradient(circle_at_30%_30%,oklch(var(--accent)/0.35),oklch(var(--accent)/0.05))] text-accent ring-1 ring-accent/45">
+          <span className="wifi-pulse pointer-events-none absolute inset-0 rounded-full bg-accent/25 blur-md" />
+          <Wifi className="relative size-[18px]" strokeWidth={1.75} />
+        </span>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-baseline gap-2">
+            <p className="text-[9px] uppercase tracking-[0.32em] text-accent font-semibold">Wi-Fi</p>
+            <span className="h-px flex-1 bg-gradient-to-r from-accent/40 to-transparent" />
           </div>
-          {password && (
+          <p className="text-[13px] text-foreground/90 truncate font-medium mt-0.5">{ssid || "Rede da casa"}</p>
+          <p className={`font-mono text-[13px] tracking-[0.18em] mt-0.5 truncate ${unlocked ? "text-foreground font-semibold" : "text-foreground/85"}`}>
+            {password ? (unlocked ? password : masked) : "—"}
+          </p>
+        </div>
+        {password && (
+          <div className="flex items-center gap-1.5 shrink-0">
+            <button
+              onClick={copyPwd}
+              aria-label="Copiar senha do Wi-Fi"
+              className="grid size-9 place-items-center rounded-full bg-secondary text-foreground hover:bg-secondary/80 transition-all"
+            >
+              {copied ? <Check className="size-4 text-accent" /> : <Copy className="size-4" />}
+            </button>
             <button
               onClick={handleEyeClick}
-              aria-label="Visualizar senha do Wi-Fi"
-              className="grid size-9 place-items-center rounded-full bg-accent text-accent-foreground hover:brightness-110 transition-all shadow-[0_4px_12px_-4px_oklch(var(--accent)/0.6)] shrink-0"
+              aria-label={unlocked ? "Ocultar senha do Wi-Fi" : "Visualizar senha do Wi-Fi"}
+              className="grid size-9 place-items-center rounded-full bg-accent text-accent-foreground hover:brightness-110 transition-all shadow-[0_4px_12px_-4px_oklch(var(--accent)/0.6)]"
             >
-              <Eye className="size-4" strokeWidth={2} />
+              {unlocked ? <EyeOff className="size-4" strokeWidth={2} /> : <Eye className="size-4" strokeWidth={2} />}
             </button>
-          )}
-        </div>
+          </div>
+        )}
       </div>
-
-      <Dialog
-        open={open}
-        onOpenChange={(v) => {
-          setOpen(v);
-          if (!v) setPinInput("");
-        }}
-      >
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Wifi className="size-4 text-accent" />
-              Senha do Wi-Fi
-            </DialogTitle>
-          </DialogHeader>
-          {needsPin ? (
-            <form onSubmit={submitPin} className="space-y-3">
-              <p className="text-sm text-muted-foreground">
-                Digite a senha de acesso informada pelo anfitrião para visualizar a senha do Wi-Fi.
-              </p>
-              <Input
-                value={pinInput}
-                onChange={(e) => setPinInput(e.target.value)}
-                placeholder="Senha"
-                autoFocus
-                maxLength={20}
-              />
-              <Button type="submit" className="w-full">Liberar</Button>
-            </form>
-          ) : (
-            <div className="space-y-3">
-              {ssid && (
-                <div className="rounded-2xl border border-border/60 bg-background/40 px-4 py-3.5">
-                  <p className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground font-semibold">Rede</p>
-                  <p className="text-base font-medium mt-0.5 break-all">{ssid}</p>
-                </div>
-              )}
-              <button
-                type="button"
-                onClick={() => password && copyPwd()}
-                className="w-full text-left rounded-2xl border border-border/60 bg-background/40 px-4 py-3.5 flex items-center justify-between gap-3 hover:border-accent/40 transition-colors"
-              >
-                <div className="min-w-0">
-                  <p className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground font-semibold">Senha</p>
-                  <p className="font-mono text-lg font-semibold tracking-[0.18em] mt-0.5 break-all">{password}</p>
-                </div>
-                <div className="size-9 rounded-full bg-secondary grid place-items-center shrink-0">
-                  <Copy className="size-4 text-muted-foreground" />
-                </div>
-              </button>
-              <p className="text-[11px] text-muted-foreground text-center pt-1">
-                Toque na senha para copiar.
-              </p>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
-    </>
+      {pinOpen && needsPin && (
+        <form onSubmit={submitPin} className="relative border-t border-border/40 px-4 py-3 flex items-center gap-2">
+          <Input
+            value={pinInput}
+            onChange={(e) => setPinInput(e.target.value)}
+            placeholder="Digite a senha de acesso"
+            autoFocus
+            maxLength={20}
+            className="h-9 flex-1"
+          />
+          <Button type="submit" size="sm" className="h-9">Liberar</Button>
+        </form>
+      )}
+    </div>
   );
 }
 
@@ -1638,7 +1626,7 @@ function AccessCodesStrip({
   gateEnabled: boolean;
   theme: "dark" | "light";
 }) {
-  const [open, setOpen] = useState(false);
+  const [pinOpen, setPinOpen] = useState(false);
   const [pinInput, setPinInput] = useState("");
   const [unlocked, setUnlocked] = useState(false);
   const needsPin = !!accessPin && !unlocked;
@@ -1646,19 +1634,32 @@ function AccessCodesStrip({
   const gLabel = (gateLabel || "").trim() || "Portão";
   const lLabel = (lockLabel || "").trim() || "Fechadura";
 
-  function handleEyeClick() {
+  function gateOk() {
     if (gateEnabled && !hasAccessRec) {
       toast.error("Informe seus dados de check-in para liberar os códigos.");
-      return;
+      return false;
     }
     if (checkinLocked) {
       toast.error(
         "Os códigos de acesso ficam disponíveis somente a partir de 24h antes do início do check-in até 12h depois. Fora dessa janela, fale com o time pelo chat do guia.",
         { duration: 9000 },
       );
+      return false;
+    }
+    return true;
+  }
+
+  function handleEyeClick() {
+    if (unlocked) {
+      setUnlocked(false);
       return;
     }
-    setOpen(true);
+    if (!gateOk()) return;
+    if (needsPin) {
+      setPinOpen((v) => !v);
+    } else {
+      setUnlocked(true);
+    }
   }
 
   function submitPin(e: React.FormEvent) {
@@ -1666,6 +1667,7 @@ function AccessCodesStrip({
     if (pinInput.trim() === accessPin) {
       setUnlocked(true);
       setPinInput("");
+      setPinOpen(false);
     } else {
       toast.error("Senha incorreta. Confira com o anfitrião.");
     }
@@ -1679,106 +1681,82 @@ function AccessCodesStrip({
   const hint = gateCode && lockCode ? `${gLabel} e ${lLabel.toLowerCase()}` : gateCode ? gLabel : lLabel;
 
   return (
-    <>
-      <div className={`relative overflow-hidden rounded-2xl backdrop-blur-sm shadow-[0_8px_30px_-12px_oklch(from_var(--accent)_l_c_h/0.35)] ${
-        isLight
-          ? "bg-[linear-gradient(135deg,oklch(from_var(--card)_l_c_h/0.98)_0%,oklch(from_var(--card)_l_c_h/0.94)_60%,oklch(from_var(--card)_l_c_h/0.98)_100%)]"
-          : "bg-[linear-gradient(135deg,oklch(0.18_0.04_55/0.95)_0%,oklch(0.12_0.02_50/0.92)_60%,oklch(0.08_0.01_45/0.95)_100%)]"
-      }`}>
-        <div className="pointer-events-none absolute inset-0 opacity-[0.08] [background-image:radial-gradient(oklch(var(--accent))_1px,transparent_1px)] [background-size:14px_14px]" />
-        <div className="pointer-events-none absolute -top-10 -right-10 size-32 rounded-full bg-accent/20 blur-3xl" />
-        <div className="relative flex items-center gap-3.5 px-4 py-3.5">
-          <span className="relative grid size-10 shrink-0 place-items-center rounded-full bg-[radial-gradient(circle_at_30%_30%,oklch(var(--accent)/0.35),oklch(var(--accent)/0.05))] text-accent ring-1 ring-accent/45">
-            <KeyRound className="relative size-[18px]" strokeWidth={1.75} />
-          </span>
-          <div className="flex-1 min-w-0">
-            <div className="flex items-baseline gap-2">
-              <p className="text-[9px] uppercase tracking-[0.32em] text-accent font-semibold">Códigos de acesso</p>
-              <span className="h-px flex-1 bg-gradient-to-r from-accent/40 to-transparent" />
-            </div>
-            <p className="text-[13px] text-foreground/90 truncate font-medium mt-0.5">{hint}</p>
-            <p className="font-mono text-[13px] tracking-[0.2em] text-foreground/60 mt-0.5 truncate">
-              {"•".repeat(8)}
-            </p>
+    <div className={`relative overflow-hidden rounded-2xl backdrop-blur-sm shadow-[0_8px_30px_-12px_oklch(from_var(--accent)_l_c_h/0.35)] ${
+      isLight
+        ? "bg-[linear-gradient(135deg,oklch(from_var(--card)_l_c_h/0.98)_0%,oklch(from_var(--card)_l_c_h/0.94)_60%,oklch(from_var(--card)_l_c_h/0.98)_100%)]"
+        : "bg-[linear-gradient(135deg,oklch(0.18_0.04_55/0.95)_0%,oklch(0.12_0.02_50/0.92)_60%,oklch(0.08_0.01_45/0.95)_100%)]"
+    }`}>
+      <div className="pointer-events-none absolute inset-0 opacity-[0.08] [background-image:radial-gradient(oklch(var(--accent))_1px,transparent_1px)] [background-size:14px_14px]" />
+      <div className="pointer-events-none absolute -top-10 -right-10 size-32 rounded-full bg-accent/20 blur-3xl" />
+      <div className="relative flex items-center gap-3.5 px-4 py-3.5">
+        <span className="relative grid size-10 shrink-0 place-items-center rounded-full bg-[radial-gradient(circle_at_30%_30%,oklch(var(--accent)/0.35),oklch(var(--accent)/0.05))] text-accent ring-1 ring-accent/45">
+          <KeyRound className="relative size-[18px]" strokeWidth={1.75} />
+        </span>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-baseline gap-2">
+            <p className="text-[9px] uppercase tracking-[0.32em] text-accent font-semibold">Códigos de acesso</p>
+            <span className="h-px flex-1 bg-gradient-to-r from-accent/40 to-transparent" />
           </div>
-          <button
-            onClick={handleEyeClick}
-            aria-label="Visualizar códigos"
-            className="grid size-9 place-items-center rounded-full bg-accent text-accent-foreground hover:brightness-110 transition-all shadow-[0_4px_12px_-4px_oklch(var(--accent)/0.6)] shrink-0"
-          >
-            <Eye className="size-4" strokeWidth={2} />
-          </button>
-        </div>
-      </div>
-
-      <Dialog
-        open={open}
-        onOpenChange={(v) => {
-          setOpen(v);
-          if (!v) setPinInput("");
-        }}
-      >
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <KeyRound className="size-4 text-accent" />
-              Códigos de acesso
-            </DialogTitle>
-          </DialogHeader>
-          {needsPin ? (
-            <form onSubmit={submitPin} className="space-y-3">
-              <p className="text-sm text-muted-foreground">
-                Digite a senha de acesso informada pelo anfitrião para visualizar os códigos.
-              </p>
-              <Input
-                value={pinInput}
-                onChange={(e) => setPinInput(e.target.value)}
-                placeholder="Senha"
-                autoFocus
-                maxLength={20}
-              />
-              <Button type="submit" className="w-full">Liberar</Button>
-            </form>
-          ) : (
-            <div className="space-y-3">
+          {unlocked ? (
+            <div className="mt-1 space-y-1.5">
               {gateCode && (
                 <button
                   type="button"
                   onClick={() => copyCode(gateCode, `Código d${gLabel.toLowerCase().startsWith("a") ? "a" : "o"} ${gLabel.toLowerCase()}`)}
-                  className="w-full text-left rounded-2xl border border-border/60 bg-background/40 px-4 py-3.5 flex items-center justify-between gap-3 hover:border-accent/40 transition-colors"
+                  className="w-full flex items-center justify-between gap-2 text-left"
                 >
-                  <div className="min-w-0">
-                    <p className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground font-semibold">{gLabel}</p>
-                    <p className="font-mono text-lg font-semibold tracking-[0.18em] mt-0.5 break-all">{gateCode}</p>
-                  </div>
-                  <div className="size-9 rounded-full bg-secondary grid place-items-center shrink-0">
-                    <Copy className="size-4 text-muted-foreground" />
-                  </div>
+                  <span className="text-[11px] text-muted-foreground font-medium shrink-0">{gLabel}</span>
+                  <span className="font-mono text-[14px] font-semibold tracking-[0.18em] text-foreground truncate flex items-center gap-1.5">
+                    {gateCode}
+                    <Copy className="size-3 text-muted-foreground" />
+                  </span>
                 </button>
               )}
               {lockCode && (
                 <button
                   type="button"
                   onClick={() => copyCode(lockCode, `Código d${lLabel.toLowerCase().startsWith("a") ? "a" : "o"} ${lLabel.toLowerCase()}`)}
-                  className="w-full text-left rounded-2xl border border-border/60 bg-background/40 px-4 py-3.5 flex items-center justify-between gap-3 hover:border-accent/40 transition-colors"
+                  className="w-full flex items-center justify-between gap-2 text-left"
                 >
-                  <div className="min-w-0">
-                    <p className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground font-semibold">{lLabel}</p>
-                    <p className="font-mono text-lg font-semibold tracking-[0.18em] mt-0.5 break-all">{lockCode}</p>
-                  </div>
-                  <div className="size-9 rounded-full bg-secondary grid place-items-center shrink-0">
-                    <Copy className="size-4 text-muted-foreground" />
-                  </div>
+                  <span className="text-[11px] text-muted-foreground font-medium shrink-0">{lLabel}</span>
+                  <span className="font-mono text-[14px] font-semibold tracking-[0.18em] text-foreground truncate flex items-center gap-1.5">
+                    {lockCode}
+                    <Copy className="size-3 text-muted-foreground" />
+                  </span>
                 </button>
               )}
-              <p className="text-[11px] text-muted-foreground text-center pt-1">
-                Toque em um código para copiar.
-              </p>
             </div>
+          ) : (
+            <>
+              <p className="text-[13px] text-foreground/90 truncate font-medium mt-0.5">{hint}</p>
+              <p className="font-mono text-[13px] tracking-[0.2em] text-foreground/60 mt-0.5 truncate">
+                {"•".repeat(8)}
+              </p>
+            </>
           )}
-        </DialogContent>
-      </Dialog>
-    </>
+        </div>
+        <button
+          onClick={handleEyeClick}
+          aria-label={unlocked ? "Ocultar códigos" : "Visualizar códigos"}
+          className="grid size-9 place-items-center rounded-full bg-accent text-accent-foreground hover:brightness-110 transition-all shadow-[0_4px_12px_-4px_oklch(var(--accent)/0.6)] shrink-0"
+        >
+          {unlocked ? <EyeOff className="size-4" strokeWidth={2} /> : <Eye className="size-4" strokeWidth={2} />}
+        </button>
+      </div>
+      {pinOpen && needsPin && (
+        <form onSubmit={submitPin} className="relative border-t border-border/40 px-4 py-3 flex items-center gap-2">
+          <Input
+            value={pinInput}
+            onChange={(e) => setPinInput(e.target.value)}
+            placeholder="Digite a senha de acesso"
+            autoFocus
+            maxLength={20}
+            className="h-9 flex-1"
+          />
+          <Button type="submit" size="sm" className="h-9">Liberar</Button>
+        </form>
+      )}
+    </div>
   );
 }
 
