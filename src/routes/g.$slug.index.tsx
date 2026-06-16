@@ -491,26 +491,28 @@ function Guide({ data }: { data: GuideOk }) {
                         label="Check-in"
                         hint="Passo a passo da chegada"
                       >
-                        <div className="space-y-4">
-                          {p.checkin_instructions && (
-                            <div className="rounded-2xl border border-border/60 bg-background/40 px-4 py-4">
-                              <StepList text={String(p.checkin_instructions)} dense />
-                            </div>
-                          )}
-                          {Array.isArray(p.checkin_media) && p.checkin_media.length > 0 && (
-                            <div className="grid grid-cols-2 gap-2">
-                              {(p.checkin_media as Array<{ url: string; type: "image" | "video" }>).map((m, i) => (
-                                <div key={i} className="rounded-xl overflow-hidden border border-border bg-muted/40 aspect-square">
-                                  {m.type === "video" ? (
-                                    <video src={m.url} className="size-full object-cover" controls playsInline preload="metadata" />
-                                  ) : (
-                                    <img src={m.url} alt={`Check-in ${i + 1}`} className="size-full object-cover" loading="lazy" />
-                                  )}
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </div>
+                        <Lockable locked={checkinLocked}>
+                          <div className="space-y-4">
+                            {p.checkin_instructions && (
+                              <div className="rounded-2xl border border-border/60 bg-background/40 px-4 py-4">
+                                <StepList text={String(p.checkin_instructions)} dense />
+                              </div>
+                            )}
+                            {Array.isArray(p.checkin_media) && p.checkin_media.length > 0 && (
+                              <div className="grid grid-cols-2 gap-2">
+                                {(p.checkin_media as Array<{ url: string; type: "image" | "video" }>).map((m, i) => (
+                                  <div key={i} className="rounded-xl overflow-hidden border border-border bg-muted/40 aspect-square">
+                                    {m.type === "video" ? (
+                                      <video src={m.url} className="size-full object-cover" controls playsInline preload="metadata" />
+                                    ) : (
+                                      <img src={m.url} alt={`Check-in ${i + 1}`} className="size-full object-cover" loading="lazy" />
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </Lockable>
                       </SubItem>
                     )}
 
