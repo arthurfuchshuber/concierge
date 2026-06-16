@@ -903,6 +903,29 @@ function PropertyEditor() {
                 ) : null}
               </div>
 
+              {(gateOpen || lockOpen) && (
+                <div className="rounded-2xl border border-border/60 bg-card/30 px-4 py-3.5 space-y-2">
+                  <div className="flex items-center gap-2.5">
+                    <div className="size-9 rounded-lg grid place-items-center shrink-0 bg-muted/40 text-muted-foreground">
+                      <Lock className="size-[18px]" strokeWidth={1.75} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[14px] font-semibold leading-tight">Senha para liberar os códigos na home</p>
+                      <p className="text-[11.5px] text-muted-foreground mt-0.5">
+                        Opcional. Quando preenchida, o hóspede precisa digitá-la para visualizar os códigos no atalho da página inicial. Mesmo com a senha correta, a visualização só funciona dentro da janela do check-in (24h antes até 12h depois). Deixe em branco para liberar apenas pela janela de horário.
+                      </p>
+                    </div>
+                  </div>
+                  <Input
+                    value={form.property.access_codes_pin}
+                    maxLength={20}
+                    onChange={(e) => update("access_codes_pin", e.target.value)}
+                    placeholder="Ex.: 8421"
+                  />
+                </div>
+              )}
+
+
               {!gateOpen && !lockOpen ? (
                 <p className="text-[12px] text-muted-foreground rounded-xl border border-dashed border-border/60 bg-background/30 px-4 py-3">
                   Ative ao menos um tipo de acesso acima para cadastrar código e instruções.
