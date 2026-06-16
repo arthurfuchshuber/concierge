@@ -266,7 +266,7 @@ function ExplorePage() {
       const isTouristMeta = meta.key === "sights";
       const filtered = allRecs.filter((rec) => {
         if (!meta.types.includes(rec.type)) return false;
-        if (isTouristMeta || minReviews <= 0) return true;
+        if (minReviews <= 0) return true;
         return (rec.user_ratings_total ?? 0) >= minReviews;
       });
       const nearby = filtered.filter((x) => x.scope === "nearby");
@@ -565,7 +565,7 @@ function CategoryDetail({
   const [minReviews, setMinReviews] = useState(0);
 
   const applyFilter = (arr: Rec[]) => {
-    if (isTouristCategory || minReviews <= 0) return arr;
+    if (minReviews <= 0) return arr;
     return arr.filter((rec) => (rec.user_ratings_total ?? 0) >= minReviews);
   };
 
@@ -582,9 +582,7 @@ function CategoryDetail({
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div className="flex items-center gap-3 flex-wrap">
           <SortBar sortBy={sortBy} setSortBy={setSortBy} />
-          {!isTouristCategory && (
-            <MinReviewsFilter value={minReviews} onChange={setMinReviews} />
-          )}
+          <MinReviewsFilter value={minReviews} onChange={setMinReviews} />
         </div>
         <ViewToggle viewMode={viewMode} setViewMode={setViewMode} />
       </div>
