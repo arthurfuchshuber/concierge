@@ -731,6 +731,26 @@ function PropertyEditor() {
               <Field label="Check-out a partir de" hint="opcional"><TimePicker value={form.property.checkout_time_min} onChange={(v) => update("checkout_time_min", v)} placeholder="08:00" /></Field>
               <Field label="Check-out até"><TimePicker value={form.property.checkout_time} onChange={(v) => update("checkout_time", v)} placeholder="11:00" /></Field>
             </div>
+            <div className="grid grid-cols-1 gap-3 mt-3">
+              <Field label="Observação do check-in (opcional)" hint="Aparece abaixo dos horários no guia. Deixe em branco para ocultar.">
+                <Textarea
+                  value={form.property.checkin_note}
+                  maxLength={1000}
+                  rows={3}
+                  onChange={(e) => update("checkin_note", e.target.value)}
+                  placeholder="Ex.: Após às 22h, avise pelo WhatsApp com 1h de antecedência."
+                />
+              </Field>
+              <Field label="Observação do check-out (opcional)" hint="Aparece abaixo dos horários no guia. Deixe em branco para ocultar.">
+                <Textarea
+                  value={form.property.checkout_note}
+                  maxLength={1000}
+                  rows={3}
+                  onChange={(e) => update("checkout_note", e.target.value)}
+                  placeholder="Ex.: Late check-out mediante disponibilidade — consulte o anfitrião."
+                />
+              </Field>
+            </div>
           </Section>
 
           <Section icon={DoorOpen} title="Entrada" desc="Ative apenas os tipos de acesso que existem na propriedade.">
