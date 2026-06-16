@@ -1759,7 +1759,7 @@ function AccessCodesStrip({
               {lockCode && (
                 <button
                   type="button"
-                  onClick={() => copyCode(lockCode, "Código da fechadura")}
+                  onClick={() => copyCode(lockCode, `Código d${lLabel.toLowerCase().startsWith("a") ? "a" : "o"} ${lLabel.toLowerCase()}`)}
                   className="w-full text-left rounded-2xl border border-border/60 bg-background/40 px-4 py-3.5 flex items-center justify-between gap-3 hover:border-accent/40 transition-colors"
                 >
                   <div className="min-w-0">
