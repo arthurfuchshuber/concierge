@@ -475,13 +475,22 @@ function PropertyEditor() {
           )}
         </div>
         {!isNew && (
-          <Link
-            to="/admin/properties/$id/conversas"
-            params={{ id }}
-            className="shrink-0 inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-border bg-surface text-xs hover:bg-secondary transition-colors"
-          >
-            <MessageSquare className="size-3.5" /> Conversas
-          </Link>
+          <div className="shrink-0 flex items-center gap-2">
+            <Link
+              to="/admin/properties/$id/acessos"
+              params={{ id }}
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-border bg-surface text-xs hover:bg-secondary transition-colors"
+            >
+              <Shield className="size-3.5" /> Acessos
+            </Link>
+            <Link
+              to="/admin/properties/$id/conversas"
+              params={{ id }}
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-border bg-surface text-xs hover:bg-secondary transition-colors"
+            >
+              <MessageSquare className="size-3.5" /> Conversas
+            </Link>
+          </div>
         )}
       </div>
 
