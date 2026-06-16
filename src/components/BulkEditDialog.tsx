@@ -20,8 +20,10 @@ import { toast } from "sonner";
 type FieldKey =
   | "checkin_time"
   | "checkin_time_max"
+  | "checkin_note"
   | "checkout_time"
   | "checkout_time_min"
+  | "checkout_note"
   | "address_note"
   | "checkin_instructions"
   | "checkout_instructions"
@@ -29,6 +31,7 @@ type FieldKey =
   | "gate_instructions"
   | "lock_code"
   | "lock_instructions"
+  | "access_codes_pin"
   | "wifi_ssid"
   | "wifi_password"
   | "host_name"
@@ -47,6 +50,7 @@ const TABS: { id: string; label: string; fields: FieldDef[] }[] = [
     fields: [
       { key: "checkin_time", label: "Horário de check-in", kind: "text", placeholder: "15:00" },
       { key: "checkin_time_max", label: "Check-in até", kind: "text", placeholder: "20:00" },
+      { key: "checkin_note", label: "Observação sobre o check-in", kind: "textarea" },
       { key: "address_note", label: "Como chegar", kind: "textarea" },
       { key: "checkin_instructions", label: "Instruções de check-in", kind: "textarea" },
     ],
@@ -57,6 +61,7 @@ const TABS: { id: string; label: string; fields: FieldDef[] }[] = [
     fields: [
       { key: "checkout_time", label: "Check-out até", kind: "text", placeholder: "11:00" },
       { key: "checkout_time_min", label: "Check-out a partir", kind: "text" },
+      { key: "checkout_note", label: "Observação sobre o check-out", kind: "textarea" },
       { key: "checkout_instructions", label: "Instruções de check-out", kind: "textarea" },
     ],
   },
@@ -68,6 +73,7 @@ const TABS: { id: string; label: string; fields: FieldDef[] }[] = [
       { key: "gate_instructions", label: "Instruções do portão", kind: "textarea" },
       { key: "lock_code", label: "Código da fechadura", kind: "text" },
       { key: "lock_instructions", label: "Instruções da fechadura", kind: "textarea" },
+      { key: "access_codes_pin", label: "Senha para liberar códigos e Wi-Fi", kind: "text" },
     ],
   },
   {
