@@ -562,15 +562,30 @@ function CategoryDetail({
   setViewMode: (v: "grid" | "list") => void;
   isTouristCategory: boolean;
 }) {
+  const [minReviews, setMinReviews] = useState(0);
+
+  const applyFilter = (arr: Rec[]) => {
+    if (isTouristCategory || minReviews <= 0) return arr;
+    return arr.filter((rec) => (rec.user_ratings_total ?? 0) >= minReviews);
+  };
+
+  const nearbyFiltered = applyFilter(nearby);
+  const cityFiltered = applyFilter(city);
+
   const sections = [
-    { key: "nearby", eyebrow: "A poucos minutos", title: "Pertinho da Residência", items: nearby },
-    { key: "city", eyebrow: "Vale o deslocamento", title: "Referências na Cidade", items: city },
-  ].filter((s) => s.items.length > 0);
+    { key: "nearby", eyebrow: "A poucos minutos", title: "Pertinho da Residência", items: nearbyFiltered, total: nearby.length },
+    { key: "city", eyebrow: "Vale o deslocamento", title: "Referências na Cidade", items: cityFiltered, total: city.length },
+  ].filter((s) => s.total > 0);
 
   return (
     <>
       <div className="flex items-center justify-between gap-3 flex-wrap">
-        <SortBar sortBy={sortBy} setSortBy={setSortBy} />
+        <div className="flex items-center gap-3 flex-wrap">
+          <SortBar sortBy={sortBy} setSortBy={setSortBy} />
+          {!isTouristCategory && (
+            <MinReviewsFilter value={minReviews} onChange={setMinReviews} />
+          )}
+        </div>
         <ViewToggle viewMode={viewMode} setViewMode={setViewMode} />
       </div>
       <div className="mt-8 space-y-6">
@@ -580,8 +595,8 @@ function CategoryDetail({
             eyebrow={s.eyebrow}
             title={s.title}
             items={s.items}
+            totalCount={s.total}
             viewMode={viewMode}
-            allowReviewFilter={!isTouristCategory}
           />
         ))}
         {sections.length === 0 && (
@@ -695,22 +710,17 @@ function CollapsibleSection({
   eyebrow,
   title,
   items,
+  totalCount,
   viewMode,
-  allowReviewFilter = true,
 }: {
   eyebrow: string;
   title: string;
   items: Rec[];
+  totalCount: number;
   viewMode: "grid" | "list";
-  allowReviewFilter?: boolean;
 }) {
   const [open, setOpen] = useState(false);
-  const [minReviews, setMinReviews] = useState(0);
-
-  const filtered = useMemo(() => {
-    if (!allowReviewFilter || minReviews <= 0) return items;
-    return items.filter((rec) => (rec.user_ratings_total ?? 0) >= minReviews);
-  }, [items, minReviews, allowReviewFilter]);
+  const isFiltered = items.length !== totalCount;
 
   return (
     <section className="border border-border rounded-2xl bg-card/40 overflow-hidden">
@@ -725,7 +735,7 @@ function CollapsibleSection({
           <h3 className="font-serif text-[1.35rem] md:text-[1.55rem] leading-tight mt-0.5">
             {title}
             <span className="ml-2 text-[12px] text-muted-foreground font-sans font-normal">
-              ({filtered.length}{filtered.length !== items.length ? ` de ${items.length}` : ""})
+              ({items.length}{isFiltered ? ` de ${totalCount}` : ""})
             </span>
           </h3>
         </div>
@@ -736,24 +746,19 @@ function CollapsibleSection({
       </button>
       {open && (
         <div className="px-5 pb-5 pt-1">
-          {allowReviewFilter && (
-            <div className="mb-4 flex justify-end">
-              <MinReviewsFilter value={minReviews} onChange={setMinReviews} />
-            </div>
-          )}
-          {filtered.length === 0 ? (
+          {items.length === 0 ? (
             <p className="text-sm text-muted-foreground py-6 text-center">
               Nenhum lugar com esse mínimo de avaliações nesta seção.
             </p>
           ) : viewMode === "grid" ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {filtered.map((rec) => (
+              {items.map((rec) => (
                 <RecCard key={rec.id} rec={rec} />
               ))}
             </div>
           ) : (
             <div className="flex flex-col gap-3">
-              {filtered.map((rec) => (
+              {items.map((rec) => (
                 <RecRow key={rec.id} rec={rec} />
               ))}
             </div>
