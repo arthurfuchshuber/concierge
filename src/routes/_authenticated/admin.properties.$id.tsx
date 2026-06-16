@@ -946,6 +946,8 @@ function PropertyEditor() {
             items={nearbyRecs}
             onChange={(items) => setForm((f) => ({ ...f, recommendations: [...items, ...cityRecs] }))}
             scope="nearby"
+            lat={form.property.lat}
+            lng={form.property.lng}
           />
           <RecGroup
             title="Pela cidade"
@@ -953,7 +955,10 @@ function PropertyEditor() {
             items={cityRecs}
             onChange={(items) => setForm((f) => ({ ...f, recommendations: [...nearbyRecs, ...items] }))}
             scope="city"
+            lat={form.property.lat}
+            lng={form.property.lng}
           />
+
 
           <Section
             icon={Ticket}
