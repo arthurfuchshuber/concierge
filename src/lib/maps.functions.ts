@@ -486,24 +486,38 @@ export const enrichFromMapsLink = createServerFn({ method: "POST" })
     // 2) City-wide via Places Text Search — sem filtro de includedType (permite marcos
     //    classificados em primaryType "inesperado", ex.: Marco das Três Fronteiras).
     if (city) {
-      for (const cat of TYPE_MAP) {
-        const min = CITY_MIN_REVIEWS[cat.type] ?? 40;
-        const items = (await placesText(`melhores ${cat.category.toLowerCase()} em ${city}`, coords.lat, coords.lng, undefined, MAX_CITY_RADIUS_M))
-          .filter((p) => isQuality(p, min))
-          .filter((p) => {
-            if (!p.location) return false;
-            const d = haversineMeters(coords!, { lat: p.location.latitude, lng: p.location.longitude });
-            return d <= MAX_CITY_RADIUS_M;
-          })
-          .sort((a, b) => {
-            const ra = a.rating ?? 0;
-            const rb = b.rating ?? 0;
-            if (rb !== ra) return rb - ra;
-            return (b.userRatingCount ?? 0) - (a.userRatingCount ?? 0);
-          })
-          .slice(0, MAX_PER_TYPE);
-        for (const p of items) push(p, cat, "city");
-      }
+      await Promise.all(
+        TYPE_MAP.map(async (cat) => {
+          const isTouristLike = cat.type === "attraction" || cat.type === "beach" || cat.type === "park";
+          // Pontos turísticos: sem filtro de qualidade (mostrar todos); para outros: respeitar mínimo.
+          const min = CITY_MIN_REVIEWS[cat.type] ?? 40;
+          const limit = isTouristLike ? 25 : MAX_PER_TYPE;
+          const items = (
+            await placesText(
+              `melhores ${cat.category.toLowerCase()} em ${city}`,
+              coords!.lat,
+              coords!.lng,
+              undefined,
+              MAX_CITY_RADIUS_M,
+            )
+          )
+            .filter((p) => (isTouristLike ? !!p.location : isQuality(p, min)))
+            .filter((p) => {
+              if (!p.location) return false;
+              if (isTouristLike) return true;
+              const d = haversineMeters(coords!, { lat: p.location.latitude, lng: p.location.longitude });
+              return d <= MAX_CITY_RADIUS_M;
+            })
+            .sort((a, b) => {
+              const ra = a.rating ?? 0;
+              const rb = b.rating ?? 0;
+              if (rb !== ra) return rb - ra;
+              return (b.userRatingCount ?? 0) - (a.userRatingCount ?? 0);
+            })
+            .slice(0, limit);
+          for (const p of items) push(p, cat, "city");
+        }),
+      );
     }
 
     // 3) Curadoria via Gemini: pede os lugares icônicos da cidade por categoria
