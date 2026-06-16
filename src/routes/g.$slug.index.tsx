@@ -156,7 +156,8 @@ function Guide({ data }: { data: GuideOk }) {
   );
   const needsGate = gateEnabled && hasCheckinSecrets && !accessRec;
 
-  // 12h lock: once 12h have passed from check-in start, sensitive fields blur.
+  // Access window: credentials visible only between 24h BEFORE check-in start
+  // and 12h AFTER check-in start. Outside this window, sensitive fields blur.
   const checkinLocked = (() => {
     if (!accessRec) return false;
     const time = String(p.checkin_time ?? "").match(/^(\d{1,2}):(\d{2})/);
@@ -164,9 +165,11 @@ function Guide({ data }: { data: GuideOk }) {
     const mm = time ? Number(time[2]) : 0;
     const [y, mo, d] = accessRec.checkinDate.split("-").map(Number);
     if (!y || !mo || !d) return false;
-    const start = new Date(y, mo - 1, d, hh, mm, 0, 0);
-    const deadline = new Date(start.getTime() + 12 * 60 * 60 * 1000);
-    return Date.now() > deadline.getTime();
+    const start = new Date(y, mo - 1, d, hh, mm, 0, 0).getTime();
+    const opensAt = start - 24 * 60 * 60 * 1000;
+    const closesAt = start + 12 * 60 * 60 * 1000;
+    const now = Date.now();
+    return now < opensAt || now > closesAt;
   })();
 
   // Theme: admin default, override per-visitor via localStorage
