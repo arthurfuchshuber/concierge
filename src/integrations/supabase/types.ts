@@ -184,6 +184,7 @@ export type Database = {
           pin_code: string | null
           pin_expires_at: string | null
           published: boolean
+          require_access_gate: boolean
           slug: string
           tagline: string | null
           theme_images: Json
@@ -232,6 +233,7 @@ export type Database = {
           pin_code?: string | null
           pin_expires_at?: string | null
           published?: boolean
+          require_access_gate?: boolean
           slug: string
           tagline?: string | null
           theme_images?: Json
@@ -280,6 +282,7 @@ export type Database = {
           pin_code?: string | null
           pin_expires_at?: string | null
           published?: boolean
+          require_access_gate?: boolean
           slug?: string
           tagline?: string | null
           theme_images?: Json
