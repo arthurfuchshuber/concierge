@@ -263,7 +263,6 @@ function ExplorePage() {
 
   const categories = useMemo(() => {
     return META_CATEGORIES.map((meta) => {
-      // Pontos turísticos não devem ser filtrados pelo mínimo de avaliações.
       const isTouristMeta = meta.key === "sights";
       const filtered = allRecs.filter((rec) => {
         if (!meta.types.includes(rec.type)) return false;
@@ -276,7 +275,20 @@ function ExplorePage() {
     }).filter((c) => c.count > 0);
   }, [allRecs, minReviews]);
 
-  const active = categories.find((c) => c.meta.key === activeKey) ?? null;
+  // Unfiltered (by meta type only) — used inside category detail so each
+  // subcategory can apply its own min-reviews filter.
+  const categoriesUnfiltered = useMemo(() => {
+    return META_CATEGORIES.map((meta) => {
+      const filtered = allRecs.filter((rec) => meta.types.includes(rec.type));
+      const nearby = filtered.filter((x) => x.scope === "nearby");
+      const city = filtered.filter((x) => x.scope === "city");
+      return { meta, items: filtered, nearby, city, count: filtered.length };
+    }).filter((c) => c.count > 0);
+  }, [allRecs]);
+
+  const active = (activeKey
+    ? categoriesUnfiltered.find((c) => c.meta.key === activeKey)
+    : null) ?? null;
 
   return (
     <div
@@ -335,8 +347,6 @@ function ExplorePage() {
             setSortBy={setSortBy}
             viewMode={viewMode}
             setViewMode={setViewMode}
-            minReviews={minReviews}
-            setMinReviews={setMinReviews}
             isTouristCategory={active.meta.key === "sights"}
           />
 
@@ -542,8 +552,6 @@ function CategoryDetail({
   setSortBy,
   viewMode,
   setViewMode,
-  minReviews,
-  setMinReviews,
   isTouristCategory,
 }: {
   nearby: Rec[];
@@ -552,8 +560,6 @@ function CategoryDetail({
   setSortBy: (s: SortKey) => void;
   viewMode: "grid" | "list";
   setViewMode: (v: "grid" | "list") => void;
-  minReviews: number;
-  setMinReviews: (n: number) => void;
   isTouristCategory: boolean;
 }) {
   const sections = [
@@ -565,12 +571,7 @@ function CategoryDetail({
     <>
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <SortBar sortBy={sortBy} setSortBy={setSortBy} />
-        <div className="flex items-center gap-2 flex-wrap">
-          {!isTouristCategory && (
-            <MinReviewsFilter value={minReviews} onChange={setMinReviews} />
-          )}
-          <ViewToggle viewMode={viewMode} setViewMode={setViewMode} />
-        </div>
+        <ViewToggle viewMode={viewMode} setViewMode={setViewMode} />
       </div>
       <div className="mt-8 space-y-6">
         {sections.map((s) => (
@@ -580,6 +581,7 @@ function CategoryDetail({
             title={s.title}
             items={s.items}
             viewMode={viewMode}
+            allowReviewFilter={!isTouristCategory}
           />
         ))}
         {sections.length === 0 && (
@@ -694,13 +696,22 @@ function CollapsibleSection({
   title,
   items,
   viewMode,
+  allowReviewFilter = true,
 }: {
   eyebrow: string;
   title: string;
   items: Rec[];
   viewMode: "grid" | "list";
+  allowReviewFilter?: boolean;
 }) {
   const [open, setOpen] = useState(false);
+  const [minReviews, setMinReviews] = useState(0);
+
+  const filtered = useMemo(() => {
+    if (!allowReviewFilter || minReviews <= 0) return items;
+    return items.filter((rec) => (rec.user_ratings_total ?? 0) >= minReviews);
+  }, [items, minReviews, allowReviewFilter]);
+
   return (
     <section className="border border-border rounded-2xl bg-card/40 overflow-hidden">
       <button
@@ -714,7 +725,7 @@ function CollapsibleSection({
           <h3 className="font-serif text-[1.35rem] md:text-[1.55rem] leading-tight mt-0.5">
             {title}
             <span className="ml-2 text-[12px] text-muted-foreground font-sans font-normal">
-              ({items.length})
+              ({filtered.length}{filtered.length !== items.length ? ` de ${items.length}` : ""})
             </span>
           </h3>
         </div>
@@ -725,15 +736,24 @@ function CollapsibleSection({
       </button>
       {open && (
         <div className="px-5 pb-5 pt-1">
-          {viewMode === "grid" ? (
+          {allowReviewFilter && (
+            <div className="mb-4 flex justify-end">
+              <MinReviewsFilter value={minReviews} onChange={setMinReviews} />
+            </div>
+          )}
+          {filtered.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-6 text-center">
+              Nenhum lugar com esse mínimo de avaliações nesta seção.
+            </p>
+          ) : viewMode === "grid" ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {items.map((rec) => (
+              {filtered.map((rec) => (
                 <RecCard key={rec.id} rec={rec} />
               ))}
             </div>
           ) : (
             <div className="flex flex-col gap-3">
-              {items.map((rec) => (
+              {filtered.map((rec) => (
                 <RecRow key={rec.id} rec={rec} />
               ))}
             </div>
