@@ -1254,7 +1254,7 @@ function AccessBlock({
           <Icon className="size-[14px]" strokeWidth={1.75} />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-[10.5px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">{label}</p>
+          <p className="text-[10.5px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">{resolvedLabel}</p>
           <p className="font-mono text-[15px] font-semibold tracking-[0.08em] text-foreground mt-0.5 truncate">{code}</p>
         </div>
         {hasMore && (
