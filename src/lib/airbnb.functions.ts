@@ -89,7 +89,8 @@ export const importFromAirbnb = createServerFn({ method: "POST" })
         description: { type: "string", description: "Short description / tagline (1-2 sentences)" },
         city: { type: "string", description: "City name only" },
         country: { type: "string", description: "Country name only" },
-        checkin_time: { type: "string", description: "Check-in start time as displayed, e.g. '15:00' or '3:00 PM' or 'After 3:00 PM'" },
+        checkin_time: { type: "string", description: "Check-in start time as displayed, e.g. '15:00' or '3:00 PM' or 'After 3:00 PM'. If a range is shown (e.g. 'Between 3:00 PM and 11:00 PM'), include both times in the original order." },
+        checkin_time_max: { type: "string", description: "End of the check-in window if shown as a range, e.g. '23:00' or '11:00 PM'. Otherwise empty." },
         checkout_time: { type: "string", description: "Check-out time as displayed, e.g. '11:00' or '11:00 AM' or 'Before 11:00 AM'" },
         photos: {
           type: "array",
