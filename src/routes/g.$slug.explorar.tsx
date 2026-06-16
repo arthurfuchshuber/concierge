@@ -237,6 +237,7 @@ function ExplorePage() {
   const [activeKey, setActiveKey] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<SortKey>("distance");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [minReviews, setMinReviews] = useState<number>(0);
 
   // Tema herdado da página inicial do guia (definido pelo visitante).
   const adminTheme: "dark" | "light" =
