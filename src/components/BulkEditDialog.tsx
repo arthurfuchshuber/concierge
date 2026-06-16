@@ -28,8 +28,10 @@ type FieldKey =
   | "checkin_instructions"
   | "checkout_instructions"
   | "gate_code"
+  | "gate_label"
   | "gate_instructions"
   | "lock_code"
+  | "lock_label"
   | "lock_instructions"
   | "access_codes_pin"
   | "wifi_ssid"
@@ -70,8 +72,10 @@ const TABS: { id: string; label: string; fields: FieldDef[] }[] = [
     label: "Acesso",
     fields: [
       { key: "gate_code", label: "Código do portão", kind: "text" },
+      { key: "gate_label", label: "Nome do portão", kind: "text", placeholder: "Portão" },
       { key: "gate_instructions", label: "Instruções do portão", kind: "textarea" },
       { key: "lock_code", label: "Código da fechadura", kind: "text" },
+      { key: "lock_label", label: "Nome da fechadura", kind: "text", placeholder: "Fechadura" },
       { key: "lock_instructions", label: "Instruções da fechadura", kind: "textarea" },
       { key: "access_codes_pin", label: "Senha para liberar códigos e Wi-Fi", kind: "text" },
     ],

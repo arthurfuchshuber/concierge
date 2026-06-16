@@ -167,6 +167,7 @@ export type Database = {
           garage_maps_url: string | null
           gate_code: string | null
           gate_instructions: string | null
+          gate_label: string | null
           gate_media: Json
           gate_video_url: string | null
           guide_theme: string
@@ -178,6 +179,7 @@ export type Database = {
           lng: number | null
           lock_code: string | null
           lock_instructions: string | null
+          lock_label: string | null
           lock_media: Json
           lock_video_url: string | null
           maps_url: string | null
@@ -219,6 +221,7 @@ export type Database = {
           garage_maps_url?: string | null
           gate_code?: string | null
           gate_instructions?: string | null
+          gate_label?: string | null
           gate_media?: Json
           gate_video_url?: string | null
           guide_theme?: string
@@ -230,6 +233,7 @@ export type Database = {
           lng?: number | null
           lock_code?: string | null
           lock_instructions?: string | null
+          lock_label?: string | null
           lock_media?: Json
           lock_video_url?: string | null
           maps_url?: string | null
@@ -271,6 +275,7 @@ export type Database = {
           garage_maps_url?: string | null
           gate_code?: string | null
           gate_instructions?: string | null
+          gate_label?: string | null
           gate_media?: Json
           gate_video_url?: string | null
           guide_theme?: string
@@ -282,6 +287,7 @@ export type Database = {
           lng?: number | null
           lock_code?: string | null
           lock_instructions?: string | null
+          lock_label?: string | null
           lock_media?: Json
           lock_video_url?: string | null
           maps_url?: string | null

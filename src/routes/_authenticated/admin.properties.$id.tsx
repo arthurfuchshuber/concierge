@@ -72,7 +72,9 @@ type FormState = {
     checkout_time_min: string;
     checkout_note: string;
     lock_code: string;
+    lock_label: string;
     gate_code: string;
+    gate_label: string;
     access_codes_pin: string;
     address_note: string;
     checkin_instructions: string;
@@ -114,7 +116,7 @@ function emptyForm(): FormState {
       marketplace_links: [],
       address: "", maps_url: "", garage_maps_url: "",
       lat: null, lng: null, city: "", country: "", checkin_time: "15:00", checkin_time_max: "", checkin_note: "", checkout_time: "11:00", checkout_time_min: "", checkout_note: "",
-      lock_code: "", gate_code: "", access_codes_pin: "", address_note: "", checkin_instructions: "", checkout_instructions: "", checkin_media: [], gate_instructions: "", gate_media: [], gate_video_url: "", lock_instructions: "", lock_media: [], lock_video_url: "", wifi_ssid: "", wifi_password: "",
+      lock_code: "", lock_label: "Fechadura", gate_code: "", gate_label: "Portão", access_codes_pin: "", address_note: "", checkin_instructions: "", checkout_instructions: "", checkin_media: [], gate_instructions: "", gate_media: [], gate_video_url: "", lock_instructions: "", lock_media: [], lock_video_url: "", wifi_ssid: "", wifi_password: "",
       host_name: "", host_phone: "", brand_name: "", brand_logo_url: "", access_mode: "public", pin_code: "", pin_expires_at: "",
       default_language: "pt", guide_theme: "dark", published: true, require_access_gate: false,
     },
@@ -217,7 +219,9 @@ function PropertyEditor() {
         checkout_time_min: (p.checkout_time_min as string) ?? "",
         checkout_note: (p.checkout_note as string) ?? "",
         lock_code: (p.lock_code as string) ?? "",
+        lock_label: (p.lock_label as string) ?? "Fechadura",
         gate_code: (p.gate_code as string) ?? "",
+        gate_label: (p.gate_label as string) ?? "Portão",
         access_codes_pin: (p.access_codes_pin as string) ?? "",
         address_note: (p.address_note as string) ?? "",
         checkin_instructions: (p.checkin_instructions as string) ?? "",
@@ -423,7 +427,9 @@ function PropertyEditor() {
           checkout_time_min: form.property.checkout_time_min || null,
           checkout_note: form.property.checkout_note || null,
           lock_code: form.property.lock_code || null,
+          lock_label: form.property.lock_code ? (form.property.lock_label.trim() || "Fechadura") : null,
           gate_code: form.property.gate_code || null,
+          gate_label: form.property.gate_code ? (form.property.gate_label.trim() || "Portão") : null,
           access_codes_pin: (form.property.gate_code || form.property.lock_code) ? (form.property.access_codes_pin.trim() || null) : null,
           address_note: form.property.address_note || null,
           checkin_instructions: form.property.checkin_instructions || null,
@@ -800,6 +806,9 @@ function PropertyEditor() {
                     <Field label="Código do portão" hint="Digite a senha que o hóspede vai usar.">
                       <Input value={form.property.gate_code} maxLength={40} onChange={(e) => update("gate_code", e.target.value)} placeholder="Ex.: 1212" />
                     </Field>
+                    <Field label="Nome do portão" hint="Como esse acesso aparece no guia. Ex.: Portão, Garagem, Cancela.">
+                      <Input value={form.property.gate_label} maxLength={40} onChange={(e) => update("gate_label", e.target.value)} placeholder="Portão" />
+                    </Field>
                     <Field label="Passo a passo (opcional)" hint="Cada linha vira uma etapa numerada no guia.">
                       <Textarea
                         value={form.property.gate_instructions}
@@ -873,6 +882,9 @@ function PropertyEditor() {
                   <div className="px-4 pb-4 pt-1 space-y-4 border-t border-border/40">
                     <Field label="Código da fechadura" hint="Digite a senha que o hóspede vai usar.">
                       <Input value={form.property.lock_code} maxLength={40} onChange={(e) => update("lock_code", e.target.value)} placeholder="Ex.: 3333" />
+                    </Field>
+                    <Field label="Nome da fechadura" hint="Como esse acesso aparece no guia. Ex.: Fechadura, Porta principal, Smart lock.">
+                      <Input value={form.property.lock_label} maxLength={40} onChange={(e) => update("lock_label", e.target.value)} placeholder="Fechadura" />
                     </Field>
                     <Field label="Passo a passo (opcional)" hint="Cada linha vira uma etapa numerada no guia.">
                       <Textarea

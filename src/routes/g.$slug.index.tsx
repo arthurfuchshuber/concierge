@@ -304,6 +304,8 @@ function Guide({ data }: { data: GuideOk }) {
                   <AccessCodesStrip
                     gateCode={p.gate_code as string | null}
                     lockCode={p.lock_code as string | null}
+                    gateLabel={(p.gate_label as string | null) || "Portão"}
+                    lockLabel={(p.lock_label as string | null) || "Fechadura"}
                     accessPin={(p.access_codes_pin as string | null) ?? ""}
                     checkinLocked={checkinLocked}
                     hasAccessRec={!!accessRec}
@@ -426,7 +428,7 @@ function Guide({ data }: { data: GuideOk }) {
                       return (
                         <SubItem
                           icon={<Clock className="size-[18px]" strokeWidth={1.6} />}
-                          label="Horários de check-in"
+                          label="Horários de Check-In"
                           hint={summary}
                         >
                           {isFlex || isAgend ? (
@@ -593,17 +595,20 @@ function Guide({ data }: { data: GuideOk }) {
                     )}
 
 
-                    {hasAcesso && (
+                    {hasAcesso && (() => {
+                      const gateLabel = ((p.gate_label as string | null) || "Portão").trim() || "Portão";
+                      const lockLabel = ((p.lock_label as string | null) || "Fechadura").trim() || "Fechadura";
+                      return (
                       <SubItem
                         icon={<KeyRound className="size-[18px]" strokeWidth={1.6} />}
                         label="Acesso"
                         hint={
                           p.gate_code && p.lock_code
-                            ? "Portão e fechadura"
+                            ? `${gateLabel} e ${lockLabel.toLowerCase()}`
                             : p.gate_code
-                            ? "Portão"
+                            ? gateLabel
                             : p.lock_code
-                            ? "Fechadura"
+                            ? lockLabel
                             : "Instruções de entrada"
                         }
                       >
@@ -612,6 +617,7 @@ function Guide({ data }: { data: GuideOk }) {
                             {p.gate_code && (
                               <AccessBlock
                                 kind="gate"
+                                label={gateLabel}
                                 code={p.gate_code}
                                 instructions={p.gate_instructions as string | null}
                                 videoUrl={p.gate_video_url as string | null}
@@ -621,6 +627,7 @@ function Guide({ data }: { data: GuideOk }) {
                             {p.lock_code && (
                               <AccessBlock
                                 kind="lock"
+                                label={lockLabel}
                                 code={p.lock_code}
                                 instructions={p.lock_instructions as string | null}
                                 videoUrl={p.lock_video_url as string | null}
@@ -630,7 +637,8 @@ function Guide({ data }: { data: GuideOk }) {
                           </div>
                         </Lockable>
                       </SubItem>
-                    )}
+                      );
+                    })()}
 
                     {hasWifi && (
                       <SubItem
@@ -683,7 +691,7 @@ function Guide({ data }: { data: GuideOk }) {
                       return (
                         <SubItem
                           icon={<Clock className="size-[18px]" strokeWidth={1.6} />}
-                          label="Horários de check-out"
+                          label="Horários de Check-Out"
                           hint={summary}
                         >
                           {isFlex || isAgend ? (
@@ -1223,9 +1231,10 @@ function SubItem({
 }
 
 function AccessBlock({
-  kind, code, instructions, videoUrl, media,
+  kind, label, code, instructions, videoUrl, media,
 }: {
   kind: "gate" | "lock";
+  label?: string;
   code: string;
   instructions?: string | null;
   videoUrl?: string | null;
@@ -1233,7 +1242,7 @@ function AccessBlock({
 }) {
   const [open, setOpen] = useState(false);
   const Icon = kind === "gate" ? KeyRound : Lock;
-  const label = kind === "gate" ? "Portão" : "Fechadura";
+  const resolvedLabel = label?.trim() || (kind === "gate" ? "Portão" : "Fechadura");
   
   const hasMore = !!(instructions || videoUrl || media.length > 0);
 
@@ -1247,7 +1256,7 @@ function AccessBlock({
           <Icon className="size-[14px]" strokeWidth={1.75} />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-[10.5px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">{label}</p>
+          <p className="text-[10.5px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">{resolvedLabel}</p>
           <p className="font-mono text-[15px] font-semibold tracking-[0.08em] text-foreground mt-0.5 truncate">{code}</p>
         </div>
         {hasMore && (
@@ -1286,7 +1295,7 @@ function AccessBlock({
                   {m.type === "video" ? (
                     <video src={m.url} className="size-full object-cover" controls playsInline preload="metadata" />
                   ) : (
-                    <img src={m.url} alt={`${label} ${i + 1}`} className="size-full object-cover" loading="lazy" />
+                    <img src={m.url} alt={`${resolvedLabel} ${i + 1}`} className="size-full object-cover" loading="lazy" />
                   )}
                 </div>
               ))}
@@ -1611,6 +1620,8 @@ function WifiStrip({
 function AccessCodesStrip({
   gateCode,
   lockCode,
+  gateLabel,
+  lockLabel,
   accessPin,
   checkinLocked,
   hasAccessRec,
@@ -1619,6 +1630,8 @@ function AccessCodesStrip({
 }: {
   gateCode: string | null;
   lockCode: string | null;
+  gateLabel: string;
+  lockLabel: string;
   accessPin: string;
   checkinLocked: boolean;
   hasAccessRec: boolean;
@@ -1630,6 +1643,8 @@ function AccessCodesStrip({
   const [unlocked, setUnlocked] = useState(false);
   const needsPin = !!accessPin && !unlocked;
   const isLight = theme === "light";
+  const gLabel = (gateLabel || "").trim() || "Portão";
+  const lLabel = (lockLabel || "").trim() || "Fechadura";
 
   function handleEyeClick() {
     if (gateEnabled && !hasAccessRec) {
@@ -1661,7 +1676,7 @@ function AccessCodesStrip({
     toast.success(`${label} copiado`);
   }
 
-  const hint = gateCode && lockCode ? "Portão e fechadura" : gateCode ? "Portão" : "Fechadura";
+  const hint = gateCode && lockCode ? `${gLabel} e ${lLabel.toLowerCase()}` : gateCode ? gLabel : lLabel;
 
   return (
     <>
@@ -1729,11 +1744,11 @@ function AccessCodesStrip({
               {gateCode && (
                 <button
                   type="button"
-                  onClick={() => copyCode(gateCode, "Código do portão")}
+                  onClick={() => copyCode(gateCode, `Código d${gLabel.toLowerCase().startsWith("a") ? "a" : "o"} ${gLabel.toLowerCase()}`)}
                   className="w-full text-left rounded-2xl border border-border/60 bg-background/40 px-4 py-3.5 flex items-center justify-between gap-3 hover:border-accent/40 transition-colors"
                 >
                   <div className="min-w-0">
-                    <p className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground font-semibold">Portão</p>
+                    <p className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground font-semibold">{gLabel}</p>
                     <p className="font-mono text-lg font-semibold tracking-[0.18em] mt-0.5 break-all">{gateCode}</p>
                   </div>
                   <div className="size-9 rounded-full bg-secondary grid place-items-center shrink-0">
@@ -1744,11 +1759,11 @@ function AccessCodesStrip({
               {lockCode && (
                 <button
                   type="button"
-                  onClick={() => copyCode(lockCode, "Código da fechadura")}
+                  onClick={() => copyCode(lockCode, `Código d${lLabel.toLowerCase().startsWith("a") ? "a" : "o"} ${lLabel.toLowerCase()}`)}
                   className="w-full text-left rounded-2xl border border-border/60 bg-background/40 px-4 py-3.5 flex items-center justify-between gap-3 hover:border-accent/40 transition-colors"
                 >
                   <div className="min-w-0">
-                    <p className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground font-semibold">Fechadura</p>
+                    <p className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground font-semibold">{lLabel}</p>
                     <p className="font-mono text-lg font-semibold tracking-[0.18em] mt-0.5 break-all">{lockCode}</p>
                   </div>
                   <div className="size-9 rounded-full bg-secondary grid place-items-center shrink-0">
