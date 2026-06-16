@@ -515,9 +515,14 @@ export const enrichFromMapsLink = createServerFn({ method: "POST" })
         for (const name of names) {
           if (seenNames.has(normalizeName(name))) continue;
           const resolved = await placesText(`${name} ${city}`, coords.lat, coords.lng, undefined, MAX_CITY_RADIUS_M);
+          // Curadoria do Gemini: o nome já é específico, então aceitamos qualquer lugar que tenha
+          // localização. Para attractions, sem limite de distância (Cataratas, Itaipu, etc.).
+          // Para outros: respeitamos o raio da cidade.
+          const isAttractionLike = cat.type === "attraction" || cat.type === "beach" || cat.type === "park";
           const best = resolved
-            .filter((p) => p.location && typeof p.rating === "number" && (p.userRatingCount ?? 0) >= 10)
+            .filter((p) => p.location)
             .filter((p) => {
+              if (isAttractionLike) return true;
               const d = haversineMeters(coords!, { lat: p.location!.latitude, lng: p.location!.longitude });
               return d <= MAX_CITY_RADIUS_M;
             })
