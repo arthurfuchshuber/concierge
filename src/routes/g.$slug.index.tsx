@@ -304,6 +304,8 @@ function Guide({ data }: { data: GuideOk }) {
                   <AccessCodesStrip
                     gateCode={p.gate_code as string | null}
                     lockCode={p.lock_code as string | null}
+                    gateLabel={(p.gate_label as string | null) || "Portão"}
+                    lockLabel={(p.lock_label as string | null) || "Fechadura"}
                     accessPin={(p.access_codes_pin as string | null) ?? ""}
                     checkinLocked={checkinLocked}
                     hasAccessRec={!!accessRec}
