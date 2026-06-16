@@ -300,12 +300,22 @@ async function fetchIconicPlacesFromGemini(
   if (!apiKey || !city) return {};
 
   const categoriesPrompt = TYPE_MAP.map((c) => `- ${c.type}: ${c.category}`).join("\n");
-  const prompt = `Liste os lugares mais famosos, queridos e visitados de ${city}${country ? `, ${country}` : ""} em cada categoria abaixo. Inclua marcos turísticos clássicos, grandes redes/estabelecimentos populares (shoppings, supermercados conhecidos), áreas de lazer importantes e locais "que todo mundo conhece". Use o nome exato como aparece no Google Maps.
+  const prompt = `Você é um concierge local com profundo conhecimento de ${city}${country ? `, ${country}` : ""}. Sua missão é montar uma curadoria EXAUSTIVA e MINUCIOSA dos lugares de relevância local em cada categoria abaixo.
+
+REGRAS CRÍTICAS:
+1. Inclua TODOS os estabelecimentos icônicos da cidade, mesmo que tenham poucas avaliações no Google. Pense: "se um morador local recomendasse, indicaria este lugar?"
+2. Para "attraction" (pontos turísticos), seja AINDA MAIS abrangente: inclua passeios icônicos (sobrevoos de helicóptero como Helisul/FlyFoz, safáris, tours de barco), marcos urbanos famosos (avenidas, praças, gramadões, mirantes), monumentos, museus, parques temáticos, e qualquer experiência turística clássica da cidade — SEM exceção.
+3. Para restaurantes/bares/cafés/padarias/confeitarias: inclua os clássicos locais que "todo mundo da cidade conhece" (churrascarias tradicionais, chopperias famosas, confeitarias históricas, padarias renomadas, redes locais consagradas).
+4. Para market/shopping/pharmacy: inclua redes nacionais grandes presentes na cidade E redes/lojas locais relevantes.
+5. Use o nome EXATO como aparece no Google Maps (incluindo "Restaurante", "Bar", "Cafeteria" no nome se for assim que o estabelecimento se chama).
+6. Não invente lugares. Se não tiver certeza, omita.
 
 Categorias:
 ${categoriesPrompt}
 
-Para cada categoria, retorne entre 3 e 8 nomes (apenas os realmente famosos/relevantes). Se não houver nada notável, retorne lista vazia. Responda APENAS com JSON válido no formato:
+Para cada categoria, retorne entre 15 e 30 nomes (quanto mais completo, melhor — desde que sejam realmente relevantes localmente). Para "attraction" especificamente, retorne até 40 nomes incluindo TODAS as experiências turísticas da cidade.
+
+Responda APENAS com JSON válido (sem markdown) no formato:
 {"restaurant": ["Nome 1", "Nome 2"], "bar": [...], "cafe": [...], "beach": [...], "attraction": [...], "market": [...], "pharmacy": [...], "park": [...], "nightlife": [...], "shopping": [...]}`;
 
   try {
@@ -333,7 +343,8 @@ Para cada categoria, retorne entre 3 e 8 nomes (apenas os realmente famosos/rele
     for (const cat of TYPE_MAP) {
       const arr = parsed[cat.type];
       if (Array.isArray(arr)) {
-        out[cat.type] = arr.filter((x): x is string => typeof x === "string" && x.trim().length > 0).slice(0, 8);
+        const limit = cat.type === "attraction" ? 40 : 30;
+        out[cat.type] = arr.filter((x): x is string => typeof x === "string" && x.trim().length > 0).slice(0, limit);
       }
     }
     return out;
@@ -475,44 +486,76 @@ export const enrichFromMapsLink = createServerFn({ method: "POST" })
     // 2) City-wide via Places Text Search — sem filtro de includedType (permite marcos
     //    classificados em primaryType "inesperado", ex.: Marco das Três Fronteiras).
     if (city) {
-      for (const cat of TYPE_MAP) {
-        const min = CITY_MIN_REVIEWS[cat.type] ?? 40;
-        const items = (await placesText(`melhores ${cat.category.toLowerCase()} em ${city}`, coords.lat, coords.lng, undefined, MAX_CITY_RADIUS_M))
-          .filter((p) => isQuality(p, min))
-          .filter((p) => {
-            if (!p.location) return false;
-            const d = haversineMeters(coords!, { lat: p.location.latitude, lng: p.location.longitude });
-            return d <= MAX_CITY_RADIUS_M;
-          })
-          .sort((a, b) => {
-            const ra = a.rating ?? 0;
-            const rb = b.rating ?? 0;
-            if (rb !== ra) return rb - ra;
-            return (b.userRatingCount ?? 0) - (a.userRatingCount ?? 0);
-          })
-          .slice(0, MAX_PER_TYPE);
-        for (const p of items) push(p, cat, "city");
-      }
+      await Promise.all(
+        TYPE_MAP.map(async (cat) => {
+          const isTouristLike = cat.type === "attraction" || cat.type === "beach" || cat.type === "park";
+          // Pontos turísticos: sem filtro de qualidade (mostrar todos); para outros: respeitar mínimo.
+          const min = CITY_MIN_REVIEWS[cat.type] ?? 40;
+          const limit = isTouristLike ? 25 : MAX_PER_TYPE;
+          const items = (
+            await placesText(
+              `melhores ${cat.category.toLowerCase()} em ${city}`,
+              coords!.lat,
+              coords!.lng,
+              undefined,
+              MAX_CITY_RADIUS_M,
+            )
+          )
+            .filter((p) => (isTouristLike ? !!p.location : isQuality(p, min)))
+            .filter((p) => {
+              if (!p.location) return false;
+              if (isTouristLike) return true;
+              const d = haversineMeters(coords!, { lat: p.location.latitude, lng: p.location.longitude });
+              return d <= MAX_CITY_RADIUS_M;
+            })
+            .sort((a, b) => {
+              const ra = a.rating ?? 0;
+              const rb = b.rating ?? 0;
+              if (rb !== ra) return rb - ra;
+              return (b.userRatingCount ?? 0) - (a.userRatingCount ?? 0);
+            })
+            .slice(0, limit);
+          for (const p of items) push(p, cat, "city");
+        }),
+      );
     }
 
     // 3) Curadoria via Gemini: pede os lugares icônicos da cidade por categoria
     //    e resolve cada nome via Places Text Search (sem includedType — o nome já é específico).
     if (city) {
       const iconic = await fetchIconicPlacesFromGemini(city, country);
+      // Resolve em paralelo (com limite de concorrência) para não estourar timeout.
+      const tasks: Array<{ name: string; cat: typeof TYPE_MAP[number] }> = [];
       for (const cat of TYPE_MAP) {
         const names = iconic[cat.type] ?? [];
         for (const name of names) {
           if (seenNames.has(normalizeName(name))) continue;
-          const resolved = await placesText(`${name} ${city}`, coords.lat, coords.lng, undefined, MAX_CITY_RADIUS_M);
-          const best = resolved
-            .filter((p) => p.location && typeof p.rating === "number" && (p.userRatingCount ?? 0) >= 10)
-            .filter((p) => {
-              const d = haversineMeters(coords!, { lat: p.location!.latitude, lng: p.location!.longitude });
-              return d <= MAX_CITY_RADIUS_M;
-            })
-            .sort((a, b) => (b.userRatingCount ?? 0) - (a.userRatingCount ?? 0))[0];
-          if (best) push(best, cat, "city");
+          tasks.push({ name, cat });
         }
+      }
+      const CONCURRENCY = 8;
+      const results: Array<{ best: PlaceRaw | undefined; cat: typeof TYPE_MAP[number] }> = [];
+      for (let i = 0; i < tasks.length; i += CONCURRENCY) {
+        const batch = tasks.slice(i, i + CONCURRENCY);
+        const batchResults = await Promise.all(
+          batch.map(async ({ name, cat }) => {
+            const resolved = await placesText(`${name} ${city}`, coords!.lat, coords!.lng, undefined, MAX_CITY_RADIUS_M);
+            const isAttractionLike = cat.type === "attraction" || cat.type === "beach" || cat.type === "park";
+            const best = resolved
+              .filter((p) => p.location)
+              .filter((p) => {
+                if (isAttractionLike) return true;
+                const d = haversineMeters(coords!, { lat: p.location!.latitude, lng: p.location!.longitude });
+                return d <= MAX_CITY_RADIUS_M;
+              })
+              .sort((a, b) => (b.userRatingCount ?? 0) - (a.userRatingCount ?? 0))[0];
+            return { best, cat };
+          }),
+        );
+        results.push(...batchResults);
+      }
+      for (const { best, cat } of results) {
+        if (best) push(best, cat, "city");
       }
     }
 

@@ -237,6 +237,7 @@ function ExplorePage() {
   const [activeKey, setActiveKey] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<SortKey>("distance");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [minReviews, setMinReviews] = useState<number>(0);
 
   // Tema herdado da página inicial do guia (definido pelo visitante).
   const adminTheme: "dark" | "light" =
@@ -262,12 +263,18 @@ function ExplorePage() {
 
   const categories = useMemo(() => {
     return META_CATEGORIES.map((meta) => {
-      const items = allRecs.filter((rec) => meta.types.includes(rec.type));
-      const nearby = items.filter((x) => x.scope === "nearby");
-      const city = items.filter((x) => x.scope === "city");
-      return { meta, items, nearby, city, count: items.length };
+      // Pontos turísticos não devem ser filtrados pelo mínimo de avaliações.
+      const isTouristMeta = meta.key === "sights";
+      const filtered = allRecs.filter((rec) => {
+        if (!meta.types.includes(rec.type)) return false;
+        if (isTouristMeta || minReviews <= 0) return true;
+        return (rec.user_ratings_total ?? 0) >= minReviews;
+      });
+      const nearby = filtered.filter((x) => x.scope === "nearby");
+      const city = filtered.filter((x) => x.scope === "city");
+      return { meta, items: filtered, nearby, city, count: filtered.length };
     }).filter((c) => c.count > 0);
-  }, [allRecs]);
+  }, [allRecs, minReviews]);
 
   const active = categories.find((c) => c.meta.key === activeKey) ?? null;
 
@@ -310,7 +317,8 @@ function ExplorePage() {
 
         {!active ? (
           <>
-            <div className="flex justify-end mb-4">
+            <div className="flex items-center justify-between gap-3 flex-wrap mb-4">
+              <MinReviewsFilter value={minReviews} onChange={setMinReviews} />
               <ViewToggle viewMode={viewMode} setViewMode={setViewMode} />
             </div>
             {viewMode === "grid" ? (
@@ -327,9 +335,13 @@ function ExplorePage() {
             setSortBy={setSortBy}
             viewMode={viewMode}
             setViewMode={setViewMode}
+            minReviews={minReviews}
+            setMinReviews={setMinReviews}
+            isTouristCategory={active.meta.key === "sights"}
           />
 
         )}
+
 
         {categories.length === 0 && (!Array.isArray(p.marketplace_links) || p.marketplace_links.length === 0) && (
           <p className="text-sm text-muted-foreground">Sem recomendações cadastradas ainda.</p>
@@ -530,6 +542,9 @@ function CategoryDetail({
   setSortBy,
   viewMode,
   setViewMode,
+  minReviews,
+  setMinReviews,
+  isTouristCategory,
 }: {
   nearby: Rec[];
   city: Rec[];
@@ -537,6 +552,9 @@ function CategoryDetail({
   setSortBy: (s: SortKey) => void;
   viewMode: "grid" | "list";
   setViewMode: (v: "grid" | "list") => void;
+  minReviews: number;
+  setMinReviews: (n: number) => void;
+  isTouristCategory: boolean;
 }) {
   const sections = [
     { key: "nearby", eyebrow: "A poucos minutos", title: "Pertinho da Residência", items: nearby },
@@ -547,7 +565,12 @@ function CategoryDetail({
     <>
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <SortBar sortBy={sortBy} setSortBy={setSortBy} />
-        <ViewToggle viewMode={viewMode} setViewMode={setViewMode} />
+        <div className="flex items-center gap-2 flex-wrap">
+          {!isTouristCategory && (
+            <MinReviewsFilter value={minReviews} onChange={setMinReviews} />
+          )}
+          <ViewToggle viewMode={viewMode} setViewMode={setViewMode} />
+        </div>
       </div>
       <div className="mt-8 space-y-6">
         {sections.map((s) => (
@@ -566,6 +589,39 @@ function CategoryDetail({
     </>
   );
 }
+
+function MinReviewsFilter({ value, onChange }: { value: number; onChange: (n: number) => void }) {
+  const opts: { v: number; label: string }[] = [
+    { v: 0, label: "Todas" },
+    { v: 50, label: "50+" },
+    { v: 200, label: "200+" },
+    { v: 1000, label: "1k+" },
+    { v: 5000, label: "5k+" },
+  ];
+  return (
+    <div className="inline-flex items-center rounded-full border border-border bg-card/60 backdrop-blur p-1">
+      <span className="px-2.5 text-[10px] uppercase tracking-[0.18em] font-semibold text-muted-foreground">
+        Avaliações
+      </span>
+      {opts.map((o) => {
+        const on = value === o.v;
+        return (
+          <button
+            key={o.v}
+            type="button"
+            onClick={() => onChange(o.v)}
+            className={`px-2.5 py-1.5 rounded-full text-[11.5px] font-medium transition-colors ${
+              on ? "bg-accent text-accent-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            {o.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 
 function ViewToggle({
   viewMode,
