@@ -1405,48 +1405,265 @@ function ItemCard({ children, onRemove }: { children: React.ReactNode; onRemove:
   );
 }
 
-function RecGroup({ title, desc, items, onChange, scope }: { title: string; desc: string; items: RecItem[]; onChange: (i: RecItem[]) => void; scope: "nearby" | "city" }) {
+function PlaceAutocomplete({
+  scope,
+  lat,
+  lng,
+  existingPlaceIds,
+  onSelect,
+}: {
+  scope: "nearby" | "city";
+  lat: number | null;
+  lng: number | null;
+  existingPlaceIds: Set<string>;
+  onSelect: (rec: RecItem) => void;
+}) {
+  const searchFn = useServerFn(searchPlacesForRec);
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState<PlaceSearchResult[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [open, setOpen] = useState(false);
+  const wrapRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  useEffect(() => {
+    const q = query.trim();
+    if (q.length < 2) {
+      setResults([]);
+      return;
+    }
+    setLoading(true);
+    const t = setTimeout(() => {
+      searchFn({ data: { query: q, lat, lng } })
+        .then((r) => {
+          setResults(r);
+          setOpen(true);
+        })
+        .catch(() => setResults([]))
+        .finally(() => setLoading(false));
+    }, 350);
+    return () => clearTimeout(t);
+  }, [query, lat, lng, searchFn]);
+
+  function pick(p: PlaceSearchResult) {
+    if (p.place_id && existingPlaceIds.has(p.place_id)) {
+      toast.info("Esse lugar já está na lista.");
+      return;
+    }
+    const rec: RecItem = {
+      scope,
+      type: p.type,
+      name: p.name,
+      category: p.category,
+      rating: p.rating,
+      user_ratings_total: p.user_ratings_total,
+      distance_text: p.distance_text || null,
+      distance_meters: p.distance_meters || null,
+      drive_minutes: p.drive_minutes,
+      walk_minutes: p.walk_minutes,
+      opening_hours: p.opening_hours,
+      note: p.note,
+      image_url: p.image_url,
+      maps_url: p.maps_url,
+      place_id: p.place_id,
+    };
+    onSelect(rec);
+    setQuery("");
+    setResults([]);
+    setOpen(false);
+    toast.success(`Adicionado: ${p.name}`);
+  }
+
+  return (
+    <div ref={wrapRef} className="relative">
+      <div className="relative">
+        <Input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          onFocus={() => results.length > 0 && setOpen(true)}
+          placeholder="Buscar lugar no Google (ex: Rafain Churrascaria, Macuco Safari, FlyFoz)..."
+          maxLength={120}
+          className="pl-9"
+        />
+        <Sparkles className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+        {loading && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 size-4 animate-spin text-muted-foreground" />}
+      </div>
+      {open && results.length > 0 && (
+        <div className="absolute z-20 mt-1.5 w-full rounded-xl border border-border bg-popover shadow-lg overflow-hidden max-h-80 overflow-y-auto">
+          {results.map((p) => {
+            const dup = p.place_id ? existingPlaceIds.has(p.place_id) : false;
+            return (
+              <button
+                key={p.place_id}
+                type="button"
+                onClick={() => pick(p)}
+                disabled={dup}
+                className="w-full flex items-start gap-3 px-3 py-2.5 hover:bg-muted/50 transition-colors text-left disabled:opacity-50 disabled:cursor-not-allowed border-b border-border/40 last:border-b-0"
+              >
+                {p.image_url ? (
+                  <img src={p.image_url} alt="" className="size-10 rounded-md object-cover shrink-0" />
+                ) : (
+                  <span className="grid place-items-center size-10 rounded-md bg-muted shrink-0">
+                    <MapPin className="size-4 text-muted-foreground" />
+                  </span>
+                )}
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium truncate">{p.name}</p>
+                  <p className="text-[11px] text-muted-foreground truncate">
+                    {p.category}
+                    {p.rating ? ` · ★ ${p.rating}` : ""}
+                    {p.user_ratings_total ? ` (${p.user_ratings_total.toLocaleString("pt-BR")})` : ""}
+                    {p.distance_text ? ` · ${p.distance_text}` : ""}
+                  </p>
+                  {p.formatted_address && (
+                    <p className="text-[11px] text-muted-foreground/70 truncate">{p.formatted_address}</p>
+                  )}
+                </div>
+                {dup && <span className="text-[10px] text-muted-foreground self-center">já adicionado</span>}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function RecGroup({
+  title,
+  desc,
+  items,
+  onChange,
+  scope,
+  lat,
+  lng,
+}: {
+  title: string;
+  desc: string;
+  items: RecItem[];
+  onChange: (i: RecItem[]) => void;
+  scope: "nearby" | "city";
+  lat: number | null;
+  lng: number | null;
+}) {
+  const [openCats, setOpenCats] = useState<Record<string, boolean>>({});
+
+  const groups = new Map<string, { items: RecItem[]; indices: number[] }>();
+  items.forEach((it, idx) => {
+    const key = it.category || it.type || "Outros";
+    const g = groups.get(key) ?? { items: [], indices: [] };
+    g.items.push(it);
+    g.indices.push(idx);
+    groups.set(key, g);
+  });
+  const groupEntries = Array.from(groups.entries()).sort((a, b) => a[0].localeCompare(b[0]));
+
+  const existingPlaceIds = new Set(
+    items.map((i) => i.place_id).filter((x): x is string => !!x),
+  );
+
+  function updateAt(idx: number, patch: Partial<RecItem>) {
+    onChange(items.map((x, j) => (j === idx ? { ...x, ...patch } : x)));
+  }
+  function removeAt(idx: number) {
+    onChange(items.filter((_, j) => j !== idx));
+  }
+  function addManual() {
+    onChange([...items, { scope, type: "other", name: "" }]);
+  }
+
   return (
     <Section
       icon={scope === "nearby" ? MapPin : Compass}
       title={title}
       desc={desc}
-      action={<AddBtn onClick={() => onChange([...items, { scope, type: "restaurant", name: "" }])} />}
+      action={
+        <Button size="sm" variant="ghost" onClick={addManual} className="shrink-0 h-8 rounded-full text-xs text-muted-foreground hover:text-foreground">
+          <Plus className="size-3.5" /> manual
+        </Button>
+      }
     >
+      <PlaceAutocomplete
+        scope={scope}
+        lat={lat}
+        lng={lng}
+        existingPlaceIds={existingPlaceIds}
+        onSelect={(rec) => onChange([...items, rec])}
+      />
+
       {items.length === 0 ? (
-        <EmptyHint text="Nenhuma recomendação. Use o auto-preenchimento ou adicione manualmente." />
-      ) : items.map((r, i) => (
-        <ItemCard key={i} onRemove={() => onChange(items.filter((_, j) => j !== i))}>
-          <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-2">
-            <Input placeholder="Nome" value={r.name} maxLength={200}
-              onChange={(e) => onChange(items.map((x, j) => j === i ? { ...x, name: e.target.value } : x))} />
-            <Select value={r.type} onValueChange={(v) => onChange(items.map((x, j) => j === i ? { ...x, type: v } : x))}>
-              <SelectTrigger className="w-full sm:w-36"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {["restaurant","bar","cafe","beach","attraction","market","pharmacy","park","nightlife","shopping","other"].map((t) => (
-                  <SelectItem key={t} value={t}>{t}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            <Input placeholder="Distância (texto)" value={r.distance_text ?? ""} maxLength={80}
-              onChange={(e) => onChange(items.map((x, j) => j === i ? { ...x, distance_text: e.target.value } : x))} />
-            <Input placeholder="Link Maps" value={r.maps_url ?? ""} maxLength={2048}
-              onChange={(e) => onChange(items.map((x, j) => j === i ? { ...x, maps_url: e.target.value } : x))} />
-          </div>
-          <Textarea placeholder="Nota pessoal (opcional)" value={r.note ?? ""} maxLength={1000}
-            onChange={(e) => onChange(items.map((x, j) => j === i ? { ...x, note: e.target.value } : x))} />
-          {r.image_url && (
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <MapPin className="size-3" /> {r.category} {r.rating ? `· ★ ${r.rating}` : ""}
-            </div>
-          )}
-        </ItemCard>
-      ))}
+        <EmptyHint text="Nenhuma recomendação. Busque um lugar acima ou use o auto-preenchimento." />
+      ) : (
+        <div className="space-y-2">
+          {groupEntries.map(([cat, g]) => {
+            const open = openCats[cat] ?? false;
+            return (
+              <div key={cat} className="rounded-xl border border-border/60 bg-background/40 overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => setOpenCats((p) => ({ ...p, [cat]: !open }))}
+                  className="w-full flex items-center justify-between gap-3 px-3.5 py-2.5 text-left hover:bg-muted/30 transition-colors"
+                  aria-expanded={open}
+                >
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="text-sm font-medium truncate">{cat}</span>
+                    <span className="text-[11px] text-muted-foreground">({g.items.length})</span>
+                  </div>
+                  <ChevronDown className={`size-4 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`} />
+                </button>
+                {open && (
+                  <div className="border-t border-border/50 px-3.5 py-3 space-y-2.5">
+                    {g.items.map((r, k) => {
+                      const idx = g.indices[k];
+                      return (
+                        <ItemCard key={idx} onRemove={() => removeAt(idx)}>
+                          <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-2">
+                            <Input placeholder="Nome" value={r.name} maxLength={200}
+                              onChange={(e) => updateAt(idx, { name: e.target.value })} />
+                            <Select value={r.type} onValueChange={(v) => updateAt(idx, { type: v })}>
+                              <SelectTrigger className="w-full sm:w-36"><SelectValue /></SelectTrigger>
+                              <SelectContent>
+                                {["restaurant","bar","cafe","beach","attraction","market","pharmacy","park","nightlife","shopping","other"].map((t) => (
+                                  <SelectItem key={t} value={t}>{t}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="grid grid-cols-2 gap-2">
+                            <Input placeholder="Distância (texto)" value={r.distance_text ?? ""} maxLength={80}
+                              onChange={(e) => updateAt(idx, { distance_text: e.target.value })} />
+                            <Input placeholder="Link Maps" value={r.maps_url ?? ""} maxLength={2048}
+                              onChange={(e) => updateAt(idx, { maps_url: e.target.value })} />
+                          </div>
+                          <Textarea placeholder="Nota pessoal (opcional)" value={r.note ?? ""} maxLength={1000}
+                            onChange={(e) => updateAt(idx, { note: e.target.value })} />
+                          {(r.category || r.rating) && (
+                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                              <MapPin className="size-3" /> {r.category} {r.rating ? `· ★ ${r.rating}` : ""}
+                              {r.user_ratings_total ? ` (${r.user_ratings_total.toLocaleString("pt-BR")})` : ""}
+                            </div>
+                          )}
+                        </ItemCard>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
     </Section>
   );
 }
+
 
 function Stepper({
   steps,
