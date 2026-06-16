@@ -552,8 +552,6 @@ function CategoryDetail({
   setSortBy,
   viewMode,
   setViewMode,
-  minReviews,
-  setMinReviews,
   isTouristCategory,
 }: {
   nearby: Rec[];
@@ -562,8 +560,6 @@ function CategoryDetail({
   setSortBy: (s: SortKey) => void;
   viewMode: "grid" | "list";
   setViewMode: (v: "grid" | "list") => void;
-  minReviews: number;
-  setMinReviews: (n: number) => void;
   isTouristCategory: boolean;
 }) {
   const sections = [
@@ -575,12 +571,7 @@ function CategoryDetail({
     <>
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <SortBar sortBy={sortBy} setSortBy={setSortBy} />
-        <div className="flex items-center gap-2 flex-wrap">
-          {!isTouristCategory && (
-            <MinReviewsFilter value={minReviews} onChange={setMinReviews} />
-          )}
-          <ViewToggle viewMode={viewMode} setViewMode={setViewMode} />
-        </div>
+        <ViewToggle viewMode={viewMode} setViewMode={setViewMode} />
       </div>
       <div className="mt-8 space-y-6">
         {sections.map((s) => (
@@ -590,6 +581,7 @@ function CategoryDetail({
             title={s.title}
             items={s.items}
             viewMode={viewMode}
+            allowReviewFilter={!isTouristCategory}
           />
         ))}
         {sections.length === 0 && (
