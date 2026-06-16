@@ -67,10 +67,13 @@ type FormState = {
     country: string;
     checkin_time: string;
     checkin_time_max: string;
+    checkin_note: string;
     checkout_time: string;
     checkout_time_min: string;
+    checkout_note: string;
     lock_code: string;
     gate_code: string;
+    access_codes_pin: string;
     address_note: string;
     checkin_instructions: string;
     checkout_instructions: string;
