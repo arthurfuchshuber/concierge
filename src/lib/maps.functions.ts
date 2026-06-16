@@ -510,25 +510,38 @@ export const enrichFromMapsLink = createServerFn({ method: "POST" })
     //    e resolve cada nome via Places Text Search (sem includedType — o nome já é específico).
     if (city) {
       const iconic = await fetchIconicPlacesFromGemini(city, country);
+      // Resolve em paralelo (com limite de concorrência) para não estourar timeout.
+      const tasks: Array<{ name: string; cat: typeof TYPE_MAP[number] }> = [];
       for (const cat of TYPE_MAP) {
         const names = iconic[cat.type] ?? [];
         for (const name of names) {
           if (seenNames.has(normalizeName(name))) continue;
-          const resolved = await placesText(`${name} ${city}`, coords.lat, coords.lng, undefined, MAX_CITY_RADIUS_M);
-          // Curadoria do Gemini: o nome já é específico, então aceitamos qualquer lugar que tenha
-          // localização. Para attractions, sem limite de distância (Cataratas, Itaipu, etc.).
-          // Para outros: respeitamos o raio da cidade.
-          const isAttractionLike = cat.type === "attraction" || cat.type === "beach" || cat.type === "park";
-          const best = resolved
-            .filter((p) => p.location)
-            .filter((p) => {
-              if (isAttractionLike) return true;
-              const d = haversineMeters(coords!, { lat: p.location!.latitude, lng: p.location!.longitude });
-              return d <= MAX_CITY_RADIUS_M;
-            })
-            .sort((a, b) => (b.userRatingCount ?? 0) - (a.userRatingCount ?? 0))[0];
-          if (best) push(best, cat, "city");
+          tasks.push({ name, cat });
         }
+      }
+      const CONCURRENCY = 8;
+      const results: Array<{ best: PlaceRaw | undefined; cat: typeof TYPE_MAP[number] }> = [];
+      for (let i = 0; i < tasks.length; i += CONCURRENCY) {
+        const batch = tasks.slice(i, i + CONCURRENCY);
+        const batchResults = await Promise.all(
+          batch.map(async ({ name, cat }) => {
+            const resolved = await placesText(`${name} ${city}`, coords!.lat, coords!.lng, undefined, MAX_CITY_RADIUS_M);
+            const isAttractionLike = cat.type === "attraction" || cat.type === "beach" || cat.type === "park";
+            const best = resolved
+              .filter((p) => p.location)
+              .filter((p) => {
+                if (isAttractionLike) return true;
+                const d = haversineMeters(coords!, { lat: p.location!.latitude, lng: p.location!.longitude });
+                return d <= MAX_CITY_RADIUS_M;
+              })
+              .sort((a, b) => (b.userRatingCount ?? 0) - (a.userRatingCount ?? 0))[0];
+            return { best, cat };
+          }),
+        );
+        results.push(...batchResults);
+      }
+      for (const { best, cat } of results) {
+        if (best) push(best, cat, "city");
       }
     }
 
