@@ -566,7 +566,7 @@ function PropertyEditor() {
             title="Endereço e localização"
             desc="Cole o link do Google Maps e use Auto-preencher para obter endereço, coordenadas e pontos de interesse."
           >
-            <Field label="Link do Google Maps" required>
+            <Field label="Link do Google Maps — Entrada principal" required>
               <div className="flex gap-2">
                 <Input value={form.property.maps_url} onChange={(e) => update("maps_url", e.target.value)} placeholder="https://maps.app.goo.gl/..." />
                 <Button onClick={handleEnrich} disabled={enriching} variant="secondary" className="shrink-0">
@@ -574,6 +574,9 @@ function PropertyEditor() {
                   <span className="ml-1.5 hidden sm:inline">{enriching ? "Buscando…" : "Auto-preencher"}</span>
                 </Button>
               </div>
+            </Field>
+            <Field label="Link do Google Maps — Garagem (opcional)" hint="Aparece como um segundo botão de localização no guia.">
+              <Input value={form.property.garage_maps_url} onChange={(e) => update("garage_maps_url", e.target.value)} placeholder="https://maps.app.goo.gl/..." />
             </Field>
             <Field label="Endereço">
               <Input value={form.property.address} onChange={(e) => update("address", e.target.value)} />
