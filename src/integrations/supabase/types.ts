@@ -144,6 +144,7 @@ export type Database = {
       }
       properties: {
         Row: {
+          access_codes_pin: string | null
           access_mode: Database["public"]["Enums"]["access_mode"]
           address: string | null
           address_note: string | null
@@ -151,9 +152,11 @@ export type Database = {
           brand_name: string | null
           checkin_instructions: string | null
           checkin_media: Json
+          checkin_note: string | null
           checkin_time: string | null
           checkin_time_max: string | null
           checkout_instructions: string | null
+          checkout_note: string | null
           checkout_time: string | null
           checkout_time_min: string | null
           city: string | null
@@ -193,6 +196,7 @@ export type Database = {
           wifi_ssid: string | null
         }
         Insert: {
+          access_codes_pin?: string | null
           access_mode?: Database["public"]["Enums"]["access_mode"]
           address?: string | null
           address_note?: string | null
@@ -200,9 +204,11 @@ export type Database = {
           brand_name?: string | null
           checkin_instructions?: string | null
           checkin_media?: Json
+          checkin_note?: string | null
           checkin_time?: string | null
           checkin_time_max?: string | null
           checkout_instructions?: string | null
+          checkout_note?: string | null
           checkout_time?: string | null
           checkout_time_min?: string | null
           city?: string | null
@@ -242,6 +248,7 @@ export type Database = {
           wifi_ssid?: string | null
         }
         Update: {
+          access_codes_pin?: string | null
           access_mode?: Database["public"]["Enums"]["access_mode"]
           address?: string | null
           address_note?: string | null
@@ -249,9 +256,11 @@ export type Database = {
           brand_name?: string | null
           checkin_instructions?: string | null
           checkin_media?: Json
+          checkin_note?: string | null
           checkin_time?: string | null
           checkin_time_max?: string | null
           checkout_instructions?: string | null
+          checkout_note?: string | null
           checkout_time?: string | null
           checkout_time_min?: string | null
           city?: string | null
