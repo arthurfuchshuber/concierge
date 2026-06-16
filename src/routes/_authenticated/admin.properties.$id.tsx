@@ -717,10 +717,10 @@ function PropertyEditor() {
         <TabsContent value="house" className="space-y-5 mt-6">
           <Section icon={Clock} title="Horários" desc="Janelas de check-in e check-out.">
             <div className="grid grid-cols-2 gap-3">
-              <Field label="Check-in a partir de"><Input value={form.property.checkin_time} maxLength={5} onChange={(e) => update("checkin_time", e.target.value)} placeholder="15:00" /></Field>
-              <Field label="Check-in até" hint="opcional"><Input value={form.property.checkin_time_max} maxLength={5} onChange={(e) => update("checkin_time_max", e.target.value)} placeholder="22:00" /></Field>
-              <Field label="Check-out a partir de" hint="opcional"><Input value={form.property.checkout_time_min} maxLength={5} onChange={(e) => update("checkout_time_min", e.target.value)} placeholder="08:00" /></Field>
-              <Field label="Check-out até"><Input value={form.property.checkout_time} maxLength={5} onChange={(e) => update("checkout_time", e.target.value)} placeholder="11:00" /></Field>
+              <Field label="Check-in a partir de"><TimePicker value={form.property.checkin_time} onChange={(v) => update("checkin_time", v)} placeholder="15:00" /></Field>
+              <Field label="Check-in até" hint="opcional"><TimePicker value={form.property.checkin_time_max} onChange={(v) => update("checkin_time_max", v)} placeholder="22:00" /></Field>
+              <Field label="Check-out a partir de" hint="opcional"><TimePicker value={form.property.checkout_time_min} onChange={(v) => update("checkout_time_min", v)} placeholder="08:00" /></Field>
+              <Field label="Check-out até"><TimePicker value={form.property.checkout_time} onChange={(v) => update("checkout_time", v)} placeholder="11:00" /></Field>
             </div>
           </Section>
 
