@@ -263,7 +263,6 @@ function ExplorePage() {
 
   const categories = useMemo(() => {
     return META_CATEGORIES.map((meta) => {
-      // Pontos turísticos não devem ser filtrados pelo mínimo de avaliações.
       const isTouristMeta = meta.key === "sights";
       const filtered = allRecs.filter((rec) => {
         if (!meta.types.includes(rec.type)) return false;
@@ -276,7 +275,20 @@ function ExplorePage() {
     }).filter((c) => c.count > 0);
   }, [allRecs, minReviews]);
 
-  const active = categories.find((c) => c.meta.key === activeKey) ?? null;
+  // Unfiltered (by meta type only) — used inside category detail so each
+  // subcategory can apply its own min-reviews filter.
+  const categoriesUnfiltered = useMemo(() => {
+    return META_CATEGORIES.map((meta) => {
+      const filtered = allRecs.filter((rec) => meta.types.includes(rec.type));
+      const nearby = filtered.filter((x) => x.scope === "nearby");
+      const city = filtered.filter((x) => x.scope === "city");
+      return { meta, items: filtered, nearby, city, count: filtered.length };
+    }).filter((c) => c.count > 0);
+  }, [allRecs]);
+
+  const active = (activeKey
+    ? categoriesUnfiltered.find((c) => c.meta.key === activeKey)
+    : null) ?? null;
 
   return (
     <div
