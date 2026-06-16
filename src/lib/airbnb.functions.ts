@@ -28,22 +28,44 @@ export type AirbnbImportResult = {
   city: string | null;
   country: string | null;
   checkin_time: string | null;
+  checkin_time_max: string | null;
   checkout_time: string | null;
   gallery_images: string[];
   hero_image_url: string | null;
 };
 
-function pickTime(text?: string | null): string | null {
-  if (!text) return null;
-  const m = text.match(/([01]?\d|2[0-3]):([0-5]\d)/);
-  if (m) return `${m[1].padStart(2, "0")}:${m[2]}`;
-  // "15h" / "11h" / "3 PM"
-  const h = text.match(/\b(\d{1,2})\s*(?:h|PM|AM|pm|am)\b/);
-  if (h) {
-    const n = Math.min(23, Math.max(0, parseInt(h[1], 10)));
-    return `${String(n).padStart(2, "0")}:00`;
+function normalizeHour(hour: number, minute: number, meridiem?: string | null): string {
+  let h = hour;
+  if (meridiem) {
+    const m = meridiem.toLowerCase();
+    if (m === "pm" && h < 12) h += 12;
+    else if (m === "am" && h === 12) h = 0;
   }
-  return null;
+  h = Math.min(23, Math.max(0, h));
+  return `${String(h).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+}
+
+function pickTimes(text?: string | null): string[] {
+  if (!text) return [];
+  const results: string[] = [];
+  // Match "3:00 PM", "15:00", "3 PM", "15h", optionally with AM/PM suffix.
+  const re = /(\d{1,2})(?::(\d{2}))?\s*(AM|PM|am|pm|h)?/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(text)) !== null) {
+    const hh = parseInt(m[1], 10);
+    if (isNaN(hh) || hh > 23) continue;
+    const mm = m[2] ? parseInt(m[2], 10) : 0;
+    if (mm > 59) continue;
+    const mer = m[3] && m[3].toLowerCase() !== "h" ? m[3] : null;
+    // Skip lone single digits with no minutes and no meridiem (likely noise).
+    if (!m[2] && !m[3]) continue;
+    results.push(normalizeHour(hh, mm, mer));
+  }
+  return results;
+}
+
+function pickTime(text?: string | null): string | null {
+  return pickTimes(text)[0] ?? null;
 }
 
 export const importFromAirbnb = createServerFn({ method: "POST" })
@@ -67,7 +89,8 @@ export const importFromAirbnb = createServerFn({ method: "POST" })
         description: { type: "string", description: "Short description / tagline (1-2 sentences)" },
         city: { type: "string", description: "City name only" },
         country: { type: "string", description: "Country name only" },
-        checkin_time: { type: "string", description: "Check-in start time as displayed, e.g. '15:00' or '3:00 PM' or 'After 3:00 PM'" },
+        checkin_time: { type: "string", description: "Check-in start time as displayed, e.g. '15:00' or '3:00 PM' or 'After 3:00 PM'. If a range is shown (e.g. 'Between 3:00 PM and 11:00 PM'), include both times in the original order." },
+        checkin_time_max: { type: "string", description: "End of the check-in window if shown as a range, e.g. '23:00' or '11:00 PM'. Otherwise empty." },
         checkout_time: { type: "string", description: "Check-out time as displayed, e.g. '11:00' or '11:00 AM' or 'Before 11:00 AM'" },
         photos: {
           type: "array",
@@ -121,13 +144,21 @@ export const importFromAirbnb = createServerFn({ method: "POST" })
           .slice(0, 4)
       : [];
 
+    const checkinRaw = typeof j.checkin_time === "string" ? j.checkin_time : null;
+    const checkinMaxRaw = typeof j.checkin_time_max === "string" ? j.checkin_time_max : null;
+    const checkinTimes = pickTimes(checkinRaw);
+    const checkoutTime = pickTime(typeof j.checkout_time === "string" ? j.checkout_time : null);
+    const checkinTime = checkinTimes[0] ?? null;
+    const checkinTimeMax = pickTime(checkinMaxRaw) ?? checkinTimes[1] ?? null;
+
     return {
       name: title,
       tagline: description,
       city,
       country,
-      checkin_time: pickTime(typeof j.checkin_time === "string" ? j.checkin_time : null),
-      checkout_time: pickTime(typeof j.checkout_time === "string" ? j.checkout_time : null),
+      checkin_time: checkinTime,
+      checkin_time_max: checkinTimeMax,
+      checkout_time: checkoutTime,
       gallery_images: photos,
       hero_image_url: photos[0] ?? null,
     };
