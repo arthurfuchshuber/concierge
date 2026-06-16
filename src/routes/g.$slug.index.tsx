@@ -289,7 +289,15 @@ function Guide({ data }: { data: GuideOk }) {
 
             <div className="px-5 md:px-10 lg:px-16 -mt-20 md:-mt-24 relative z-10 mb-4 md:mb-6 space-y-3">
               <div className="md:max-w-md lg:max-w-lg">
-                <WifiStrip ssid={p.wifi_ssid} password={p.wifi_password} theme={theme} />
+                <WifiStrip
+                  ssid={p.wifi_ssid}
+                  password={p.wifi_password}
+                  theme={theme}
+                  accessPin={(p.access_codes_pin as string | null) ?? ""}
+                  checkinLocked={checkinLocked}
+                  hasAccessRec={!!accessRec}
+                  gateEnabled={gateEnabled}
+                />
               </div>
               {(p.gate_code || p.lock_code) && (
                 <div className="md:max-w-md lg:max-w-lg">
