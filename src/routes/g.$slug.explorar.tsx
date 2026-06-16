@@ -266,7 +266,7 @@ function ExplorePage() {
       const isTouristMeta = meta.key === "sights";
       const filtered = allRecs.filter((rec) => {
         if (!meta.types.includes(rec.type)) return false;
-        if (isTouristMeta || minReviews <= 0) return true;
+        if (minReviews <= 0) return true;
         return (rec.user_ratings_total ?? 0) >= minReviews;
       });
       const nearby = filtered.filter((x) => x.scope === "nearby");
