@@ -14,7 +14,9 @@ import {
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { GuideAiChat } from "@/components/GuideAiChat";
+import { GuideAccessGate, readAccessRecord, type AccessRecord } from "@/components/GuideAccessGate";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/g/$slug/")({
   loader: async ({ params }) => {
@@ -120,10 +122,51 @@ function isRule(item: { title: string; description?: string | null }) {
   return /(regra|norma|polít|proibi|não\s+|no\s+smoking|rule|policy)/i.test(s);
 }
 
+function Lockable({ locked, children }: { locked: boolean; children: React.ReactNode }) {
+  if (!locked) return <>{children}</>;
+  return (
+    <div className="relative">
+      <div className="blur-md select-none pointer-events-none" aria-hidden>
+        {children}
+      </div>
+      <div className="absolute inset-0 grid place-items-center px-4">
+        <div className="rounded-2xl bg-background/90 backdrop-blur-sm border border-border/60 px-4 py-3 max-w-[280px] text-center shadow-lg">
+          <Lock className="size-4 mx-auto text-muted-foreground mb-1.5" strokeWidth={1.75} />
+          <p className="text-[12px] font-semibold text-foreground">Acesso encerrado</p>
+          <p className="text-[11px] text-muted-foreground mt-1 leading-snug">
+            As informações de check-in ficam disponíveis até 12h após o início do check-in.
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function Guide({ data }: { data: GuideOk }) {
+
   const p = data.property as Record<string, any>;
   const { slug } = Route.useParams();
   const [section, setSection] = useState<Section>("home");
+
+  // Access gate: required when the guide carries check-in credentials.
+  const hasCheckinSecrets = !!(p.gate_code || p.lock_code || p.wifi_password || p.checkin_instructions);
+  const [accessRec, setAccessRec] = useState<AccessRecord | null>(() =>
+    typeof window === "undefined" ? null : readAccessRecord(slug),
+  );
+  const needsGate = hasCheckinSecrets && !accessRec;
+
+  // 12h lock: once 12h have passed from check-in start, sensitive fields blur.
+  const checkinLocked = (() => {
+    if (!accessRec) return false;
+    const time = String(p.checkin_time ?? "").match(/^(\d{1,2}):(\d{2})/);
+    const hh = time ? Number(time[1]) : 15;
+    const mm = time ? Number(time[2]) : 0;
+    const [y, mo, d] = accessRec.checkinDate.split("-").map(Number);
+    if (!y || !mo || !d) return false;
+    const start = new Date(y, mo - 1, d, hh, mm, 0, 0);
+    const deadline = new Date(start.getTime() + 12 * 60 * 60 * 1000);
+    return Date.now() > deadline.getTime();
+  })();
 
   // Theme: admin default, override per-visitor via localStorage
   const adminTheme: "dark" | "light" = p.guide_theme === "light" ? "light" : "dark";
@@ -224,6 +267,9 @@ function Guide({ data }: { data: GuideOk }) {
 
   return (
     <div className={`sigma-public-guide guide-ambient min-h-screen bg-background text-foreground pb-16 ${theme === "light" ? "theme-light" : ""}`}>
+      {needsGate && (
+        <GuideAccessGate slug={slug} propertyName={p.name as string} onUnlock={setAccessRec} />
+      )}
       <div className="mx-auto w-full max-w-md md:max-w-none">
         {section === "home" ? (
           <>
@@ -380,25 +426,48 @@ function Guide({ data }: { data: GuideOk }) {
                                 ))}
                             </div>
                           )}
-                          {(p.address || p.maps_url || uberUrl || noveNoveUrl) && (
-                            <div className="rounded-2xl bg-background/40 border border-border/60 overflow-hidden divide-y divide-border/40">
-                              {mapsHref && (
-                                <a
-                                  href={mapsHref}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="flex items-center gap-3 px-3.5 py-3.5 hover:bg-card/40 active:bg-card/60 transition-colors"
-                                >
-                                  <span className="size-8 rounded-lg bg-accent/15 text-accent grid place-items-center shrink-0">
-                                    <MapPin className="size-[14px]" strokeWidth={1.75} />
-                                  </span>
-                                  <div className="flex-1 min-w-0 text-left">
-                                    <p className="text-[14px] font-medium leading-tight">Abrir no Google Maps</p>
-                                    {p.address && <p className="text-[12px] text-muted-foreground truncate mt-1">{p.address}</p>}
-                                  </div>
-                                  <ExternalLink className="size-4 text-muted-foreground shrink-0" />
-                                </a>
-                              )}
+                          {(() => {
+                            const garageHref = safeHttpsHref(p.garage_maps_url);
+                            const hasAnyLink = !!(p.address || p.maps_url || garageHref || uberUrl || noveNoveUrl);
+                            if (!hasAnyLink) return null;
+                            return (
+                              <div className="rounded-2xl bg-background/40 border border-border/60 overflow-hidden divide-y divide-border/40">
+                                {mapsHref && (
+                                  <a
+                                    href={mapsHref}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="flex items-center gap-3 px-3.5 py-3.5 hover:bg-card/40 active:bg-card/60 transition-colors"
+                                  >
+                                    <span className="size-8 rounded-lg bg-accent/15 text-accent grid place-items-center shrink-0">
+                                      <MapPin className="size-[14px]" strokeWidth={1.75} />
+                                    </span>
+                                    <div className="flex-1 min-w-0 text-left">
+                                      <p className="text-[14px] font-medium leading-tight">
+                                        {garageHref ? "Como chegar — Entrada principal" : "Abrir no Google Maps"}
+                                      </p>
+                                      {p.address && <p className="text-[12px] text-muted-foreground truncate mt-1">{p.address}</p>}
+                                    </div>
+                                    <ExternalLink className="size-4 text-muted-foreground shrink-0" />
+                                  </a>
+                                )}
+                                {garageHref && (
+                                  <a
+                                    href={garageHref}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="flex items-center gap-3 px-3.5 py-3.5 hover:bg-card/40 active:bg-card/60 transition-colors"
+                                  >
+                                    <span className="size-8 rounded-lg bg-accent/15 text-accent grid place-items-center shrink-0">
+                                      <Car className="size-[14px]" strokeWidth={1.75} />
+                                    </span>
+                                    <div className="flex-1 min-w-0 text-left">
+                                      <p className="text-[14px] font-medium leading-tight">Como chegar — Garagem</p>
+                                      <p className="text-[12px] text-muted-foreground mt-1">Entrada pelo acesso da garagem</p>
+                                    </div>
+                                    <ExternalLink className="size-4 text-muted-foreground shrink-0" />
+                                  </a>
+                                )}
                               {uberUrl && (
                                 <a
                                   href={uberUrl}
@@ -433,8 +502,9 @@ function Guide({ data }: { data: GuideOk }) {
                                   <ExternalLink className="size-4 text-muted-foreground shrink-0" />
                                 </a>
                               )}
-                            </div>
-                          )}
+                              </div>
+                            );
+                          })()}
                         </div>
                       </SubItem>
                     )}
@@ -445,26 +515,28 @@ function Guide({ data }: { data: GuideOk }) {
                         label="Check-in"
                         hint="Passo a passo da chegada"
                       >
-                        <div className="space-y-4">
-                          {p.checkin_instructions && (
-                            <div className="rounded-2xl border border-border/60 bg-background/40 px-4 py-4">
-                              <StepList text={String(p.checkin_instructions)} dense />
-                            </div>
-                          )}
-                          {Array.isArray(p.checkin_media) && p.checkin_media.length > 0 && (
-                            <div className="grid grid-cols-2 gap-2">
-                              {(p.checkin_media as Array<{ url: string; type: "image" | "video" }>).map((m, i) => (
-                                <div key={i} className="rounded-xl overflow-hidden border border-border bg-muted/40 aspect-square">
-                                  {m.type === "video" ? (
-                                    <video src={m.url} className="size-full object-cover" controls playsInline preload="metadata" />
-                                  ) : (
-                                    <img src={m.url} alt={`Check-in ${i + 1}`} className="size-full object-cover" loading="lazy" />
-                                  )}
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </div>
+                        <Lockable locked={checkinLocked}>
+                          <div className="space-y-4">
+                            {p.checkin_instructions && (
+                              <div className="rounded-2xl border border-border/60 bg-background/40 px-4 py-4">
+                                <StepList text={String(p.checkin_instructions)} dense />
+                              </div>
+                            )}
+                            {Array.isArray(p.checkin_media) && p.checkin_media.length > 0 && (
+                              <div className="grid grid-cols-2 gap-2">
+                                {(p.checkin_media as Array<{ url: string; type: "image" | "video" }>).map((m, i) => (
+                                  <div key={i} className="rounded-xl overflow-hidden border border-border bg-muted/40 aspect-square">
+                                    {m.type === "video" ? (
+                                      <video src={m.url} className="size-full object-cover" controls playsInline preload="metadata" />
+                                    ) : (
+                                      <img src={m.url} alt={`Check-in ${i + 1}`} className="size-full object-cover" loading="lazy" />
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </Lockable>
                       </SubItem>
                     )}
 
@@ -483,26 +555,28 @@ function Guide({ data }: { data: GuideOk }) {
                             : "Instruções de entrada"
                         }
                       >
-                        <div className="space-y-4">
-                          {p.gate_code && (
-                            <AccessBlock
-                              kind="gate"
-                              code={p.gate_code}
-                              instructions={p.gate_instructions as string | null}
-                              videoUrl={p.gate_video_url as string | null}
-                              media={gateMedia}
-                            />
-                          )}
-                          {p.lock_code && (
-                            <AccessBlock
-                              kind="lock"
-                              code={p.lock_code}
-                              instructions={p.lock_instructions as string | null}
-                              videoUrl={p.lock_video_url as string | null}
-                              media={lockMedia}
-                            />
-                          )}
-                        </div>
+                        <Lockable locked={checkinLocked}>
+                          <div className="space-y-4">
+                            {p.gate_code && (
+                              <AccessBlock
+                                kind="gate"
+                                code={p.gate_code}
+                                instructions={p.gate_instructions as string | null}
+                                videoUrl={p.gate_video_url as string | null}
+                                media={gateMedia}
+                              />
+                            )}
+                            {p.lock_code && (
+                              <AccessBlock
+                                kind="lock"
+                                code={p.lock_code}
+                                instructions={p.lock_instructions as string | null}
+                                videoUrl={p.lock_video_url as string | null}
+                                media={lockMedia}
+                              />
+                            )}
+                          </div>
+                        </Lockable>
                       </SubItem>
                     )}
 
@@ -515,7 +589,9 @@ function Guide({ data }: { data: GuideOk }) {
                         <div className="rounded-xl bg-background/50 border border-border/50 overflow-hidden divide-y divide-border/40">
                           <CopyCard flat icon={<Wifi className="size-[18px]" strokeWidth={1.75} />} eyebrow="Rede" label="Toque para copiar" value={p.wifi_ssid} />
                           {p.wifi_password && (
-                            <CopyCard flat icon={<KeyRound className="size-[18px]" strokeWidth={1.75} />} eyebrow="Senha" label="Toque para copiar" value={p.wifi_password} />
+                            <Lockable locked={checkinLocked}>
+                              <CopyCard flat icon={<KeyRound className="size-[18px]" strokeWidth={1.75} />} eyebrow="Senha" label="Toque para copiar" value={p.wifi_password} />
+                            </Lockable>
                           )}
                         </div>
                       </SubItem>

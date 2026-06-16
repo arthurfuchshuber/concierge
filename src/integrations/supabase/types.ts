@@ -14,6 +14,44 @@ export type Database = {
   }
   public: {
     Tables: {
+      guide_access_logs: {
+        Row: {
+          checkin_date: string
+          created_at: string
+          guest_name: string
+          id: string
+          property_id: string
+          reservation_code: string
+          user_agent: string | null
+        }
+        Insert: {
+          checkin_date: string
+          created_at?: string
+          guest_name: string
+          id?: string
+          property_id: string
+          reservation_code: string
+          user_agent?: string | null
+        }
+        Update: {
+          checkin_date?: string
+          created_at?: string
+          guest_name?: string
+          id?: string
+          property_id?: string
+          reservation_code?: string
+          user_agent?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "guide_access_logs_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       host_faqs: {
         Row: {
           answer: string
@@ -123,6 +161,7 @@ export type Database = {
           created_at: string
           default_language: Database["public"]["Enums"]["guide_language"]
           gallery_images: string[]
+          garage_maps_url: string | null
           gate_code: string | null
           gate_instructions: string | null
           gate_media: Json
@@ -170,6 +209,7 @@ export type Database = {
           created_at?: string
           default_language?: Database["public"]["Enums"]["guide_language"]
           gallery_images?: string[]
+          garage_maps_url?: string | null
           gate_code?: string | null
           gate_instructions?: string | null
           gate_media?: Json
@@ -217,6 +257,7 @@ export type Database = {
           created_at?: string
           default_language?: Database["public"]["Enums"]["guide_language"]
           gallery_images?: string[]
+          garage_maps_url?: string | null
           gate_code?: string | null
           gate_instructions?: string | null
           gate_media?: Json

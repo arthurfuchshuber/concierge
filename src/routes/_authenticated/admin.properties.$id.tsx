@@ -58,6 +58,7 @@ type FormState = {
     marketplace_links: { label: string; url: string; description: string }[];
     address: string;
     maps_url: string;
+    garage_maps_url: string;
     lat: number | null;
     lng: number | null;
     city: string;
@@ -105,7 +106,7 @@ function emptyForm(): FormState {
       name: "", slug: "", tagline: "", hero_image_url: "", gallery_images: [],
       theme_images: { checkin: "", residencia: "", faq: "", explore: "" },
       marketplace_links: [],
-      address: "", maps_url: "",
+      address: "", maps_url: "", garage_maps_url: "",
       lat: null, lng: null, city: "", country: "", checkin_time: "15:00", checkin_time_max: "", checkout_time: "11:00", checkout_time_min: "",
       lock_code: "", gate_code: "", address_note: "", checkin_instructions: "", checkout_instructions: "", checkin_media: [], gate_instructions: "", gate_media: [], gate_video_url: "", lock_instructions: "", lock_media: [], lock_video_url: "", wifi_ssid: "", wifi_password: "",
       host_name: "", host_phone: "", brand_name: "", brand_logo_url: "", access_mode: "public", pin_code: "", pin_expires_at: "",
@@ -198,6 +199,7 @@ function PropertyEditor() {
           : [],
         address: (p.address as string) ?? "",
         maps_url: (p.maps_url as string) ?? "",
+        garage_maps_url: ((p as Record<string, unknown>).garage_maps_url as string) ?? "",
         lat: (p.lat as number) ?? null,
         lng: (p.lng as number) ?? null,
         city: (p.city as string) ?? "",
@@ -401,6 +403,7 @@ function PropertyEditor() {
             .filter((m) => m.label && m.url),
           address: form.property.address || null,
           maps_url: form.property.maps_url || null,
+          garage_maps_url: form.property.garage_maps_url || null,
           city: form.property.city || null,
           country: form.property.country || null,
           checkin_time: form.property.checkin_time || null,
@@ -563,7 +566,7 @@ function PropertyEditor() {
             title="Endereço e localização"
             desc="Cole o link do Google Maps e use Auto-preencher para obter endereço, coordenadas e pontos de interesse."
           >
-            <Field label="Link do Google Maps" required>
+            <Field label="Link do Google Maps — Entrada principal" required>
               <div className="flex gap-2">
                 <Input value={form.property.maps_url} onChange={(e) => update("maps_url", e.target.value)} placeholder="https://maps.app.goo.gl/..." />
                 <Button onClick={handleEnrich} disabled={enriching} variant="secondary" className="shrink-0">
@@ -571,6 +574,9 @@ function PropertyEditor() {
                   <span className="ml-1.5 hidden sm:inline">{enriching ? "Buscando…" : "Auto-preencher"}</span>
                 </Button>
               </div>
+            </Field>
+            <Field label="Link do Google Maps — Garagem (opcional)" hint="Aparece como um segundo botão de localização no guia.">
+              <Input value={form.property.garage_maps_url} onChange={(e) => update("garage_maps_url", e.target.value)} placeholder="https://maps.app.goo.gl/..." />
             </Field>
             <Field label="Endereço">
               <Input value={form.property.address} onChange={(e) => update("address", e.target.value)} />
