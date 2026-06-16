@@ -120,8 +120,10 @@ export const listMyProperties = createServerFn({ method: "GET" })
 const BulkPatch = z.object({
   checkin_time: z.string().max(8).optional(),
   checkin_time_max: z.string().max(8).optional(),
+  checkin_note: z.string().max(1000).optional(),
   checkout_time: z.string().max(8).optional(),
   checkout_time_min: z.string().max(8).optional(),
+  checkout_note: z.string().max(1000).optional(),
   address_note: z.string().max(1000).optional(),
   checkin_instructions: z.string().max(3000).optional(),
   checkout_instructions: z.string().max(3000).optional(),
@@ -129,6 +131,7 @@ const BulkPatch = z.object({
   gate_instructions: z.string().max(3000).optional(),
   lock_code: z.string().max(40).optional(),
   lock_instructions: z.string().max(3000).optional(),
+  access_codes_pin: z.string().max(20).optional(),
   wifi_ssid: z.string().max(64).optional(),
   wifi_password: z.string().max(64).optional(),
   host_name: z.string().max(120).optional(),
