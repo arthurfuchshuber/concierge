@@ -28,6 +28,7 @@ import { Route as AuthenticatedAdminAssinaturaRouteImport } from './routes/_auth
 import { Route as ApiPublicPaymentsWebhookRouteImport } from './routes/api/public/payments/webhook'
 import { Route as AuthenticatedAdminPropertiesIdRouteImport } from './routes/_authenticated/admin.properties.$id'
 import { Route as AuthenticatedAdminPropertiesIdConversasRouteImport } from './routes/_authenticated/admin.properties.$id.conversas'
+import { Route as AuthenticatedAdminPropertiesIdAcessosRouteImport } from './routes/_authenticated/admin.properties.$id.acessos'
 
 const TermosRoute = TermosRouteImport.update({
   id: '/termos',
@@ -129,6 +130,12 @@ const AuthenticatedAdminPropertiesIdConversasRoute =
     path: '/conversas',
     getParentRoute: () => AuthenticatedAdminPropertiesIdRoute,
   } as any)
+const AuthenticatedAdminPropertiesIdAcessosRoute =
+  AuthenticatedAdminPropertiesIdAcessosRouteImport.update({
+    id: '/acessos',
+    path: '/acessos',
+    getParentRoute: () => AuthenticatedAdminPropertiesIdRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -148,6 +155,7 @@ export interface FileRoutesByFullPath {
   '/g/$slug/': typeof GSlugIndexRoute
   '/admin/properties/$id': typeof AuthenticatedAdminPropertiesIdRouteWithChildren
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
+  '/admin/properties/$id/acessos': typeof AuthenticatedAdminPropertiesIdAcessosRoute
   '/admin/properties/$id/conversas': typeof AuthenticatedAdminPropertiesIdConversasRoute
 }
 export interface FileRoutesByTo {
@@ -166,6 +174,7 @@ export interface FileRoutesByTo {
   '/g/$slug': typeof GSlugIndexRoute
   '/admin/properties/$id': typeof AuthenticatedAdminPropertiesIdRouteWithChildren
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
+  '/admin/properties/$id/acessos': typeof AuthenticatedAdminPropertiesIdAcessosRoute
   '/admin/properties/$id/conversas': typeof AuthenticatedAdminPropertiesIdConversasRoute
 }
 export interface FileRoutesById {
@@ -188,6 +197,7 @@ export interface FileRoutesById {
   '/g/$slug/': typeof GSlugIndexRoute
   '/_authenticated/admin/properties/$id': typeof AuthenticatedAdminPropertiesIdRouteWithChildren
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
+  '/_authenticated/admin/properties/$id/acessos': typeof AuthenticatedAdminPropertiesIdAcessosRoute
   '/_authenticated/admin/properties/$id/conversas': typeof AuthenticatedAdminPropertiesIdConversasRoute
 }
 export interface FileRouteTypes {
@@ -210,6 +220,7 @@ export interface FileRouteTypes {
     | '/g/$slug/'
     | '/admin/properties/$id'
     | '/api/public/payments/webhook'
+    | '/admin/properties/$id/acessos'
     | '/admin/properties/$id/conversas'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -228,6 +239,7 @@ export interface FileRouteTypes {
     | '/g/$slug'
     | '/admin/properties/$id'
     | '/api/public/payments/webhook'
+    | '/admin/properties/$id/acessos'
     | '/admin/properties/$id/conversas'
   id:
     | '__root__'
@@ -249,6 +261,7 @@ export interface FileRouteTypes {
     | '/g/$slug/'
     | '/_authenticated/admin/properties/$id'
     | '/api/public/payments/webhook'
+    | '/_authenticated/admin/properties/$id/acessos'
     | '/_authenticated/admin/properties/$id/conversas'
   fileRoutesById: FileRoutesById
 }
@@ -400,15 +413,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminPropertiesIdConversasRouteImport
       parentRoute: typeof AuthenticatedAdminPropertiesIdRoute
     }
+    '/_authenticated/admin/properties/$id/acessos': {
+      id: '/_authenticated/admin/properties/$id/acessos'
+      path: '/acessos'
+      fullPath: '/admin/properties/$id/acessos'
+      preLoaderRoute: typeof AuthenticatedAdminPropertiesIdAcessosRouteImport
+      parentRoute: typeof AuthenticatedAdminPropertiesIdRoute
+    }
   }
 }
 
 interface AuthenticatedAdminPropertiesIdRouteChildren {
+  AuthenticatedAdminPropertiesIdAcessosRoute: typeof AuthenticatedAdminPropertiesIdAcessosRoute
   AuthenticatedAdminPropertiesIdConversasRoute: typeof AuthenticatedAdminPropertiesIdConversasRoute
 }
 
 const AuthenticatedAdminPropertiesIdRouteChildren: AuthenticatedAdminPropertiesIdRouteChildren =
   {
+    AuthenticatedAdminPropertiesIdAcessosRoute:
+      AuthenticatedAdminPropertiesIdAcessosRoute,
     AuthenticatedAdminPropertiesIdConversasRoute:
       AuthenticatedAdminPropertiesIdConversasRoute,
   }
