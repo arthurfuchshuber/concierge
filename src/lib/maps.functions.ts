@@ -343,7 +343,8 @@ Responda APENAS com JSON válido (sem markdown) no formato:
     for (const cat of TYPE_MAP) {
       const arr = parsed[cat.type];
       if (Array.isArray(arr)) {
-        out[cat.type] = arr.filter((x): x is string => typeof x === "string" && x.trim().length > 0).slice(0, 8);
+        const limit = cat.type === "attraction" ? 40 : 30;
+        out[cat.type] = arr.filter((x): x is string => typeof x === "string" && x.trim().length > 0).slice(0, limit);
       }
     }
     return out;
