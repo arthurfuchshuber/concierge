@@ -58,6 +58,7 @@ type FormState = {
     marketplace_links: { label: string; url: string; description: string }[];
     address: string;
     maps_url: string;
+    garage_maps_url: string;
     lat: number | null;
     lng: number | null;
     city: string;
