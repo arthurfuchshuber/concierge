@@ -502,8 +502,9 @@ function Guide({ data }: { data: GuideOk }) {
                                   <ExternalLink className="size-4 text-muted-foreground shrink-0" />
                                 </a>
                               )}
-                            </div>
-                          )}
+                              </div>
+                            );
+                          })()}
                         </div>
                       </SubItem>
                     )}
