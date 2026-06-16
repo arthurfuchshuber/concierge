@@ -283,6 +283,58 @@ function buildPhotoUrl(photoName: string | undefined): string | null {
   return `https://places.googleapis.com/v1/${photoName}/media?maxWidthPx=800&key=${browserKey}`;
 }
 
+// Curadoria via Gemini: lista os lugares mais famosos/queridos da cidade por categoria.
+// Retorna { restaurant: [...], bar: [...], ... }. Em caso de erro, retorna {}.
+async function fetchIconicPlacesFromGemini(
+  city: string,
+  country: string,
+): Promise<Record<string, string[]>> {
+  const apiKey = process.env.LOVABLE_API_KEY;
+  if (!apiKey || !city) return {};
+
+  const categoriesPrompt = TYPE_MAP.map((c) => `- ${c.type}: ${c.category}`).join("\n");
+  const prompt = `Liste os lugares mais famosos, queridos e visitados de ${city}${country ? `, ${country}` : ""} em cada categoria abaixo. Inclua marcos turísticos clássicos, grandes redes/estabelecimentos populares (shoppings, supermercados conhecidos), áreas de lazer importantes e locais "que todo mundo conhece". Use o nome exato como aparece no Google Maps.
+
+Categorias:
+${categoriesPrompt}
+
+Para cada categoria, retorne entre 3 e 8 nomes (apenas os realmente famosos/relevantes). Se não houver nada notável, retorne lista vazia. Responda APENAS com JSON válido no formato:
+{"restaurant": ["Nome 1", "Nome 2"], "bar": [...], "cafe": [...], "beach": [...], "attraction": [...], "market": [...], "pharmacy": [...], "park": [...], "nightlife": [...], "shopping": [...]}`;
+
+  try {
+    const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: "google/gemini-2.5-flash",
+        messages: [
+          { role: "system", content: "Você é um concierge local que conhece em profundidade as cidades brasileiras. Responda sempre com JSON válido, sem markdown." },
+          { role: "user", content: prompt },
+        ],
+        response_format: { type: "json_object" },
+      }),
+    });
+    if (!res.ok) return {};
+    const j = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
+    const content = j.choices?.[0]?.message?.content ?? "";
+    const cleaned = content.replace(/^```json\s*/i, "").replace(/```\s*$/, "").trim();
+    const parsed = JSON.parse(cleaned) as Record<string, unknown>;
+    const out: Record<string, string[]> = {};
+    for (const cat of TYPE_MAP) {
+      const arr = parsed[cat.type];
+      if (Array.isArray(arr)) {
+        out[cat.type] = arr.filter((x): x is string => typeof x === "string" && x.trim().length > 0).slice(0, 8);
+      }
+    }
+    return out;
+  } catch {
+    return {};
+  }
+}
+
 export const enrichFromMapsLink = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => InputSchema.parse(input))
@@ -330,33 +382,28 @@ export const enrichFromMapsLink = createServerFn({ method: "POST" })
       }
     }
 
-    // Filtros de qualidade para recomendações
-    const MIN_RATING = 4.2;
-    // Thresholds por tipo. Atrações turísticas (mirantes, calçadões, praças)
-    // costumam ter MUITAS avaliações; locais como "Gramadão" ou "Flyfoz"
-    // precisam de um limiar mais baixo para entrar. Cidades menores também.
+    // Filtros de qualidade — afrouxados para abranger marcos da cidade e
+    // grandes estabelecimentos (mercados, shoppings, marcos turísticos).
+    const MIN_RATING = 4.0;
     const NEARBY_MIN_REVIEWS: Record<string, number> = {
-      restaurant: 80, bar: 50, cafe: 40, nightlife: 60,
-      attraction: 40, beach: 30, park: 30,
-      market: 25, pharmacy: 20, shopping: 60,
+      restaurant: 40, bar: 25, cafe: 20, nightlife: 30,
+      attraction: 20, beach: 15, park: 15,
+      market: 10, pharmacy: 10, shopping: 20,
     };
     const CITY_MIN_REVIEWS: Record<string, number> = {
-      restaurant: 300, bar: 200, cafe: 200, nightlife: 200,
-      attraction: 120, beach: 80, park: 80,
-      market: 100, pharmacy: 80, shopping: 200,
+      restaurant: 150, bar: 80, cafe: 80, nightlife: 80,
+      attraction: 50, beach: 30, park: 30,
+      market: 40, pharmacy: 30, shopping: 80,
     };
-    const MAX_PER_TYPE = 8;
-    // Limita o raio "city-wide" para garantir que pontos fora da cidade não vazem.
-    const MAX_CITY_RADIUS_M = 18000;
+    const MAX_PER_TYPE = 10;
+    // Aumentado de 18 km para 30 km — Foz tem atrações (Cataratas, Itaipu) longe do centro.
+    const MAX_CITY_RADIUS_M = 30000;
 
     const isQuality = (p: PlaceRaw, minReviews: number) =>
       typeof p.rating === "number" &&
       p.rating >= MIN_RATING &&
       typeof p.userRatingCount === "number" &&
       p.userRatingCount >= minReviews;
-
-    const matchesCategory = (p: PlaceRaw, accepted: string[]) =>
-      !!p.primaryType && accepted.includes(p.primaryType);
 
     const buildNote = (p: PlaceRaw): string | null => {
       const t = p.editorialSummary?.text ?? p.generativeSummary?.overview?.text ?? null;
@@ -403,11 +450,10 @@ export const enrichFromMapsLink = createServerFn({ method: "POST" })
     };
 
 
-    // 1) Nearby por categoria
+    // 1) Nearby por categoria — sem filtro de primaryType (confia no filtro do Places)
     for (const cat of TYPE_MAP) {
-      const min = NEARBY_MIN_REVIEWS[cat.type] ?? 40;
+      const min = NEARBY_MIN_REVIEWS[cat.type] ?? 20;
       const items = (await placesNearby(coords.lat, coords.lng, cat.placesTypes))
-        .filter((p) => matchesCategory(p, cat.acceptedPrimaryTypes))
         .filter((p) => isQuality(p, min))
         .sort((a, b) => {
           const ra = a.rating ?? 0;
@@ -419,17 +465,17 @@ export const enrichFromMapsLink = createServerFn({ method: "POST" })
       for (const p of items) push(p, cat, "nearby");
     }
 
-    // 2) City-wide: agora cobre todas as categorias (incluindo mercados e farmácias)
+    // 2) City-wide via Places Text Search — sem filtro de primaryType, sem distância mínima
     if (city) {
       for (const cat of TYPE_MAP) {
-        const min = CITY_MIN_REVIEWS[cat.type] ?? 150;
+        const min = CITY_MIN_REVIEWS[cat.type] ?? 80;
         const primary = cat.placesTypes[0];
         const items = (await placesText(`melhores ${cat.category.toLowerCase()} em ${city}`, coords.lat, coords.lng, primary))
-          .filter((p) => matchesCategory(p, cat.acceptedPrimaryTypes) && isQuality(p, min))
+          .filter((p) => isQuality(p, min))
           .filter((p) => {
             if (!p.location) return false;
             const d = haversineMeters(coords!, { lat: p.location.latitude, lng: p.location.longitude });
-            return d >= 1500 && d <= MAX_CITY_RADIUS_M;
+            return d <= MAX_CITY_RADIUS_M;
           })
           .sort((a, b) => {
             const ra = a.rating ?? 0;
@@ -439,6 +485,27 @@ export const enrichFromMapsLink = createServerFn({ method: "POST" })
           })
           .slice(0, MAX_PER_TYPE);
         for (const p of items) push(p, cat, "city");
+      }
+    }
+
+    // 3) Curadoria via Gemini: pede os lugares icônicos da cidade por categoria
+    //    e resolve cada nome via Places Text Search (para obter foto, rating, link Maps).
+    if (city) {
+      const iconic = await fetchIconicPlacesFromGemini(city, country);
+      for (const cat of TYPE_MAP) {
+        const names = iconic[cat.type] ?? [];
+        for (const name of names) {
+          if (seenNames.has(normalizeName(name))) continue;
+          const resolved = await placesText(`${name} ${city}`, coords.lat, coords.lng, cat.placesTypes[0]);
+          const best = resolved
+            .filter((p) => p.location && typeof p.rating === "number" && (p.userRatingCount ?? 0) >= 10)
+            .filter((p) => {
+              const d = haversineMeters(coords!, { lat: p.location!.latitude, lng: p.location!.longitude });
+              return d <= MAX_CITY_RADIUS_M;
+            })
+            .sort((a, b) => (b.userRatingCount ?? 0) - (a.userRatingCount ?? 0))[0];
+          if (best) push(best, cat, "city");
+        }
       }
     }
 

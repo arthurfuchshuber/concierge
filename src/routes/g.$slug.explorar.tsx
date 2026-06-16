@@ -201,6 +201,15 @@ function OpeningHours({ hours }: { hours: string[] | null | undefined }) {
 }
 
 
+// Escolhe a melhor foto para capa da categoria: prioriza nearby, depois city,
+// e dentro de cada grupo escolhe o lugar com melhor rating × log(reviews).
+function pickBestPhoto(nearby: Rec[], city: Rec[]): string | null {
+  const score = (r: Rec) => (r.rating ?? 0) * Math.log10((r.user_ratings_total ?? 1) + 10);
+  const best = (arr: Rec[]) =>
+    arr.filter((x) => x.image_url).sort((a, b) => score(b) - score(a))[0]?.image_url ?? null;
+  return best(nearby) ?? best(city);
+}
+
 type SortKey = "distance" | "rating" | "alpha";
 
 function sortRecs(list: Rec[], by: SortKey): Rec[] {
@@ -418,10 +427,7 @@ function CategoryGrid({
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
       {categories.map(({ meta, count, nearby, city }) => {
-        const heroSrc =
-          nearby.find((x) => x.image_url)?.image_url ??
-          city.find((x) => x.image_url)?.image_url ??
-          null;
+        const heroSrc = pickBestPhoto(nearby, city);
         const Icon = meta.Icon;
         return (
           <button
@@ -479,10 +485,7 @@ function CategoryList({
   return (
     <div className="flex flex-col gap-3">
       {categories.map(({ meta, count, nearby, city }) => {
-        const heroSrc =
-          nearby.find((x) => x.image_url)?.image_url ??
-          city.find((x) => x.image_url)?.image_url ??
-          null;
+        const heroSrc = pickBestPhoto(nearby, city);
         const Icon = meta.Icon;
         return (
           <button
