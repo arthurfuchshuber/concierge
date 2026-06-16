@@ -388,19 +388,19 @@ function EditDialog({
 
           <div className="space-y-1.5">
             <Label>Trial gratuito até</Label>
-            <Input
-              type="date"
+            <DatePicker
               value={trialEndsAt}
-              onChange={(e) => setTrialEndsAt(e.target.value)}
+              onChange={setTrialEndsAt}
+              placeholder="Sem trial"
             />
           </div>
 
           <div className="space-y-1.5">
             <Label>Próxima renovação</Label>
-            <Input
-              type="date"
+            <DatePicker
               value={currentPeriodEnd}
-              onChange={(e) => setCurrentPeriodEnd(e.target.value)}
+              onChange={setCurrentPeriodEnd}
+              placeholder="Sem renovação programada"
             />
           </div>
 
