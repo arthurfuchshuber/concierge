@@ -1293,7 +1293,7 @@ function AccessBlock({
                   {m.type === "video" ? (
                     <video src={m.url} className="size-full object-cover" controls playsInline preload="metadata" />
                   ) : (
-                    <img src={m.url} alt={`${label} ${i + 1}`} className="size-full object-cover" loading="lazy" />
+                    <img src={m.url} alt={`${resolvedLabel} ${i + 1}`} className="size-full object-cover" loading="lazy" />
                   )}
                 </div>
               ))}
