@@ -317,7 +317,8 @@ function ExplorePage() {
 
         {!active ? (
           <>
-            <div className="flex justify-end mb-4">
+            <div className="flex items-center justify-between gap-3 flex-wrap mb-4">
+              <MinReviewsFilter value={minReviews} onChange={setMinReviews} />
               <ViewToggle viewMode={viewMode} setViewMode={setViewMode} />
             </div>
             {viewMode === "grid" ? (
@@ -334,9 +335,13 @@ function ExplorePage() {
             setSortBy={setSortBy}
             viewMode={viewMode}
             setViewMode={setViewMode}
+            minReviews={minReviews}
+            setMinReviews={setMinReviews}
+            isTouristCategory={active.meta.key === "sights"}
           />
 
         )}
+
 
         {categories.length === 0 && (!Array.isArray(p.marketplace_links) || p.marketplace_links.length === 0) && (
           <p className="text-sm text-muted-foreground">Sem recomendações cadastradas ainda.</p>
