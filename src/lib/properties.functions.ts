@@ -187,7 +187,7 @@ export const getMyProperty = createServerFn({ method: "POST" })
 const SavePropertyInput = z.object({
   id: z.string().uuid().optional().nullable(),
   property: PropertyInput,
-  recommendations: z.array(RecInput).max(200).default([]),
+  recommendations: z.array(RecInput).max(2000).default([]),
   manual: z.array(z.object({
     title: z.string().min(1).max(120),
     description: z.string().max(300).optional().nullable(),
