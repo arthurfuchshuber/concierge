@@ -353,6 +353,88 @@ Responda APENAS com JSON válido (sem markdown) no formato:
   }
 }
 
+// ----- Busca manual de lugares (autocomplete no admin) ---------------------
+const SearchInputSchema = z.object({
+  query: z.string().min(2).max(120),
+  lat: z.number().min(-90).max(90).nullable().optional(),
+  lng: z.number().min(-180).max(180).nullable().optional(),
+});
+
+function inferCategoryFromPrimaryType(primaryType: string | undefined) {
+  if (primaryType) {
+    for (const cat of TYPE_MAP) {
+      if (cat.acceptedPrimaryTypes.includes(primaryType) || cat.placesTypes.includes(primaryType)) {
+        return cat;
+      }
+    }
+  }
+  return { type: "other", placesTypes: [], acceptedPrimaryTypes: [], category: "Outros" } as typeof TYPE_MAP[number];
+}
+
+export type PlaceSearchResult = Omit<PlaceItem, "scope"> & { formatted_address: string | null };
+
+export const searchPlacesForRec = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => SearchInputSchema.parse(input))
+  .handler(async ({ data }): Promise<PlaceSearchResult[]> => {
+    const hasCoords = typeof data.lat === "number" && typeof data.lng === "number";
+    const lat = hasCoords ? (data.lat as number) : 0;
+    const lng = hasCoords ? (data.lng as number) : 0;
+
+    const body: Record<string, unknown> = {
+      textQuery: data.query,
+      maxResultCount: 8,
+    };
+    if (hasCoords) {
+      body.locationBias = { circle: { center: { latitude: lat, longitude: lng }, radius: 50000 } };
+    }
+    const res = await gatewayFetch(`/places/v1/places:searchText`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Goog-FieldMask":
+          "places.id,places.displayName,places.formattedAddress,places.location,places.rating,places.userRatingCount,places.googleMapsUri,places.photos,places.primaryType,places.editorialSummary,places.generativeSummary,places.regularOpeningHours",
+      },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) return [];
+    const j = (await res.json()) as { places?: (PlaceRaw & { formattedAddress?: string })[] };
+    const places = j.places ?? [];
+
+    return places
+      .filter((p) => p.id && p.location)
+      .slice(0, 8)
+      .map((p) => {
+        const cat = inferCategoryFromPrimaryType(p.primaryType);
+        const dist = hasCoords
+          ? haversineMeters({ lat, lng }, { lat: p.location!.latitude, lng: p.location!.longitude })
+          : 0;
+        const fmt = hasCoords ? formatDistance(dist) : { text: "", driveMin: null, walkMin: 0 };
+        const note = p.editorialSummary?.text ?? p.generativeSummary?.overview?.text ?? null;
+        return {
+          place_id: p.id,
+          name: p.displayName?.text ?? "Sem nome",
+          rating: typeof p.rating === "number" ? Number(p.rating.toFixed(1)) : null,
+          user_ratings_total: typeof p.userRatingCount === "number" ? p.userRatingCount : null,
+          category: cat.category,
+          type: cat.type,
+          lat: p.location!.latitude,
+          lng: p.location!.longitude,
+          distance_meters: dist,
+          distance_text: fmt.text,
+          drive_minutes: fmt.driveMin,
+          walk_minutes: fmt.walkMin,
+          opening_hours: p.regularOpeningHours?.weekdayDescriptions ?? null,
+          image_url: buildPhotoUrl(p.photos?.[0]?.name),
+          maps_url: p.googleMapsUri ?? `https://www.google.com/maps/search/?api=1&query_place_id=${p.id}`,
+          note: note && note.length > 240 ? note.slice(0, 237).trimEnd() + "…" : note,
+          formatted_address: p.formattedAddress ?? null,
+        };
+      });
+  });
+
+
+
 export const enrichFromMapsLink = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => InputSchema.parse(input))
