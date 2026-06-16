@@ -426,7 +426,7 @@ function Guide({ data }: { data: GuideOk }) {
                       return (
                         <SubItem
                           icon={<Clock className="size-[18px]" strokeWidth={1.6} />}
-                          label="Horários de check-in"
+                          label="Horários de Check-In"
                           hint={summary}
                         >
                           {isFlex || isAgend ? (
