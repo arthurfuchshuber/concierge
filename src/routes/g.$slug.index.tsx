@@ -1590,7 +1590,8 @@ function AccessCodesStrip({
   lockCode,
   gateLabel,
   lockLabel,
-  accessPin,
+  unlocked,
+  requestUnlock,
   checkinLocked,
   hasAccessRec,
   gateEnabled,
@@ -1600,12 +1601,160 @@ function AccessCodesStrip({
   lockCode: string | null;
   gateLabel: string;
   lockLabel: string;
-  accessPin: string;
+  unlocked: boolean;
+  requestUnlock: (cb?: () => void) => void;
   checkinLocked: boolean;
   hasAccessRec: boolean;
   gateEnabled: boolean;
   theme: "dark" | "light";
 }) {
+  const [revealed, setRevealed] = useState(false);
+  const isLight = theme === "light";
+  const gLabel = (gateLabel || "").trim() || "Portão";
+  const lLabel = (lockLabel || "").trim() || "Fechadura";
+  const showing = unlocked && revealed;
+
+  function gateOk() {
+    if (gateEnabled && !hasAccessRec) {
+      toast.error("Informe seus dados de check-in para liberar os códigos.");
+      return false;
+    }
+    if (checkinLocked) {
+      toast.error(
+        "Os códigos de acesso ficam disponíveis somente a partir de 24h antes do início do check-in até 12h depois. Fora dessa janela, fale com o time pelo chat do guia.",
+        { duration: 9000 },
+      );
+      return false;
+    }
+    return true;
+  }
+
+  function handleEyeClick() {
+    if (showing) { setRevealed(false); return; }
+    if (!gateOk()) return;
+    requestUnlock(() => setRevealed(true));
+  }
+
+  function copyCode(code: string, label: string) {
+    navigator.clipboard.writeText(code);
+    toast.success(`${label} copiado`);
+  }
+
+  const hint = gateCode && lockCode ? `${gLabel} e ${lLabel.toLowerCase()}` : gateCode ? gLabel : lLabel;
+
+  return (
+    <div className={`relative overflow-hidden rounded-2xl backdrop-blur-sm shadow-[0_8px_30px_-12px_oklch(from_var(--accent)_l_c_h/0.35)] ${
+      isLight
+        ? "bg-[linear-gradient(135deg,oklch(from_var(--card)_l_c_h/0.98)_0%,oklch(from_var(--card)_l_c_h/0.94)_60%,oklch(from_var(--card)_l_c_h/0.98)_100%)]"
+        : "bg-[linear-gradient(135deg,oklch(0.18_0.04_55/0.95)_0%,oklch(0.12_0.02_50/0.92)_60%,oklch(0.08_0.01_45/0.95)_100%)]"
+    }`}>
+      <div className="pointer-events-none absolute inset-0 opacity-[0.08] [background-image:radial-gradient(oklch(var(--accent))_1px,transparent_1px)] [background-size:14px_14px]" />
+      <div className="pointer-events-none absolute -top-10 -right-10 size-32 rounded-full bg-accent/20 blur-3xl" />
+      <div className="relative flex items-center gap-3.5 px-4 py-3.5">
+        <span className="relative grid size-10 shrink-0 place-items-center rounded-full bg-[radial-gradient(circle_at_30%_30%,oklch(var(--accent)/0.35),oklch(var(--accent)/0.05))] text-accent ring-1 ring-accent/45">
+          <KeyRound className="relative size-[18px]" strokeWidth={1.75} />
+        </span>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-baseline gap-2">
+            <p className="text-[9px] uppercase tracking-[0.32em] text-accent font-semibold">Códigos de acesso</p>
+            <span className="h-px flex-1 bg-gradient-to-r from-accent/40 to-transparent" />
+          </div>
+          {showing ? (
+            <div className="mt-1 space-y-1.5">
+              {gateCode && (
+                <button
+                  type="button"
+                  onClick={() => copyCode(gateCode, `Código d${gLabel.toLowerCase().startsWith("a") ? "a" : "o"} ${gLabel.toLowerCase()}`)}
+                  className="w-full flex items-center justify-between gap-2 text-left"
+                >
+                  <span className="text-[11px] text-muted-foreground font-medium shrink-0">{gLabel}</span>
+                  <span className="font-mono text-[14px] font-semibold tracking-[0.18em] text-foreground truncate flex items-center gap-1.5">
+                    {gateCode}
+                    <Copy className="size-3 text-muted-foreground" />
+                  </span>
+                </button>
+              )}
+              {lockCode && (
+                <button
+                  type="button"
+                  onClick={() => copyCode(lockCode, `Código d${lLabel.toLowerCase().startsWith("a") ? "a" : "o"} ${lLabel.toLowerCase()}`)}
+                  className="w-full flex items-center justify-between gap-2 text-left"
+                >
+                  <span className="text-[11px] text-muted-foreground font-medium shrink-0">{lLabel}</span>
+                  <span className="font-mono text-[14px] font-semibold tracking-[0.18em] text-foreground truncate flex items-center gap-1.5">
+                    {lockCode}
+                    <Copy className="size-3 text-muted-foreground" />
+                  </span>
+                </button>
+              )}
+            </div>
+          ) : (
+            <>
+              <p className="text-[13px] text-foreground/90 truncate font-medium mt-0.5">{hint}</p>
+              <p className="font-mono text-[13px] tracking-[0.2em] text-foreground/60 mt-0.5 truncate">
+                {"•".repeat(8)}
+              </p>
+            </>
+          )}
+        </div>
+        <button
+          onClick={handleEyeClick}
+          aria-label={showing ? "Ocultar códigos" : "Visualizar códigos"}
+          className="grid size-9 place-items-center rounded-full bg-accent text-accent-foreground hover:brightness-110 transition-all shadow-[0_4px_12px_-4px_oklch(var(--accent)/0.6)] shrink-0"
+        >
+          {showing ? <EyeOff className="size-4" strokeWidth={2} /> : <Eye className="size-4" strokeWidth={2} />}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function PinDialog({
+  open,
+  onOpenChange,
+  accessPin,
+  onSuccess,
+}: {
+  open: boolean;
+  onOpenChange: (o: boolean) => void;
+  accessPin: string;
+  onSuccess: () => void;
+}) {
+  const [value, setValue] = useState("");
+  function submit(e: React.FormEvent) {
+    e.preventDefault();
+    if (value.trim() === accessPin) {
+      setValue("");
+      onSuccess();
+    } else {
+      toast.error("Senha incorreta. Confira com o anfitrião.");
+    }
+  }
+  return (
+    <Dialog open={open} onOpenChange={(o) => { if (!o) setValue(""); onOpenChange(o); }}>
+      <DialogContent className="max-w-sm">
+        <DialogHeader>
+          <DialogTitle>Senha de acesso</DialogTitle>
+        </DialogHeader>
+        <p className="text-sm text-muted-foreground -mt-1">
+          Digite a senha fornecida pelo anfitrião para visualizar as informações sensíveis.
+        </p>
+        <form onSubmit={submit} className="flex items-center gap-2 pt-1">
+          <Input
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            placeholder="Senha"
+            autoFocus
+            type="password"
+            maxLength={32}
+            className="h-10 flex-1"
+          />
+          <Button type="submit" className="h-10">Liberar</Button>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
   const [pinOpen, setPinOpen] = useState(false);
   const [pinInput, setPinInput] = useState("");
   const [unlocked, setUnlocked] = useState(false);
