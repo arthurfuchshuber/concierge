@@ -306,7 +306,8 @@ function Guide({ data }: { data: GuideOk }) {
                   ssid={p.wifi_ssid}
                   password={p.wifi_password}
                   theme={theme}
-                  accessPin={(p.access_codes_pin as string | null) ?? ""}
+                  unlocked={unlocked}
+                  requestUnlock={requestUnlock}
                   checkinLocked={checkinLocked}
                   hasAccessRec={!!accessRec}
                   gateEnabled={gateEnabled}
@@ -319,7 +320,8 @@ function Guide({ data }: { data: GuideOk }) {
                     lockCode={p.lock_code as string | null}
                     gateLabel={(p.gate_label as string | null) || "Portão"}
                     lockLabel={(p.lock_label as string | null) || "Fechadura"}
-                    accessPin={(p.access_codes_pin as string | null) ?? ""}
+                    unlocked={unlocked}
+                    requestUnlock={requestUnlock}
                     checkinLocked={checkinLocked}
                     hasAccessRec={!!accessRec}
                     gateEnabled={gateEnabled}
