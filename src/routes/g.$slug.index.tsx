@@ -613,10 +613,12 @@ function Guide({ data }: { data: GuideOk }) {
                     {hasAcesso && (() => {
                       const gateLabel = ((p.gate_label as string | null) || "Portão").trim() || "Portão";
                       const lockLabel = ((p.lock_label as string | null) || "Fechadura").trim() || "Fechadura";
+                      const accessCount = (p.gate_code ? 1 : 0) + (p.lock_code ? 1 : 0);
+                      const accessLabel = accessCount > 1 ? "Senhas de Acessos" : "Senha de Acesso";
                       return (
                       <SubItem
                         icon={<KeyRound className="size-[18px]" strokeWidth={1.6} />}
-                        label="Acesso"
+                        label={accessLabel}
                         hint={
                           p.gate_code && p.lock_code
                             ? `${gateLabel} e ${lockLabel.toLowerCase()}`
@@ -637,6 +639,9 @@ function Guide({ data }: { data: GuideOk }) {
                                 instructions={p.gate_instructions as string | null}
                                 videoUrl={p.gate_video_url as string | null}
                                 media={gateMedia}
+                                unlocked={unlocked}
+                                requestUnlock={requestUnlock}
+                                hasPin={!!accessPin}
                               />
                             )}
                             {p.lock_code && (
@@ -647,6 +652,9 @@ function Guide({ data }: { data: GuideOk }) {
                                 instructions={p.lock_instructions as string | null}
                                 videoUrl={p.lock_video_url as string | null}
                                 media={lockMedia}
+                                unlocked={unlocked}
+                                requestUnlock={requestUnlock}
+                                hasPin={!!accessPin}
                               />
                             )}
                           </div>
@@ -658,14 +666,21 @@ function Guide({ data }: { data: GuideOk }) {
                     {hasWifi && (
                       <SubItem
                         icon={<Wifi className="size-[18px]" strokeWidth={1.6} />}
-                        label="Wi-Fi"
+                        label="Senha do Wi-Fi"
                         hint={p.wifi_ssid || undefined}
                       >
                         <div className="rounded-xl bg-background/50 border border-border/50 overflow-hidden divide-y divide-border/40">
                           <CopyCard flat icon={<Wifi className="size-[18px]" strokeWidth={1.75} />} eyebrow="Rede" label="Toque para copiar" value={p.wifi_ssid} />
                           {p.wifi_password && (
                             <Lockable locked={checkinLocked}>
-                              <CopyCard flat icon={<KeyRound className="size-[18px]" strokeWidth={1.75} />} eyebrow="Senha" label="Toque para copiar" value={p.wifi_password} />
+                              <GatedCopyCard
+                                icon={<KeyRound className="size-[18px]" strokeWidth={1.75} />}
+                                eyebrow="Senha"
+                                value={p.wifi_password}
+                                unlocked={unlocked}
+                                requestUnlock={requestUnlock}
+                                hasPin={!!accessPin}
+                              />
                             </Lockable>
                           )}
                         </div>
