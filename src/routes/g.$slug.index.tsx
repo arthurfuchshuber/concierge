@@ -1556,6 +1556,62 @@ function CopyCard({ icon, eyebrow, label, value, flat }: { icon?: React.ReactNod
   );
 }
 
+function GatedCopyCard({ icon, eyebrow, value, unlocked, requestUnlock, hasPin }: {
+  icon?: React.ReactNode;
+  eyebrow?: string;
+  value: string;
+  unlocked: boolean;
+  requestUnlock: (cb?: () => void) => void;
+  hasPin: boolean;
+}) {
+  const [revealed, setRevealed] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const showing = !hasPin || (unlocked && revealed);
+  const masked = "•".repeat(Math.max(6, Math.min(value.length, 12)));
+  function copy() {
+    const doCopy = () => {
+      navigator.clipboard.writeText(value);
+      setCopied(true);
+      toast.success("Copiado!");
+      setTimeout(() => setCopied(false), 1500);
+    };
+    if (!showing) requestUnlock(() => { setRevealed(true); doCopy(); });
+    else doCopy();
+  }
+  function eye() {
+    if (showing) { if (hasPin) setRevealed(false); return; }
+    requestUnlock(() => setRevealed(true));
+  }
+  return (
+    <div className="w-full flex items-center justify-between gap-3 px-3.5 py-3">
+      <div className="flex items-center gap-3 min-w-0">
+        {icon && (
+          <div className="size-9 rounded-lg bg-accent/12 text-accent grid place-items-center shrink-0">
+            {icon}
+          </div>
+        )}
+        <div className="min-w-0">
+          {eyebrow && <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground font-semibold">{eyebrow}</p>}
+          <p className={`text-[15px] font-semibold tracking-tight mt-0.5 break-all leading-snug ${showing ? "" : "text-foreground/60"}`}>
+            {showing ? value : masked}
+          </p>
+        </div>
+      </div>
+      <div className="flex items-center gap-1.5 shrink-0">
+        <button onClick={copy} aria-label="Copiar" className="size-8 rounded-full bg-secondary grid place-items-center">
+          {copied ? <Check className="size-3.5 text-accent" /> : <Copy className="size-3.5 text-muted-foreground" />}
+        </button>
+        {hasPin && (
+          <button onClick={eye} aria-label={showing ? "Ocultar" : "Visualizar"} className="size-8 rounded-full bg-accent text-accent-foreground grid place-items-center">
+            {showing ? <EyeOff className="size-3.5" strokeWidth={2} /> : <Eye className="size-3.5" strokeWidth={2} />}
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+
 function WifiStrip({
   ssid,
   password,
