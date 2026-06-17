@@ -172,6 +172,19 @@ function Guide({ data }: { data: GuideOk }) {
     return now < opensAt || now > closesAt;
   })();
 
+  // Shared "access PIN unlock" state — once unlocked, all gated codes/Wi-Fi reveal
+  const accessPin = ((p.access_codes_pin as string | null) ?? "").trim();
+  const [unlocked, setUnlocked] = useState(false);
+  const [pinDialog, setPinDialog] = useState<{ open: boolean; cb: (() => void) | null }>({ open: false, cb: null });
+  const requestUnlock = (cb?: () => void) => {
+    if (!accessPin || unlocked) {
+      if (!unlocked) setUnlocked(true);
+      cb?.();
+      return;
+    }
+    setPinDialog({ open: true, cb: cb ?? null });
+  };
+
   // Theme: admin default, override per-visitor via localStorage
   const adminTheme: "dark" | "light" = p.guide_theme === "light" ? "light" : "dark";
   const [theme, setTheme] = useState<"dark" | "light">(() => {
@@ -293,7 +306,8 @@ function Guide({ data }: { data: GuideOk }) {
                   ssid={p.wifi_ssid}
                   password={p.wifi_password}
                   theme={theme}
-                  accessPin={(p.access_codes_pin as string | null) ?? ""}
+                  unlocked={unlocked}
+                  requestUnlock={requestUnlock}
                   checkinLocked={checkinLocked}
                   hasAccessRec={!!accessRec}
                   gateEnabled={gateEnabled}
@@ -306,7 +320,8 @@ function Guide({ data }: { data: GuideOk }) {
                     lockCode={p.lock_code as string | null}
                     gateLabel={(p.gate_label as string | null) || "Portão"}
                     lockLabel={(p.lock_label as string | null) || "Fechadura"}
-                    accessPin={(p.access_codes_pin as string | null) ?? ""}
+                    unlocked={unlocked}
+                    requestUnlock={requestUnlock}
                     checkinLocked={checkinLocked}
                     hasAccessRec={!!accessRec}
                     gateEnabled={gateEnabled}
@@ -598,10 +613,12 @@ function Guide({ data }: { data: GuideOk }) {
                     {hasAcesso && (() => {
                       const gateLabel = ((p.gate_label as string | null) || "Portão").trim() || "Portão";
                       const lockLabel = ((p.lock_label as string | null) || "Fechadura").trim() || "Fechadura";
+                      const accessCount = (p.gate_code ? 1 : 0) + (p.lock_code ? 1 : 0);
+                      const accessLabel = accessCount > 1 ? "Senhas de Acessos" : "Senha de Acesso";
                       return (
                       <SubItem
                         icon={<KeyRound className="size-[18px]" strokeWidth={1.6} />}
-                        label="Acesso"
+                        label={accessLabel}
                         hint={
                           p.gate_code && p.lock_code
                             ? `${gateLabel} e ${lockLabel.toLowerCase()}`
@@ -622,6 +639,9 @@ function Guide({ data }: { data: GuideOk }) {
                                 instructions={p.gate_instructions as string | null}
                                 videoUrl={p.gate_video_url as string | null}
                                 media={gateMedia}
+                                unlocked={unlocked}
+                                requestUnlock={requestUnlock}
+                                hasPin={!!accessPin}
                               />
                             )}
                             {p.lock_code && (
@@ -632,6 +652,9 @@ function Guide({ data }: { data: GuideOk }) {
                                 instructions={p.lock_instructions as string | null}
                                 videoUrl={p.lock_video_url as string | null}
                                 media={lockMedia}
+                                unlocked={unlocked}
+                                requestUnlock={requestUnlock}
+                                hasPin={!!accessPin}
                               />
                             )}
                           </div>
@@ -643,14 +666,21 @@ function Guide({ data }: { data: GuideOk }) {
                     {hasWifi && (
                       <SubItem
                         icon={<Wifi className="size-[18px]" strokeWidth={1.6} />}
-                        label="Wi-Fi"
+                        label="Senha do Wi-Fi"
                         hint={p.wifi_ssid || undefined}
                       >
                         <div className="rounded-xl bg-background/50 border border-border/50 overflow-hidden divide-y divide-border/40">
                           <CopyCard flat icon={<Wifi className="size-[18px]" strokeWidth={1.75} />} eyebrow="Rede" label="Toque para copiar" value={p.wifi_ssid} />
                           {p.wifi_password && (
                             <Lockable locked={checkinLocked}>
-                              <CopyCard flat icon={<KeyRound className="size-[18px]" strokeWidth={1.75} />} eyebrow="Senha" label="Toque para copiar" value={p.wifi_password} />
+                              <GatedCopyCard
+                                icon={<KeyRound className="size-[18px]" strokeWidth={1.75} />}
+                                eyebrow="Senha"
+                                value={p.wifi_password}
+                                unlocked={unlocked}
+                                requestUnlock={requestUnlock}
+                                hasPin={!!accessPin}
+                              />
                             </Lockable>
                           )}
                         </div>
@@ -912,6 +942,17 @@ function Guide({ data }: { data: GuideOk }) {
         )}
       </div>
       <GuideAiChat slug={slug} propertyName={heroTitle} />
+      <PinDialog
+        open={pinDialog.open}
+        accessPin={accessPin}
+        onOpenChange={(o) => setPinDialog((s) => ({ ...s, open: o }))}
+        onSuccess={() => {
+          setUnlocked(true);
+          const cb = pinDialog.cb;
+          setPinDialog({ open: false, cb: null });
+          cb?.();
+        }}
+      />
     </div>
   );
 }
@@ -1231,7 +1272,7 @@ function SubItem({
 }
 
 function AccessBlock({
-  kind, label, code, instructions, videoUrl, media,
+  kind, label, code, instructions, videoUrl, media, unlocked, requestUnlock, hasPin,
 }: {
   kind: "gate" | "lock";
   label?: string;
@@ -1239,12 +1280,40 @@ function AccessBlock({
   instructions?: string | null;
   videoUrl?: string | null;
   media: Array<{ url: string; type: "image" | "video" }>;
+  unlocked: boolean;
+  requestUnlock: (cb?: () => void) => void;
+  hasPin: boolean;
 }) {
   const [open, setOpen] = useState(false);
+  const [revealed, setRevealed] = useState(false);
+  const [copied, setCopied] = useState(false);
   const Icon = kind === "gate" ? KeyRound : Lock;
   const resolvedLabel = label?.trim() || (kind === "gate" ? "Portão" : "Fechadura");
-  
+
   const hasMore = !!(instructions || videoUrl || media.length > 0);
+  const showing = !hasPin || (unlocked && revealed);
+  const masked = "•".repeat(Math.max(4, Math.min(code.length, 10)));
+
+  function handleEye(e: React.MouseEvent) {
+    e.stopPropagation();
+    if (showing) { if (hasPin) setRevealed(false); return; }
+    requestUnlock(() => setRevealed(true));
+  }
+
+  function copyCode(e: React.MouseEvent) {
+    e.stopPropagation();
+    const doCopy = () => {
+      navigator.clipboard.writeText(code);
+      setCopied(true);
+      toast.success(`${resolvedLabel} copiado`);
+      setTimeout(() => setCopied(false), 1500);
+    };
+    if (!showing) {
+      requestUnlock(() => { setRevealed(true); doCopy(); });
+    } else {
+      doCopy();
+    }
+  }
 
   return (
     <div className="rounded-2xl border border-border/60 bg-background/40 overflow-hidden">
@@ -1257,7 +1326,29 @@ function AccessBlock({
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-[10.5px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">{resolvedLabel}</p>
-          <p className="font-mono text-[15px] font-semibold tracking-[0.08em] text-foreground mt-0.5 truncate">{code}</p>
+          <p className={`font-mono text-[15px] font-semibold tracking-[0.08em] mt-0.5 truncate ${showing ? "text-foreground" : "text-foreground/60"}`}>
+            {showing ? code : masked}
+          </p>
+        </div>
+        <div className="flex items-center gap-1.5 shrink-0">
+          <button
+            type="button"
+            onClick={copyCode}
+            aria-label={`Copiar ${resolvedLabel}`}
+            className="grid size-8 place-items-center rounded-full bg-secondary text-foreground hover:bg-secondary/80 transition-all"
+          >
+            {copied ? <Check className="size-3.5 text-accent" /> : <Copy className="size-3.5" />}
+          </button>
+          {hasPin && (
+            <button
+              type="button"
+              onClick={handleEye}
+              aria-label={showing ? `Ocultar ${resolvedLabel}` : `Visualizar ${resolvedLabel}`}
+              className="grid size-8 place-items-center rounded-full bg-accent text-accent-foreground hover:brightness-110 transition-all"
+            >
+              {showing ? <EyeOff className="size-3.5" strokeWidth={2} /> : <Eye className="size-3.5" strokeWidth={2} />}
+            </button>
+          )}
         </div>
         {hasMore && (
           <ChevronDown
@@ -1465,11 +1556,68 @@ function CopyCard({ icon, eyebrow, label, value, flat }: { icon?: React.ReactNod
   );
 }
 
+function GatedCopyCard({ icon, eyebrow, value, unlocked, requestUnlock, hasPin }: {
+  icon?: React.ReactNode;
+  eyebrow?: string;
+  value: string;
+  unlocked: boolean;
+  requestUnlock: (cb?: () => void) => void;
+  hasPin: boolean;
+}) {
+  const [revealed, setRevealed] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const showing = !hasPin || (unlocked && revealed);
+  const masked = "•".repeat(Math.max(6, Math.min(value.length, 12)));
+  function copy() {
+    const doCopy = () => {
+      navigator.clipboard.writeText(value);
+      setCopied(true);
+      toast.success("Copiado!");
+      setTimeout(() => setCopied(false), 1500);
+    };
+    if (!showing) requestUnlock(() => { setRevealed(true); doCopy(); });
+    else doCopy();
+  }
+  function eye() {
+    if (showing) { if (hasPin) setRevealed(false); return; }
+    requestUnlock(() => setRevealed(true));
+  }
+  return (
+    <div className="w-full flex items-center justify-between gap-3 px-3.5 py-3">
+      <div className="flex items-center gap-3 min-w-0">
+        {icon && (
+          <div className="size-9 rounded-lg bg-accent/12 text-accent grid place-items-center shrink-0">
+            {icon}
+          </div>
+        )}
+        <div className="min-w-0">
+          {eyebrow && <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground font-semibold">{eyebrow}</p>}
+          <p className={`text-[15px] font-semibold tracking-tight mt-0.5 break-all leading-snug ${showing ? "" : "text-foreground/60"}`}>
+            {showing ? value : masked}
+          </p>
+        </div>
+      </div>
+      <div className="flex items-center gap-1.5 shrink-0">
+        <button onClick={copy} aria-label="Copiar" className="size-8 rounded-full bg-secondary grid place-items-center">
+          {copied ? <Check className="size-3.5 text-accent" /> : <Copy className="size-3.5 text-muted-foreground" />}
+        </button>
+        {hasPin && (
+          <button onClick={eye} aria-label={showing ? "Ocultar" : "Visualizar"} className="size-8 rounded-full bg-accent text-accent-foreground grid place-items-center">
+            {showing ? <EyeOff className="size-3.5" strokeWidth={2} /> : <Eye className="size-3.5" strokeWidth={2} />}
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+
 function WifiStrip({
   ssid,
   password,
   theme,
-  accessPin,
+  unlocked,
+  requestUnlock,
   checkinLocked,
   hasAccessRec,
   gateEnabled,
@@ -1477,17 +1625,16 @@ function WifiStrip({
   ssid?: string | null;
   password?: string | null;
   theme: "dark" | "light";
-  accessPin: string;
+  unlocked: boolean;
+  requestUnlock: (cb?: () => void) => void;
   checkinLocked: boolean;
   hasAccessRec: boolean;
   gateEnabled: boolean;
 }) {
-  const [pinOpen, setPinOpen] = useState(false);
-  const [pinInput, setPinInput] = useState("");
-  const [unlocked, setUnlocked] = useState(false);
+  const [revealed, setRevealed] = useState(false);
   const [copied, setCopied] = useState(false);
-  const needsPin = !!accessPin && !unlocked;
   const isLight = theme === "light";
+  const showing = unlocked && revealed;
   const masked = password ? "•".repeat(Math.min(password.length, 12)) : "—";
 
   function gateOk() {
@@ -1507,43 +1654,21 @@ function WifiStrip({
   }
 
   function handleEyeClick() {
-    if (unlocked) {
-      setUnlocked(false);
-      return;
-    }
+    if (showing) { setRevealed(false); return; }
     if (!gateOk()) return;
-    if (needsPin) {
-      setPinOpen((v) => !v);
-    } else {
-      setUnlocked(true);
-    }
-  }
-
-  function submitPin(e: React.FormEvent) {
-    e.preventDefault();
-    if (pinInput.trim() === accessPin) {
-      setUnlocked(true);
-      setPinInput("");
-      setPinOpen(false);
-    } else {
-      toast.error("Senha incorreta. Confira com o anfitrião.");
-    }
+    requestUnlock(() => setRevealed(true));
   }
 
   function copyPwd() {
     if (!password) return;
-    if (!unlocked) {
-      if (!gateOk()) return;
-      if (needsPin) {
-        setPinOpen(true);
-        return;
-      }
-      setUnlocked(true);
-    }
-    navigator.clipboard.writeText(password);
-    setCopied(true);
-    toast.success("Senha copiada");
-    setTimeout(() => setCopied(false), 1500);
+    if (!gateOk()) return;
+    requestUnlock(() => {
+      setRevealed(true);
+      navigator.clipboard.writeText(password);
+      setCopied(true);
+      toast.success("Senha copiada");
+      setTimeout(() => setCopied(false), 1500);
+    });
   }
 
   return (
@@ -1561,12 +1686,12 @@ function WifiStrip({
         </span>
         <div className="flex-1 min-w-0">
           <div className="flex items-baseline gap-2">
-            <p className="text-[9px] uppercase tracking-[0.32em] text-accent font-semibold">Wi-Fi</p>
+            <p className="text-[9px] uppercase tracking-[0.32em] text-accent font-semibold">Senha do Wi-Fi</p>
             <span className="h-px flex-1 bg-gradient-to-r from-accent/40 to-transparent" />
           </div>
           <p className="text-[13px] text-foreground/90 truncate font-medium mt-0.5">{ssid || "Rede da casa"}</p>
-          <p className={`font-mono text-[13px] tracking-[0.18em] mt-0.5 truncate ${unlocked ? "text-foreground font-semibold" : "text-foreground/85"}`}>
-            {password ? (unlocked ? password : masked) : "—"}
+          <p className={`font-mono text-[13px] tracking-[0.18em] mt-0.5 truncate ${showing ? "text-foreground font-semibold" : "text-foreground/85"}`}>
+            {password ? (showing ? password : masked) : "—"}
           </p>
         </div>
         {password && (
@@ -1580,27 +1705,14 @@ function WifiStrip({
             </button>
             <button
               onClick={handleEyeClick}
-              aria-label={unlocked ? "Ocultar senha do Wi-Fi" : "Visualizar senha do Wi-Fi"}
+              aria-label={showing ? "Ocultar senha do Wi-Fi" : "Visualizar senha do Wi-Fi"}
               className="grid size-9 place-items-center rounded-full bg-accent text-accent-foreground hover:brightness-110 transition-all shadow-[0_4px_12px_-4px_oklch(var(--accent)/0.6)]"
             >
-              {unlocked ? <EyeOff className="size-4" strokeWidth={2} /> : <Eye className="size-4" strokeWidth={2} />}
+              {showing ? <EyeOff className="size-4" strokeWidth={2} /> : <Eye className="size-4" strokeWidth={2} />}
             </button>
           </div>
         )}
       </div>
-      {pinOpen && needsPin && (
-        <form onSubmit={submitPin} className="relative border-t border-border/40 px-4 py-3 flex items-center gap-2">
-          <Input
-            value={pinInput}
-            onChange={(e) => setPinInput(e.target.value)}
-            placeholder="Digite a senha de acesso"
-            autoFocus
-            maxLength={20}
-            className="h-9 flex-1"
-          />
-          <Button type="submit" size="sm" className="h-9">Liberar</Button>
-        </form>
-      )}
     </div>
   );
 }
@@ -1610,7 +1722,8 @@ function AccessCodesStrip({
   lockCode,
   gateLabel,
   lockLabel,
-  accessPin,
+  unlocked,
+  requestUnlock,
   checkinLocked,
   hasAccessRec,
   gateEnabled,
@@ -1620,19 +1733,18 @@ function AccessCodesStrip({
   lockCode: string | null;
   gateLabel: string;
   lockLabel: string;
-  accessPin: string;
+  unlocked: boolean;
+  requestUnlock: (cb?: () => void) => void;
   checkinLocked: boolean;
   hasAccessRec: boolean;
   gateEnabled: boolean;
   theme: "dark" | "light";
 }) {
-  const [pinOpen, setPinOpen] = useState(false);
-  const [pinInput, setPinInput] = useState("");
-  const [unlocked, setUnlocked] = useState(false);
-  const needsPin = !!accessPin && !unlocked;
+  const [revealed, setRevealed] = useState(false);
   const isLight = theme === "light";
   const gLabel = (gateLabel || "").trim() || "Portão";
   const lLabel = (lockLabel || "").trim() || "Fechadura";
+  const showing = unlocked && revealed;
 
   function gateOk() {
     if (gateEnabled && !hasAccessRec) {
@@ -1650,27 +1762,9 @@ function AccessCodesStrip({
   }
 
   function handleEyeClick() {
-    if (unlocked) {
-      setUnlocked(false);
-      return;
-    }
+    if (showing) { setRevealed(false); return; }
     if (!gateOk()) return;
-    if (needsPin) {
-      setPinOpen((v) => !v);
-    } else {
-      setUnlocked(true);
-    }
-  }
-
-  function submitPin(e: React.FormEvent) {
-    e.preventDefault();
-    if (pinInput.trim() === accessPin) {
-      setUnlocked(true);
-      setPinInput("");
-      setPinOpen(false);
-    } else {
-      toast.error("Senha incorreta. Confira com o anfitrião.");
-    }
+    requestUnlock(() => setRevealed(true));
   }
 
   function copyCode(code: string, label: string) {
@@ -1697,7 +1791,7 @@ function AccessCodesStrip({
             <p className="text-[9px] uppercase tracking-[0.32em] text-accent font-semibold">Códigos de acesso</p>
             <span className="h-px flex-1 bg-gradient-to-r from-accent/40 to-transparent" />
           </div>
-          {unlocked ? (
+          {showing ? (
             <div className="mt-1 space-y-1.5">
               {gateCode && (
                 <button
@@ -1737,26 +1831,60 @@ function AccessCodesStrip({
         </div>
         <button
           onClick={handleEyeClick}
-          aria-label={unlocked ? "Ocultar códigos" : "Visualizar códigos"}
+          aria-label={showing ? "Ocultar códigos" : "Visualizar códigos"}
           className="grid size-9 place-items-center rounded-full bg-accent text-accent-foreground hover:brightness-110 transition-all shadow-[0_4px_12px_-4px_oklch(var(--accent)/0.6)] shrink-0"
         >
-          {unlocked ? <EyeOff className="size-4" strokeWidth={2} /> : <Eye className="size-4" strokeWidth={2} />}
+          {showing ? <EyeOff className="size-4" strokeWidth={2} /> : <Eye className="size-4" strokeWidth={2} />}
         </button>
       </div>
-      {pinOpen && needsPin && (
-        <form onSubmit={submitPin} className="relative border-t border-border/40 px-4 py-3 flex items-center gap-2">
-          <Input
-            value={pinInput}
-            onChange={(e) => setPinInput(e.target.value)}
-            placeholder="Digite a senha de acesso"
-            autoFocus
-            maxLength={20}
-            className="h-9 flex-1"
-          />
-          <Button type="submit" size="sm" className="h-9">Liberar</Button>
-        </form>
-      )}
     </div>
+  );
+}
+
+function PinDialog({
+  open,
+  onOpenChange,
+  accessPin,
+  onSuccess,
+}: {
+  open: boolean;
+  onOpenChange: (o: boolean) => void;
+  accessPin: string;
+  onSuccess: () => void;
+}) {
+  const [value, setValue] = useState("");
+  function submit(e: React.FormEvent) {
+    e.preventDefault();
+    if (value.trim() === accessPin) {
+      setValue("");
+      onSuccess();
+    } else {
+      toast.error("Senha incorreta. Confira com o anfitrião.");
+    }
+  }
+  return (
+    <Dialog open={open} onOpenChange={(o) => { if (!o) setValue(""); onOpenChange(o); }}>
+      <DialogContent className="max-w-sm">
+        <DialogHeader>
+          <DialogTitle>Senha de acesso</DialogTitle>
+        </DialogHeader>
+        <p className="text-sm text-muted-foreground -mt-1">
+          Digite a senha fornecida pelo anfitrião para visualizar as informações sensíveis.
+        </p>
+        <form onSubmit={submit} className="flex items-center gap-2 pt-1">
+          <Input
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            placeholder="Senha"
+            autoFocus
+            type="password"
+            maxLength={32}
+            className="h-10 flex-1"
+          />
+          <Button type="submit" className="h-10">Liberar</Button>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }
 
