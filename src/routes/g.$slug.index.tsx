@@ -172,6 +172,19 @@ function Guide({ data }: { data: GuideOk }) {
     return now < opensAt || now > closesAt;
   })();
 
+  // Shared "access PIN unlock" state — once unlocked, all gated codes/Wi-Fi reveal
+  const accessPin = ((p.access_codes_pin as string | null) ?? "").trim();
+  const [unlocked, setUnlocked] = useState(false);
+  const [pinDialog, setPinDialog] = useState<{ open: boolean; cb: (() => void) | null }>({ open: false, cb: null });
+  const requestUnlock = (cb?: () => void) => {
+    if (!accessPin || unlocked) {
+      if (!unlocked) setUnlocked(true);
+      cb?.();
+      return;
+    }
+    setPinDialog({ open: true, cb: cb ?? null });
+  };
+
   // Theme: admin default, override per-visitor via localStorage
   const adminTheme: "dark" | "light" = p.guide_theme === "light" ? "light" : "dark";
   const [theme, setTheme] = useState<"dark" | "light">(() => {
