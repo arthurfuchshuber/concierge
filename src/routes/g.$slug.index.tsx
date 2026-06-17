@@ -1484,7 +1484,8 @@ function WifiStrip({
   ssid,
   password,
   theme,
-  accessPin,
+  unlocked,
+  requestUnlock,
   checkinLocked,
   hasAccessRec,
   gateEnabled,
@@ -1492,17 +1493,16 @@ function WifiStrip({
   ssid?: string | null;
   password?: string | null;
   theme: "dark" | "light";
-  accessPin: string;
+  unlocked: boolean;
+  requestUnlock: (cb?: () => void) => void;
   checkinLocked: boolean;
   hasAccessRec: boolean;
   gateEnabled: boolean;
 }) {
-  const [pinOpen, setPinOpen] = useState(false);
-  const [pinInput, setPinInput] = useState("");
-  const [unlocked, setUnlocked] = useState(false);
+  const [revealed, setRevealed] = useState(false);
   const [copied, setCopied] = useState(false);
-  const needsPin = !!accessPin && !unlocked;
   const isLight = theme === "light";
+  const showing = unlocked && revealed;
   const masked = password ? "•".repeat(Math.min(password.length, 12)) : "—";
 
   function gateOk() {
@@ -1522,43 +1522,21 @@ function WifiStrip({
   }
 
   function handleEyeClick() {
-    if (unlocked) {
-      setUnlocked(false);
-      return;
-    }
+    if (showing) { setRevealed(false); return; }
     if (!gateOk()) return;
-    if (needsPin) {
-      setPinOpen((v) => !v);
-    } else {
-      setUnlocked(true);
-    }
-  }
-
-  function submitPin(e: React.FormEvent) {
-    e.preventDefault();
-    if (pinInput.trim() === accessPin) {
-      setUnlocked(true);
-      setPinInput("");
-      setPinOpen(false);
-    } else {
-      toast.error("Senha incorreta. Confira com o anfitrião.");
-    }
+    requestUnlock(() => setRevealed(true));
   }
 
   function copyPwd() {
     if (!password) return;
-    if (!unlocked) {
-      if (!gateOk()) return;
-      if (needsPin) {
-        setPinOpen(true);
-        return;
-      }
-      setUnlocked(true);
-    }
-    navigator.clipboard.writeText(password);
-    setCopied(true);
-    toast.success("Senha copiada");
-    setTimeout(() => setCopied(false), 1500);
+    if (!gateOk()) return;
+    requestUnlock(() => {
+      setRevealed(true);
+      navigator.clipboard.writeText(password);
+      setCopied(true);
+      toast.success("Senha copiada");
+      setTimeout(() => setCopied(false), 1500);
+    });
   }
 
   return (
@@ -1576,12 +1554,12 @@ function WifiStrip({
         </span>
         <div className="flex-1 min-w-0">
           <div className="flex items-baseline gap-2">
-            <p className="text-[9px] uppercase tracking-[0.32em] text-accent font-semibold">Wi-Fi</p>
+            <p className="text-[9px] uppercase tracking-[0.32em] text-accent font-semibold">Senha do Wi-Fi</p>
             <span className="h-px flex-1 bg-gradient-to-r from-accent/40 to-transparent" />
           </div>
           <p className="text-[13px] text-foreground/90 truncate font-medium mt-0.5">{ssid || "Rede da casa"}</p>
-          <p className={`font-mono text-[13px] tracking-[0.18em] mt-0.5 truncate ${unlocked ? "text-foreground font-semibold" : "text-foreground/85"}`}>
-            {password ? (unlocked ? password : masked) : "—"}
+          <p className={`font-mono text-[13px] tracking-[0.18em] mt-0.5 truncate ${showing ? "text-foreground font-semibold" : "text-foreground/85"}`}>
+            {password ? (showing ? password : masked) : "—"}
           </p>
         </div>
         {password && (
@@ -1595,27 +1573,14 @@ function WifiStrip({
             </button>
             <button
               onClick={handleEyeClick}
-              aria-label={unlocked ? "Ocultar senha do Wi-Fi" : "Visualizar senha do Wi-Fi"}
+              aria-label={showing ? "Ocultar senha do Wi-Fi" : "Visualizar senha do Wi-Fi"}
               className="grid size-9 place-items-center rounded-full bg-accent text-accent-foreground hover:brightness-110 transition-all shadow-[0_4px_12px_-4px_oklch(var(--accent)/0.6)]"
             >
-              {unlocked ? <EyeOff className="size-4" strokeWidth={2} /> : <Eye className="size-4" strokeWidth={2} />}
+              {showing ? <EyeOff className="size-4" strokeWidth={2} /> : <Eye className="size-4" strokeWidth={2} />}
             </button>
           </div>
         )}
       </div>
-      {pinOpen && needsPin && (
-        <form onSubmit={submitPin} className="relative border-t border-border/40 px-4 py-3 flex items-center gap-2">
-          <Input
-            value={pinInput}
-            onChange={(e) => setPinInput(e.target.value)}
-            placeholder="Digite a senha de acesso"
-            autoFocus
-            maxLength={20}
-            className="h-9 flex-1"
-          />
-          <Button type="submit" size="sm" className="h-9">Liberar</Button>
-        </form>
-      )}
     </div>
   );
 }
