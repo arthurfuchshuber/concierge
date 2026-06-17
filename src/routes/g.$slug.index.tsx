@@ -927,6 +927,17 @@ function Guide({ data }: { data: GuideOk }) {
         )}
       </div>
       <GuideAiChat slug={slug} propertyName={heroTitle} />
+      <PinDialog
+        open={pinDialog.open}
+        accessPin={accessPin}
+        onOpenChange={(o) => setPinDialog((s) => ({ ...s, open: o }))}
+        onSuccess={() => {
+          setUnlocked(true);
+          const cb = pinDialog.cb;
+          setPinDialog({ open: false, cb: null });
+          cb?.();
+        }}
+      />
     </div>
   );
 }
