@@ -1272,7 +1272,7 @@ function SubItem({
 }
 
 function AccessBlock({
-  kind, label, code, instructions, videoUrl, media,
+  kind, label, code, instructions, videoUrl, media, unlocked, requestUnlock, hasPin,
 }: {
   kind: "gate" | "lock";
   label?: string;
@@ -1280,12 +1280,40 @@ function AccessBlock({
   instructions?: string | null;
   videoUrl?: string | null;
   media: Array<{ url: string; type: "image" | "video" }>;
+  unlocked: boolean;
+  requestUnlock: (cb?: () => void) => void;
+  hasPin: boolean;
 }) {
   const [open, setOpen] = useState(false);
+  const [revealed, setRevealed] = useState(false);
+  const [copied, setCopied] = useState(false);
   const Icon = kind === "gate" ? KeyRound : Lock;
   const resolvedLabel = label?.trim() || (kind === "gate" ? "Portão" : "Fechadura");
-  
+
   const hasMore = !!(instructions || videoUrl || media.length > 0);
+  const showing = !hasPin || (unlocked && revealed);
+  const masked = "•".repeat(Math.max(4, Math.min(code.length, 10)));
+
+  function handleEye(e: React.MouseEvent) {
+    e.stopPropagation();
+    if (showing) { if (hasPin) setRevealed(false); return; }
+    requestUnlock(() => setRevealed(true));
+  }
+
+  function copyCode(e: React.MouseEvent) {
+    e.stopPropagation();
+    const doCopy = () => {
+      navigator.clipboard.writeText(code);
+      setCopied(true);
+      toast.success(`${resolvedLabel} copiado`);
+      setTimeout(() => setCopied(false), 1500);
+    };
+    if (!showing) {
+      requestUnlock(() => { setRevealed(true); doCopy(); });
+    } else {
+      doCopy();
+    }
+  }
 
   return (
     <div className="rounded-2xl border border-border/60 bg-background/40 overflow-hidden">
@@ -1298,7 +1326,29 @@ function AccessBlock({
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-[10.5px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">{resolvedLabel}</p>
-          <p className="font-mono text-[15px] font-semibold tracking-[0.08em] text-foreground mt-0.5 truncate">{code}</p>
+          <p className={`font-mono text-[15px] font-semibold tracking-[0.08em] mt-0.5 truncate ${showing ? "text-foreground" : "text-foreground/60"}`}>
+            {showing ? code : masked}
+          </p>
+        </div>
+        <div className="flex items-center gap-1.5 shrink-0">
+          <button
+            type="button"
+            onClick={copyCode}
+            aria-label={`Copiar ${resolvedLabel}`}
+            className="grid size-8 place-items-center rounded-full bg-secondary text-foreground hover:bg-secondary/80 transition-all"
+          >
+            {copied ? <Check className="size-3.5 text-accent" /> : <Copy className="size-3.5" />}
+          </button>
+          {hasPin && (
+            <button
+              type="button"
+              onClick={handleEye}
+              aria-label={showing ? `Ocultar ${resolvedLabel}` : `Visualizar ${resolvedLabel}`}
+              className="grid size-8 place-items-center rounded-full bg-accent text-accent-foreground hover:brightness-110 transition-all"
+            >
+              {showing ? <EyeOff className="size-3.5" strokeWidth={2} /> : <Eye className="size-3.5" strokeWidth={2} />}
+            </button>
+          )}
         </div>
         {hasMore && (
           <ChevronDown
