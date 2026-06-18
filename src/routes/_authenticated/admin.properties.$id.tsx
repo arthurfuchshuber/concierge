@@ -661,6 +661,22 @@ function PropertyEditor() {
               />
             </Field>
           </Section>
+
+          <Section
+            icon={ClipboardCheck}
+            title="Regras do espaço"
+            desc="O que os hóspedes precisam respeitar durante a estadia. Uma regra por linha — cada linha vira um item numerado no guia."
+          >
+            <Field label="Regras (opcional)" hint="Uma regra por linha. Linhas em branco são ignoradas.">
+              <Textarea
+                value={form.property.house_rules}
+                maxLength={3000}
+                rows={6}
+                onChange={(e) => update("house_rules", e.target.value)}
+                placeholder={"Não é permitido fumar dentro do imóvel.\nFestas e eventos não são permitidos.\nRespeite o silêncio das 22h às 8h."}
+              />
+            </Field>
+          </Section>
         </TabsContent>
 
         <TabsContent value="access" className="space-y-5 mt-6">
