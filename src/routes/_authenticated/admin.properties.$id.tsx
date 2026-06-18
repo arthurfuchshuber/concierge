@@ -437,6 +437,7 @@ function PropertyEditor() {
           address_note: form.property.address_note || null,
           checkin_instructions: form.property.checkin_instructions || null,
           checkout_instructions: form.property.checkout_instructions || null,
+          house_rules: form.property.house_rules || null,
           checkin_media: form.property.checkin_media,
           gate_instructions: form.property.gate_code ? (form.property.gate_instructions || null) : null,
           gate_media: form.property.gate_code ? form.property.gate_media : [],
