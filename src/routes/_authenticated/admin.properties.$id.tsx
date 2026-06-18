@@ -79,6 +79,7 @@ type FormState = {
     address_note: string;
     checkin_instructions: string;
     checkout_instructions: string;
+    house_rules: string;
     checkin_media: MediaItem[];
     gate_instructions: string;
     gate_media: MediaItem[];
