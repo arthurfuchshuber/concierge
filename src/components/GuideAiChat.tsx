@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import { MessageCircle, Send, X, Loader2, Sparkles } from "lucide-react";
+import { MessageCircle, Send, X, Loader2, Headset } from "lucide-react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 type Msg = { role: "user" | "assistant"; content: string };
 
