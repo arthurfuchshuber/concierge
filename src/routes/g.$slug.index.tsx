@@ -609,6 +609,20 @@ function Guide({ data }: { data: GuideOk }) {
                       </SubItem>
                     )}
 
+                    {(p as Record<string, unknown>).house_rules ? (
+                      <SubItem
+                        icon={<ListChecks className="size-[18px]" strokeWidth={1.6} />}
+                        label="Regras do espaço"
+                        hint="O que respeitar durante a estadia"
+                      >
+                        <div className="rounded-2xl border border-border/60 bg-background/40 px-4 py-4">
+                          <StepList text={String((p as Record<string, unknown>).house_rules)} dense />
+                        </div>
+                      </SubItem>
+                    ) : null}
+
+
+
 
                     {hasAcesso && (() => {
                       const gateLabel = ((p.gate_label as string | null) || "Portão").trim() || "Portão";
