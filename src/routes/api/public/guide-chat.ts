@@ -46,6 +46,8 @@ function buildContext(p: Record<string, unknown>, kids: {
   if (p.checkin_time) lines.push(`Check-in a partir de: ${p.checkin_time}${p.checkin_time_max ? ` até ${p.checkin_time_max}` : ""}`);
   if (p.checkout_time) lines.push(`Check-out até: ${p.checkout_time}${p.checkout_time_min ? ` (a partir de ${p.checkout_time_min})` : ""}`);
   if (p.checkin_instructions) lines.push(`Instruções de check-in: ${p.checkin_instructions}`);
+  if (p.house_rules) lines.push(`Regras do espaço: ${p.house_rules}`);
+  if (p.checkout_instructions) lines.push(`Instruções de check-out: ${p.checkout_instructions}`);
   if (p.wifi_ssid) lines.push(`Wi-Fi rede: ${p.wifi_ssid}`);
   if (p.wifi_password) lines.push(`Wi-Fi senha: ${p.wifi_password}`);
   if (p.gate_code) lines.push(`Código do portão: ${p.gate_code}`);
