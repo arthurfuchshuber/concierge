@@ -389,7 +389,7 @@ function Guide({ data }: { data: GuideOk }) {
 
               {(() => {
                 const hasHorario = !!p.checkin_time;
-                const hasChegada = !!(p.address || p.maps_url || p.address_note || p.checkin_instructions || (Array.isArray(p.checkin_media) && p.checkin_media.length > 0));
+                const hasChegada = !!(p.address || p.maps_url || p.address_note || p.checkin_instructions || (p as Record<string, unknown>).house_rules || (Array.isArray(p.checkin_media) && p.checkin_media.length > 0));
                 const gateMedia = Array.isArray(p.gate_media) ? (p.gate_media as Array<{ url: string; type: "image" | "video" }>) : [];
                 const lockMedia = Array.isArray(p.lock_media) ? (p.lock_media as Array<{ url: string; type: "image" | "video" }>) : [];
                 const hasGateExtras = !!(p.gate_code && (p.gate_instructions || p.gate_video_url || gateMedia.length > 0));
@@ -578,7 +578,7 @@ function Guide({ data }: { data: GuideOk }) {
                       </SubItem>
                     )}
 
-                    {(p.checkin_instructions || (Array.isArray(p.checkin_media) && p.checkin_media.length > 0)) && (
+                    {(p.checkin_instructions || (p as Record<string, unknown>).house_rules || (Array.isArray(p.checkin_media) && p.checkin_media.length > 0)) && (
                       <SubItem
                         icon={<LogIn className="size-[18px]" strokeWidth={1.6} />}
                         label="Check-in"
@@ -608,6 +608,20 @@ function Guide({ data }: { data: GuideOk }) {
                         </Lockable>
                       </SubItem>
                     )}
+
+                    {(p as Record<string, unknown>).house_rules ? (
+                      <SubItem
+                        icon={<ListChecks className="size-[18px]" strokeWidth={1.6} />}
+                        label="Regras do espaço"
+                        hint="O que respeitar durante a estadia"
+                      >
+                        <div className="rounded-2xl border border-border/60 bg-background/40 px-4 py-4">
+                          <StepList text={String((p as Record<string, unknown>).house_rules)} dense />
+                        </div>
+                      </SubItem>
+                    ) : null}
+
+
 
 
                     {hasAcesso && (() => {

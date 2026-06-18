@@ -79,6 +79,7 @@ type FormState = {
     address_note: string;
     checkin_instructions: string;
     checkout_instructions: string;
+    house_rules: string;
     checkin_media: MediaItem[];
     gate_instructions: string;
     gate_media: MediaItem[];
@@ -116,7 +117,7 @@ function emptyForm(): FormState {
       marketplace_links: [],
       address: "", maps_url: "", garage_maps_url: "",
       lat: null, lng: null, city: "", country: "", checkin_time: "15:00", checkin_time_max: "", checkin_note: "", checkout_time: "11:00", checkout_time_min: "", checkout_note: "",
-      lock_code: "", lock_label: "Fechadura", gate_code: "", gate_label: "Portão", access_codes_pin: "", address_note: "", checkin_instructions: "", checkout_instructions: "", checkin_media: [], gate_instructions: "", gate_media: [], gate_video_url: "", lock_instructions: "", lock_media: [], lock_video_url: "", wifi_ssid: "", wifi_password: "",
+      lock_code: "", lock_label: "Fechadura", gate_code: "", gate_label: "Portão", access_codes_pin: "", address_note: "", checkin_instructions: "", checkout_instructions: "", house_rules: "", checkin_media: [], gate_instructions: "", gate_media: [], gate_video_url: "", lock_instructions: "", lock_media: [], lock_video_url: "", wifi_ssid: "", wifi_password: "",
       host_name: "", host_phone: "", brand_name: "", brand_logo_url: "", access_mode: "public", pin_code: "", pin_expires_at: "",
       default_language: "pt", guide_theme: "dark", published: true, require_access_gate: false,
     },
@@ -226,6 +227,7 @@ function PropertyEditor() {
         address_note: (p.address_note as string) ?? "",
         checkin_instructions: (p.checkin_instructions as string) ?? "",
         checkout_instructions: (p.checkout_instructions as string) ?? "",
+        house_rules: ((p as Record<string, unknown>).house_rules as string) ?? "",
         checkin_media: Array.isArray(p.checkin_media)
           ? (p.checkin_media as MediaItem[]).filter((m) => m && typeof m.url === "string").slice(0, 8)
           : [],
@@ -435,6 +437,7 @@ function PropertyEditor() {
           address_note: form.property.address_note || null,
           checkin_instructions: form.property.checkin_instructions || null,
           checkout_instructions: form.property.checkout_instructions || null,
+          house_rules: form.property.house_rules || null,
           checkin_media: form.property.checkin_media,
           gate_instructions: form.property.gate_code ? (form.property.gate_instructions || null) : null,
           gate_media: form.property.gate_code ? form.property.gate_media : [],
@@ -655,6 +658,22 @@ function PropertyEditor() {
                 rows={6}
                 onChange={(e) => update("checkout_instructions", e.target.value)}
                 placeholder={"Deixe as chaves sobre a mesa de jantar.\nFeche todas as janelas.\nTranque a porta principal ao sair."}
+              />
+            </Field>
+          </Section>
+
+          <Section
+            icon={ClipboardCheck}
+            title="Regras do espaço"
+            desc="O que os hóspedes precisam respeitar durante a estadia. Uma regra por linha — cada linha vira um item numerado no guia."
+          >
+            <Field label="Regras (opcional)" hint="Uma regra por linha. Linhas em branco são ignoradas.">
+              <Textarea
+                value={form.property.house_rules}
+                maxLength={3000}
+                rows={6}
+                onChange={(e) => update("house_rules", e.target.value)}
+                placeholder={"Não é permitido fumar dentro do imóvel.\nFestas e eventos não são permitidos.\nRespeite o silêncio das 22h às 8h."}
               />
             </Field>
           </Section>

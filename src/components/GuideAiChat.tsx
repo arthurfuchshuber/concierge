@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import { MessageCircle, Send, X, Loader2, Sparkles } from "lucide-react";
+import { MessageCircle, Send, X, Loader2, Headset } from "lucide-react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 type Msg = { role: "user" | "assistant"; content: string };
 
@@ -121,7 +123,7 @@ export function GuideAiChat({ slug, propertyName }: { slug: string; propertyName
           title="Pergunte à IA"
           className="fixed bottom-5 right-5 z-40 grid size-14 place-items-center rounded-full bg-accent text-accent-foreground shadow-[0_12px_36px_-12px_oklch(from_var(--accent)_l_c_h/0.7)] hover:brightness-110 active:scale-95 transition-all"
         >
-          <Sparkles className="size-6" strokeWidth={2} />
+          <Headset className="size-6" strokeWidth={2} />
         </button>
       )}
 
@@ -131,7 +133,7 @@ export function GuideAiChat({ slug, propertyName }: { slug: string; propertyName
           <div className="relative px-4 py-3 border-b border-border bg-gradient-to-br from-accent/10 to-transparent">
             <div className="flex items-center gap-3">
               <div className="size-9 rounded-full bg-accent/20 text-accent grid place-items-center shrink-0">
-                <Sparkles className="size-4" strokeWidth={1.75} />
+                <Headset className="size-4" strokeWidth={1.75} />
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-[10px] uppercase tracking-[0.24em] text-accent font-semibold">Concierge IA</p>
@@ -175,15 +177,24 @@ export function GuideAiChat({ slug, propertyName }: { slug: string; propertyName
             )}
             {messages.map((m, i) => (
               <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
-                <div
-                  className={
-                    m.role === "user"
-                      ? "max-w-[85%] rounded-2xl rounded-tr-md bg-foreground text-background px-3.5 py-2.5 text-[13.5px] leading-relaxed whitespace-pre-line"
-                      : "max-w-[88%] text-[13.5px] leading-relaxed whitespace-pre-line text-foreground/90"
-                  }
-                >
-                  {m.content}
-                </div>
+                {m.role === "user" ? (
+                  <div className="max-w-[85%] rounded-2xl rounded-tr-md bg-foreground text-background px-3.5 py-2.5 text-[13.5px] leading-relaxed whitespace-pre-line">
+                    {m.content}
+                  </div>
+                ) : (
+                  <div className="max-w-[88%] text-[13.5px] leading-relaxed text-foreground/90 prose prose-sm prose-invert max-w-none [&_p]:my-1 [&_p]:leading-relaxed [&_strong]:font-semibold [&_strong]:text-foreground [&_a]:text-accent [&_a]:underline [&_a]:underline-offset-2 [&_ul]:my-1 [&_ul]:pl-4 [&_ol]:my-1 [&_ol]:pl-4 [&_li]:my-0.5">
+                    <ReactMarkdown
+                      remarkPlugins={[remarkGfm]}
+                      components={{
+                        a: ({ node, ...props }) => (
+                          <a {...props} target="_blank" rel="noopener noreferrer" />
+                        ),
+                      }}
+                    >
+                      {m.content}
+                    </ReactMarkdown>
+                  </div>
+                )}
               </div>
             ))}
             {loading && (

@@ -4,7 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { ArrowLeft, ShieldCheck, Loader2, Users } from "lucide-react";
 import { listGuideAccessLogs } from "@/lib/guide-access-admin.functions";
 
-export const Route = createFileRoute("/_authenticated/admin/properties/$id/acessos")({
+export const Route = createFileRoute("/_authenticated/admin/properties/$id_/acessos")({
   component: AccessLogsPage,
 });
 
