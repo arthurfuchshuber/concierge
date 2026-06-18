@@ -123,7 +123,7 @@ export function GuideAiChat({ slug, propertyName }: { slug: string; propertyName
           title="Pergunte à IA"
           className="fixed bottom-5 right-5 z-40 grid size-14 place-items-center rounded-full bg-accent text-accent-foreground shadow-[0_12px_36px_-12px_oklch(from_var(--accent)_l_c_h/0.7)] hover:brightness-110 active:scale-95 transition-all"
         >
-          <Sparkles className="size-6" strokeWidth={2} />
+          <Headset className="size-6" strokeWidth={2} />
         </button>
       )}
 
@@ -133,7 +133,7 @@ export function GuideAiChat({ slug, propertyName }: { slug: string; propertyName
           <div className="relative px-4 py-3 border-b border-border bg-gradient-to-br from-accent/10 to-transparent">
             <div className="flex items-center gap-3">
               <div className="size-9 rounded-full bg-accent/20 text-accent grid place-items-center shrink-0">
-                <Sparkles className="size-4" strokeWidth={1.75} />
+                <Headset className="size-4" strokeWidth={1.75} />
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-[10px] uppercase tracking-[0.24em] text-accent font-semibold">Concierge IA</p>
