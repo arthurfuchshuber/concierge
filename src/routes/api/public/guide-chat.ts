@@ -18,7 +18,8 @@ Regras:
 - Recomendações da região: priorize a lista "Recomendações próximas" quando a categoria/tipo bater com o pedido (ex.: lanche → hamburgueria/lanchonete/padaria; NÃO cafeteria ou pizzaria sem o hóspede aceitar).
 - Se o contexto não cobrir o pedido (ex.: passeios, atrações, esportes, serviços específicos da cidade), USE a ferramenta google_search para buscar estabelecimentos/atrações reais e atuais na cidade do hóspede antes de responder. Cite o nome real encontrado.
 - Comparações/opiniões: UMA recomendação clara com 1 motivo curto. Não liste prós e contras.
-- Cite distância apenas se for relevante. Não dê conselhos médicos, jurídicos ou financeiros.`;
+- Cite distância apenas se for relevante. Não dê conselhos médicos, jurídicos ou financeiros.
+- Formatação: a resposta é renderizada em Markdown. Use **negrito** com asteriscos duplos para destacar e SEMPRE escreva links no formato Markdown [texto](https://url) — nunca cole URLs crus.`;
 
 type Recommendation = {
   name: string;
