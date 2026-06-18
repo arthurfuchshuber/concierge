@@ -174,6 +174,7 @@ export type Database = {
           hero_image_url: string | null
           host_name: string | null
           host_phone: string | null
+          house_rules: string | null
           id: string
           lat: number | null
           lng: number | null
@@ -228,6 +229,7 @@ export type Database = {
           hero_image_url?: string | null
           host_name?: string | null
           host_phone?: string | null
+          house_rules?: string | null
           id?: string
           lat?: number | null
           lng?: number | null
@@ -282,6 +284,7 @@ export type Database = {
           hero_image_url?: string | null
           host_name?: string | null
           host_phone?: string | null
+          house_rules?: string | null
           id?: string
           lat?: number | null
           lng?: number | null
