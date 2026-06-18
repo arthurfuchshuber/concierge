@@ -5,7 +5,7 @@ import { useState } from "react";
 import { ArrowLeft, MessageSquare, User, Bot, Loader2 } from "lucide-react";
 import { listPropertyConversations, getConversationMessages } from "@/lib/chat-admin.functions";
 
-export const Route = createFileRoute("/_authenticated/admin/properties/$id/conversas")({
+export const Route = createFileRoute("/_authenticated/admin/properties/$id_/conversas")({
   component: ConversationsPage,
 });
 
