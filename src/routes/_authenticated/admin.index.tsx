@@ -35,6 +35,8 @@ function Dashboard() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [accessFilter, setAccessFilter] = useState<AccessFilter>("all");
+  const [planPromptOpen, setPlanPromptOpen] = useState(false);
+  const [planPromptDismissed, setPlanPromptDismissed] = useState(false);
 
   function closePreview() {
     setViewSlug(null);
