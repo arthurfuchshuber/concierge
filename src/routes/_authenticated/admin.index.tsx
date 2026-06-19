@@ -8,7 +8,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Plus, ExternalLink, Pencil, Trash2, Lock, Globe, BookOpen, PlayCircle, CreditCard, LayoutGrid, List, Link2, Check, AlertTriangle, MapPin, ChevronDown, ChevronRight, PenSquare, Search, X } from "lucide-react";
 import { toast } from "sonner";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 type StatusFilter = "all" | "published" | "draft";
 type AccessFilter = "all" | "public" | "pin";
 import { useSubscription } from "@/hooks/useSubscription";
