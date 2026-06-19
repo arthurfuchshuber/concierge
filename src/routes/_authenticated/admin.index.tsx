@@ -664,6 +664,44 @@ function Dashboard() {
           )}
         </DialogContent>
       </Dialog>
+
+      <Dialog
+        open={planPromptOpen}
+        onOpenChange={(o) => {
+          setPlanPromptOpen(o);
+          if (!o) setPlanPromptDismissed(true);
+        }}
+      >
+        <DialogContent className="p-6 sm:max-w-[420px] w-[min(92vw,420px)]">
+          <DialogTitle className="font-serif text-2xl">Escolha seu plano</DialogTitle>
+          <p className="text-sm text-muted-foreground mt-2">
+            Você ainda não tem um plano ativo. Para criar e publicar guias,
+            escolha um plano agora — você pode testar durante o período de avaliação.
+          </p>
+          <div className="mt-5 flex flex-col gap-2">
+            <Button
+              className="rounded-full w-full"
+              onClick={() => {
+                setPlanPromptOpen(false);
+                setPlanPromptDismissed(true);
+                navigate({ to: "/precos" });
+              }}
+            >
+              <CreditCard className="size-4 mr-1.5" /> Ver planos
+            </Button>
+            <button
+              type="button"
+              onClick={() => {
+                setPlanPromptOpen(false);
+                setPlanPromptDismissed(true);
+              }}
+              className="text-xs text-muted-foreground hover:text-foreground"
+            >
+              Mais tarde
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
