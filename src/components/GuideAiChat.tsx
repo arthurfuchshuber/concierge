@@ -221,7 +221,7 @@ export function GuideAiChat({ slug, propertyName }: { slug: string; propertyName
                 rows={1}
                 maxLength={2000}
                 placeholder="Pergunte alguma coisa…"
-                className="flex-1 resize-none bg-transparent text-[14px] leading-relaxed outline-none placeholder:text-muted-foreground/70 max-h-32"
+                className="flex-1 resize-none bg-transparent text-[16px] leading-relaxed outline-none placeholder:text-muted-foreground/70 max-h-32"
               />
               <button
                 type="button"
