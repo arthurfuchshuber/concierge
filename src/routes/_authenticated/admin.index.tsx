@@ -74,6 +74,13 @@ function Dashboard() {
   });
   const { info: sub } = useSubscription();
 
+  useEffect(() => {
+    if (!sub.plan && !planPromptDismissed) {
+      const t = setTimeout(() => setPlanPromptOpen(true), 400);
+      return () => clearTimeout(t);
+    }
+  }, [sub.plan, planPromptDismissed]);
+
   async function handleDelete(id: string, name: string) {
     if (!confirm(`Excluir "${name}"? Esta ação não pode ser desfeita.`)) return;
     try {
