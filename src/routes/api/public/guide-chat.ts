@@ -53,12 +53,14 @@ function buildContext(p: Record<string, unknown>, kids: {
   if (p.checkin_instructions) lines.push(`Instruções de check-in: ${p.checkin_instructions}`);
   if (p.house_rules) lines.push(`Regras do espaço: ${p.house_rules}`);
   if (p.checkout_instructions) lines.push(`Instruções de check-out: ${p.checkout_instructions}`);
+  const locked = typeof p.access_codes_pin === "string" && p.access_codes_pin.trim().length > 0;
+  const mask = (v: unknown) => (locked ? "[BLOQUEADO POR SENHA]" : v);
   if (p.wifi_ssid) lines.push(`Wi-Fi rede: ${p.wifi_ssid}`);
-  if (p.wifi_password) lines.push(`Wi-Fi senha: ${p.wifi_password}`);
-  if (p.gate_code) lines.push(`Código do portão: ${p.gate_code}`);
-  if (p.lock_code) lines.push(`Código da fechadura: ${p.lock_code}`);
+  if (p.wifi_password) lines.push(`Wi-Fi senha: ${mask(p.wifi_password)}`);
+  if (p.gate_code) lines.push(`Código do portão: ${mask(p.gate_code)}`);
+  if (p.lock_code) lines.push(`Código da fechadura: ${mask(p.lock_code)}`);
   if (p.host_name) lines.push(`Anfitrião: ${p.host_name}`);
-  if (p.host_phone) lines.push(`Telefone do anfitrião: ${p.host_phone}`);
+  if (p.host_phone) lines.push(`Telefone do anfitrião: ${mask(p.host_phone)}`);
 
   if (kids.knowledge.length) {
     lines.push("\n## Conhecimento do anfitrião");
