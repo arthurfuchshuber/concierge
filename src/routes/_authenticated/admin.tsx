@@ -108,20 +108,22 @@ function AdminLayout() {
           )}
         </nav>
 
-        <div className="border-t border-border p-4 flex items-center gap-3">
-          <div className="size-9 rounded-full bg-accent text-accent-foreground grid place-items-center text-xs font-semibold shrink-0">
-            {initials}
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="text-sm font-medium truncate">Anfitrião</div>
-            <div className="text-[11px] text-muted-foreground truncate">{email || "—"}</div>
+        <div className="border-t border-border p-3 space-y-2">
+          <div className="flex items-center gap-3 px-2 py-1">
+            <div className="size-9 rounded-full bg-accent text-accent-foreground grid place-items-center text-xs font-semibold shrink-0">
+              {initials}
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="text-sm font-medium truncate">Anfitrião</div>
+              <div className="text-[11px] text-muted-foreground truncate">{email || "—"}</div>
+            </div>
           </div>
           <button
             onClick={signOut}
-            className="size-8 grid place-items-center rounded-lg hover:bg-secondary text-muted-foreground hover:text-foreground"
-            aria-label="Sair"
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-foreground/80 hover:bg-secondary hover:text-foreground transition-colors"
           >
-            <LogOut className="size-4" />
+            <LogOut className="size-4" strokeWidth={2} />
+            Sair / Trocar usuário
           </button>
         </div>
       </aside>
