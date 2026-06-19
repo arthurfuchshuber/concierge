@@ -128,6 +128,12 @@ export function GuideAiChat({ slug, propertyName }: { slug: string; propertyName
       )}
 
       {open && (
+        <>
+          <div
+            className="fixed inset-0 z-40 bg-black/55 backdrop-blur-sm"
+            onClick={() => setOpen(false)}
+            aria-hidden="true"
+          />
         <div className="fixed bottom-4 right-4 left-4 sm:left-auto sm:bottom-5 sm:right-5 z-50 w-auto sm:w-[360px] h-[480px] max-h-[calc(100vh-2rem)] flex flex-col bg-background rounded-2xl border border-border shadow-2xl overflow-hidden">
           {/* Header */}
           <div className="relative px-4 py-3 border-b border-border bg-gradient-to-br from-accent/10 to-transparent">
