@@ -88,7 +88,7 @@ function Nav() {
         <div className="flex items-center gap-1">
           <Link
             to="/precos"
-            className="text-xs md:text-sm font-medium px-3 py-1.5 rounded-full hover:bg-secondary transition-colors hidden sm:inline-flex"
+            className="text-xs md:text-sm font-medium px-3 py-1.5 rounded-full hover:bg-secondary transition-colors"
           >
             Planos
           </Link>
