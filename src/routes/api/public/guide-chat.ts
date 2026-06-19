@@ -60,7 +60,7 @@ function buildContext(p: Record<string, unknown>, kids: {
   if (p.gate_code) lines.push(`Código do portão: ${mask(p.gate_code)}`);
   if (p.lock_code) lines.push(`Código da fechadura: ${mask(p.lock_code)}`);
   if (p.host_name) lines.push(`Anfitrião: ${p.host_name}`);
-  if (p.host_phone) lines.push(`Telefone do anfitrião: ${mask(p.host_phone)}`);
+  if (p.host_phone) lines.push(`Telefone do anfitrião: ${p.host_phone}`);
 
   if (kids.knowledge.length) {
     lines.push("\n## Conhecimento do anfitrião");
