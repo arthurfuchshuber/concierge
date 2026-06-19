@@ -128,6 +128,12 @@ export function GuideAiChat({ slug, propertyName }: { slug: string; propertyName
       )}
 
       {open && (
+        <>
+          <div
+            className="fixed inset-0 z-40 bg-black/55 backdrop-blur-sm"
+            onClick={() => setOpen(false)}
+            aria-hidden="true"
+          />
         <div className="fixed bottom-4 right-4 left-4 sm:left-auto sm:bottom-5 sm:right-5 z-50 w-auto sm:w-[360px] h-[480px] max-h-[calc(100vh-2rem)] flex flex-col bg-background rounded-2xl border border-border shadow-2xl overflow-hidden">
           {/* Header */}
           <div className="relative px-4 py-3 border-b border-border bg-gradient-to-br from-accent/10 to-transparent">
@@ -215,7 +221,7 @@ export function GuideAiChat({ slug, propertyName }: { slug: string; propertyName
                 rows={1}
                 maxLength={2000}
                 placeholder="Pergunte alguma coisa…"
-                className="flex-1 resize-none bg-transparent text-[14px] leading-relaxed outline-none placeholder:text-muted-foreground/70 max-h-32"
+                className="flex-1 resize-none bg-transparent text-[16px] leading-relaxed outline-none placeholder:text-muted-foreground/70 max-h-32"
               />
               <button
                 type="button"
@@ -232,6 +238,7 @@ export function GuideAiChat({ slug, propertyName }: { slug: string; propertyName
             </p>
           </div>
         </div>
+        </>
       )}
     </>
   );

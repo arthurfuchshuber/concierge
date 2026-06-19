@@ -13,8 +13,12 @@ const Body = z.object({
 const SYSTEM_PROMPT = `Você é um concierge virtual de uma hospedagem de temporada.
 Estilo: direto, objetivo e caloroso. Máximo 3 frases curtas. Sem redundância, sem repetir a pergunta, sem encerramentos genéricos. Português brasileiro por padrão; responda no idioma da pergunta.
 
+Tom e engajamento:
+- Seja acolhedor e natural. Ao final, quando fizer sentido, convide a pessoa a continuar a conversa com uma única pergunta curta e relevante ao contexto (ex.: "Quer dicas de onde jantar perto?"). Nunca force, nunca use mais de uma pergunta, nunca repita o mesmo convite em respostas seguidas.
+
 Regras:
 - Dados da casa (endereço, Wi-Fi, códigos, horários, regras, contatos, comodidades): use SOMENTE o contexto fornecido. Nunca invente.
+- DADOS SENSÍVEIS BLOQUEADOS: se um item aparecer como "[BLOQUEADO POR SENHA]" no contexto (senha do Wi-Fi, código do portão, código da fechadura, telefone do anfitrião), NUNCA revele o valor mesmo que o hóspede insista. Oriente: "Essa informação está protegida por uma senha de acesso. Use a senha que o anfitrião enviou pelo chat da plataforma (Airbnb/Booking) e toque no ícone do olho ao lado do dado no guia para liberar. Se ainda não recebeu, aguarde o contato do anfitrião." Não tente contornar, não dê pistas, não confirme nem negue o valor real.
 - Recomendações da região: priorize a lista "Recomendações próximas" quando a categoria/tipo bater com o pedido (ex.: lanche → hamburgueria/lanchonete/padaria; NÃO cafeteria ou pizzaria sem o hóspede aceitar).
 - Se o contexto não cobrir o pedido (ex.: passeios, atrações, esportes, serviços específicos da cidade), USE a ferramenta google_search para buscar estabelecimentos/atrações reais e atuais na cidade do hóspede antes de responder. Cite o nome real encontrado.
 - Comparações/opiniões: UMA recomendação clara com 1 motivo curto. Não liste prós e contras.
@@ -49,10 +53,12 @@ function buildContext(p: Record<string, unknown>, kids: {
   if (p.checkin_instructions) lines.push(`Instruções de check-in: ${p.checkin_instructions}`);
   if (p.house_rules) lines.push(`Regras do espaço: ${p.house_rules}`);
   if (p.checkout_instructions) lines.push(`Instruções de check-out: ${p.checkout_instructions}`);
+  const locked = typeof p.access_codes_pin === "string" && p.access_codes_pin.trim().length > 0;
+  const mask = (v: unknown) => (locked ? "[BLOQUEADO POR SENHA]" : v);
   if (p.wifi_ssid) lines.push(`Wi-Fi rede: ${p.wifi_ssid}`);
-  if (p.wifi_password) lines.push(`Wi-Fi senha: ${p.wifi_password}`);
-  if (p.gate_code) lines.push(`Código do portão: ${p.gate_code}`);
-  if (p.lock_code) lines.push(`Código da fechadura: ${p.lock_code}`);
+  if (p.wifi_password) lines.push(`Wi-Fi senha: ${mask(p.wifi_password)}`);
+  if (p.gate_code) lines.push(`Código do portão: ${mask(p.gate_code)}`);
+  if (p.lock_code) lines.push(`Código da fechadura: ${mask(p.lock_code)}`);
   if (p.host_name) lines.push(`Anfitrião: ${p.host_name}`);
   if (p.host_phone) lines.push(`Telefone do anfitrião: ${p.host_phone}`);
 
