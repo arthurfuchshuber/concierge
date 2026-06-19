@@ -238,6 +238,7 @@ export function GuideAiChat({ slug, propertyName }: { slug: string; propertyName
             </p>
           </div>
         </div>
+        </>
       )}
     </>
   );
