@@ -112,6 +112,28 @@ function BibliotecaPage() {
     }
   }, [knowQuery.data]);
 
+  useEffect(() => {
+    if (behQuery.data) {
+      setBehavior(
+        behQuery.data.map((b) => ({ id: b.id, title: b.title, body: b.body, enabled: b.enabled })),
+      );
+    }
+  }, [behQuery.data]);
+
+  async function handleSaveBeh() {
+    const items = behavior.filter((b) => b.title.trim() && b.body.trim());
+    setSavingBeh(true);
+    try {
+      await persistBeh({ data: { items } });
+      toast.success("Comportamento da IA salvo");
+      behQuery.refetch();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erro ao salvar");
+    } finally {
+      setSavingBeh(false);
+    }
+  }
+
   async function handleSaveFaqs() {
     const items = faqs.filter((f) => f.question.trim() && f.answer.trim());
     setSavingFaqs(true);
