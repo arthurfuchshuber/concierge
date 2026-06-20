@@ -13,11 +13,11 @@ export const Route = createFileRoute("/_authenticated/admin")({
 
 const baseNav = [
   { to: "/admin", label: "Painel", icon: LayoutDashboard, exact: true },
-  { to: "/admin/engajamento", label: "Engajamento", icon: Activity, exact: false },
   { to: "/admin/biblioteca", label: "Biblioteca", icon: Library, exact: false },
   { to: "/admin/assinatura", label: "Assinatura", icon: CreditCard, exact: false },
 ] as const;
 const adminOnlyNav = [
+  { to: "/admin/engajamento", label: "Engajamento", icon: Activity, exact: false },
   { to: "/admin/clientes", label: "Clientes", icon: Users, exact: false },
   { to: "/admin/admins", label: "Administradores", icon: ShieldCheck, exact: false },
 ] as const;
