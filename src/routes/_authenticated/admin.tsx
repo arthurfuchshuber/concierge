@@ -49,6 +49,7 @@ function AdminLayout() {
   const { info: sub, isLoading: subLoading } = useSubscription();
   const allowedWithoutPlan =
     pathname.startsWith("/admin/assinatura") ||
+    pathname.startsWith("/admin/engajamento") ||
     pathname.startsWith("/admin/clientes") ||
     pathname.startsWith("/admin/admins");
   const needsPlan = !subLoading && !sub.plan && !allowedWithoutPlan && !isAdmin;
