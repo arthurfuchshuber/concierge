@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, redirect } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useMemo, useState } from "react";
@@ -16,6 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { getEngagementOverview } from "@/lib/engagement-admin.functions";
+import { checkIsAdmin } from "@/lib/admin-subs.functions";
 import { getConversationMessages } from "@/lib/chat-admin.functions";
 import {
   markMessageIneffective, unmarkMessageIneffective, listMyFeedback,
@@ -26,6 +27,15 @@ import { TeachAiDialog } from "@/components/admin/TeachAiDialog";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/admin/engajamento")({
+  beforeLoad: async () => {
+    try {
+      const res = await checkIsAdmin();
+      if (!res.isAdmin) throw redirect({ to: "/admin" });
+    } catch (e: any) {
+      if (e?.isRedirect) throw e;
+      throw redirect({ to: "/admin" });
+    }
+  },
   component: EngagementPage,
 });
 
