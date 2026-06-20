@@ -12,8 +12,13 @@ export const Route = createFileRoute("/auth")({
   head: () => ({
     meta: [
       { title: "Entrar — SigmaGuide" },
+      { name: "description", content: "Acesse sua conta SigmaGuide para criar e gerenciar guias digitais editoriais para hóspedes." },
+      { property: "og:title", content: "Entrar — SigmaGuide" },
+      { property: "og:description", content: "Login do SigmaGuide para anfitriões." },
+      { property: "og:url", content: "/auth" },
       { name: "robots", content: "noindex" },
     ],
+    links: [{ rel: "canonical", href: "/auth" }],
   }),
   component: AuthPage,
 });
