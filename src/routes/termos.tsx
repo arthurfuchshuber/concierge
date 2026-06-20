@@ -23,9 +23,12 @@ function TermsPage() {
         <p className="text-xs text-muted-foreground mt-2">Última atualização: Junho de 2026</p>
 
         <section className="mt-8 space-y-4 text-sm leading-relaxed">
-          <h2 className="font-serif text-2xl mt-6">1. O serviço</h2>
+          <h2 className="font-serif text-2xl mt-6">1. O serviço e o prestador</h2>
           <p>
-            SigmaGuide ("nós", "serviço") é um SaaS que permite a anfitriões de aluguel por temporada criar guias digitais editoriais para seus hóspedes. Ao usar o serviço, você concorda com estes Termos.
+            <strong>SigmaGuide</strong> ("nós", "serviço") é o nome legal do prestador responsável por este SaaS,
+            que permite a anfitriões de aluguel por temporada criarem guias digitais editoriais para seus hóspedes.
+            Contato: <strong>contato@sigmaguide.com</strong>. Ao usar o serviço, você concorda com estes Termos
+            e contrata diretamente com a SigmaGuide.
           </p>
 
           <h2 className="font-serif text-2xl mt-6">2. Uso aceitável</h2>
