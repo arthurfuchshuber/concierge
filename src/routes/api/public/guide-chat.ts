@@ -41,6 +41,7 @@ function buildContext(p: Record<string, unknown>, kids: {
   checkout: Array<Record<string, unknown>>;
   recommendations: Recommendation[];
   knowledge: Array<Record<string, unknown>>;
+  behavior: Array<Record<string, unknown>>;
 }) {
   const lines: string[] = [];
   lines.push(`# Hospedagem: ${p.name ?? ""}`);
