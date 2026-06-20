@@ -24,7 +24,11 @@ function PrivacyPage() {
 
         <section className="mt-8 space-y-4 text-sm leading-relaxed">
           <h2 className="font-serif text-2xl mt-6">1. Controlador de dados</h2>
-          <p>SigmaGuide atua como controlador dos dados pessoais coletados através do serviço, em conformidade com a LGPD (Lei Geral de Proteção de Dados).</p>
+          <p>
+            <strong>SigmaGuide</strong> é o nome legal do prestador responsável por este serviço e atua como
+            controlador dos dados pessoais coletados, em conformidade com a LGPD (Lei Geral de Proteção de Dados).
+            Contato: <strong>contato@sigmaguide.com</strong>.
+          </p>
 
           <h2 className="font-serif text-2xl mt-6">2. Dados que coletamos</h2>
           <ul className="list-disc pl-6 space-y-1">

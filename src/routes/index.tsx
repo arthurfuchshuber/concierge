@@ -697,23 +697,34 @@ function FinalCTA() {
 function Footer() {
   return (
     <footer className="border-t border-border px-5 py-10">
-      <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
-        <div className="flex items-center gap-2">
-          <div className="size-6 rounded-md bg-foreground grid place-items-center">
-            <Sparkles className="size-3 text-background" strokeWidth={2} />
+      <div className="max-w-6xl mx-auto flex flex-col gap-6">
+        <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-2">
+            <div className="size-6 rounded-md bg-foreground grid place-items-center">
+              <Sparkles className="size-3 text-background" strokeWidth={2} />
+            </div>
+            <span className="font-serif text-sm">SigmaGuide</span>
           </div>
-          <span className="font-serif text-sm">SigmaGuide</span>
+          <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground/70">
+            Hospedagem com afeto · MMXXVI
+          </p>
+          <div className="flex items-center gap-4 text-xs text-muted-foreground">
+            <Link to="/auth" className="hover:text-foreground transition-colors">
+              Entrar
+            </Link>
+            <Link to="/auth" className="hover:text-foreground transition-colors">
+              Começar
+            </Link>
+          </div>
         </div>
-        <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground/70">
-          Hospedagem com afeto · MMXXVI
-        </p>
-        <div className="flex items-center gap-4 text-xs text-muted-foreground">
-          <Link to="/auth" className="hover:text-foreground transition-colors">
-            Entrar
-          </Link>
-          <Link to="/auth" className="hover:text-foreground transition-colors">
-            Começar
-          </Link>
+        <div className="border-t border-border/60 pt-6 flex flex-col md:flex-row items-center justify-between gap-3 text-xs text-muted-foreground">
+          <p>© MMXXVI SigmaGuide — Todos os direitos reservados.</p>
+          <nav className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2">
+            <Link to="/precos" className="hover:text-foreground transition-colors">Preços</Link>
+            <Link to="/termos" className="hover:text-foreground transition-colors">Termos de Uso</Link>
+            <Link to="/privacidade" className="hover:text-foreground transition-colors">Privacidade</Link>
+            <Link to="/reembolso" className="hover:text-foreground transition-colors">Reembolso</Link>
+          </nav>
         </div>
       </div>
     </footer>

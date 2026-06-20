@@ -21,6 +21,9 @@ function RefundPage() {
         <Link to="/" className="text-xs text-muted-foreground hover:text-foreground">← Início</Link>
         <h1 className="font-serif text-4xl mt-6">Política de Reembolso</h1>
         <p className="text-xs text-muted-foreground mt-2">Última atualização: Junho de 2026</p>
+        <p className="text-sm mt-4">
+          Prestador: <strong>SigmaGuide</strong> — contato: <strong>contato@sigmaguide.com</strong>.
+        </p>
 
         <section className="mt-8 space-y-4 text-sm leading-relaxed">
           <h2 className="font-serif text-2xl mt-6">Garantia de 30 dias</h2>
