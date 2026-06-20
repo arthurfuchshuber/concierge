@@ -18,16 +18,26 @@ const FREE: ResolvedPlan = {
   features: { autoImport: false, ai: false, customBrand: false },
 };
 
+// Runtime env: production build → live; preview/dev → sandbox. Mirrors how
+// the frontend derives env from the Paddle client token, but is evaluated
+// server-side so sandbox subscriptions can never grant access in production.
+function getRuntimeEnv(): PaddleEnv {
+  return import.meta.env.PROD ? "live" : "sandbox";
+}
+
 // Resolves the active plan for the authenticated user using their RLS-scoped
-// supabase client. Checks both environments and returns the active one.
+// supabase client. Only honours subscriptions in the current runtime env so
+// a sandbox-signed webhook cannot unlock paid features in production.
 export async function resolveUserPlan(
   supabase: SupabaseClient,
   userId: string,
 ): Promise<ResolvedPlan> {
+  const runtimeEnv = getRuntimeEnv();
   const { data: subs } = await supabase
     .from("subscriptions")
     .select("status, product_id, current_period_end, environment, created_at")
     .eq("user_id", userId)
+    .eq("environment", runtimeEnv)
     .order("created_at", { ascending: false });
 
   const candidates = subs ?? [];
