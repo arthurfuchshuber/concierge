@@ -200,6 +200,11 @@ function BibliotecaPage() {
           </TabsTrigger>
           <TabsTrigger value="knowledge" className="gap-2">
             <BrainCircuit className="size-4" /> Conhecimento da IA
+            {aiLocked ? <AiPlanLock locked badgeOnly>x</AiPlanLock> : null}
+          </TabsTrigger>
+          <TabsTrigger value="behavior" className="gap-2">
+            <Bot className="size-4" /> Comportamento da IA
+            {aiLocked ? <AiPlanLock locked badgeOnly>x</AiPlanLock> : null}
           </TabsTrigger>
         </TabsList>
 
