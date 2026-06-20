@@ -19,27 +19,33 @@ export type Database = {
           checkin_date: string
           created_at: string
           guest_name: string
+          guest_phone: string | null
+          guest_phone_country: string | null
           id: string
           property_id: string
-          reservation_code: string
+          reservation_code: string | null
           user_agent: string | null
         }
         Insert: {
           checkin_date: string
           created_at?: string
           guest_name: string
+          guest_phone?: string | null
+          guest_phone_country?: string | null
           id?: string
           property_id: string
-          reservation_code: string
+          reservation_code?: string | null
           user_agent?: string | null
         }
         Update: {
           checkin_date?: string
           created_at?: string
           guest_name?: string
+          guest_phone?: string | null
+          guest_phone_country?: string | null
           id?: string
           property_id?: string
-          reservation_code?: string
+          reservation_code?: string | null
           user_agent?: string | null
         }
         Relationships: [
