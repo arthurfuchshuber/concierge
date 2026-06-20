@@ -1063,9 +1063,35 @@ function PropertyEditor() {
         </TabsContent>
 
         <TabsContent value="recs" className="space-y-5 mt-6">
-          <div className="rounded-xl border border-dashed border-border/70 bg-muted/30 px-4 py-3 text-xs text-muted-foreground leading-relaxed">
-            Recomendações vêm do auto-preenchimento do Google Maps. Você pode editar, remover ou adicionar manualmente.
+          <div className="rounded-xl border border-dashed border-border/70 bg-muted/30 px-4 py-3 text-xs text-muted-foreground leading-relaxed flex items-start gap-3 justify-between">
+            <span>
+              Recomendações vêm do auto-preenchimento do Google Maps. Você pode editar, remover ou adicionar manualmente.
+              <br />
+              <span className="text-foreground/80">Sincronizamos automaticamente uma vez por dia</span> (avaliação, total de reviews, horários, foto e link). Use o botão ao lado para forçar agora.
+            </span>
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              disabled={refreshingGoogle || isNew}
+              onClick={async () => {
+                if (isNew) return;
+                setRefreshingGoogle(true);
+                try {
+                  const r = await refreshGoogle({ data: { propertyId: id } });
+                  toast.success(`Atualizado ${r.updated}/${r.total} do Google${r.failed ? ` · ${r.failed} sem retorno` : ""}`);
+                } catch (e) {
+                  toast.error(e instanceof Error ? e.message : "Falha ao sincronizar");
+                } finally {
+                  setRefreshingGoogle(false);
+                }
+              }}
+            >
+              {refreshingGoogle ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}
+              <span className="ml-1.5">{refreshingGoogle ? "Sincronizando…" : "Atualizar do Google"}</span>
+            </Button>
           </div>
+
           <RecGroup
             title="Aqui pertinho"
             desc="Arredores do imóvel — a poucos minutos a pé."
