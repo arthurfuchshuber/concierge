@@ -1,9 +1,11 @@
 import { createFileRoute, Outlet, Link, useNavigate, useRouterState } from "@tanstack/react-router";
-import { Sparkles, LogOut, LayoutDashboard, CreditCard, Menu, Users, Shield, Library, ShieldCheck } from "lucide-react";
+import { Sparkles, LogOut, LayoutDashboard, CreditCard, Menu, Users, Shield, Library, ShieldCheck, Lock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
+import { useSubscription } from "@/hooks/useSubscription";
+import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute("/_authenticated/admin")({
   component: AdminLayout,
@@ -42,6 +44,13 @@ function AdminLayout() {
   }
 
   const initials = (email || "?").slice(0, 2).toUpperCase();
+
+  const { info: sub, isLoading: subLoading } = useSubscription();
+  const allowedWithoutPlan =
+    pathname.startsWith("/admin/assinatura") ||
+    pathname.startsWith("/admin/clientes") ||
+    pathname.startsWith("/admin/admins");
+  const needsPlan = !subLoading && !sub.plan && !allowedWithoutPlan && !isAdmin;
 
   return (
     <div className="min-h-screen bg-background text-foreground flex">
@@ -108,19 +117,19 @@ function AdminLayout() {
           )}
         </nav>
 
-        <div className="border-t border-border p-3 space-y-2">
+        <div className="border-t border-border p-3 space-y-2 shrink-0">
           <div className="flex items-center gap-3 px-2 py-1">
             <div className="size-9 rounded-full bg-accent text-accent-foreground grid place-items-center text-xs font-semibold shrink-0">
               {initials}
             </div>
             <div className="flex-1 min-w-0">
-              <div className="text-sm font-medium truncate">Anfitrião</div>
+              <div className="text-sm font-medium truncate">{email ? "Conectado como" : "Anfitrião"}</div>
               <div className="text-[11px] text-muted-foreground truncate">{email || "—"}</div>
             </div>
           </div>
           <button
             onClick={signOut}
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-foreground/80 hover:bg-secondary hover:text-foreground transition-colors"
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium border border-border bg-secondary/40 hover:bg-secondary transition-colors"
           >
             <LogOut className="size-4" strokeWidth={2} />
             Sair / Trocar usuário
@@ -153,7 +162,34 @@ function AdminLayout() {
           <div className="size-9" />
         </header>
 
-        <main className="flex-1"><Outlet /></main>
+        <main className="flex-1">
+          {needsPlan ? (
+            <div className="min-h-[calc(100vh-3.5rem)] lg:min-h-screen grid place-items-center px-6 py-10">
+              <div className="max-w-md w-full rounded-3xl border border-border bg-card p-8 text-center shadow-elevated">
+                <div className="size-12 rounded-2xl bg-accent/10 grid place-items-center mx-auto mb-4">
+                  <Lock className="size-5 text-accent" />
+                </div>
+                <h2 className="font-serif text-2xl mb-2">Escolha um plano para continuar</h2>
+                <p className="text-sm text-muted-foreground mb-6">
+                  Para acessar o painel você precisa selecionar um plano e cadastrar um cartão. O período de avaliação começa assim que o plano é ativado — sem cobrança durante o trial.
+                </p>
+                <div className="flex flex-col gap-2">
+                  <Button onClick={() => navigate({ to: "/precos" })} className="rounded-full w-full">
+                    <CreditCard className="size-4 mr-1.5" /> Ver planos
+                  </Button>
+                  <button
+                    onClick={signOut}
+                    className="text-xs text-muted-foreground hover:text-foreground"
+                  >
+                    Sair / trocar de conta
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <Outlet />
+          )}
+        </main>
       </div>
     </div>
   );
