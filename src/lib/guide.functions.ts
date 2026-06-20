@@ -32,7 +32,7 @@ export const getPublicGuide = createServerFn({ method: "POST" })
     // First fetch only access-control + display fields (no credentials, no pin_code).
     const { data: prop, error } = await supabaseAdmin
       .from("properties")
-      .select("id,slug,name,tagline,hero_image_url,gallery_images,theme_images,marketplace_links,address,maps_url,garage_maps_url,lat,lng,city,country,checkin_time,checkin_time_max,checkin_note,checkout_time,checkout_time_min,checkout_note,address_note,checkin_instructions,checkout_instructions,checkin_media,gate_instructions,gate_media,gate_video_url,lock_instructions,lock_media,lock_video_url,host_name,brand_name,brand_logo_url,access_mode,pin_expires_at,default_language,guide_theme,require_access_gate,published,created_at,updated_at")
+      .select("id,owner_id,slug,name,tagline,hero_image_url,gallery_images,theme_images,marketplace_links,address,maps_url,garage_maps_url,lat,lng,city,country,checkin_time,checkin_time_max,checkin_note,checkout_time,checkout_time_min,checkout_note,address_note,checkin_instructions,checkout_instructions,checkin_media,house_rules,gate_instructions,gate_media,gate_video_url,lock_instructions,lock_media,lock_video_url,host_name,brand_name,brand_logo_url,access_mode,pin_expires_at,default_language,guide_theme,require_access_gate,published,created_at,updated_at")
       .eq("slug", data.slug)
       .eq("published", true)
       .maybeSingle();
