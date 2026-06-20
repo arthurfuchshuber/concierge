@@ -791,7 +791,10 @@ export const refreshRecommendationsFromGoogle = createServerFn({ method: "POST" 
       .not("place_id", "is", null);
     if (recsErr) throw new Error("Não foi possível carregar as recomendações.");
 
-    const list = (recs ?? []).filter((r): r is RecRow => !!r.place_id);
+    const list: RecRow[] = (recs ?? [])
+      .filter((r) => !!r.place_id)
+      .map((r) => ({ id: r.id, place_id: r.place_id, property_id: r.property_id, type: r.type as string | null }));
+
     if (list.length === 0) return { updated: 0, failed: 0, total: 0 };
 
     const result = await refreshRecommendationsForProperty(
