@@ -355,93 +355,206 @@ function BibliotecaPage() {
         </TabsContent>
 
         <TabsContent value="knowledge" className="space-y-4">
-          <div className="rounded-2xl border border-border bg-card/40 p-4">
-            <p className="text-sm text-muted-foreground">
-              Blocos de contexto que sua IA usa em todos os guias. Ex: política de cancelamento,
-              forma de atendimento, regras gerais que valem para todos os imóveis.
-            </p>
-          </div>
+          <AiPlanLock locked={aiLocked}>
+            <div className="space-y-4">
+              <div className="rounded-2xl border border-border bg-card/40 p-4">
+                <p className="text-sm text-muted-foreground">
+                  Blocos de <strong>informação factual</strong> que a IA usa em todos os guias.
+                  Ex.: política de cancelamento, regras gerais, horários padrão, contatos
+                  recorrentes. Para definir <em>como</em> a IA fala, use a aba{" "}
+                  <strong>Comportamento da IA</strong>.
+                </p>
+              </div>
 
-          {knowledge.length === 0 ? (
-            <p className="text-sm text-muted-foreground py-6 text-center">
-              Nenhum bloco cadastrado ainda.
-            </p>
-          ) : (
-            <div className="space-y-3">
-              {knowledge.map((k, i) => (
-                <div key={i} className="rounded-2xl border border-border bg-card p-4 space-y-3">
-                  <div className="flex items-start gap-2">
-                    <div className="flex-1 space-y-3">
-                      <Input
-                        placeholder="Título (ex.: política de cancelamento)"
-                        value={k.title}
-                        maxLength={200}
-                        onChange={(e) =>
-                          setKnowledge((arr) =>
-                            arr.map((x, j) => (j === i ? { ...x, title: e.target.value } : x)),
-                          )
-                        }
-                      />
-                      <Textarea
-                        placeholder="Conteúdo que a IA pode usar como contexto"
-                        value={k.body}
-                        maxLength={5000}
-                        rows={5}
-                        onChange={(e) =>
-                          setKnowledge((arr) =>
-                            arr.map((x, j) => (j === i ? { ...x, body: e.target.value } : x)),
-                          )
-                        }
-                      />
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <Switch
-                            checked={k.enabled}
-                            onCheckedChange={(v) =>
+              {knowledge.length === 0 ? (
+                <p className="text-sm text-muted-foreground py-6 text-center">
+                  Nenhum bloco cadastrado ainda.
+                </p>
+              ) : (
+                <div className="space-y-3">
+                  {knowledge.map((k, i) => (
+                    <div key={i} className="rounded-2xl border border-border bg-card p-4 space-y-3">
+                      <div className="flex items-start gap-2">
+                        <div className="flex-1 space-y-3">
+                          <Input
+                            placeholder="Título (ex.: política de cancelamento)"
+                            value={k.title}
+                            maxLength={200}
+                            disabled={aiLocked}
+                            onChange={(e) =>
                               setKnowledge((arr) =>
-                                arr.map((x, j) => (j === i ? { ...x, enabled: v } : x)),
+                                arr.map((x, j) => (j === i ? { ...x, title: e.target.value } : x)),
                               )
                             }
                           />
-                          <span className="text-xs text-muted-foreground">
-                            {k.enabled ? "Ativo na IA" : "Desativado"}
-                          </span>
+                          <Textarea
+                            placeholder="Conteúdo factual que a IA pode usar como contexto"
+                            value={k.body}
+                            maxLength={5000}
+                            rows={5}
+                            disabled={aiLocked}
+                            onChange={(e) =>
+                              setKnowledge((arr) =>
+                                arr.map((x, j) => (j === i ? { ...x, body: e.target.value } : x)),
+                              )
+                            }
+                          />
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <Switch
+                                checked={k.enabled}
+                                disabled={aiLocked}
+                                onCheckedChange={(v) =>
+                                  setKnowledge((arr) =>
+                                    arr.map((x, j) => (j === i ? { ...x, enabled: v } : x)),
+                                  )
+                                }
+                              />
+                              <span className="text-xs text-muted-foreground">
+                                {k.enabled ? "Ativo na IA" : "Desativado"}
+                              </span>
+                            </div>
+                          </div>
                         </div>
+                        <button
+                          type="button"
+                          disabled={aiLocked}
+                          onClick={() => setKnowledge((arr) => arr.filter((_, j) => j !== i))}
+                          className="size-8 grid place-items-center rounded-full hover:bg-destructive/10 text-muted-foreground hover:text-destructive shrink-0 disabled:opacity-40"
+                          aria-label="Remover"
+                        >
+                          <Trash2 className="size-3.5" />
+                        </button>
                       </div>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => setKnowledge((arr) => arr.filter((_, j) => j !== i))}
-                      className="size-8 grid place-items-center rounded-full hover:bg-destructive/10 text-muted-foreground hover:text-destructive shrink-0"
-                      aria-label="Remover"
-                    >
-                      <Trash2 className="size-3.5" />
-                    </button>
-                  </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-          )}
-
-          <div className="flex items-center justify-between gap-3">
-            <Button
-              variant="outline"
-              onClick={() =>
-                setKnowledge((arr) => [...arr, { title: "", body: "", enabled: true }])
-              }
-              className="rounded-full"
-            >
-              <Plus className="size-4 mr-1.5" /> Novo bloco
-            </Button>
-            <Button onClick={handleSaveKnow} disabled={savingKnow} className="rounded-full">
-              {savingKnow ? (
-                <Loader2 className="size-4 mr-1.5 animate-spin" />
-              ) : (
-                <Save className="size-4 mr-1.5" />
               )}
-              Salvar conhecimento
-            </Button>
-          </div>
+
+              <div className="flex items-center justify-between gap-3">
+                <Button
+                  variant="outline"
+                  disabled={aiLocked}
+                  onClick={() =>
+                    setKnowledge((arr) => [...arr, { title: "", body: "", enabled: true }])
+                  }
+                  className="rounded-full"
+                >
+                  <Plus className="size-4 mr-1.5" /> Novo bloco
+                </Button>
+                <Button onClick={handleSaveKnow} disabled={savingKnow || aiLocked} className="rounded-full">
+                  {savingKnow ? (
+                    <Loader2 className="size-4 mr-1.5 animate-spin" />
+                  ) : (
+                    <Save className="size-4 mr-1.5" />
+                  )}
+                  Salvar conhecimento
+                </Button>
+              </div>
+            </div>
+          </AiPlanLock>
+        </TabsContent>
+
+        <TabsContent value="behavior" className="space-y-4">
+          <AiPlanLock locked={aiLocked}>
+            <div className="space-y-4">
+              <div className="rounded-2xl border border-border bg-card/40 p-4">
+                <p className="text-sm text-muted-foreground">
+                  Defina aqui <strong>como</strong> a IA deve se comportar: tom de voz, postura,
+                  estilo, prioridades, padrões de resposta. Esses blocos são separados das
+                  informações factuais e guiam a personalidade da assistente em todos os seus guias.
+                </p>
+                <p className="text-xs text-muted-foreground mt-2">
+                  Dica: aprendizados criados a partir de respostas marcadas como ineficazes em{" "}
+                  <em>Engajamento → Conversas</em> aparecem aqui automaticamente.
+                </p>
+              </div>
+
+              {behavior.length === 0 ? (
+                <p className="text-sm text-muted-foreground py-6 text-center">
+                  Nenhuma regra de comportamento cadastrada ainda.
+                </p>
+              ) : (
+                <div className="space-y-3">
+                  {behavior.map((b, i) => (
+                    <div key={i} className="rounded-2xl border border-border bg-card p-4 space-y-3">
+                      <div className="flex items-start gap-2">
+                        <div className="flex-1 space-y-3">
+                          <Input
+                            placeholder="Título (ex.: sempre confirme antes de recomendar)"
+                            value={b.title}
+                            maxLength={200}
+                            disabled={aiLocked}
+                            onChange={(e) =>
+                              setBehavior((arr) =>
+                                arr.map((x, j) => (j === i ? { ...x, title: e.target.value } : x)),
+                              )
+                            }
+                          />
+                          <Textarea
+                            placeholder="Como a IA deve se comportar / responder"
+                            value={b.body}
+                            maxLength={5000}
+                            rows={5}
+                            disabled={aiLocked}
+                            onChange={(e) =>
+                              setBehavior((arr) =>
+                                arr.map((x, j) => (j === i ? { ...x, body: e.target.value } : x)),
+                              )
+                            }
+                          />
+                          <div className="flex items-center gap-2">
+                            <Switch
+                              checked={b.enabled}
+                              disabled={aiLocked}
+                              onCheckedChange={(v) =>
+                                setBehavior((arr) =>
+                                  arr.map((x, j) => (j === i ? { ...x, enabled: v } : x)),
+                                )
+                              }
+                            />
+                            <span className="text-xs text-muted-foreground">
+                              {b.enabled ? "Ativa" : "Desativada"}
+                            </span>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          disabled={aiLocked}
+                          onClick={() => setBehavior((arr) => arr.filter((_, j) => j !== i))}
+                          className="size-8 grid place-items-center rounded-full hover:bg-destructive/10 text-muted-foreground hover:text-destructive shrink-0 disabled:opacity-40"
+                          aria-label="Remover"
+                        >
+                          <Trash2 className="size-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div className="flex items-center justify-between gap-3">
+                <Button
+                  variant="outline"
+                  disabled={aiLocked}
+                  onClick={() =>
+                    setBehavior((arr) => [...arr, { title: "", body: "", enabled: true }])
+                  }
+                  className="rounded-full"
+                >
+                  <Plus className="size-4 mr-1.5" /> Nova regra
+                </Button>
+                <Button onClick={handleSaveBeh} disabled={savingBeh || aiLocked} className="rounded-full">
+                  {savingBeh ? (
+                    <Loader2 className="size-4 mr-1.5 animate-spin" />
+                  ) : (
+                    <Save className="size-4 mr-1.5" />
+                  )}
+                  Salvar comportamento
+                </Button>
+              </div>
+            </div>
+          </AiPlanLock>
         </TabsContent>
       </Tabs>
 
