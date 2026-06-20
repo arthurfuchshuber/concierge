@@ -330,7 +330,7 @@ function Guide({ data }: { data: GuideOk }) {
   return (
     <div className={`sigma-public-guide guide-ambient min-h-screen bg-background text-foreground pb-16 ${theme === "light" ? "theme-light" : ""}`}>
       {needsGate && (
-        <GuideAccessGate slug={slug} propertyName={p.name as string} onUnlock={setAccessRec} />
+        <GuideAccessGate slug={slug} propertyName={p.name as string} requireReservationCode={gateEnabled} onUnlock={setAccessRec} />
       )}
       <div className="mx-auto w-full max-w-md md:max-w-none">
         {section === "home" ? (
