@@ -24,20 +24,65 @@ export const Route = createFileRoute("/g/$slug/")({
     if (r.status === "not_found") throw notFound();
     return r;
   },
-  head: ({ loaderData }) => {
+  head: ({ loaderData, params }) => {
     if (!loaderData || loaderData.status !== "ok") {
       return { meta: [{ title: "Guia — SigmaGuide" }, { name: "robots", content: "noindex" }] };
     }
     const p = loaderData.property as Record<string, unknown>;
-    const title = `${p.name as string} — Guia`;
-    const desc = (p.tagline as string) || `Guia digital de ${p.name as string}`;
+    const name = p.name as string;
+    const city = (p.city as string | null) ?? null;
+    const tagline = (p.tagline as string | null) ?? null;
+    const title = `${name} — Guia do Hóspede`;
+    const baseDesc =
+      tagline ||
+      `Guia digital de ${name}${city ? ` em ${city}` : ""}: instruções de chegada, Wi-Fi, manual da casa e recomendações selecionadas pelo anfitrião.`;
+    const desc = baseDesc.length < 60
+      ? `${baseDesc} Tudo o que você precisa para uma estadia tranquila${city ? ` em ${city}` : ""}.`
+      : baseDesc;
+    const url = `https://guiadigital.anfitriaosigma.com.br/g/${params.slug}`;
+    const address = (p.address as string | null) ?? null;
+    const ldAccommodation: Record<string, unknown> = {
+      "@context": "https://schema.org",
+      "@type": "LodgingBusiness",
+      name,
+      description: desc,
+      url,
+      ...(p.hero_image_url ? { image: p.hero_image_url as string } : {}),
+      ...(address || city
+        ? {
+            address: {
+              "@type": "PostalAddress",
+              ...(address ? { streetAddress: address } : {}),
+              ...(city ? { addressLocality: city } : {}),
+            },
+          }
+        : {}),
+      ...(p.lat != null && p.lng != null
+        ? {
+            geo: {
+              "@type": "GeoCoordinates",
+              latitude: p.lat as number,
+              longitude: p.lng as number,
+            },
+          }
+        : {}),
+    };
     return {
       meta: [
         { title },
         { name: "description", content: desc },
         { property: "og:title", content: title },
         { property: "og:description", content: desc },
+        { property: "og:type", content: "website" },
+        { property: "og:url", content: url },
         ...(p.hero_image_url ? [{ property: "og:image", content: p.hero_image_url as string }] : []),
+      ],
+      links: [{ rel: "canonical", href: url }],
+      scripts: [
+        {
+          type: "application/ld+json",
+          children: JSON.stringify(ldAccommodation),
+        },
       ],
     };
   },
