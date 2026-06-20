@@ -643,7 +643,7 @@ function Guide({ data }: { data: GuideOk }) {
                                     {m.type === "video" ? (
                                       <video src={m.url} className="size-full object-cover" controls playsInline preload="metadata" />
                                     ) : (
-                                      <img src={m.url} alt={`Check-in ${i + 1}`} className="size-full object-cover" loading="lazy" />
+                                      <img src={m.url} alt={`Instruções de check-in da hospedagem${p.name ? ` ${p.name}` : ""} — foto ${i + 1}`} className="size-full object-cover" loading="lazy" />
                                     )}
                                   </div>
                                 ))}
@@ -1445,7 +1445,7 @@ function AccessBlock({
                   {m.type === "video" ? (
                     <video src={m.url} className="size-full object-cover" controls playsInline preload="metadata" />
                   ) : (
-                    <img src={m.url} alt={`${resolvedLabel} ${i + 1}`} className="size-full object-cover" loading="lazy" />
+                    <img src={m.url} alt={`${resolvedLabel} — foto ilustrativa ${i + 1}`} className="size-full object-cover" loading="lazy" />
                   )}
                 </div>
               ))}
@@ -1931,7 +1931,12 @@ function PinDialog({
           Digite a senha fornecida pelo anfitrião para visualizar as informações sensíveis.
         </p>
         <form onSubmit={submit} className="flex items-center gap-2 pt-1">
+          <label htmlFor="guide-access-pin" className="sr-only">
+            Senha de acesso da hospedagem
+          </label>
           <Input
+            id="guide-access-pin"
+            aria-label="Senha de acesso da hospedagem"
             value={value}
             onChange={(e) => setValue(e.target.value)}
             placeholder="Senha"
@@ -1940,6 +1945,7 @@ function PinDialog({
             maxLength={32}
             className="h-10 flex-1"
           />
+
           <Button type="submit" className="h-10">Liberar</Button>
         </form>
       </DialogContent>
