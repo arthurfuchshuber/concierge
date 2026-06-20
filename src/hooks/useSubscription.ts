@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -27,6 +27,7 @@ export function useSubscription() {
   const fetchSub = useServerFn(getMySubscription);
   const qc = useQueryClient();
   const env = getPaddleEnvironment();
+  const channelId = useId().replace(/[^a-zA-Z0-9_-]/g, "");
   const [userId, setUserId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -55,7 +56,7 @@ export function useSubscription() {
   useEffect(() => {
     if (!userId) return;
     const channel = supabase
-      .channel(`subscriptions:${userId}`)
+      .channel(`subscriptions:${userId}:${channelId}`)
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "subscriptions", filter: `user_id=eq.${userId}` },
@@ -67,7 +68,7 @@ export function useSubscription() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [userId, env, qc]);
+  }, [userId, env, qc, channelId]);
 
   const data = query.data;
   const sub = data?.subscription ?? null;
