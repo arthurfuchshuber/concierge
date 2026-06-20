@@ -1000,7 +1000,7 @@ function Guide({ data }: { data: GuideOk }) {
           </Tabs>
         )}
       </div>
-      <GuideAiChat slug={slug} propertyName={heroTitle} />
+      {data.aiEnabled ? <GuideAiChat slug={slug} propertyName={heroTitle} /> : null}
       <PinDialog
         open={pinDialog.open}
         accessPin={accessPin}
