@@ -1,100 +1,69 @@
+## 1. Dashboard de Engajamento (admin/engajamento)
 
-# Plano: Gestão em massa, FAQ global, base de conhecimento e agrupamento por endereço
+Reformular a página com 3 sub-abas mantendo o filtro por hospedagem e período (7/30/90 dias, customizado):
 
-## 1. Edição em massa na visão lista
+**Visão geral (nova aba inicial)**
+- BigNumbers: Acessos totais, Hóspedes únicos, Conversas, Mensagens trocadas, Taxa de uso da IA (conversas/acessos), Respostas marcadas como ineficazes
+- Gráfico de linha: evolução diária de acessos e conversas no período
+- Gráfico de barras: top 5 hospedagens por engajamento
+- Card "Usabilidade do anfitrião": guias criados, % com IA ativa, % com FAQs preenchidas, última edição
 
-Na rota `/admin` (Painel), quando o usuário ativa a visão "lista", cada linha ganha checkbox e aparece uma barra de ações no topo: "Selecionar todos", "Limpar seleção", contador, botão **Editar selecionados**.
+**Conversas (existente, melhorada)**
+- Lista de conversas com novo indicador visual quando há mensagens marcadas como ineficazes
+- Dentro de cada conversa, **cada resposta da IA** ganha um botão "Marcar como ineficaz" e, se já marcada, um botão **"Ensinar a IA"** que abre um modal:
+  - Mostra a pergunta do hóspede + resposta original
+  - Campo "Título do aprendizado" + "Como a IA deveria responder/se comportar"
+  - Ao salvar, cria entrada na **nova base de conhecimento de comportamento** (`host_behavior`)
+- Filtro extra: "Somente com respostas ineficazes"
 
-Ao clicar em editar selecionados, abre um modal de edição em massa com abas espelhando os campos editáveis de um guia:
+**Métricas (existente)**
+- Tabela por hospedagem mantida, com colunas novas: % ineficácia, último acesso
 
-- **Chegada**: `checkin_time`, `checkin_time_max`, `address_note`, `checkin_instructions`
-- **Saída**: `checkout_time`, `checkout_time_min`, `checkout_instructions`
-- **Acesso**: `gate_code`, `gate_instructions`, `lock_code`, `lock_instructions`
-- **Wi-Fi**: `wifi_ssid`, `wifi_password`
-- **Anfitrião**: `host_name`, `host_phone`
-- **Marca**: `brand_name`, `brand_logo_url` (apenas plano Business)
-- **Tema**: `guide_theme`
+## 2. Nova base de conhecimento: Comportamento/Atuação
 
-Cada campo tem um toggle "Aplicar a todos" — só os campos marcados são enviados. Campos não marcados ficam intocados nos guias selecionados. Não inclui endereço/coordenadas/galeria/manual/recomendações/FAQs (esses são específicos de cada guia).
+Tabela nova `host_behavior` (separada de `host_knowledge`):
+- Mesma estrutura, mas usada exclusivamente para regras de **tom, persona, postura, modo de responder**
+- Nova aba na página `/admin/biblioteca` chamada **"Comportamento da IA"** — informa claramente que serve para personalidade/atuação, não para fatos
+- O prompt do chat (`/api/public/guide-chat`) passa a injetar tanto `host_knowledge` (informações) quanto `host_behavior` (atuação) em seções separadas do system prompt
+- Marcar uma resposta como ineficaz e "ensinar" cria uma entrada em `host_behavior` automaticamente, vinculada à hospedagem de origem (mas global para o anfitrião)
 
-Não inclui edição em massa de tabelas filhas (manual, FAQs, recomendações, emergências) — apenas campos diretos da tabela `properties`.
+Tabela nova `chat_message_feedback`:
+- `message_id`, `property_id`, `owner_id`, `marked_by` (admin user), `reason` (texto opcional), `resolved` (bool — vira true quando o anfitrião ensina), `behavior_id` (FK para `host_behavior` quando resolvido), timestamps
 
-## 2. FAQ global e base de conhecimento
+## 3. Gating por plano (Business/Enterprise)
 
-Nova aba no menu lateral do admin: **Biblioteca**, com duas seções:
+**No guia público (`g/$slug`)**
+- O botão flutuante de mensagem/chat só renderiza se o plano do dono for `business` ou `enterprise`
+- Loader do guia já carrega o plano do dono; passar essa flag pro componente
 
-### 2a. FAQ Global
-Perguntas/respostas reutilizáveis que o anfitrião gerencia uma vez e pode aplicar em vários guias. No editor de cada guia, na seção de FAQs, aparece um botão "Importar da biblioteca" que abre um seletor multi-seleção de FAQs globais e copia para o guia (cópia, não link — assim o usuário pode editar localmente sem afetar a global).
+**No painel admin (formulário da propriedade + biblioteca)**
+- Todos os campos relacionados à IA continuam visíveis
+- Quando o plano não cobre IA: campos ficam `disabled`, com um overlay `Lock` e **Tooltip** explicando: *"Disponível nos planos Business e Enterprise. Faça upgrade para ativar a assistente IA do seu guia."* + botão/Link "Ver planos →" para `/precos`
+- Aplica em: toggle "IA ativa" na propriedade, base de conhecimento (informações), base de comportamento, marcar ineficaz/ensinar IA na página de engajamento
 
-Cada FAQ global tem o mesmo shape do FAQ por-guia (pergunta, resposta, tags de categoria).
+## 4. Arquivos a criar/editar
 
-### 2b. Base de conhecimento da IA
-Texto livre / blocos de conhecimento que o anfitrião adiciona globalmente (ex: "sou anfitrião de imóveis em Foz do Iguaçu", "minha política de quebras é X", "minha empresa atende 24h via WhatsApp"). Cada bloco tem título + corpo (markdown simples).
+**Migrations**
+- `host_behavior` (mirror de host_knowledge) com GRANTs e RLS por owner
+- `chat_message_feedback` com GRANTs e RLS por owner
+- Política/grant ajustada
 
-O chat da IA (`/api/public/guide-chat`) passa a injetar esses blocos no system prompt além do contexto do guia atual, dando à IA conhecimento transversal do anfitrião.
+**Backend (server fns)**
+- `src/lib/host-behavior.functions.ts` — CRUD análogo a host-library
+- `src/lib/chat-feedback.functions.ts` — markIneffective, teachAi (cria host_behavior + marca resolved), listForConversation
+- `src/lib/engagement-admin.functions.ts` — adicionar séries temporais, contagens de feedback, métricas de usabilidade do anfitrião
+- `src/routes/api/public/guide-chat.ts` — injetar `host_behavior` no system prompt
+- `src/lib/guide.functions.ts` (público) — expor flag `ai_enabled_for_plan` no guia
 
-## 3. Agrupamento automático por endereço na visão lista
+**Frontend**
+- `src/routes/_authenticated/admin.engajamento.tsx` — reescrever com 3 abas + recharts (já no projeto)
+- `src/routes/_authenticated/admin.biblioteca.tsx` — adicionar aba "Comportamento da IA"
+- `src/components/admin/AiPlanLock.tsx` — wrapper com tooltip + lock
+- `src/components/admin/TeachAiDialog.tsx` — modal de ensino
+- `src/routes/g.$slug.index.tsx` — esconder botão de chat se plano não cobre IA
+- `src/routes/_authenticated/admin.properties.$id.tsx` — congelar campos de IA quando plano não cobre
 
-Na visão lista (não na de cards), guias com o mesmo endereço normalizado são agrupados sob um cabeçalho colapsável com o endereço.
-
-Critério de agrupamento: `lat`/`lng` quando ambos preenchidos (arredondados a ~10m), com fallback para `address` normalizado (lowercase + trim + colapso de espaços). Guias sem endereço ficam em um grupo "Sem endereço".
-
-Cabeçalho do grupo mostra: endereço, contador de guias, ação **Editar todos do grupo** (atalho para selecionar todos do grupo e abrir o modal de edição em massa).
-
-## Detalhes técnicos
-
-### Banco
-Migrações (tudo escopado por `owner_id`):
-
-```sql
--- FAQ global por anfitrião
-CREATE TABLE public.host_faqs (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  owner_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-  question text NOT NULL,
-  answer text NOT NULL,
-  tags text[] NOT NULL DEFAULT '{}',
-  position integer NOT NULL DEFAULT 0,
-  created_at timestamptz NOT NULL DEFAULT now(),
-  updated_at timestamptz NOT NULL DEFAULT now()
-);
-GRANT SELECT, INSERT, UPDATE, DELETE ON public.host_faqs TO authenticated;
-GRANT ALL ON public.host_faqs TO service_role;
-ALTER TABLE public.host_faqs ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "owner all" ON public.host_faqs FOR ALL
-  USING (owner_id = auth.uid()) WITH CHECK (owner_id = auth.uid());
-
--- Base de conhecimento da IA
-CREATE TABLE public.host_knowledge (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  owner_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-  title text NOT NULL,
-  body text NOT NULL,
-  enabled boolean NOT NULL DEFAULT true,
-  position integer NOT NULL DEFAULT 0,
-  created_at timestamptz NOT NULL DEFAULT now(),
-  updated_at timestamptz NOT NULL DEFAULT now()
-);
-GRANT SELECT, INSERT, UPDATE, DELETE ON public.host_knowledge TO authenticated;
-GRANT ALL ON public.host_knowledge TO service_role;
-ALTER TABLE public.host_knowledge ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "owner all" ON public.host_knowledge FOR ALL
-  USING (owner_id = auth.uid()) WITH CHECK (owner_id = auth.uid());
-```
-
-### Server functions novas (em `src/lib/properties.functions.ts` e novos arquivos)
-- `bulkUpdateProperties({ ids: string[], patch: Partial<PropertyFields> })` — RLS garante que só atualiza guias do `owner_id`.
-- `listHostFaqs` / `saveHostFaqs` (replace-all)
-- `listHostKnowledge` / `saveHostKnowledge`
-
-### Frontend
-- `src/routes/_authenticated/admin.index.tsx`: já tem toggle grid/lista — estender lista com checkboxes, barra de ações, agrupamento.
-- `src/components/BulkEditDialog.tsx`: modal com abas e toggles "aplicar".
-- `src/routes/_authenticated/admin.biblioteca.tsx`: nova rota com tabs "FAQ global" e "Base de conhecimento".
-- `src/routes/_authenticated/admin.properties.$id.tsx`: botão "Importar da biblioteca" na seção FAQ.
-- `src/routes/api/public/guide-chat.ts`: anexar `host_knowledge` enabled do owner do guia no system prompt.
-
-### Não-objetivos
-- Não substituir as FAQs por-guia (continuam existindo, a importação copia).
-- Não vincular FAQs globais aos guias por foreign key — é cópia explícita.
-- Edição em massa não toca galeria, manual, recomendações, emergências, FAQs ou checkout-list.
+## Observações
+- Recharts já está no projeto (usado em outros lugares); se não estiver, instalo
+- As entradas em `host_behavior` criadas via "Ensinar IA" recebem um `title` automático tipo *"Aprendizado: <primeiros 40 chars da pergunta>"* e o corpo informado pelo anfitrião
+- O anfitrião sempre pode editar/desativar manualmente as entradas geradas

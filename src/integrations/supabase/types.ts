@@ -14,6 +14,77 @@ export type Database = {
   }
   public: {
     Tables: {
+      chat_message_feedback: {
+        Row: {
+          behavior_id: string | null
+          conversation_id: string
+          created_at: string
+          id: string
+          marked_by: string | null
+          message_id: string
+          owner_id: string
+          property_id: string
+          reason: string | null
+          resolved: boolean
+          updated_at: string
+        }
+        Insert: {
+          behavior_id?: string | null
+          conversation_id: string
+          created_at?: string
+          id?: string
+          marked_by?: string | null
+          message_id: string
+          owner_id: string
+          property_id: string
+          reason?: string | null
+          resolved?: boolean
+          updated_at?: string
+        }
+        Update: {
+          behavior_id?: string | null
+          conversation_id?: string
+          created_at?: string
+          id?: string
+          marked_by?: string | null
+          message_id?: string
+          owner_id?: string
+          property_id?: string
+          reason?: string | null
+          resolved?: boolean
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_message_feedback_behavior_id_fkey"
+            columns: ["behavior_id"]
+            isOneToOne: false
+            referencedRelation: "host_behavior"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_message_feedback_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "property_chat_conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_message_feedback_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: true
+            referencedRelation: "property_chat_messages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_message_feedback_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       guide_access_logs: {
         Row: {
           checkin_date: string
@@ -52,6 +123,53 @@ export type Database = {
           {
             foreignKeyName: "guide_access_logs_property_id_fkey"
             columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      host_behavior: {
+        Row: {
+          body: string
+          created_at: string
+          enabled: boolean
+          id: string
+          owner_id: string
+          position: number
+          source: string
+          source_property_id: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          enabled?: boolean
+          id?: string
+          owner_id: string
+          position?: number
+          source?: string
+          source_property_id?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          enabled?: boolean
+          id?: string
+          owner_id?: string
+          position?: number
+          source?: string
+          source_property_id?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "host_behavior_source_property_id_fkey"
+            columns: ["source_property_id"]
             isOneToOne: false
             referencedRelation: "properties"
             referencedColumns: ["id"]
