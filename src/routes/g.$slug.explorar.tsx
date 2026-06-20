@@ -31,16 +31,27 @@ export const Route = createFileRoute("/g/$slug/explorar")({
     if (r.status === "not_found") throw notFound();
     return r;
   },
-  head: ({ loaderData }) => {
+  head: ({ loaderData, params }) => {
     if (!loaderData || loaderData.status !== "ok") {
       return { meta: [{ title: "Explorar — SigmaGuide" }, { name: "robots", content: "noindex" }] };
     }
     const p = loaderData.property as Record<string, unknown>;
+    const name = p.name as string;
+    const city = (p.city as string | null) ?? null;
+    const title = `Explore a região de ${name} — Guia do Hóspede`;
+    const desc = `Restaurantes, atrações, cafés e experiências selecionadas pelo anfitrião perto de ${name}${city ? ` em ${city}` : ""}. Recomendações com distância, horários e mapa.`;
+    const url = `https://guiadigital.anfitriaosigma.com.br/g/${params.slug}/explorar`;
     return {
       meta: [
-        { title: `Explorar ${p.name as string} — Guia` },
-        { name: "description", content: `Recomendações próximas a ${p.name as string}` },
+        { title },
+        { name: "description", content: desc },
+        { property: "og:title", content: title },
+        { property: "og:description", content: desc },
+        { property: "og:type", content: "website" },
+        { property: "og:url", content: url },
+        ...(p.hero_image_url ? [{ property: "og:image", content: p.hero_image_url as string }] : []),
       ],
+      links: [{ rel: "canonical", href: url }],
     };
   },
   component: ExplorePage,
