@@ -93,6 +93,12 @@ function buildContext(p: Record<string, unknown>, kids: {
       lines.push(`- ${c.label}`);
     }
   }
+  if (kids.behavior.length) {
+    lines.push("\n## Comportamento / Atuação da IA (siga estritamente)");
+    for (const b of kids.behavior) {
+      lines.push(`### ${b.title}\n${b.body}`);
+    }
+  }
   if (kids.recommendations.length) {
     lines.push("\n## Recomendações próximas");
     for (const r of kids.recommendations.slice(0, 30)) {
