@@ -22,7 +22,7 @@ export const listGuideAccessLogs = createServerFn({ method: "GET" })
 
     const { data: logs, error } = await context.supabase
       .from("guide_access_logs")
-      .select("id, guest_name, reservation_code, checkin_date, user_agent, created_at")
+      .select("id, guest_name, reservation_code, checkin_date, guest_phone, guest_phone_country, user_agent, created_at")
       .eq("property_id", data.propertyId)
       .order("created_at", { ascending: false })
       .limit(500);

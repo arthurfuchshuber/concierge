@@ -5,8 +5,10 @@ import { getRequestHeader } from "@tanstack/react-start/server";
 const AccessInput = z.object({
   slug: z.string().regex(/^[a-z0-9-]{1,64}$/),
   guest_name: z.string().trim().min(2).max(200),
-  reservation_code: z.string().trim().min(1).max(100),
+  reservation_code: z.string().trim().max(100).optional().nullable(),
   checkin_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  guest_phone: z.string().trim().max(40).optional().nullable(),
+  guest_phone_country: z.string().trim().max(4).optional().nullable(),
 });
 
 export const recordGuideAccess = createServerFn({ method: "POST" })
@@ -26,8 +28,10 @@ export const recordGuideAccess = createServerFn({ method: "POST" })
     const { error } = await supabaseAdmin.from("guide_access_logs").insert({
       property_id: prop.id,
       guest_name: data.guest_name,
-      reservation_code: data.reservation_code,
+      reservation_code: data.reservation_code?.trim() || null,
       checkin_date: data.checkin_date,
+      guest_phone: data.guest_phone?.trim() || null,
+      guest_phone_country: data.guest_phone_country?.trim() || null,
       user_agent: userAgent,
     });
     if (error) throw (await import("@/lib/db-errors.server")).safeDbError("guide_access_logs", error);

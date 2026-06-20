@@ -25,6 +25,7 @@ import { Route as GSlugIndexRouteImport } from './routes/g.$slug.index'
 import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin.index'
 import { Route as GSlugExplorarRouteImport } from './routes/g.$slug.explorar'
 import { Route as ApiPublicGuideChatRouteImport } from './routes/api/public/guide-chat'
+import { Route as AuthenticatedAdminEngajamentoRouteImport } from './routes/_authenticated/admin.engajamento'
 import { Route as AuthenticatedAdminClientesRouteImport } from './routes/_authenticated/admin.clientes'
 import { Route as AuthenticatedAdminBibliotecaRouteImport } from './routes/_authenticated/admin.biblioteca'
 import { Route as AuthenticatedAdminAssinaturaRouteImport } from './routes/_authenticated/admin.assinatura'
@@ -114,6 +115,12 @@ const ApiPublicGuideChatRoute = ApiPublicGuideChatRouteImport.update({
   path: '/api/public/guide-chat',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedAdminEngajamentoRoute =
+  AuthenticatedAdminEngajamentoRouteImport.update({
+    id: '/engajamento',
+    path: '/engajamento',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
 const AuthenticatedAdminClientesRoute =
   AuthenticatedAdminClientesRouteImport.update({
     id: '/clientes',
@@ -185,6 +192,7 @@ export interface FileRoutesByFullPath {
   '/admin/assinatura': typeof AuthenticatedAdminAssinaturaRoute
   '/admin/biblioteca': typeof AuthenticatedAdminBibliotecaRoute
   '/admin/clientes': typeof AuthenticatedAdminClientesRoute
+  '/admin/engajamento': typeof AuthenticatedAdminEngajamentoRoute
   '/api/public/guide-chat': typeof ApiPublicGuideChatRoute
   '/g/$slug/explorar': typeof GSlugExplorarRoute
   '/admin/': typeof AuthenticatedAdminIndexRoute
@@ -209,6 +217,7 @@ export interface FileRoutesByTo {
   '/admin/assinatura': typeof AuthenticatedAdminAssinaturaRoute
   '/admin/biblioteca': typeof AuthenticatedAdminBibliotecaRoute
   '/admin/clientes': typeof AuthenticatedAdminClientesRoute
+  '/admin/engajamento': typeof AuthenticatedAdminEngajamentoRoute
   '/api/public/guide-chat': typeof ApiPublicGuideChatRoute
   '/g/$slug/explorar': typeof GSlugExplorarRoute
   '/admin': typeof AuthenticatedAdminIndexRoute
@@ -237,6 +246,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/assinatura': typeof AuthenticatedAdminAssinaturaRoute
   '/_authenticated/admin/biblioteca': typeof AuthenticatedAdminBibliotecaRoute
   '/_authenticated/admin/clientes': typeof AuthenticatedAdminClientesRoute
+  '/_authenticated/admin/engajamento': typeof AuthenticatedAdminEngajamentoRoute
   '/api/public/guide-chat': typeof ApiPublicGuideChatRoute
   '/g/$slug/explorar': typeof GSlugExplorarRoute
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
@@ -265,6 +275,7 @@ export interface FileRouteTypes {
     | '/admin/assinatura'
     | '/admin/biblioteca'
     | '/admin/clientes'
+    | '/admin/engajamento'
     | '/api/public/guide-chat'
     | '/g/$slug/explorar'
     | '/admin/'
@@ -289,6 +300,7 @@ export interface FileRouteTypes {
     | '/admin/assinatura'
     | '/admin/biblioteca'
     | '/admin/clientes'
+    | '/admin/engajamento'
     | '/api/public/guide-chat'
     | '/g/$slug/explorar'
     | '/admin'
@@ -316,6 +328,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/assinatura'
     | '/_authenticated/admin/biblioteca'
     | '/_authenticated/admin/clientes'
+    | '/_authenticated/admin/engajamento'
     | '/api/public/guide-chat'
     | '/g/$slug/explorar'
     | '/_authenticated/admin/'
@@ -458,6 +471,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicGuideChatRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/admin/engajamento': {
+      id: '/_authenticated/admin/engajamento'
+      path: '/engajamento'
+      fullPath: '/admin/engajamento'
+      preLoaderRoute: typeof AuthenticatedAdminEngajamentoRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
     '/_authenticated/admin/clientes': {
       id: '/_authenticated/admin/clientes'
       path: '/clientes'
@@ -529,6 +549,7 @@ interface AuthenticatedAdminRouteChildren {
   AuthenticatedAdminAssinaturaRoute: typeof AuthenticatedAdminAssinaturaRoute
   AuthenticatedAdminBibliotecaRoute: typeof AuthenticatedAdminBibliotecaRoute
   AuthenticatedAdminClientesRoute: typeof AuthenticatedAdminClientesRoute
+  AuthenticatedAdminEngajamentoRoute: typeof AuthenticatedAdminEngajamentoRoute
   AuthenticatedAdminIndexRoute: typeof AuthenticatedAdminIndexRoute
   AuthenticatedAdminPropertiesIdRoute: typeof AuthenticatedAdminPropertiesIdRoute
   AuthenticatedAdminPropertiesIdAcessosRoute: typeof AuthenticatedAdminPropertiesIdAcessosRoute
@@ -540,6 +561,7 @@ const AuthenticatedAdminRouteChildren: AuthenticatedAdminRouteChildren = {
   AuthenticatedAdminAssinaturaRoute: AuthenticatedAdminAssinaturaRoute,
   AuthenticatedAdminBibliotecaRoute: AuthenticatedAdminBibliotecaRoute,
   AuthenticatedAdminClientesRoute: AuthenticatedAdminClientesRoute,
+  AuthenticatedAdminEngajamentoRoute: AuthenticatedAdminEngajamentoRoute,
   AuthenticatedAdminIndexRoute: AuthenticatedAdminIndexRoute,
   AuthenticatedAdminPropertiesIdRoute: AuthenticatedAdminPropertiesIdRoute,
   AuthenticatedAdminPropertiesIdAcessosRoute:

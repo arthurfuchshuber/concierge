@@ -1,5 +1,5 @@
 import { createFileRoute, Outlet, Link, useNavigate, useRouterState } from "@tanstack/react-router";
-import { Sparkles, LogOut, LayoutDashboard, CreditCard, Menu, Users, Shield, Library, ShieldCheck, Lock } from "lucide-react";
+import { Sparkles, LogOut, LayoutDashboard, CreditCard, Menu, Users, Shield, Library, ShieldCheck, Lock, Activity } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
@@ -13,6 +13,7 @@ export const Route = createFileRoute("/_authenticated/admin")({
 
 const baseNav = [
   { to: "/admin", label: "Painel", icon: LayoutDashboard, exact: true },
+  { to: "/admin/engajamento", label: "Engajamento", icon: Activity, exact: false },
   { to: "/admin/biblioteca", label: "Biblioteca", icon: Library, exact: false },
   { to: "/admin/assinatura", label: "Assinatura", icon: CreditCard, exact: false },
 ] as const;
