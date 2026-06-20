@@ -55,21 +55,29 @@ const FAQ_TAGS: { value: FaqItem["tags"][number]; label: string }[] = [
 ];
 
 function BibliotecaPage() {
+  const { info: sub } = useSubscription();
+  const aiLocked = !sub.features.ai;
+
   const loadFaqs = useServerFn(listHostFaqs);
   const persistFaqs = useServerFn(saveHostFaqs);
   const loadKnow = useServerFn(listHostKnowledge);
   const persistKnow = useServerFn(saveHostKnowledge);
+  const loadBeh = useServerFn(listHostBehavior);
+  const persistBeh = useServerFn(saveHostBehavior);
   const loadProps = useServerFn(listPropertiesBrief);
   const applyFaqs = useServerFn(applyHostFaqsToProperties);
 
   const faqQuery = useQuery({ queryKey: ["host-faqs"], queryFn: () => loadFaqs() });
   const knowQuery = useQuery({ queryKey: ["host-knowledge"], queryFn: () => loadKnow() });
+  const behQuery = useQuery({ queryKey: ["host-behavior"], queryFn: () => loadBeh() });
   const propsQuery = useQuery({ queryKey: ["host-properties-brief"], queryFn: () => loadProps() });
 
   const [faqs, setFaqs] = useState<FaqItem[]>([]);
   const [knowledge, setKnowledge] = useState<KnowledgeItem[]>([]);
+  const [behavior, setBehavior] = useState<KnowledgeItem[]>([]);
   const [savingFaqs, setSavingFaqs] = useState(false);
   const [savingKnow, setSavingKnow] = useState(false);
+  const [savingBeh, setSavingBeh] = useState(false);
   const [selectedFaqIds, setSelectedFaqIds] = useState<Set<string>>(new Set());
   const [applyOpen, setApplyOpen] = useState(false);
   const [applyTargets, setApplyTargets] = useState<Set<string>>(new Set());
