@@ -239,13 +239,24 @@ function EngagementPage() {
                   <div className="h-64 w-full">
                     <ResponsiveContainer>
                       <BarChart data={topProps}>
-                        <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
-                        <XAxis dataKey="name" fontSize={11} />
-                        <YAxis fontSize={11} allowDecimals={false} />
-                        <RTooltip />
+                        <CartesianGrid strokeDasharray="3 3" stroke="currentColor" className="text-muted-foreground/20" />
+                        <XAxis dataKey="name" fontSize={11} stroke="currentColor" className="text-muted-foreground" />
+                        <YAxis fontSize={11} allowDecimals={false} stroke="currentColor" className="text-muted-foreground" />
+                        <RTooltip
+                          cursor={{ fill: "rgba(34,211,238,0.08)" }}
+                          contentStyle={{
+                            background: "rgba(15,15,20,0.92)",
+                            border: "1px solid rgba(255,255,255,0.12)",
+                            borderRadius: 8,
+                            color: "#fff",
+                            fontSize: 12,
+                          }}
+                          labelStyle={{ color: "#fff", fontWeight: 600 }}
+                          itemStyle={{ color: "#fff" }}
+                        />
                         <Legend wrapperStyle={{ fontSize: 12 }} />
-                        <Bar dataKey="acessos" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-                        <Bar dataKey="conversas" fill="hsl(var(--accent))" radius={[4, 4, 0, 0]} />
+                        <Bar dataKey="acessos" fill="#22d3ee" radius={[4, 4, 0, 0]} />
+                        <Bar dataKey="conversas" fill="#fbbf24" radius={[4, 4, 0, 0]} />
                       </BarChart>
                     </ResponsiveContainer>
                   </div>
