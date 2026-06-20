@@ -127,7 +127,7 @@ function ClientesPage() {
           </div>
         ) : filtered.length === 0 ? (
           <div className="p-16 text-center">
-            <Users className="size-8 text-muted-foreground/40 mx-auto mb-3" />
+            <Users className="size-8 text-muted-foreground mx-auto mb-3" aria-hidden="true" />
             <p className="text-sm text-muted-foreground">Nenhum cliente encontrado.</p>
           </div>
         ) : (
