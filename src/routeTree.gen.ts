@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as TermosRouteImport } from './routes/termos'
+import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as ReembolsoRouteImport } from './routes/reembolso'
 import { Route as PrivacidadeRouteImport } from './routes/privacidade'
 import { Route as PrecosRouteImport } from './routes/precos'
@@ -35,6 +36,11 @@ import { Route as AuthenticatedAdminPropertiesIdAcessosRouteImport } from './rou
 const TermosRoute = TermosRouteImport.update({
   id: '/termos',
   path: '/termos',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
+  id: '/sitemap.xml',
+  path: '/sitemap.xml',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ReembolsoRoute = ReembolsoRouteImport.update({
@@ -157,6 +163,7 @@ export interface FileRoutesByFullPath {
   '/precos': typeof PrecosRoute
   '/privacidade': typeof PrivacidadeRoute
   '/reembolso': typeof ReembolsoRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/termos': typeof TermosRoute
   '/admin': typeof AuthenticatedAdminRouteWithChildren
   '/g/$slug': typeof GSlugRouteWithChildren
@@ -180,6 +187,7 @@ export interface FileRoutesByTo {
   '/precos': typeof PrecosRoute
   '/privacidade': typeof PrivacidadeRoute
   '/reembolso': typeof ReembolsoRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/termos': typeof TermosRoute
   '/admin/admins': typeof AuthenticatedAdminAdminsRoute
   '/admin/assinatura': typeof AuthenticatedAdminAssinaturaRoute
@@ -203,6 +211,7 @@ export interface FileRoutesById {
   '/precos': typeof PrecosRoute
   '/privacidade': typeof PrivacidadeRoute
   '/reembolso': typeof ReembolsoRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/termos': typeof TermosRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRouteWithChildren
   '/g/$slug': typeof GSlugRouteWithChildren
@@ -228,6 +237,7 @@ export interface FileRouteTypes {
     | '/precos'
     | '/privacidade'
     | '/reembolso'
+    | '/sitemap.xml'
     | '/termos'
     | '/admin'
     | '/g/$slug'
@@ -251,6 +261,7 @@ export interface FileRouteTypes {
     | '/precos'
     | '/privacidade'
     | '/reembolso'
+    | '/sitemap.xml'
     | '/termos'
     | '/admin/admins'
     | '/admin/assinatura'
@@ -273,6 +284,7 @@ export interface FileRouteTypes {
     | '/precos'
     | '/privacidade'
     | '/reembolso'
+    | '/sitemap.xml'
     | '/termos'
     | '/_authenticated/admin'
     | '/g/$slug'
@@ -298,6 +310,7 @@ export interface RootRouteChildren {
   PrecosRoute: typeof PrecosRoute
   PrivacidadeRoute: typeof PrivacidadeRoute
   ReembolsoRoute: typeof ReembolsoRoute
+  SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   TermosRoute: typeof TermosRoute
   GSlugRoute: typeof GSlugRouteWithChildren
   ApiPublicGuideChatRoute: typeof ApiPublicGuideChatRoute
@@ -311,6 +324,13 @@ declare module '@tanstack/react-router' {
       path: '/termos'
       fullPath: '/termos'
       preLoaderRoute: typeof TermosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sitemap.xml': {
+      id: '/sitemap.xml'
+      path: '/sitemap.xml'
+      fullPath: '/sitemap.xml'
+      preLoaderRoute: typeof SitemapDotxmlRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/reembolso': {
@@ -521,6 +541,7 @@ const rootRouteChildren: RootRouteChildren = {
   PrecosRoute: PrecosRoute,
   PrivacidadeRoute: PrivacidadeRoute,
   ReembolsoRoute: ReembolsoRoute,
+  SitemapDotxmlRoute: SitemapDotxmlRoute,
   TermosRoute: TermosRoute,
   GSlugRoute: GSlugRouteWithChildren,
   ApiPublicGuideChatRoute: ApiPublicGuideChatRoute,
