@@ -4,8 +4,12 @@ export const Route = createFileRoute("/termos")({
   head: () => ({
     meta: [
       { title: "Termos e Condições — SigmaGuide" },
-      { name: "description", content: "Termos e condições de uso do SigmaGuide." },
+      { name: "description", content: "Leia os termos e condições de uso do SigmaGuide: contas, pagamentos via Paddle, limites de responsabilidade e suporte." },
+      { property: "og:title", content: "Termos e Condições — SigmaGuide" },
+      { property: "og:description", content: "Termos de uso do SigmaGuide, incluindo assinatura, pagamentos via Paddle e suporte." },
+      { property: "og:url", content: "/termos" },
     ],
+    links: [{ rel: "canonical", href: "/termos" }],
   }),
   component: TermsPage,
 });
