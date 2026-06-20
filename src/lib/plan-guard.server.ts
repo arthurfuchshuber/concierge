@@ -96,3 +96,37 @@ export async function assertFeature(
     );
   }
 }
+
+/**
+ * Resolves a property owner's plan using the service role client. For use in
+ * unauthenticated public routes (guide page, public chat). Mirrors
+ * resolveUserPlan but bypasses RLS by querying through supabaseAdmin.
+ */
+export async function resolveOwnerPlanAdmin(
+  supabaseAdmin: SupabaseClient,
+  ownerId: string,
+): Promise<ResolvedPlan> {
+  const runtimeEnv = getRuntimeEnv();
+  const { data: subs } = await supabaseAdmin
+    .from("subscriptions")
+    .select("status, product_id, current_period_end, environment, created_at")
+    .eq("user_id", ownerId)
+    .eq("environment", runtimeEnv)
+    .order("created_at", { ascending: false });
+  const candidates = subs ?? [];
+  for (const sub of candidates) {
+    const status = (sub.status as string) ?? null;
+    const endIso = (sub.current_period_end as string | null) ?? null;
+    const endDate = endIso ? new Date(endIso) : null;
+    const periodValid = !endDate || endDate > new Date();
+    const isActive =
+      ((status === "active" || status === "trialing" || status === "past_due") && periodValid) ||
+      (status === "canceled" && !!endDate && endDate > new Date());
+    if (!isActive) continue;
+    const plan = planFromProductId(sub.product_id as string | null);
+    if (!plan) continue;
+    const cfg = PLANS[plan];
+    return { plan, status, maxGuides: cfg.maxGuides, features: { ...cfg.features } };
+  }
+  return FREE;
+}

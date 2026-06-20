@@ -41,6 +41,7 @@ function buildContext(p: Record<string, unknown>, kids: {
   checkout: Array<Record<string, unknown>>;
   recommendations: Recommendation[];
   knowledge: Array<Record<string, unknown>>;
+  behavior: Array<Record<string, unknown>>;
 }) {
   const lines: string[] = [];
   lines.push(`# Hospedagem: ${p.name ?? ""}`);
@@ -92,6 +93,12 @@ function buildContext(p: Record<string, unknown>, kids: {
       lines.push(`- ${c.label}`);
     }
   }
+  if (kids.behavior.length) {
+    lines.push("\n## Comportamento / Atuação da IA (siga estritamente)");
+    for (const b of kids.behavior) {
+      lines.push(`### ${b.title}\n${b.body}`);
+    }
+  }
   if (kids.recommendations.length) {
     lines.push("\n## Recomendações próximas");
     for (const r of kids.recommendations.slice(0, 30)) {
@@ -140,13 +147,24 @@ export const Route = createFileRoute("/api/public/guide-chat")({
           }
         }
 
-        const [manualR, faqsR, emergR, checkoutR, recsR, knowledgeR] = await Promise.all([
+        // Gate: AI chat is only available to Business / Enterprise plan owners.
+        const { resolveOwnerPlanAdmin } = await import("@/lib/plan-guard.server");
+        const ownerPlan = await resolveOwnerPlanAdmin(supabaseAdmin as any, (prop as any).owner_id as string);
+        if (!ownerPlan.features.ai) {
+          return new Response(
+            JSON.stringify({ error: "A assistente IA não está disponível neste guia." }),
+            { status: 403, headers: { "Content-Type": "application/json" } },
+          );
+        }
+
+        const [manualR, faqsR, emergR, checkoutR, recsR, knowledgeR, behaviorR] = await Promise.all([
           supabaseAdmin.from("property_manual_items").select("title, description, body").eq("property_id", prop.id).order("position"),
           supabaseAdmin.from("property_faqs").select("question, answer").eq("property_id", prop.id).order("position"),
           supabaseAdmin.from("property_emergency_contacts").select("label, number").eq("property_id", prop.id).order("position"),
           supabaseAdmin.from("property_checkout_items").select("label").eq("property_id", prop.id).order("position"),
           supabaseAdmin.from("property_recommendations").select("name, category, type, scope, distance_text, note").eq("property_id", prop.id).order("position"),
           supabaseAdmin.from("host_knowledge").select("title, body").eq("owner_id", prop.owner_id).eq("enabled", true).order("position"),
+          supabaseAdmin.from("host_behavior").select("title, body").eq("owner_id", prop.owner_id).eq("enabled", true).order("position"),
         ]);
 
         const systemContext = buildContext(prop as Record<string, unknown>, {
@@ -156,6 +174,7 @@ export const Route = createFileRoute("/api/public/guide-chat")({
           checkout: (checkoutR.data as Array<Record<string, unknown>>) ?? [],
           recommendations: (recsR.data as Recommendation[]) ?? [],
           knowledge: (knowledgeR.data as Array<Record<string, unknown>>) ?? [],
+          behavior: (behaviorR.data as Array<Record<string, unknown>>) ?? [],
         });
 
         // Get or create conversation

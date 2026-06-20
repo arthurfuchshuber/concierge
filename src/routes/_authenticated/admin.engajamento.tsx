@@ -2,12 +2,28 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useMemo, useState } from "react";
-import { Activity, MessageSquare, Users, BarChart3, Loader2, Bot, User as UserIcon, ExternalLink, Phone } from "lucide-react";
+import {
+  Activity, MessageSquare, Users, BarChart3, Loader2, Bot, User as UserIcon,
+  ExternalLink, Phone, Sparkles, AlertTriangle, BookOpen, Library, Home as HomeIcon,
+  ThumbsDown, RotateCcw, TrendingUp,
+} from "lucide-react";
+import {
+  LineChart, Line, BarChart, Bar, XAxis, YAxis, Tooltip as RTooltip,
+  ResponsiveContainer, CartesianGrid, Legend,
+} from "recharts";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
 import { getEngagementOverview } from "@/lib/engagement-admin.functions";
 import { getConversationMessages } from "@/lib/chat-admin.functions";
+import {
+  markMessageIneffective, unmarkMessageIneffective, listMyFeedback,
+} from "@/lib/chat-feedback.functions";
+import { useSubscription } from "@/hooks/useSubscription";
+import { AiPlanLock } from "@/components/admin/AiPlanLock";
+import { TeachAiDialog } from "@/components/admin/TeachAiDialog";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/admin/engajamento")({
   component: EngagementPage,
@@ -22,11 +38,36 @@ function fmtDate(d: string | null) {
   try { const [y, m, day] = d.split("-"); return `${day}/${m}/${y}`; } catch { return d; }
 }
 
+function BigNumber({ icon: Icon, label, value, hint }: { icon: any; label: string; value: number | string; hint?: string }) {
+  return (
+    <div className="rounded-2xl border border-border bg-card p-4 flex flex-col gap-1.5">
+      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+        <Icon className="size-3.5" /> {label}
+      </div>
+      <div className="text-2xl font-serif">{value}</div>
+      {hint ? <div className="text-[11px] text-muted-foreground">{hint}</div> : null}
+    </div>
+  );
+}
+
 function EngagementPage() {
   const fn = useServerFn(getEngagementOverview);
-  const { data, isLoading } = useQuery({ queryKey: ["admin-engagement"], queryFn: () => fn() });
+  const fbFn = useServerFn(listMyFeedback);
+  const { info: sub } = useSubscription();
+  const aiLocked = !sub.features.ai;
+
+  const { data, isLoading, refetch } = useQuery({ queryKey: ["admin-engagement"], queryFn: () => fn() });
+  const fbQuery = useQuery({ queryKey: ["admin-feedback"], queryFn: () => fbFn() });
+
   const [filterProp, setFilterProp] = useState<string>("all");
   const [search, setSearch] = useState("");
+  const [onlyIneffective, setOnlyIneffective] = useState(false);
+
+  const feedbackByMsg = useMemo(() => {
+    const m = new Map<string, { resolved: boolean; reason: string | null }>();
+    (fbQuery.data ?? []).forEach((f) => m.set(f.message_id, { resolved: !!f.resolved, reason: f.reason ?? null }));
+    return m;
+  }, [fbQuery.data]);
 
   const filteredLogs = useMemo(() => {
     if (!data) return [];
@@ -43,16 +84,23 @@ function EngagementPage() {
 
   const filteredConvs = useMemo(() => {
     if (!data) return [];
-    return data.conversations.filter((c) => {
-      if (filterProp !== "all" && c.property_id !== filterProp) return false;
-      if (search) {
-        const s = search.toLowerCase();
-        const hay = `${c.guest_name ?? ""} ${c.property_name}`.toLowerCase();
-        if (!hay.includes(s)) return false;
-      }
-      return true;
+    const propFeedback = new Map<string, number>();
+    (fbQuery.data ?? []).forEach((f) => {
+      propFeedback.set(f.conversation_id, (propFeedback.get(f.conversation_id) ?? 0) + 1);
     });
-  }, [data, filterProp, search]);
+    return data.conversations
+      .map((c) => ({ ...c, feedback_count: propFeedback.get(c.id) ?? 0 }))
+      .filter((c) => {
+        if (filterProp !== "all" && c.property_id !== filterProp) return false;
+        if (onlyIneffective && c.feedback_count === 0) return false;
+        if (search) {
+          const s = search.toLowerCase();
+          const hay = `${c.guest_name ?? ""} ${c.property_name}`.toLowerCase();
+          if (!hay.includes(s)) return false;
+        }
+        return true;
+      });
+  }, [data, fbQuery.data, filterProp, search, onlyIneffective]);
 
   if (isLoading) {
     return (
@@ -64,8 +112,24 @@ function EngagementPage() {
 
   const totalAcc = data?.metrics.reduce((a, m) => a + m.total_accesses, 0) ?? 0;
   const totalConv = data?.metrics.reduce((a, m) => a + m.total_conversations, 0) ?? 0;
+  const totalMsgs = data?.metrics.reduce((a, m) => a + (m.total_messages ?? 0), 0) ?? 0;
   const totalGuests = data?.metrics.reduce((a, m) => a + m.unique_guests, 0) ?? 0;
+  const totalFeedback = (fbQuery.data ?? []).length;
+  const unresolvedFeedback = (fbQuery.data ?? []).filter((f) => !f.resolved).length;
+  const usageRate = totalAcc > 0 ? Math.round((totalConv / totalAcc) * 100) : 0;
   const hasProps = (data?.properties.length ?? 0) > 0;
+  const usability = data?.hostUsability;
+
+  const topProps = [...(data?.metrics ?? [])]
+    .sort((a, b) => (b.total_accesses + b.total_conversations) - (a.total_accesses + a.total_conversations))
+    .slice(0, 5)
+    .map((m) => ({ name: m.property_name.length > 14 ? m.property_name.slice(0, 12) + "…" : m.property_name, acessos: m.total_accesses, conversas: m.total_conversations }));
+
+  const timeseries = (data?.timeseries ?? []).map((d) => ({
+    date: d.date.slice(5),
+    acessos: d.accesses,
+    conversas: d.conversations,
+  }));
 
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
@@ -73,106 +137,205 @@ function EngagementPage() {
         <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground font-semibold mb-2">Administração</p>
         <h1 className="font-serif text-2xl sm:text-3xl">Engajamento</h1>
         <p className="text-sm text-muted-foreground mt-2">
-          Visão consolidada de acessos, conversas e métricas de todas as suas hospedagens.
+          Dashboards, conversas e métricas consolidadas de todas as suas hospedagens.
         </p>
       </div>
 
       {!hasProps ? (
-        <div className="rounded-xl border border-border bg-surface p-8 text-center">
-          <Activity className="size-8 mx-auto text-muted-foreground mb-3" />
-          <p className="text-sm text-muted-foreground">Você ainda não tem hospedagens publicadas.</p>
+        <div className="rounded-2xl border border-border bg-card p-8 text-center">
+          <p className="text-sm text-muted-foreground">Nenhuma hospedagem cadastrada ainda.</p>
         </div>
       ) : (
         <>
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
-            <SummaryCard icon={<Activity className="size-4" />} label="Total de acessos" value={totalAcc} />
-            <SummaryCard icon={<MessageSquare className="size-4" />} label="Conversas no chat" value={totalConv} />
-            <SummaryCard icon={<Users className="size-4" />} label="Hóspedes únicos" value={totalGuests} />
-            <SummaryCard icon={<BarChart3 className="size-4" />} label="Hospedagens" value={data?.metrics.length ?? 0} />
-          </div>
-
-          <div className="flex flex-col sm:flex-row gap-3 mb-4">
+          {/* Filters */}
+          <div className="flex flex-col sm:flex-row gap-3 mb-6">
             <Select value={filterProp} onValueChange={setFilterProp}>
-              <SelectTrigger className="sm:w-64"><SelectValue placeholder="Filtrar hospedagem" /></SelectTrigger>
+              <SelectTrigger className="sm:w-72"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todas as hospedagens</SelectItem>
-                {data?.properties.map((p) => (
+                {data!.properties.map((p) => (
                   <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
-            <Input placeholder="Buscar por nome, reserva, telefone…" value={search} onChange={(e) => setSearch(e.target.value)} className="flex-1" />
+            <Input placeholder="Buscar por hóspede, código, telefone, hospedagem…" value={search} onChange={(e) => setSearch(e.target.value)} className="flex-1" />
           </div>
 
-          <Tabs defaultValue="acessos" className="w-full">
-            <TabsList className="w-full sm:w-auto">
-              <TabsTrigger value="acessos" className="flex-1 sm:flex-none"><Activity className="size-3.5 mr-1.5" />Acessos</TabsTrigger>
-              <TabsTrigger value="conversas" className="flex-1 sm:flex-none"><MessageSquare className="size-3.5 mr-1.5" />Conversas</TabsTrigger>
-              <TabsTrigger value="metricas" className="flex-1 sm:flex-none"><BarChart3 className="size-3.5 mr-1.5" />Métricas</TabsTrigger>
+          <Tabs defaultValue="overview" className="w-full">
+            <TabsList className="mb-6 flex-wrap h-auto">
+              <TabsTrigger value="overview" className="gap-2"><TrendingUp className="size-4" /> Visão geral</TabsTrigger>
+              <TabsTrigger value="access" className="gap-2"><Activity className="size-4" /> Acessos</TabsTrigger>
+              <TabsTrigger value="chat" className="gap-2">
+                <MessageSquare className="size-4" /> Conversas
+                {unresolvedFeedback > 0 ? (
+                  <span className="ml-1 inline-flex items-center gap-1 rounded-full bg-amber-500/15 text-amber-700 dark:text-amber-300 px-1.5 py-0.5 text-[10px] font-medium">
+                    <AlertTriangle className="size-3" /> {unresolvedFeedback}
+                  </span>
+                ) : null}
+              </TabsTrigger>
+              <TabsTrigger value="metrics" className="gap-2"><BarChart3 className="size-4" /> Métricas</TabsTrigger>
             </TabsList>
 
-            <TabsContent value="acessos" className="mt-4">
+            {/* OVERVIEW */}
+            <TabsContent value="overview" className="space-y-6">
+              {/* User-side big numbers */}
+              <section>
+                <h2 className="text-xs uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-2">
+                  <Users className="size-3.5" /> Usabilidade do hóspede
+                </h2>
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+                  <BigNumber icon={Activity} label="Acessos" value={totalAcc} />
+                  <BigNumber icon={Users} label="Hóspedes únicos" value={totalGuests} />
+                  <BigNumber icon={MessageSquare} label="Conversas" value={totalConv} />
+                  <BigNumber icon={Bot} label="Mensagens IA" value={totalMsgs} />
+                  <BigNumber icon={Sparkles} label="Uso da IA" value={`${usageRate}%`} hint="conversas / acessos" />
+                  <BigNumber icon={ThumbsDown} label="Ineficácia" value={totalFeedback} hint={`${unresolvedFeedback} sem ensino`} />
+                </div>
+              </section>
+
+              {/* Evolution chart */}
+              <section className="rounded-2xl border border-border bg-card p-4">
+                <h3 className="text-sm font-medium mb-3">Evolução nos últimos 30 dias</h3>
+                <div className="h-64 w-full">
+                  <ResponsiveContainer>
+                    <LineChart data={timeseries}>
+                      <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
+                      <XAxis dataKey="date" fontSize={11} tickMargin={6} />
+                      <YAxis fontSize={11} allowDecimals={false} />
+                      <RTooltip />
+                      <Legend wrapperStyle={{ fontSize: 12 }} />
+                      <Line type="monotone" dataKey="acessos" stroke="hsl(var(--primary))" strokeWidth={2} dot={false} />
+                      <Line type="monotone" dataKey="conversas" stroke="hsl(var(--accent))" strokeWidth={2} dot={false} />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              </section>
+
+              {/* Top properties */}
+              {topProps.length > 0 ? (
+                <section className="rounded-2xl border border-border bg-card p-4">
+                  <h3 className="text-sm font-medium mb-3">Top 5 hospedagens por engajamento</h3>
+                  <div className="h-64 w-full">
+                    <ResponsiveContainer>
+                      <BarChart data={topProps}>
+                        <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
+                        <XAxis dataKey="name" fontSize={11} />
+                        <YAxis fontSize={11} allowDecimals={false} />
+                        <RTooltip />
+                        <Legend wrapperStyle={{ fontSize: 12 }} />
+                        <Bar dataKey="acessos" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                        <Bar dataKey="conversas" fill="hsl(var(--accent))" radius={[4, 4, 0, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </section>
+              ) : null}
+
+              {/* Host usability */}
+              {usability ? (
+                <section>
+                  <h2 className="text-xs uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-2">
+                    <UserIcon className="size-3.5" /> Usabilidade do anfitrião
+                  </h2>
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+                    <BigNumber icon={HomeIcon} label="Guias criados" value={usability.totalGuides} />
+                    <BigNumber icon={HomeIcon} label="Publicados" value={usability.publishedGuides} />
+                    <BigNumber icon={Library} label="Com FAQs" value={`${usability.guidesWithFaqs}/${usability.totalGuides}`} />
+                    <BigNumber icon={BookOpen} label="Conhecimento IA" value={usability.guidesWithKnowledge} hint="blocos ativos" />
+                    <BigNumber icon={Bot} label="Comportamento IA" value={usability.guidesWithBehavior} hint="regras ativas" />
+                  </div>
+                  {usability.lastEditedAt ? (
+                    <p className="text-xs text-muted-foreground mt-3">Última edição: {fmt(usability.lastEditedAt)}</p>
+                  ) : null}
+                </section>
+              ) : null}
+            </TabsContent>
+
+            {/* ACCESS LOGS */}
+            <TabsContent value="access" className="space-y-3">
               {filteredLogs.length === 0 ? (
-                <EmptyState icon={<Activity className="size-8" />} text="Nenhum registro de acesso encontrado." />
+                <p className="text-sm text-muted-foreground py-10 text-center">Nenhum acesso registrado.</p>
               ) : (
-                <div className="rounded-xl border border-border bg-surface overflow-hidden">
-                  <div className="px-4 py-3 border-b border-border/60 text-xs text-muted-foreground">
-                    {filteredLogs.length} {filteredLogs.length === 1 ? "registro" : "registros"}
+                <div className="rounded-2xl border border-border overflow-hidden">
+                  <div className="hidden md:grid grid-cols-12 gap-2 px-4 py-2.5 text-[11px] uppercase tracking-wide text-muted-foreground bg-muted/40 border-b border-border">
+                    <div className="col-span-3">Hóspede</div>
+                    <div className="col-span-2">Telefone</div>
+                    <div className="col-span-2">Check-in</div>
+                    <div className="col-span-2">Reserva</div>
+                    <div className="col-span-3">Hospedagem · Quando</div>
                   </div>
-                  <div className="divide-y divide-border/60">
-                    {filteredLogs.map((l) => (
-                      <div key={l.id} className="px-4 py-3 grid grid-cols-1 sm:grid-cols-[1.3fr_1.2fr_1fr_auto] gap-2 sm:gap-4 sm:items-center">
-                        <div className="min-w-0">
-                          <div className="text-sm font-medium truncate">{l.guest_name}</div>
-                          <div className="text-[11px] text-muted-foreground truncate">{l.property_name}</div>
-                        </div>
-                        <div className="text-xs text-muted-foreground flex items-center gap-1.5 min-w-0">
-                          {l.guest_phone ? (<><Phone className="size-3 shrink-0" /><span className="truncate text-foreground">{l.guest_phone}</span></>) : <span>—</span>}
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          {l.reservation_code ? <>Reserva <span className="text-foreground">{l.reservation_code}</span> · </> : null}
-                          Check-in <span className="text-foreground">{fmtDate(l.checkin_date)}</span>
-                        </div>
-                        <div className="text-[11px] text-muted-foreground sm:text-right whitespace-nowrap">{fmt(l.created_at)}</div>
+                  {filteredLogs.map((l) => (
+                    <div key={l.id} className="grid md:grid-cols-12 gap-2 px-4 py-3 text-sm border-b border-border/60 last:border-b-0">
+                      <div className="md:col-span-3 font-medium truncate">{l.guest_name ?? "—"}</div>
+                      <div className="md:col-span-2 text-muted-foreground flex items-center gap-1 truncate">
+                        {l.guest_phone ? <><Phone className="size-3" />{l.guest_phone}</> : "—"}
                       </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </TabsContent>
-
-            <TabsContent value="conversas" className="mt-4">
-              {filteredConvs.length === 0 ? (
-                <EmptyState icon={<MessageSquare className="size-8" />} text="Nenhuma conversa encontrada." />
-              ) : (
-                <ConversationsList convs={filteredConvs} />
-              )}
-            </TabsContent>
-
-            <TabsContent value="metricas" className="mt-4">
-              <div className="rounded-xl border border-border bg-surface overflow-hidden">
-                <div className="grid grid-cols-[1.4fr_repeat(4,minmax(0,1fr))_auto] gap-3 px-4 py-3 border-b border-border/60 text-[11px] uppercase tracking-wide text-muted-foreground font-semibold">
-                  <div>Hospedagem</div>
-                  <div className="text-right">Acessos</div>
-                  <div className="text-right">Conversas</div>
-                  <div className="text-right">Hóspedes únicos</div>
-                  <div className="text-right">Último acesso</div>
-                  <div />
-                </div>
-                <div className="divide-y divide-border/60">
-                  {data?.metrics.map((m) => (
-                    <div key={m.property_id} className="grid grid-cols-[1.4fr_repeat(4,minmax(0,1fr))_auto] gap-3 px-4 py-3 items-center text-sm">
-                      <div className="font-medium truncate">{m.property_name}</div>
-                      <div className="text-right">{m.total_accesses}</div>
-                      <div className="text-right">{m.total_conversations}</div>
-                      <div className="text-right">{m.unique_guests}</div>
-                      <div className="text-right text-xs text-muted-foreground">{fmt(m.last_access)}</div>
-                      <Link to="/admin/properties/$id" params={{ id: m.property_id }} className="text-xs text-accent hover:underline inline-flex items-center gap-1">
-                        Abrir <ExternalLink className="size-3" />
-                      </Link>
+                      <div className="md:col-span-2 text-muted-foreground">{fmtDate(l.checkin_date)}</div>
+                      <div className="md:col-span-2 text-muted-foreground truncate">{l.reservation_code ?? "—"}</div>
+                      <div className="md:col-span-3 text-muted-foreground truncate">{l.property_name} · {fmt(l.created_at)}</div>
                     </div>
                   ))}
                 </div>
+              )}
+            </TabsContent>
+
+            {/* CONVERSATIONS */}
+            <TabsContent value="chat" className="space-y-4">
+              <div className="flex items-center gap-3 text-sm">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" checked={onlyIneffective} onChange={(e) => setOnlyIneffective(e.target.checked)} />
+                  Somente conversas com respostas marcadas
+                </label>
+                {aiLocked ? <AiPlanLock locked badgeOnly>x</AiPlanLock> : null}
+              </div>
+              {filteredConvs.length === 0 ? (
+                <p className="text-sm text-muted-foreground py-10 text-center">Nenhuma conversa.</p>
+              ) : (
+                <div className="grid lg:grid-cols-2 gap-4">
+                  {filteredConvs.map((c) => (
+                    <ConversationCard
+                      key={c.id}
+                      conversationId={c.id}
+                      guestName={c.guest_name}
+                      propertyName={c.property_name}
+                      lastMessageAt={c.last_message_at}
+                      feedbackCount={c.feedback_count}
+                      feedbackByMsg={feedbackByMsg}
+                      aiLocked={aiLocked}
+                      onChanged={() => { fbQuery.refetch(); refetch(); }}
+                    />
+                  ))}
+                </div>
+              )}
+            </TabsContent>
+
+            {/* METRICS */}
+            <TabsContent value="metrics" className="space-y-3">
+              <div className="rounded-2xl border border-border overflow-hidden">
+                <div className="hidden md:grid grid-cols-12 gap-2 px-4 py-2.5 text-[11px] uppercase tracking-wide text-muted-foreground bg-muted/40 border-b border-border">
+                  <div className="col-span-4">Hospedagem</div>
+                  <div className="col-span-1 text-right">Acessos</div>
+                  <div className="col-span-1 text-right">Conversas</div>
+                  <div className="col-span-1 text-right">Mensagens</div>
+                  <div className="col-span-1 text-right">Hóspedes</div>
+                  <div className="col-span-1 text-right">Ineficaz</div>
+                  <div className="col-span-3">Último acesso</div>
+                </div>
+                {data!.metrics.map((m) => (
+                  <div key={m.property_id} className="grid md:grid-cols-12 gap-2 px-4 py-3 text-sm border-b border-border/60 last:border-b-0 items-center">
+                    <div className="md:col-span-4 font-medium truncate flex items-center gap-2">
+                      <Link to="/g/$slug" params={{ slug: m.property_slug }} target="_blank" className="hover:underline truncate inline-flex items-center gap-1">
+                        {m.property_name} <ExternalLink className="size-3 opacity-60" />
+                      </Link>
+                    </div>
+                    <div className="md:col-span-1 md:text-right">{m.total_accesses}</div>
+                    <div className="md:col-span-1 md:text-right">{m.total_conversations}</div>
+                    <div className="md:col-span-1 md:text-right">{m.total_messages ?? 0}</div>
+                    <div className="md:col-span-1 md:text-right">{m.unique_guests}</div>
+                    <div className="md:col-span-1 md:text-right">{m.feedback_count ?? 0}</div>
+                    <div className="md:col-span-3 text-muted-foreground">{fmt(m.last_access)}</div>
+                  </div>
+                ))}
               </div>
             </TabsContent>
           </Tabs>
@@ -182,79 +345,129 @@ function EngagementPage() {
   );
 }
 
-function SummaryCard({ icon, label, value }: { icon: React.ReactNode; label: string; value: number }) {
-  return (
-    <div className="rounded-xl border border-border bg-surface p-4">
-      <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2">{icon}{label}</div>
-      <div className="font-serif text-2xl">{value}</div>
-    </div>
-  );
-}
-
-function EmptyState({ icon, text }: { icon: React.ReactNode; text: string }) {
-  return (
-    <div className="rounded-xl border border-border bg-surface p-8 text-center">
-      <div className="text-muted-foreground mx-auto mb-3 inline-flex">{icon}</div>
-      <p className="text-sm text-muted-foreground">{text}</p>
-    </div>
-  );
-}
-
-type Conv = { id: string; property_id: string; property_name: string; guest_name: string | null; guest_session_id: string; created_at: string; last_message_at: string };
-
-function ConversationsList({ convs }: { convs: Conv[] }) {
-  const [selected, setSelected] = useState<string | null>(null);
-  const msgsFn = useServerFn(getConversationMessages);
-  const { data: detail, isLoading } = useQuery({
-    queryKey: ["admin-conv", selected],
-    queryFn: () => msgsFn({ data: { conversationId: selected! } }),
-    enabled: !!selected,
+function ConversationCard({
+  conversationId, guestName, propertyName, lastMessageAt, feedbackCount, feedbackByMsg, aiLocked, onChanged,
+}: {
+  conversationId: string;
+  guestName: string | null;
+  propertyName: string;
+  lastMessageAt: string | null;
+  feedbackCount: number;
+  feedbackByMsg: Map<string, { resolved: boolean; reason: string | null }>;
+  aiLocked: boolean;
+  onChanged: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const loadMsgs = useServerFn(getConversationMessages);
+  const mark = useServerFn(markMessageIneffective);
+  const unmark = useServerFn(unmarkMessageIneffective);
+  const { data, isFetching, refetch } = useQuery({
+    queryKey: ["conv-msgs", conversationId],
+    queryFn: () => loadMsgs({ data: { conversationId } }),
+    enabled: open,
   });
+  const [teachOpen, setTeachOpen] = useState(false);
+  const [teachCtx, setTeachCtx] = useState<{ messageId: string; q: string; a: string } | null>(null);
+
+  async function handleMark(messageId: string) {
+    try { await mark({ data: { messageId, reason: null } }); toast.success("Resposta marcada como ineficaz."); refetch(); onChanged(); }
+    catch (e) { toast.error(e instanceof Error ? e.message : "Erro"); }
+  }
+  async function handleUnmark(messageId: string) {
+    try { await unmark({ data: { messageId } }); toast.success("Marcação removida."); refetch(); onChanged(); }
+    catch (e) { toast.error(e instanceof Error ? e.message : "Erro"); }
+  }
+
+  const msgs = data?.messages ?? [];
 
   return (
-    <div className="grid md:grid-cols-[300px_1fr] gap-4">
-      <div className="space-y-1.5 max-h-[70vh] overflow-y-auto pr-1">
-        {convs.map((c) => (
-          <button
-            key={c.id}
-            onClick={() => setSelected(c.id)}
-            className={`w-full text-left px-3 py-2.5 rounded-lg border transition-colors ${
-              selected === c.id ? "border-primary bg-primary/5" : "border-border hover:bg-secondary/60"
-            }`}
-          >
-            <div className="text-sm font-medium truncate">{c.guest_name || `Hóspede ${c.guest_session_id.slice(0, 6)}`}</div>
-            <div className="text-[11px] text-muted-foreground truncate">{c.property_name}</div>
-            <div className="text-[10px] text-muted-foreground mt-0.5">{fmt(c.last_message_at)}</div>
-          </button>
-        ))}
-      </div>
-
-      <div className="rounded-xl border border-border bg-surface p-4 sm:p-5 min-h-[300px]">
-        {!selected ? (
-          <div className="text-sm text-muted-foreground text-center py-10">Selecione uma conversa.</div>
-        ) : isLoading || !detail ? (
-          <div className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="size-4 animate-spin" /> Carregando…</div>
-        ) : (
-          <div className="space-y-3">
-            <div className="pb-3 border-b border-border/60">
-              <div className="text-sm font-medium">{detail.conversation.guest_name || `Hóspede ${detail.conversation.guest_session_id.slice(0, 6)}`}</div>
-              <div className="text-[11px] text-muted-foreground mt-0.5">Iniciada em {fmt(detail.conversation.created_at)}</div>
-            </div>
-            <div className="space-y-3 max-h-[60vh] overflow-y-auto">
-              {detail.messages.map((m) => (
-                <div key={m.id} className={`flex gap-2 ${m.role === "user" ? "justify-end" : "justify-start"}`}>
-                  {m.role !== "user" && <div className="size-7 shrink-0 rounded-full bg-primary/10 grid place-items-center"><Bot className="size-3.5 text-primary" /></div>}
-                  <div className={`max-w-[80%] rounded-2xl px-3.5 py-2 text-sm whitespace-pre-wrap ${m.role === "user" ? "bg-primary text-primary-foreground" : "bg-secondary text-foreground"}`}>
-                    {m.content}
-                    <div className={`text-[10px] mt-1 ${m.role === "user" ? "text-primary-foreground/70" : "text-muted-foreground"}`}>{fmt(m.created_at)}</div>
-                  </div>
-                  {m.role === "user" && <div className="size-7 shrink-0 rounded-full bg-accent grid place-items-center"><UserIcon className="size-3.5 text-accent-foreground" /></div>}
-                </div>
-              ))}
-            </div>
+    <div className="rounded-2xl border border-border bg-card overflow-hidden">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="w-full text-left p-4 flex items-center justify-between hover:bg-muted/30 transition"
+      >
+        <div className="min-w-0">
+          <div className="text-sm font-medium truncate flex items-center gap-2">
+            {guestName ?? "Hóspede"}
+            {feedbackCount > 0 ? (
+              <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/15 text-amber-700 dark:text-amber-300 px-1.5 py-0.5 text-[10px] font-medium">
+                <AlertTriangle className="size-3" /> {feedbackCount}
+              </span>
+            ) : null}
           </div>
-        )}
-      </div>
+          <div className="text-xs text-muted-foreground truncate">{propertyName} · {fmt(lastMessageAt)}</div>
+        </div>
+        <span className="text-xs text-muted-foreground">{open ? "Recolher" : "Abrir"}</span>
+      </button>
+
+      {open ? (
+        <div className="border-t border-border bg-background/40 p-3 space-y-3 max-h-[420px] overflow-y-auto">
+          {isFetching ? (
+            <div className="flex items-center gap-2 text-xs text-muted-foreground"><Loader2 className="size-3 animate-spin" /> Carregando…</div>
+          ) : (
+            msgs.map((m, idx) => {
+              const isAssistant = m.role === "assistant";
+              const fb = feedbackByMsg.get(m.id);
+              const prevUser = isAssistant ? [...msgs.slice(0, idx)].reverse().find((x) => x.role === "user") : null;
+              return (
+                <div key={m.id} className={`rounded-xl p-3 text-sm ${isAssistant ? "bg-muted/50 border border-border" : "bg-primary/5 border border-primary/20"}`}>
+                  <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-muted-foreground mb-1">
+                    {isAssistant ? <><Bot className="size-3" /> IA</> : <><UserIcon className="size-3" /> Hóspede</>}
+                    <span>· {fmt(m.created_at)}</span>
+                    {isAssistant && fb ? (
+                      <span className={`ml-auto inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[9px] ${fb.resolved ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300" : "bg-amber-500/15 text-amber-700 dark:text-amber-300"}`}>
+                        {fb.resolved ? <><Sparkles className="size-3" /> Ensinado</> : <><AlertTriangle className="size-3" /> Ineficaz</>}
+                      </span>
+                    ) : null}
+                  </div>
+                  <div className="whitespace-pre-wrap leading-relaxed">{m.content}</div>
+                  {isAssistant ? (
+                    <div className="mt-2 flex items-center gap-2">
+                      {fb ? (
+                        <>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            disabled={aiLocked}
+                            onClick={() => { setTeachCtx({ messageId: m.id, q: prevUser?.content ?? "", a: m.content }); setTeachOpen(true); }}
+                            className="h-7 text-xs"
+                          >
+                            <Sparkles className="size-3 mr-1" /> {fb.resolved ? "Reensinar" : "Ensinar a IA"}
+                          </Button>
+                          <Button size="sm" variant="ghost" onClick={() => handleUnmark(m.id)} className="h-7 text-xs">
+                            <RotateCcw className="size-3 mr-1" /> Desmarcar
+                          </Button>
+                        </>
+                      ) : (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          disabled={aiLocked}
+                          onClick={() => handleMark(m.id)}
+                          className="h-7 text-xs text-muted-foreground hover:text-amber-600"
+                        >
+                          <ThumbsDown className="size-3 mr-1" /> Marcar como ineficaz
+                        </Button>
+                      )}
+                      {aiLocked ? <AiPlanLock locked badgeOnly>x</AiPlanLock> : null}
+                    </div>
+                  ) : null}
+                </div>
+              );
+            })
+          )}
+        </div>
+      ) : null}
+
+      <TeachAiDialog
+        open={teachOpen}
+        onOpenChange={setTeachOpen}
+        messageId={teachCtx?.messageId ?? null}
+        userQuestion={teachCtx?.q ?? ""}
+        aiAnswer={teachCtx?.a ?? ""}
+        onTaught={() => { refetch(); onChanged(); }}
+      />
     </div>
   );
 }
