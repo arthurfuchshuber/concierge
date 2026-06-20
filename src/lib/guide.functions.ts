@@ -60,7 +60,6 @@ export const getPublicGuide = createServerFn({ method: "POST" })
     const safeProp = { ...prop, ...(creds ?? {}) };
     const children = await loadFullGuide(supabaseAdmin, prop.id);
     const { signPropertyImages } = await import("@/lib/storage.server");
-    const { signPropertyImages } = await import("@/lib/storage.server");
     const signedProp = await signPropertyImages(supabaseAdmin, safeProp);
     // Resolve owner plan to gate AI chat in the public guide UI.
     const { resolveOwnerPlanAdmin } = await import("@/lib/plan-guard.server");
