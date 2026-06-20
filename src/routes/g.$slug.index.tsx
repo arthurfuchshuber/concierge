@@ -365,7 +365,7 @@ function Guide({ data }: { data: GuideOk }) {
 
             <footer className="mt-10 px-6 text-center flex items-center justify-center gap-2.5">
               {p.brand_logo_url ? (
-                <img src={p.brand_logo_url} alt={p.brand_name || "Marca"} className="h-5 w-auto object-contain opacity-80" />
+                <img src={p.brand_logo_url} alt={p.brand_name ? `Logotipo ${p.brand_name}` : "Logotipo da hospedagem"} className="h-5 w-auto object-contain opacity-80" />
               ) : (
                 <GuideMark className="size-3.5 text-accent" />
               )}
