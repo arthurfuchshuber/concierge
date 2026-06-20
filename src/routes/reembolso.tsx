@@ -4,8 +4,12 @@ export const Route = createFileRoute("/reembolso")({
   head: () => ({
     meta: [
       { title: "Política de Reembolso — SigmaGuide" },
-      { name: "description", content: "Garantia de 30 dias. Como solicitar reembolso." },
+      { name: "description", content: "Garantia de devolução de 30 dias do SigmaGuide. Veja como solicitar reembolso e cancelar sua assinatura pelo portal do cliente." },
+      { property: "og:title", content: "Política de Reembolso — SigmaGuide" },
+      { property: "og:description", content: "Garantia de 30 dias e instruções para solicitar reembolso ou cancelar a assinatura SigmaGuide." },
+      { property: "og:url", content: "/reembolso" },
     ],
+    links: [{ rel: "canonical", href: "/reembolso" }],
   }),
   component: RefundPage,
 });
