@@ -193,13 +193,13 @@ function Guide({ data }: { data: GuideOk }) {
   const { slug } = Route.useParams();
   const [section, setSection] = useState<Section>("home");
 
-  // Access gate: required only when the host enables it AND the guide carries check-in credentials.
-  const hasCheckinSecrets = !!(p.gate_code || p.lock_code || p.wifi_password || p.checkin_instructions);
+  // Identification gate is ALWAYS shown on first access (per host requirement).
+  // The reservation code is only required when "exigir identificação do hóspede" is enabled.
   const gateEnabled = !!p.require_access_gate;
   const [accessRec, setAccessRec] = useState<AccessRecord | null>(() =>
     typeof window === "undefined" ? null : readAccessRecord(slug),
   );
-  const needsGate = gateEnabled && hasCheckinSecrets && !accessRec;
+  const needsGate = !accessRec;
 
   // Access window: credentials visible only between 24h BEFORE check-in start
   // and 12h AFTER check-in start. Outside this window, sensitive fields blur.
