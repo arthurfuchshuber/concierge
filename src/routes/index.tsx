@@ -33,7 +33,9 @@ export const Route = createFileRoute("/")({
         content:
           "Guias editoriais bilíngues para anfitriões. Auto-preenchimento com Google Maps. Acesso público ou por PIN.",
       },
+      { property: "og:url", content: "/" },
     ],
+    links: [{ rel: "canonical", href: "/" }],
   }),
   component: LandingPage,
 });
