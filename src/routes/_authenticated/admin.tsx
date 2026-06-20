@@ -45,6 +45,13 @@ function AdminLayout() {
 
   const initials = (email || "?").slice(0, 2).toUpperCase();
 
+  const { info: sub, isLoading: subLoading } = useSubscription();
+  const allowedWithoutPlan =
+    pathname.startsWith("/admin/assinatura") ||
+    pathname.startsWith("/admin/clientes") ||
+    pathname.startsWith("/admin/admins");
+  const needsPlan = !subLoading && !sub.plan && !allowedWithoutPlan && !isAdmin;
+
   return (
     <div className="min-h-screen bg-background text-foreground flex">
       {/* Sidebar */}
