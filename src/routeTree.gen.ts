@@ -14,6 +14,7 @@ import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as ReembolsoRouteImport } from './routes/reembolso'
 import { Route as PrivacidadeRouteImport } from './routes/privacidade'
 import { Route as PrecosRouteImport } from './routes/precos'
+import { Route as PainelRouteImport } from './routes/painel'
 import { Route as ConfiancaRouteImport } from './routes/confianca'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
@@ -57,6 +58,11 @@ const PrivacidadeRoute = PrivacidadeRouteImport.update({
 const PrecosRoute = PrecosRouteImport.update({
   id: '/precos',
   path: '/precos',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PainelRoute = PainelRouteImport.update({
+  id: '/painel',
+  path: '/painel',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ConfiancaRoute = ConfiancaRouteImport.update({
@@ -167,6 +173,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/confianca': typeof ConfiancaRoute
+  '/painel': typeof PainelRoute
   '/precos': typeof PrecosRoute
   '/privacidade': typeof PrivacidadeRoute
   '/reembolso': typeof ReembolsoRoute
@@ -192,6 +199,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/confianca': typeof ConfiancaRoute
+  '/painel': typeof PainelRoute
   '/precos': typeof PrecosRoute
   '/privacidade': typeof PrivacidadeRoute
   '/reembolso': typeof ReembolsoRoute
@@ -217,6 +225,7 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
   '/confianca': typeof ConfiancaRoute
+  '/painel': typeof PainelRoute
   '/precos': typeof PrecosRoute
   '/privacidade': typeof PrivacidadeRoute
   '/reembolso': typeof ReembolsoRoute
@@ -244,6 +253,7 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/confianca'
+    | '/painel'
     | '/precos'
     | '/privacidade'
     | '/reembolso'
@@ -269,6 +279,7 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/confianca'
+    | '/painel'
     | '/precos'
     | '/privacidade'
     | '/reembolso'
@@ -293,6 +304,7 @@ export interface FileRouteTypes {
     | '/_authenticated'
     | '/auth'
     | '/confianca'
+    | '/painel'
     | '/precos'
     | '/privacidade'
     | '/reembolso'
@@ -320,6 +332,7 @@ export interface RootRouteChildren {
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
   ConfiancaRoute: typeof ConfiancaRoute
+  PainelRoute: typeof PainelRoute
   PrecosRoute: typeof PrecosRoute
   PrivacidadeRoute: typeof PrivacidadeRoute
   ReembolsoRoute: typeof ReembolsoRoute
@@ -366,6 +379,13 @@ declare module '@tanstack/react-router' {
       path: '/precos'
       fullPath: '/precos'
       preLoaderRoute: typeof PrecosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/painel': {
+      id: '/painel'
+      path: '/painel'
+      fullPath: '/painel'
+      preLoaderRoute: typeof PainelRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/confianca': {
@@ -559,6 +579,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
   ConfiancaRoute: ConfiancaRoute,
+  PainelRoute: PainelRoute,
   PrecosRoute: PrecosRoute,
   PrivacidadeRoute: PrivacidadeRoute,
   ReembolsoRoute: ReembolsoRoute,
