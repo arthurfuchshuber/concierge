@@ -523,6 +523,7 @@ export type Database = {
           drive_minutes: number | null
           id: string
           image_url: string | null
+          last_synced_at: string | null
           maps_url: string | null
           name: string
           note: string | null
@@ -544,6 +545,7 @@ export type Database = {
           drive_minutes?: number | null
           id?: string
           image_url?: string | null
+          last_synced_at?: string | null
           maps_url?: string | null
           name: string
           note?: string | null
@@ -565,6 +567,7 @@ export type Database = {
           drive_minutes?: number | null
           id?: string
           image_url?: string | null
+          last_synced_at?: string | null
           maps_url?: string | null
           name?: string
           note?: string | null
