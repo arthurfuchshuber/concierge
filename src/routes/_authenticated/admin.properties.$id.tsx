@@ -5,7 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { getMyProperty, upsertProperty } from "@/lib/properties.functions";
 import { listHostFaqs } from "@/lib/host-library.functions";
 import { buildDefaultFaqs, mergeDefaultFaqs } from "@/lib/default-faqs";
-import { enrichFromMapsLink, searchPlacesForRec, type PlaceSearchResult } from "@/lib/maps.functions";
+import { enrichFromMapsLink, searchPlacesForRec, refreshRecommendationsFromGoogle, type PlaceSearchResult } from "@/lib/maps.functions";
 import { importFromAirbnb } from "@/lib/airbnb.functions";
 import { useSubscription } from "@/hooks/useSubscription";
 
@@ -17,7 +17,7 @@ import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Loader2, Sparkles, Plus, Trash2, MapPin, ArrowLeft, FileText, KeyRound, Home, Compass, LifeBuoy, Check, Eye, Image as ImageIcon, MapPinned, Clock, DoorOpen, Wifi, UserRound, BookOpen, ClipboardCheck, Shield, Globe, Power, Phone, HelpCircle, Sun, Moon, Palette, Lock, MessageSquare, LogOut, ChevronDown, Ticket } from "lucide-react";
+import { Loader2, Sparkles, Plus, Trash2, MapPin, ArrowLeft, FileText, KeyRound, Home, Compass, LifeBuoy, Check, Eye, Image as ImageIcon, MapPinned, Clock, DoorOpen, Wifi, UserRound, BookOpen, ClipboardCheck, Shield, Globe, Power, Phone, HelpCircle, Sun, Moon, Palette, Lock, MessageSquare, LogOut, ChevronDown, Ticket, RefreshCw } from "lucide-react";
 import { ImageUpload } from "@/components/ImageUpload";
 import { MediaUpload, type MediaItem } from "@/components/MediaUpload";
 import { EtiquetaSelect, ETIQUETA_OPTIONS } from "@/components/EtiquetaSelect";
@@ -145,6 +145,9 @@ function PropertyEditor() {
   const fetchProp = useServerFn(getMyProperty);
   const save = useServerFn(upsertProperty);
   const enrich = useServerFn(enrichFromMapsLink);
+  const refreshGoogle = useServerFn(refreshRecommendationsFromGoogle);
+  const [refreshingGoogle, setRefreshingGoogle] = useState(false);
+
   const importAirbnb = useServerFn(importFromAirbnb);
   const { info: sub } = useSubscription();
   const canAirbnb = sub.features.autoImport;
@@ -1060,9 +1063,35 @@ function PropertyEditor() {
         </TabsContent>
 
         <TabsContent value="recs" className="space-y-5 mt-6">
-          <div className="rounded-xl border border-dashed border-border/70 bg-muted/30 px-4 py-3 text-xs text-muted-foreground leading-relaxed">
-            Recomendações vêm do auto-preenchimento do Google Maps. Você pode editar, remover ou adicionar manualmente.
+          <div className="rounded-xl border border-dashed border-border/70 bg-muted/30 px-4 py-3 text-xs text-muted-foreground leading-relaxed flex items-start gap-3 justify-between">
+            <span>
+              Recomendações vêm do auto-preenchimento do Google Maps. Você pode editar, remover ou adicionar manualmente.
+              <br />
+              <span className="text-foreground/80">Sincronizamos automaticamente uma vez por dia</span> (avaliação, total de reviews, horários, foto e link). Use o botão ao lado para forçar agora.
+            </span>
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              disabled={refreshingGoogle || isNew}
+              onClick={async () => {
+                if (isNew) return;
+                setRefreshingGoogle(true);
+                try {
+                  const r = await refreshGoogle({ data: { propertyId: id } });
+                  toast.success(`Atualizado ${r.updated}/${r.total} do Google${r.failed ? ` · ${r.failed} sem retorno` : ""}`);
+                } catch (e) {
+                  toast.error(e instanceof Error ? e.message : "Falha ao sincronizar");
+                } finally {
+                  setRefreshingGoogle(false);
+                }
+              }}
+            >
+              {refreshingGoogle ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}
+              <span className="ml-1.5">{refreshingGoogle ? "Sincronizando…" : "Atualizar do Google"}</span>
+            </Button>
           </div>
+
           <RecGroup
             title="Aqui pertinho"
             desc="Arredores do imóvel — a poucos minutos a pé."

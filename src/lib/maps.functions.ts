@@ -662,3 +662,194 @@ export const enrichFromMapsLink = createServerFn({ method: "POST" })
       recommendations,
     };
   });
+
+// ============= Sincronização automática com Google =============
+// Atualiza nome, avaliação, total de reviews, horários, foto, link e distância
+// de cada recomendação a partir do place_id salvo. Usado pelo botão manual no
+// admin e pelo cron diário (`/api/public/cron/refresh-recommendations`).
+
+type RecRow = {
+  id: string;
+  place_id: string | null;
+  property_id: string;
+  type: string | null;
+};
+
+const PLACE_DETAILS_FIELD_MASK =
+  "id,displayName,location,rating,userRatingCount,googleMapsUri,photos,regularOpeningHours";
+
+async function fetchPlaceDetails(placeId: string): Promise<PlaceRaw | null> {
+  if (!placeId) return null;
+  const res = await gatewayFetch(`/places/v1/places/${encodeURIComponent(placeId)}`, {
+    headers: { "X-Goog-FieldMask": PLACE_DETAILS_FIELD_MASK },
+  });
+  if (!res.ok) return null;
+  return (await res.json()) as PlaceRaw;
+}
+
+async function refreshRecommendationsForProperty(
+  supabaseAdmin: typeof import("@/integrations/supabase/client.server").supabaseAdmin,
+  property: { id: string; lat: number | null; lng: number | null },
+  recs: RecRow[],
+): Promise<{ updated: number; failed: number }> {
+  let updated = 0;
+  let failed = 0;
+  const hasCoords = typeof property.lat === "number" && typeof property.lng === "number";
+
+  // Limita concorrência simples — Places API é pago por chamada.
+  const BATCH = 5;
+  for (let i = 0; i < recs.length; i += BATCH) {
+    const slice = recs.slice(i, i + BATCH);
+    await Promise.all(
+      slice.map(async (r) => {
+        if (!r.place_id) return;
+        try {
+          const p = await fetchPlaceDetails(r.place_id);
+          if (!p || !p.location) {
+            failed += 1;
+            // marca como sincronizado mesmo assim para não travar a fila
+            await supabaseAdmin
+              .from("property_recommendations")
+              .update({ last_synced_at: new Date().toISOString() })
+              .eq("id", r.id);
+            return;
+          }
+          const patch: Record<string, unknown> = {
+            name: p.displayName?.text ?? undefined,
+            rating: typeof p.rating === "number" ? Number(p.rating.toFixed(1)) : null,
+            user_ratings_total: typeof p.userRatingCount === "number" ? p.userRatingCount : null,
+            opening_hours: p.regularOpeningHours?.weekdayDescriptions ?? null,
+            image_url: buildPhotoUrl(p.photos?.[0]?.name) ?? undefined,
+            maps_url:
+              p.googleMapsUri ?? `https://www.google.com/maps/search/?api=1&query_place_id=${p.id}`,
+            last_synced_at: new Date().toISOString(),
+          };
+          if (hasCoords) {
+            const dist = haversineMeters(
+              { lat: property.lat as number, lng: property.lng as number },
+              { lat: p.location.latitude, lng: p.location.longitude },
+            );
+            const fmt = formatDistance(dist);
+            patch.distance_meters = dist;
+            patch.distance_text = fmt.text;
+            patch.drive_minutes = fmt.driveMin;
+            patch.walk_minutes = fmt.walkMin;
+          }
+          // remove undefined para não sobrescrever com null indesejado
+          for (const k of Object.keys(patch)) {
+            if (patch[k] === undefined) delete patch[k];
+          }
+          const { error } = await supabaseAdmin
+            .from("property_recommendations")
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            .update(patch as any)
+            .eq("id", r.id);
+
+          if (error) {
+            failed += 1;
+            return;
+          }
+          updated += 1;
+        } catch {
+          failed += 1;
+        }
+      }),
+    );
+  }
+  return { updated, failed };
+}
+
+const RefreshInput = z.object({ propertyId: z.string().uuid() });
+
+export const refreshRecommendationsFromGoogle = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => RefreshInput.parse(i))
+  .handler(async ({ data, context }) => {
+    const { userId } = context;
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    const { data: prop, error: propErr } = await supabaseAdmin
+      .from("properties")
+      .select("id, owner_id, lat, lng")
+      .eq("id", data.propertyId)
+      .maybeSingle();
+    if (propErr || !prop) throw new Error("Imóvel não encontrado.");
+
+    // Autoriza: dono OU admin
+    const { data: isAdmin } = await context.supabase.rpc("has_role", {
+      _user_id: userId,
+      _role: "admin",
+    });
+    if (prop.owner_id !== userId && !isAdmin) {
+      throw new Error("Sem permissão para sincronizar este imóvel.");
+    }
+
+    const { data: recs, error: recsErr } = await supabaseAdmin
+      .from("property_recommendations")
+      .select("id, place_id, property_id, type")
+      .eq("property_id", prop.id)
+      .not("place_id", "is", null);
+    if (recsErr) throw new Error("Não foi possível carregar as recomendações.");
+
+    const list: RecRow[] = (recs ?? [])
+      .filter((r) => !!r.place_id)
+      .map((r) => ({ id: r.id, place_id: r.place_id, property_id: r.property_id, type: r.type as string | null }));
+
+    if (list.length === 0) return { updated: 0, failed: 0, total: 0 };
+
+    const result = await refreshRecommendationsForProperty(
+      supabaseAdmin,
+      { id: prop.id, lat: prop.lat as number | null, lng: prop.lng as number | null },
+      list,
+    );
+    return { ...result, total: list.length };
+  });
+
+// Usado pelo cron público — não exige auth de usuário.
+export async function refreshStaleRecommendations(limit: number) {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const cap = Math.max(1, Math.min(500, limit));
+
+  // Busca recomendações mais antigas (ou nunca sincronizadas) primeiro.
+  const { data: recs, error } = await supabaseAdmin
+    .from("property_recommendations")
+    .select("id, place_id, property_id, type, last_synced_at")
+    .not("place_id", "is", null)
+    .order("last_synced_at", { ascending: true, nullsFirst: true })
+    .limit(cap);
+  if (error) throw error;
+  const list: RecRow[] = (recs ?? [])
+    .filter((r) => !!r.place_id)
+    .map((r) => ({ id: r.id, place_id: r.place_id, property_id: r.property_id, type: r.type as string | null }));
+
+  if (list.length === 0) return { updated: 0, failed: 0, total: 0, properties: 0 };
+
+  // Agrupa por propriedade para buscar coords uma vez.
+  const byProperty = new Map<string, RecRow[]>();
+  for (const r of list) {
+    const arr = byProperty.get(r.property_id) ?? [];
+    arr.push(r);
+    byProperty.set(r.property_id, arr);
+  }
+
+  const propIds = Array.from(byProperty.keys());
+  const { data: props } = await supabaseAdmin
+    .from("properties")
+    .select("id, lat, lng")
+    .in("id", propIds);
+  const propMap = new Map<string, { id: string; lat: number | null; lng: number | null }>();
+  for (const p of props ?? []) {
+    propMap.set(p.id as string, { id: p.id as string, lat: p.lat as number | null, lng: p.lng as number | null });
+  }
+
+  let updated = 0;
+  let failed = 0;
+  for (const [pid, prs] of byProperty) {
+    const prop = propMap.get(pid);
+    if (!prop) continue;
+    const r = await refreshRecommendationsForProperty(supabaseAdmin, prop, prs);
+    updated += r.updated;
+    failed += r.failed;
+  }
+  return { updated, failed, total: list.length, properties: byProperty.size };
+}
