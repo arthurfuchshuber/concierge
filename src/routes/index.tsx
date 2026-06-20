@@ -46,14 +46,16 @@ function LandingPage() {
   return (
     <div className="min-h-screen bg-background text-foreground overflow-hidden">
       <Nav />
-      <Hero />
-      <Marquee />
-      <HowItWorks />
-      <DemoSection />
-      <Pillars />
-      <NoReservation />
-      <Manifesto />
-      <FinalCTA />
+      <main>
+        <Hero />
+        <Marquee />
+        <HowItWorks />
+        <DemoSection />
+        <Pillars />
+        <NoReservation />
+        <Manifesto />
+        <FinalCTA />
+      </main>
       <Footer />
     </div>
   );
