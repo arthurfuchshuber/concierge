@@ -145,6 +145,9 @@ function PropertyEditor() {
   const fetchProp = useServerFn(getMyProperty);
   const save = useServerFn(upsertProperty);
   const enrich = useServerFn(enrichFromMapsLink);
+  const refreshGoogle = useServerFn(refreshRecommendationsFromGoogle);
+  const [refreshingGoogle, setRefreshingGoogle] = useState(false);
+
   const importAirbnb = useServerFn(importFromAirbnb);
   const { info: sub } = useSubscription();
   const canAirbnb = sub.features.autoImport;
