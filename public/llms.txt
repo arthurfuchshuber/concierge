@@ -1,0 +1,12 @@
+# SigmaGuide
+
+> Guias digitais editoriais bilíngues para anfitriões de aluguel por temporada. Auto-preenchimento com Google Maps, acesso público ou por PIN, sem dados de reserva.
+
+## Pages
+
+- [Início](/): O que é o SigmaGuide e como funciona.
+- [Planos e preços](/precos): Starter, Pro, Business e Enterprise com 7 dias grátis.
+- [Central de Confiança](/confianca): Como o SigmaGuide protege dados de anfitriões e hóspedes.
+- [Política de Privacidade](/privacidade): Coleta, uso e proteção de dados pessoais (LGPD).
+- [Termos e Condições](/termos): Termos de uso e pagamentos via Paddle.
+- [Política de Reembolso](/reembolso): Garantia de 30 dias e cancelamento de assinatura.

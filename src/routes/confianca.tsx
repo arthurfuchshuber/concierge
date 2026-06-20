@@ -1,6 +1,29 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ShieldCheck, Lock, KeyRound, Database, Globe, Mail } from "lucide-react";
 
+const FAQ_ITEMS: Array<{ q: string; a: string }> = [
+  {
+    q: "Como o SigmaGuide protege senhas de Wi-Fi e códigos de acesso?",
+    a: "Cada anfitrião pode proteger campos sensíveis (Wi-Fi, portões, fechaduras, códigos de acesso) com um PIN. Sem o PIN correto, nem o hóspede nem a assistente de IA conseguem ver o conteúdo bloqueado.",
+  },
+  {
+    q: "Quem pode ver os dados dos meus guias?",
+    a: "Apenas você. O isolamento é aplicado no banco de dados via Row Level Security, então cada anfitrião acessa somente seus próprios imóveis, conversas e configurações.",
+  },
+  {
+    q: "Quais subprocessadores o SigmaGuide utiliza?",
+    a: "Hospedagem na Lovable (Cloudflare edge), banco e autenticação no Supabase, pagamentos na Paddle (Merchant of Record), Google Maps Platform para mapas e fotos, e provedores de IA via Lovable AI Gateway.",
+  },
+  {
+    q: "Como excluo minha conta e meus dados?",
+    a: "Envie a solicitação para seguranca@sigmaguide.app. Confirmamos a exclusão por e-mail e processamos em até 30 dias. Dados de cobrança ficam retidos pelo período exigido pela legislação fiscal.",
+  },
+  {
+    q: "Como reporto uma vulnerabilidade de segurança?",
+    a: "Escreva para seguranca@sigmaguide.app descrevendo o cenário e os passos para reproduzir. Pedimos que não divulgue publicamente a falha antes de termos a oportunidade de corrigi-la.",
+  },
+];
+
 export const Route = createFileRoute("/confianca")({
   head: () => ({
     meta: [
@@ -9,6 +32,28 @@ export const Route = createFileRoute("/confianca")({
         name: "description",
         content:
           "Como o SigmaGuide protege os dados de anfitriões e hóspedes: autenticação, criptografia, controle de acesso e privacidade.",
+      },
+      { property: "og:title", content: "Central de Confiança — SigmaGuide" },
+      {
+        property: "og:description",
+        content:
+          "Controles de segurança, privacidade e subprocessadores do SigmaGuide para anfitriões e hóspedes.",
+      },
+      { property: "og:url", content: "/confianca" },
+    ],
+    links: [{ rel: "canonical", href: "/confianca" }],
+    scripts: [
+      {
+        type: "application/ld+json",
+        children: JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "FAQPage",
+          mainEntity: FAQ_ITEMS.map((item) => ({
+            "@type": "Question",
+            name: item.q,
+            acceptedAnswer: { "@type": "Answer", text: item.a },
+          })),
+        }),
       },
     ],
   }),

@@ -13,7 +13,9 @@ export const Route = createFileRoute("/precos")({
       { name: "description", content: "Escolha o plano ideal para criar guias digitais para seus hóspedes. 7 dias grátis em todos os planos." },
       { property: "og:title", content: "Planos SigmaGuide" },
       { property: "og:description", content: "Starter, Pro, Business e Enterprise. 7 dias grátis." },
+      { property: "og:url", content: "/precos" },
     ],
+    links: [{ rel: "canonical", href: "/precos" }],
   }),
   component: PricingPage,
 });

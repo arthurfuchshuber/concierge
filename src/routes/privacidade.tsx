@@ -4,8 +4,12 @@ export const Route = createFileRoute("/privacidade")({
   head: () => ({
     meta: [
       { title: "Política de Privacidade — SigmaGuide" },
-      { name: "description", content: "Como o SigmaGuide coleta, usa e protege seus dados pessoais." },
+      { name: "description", content: "Como o SigmaGuide coleta, usa e protege seus dados pessoais em conformidade com a LGPD." },
+      { property: "og:title", content: "Política de Privacidade — SigmaGuide" },
+      { property: "og:description", content: "Práticas de coleta, uso, compartilhamento, retenção e direitos sobre dados pessoais no SigmaGuide (LGPD)." },
+      { property: "og:url", content: "/privacidade" },
     ],
+    links: [{ rel: "canonical", href: "/privacidade" }],
   }),
   component: PrivacyPage,
 });
