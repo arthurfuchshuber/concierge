@@ -27,6 +27,15 @@ import { TeachAiDialog } from "@/components/admin/TeachAiDialog";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/admin/engajamento")({
+  beforeLoad: async () => {
+    try {
+      const res = await checkIsAdmin();
+      if (!res.isAdmin) throw redirect({ to: "/admin" });
+    } catch (e: any) {
+      if (e?.isRedirect) throw e;
+      throw redirect({ to: "/admin" });
+    }
+  },
   component: EngagementPage,
 });
 
