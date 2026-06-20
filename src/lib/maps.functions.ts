@@ -818,7 +818,10 @@ export async function refreshStaleRecommendations(limit: number) {
     .order("last_synced_at", { ascending: true, nullsFirst: true })
     .limit(cap);
   if (error) throw error;
-  const list = (recs ?? []).filter((r): r is RecRow & { last_synced_at: string | null } => !!r.place_id);
+  const list: RecRow[] = (recs ?? [])
+    .filter((r) => !!r.place_id)
+    .map((r) => ({ id: r.id, place_id: r.place_id, property_id: r.property_id, type: r.type as string | null }));
+
   if (list.length === 0) return { updated: 0, failed: 0, total: 0, properties: 0 };
 
   // Agrupa por propriedade para buscar coords uma vez.
