@@ -42,6 +42,7 @@ export type AdminCustomerRow = {
     isManual: boolean;
     maxGuidesOverride: number | null;
     paddleSubscriptionId: string;
+    billingPaused: boolean;
   } | null;
 };
 
