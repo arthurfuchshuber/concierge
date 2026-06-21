@@ -24,6 +24,7 @@ import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/
 import { Route as GSlugIndexRouteImport } from './routes/g.$slug.index'
 import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin.index'
 import { Route as GSlugExplorarRouteImport } from './routes/g.$slug.explorar'
+import { Route as ApiPublicPlacePhotoRouteImport } from './routes/api/public/place-photo'
 import { Route as ApiPublicGuideChatRouteImport } from './routes/api/public/guide-chat'
 import { Route as AuthenticatedAdminEngajamentoRouteImport } from './routes/_authenticated/admin.engajamento'
 import { Route as AuthenticatedAdminClientesRouteImport } from './routes/_authenticated/admin.clientes'
@@ -110,6 +111,11 @@ const GSlugExplorarRoute = GSlugExplorarRouteImport.update({
   path: '/explorar',
   getParentRoute: () => GSlugRoute,
 } as any)
+const ApiPublicPlacePhotoRoute = ApiPublicPlacePhotoRouteImport.update({
+  id: '/api/public/place-photo',
+  path: '/api/public/place-photo',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicGuideChatRoute = ApiPublicGuideChatRouteImport.update({
   id: '/api/public/guide-chat',
   path: '/api/public/guide-chat',
@@ -194,6 +200,7 @@ export interface FileRoutesByFullPath {
   '/admin/clientes': typeof AuthenticatedAdminClientesRoute
   '/admin/engajamento': typeof AuthenticatedAdminEngajamentoRoute
   '/api/public/guide-chat': typeof ApiPublicGuideChatRoute
+  '/api/public/place-photo': typeof ApiPublicPlacePhotoRoute
   '/g/$slug/explorar': typeof GSlugExplorarRoute
   '/admin/': typeof AuthenticatedAdminIndexRoute
   '/g/$slug/': typeof GSlugIndexRoute
@@ -219,6 +226,7 @@ export interface FileRoutesByTo {
   '/admin/clientes': typeof AuthenticatedAdminClientesRoute
   '/admin/engajamento': typeof AuthenticatedAdminEngajamentoRoute
   '/api/public/guide-chat': typeof ApiPublicGuideChatRoute
+  '/api/public/place-photo': typeof ApiPublicPlacePhotoRoute
   '/g/$slug/explorar': typeof GSlugExplorarRoute
   '/admin': typeof AuthenticatedAdminIndexRoute
   '/g/$slug': typeof GSlugIndexRoute
@@ -248,6 +256,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/clientes': typeof AuthenticatedAdminClientesRoute
   '/_authenticated/admin/engajamento': typeof AuthenticatedAdminEngajamentoRoute
   '/api/public/guide-chat': typeof ApiPublicGuideChatRoute
+  '/api/public/place-photo': typeof ApiPublicPlacePhotoRoute
   '/g/$slug/explorar': typeof GSlugExplorarRoute
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
   '/g/$slug/': typeof GSlugIndexRoute
@@ -277,6 +286,7 @@ export interface FileRouteTypes {
     | '/admin/clientes'
     | '/admin/engajamento'
     | '/api/public/guide-chat'
+    | '/api/public/place-photo'
     | '/g/$slug/explorar'
     | '/admin/'
     | '/g/$slug/'
@@ -302,6 +312,7 @@ export interface FileRouteTypes {
     | '/admin/clientes'
     | '/admin/engajamento'
     | '/api/public/guide-chat'
+    | '/api/public/place-photo'
     | '/g/$slug/explorar'
     | '/admin'
     | '/g/$slug'
@@ -330,6 +341,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/clientes'
     | '/_authenticated/admin/engajamento'
     | '/api/public/guide-chat'
+    | '/api/public/place-photo'
     | '/g/$slug/explorar'
     | '/_authenticated/admin/'
     | '/g/$slug/'
@@ -353,6 +365,7 @@ export interface RootRouteChildren {
   TermosRoute: typeof TermosRoute
   GSlugRoute: typeof GSlugRouteWithChildren
   ApiPublicGuideChatRoute: typeof ApiPublicGuideChatRoute
+  ApiPublicPlacePhotoRoute: typeof ApiPublicPlacePhotoRoute
   ApiPublicCronRefreshRecommendationsRoute: typeof ApiPublicCronRefreshRecommendationsRoute
   ApiPublicPaymentsWebhookRoute: typeof ApiPublicPaymentsWebhookRoute
 }
@@ -463,6 +476,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/g/$slug/explorar'
       preLoaderRoute: typeof GSlugExplorarRouteImport
       parentRoute: typeof GSlugRoute
+    }
+    '/api/public/place-photo': {
+      id: '/api/public/place-photo'
+      path: '/api/public/place-photo'
+      fullPath: '/api/public/place-photo'
+      preLoaderRoute: typeof ApiPublicPlacePhotoRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/api/public/guide-chat': {
       id: '/api/public/guide-chat'
@@ -609,6 +629,7 @@ const rootRouteChildren: RootRouteChildren = {
   TermosRoute: TermosRoute,
   GSlugRoute: GSlugRouteWithChildren,
   ApiPublicGuideChatRoute: ApiPublicGuideChatRoute,
+  ApiPublicPlacePhotoRoute: ApiPublicPlacePhotoRoute,
   ApiPublicCronRefreshRecommendationsRoute:
     ApiPublicCronRefreshRecommendationsRoute,
   ApiPublicPaymentsWebhookRoute: ApiPublicPaymentsWebhookRoute,
@@ -616,13 +637,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
