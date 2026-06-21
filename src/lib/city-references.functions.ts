@@ -292,13 +292,12 @@ export const addManualCityReference = createServerFn({ method: "POST" })
 export const listAdminCities = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    await assertCanManageCity(context, { city_label: data.city_label, state: normalizeState(data.state ?? null), country: data.country });
+    const admin = await isAdmin(context);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    // Cidades distintas das propriedades publicadas + cidades já cadastradas.
-    const { data: props } = await supabaseAdmin
-      .from("properties")
-      .select("city, state, country")
-      .not("city", "is", null);
+    // Hosts veem apenas cidades das próprias residências. Admins veem todas.
+    let propsQ = supabaseAdmin.from("properties").select("city, state, country").not("city", "is", null);
+    if (!admin) propsQ = propsQ.eq("owner_id", context.userId);
+    const { data: props } = await propsQ;
     const { data: jobs } = await supabaseAdmin
       .from("city_reference_jobs")
       .select("city_key, city_label, state, country, last_refreshed_at, last_status");
