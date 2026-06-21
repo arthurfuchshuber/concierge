@@ -785,18 +785,15 @@ function RecCard({ rec }: { rec: Rec }) {
   const driving = formatDriving(rec);
   const href = safeHttpsHref(rec.maps_url);
   const typeLabel = TYPE_LABEL[rec.type] || rec.category || rec.type;
-  const imageSrc = usableImageUrl(rec.image_url, fallbackImageForType(rec.type));
 
   const inner = (
     <div className="group bg-card border border-border rounded-2xl overflow-hidden flex flex-col hover:border-accent/40 hover:shadow-lg transition-all h-full">
       <div className="relative aspect-square w-full overflow-hidden bg-secondary">
-        {imageSrc ? (
+        {rec.image_url ? (
           <img
-            src={imageSrc}
+            src={rec.image_url}
             alt={rec.name}
             loading="lazy"
-            width={1200}
-            height={900}
             className="absolute inset-0 size-full object-cover group-hover:scale-[1.03] transition-transform duration-500"
           />
         ) : (
@@ -870,18 +867,15 @@ function RecRow({ rec }: { rec: Rec }) {
   const driving = formatDriving(rec);
   const href = safeHttpsHref(rec.maps_url);
   const typeLabel = TYPE_LABEL[rec.type] || rec.category || rec.type;
-  const imageSrc = usableImageUrl(rec.image_url, fallbackImageForType(rec.type));
 
   const inner = (
     <div className="group flex gap-4 bg-card border border-border rounded-2xl p-3 hover:border-accent/40 hover:shadow-lg transition-all">
       <div className="relative size-24 sm:size-28 shrink-0 overflow-hidden rounded-xl bg-secondary">
-        {imageSrc ? (
+        {rec.image_url ? (
           <img
-            src={imageSrc}
+            src={rec.image_url}
             alt={rec.name}
             loading="lazy"
-            width={1200}
-            height={900}
             className="absolute inset-0 size-full object-cover group-hover:scale-[1.04] transition-transform duration-500"
           />
         ) : (
