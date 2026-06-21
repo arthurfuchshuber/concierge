@@ -544,6 +544,17 @@ function EditDialog({
             </p>
           </div>
 
+          <div className="space-y-1.5 sm:col-span-2 rounded-xl border border-amber-500/30 bg-amber-500/5 p-3">
+            <Label className="flex items-center justify-between text-amber-700 dark:text-amber-400">
+              Pausar cobranças deste cliente
+              <Switch checked={billingPaused} onCheckedChange={setBillingPaused} />
+            </Label>
+            <p className="text-xs text-muted-foreground">
+              Quando ativo, o cliente mantém o acesso mas <strong>nenhuma cobrança</strong> é feita.
+              Desative para retomar as cobranças.
+            </p>
+          </div>
+
 
           <div className="space-y-1.5 sm:col-span-2">
             <Label>Anotações internas</Label>
