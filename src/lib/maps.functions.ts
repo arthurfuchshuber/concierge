@@ -162,30 +162,36 @@ async function gatewayFetch(path: string, init: RequestInit = {}) {
   return fetch(`${GATEWAY}${path}`, { ...init, headers });
 }
 
+type GeoComponent = { types: string[]; long_name: string; short_name?: string };
+
 async function geocodeText(text: string) {
   const res = await gatewayFetch(`/maps/api/geocode/json?address=${encodeURIComponent(text)}`);
   if (!res.ok) return null;
-  const j = (await res.json()) as { results?: Array<{ geometry?: { location?: { lat: number; lng: number } }; formatted_address?: string; address_components?: Array<{ types: string[]; long_name: string }> }> };
+  const j = (await res.json()) as { results?: Array<{ geometry?: { location?: { lat: number; lng: number } }; formatted_address?: string; address_components?: GeoComponent[] }> };
   return j.results?.[0] ?? null;
 }
 
 async function reverseGeocode(lat: number, lng: number) {
   const res = await gatewayFetch(`/maps/api/geocode/json?latlng=${lat},${lng}`);
   if (!res.ok) return null;
-  const j = (await res.json()) as { results?: Array<{ formatted_address?: string; address_components?: Array<{ types: string[]; long_name: string }> }> };
+  const j = (await res.json()) as { results?: Array<{ formatted_address?: string; address_components?: GeoComponent[] }> };
   return j.results?.[0] ?? null;
 }
 
-function extractCityCountry(comps: Array<{ types: string[]; long_name: string }> | undefined) {
+function extractCityCountry(comps: GeoComponent[] | undefined) {
   let city = "";
   let country = "";
+  let state: string | null = null;
   for (const c of comps ?? []) {
     if (c.types.includes("locality") || c.types.includes("administrative_area_level_2")) {
       city ||= c.long_name;
     }
+    if (c.types.includes("administrative_area_level_1")) {
+      state ||= (c.short_name && /^[A-Z]{2}$/.test(c.short_name)) ? c.short_name : c.long_name;
+    }
     if (c.types.includes("country")) country = c.long_name;
   }
-  return { city, country };
+  return { city, country, state };
 }
 
 const PLACE_FIELD_MASK =
