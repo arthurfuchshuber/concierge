@@ -311,6 +311,9 @@ function EditDialog({
   const [customCurrency, setCustomCurrency] = useState(s?.customCurrency ?? "BRL");
   const [cancelAtPeriodEnd, setCancelAtPeriodEnd] = useState(!!s?.cancelAtPeriodEnd);
   const [adminNotes, setAdminNotes] = useState(s?.adminNotes ?? "");
+  const [maxGuidesOverride, setMaxGuidesOverride] = useState(
+    s?.maxGuidesOverride != null ? String(s.maxGuidesOverride) : "",
+  );
   const [saving, setSaving] = useState(false);
 
   async function handleSave() {
