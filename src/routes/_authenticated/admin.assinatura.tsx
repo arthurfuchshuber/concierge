@@ -126,7 +126,12 @@ function AssinaturaPage() {
       const t = setInterval(() => refetch(), 2000);
       setTimeout(() => clearInterval(t), 20000);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Não foi possível mudar de plano");
+      const msg = e instanceof Error ? e.message : "Não foi possível mudar de plano";
+      if (msg.startsWith("EXCESS_GUIDES:")) {
+        setExcessTarget(target);
+      } else {
+        toast.error(msg);
+      }
     } finally {
       setChanging(null);
     }
