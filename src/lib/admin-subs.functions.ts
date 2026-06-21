@@ -67,7 +67,7 @@ export const adminListCustomers = createServerFn({ method: "GET" })
     const { data: subs } = await supabaseAdmin
       .from("subscriptions")
       .select(
-        "id, user_id, paddle_subscription_id, product_id, price_id, status, environment, current_period_start, current_period_end, cancel_at_period_end, trial_ends_at, custom_price_cents, custom_currency, admin_notes, is_manual, max_guides_override, created_at",
+        "id, user_id, paddle_subscription_id, product_id, price_id, status, environment, current_period_start, current_period_end, cancel_at_period_end, trial_ends_at, custom_price_cents, custom_currency, admin_notes, is_manual, max_guides_override, billing_paused, created_at",
       )
       .order("created_at", { ascending: false });
 
