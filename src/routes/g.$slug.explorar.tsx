@@ -256,6 +256,34 @@ function sortRecs(list: Rec[], by: SortKey): Rec[] {
   return arr;
 }
 
+function FallbackImage({
+  src,
+  fallbackSrc,
+  alt,
+  className,
+}: {
+  src: string;
+  fallbackSrc?: string;
+  alt: string;
+  className?: string;
+}) {
+  const [currentSrc, setCurrentSrc] = useState(src);
+
+  return (
+    <img
+      src={currentSrc}
+      alt={alt}
+      loading="lazy"
+      width={1200}
+      height={900}
+      className={className}
+      onError={() => {
+        if (fallbackSrc && currentSrc !== fallbackSrc) setCurrentSrc(fallbackSrc);
+      }}
+    />
+  );
+}
+
 function ExplorePage() {
   const r = Route.useLoaderData();
   const { slug } = Route.useParams();
