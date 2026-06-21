@@ -83,6 +83,20 @@ function BibliotecaPage() {
   const [applyTargets, setApplyTargets] = useState<Set<string>>(new Set());
   const [applySearch, setApplySearch] = useState("");
   const [applying, setApplying] = useState(false);
+  const [openFaq, setOpenFaq] = useState<Set<number>>(new Set());
+  const [openKnow, setOpenKnow] = useState<Set<number>>(new Set());
+  const toggleFaq = (i: number) =>
+    setOpenFaq((s) => {
+      const ns = new Set(s);
+      ns.has(i) ? ns.delete(i) : ns.add(i);
+      return ns;
+    });
+  const toggleKnow = (i: number) =>
+    setOpenKnow((s) => {
+      const ns = new Set(s);
+      ns.has(i) ? ns.delete(i) : ns.add(i);
+      return ns;
+    });
 
   useEffect(() => {
     if (faqQuery.data) {
