@@ -32,9 +32,48 @@ const ManualAddInput = CityIdent.extend({
 });
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function assertAdmin(ctx: any) {
-  const { data: isAdmin } = await ctx.supabase.rpc("has_role", { _user_id: ctx.userId, _role: "admin" });
-  if (!isAdmin) throw new Error("Apenas administradores podem gerenciar referências da cidade.");
+async function isAdmin(ctx: any): Promise<boolean> {
+  const { data } = await ctx.supabase.rpc("has_role", { _user_id: ctx.userId, _role: "admin" });
+  return Boolean(data);
+}
+
+// Admin OU dono de ao menos uma residência na cidade indicada.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function assertCanManageCity(
+  ctx: any,
+  args: { city_label: string; state: string | null; country: string },
+) {
+  if (await isAdmin(ctx)) return;
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const key = cityKey(args.city_label);
+  const { data: rows } = await supabaseAdmin
+    .from("properties")
+    .select("city, state, country")
+    .eq("owner_id", ctx.userId);
+  const owns = (rows ?? []).some((p) => {
+    const pState = normalizeState((p as { state: string | null }).state ?? null);
+    const pCountry = ((p as { country: string | null }).country ?? "BR");
+    const pKey = cityKey((p as { city: string | null }).city ?? "");
+    return pKey === key && pState === args.state && pCountry === args.country;
+  });
+  if (!owns) throw new Error("Você não tem residências cadastradas nesta cidade.");
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function assertCanManageRefById(ctx: any, id: string) {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data: row, error } = await supabaseAdmin
+    .from("city_references")
+    .select("city_label, state, country")
+    .eq("id", id)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!row) throw new Error("Referência não encontrada.");
+  await assertCanManageCity(ctx, {
+    city_label: (row as { city_label: string }).city_label,
+    state: ((row as { state: string | null }).state) ?? null,
+    country: ((row as { country: string | null }).country) ?? "BR",
+  });
 }
 
 // ---- LIST -------------------------------------------------------------
@@ -42,7 +81,7 @@ export const listCityReferences = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((i: unknown) => ListInput.parse(i))
   .handler(async ({ data, context }) => {
-    await assertAdmin(context);
+    await assertCanManageCity(context, { city_label: data.city_label, state: normalizeState(data.state ?? null), country: data.country });
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const key = cityKey(data.city_label);
     const st = normalizeState(data.state ?? null);
@@ -73,7 +112,7 @@ export const generateCityReferences = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((i: unknown) => CityIdent.parse(i))
   .handler(async ({ data, context }) => {
-    await assertAdmin(context);
+    await assertCanManageCity(context, { city_label: data.city_label, state: normalizeState(data.state ?? null), country: data.country });
     return runCityGeneration(data);
   });
 
@@ -172,7 +211,7 @@ export const toggleHideCityReference = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((i: unknown) => HideInput.parse(i))
   .handler(async ({ data, context }) => {
-    await assertAdmin(context);
+    await assertCanManageRefById(context, data.id);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { error } = await supabaseAdmin
       .from("city_references")
@@ -187,7 +226,7 @@ export const deleteCityReference = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((i: unknown) => DeleteInput.parse(i))
   .handler(async ({ data, context }) => {
-    await assertAdmin(context);
+    await assertCanManageRefById(context, data.id);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { error } = await supabaseAdmin.from("city_references").delete().eq("id", data.id);
     if (error) throw new Error(error.message);
@@ -199,7 +238,7 @@ export const reorderCityReference = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((i: unknown) => ReorderInput.parse(i))
   .handler(async ({ data, context }) => {
-    await assertAdmin(context);
+    await assertCanManageRefById(context, data.id);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { error } = await supabaseAdmin
       .from("city_references")
@@ -214,7 +253,7 @@ export const addManualCityReference = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((i: unknown) => ManualAddInput.parse(i))
   .handler(async ({ data, context }) => {
-    await assertAdmin(context);
+    await assertCanManageCity(context, { city_label: data.city_label, state: normalizeState(data.state ?? null), country: data.country });
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const key = cityKey(data.city_label);
     const st = normalizeState(data.state ?? null);
@@ -253,13 +292,12 @@ export const addManualCityReference = createServerFn({ method: "POST" })
 export const listAdminCities = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    await assertAdmin(context);
+    const admin = await isAdmin(context);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    // Cidades distintas das propriedades publicadas + cidades já cadastradas.
-    const { data: props } = await supabaseAdmin
-      .from("properties")
-      .select("city, state, country")
-      .not("city", "is", null);
+    // Hosts veem apenas cidades das próprias residências. Admins veem todas.
+    let propsQ = supabaseAdmin.from("properties").select("city, state, country").not("city", "is", null);
+    if (!admin) propsQ = propsQ.eq("owner_id", context.userId);
+    const { data: props } = await propsQ;
     const { data: jobs } = await supabaseAdmin
       .from("city_reference_jobs")
       .select("city_key, city_label, state, country, last_refreshed_at, last_status");
@@ -299,7 +337,9 @@ export const listAdminCities = createServerFn({ method: "POST" })
     }
     for (const j of (jobs ?? []) as Array<{ city_key: string; city_label: string; state: string | null; country: string; last_refreshed_at: string | null; last_status: string | null }>) {
       const id = k(j.city_key, j.state, j.country);
-      const b = map.get(id) ?? {
+      const existing = map.get(id);
+      if (!existing && !admin) continue; // hosts: só cidades das próprias residências
+      const b = existing ?? {
         city_key: j.city_key,
         city_label: j.city_label,
         state: j.state,
