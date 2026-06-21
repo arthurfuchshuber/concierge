@@ -275,9 +275,30 @@ function ExplorePage() {
   const p = r.property as Record<string, any>;
   const allRecs: Rec[] = (r.recommendations as Rec[]).filter(hasMeaningfulInfo);
 
+  // Referências macro da cidade — compartilhadas entre todas as residências
+  // da mesma cidade. Vindas de city_references (alimentadas pelo admin).
+  const cityRefs: Rec[] = useMemo(() => {
+    const list = ((r as Record<string, unknown>).cityReferences ?? []) as Array<Record<string, unknown>>;
+    return list
+      .map((c) => ({
+        id: c.id as string,
+        scope: "city",
+        type: (c.type as string) ?? "other",
+        name: (c.name as string) ?? "",
+        category: (c.category as string) ?? null,
+        rating: (c.rating as number) ?? null,
+        user_ratings_total: (c.user_ratings_total as number) ?? null,
+        note: (c.note as string) ?? null,
+        image_url: (c.image_url as string) ?? null,
+        maps_url: (c.maps_url as string) ?? null,
+        opening_hours: (c.opening_hours as string[]) ?? null,
+      }))
+      .filter((x) => x.name);
+  }, [r]);
+  const cityLabel = (p.city as string | null) ?? "sua cidade";
+
   const categories = useMemo(() => {
     return META_CATEGORIES.map((meta) => {
-      const isTouristMeta = meta.key === "sights";
       const filtered = allRecs.filter((rec) => {
         if (!meta.types.includes(rec.type)) return false;
         if (minReviews <= 0) return true;
@@ -303,6 +324,7 @@ function ExplorePage() {
   const active = (activeKey
     ? categoriesUnfiltered.find((c) => c.meta.key === activeKey)
     : null) ?? null;
+  const showingCityRefs = activeKey === "__city_refs";
 
   return (
     <div
