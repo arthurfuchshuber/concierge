@@ -158,6 +158,19 @@ function EngagementPage() {
   }, [data, filterProp, search]);
 
 
+  // Map property_id + normalized guest name → most recent checkin_date from access logs
+  const checkinByGuest = useMemo(() => {
+    const m = new Map<string, string>();
+    if (!data) return m;
+    for (const l of data.logs) {
+      if (!l.guest_name || !l.checkin_date) continue;
+      const k = `${l.property_id}|${l.guest_name.trim().toLowerCase()}`;
+      const prev = m.get(k);
+      if (!prev || (l.checkin_date as string) > prev) m.set(k, l.checkin_date as string);
+    }
+    return m;
+  }, [data]);
+
   const filteredConvs = useMemo(() => {
     if (!data) return [];
     const propFeedback = new Map<string, number>();
@@ -165,7 +178,14 @@ function EngagementPage() {
       propFeedback.set(f.conversation_id, (propFeedback.get(f.conversation_id) ?? 0) + 1);
     });
     return data.conversations
-      .map((c) => ({ ...c, feedback_count: propFeedback.get(c.id) ?? 0 }))
+      .map((c) => {
+        const k = c.guest_name ? `${c.property_id}|${c.guest_name.trim().toLowerCase()}` : null;
+        return {
+          ...c,
+          feedback_count: propFeedback.get(c.id) ?? 0,
+          checkin_date: k ? (checkinByGuest.get(k) ?? null) : null,
+        };
+      })
       .filter((c) => {
         if (filterProp !== "all" && c.property_id !== filterProp) return false;
         if (onlyIneffective && c.feedback_count === 0) return false;
@@ -176,7 +196,8 @@ function EngagementPage() {
         }
         return true;
       });
-  }, [data, fbQuery.data, filterProp, search, onlyIneffective]);
+  }, [data, fbQuery.data, filterProp, search, onlyIneffective, checkinByGuest]);
+
 
   if (isLoading) {
     return (
