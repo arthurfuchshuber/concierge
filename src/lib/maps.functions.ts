@@ -730,7 +730,7 @@ async function refreshRecommendationsForProperty(
             rating: typeof p.rating === "number" ? Number(p.rating.toFixed(1)) : null,
             user_ratings_total: typeof p.userRatingCount === "number" ? p.userRatingCount : null,
             opening_hours: p.regularOpeningHours?.weekdayDescriptions ?? null,
-            image_url: buildPhotoUrl(p.photos?.[0]?.name) ?? undefined,
+            image_url: pickBestPlacePhoto(p.photos) ?? undefined,
             maps_url:
               p.googleMapsUri ?? `https://www.google.com/maps/search/?api=1&query_place_id=${p.id}`,
             last_synced_at: new Date().toISOString(),
