@@ -452,7 +452,7 @@ export const searchPlacesForRec = createServerFn({ method: "POST" })
           drive_minutes: fmt.driveMin,
           walk_minutes: fmt.walkMin,
           opening_hours: p.regularOpeningHours?.weekdayDescriptions ?? null,
-          image_url: buildPhotoUrl(p.photos?.[0]?.name),
+          image_url: pickBestPlacePhoto(p.photos),
           maps_url: p.googleMapsUri ?? `https://www.google.com/maps/search/?api=1&query_place_id=${p.id}`,
           note: note && note.length > 240 ? note.slice(0, 237).trimEnd() + "…" : note,
           formatted_address: p.formattedAddress ?? null,
