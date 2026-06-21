@@ -184,13 +184,23 @@ function EngagementPage() {
     return out;
   }, [data]);
 
-  const filteredConvs = useMemo(() => {
-    if (!data) return [];
+  // Enrich each conversation with name/phone/checkin (fallback to nearest log).
+  const enrichedConvs = useMemo(() => {
+    if (!data) return [] as Array<{
+      id: string;
+      property_id: string;
+      property_name: string;
+      guest_name: string | null;
+      guest_phone: string | null;
+      checkin_date: string | null;
+      last_message_at: string | null;
+      created_at: string;
+      feedback_count: number;
+    }>;
     const propFeedback = new Map<string, number>();
     (fbQuery.data ?? []).forEach((f) => {
       propFeedback.set(f.conversation_id, (propFeedback.get(f.conversation_id) ?? 0) + 1);
     });
-    // For each conversation, fall back to closest access log (same property) when guest_name/checkin missing
     function nearestLog(propertyId: string, when: string | null) {
       if (!when) return null;
       const arr = logsByProperty.get(propertyId);
@@ -204,39 +214,94 @@ function EngagementPage() {
       }
       return best;
     }
-    return data.conversations
-      .map((c) => {
-        let name = c.guest_name?.trim() || null;
-        let checkin: string | null = null;
-        if (name) {
-          const k = `${c.property_id}|${name.toLowerCase()}`;
-          checkin = checkinByGuest.get(k) ?? null;
+    return data.conversations.map((c) => {
+      let name = c.guest_name?.trim() || null;
+      let checkin: string | null = null;
+      let phone: string | null = null;
+      if (name) {
+        const k = `${c.property_id}|${name.toLowerCase()}`;
+        checkin = checkinByGuest.get(k) ?? null;
+      }
+      const log = nearestLog(c.property_id, c.last_message_at ?? c.created_at);
+      if (log) {
+        if (!name) name = log.guest_name?.trim() || null;
+        if (!checkin) checkin = log.checkin_date ?? null;
+        phone = log.guest_phone ?? null;
+      }
+      return {
+        id: c.id,
+        property_id: c.property_id,
+        property_name: c.property_name,
+        guest_name: name,
+        guest_phone: phone,
+        checkin_date: checkin,
+        last_message_at: c.last_message_at,
+        created_at: c.created_at,
+        feedback_count: propFeedback.get(c.id) ?? 0,
+      };
+    });
+  }, [data, fbQuery.data, checkinByGuest, logsByProperty]);
+
+  // Group conversations by identity (property + phone + checkin), fallback to
+  // (property + lowercased name + checkin), final fallback to conv.id (no merge).
+  type ConvGroup = {
+    key: string;
+    property_id: string;
+    property_name: string;
+    guest_name: string | null;
+    guest_phone: string | null;
+    checkin_date: string | null;
+    last_message_at: string | null;
+    feedback_count: number;
+    conversation_ids: string[];
+  };
+
+  const filteredConvs = useMemo<ConvGroup[]>(() => {
+    const groups = new Map<string, ConvGroup>();
+    for (const c of enrichedConvs) {
+      const ph = normPhone(c.guest_phone);
+      let key: string;
+      if (ph && c.checkin_date) key = `${c.property_id}|pc:${ph}|${c.checkin_date}`;
+      else if (c.guest_name && c.checkin_date)
+        key = `${c.property_id}|nc:${c.guest_name.trim().toLowerCase()}|${c.checkin_date}`;
+      else key = `${c.property_id}|id:${c.id}`;
+      const g = groups.get(key);
+      if (!g) {
+        groups.set(key, {
+          key,
+          property_id: c.property_id,
+          property_name: c.property_name,
+          guest_name: c.guest_name,
+          guest_phone: c.guest_phone,
+          checkin_date: c.checkin_date,
+          last_message_at: c.last_message_at,
+          feedback_count: c.feedback_count,
+          conversation_ids: [c.id],
+        });
+      } else {
+        g.conversation_ids.push(c.id);
+        g.feedback_count += c.feedback_count;
+        g.guest_name = g.guest_name || c.guest_name;
+        g.guest_phone = g.guest_phone || c.guest_phone;
+        g.checkin_date = g.checkin_date || c.checkin_date;
+        if (c.last_message_at && (!g.last_message_at || c.last_message_at > g.last_message_at)) {
+          g.last_message_at = c.last_message_at;
         }
-        if (!name || !checkin) {
-          const log = nearestLog(c.property_id, c.last_message_at ?? c.created_at);
-          if (log) {
-            if (!name) name = log.guest_name?.trim() || null;
-            if (!checkin) checkin = log.checkin_date ?? null;
-          }
-        }
-        return {
-          ...c,
-          guest_name: name,
-          checkin_date: checkin,
-          feedback_count: propFeedback.get(c.id) ?? 0,
-        };
-      })
-      .filter((c) => {
-        if (filterProp !== "all" && c.property_id !== filterProp) return false;
-        if (onlyIneffective && c.feedback_count === 0) return false;
+      }
+    }
+    return Array.from(groups.values())
+      .filter((g) => {
+        if (filterProp !== "all" && g.property_id !== filterProp) return false;
+        if (onlyIneffective && g.feedback_count === 0) return false;
         if (search) {
           const s = search.toLowerCase();
-          const hay = `${c.guest_name ?? ""} ${c.property_name}`.toLowerCase();
+          const hay = `${g.guest_name ?? ""} ${g.guest_phone ?? ""} ${g.property_name}`.toLowerCase();
           if (!hay.includes(s)) return false;
         }
         return true;
-      });
-  }, [data, fbQuery.data, filterProp, search, onlyIneffective, checkinByGuest, logsByProperty]);
+      })
+      .sort((a, b) => (b.last_message_at ?? "").localeCompare(a.last_message_at ?? ""));
+  }, [enrichedConvs, filterProp, onlyIneffective, search]);
 
 
   if (isLoading) {
@@ -459,8 +524,8 @@ function EngagementPage() {
                 <div className="grid lg:grid-cols-2 gap-4">
                   {filteredConvs.map((c) => (
                     <ConversationCard
-                      key={c.id}
-                      conversationId={c.id}
+                      key={c.key}
+                      conversationIds={c.conversation_ids}
                       guestName={c.guest_name}
                       checkinDate={c.checkin_date}
                       propertyName={c.property_name}
@@ -544,9 +609,9 @@ function EngagementPage() {
 }
 
 function ConversationCard({
-  conversationId, guestName, checkinDate, propertyName, lastMessageAt, feedbackCount, feedbackByMsg, aiLocked, onChanged,
+  conversationIds, guestName, checkinDate, propertyName, lastMessageAt, feedbackCount, feedbackByMsg, aiLocked, onChanged,
 }: {
-  conversationId: string;
+  conversationIds: string[];
   guestName: string | null;
   checkinDate: string | null;
   propertyName: string;
@@ -560,9 +625,15 @@ function ConversationCard({
   const loadMsgs = useServerFn(getConversationMessages);
   const mark = useServerFn(markMessageIneffective);
   const unmark = useServerFn(unmarkMessageIneffective);
+  const ids = useMemo(() => [...conversationIds].sort(), [conversationIds]);
   const { data, isFetching, refetch } = useQuery({
-    queryKey: ["conv-msgs", conversationId],
-    queryFn: () => loadMsgs({ data: { conversationId } }),
+    queryKey: ["conv-msgs-group", ids],
+    queryFn: async () => {
+      const all = await Promise.all(ids.map((id) => loadMsgs({ data: { conversationId: id } })));
+      const merged = all.flatMap((r) => r.messages ?? []);
+      merged.sort((a, b) => (a.created_at ?? "").localeCompare(b.created_at ?? ""));
+      return { messages: merged };
+    },
     enabled: open,
   });
   const [teachOpen, setTeachOpen] = useState(false);
@@ -592,6 +663,11 @@ function ConversationCard({
         <div className="min-w-0 flex-1">
           <div className="text-sm font-medium flex items-center gap-2 min-w-0">
             <span className="truncate">{title}</span>
+            {ids.length > 1 ? (
+              <span className="shrink-0 inline-flex items-center gap-1 rounded-full bg-secondary px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+                {ids.length} conversas
+              </span>
+            ) : null}
             {feedbackCount > 0 ? (
               <span className="shrink-0 inline-flex items-center gap-1 rounded-full bg-amber-500/15 text-amber-700 dark:text-amber-300 px-1.5 py-0.5 text-[10px] font-medium">
                 <AlertTriangle className="size-3" /> {feedbackCount}
