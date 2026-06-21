@@ -169,7 +169,7 @@ function Dashboard() {
             <span className="text-sm font-medium text-muted-foreground">Seu Plano</span>
             <CreditCard className="size-4 text-muted-foreground" />
           </div>
-          <div className="flex items-baseline gap-2">
+          <div className="flex items-baseline gap-2 flex-wrap">
             <span className="text-2xl font-serif">{planName}</span>
             {sub.isTrialing && (
               <span className="text-[10px] uppercase tracking-wider font-semibold text-accent bg-accent/10 px-2 py-0.5 rounded-full">Trial</span>
@@ -177,11 +177,36 @@ function Dashboard() {
             {sub.isPastDue && (
               <span className="text-[10px] uppercase tracking-wider font-semibold text-destructive bg-destructive/10 px-2 py-0.5 rounded-full">Pagamento falhou</span>
             )}
+            {sub.cancelAtPeriodEnd && !sub.isPastDue && (
+              <span className="text-[10px] uppercase tracking-wider font-semibold text-amber-600 dark:text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full">Cancelamento agendado</span>
+            )}
+            {sub.isManual && (
+              <span className="text-[10px] uppercase tracking-wider font-semibold text-foreground/70 bg-secondary px-2 py-0.5 rounded-full">Contrato</span>
+            )}
           </div>
           <div className="mt-3 flex items-baseline gap-2">
             <span className="text-lg font-semibold">{planPrice}</span>
-            {planConfig && <span className="text-xs text-muted-foreground">/mês</span>}
+            {(planConfig || hasCustomPrice) && <span className="text-xs text-muted-foreground">/mês</span>}
+            {hasCustomPrice && (
+              <span className="text-[10px] uppercase tracking-wider font-semibold text-accent">personalizado</span>
+            )}
           </div>
+          {(trialLabel || renewalLabel) && (
+            <dl className="mt-3 grid grid-cols-2 gap-2 text-xs">
+              {trialLabel && (
+                <div>
+                  <dt className="text-muted-foreground">Trial até</dt>
+                  <dd className="font-medium tabular-nums">{trialLabel}</dd>
+                </div>
+              )}
+              {renewalLabel && !sub.isTrialing && (
+                <div>
+                  <dt className="text-muted-foreground">{sub.cancelAtPeriodEnd ? "Acesso até" : "Próxima renovação"}</dt>
+                  <dd className="font-medium tabular-nums">{renewalLabel}</dd>
+                </div>
+              )}
+            </dl>
+          )}
           <Link
             to={sub.plan ? "/admin/assinatura" : "/precos"}
             className="text-xs text-accent hover:underline mt-3 inline-block"
@@ -197,16 +222,27 @@ function Dashboard() {
             <BookOpen className="size-4 text-muted-foreground" />
           </div>
           <div className="text-2xl font-serif">
-            {count} <span className="text-sm text-muted-foreground font-sans">/ {planLimit || "—"}</span>
+            {count}{" "}
+            <span className="text-sm text-muted-foreground font-sans">
+              / {planLimit ? (planLimit >= 9999 ? "ilimitado" : planLimit) : "—"}
+            </span>
+            {sub.maxGuidesOverride != null && (
+              <span className="ml-2 text-[10px] uppercase tracking-wider font-semibold text-accent align-middle">contrato</span>
+            )}
           </div>
           <div className="mt-3 h-1.5 rounded-full bg-secondary overflow-hidden">
             <div className="h-full bg-accent transition-all" style={{ width: `${pct}%` }} />
           </div>
           <p className="text-xs text-muted-foreground mt-2">
-            {planLimit > 0 ? `${remaining} guias restantes` : "Assine um plano para criar guias"}
+            {planLimit > 0
+              ? planLimit >= 9999
+                ? "Sem limite de guias"
+                : `${remaining} guias restantes`
+              : "Assine um plano para criar guias"}
           </p>
         </div>
       </div>
+
 
       {sub.isPastDue && (
         <div className="mb-6 rounded-2xl border border-destructive/30 bg-destructive/5 p-4 flex items-start gap-3">
