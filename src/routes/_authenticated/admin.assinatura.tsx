@@ -51,6 +51,7 @@ function AssinaturaPage() {
   const [opening, setOpening] = useState(false);
   const [changing, setChanging] = useState<PlanKey | null>(null);
   const [user, setUser] = useState<{ id: string; email: string | null } | null>(null);
+  const [excessTarget, setExcessTarget] = useState<PlanKey | null>(null);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
