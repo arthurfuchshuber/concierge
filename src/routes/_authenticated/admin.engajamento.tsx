@@ -373,7 +373,7 @@ function EngagementPage() {
                       </div>
                       <div className="md:col-span-2 text-muted-foreground">{fmtDate(g.checkin_date)}</div>
                       <div className="md:col-span-2 text-muted-foreground tabular-nums">
-                        {g.access_count} · {g.conversation_ids.length}
+                        {g.access_count}
                       </div>
                       <div className="md:col-span-3 text-muted-foreground truncate">{g.property_name} · {fmt(g.last_access)}</div>
                     </div>
