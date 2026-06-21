@@ -109,11 +109,14 @@ export async function resolveOwnerPlanAdmin(
   const runtimeEnv = getRuntimeEnv();
   const { data: subs } = await supabaseAdmin
     .from("subscriptions")
-    .select("status, product_id, current_period_end, environment, created_at")
+    .select("status, product_id, current_period_end, environment, is_manual, created_at")
     .eq("user_id", ownerId)
-    .eq("environment", runtimeEnv)
     .order("created_at", { ascending: false });
-  const candidates = subs ?? [];
+  const list = subs ?? [];
+  const candidates = [
+    ...list.filter((sub) => sub.environment === runtimeEnv),
+    ...list.filter((sub) => sub.environment !== runtimeEnv && (sub.is_manual || sub.product_id === "enterprise_plan")),
+  ];
   for (const sub of candidates) {
     const status = (sub.status as string) ?? null;
     const endIso = (sub.current_period_end as string | null) ?? null;
