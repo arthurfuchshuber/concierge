@@ -387,6 +387,7 @@ function EditDialog({
   const [adminNotes, setAdminNotes] = useState(s?.adminNotes ?? "");
   const [maxGuidesOverride, setMaxGuidesOverride] = useState(
     s?.maxGuidesOverride != null ? String(s.maxGuidesOverride) : "",
+  );
   const [billingPaused, setBillingPaused] = useState(!!s?.billingPaused);
 
   const [saving, setSaving] = useState(false);
