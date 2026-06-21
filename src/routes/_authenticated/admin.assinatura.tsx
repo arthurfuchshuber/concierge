@@ -350,9 +350,20 @@ function AssinaturaPage() {
               })}
             </div>
           </section>
+            </TabsContent>
 
-          {/* Payment history */}
-          <section className="mt-10">
+            <TabsContent value="cartao" className="mt-6">
+              <CardTab
+                isActive={info.isActive}
+                isManual={info.isManual}
+                onOpenPortal={openPortal}
+                opening={opening}
+              />
+            </TabsContent>
+
+            <TabsContent value="pagamentos" className="mt-6">
+              {/* Payment history */}
+              <section>
             <div className="flex items-center gap-2 mb-4">
               <Receipt className="size-4 text-muted-foreground" />
               <h2 className="font-serif text-2xl">Extrato de pagamentos</h2>
