@@ -152,7 +152,7 @@ function extractCoords(url: string): { lat: number; lng: number } | null {
 
 async function gatewayFetch(path: string, init: RequestInit = {}) {
   const apiKey = process.env.LOVABLE_API_KEY;
-  const mapsKey = process.env.GOOGLE_MAPS_API_KEY;
+  const mapsKey = process.env.GOOGLE_MAPS_API_KEY_2 ?? process.env.GOOGLE_MAPS_API_KEY;
   if (!apiKey || !mapsKey) throw new Error("Google Maps connector não configurado.");
   const headers = new Headers(init.headers);
   headers.set("Authorization", `Bearer ${apiKey}`);
@@ -285,7 +285,7 @@ type PlaceRaw = {
 function buildPhotoUrl(photoName: string | undefined): string | null {
   if (!photoName) return null;
   // Photo URL via gateway, with browser key works for direct image fetch. Use server gateway path.
-  const browserKey = process.env.GOOGLE_MAPS_BROWSER_KEY;
+  const browserKey = process.env.GOOGLE_MAPS_BROWSER_KEY_2 ?? process.env.GOOGLE_MAPS_BROWSER_KEY;
   if (!browserKey) return null;
   return `https://places.googleapis.com/v1/${photoName}/media?maxWidthPx=1600&key=${browserKey}`;
 }
