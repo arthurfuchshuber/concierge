@@ -265,6 +265,7 @@ async function findPropertyPlace(lat: number, lng: number, hint: string) {
   return j.places?.[0] ?? null;
 }
 
+type PlacePhoto = { name: string; widthPx?: number; heightPx?: number };
 type PlaceRaw = {
   id: string;
   displayName?: { text?: string };
@@ -272,7 +273,7 @@ type PlaceRaw = {
   rating?: number;
   userRatingCount?: number;
   googleMapsUri?: string;
-  photos?: Array<{ name: string }>;
+  photos?: PlacePhoto[];
   primaryType?: string;
   editorialSummary?: { text?: string };
   generativeSummary?: { overview?: { text?: string } };
