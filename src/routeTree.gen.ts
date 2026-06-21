@@ -33,6 +33,7 @@ import { Route as AuthenticatedAdminAssinaturaRouteImport } from './routes/_auth
 import { Route as AuthenticatedAdminAdminsRouteImport } from './routes/_authenticated/admin.admins'
 import { Route as ApiPublicPaymentsWebhookRouteImport } from './routes/api/public/payments/webhook'
 import { Route as ApiPublicCronRefreshRecommendationsRouteImport } from './routes/api/public/cron.refresh-recommendations'
+import { Route as ApiPublicCronRefreshCityReferencesRouteImport } from './routes/api/public/cron.refresh-city-references'
 import { Route as AuthenticatedAdminPropertiesIdRouteImport } from './routes/_authenticated/admin.properties.$id'
 import { Route as AuthenticatedAdminPropertiesIdConversasRouteImport } from './routes/_authenticated/admin.properties.$id_.conversas'
 import { Route as AuthenticatedAdminPropertiesIdAcessosRouteImport } from './routes/_authenticated/admin.properties.$id_.acessos'
@@ -163,6 +164,12 @@ const ApiPublicCronRefreshRecommendationsRoute =
     path: '/api/public/cron/refresh-recommendations',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicCronRefreshCityReferencesRoute =
+  ApiPublicCronRefreshCityReferencesRouteImport.update({
+    id: '/api/public/cron/refresh-city-references',
+    path: '/api/public/cron/refresh-city-references',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const AuthenticatedAdminPropertiesIdRoute =
   AuthenticatedAdminPropertiesIdRouteImport.update({
     id: '/properties/$id',
@@ -205,6 +212,7 @@ export interface FileRoutesByFullPath {
   '/admin/': typeof AuthenticatedAdminIndexRoute
   '/g/$slug/': typeof GSlugIndexRoute
   '/admin/properties/$id': typeof AuthenticatedAdminPropertiesIdRoute
+  '/api/public/cron/refresh-city-references': typeof ApiPublicCronRefreshCityReferencesRoute
   '/api/public/cron/refresh-recommendations': typeof ApiPublicCronRefreshRecommendationsRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
   '/admin/properties/$id/acessos': typeof AuthenticatedAdminPropertiesIdAcessosRoute
@@ -231,6 +239,7 @@ export interface FileRoutesByTo {
   '/admin': typeof AuthenticatedAdminIndexRoute
   '/g/$slug': typeof GSlugIndexRoute
   '/admin/properties/$id': typeof AuthenticatedAdminPropertiesIdRoute
+  '/api/public/cron/refresh-city-references': typeof ApiPublicCronRefreshCityReferencesRoute
   '/api/public/cron/refresh-recommendations': typeof ApiPublicCronRefreshRecommendationsRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
   '/admin/properties/$id/acessos': typeof AuthenticatedAdminPropertiesIdAcessosRoute
@@ -261,6 +270,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
   '/g/$slug/': typeof GSlugIndexRoute
   '/_authenticated/admin/properties/$id': typeof AuthenticatedAdminPropertiesIdRoute
+  '/api/public/cron/refresh-city-references': typeof ApiPublicCronRefreshCityReferencesRoute
   '/api/public/cron/refresh-recommendations': typeof ApiPublicCronRefreshRecommendationsRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
   '/_authenticated/admin/properties/$id_/acessos': typeof AuthenticatedAdminPropertiesIdAcessosRoute
@@ -291,6 +301,7 @@ export interface FileRouteTypes {
     | '/admin/'
     | '/g/$slug/'
     | '/admin/properties/$id'
+    | '/api/public/cron/refresh-city-references'
     | '/api/public/cron/refresh-recommendations'
     | '/api/public/payments/webhook'
     | '/admin/properties/$id/acessos'
@@ -317,6 +328,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/g/$slug'
     | '/admin/properties/$id'
+    | '/api/public/cron/refresh-city-references'
     | '/api/public/cron/refresh-recommendations'
     | '/api/public/payments/webhook'
     | '/admin/properties/$id/acessos'
@@ -346,6 +358,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/'
     | '/g/$slug/'
     | '/_authenticated/admin/properties/$id'
+    | '/api/public/cron/refresh-city-references'
     | '/api/public/cron/refresh-recommendations'
     | '/api/public/payments/webhook'
     | '/_authenticated/admin/properties/$id_/acessos'
@@ -366,6 +379,7 @@ export interface RootRouteChildren {
   GSlugRoute: typeof GSlugRouteWithChildren
   ApiPublicGuideChatRoute: typeof ApiPublicGuideChatRoute
   ApiPublicPlacePhotoRoute: typeof ApiPublicPlacePhotoRoute
+  ApiPublicCronRefreshCityReferencesRoute: typeof ApiPublicCronRefreshCityReferencesRoute
   ApiPublicCronRefreshRecommendationsRoute: typeof ApiPublicCronRefreshRecommendationsRoute
   ApiPublicPaymentsWebhookRoute: typeof ApiPublicPaymentsWebhookRoute
 }
@@ -540,6 +554,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicCronRefreshRecommendationsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/cron/refresh-city-references': {
+      id: '/api/public/cron/refresh-city-references'
+      path: '/api/public/cron/refresh-city-references'
+      fullPath: '/api/public/cron/refresh-city-references'
+      preLoaderRoute: typeof ApiPublicCronRefreshCityReferencesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_authenticated/admin/properties/$id': {
       id: '/_authenticated/admin/properties/$id'
       path: '/properties/$id'
@@ -630,6 +651,8 @@ const rootRouteChildren: RootRouteChildren = {
   GSlugRoute: GSlugRouteWithChildren,
   ApiPublicGuideChatRoute: ApiPublicGuideChatRoute,
   ApiPublicPlacePhotoRoute: ApiPublicPlacePhotoRoute,
+  ApiPublicCronRefreshCityReferencesRoute:
+    ApiPublicCronRefreshCityReferencesRoute,
   ApiPublicCronRefreshRecommendationsRoute:
     ApiPublicCronRefreshRecommendationsRoute,
   ApiPublicPaymentsWebhookRoute: ApiPublicPaymentsWebhookRoute,
