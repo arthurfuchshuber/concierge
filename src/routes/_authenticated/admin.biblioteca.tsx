@@ -257,93 +257,113 @@ function BibliotecaPage() {
                   </Button>
                 </div>
               )}
-              {faqs.map((f, i) => (
-                <div key={i} className="rounded-2xl border border-border bg-card p-4 space-y-3">
-                  <div className="flex items-start gap-2">
-                    {f.id ? (
-                      <Checkbox
-                        className="mt-2 shrink-0"
-                        checked={selectedFaqIds.has(f.id)}
-                        onCheckedChange={(v) =>
-                          setSelectedFaqIds((s) => {
-                            const ns = new Set(s);
-                            if (v) ns.add(f.id!);
-                            else ns.delete(f.id!);
-                            return ns;
-                          })
-                        }
-                        aria-label="Selecionar pergunta"
-                      />
-                    ) : (
-                      <div className="mt-2 shrink-0 size-4" title="Salve para poder aplicar" />
-                    )}
-                    <div className="flex-1 space-y-3">
-                      <Input
-                        placeholder="Pergunta"
-                        value={f.question}
-                        maxLength={300}
-                        onChange={(e) =>
-                          setFaqs((arr) =>
-                            arr.map((x, j) => (j === i ? { ...x, question: e.target.value } : x)),
-                          )
-                        }
-                      />
-                      <Textarea
-                        placeholder="Resposta"
-                        value={f.answer}
-                        maxLength={3000}
-                        rows={3}
-                        onChange={(e) =>
-                          setFaqs((arr) =>
-                            arr.map((x, j) => (j === i ? { ...x, answer: e.target.value } : x)),
-                          )
-                        }
-                      />
-                      <div className="space-y-1.5">
-                        <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">
-                          Categorias do guia
-                        </p>
-                        <div className="flex flex-wrap gap-1.5">
-                          {FAQ_TAGS.map((t) => {
-                            const active = f.tags.includes(t.value);
-                            return (
-                              <button
-                                key={t.value}
-                                type="button"
-                                onClick={() =>
-                                  setFaqs((arr) =>
-                                    arr.map((x, j) =>
-                                      j === i
-                                        ? {
-                                            ...x,
-                                            tags: active
-                                              ? x.tags.filter((tg) => tg !== t.value)
-                                              : [...x.tags, t.value],
-                                          }
-                                        : x,
-                                    ),
-                                  )
-                                }
-                                className={`px-2.5 py-1 rounded-full text-xs border transition-colors ${active ? "bg-accent text-accent-foreground border-accent" : "bg-background border-border text-muted-foreground hover:border-accent/50"}`}
-                              >
-                                {t.label}
-                              </button>
-                            );
-                          })}
+              {faqs.map((f, i) => {
+                const isOpen = openFaq.has(i) || !f.id;
+                return (
+                  <div key={i} className="rounded-2xl border border-border bg-card overflow-hidden">
+                    <div className="flex items-center gap-2 p-3">
+                      {f.id ? (
+                        <Checkbox
+                          className="shrink-0"
+                          checked={selectedFaqIds.has(f.id)}
+                          onCheckedChange={(v) =>
+                            setSelectedFaqIds((s) => {
+                              const ns = new Set(s);
+                              if (v) ns.add(f.id!);
+                              else ns.delete(f.id!);
+                              return ns;
+                            })
+                          }
+                          aria-label="Selecionar pergunta"
+                        />
+                      ) : (
+                        <div className="shrink-0 size-4" title="Salve para poder aplicar" />
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => f.id && toggleFaq(i)}
+                        className="flex-1 min-w-0 flex items-center gap-2 text-left group"
+                        aria-expanded={isOpen}
+                      >
+                        <ChevronDown
+                          className={`size-4 text-muted-foreground shrink-0 transition-transform ${isOpen ? "rotate-180" : ""}`}
+                        />
+                        <span className="flex-1 min-w-0 truncate text-sm font-medium">
+                          {f.question.trim() || (
+                            <span className="text-muted-foreground italic">Nova pergunta…</span>
+                          )}
+                        </span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setFaqs((arr) => arr.filter((_, j) => j !== i))}
+                        className="size-8 grid place-items-center rounded-full hover:bg-destructive/10 text-muted-foreground hover:text-destructive shrink-0"
+                        aria-label="Remover"
+                      >
+                        <Trash2 className="size-3.5" />
+                      </button>
+                    </div>
+                    {isOpen && (
+                      <div className="px-3 pb-3 pt-1 space-y-3 border-t border-border/60 bg-background/40">
+                        <Input
+                          placeholder="Pergunta"
+                          value={f.question}
+                          maxLength={300}
+                          onChange={(e) =>
+                            setFaqs((arr) =>
+                              arr.map((x, j) => (j === i ? { ...x, question: e.target.value } : x)),
+                            )
+                          }
+                        />
+                        <Textarea
+                          placeholder="Resposta"
+                          value={f.answer}
+                          maxLength={3000}
+                          rows={3}
+                          onChange={(e) =>
+                            setFaqs((arr) =>
+                              arr.map((x, j) => (j === i ? { ...x, answer: e.target.value } : x)),
+                            )
+                          }
+                        />
+                        <div className="space-y-1.5">
+                          <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">
+                            Categorias do guia
+                          </p>
+                          <div className="flex flex-wrap gap-1.5">
+                            {FAQ_TAGS.map((t) => {
+                              const active = f.tags.includes(t.value);
+                              return (
+                                <button
+                                  key={t.value}
+                                  type="button"
+                                  onClick={() =>
+                                    setFaqs((arr) =>
+                                      arr.map((x, j) =>
+                                        j === i
+                                          ? {
+                                              ...x,
+                                              tags: active
+                                                ? x.tags.filter((tg) => tg !== t.value)
+                                                : [...x.tags, t.value],
+                                            }
+                                          : x,
+                                      ),
+                                    )
+                                  }
+                                  className={`px-2.5 py-1 rounded-full text-xs border transition-colors ${active ? "bg-accent text-accent-foreground border-accent" : "bg-background border-border text-muted-foreground hover:border-accent/50"}`}
+                                >
+                                  {t.label}
+                                </button>
+                              );
+                            })}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setFaqs((arr) => arr.filter((_, j) => j !== i))}
-                      className="size-8 grid place-items-center rounded-full hover:bg-destructive/10 text-muted-foreground hover:text-destructive shrink-0"
-                      aria-label="Remover"
-                    >
-                      <Trash2 className="size-3.5" />
-                    </button>
+                    )}
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
 
