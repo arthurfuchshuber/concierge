@@ -324,6 +324,12 @@ function EditDialog({
       setSaving(false);
       return;
     }
+    const maxGuides = maxGuidesOverride.trim() ? Math.trunc(Number(maxGuidesOverride)) : null;
+    if (maxGuides != null && (Number.isNaN(maxGuides) || maxGuides < 1)) {
+      toast.error("Limite de guias inválido");
+      setSaving(false);
+      return;
+    }
     try {
       await onSave({
         plan,
@@ -335,6 +341,7 @@ function EditDialog({
         customCurrency: price != null ? customCurrency.toUpperCase() : null,
         cancelAtPeriodEnd,
         adminNotes: adminNotes.trim() || null,
+        maxGuidesOverride: maxGuides,
       });
     } finally {
       setSaving(false);
