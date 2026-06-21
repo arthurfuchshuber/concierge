@@ -159,43 +159,40 @@ function ClientesPage() {
                         {initials}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="font-medium truncate">{c.fullName ?? "—"}</div>
-                        <div className="text-xs text-muted-foreground truncate">{c.email ?? "—"}</div>
-                        <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <div className="font-medium truncate text-[15px] leading-tight">{c.fullName ?? "—"}</div>
+                            <div className="text-[11px] text-muted-foreground truncate">{c.email ?? "—"}</div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setEditing(c)}
+                            className="shrink-0 size-8 grid place-items-center rounded-full border border-border hover:bg-secondary text-muted-foreground hover:text-foreground transition"
+                            aria-label="Editar cliente"
+                          >
+                            <Pencil className="size-3.5" />
+                          </button>
+                        </div>
+                        <div className="mt-2 flex flex-wrap items-center gap-1.5">
                           {planName ? (
-                            <span className="font-medium">{planName}</span>
+                            <span className="text-[11px] font-semibold">{planName}</span>
                           ) : (
-                            <span className="text-muted-foreground/60">Sem plano</span>
-                          )}
-                          {s?.isManual && (
-                            <span className="text-[9px] uppercase tracking-wider font-semibold bg-accent/10 text-accent px-1.5 py-0.5 rounded">
-                              Manual
-                            </span>
+                            <span className="text-[11px] text-muted-foreground/60">Sem plano</span>
                           )}
                           <StatusBadge status={s?.status} />
-                          {price && (
-                            <span className="tabular-nums text-muted-foreground">· {price}{hasCustom && " (personalizado)"}</span>
+                          {s?.billingPaused && (
+                            <span className="text-[9px] uppercase tracking-wider font-semibold bg-amber-500/15 text-amber-700 dark:text-amber-400 px-1.5 py-0.5 rounded-full">
+                              Sem cobrança
+                            </span>
                           )}
                         </div>
-                        {(s?.trialEndsAt || s?.currentPeriodEnd) && (
-                          <div className="mt-1 flex flex-wrap gap-x-3 text-[11px] text-muted-foreground tabular-nums">
-                            {s?.trialEndsAt && (
-                              <span>Trial: {new Date(s.trialEndsAt).toLocaleDateString("pt-BR")}</span>
-                            )}
-                            {s?.currentPeriodEnd && (
-                              <span>Renova: {new Date(s.currentPeriodEnd).toLocaleDateString("pt-BR")}</span>
-                            )}
+                        {price && (
+                          <div className="mt-1.5 text-[11px] text-muted-foreground tabular-nums">
+                            {price}{hasCustom && " · personalizado"}
+                            {s?.currentPeriodEnd && ` · renova ${new Date(s.currentPeriodEnd).toLocaleDateString("pt-BR")}`}
                           </div>
                         )}
                       </div>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="rounded-full shrink-0"
-                        onClick={() => setEditing(c)}
-                      >
-                        <Pencil className="size-3 mr-1" /> Editar
-                      </Button>
                     </div>
                   </li>
                 );
