@@ -663,6 +663,11 @@ function ConversationCard({
         <div className="min-w-0 flex-1">
           <div className="text-sm font-medium flex items-center gap-2 min-w-0">
             <span className="truncate">{title}</span>
+            {ids.length > 1 ? (
+              <span className="shrink-0 inline-flex items-center gap-1 rounded-full bg-secondary px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+                {ids.length} conversas
+              </span>
+            ) : null}
             {feedbackCount > 0 ? (
               <span className="shrink-0 inline-flex items-center gap-1 rounded-full bg-amber-500/15 text-amber-700 dark:text-amber-300 px-1.5 py-0.5 text-[10px] font-medium">
                 <AlertTriangle className="size-3" /> {feedbackCount}
