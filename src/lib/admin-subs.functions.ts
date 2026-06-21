@@ -100,6 +100,7 @@ export const adminListCustomers = createServerFn({ method: "GET" })
               customCurrency: s.custom_currency,
               adminNotes: s.admin_notes,
               isManual: !!s.is_manual,
+              maxGuidesOverride: s.max_guides_override ?? null,
               paddleSubscriptionId: s.paddle_subscription_id,
             }
           : null,
