@@ -571,11 +571,10 @@ export const enrichFromMapsLink = createServerFn({ method: "POST" })
     };
 
 
-    // 1) Nearby por categoria — sem filtro de primaryType (confia no filtro do Places)
+    // 1) Nearby por categoria — exige primaryType correto + ≥200 reviews + rating ≥4
     for (const cat of TYPE_MAP) {
-      const min = NEARBY_MIN_REVIEWS[cat.type] ?? 20;
       const items = (await placesNearby(coords.lat, coords.lng, cat.placesTypes))
-        .filter((p) => isQuality(p, min))
+        .filter((p) => isQuality(p, cat))
         .sort((a, b) => {
           const ra = a.rating ?? 0;
           const rb = b.rating ?? 0;
@@ -586,15 +585,10 @@ export const enrichFromMapsLink = createServerFn({ method: "POST" })
       for (const p of items) push(p, cat, "nearby");
     }
 
-    // 2) City-wide via Places Text Search — sem filtro de includedType (permite marcos
-    //    classificados em primaryType "inesperado", ex.: Marco das Três Fronteiras).
+    // 2) City-wide via Places Text Search — mesmas regras estritas
     if (city) {
       await Promise.all(
         TYPE_MAP.map(async (cat) => {
-          const isTouristLike = cat.type === "attraction" || cat.type === "beach" || cat.type === "park";
-          // Pontos turísticos: sem filtro de qualidade (mostrar todos); para outros: respeitar mínimo.
-          const min = CITY_MIN_REVIEWS[cat.type] ?? 40;
-          const limit = isTouristLike ? 25 : MAX_PER_TYPE;
           const items = (
             await placesText(
               `melhores ${cat.category.toLowerCase()} em ${city}`,
@@ -604,11 +598,9 @@ export const enrichFromMapsLink = createServerFn({ method: "POST" })
               MAX_CITY_RADIUS_M,
             )
           )
-            .filter((p) => (isTouristLike ? !!p.location : isQuality(p, min)))
+            .filter((p) => !!p.location && isQuality(p, cat))
             .filter((p) => {
-              if (!p.location) return false;
-              if (isTouristLike) return true;
-              const d = haversineMeters(coords!, { lat: p.location.latitude, lng: p.location.longitude });
+              const d = haversineMeters(coords!, { lat: p.location!.latitude, lng: p.location!.longitude });
               return d <= MAX_CITY_RADIUS_M;
             })
             .sort((a, b) => {
@@ -617,17 +609,16 @@ export const enrichFromMapsLink = createServerFn({ method: "POST" })
               if (rb !== ra) return rb - ra;
               return (b.userRatingCount ?? 0) - (a.userRatingCount ?? 0);
             })
-            .slice(0, limit);
+            .slice(0, MAX_PER_TYPE);
           for (const p of items) push(p, cat, "city");
         }),
       );
     }
 
-    // 3) Curadoria via Gemini: pede os lugares icônicos da cidade por categoria
-    //    e resolve cada nome via Places Text Search (sem includedType — o nome já é específico).
+    // 3) Curadoria via Gemini: nomes icônicos da cidade resolvidos via Places,
+    //    mas validados pelas MESMAS regras (≥200 reviews + primaryType correto).
     if (city) {
       const iconic = await fetchIconicPlacesFromGemini(city, country);
-      // Resolve em paralelo (com limite de concorrência) para não estourar timeout.
       const tasks: Array<{ name: string; cat: typeof TYPE_MAP[number] }> = [];
       for (const cat of TYPE_MAP) {
         const names = iconic[cat.type] ?? [];
@@ -643,11 +634,9 @@ export const enrichFromMapsLink = createServerFn({ method: "POST" })
         const batchResults = await Promise.all(
           batch.map(async ({ name, cat }) => {
             const resolved = await placesText(`${name} ${city}`, coords!.lat, coords!.lng, undefined, MAX_CITY_RADIUS_M);
-            const isAttractionLike = cat.type === "attraction" || cat.type === "beach" || cat.type === "park";
             const best = resolved
-              .filter((p) => p.location)
+              .filter((p) => !!p.location && isQuality(p, cat))
               .filter((p) => {
-                if (isAttractionLike) return true;
                 const d = haversineMeters(coords!, { lat: p.location!.latitude, lng: p.location!.longitude });
                 return d <= MAX_CITY_RADIUS_M;
               })
@@ -661,6 +650,7 @@ export const enrichFromMapsLink = createServerFn({ method: "POST" })
         if (best) push(best, cat, "city");
       }
     }
+
 
 
     // Ordena: nearby por distância, city por rating desc dentro de cada categoria
