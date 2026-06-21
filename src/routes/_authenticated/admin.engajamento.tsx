@@ -47,6 +47,18 @@ function fmtDate(d: string | null) {
   if (!d) return "—";
   try { const [y, m, day] = d.split("-"); return `${day}/${m}/${y}`; } catch { return d; }
 }
+function normPhone(p: string | null | undefined) {
+  return (p ?? "").replace(/\D+/g, "");
+}
+function normName(n: string | null | undefined) {
+  return (n ?? "").trim().toLowerCase().replace(/\s+/g, " ");
+}
+// Stable identity key per property: phone digits if any, else name+checkin
+function identityKey(propertyId: string, name: string | null, phone: string | null, checkin: string | null) {
+  const ph = normPhone(phone);
+  if (ph) return `${propertyId}|p:${ph}`;
+  return `${propertyId}|nc:${normName(name)}|${checkin ?? ""}`;
+}
 
 function BigNumber({ icon: Icon, label, value, hint }: { icon: any; label: string; value: number | string; hint?: string }) {
   return (
@@ -88,18 +100,91 @@ function EngagementPage() {
     return m;
   }, [fbQuery.data]);
 
-  const filteredLogs = useMemo(() => {
+  // Unified guest groups: same phone (or same name+checkin) within a property
+  // collapses every access + conversation into one entry.
+  type GuestGroup = {
+    key: string;
+    property_id: string;
+    property_name: string;
+    guest_name: string | null;
+    guest_phone: string | null;
+    checkin_date: string | null;
+    reservation_code: string | null;
+    access_count: number;
+    first_access: string | null;
+    last_access: string | null;
+    conversation_ids: string[];
+  };
+
+  const guestGroups = useMemo<GuestGroup[]>(() => {
     if (!data) return [];
-    return data.logs.filter((l) => {
-      if (filterProp !== "all" && l.property_id !== filterProp) return false;
-      if (search) {
-        const s = search.toLowerCase();
-        const hay = `${l.guest_name ?? ""} ${l.reservation_code ?? ""} ${l.guest_phone ?? ""} ${l.property_name}`.toLowerCase();
-        if (!hay.includes(s)) return false;
+    const map = new Map<string, GuestGroup>();
+    for (const l of data.logs) {
+      const key = identityKey(l.property_id, l.guest_name, l.guest_phone, l.checkin_date);
+      const g = map.get(key);
+      if (!g) {
+        map.set(key, {
+          key,
+          property_id: l.property_id,
+          property_name: l.property_name,
+          guest_name: l.guest_name,
+          guest_phone: l.guest_phone,
+          checkin_date: l.checkin_date,
+          reservation_code: l.reservation_code,
+          access_count: 1,
+          first_access: l.created_at,
+          last_access: l.created_at,
+          conversation_ids: [],
+        });
+      } else {
+        g.access_count++;
+        if (l.created_at && (!g.last_access || l.created_at > g.last_access)) g.last_access = l.created_at;
+        if (l.created_at && (!g.first_access || l.created_at < g.first_access)) g.first_access = l.created_at;
+        g.guest_phone = g.guest_phone || l.guest_phone;
+        g.reservation_code = g.reservation_code || l.reservation_code;
       }
-      return true;
-    });
+    }
+    // Attach conversations by name match within property (chat doesn't capture phone)
+    for (const c of data.conversations) {
+      // match by name+property — if no group, create one from the conversation
+      let matched: GuestGroup | undefined;
+      for (const g of map.values()) {
+        if (g.property_id !== c.property_id) continue;
+        if (normName(g.guest_name) && normName(g.guest_name) === normName(c.guest_name)) { matched = g; break; }
+      }
+      if (!matched) {
+        const key = identityKey(c.property_id, c.guest_name, null, null);
+        matched = {
+          key,
+          property_id: c.property_id,
+          property_name: c.property_name,
+          guest_name: c.guest_name,
+          guest_phone: null,
+          checkin_date: null,
+          reservation_code: null,
+          access_count: 0,
+          first_access: null,
+          last_access: null,
+          conversation_ids: [],
+        };
+        map.set(key, matched);
+      }
+      matched.conversation_ids.push(c.id);
+    }
+    const groups = Array.from(map.values());
+    return groups
+      .filter((g) => {
+        if (filterProp !== "all" && g.property_id !== filterProp) return false;
+        if (search) {
+          const s = search.toLowerCase();
+          const hay = `${g.guest_name ?? ""} ${g.reservation_code ?? ""} ${g.guest_phone ?? ""} ${g.property_name}`.toLowerCase();
+          if (!hay.includes(s)) return false;
+        }
+        return true;
+      })
+      .sort((a, b) => (b.last_access ?? "").localeCompare(a.last_access ?? ""));
   }, [data, filterProp, search]);
+
 
   const filteredConvs = useMemo(() => {
     if (!data) return [];
@@ -292,33 +377,39 @@ function EngagementPage() {
               ) : null}
             </TabsContent>
 
-            {/* ACCESS LOGS */}
+            {/* ACCESS LOGS — unified by guest identity (phone or name+checkin) */}
             <TabsContent value="access" className="space-y-3">
-              {filteredLogs.length === 0 ? (
-                <p className="text-sm text-muted-foreground py-10 text-center">Nenhum acesso registrado.</p>
+              {guestGroups.length === 0 ? (
+                <p className="text-sm text-muted-foreground py-10 text-center">Nenhum hóspede registrado.</p>
               ) : (
                 <div className="rounded-2xl border border-border overflow-hidden">
                   <div className="hidden md:grid grid-cols-12 gap-2 px-4 py-2.5 text-[11px] uppercase tracking-wide text-muted-foreground bg-muted/40 border-b border-border">
                     <div className="col-span-3">Hóspede</div>
                     <div className="col-span-2">Telefone</div>
                     <div className="col-span-2">Check-in</div>
-                    <div className="col-span-2">Reserva</div>
-                    <div className="col-span-3">Hospedagem · Quando</div>
+                    <div className="col-span-2">Acessos · Conversas</div>
+                    <div className="col-span-3">Hospedagem · Último acesso</div>
                   </div>
-                  {filteredLogs.map((l) => (
-                    <div key={l.id} className="grid md:grid-cols-12 gap-2 px-4 py-3 text-sm border-b border-border/60 last:border-b-0">
-                      <div className="md:col-span-3 font-medium truncate">{l.guest_name ?? "—"}</div>
-                      <div className="md:col-span-2 text-muted-foreground flex items-center gap-1 truncate">
-                        {l.guest_phone ? <><Phone className="size-3" />{l.guest_phone}</> : "—"}
+                  {guestGroups.map((g) => (
+                    <div key={g.key} className="grid md:grid-cols-12 gap-2 px-4 py-3 text-sm border-b border-border/60 last:border-b-0">
+                      <div className="md:col-span-3 font-medium truncate">
+                        {g.guest_name ?? "—"}
+                        {g.reservation_code ? <span className="ml-1 text-[11px] text-muted-foreground">· {g.reservation_code}</span> : null}
                       </div>
-                      <div className="md:col-span-2 text-muted-foreground">{fmtDate(l.checkin_date)}</div>
-                      <div className="md:col-span-2 text-muted-foreground truncate">{l.reservation_code ?? "—"}</div>
-                      <div className="md:col-span-3 text-muted-foreground truncate">{l.property_name} · {fmt(l.created_at)}</div>
+                      <div className="md:col-span-2 text-muted-foreground flex items-center gap-1 truncate">
+                        {g.guest_phone ? <><Phone className="size-3" />{g.guest_phone}</> : "—"}
+                      </div>
+                      <div className="md:col-span-2 text-muted-foreground">{fmtDate(g.checkin_date)}</div>
+                      <div className="md:col-span-2 text-muted-foreground tabular-nums">
+                        {g.access_count} · {g.conversation_ids.length}
+                      </div>
+                      <div className="md:col-span-3 text-muted-foreground truncate">{g.property_name} · {fmt(g.last_access)}</div>
                     </div>
                   ))}
                 </div>
               )}
             </TabsContent>
+
 
             {/* CONVERSATIONS */}
             <TabsContent value="chat" className="space-y-4">

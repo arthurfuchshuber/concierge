@@ -1,13 +1,13 @@
 import { useState, useEffect } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { recordGuideAccess } from "@/lib/guide-access.functions";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon, Lock } from "lucide-react";
+import { CalendarIcon } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "sonner";
@@ -16,6 +16,8 @@ import PhoneInput, { isValidPhoneNumber, type Country } from "react-phone-number
 import "react-phone-number-input/style.css";
 
 const STORAGE_PREFIX = "sg-access-";
+// Re-ask only 36h after checkin date
+const REASK_AFTER_CHECKIN_MS = 36 * 60 * 60 * 1000;
 
 export type AccessRecord = {
   name: string;
@@ -25,13 +27,25 @@ export type AccessRecord = {
   phoneCountry: string | null;
 };
 
+function isExpired(checkinDate: string): boolean {
+  // expires 36h after the start of the checkin day (local time)
+  const [y, m, d] = checkinDate.split("-").map(Number);
+  if (!y || !m || !d) return true;
+  const checkin = new Date(y, m - 1, d, 0, 0, 0, 0).getTime();
+  return Date.now() > checkin + REASK_AFTER_CHECKIN_MS;
+}
+
 export function readAccessRecord(slug: string): AccessRecord | null {
   if (typeof window === "undefined") return null;
   try {
-    const raw = sessionStorage.getItem(STORAGE_PREFIX + slug);
+    const raw = window.localStorage.getItem(STORAGE_PREFIX + slug);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as Partial<AccessRecord>;
     if (!parsed?.name || !parsed?.checkinDate) return null;
+    if (isExpired(parsed.checkinDate)) {
+      window.localStorage.removeItem(STORAGE_PREFIX + slug);
+      return null;
+    }
     return {
       name: parsed.name,
       code: parsed.code ?? null,
@@ -107,7 +121,7 @@ export function GuideAccessGate({ slug, propertyName, requireReservationCode, on
         phone,
         phoneCountry: country,
       };
-      sessionStorage.setItem(STORAGE_PREFIX + slug, JSON.stringify(rec));
+      window.localStorage.setItem(STORAGE_PREFIX + slug, JSON.stringify(rec));
       onUnlock(rec);
     } catch {
       toast.error("Erro ao registrar acesso. Tente novamente.");
@@ -119,22 +133,17 @@ export function GuideAccessGate({ slug, propertyName, requireReservationCode, on
   return (
     <Dialog open modal>
       <DialogContent
-        className="sm:max-w-md [&>button]:hidden"
+        className="sm:max-w-sm p-5 gap-3 [&>button]:hidden"
         onPointerDownOutside={(e) => e.preventDefault()}
         onEscapeKeyDown={(e) => e.preventDefault()}
       >
-        <DialogHeader>
-          <div className="mx-auto mb-2 size-12 rounded-full bg-accent/15 text-accent grid place-items-center">
-            <Lock className="size-5" strokeWidth={1.75} />
-          </div>
-          <DialogTitle className="text-center font-serif text-2xl">{propertyName}</DialogTitle>
-          <DialogDescription className="text-center">
-            Antes de continuar, confirme alguns dados para que o anfitrião possa te identificar.
-          </DialogDescription>
-        </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4 pt-2">
-          <div className="space-y-1.5">
-            <Label htmlFor="guest-name">Nome completo</Label>
+        <div className="space-y-0.5">
+          <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground font-semibold">Acesso ao guia</p>
+          <h2 className="font-serif text-lg leading-tight">{propertyName}</h2>
+        </div>
+        <form onSubmit={handleSubmit} className="space-y-3">
+          <div className="space-y-1">
+            <Label htmlFor="guest-name" className="text-xs">Nome</Label>
             <Input
               id="guest-name"
               value={name}
@@ -142,21 +151,22 @@ export function GuideAccessGate({ slug, propertyName, requireReservationCode, on
               maxLength={200}
               required
               autoFocus
+              className="h-9 text-sm"
               placeholder="Como aparece na reserva"
             />
           </div>
 
-          <div className="space-y-1.5">
-            <Label>Data de check-in</Label>
+          <div className="space-y-1">
+            <Label className="text-xs">Check-in</Label>
             <Popover>
               <PopoverTrigger asChild>
                 <Button
                   type="button"
                   variant="outline"
-                  className={cn("w-full justify-start text-left font-normal", !date && "text-muted-foreground")}
+                  className={cn("w-full justify-start text-left font-normal h-9 text-sm", !date && "text-muted-foreground")}
                 >
-                  <CalendarIcon className="mr-2 size-4" />
-                  {date ? format(date, "dd 'de' MMMM 'de' yyyy", { locale: ptBR }) : "Selecionar data"}
+                  <CalendarIcon className="mr-2 size-3.5" />
+                  {date ? format(date, "dd 'de' MMM yyyy", { locale: ptBR }) : "Selecionar data"}
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-auto p-0" align="start">
@@ -172,8 +182,8 @@ export function GuideAccessGate({ slug, propertyName, requireReservationCode, on
             </Popover>
           </div>
 
-          <div className="space-y-1.5">
-            <Label htmlFor="guest-phone">Telefone (com DDI)</Label>
+          <div className="space-y-1">
+            <Label htmlFor="guest-phone" className="text-xs">Telefone</Label>
             <div className="sg-phone-input">
               <PhoneInput
                 id="guest-phone"
@@ -186,26 +196,24 @@ export function GuideAccessGate({ slug, propertyName, requireReservationCode, on
                 limitMaxLength
               />
             </div>
-            <p className="text-[11px] text-muted-foreground">
-              Selecione o país; o formato exibido segue o padrão local.
-            </p>
           </div>
 
           {requireReservationCode && (
-            <div className="space-y-1.5">
-              <Label htmlFor="reservation-code">Código da reserva</Label>
+            <div className="space-y-1">
+              <Label htmlFor="reservation-code" className="text-xs">Código da reserva</Label>
               <Input
                 id="reservation-code"
                 value={code}
                 onChange={(e) => setCode(e.target.value)}
                 maxLength={100}
                 required
+                className="h-9 text-sm"
                 placeholder="Ex.: HMABC123"
               />
             </div>
           )}
 
-          <Button type="submit" disabled={loading} className="w-full rounded-full h-11">
+          <Button type="submit" disabled={loading} className="w-full rounded-full h-10 text-sm">
             {loading ? "Verificando…" : "Acessar guia"}
           </Button>
         </form>
