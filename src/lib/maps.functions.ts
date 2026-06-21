@@ -227,8 +227,7 @@ async function placesText(
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "X-Goog-FieldMask":
-        "places.id,places.displayName,places.location,places.rating,places.userRatingCount,places.googleMapsUri,places.photos,places.primaryType,places.editorialSummary,places.generativeSummary,places.regularOpeningHours",
+      "X-Goog-FieldMask": PLACE_FIELD_MASK,
     },
     body: JSON.stringify(body),
   });
