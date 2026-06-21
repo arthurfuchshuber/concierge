@@ -202,7 +202,12 @@ function extractCityCountry(comps: GeoComponent[] | undefined) {
 const PLACE_FIELD_MASK =
   "places.id,places.displayName,places.location,places.rating,places.userRatingCount,places.googleMapsUri,places.photos.name,places.photos.widthPx,places.photos.heightPx,places.primaryType,places.editorialSummary,places.generativeSummary,places.regularOpeningHours";
 
-async function placesNearby(lat: number, lng: number, includedTypes: string[]) {
+async function placesNearby(
+  lat: number,
+  lng: number,
+  includedTypes: string[],
+  radius = 6000,
+) {
   const res = await gatewayFetch(`/places/v1/places:searchNearby`, {
     method: "POST",
     headers: {
@@ -213,7 +218,7 @@ async function placesNearby(lat: number, lng: number, includedTypes: string[]) {
       includedTypes,
       maxResultCount: 20,
       rankPreference: "POPULARITY",
-      locationRestriction: { circle: { center: { latitude: lat, longitude: lng }, radius: 3000 } },
+      locationRestriction: { circle: { center: { latitude: lat, longitude: lng }, radius } },
     }),
   });
   if (!res.ok) return [];
