@@ -406,34 +406,66 @@ function BibliotecaPage() {
                 </p>
               ) : (
                 <div className="space-y-3">
-                  {knowledge.map((k, i) => (
-                    <div key={i} className="rounded-2xl border border-border bg-card p-4 space-y-3">
-                      <div className="flex items-start gap-2">
-                        <div className="flex-1 space-y-3">
-                          <Input
-                            placeholder="Título (ex.: política de cancelamento)"
-                            value={k.title}
-                            maxLength={200}
+                  {knowledge.map((k, i) => {
+                    const isOpen = openKnow.has(i) || !k.id;
+                    return (
+                      <div key={i} className="rounded-2xl border border-border bg-card overflow-hidden">
+                        <div className="flex items-center gap-2 p-3">
+                          <button
+                            type="button"
+                            onClick={() => k.id && toggleKnow(i)}
+                            className="flex-1 min-w-0 flex items-center gap-2 text-left"
+                            aria-expanded={isOpen}
+                          >
+                            <ChevronDown
+                              className={`size-4 text-muted-foreground shrink-0 transition-transform ${isOpen ? "rotate-180" : ""}`}
+                            />
+                            <span className="flex-1 min-w-0 truncate text-sm font-medium">
+                              {k.title.trim() || (
+                                <span className="text-muted-foreground italic">Novo bloco…</span>
+                              )}
+                            </span>
+                            {!k.enabled && (
+                              <span className="text-[10px] uppercase tracking-wider text-muted-foreground bg-muted px-2 py-0.5 rounded-full shrink-0">
+                                Off
+                              </span>
+                            )}
+                          </button>
+                          <button
+                            type="button"
                             disabled={aiLocked}
-                            onChange={(e) =>
-                              setKnowledge((arr) =>
-                                arr.map((x, j) => (j === i ? { ...x, title: e.target.value } : x)),
-                              )
-                            }
-                          />
-                          <Textarea
-                            placeholder="Conteúdo factual que a IA pode usar como contexto"
-                            value={k.body}
-                            maxLength={5000}
-                            rows={5}
-                            disabled={aiLocked}
-                            onChange={(e) =>
-                              setKnowledge((arr) =>
-                                arr.map((x, j) => (j === i ? { ...x, body: e.target.value } : x)),
-                              )
-                            }
-                          />
-                          <div className="flex items-center justify-between">
+                            onClick={() => setKnowledge((arr) => arr.filter((_, j) => j !== i))}
+                            className="size-8 grid place-items-center rounded-full hover:bg-destructive/10 text-muted-foreground hover:text-destructive shrink-0 disabled:opacity-40"
+                            aria-label="Remover"
+                          >
+                            <Trash2 className="size-3.5" />
+                          </button>
+                        </div>
+                        {isOpen && (
+                          <div className="px-3 pb-3 pt-1 space-y-3 border-t border-border/60 bg-background/40">
+                            <Input
+                              placeholder="Título (ex.: política de cancelamento)"
+                              value={k.title}
+                              maxLength={200}
+                              disabled={aiLocked}
+                              onChange={(e) =>
+                                setKnowledge((arr) =>
+                                  arr.map((x, j) => (j === i ? { ...x, title: e.target.value } : x)),
+                                )
+                              }
+                            />
+                            <Textarea
+                              placeholder="Conteúdo factual que a IA pode usar como contexto"
+                              value={k.body}
+                              maxLength={5000}
+                              rows={5}
+                              disabled={aiLocked}
+                              onChange={(e) =>
+                                setKnowledge((arr) =>
+                                  arr.map((x, j) => (j === i ? { ...x, body: e.target.value } : x)),
+                                )
+                              }
+                            />
                             <div className="flex items-center gap-2">
                               <Switch
                                 checked={k.enabled}
@@ -449,19 +481,10 @@ function BibliotecaPage() {
                               </span>
                             </div>
                           </div>
-                        </div>
-                        <button
-                          type="button"
-                          disabled={aiLocked}
-                          onClick={() => setKnowledge((arr) => arr.filter((_, j) => j !== i))}
-                          className="size-8 grid place-items-center rounded-full hover:bg-destructive/10 text-muted-foreground hover:text-destructive shrink-0 disabled:opacity-40"
-                          aria-label="Remover"
-                        >
-                          <Trash2 className="size-3.5" />
-                        </button>
+                        )}
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
 
