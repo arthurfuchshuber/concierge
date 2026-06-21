@@ -183,8 +183,8 @@ export function GuideAiChat({ slug, propertyName }: { slug: string; propertyName
           <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-5 space-y-4">
             {messages.length === 0 && (
               <div className="text-center py-6">
-                <div className="mx-auto size-12 rounded-2xl bg-accent/15 text-accent grid place-items-center mb-3">
-                  <MessageCircle className="size-5" strokeWidth={1.75} />
+                <div className="mx-auto size-12 rounded-2xl bg-emerald-100 text-emerald-700 grid place-items-center mb-3 ring-1 ring-emerald-200">
+                  <MessageCircleMore className="size-5" strokeWidth={1.9} />
                 </div>
                 <p className="font-serif text-lg leading-tight">Como posso ajudar?</p>
                 <p className="text-[12.5px] text-muted-foreground mt-2 max-w-[28ch] mx-auto leading-relaxed">
