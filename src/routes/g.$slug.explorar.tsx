@@ -354,16 +354,18 @@ function ExplorePage() {
         <header className="mt-6 mb-8">
           <p className="text-[10px] uppercase tracking-[0.32em] text-accent font-semibold mb-3">Concierge</p>
           <h1 className="font-serif text-[2.1rem] md:text-[2.8rem] leading-[1.02] tracking-tight">
-            {active ? active.meta.title : "Explore a Região"}
+            {showingCityRefs ? `Referências em ${cityLabel}` : active ? active.meta.title : "Explore a Região"}
           </h1>
           <p className="text-[13px] md:text-[14px] text-muted-foreground mt-3 leading-relaxed max-w-[52ch]">
-            {active
-              ? active.meta.desc
-              : `Uma curadoria de lugares e experiências próximas a ${p.name}.`}
+            {showingCityRefs
+              ? `Pontos icônicos e endereços que valem a viagem em ${cityLabel}.`
+              : active
+                ? active.meta.desc
+                : `Uma curadoria de lugares e experiências próximas a ${p.name}.`}
           </p>
         </header>
 
-        {!active ? (
+        {!active && !showingCityRefs ? (
           <>
             <div className="flex items-center justify-between gap-3 flex-wrap mb-4">
               <MinReviewsFilter value={minReviews} onChange={setMinReviews} />
@@ -374,22 +376,38 @@ function ExplorePage() {
             ) : (
               <CategoryList categories={categories} onPick={(k) => setActiveKey(k)} />
             )}
+            {cityRefs.length > 0 && (
+              <CityReferencesCard
+                items={cityRefs}
+                cityLabel={cityLabel}
+                viewMode={viewMode}
+                onPick={() => setActiveKey("__city_refs")}
+              />
+            )}
           </>
-        ) : (
-          <CategoryDetail
-            nearby={sortRecs(active.nearby, sortBy)}
-            city={sortRecs(active.city, sortBy)}
+        ) : showingCityRefs ? (
+          <CityReferencesDetail
+            items={cityRefs}
+            cityLabel={cityLabel}
             sortBy={sortBy}
             setSortBy={setSortBy}
             viewMode={viewMode}
             setViewMode={setViewMode}
-            isTouristCategory={active.meta.key === "sights"}
           />
-
+        ) : (
+          <CategoryDetail
+            nearby={sortRecs(active!.nearby, sortBy)}
+            city={sortRecs(active!.city, sortBy)}
+            sortBy={sortBy}
+            setSortBy={setSortBy}
+            viewMode={viewMode}
+            setViewMode={setViewMode}
+            isTouristCategory={active!.meta.key === "sights"}
+          />
         )}
 
 
-        {categories.length === 0 && (!Array.isArray(p.marketplace_links) || p.marketplace_links.length === 0) && (
+        {categories.length === 0 && cityRefs.length === 0 && (!Array.isArray(p.marketplace_links) || p.marketplace_links.length === 0) && (
           <p className="text-sm text-muted-foreground">Sem recomendações cadastradas ainda.</p>
         )}
 
