@@ -290,6 +290,33 @@ function buildPhotoUrl(photoName: string | undefined): string | null {
   return `/api/public/place-photo?name=${encodeURIComponent(photoName)}&w=1600`;
 }
 
+// Escolhe a melhor foto do lugar: prioriza landscape de alta resolução
+// (≥1600px, proporção 1.2-2.5). Evita retratos, quadrados e thumbs
+// pequenas — que costumam ser fotos "ruins/desfocadas/mexidas" tiradas
+// por usuários. Fallback: maior foto disponível.
+function pickBestPlacePhoto(photos: PlacePhoto[] | undefined): string | null {
+  if (!photos || photos.length === 0) return null;
+  const isGood = (p: PlacePhoto) => {
+    const w = p.widthPx ?? 0;
+    const h = p.heightPx ?? 0;
+    if (w < 1600 || h < 900) return false;
+    const ar = w / h;
+    return ar >= 1.2 && ar <= 2.5;
+  };
+  const good = photos.find(isGood);
+  if (good) return buildPhotoUrl(good.name);
+  // Fallback: pega a maior foto disponível (por área), evitando portraits muito altos
+  const ranked = [...photos]
+    .filter((p) => {
+      const w = p.widthPx ?? 0;
+      const h = p.heightPx ?? 0;
+      if (!w || !h) return true;
+      return w / h >= 0.9; // descarta portraits estreitos
+    })
+    .sort((a, b) => ((b.widthPx ?? 0) * (b.heightPx ?? 0)) - ((a.widthPx ?? 0) * (a.heightPx ?? 0)));
+  return buildPhotoUrl((ranked[0] ?? photos[0]).name);
+}
+
 // Curadoria via Gemini: lista os lugares mais famosos/queridos da cidade por categoria.
 // Retorna { restaurant: [...], bar: [...], ... }. Em caso de erro, retorna {}.
 async function fetchIconicPlacesFromGemini(
