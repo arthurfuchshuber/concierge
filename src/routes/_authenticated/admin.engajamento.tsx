@@ -173,7 +173,8 @@ function EngagementPage() {
 
   // Sorted access logs per property for nearest-time lookup
   const logsByProperty = useMemo(() => {
-    const out = new Map<string, typeof data.logs>();
+    type LogRow = NonNullable<typeof data>["logs"][number];
+    const out = new Map<string, LogRow[]>();
     if (!data) return out;
     for (const l of data.logs) {
       const arr = out.get(l.property_id) ?? [];
