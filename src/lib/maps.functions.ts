@@ -420,7 +420,7 @@ export const searchPlacesForRec = createServerFn({ method: "POST" })
       headers: {
         "Content-Type": "application/json",
         "X-Goog-FieldMask":
-          "places.id,places.displayName,places.formattedAddress,places.location,places.rating,places.userRatingCount,places.googleMapsUri,places.photos,places.primaryType,places.editorialSummary,places.generativeSummary,places.regularOpeningHours",
+          "places.id,places.displayName,places.formattedAddress,places.location,places.rating,places.userRatingCount,places.googleMapsUri,places.photos.name,places.photos.widthPx,places.photos.heightPx,places.primaryType,places.editorialSummary,places.generativeSummary,places.regularOpeningHours",
       },
       body: JSON.stringify(body),
     });
