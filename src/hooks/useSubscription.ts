@@ -10,10 +10,16 @@ export type SubscriptionInfo = {
   status: string | null;
   cancelAtPeriodEnd: boolean;
   currentPeriodEnd: string | null;
+  trialEndsAt: string | null;
   isActive: boolean;
   isTrialing: boolean;
   isPastDue: boolean;
+  isManual: boolean;
   maxGuides: number;
+  maxGuidesOverride: number | null;
+  customPriceCents: number | null;
+  customCurrency: string | null;
+  adminNotes: string | null;
   features: { autoImport: boolean; ai: boolean; customBrand: boolean };
 };
 
@@ -89,15 +95,32 @@ export function useSubscription() {
 
   const planConfig = plan ? PLANS[plan] : null;
 
+  const subAny = sub as (typeof sub & {
+    custom_price_cents?: number | null;
+    custom_currency?: string | null;
+    trial_ends_at?: string | null;
+    max_guides_override?: number | null;
+    admin_notes?: string | null;
+    is_manual?: boolean | null;
+  }) | null;
+  const override = subAny?.max_guides_override ?? null;
+  const baseMax = planConfig ? planConfig.maxGuides : 0;
+
   const info: SubscriptionInfo = {
     plan: isActive ? plan : null,
     status,
     cancelAtPeriodEnd: !!sub?.cancel_at_period_end,
     currentPeriodEnd: periodEnd,
+    trialEndsAt: subAny?.trial_ends_at ?? null,
     isActive,
     isTrialing,
     isPastDue,
-    maxGuides: isActive && planConfig ? planConfig.maxGuides : 0,
+    isManual: !!subAny?.is_manual,
+    maxGuides: isActive ? (override ?? baseMax) : 0,
+    maxGuidesOverride: override,
+    customPriceCents: subAny?.custom_price_cents ?? null,
+    customCurrency: subAny?.custom_currency ?? null,
+    adminNotes: subAny?.admin_notes ?? null,
     features: isActive && planConfig ? planConfig.features : FREE_FEATURES,
   };
 
