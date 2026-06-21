@@ -85,6 +85,129 @@ export type Database = {
           },
         ]
       }
+      city_reference_jobs: {
+        Row: {
+          city_key: string
+          city_label: string
+          country: string
+          created_at: string
+          id: string
+          last_message: string | null
+          last_refreshed_at: string | null
+          last_status: string | null
+          state: string | null
+          updated_at: string
+        }
+        Insert: {
+          city_key: string
+          city_label: string
+          country?: string
+          created_at?: string
+          id?: string
+          last_message?: string | null
+          last_refreshed_at?: string | null
+          last_status?: string | null
+          state?: string | null
+          updated_at?: string
+        }
+        Update: {
+          city_key?: string
+          city_label?: string
+          country?: string
+          created_at?: string
+          id?: string
+          last_message?: string | null
+          last_refreshed_at?: string | null
+          last_status?: string | null
+          state?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      city_references: {
+        Row: {
+          address: string | null
+          category: string
+          city_key: string
+          city_label: string
+          country: string
+          created_at: string
+          display_order: number
+          id: string
+          image_url: string | null
+          is_hidden: boolean
+          last_synced_at: string | null
+          lat: number | null
+          lng: number | null
+          maps_url: string | null
+          name: string
+          note: string | null
+          opening_hours: string[] | null
+          place_id: string | null
+          primary_type: string | null
+          rating: number | null
+          source: string
+          state: string | null
+          type: string
+          updated_at: string
+          user_ratings_total: number | null
+        }
+        Insert: {
+          address?: string | null
+          category: string
+          city_key: string
+          city_label: string
+          country?: string
+          created_at?: string
+          display_order?: number
+          id?: string
+          image_url?: string | null
+          is_hidden?: boolean
+          last_synced_at?: string | null
+          lat?: number | null
+          lng?: number | null
+          maps_url?: string | null
+          name: string
+          note?: string | null
+          opening_hours?: string[] | null
+          place_id?: string | null
+          primary_type?: string | null
+          rating?: number | null
+          source?: string
+          state?: string | null
+          type: string
+          updated_at?: string
+          user_ratings_total?: number | null
+        }
+        Update: {
+          address?: string | null
+          category?: string
+          city_key?: string
+          city_label?: string
+          country?: string
+          created_at?: string
+          display_order?: number
+          id?: string
+          image_url?: string | null
+          is_hidden?: boolean
+          last_synced_at?: string | null
+          lat?: number | null
+          lng?: number | null
+          maps_url?: string | null
+          name?: string
+          note?: string | null
+          opening_hours?: string[] | null
+          place_id?: string | null
+          primary_type?: string | null
+          rating?: number | null
+          source?: string
+          state?: string | null
+          type?: string
+          updated_at?: string
+          user_ratings_total?: number | null
+        }
+        Relationships: []
+      }
       guide_access_logs: {
         Row: {
           checkin_date: string
@@ -316,6 +439,7 @@ export type Database = {
           published: boolean
           require_access_gate: boolean
           slug: string
+          state: string | null
           tagline: string | null
           theme_images: Json
           updated_at: string
@@ -371,6 +495,7 @@ export type Database = {
           published?: boolean
           require_access_gate?: boolean
           slug: string
+          state?: string | null
           tagline?: string | null
           theme_images?: Json
           updated_at?: string
@@ -426,6 +551,7 @@ export type Database = {
           published?: boolean
           require_access_gate?: boolean
           slug?: string
+          state?: string | null
           tagline?: string | null
           theme_images?: Json
           updated_at?: string
