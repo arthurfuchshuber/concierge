@@ -609,9 +609,9 @@ function EngagementPage() {
 }
 
 function ConversationCard({
-  conversationId, guestName, checkinDate, propertyName, lastMessageAt, feedbackCount, feedbackByMsg, aiLocked, onChanged,
+  conversationIds, guestName, checkinDate, propertyName, lastMessageAt, feedbackCount, feedbackByMsg, aiLocked, onChanged,
 }: {
-  conversationId: string;
+  conversationIds: string[];
   guestName: string | null;
   checkinDate: string | null;
   propertyName: string;
@@ -625,9 +625,15 @@ function ConversationCard({
   const loadMsgs = useServerFn(getConversationMessages);
   const mark = useServerFn(markMessageIneffective);
   const unmark = useServerFn(unmarkMessageIneffective);
+  const ids = useMemo(() => [...conversationIds].sort(), [conversationIds]);
   const { data, isFetching, refetch } = useQuery({
-    queryKey: ["conv-msgs", conversationId],
-    queryFn: () => loadMsgs({ data: { conversationId } }),
+    queryKey: ["conv-msgs-group", ids],
+    queryFn: async () => {
+      const all = await Promise.all(ids.map((id) => loadMsgs({ data: { conversationId: id } })));
+      const merged = all.flatMap((r) => r.messages ?? []);
+      merged.sort((a, b) => (a.created_at ?? "").localeCompare(b.created_at ?? ""));
+      return { messages: merged };
+    },
     enabled: open,
   });
   const [teachOpen, setTeachOpen] = useState(false);
