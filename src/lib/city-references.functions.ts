@@ -337,7 +337,9 @@ export const listAdminCities = createServerFn({ method: "POST" })
     }
     for (const j of (jobs ?? []) as Array<{ city_key: string; city_label: string; state: string | null; country: string; last_refreshed_at: string | null; last_status: string | null }>) {
       const id = k(j.city_key, j.state, j.country);
-      const b = map.get(id) ?? {
+      const existing = map.get(id);
+      if (!existing && !admin) continue; // hosts: só cidades das próprias residências
+      const b = existing ?? {
         city_key: j.city_key,
         city_label: j.city_label,
         state: j.state,
