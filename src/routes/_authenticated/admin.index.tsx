@@ -87,11 +87,19 @@ function Dashboard() {
   const count = data?.length ?? 0;
   const planConfig = sub.plan ? PLANS[sub.plan] : null;
   const planName = planConfig?.name ?? "Sem plano";
-  const planPrice = planConfig?.priceLabel ?? "—";
+  const hasCustomPrice = sub.customPriceCents != null;
+  const customCurrency = sub.customCurrency || "BRL";
+  const planPrice = hasCustomPrice
+    ? (sub.customPriceCents! / 100).toLocaleString("pt-BR", { style: "currency", currency: customCurrency })
+    : planConfig?.priceLabel ?? "—";
   const planLimit = sub.maxGuides;
   const remaining = Math.max(0, planLimit - count);
   const pct = planLimit > 0 ? Math.min(100, (count / planLimit) * 100) : 0;
   const reachedLimit = planLimit > 0 && count >= planLimit;
+  const fmtDate = (iso: string | null) =>
+    iso ? new Date(iso).toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric" }) : null;
+  const renewalLabel = fmtDate(sub.currentPeriodEnd);
+  const trialLabel = sub.isTrialing ? fmtDate(sub.trialEndsAt ?? sub.currentPeriodEnd) : null;
 
   const filtered = useMemo(() => {
     if (!data) return [];
