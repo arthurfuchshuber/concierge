@@ -115,7 +115,7 @@ export async function resolveOwnerPlanAdmin(
   const list = subs ?? [];
   const candidates = [
     ...list.filter((sub) => sub.environment === runtimeEnv),
-    ...list.filter((sub) => sub.environment !== runtimeEnv && sub.is_manual),
+    ...list.filter((sub) => sub.environment !== runtimeEnv && (sub.is_manual || sub.product_id === "enterprise_plan")),
   ];
   for (const sub of candidates) {
     const status = (sub.status as string) ?? null;
