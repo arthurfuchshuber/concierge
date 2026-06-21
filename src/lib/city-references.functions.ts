@@ -113,6 +113,8 @@ export const generateCityReferences = createServerFn({ method: "POST" })
   .inputValidator((i: unknown) => CityIdent.parse(i))
   .handler(async ({ data, context }) => {
     await assertCanManageCity(context, { city_label: data.city_label, state: normalizeState(data.state ?? null), country: data.country });
+    const { assertFeature } = await import("@/lib/plan-guard.server");
+    await assertFeature(context.supabase, context.userId, "autoImport");
     return runCityGeneration(data);
   });
 
