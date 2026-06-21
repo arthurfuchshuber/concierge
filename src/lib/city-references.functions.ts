@@ -107,15 +107,17 @@ export const listCityReferences = createServerFn({ method: "POST" })
     return { items: rows ?? [], job };
   });
 
+const GenerateInput = CityIdent.extend({ type: z.string().min(1).max(40).nullable().optional() });
+
 // ---- GENERATE ---------------------------------------------------------
 export const generateCityReferences = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((i: unknown) => CityIdent.parse(i))
+  .inputValidator((i: unknown) => GenerateInput.parse(i))
   .handler(async ({ data, context }) => {
     await assertCanManageCity(context, { city_label: data.city_label, state: normalizeState(data.state ?? null), country: data.country });
     const { assertFeature } = await import("@/lib/plan-guard.server");
     await assertFeature(context.supabase, context.userId, "autoImport");
-    return runCityGeneration(data);
+    return runCityGeneration({ ...data, type: data.type ?? null });
   });
 
 // Função interna reaproveitável pelo cron (sem auth middleware).
@@ -123,6 +125,7 @@ export async function runCityGeneration(input: {
   city_label: string;
   state?: string | null;
   country: string;
+  type?: string | null;
 }) {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const key = cityKey(input.city_label);
@@ -137,27 +140,36 @@ export async function runCityGeneration(input: {
       city_label: input.city_label,
       state: st,
       country,
+      type: input.type ?? null,
     });
   } catch (e) {
     status = "error";
     message = e instanceof Error ? e.message : "Erro desconhecido";
   }
 
-  // IDs ocultos pré-existentes: preservar is_hidden=true após upsert.
-  const { data: existing } = await supabaseAdmin
+  // Carrega existentes para decidir entre INSERT e UPDATE manualmente
+  // (evita problemas com onConflict em índice expressão COALESCE).
+  let existingQ = supabaseAdmin
     .from("city_references")
-    .select("id, place_id, is_hidden, source")
+    .select("id, place_id, name, is_hidden, source")
     .eq("city_key", key)
-    .eq("country", country)
-    .then((r) => ({ data: (r.data ?? []) as Array<{ id: string; place_id: string | null; is_hidden: boolean; source: string }> }));
-  const hiddenByPlace = new Map<string, boolean>();
-  for (const e of existing) if (e.place_id) hiddenByPlace.set(e.place_id, e.is_hidden);
+    .eq("country", country);
+  existingQ = st ? existingQ.eq("state", st) : existingQ.is("state", null);
+  const { data: existing } = await existingQ;
+  const byPlace = new Map<string, { id: string; is_hidden: boolean }>();
+  const byName = new Map<string, { id: string; is_hidden: boolean }>();
+  for (const e of (existing ?? []) as Array<{ id: string; place_id: string | null; name: string; is_hidden: boolean }>) {
+    if (e.place_id) byPlace.set(e.place_id, { id: e.id, is_hidden: e.is_hidden });
+    else byName.set(e.name.toLowerCase(), { id: e.id, is_hidden: e.is_hidden });
+  }
 
   const nowIso = new Date().toISOString();
   let inserted = 0;
   let updated = 0;
+  let failed = 0;
   for (const r of rows) {
-    const payload = {
+    const match = (r.place_id && byPlace.get(r.place_id)) || byName.get(r.name.toLowerCase()) || null;
+    const base = {
       city_key: key,
       city_label: input.city_label,
       state: st,
@@ -177,18 +189,29 @@ export async function runCityGeneration(input: {
       maps_url: r.maps_url,
       opening_hours: r.opening_hours,
       source: "auto",
-      is_hidden: hiddenByPlace.get(r.place_id) ?? false,
       last_synced_at: nowIso,
     };
-    const { data: ups, error } = await supabaseAdmin
-      .from("city_references")
-      .upsert(payload, { onConflict: "city_key,state,country,place_id", ignoreDuplicates: false })
-      .select("id, created_at, updated_at");
-    if (error) continue;
-    const row = (ups ?? [])[0] as { created_at?: string; updated_at?: string } | undefined;
-    if (row?.created_at === row?.updated_at) inserted += 1;
-    else updated += 1;
+    if (match) {
+      const { error } = await supabaseAdmin
+        .from("city_references")
+        .update(base)
+        .eq("id", match.id);
+      if (error) {
+        failed += 1;
+        if (!message) message = error.message;
+      } else updated += 1;
+    } else {
+      const { error } = await supabaseAdmin
+        .from("city_references")
+        .insert({ ...base, is_hidden: false });
+      if (error) {
+        failed += 1;
+        if (!message) message = error.message;
+      } else inserted += 1;
+    }
   }
+
+  if (failed > 0 && status === "ok") status = "partial";
 
   await supabaseAdmin
     .from("city_reference_jobs")
@@ -205,8 +228,9 @@ export async function runCityGeneration(input: {
       { onConflict: "city_key,state,country" },
     );
 
-  return { inserted, updated, total: rows.length, status, message };
+  return { inserted, updated, failed, total: rows.length, status, message };
 }
+
 
 // ---- TOGGLE HIDE ------------------------------------------------------
 export const toggleHideCityReference = createServerFn({ method: "POST" })
