@@ -166,28 +166,7 @@ function AdminLayout() {
 
         <main className="flex-1">
           {needsPlan ? (
-            <div className="min-h-[calc(100vh-3.5rem)] lg:min-h-screen grid place-items-center px-6 py-10">
-              <div className="max-w-md w-full rounded-3xl border border-border bg-card p-8 text-center shadow-elevated">
-                <div className="size-12 rounded-2xl bg-accent/10 grid place-items-center mx-auto mb-4">
-                  <Lock className="size-5 text-accent" />
-                </div>
-                <h2 className="font-serif text-2xl mb-2">Escolha um plano para continuar</h2>
-                <p className="text-sm text-muted-foreground mb-6">
-                  Para acessar o painel você precisa selecionar um plano e cadastrar um cartão. O período de avaliação começa assim que o plano é ativado — sem cobrança durante o trial.
-                </p>
-                <div className="flex flex-col gap-2">
-                  <Button onClick={() => navigate({ to: "/precos" })} className="rounded-full w-full">
-                    <CreditCard className="size-4 mr-1.5" /> Ver planos
-                  </Button>
-                  <button
-                    onClick={signOut}
-                    className="text-xs text-muted-foreground hover:text-foreground"
-                  >
-                    Sair / trocar de conta
-                  </button>
-                </div>
-              </div>
-            </div>
+            <OnboardingCheckout onSignOut={signOut} />
           ) : (
             <Outlet />
           )}
