@@ -294,10 +294,11 @@ function AdminCityDetail() {
             Gere automaticamente pontos turísticos populares de {label} com IA, ou adicione manualmente seus favoritos.
           </p>
           <div className="flex gap-2 justify-center">
-            <Button onClick={handleGenerate} disabled={generating}>
-              {generating ? <Loader2 className="size-4 mr-2 animate-spin" /> : <Sparkles className="size-4 mr-2" />}
+            <Button onClick={() => handleGenerate(null)} disabled={generating !== null}>
+              {generating === "__all__" ? <Loader2 className="size-4 mr-2 animate-spin" /> : <Sparkles className="size-4 mr-2" />}
               Gerar com IA
             </Button>
+
             <Button variant="outline" onClick={() => setAddOpen(true)}>
               <Plus className="size-4 mr-2" /> Adicionar manual
             </Button>
