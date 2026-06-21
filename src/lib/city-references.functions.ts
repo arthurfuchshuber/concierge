@@ -238,7 +238,7 @@ export const reorderCityReference = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((i: unknown) => ReorderInput.parse(i))
   .handler(async ({ data, context }) => {
-    await assertCanManageCity(context, { city_label: data.city_label, state: normalizeState(data.state ?? null), country: data.country });
+    await assertCanManageRefById(context, data.id);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { error } = await supabaseAdmin
       .from("city_references")
