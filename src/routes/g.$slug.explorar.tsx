@@ -461,7 +461,7 @@ function CategoryGrid({
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
       {categories.map(({ meta, count, nearby, city }) => {
-        const fallbackSrc = CATEGORY_FALLBACK_IMAGE[meta.key];
+        const heroSrc = pickBestPhoto(nearby, city);
         const Icon = meta.Icon;
         return (
           <button
@@ -471,11 +471,18 @@ function CategoryGrid({
             className="group relative overflow-hidden rounded-2xl border border-border bg-card text-left hover:border-accent/50 hover:shadow-xl transition-all"
           >
             <div className="relative aspect-[16/10] w-full overflow-hidden bg-secondary">
-              <FallbackImage
-                src={fallbackSrc}
-                alt=""
-                className="absolute inset-0 size-full object-cover group-hover:scale-[1.04] transition-transform duration-500"
-              />
+              {heroSrc ? (
+                <img
+                  src={heroSrc}
+                  alt=""
+                  loading="lazy"
+                  className="absolute inset-0 size-full object-cover group-hover:scale-[1.04] transition-transform duration-500"
+                />
+              ) : (
+                <div className="absolute inset-0 grid place-items-center bg-gradient-to-br from-accent/20 to-accent/5">
+                  <Icon className="size-12 text-accent/70" strokeWidth={1.25} />
+                </div>
+              )}
               <div className="absolute inset-0 bg-gradient-to-t from-background/85 via-background/20 to-transparent" />
               <div className="absolute top-3 left-3 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-background/85 backdrop-blur text-[10px] uppercase tracking-[0.2em] font-semibold text-foreground/85">
                 <Icon className="size-3.5 text-accent" strokeWidth={1.75} />
@@ -512,7 +519,7 @@ function CategoryList({
   return (
     <div className="flex flex-col gap-3">
       {categories.map(({ meta, count, nearby, city }) => {
-        const fallbackSrc = CATEGORY_FALLBACK_IMAGE[meta.key];
+        const heroSrc = pickBestPhoto(nearby, city);
         const Icon = meta.Icon;
         return (
           <button
@@ -522,11 +529,18 @@ function CategoryList({
             className="group flex gap-4 bg-card border border-border rounded-2xl p-3 text-left hover:border-accent/40 hover:shadow-lg transition-all"
           >
             <div className="relative size-24 sm:size-28 shrink-0 overflow-hidden rounded-xl bg-secondary">
-              <FallbackImage
-                src={fallbackSrc}
-                alt=""
-                className="absolute inset-0 size-full object-cover group-hover:scale-[1.04] transition-transform duration-500"
-              />
+              {heroSrc ? (
+                <img
+                  src={heroSrc}
+                  alt=""
+                  loading="lazy"
+                  className="absolute inset-0 size-full object-cover group-hover:scale-[1.04] transition-transform duration-500"
+                />
+              ) : (
+                <div className="absolute inset-0 grid place-items-center bg-gradient-to-br from-accent/20 to-accent/5">
+                  <Icon className="size-8 text-accent/70" strokeWidth={1.25} />
+                </div>
+              )}
             </div>
             <div className="flex-1 min-w-0 flex flex-col justify-center gap-1">
               <p className="inline-flex items-center gap-1.5 text-[10px] uppercase tracking-[0.2em] font-semibold text-accent">
