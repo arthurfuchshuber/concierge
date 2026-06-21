@@ -22,11 +22,6 @@ import {
   Ticket,
 } from "lucide-react";
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
-import recommendationFood from "@/assets/recommendation-food.jpg";
-import recommendationSights from "@/assets/recommendation-sights.jpg";
-import recommendationCafe from "@/assets/recommendation-cafe.jpg";
-import recommendationFun from "@/assets/recommendation-fun.jpg";
-import recommendationHealth from "@/assets/recommendation-health.jpg";
 
 
 
@@ -140,28 +135,6 @@ const META_CATEGORIES: MetaCategory[] = [
   },
 ];
 
-const CATEGORY_FALLBACK_IMAGE: Record<string, string> = {
-  food: recommendationFood,
-  sights: recommendationSights,
-  cafe: recommendationCafe,
-  fun: recommendationFun,
-  health: recommendationHealth,
-};
-
-function fallbackImageForType(type: string | null | undefined): string {
-  if (type === "restaurant" || type === "bar") return recommendationFood;
-  if (type === "attraction" || type === "park" || type === "beach") return recommendationSights;
-  if (type === "cafe") return recommendationCafe;
-  if (type === "shopping" || type === "market" || type === "nightlife") return recommendationFun;
-  if (type === "pharmacy") return recommendationHealth;
-  return recommendationSights;
-}
-
-function usableImageUrl(src: string | null | undefined, fallbackSrc: string): string {
-  if (!src || src.includes("/api/public/place-photo")) return fallbackSrc;
-  return src;
-}
-
 function hasMeaningfulInfo(r: Rec): boolean {
   return !!(r.name && (r.image_url || r.rating || r.distance_text || r.distance_meters || r.note));
 }
@@ -268,34 +241,6 @@ function sortRecs(list: Rec[], by: SortKey): Rec[] {
     arr.sort((a, b) => a.name.localeCompare(b.name, "pt-BR", { sensitivity: "base" }));
   }
   return arr;
-}
-
-function FallbackImage({
-  src,
-  fallbackSrc,
-  alt,
-  className,
-}: {
-  src: string;
-  fallbackSrc?: string;
-  alt: string;
-  className?: string;
-}) {
-  const [currentSrc, setCurrentSrc] = useState(src);
-
-  return (
-    <img
-      src={currentSrc}
-      alt={alt}
-      loading="lazy"
-      width={1200}
-      height={900}
-      className={className}
-      onError={() => {
-        if (fallbackSrc && currentSrc !== fallbackSrc) setCurrentSrc(fallbackSrc);
-      }}
-    />
-  );
 }
 
 function ExplorePage() {
