@@ -327,20 +327,20 @@ async function fetchIconicPlacesFromGemini(
   if (!apiKey || !city) return {};
 
   const categoriesPrompt = TYPE_MAP.map((c) => `- ${c.type}: ${c.category}`).join("\n");
-  const prompt = `Você é um concierge local com profundo conhecimento de ${city}${country ? `, ${country}` : ""}. Sua missão é montar uma curadoria EXAUSTIVA e MINUCIOSA dos lugares de relevância local em cada categoria abaixo.
+  const prompt = `Você é um concierge local com profundo conhecimento de ${city}${country ? `, ${country}` : ""}. Sua missão é montar uma curadoria PRECISA dos melhores lugares em cada categoria.
 
 REGRAS CRÍTICAS:
-1. Inclua TODOS os estabelecimentos icônicos da cidade, mesmo que tenham poucas avaliações no Google. Pense: "se um morador local recomendasse, indicaria este lugar?"
-2. Para "attraction" (pontos turísticos), seja AINDA MAIS abrangente: inclua passeios icônicos (sobrevoos de helicóptero como Helisul/FlyFoz, safáris, tours de barco), marcos urbanos famosos (avenidas, praças, gramadões, mirantes), monumentos, museus, parques temáticos, e qualquer experiência turística clássica da cidade — SEM exceção.
-3. Para restaurantes/bares/cafés/padarias/confeitarias: inclua os clássicos locais que "todo mundo da cidade conhece" (churrascarias tradicionais, chopperias famosas, confeitarias históricas, padarias renomadas, redes locais consagradas).
-4. Para market/shopping/pharmacy: inclua redes nacionais grandes presentes na cidade E redes/lojas locais relevantes.
-5. Use o nome EXATO como aparece no Google Maps (incluindo "Restaurante", "Bar", "Cafeteria" no nome se for assim que o estabelecimento se chama).
-6. Não invente lugares. Se não tiver certeza, omita.
+1. Inclua APENAS estabelecimentos consolidados, com no MÍNIMO 200 avaliações no Google Maps. Se você não tem certeza que o lugar tem 200+ avaliações, NÃO inclua.
+2. Respeite RIGOROSAMENTE a categoria. NÃO misture tipos — por exemplo: NÃO coloque hotéis/pousadas/sorveterias na categoria "bar"; NÃO coloque lanchonetes em "cafe"; NÃO coloque shopping em "attraction". Se o lugar é primariamente outra coisa, omita.
+3. Para "attraction" (pontos turísticos): inclua APENAS atrações turísticas consagradas (marcos, monumentos, museus, parques temáticos, mirantes famosos, experiências turísticas clássicas — sobrevoos, tours). Não inclua bares, restaurantes ou shoppings.
+4. Para restaurantes/bares/cafés: APENAS lugares clássicos e consagrados da cidade, conhecidos por moradores e turistas, com volume alto de avaliações.
+5. Use o nome EXATO como aparece no Google Maps.
+6. Não invente lugares. Em caso de dúvida, OMITA.
 
 Categorias:
 ${categoriesPrompt}
 
-Para cada categoria, retorne entre 15 e 30 nomes (quanto mais completo, melhor — desde que sejam realmente relevantes localmente). Para "attraction" especificamente, retorne até 40 nomes incluindo TODAS as experiências turísticas da cidade.
+Para cada categoria, retorne entre 8 e 20 nomes — qualidade importa MUITO mais que quantidade. Prefira menos lugares (todos consagrados) a uma lista longa com lugares duvidosos.
 
 Responda APENAS com JSON válido (sem markdown) no formato:
 {"restaurant": ["Nome 1", "Nome 2"], "bar": [...], "cafe": [...], "beach": [...], "attraction": [...], "market": [...], "pharmacy": [...], "park": [...], "nightlife": [...], "shopping": [...]}`;
