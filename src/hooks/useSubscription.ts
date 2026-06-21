@@ -10,10 +10,16 @@ export type SubscriptionInfo = {
   status: string | null;
   cancelAtPeriodEnd: boolean;
   currentPeriodEnd: string | null;
+  trialEndsAt: string | null;
   isActive: boolean;
   isTrialing: boolean;
   isPastDue: boolean;
+  isManual: boolean;
   maxGuides: number;
+  maxGuidesOverride: number | null;
+  customPriceCents: number | null;
+  customCurrency: string | null;
+  adminNotes: string | null;
   features: { autoImport: boolean; ai: boolean; customBrand: boolean };
 };
 
