@@ -185,13 +185,6 @@ function EngagementPage() {
       .sort((a, b) => (b.last_access ?? "").localeCompare(a.last_access ?? ""));
   }, [data, filterProp, search]);
 
-  // Map conversation_id -> identity key, so the conversations tab can collapse
-  // multiple threads from the same guest into a single card.
-  const convToIdentity = useMemo(() => {
-    const m = new Map<string, string>();
-    for (const g of guestGroups) for (const id of g.conversation_ids) m.set(id, g.key);
-    return m;
-  }, [guestGroups]);
 
   const filteredConvs = useMemo(() => {
     if (!data) return [];
