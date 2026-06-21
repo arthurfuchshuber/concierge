@@ -50,9 +50,6 @@ function fmtDate(d: string | null) {
 function normPhone(p: string | null | undefined) {
   return (p ?? "").replace(/\D+/g, "");
 }
-function normName(n: string | null | undefined) {
-  return (n ?? "").trim().toLowerCase().replace(/\s+/g, " ");
-}
 // Stable identity key per property: ONLY unifies when phone AND checkin match.
 // Without both, each row stays distinct (uses log id as key).
 function identityKey(propertyId: string, phone: string | null, checkin: string | null, fallbackId: string) {
