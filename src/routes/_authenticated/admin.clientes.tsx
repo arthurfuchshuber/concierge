@@ -273,6 +273,7 @@ type EditValues = {
   customCurrency: string | null;
   cancelAtPeriodEnd: boolean;
   adminNotes: string | null;
+  maxGuidesOverride: number | null;
 };
 
 function toDateInput(iso: string | null | undefined) {
@@ -310,6 +311,9 @@ function EditDialog({
   const [customCurrency, setCustomCurrency] = useState(s?.customCurrency ?? "BRL");
   const [cancelAtPeriodEnd, setCancelAtPeriodEnd] = useState(!!s?.cancelAtPeriodEnd);
   const [adminNotes, setAdminNotes] = useState(s?.adminNotes ?? "");
+  const [maxGuidesOverride, setMaxGuidesOverride] = useState(
+    s?.maxGuidesOverride != null ? String(s.maxGuidesOverride) : "",
+  );
   const [saving, setSaving] = useState(false);
 
   async function handleSave() {
@@ -317,6 +321,12 @@ function EditDialog({
     const price = customPrice.trim() ? Math.round(Number(customPrice) * 100) : null;
     if (price != null && (Number.isNaN(price) || price < 0)) {
       toast.error("Valor inválido");
+      setSaving(false);
+      return;
+    }
+    const maxGuides = maxGuidesOverride.trim() ? Math.trunc(Number(maxGuidesOverride)) : null;
+    if (maxGuides != null && (Number.isNaN(maxGuides) || maxGuides < 1)) {
+      toast.error("Limite de guias inválido");
       setSaving(false);
       return;
     }
@@ -331,6 +341,7 @@ function EditDialog({
         customCurrency: price != null ? customCurrency.toUpperCase() : null,
         cancelAtPeriodEnd,
         adminNotes: adminNotes.trim() || null,
+        maxGuidesOverride: maxGuides,
       });
     } finally {
       setSaving(false);
@@ -440,6 +451,22 @@ function EditDialog({
               Deixe em branco para usar o preço padrão do plano. Use isso para descontos especiais ou contratos.
             </p>
           </div>
+
+          <div className="space-y-1.5 sm:col-span-2">
+            <Label>Limite de guias (override)</Label>
+            <Input
+              type="number"
+              step="1"
+              min="1"
+              placeholder={`Padrão do plano: ${PLANS[plan].maxGuides >= 9999 ? "ilimitado" : PLANS[plan].maxGuides}`}
+              value={maxGuidesOverride}
+              onChange={(e) => setMaxGuidesOverride(e.target.value)}
+            />
+            <p className="text-xs text-muted-foreground">
+              Deixe em branco para usar o limite padrão do plano. Use para contratos Enterprise com limite customizado.
+            </p>
+          </div>
+
 
           <div className="space-y-1.5 sm:col-span-2">
             <Label>Anotações internas</Label>
