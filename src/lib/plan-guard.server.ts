@@ -110,7 +110,7 @@ export async function resolveOwnerPlanAdmin(
   const runtimeEnv = getRuntimeEnv();
   const { data: subs } = await supabaseAdmin
     .from("subscriptions")
-    .select("status, product_id, current_period_end, environment, is_manual, created_at")
+    .select("status, product_id, current_period_end, environment, is_manual, max_guides_override, created_at")
     .eq("user_id", ownerId)
     .order("created_at", { ascending: false });
   const list = subs ?? [];
@@ -130,7 +130,8 @@ export async function resolveOwnerPlanAdmin(
     const plan = planFromProductId(sub.product_id as string | null);
     if (!plan) continue;
     const cfg = PLANS[plan];
-    return { plan, status, maxGuides: cfg.maxGuides, features: { ...cfg.features } };
+    const override = (sub.max_guides_override as number | null) ?? null;
+    return { plan, status, maxGuides: override ?? cfg.maxGuides, features: { ...cfg.features } };
   }
   return FREE;
 }
