@@ -161,8 +161,8 @@ export function GuideAiChat({ slug, propertyName }: { slug: string; propertyName
           {/* Header */}
           <div className="relative px-4 py-3 border-b border-border bg-gradient-to-br from-accent/10 to-transparent">
             <div className="flex items-center gap-3">
-              <div className="size-9 rounded-full bg-accent/20 text-accent grid place-items-center shrink-0">
-                <Headset className="size-4" strokeWidth={1.75} />
+              <div className="size-9 rounded-full bg-emerald-100 text-emerald-700 grid place-items-center shrink-0 ring-1 ring-emerald-200">
+                <MessageCircleMore className="size-4" strokeWidth={1.9} />
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-[10px] uppercase tracking-[0.24em] text-accent font-semibold">Concierge IA</p>
