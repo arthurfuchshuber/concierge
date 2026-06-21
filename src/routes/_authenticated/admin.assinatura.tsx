@@ -436,6 +436,8 @@ function AssinaturaPage() {
               )}
             </div>
           </section>
+            </TabsContent>
+          </Tabs>
 
           {!info.isActive && (
             <div className="mt-8 text-center text-xs text-muted-foreground">
@@ -448,6 +450,70 @@ function AssinaturaPage() {
           )}
         </>
       )}
+    </div>
+  );
+}
+
+function CardTab({
+  isActive,
+  isManual,
+  onOpenPortal,
+  opening,
+}: {
+  isActive: boolean;
+  isManual: boolean;
+  onOpenPortal: () => void;
+  opening: boolean;
+}) {
+  if (!isActive) {
+    return (
+      <div className="rounded-2xl border border-border bg-card p-6 text-center">
+        <div className="size-10 rounded-xl bg-secondary grid place-items-center mx-auto mb-3">
+          <CreditCard className="size-4 text-muted-foreground" />
+        </div>
+        <p className="text-sm text-muted-foreground">
+          Ative um plano para cadastrar e gerenciar seu cartão de crédito.
+        </p>
+      </div>
+    );
+  }
+  if (isManual) {
+    return (
+      <div className="rounded-2xl border border-border bg-card p-6 text-center">
+        <p className="text-sm text-muted-foreground">
+          Sua assinatura foi configurada manualmente pelo time SigmaGuide. Entre em contato com o
+          suporte para alterar o método de pagamento.
+        </p>
+      </div>
+    );
+  }
+  return (
+    <div className="rounded-2xl border border-border bg-card p-5 sm:p-6">
+      <div className="flex items-start gap-4">
+        <div className="size-11 rounded-xl bg-secondary grid place-items-center shrink-0">
+          <CreditCard className="size-5 text-foreground" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <h3 className="font-medium text-base">Método de pagamento</h3>
+          <p className="text-xs text-muted-foreground mt-1">
+            Atualize o cartão usado nas próximas cobranças pelo portal seguro de pagamentos.
+          </p>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Button onClick={onOpenPortal} disabled={opening} className="rounded-full">
+              {opening ? (
+                <Loader2 className="size-4 mr-1.5 animate-spin" />
+              ) : (
+                <CreditCard className="size-4 mr-1.5" />
+              )}
+              Atualizar cartão
+            </Button>
+          </div>
+          <div className="mt-3 text-[11px] text-muted-foreground flex items-center gap-1.5">
+            <ShieldCheck className="size-3.5" /> Os dados do cartão ficam armazenados com segurança no
+            provedor de pagamento — nunca passam pelos servidores da SigmaGuide.
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
