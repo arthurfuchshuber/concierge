@@ -359,7 +359,7 @@ function EngagementPage() {
                     <div className="col-span-3">Hóspede</div>
                     <div className="col-span-2">Telefone</div>
                     <div className="col-span-2">Check-in</div>
-                    <div className="col-span-2">Acessos · Conversas</div>
+                    <div className="col-span-2">Acessos</div>
                     <div className="col-span-3">Hospedagem · Último acesso</div>
                   </div>
                   {guestGroups.map((g) => (
