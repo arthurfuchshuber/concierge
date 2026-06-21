@@ -128,28 +128,29 @@ function AdminCityDetail() {
   }, {});
 
   return (
-    <div className="max-w-5xl space-y-6">
+    <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-10 space-y-8">
       <Link
         to="/admin/cidades"
-        className="inline-flex items-center gap-1.5 text-xs uppercase tracking-wider text-muted-foreground hover:text-foreground"
+        className="inline-flex items-center gap-1.5 text-[11px] uppercase tracking-[0.2em] text-muted-foreground hover:text-foreground font-semibold"
       >
         <ArrowLeft className="size-3" /> Todas as cidades
       </Link>
 
-      <div className="flex items-start justify-between gap-4 flex-wrap">
-        <div>
-          <h1 className="font-serif text-3xl">
+      <div className="pb-6 border-b border-border/60 flex items-start justify-between gap-4 flex-wrap">
+        <div className="min-w-0">
+          <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground font-semibold mb-2">Recomendações da cidade</p>
+          <h1 className="font-serif text-3xl sm:text-4xl leading-tight">
             {label}
             {state ? <span className="text-muted-foreground"> — {state}</span> : null}
           </h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Referências macro compartilhadas entre todas as residências desta cidade.
+          <p className="text-sm text-muted-foreground mt-2 max-w-2xl">
+            Pontos turísticos e referências macro compartilhados entre todas as suas residências nesta cidade.
             {data?.job?.last_refreshed_at && (
-              <> Última atualização: {new Date(data.job.last_refreshed_at).toLocaleString("pt-BR")}.</>
+              <> <span className="text-foreground/70">Atualizado em {new Date(data.job.last_refreshed_at).toLocaleDateString("pt-BR")}.</span></>
             )}
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 shrink-0">
           <Button onClick={handleGenerate} disabled={generating}>
             {generating ? <Loader2 className="size-4 mr-2 animate-spin" /> : <Sparkles className="size-4 mr-2" />}
             Gerar com IA
@@ -159,6 +160,7 @@ function AdminCityDetail() {
           </Button>
         </div>
       </div>
+
 
       {addOpen && (
         <div className="rounded-xl border border-border bg-card p-4 space-y-3">
@@ -264,9 +266,24 @@ function AdminCityDetail() {
       ))}
 
       {data && items.length === 0 && !isLoading && (
-        <p className="text-sm text-muted-foreground">
-          Nenhuma referência cadastrada. Clique em "Gerar com IA" para começar.
-        </p>
+        <div className="rounded-2xl border border-dashed border-border bg-card/40 p-12 text-center">
+          <div className="mx-auto size-12 rounded-full bg-secondary/60 flex items-center justify-center mb-4">
+            <Sparkles className="size-5 text-muted-foreground" />
+          </div>
+          <h3 className="font-serif text-lg mb-1">Nenhuma referência ainda</h3>
+          <p className="text-sm text-muted-foreground max-w-sm mx-auto mb-5">
+            Gere automaticamente pontos turísticos populares de {label} com IA, ou adicione manualmente seus favoritos.
+          </p>
+          <div className="flex gap-2 justify-center">
+            <Button onClick={handleGenerate} disabled={generating}>
+              {generating ? <Loader2 className="size-4 mr-2 animate-spin" /> : <Sparkles className="size-4 mr-2" />}
+              Gerar com IA
+            </Button>
+            <Button variant="outline" onClick={() => setAddOpen(true)}>
+              <Plus className="size-4 mr-2" /> Adicionar manual
+            </Button>
+          </div>
+        </div>
       )}
     </div>
   );
