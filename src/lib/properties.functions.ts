@@ -17,6 +17,22 @@ const HttpsUrl = z.preprocess(
   z.string().trim().url().max(2048).refine(isHttpsUrl, "Use um link HTTPS válido").optional().nullable(),
 );
 
+// Aceita URL HTTPS absoluta OU caminho relativo interno (ex.: /api/public/place-photo?...)
+// usado para fotos do Google Places servidas via proxy do próprio app.
+const ImageUrl = z.preprocess(
+  (value) => (typeof value === "string" && value.trim() === "" ? null : value),
+  z
+    .string()
+    .trim()
+    .max(2048)
+    .refine(
+      (v) => v.startsWith("/") || isHttpsUrl(v),
+      "Use um link HTTPS válido ou um caminho interno (/api/...)",
+    )
+    .optional()
+    .nullable(),
+);
+
 const PropertyInput = z.object({
   name: z.string().trim().min(1).max(120),
   tagline: z.string().trim().max(200).optional().nullable(),
