@@ -476,7 +476,7 @@ function AssinaturaPage() {
 
 function CardTab({
   isActive,
-  isManual,
+  isManual: _isManual,
   onOpenPortal,
   opening,
 }: {
@@ -497,16 +497,6 @@ function CardTab({
       </div>
     );
   }
-  if (isManual) {
-    return (
-      <div className="rounded-2xl border border-border bg-card p-6 text-center">
-        <p className="text-sm text-muted-foreground">
-          Sua assinatura foi configurada manualmente pelo time SigmaGuide. Entre em contato com o
-          suporte para alterar o método de pagamento.
-        </p>
-      </div>
-    );
-  }
   return (
     <div className="rounded-2xl border border-border bg-card p-5 sm:p-6">
       <div className="flex items-start gap-4">
@@ -516,7 +506,7 @@ function CardTab({
         <div className="flex-1 min-w-0">
           <h3 className="font-medium text-base">Método de pagamento</h3>
           <p className="text-xs text-muted-foreground mt-1">
-            Atualize o cartão usado nas próximas cobranças pelo portal seguro de pagamentos.
+            Cadastre ou atualize o cartão usado nas próximas cobranças pelo portal seguro de pagamentos.
           </p>
           <div className="mt-4 flex flex-wrap gap-2">
             <Button onClick={onOpenPortal} disabled={opening} className="rounded-full">
@@ -525,7 +515,7 @@ function CardTab({
               ) : (
                 <CreditCard className="size-4 mr-1.5" />
               )}
-              Atualizar cartão
+              Gerenciar cartão
             </Button>
           </div>
           <div className="mt-3 text-[11px] text-muted-foreground flex items-center gap-1.5">
