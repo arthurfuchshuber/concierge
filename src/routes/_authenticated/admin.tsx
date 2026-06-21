@@ -1,5 +1,5 @@
 import { createFileRoute, Outlet, Link, useNavigate, useRouterState } from "@tanstack/react-router";
-import { Sparkles, LogOut, LayoutDashboard, CreditCard, Menu, Users, Shield, Library, ShieldCheck, Activity } from "lucide-react";
+import { Sparkles, LogOut, LayoutDashboard, CreditCard, Menu, Users, Shield, Library, ShieldCheck, Activity, MapPin } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
@@ -17,6 +17,7 @@ const baseNav = [
   { to: "/admin/assinatura", label: "Assinatura", icon: CreditCard, exact: false },
 ] as const;
 const adminOnlyNav = [
+  { to: "/admin/cidades", label: "Cidades", icon: MapPin, exact: false },
   { to: "/admin/engajamento", label: "Engajamento", icon: Activity, exact: false },
   { to: "/admin/clientes", label: "Clientes", icon: Users, exact: false },
   { to: "/admin/admins", label: "Administradores", icon: ShieldCheck, exact: false },
