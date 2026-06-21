@@ -100,18 +100,98 @@ function EngagementPage() {
     return m;
   }, [fbQuery.data]);
 
-  const filteredLogs = useMemo(() => {
+  // Unified guest groups: same phone (or same name+checkin) within a property
+  // collapses every access + conversation into one entry.
+  type GuestGroup = {
+    key: string;
+    property_id: string;
+    property_name: string;
+    guest_name: string | null;
+    guest_phone: string | null;
+    checkin_date: string | null;
+    reservation_code: string | null;
+    access_count: number;
+    first_access: string | null;
+    last_access: string | null;
+    conversation_ids: string[];
+  };
+
+  const guestGroups = useMemo<GuestGroup[]>(() => {
     if (!data) return [];
-    return data.logs.filter((l) => {
-      if (filterProp !== "all" && l.property_id !== filterProp) return false;
-      if (search) {
-        const s = search.toLowerCase();
-        const hay = `${l.guest_name ?? ""} ${l.reservation_code ?? ""} ${l.guest_phone ?? ""} ${l.property_name}`.toLowerCase();
-        if (!hay.includes(s)) return false;
+    const map = new Map<string, GuestGroup>();
+    for (const l of data.logs) {
+      const key = identityKey(l.property_id, l.guest_name, l.guest_phone, l.checkin_date);
+      const g = map.get(key);
+      if (!g) {
+        map.set(key, {
+          key,
+          property_id: l.property_id,
+          property_name: l.property_name,
+          guest_name: l.guest_name,
+          guest_phone: l.guest_phone,
+          checkin_date: l.checkin_date,
+          reservation_code: l.reservation_code,
+          access_count: 1,
+          first_access: l.created_at,
+          last_access: l.created_at,
+          conversation_ids: [],
+        });
+      } else {
+        g.access_count++;
+        if (l.created_at && (!g.last_access || l.created_at > g.last_access)) g.last_access = l.created_at;
+        if (l.created_at && (!g.first_access || l.created_at < g.first_access)) g.first_access = l.created_at;
+        g.guest_phone = g.guest_phone || l.guest_phone;
+        g.reservation_code = g.reservation_code || l.reservation_code;
       }
-      return true;
-    });
+    }
+    // Attach conversations by name match within property (chat doesn't capture phone)
+    for (const c of data.conversations) {
+      // match by name+property — if no group, create one from the conversation
+      let matched: GuestGroup | undefined;
+      for (const g of map.values()) {
+        if (g.property_id !== c.property_id) continue;
+        if (normName(g.guest_name) && normName(g.guest_name) === normName(c.guest_name)) { matched = g; break; }
+      }
+      if (!matched) {
+        const key = identityKey(c.property_id, c.guest_name, null, null);
+        matched = {
+          key,
+          property_id: c.property_id,
+          property_name: c.property_name,
+          guest_name: c.guest_name,
+          guest_phone: null,
+          checkin_date: null,
+          reservation_code: null,
+          access_count: 0,
+          first_access: null,
+          last_access: null,
+          conversation_ids: [],
+        };
+        map.set(key, matched);
+      }
+      matched.conversation_ids.push(c.id);
+    }
+    const groups = Array.from(map.values());
+    return groups
+      .filter((g) => {
+        if (filterProp !== "all" && g.property_id !== filterProp) return false;
+        if (search) {
+          const s = search.toLowerCase();
+          const hay = `${g.guest_name ?? ""} ${g.reservation_code ?? ""} ${g.guest_phone ?? ""} ${g.property_name}`.toLowerCase();
+          if (!hay.includes(s)) return false;
+        }
+        return true;
+      })
+      .sort((a, b) => (b.last_access ?? "").localeCompare(a.last_access ?? ""));
   }, [data, filterProp, search]);
+
+  // Map conversation_id -> identity key, so the conversations tab can collapse
+  // multiple threads from the same guest into a single card.
+  const convToIdentity = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const g of guestGroups) for (const id of g.conversation_ids) m.set(id, g.key);
+    return m;
+  }, [guestGroups]);
 
   const filteredConvs = useMemo(() => {
     if (!data) return [];
