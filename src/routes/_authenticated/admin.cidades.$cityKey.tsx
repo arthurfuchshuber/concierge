@@ -58,10 +58,11 @@ function AdminCityDetail() {
     try {
       const r = await generate({ data: { city_label: label, state, country, type: type ?? null } });
       if (r.status === "ok" || r.status === "partial") {
-        const label = type
+        const catLabel = type
           ? TYPE_MAP.find((c) => c.type === type)?.category ?? type
           : "Todas categorias";
-        toast.success(`${label} — ${r.total} encontrados (${r.inserted} novos, ${r.updated} atualizados${r.failed ? `, ${r.failed} falhas` : ""})`);
+        toast.success(`${catLabel} — ${r.total} encontrados (${r.inserted} novos, ${r.updated} atualizados${r.failed ? `, ${r.failed} falhas` : ""})`);
+
         if (r.status === "partial" && r.message) toast.warning(r.message);
       } else {
         toast.error(`Falhou: ${r.message ?? "erro"}`);
