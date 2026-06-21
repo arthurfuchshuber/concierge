@@ -10,11 +10,12 @@ import {
   deleteCityReference,
   addManualCityReference,
 } from "@/lib/city-references.functions";
-import { searchPlacesForRec } from "@/lib/maps.functions";
+import { searchPlacesForRec, TYPE_MAP } from "@/lib/maps.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { ArrowLeft, Eye, EyeOff, Trash2, Sparkles, Plus, Star, Search, Loader2 } from "lucide-react";
+
 
 const SearchSchema = z.object({
   label: z.string().min(1),
@@ -45,18 +46,24 @@ function AdminCityDetail() {
     queryFn: () => list({ data: { city_label: label, state, country, includeHidden: true } }),
   });
 
-  const [generating, setGenerating] = useState(false);
+  const [generating, setGenerating] = useState<string | null>(null);
   const [addOpen, setAddOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [searching, setSearching] = useState(false);
   const [results, setResults] = useState<Awaited<ReturnType<typeof searchPlaces>>>([]);
 
-  async function handleGenerate() {
-    setGenerating(true);
+  async function handleGenerate(type?: string | null) {
+    const key = type ?? "__all__";
+    setGenerating(key);
     try {
-      const r = await generate({ data: { city_label: label, state, country } });
-      if (r.status === "ok") {
-        toast.success(`Atualizado — ${r.total} lugares (${r.inserted} novos, ${r.updated} atualizados)`);
+      const r = await generate({ data: { city_label: label, state, country, type: type ?? null } });
+      if (r.status === "ok" || r.status === "partial") {
+        const catLabel = type
+          ? TYPE_MAP.find((c) => c.type === type)?.category ?? type
+          : "Todas categorias";
+        toast.success(`${catLabel} — ${r.total} encontrados (${r.inserted} novos, ${r.updated} atualizados${r.failed ? `, ${r.failed} falhas` : ""})`);
+
+        if (r.status === "partial" && r.message) toast.warning(r.message);
       } else {
         toast.error(`Falhou: ${r.message ?? "erro"}`);
       }
@@ -64,9 +71,10 @@ function AdminCityDetail() {
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Erro");
     } finally {
-      setGenerating(false);
+      setGenerating(null);
     }
   }
+
 
   async function handleSearch() {
     if (searchTerm.trim().length < 2) return;
@@ -151,15 +159,16 @@ function AdminCityDetail() {
           </p>
         </div>
         <div className="flex gap-2 shrink-0">
-          <Button onClick={handleGenerate} disabled={generating}>
-            {generating ? <Loader2 className="size-4 mr-2 animate-spin" /> : <Sparkles className="size-4 mr-2" />}
-            Gerar com IA
+          <Button onClick={() => handleGenerate(null)} disabled={generating !== null}>
+            {generating === "__all__" ? <Loader2 className="size-4 mr-2 animate-spin" /> : <Sparkles className="size-4 mr-2" />}
+            Gerar tudo com IA
           </Button>
           <Button variant="outline" onClick={() => setAddOpen((v) => !v)}>
             <Plus className="size-4 mr-2" /> Adicionar manual
           </Button>
         </div>
       </div>
+
 
 
       {addOpen && (
@@ -210,12 +219,23 @@ function AdminCityDetail() {
 
       {Object.entries(groupedByType).map(([type, list]) => (
         <section key={type} className="rounded-xl border border-border bg-card overflow-hidden">
-          <div className="px-4 py-3 border-b border-border bg-secondary/30">
+          <div className="px-4 py-3 border-b border-border bg-secondary/30 flex items-center justify-between gap-3">
             <h3 className="font-medium text-sm uppercase tracking-wider">
               {list[0]?.category ?? type}{" "}
               <span className="text-muted-foreground font-normal">({list.length})</span>
             </h3>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => handleGenerate(type)}
+              disabled={generating !== null}
+              title={`Regenerar ${list[0]?.category ?? type} com IA`}
+            >
+              {generating === type ? <Loader2 className="size-3.5 mr-1.5 animate-spin" /> : <Sparkles className="size-3.5 mr-1.5" />}
+              Regenerar
+            </Button>
           </div>
+
           <ul className="divide-y divide-border">
             {list.map((it) => (
               <li key={it.id} className={`flex items-center gap-3 p-3 ${it.is_hidden ? "opacity-50" : ""}`}>
@@ -275,10 +295,11 @@ function AdminCityDetail() {
             Gere automaticamente pontos turísticos populares de {label} com IA, ou adicione manualmente seus favoritos.
           </p>
           <div className="flex gap-2 justify-center">
-            <Button onClick={handleGenerate} disabled={generating}>
-              {generating ? <Loader2 className="size-4 mr-2 animate-spin" /> : <Sparkles className="size-4 mr-2" />}
+            <Button onClick={() => handleGenerate(null)} disabled={generating !== null}>
+              {generating === "__all__" ? <Loader2 className="size-4 mr-2 animate-spin" /> : <Sparkles className="size-4 mr-2" />}
               Gerar com IA
             </Button>
+
             <Button variant="outline" onClick={() => setAddOpen(true)}>
               <Plus className="size-4 mr-2" /> Adicionar manual
             </Button>
