@@ -422,6 +422,7 @@ function EngagementPage() {
                       key={c.id}
                       conversationId={c.id}
                       guestName={c.guest_name}
+                      checkinDate={c.checkin_date}
                       propertyName={c.property_name}
                       lastMessageAt={c.last_message_at}
                       feedbackCount={c.feedback_count}
@@ -430,6 +431,7 @@ function EngagementPage() {
                       onChanged={() => { fbQuery.refetch(); refetch(); }}
                     />
                   ))}
+
                 </div>
               )}
             </TabsContent>
