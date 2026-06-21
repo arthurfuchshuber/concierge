@@ -418,6 +418,7 @@ function EditDialog({
         cancelAtPeriodEnd,
         adminNotes: adminNotes.trim() || null,
         maxGuidesOverride: maxGuides,
+        billingPaused,
       });
     } finally {
       setSaving(false);
