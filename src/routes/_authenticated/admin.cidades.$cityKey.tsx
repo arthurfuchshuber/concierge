@@ -29,7 +29,6 @@ export const Route = createFileRoute("/_authenticated/admin/cidades/$cityKey")({
 function AdminCityDetail() {
   const { cityKey: slug } = Route.useParams();
   const { label, country } = Route.useSearch();
-  const navigate = useNavigate();
   const state = slug.includes("--") ? slug.split("--")[1].toUpperCase() : null;
 
   const list = useServerFn(listCityReferences);
