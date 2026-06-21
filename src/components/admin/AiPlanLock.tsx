@@ -26,8 +26,8 @@ export function AiPlanLock({ locked, children, className, badgeOnly }: Props) {
         </p>
         <p className="text-xs leading-relaxed">
           A assistente IA e a base de conhecimento estão disponíveis nos planos{" "}
-          <strong>Pro</strong>, <strong>Business</strong> e <strong>Enterprise</strong>.
-          Faça upgrade para deixar a IA respondendo os seus hóspedes 24h.
+          <strong>Business</strong> e <strong>Enterprise</strong>. Faça upgrade para
+          deixar a IA respondendo os seus hóspedes 24h.
         </p>
         <Link
           to="/precos"
