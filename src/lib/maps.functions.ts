@@ -594,71 +594,11 @@ export const enrichFromMapsLink = createServerFn({ method: "POST" })
       for (const p of items) push(p, cat, "nearby");
     }
 
-    // 2) City-wide via Places Text Search — mesmas regras estritas
-    if (city) {
-      await Promise.all(
-        TYPE_MAP.map(async (cat) => {
-          const items = (
-            await placesText(
-              `melhores ${cat.category.toLowerCase()} em ${city}`,
-              coords!.lat,
-              coords!.lng,
-              undefined,
-              MAX_CITY_RADIUS_M,
-            )
-          )
-            .filter((p) => !!p.location && isQuality(p, cat))
-            .filter((p) => {
-              const d = haversineMeters(coords!, { lat: p.location!.latitude, lng: p.location!.longitude });
-              return d <= MAX_CITY_RADIUS_M;
-            })
-            .sort((a, b) => {
-              const ra = a.rating ?? 0;
-              const rb = b.rating ?? 0;
-              if (rb !== ra) return rb - ra;
-              return (b.userRatingCount ?? 0) - (a.userRatingCount ?? 0);
-            })
-            .slice(0, MAX_PER_TYPE);
-          for (const p of items) push(p, cat, "city");
-        }),
-      );
-    }
+    // NOTE: Recomendações "city-wide" não são mais geradas aqui.
+    // Pontos icônicos da cidade inteira são gerenciados separadamente em
+    // "Recomendações da Cidade" (city_references) e exibidos no guia em
+    // aba/categoria própria — sem misturar com o "pertinho da residência".
 
-    // 3) Curadoria via Gemini: nomes icônicos da cidade resolvidos via Places,
-    //    mas validados pelas MESMAS regras (≥200 reviews + primaryType correto).
-    if (city) {
-      const iconic = await fetchIconicPlacesFromGemini(city, country);
-      const tasks: Array<{ name: string; cat: typeof TYPE_MAP[number] }> = [];
-      for (const cat of TYPE_MAP) {
-        const names = iconic[cat.type] ?? [];
-        for (const name of names) {
-          if (seenNames.has(normalizeName(name))) continue;
-          tasks.push({ name, cat });
-        }
-      }
-      const CONCURRENCY = 8;
-      const results: Array<{ best: PlaceRaw | undefined; cat: typeof TYPE_MAP[number] }> = [];
-      for (let i = 0; i < tasks.length; i += CONCURRENCY) {
-        const batch = tasks.slice(i, i + CONCURRENCY);
-        const batchResults = await Promise.all(
-          batch.map(async ({ name, cat }) => {
-            const resolved = await placesText(`${name} ${city}`, coords!.lat, coords!.lng, undefined, MAX_CITY_RADIUS_M);
-            const best = resolved
-              .filter((p) => !!p.location && isQuality(p, cat))
-              .filter((p) => {
-                const d = haversineMeters(coords!, { lat: p.location!.latitude, lng: p.location!.longitude });
-                return d <= MAX_CITY_RADIUS_M;
-              })
-              .sort((a, b) => (b.userRatingCount ?? 0) - (a.userRatingCount ?? 0))[0];
-            return { best, cat };
-          }),
-        );
-        results.push(...batchResults);
-      }
-      for (const { best, cat } of results) {
-        if (best) push(best, cat, "city");
-      }
-    }
 
 
 
