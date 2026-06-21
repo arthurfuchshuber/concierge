@@ -53,11 +53,12 @@ function normPhone(p: string | null | undefined) {
 function normName(n: string | null | undefined) {
   return (n ?? "").trim().toLowerCase().replace(/\s+/g, " ");
 }
-// Stable identity key per property: phone digits if any, else name+checkin
-function identityKey(propertyId: string, name: string | null, phone: string | null, checkin: string | null) {
+// Stable identity key per property: ONLY unifies when phone AND checkin match.
+// Without both, each row stays distinct (uses log id as key).
+function identityKey(propertyId: string, phone: string | null, checkin: string | null, fallbackId: string) {
   const ph = normPhone(phone);
-  if (ph) return `${propertyId}|p:${ph}`;
-  return `${propertyId}|nc:${normName(name)}|${checkin ?? ""}`;
+  if (ph && checkin) return `${propertyId}|pc:${ph}|${checkin}`;
+  return `${propertyId}|id:${fallbackId}`;
 }
 
 function BigNumber({ icon: Icon, label, value, hint }: { icon: any; label: string; value: number | string; hint?: string }) {
