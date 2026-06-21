@@ -71,7 +71,7 @@ type EnrichResult = {
 // `acceptedPrimaryTypes` é o que validamos no resultado — Google às vezes devolve
 // estabelecimentos cujo primaryType não bate (ex.: salão de beleza retornado em "bar").
 // Só aceitamos o item se o primaryType estiver na lista permitida.
-const TYPE_MAP: {
+export const TYPE_MAP: {
   type: PlaceItem["type"];
   placesTypes: string[];
   acceptedPrimaryTypes: string[];
@@ -88,6 +88,8 @@ const TYPE_MAP: {
   { type: "nightlife", placesTypes: ["night_club"], acceptedPrimaryTypes: ["night_club", "bar", "pub"], category: "Vida noturna" },
   { type: "shopping", placesTypes: ["shopping_mall"], acceptedPrimaryTypes: ["shopping_mall", "department_store"], category: "Compras" },
 ];
+
+export type TypeMapEntry = (typeof TYPE_MAP)[number];
 
 
 function haversineMeters(a: { lat: number; lng: number }, b: { lat: number; lng: number }) {
