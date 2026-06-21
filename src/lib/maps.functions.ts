@@ -389,7 +389,7 @@ Responda APENAS com JSON válido (sem markdown) no formato:
     for (const cat of TYPE_MAP) {
       const arr = parsed[cat.type];
       if (Array.isArray(arr)) {
-        const limit = 20;
+        const limit = cat.type === "attraction" ? 30 : 25;
         out[cat.type] = arr.filter((x): x is string => typeof x === "string" && x.trim().length > 0).slice(0, limit);
       }
     }
