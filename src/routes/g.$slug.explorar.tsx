@@ -20,6 +20,7 @@ import {
   ChevronDown,
   HelpCircle,
   Ticket,
+  MapPin,
 } from "lucide-react";
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
 
