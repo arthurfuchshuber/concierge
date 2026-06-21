@@ -158,6 +158,19 @@ function EngagementPage() {
   }, [data, filterProp, search]);
 
 
+  // Map property_id + normalized guest name → most recent checkin_date from access logs
+  const checkinByGuest = useMemo(() => {
+    const m = new Map<string, string>();
+    if (!data) return m;
+    for (const l of data.logs) {
+      if (!l.guest_name || !l.checkin_date) continue;
+      const k = `${l.property_id}|${l.guest_name.trim().toLowerCase()}`;
+      const prev = m.get(k);
+      if (!prev || (l.checkin_date as string) > prev) m.set(k, l.checkin_date as string);
+    }
+    return m;
+  }, [data]);
+
   const filteredConvs = useMemo(() => {
     if (!data) return [];
     const propFeedback = new Map<string, number>();
@@ -165,7 +178,14 @@ function EngagementPage() {
       propFeedback.set(f.conversation_id, (propFeedback.get(f.conversation_id) ?? 0) + 1);
     });
     return data.conversations
-      .map((c) => ({ ...c, feedback_count: propFeedback.get(c.id) ?? 0 }))
+      .map((c) => {
+        const k = c.guest_name ? `${c.property_id}|${c.guest_name.trim().toLowerCase()}` : null;
+        return {
+          ...c,
+          feedback_count: propFeedback.get(c.id) ?? 0,
+          checkin_date: k ? (checkinByGuest.get(k) ?? null) : null,
+        };
+      })
       .filter((c) => {
         if (filterProp !== "all" && c.property_id !== filterProp) return false;
         if (onlyIneffective && c.feedback_count === 0) return false;
@@ -176,7 +196,8 @@ function EngagementPage() {
         }
         return true;
       });
-  }, [data, fbQuery.data, filterProp, search, onlyIneffective]);
+  }, [data, fbQuery.data, filterProp, search, onlyIneffective, checkinByGuest]);
+
 
   if (isLoading) {
     return (
@@ -401,6 +422,7 @@ function EngagementPage() {
                       key={c.id}
                       conversationId={c.id}
                       guestName={c.guest_name}
+                      checkinDate={c.checkin_date}
                       propertyName={c.property_name}
                       lastMessageAt={c.last_message_at}
                       feedbackCount={c.feedback_count}
@@ -409,6 +431,7 @@ function EngagementPage() {
                       onChanged={() => { fbQuery.refetch(); refetch(); }}
                     />
                   ))}
+
                 </div>
               )}
             </TabsContent>
@@ -481,10 +504,11 @@ function EngagementPage() {
 }
 
 function ConversationCard({
-  conversationId, guestName, propertyName, lastMessageAt, feedbackCount, feedbackByMsg, aiLocked, onChanged,
+  conversationId, guestName, checkinDate, propertyName, lastMessageAt, feedbackCount, feedbackByMsg, aiLocked, onChanged,
 }: {
   conversationId: string;
   guestName: string | null;
+  checkinDate: string | null;
   propertyName: string;
   lastMessageAt: string | null;
   feedbackCount: number;
@@ -514,27 +538,32 @@ function ConversationCard({
   }
 
   const msgs = data?.messages ?? [];
+  const displayName = guestName?.trim() || "Hóspede";
 
   return (
     <div className="rounded-2xl border border-border bg-card overflow-hidden">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="w-full text-left p-4 flex items-center justify-between hover:bg-muted/30 transition"
+        className="w-full text-left p-4 flex items-center justify-between gap-3 hover:bg-muted/30 transition"
       >
-        <div className="min-w-0">
-          <div className="text-sm font-medium truncate flex items-center gap-2">
-            {guestName ?? "Hóspede"}
+        <div className="min-w-0 flex-1">
+          <div className="text-sm font-medium flex items-center gap-2 min-w-0">
+            <span className="truncate">{displayName}</span>
+            {checkinDate ? (
+              <span className="shrink-0 text-[11px] font-normal text-muted-foreground">· check-in {fmtDate(checkinDate)}</span>
+            ) : null}
             {feedbackCount > 0 ? (
-              <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/15 text-amber-700 dark:text-amber-300 px-1.5 py-0.5 text-[10px] font-medium">
+              <span className="shrink-0 inline-flex items-center gap-1 rounded-full bg-amber-500/15 text-amber-700 dark:text-amber-300 px-1.5 py-0.5 text-[10px] font-medium">
                 <AlertTriangle className="size-3" /> {feedbackCount}
               </span>
             ) : null}
           </div>
           <div className="text-xs text-muted-foreground truncate">{propertyName} · {fmt(lastMessageAt)}</div>
         </div>
-        <span className="text-xs text-muted-foreground">{open ? "Recolher" : "Abrir"}</span>
+        <span className="shrink-0 text-xs text-muted-foreground">{open ? "Recolher" : "Abrir"}</span>
       </button>
+
 
       {open ? (
         <div className="border-t border-border bg-background/40 p-3 space-y-3 max-h-[420px] overflow-y-auto">
