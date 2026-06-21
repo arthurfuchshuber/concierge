@@ -61,6 +61,7 @@ type EnrichResult = {
   lng: number;
   city: string;
   country: string;
+  state: string | null;
   tagline: string;
   hero_image_url: string | null;
   gallery_images: string[];
