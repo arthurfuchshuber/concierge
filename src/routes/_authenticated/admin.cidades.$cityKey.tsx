@@ -10,11 +10,12 @@ import {
   deleteCityReference,
   addManualCityReference,
 } from "@/lib/city-references.functions";
-import { searchPlacesForRec } from "@/lib/maps.functions";
+import { searchPlacesForRec, TYPE_MAP } from "@/lib/maps.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { ArrowLeft, Eye, EyeOff, Trash2, Sparkles, Plus, Star, Search, Loader2 } from "lucide-react";
+
 
 const SearchSchema = z.object({
   label: z.string().min(1),
