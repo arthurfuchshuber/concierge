@@ -146,16 +146,6 @@ function EngagementPage() {
         g.guest_name = g.guest_name || l.guest_name;
       }
     }
-
-          access_count: 0,
-          first_access: null,
-          last_access: null,
-          conversation_ids: [],
-        };
-        map.set(key, matched);
-      }
-      matched.conversation_ids.push(c.id);
-    }
     const groups = Array.from(map.values());
     return groups
       .filter((g) => {
