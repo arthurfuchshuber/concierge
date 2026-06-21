@@ -22,6 +22,11 @@ import {
   Ticket,
 } from "lucide-react";
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
+import recommendationFood from "@/assets/recommendation-food.jpg";
+import recommendationSights from "@/assets/recommendation-sights.jpg";
+import recommendationCafe from "@/assets/recommendation-cafe.jpg";
+import recommendationFun from "@/assets/recommendation-fun.jpg";
+import recommendationHealth from "@/assets/recommendation-health.jpg";
 
 
 
@@ -134,6 +139,14 @@ const META_CATEGORIES: MetaCategory[] = [
     types: ["pharmacy"],
   },
 ];
+
+const CATEGORY_FALLBACK_IMAGE: Record<string, string> = {
+  food: recommendationFood,
+  sights: recommendationSights,
+  cafe: recommendationCafe,
+  fun: recommendationFun,
+  health: recommendationHealth,
+};
 
 function hasMeaningfulInfo(r: Rec): boolean {
   return !!(r.name && (r.image_url || r.rating || r.distance_text || r.distance_meters || r.note));
@@ -462,6 +475,7 @@ function CategoryGrid({
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
       {categories.map(({ meta, count, nearby, city }) => {
         const heroSrc = pickBestPhoto(nearby, city);
+        const fallbackSrc = CATEGORY_FALLBACK_IMAGE[meta.key];
         const Icon = meta.Icon;
         return (
           <button
@@ -472,16 +486,18 @@ function CategoryGrid({
           >
             <div className="relative aspect-[16/10] w-full overflow-hidden bg-secondary">
               {heroSrc ? (
-                <img
+                <FallbackImage
                   src={heroSrc}
+                  fallbackSrc={fallbackSrc}
                   alt=""
-                  loading="lazy"
                   className="absolute inset-0 size-full object-cover group-hover:scale-[1.04] transition-transform duration-500"
                 />
               ) : (
-                <div className="absolute inset-0 grid place-items-center bg-gradient-to-br from-accent/20 to-accent/5">
-                  <Icon className="size-12 text-accent/70" strokeWidth={1.25} />
-                </div>
+                <FallbackImage
+                  src={fallbackSrc}
+                  alt=""
+                  className="absolute inset-0 size-full object-cover group-hover:scale-[1.04] transition-transform duration-500"
+                />
               )}
               <div className="absolute inset-0 bg-gradient-to-t from-background/85 via-background/20 to-transparent" />
               <div className="absolute top-3 left-3 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-background/85 backdrop-blur text-[10px] uppercase tracking-[0.2em] font-semibold text-foreground/85">
@@ -520,6 +536,7 @@ function CategoryList({
     <div className="flex flex-col gap-3">
       {categories.map(({ meta, count, nearby, city }) => {
         const heroSrc = pickBestPhoto(nearby, city);
+        const fallbackSrc = CATEGORY_FALLBACK_IMAGE[meta.key];
         const Icon = meta.Icon;
         return (
           <button
@@ -530,16 +547,18 @@ function CategoryList({
           >
             <div className="relative size-24 sm:size-28 shrink-0 overflow-hidden rounded-xl bg-secondary">
               {heroSrc ? (
-                <img
+                <FallbackImage
                   src={heroSrc}
+                  fallbackSrc={fallbackSrc}
                   alt=""
-                  loading="lazy"
                   className="absolute inset-0 size-full object-cover group-hover:scale-[1.04] transition-transform duration-500"
                 />
               ) : (
-                <div className="absolute inset-0 grid place-items-center bg-gradient-to-br from-accent/20 to-accent/5">
-                  <Icon className="size-8 text-accent/70" strokeWidth={1.25} />
-                </div>
+                <FallbackImage
+                  src={fallbackSrc}
+                  alt=""
+                  className="absolute inset-0 size-full object-cover group-hover:scale-[1.04] transition-transform duration-500"
+                />
               )}
             </div>
             <div className="flex-1 min-w-0 flex flex-col justify-center gap-1">
