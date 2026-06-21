@@ -564,7 +564,7 @@ export const enrichFromMapsLink = createServerFn({ method: "POST" })
         drive_minutes: driveMin,
         walk_minutes: walkMin,
         opening_hours: openingHours && openingHours.length > 0 ? openingHours : null,
-        image_url: buildPhotoUrl(p.photos?.[0]?.name),
+        image_url: pickBestPlacePhoto(p.photos),
         maps_url: p.googleMapsUri ?? `https://www.google.com/maps/search/?api=1&query_place_id=${p.id}`,
         note: buildNote(p),
       });
