@@ -47,6 +47,18 @@ function fmtDate(d: string | null) {
   if (!d) return "—";
   try { const [y, m, day] = d.split("-"); return `${day}/${m}/${y}`; } catch { return d; }
 }
+function normPhone(p: string | null | undefined) {
+  return (p ?? "").replace(/\D+/g, "");
+}
+function normName(n: string | null | undefined) {
+  return (n ?? "").trim().toLowerCase().replace(/\s+/g, " ");
+}
+// Stable identity key per property: phone digits if any, else name+checkin
+function identityKey(propertyId: string, name: string | null, phone: string | null, checkin: string | null) {
+  const ph = normPhone(phone);
+  if (ph) return `${propertyId}|p:${ph}`;
+  return `${propertyId}|nc:${normName(name)}|${checkin ?? ""}`;
+}
 
 function BigNumber({ icon: Icon, label, value, hint }: { icon: any; label: string; value: number | string; hint?: string }) {
   return (
