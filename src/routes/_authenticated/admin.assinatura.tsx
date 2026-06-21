@@ -15,6 +15,7 @@ import { usePaddleCheckout } from "@/hooks/usePaddleCheckout";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { DowngradeExcessDialog } from "@/components/DowngradeExcessDialog";
 import {
   CreditCard,
   ExternalLink,
