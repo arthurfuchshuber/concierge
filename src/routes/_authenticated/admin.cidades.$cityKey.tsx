@@ -218,12 +218,23 @@ function AdminCityDetail() {
 
       {Object.entries(groupedByType).map(([type, list]) => (
         <section key={type} className="rounded-xl border border-border bg-card overflow-hidden">
-          <div className="px-4 py-3 border-b border-border bg-secondary/30">
+          <div className="px-4 py-3 border-b border-border bg-secondary/30 flex items-center justify-between gap-3">
             <h3 className="font-medium text-sm uppercase tracking-wider">
               {list[0]?.category ?? type}{" "}
               <span className="text-muted-foreground font-normal">({list.length})</span>
             </h3>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => handleGenerate(type)}
+              disabled={generating !== null}
+              title={`Regenerar ${list[0]?.category ?? type} com IA`}
+            >
+              {generating === type ? <Loader2 className="size-3.5 mr-1.5 animate-spin" /> : <Sparkles className="size-3.5 mr-1.5" />}
+              Regenerar
+            </Button>
           </div>
+
           <ul className="divide-y divide-border">
             {list.map((it) => (
               <li key={it.id} className={`flex items-center gap-3 p-3 ${it.is_hidden ? "opacity-50" : ""}`}>
