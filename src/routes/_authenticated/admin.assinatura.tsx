@@ -188,9 +188,17 @@ function AssinaturaPage() {
             </div>
           )}
 
-          {/* Macro overview */}
-          <section className="mt-6 grid md:grid-cols-3 gap-4">
-            <div className="rounded-2xl border border-border bg-card p-5 md:col-span-2 relative overflow-hidden">
+          <Tabs defaultValue="plano" className="mt-6">
+            <TabsList>
+              <TabsTrigger value="plano">Plano</TabsTrigger>
+              <TabsTrigger value="cartao">Cartão de crédito</TabsTrigger>
+              <TabsTrigger value="pagamentos">Pagamentos</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="plano" className="mt-6">
+              {/* Macro overview */}
+              <section className="grid md:grid-cols-3 gap-4">
+                <div className="rounded-2xl border border-border bg-card p-5 md:col-span-2 relative overflow-hidden">
               {currentPlan === "enterprise" && (
                 <div className="absolute top-0 right-0 size-32 bg-gradient-to-br from-accent/20 to-transparent rounded-full -mr-10 -mt-10 pointer-events-none" />
               )}
