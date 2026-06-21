@@ -133,6 +133,7 @@ export const adminUpdateSubscription = createServerFn({ method: "POST" })
     customCurrency: string | null;
     cancelAtPeriodEnd: boolean;
     adminNotes: string | null;
+    maxGuidesOverride: number | null;
   }) =>
     z
       .object({
@@ -146,6 +147,7 @@ export const adminUpdateSubscription = createServerFn({ method: "POST" })
         customCurrency: z.string().length(3).nullable(),
         cancelAtPeriodEnd: z.boolean(),
         adminNotes: z.string().max(2000).nullable(),
+        maxGuidesOverride: z.number().int().min(1).max(100000).nullable(),
       })
       .parse(d),
   )
@@ -176,6 +178,7 @@ export const adminUpdateSubscription = createServerFn({ method: "POST" })
       custom_currency: data.customCurrency,
       cancel_at_period_end: data.cancelAtPeriodEnd,
       admin_notes: data.adminNotes,
+      max_guides_override: data.maxGuidesOverride,
     } as const;
 
     if (existing) {
