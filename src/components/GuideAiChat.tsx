@@ -121,9 +121,32 @@ export function GuideAiChat({ slug, propertyName }: { slug: string; propertyName
           onClick={() => setOpen(true)}
           aria-label="Abrir assistente do guia"
           title="Pergunte à IA"
-          className="fixed bottom-5 right-5 z-40 grid size-14 place-items-center rounded-full bg-accent text-accent-foreground shadow-[0_12px_36px_-12px_oklch(from_var(--accent)_l_c_h/0.7)] hover:brightness-110 active:scale-95 transition-all"
+          className="group fixed bottom-5 right-5 z-40 grid size-16 place-items-center rounded-full text-emerald-950 shadow-[0_18px_44px_-14px_rgba(16,185,129,0.55)] hover:shadow-[0_22px_52px_-12px_rgba(16,185,129,0.7)] active:scale-95 transition-all"
+          style={{
+            background:
+              "radial-gradient(circle at 30% 25%, #d1fae5 0%, #86efac 45%, #4ade80 100%)",
+          }}
         >
-          <Headset className="size-6" strokeWidth={2} />
+          {/* halo pulsante */}
+          <span
+            aria-hidden="true"
+            className="absolute inset-0 rounded-full bg-emerald-400/40 animate-ping"
+            style={{ animationDuration: "2.4s" }}
+          />
+          <span
+            aria-hidden="true"
+            className="absolute inset-0 rounded-full ring-1 ring-emerald-200/60"
+          />
+          {/* faísca */}
+          <Sparkles
+            aria-hidden="true"
+            className="absolute -top-1 -right-1 size-4 text-emerald-50 drop-shadow-[0_2px_6px_rgba(16,185,129,0.8)] animate-pulse"
+            strokeWidth={2.4}
+          />
+          <MessageCircleMore
+            className="relative size-7 text-emerald-900 group-hover:scale-110 transition-transform"
+            strokeWidth={2}
+          />
         </button>
       )}
 
