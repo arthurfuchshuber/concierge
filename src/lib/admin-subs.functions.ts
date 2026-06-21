@@ -40,6 +40,7 @@ export type AdminCustomerRow = {
     customCurrency: string | null;
     adminNotes: string | null;
     isManual: boolean;
+    maxGuidesOverride: number | null;
     paddleSubscriptionId: string;
   } | null;
 };
