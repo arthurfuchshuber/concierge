@@ -384,33 +384,39 @@ function EngagementPage() {
               ) : null}
             </TabsContent>
 
-            {/* ACCESS LOGS */}
+            {/* ACCESS LOGS — unified by guest identity (phone or name+checkin) */}
             <TabsContent value="access" className="space-y-3">
-              {filteredLogs.length === 0 ? (
-                <p className="text-sm text-muted-foreground py-10 text-center">Nenhum acesso registrado.</p>
+              {guestGroups.length === 0 ? (
+                <p className="text-sm text-muted-foreground py-10 text-center">Nenhum hóspede registrado.</p>
               ) : (
                 <div className="rounded-2xl border border-border overflow-hidden">
                   <div className="hidden md:grid grid-cols-12 gap-2 px-4 py-2.5 text-[11px] uppercase tracking-wide text-muted-foreground bg-muted/40 border-b border-border">
                     <div className="col-span-3">Hóspede</div>
                     <div className="col-span-2">Telefone</div>
                     <div className="col-span-2">Check-in</div>
-                    <div className="col-span-2">Reserva</div>
-                    <div className="col-span-3">Hospedagem · Quando</div>
+                    <div className="col-span-2">Acessos · Conversas</div>
+                    <div className="col-span-3">Hospedagem · Último acesso</div>
                   </div>
-                  {filteredLogs.map((l) => (
-                    <div key={l.id} className="grid md:grid-cols-12 gap-2 px-4 py-3 text-sm border-b border-border/60 last:border-b-0">
-                      <div className="md:col-span-3 font-medium truncate">{l.guest_name ?? "—"}</div>
-                      <div className="md:col-span-2 text-muted-foreground flex items-center gap-1 truncate">
-                        {l.guest_phone ? <><Phone className="size-3" />{l.guest_phone}</> : "—"}
+                  {guestGroups.map((g) => (
+                    <div key={g.key} className="grid md:grid-cols-12 gap-2 px-4 py-3 text-sm border-b border-border/60 last:border-b-0">
+                      <div className="md:col-span-3 font-medium truncate">
+                        {g.guest_name ?? "—"}
+                        {g.reservation_code ? <span className="ml-1 text-[11px] text-muted-foreground">· {g.reservation_code}</span> : null}
                       </div>
-                      <div className="md:col-span-2 text-muted-foreground">{fmtDate(l.checkin_date)}</div>
-                      <div className="md:col-span-2 text-muted-foreground truncate">{l.reservation_code ?? "—"}</div>
-                      <div className="md:col-span-3 text-muted-foreground truncate">{l.property_name} · {fmt(l.created_at)}</div>
+                      <div className="md:col-span-2 text-muted-foreground flex items-center gap-1 truncate">
+                        {g.guest_phone ? <><Phone className="size-3" />{g.guest_phone}</> : "—"}
+                      </div>
+                      <div className="md:col-span-2 text-muted-foreground">{fmtDate(g.checkin_date)}</div>
+                      <div className="md:col-span-2 text-muted-foreground tabular-nums">
+                        {g.access_count} · {g.conversation_ids.length}
+                      </div>
+                      <div className="md:col-span-3 text-muted-foreground truncate">{g.property_name} · {fmt(g.last_access)}</div>
                     </div>
                   ))}
                 </div>
               )}
             </TabsContent>
+
 
             {/* CONVERSATIONS */}
             <TabsContent value="chat" className="space-y-4">
