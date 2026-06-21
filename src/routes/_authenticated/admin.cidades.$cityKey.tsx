@@ -158,15 +158,16 @@ function AdminCityDetail() {
           </p>
         </div>
         <div className="flex gap-2 shrink-0">
-          <Button onClick={handleGenerate} disabled={generating}>
-            {generating ? <Loader2 className="size-4 mr-2 animate-spin" /> : <Sparkles className="size-4 mr-2" />}
-            Gerar com IA
+          <Button onClick={() => handleGenerate(null)} disabled={generating !== null}>
+            {generating === "__all__" ? <Loader2 className="size-4 mr-2 animate-spin" /> : <Sparkles className="size-4 mr-2" />}
+            Gerar tudo com IA
           </Button>
           <Button variant="outline" onClick={() => setAddOpen((v) => !v)}>
             <Plus className="size-4 mr-2" /> Adicionar manual
           </Button>
         </div>
       </div>
+
 
 
       {addOpen && (
