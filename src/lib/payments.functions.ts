@@ -118,7 +118,7 @@ export const getMySubscription = createServerFn({ method: "GET" })
     const { data: rows, error } = await context.supabase
       .from("subscriptions")
       .select(
-        "id, paddle_subscription_id, paddle_customer_id, product_id, price_id, status, current_period_start, current_period_end, cancel_at_period_end, environment, is_manual, created_at",
+        "id, paddle_subscription_id, paddle_customer_id, product_id, price_id, status, current_period_start, current_period_end, cancel_at_period_end, environment, is_manual, custom_price_cents, custom_currency, trial_ends_at, max_guides_override, admin_notes, created_at",
       )
       .eq("user_id", context.userId)
       .order("created_at", { ascending: false });
