@@ -727,6 +727,7 @@ export type Database = {
           environment: string
           id: string
           is_manual: boolean
+          max_guides_override: number | null
           paddle_customer_id: string
           paddle_subscription_id: string
           price_id: string
@@ -747,6 +748,7 @@ export type Database = {
           environment?: string
           id?: string
           is_manual?: boolean
+          max_guides_override?: number | null
           paddle_customer_id: string
           paddle_subscription_id: string
           price_id: string
@@ -767,6 +769,7 @@ export type Database = {
           environment?: string
           id?: string
           is_manual?: boolean
+          max_guides_override?: number | null
           paddle_customer_id?: string
           paddle_subscription_id?: string
           price_id?: string
