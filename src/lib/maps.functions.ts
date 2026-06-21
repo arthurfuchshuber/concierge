@@ -202,7 +202,12 @@ function extractCityCountry(comps: GeoComponent[] | undefined) {
 const PLACE_FIELD_MASK =
   "places.id,places.displayName,places.location,places.rating,places.userRatingCount,places.googleMapsUri,places.photos.name,places.photos.widthPx,places.photos.heightPx,places.primaryType,places.editorialSummary,places.generativeSummary,places.regularOpeningHours";
 
-async function placesNearby(lat: number, lng: number, includedTypes: string[]) {
+async function placesNearby(
+  lat: number,
+  lng: number,
+  includedTypes: string[],
+  radius = 6000,
+) {
   const res = await gatewayFetch(`/places/v1/places:searchNearby`, {
     method: "POST",
     headers: {
@@ -213,7 +218,7 @@ async function placesNearby(lat: number, lng: number, includedTypes: string[]) {
       includedTypes,
       maxResultCount: 20,
       rankPreference: "POPULARITY",
-      locationRestriction: { circle: { center: { latitude: lat, longitude: lng }, radius: 3000 } },
+      locationRestriction: { circle: { center: { latitude: lat, longitude: lng }, radius } },
     }),
   });
   if (!res.ok) return [];
@@ -528,22 +533,29 @@ export const enrichFromMapsLink = createServerFn({ method: "POST" })
       }
     }
 
-    // Regra global: mínimo 200 avaliações + rating ≥ 4.0 + primaryType deve
-    // bater EXATAMENTE com a categoria (evita hotéis listados em "bares" etc.)
+    // Regra global: mínimo 150 avaliações + rating ≥ 4.0 + primaryType deve
+    // bater com a categoria. Limiar levemente mais baixo que o "city" para
+    // permitir referências locais consagradas que tenham menos reviews.
     const MIN_RATING = 4.0;
-    const MIN_REVIEWS_GLOBAL = 200;
-    const MAX_PER_TYPE = 10;
+    const MIN_REVIEWS_GLOBAL = 150;
+    const MAX_PER_TYPE = 15;
     const MAX_CITY_RADIUS_M = 35000;
+    const NEARBY_RADIUS_M = 6000; // pertinho da residência
+    const NEARBY_TEXT_RADIUS_M = 8000; // viés para text search
 
-    const matchesCategory = (p: PlaceRaw, cat: typeof TYPE_MAP[number]) =>
-      !!p.primaryType && cat.acceptedPrimaryTypes.includes(p.primaryType);
+    const classifyByPrimaryType = (primaryType: string | undefined) => {
+      if (!primaryType) return null;
+      for (const cat of TYPE_MAP) {
+        if (cat.acceptedPrimaryTypes.includes(primaryType)) return cat;
+      }
+      return null;
+    };
 
-    const isQuality = (p: PlaceRaw, cat: typeof TYPE_MAP[number]) =>
+    const isQuality = (p: PlaceRaw) =>
       typeof p.rating === "number" &&
       p.rating >= MIN_RATING &&
       typeof p.userRatingCount === "number" &&
-      p.userRatingCount >= MIN_REVIEWS_GLOBAL &&
-      matchesCategory(p, cat);
+      p.userRatingCount >= MIN_REVIEWS_GLOBAL;
 
     const buildNote = (p: PlaceRaw): string | null => {
       const t = p.editorialSummary?.text ?? p.generativeSummary?.overview?.text ?? null;
@@ -554,70 +566,108 @@ export const enrichFromMapsLink = createServerFn({ method: "POST" })
     const normalizeName = (s: string) =>
       s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, " ").trim();
 
-    const recommendations: PlaceItem[] = [];
+    // Agrupa por categoria final (decidida pelo primaryType, respeita prioridade
+    // do TYPE_MAP — Iguaçu cai em Atrações, não em Parques).
+    const byCategory = new Map<string, Array<PlaceRaw & { _dist: number; _cat: TypeMapEntry }>>();
     const seenIds = new Set<string>();
     const seenNames = new Set<string>();
 
-    const push = (p: PlaceRaw, cat: typeof TYPE_MAP[number], scope: "nearby" | "city") => {
-      if (!p.id || !p.location) return;
+    const ingest = (p: PlaceRaw) => {
+      if (!p.id || !p.location || !isQuality(p)) return;
       if (seenIds.has(p.id)) return;
+      const cat = classifyByPrimaryType(p.primaryType);
+      if (!cat) return;
+      const dist = haversineMeters(coords!, { lat: p.location.latitude, lng: p.location.longitude });
+      if (dist > MAX_CITY_RADIUS_M) return; // segurança
       const nm = normalizeName(p.displayName?.text ?? "");
       if (!nm || seenNames.has(nm)) return;
       seenIds.add(p.id);
       seenNames.add(nm);
-      const dist = haversineMeters(coords!, { lat: p.location.latitude, lng: p.location.longitude });
-      const { text, driveMin, walkMin } = formatDistance(dist);
-      const openingHours = p.regularOpeningHours?.weekdayDescriptions ?? null;
-      recommendations.push({
-        place_id: p.id,
-        name: p.displayName?.text ?? "Sem nome",
-        rating: typeof p.rating === "number" ? Number(p.rating.toFixed(1)) : null,
-        user_ratings_total: typeof p.userRatingCount === "number" ? p.userRatingCount : null,
-        category: cat.category,
-        type: cat.type,
-        scope,
-        lat: p.location.latitude,
-        lng: p.location.longitude,
-        distance_meters: dist,
-        distance_text: text,
-        drive_minutes: driveMin,
-        walk_minutes: walkMin,
-        opening_hours: openingHours && openingHours.length > 0 ? openingHours : null,
-        image_url: pickBestPlacePhoto(p.photos),
-        maps_url: p.googleMapsUri ?? `https://www.google.com/maps/search/?api=1&query_place_id=${p.id}`,
-        note: buildNote(p),
-      });
+      const arr = byCategory.get(cat.type) ?? [];
+      arr.push({ ...p, _dist: dist, _cat: cat });
+      byCategory.set(cat.type, arr);
     };
 
+    // 1) Nearby por categoria — raio expandido para 6km
+    await Promise.all(
+      TYPE_MAP.map(async (cat) => {
+        const items = await placesNearby(coords!.lat, coords!.lng, cat.placesTypes, NEARBY_RADIUS_M);
+        for (const p of items) ingest(p);
+      }),
+    );
 
-    // 1) Nearby por categoria — exige primaryType correto + ≥200 reviews + rating ≥4
+    // 2) Text search por categoria — múltiplas variantes, biased ao redor da casa.
+    // Traz referências locais que o Nearby não pega (filtros de tipo são rígidos).
+    const textTasks: Array<{ q: string }> = [];
     for (const cat of TYPE_MAP) {
-      const items = (await placesNearby(coords.lat, coords.lng, cat.placesTypes))
-        .filter((p) => isQuality(p, cat))
-        .sort((a, b) => {
-          const ra = a.rating ?? 0;
-          const rb = b.rating ?? 0;
-          if (rb !== ra) return rb - ra;
-          return (b.userRatingCount ?? 0) - (a.userRatingCount ?? 0);
-        })
-        .slice(0, MAX_PER_TYPE);
-      for (const p of items) push(p, cat, "nearby");
+      const variants = cat.queryVariants ?? [`melhores ${cat.category.toLowerCase()}`];
+      // Limita a 3 variantes por categoria no nearby (evita explodir chamadas)
+      for (const v of variants.slice(0, 3)) textTasks.push({ q: `${v} perto` });
+    }
+    const TEXT_CONCURRENCY = 6;
+    for (let i = 0; i < textTasks.length; i += TEXT_CONCURRENCY) {
+      const batch = textTasks.slice(i, i + TEXT_CONCURRENCY);
+      const results = await Promise.all(
+        batch.map(({ q }) => placesText(q, coords!.lat, coords!.lng, undefined, NEARBY_TEXT_RADIUS_M)),
+      );
+      for (const items of results) {
+        for (const p of items) ingest(p);
+      }
     }
 
-    // NOTE: Recomendações "city-wide" não são mais geradas aqui.
+    // 3) Monta saída — ordena por POPULARIDADE (reviews) com bônus por
+    // proximidade. Lugares famosos perto da casa ganham prioridade sobre
+    // lugares pouco conhecidos com nota alta.
+    const recommendations: PlaceItem[] = [];
+    for (const cat of TYPE_MAP) {
+      const arr = (byCategory.get(cat.type) ?? [])
+        .sort((a, b) => {
+          // Score: log(reviews) * rating - penalidade leve por distância
+          const score = (p: typeof a) => {
+            const r = p.rating ?? 0;
+            const n = p.userRatingCount ?? 0;
+            const proxBonus = Math.max(0, 1 - p._dist / 10000); // até +1 dentro de 10km
+            return Math.log10(n + 10) * r + proxBonus;
+          };
+          return score(b) - score(a);
+        })
+        .slice(0, MAX_PER_TYPE);
+
+      for (const p of arr) {
+        const { text, driveMin, walkMin } = formatDistance(p._dist);
+        const openingHours = p.regularOpeningHours?.weekdayDescriptions ?? null;
+        recommendations.push({
+          place_id: p.id!,
+          name: p.displayName?.text ?? "Sem nome",
+          rating: typeof p.rating === "number" ? Number(p.rating.toFixed(1)) : null,
+          user_ratings_total: typeof p.userRatingCount === "number" ? p.userRatingCount : null,
+          category: p._cat.category,
+          type: p._cat.type,
+          scope: "nearby",
+          lat: p.location!.latitude,
+          lng: p.location!.longitude,
+          distance_meters: p._dist,
+          distance_text: text,
+          drive_minutes: driveMin,
+          walk_minutes: walkMin,
+          opening_hours: openingHours && openingHours.length > 0 ? openingHours : null,
+          image_url: pickBestPlacePhoto(p.photos),
+          maps_url: p.googleMapsUri ?? `https://www.google.com/maps/search/?api=1&query_place_id=${p.id}`,
+          note: buildNote(p),
+        });
+      }
+    }
+
+    // NOTE: Recomendações "city-wide" não são geradas aqui.
     // Pontos icônicos da cidade inteira são gerenciados separadamente em
     // "Recomendações da Cidade" (city_references) e exibidos no guia em
     // aba/categoria própria — sem misturar com o "pertinho da residência".
 
-
-
-
-    // Ordena: nearby por distância, city por rating desc dentro de cada categoria
+    // Ordena para exibição: agrupa por categoria, dentro da categoria por
+    // distância crescente.
     recommendations.sort((a, b) => {
-      if (a.scope !== b.scope) return a.scope === "nearby" ? -1 : 1;
       if (a.type !== b.type) return a.type.localeCompare(b.type);
-      if (a.scope === "nearby") return a.distance_meters - b.distance_meters;
-      return (b.rating ?? 0) - (a.rating ?? 0);
+      return a.distance_meters - b.distance_meters;
     });
 
     return {
