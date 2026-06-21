@@ -213,20 +213,33 @@ export async function runCityGeneration(input: {
 
   if (failed > 0 && status === "ok") status = "partial";
 
-  await supabaseAdmin
-    .from("city_reference_jobs")
-    .upsert(
-      {
-        city_key: key,
-        city_label: input.city_label,
-        state: st,
-        country,
-        last_refreshed_at: nowIso,
-        last_status: status,
-        last_message: message,
-      },
-      { onConflict: "city_key,state,country" },
-    );
+  {
+    let jobQ = supabaseAdmin
+      .from("city_reference_jobs")
+      .select("id")
+      .eq("city_key", key)
+      .eq("country", country);
+    jobQ = st ? jobQ.eq("state", st) : jobQ.is("state", null);
+    const { data: jobRow } = await jobQ.maybeSingle();
+    const jobPayload = {
+      city_key: key,
+      city_label: input.city_label,
+      state: st,
+      country,
+      last_refreshed_at: nowIso,
+      last_status: status,
+      last_message: message,
+    };
+    if (jobRow) {
+      await supabaseAdmin
+        .from("city_reference_jobs")
+        .update(jobPayload)
+        .eq("id", (jobRow as { id: string }).id);
+    } else {
+      await supabaseAdmin.from("city_reference_jobs").insert(jobPayload);
+    }
+  }
+
 
   return { inserted, updated, failed, total: rows.length, status, message };
 }
