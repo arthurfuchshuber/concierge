@@ -81,7 +81,7 @@ export const listCityReferences = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((i: unknown) => ListInput.parse(i))
   .handler(async ({ data, context }) => {
-    await assertAdmin(context);
+    await assertCanManageCity(context, { city_label: data.city_label, state: normalizeState(data.state ?? null), country: data.country });
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const key = cityKey(data.city_label);
     const st = normalizeState(data.state ?? null);
@@ -112,7 +112,7 @@ export const generateCityReferences = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((i: unknown) => CityIdent.parse(i))
   .handler(async ({ data, context }) => {
-    await assertAdmin(context);
+    await assertCanManageCity(context, { city_label: data.city_label, state: normalizeState(data.state ?? null), country: data.country });
     return runCityGeneration(data);
   });
 
@@ -211,7 +211,7 @@ export const toggleHideCityReference = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((i: unknown) => HideInput.parse(i))
   .handler(async ({ data, context }) => {
-    await assertAdmin(context);
+    await assertCanManageCity(context, { city_label: data.city_label, state: normalizeState(data.state ?? null), country: data.country });
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { error } = await supabaseAdmin
       .from("city_references")
@@ -226,7 +226,7 @@ export const deleteCityReference = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((i: unknown) => DeleteInput.parse(i))
   .handler(async ({ data, context }) => {
-    await assertAdmin(context);
+    await assertCanManageCity(context, { city_label: data.city_label, state: normalizeState(data.state ?? null), country: data.country });
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { error } = await supabaseAdmin.from("city_references").delete().eq("id", data.id);
     if (error) throw new Error(error.message);
@@ -238,7 +238,7 @@ export const reorderCityReference = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((i: unknown) => ReorderInput.parse(i))
   .handler(async ({ data, context }) => {
-    await assertAdmin(context);
+    await assertCanManageCity(context, { city_label: data.city_label, state: normalizeState(data.state ?? null), country: data.country });
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { error } = await supabaseAdmin
       .from("city_references")
@@ -253,7 +253,7 @@ export const addManualCityReference = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((i: unknown) => ManualAddInput.parse(i))
   .handler(async ({ data, context }) => {
-    await assertAdmin(context);
+    await assertCanManageCity(context, { city_label: data.city_label, state: normalizeState(data.state ?? null), country: data.country });
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const key = cityKey(data.city_label);
     const st = normalizeState(data.state ?? null);
@@ -292,7 +292,7 @@ export const addManualCityReference = createServerFn({ method: "POST" })
 export const listAdminCities = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    await assertAdmin(context);
+    await assertCanManageCity(context, { city_label: data.city_label, state: normalizeState(data.state ?? null), country: data.country });
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     // Cidades distintas das propriedades publicadas + cidades já cadastradas.
     const { data: props } = await supabaseAdmin
