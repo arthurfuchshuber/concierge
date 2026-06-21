@@ -509,28 +509,22 @@ export const enrichFromMapsLink = createServerFn({ method: "POST" })
       }
     }
 
-    // Filtros de qualidade — afrouxados para abranger marcos da cidade e
-    // grandes estabelecimentos (mercados, shoppings, marcos turísticos).
+    // Regra global: mínimo 200 avaliações + rating ≥ 4.0 + primaryType deve
+    // bater EXATAMENTE com a categoria (evita hotéis listados em "bares" etc.)
     const MIN_RATING = 4.0;
-    const NEARBY_MIN_REVIEWS: Record<string, number> = {
-      restaurant: 40, bar: 25, cafe: 20, nightlife: 30,
-      attraction: 20, beach: 15, park: 15,
-      market: 10, pharmacy: 10, shopping: 20,
-    };
-    const CITY_MIN_REVIEWS: Record<string, number> = {
-      restaurant: 80, bar: 40, cafe: 40, nightlife: 40,
-      attraction: 30, beach: 20, park: 20,
-      market: 20, pharmacy: 15, shopping: 40,
-    };
+    const MIN_REVIEWS_GLOBAL = 200;
     const MAX_PER_TYPE = 10;
-    // 35 km — Foz tem atrações (Cataratas, Itaipu) longe do centro.
     const MAX_CITY_RADIUS_M = 35000;
 
-    const isQuality = (p: PlaceRaw, minReviews: number) =>
+    const matchesCategory = (p: PlaceRaw, cat: typeof TYPE_MAP[number]) =>
+      !!p.primaryType && cat.acceptedPrimaryTypes.includes(p.primaryType);
+
+    const isQuality = (p: PlaceRaw, cat: typeof TYPE_MAP[number]) =>
       typeof p.rating === "number" &&
       p.rating >= MIN_RATING &&
       typeof p.userRatingCount === "number" &&
-      p.userRatingCount >= minReviews;
+      p.userRatingCount >= MIN_REVIEWS_GLOBAL &&
+      matchesCategory(p, cat);
 
     const buildNote = (p: PlaceRaw): string | null => {
       const t = p.editorialSummary?.text ?? p.generativeSummary?.overview?.text ?? null;
