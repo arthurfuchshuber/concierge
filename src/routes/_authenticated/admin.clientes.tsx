@@ -347,6 +347,7 @@ type EditValues = {
   cancelAtPeriodEnd: boolean;
   adminNotes: string | null;
   maxGuidesOverride: number | null;
+  billingPaused: boolean;
 };
 
 function toDateInput(iso: string | null | undefined) {
