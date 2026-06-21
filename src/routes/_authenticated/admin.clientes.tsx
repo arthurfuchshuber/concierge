@@ -131,115 +131,188 @@ function ClientesPage() {
             <p className="text-sm text-muted-foreground">Nenhum cliente encontrado.</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-secondary/30 text-[10px] uppercase tracking-[0.14em] text-muted-foreground border-b border-border">
-                <tr>
-                  <th className="text-left font-semibold px-5 py-3.5">Cliente</th>
-                  <th className="text-left font-semibold px-4 py-3.5">Plano</th>
-                  <th className="text-left font-semibold px-4 py-3.5">Status</th>
-                  <th className="text-right font-semibold px-4 py-3.5">Valor</th>
-                  <th className="text-left font-semibold px-4 py-3.5">Trial</th>
-                  <th className="text-left font-semibold px-4 py-3.5">Renova</th>
-                  <th className="text-right font-semibold px-5 py-3.5">Ações</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map((c, idx) => {
-                  const s = c.subscription;
-                  const planName = s?.plan ? PLANS[s.plan].name : null;
-                  const initials = (c.fullName || c.email || "?")
-                    .split(/\s+/)
-                    .map((p) => p[0])
-                    .slice(0, 2)
-                    .join("")
-                    .toUpperCase();
-                  const hasCustom = s?.customPriceCents != null;
-                  const price = hasCustom
-                    ? (s!.customPriceCents! / 100).toLocaleString("pt-BR", {
-                        style: "currency",
-                        currency: s!.customCurrency || "BRL",
-                      })
-                    : s?.plan
-                      ? PLANS[s.plan].priceLabel
-                      : null;
-                  return (
-                    <tr
-                      key={c.userId}
-                      className={`border-t border-border/60 hover:bg-secondary/20 transition-colors ${idx % 2 === 1 ? "bg-secondary/[0.04]" : ""}`}
-                    >
-                      <td className="px-5 py-4">
-                        <div className="flex items-center gap-3">
-                          <div className="size-9 rounded-full bg-accent/15 text-accent grid place-items-center text-[11px] font-semibold shrink-0">
-                            {initials}
-                          </div>
-                          <div className="min-w-0">
-                            <div className="font-medium truncate">{c.fullName ?? "—"}</div>
-                            <div className="text-xs text-muted-foreground truncate">{c.email ?? "—"}</div>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-4 py-4">
-                        {planName ? (
-                          <div className="flex items-center gap-1.5">
+          <>
+            {/* Mobile: card list */}
+            <ul className="sm:hidden divide-y divide-border/60">
+              {filtered.map((c) => {
+                const s = c.subscription;
+                const planName = s?.plan ? PLANS[s.plan].name : null;
+                const initials = (c.fullName || c.email || "?")
+                  .split(/\s+/)
+                  .map((p) => p[0])
+                  .slice(0, 2)
+                  .join("")
+                  .toUpperCase();
+                const hasCustom = s?.customPriceCents != null;
+                const price = hasCustom
+                  ? (s!.customPriceCents! / 100).toLocaleString("pt-BR", {
+                      style: "currency",
+                      currency: s!.customCurrency || "BRL",
+                    })
+                  : s?.plan
+                    ? PLANS[s.plan].priceLabel
+                    : null;
+                return (
+                  <li key={c.userId} className="p-4">
+                    <div className="flex items-start gap-3">
+                      <div className="size-10 rounded-full bg-accent/15 text-accent grid place-items-center text-[12px] font-semibold shrink-0">
+                        {initials}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="font-medium truncate">{c.fullName ?? "—"}</div>
+                        <div className="text-xs text-muted-foreground truncate">{c.email ?? "—"}</div>
+                        <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
+                          {planName ? (
                             <span className="font-medium">{planName}</span>
-                            {s?.isManual && (
-                              <span className="text-[9px] uppercase tracking-wider font-semibold bg-accent/10 text-accent px-1.5 py-0.5 rounded">
-                                Manual
-                              </span>
+                          ) : (
+                            <span className="text-muted-foreground/60">Sem plano</span>
+                          )}
+                          {s?.isManual && (
+                            <span className="text-[9px] uppercase tracking-wider font-semibold bg-accent/10 text-accent px-1.5 py-0.5 rounded">
+                              Manual
+                            </span>
+                          )}
+                          <StatusBadge status={s?.status} />
+                          {price && (
+                            <span className="tabular-nums text-muted-foreground">· {price}{hasCustom && " (personalizado)"}</span>
+                          )}
+                        </div>
+                        {(s?.trialEndsAt || s?.currentPeriodEnd) && (
+                          <div className="mt-1 flex flex-wrap gap-x-3 text-[11px] text-muted-foreground tabular-nums">
+                            {s?.trialEndsAt && (
+                              <span>Trial: {new Date(s.trialEndsAt).toLocaleDateString("pt-BR")}</span>
+                            )}
+                            {s?.currentPeriodEnd && (
+                              <span>Renova: {new Date(s.currentPeriodEnd).toLocaleDateString("pt-BR")}</span>
                             )}
                           </div>
-                        ) : (
-                          <span className="text-muted-foreground/60">—</span>
                         )}
-                      </td>
-                      <td className="px-4 py-4">
-                        <StatusBadge status={s?.status} />
-                      </td>
-                      <td className="px-4 py-4 text-right">
-                        {price ? (
-                          <div className="font-medium tabular-nums">
-                            {price}
-                            {hasCustom && (
-                              <div className="text-[10px] uppercase tracking-wider text-accent font-semibold">
-                                personalizado
-                              </div>
-                            )}
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="rounded-full shrink-0"
+                        onClick={() => setEditing(c)}
+                      >
+                        <Pencil className="size-3 mr-1" /> Editar
+                      </Button>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+
+            {/* Desktop: table */}
+            <div className="hidden sm:block overflow-x-auto">
+              <table className="w-full text-sm min-w-[760px]">
+                <thead className="bg-secondary/30 text-[10px] uppercase tracking-[0.14em] text-muted-foreground border-b border-border">
+                  <tr>
+                    <th className="text-left font-semibold px-5 py-3.5">Cliente</th>
+                    <th className="text-left font-semibold px-4 py-3.5">Plano</th>
+                    <th className="text-left font-semibold px-4 py-3.5">Status</th>
+                    <th className="text-right font-semibold px-4 py-3.5">Valor</th>
+                    <th className="text-left font-semibold px-4 py-3.5">Trial</th>
+                    <th className="text-left font-semibold px-4 py-3.5">Renova</th>
+                    <th className="text-right font-semibold px-5 py-3.5">Ações</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filtered.map((c, idx) => {
+                    const s = c.subscription;
+                    const planName = s?.plan ? PLANS[s.plan].name : null;
+                    const initials = (c.fullName || c.email || "?")
+                      .split(/\s+/)
+                      .map((p) => p[0])
+                      .slice(0, 2)
+                      .join("")
+                      .toUpperCase();
+                    const hasCustom = s?.customPriceCents != null;
+                    const price = hasCustom
+                      ? (s!.customPriceCents! / 100).toLocaleString("pt-BR", {
+                          style: "currency",
+                          currency: s!.customCurrency || "BRL",
+                        })
+                      : s?.plan
+                        ? PLANS[s.plan].priceLabel
+                        : null;
+                    return (
+                      <tr
+                        key={c.userId}
+                        className={`border-t border-border/60 hover:bg-secondary/20 transition-colors ${idx % 2 === 1 ? "bg-secondary/[0.04]" : ""}`}
+                      >
+                        <td className="px-5 py-4">
+                          <div className="flex items-center gap-3">
+                            <div className="size-9 rounded-full bg-accent/15 text-accent grid place-items-center text-[11px] font-semibold shrink-0">
+                              {initials}
+                            </div>
+                            <div className="min-w-0">
+                              <div className="font-medium truncate">{c.fullName ?? "—"}</div>
+                              <div className="text-xs text-muted-foreground truncate">{c.email ?? "—"}</div>
+                            </div>
                           </div>
-                        ) : (
-                          <span className="text-muted-foreground/60">—</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-4 text-xs tabular-nums whitespace-nowrap">
-                        {s?.trialEndsAt ? (
-                          new Date(s.trialEndsAt).toLocaleDateString("pt-BR")
-                        ) : (
-                          <span className="text-muted-foreground/60">—</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-4 text-xs tabular-nums whitespace-nowrap">
-                        {s?.currentPeriodEnd ? (
-                          new Date(s.currentPeriodEnd).toLocaleDateString("pt-BR")
-                        ) : (
-                          <span className="text-muted-foreground/60">—</span>
-                        )}
-                      </td>
-                      <td className="px-5 py-4 text-right">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="rounded-full"
-                          onClick={() => setEditing(c)}
-                        >
-                          <Pencil className="size-3 mr-1" /> Editar
-                        </Button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                        </td>
+                        <td className="px-4 py-4">
+                          {planName ? (
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-medium">{planName}</span>
+                              {s?.isManual && (
+                                <span className="text-[9px] uppercase tracking-wider font-semibold bg-accent/10 text-accent px-1.5 py-0.5 rounded">
+                                  Manual
+                                </span>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="text-muted-foreground/60">—</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-4">
+                          <StatusBadge status={s?.status} />
+                        </td>
+                        <td className="px-4 py-4 text-right">
+                          {price ? (
+                            <div className="font-medium tabular-nums">
+                              {price}
+                              {hasCustom && (
+                                <div className="text-[10px] uppercase tracking-wider text-accent font-semibold">
+                                  personalizado
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="text-muted-foreground/60">—</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-4 text-xs tabular-nums whitespace-nowrap">
+                          {s?.trialEndsAt ? (
+                            new Date(s.trialEndsAt).toLocaleDateString("pt-BR")
+                          ) : (
+                            <span className="text-muted-foreground/60">—</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-4 text-xs tabular-nums whitespace-nowrap">
+                          {s?.currentPeriodEnd ? (
+                            new Date(s.currentPeriodEnd).toLocaleDateString("pt-BR")
+                          ) : (
+                            <span className="text-muted-foreground/60">—</span>
+                          )}
+                        </td>
+                        <td className="px-5 py-4 text-right">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="rounded-full"
+                            onClick={() => setEditing(c)}
+                          >
+                            <Pencil className="size-3 mr-1" /> Editar
+                          </Button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </div>
 
