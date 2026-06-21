@@ -524,8 +524,8 @@ function EngagementPage() {
                 <div className="grid lg:grid-cols-2 gap-4">
                   {filteredConvs.map((c) => (
                     <ConversationCard
-                      key={c.id}
-                      conversationId={c.id}
+                      key={c.key}
+                      conversationIds={c.conversation_ids}
                       guestName={c.guest_name}
                       checkinDate={c.checkin_date}
                       propertyName={c.property_name}
