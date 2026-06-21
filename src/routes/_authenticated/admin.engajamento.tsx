@@ -121,7 +121,7 @@ function EngagementPage() {
     if (!data) return [];
     const map = new Map<string, GuestGroup>();
     for (const l of data.logs) {
-      const key = identityKey(l.property_id, l.guest_name, l.guest_phone, l.checkin_date);
+      const key = identityKey(l.property_id, l.guest_phone, l.checkin_date, l.id);
       const g = map.get(key);
       if (!g) {
         map.set(key, {
@@ -143,26 +143,10 @@ function EngagementPage() {
         if (l.created_at && (!g.first_access || l.created_at < g.first_access)) g.first_access = l.created_at;
         g.guest_phone = g.guest_phone || l.guest_phone;
         g.reservation_code = g.reservation_code || l.reservation_code;
+        g.guest_name = g.guest_name || l.guest_name;
       }
     }
-    // Attach conversations by name match within property (chat doesn't capture phone)
-    for (const c of data.conversations) {
-      // match by name+property — if no group, create one from the conversation
-      let matched: GuestGroup | undefined;
-      for (const g of map.values()) {
-        if (g.property_id !== c.property_id) continue;
-        if (normName(g.guest_name) && normName(g.guest_name) === normName(c.guest_name)) { matched = g; break; }
-      }
-      if (!matched) {
-        const key = identityKey(c.property_id, c.guest_name, null, null);
-        matched = {
-          key,
-          property_id: c.property_id,
-          property_name: c.property_name,
-          guest_name: c.guest_name,
-          guest_phone: null,
-          checkin_date: null,
-          reservation_code: null,
+
           access_count: 0,
           first_access: null,
           last_access: null,
