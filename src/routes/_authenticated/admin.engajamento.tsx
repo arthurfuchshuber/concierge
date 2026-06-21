@@ -60,6 +60,15 @@ function BigNumber({ icon: Icon, label, value, hint }: { icon: any; label: strin
   );
 }
 
+function MetricCell({ label, value, tone }: { label: string; value: number | string; tone?: "amber" }) {
+  return (
+    <div className="rounded-lg bg-secondary/40 px-2 py-1.5">
+      <div className="text-[9px] uppercase tracking-wider text-muted-foreground font-semibold">{label}</div>
+      <div className={`text-sm font-semibold tabular-nums mt-0.5 ${tone === "amber" ? "text-amber-600 dark:text-amber-400" : ""}`}>{value}</div>
+    </div>
+  );
+}
+
 function EngagementPage() {
   const fn = useServerFn(getEngagementOverview);
   const fbFn = useServerFn(listMyFeedback);
