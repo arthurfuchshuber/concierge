@@ -457,6 +457,19 @@ function AssinaturaPage() {
           )}
         </>
       )}
+
+      {excessTarget && (
+        <DowngradeExcessDialog
+          open={!!excessTarget}
+          targetPlan={excessTarget}
+          onClose={() => setExcessTarget(null)}
+          onResolved={() => {
+            const t = excessTarget;
+            setExcessTarget(null);
+            if (t) handleChangePlan(t);
+          }}
+        />
+      )}
     </div>
   );
 }
