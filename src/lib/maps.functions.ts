@@ -862,9 +862,13 @@ export async function generateCityReferencesFromMaps(input: {
   city_label: string;
   state: string | null;
   country: string;
+  type?: string | null;
 }): Promise<CityReferenceRow[]> {
-  const { city_label, state, country } = input;
+  const { city_label, state, country, type } = input;
   const cityQ = state ? `${city_label}, ${state}` : city_label;
+  const targetTypes = type
+    ? TYPE_MAP.filter((c) => c.type === type)
+    : TYPE_MAP;
 
   const matchesCategory = (p: PlaceRaw, cat: TypeMapEntry) =>
     !!p.primaryType && cat.acceptedPrimaryTypes.includes(p.primaryType);
@@ -916,7 +920,7 @@ export async function generateCityReferencesFromMaps(input: {
 
   // 1) Busca por categoria via Text Search (sem locationBias — escopo macro)
   await Promise.all(
-    TYPE_MAP.map(async (cat) => {
+    targetTypes.map(async (cat) => {
       const items = (await placesTextNoBias(`melhores ${cat.category.toLowerCase()} em ${cityQ}`))
         .filter((p) => !!p.location && isQuality(p, cat))
         .sort((a, b) => {
@@ -933,7 +937,7 @@ export async function generateCityReferencesFromMaps(input: {
   // 2) Curadoria via Gemini — nomes icônicos resolvidos por busca textual
   const iconic = await fetchIconicPlacesFromGemini(city_label, country);
   const tasks: Array<{ name: string; cat: TypeMapEntry }> = [];
-  for (const cat of TYPE_MAP) {
+  for (const cat of targetTypes) {
     const names = iconic[cat.type] ?? [];
     for (const name of names) {
       if (seenNames.has(normalizeNm(name))) continue;
@@ -959,6 +963,7 @@ export async function generateCityReferencesFromMaps(input: {
 
   return out;
 }
+
 
 // Geocoder público — usado para validar/centralizar uma cidade quando admin
 // cadastra manualmente. Reaproveita o geocode existente.
