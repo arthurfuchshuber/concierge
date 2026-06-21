@@ -284,9 +284,13 @@ type PlaceRaw = {
 
 function buildPhotoUrl(photoName: string | undefined): string | null {
   if (!photoName) return null;
-  // Servimos via proxy próprio para funcionar em qualquer domínio (inclusive custom),
-  // sem expor a chave do Google ao browser.
-  return `/api/public/place-photo?name=${encodeURIComponent(photoName)}&w=1600`;
+  const browserKey =
+    process.env.GOOGLE_MAPS_BROWSER_KEY_2 ??
+    process.env.GOOGLE_MAPS_BROWSER_KEY ??
+    process.env.GOOGLE_MAPS;
+  if (!browserKey) return null;
+  const path = photoName.split("/").map(encodeURIComponent).join("/");
+  return `https://places.googleapis.com/v1/${path}/media?maxWidthPx=1600&key=${encodeURIComponent(browserKey)}`;
 }
 
 // Curadoria via Gemini: lista os lugares mais famosos/queridos da cidade por categoria.
