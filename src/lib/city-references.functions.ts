@@ -141,7 +141,6 @@ export async function runCityGeneration(input: {
     };
     const { data: ups, error } = await supabaseAdmin
       .from("city_references")
-      // @ts-expect-error supabase typings narrow before regen
       .upsert(payload, { onConflict: "city_key,state,country,place_id", ignoreDuplicates: false })
       .select("id, created_at, updated_at");
     if (error) continue;
@@ -152,7 +151,6 @@ export async function runCityGeneration(input: {
 
   await supabaseAdmin
     .from("city_reference_jobs")
-    // @ts-expect-error typings
     .upsert(
       {
         city_key: key,
@@ -178,7 +176,6 @@ export const toggleHideCityReference = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { error } = await supabaseAdmin
       .from("city_references")
-      // @ts-expect-error typings
       .update({ is_hidden: data.hidden })
       .eq("id", data.id);
     if (error) throw new Error(error.message);
@@ -206,7 +203,6 @@ export const reorderCityReference = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { error } = await supabaseAdmin
       .from("city_references")
-      // @ts-expect-error typings
       .update({ display_order: data.display_order })
       .eq("id", data.id);
     if (error) throw new Error(error.message);
@@ -246,7 +242,6 @@ export const addManualCityReference = createServerFn({ method: "POST" })
     };
     const { error, data: row } = await supabaseAdmin
       .from("city_references")
-      // @ts-expect-error typings
       .upsert(payload, { onConflict: "city_key,state,country,place_id", ignoreDuplicates: false })
       .select("id")
       .maybeSingle();
