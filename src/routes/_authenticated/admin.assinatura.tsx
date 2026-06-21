@@ -15,6 +15,7 @@ import { usePaddleCheckout } from "@/hooks/usePaddleCheckout";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { DowngradeExcessDialog } from "@/components/DowngradeExcessDialog";
 import {
   CreditCard,
   ExternalLink,
@@ -51,6 +52,7 @@ function AssinaturaPage() {
   const [opening, setOpening] = useState(false);
   const [changing, setChanging] = useState<PlanKey | null>(null);
   const [user, setUser] = useState<{ id: string; email: string | null } | null>(null);
+  const [excessTarget, setExcessTarget] = useState<PlanKey | null>(null);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
@@ -125,7 +127,12 @@ function AssinaturaPage() {
       const t = setInterval(() => refetch(), 2000);
       setTimeout(() => clearInterval(t), 20000);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Não foi possível mudar de plano");
+      const msg = e instanceof Error ? e.message : "Não foi possível mudar de plano";
+      if (msg.startsWith("EXCESS_GUIDES:")) {
+        setExcessTarget(target);
+      } else {
+        toast.error(msg);
+      }
     } finally {
       setChanging(null);
     }
@@ -449,6 +456,19 @@ function AssinaturaPage() {
             </div>
           )}
         </>
+      )}
+
+      {excessTarget && (
+        <DowngradeExcessDialog
+          open={!!excessTarget}
+          targetPlan={excessTarget}
+          onClose={() => setExcessTarget(null)}
+          onResolved={() => {
+            const t = excessTarget;
+            setExcessTarget(null);
+            if (t) handleChangePlan(t);
+          }}
+        />
       )}
     </div>
   );
