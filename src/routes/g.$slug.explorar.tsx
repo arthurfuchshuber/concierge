@@ -985,3 +985,170 @@ function RecRow({ rec }: { rec: Rec }) {
 }
 
 void ShoppingBag;
+void MapPin;
+
+function CityReferencesCard({
+  items,
+  cityLabel,
+  viewMode,
+  onPick,
+}: {
+  items: Rec[];
+  cityLabel: string;
+  viewMode: "grid" | "list";
+  onPick: () => void;
+}) {
+  // Capa: foto do lugar com MAIS avaliações entre as referências.
+  const hero =
+    [...items]
+      .filter((x) => x.image_url)
+      .sort((a, b) => (b.user_ratings_total ?? 0) - (a.user_ratings_total ?? 0))[0]?.image_url ?? null;
+  const count = items.length;
+
+  if (viewMode === "list") {
+    return (
+      <button
+        type="button"
+        onClick={onPick}
+        className="group mt-3 flex w-full gap-4 bg-card border border-accent/30 rounded-2xl p-3 text-left hover:border-accent/60 hover:shadow-lg transition-all"
+      >
+        <div className="relative size-24 sm:size-28 shrink-0 overflow-hidden rounded-xl bg-secondary">
+          {hero ? (
+            <img src={hero} alt="" loading="lazy" className="absolute inset-0 size-full object-cover group-hover:scale-[1.04] transition-transform duration-500" />
+          ) : (
+            <div className="absolute inset-0 grid place-items-center bg-gradient-to-br from-accent/20 to-accent/5">
+              <MapPin className="size-8 text-accent/70" strokeWidth={1.25} />
+            </div>
+          )}
+        </div>
+        <div className="flex-1 min-w-0 flex flex-col justify-center gap-1">
+          <p className="inline-flex items-center gap-1.5 text-[10px] uppercase tracking-[0.2em] font-semibold text-accent">
+            <MapPin className="size-3.5" strokeWidth={1.75} />
+            {count} {count === 1 ? "referência" : "referências"}
+          </p>
+          <h2 className="font-serif text-[1.3rem] leading-tight">Referências em {cityLabel}</h2>
+          <p className="text-[12.5px] text-muted-foreground leading-relaxed line-clamp-2">
+            Pontos icônicos e endereços que valem a viagem.
+          </p>
+        </div>
+      </button>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={onPick}
+      className="group mt-4 relative w-full overflow-hidden rounded-2xl border border-accent/30 bg-card text-left hover:border-accent/60 hover:shadow-xl transition-all"
+    >
+      <div className="relative aspect-[21/9] w-full overflow-hidden bg-secondary">
+        {hero ? (
+          <img src={hero} alt="" loading="lazy" className="absolute inset-0 size-full object-cover group-hover:scale-[1.04] transition-transform duration-500" />
+        ) : (
+          <div className="absolute inset-0 grid place-items-center bg-gradient-to-br from-accent/20 to-accent/5">
+            <MapPin className="size-12 text-accent/70" strokeWidth={1.25} />
+          </div>
+        )}
+        <div className="absolute inset-0 bg-gradient-to-t from-background/90 via-background/30 to-transparent" />
+        <div className="absolute top-3 left-3 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-background/85 backdrop-blur text-[10px] uppercase tracking-[0.2em] font-semibold text-foreground/85">
+          <MapPin className="size-3.5 text-accent" strokeWidth={1.75} />
+          {count} {count === 1 ? "referência" : "referências"}
+        </div>
+      </div>
+      <div className="p-5">
+        <p className="text-[10px] uppercase tracking-[0.28em] text-accent font-semibold">Macro</p>
+        <h2 className="font-serif text-[1.5rem] md:text-[1.7rem] leading-tight mt-1">Referências em {cityLabel}</h2>
+        <p className="text-[12.5px] text-muted-foreground mt-1.5 leading-relaxed">
+          Pontos icônicos e endereços que valem a viagem em {cityLabel}.
+        </p>
+        <div className="mt-3 inline-flex items-center gap-1.5 text-[10.5px] uppercase tracking-[0.24em] font-semibold text-accent">
+          Ver tudo
+          <span aria-hidden className="transition-transform group-hover:translate-x-0.5">→</span>
+        </div>
+      </div>
+    </button>
+  );
+}
+
+function CityReferencesDetail({
+  items,
+  cityLabel,
+  sortBy,
+  setSortBy,
+  viewMode,
+  setViewMode,
+}: {
+  items: Rec[];
+  cityLabel: string;
+  sortBy: SortKey;
+  setSortBy: (s: SortKey) => void;
+  viewMode: "grid" | "list";
+  setViewMode: (v: "grid" | "list") => void;
+}) {
+  const [minReviews, setMinReviews] = useState(0);
+
+  // Agrupa por TYPE (cada subcategoria é uma seção própria).
+  const grouped = useMemo(() => {
+    const map = new Map<string, Rec[]>();
+    for (const it of items) {
+      if (minReviews > 0 && (it.user_ratings_total ?? 0) < minReviews) continue;
+      const arr = map.get(it.type) ?? [];
+      arr.push(it);
+      map.set(it.type, arr);
+    }
+    return Array.from(map.entries())
+      .map(([type, list]) => ({ type, items: sortRecs(list, sortBy) }))
+      .sort((a, b) => a.type.localeCompare(b.type));
+  }, [items, sortBy, minReviews]);
+
+  return (
+    <>
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div className="flex items-center gap-3 flex-wrap">
+          <SortBar sortBy={sortBy} setSortBy={setSortBy} />
+          <MinReviewsFilter value={minReviews} onChange={setMinReviews} />
+        </div>
+        <ViewToggle viewMode={viewMode} setViewMode={setViewMode} />
+      </div>
+      <div className="mt-8 space-y-6">
+        {grouped.length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            Nenhuma referência cadastrada para {cityLabel} ainda.
+          </p>
+        ) : (
+          grouped.map((g) => {
+            const typeLabel = TYPE_LABEL[g.type] || g.items[0]?.category || g.type;
+            return (
+              <section key={g.type} className="border border-border rounded-2xl bg-card/40 overflow-hidden">
+                <div className="px-5 py-4 border-b border-border/50">
+                  <p className="text-[10px] uppercase tracking-[0.28em] text-accent font-semibold">Categoria</p>
+                  <h3 className="font-serif text-[1.35rem] md:text-[1.55rem] leading-tight mt-0.5">
+                    {typeLabel}
+                    <span className="ml-2 text-[12px] text-muted-foreground font-sans font-normal">
+                      ({g.items.length})
+                    </span>
+                  </h3>
+                </div>
+                <div className="px-5 pb-5 pt-4">
+                  {viewMode === "grid" ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {g.items.map((rec) => (
+                        <RecCard key={rec.id} rec={rec} />
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="flex flex-col gap-3">
+                      {g.items.map((rec) => (
+                        <RecRow key={rec.id} rec={rec} />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </section>
+            );
+          })
+        )}
+      </div>
+    </>
+  );
+}
