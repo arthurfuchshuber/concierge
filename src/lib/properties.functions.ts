@@ -118,7 +118,7 @@ const RecInput = z.object({
   opening_hours: z.array(z.string().max(200)).max(14).optional().nullable(),
 
   note: z.string().max(1000).optional().nullable(),
-  image_url: HttpsUrl,
+  image_url: ImageUrl,
   maps_url: HttpsUrl,
   place_id: z.string().max(200).optional().nullable(),
 });
