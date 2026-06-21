@@ -843,9 +843,9 @@ export type CityReferenceRow = {
 
 const CITY_MIN_RATING = 4.0;
 const CITY_MIN_REVIEWS = 200;
-const CITY_MAX_PER_TYPE = 12;
+const CITY_MAX_PER_TYPE = 25;
 
-async function placesTextNoBias(query: string): Promise<PlaceRaw[]> {
+async function placesTextNoBias(query: string): Promise<(PlaceRaw & { formattedAddress?: string })[]> {
   const res = await gatewayFetch(`/places/v1/places:searchText`, {
     method: "POST",
     headers: {
@@ -862,6 +862,27 @@ async function placesTextNoBias(query: string): Promise<PlaceRaw[]> {
   return j.places ?? [];
 }
 
+// Decide a categoria FINAL de um lugar com base em primaryType, respeitando
+// a ordem de prioridade do TYPE_MAP (attraction antes de park, etc.).
+function classifyByPrimaryType(primaryType: string | undefined): TypeMapEntry | null {
+  if (!primaryType) return null;
+  for (const cat of TYPE_MAP) {
+    if (cat.acceptedPrimaryTypes.includes(primaryType)) return cat;
+  }
+  return null;
+}
+
+// Extrai um sufixo de localidade do endereço (cidade, estado/UF, país) — usado
+// para desambiguar nomes idênticos (ex.: Iguaçu BR vs Iguazú AR).
+function extractLocationSuffix(address: string | null | undefined): string {
+  if (!address) return "";
+  const parts = address.split(",").map((s) => s.trim()).filter(Boolean);
+  if (parts.length === 0) return "";
+  // Pega últimos 2 segmentos (geralmente "Estado/UF, País")
+  const tail = parts.slice(-2).join(", ");
+  return tail;
+}
+
 export async function generateCityReferencesFromMaps(input: {
   city_label: string;
   state: string | null;
@@ -874,15 +895,11 @@ export async function generateCityReferencesFromMaps(input: {
     ? TYPE_MAP.filter((c) => c.type === type)
     : TYPE_MAP;
 
-  const matchesCategory = (p: PlaceRaw, cat: TypeMapEntry) =>
-    !!p.primaryType && cat.acceptedPrimaryTypes.includes(p.primaryType);
-
-  const isQuality = (p: PlaceRaw, cat: TypeMapEntry) =>
+  const isQuality = (p: PlaceRaw) =>
     typeof p.rating === "number" &&
     p.rating >= CITY_MIN_RATING &&
     typeof p.userRatingCount === "number" &&
-    p.userRatingCount >= CITY_MIN_REVIEWS &&
-    matchesCategory(p, cat);
+    p.userRatingCount >= CITY_MIN_REVIEWS;
 
   const buildNote = (p: PlaceRaw): string | null => {
     const t = p.editorialSummary?.text ?? p.generativeSummary?.overview?.text ?? null;
@@ -890,63 +907,53 @@ export async function generateCityReferencesFromMaps(input: {
     return t.length > 240 ? t.slice(0, 237).trimEnd() + "…" : t;
   };
 
-  const normalizeNm = (s: string) =>
-    s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, " ").trim();
-
-  const out: CityReferenceRow[] = [];
+  // Agrupa por categoria final (decidida via primaryType) para respeitar a
+  // prioridade do TYPE_MAP — mesmo lugar nunca duplica entre Atrações/Parques.
+  const byCategory = new Map<string, Array<PlaceRaw & { formattedAddress?: string; _cat: TypeMapEntry }>>();
   const seenIds = new Set<string>();
-  const seenNames = new Set<string>();
 
-  const push = (p: PlaceRaw & { formattedAddress?: string }, cat: TypeMapEntry) => {
-    if (!p.id || !p.location) return;
+  const ingest = (p: PlaceRaw & { formattedAddress?: string }, hintCat: TypeMapEntry) => {
+    if (!p.id || !p.location || !isQuality(p)) return;
     if (seenIds.has(p.id)) return;
-    const nm = normalizeNm(p.displayName?.text ?? "");
-    if (!nm || seenNames.has(nm)) return;
+    // Reclassifica pelo primaryType (prioridade do TYPE_MAP). Se o primaryType
+    // do Google não corresponder a nenhuma cat aceita, descarta.
+    const realCat = classifyByPrimaryType(p.primaryType) ?? null;
+    if (!realCat) return;
+    // Se o usuário pediu apenas 1 tipo (regen por categoria), filtra.
+    if (type && realCat.type !== type) return;
+    // Se a categoria real for diferente da hint, só aceita se também estiver
+    // dentro do escopo solicitado (targetTypes).
+    if (!targetTypes.some((c) => c.type === realCat.type)) return;
     seenIds.add(p.id);
-    seenNames.add(nm);
-    out.push({
-      place_id: p.id,
-      category: cat.category,
-      type: cat.type,
-      name: p.displayName?.text ?? "Sem nome",
-      note: buildNote(p),
-      address: p.formattedAddress ?? null,
-      rating: typeof p.rating === "number" ? Number(p.rating.toFixed(1)) : null,
-      user_ratings_total: typeof p.userRatingCount === "number" ? p.userRatingCount : null,
-      primary_type: p.primaryType ?? null,
-      lat: p.location.latitude,
-      lng: p.location.longitude,
-      image_url: pickBestPlacePhoto(p.photos),
-      maps_url: p.googleMapsUri ?? `https://www.google.com/maps/search/?api=1&query_place_id=${p.id}`,
-      opening_hours: p.regularOpeningHours?.weekdayDescriptions ?? null,
-    });
+    const arr = byCategory.get(realCat.type) ?? [];
+    arr.push({ ...p, _cat: realCat });
+    byCategory.set(realCat.type, arr);
   };
 
-  // 1) Busca por categoria via Text Search (sem locationBias — escopo macro)
-  await Promise.all(
-    targetTypes.map(async (cat) => {
-      const items = (await placesTextNoBias(`melhores ${cat.category.toLowerCase()} em ${cityQ}`))
-        .filter((p) => !!p.location && isQuality(p, cat))
-        .sort((a, b) => {
-          const ra = a.rating ?? 0;
-          const rb = b.rating ?? 0;
-          if (rb !== ra) return rb - ra;
-          return (b.userRatingCount ?? 0) - (a.userRatingCount ?? 0);
-        })
-        .slice(0, CITY_MAX_PER_TYPE);
-      for (const p of items) push(p as PlaceRaw & { formattedAddress?: string }, cat);
-    }),
-  );
+  // 1) Múltiplas queries por categoria — busca mais profunda
+  const queryTasks: Array<{ q: string; cat: TypeMapEntry }> = [];
+  for (const cat of targetTypes) {
+    const variants = cat.queryVariants ?? [`melhores ${cat.category.toLowerCase()} em`];
+    for (const v of variants) queryTasks.push({ q: `${v} ${cityQ}`, cat });
+  }
+
+  const QUERY_CONCURRENCY = 6;
+  for (let i = 0; i < queryTasks.length; i += QUERY_CONCURRENCY) {
+    const batch = queryTasks.slice(i, i + QUERY_CONCURRENCY);
+    const results = await Promise.all(
+      batch.map(async ({ q, cat }) => ({ items: await placesTextNoBias(q), cat })),
+    );
+    for (const { items, cat } of results) {
+      for (const p of items) ingest(p, cat);
+    }
+  }
 
   // 2) Curadoria via Gemini — nomes icônicos resolvidos por busca textual
   const iconic = await fetchIconicPlacesFromGemini(city_label, country);
   const tasks: Array<{ name: string; cat: TypeMapEntry }> = [];
   for (const cat of targetTypes) {
     const names = iconic[cat.type] ?? [];
-    for (const name of names) {
-      if (seenNames.has(normalizeNm(name))) continue;
-      tasks.push({ name, cat });
-    }
+    for (const name of names) tasks.push({ name, cat });
   }
   const CONCURRENCY = 6;
   for (let i = 0; i < tasks.length; i += CONCURRENCY) {
@@ -954,14 +961,61 @@ export async function generateCityReferencesFromMaps(input: {
     const results = await Promise.all(
       batch.map(async ({ name, cat }) => {
         const resolved = await placesTextNoBias(`${name} ${cityQ}`);
-        const best = resolved
-          .filter((p) => !!p.location && isQuality(p, cat))
-          .sort((a, b) => (b.userRatingCount ?? 0) - (a.userRatingCount ?? 0))[0];
-        return { best, cat };
+        // pega TODOS que batem em qualidade, não só o melhor — assim Iguaçu BR
+        // e Iguazú AR podem coexistir.
+        return { items: resolved, cat };
       }),
     );
-    for (const { best, cat } of results) {
-      if (best) push(best as PlaceRaw & { formattedAddress?: string }, cat);
+    for (const { items, cat } of results) {
+      for (const p of items) ingest(p, cat);
+    }
+  }
+
+  // 3) Monta saída ordenada por categoria → top N por reviews
+  const out: CityReferenceRow[] = [];
+  for (const cat of targetTypes) {
+    const arr = (byCategory.get(cat.type) ?? [])
+      .sort((a, b) => {
+        const ra = a.rating ?? 0;
+        const rb = b.rating ?? 0;
+        if (rb !== ra) return rb - ra;
+        return (b.userRatingCount ?? 0) - (a.userRatingCount ?? 0);
+      })
+      .slice(0, CITY_MAX_PER_TYPE);
+
+    // Desambiguação por nome: se houver mais de um lugar com o mesmo nome
+    // normalizado, anexa o sufixo de localidade (Estado/País) ao nome.
+    const normalize = (s: string) =>
+      s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, " ").trim();
+    const nameCounts = new Map<string, number>();
+    for (const p of arr) {
+      const nm = normalize(p.displayName?.text ?? "");
+      nameCounts.set(nm, (nameCounts.get(nm) ?? 0) + 1);
+    }
+
+    for (const p of arr) {
+      const rawName = p.displayName?.text ?? "Sem nome";
+      const nm = normalize(rawName);
+      const needsSuffix = (nameCounts.get(nm) ?? 0) > 1;
+      const suffix = needsSuffix ? extractLocationSuffix(p.formattedAddress) : "";
+      const finalName = suffix ? `${rawName} (${suffix})` : rawName;
+
+      out.push({
+        place_id: p.id!,
+        category: p._cat.category,
+        type: p._cat.type,
+        name: finalName,
+        note: buildNote(p),
+        address: p.formattedAddress ?? null,
+        rating: typeof p.rating === "number" ? Number(p.rating.toFixed(1)) : null,
+        user_ratings_total: typeof p.userRatingCount === "number" ? p.userRatingCount : null,
+        primary_type: p.primaryType ?? null,
+        lat: p.location!.latitude,
+        lng: p.location!.longitude,
+        image_url: pickBestPlacePhoto(p.photos),
+        maps_url: p.googleMapsUri ?? `https://www.google.com/maps/search/?api=1&query_place_id=${p.id}`,
+        opening_hours: p.regularOpeningHours?.weekdayDescriptions ?? null,
+      });
     }
   }
 
