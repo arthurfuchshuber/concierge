@@ -31,16 +31,25 @@ export const Route = createFileRoute("/api/public/cron/refresh-city-references")
 
         try {
           const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+          const { resolveOwnerPlanAdmin } = await import("@/lib/plan-guard.server");
           const { data: props } = await supabaseAdmin
             .from("properties")
-            .select("city, state, country")
+            .select("city, state, country, owner_id")
             .eq("published", true)
             .not("city", "is", null);
 
           type Bucket = { city_label: string; state: string | null; country: string };
           const cities = new Map<string, Bucket>();
-          for (const p of (props ?? []) as Array<{ city: string | null; state: string | null; country: string | null }>) {
-            if (!p.city) continue;
+          const planCache = new Map<string, boolean>();
+          for (const p of (props ?? []) as Array<{ city: string | null; state: string | null; country: string | null; owner_id: string | null }>) {
+            if (!p.city || !p.owner_id) continue;
+            let canAuto = planCache.get(p.owner_id);
+            if (canAuto === undefined) {
+              const plan = await resolveOwnerPlanAdmin(supabaseAdmin, p.owner_id);
+              canAuto = !!plan.features.autoImport;
+              planCache.set(p.owner_id, canAuto);
+            }
+            if (!canAuto) continue;
             const country = p.country ?? "BR";
             const state = normalizeState(p.state);
             const key = `${cityKey(p.city)}|${state ?? ""}|${country}`;
