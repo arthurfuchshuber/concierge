@@ -453,6 +453,22 @@ function EditDialog({
           </div>
 
           <div className="space-y-1.5 sm:col-span-2">
+            <Label>Limite de guias (override)</Label>
+            <Input
+              type="number"
+              step="1"
+              min="1"
+              placeholder={`Padrão do plano: ${PLANS[plan].maxGuides >= 9999 ? "ilimitado" : PLANS[plan].maxGuides}`}
+              value={maxGuidesOverride}
+              onChange={(e) => setMaxGuidesOverride(e.target.value)}
+            />
+            <p className="text-xs text-muted-foreground">
+              Deixe em branco para usar o limite padrão do plano. Use para contratos Enterprise com limite customizado.
+            </p>
+          </div>
+
+
+          <div className="space-y-1.5 sm:col-span-2">
             <Label>Anotações internas</Label>
             <Textarea
               value={adminNotes}
