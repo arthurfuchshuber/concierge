@@ -32,9 +32,48 @@ const ManualAddInput = CityIdent.extend({
 });
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function assertAdmin(ctx: any) {
-  const { data: isAdmin } = await ctx.supabase.rpc("has_role", { _user_id: ctx.userId, _role: "admin" });
-  if (!isAdmin) throw new Error("Apenas administradores podem gerenciar referências da cidade.");
+async function isAdmin(ctx: any): Promise<boolean> {
+  const { data } = await ctx.supabase.rpc("has_role", { _user_id: ctx.userId, _role: "admin" });
+  return Boolean(data);
+}
+
+// Admin OU dono de ao menos uma residência na cidade indicada.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function assertCanManageCity(
+  ctx: any,
+  args: { city_label: string; state: string | null; country: string },
+) {
+  if (await isAdmin(ctx)) return;
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const key = cityKey(args.city_label);
+  const { data: rows } = await supabaseAdmin
+    .from("properties")
+    .select("city, state, country")
+    .eq("owner_id", ctx.userId);
+  const owns = (rows ?? []).some((p) => {
+    const pState = normalizeState((p as { state: string | null }).state ?? null);
+    const pCountry = ((p as { country: string | null }).country ?? "BR");
+    const pKey = cityKey((p as { city: string | null }).city ?? "");
+    return pKey === key && pState === args.state && pCountry === args.country;
+  });
+  if (!owns) throw new Error("Você não tem residências cadastradas nesta cidade.");
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function assertCanManageRefById(ctx: any, id: string) {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data: row, error } = await supabaseAdmin
+    .from("city_references")
+    .select("city_label, state, country")
+    .eq("id", id)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!row) throw new Error("Referência não encontrada.");
+  await assertCanManageCity(ctx, {
+    city_label: (row as { city_label: string }).city_label,
+    state: ((row as { state: string | null }).state) ?? null,
+    country: ((row as { country: string | null }).country) ?? "BR",
+  });
 }
 
 // ---- LIST -------------------------------------------------------------
