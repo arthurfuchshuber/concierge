@@ -687,7 +687,7 @@ type RecRow = {
 };
 
 const PLACE_DETAILS_FIELD_MASK =
-  "id,displayName,location,rating,userRatingCount,googleMapsUri,photos,regularOpeningHours";
+  "id,displayName,location,rating,userRatingCount,googleMapsUri,photos.name,photos.widthPx,photos.heightPx,regularOpeningHours";
 
 async function fetchPlaceDetails(placeId: string): Promise<PlaceRaw | null> {
   if (!placeId) return null;
