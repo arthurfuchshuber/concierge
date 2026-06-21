@@ -62,7 +62,7 @@ export function AiPlanLock({ locked, children, className, badgeOnly }: Props) {
             <div className="pointer-events-none select-none opacity-60 saturate-50">{children}</div>
             <div className="absolute inset-0 rounded-xl bg-background/30 backdrop-blur-[1px] flex items-center justify-center">
               <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/40 bg-background/95 px-3 py-1 text-xs font-medium text-amber-700 dark:text-amber-300 shadow-sm">
-                <Lock className="size-3.5" /> Disponível no Business / Enterprise
+                <Lock className="size-3.5" /> Disponível no Pro, Business e Enterprise
               </span>
             </div>
           </div>
