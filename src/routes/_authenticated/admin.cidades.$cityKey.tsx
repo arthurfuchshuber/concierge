@@ -266,9 +266,24 @@ function AdminCityDetail() {
       ))}
 
       {data && items.length === 0 && !isLoading && (
-        <p className="text-sm text-muted-foreground">
-          Nenhuma referência cadastrada. Clique em "Gerar com IA" para começar.
-        </p>
+        <div className="rounded-2xl border border-dashed border-border bg-card/40 p-12 text-center">
+          <div className="mx-auto size-12 rounded-full bg-secondary/60 flex items-center justify-center mb-4">
+            <Sparkles className="size-5 text-muted-foreground" />
+          </div>
+          <h3 className="font-serif text-lg mb-1">Nenhuma referência ainda</h3>
+          <p className="text-sm text-muted-foreground max-w-sm mx-auto mb-5">
+            Gere automaticamente pontos turísticos populares de {label} com IA, ou adicione manualmente seus favoritos.
+          </p>
+          <div className="flex gap-2 justify-center">
+            <Button onClick={handleGenerate} disabled={generating}>
+              {generating ? <Loader2 className="size-4 mr-2 animate-spin" /> : <Sparkles className="size-4 mr-2" />}
+              Gerar com IA
+            </Button>
+            <Button variant="outline" onClick={() => setAddOpen(true)}>
+              <Plus className="size-4 mr-2" /> Adicionar manual
+            </Button>
+          </div>
+        </div>
       )}
     </div>
   );
