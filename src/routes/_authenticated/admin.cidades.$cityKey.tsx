@@ -46,18 +46,23 @@ function AdminCityDetail() {
     queryFn: () => list({ data: { city_label: label, state, country, includeHidden: true } }),
   });
 
-  const [generating, setGenerating] = useState(false);
+  const [generating, setGenerating] = useState<string | null>(null);
   const [addOpen, setAddOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [searching, setSearching] = useState(false);
   const [results, setResults] = useState<Awaited<ReturnType<typeof searchPlaces>>>([]);
 
-  async function handleGenerate() {
-    setGenerating(true);
+  async function handleGenerate(type?: string | null) {
+    const key = type ?? "__all__";
+    setGenerating(key);
     try {
-      const r = await generate({ data: { city_label: label, state, country } });
-      if (r.status === "ok") {
-        toast.success(`Atualizado — ${r.total} lugares (${r.inserted} novos, ${r.updated} atualizados)`);
+      const r = await generate({ data: { city_label: label, state, country, type: type ?? null } });
+      if (r.status === "ok" || r.status === "partial") {
+        const label = type
+          ? TYPE_MAP.find((c) => c.type === type)?.category ?? type
+          : "Todas categorias";
+        toast.success(`${label} — ${r.total} encontrados (${r.inserted} novos, ${r.updated} atualizados${r.failed ? `, ${r.failed} falhas` : ""})`);
+        if (r.status === "partial" && r.message) toast.warning(r.message);
       } else {
         toast.error(`Falhou: ${r.message ?? "erro"}`);
       }
@@ -65,9 +70,10 @@ function AdminCityDetail() {
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Erro");
     } finally {
-      setGenerating(false);
+      setGenerating(null);
     }
   }
+
 
   async function handleSearch() {
     if (searchTerm.trim().length < 2) return;
