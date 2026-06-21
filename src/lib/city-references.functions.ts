@@ -31,7 +31,8 @@ const ManualAddInput = CityIdent.extend({
   maps_url: z.string().max(2048).nullable().optional(),
 });
 
-async function assertAdmin(ctx: { supabase: { rpc: (n: string, p: Record<string, unknown>) => Promise<{ data: unknown }> }; userId: string }) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function assertAdmin(ctx: any) {
   const { data: isAdmin } = await ctx.supabase.rpc("has_role", { _user_id: ctx.userId, _role: "admin" });
   if (!isAdmin) throw new Error("Apenas administradores podem gerenciar referências da cidade.");
 }
