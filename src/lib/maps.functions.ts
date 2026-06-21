@@ -284,13 +284,10 @@ type PlaceRaw = {
 
 function buildPhotoUrl(photoName: string | undefined): string | null {
   if (!photoName) return null;
-  const browserKey =
-    process.env.GOOGLE_MAPS_BROWSER_KEY_2 ??
-    process.env.GOOGLE_MAPS_BROWSER_KEY ??
-    process.env.GOOGLE_MAPS;
-  if (!browserKey) return null;
-  const path = photoName.split("/").map(encodeURIComponent).join("/");
-  return `https://places.googleapis.com/v1/${path}/media?maxWidthPx=1600&key=${encodeURIComponent(browserKey)}`;
+  // Servimos via proxy server-side (/api/public/place-photo) que usa o
+  // gateway do Google Maps. Não depende de chave de browser nem de restrição
+  // de referrer — funciona em domínios custom e em iframes do preview.
+  return `/api/public/place-photo?name=${encodeURIComponent(photoName)}&w=1600`;
 }
 
 // Curadoria via Gemini: lista os lugares mais famosos/queridos da cidade por categoria.
