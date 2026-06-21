@@ -186,15 +186,15 @@ function extractCityCountry(comps: Array<{ types: string[]; long_name: string }>
   return { city, country };
 }
 
+const PLACE_FIELD_MASK =
+  "places.id,places.displayName,places.location,places.rating,places.userRatingCount,places.googleMapsUri,places.photos.name,places.photos.widthPx,places.photos.heightPx,places.primaryType,places.editorialSummary,places.generativeSummary,places.regularOpeningHours";
+
 async function placesNearby(lat: number, lng: number, includedTypes: string[]) {
   const res = await gatewayFetch(`/places/v1/places:searchNearby`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "X-Goog-FieldMask":
-        "places.id,places.displayName,places.location,places.rating,places.userRatingCount,places.googleMapsUri,places.photos,places.primaryType,places.editorialSummary,places.generativeSummary,places.regularOpeningHours",
-
-
+      "X-Goog-FieldMask": PLACE_FIELD_MASK,
     },
     body: JSON.stringify({
       includedTypes,
