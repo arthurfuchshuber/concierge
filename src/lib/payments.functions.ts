@@ -253,6 +253,22 @@ export const changePlan = createServerFn({ method: "POST" })
       throw new Error("Esta assinatura foi configurada manualmente. Entre em contato com o suporte para mudar de plano.");
     }
 
+    // Enforce guide-count limit for the target plan (downgrade safety).
+    const targetPlan = planFromPriceId(data.targetPriceExternalId);
+    if (targetPlan) {
+      const targetMax = PLANS[targetPlan].maxGuides;
+      const { count } = await context.supabase
+        .from("properties")
+        .select("id", { count: "exact", head: true })
+        .eq("owner_id", context.userId);
+      const current = count ?? 0;
+      if (current > targetMax) {
+        throw new Error(
+          `EXCESS_GUIDES:${current}:${targetMax}:O plano ${PLANS[targetPlan].name} permite até ${targetMax} guias. Você tem ${current}. Exclua ${current - targetMax} guia(s) antes de fazer o downgrade.`,
+        );
+      }
+    }
+
     // Resolve target Paddle price id
     const priceRes = await gatewayFetch(
       data.environment,
@@ -268,4 +284,51 @@ export const changePlan = createServerFn({ method: "POST" })
       prorationBillingMode: "prorated_immediately",
     });
     return { ok: true };
+  });
+
+export type GuideRow = {
+  id: string;
+  name: string;
+  slug: string;
+  published: boolean;
+  created_at: string;
+};
+
+export const getDowngradeImpact = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: { targetPriceExternalId: string }) =>
+    z.object({ targetPriceExternalId: z.string().min(1).max(80) }).parse(data),
+  )
+  .handler(async ({ data, context }) => {
+    const targetPlan = planFromPriceId(data.targetPriceExternalId);
+    const targetMax = targetPlan ? PLANS[targetPlan].maxGuides : 0;
+    const { data: rows, error } = await context.supabase
+      .from("properties")
+      .select("id, name, slug, published, created_at")
+      .eq("owner_id", context.userId)
+      .order("created_at", { ascending: false });
+    if (error) throw (await import("@/lib/db-errors.server")).safeDbError("properties", error);
+    const guides = (rows ?? []) as GuideRow[];
+    return {
+      targetPlan,
+      targetMax,
+      currentCount: guides.length,
+      mustRemove: Math.max(0, guides.length - targetMax),
+      guides,
+    };
+  });
+
+export const deleteGuides = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: { ids: string[] }) =>
+    z.object({ ids: z.array(z.string().uuid()).min(1).max(200) }).parse(data),
+  )
+  .handler(async ({ data, context }) => {
+    const { error } = await context.supabase
+      .from("properties")
+      .delete()
+      .in("id", data.ids)
+      .eq("owner_id", context.userId);
+    if (error) throw (await import("@/lib/db-errors.server")).safeDbError("properties", error);
+    return { ok: true, deleted: data.ids.length };
   });
