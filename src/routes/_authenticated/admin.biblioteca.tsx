@@ -27,7 +27,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Plus, Trash2, Save, HelpCircle, BrainCircuit, Loader2, Send, MapPin, Bot } from "lucide-react";
+import { Plus, Trash2, Save, HelpCircle, BrainCircuit, Loader2, Send, MapPin, Bot, ChevronDown } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/admin/biblioteca")({
