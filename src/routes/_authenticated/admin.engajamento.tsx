@@ -504,10 +504,11 @@ function EngagementPage() {
 }
 
 function ConversationCard({
-  conversationId, guestName, propertyName, lastMessageAt, feedbackCount, feedbackByMsg, aiLocked, onChanged,
+  conversationId, guestName, checkinDate, propertyName, lastMessageAt, feedbackCount, feedbackByMsg, aiLocked, onChanged,
 }: {
   conversationId: string;
   guestName: string | null;
+  checkinDate: string | null;
   propertyName: string;
   lastMessageAt: string | null;
   feedbackCount: number;
@@ -537,27 +538,32 @@ function ConversationCard({
   }
 
   const msgs = data?.messages ?? [];
+  const displayName = guestName?.trim() || "Hóspede";
 
   return (
     <div className="rounded-2xl border border-border bg-card overflow-hidden">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="w-full text-left p-4 flex items-center justify-between hover:bg-muted/30 transition"
+        className="w-full text-left p-4 flex items-center justify-between gap-3 hover:bg-muted/30 transition"
       >
-        <div className="min-w-0">
-          <div className="text-sm font-medium truncate flex items-center gap-2">
-            {guestName ?? "Hóspede"}
+        <div className="min-w-0 flex-1">
+          <div className="text-sm font-medium flex items-center gap-2 min-w-0">
+            <span className="truncate">{displayName}</span>
+            {checkinDate ? (
+              <span className="shrink-0 text-[11px] font-normal text-muted-foreground">· check-in {fmtDate(checkinDate)}</span>
+            ) : null}
             {feedbackCount > 0 ? (
-              <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/15 text-amber-700 dark:text-amber-300 px-1.5 py-0.5 text-[10px] font-medium">
+              <span className="shrink-0 inline-flex items-center gap-1 rounded-full bg-amber-500/15 text-amber-700 dark:text-amber-300 px-1.5 py-0.5 text-[10px] font-medium">
                 <AlertTriangle className="size-3" /> {feedbackCount}
               </span>
             ) : null}
           </div>
           <div className="text-xs text-muted-foreground truncate">{propertyName} · {fmt(lastMessageAt)}</div>
         </div>
-        <span className="text-xs text-muted-foreground">{open ? "Recolher" : "Abrir"}</span>
+        <span className="shrink-0 text-xs text-muted-foreground">{open ? "Recolher" : "Abrir"}</span>
       </button>
+
 
       {open ? (
         <div className="border-t border-border bg-background/40 p-3 space-y-3 max-h-[420px] overflow-y-auto">
