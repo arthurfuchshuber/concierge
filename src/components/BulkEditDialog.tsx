@@ -187,7 +187,7 @@ export function BulkEditDialog({
         </DialogHeader>
 
         <Tabs defaultValue="chegada" className="w-full">
-          <TabsList className="flex flex-wrap h-auto">
+          <TabsList className="w-full">
             {TABS.map((t) => (
               <TabsTrigger key={t.id} value={t.id} className="text-xs">
                 {t.label}
