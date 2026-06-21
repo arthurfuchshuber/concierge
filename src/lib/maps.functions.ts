@@ -493,7 +493,7 @@ export const enrichFromMapsLink = createServerFn({ method: "POST" })
     if (!coords) throw new Error("Não consegui ler as coordenadas desse link. Cole um link do Google Maps que aponte para o endereço do imóvel.");
 
     if (!geocoded) geocoded = await reverseGeocode(coords.lat, coords.lng);
-    const { city, country } = extractCityCountry(geocoded?.address_components);
+    const { city, country, state } = extractCityCountry(geocoded?.address_components);
     const address = geocoded?.formatted_address ?? "";
 
     // Lookup do próprio imóvel para tagline + foto de capa
@@ -676,6 +676,7 @@ export const enrichFromMapsLink = createServerFn({ method: "POST" })
       lng: coords.lng,
       city,
       country,
+      state,
       tagline,
       hero_image_url,
       gallery_images,
