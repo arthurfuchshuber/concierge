@@ -545,7 +545,8 @@ function PropertyEditor() {
               <div className="mb-3 rounded-xl border border-border bg-secondary/40 p-3 text-xs text-muted-foreground flex items-start gap-2">
                 <Lock className="size-3.5 shrink-0 mt-0.5" />
                 <span>
-                  Importação automática não está incluída no seu plano. Faça upgrade em{" "}
+                  Importação automática é exclusiva dos planos <strong>Pro</strong>,{" "}
+                  <strong>Business</strong> e <strong>Enterprise</strong>. Faça upgrade em{" "}
                   <Link to="/precos" className="underline font-medium">Planos</Link> para usar este recurso.
                 </span>
               </div>
