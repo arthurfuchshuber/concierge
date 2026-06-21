@@ -61,6 +61,7 @@ type EnrichResult = {
   lng: number;
   city: string;
   country: string;
+  state: string | null;
   tagline: string;
   hero_image_url: string | null;
   gallery_images: string[];
@@ -71,7 +72,7 @@ type EnrichResult = {
 // `acceptedPrimaryTypes` é o que validamos no resultado — Google às vezes devolve
 // estabelecimentos cujo primaryType não bate (ex.: salão de beleza retornado em "bar").
 // Só aceitamos o item se o primaryType estiver na lista permitida.
-const TYPE_MAP: {
+export const TYPE_MAP: {
   type: PlaceItem["type"];
   placesTypes: string[];
   acceptedPrimaryTypes: string[];
@@ -88,6 +89,8 @@ const TYPE_MAP: {
   { type: "nightlife", placesTypes: ["night_club"], acceptedPrimaryTypes: ["night_club", "bar", "pub"], category: "Vida noturna" },
   { type: "shopping", placesTypes: ["shopping_mall"], acceptedPrimaryTypes: ["shopping_mall", "department_store"], category: "Compras" },
 ];
+
+export type TypeMapEntry = (typeof TYPE_MAP)[number];
 
 
 function haversineMeters(a: { lat: number; lng: number }, b: { lat: number; lng: number }) {
@@ -160,30 +163,36 @@ async function gatewayFetch(path: string, init: RequestInit = {}) {
   return fetch(`${GATEWAY}${path}`, { ...init, headers });
 }
 
+type GeoComponent = { types: string[]; long_name: string; short_name?: string };
+
 async function geocodeText(text: string) {
   const res = await gatewayFetch(`/maps/api/geocode/json?address=${encodeURIComponent(text)}`);
   if (!res.ok) return null;
-  const j = (await res.json()) as { results?: Array<{ geometry?: { location?: { lat: number; lng: number } }; formatted_address?: string; address_components?: Array<{ types: string[]; long_name: string }> }> };
+  const j = (await res.json()) as { results?: Array<{ geometry?: { location?: { lat: number; lng: number } }; formatted_address?: string; address_components?: GeoComponent[] }> };
   return j.results?.[0] ?? null;
 }
 
 async function reverseGeocode(lat: number, lng: number) {
   const res = await gatewayFetch(`/maps/api/geocode/json?latlng=${lat},${lng}`);
   if (!res.ok) return null;
-  const j = (await res.json()) as { results?: Array<{ formatted_address?: string; address_components?: Array<{ types: string[]; long_name: string }> }> };
+  const j = (await res.json()) as { results?: Array<{ formatted_address?: string; address_components?: GeoComponent[] }> };
   return j.results?.[0] ?? null;
 }
 
-function extractCityCountry(comps: Array<{ types: string[]; long_name: string }> | undefined) {
+function extractCityCountry(comps: GeoComponent[] | undefined) {
   let city = "";
   let country = "";
+  let state: string | null = null;
   for (const c of comps ?? []) {
     if (c.types.includes("locality") || c.types.includes("administrative_area_level_2")) {
       city ||= c.long_name;
     }
+    if (c.types.includes("administrative_area_level_1")) {
+      state ||= (c.short_name && /^[A-Z]{2}$/.test(c.short_name)) ? c.short_name : c.long_name;
+    }
     if (c.types.includes("country")) country = c.long_name;
   }
-  return { city, country };
+  return { city, country, state };
 }
 
 const PLACE_FIELD_MASK =
@@ -484,7 +493,7 @@ export const enrichFromMapsLink = createServerFn({ method: "POST" })
     if (!coords) throw new Error("Não consegui ler as coordenadas desse link. Cole um link do Google Maps que aponte para o endereço do imóvel.");
 
     if (!geocoded) geocoded = await reverseGeocode(coords.lat, coords.lng);
-    const { city, country } = extractCityCountry(geocoded?.address_components);
+    const { city, country, state } = extractCityCountry(geocoded?.address_components);
     const address = geocoded?.formatted_address ?? "";
 
     // Lookup do próprio imóvel para tagline + foto de capa
@@ -667,6 +676,7 @@ export const enrichFromMapsLink = createServerFn({ method: "POST" })
       lng: coords.lng,
       city,
       country,
+      state,
       tagline,
       hero_image_url,
       gallery_images,
@@ -863,4 +873,162 @@ export async function refreshStaleRecommendations(limit: number) {
     failed += r.failed;
   }
   return { updated, failed, total: list.length, properties: byProperty.size };
+}
+
+// ============= Geração de Referências Macro por Cidade =============
+// Diferente do fluxo "pertinho da residência", este gera os pontos icônicos
+// da cidade INTEIRA — sem viés por coordenada da casa. Usado pelo admin e
+// pelo cron semanal. Retorna linhas prontas para upsert em city_references.
+
+export type CityReferenceRow = {
+  place_id: string;
+  category: string;
+  type: string;
+  name: string;
+  note: string | null;
+  address: string | null;
+  rating: number | null;
+  user_ratings_total: number | null;
+  primary_type: string | null;
+  lat: number;
+  lng: number;
+  image_url: string | null;
+  maps_url: string | null;
+  opening_hours: string[] | null;
+};
+
+const CITY_MIN_RATING = 4.0;
+const CITY_MIN_REVIEWS = 200;
+const CITY_MAX_PER_TYPE = 12;
+
+async function placesTextNoBias(query: string): Promise<PlaceRaw[]> {
+  const res = await gatewayFetch(`/places/v1/places:searchText`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-Goog-FieldMask": `${PLACE_FIELD_MASK},places.formattedAddress`,
+    },
+    body: JSON.stringify({
+      textQuery: query,
+      maxResultCount: 20,
+    }),
+  });
+  if (!res.ok) return [];
+  const j = (await res.json()) as { places?: (PlaceRaw & { formattedAddress?: string })[] };
+  return j.places ?? [];
+}
+
+export async function generateCityReferencesFromMaps(input: {
+  city_label: string;
+  state: string | null;
+  country: string;
+}): Promise<CityReferenceRow[]> {
+  const { city_label, state, country } = input;
+  const cityQ = state ? `${city_label}, ${state}` : city_label;
+
+  const matchesCategory = (p: PlaceRaw, cat: TypeMapEntry) =>
+    !!p.primaryType && cat.acceptedPrimaryTypes.includes(p.primaryType);
+
+  const isQuality = (p: PlaceRaw, cat: TypeMapEntry) =>
+    typeof p.rating === "number" &&
+    p.rating >= CITY_MIN_RATING &&
+    typeof p.userRatingCount === "number" &&
+    p.userRatingCount >= CITY_MIN_REVIEWS &&
+    matchesCategory(p, cat);
+
+  const buildNote = (p: PlaceRaw): string | null => {
+    const t = p.editorialSummary?.text ?? p.generativeSummary?.overview?.text ?? null;
+    if (!t) return null;
+    return t.length > 240 ? t.slice(0, 237).trimEnd() + "…" : t;
+  };
+
+  const normalizeNm = (s: string) =>
+    s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, " ").trim();
+
+  const out: CityReferenceRow[] = [];
+  const seenIds = new Set<string>();
+  const seenNames = new Set<string>();
+
+  const push = (p: PlaceRaw & { formattedAddress?: string }, cat: TypeMapEntry) => {
+    if (!p.id || !p.location) return;
+    if (seenIds.has(p.id)) return;
+    const nm = normalizeNm(p.displayName?.text ?? "");
+    if (!nm || seenNames.has(nm)) return;
+    seenIds.add(p.id);
+    seenNames.add(nm);
+    out.push({
+      place_id: p.id,
+      category: cat.category,
+      type: cat.type,
+      name: p.displayName?.text ?? "Sem nome",
+      note: buildNote(p),
+      address: p.formattedAddress ?? null,
+      rating: typeof p.rating === "number" ? Number(p.rating.toFixed(1)) : null,
+      user_ratings_total: typeof p.userRatingCount === "number" ? p.userRatingCount : null,
+      primary_type: p.primaryType ?? null,
+      lat: p.location.latitude,
+      lng: p.location.longitude,
+      image_url: pickBestPlacePhoto(p.photos),
+      maps_url: p.googleMapsUri ?? `https://www.google.com/maps/search/?api=1&query_place_id=${p.id}`,
+      opening_hours: p.regularOpeningHours?.weekdayDescriptions ?? null,
+    });
+  };
+
+  // 1) Busca por categoria via Text Search (sem locationBias — escopo macro)
+  await Promise.all(
+    TYPE_MAP.map(async (cat) => {
+      const items = (await placesTextNoBias(`melhores ${cat.category.toLowerCase()} em ${cityQ}`))
+        .filter((p) => !!p.location && isQuality(p, cat))
+        .sort((a, b) => {
+          const ra = a.rating ?? 0;
+          const rb = b.rating ?? 0;
+          if (rb !== ra) return rb - ra;
+          return (b.userRatingCount ?? 0) - (a.userRatingCount ?? 0);
+        })
+        .slice(0, CITY_MAX_PER_TYPE);
+      for (const p of items) push(p as PlaceRaw & { formattedAddress?: string }, cat);
+    }),
+  );
+
+  // 2) Curadoria via Gemini — nomes icônicos resolvidos por busca textual
+  const iconic = await fetchIconicPlacesFromGemini(city_label, country);
+  const tasks: Array<{ name: string; cat: TypeMapEntry }> = [];
+  for (const cat of TYPE_MAP) {
+    const names = iconic[cat.type] ?? [];
+    for (const name of names) {
+      if (seenNames.has(normalizeNm(name))) continue;
+      tasks.push({ name, cat });
+    }
+  }
+  const CONCURRENCY = 6;
+  for (let i = 0; i < tasks.length; i += CONCURRENCY) {
+    const batch = tasks.slice(i, i + CONCURRENCY);
+    const results = await Promise.all(
+      batch.map(async ({ name, cat }) => {
+        const resolved = await placesTextNoBias(`${name} ${cityQ}`);
+        const best = resolved
+          .filter((p) => !!p.location && isQuality(p, cat))
+          .sort((a, b) => (b.userRatingCount ?? 0) - (a.userRatingCount ?? 0))[0];
+        return { best, cat };
+      }),
+    );
+    for (const { best, cat } of results) {
+      if (best) push(best as PlaceRaw & { formattedAddress?: string }, cat);
+    }
+  }
+
+  return out;
+}
+
+// Geocoder público — usado para validar/centralizar uma cidade quando admin
+// cadastra manualmente. Reaproveita o geocode existente.
+export async function resolveCityCenter(
+  city_label: string,
+  state: string | null,
+  country: string,
+): Promise<{ lat: number; lng: number } | null> {
+  const q = [city_label, state, country].filter(Boolean).join(", ");
+  const g = await geocodeText(q);
+  if (!g?.geometry?.location) return null;
+  return { lat: g.geometry.location.lat, lng: g.geometry.location.lng };
 }

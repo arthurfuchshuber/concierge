@@ -31,9 +31,12 @@ import { Route as AuthenticatedAdminClientesRouteImport } from './routes/_authen
 import { Route as AuthenticatedAdminBibliotecaRouteImport } from './routes/_authenticated/admin.biblioteca'
 import { Route as AuthenticatedAdminAssinaturaRouteImport } from './routes/_authenticated/admin.assinatura'
 import { Route as AuthenticatedAdminAdminsRouteImport } from './routes/_authenticated/admin.admins'
+import { Route as AuthenticatedAdminCidadesIndexRouteImport } from './routes/_authenticated/admin.cidades.index'
 import { Route as ApiPublicPaymentsWebhookRouteImport } from './routes/api/public/payments/webhook'
 import { Route as ApiPublicCronRefreshRecommendationsRouteImport } from './routes/api/public/cron.refresh-recommendations'
+import { Route as ApiPublicCronRefreshCityReferencesRouteImport } from './routes/api/public/cron.refresh-city-references'
 import { Route as AuthenticatedAdminPropertiesIdRouteImport } from './routes/_authenticated/admin.properties.$id'
+import { Route as AuthenticatedAdminCidadesCityKeyRouteImport } from './routes/_authenticated/admin.cidades.$cityKey'
 import { Route as AuthenticatedAdminPropertiesIdConversasRouteImport } from './routes/_authenticated/admin.properties.$id_.conversas'
 import { Route as AuthenticatedAdminPropertiesIdAcessosRouteImport } from './routes/_authenticated/admin.properties.$id_.acessos'
 
@@ -151,6 +154,12 @@ const AuthenticatedAdminAdminsRoute =
     path: '/admins',
     getParentRoute: () => AuthenticatedAdminRoute,
   } as any)
+const AuthenticatedAdminCidadesIndexRoute =
+  AuthenticatedAdminCidadesIndexRouteImport.update({
+    id: '/cidades/',
+    path: '/cidades/',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
 const ApiPublicPaymentsWebhookRoute =
   ApiPublicPaymentsWebhookRouteImport.update({
     id: '/api/public/payments/webhook',
@@ -163,10 +172,22 @@ const ApiPublicCronRefreshRecommendationsRoute =
     path: '/api/public/cron/refresh-recommendations',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicCronRefreshCityReferencesRoute =
+  ApiPublicCronRefreshCityReferencesRouteImport.update({
+    id: '/api/public/cron/refresh-city-references',
+    path: '/api/public/cron/refresh-city-references',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const AuthenticatedAdminPropertiesIdRoute =
   AuthenticatedAdminPropertiesIdRouteImport.update({
     id: '/properties/$id',
     path: '/properties/$id',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
+const AuthenticatedAdminCidadesCityKeyRoute =
+  AuthenticatedAdminCidadesCityKeyRouteImport.update({
+    id: '/cidades/$cityKey',
+    path: '/cidades/$cityKey',
     getParentRoute: () => AuthenticatedAdminRoute,
   } as any)
 const AuthenticatedAdminPropertiesIdConversasRoute =
@@ -204,9 +225,12 @@ export interface FileRoutesByFullPath {
   '/g/$slug/explorar': typeof GSlugExplorarRoute
   '/admin/': typeof AuthenticatedAdminIndexRoute
   '/g/$slug/': typeof GSlugIndexRoute
+  '/admin/cidades/$cityKey': typeof AuthenticatedAdminCidadesCityKeyRoute
   '/admin/properties/$id': typeof AuthenticatedAdminPropertiesIdRoute
+  '/api/public/cron/refresh-city-references': typeof ApiPublicCronRefreshCityReferencesRoute
   '/api/public/cron/refresh-recommendations': typeof ApiPublicCronRefreshRecommendationsRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
+  '/admin/cidades/': typeof AuthenticatedAdminCidadesIndexRoute
   '/admin/properties/$id/acessos': typeof AuthenticatedAdminPropertiesIdAcessosRoute
   '/admin/properties/$id/conversas': typeof AuthenticatedAdminPropertiesIdConversasRoute
 }
@@ -230,9 +254,12 @@ export interface FileRoutesByTo {
   '/g/$slug/explorar': typeof GSlugExplorarRoute
   '/admin': typeof AuthenticatedAdminIndexRoute
   '/g/$slug': typeof GSlugIndexRoute
+  '/admin/cidades/$cityKey': typeof AuthenticatedAdminCidadesCityKeyRoute
   '/admin/properties/$id': typeof AuthenticatedAdminPropertiesIdRoute
+  '/api/public/cron/refresh-city-references': typeof ApiPublicCronRefreshCityReferencesRoute
   '/api/public/cron/refresh-recommendations': typeof ApiPublicCronRefreshRecommendationsRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
+  '/admin/cidades': typeof AuthenticatedAdminCidadesIndexRoute
   '/admin/properties/$id/acessos': typeof AuthenticatedAdminPropertiesIdAcessosRoute
   '/admin/properties/$id/conversas': typeof AuthenticatedAdminPropertiesIdConversasRoute
 }
@@ -260,9 +287,12 @@ export interface FileRoutesById {
   '/g/$slug/explorar': typeof GSlugExplorarRoute
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
   '/g/$slug/': typeof GSlugIndexRoute
+  '/_authenticated/admin/cidades/$cityKey': typeof AuthenticatedAdminCidadesCityKeyRoute
   '/_authenticated/admin/properties/$id': typeof AuthenticatedAdminPropertiesIdRoute
+  '/api/public/cron/refresh-city-references': typeof ApiPublicCronRefreshCityReferencesRoute
   '/api/public/cron/refresh-recommendations': typeof ApiPublicCronRefreshRecommendationsRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
+  '/_authenticated/admin/cidades/': typeof AuthenticatedAdminCidadesIndexRoute
   '/_authenticated/admin/properties/$id_/acessos': typeof AuthenticatedAdminPropertiesIdAcessosRoute
   '/_authenticated/admin/properties/$id_/conversas': typeof AuthenticatedAdminPropertiesIdConversasRoute
 }
@@ -290,9 +320,12 @@ export interface FileRouteTypes {
     | '/g/$slug/explorar'
     | '/admin/'
     | '/g/$slug/'
+    | '/admin/cidades/$cityKey'
     | '/admin/properties/$id'
+    | '/api/public/cron/refresh-city-references'
     | '/api/public/cron/refresh-recommendations'
     | '/api/public/payments/webhook'
+    | '/admin/cidades/'
     | '/admin/properties/$id/acessos'
     | '/admin/properties/$id/conversas'
   fileRoutesByTo: FileRoutesByTo
@@ -316,9 +349,12 @@ export interface FileRouteTypes {
     | '/g/$slug/explorar'
     | '/admin'
     | '/g/$slug'
+    | '/admin/cidades/$cityKey'
     | '/admin/properties/$id'
+    | '/api/public/cron/refresh-city-references'
     | '/api/public/cron/refresh-recommendations'
     | '/api/public/payments/webhook'
+    | '/admin/cidades'
     | '/admin/properties/$id/acessos'
     | '/admin/properties/$id/conversas'
   id:
@@ -345,9 +381,12 @@ export interface FileRouteTypes {
     | '/g/$slug/explorar'
     | '/_authenticated/admin/'
     | '/g/$slug/'
+    | '/_authenticated/admin/cidades/$cityKey'
     | '/_authenticated/admin/properties/$id'
+    | '/api/public/cron/refresh-city-references'
     | '/api/public/cron/refresh-recommendations'
     | '/api/public/payments/webhook'
+    | '/_authenticated/admin/cidades/'
     | '/_authenticated/admin/properties/$id_/acessos'
     | '/_authenticated/admin/properties/$id_/conversas'
   fileRoutesById: FileRoutesById
@@ -366,6 +405,7 @@ export interface RootRouteChildren {
   GSlugRoute: typeof GSlugRouteWithChildren
   ApiPublicGuideChatRoute: typeof ApiPublicGuideChatRoute
   ApiPublicPlacePhotoRoute: typeof ApiPublicPlacePhotoRoute
+  ApiPublicCronRefreshCityReferencesRoute: typeof ApiPublicCronRefreshCityReferencesRoute
   ApiPublicCronRefreshRecommendationsRoute: typeof ApiPublicCronRefreshRecommendationsRoute
   ApiPublicPaymentsWebhookRoute: typeof ApiPublicPaymentsWebhookRoute
 }
@@ -526,6 +566,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminAdminsRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
     }
+    '/_authenticated/admin/cidades/': {
+      id: '/_authenticated/admin/cidades/'
+      path: '/cidades'
+      fullPath: '/admin/cidades/'
+      preLoaderRoute: typeof AuthenticatedAdminCidadesIndexRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
     '/api/public/payments/webhook': {
       id: '/api/public/payments/webhook'
       path: '/api/public/payments/webhook'
@@ -540,11 +587,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicCronRefreshRecommendationsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/cron/refresh-city-references': {
+      id: '/api/public/cron/refresh-city-references'
+      path: '/api/public/cron/refresh-city-references'
+      fullPath: '/api/public/cron/refresh-city-references'
+      preLoaderRoute: typeof ApiPublicCronRefreshCityReferencesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_authenticated/admin/properties/$id': {
       id: '/_authenticated/admin/properties/$id'
       path: '/properties/$id'
       fullPath: '/admin/properties/$id'
       preLoaderRoute: typeof AuthenticatedAdminPropertiesIdRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/cidades/$cityKey': {
+      id: '/_authenticated/admin/cidades/$cityKey'
+      path: '/cidades/$cityKey'
+      fullPath: '/admin/cidades/$cityKey'
+      preLoaderRoute: typeof AuthenticatedAdminCidadesCityKeyRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
     }
     '/_authenticated/admin/properties/$id_/conversas': {
@@ -571,7 +632,9 @@ interface AuthenticatedAdminRouteChildren {
   AuthenticatedAdminClientesRoute: typeof AuthenticatedAdminClientesRoute
   AuthenticatedAdminEngajamentoRoute: typeof AuthenticatedAdminEngajamentoRoute
   AuthenticatedAdminIndexRoute: typeof AuthenticatedAdminIndexRoute
+  AuthenticatedAdminCidadesCityKeyRoute: typeof AuthenticatedAdminCidadesCityKeyRoute
   AuthenticatedAdminPropertiesIdRoute: typeof AuthenticatedAdminPropertiesIdRoute
+  AuthenticatedAdminCidadesIndexRoute: typeof AuthenticatedAdminCidadesIndexRoute
   AuthenticatedAdminPropertiesIdAcessosRoute: typeof AuthenticatedAdminPropertiesIdAcessosRoute
   AuthenticatedAdminPropertiesIdConversasRoute: typeof AuthenticatedAdminPropertiesIdConversasRoute
 }
@@ -583,7 +646,9 @@ const AuthenticatedAdminRouteChildren: AuthenticatedAdminRouteChildren = {
   AuthenticatedAdminClientesRoute: AuthenticatedAdminClientesRoute,
   AuthenticatedAdminEngajamentoRoute: AuthenticatedAdminEngajamentoRoute,
   AuthenticatedAdminIndexRoute: AuthenticatedAdminIndexRoute,
+  AuthenticatedAdminCidadesCityKeyRoute: AuthenticatedAdminCidadesCityKeyRoute,
   AuthenticatedAdminPropertiesIdRoute: AuthenticatedAdminPropertiesIdRoute,
+  AuthenticatedAdminCidadesIndexRoute: AuthenticatedAdminCidadesIndexRoute,
   AuthenticatedAdminPropertiesIdAcessosRoute:
     AuthenticatedAdminPropertiesIdAcessosRoute,
   AuthenticatedAdminPropertiesIdConversasRoute:
@@ -630,6 +695,8 @@ const rootRouteChildren: RootRouteChildren = {
   GSlugRoute: GSlugRouteWithChildren,
   ApiPublicGuideChatRoute: ApiPublicGuideChatRoute,
   ApiPublicPlacePhotoRoute: ApiPublicPlacePhotoRoute,
+  ApiPublicCronRefreshCityReferencesRoute:
+    ApiPublicCronRefreshCityReferencesRoute,
   ApiPublicCronRefreshRecommendationsRoute:
     ApiPublicCronRefreshRecommendationsRoute,
   ApiPublicPaymentsWebhookRoute: ApiPublicPaymentsWebhookRoute,

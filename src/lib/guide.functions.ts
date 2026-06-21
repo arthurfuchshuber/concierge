@@ -32,7 +32,7 @@ export const getPublicGuide = createServerFn({ method: "POST" })
     // First fetch only access-control + display fields (no credentials, no pin_code).
     const { data: prop, error } = await supabaseAdmin
       .from("properties")
-      .select("id,owner_id,slug,name,tagline,hero_image_url,gallery_images,theme_images,marketplace_links,address,maps_url,garage_maps_url,lat,lng,city,country,checkin_time,checkin_time_max,checkin_note,checkout_time,checkout_time_min,checkout_note,address_note,checkin_instructions,checkout_instructions,checkin_media,house_rules,gate_instructions,gate_media,gate_video_url,lock_instructions,lock_media,lock_video_url,host_name,brand_name,brand_logo_url,access_mode,pin_expires_at,default_language,guide_theme,require_access_gate,published,created_at,updated_at")
+      .select("id,owner_id,slug,name,tagline,hero_image_url,gallery_images,theme_images,marketplace_links,address,maps_url,garage_maps_url,lat,lng,city,state,country,checkin_time,checkin_time_max,checkin_note,checkout_time,checkout_time_min,checkout_note,address_note,checkin_instructions,checkout_instructions,checkin_media,house_rules,gate_instructions,gate_media,gate_video_url,lock_instructions,lock_media,lock_video_url,host_name,brand_name,brand_logo_url,access_mode,pin_expires_at,default_language,guide_theme,require_access_gate,published,created_at,updated_at")
       .eq("slug", data.slug)
       .eq("published", true)
       .maybeSingle();
@@ -65,7 +65,30 @@ export const getPublicGuide = createServerFn({ method: "POST" })
     const { resolveOwnerPlanAdmin } = await import("@/lib/plan-guard.server");
     const ownerPlan = await resolveOwnerPlanAdmin(supabaseAdmin as any, (prop as any).owner_id as string);
     const aiEnabled = !!ownerPlan.features.ai;
-    return { status: "ok" as const, property: signedProp, ...children, aiEnabled };
+
+    // Referências macro da cidade (compartilhadas entre todas as residências
+    // da mesma cidade/estado). Só carrega o que NÃO está oculto pelo admin.
+    const { cityKey, normalizeState } = await import("@/lib/city-key");
+    const ck = cityKey((prop as any).city as string | null);
+    const st = normalizeState((prop as any).state as string | null);
+    const country = ((prop as any).country as string | null) ?? "BR";
+    let cityReferences: any[] = [];
+    if (ck) {
+      let q = supabaseAdmin
+        .from("city_references")
+        .select("id, category, type, name, note, address, rating, user_ratings_total, image_url, maps_url, opening_hours, lat, lng, place_id, display_order")
+        .eq("city_key", ck)
+        .eq("country", country)
+        .eq("is_hidden", false)
+        .order("type")
+        .order("display_order")
+        .order("user_ratings_total", { ascending: false });
+      q = st ? q.eq("state", st) : q.is("state", null);
+      const { data } = await q;
+      cityReferences = data ?? [];
+    }
+
+    return { status: "ok" as const, property: signedProp, ...children, aiEnabled, cityReferences };
   });
 
 const PinSubmit = z.object({
