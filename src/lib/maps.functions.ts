@@ -501,11 +501,11 @@ export const enrichFromMapsLink = createServerFn({ method: "POST" })
           self.generativeSummary?.overview?.text ??
           "";
         const photoUrls = (self.photos ?? [])
-          .slice(0, 4)
-          .map((p) => buildPhotoUrl(p.name))
+          .slice(0, 8)
+          .map((p) => pickBestPlacePhoto([p]))
           .filter((u): u is string => !!u);
-        hero_image_url = photoUrls[0] ?? null;
-        gallery_images = photoUrls;
+        hero_image_url = pickBestPlacePhoto(self.photos) ?? photoUrls[0] ?? null;
+        gallery_images = photoUrls.slice(0, 4);
       }
     }
 
