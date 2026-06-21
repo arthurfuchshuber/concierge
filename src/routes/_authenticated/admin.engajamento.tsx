@@ -172,7 +172,7 @@ function EngagementPage() {
           </div>
 
           <Tabs defaultValue="overview" className="w-full">
-            <TabsList className="mb-6 flex-wrap h-auto">
+            <TabsList className="mb-6 w-full">
               <TabsTrigger value="overview" className="gap-2"><TrendingUp className="size-4" /> Visão geral</TabsTrigger>
               <TabsTrigger value="access" className="gap-2"><Activity className="size-4" /> Acessos</TabsTrigger>
               <TabsTrigger value="chat" className="gap-2">
