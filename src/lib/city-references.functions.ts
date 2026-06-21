@@ -226,7 +226,7 @@ export const deleteCityReference = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((i: unknown) => DeleteInput.parse(i))
   .handler(async ({ data, context }) => {
-    await assertCanManageCity(context, { city_label: data.city_label, state: normalizeState(data.state ?? null), country: data.country });
+    await assertCanManageRefById(context, data.id);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { error } = await supabaseAdmin.from("city_references").delete().eq("id", data.id);
     if (error) throw new Error(error.message);
