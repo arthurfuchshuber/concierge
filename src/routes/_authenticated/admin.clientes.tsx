@@ -252,9 +252,9 @@ function ClientesPage() {
                           {planName ? (
                             <div className="flex items-center gap-1.5">
                               <span className="font-medium">{planName}</span>
-                              {s?.isManual && (
-                                <span className="text-[9px] uppercase tracking-wider font-semibold bg-accent/10 text-accent px-1.5 py-0.5 rounded">
-                                  Manual
+                              {s?.billingPaused && (
+                                <span className="text-[9px] uppercase tracking-wider font-semibold bg-amber-500/15 text-amber-700 dark:text-amber-400 px-1.5 py-0.5 rounded">
+                                  Sem cobrança
                                 </span>
                               )}
                             </div>
