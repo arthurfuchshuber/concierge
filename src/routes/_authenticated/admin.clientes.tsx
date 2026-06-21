@@ -159,43 +159,40 @@ function ClientesPage() {
                         {initials}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="font-medium truncate">{c.fullName ?? "—"}</div>
-                        <div className="text-xs text-muted-foreground truncate">{c.email ?? "—"}</div>
-                        <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <div className="font-medium truncate text-[15px] leading-tight">{c.fullName ?? "—"}</div>
+                            <div className="text-[11px] text-muted-foreground truncate">{c.email ?? "—"}</div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setEditing(c)}
+                            className="shrink-0 size-8 grid place-items-center rounded-full border border-border hover:bg-secondary text-muted-foreground hover:text-foreground transition"
+                            aria-label="Editar cliente"
+                          >
+                            <Pencil className="size-3.5" />
+                          </button>
+                        </div>
+                        <div className="mt-2 flex flex-wrap items-center gap-1.5">
                           {planName ? (
-                            <span className="font-medium">{planName}</span>
+                            <span className="text-[11px] font-semibold">{planName}</span>
                           ) : (
-                            <span className="text-muted-foreground/60">Sem plano</span>
-                          )}
-                          {s?.isManual && (
-                            <span className="text-[9px] uppercase tracking-wider font-semibold bg-accent/10 text-accent px-1.5 py-0.5 rounded">
-                              Manual
-                            </span>
+                            <span className="text-[11px] text-muted-foreground/60">Sem plano</span>
                           )}
                           <StatusBadge status={s?.status} />
-                          {price && (
-                            <span className="tabular-nums text-muted-foreground">· {price}{hasCustom && " (personalizado)"}</span>
+                          {s?.billingPaused && (
+                            <span className="text-[9px] uppercase tracking-wider font-semibold bg-amber-500/15 text-amber-700 dark:text-amber-400 px-1.5 py-0.5 rounded-full">
+                              Sem cobrança
+                            </span>
                           )}
                         </div>
-                        {(s?.trialEndsAt || s?.currentPeriodEnd) && (
-                          <div className="mt-1 flex flex-wrap gap-x-3 text-[11px] text-muted-foreground tabular-nums">
-                            {s?.trialEndsAt && (
-                              <span>Trial: {new Date(s.trialEndsAt).toLocaleDateString("pt-BR")}</span>
-                            )}
-                            {s?.currentPeriodEnd && (
-                              <span>Renova: {new Date(s.currentPeriodEnd).toLocaleDateString("pt-BR")}</span>
-                            )}
+                        {price && (
+                          <div className="mt-1.5 text-[11px] text-muted-foreground tabular-nums">
+                            {price}{hasCustom && " · personalizado"}
+                            {s?.currentPeriodEnd && ` · renova ${new Date(s.currentPeriodEnd).toLocaleDateString("pt-BR")}`}
                           </div>
                         )}
                       </div>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="rounded-full shrink-0"
-                        onClick={() => setEditing(c)}
-                      >
-                        <Pencil className="size-3 mr-1" /> Editar
-                      </Button>
                     </div>
                   </li>
                 );
@@ -255,9 +252,9 @@ function ClientesPage() {
                           {planName ? (
                             <div className="flex items-center gap-1.5">
                               <span className="font-medium">{planName}</span>
-                              {s?.isManual && (
-                                <span className="text-[9px] uppercase tracking-wider font-semibold bg-accent/10 text-accent px-1.5 py-0.5 rounded">
-                                  Manual
+                              {s?.billingPaused && (
+                                <span className="text-[9px] uppercase tracking-wider font-semibold bg-amber-500/15 text-amber-700 dark:text-amber-400 px-1.5 py-0.5 rounded">
+                                  Sem cobrança
                                 </span>
                               )}
                             </div>
@@ -347,6 +344,7 @@ type EditValues = {
   cancelAtPeriodEnd: boolean;
   adminNotes: string | null;
   maxGuidesOverride: number | null;
+  billingPaused: boolean;
 };
 
 function toDateInput(iso: string | null | undefined) {
@@ -387,6 +385,8 @@ function EditDialog({
   const [maxGuidesOverride, setMaxGuidesOverride] = useState(
     s?.maxGuidesOverride != null ? String(s.maxGuidesOverride) : "",
   );
+  const [billingPaused, setBillingPaused] = useState(!!s?.billingPaused);
+
   const [saving, setSaving] = useState(false);
 
   async function handleSave() {
@@ -415,6 +415,7 @@ function EditDialog({
         cancelAtPeriodEnd,
         adminNotes: adminNotes.trim() || null,
         maxGuidesOverride: maxGuides,
+        billingPaused,
       });
     } finally {
       setSaving(false);
@@ -537,6 +538,17 @@ function EditDialog({
             />
             <p className="text-xs text-muted-foreground">
               Deixe em branco para usar o limite padrão do plano. Use para contratos Enterprise com limite customizado.
+            </p>
+          </div>
+
+          <div className="space-y-1.5 sm:col-span-2 rounded-xl border border-amber-500/30 bg-amber-500/5 p-3">
+            <Label className="flex items-center justify-between text-amber-700 dark:text-amber-400">
+              Pausar cobranças deste cliente
+              <Switch checked={billingPaused} onCheckedChange={setBillingPaused} />
+            </Label>
+            <p className="text-xs text-muted-foreground">
+              Quando ativo, o cliente mantém o acesso mas <strong>nenhuma cobrança</strong> é feita.
+              Desative para retomar as cobranças.
             </p>
           </div>
 

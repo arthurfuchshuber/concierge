@@ -718,6 +718,7 @@ export type Database = {
       subscriptions: {
         Row: {
           admin_notes: string | null
+          billing_paused: boolean
           cancel_at_period_end: boolean | null
           created_at: string | null
           current_period_end: string | null
@@ -739,6 +740,7 @@ export type Database = {
         }
         Insert: {
           admin_notes?: string | null
+          billing_paused?: boolean
           cancel_at_period_end?: boolean | null
           created_at?: string | null
           current_period_end?: string | null
@@ -760,6 +762,7 @@ export type Database = {
         }
         Update: {
           admin_notes?: string | null
+          billing_paused?: boolean
           cancel_at_period_end?: boolean | null
           created_at?: string | null
           current_period_end?: string | null

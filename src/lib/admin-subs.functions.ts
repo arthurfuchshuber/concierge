@@ -42,6 +42,7 @@ export type AdminCustomerRow = {
     isManual: boolean;
     maxGuidesOverride: number | null;
     paddleSubscriptionId: string;
+    billingPaused: boolean;
   } | null;
 };
 
@@ -66,7 +67,7 @@ export const adminListCustomers = createServerFn({ method: "GET" })
     const { data: subs } = await supabaseAdmin
       .from("subscriptions")
       .select(
-        "id, user_id, paddle_subscription_id, product_id, price_id, status, environment, current_period_start, current_period_end, cancel_at_period_end, trial_ends_at, custom_price_cents, custom_currency, admin_notes, is_manual, max_guides_override, created_at",
+        "id, user_id, paddle_subscription_id, product_id, price_id, status, environment, current_period_start, current_period_end, cancel_at_period_end, trial_ends_at, custom_price_cents, custom_currency, admin_notes, is_manual, max_guides_override, billing_paused, created_at",
       )
       .order("created_at", { ascending: false });
 
@@ -102,6 +103,7 @@ export const adminListCustomers = createServerFn({ method: "GET" })
               isManual: !!s.is_manual,
               maxGuidesOverride: s.max_guides_override ?? null,
               paddleSubscriptionId: s.paddle_subscription_id,
+              billingPaused: !!(s as { billing_paused?: boolean }).billing_paused,
             }
           : null,
       };
@@ -134,6 +136,7 @@ export const adminUpdateSubscription = createServerFn({ method: "POST" })
     cancelAtPeriodEnd: boolean;
     adminNotes: string | null;
     maxGuidesOverride: number | null;
+    billingPaused: boolean;
   }) =>
     z
       .object({
@@ -148,6 +151,7 @@ export const adminUpdateSubscription = createServerFn({ method: "POST" })
         cancelAtPeriodEnd: z.boolean(),
         adminNotes: z.string().max(2000).nullable(),
         maxGuidesOverride: z.number().int().min(1).max(100000).nullable(),
+        billingPaused: z.boolean(),
       })
       .parse(d),
   )
@@ -179,6 +183,7 @@ export const adminUpdateSubscription = createServerFn({ method: "POST" })
       cancel_at_period_end: data.cancelAtPeriodEnd,
       admin_notes: data.adminNotes,
       max_guides_override: data.maxGuidesOverride,
+      billing_paused: data.billingPaused,
     } as const;
 
     if (existing) {

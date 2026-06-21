@@ -60,6 +60,15 @@ function BigNumber({ icon: Icon, label, value, hint }: { icon: any; label: strin
   );
 }
 
+function MetricCell({ label, value, tone }: { label: string; value: number | string; tone?: "amber" }) {
+  return (
+    <div className="rounded-lg bg-secondary/40 px-2 py-1.5">
+      <div className="text-[9px] uppercase tracking-wider text-muted-foreground font-semibold">{label}</div>
+      <div className={`text-sm font-semibold tabular-nums mt-0.5 ${tone === "amber" ? "text-amber-600 dark:text-amber-400" : ""}`}>{value}</div>
+    </div>
+  );
+}
+
 function EngagementPage() {
   const fn = useServerFn(getEngagementOverview);
   const fbFn = useServerFn(listMyFeedback);
@@ -343,8 +352,9 @@ function EngagementPage() {
 
             {/* METRICS */}
             <TabsContent value="metrics" className="space-y-3">
-              <div className="rounded-2xl border border-border overflow-hidden">
-                <div className="hidden md:grid grid-cols-12 gap-2 px-4 py-2.5 text-[11px] uppercase tracking-wide text-muted-foreground bg-muted/40 border-b border-border">
+              {/* Desktop table */}
+              <div className="hidden md:block rounded-2xl border border-border overflow-hidden">
+                <div className="grid grid-cols-12 gap-2 px-4 py-2.5 text-[11px] uppercase tracking-wide text-muted-foreground bg-muted/40 border-b border-border">
                   <div className="col-span-4">Hospedagem</div>
                   <div className="col-span-1 text-right">Acessos</div>
                   <div className="col-span-1 text-right">Conversas</div>
@@ -354,18 +364,48 @@ function EngagementPage() {
                   <div className="col-span-3">Último acesso</div>
                 </div>
                 {data!.metrics.map((m) => (
-                  <div key={m.property_id} className="grid md:grid-cols-12 gap-2 px-4 py-3 text-sm border-b border-border/60 last:border-b-0 items-center">
-                    <div className="md:col-span-4 font-medium truncate flex items-center gap-2">
+                  <div key={m.property_id} className="grid grid-cols-12 gap-2 px-4 py-3 text-sm border-b border-border/60 last:border-b-0 items-center">
+                    <div className="col-span-4 font-medium truncate flex items-center gap-2">
                       <Link to="/g/$slug" params={{ slug: m.property_slug }} target="_blank" className="hover:underline truncate inline-flex items-center gap-1">
                         {m.property_name} <ExternalLink className="size-3 opacity-60" />
                       </Link>
                     </div>
-                    <div className="md:col-span-1 md:text-right">{m.total_accesses}</div>
-                    <div className="md:col-span-1 md:text-right">{m.total_conversations}</div>
-                    <div className="md:col-span-1 md:text-right">{m.total_messages ?? 0}</div>
-                    <div className="md:col-span-1 md:text-right">{m.unique_guests}</div>
-                    <div className="md:col-span-1 md:text-right">{m.feedback_count ?? 0}</div>
-                    <div className="md:col-span-3 text-muted-foreground">{fmt(m.last_access)}</div>
+                    <div className="col-span-1 text-right tabular-nums">{m.total_accesses}</div>
+                    <div className="col-span-1 text-right tabular-nums">{m.total_conversations}</div>
+                    <div className="col-span-1 text-right tabular-nums">{m.total_messages ?? 0}</div>
+                    <div className="col-span-1 text-right tabular-nums">{m.unique_guests}</div>
+                    <div className="col-span-1 text-right tabular-nums">{m.feedback_count ?? 0}</div>
+                    <div className="col-span-3 text-muted-foreground text-xs">{fmt(m.last_access)}</div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Mobile cards */}
+              <div className="md:hidden space-y-3">
+                {data!.metrics.map((m) => (
+                  <div key={m.property_id} className="rounded-2xl border border-border bg-card p-4">
+                    <Link
+                      to="/g/$slug"
+                      params={{ slug: m.property_slug }}
+                      target="_blank"
+                      className="font-medium text-sm hover:underline inline-flex items-center gap-1 leading-tight"
+                    >
+                      <span className="truncate">{m.property_name}</span>
+                      <ExternalLink className="size-3 opacity-60 shrink-0" />
+                    </Link>
+                    <div className="mt-3 grid grid-cols-3 gap-2">
+                      <MetricCell label="Acessos" value={m.total_accesses} />
+                      <MetricCell label="Conversas" value={m.total_conversations} />
+                      <MetricCell label="Mensagens" value={m.total_messages ?? 0} />
+                      <MetricCell label="Hóspedes" value={m.unique_guests} />
+                      <MetricCell label="Ineficaz" value={m.feedback_count ?? 0} tone={(m.feedback_count ?? 0) > 0 ? "amber" : undefined} />
+                      <div className="col-span-1 rounded-lg bg-secondary/40 px-2 py-1.5">
+                        <div className="text-[9px] uppercase tracking-wider text-muted-foreground font-semibold">Último</div>
+                        <div className="text-[11px] mt-0.5 text-muted-foreground leading-tight">
+                          {m.last_access ? new Date(m.last_access).toLocaleDateString("pt-BR") : "—"}
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 ))}
               </div>
