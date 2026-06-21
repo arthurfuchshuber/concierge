@@ -89,6 +89,14 @@ export function planFromProductId(productId: string | null | undefined): PlanKey
   return null;
 }
 
+export function planFromPriceId(priceId: string | null | undefined): PlanKey | null {
+  if (!priceId) return null;
+  for (const key of Object.keys(PLANS) as PlanKey[]) {
+    if (PLANS[key].priceId === priceId) return key;
+  }
+  return null;
+}
+
 const PaddleEnvSchema = z.enum(["sandbox", "live"]);
 
 export const resolvePaddlePrice = createServerFn({ method: "GET" })
