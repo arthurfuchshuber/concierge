@@ -186,15 +186,15 @@ function extractCityCountry(comps: Array<{ types: string[]; long_name: string }>
   return { city, country };
 }
 
+const PLACE_FIELD_MASK =
+  "places.id,places.displayName,places.location,places.rating,places.userRatingCount,places.googleMapsUri,places.photos.name,places.photos.widthPx,places.photos.heightPx,places.primaryType,places.editorialSummary,places.generativeSummary,places.regularOpeningHours";
+
 async function placesNearby(lat: number, lng: number, includedTypes: string[]) {
   const res = await gatewayFetch(`/places/v1/places:searchNearby`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "X-Goog-FieldMask":
-        "places.id,places.displayName,places.location,places.rating,places.userRatingCount,places.googleMapsUri,places.photos,places.primaryType,places.editorialSummary,places.generativeSummary,places.regularOpeningHours",
-
-
+      "X-Goog-FieldMask": PLACE_FIELD_MASK,
     },
     body: JSON.stringify({
       includedTypes,
@@ -227,8 +227,7 @@ async function placesText(
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "X-Goog-FieldMask":
-        "places.id,places.displayName,places.location,places.rating,places.userRatingCount,places.googleMapsUri,places.photos,places.primaryType,places.editorialSummary,places.generativeSummary,places.regularOpeningHours",
+      "X-Goog-FieldMask": PLACE_FIELD_MASK,
     },
     body: JSON.stringify(body),
   });
@@ -243,7 +242,7 @@ async function findPropertyPlace(lat: number, lng: number, hint: string) {
     headers: {
       "Content-Type": "application/json",
       "X-Goog-FieldMask":
-        "places.id,places.displayName,places.formattedAddress,places.editorialSummary,places.generativeSummary,places.photos,places.location",
+        "places.id,places.displayName,places.formattedAddress,places.editorialSummary,places.generativeSummary,places.photos.name,places.photos.widthPx,places.photos.heightPx,places.location",
     },
     body: JSON.stringify({
       textQuery: hint,
@@ -259,13 +258,14 @@ async function findPropertyPlace(lat: number, lng: number, hint: string) {
       formattedAddress?: string;
       editorialSummary?: { text?: string };
       generativeSummary?: { overview?: { text?: string } };
-      photos?: Array<{ name: string }>;
+      photos?: PlacePhoto[];
       location?: { latitude: number; longitude: number };
     }>;
   };
   return j.places?.[0] ?? null;
 }
 
+type PlacePhoto = { name: string; widthPx?: number; heightPx?: number };
 type PlaceRaw = {
   id: string;
   displayName?: { text?: string };
@@ -273,7 +273,7 @@ type PlaceRaw = {
   rating?: number;
   userRatingCount?: number;
   googleMapsUri?: string;
-  photos?: Array<{ name: string }>;
+  photos?: PlacePhoto[];
   primaryType?: string;
   editorialSummary?: { text?: string };
   generativeSummary?: { overview?: { text?: string } };
@@ -290,6 +290,33 @@ function buildPhotoUrl(photoName: string | undefined): string | null {
   return `/api/public/place-photo?name=${encodeURIComponent(photoName)}&w=1600`;
 }
 
+// Escolhe a melhor foto do lugar: prioriza landscape de alta resolução
+// (≥1600px, proporção 1.2-2.5). Evita retratos, quadrados e thumbs
+// pequenas — que costumam ser fotos "ruins/desfocadas/mexidas" tiradas
+// por usuários. Fallback: maior foto disponível.
+function pickBestPlacePhoto(photos: PlacePhoto[] | undefined): string | null {
+  if (!photos || photos.length === 0) return null;
+  const isGood = (p: PlacePhoto) => {
+    const w = p.widthPx ?? 0;
+    const h = p.heightPx ?? 0;
+    if (w < 1600 || h < 900) return false;
+    const ar = w / h;
+    return ar >= 1.2 && ar <= 2.5;
+  };
+  const good = photos.find(isGood);
+  if (good) return buildPhotoUrl(good.name);
+  // Fallback: pega a maior foto disponível (por área), evitando portraits muito altos
+  const ranked = [...photos]
+    .filter((p) => {
+      const w = p.widthPx ?? 0;
+      const h = p.heightPx ?? 0;
+      if (!w || !h) return true;
+      return w / h >= 0.9; // descarta portraits estreitos
+    })
+    .sort((a, b) => ((b.widthPx ?? 0) * (b.heightPx ?? 0)) - ((a.widthPx ?? 0) * (a.heightPx ?? 0)));
+  return buildPhotoUrl((ranked[0] ?? photos[0]).name);
+}
+
 // Curadoria via Gemini: lista os lugares mais famosos/queridos da cidade por categoria.
 // Retorna { restaurant: [...], bar: [...], ... }. Em caso de erro, retorna {}.
 async function fetchIconicPlacesFromGemini(
@@ -300,20 +327,20 @@ async function fetchIconicPlacesFromGemini(
   if (!apiKey || !city) return {};
 
   const categoriesPrompt = TYPE_MAP.map((c) => `- ${c.type}: ${c.category}`).join("\n");
-  const prompt = `Você é um concierge local com profundo conhecimento de ${city}${country ? `, ${country}` : ""}. Sua missão é montar uma curadoria EXAUSTIVA e MINUCIOSA dos lugares de relevância local em cada categoria abaixo.
+  const prompt = `Você é um concierge local com profundo conhecimento de ${city}${country ? `, ${country}` : ""}. Sua missão é montar uma curadoria PRECISA dos melhores lugares em cada categoria.
 
 REGRAS CRÍTICAS:
-1. Inclua TODOS os estabelecimentos icônicos da cidade, mesmo que tenham poucas avaliações no Google. Pense: "se um morador local recomendasse, indicaria este lugar?"
-2. Para "attraction" (pontos turísticos), seja AINDA MAIS abrangente: inclua passeios icônicos (sobrevoos de helicóptero como Helisul/FlyFoz, safáris, tours de barco), marcos urbanos famosos (avenidas, praças, gramadões, mirantes), monumentos, museus, parques temáticos, e qualquer experiência turística clássica da cidade — SEM exceção.
-3. Para restaurantes/bares/cafés/padarias/confeitarias: inclua os clássicos locais que "todo mundo da cidade conhece" (churrascarias tradicionais, chopperias famosas, confeitarias históricas, padarias renomadas, redes locais consagradas).
-4. Para market/shopping/pharmacy: inclua redes nacionais grandes presentes na cidade E redes/lojas locais relevantes.
-5. Use o nome EXATO como aparece no Google Maps (incluindo "Restaurante", "Bar", "Cafeteria" no nome se for assim que o estabelecimento se chama).
-6. Não invente lugares. Se não tiver certeza, omita.
+1. Inclua APENAS estabelecimentos consolidados, com no MÍNIMO 200 avaliações no Google Maps. Se você não tem certeza que o lugar tem 200+ avaliações, NÃO inclua.
+2. Respeite RIGOROSAMENTE a categoria. NÃO misture tipos — por exemplo: NÃO coloque hotéis/pousadas/sorveterias na categoria "bar"; NÃO coloque lanchonetes em "cafe"; NÃO coloque shopping em "attraction". Se o lugar é primariamente outra coisa, omita.
+3. Para "attraction" (pontos turísticos): inclua APENAS atrações turísticas consagradas (marcos, monumentos, museus, parques temáticos, mirantes famosos, experiências turísticas clássicas — sobrevoos, tours). Não inclua bares, restaurantes ou shoppings.
+4. Para restaurantes/bares/cafés: APENAS lugares clássicos e consagrados da cidade, conhecidos por moradores e turistas, com volume alto de avaliações.
+5. Use o nome EXATO como aparece no Google Maps.
+6. Não invente lugares. Em caso de dúvida, OMITA.
 
 Categorias:
 ${categoriesPrompt}
 
-Para cada categoria, retorne entre 15 e 30 nomes (quanto mais completo, melhor — desde que sejam realmente relevantes localmente). Para "attraction" especificamente, retorne até 40 nomes incluindo TODAS as experiências turísticas da cidade.
+Para cada categoria, retorne entre 8 e 20 nomes — qualidade importa MUITO mais que quantidade. Prefira menos lugares (todos consagrados) a uma lista longa com lugares duvidosos.
 
 Responda APENAS com JSON válido (sem markdown) no formato:
 {"restaurant": ["Nome 1", "Nome 2"], "bar": [...], "cafe": [...], "beach": [...], "attraction": [...], "market": [...], "pharmacy": [...], "park": [...], "nightlife": [...], "shopping": [...]}`;
@@ -343,7 +370,7 @@ Responda APENAS com JSON válido (sem markdown) no formato:
     for (const cat of TYPE_MAP) {
       const arr = parsed[cat.type];
       if (Array.isArray(arr)) {
-        const limit = cat.type === "attraction" ? 40 : 30;
+        const limit = 20;
         out[cat.type] = arr.filter((x): x is string => typeof x === "string" && x.trim().length > 0).slice(0, limit);
       }
     }
@@ -393,7 +420,7 @@ export const searchPlacesForRec = createServerFn({ method: "POST" })
       headers: {
         "Content-Type": "application/json",
         "X-Goog-FieldMask":
-          "places.id,places.displayName,places.formattedAddress,places.location,places.rating,places.userRatingCount,places.googleMapsUri,places.photos,places.primaryType,places.editorialSummary,places.generativeSummary,places.regularOpeningHours",
+          "places.id,places.displayName,places.formattedAddress,places.location,places.rating,places.userRatingCount,places.googleMapsUri,places.photos.name,places.photos.widthPx,places.photos.heightPx,places.primaryType,places.editorialSummary,places.generativeSummary,places.regularOpeningHours",
       },
       body: JSON.stringify(body),
     });
@@ -425,7 +452,7 @@ export const searchPlacesForRec = createServerFn({ method: "POST" })
           drive_minutes: fmt.driveMin,
           walk_minutes: fmt.walkMin,
           opening_hours: p.regularOpeningHours?.weekdayDescriptions ?? null,
-          image_url: buildPhotoUrl(p.photos?.[0]?.name),
+          image_url: pickBestPlacePhoto(p.photos),
           maps_url: p.googleMapsUri ?? `https://www.google.com/maps/search/?api=1&query_place_id=${p.id}`,
           note: note && note.length > 240 ? note.slice(0, 237).trimEnd() + "…" : note,
           formatted_address: p.formattedAddress ?? null,
@@ -474,36 +501,30 @@ export const enrichFromMapsLink = createServerFn({ method: "POST" })
           self.generativeSummary?.overview?.text ??
           "";
         const photoUrls = (self.photos ?? [])
-          .slice(0, 4)
-          .map((p) => buildPhotoUrl(p.name))
+          .slice(0, 8)
+          .map((p) => pickBestPlacePhoto([p]))
           .filter((u): u is string => !!u);
-        hero_image_url = photoUrls[0] ?? null;
-        gallery_images = photoUrls;
+        hero_image_url = pickBestPlacePhoto(self.photos) ?? photoUrls[0] ?? null;
+        gallery_images = photoUrls.slice(0, 4);
       }
     }
 
-    // Filtros de qualidade — afrouxados para abranger marcos da cidade e
-    // grandes estabelecimentos (mercados, shoppings, marcos turísticos).
+    // Regra global: mínimo 200 avaliações + rating ≥ 4.0 + primaryType deve
+    // bater EXATAMENTE com a categoria (evita hotéis listados em "bares" etc.)
     const MIN_RATING = 4.0;
-    const NEARBY_MIN_REVIEWS: Record<string, number> = {
-      restaurant: 40, bar: 25, cafe: 20, nightlife: 30,
-      attraction: 20, beach: 15, park: 15,
-      market: 10, pharmacy: 10, shopping: 20,
-    };
-    const CITY_MIN_REVIEWS: Record<string, number> = {
-      restaurant: 80, bar: 40, cafe: 40, nightlife: 40,
-      attraction: 30, beach: 20, park: 20,
-      market: 20, pharmacy: 15, shopping: 40,
-    };
+    const MIN_REVIEWS_GLOBAL = 200;
     const MAX_PER_TYPE = 10;
-    // 35 km — Foz tem atrações (Cataratas, Itaipu) longe do centro.
     const MAX_CITY_RADIUS_M = 35000;
 
-    const isQuality = (p: PlaceRaw, minReviews: number) =>
+    const matchesCategory = (p: PlaceRaw, cat: typeof TYPE_MAP[number]) =>
+      !!p.primaryType && cat.acceptedPrimaryTypes.includes(p.primaryType);
+
+    const isQuality = (p: PlaceRaw, cat: typeof TYPE_MAP[number]) =>
       typeof p.rating === "number" &&
       p.rating >= MIN_RATING &&
       typeof p.userRatingCount === "number" &&
-      p.userRatingCount >= minReviews;
+      p.userRatingCount >= MIN_REVIEWS_GLOBAL &&
+      matchesCategory(p, cat);
 
     const buildNote = (p: PlaceRaw): string | null => {
       const t = p.editorialSummary?.text ?? p.generativeSummary?.overview?.text ?? null;
@@ -543,18 +564,17 @@ export const enrichFromMapsLink = createServerFn({ method: "POST" })
         drive_minutes: driveMin,
         walk_minutes: walkMin,
         opening_hours: openingHours && openingHours.length > 0 ? openingHours : null,
-        image_url: buildPhotoUrl(p.photos?.[0]?.name),
+        image_url: pickBestPlacePhoto(p.photos),
         maps_url: p.googleMapsUri ?? `https://www.google.com/maps/search/?api=1&query_place_id=${p.id}`,
         note: buildNote(p),
       });
     };
 
 
-    // 1) Nearby por categoria — sem filtro de primaryType (confia no filtro do Places)
+    // 1) Nearby por categoria — exige primaryType correto + ≥200 reviews + rating ≥4
     for (const cat of TYPE_MAP) {
-      const min = NEARBY_MIN_REVIEWS[cat.type] ?? 20;
       const items = (await placesNearby(coords.lat, coords.lng, cat.placesTypes))
-        .filter((p) => isQuality(p, min))
+        .filter((p) => isQuality(p, cat))
         .sort((a, b) => {
           const ra = a.rating ?? 0;
           const rb = b.rating ?? 0;
@@ -565,15 +585,10 @@ export const enrichFromMapsLink = createServerFn({ method: "POST" })
       for (const p of items) push(p, cat, "nearby");
     }
 
-    // 2) City-wide via Places Text Search — sem filtro de includedType (permite marcos
-    //    classificados em primaryType "inesperado", ex.: Marco das Três Fronteiras).
+    // 2) City-wide via Places Text Search — mesmas regras estritas
     if (city) {
       await Promise.all(
         TYPE_MAP.map(async (cat) => {
-          const isTouristLike = cat.type === "attraction" || cat.type === "beach" || cat.type === "park";
-          // Pontos turísticos: sem filtro de qualidade (mostrar todos); para outros: respeitar mínimo.
-          const min = CITY_MIN_REVIEWS[cat.type] ?? 40;
-          const limit = isTouristLike ? 25 : MAX_PER_TYPE;
           const items = (
             await placesText(
               `melhores ${cat.category.toLowerCase()} em ${city}`,
@@ -583,11 +598,9 @@ export const enrichFromMapsLink = createServerFn({ method: "POST" })
               MAX_CITY_RADIUS_M,
             )
           )
-            .filter((p) => (isTouristLike ? !!p.location : isQuality(p, min)))
+            .filter((p) => !!p.location && isQuality(p, cat))
             .filter((p) => {
-              if (!p.location) return false;
-              if (isTouristLike) return true;
-              const d = haversineMeters(coords!, { lat: p.location.latitude, lng: p.location.longitude });
+              const d = haversineMeters(coords!, { lat: p.location!.latitude, lng: p.location!.longitude });
               return d <= MAX_CITY_RADIUS_M;
             })
             .sort((a, b) => {
@@ -596,17 +609,16 @@ export const enrichFromMapsLink = createServerFn({ method: "POST" })
               if (rb !== ra) return rb - ra;
               return (b.userRatingCount ?? 0) - (a.userRatingCount ?? 0);
             })
-            .slice(0, limit);
+            .slice(0, MAX_PER_TYPE);
           for (const p of items) push(p, cat, "city");
         }),
       );
     }
 
-    // 3) Curadoria via Gemini: pede os lugares icônicos da cidade por categoria
-    //    e resolve cada nome via Places Text Search (sem includedType — o nome já é específico).
+    // 3) Curadoria via Gemini: nomes icônicos da cidade resolvidos via Places,
+    //    mas validados pelas MESMAS regras (≥200 reviews + primaryType correto).
     if (city) {
       const iconic = await fetchIconicPlacesFromGemini(city, country);
-      // Resolve em paralelo (com limite de concorrência) para não estourar timeout.
       const tasks: Array<{ name: string; cat: typeof TYPE_MAP[number] }> = [];
       for (const cat of TYPE_MAP) {
         const names = iconic[cat.type] ?? [];
@@ -622,11 +634,9 @@ export const enrichFromMapsLink = createServerFn({ method: "POST" })
         const batchResults = await Promise.all(
           batch.map(async ({ name, cat }) => {
             const resolved = await placesText(`${name} ${city}`, coords!.lat, coords!.lng, undefined, MAX_CITY_RADIUS_M);
-            const isAttractionLike = cat.type === "attraction" || cat.type === "beach" || cat.type === "park";
             const best = resolved
-              .filter((p) => p.location)
+              .filter((p) => !!p.location && isQuality(p, cat))
               .filter((p) => {
-                if (isAttractionLike) return true;
                 const d = haversineMeters(coords!, { lat: p.location!.latitude, lng: p.location!.longitude });
                 return d <= MAX_CITY_RADIUS_M;
               })
@@ -640,6 +650,7 @@ export const enrichFromMapsLink = createServerFn({ method: "POST" })
         if (best) push(best, cat, "city");
       }
     }
+
 
 
     // Ordena: nearby por distância, city por rating desc dentro de cada categoria
@@ -676,7 +687,7 @@ type RecRow = {
 };
 
 const PLACE_DETAILS_FIELD_MASK =
-  "id,displayName,location,rating,userRatingCount,googleMapsUri,photos,regularOpeningHours";
+  "id,displayName,location,rating,userRatingCount,googleMapsUri,photos.name,photos.widthPx,photos.heightPx,regularOpeningHours";
 
 async function fetchPlaceDetails(placeId: string): Promise<PlaceRaw | null> {
   if (!placeId) return null;
@@ -719,7 +730,7 @@ async function refreshRecommendationsForProperty(
             rating: typeof p.rating === "number" ? Number(p.rating.toFixed(1)) : null,
             user_ratings_total: typeof p.userRatingCount === "number" ? p.userRatingCount : null,
             opening_hours: p.regularOpeningHours?.weekdayDescriptions ?? null,
-            image_url: buildPhotoUrl(p.photos?.[0]?.name) ?? undefined,
+            image_url: pickBestPlacePhoto(p.photos) ?? undefined,
             maps_url:
               p.googleMapsUri ?? `https://www.google.com/maps/search/?api=1&query_place_id=${p.id}`,
             last_synced_at: new Date().toISOString(),
