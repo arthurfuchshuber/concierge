@@ -242,7 +242,7 @@ async function findPropertyPlace(lat: number, lng: number, hint: string) {
     headers: {
       "Content-Type": "application/json",
       "X-Goog-FieldMask":
-        "places.id,places.displayName,places.formattedAddress,places.editorialSummary,places.generativeSummary,places.photos,places.location",
+        "places.id,places.displayName,places.formattedAddress,places.editorialSummary,places.generativeSummary,places.photos.name,places.photos.widthPx,places.photos.heightPx,places.location",
     },
     body: JSON.stringify({
       textQuery: hint,
@@ -258,7 +258,7 @@ async function findPropertyPlace(lat: number, lng: number, hint: string) {
       formattedAddress?: string;
       editorialSummary?: { text?: string };
       generativeSummary?: { overview?: { text?: string } };
-      photos?: Array<{ name: string }>;
+      photos?: PlacePhoto[];
       location?: { latitude: number; longitude: number };
     }>;
   };
