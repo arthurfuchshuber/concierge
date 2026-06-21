@@ -72,22 +72,26 @@ type EnrichResult = {
 // `acceptedPrimaryTypes` é o que validamos no resultado — Google às vezes devolve
 // estabelecimentos cujo primaryType não bate (ex.: salão de beleza retornado em "bar").
 // Só aceitamos o item se o primaryType estiver na lista permitida.
+// Ordem é PRIORIDADE: categorias mais específicas/preferidas primeiro.
+// Atrações vêm ANTES de parques porque "national_park" / "tourist_attraction"
+// devem ser classificados como Atração (ex.: Iguaçu/Iguazú).
 export const TYPE_MAP: {
   type: PlaceItem["type"];
   placesTypes: string[];
   acceptedPrimaryTypes: string[];
   category: string;
+  queryVariants?: string[];
 }[] = [
-  { type: "restaurant", placesTypes: ["restaurant"], acceptedPrimaryTypes: ["restaurant", "pizza_restaurant", "italian_restaurant", "brazilian_restaurant", "steak_house", "seafood_restaurant", "japanese_restaurant", "sushi_restaurant", "mexican_restaurant", "fast_food_restaurant", "hamburger_restaurant", "barbecue_restaurant", "vegetarian_restaurant", "vegan_restaurant", "meal_takeaway", "meal_delivery"], category: "Restaurantes" },
-  { type: "bar", placesTypes: ["bar"], acceptedPrimaryTypes: ["bar", "pub", "wine_bar", "sports_bar", "bar_and_grill", "night_club"], category: "Bares" },
-  { type: "cafe", placesTypes: ["cafe", "coffee_shop"], acceptedPrimaryTypes: ["cafe", "coffee_shop", "bakery", "tea_house", "dessert_shop", "ice_cream_shop"], category: "Cafés" },
-  { type: "beach", placesTypes: ["beach"], acceptedPrimaryTypes: ["beach"], category: "Praias" },
-  { type: "attraction", placesTypes: ["tourist_attraction"], acceptedPrimaryTypes: ["tourist_attraction", "museum", "art_gallery", "amusement_park", "aquarium", "zoo", "historical_landmark", "monument", "cultural_center", "national_park"], category: "Atrações" },
-  { type: "market", placesTypes: ["supermarket", "grocery_store"], acceptedPrimaryTypes: ["supermarket", "grocery_store", "convenience_store", "food_store"], category: "Mercados" },
-  { type: "pharmacy", placesTypes: ["pharmacy"], acceptedPrimaryTypes: ["pharmacy", "drugstore"], category: "Farmácias" },
-  { type: "park", placesTypes: ["park"], acceptedPrimaryTypes: ["park", "national_park", "state_park"], category: "Parques" },
-  { type: "nightlife", placesTypes: ["night_club"], acceptedPrimaryTypes: ["night_club", "bar", "pub"], category: "Vida noturna" },
-  { type: "shopping", placesTypes: ["shopping_mall"], acceptedPrimaryTypes: ["shopping_mall", "department_store"], category: "Compras" },
+  { type: "restaurant", placesTypes: ["restaurant"], acceptedPrimaryTypes: ["restaurant", "pizza_restaurant", "italian_restaurant", "brazilian_restaurant", "steak_house", "seafood_restaurant", "japanese_restaurant", "sushi_restaurant", "mexican_restaurant", "fast_food_restaurant", "hamburger_restaurant", "barbecue_restaurant", "vegetarian_restaurant", "vegan_restaurant", "meal_takeaway", "meal_delivery", "fine_dining_restaurant", "american_restaurant", "chinese_restaurant", "french_restaurant"], category: "Restaurantes", queryVariants: ["melhores restaurantes em", "restaurantes famosos em", "restaurantes tradicionais em", "alta gastronomia em"] },
+  { type: "attraction", placesTypes: ["tourist_attraction"], acceptedPrimaryTypes: ["tourist_attraction", "museum", "art_gallery", "amusement_park", "aquarium", "zoo", "historical_landmark", "monument", "cultural_center", "national_park", "observation_deck", "performing_arts_theater", "planetarium", "amusement_center", "water_park", "wildlife_park", "ecological_park", "garden", "botanical_garden", "stadium", "arena", "skydiving_center", "scenic_lookout"], category: "Atrações", queryVariants: ["pontos turísticos em", "atrações turísticas famosas em", "o que fazer em", "passeios imperdíveis em", "marcos históricos em", "museus famosos em", "mirantes em", "experiências turísticas em", "tours em"] },
+  { type: "nightlife", placesTypes: ["night_club"], acceptedPrimaryTypes: ["night_club", "comedy_club", "dance_club", "karaoke"], category: "Vida noturna", queryVariants: ["vida noturna em", "baladas em", "casas noturnas em", "clubes noturnos em", "danceterias em"] },
+  { type: "bar", placesTypes: ["bar"], acceptedPrimaryTypes: ["bar", "pub", "wine_bar", "sports_bar", "bar_and_grill"], category: "Bares", queryVariants: ["melhores bares em", "bares famosos em", "pubs em", "wine bars em", "happy hour em"] },
+  { type: "cafe", placesTypes: ["cafe", "coffee_shop"], acceptedPrimaryTypes: ["cafe", "coffee_shop", "bakery", "tea_house", "dessert_shop", "ice_cream_shop", "donut_shop"], category: "Cafés", queryVariants: ["melhores cafés em", "cafeterias famosas em", "padarias artesanais em", "doceria em"] },
+  { type: "beach", placesTypes: ["beach"], acceptedPrimaryTypes: ["beach"], category: "Praias", queryVariants: ["melhores praias em", "praias famosas em", "praias para visitar em"] },
+  { type: "market", placesTypes: ["supermarket", "grocery_store"], acceptedPrimaryTypes: ["supermarket", "grocery_store", "convenience_store", "food_store", "market"], category: "Mercados", queryVariants: ["supermercados em", "mercados em", "hipermercados em"] },
+  { type: "pharmacy", placesTypes: ["pharmacy"], acceptedPrimaryTypes: ["pharmacy", "drugstore"], category: "Farmácias", queryVariants: ["farmácias em", "drogarias em", "farmácia 24 horas em", "drogaria 24h em", "rede de farmácia em"] },
+  { type: "park", placesTypes: ["park"], acceptedPrimaryTypes: ["park", "state_park", "dog_park", "city_park"], category: "Parques", queryVariants: ["parques urbanos em", "parques municipais em", "praças famosas em"] },
+  { type: "shopping", placesTypes: ["shopping_mall"], acceptedPrimaryTypes: ["shopping_mall", "department_store"], category: "Compras", queryVariants: ["shoppings em", "shopping centers em", "centros de compras em"] },
 ];
 
 export type TypeMapEntry = (typeof TYPE_MAP)[number];
@@ -336,20 +340,26 @@ async function fetchIconicPlacesFromGemini(
   if (!apiKey || !city) return {};
 
   const categoriesPrompt = TYPE_MAP.map((c) => `- ${c.type}: ${c.category}`).join("\n");
-  const prompt = `Você é um concierge local com profundo conhecimento de ${city}${country ? `, ${country}` : ""}. Sua missão é montar uma curadoria PRECISA dos melhores lugares em cada categoria.
+  const prompt = `Você é um concierge local com profundo conhecimento de ${city}${country ? `, ${country}` : ""}. Sua missão é montar uma curadoria PRECISA e ABRANGENTE dos melhores lugares em cada categoria.
 
 REGRAS CRÍTICAS:
 1. Inclua APENAS estabelecimentos consolidados, com no MÍNIMO 200 avaliações no Google Maps. Se você não tem certeza que o lugar tem 200+ avaliações, NÃO inclua.
-2. Respeite RIGOROSAMENTE a categoria. NÃO misture tipos — por exemplo: NÃO coloque hotéis/pousadas/sorveterias na categoria "bar"; NÃO coloque lanchonetes em "cafe"; NÃO coloque shopping em "attraction". Se o lugar é primariamente outra coisa, omita.
-3. Para "attraction" (pontos turísticos): inclua APENAS atrações turísticas consagradas (marcos, monumentos, museus, parques temáticos, mirantes famosos, experiências turísticas clássicas — sobrevoos, tours). Não inclua bares, restaurantes ou shoppings.
-4. Para restaurantes/bares/cafés: APENAS lugares clássicos e consagrados da cidade, conhecidos por moradores e turistas, com volume alto de avaliações.
-5. Use o nome EXATO como aparece no Google Maps.
-6. Não invente lugares. Em caso de dúvida, OMITA.
+2. Respeite RIGOROSAMENTE a categoria. NÃO misture tipos:
+   - NÃO coloque hotéis/pousadas/sorveterias em "bar"
+   - NÃO coloque lanchonetes em "cafe"
+   - NÃO coloque shopping em "attraction"
+   - Parques NACIONAIS, ESTADUAIS e ECOLÓGICOS (ex.: Parque Nacional do Iguaçu, Iguazú National Park) sempre vão em "attraction", NUNCA em "park". "park" é só para parques urbanos/municipais/praças.
+   - "nightlife" é só balada/casa noturna/dance club — bares tradicionais vão em "bar".
+3. Para "attraction" (pontos turísticos) seja ABRANGENTE: marcos, monumentos, museus, parques nacionais, parques temáticos, aquários, zoológicos, mirantes, observatórios, jardins botânicos, experiências turísticas radicais (paraquedismo, rapel, tirolesa, sobrevoos), roda-gigante, passeios de barco famosos, tours clássicos. Inclua TUDO que um turista busca fazer na cidade.
+4. Para restaurantes/bares/cafés: lugares clássicos e consagrados da cidade, conhecidos por moradores e turistas, com volume alto de avaliações.
+5. Para farmácias: inclua as principais redes presentes na cidade (Drogaria, Pague Menos, Panvel, Droga Raia, Drogasil, Farma D, etc.) — várias unidades movimentadas.
+6. Use o nome EXATO como aparece no Google Maps.
+7. Não invente lugares. Em caso de dúvida, OMITA.
 
 Categorias:
 ${categoriesPrompt}
 
-Para cada categoria, retorne entre 8 e 20 nomes — qualidade importa MUITO mais que quantidade. Prefira menos lugares (todos consagrados) a uma lista longa com lugares duvidosos.
+Para cada categoria, retorne entre 12 e 25 nomes — busque PROFUNDIDADE sem sacrificar qualidade. Para "attraction" especificamente, vá até 30 se houver volume real na cidade.
 
 Responda APENAS com JSON válido (sem markdown) no formato:
 {"restaurant": ["Nome 1", "Nome 2"], "bar": [...], "cafe": [...], "beach": [...], "attraction": [...], "market": [...], "pharmacy": [...], "park": [...], "nightlife": [...], "shopping": [...]}`;
@@ -379,7 +389,7 @@ Responda APENAS com JSON válido (sem markdown) no formato:
     for (const cat of TYPE_MAP) {
       const arr = parsed[cat.type];
       if (Array.isArray(arr)) {
-        const limit = 20;
+        const limit = cat.type === "attraction" ? 30 : 25;
         out[cat.type] = arr.filter((x): x is string => typeof x === "string" && x.trim().length > 0).slice(0, limit);
       }
     }
@@ -839,9 +849,9 @@ export type CityReferenceRow = {
 
 const CITY_MIN_RATING = 4.0;
 const CITY_MIN_REVIEWS = 200;
-const CITY_MAX_PER_TYPE = 12;
+const CITY_MAX_PER_TYPE = 25;
 
-async function placesTextNoBias(query: string): Promise<PlaceRaw[]> {
+async function placesTextNoBias(query: string): Promise<(PlaceRaw & { formattedAddress?: string })[]> {
   const res = await gatewayFetch(`/places/v1/places:searchText`, {
     method: "POST",
     headers: {
@@ -858,6 +868,27 @@ async function placesTextNoBias(query: string): Promise<PlaceRaw[]> {
   return j.places ?? [];
 }
 
+// Decide a categoria FINAL de um lugar com base em primaryType, respeitando
+// a ordem de prioridade do TYPE_MAP (attraction antes de park, etc.).
+function classifyByPrimaryType(primaryType: string | undefined): TypeMapEntry | null {
+  if (!primaryType) return null;
+  for (const cat of TYPE_MAP) {
+    if (cat.acceptedPrimaryTypes.includes(primaryType)) return cat;
+  }
+  return null;
+}
+
+// Extrai um sufixo de localidade do endereço (cidade, estado/UF, país) — usado
+// para desambiguar nomes idênticos (ex.: Iguaçu BR vs Iguazú AR).
+function extractLocationSuffix(address: string | null | undefined): string {
+  if (!address) return "";
+  const parts = address.split(",").map((s) => s.trim()).filter(Boolean);
+  if (parts.length === 0) return "";
+  // Pega últimos 2 segmentos (geralmente "Estado/UF, País")
+  const tail = parts.slice(-2).join(", ");
+  return tail;
+}
+
 export async function generateCityReferencesFromMaps(input: {
   city_label: string;
   state: string | null;
@@ -870,15 +901,11 @@ export async function generateCityReferencesFromMaps(input: {
     ? TYPE_MAP.filter((c) => c.type === type)
     : TYPE_MAP;
 
-  const matchesCategory = (p: PlaceRaw, cat: TypeMapEntry) =>
-    !!p.primaryType && cat.acceptedPrimaryTypes.includes(p.primaryType);
-
-  const isQuality = (p: PlaceRaw, cat: TypeMapEntry) =>
+  const isQuality = (p: PlaceRaw) =>
     typeof p.rating === "number" &&
     p.rating >= CITY_MIN_RATING &&
     typeof p.userRatingCount === "number" &&
-    p.userRatingCount >= CITY_MIN_REVIEWS &&
-    matchesCategory(p, cat);
+    p.userRatingCount >= CITY_MIN_REVIEWS;
 
   const buildNote = (p: PlaceRaw): string | null => {
     const t = p.editorialSummary?.text ?? p.generativeSummary?.overview?.text ?? null;
@@ -886,63 +913,53 @@ export async function generateCityReferencesFromMaps(input: {
     return t.length > 240 ? t.slice(0, 237).trimEnd() + "…" : t;
   };
 
-  const normalizeNm = (s: string) =>
-    s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, " ").trim();
-
-  const out: CityReferenceRow[] = [];
+  // Agrupa por categoria final (decidida via primaryType) para respeitar a
+  // prioridade do TYPE_MAP — mesmo lugar nunca duplica entre Atrações/Parques.
+  const byCategory = new Map<string, Array<PlaceRaw & { formattedAddress?: string; _cat: TypeMapEntry }>>();
   const seenIds = new Set<string>();
-  const seenNames = new Set<string>();
 
-  const push = (p: PlaceRaw & { formattedAddress?: string }, cat: TypeMapEntry) => {
-    if (!p.id || !p.location) return;
+  const ingest = (p: PlaceRaw & { formattedAddress?: string }, hintCat: TypeMapEntry) => {
+    if (!p.id || !p.location || !isQuality(p)) return;
     if (seenIds.has(p.id)) return;
-    const nm = normalizeNm(p.displayName?.text ?? "");
-    if (!nm || seenNames.has(nm)) return;
+    // Reclassifica pelo primaryType (prioridade do TYPE_MAP). Se o primaryType
+    // do Google não corresponder a nenhuma cat aceita, descarta.
+    const realCat = classifyByPrimaryType(p.primaryType) ?? null;
+    if (!realCat) return;
+    // Se o usuário pediu apenas 1 tipo (regen por categoria), filtra.
+    if (type && realCat.type !== type) return;
+    // Se a categoria real for diferente da hint, só aceita se também estiver
+    // dentro do escopo solicitado (targetTypes).
+    if (!targetTypes.some((c) => c.type === realCat.type)) return;
     seenIds.add(p.id);
-    seenNames.add(nm);
-    out.push({
-      place_id: p.id,
-      category: cat.category,
-      type: cat.type,
-      name: p.displayName?.text ?? "Sem nome",
-      note: buildNote(p),
-      address: p.formattedAddress ?? null,
-      rating: typeof p.rating === "number" ? Number(p.rating.toFixed(1)) : null,
-      user_ratings_total: typeof p.userRatingCount === "number" ? p.userRatingCount : null,
-      primary_type: p.primaryType ?? null,
-      lat: p.location.latitude,
-      lng: p.location.longitude,
-      image_url: pickBestPlacePhoto(p.photos),
-      maps_url: p.googleMapsUri ?? `https://www.google.com/maps/search/?api=1&query_place_id=${p.id}`,
-      opening_hours: p.regularOpeningHours?.weekdayDescriptions ?? null,
-    });
+    const arr = byCategory.get(realCat.type) ?? [];
+    arr.push({ ...p, _cat: realCat });
+    byCategory.set(realCat.type, arr);
   };
 
-  // 1) Busca por categoria via Text Search (sem locationBias — escopo macro)
-  await Promise.all(
-    targetTypes.map(async (cat) => {
-      const items = (await placesTextNoBias(`melhores ${cat.category.toLowerCase()} em ${cityQ}`))
-        .filter((p) => !!p.location && isQuality(p, cat))
-        .sort((a, b) => {
-          const ra = a.rating ?? 0;
-          const rb = b.rating ?? 0;
-          if (rb !== ra) return rb - ra;
-          return (b.userRatingCount ?? 0) - (a.userRatingCount ?? 0);
-        })
-        .slice(0, CITY_MAX_PER_TYPE);
-      for (const p of items) push(p as PlaceRaw & { formattedAddress?: string }, cat);
-    }),
-  );
+  // 1) Múltiplas queries por categoria — busca mais profunda
+  const queryTasks: Array<{ q: string; cat: TypeMapEntry }> = [];
+  for (const cat of targetTypes) {
+    const variants = cat.queryVariants ?? [`melhores ${cat.category.toLowerCase()} em`];
+    for (const v of variants) queryTasks.push({ q: `${v} ${cityQ}`, cat });
+  }
+
+  const QUERY_CONCURRENCY = 6;
+  for (let i = 0; i < queryTasks.length; i += QUERY_CONCURRENCY) {
+    const batch = queryTasks.slice(i, i + QUERY_CONCURRENCY);
+    const results = await Promise.all(
+      batch.map(async ({ q, cat }) => ({ items: await placesTextNoBias(q), cat })),
+    );
+    for (const { items, cat } of results) {
+      for (const p of items) ingest(p, cat);
+    }
+  }
 
   // 2) Curadoria via Gemini — nomes icônicos resolvidos por busca textual
   const iconic = await fetchIconicPlacesFromGemini(city_label, country);
   const tasks: Array<{ name: string; cat: TypeMapEntry }> = [];
   for (const cat of targetTypes) {
     const names = iconic[cat.type] ?? [];
-    for (const name of names) {
-      if (seenNames.has(normalizeNm(name))) continue;
-      tasks.push({ name, cat });
-    }
+    for (const name of names) tasks.push({ name, cat });
   }
   const CONCURRENCY = 6;
   for (let i = 0; i < tasks.length; i += CONCURRENCY) {
@@ -950,14 +967,61 @@ export async function generateCityReferencesFromMaps(input: {
     const results = await Promise.all(
       batch.map(async ({ name, cat }) => {
         const resolved = await placesTextNoBias(`${name} ${cityQ}`);
-        const best = resolved
-          .filter((p) => !!p.location && isQuality(p, cat))
-          .sort((a, b) => (b.userRatingCount ?? 0) - (a.userRatingCount ?? 0))[0];
-        return { best, cat };
+        // pega TODOS que batem em qualidade, não só o melhor — assim Iguaçu BR
+        // e Iguazú AR podem coexistir.
+        return { items: resolved, cat };
       }),
     );
-    for (const { best, cat } of results) {
-      if (best) push(best as PlaceRaw & { formattedAddress?: string }, cat);
+    for (const { items, cat } of results) {
+      for (const p of items) ingest(p, cat);
+    }
+  }
+
+  // 3) Monta saída ordenada por categoria → top N por reviews
+  const out: CityReferenceRow[] = [];
+  for (const cat of targetTypes) {
+    const arr = (byCategory.get(cat.type) ?? [])
+      .sort((a, b) => {
+        const ra = a.rating ?? 0;
+        const rb = b.rating ?? 0;
+        if (rb !== ra) return rb - ra;
+        return (b.userRatingCount ?? 0) - (a.userRatingCount ?? 0);
+      })
+      .slice(0, CITY_MAX_PER_TYPE);
+
+    // Desambiguação por nome: se houver mais de um lugar com o mesmo nome
+    // normalizado, anexa o sufixo de localidade (Estado/País) ao nome.
+    const normalize = (s: string) =>
+      s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, " ").trim();
+    const nameCounts = new Map<string, number>();
+    for (const p of arr) {
+      const nm = normalize(p.displayName?.text ?? "");
+      nameCounts.set(nm, (nameCounts.get(nm) ?? 0) + 1);
+    }
+
+    for (const p of arr) {
+      const rawName = p.displayName?.text ?? "Sem nome";
+      const nm = normalize(rawName);
+      const needsSuffix = (nameCounts.get(nm) ?? 0) > 1;
+      const suffix = needsSuffix ? extractLocationSuffix(p.formattedAddress) : "";
+      const finalName = suffix ? `${rawName} (${suffix})` : rawName;
+
+      out.push({
+        place_id: p.id!,
+        category: p._cat.category,
+        type: p._cat.type,
+        name: finalName,
+        note: buildNote(p),
+        address: p.formattedAddress ?? null,
+        rating: typeof p.rating === "number" ? Number(p.rating.toFixed(1)) : null,
+        user_ratings_total: typeof p.userRatingCount === "number" ? p.userRatingCount : null,
+        primary_type: p.primaryType ?? null,
+        lat: p.location!.latitude,
+        lng: p.location!.longitude,
+        image_url: pickBestPlacePhoto(p.photos),
+        maps_url: p.googleMapsUri ?? `https://www.google.com/maps/search/?api=1&query_place_id=${p.id}`,
+        opening_hours: p.regularOpeningHours?.weekdayDescriptions ?? null,
+      });
     }
   }
 
