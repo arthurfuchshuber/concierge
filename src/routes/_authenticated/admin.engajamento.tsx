@@ -171,19 +171,58 @@ function EngagementPage() {
     return m;
   }, [data]);
 
+  // Sorted access logs per property for nearest-time lookup
+  const logsByProperty = useMemo(() => {
+    const out = new Map<string, typeof data.logs>();
+    if (!data) return out;
+    for (const l of data.logs) {
+      const arr = out.get(l.property_id) ?? [];
+      arr.push(l);
+      out.set(l.property_id, arr);
+    }
+    return out;
+  }, [data]);
+
   const filteredConvs = useMemo(() => {
     if (!data) return [];
     const propFeedback = new Map<string, number>();
     (fbQuery.data ?? []).forEach((f) => {
       propFeedback.set(f.conversation_id, (propFeedback.get(f.conversation_id) ?? 0) + 1);
     });
+    // For each conversation, fall back to closest access log (same property) when guest_name/checkin missing
+    function nearestLog(propertyId: string, when: string | null) {
+      if (!when) return null;
+      const arr = logsByProperty.get(propertyId);
+      if (!arr || arr.length === 0) return null;
+      const t = new Date(when).getTime();
+      let best = arr[0];
+      let bestDiff = Math.abs(new Date(arr[0].created_at).getTime() - t);
+      for (let i = 1; i < arr.length; i++) {
+        const d = Math.abs(new Date(arr[i].created_at).getTime() - t);
+        if (d < bestDiff) { bestDiff = d; best = arr[i]; }
+      }
+      return best;
+    }
     return data.conversations
       .map((c) => {
-        const k = c.guest_name ? `${c.property_id}|${c.guest_name.trim().toLowerCase()}` : null;
+        let name = c.guest_name?.trim() || null;
+        let checkin: string | null = null;
+        if (name) {
+          const k = `${c.property_id}|${name.toLowerCase()}`;
+          checkin = checkinByGuest.get(k) ?? null;
+        }
+        if (!name || !checkin) {
+          const log = nearestLog(c.property_id, c.last_message_at ?? c.created_at);
+          if (log) {
+            if (!name) name = log.guest_name?.trim() || null;
+            if (!checkin) checkin = log.checkin_date ?? null;
+          }
+        }
         return {
           ...c,
+          guest_name: name,
+          checkin_date: checkin,
           feedback_count: propFeedback.get(c.id) ?? 0,
-          checkin_date: k ? (checkinByGuest.get(k) ?? null) : null,
         };
       })
       .filter((c) => {
@@ -196,7 +235,7 @@ function EngagementPage() {
         }
         return true;
       });
-  }, [data, fbQuery.data, filterProp, search, onlyIneffective, checkinByGuest]);
+  }, [data, fbQuery.data, filterProp, search, onlyIneffective, checkinByGuest, logsByProperty]);
 
 
   if (isLoading) {
