@@ -273,6 +273,7 @@ type EditValues = {
   customCurrency: string | null;
   cancelAtPeriodEnd: boolean;
   adminNotes: string | null;
+  maxGuidesOverride: number | null;
 };
 
 function toDateInput(iso: string | null | undefined) {
