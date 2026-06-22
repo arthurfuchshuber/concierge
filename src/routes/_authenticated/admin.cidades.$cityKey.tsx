@@ -146,7 +146,7 @@ function AdminCityDetail() {
 
       <div className="pb-6 border-b border-border/60 flex items-start justify-between gap-4 flex-wrap">
         <div className="min-w-0">
-          <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground font-semibold mb-2">Recomendações da cidade</p>
+          <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground font-semibold mb-2">Na Cidade</p>
           <h1 className="font-serif text-3xl sm:text-4xl leading-tight">
             {label}
             {state ? <span className="text-muted-foreground"> — {state}</span> : null}
