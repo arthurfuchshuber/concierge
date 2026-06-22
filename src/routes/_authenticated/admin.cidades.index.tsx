@@ -26,7 +26,7 @@ function AdminCitiesPage() {
         <div className="inline-flex items-center gap-2 text-[11px] uppercase tracking-[0.18em] text-muted-foreground font-semibold">
           <MapPin className="size-3" /> Administração
         </div>
-        <h1 className="font-serif text-3xl md:text-4xl">Recomendações da Cidade</h1>
+        <h1 className="font-serif text-3xl md:text-4xl">Na Cidade</h1>
         <p className="text-sm text-muted-foreground max-w-3xl leading-relaxed">
           Pontos icônicos macro compartilhados entre todas as residências de uma mesma cidade.
           Diferente das recomendações "pertinho da residência", aqui você cadastra os endereços

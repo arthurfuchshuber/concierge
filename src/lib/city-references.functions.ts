@@ -318,23 +318,30 @@ export const addManualCityReference = createServerFn({ method: "POST" })
       is_hidden: false,
       last_synced_at: new Date().toISOString(),
     };
-    // Find-or-insert manualmente (unique index usa expressão COALESCE).
+    // Find-or-insert manualmente: nunca duplica o mesmo ponto. Procura por
+    // (a) place_id quando informado, OU (b) mesmo nome (case-insensitive)
+    // dentro da mesma cidade/estado/país. Se já existir, faz UPDATE em vez
+    // de INSERT.
     let existingQ = supabaseAdmin
       .from("city_references")
-      .select("id")
+      .select("id, place_id, name")
       .eq("city_key", key)
       .eq("country", data.country);
     existingQ = st ? existingQ.eq("state", st) : existingQ.is("state", null);
-    if (payload.place_id) existingQ = existingQ.eq("place_id", payload.place_id);
-    else existingQ = existingQ.is("place_id", null).eq("name", payload.name);
-    const { data: existing } = await existingQ.maybeSingle();
+    const { data: existingList } = await existingQ;
+    const normalized = payload.name.trim().toLowerCase();
+    const existing = (existingList ?? []).find((row) => {
+      const r = row as { id: string; place_id: string | null; name: string };
+      if (payload.place_id && r.place_id && r.place_id === payload.place_id) return true;
+      return (r.name ?? "").trim().toLowerCase() === normalized;
+    }) as { id: string } | undefined;
     if (existing) {
       const { error } = await supabaseAdmin
         .from("city_references")
         .update(payload)
-        .eq("id", (existing as { id: string }).id);
+        .eq("id", existing.id);
       if (error) throw new Error(error.message);
-      return { id: (existing as { id: string }).id };
+      return { id: existing.id, duplicate: true };
     }
     const { error, data: row } = await supabaseAdmin
       .from("city_references")
