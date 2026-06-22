@@ -534,14 +534,15 @@ export const enrichFromMapsLink = createServerFn({ method: "POST" })
     }
 
     // Regra global: mínimo 150 avaliações + rating ≥ 4.0 + primaryType deve
-    // bater com a categoria. Limiar levemente mais baixo que o "city" para
-    // permitir referências locais consagradas que tenham menos reviews.
+    // bater com a categoria. Recomendações do GUIA são SOMENTE "pertinho":
+    // até 1,5km OU até 20 minutos a pé (≈1,6km a 80 m/min). Lugares city-wide
+    // ficam em city_references, exibidos na seção "Na Cidade" do guia.
     const MIN_RATING = 4.0;
     const MIN_REVIEWS_GLOBAL = 150;
     const MAX_PER_TYPE = 15;
-    const MAX_CITY_RADIUS_M = 35000;
-    const NEARBY_RADIUS_M = 6000; // pertinho da residência
-    const NEARBY_TEXT_RADIUS_M = 8000; // viés para text search
+    const PERTINHO_MAX_M = 1600; // 1,5km ou 20min a pé
+    const NEARBY_RADIUS_M = 1600;
+    const NEARBY_TEXT_RADIUS_M = 2000; // viés ligeiramente maior para text search
 
     const classifyByPrimaryType = (primaryType: string | undefined) => {
       if (!primaryType) return null;
@@ -566,8 +567,6 @@ export const enrichFromMapsLink = createServerFn({ method: "POST" })
     const normalizeName = (s: string) =>
       s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, " ").trim();
 
-    // Agrupa por categoria final (decidida pelo primaryType, respeita prioridade
-    // do TYPE_MAP — Iguaçu cai em Atrações, não em Parques).
     const byCategory = new Map<string, Array<PlaceRaw & { _dist: number; _cat: TypeMapEntry }>>();
     const seenIds = new Set<string>();
     const seenNames = new Set<string>();
@@ -578,7 +577,7 @@ export const enrichFromMapsLink = createServerFn({ method: "POST" })
       const cat = classifyByPrimaryType(p.primaryType);
       if (!cat) return;
       const dist = haversineMeters(coords!, { lat: p.location.latitude, lng: p.location.longitude });
-      if (dist > MAX_CITY_RADIUS_M) return; // segurança
+      if (dist > PERTINHO_MAX_M) return; // só pertinho entra no guia
       const nm = normalizeName(p.displayName?.text ?? "");
       if (!nm || seenNames.has(nm)) return;
       seenIds.add(p.id);
@@ -588,7 +587,7 @@ export const enrichFromMapsLink = createServerFn({ method: "POST" })
       byCategory.set(cat.type, arr);
     };
 
-    // 1) Nearby por categoria — raio expandido para 6km
+    // 1) Nearby por categoria — raio de 1,6km (pertinho).
     await Promise.all(
       TYPE_MAP.map(async (cat) => {
         const items = await placesNearby(coords!.lat, coords!.lng, cat.placesTypes, NEARBY_RADIUS_M);
