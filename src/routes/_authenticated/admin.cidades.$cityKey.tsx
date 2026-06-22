@@ -91,7 +91,7 @@ function AdminCityDetail() {
 
   async function handleAdd(place: typeof results[number]) {
     try {
-      await addManual({
+      const result = await addManual({
         data: {
           city_label: label,
           state,
@@ -110,7 +110,11 @@ function AdminCityDetail() {
           maps_url: place.maps_url,
         },
       });
-      toast.success(`${place.name} adicionado`);
+      if ((result as { duplicate?: boolean })?.duplicate) {
+        toast.info(`${place.name} já estava na lista — informações atualizadas.`);
+      } else {
+        toast.success(`${place.name} adicionado`);
+      }
       setResults((arr) => arr.filter((p) => p.place_id !== place.place_id));
       await qc.invalidateQueries({ queryKey });
     } catch (e) {
