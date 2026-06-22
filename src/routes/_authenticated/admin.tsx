@@ -14,7 +14,7 @@ export const Route = createFileRoute("/_authenticated/admin")({
 const baseNav = [
   { to: "/admin", label: "Painel", icon: LayoutDashboard, exact: true },
   { to: "/admin/biblioteca", label: "Biblioteca", icon: Library, exact: false },
-  { to: "/admin/cidades", label: "Recomendações da Cidade", icon: MapPin, exact: false },
+  { to: "/admin/cidades", label: "Na Cidade", icon: MapPin, exact: false },
   { to: "/admin/assinatura", label: "Assinatura", icon: CreditCard, exact: false },
 ] as const;
 const adminOnlyNav = [
