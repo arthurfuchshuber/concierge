@@ -273,53 +273,126 @@ function ExplorePage() {
   }
 
   const p = r.property as Record<string, any>;
+  const propLat = typeof p.lat === "number" ? (p.lat as number) : null;
+  const propLng = typeof p.lng === "number" ? (p.lng as number) : null;
+
+  // "Pertinho" = até 1,5km OU até 20 minutos a pé.
+  const isPertinho = (rec: Rec): boolean => {
+    if (typeof rec.distance_meters === "number" && rec.distance_meters > 0) {
+      if (rec.distance_meters <= 1500) return true;
+    }
+    if (typeof rec.walk_minutes === "number" && rec.walk_minutes > 0 && rec.walk_minutes <= 20) {
+      return true;
+    }
+    return false;
+  };
+
+  // Distância em metros entre dois pontos lat/lng (haversine).
+  const distMeters = (a: { lat: number; lng: number }, b: { lat: number; lng: number }) => {
+    const R = 6371000;
+    const toRad = (n: number) => (n * Math.PI) / 180;
+    const dLat = toRad(b.lat - a.lat);
+    const dLng = toRad(b.lng - a.lng);
+    const lat1 = toRad(a.lat);
+    const lat2 = toRad(b.lat);
+    const h = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
+    return Math.round(2 * R * Math.asin(Math.sqrt(h)));
+  };
+
   const allRecs: Rec[] = (r.recommendations as Rec[]).filter(hasMeaningfulInfo);
 
   // Referências macro da cidade — compartilhadas entre todas as residências
   // da mesma cidade. Vindas de city_references (alimentadas pelo admin).
+  // Calcula distance_meters/walk_minutes quando temos lat/lng da residência
+  // e da referência, para que possam também aparecer em "Pertinho" se couberem.
   const cityRefs: Rec[] = useMemo(() => {
     const list = ((r as Record<string, unknown>).cityReferences ?? []) as Array<Record<string, unknown>>;
     return list
-      .map((c) => ({
-        id: c.id as string,
-        scope: "city",
-        type: (c.type as string) ?? "other",
-        name: (c.name as string) ?? "",
-        category: (c.category as string) ?? null,
-        rating: (c.rating as number) ?? null,
-        user_ratings_total: (c.user_ratings_total as number) ?? null,
-        note: (c.note as string) ?? null,
-        image_url: (c.image_url as string) ?? null,
-        maps_url: (c.maps_url as string) ?? null,
-        opening_hours: (c.opening_hours as string[]) ?? null,
-      }))
+      .map((c) => {
+        const lat = typeof c.lat === "number" ? (c.lat as number) : null;
+        const lng = typeof c.lng === "number" ? (c.lng as number) : null;
+        let dMeters: number | null = null;
+        let walkMin: number | null = null;
+        let driveMin: number | null = null;
+        if (propLat !== null && propLng !== null && lat !== null && lng !== null) {
+          dMeters = distMeters({ lat: propLat, lng: propLng }, { lat, lng });
+          walkMin = Math.max(1, Math.round(dMeters / 80));
+          if (dMeters > 1500) {
+            driveMin = Math.max(2, Math.round((dMeters / 1000 / 40) * 60));
+          }
+        }
+        return {
+          id: c.id as string,
+          scope: "city",
+          type: (c.type as string) ?? "other",
+          name: (c.name as string) ?? "",
+          category: (c.category as string) ?? null,
+          rating: (c.rating as number) ?? null,
+          user_ratings_total: (c.user_ratings_total as number) ?? null,
+          distance_meters: dMeters,
+          walk_minutes: walkMin,
+          drive_minutes: driveMin,
+          note: (c.note as string) ?? null,
+          image_url: (c.image_url as string) ?? null,
+          maps_url: (c.maps_url as string) ?? null,
+          opening_hours: (c.opening_hours as string[]) ?? null,
+        } as Rec;
+      })
       .filter((x) => x.name);
-  }, [r]);
+  }, [r, propLat, propLng]);
   const cityLabel = (p.city as string | null) ?? "sua cidade";
 
-  const categories = useMemo(() => {
-    return META_CATEGORIES.map((meta) => {
-      const filtered = allRecs.filter((rec) => {
-        if (!meta.types.includes(rec.type)) return false;
-        if (minReviews <= 0) return true;
-        return (rec.user_ratings_total ?? 0) >= minReviews;
-      });
-      const nearby = filtered.filter((x) => x.scope === "nearby");
-      const city = filtered.filter((x) => x.scope === "city");
-      return { meta, items: filtered, nearby, city, count: filtered.length };
-    }).filter((c) => c.count > 0);
-  }, [allRecs, minReviews]);
+  // Constrói nearby/city por meta-categoria a partir de:
+  // - property_recommendations: pertinho (<=1,5km ou <=20min a pé) → "Pertinho";
+  //   demais → "Na Cidade";
+  // - city_references: sempre em "Na Cidade"; quando também forem pertinho,
+  //   aparecem em AMBAS as seções (sem dedupe entre nearby/city).
+  const buildBuckets = (meta: MetaCategory, applyMinReviews: boolean) => {
+    const passesReviews = (x: Rec) =>
+      !applyMinReviews || minReviews <= 0 || (x.user_ratings_total ?? 0) >= minReviews;
+    const recsInType = allRecs.filter((rec) => meta.types.includes(rec.type) && passesReviews(rec));
+    const cityInType = cityRefs.filter((rec) => meta.types.includes(rec.type) && passesReviews(rec));
 
-  // Unfiltered (by meta type only) — used inside category detail so each
-  // subcategory can apply its own min-reviews filter.
-  const categoriesUnfiltered = useMemo(() => {
-    return META_CATEGORIES.map((meta) => {
-      const filtered = allRecs.filter((rec) => meta.types.includes(rec.type));
-      const nearby = filtered.filter((x) => x.scope === "nearby");
-      const city = filtered.filter((x) => x.scope === "city");
-      return { meta, items: filtered, nearby, city, count: filtered.length };
-    }).filter((c) => c.count > 0);
-  }, [allRecs]);
+    const nearbyFromRecs = recsInType.filter(isPertinho);
+    const farFromRecs = recsInType.filter((x) => !isPertinho(x));
+    const nearbyFromCity = cityInType.filter(isPertinho);
+
+    // Dedupe entre Pertinho de recs e Pertinho de cityRefs (mesmo place)
+    const seen = new Set<string>();
+    const nearby: Rec[] = [];
+    for (const x of [...nearbyFromRecs, ...nearbyFromCity]) {
+      const k = (x.name || "").toLowerCase().trim();
+      if (!k || seen.has(k)) continue;
+      seen.add(k);
+      nearby.push(x);
+    }
+
+    // "Na Cidade" = cityRefs + recs que não couberam em pertinho.
+    // Mesmo lugar PODE aparecer também em pertinho (regra do usuário).
+    const seenCity = new Set<string>();
+    const city: Rec[] = [];
+    for (const x of [...cityInType, ...farFromRecs]) {
+      const k = (x.name || "").toLowerCase().trim();
+      if (!k || seenCity.has(k)) continue;
+      seenCity.add(k);
+      city.push(x);
+    }
+
+    const total = nearby.length + city.length;
+    return { meta, items: [...nearby, ...city], nearby, city, count: total };
+  };
+
+  const categories = useMemo(
+    () => META_CATEGORIES.map((m) => buildBuckets(m, true)).filter((c) => c.count > 0),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [allRecs, cityRefs, minReviews],
+  );
+
+  const categoriesUnfiltered = useMemo(
+    () => META_CATEGORIES.map((m) => buildBuckets(m, false)).filter((c) => c.count > 0),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [allRecs, cityRefs],
+  );
 
   const active = (activeKey
     ? categoriesUnfiltered.find((c) => c.meta.key === activeKey)
