@@ -701,7 +701,7 @@ function CategoryDetail({
 
   const sections = [
     { key: "nearby", eyebrow: "A poucos minutos", title: "Pertinho da Residência", items: nearbyFiltered, total: nearby.length },
-    { key: "city", eyebrow: "Vale o deslocamento", title: "Referências na Cidade", items: cityFiltered, total: city.length },
+    { key: "city", eyebrow: "Vale o deslocamento", title: "Na Cidade", items: cityFiltered, total: city.length },
   ].filter((s) => s.total > 0);
 
   return (
