@@ -563,6 +563,9 @@ function ExplorePage() {
           );
         })()}
       </div>
+      {(r as { aiEnabled?: boolean }).aiEnabled ? (
+        <GuideAiChat slug={slug} propertyName={(p.name as string) ?? "Guia"} guestName={null} />
+      ) : null}
     </div>
   );
 }
