@@ -298,6 +298,18 @@ function AdminCityDetail() {
 
       {isLoading && <p className="text-sm text-muted-foreground">Carregando…</p>}
 
+      {selected.size > 0 && (
+        <div className="sticky top-2 z-20 flex items-center justify-between gap-3 rounded-xl border border-destructive/40 bg-destructive/10 backdrop-blur px-4 py-2.5 shadow-md">
+          <p className="text-sm font-medium">{selected.size} selecionada{selected.size > 1 ? "s" : ""}</p>
+          <div className="flex gap-2">
+            <Button size="sm" variant="ghost" onClick={() => setSelected(new Set())}>Cancelar</Button>
+            <Button size="sm" variant="destructive" onClick={handleBulkDelete}>
+              <Trash2 className="size-3.5 mr-1.5" /> Excluir selecionadas
+            </Button>
+          </div>
+        </div>
+      )}
+
       {Object.entries(groupedByType).map(([type, list]) => (
         <section key={type} className="rounded-xl border border-border bg-card overflow-hidden">
           <div className="px-4 py-3 border-b border-border bg-secondary/30 flex items-center justify-between gap-3">
