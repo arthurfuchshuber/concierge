@@ -392,6 +392,8 @@ function Dashboard() {
           ))}
         </div>
       ) : !data?.length ? (
+        <>
+
         <div className="mb-8 rounded-2xl border border-accent/20 bg-card p-6">
           <div className="flex items-center justify-between mb-5">
             <div>
@@ -437,6 +439,7 @@ function Dashboard() {
             <Plus className="size-4 mr-1.5" /> Criar guia
           </Button>
         </div>
+        </>
       ) : filtered.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-border bg-card/30 p-12 text-center">
           <div className="size-12 rounded-2xl bg-secondary grid place-items-center mx-auto mb-4">
