@@ -496,7 +496,6 @@ function Guide({ data }: { data: GuideOk }) {
               </p>
             </footer>
 
-          </>
           </motion.div>
         ) : (
           <motion.div
