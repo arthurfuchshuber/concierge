@@ -170,16 +170,12 @@ export function GuideAiChat({ slug, propertyName, guestName }: { slug: string; p
             onClick={() => setOpen(true)}
             aria-label="Abrir assistente do guia"
             title="Pergunte à IA"
-            className="group relative grid size-16 place-items-center rounded-full text-emerald-950 shadow-[0_18px_44px_-14px_rgba(16,185,129,0.55)] hover:shadow-[0_22px_52px_-12px_rgba(16,185,129,0.7)] active:scale-95 transition-all"
-            style={{
-              background:
-                "radial-gradient(circle at 30% 25%, #d1fae5 0%, #86efac 45%, #4ade80 100%)",
-            }}
+            className="group relative grid size-14 place-items-center rounded-full bg-accent text-accent-foreground shadow-[0_14px_36px_-12px_oklch(from_var(--accent)_l_c_h/0.55)] hover:shadow-[0_18px_44px_-10px_oklch(from_var(--accent)_l_c_h/0.7)] active:scale-95 transition-all"
           >
-            <span aria-hidden="true" className="absolute inset-0 rounded-full bg-emerald-400/40 animate-ping" style={{ animationDuration: "2.4s" }} />
-            <span aria-hidden="true" className="absolute inset-0 rounded-full ring-1 ring-emerald-200/60" />
-            <Sparkles aria-hidden="true" className="absolute -top-1 -right-1 size-4 text-emerald-50 drop-shadow-[0_2px_6px_rgba(16,185,129,0.8)] animate-pulse" strokeWidth={2.4} />
-            <MessageCircleMore className="relative size-7 text-emerald-900 group-hover:scale-110 transition-transform" strokeWidth={2} />
+            <span aria-hidden="true" className="absolute inset-0 rounded-full bg-accent/35 animate-ping" style={{ animationDuration: "2.6s" }} />
+            <span aria-hidden="true" className="absolute inset-0 rounded-full ring-1 ring-accent-foreground/15" />
+            <Sparkles aria-hidden="true" className="absolute -top-0.5 -right-0.5 size-3.5 text-accent-foreground/90 animate-pulse" strokeWidth={2.4} />
+            <MessageCircleMore className="relative size-6 group-hover:scale-110 transition-transform" strokeWidth={2} />
           </button>
         </div>
       )}

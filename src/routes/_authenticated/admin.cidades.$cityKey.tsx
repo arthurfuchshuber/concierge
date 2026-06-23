@@ -8,6 +8,7 @@ import {
   generateCityReferences,
   toggleHideCityReference,
   deleteCityReference,
+  bulkDeleteCityReferences,
   addManualCityReference,
 } from "@/lib/city-references.functions";
 import { searchPlacesForRec, TYPE_MAP } from "@/lib/maps.functions";
@@ -37,6 +38,7 @@ function AdminCityDetail() {
   const generate = useServerFn(generateCityReferences);
   const toggleHide = useServerFn(toggleHideCityReference);
   const del = useServerFn(deleteCityReference);
+  const bulkDel = useServerFn(bulkDeleteCityReferences);
   const addManual = useServerFn(addManualCityReference);
   const searchPlaces = useServerFn(searchPlacesForRec);
   const qc = useQueryClient();
@@ -53,6 +55,27 @@ function AdminCityDetail() {
   const [searchTerm, setSearchTerm] = useState("");
   const [searching, setSearching] = useState(false);
   const [results, setResults] = useState<Awaited<ReturnType<typeof searchPlaces>>>([]);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+
+  function toggleSel(id: string) {
+    setSelected((s) => {
+      const n = new Set(s);
+      if (n.has(id)) n.delete(id); else n.add(id);
+      return n;
+    });
+  }
+  async function handleBulkDelete() {
+    if (selected.size === 0) return;
+    if (!confirm(`Excluir ${selected.size} referência(s) selecionada(s)?`)) return;
+    try {
+      await bulkDel({ data: { ids: Array.from(selected) } });
+      toast.success(`${selected.size} removida(s)`);
+      setSelected(new Set());
+      await qc.invalidateQueries({ queryKey });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erro ao excluir");
+    }
+  }
 
   async function handleGenerate(type?: string | null) {
     const key = type ?? "__all__";
@@ -275,13 +298,42 @@ function AdminCityDetail() {
 
       {isLoading && <p className="text-sm text-muted-foreground">Carregando…</p>}
 
-      {Object.entries(groupedByType).map(([type, list]) => (
+      {selected.size > 0 && (
+        <div className="sticky top-2 z-20 flex items-center justify-between gap-3 rounded-xl border border-destructive/40 bg-destructive/10 backdrop-blur px-4 py-2.5 shadow-md">
+          <p className="text-sm font-medium">{selected.size} selecionada{selected.size > 1 ? "s" : ""}</p>
+          <div className="flex gap-2">
+            <Button size="sm" variant="ghost" onClick={() => setSelected(new Set())}>Cancelar</Button>
+            <Button size="sm" variant="destructive" onClick={handleBulkDelete}>
+              <Trash2 className="size-3.5 mr-1.5" /> Excluir selecionadas
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {Object.entries(groupedByType).map(([type, list]) => {
+        const allSel = list.every((it) => selected.has(it.id)) && list.length > 0;
+        return (
         <section key={type} className="rounded-xl border border-border bg-card overflow-hidden">
           <div className="px-4 py-3 border-b border-border bg-secondary/30 flex items-center justify-between gap-3">
-            <h3 className="font-medium text-sm uppercase tracking-wider">
-              {list[0]?.category ?? type}{" "}
-              <span className="text-muted-foreground font-normal">({list.length})</span>
-            </h3>
+            <div className="flex items-center gap-3">
+              <input
+                type="checkbox"
+                checked={allSel}
+                onChange={() => {
+                  setSelected((s) => {
+                    const n = new Set(s);
+                    if (allSel) list.forEach((it) => n.delete(it.id));
+                    else list.forEach((it) => n.add(it.id));
+                    return n;
+                  });
+                }}
+                className="size-4 accent-current"
+              />
+              <h3 className="font-medium text-sm uppercase tracking-wider">
+                {list[0]?.category ?? type}{" "}
+                <span className="text-muted-foreground font-normal">({list.length})</span>
+              </h3>
+            </div>
             <Button
               size="sm"
               variant="ghost"
@@ -296,7 +348,13 @@ function AdminCityDetail() {
 
           <ul className="divide-y divide-border">
             {list.map((it) => (
-              <li key={it.id} className={`flex items-center gap-3 p-3 ${it.is_hidden ? "opacity-50" : ""}`}>
+              <li key={it.id} className={`flex items-center gap-3 p-3 ${it.is_hidden ? "opacity-50" : ""} ${selected.has(it.id) ? "bg-accent/5" : ""}`}>
+                <input
+                  type="checkbox"
+                  checked={selected.has(it.id)}
+                  onChange={() => toggleSel(it.id)}
+                  className="size-4 accent-current shrink-0"
+                />
                 {it.image_url ? (
                   <img src={it.image_url} alt="" className="size-14 rounded object-cover shrink-0" />
                 ) : (
@@ -354,7 +412,8 @@ function AdminCityDetail() {
             ))}
           </ul>
         </section>
-      ))}
+        );
+      })}
 
       {data && items.length === 0 && !isLoading && (
         <div className="rounded-2xl border border-dashed border-border bg-card/40 p-12 text-center">

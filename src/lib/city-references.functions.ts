@@ -272,6 +272,22 @@ export const deleteCityReference = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+// ---- BULK DELETE ------------------------------------------------------
+const BulkDeleteInput = z.object({ ids: z.array(z.string().uuid()).min(1).max(500) });
+export const bulkDeleteCityReferences = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => BulkDeleteInput.parse(i))
+  .handler(async ({ data, context }) => {
+    // Verifica permissão para cada referência antes de excluir.
+    for (const id of data.ids) {
+      await assertCanManageRefById(context, id);
+    }
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await supabaseAdmin.from("city_references").delete().in("id", data.ids);
+    if (error) throw new Error(error.message);
+    return { ok: true, deleted: data.ids.length };
+  });
+
 // ---- REORDER ----------------------------------------------------------
 export const reorderCityReference = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
