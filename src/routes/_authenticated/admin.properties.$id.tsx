@@ -326,26 +326,27 @@ function PropertyEditor() {
           hero_image_url: f.property.hero_image_url || r.hero_image_url || f.property.hero_image_url,
           gallery_images: f.property.gallery_images.length ? f.property.gallery_images : (r.gallery_images ?? []).slice(0, 4),
         },
-        recommendations: r.recommendations.map((rec) => ({
-          scope: rec.scope,
-          type: rec.type,
-          name: rec.name,
-          category: rec.category,
-          rating: rec.rating,
-          user_ratings_total: rec.user_ratings_total,
-          distance_text: rec.distance_text,
-          distance_meters: rec.distance_meters,
-          drive_minutes: rec.drive_minutes,
-          walk_minutes: rec.walk_minutes,
-          opening_hours: rec.opening_hours,
-
-          image_url: rec.image_url,
-          maps_url: rec.maps_url,
-          place_id: rec.place_id,
-          note: rec.note,
-        })),
-
-      }));
+        recommendations: [
+          // Preserva os itens "Pela cidade" já existentes (não foram regerados).
+          ...f.recommendations.filter((x) => x.scope === "city"),
+          ...r.recommendations.map((rec) => ({
+            scope: rec.scope,
+            type: rec.type,
+            name: rec.name,
+            category: rec.category,
+            rating: rec.rating,
+            user_ratings_total: rec.user_ratings_total,
+            distance_text: rec.distance_text,
+            distance_meters: rec.distance_meters,
+            drive_minutes: rec.drive_minutes,
+            walk_minutes: rec.walk_minutes,
+            opening_hours: rec.opening_hours,
+            image_url: rec.image_url,
+            maps_url: rec.maps_url,
+            place_id: rec.place_id,
+            note: rec.note,
+          })),
+        ],
       const nearby = r.recommendations.filter((x) => x.scope === "nearby").length;
       const city = r.recommendations.filter((x) => x.scope === "city").length;
       const extras: string[] = [];
