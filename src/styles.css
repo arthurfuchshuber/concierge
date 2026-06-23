@@ -147,19 +147,19 @@
     --primary: oklch(0.985 0.008 80);
   }
 
-  /* Tema branco gelo — claro, suave, levemente quente */
+  /* Tema branco gelo — claro, suave, levemente quente, mais editorial */
   .sigma-public-guide.theme-light {
-    --background: oklch(0.985 0.008 85);
-    --foreground: oklch(0.22 0.014 50);
-    --card: oklch(0.995 0.005 85);
-    --card-foreground: oklch(0.22 0.014 50);
-    --muted-foreground: oklch(0.46 0.014 60);
-    --accent: oklch(0.58 0.14 55);
-    --accent-foreground: oklch(0.985 0.008 85);
-    --border: oklch(0.58 0.14 55 / 0.22);
-    --secondary: oklch(0.94 0.012 80);
-    --muted: oklch(0.95 0.01 80);
-    --primary: oklch(0.22 0.014 50);
+    --background: oklch(0.992 0.004 85);
+    --foreground: oklch(0.18 0.012 50);
+    --card: oklch(1 0 0);
+    --card-foreground: oklch(0.18 0.012 50);
+    --muted-foreground: oklch(0.42 0.012 60);
+    --accent: oklch(0.52 0.13 50);
+    --accent-foreground: oklch(0.992 0.004 85);
+    --border: oklch(0.88 0.008 80);
+    --secondary: oklch(0.96 0.008 80);
+    --muted: oklch(0.965 0.006 80);
+    --primary: oklch(0.18 0.012 50);
   }
 
   .font-mono {
