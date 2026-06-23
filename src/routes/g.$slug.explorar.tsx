@@ -25,6 +25,7 @@ import {
   X,
 } from "lucide-react";
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
+import { GuideAiChat } from "@/components/GuideAiChat";
 
 
 
