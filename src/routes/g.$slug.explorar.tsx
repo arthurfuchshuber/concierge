@@ -1163,7 +1163,7 @@ function EmbeddedMapModal({
   // mode. For multiple custom pins we use the "search" mode with the property
   // location as center + all maps_url links listed below the map.
   const GOOGLE_MAPS_KEY = (typeof window !== "undefined"
-    ? (window as Record<string, unknown>).__ENV__?.VITE_GOOGLE_MAPS_KEY
+    ? ((window as unknown as { __ENV__?: { VITE_GOOGLE_MAPS_KEY?: string } }).__ENV__?.VITE_GOOGLE_MAPS_KEY ?? null)
     : null) as string | null;
 
   // Build comma-separated waypoints from recs that have maps_url or a name.
