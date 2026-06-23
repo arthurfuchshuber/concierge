@@ -406,7 +406,8 @@ function AdminCityDetail() {
             ))}
           </ul>
         </section>
-      ))}
+        );
+      })}
 
       {data && items.length === 0 && !isLoading && (
         <div className="rounded-2xl border border-dashed border-border bg-card/40 p-12 text-center">
