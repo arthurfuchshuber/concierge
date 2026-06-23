@@ -146,7 +146,7 @@ function AssinaturaPage() {
     <div className="px-5 lg:px-10 py-8 lg:py-10 max-w-6xl mx-auto w-full">
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="font-serif text-3xl md:text-4xl">Assinatura</h1>
+          <h1 className="font-display text-3xl md:text-4xl">Assinatura</h1>
           <p className="text-sm text-muted-foreground mt-1.5">
             Gerencie seu plano, pagamentos e faturas.
           </p>
@@ -215,7 +215,7 @@ function AssinaturaPage() {
                     {currentPlan === "enterprise" && <Crown className="size-3.5 text-accent" />}
                     Plano atual
                   </p>
-                  <h2 className="font-serif text-3xl mt-1">
+                  <h2 className="font-display text-3xl mt-1">
                     {currentPlanConfig ? currentPlanConfig.name : "Sem plano"}
                   </h2>
                   <p className="text-sm text-muted-foreground mt-1">
@@ -274,7 +274,7 @@ function AssinaturaPage() {
           <section className="mt-10">
             <div className="flex items-end justify-between gap-3 flex-wrap mb-4">
               <div>
-                <h2 className="font-serif text-2xl">Todos os planos</h2>
+                <h2 className="font-display text-2xl">Todos os planos</h2>
                 <p className="text-sm text-muted-foreground mt-0.5">
                   Faça upgrade ou downgrade a qualquer momento.
                 </p>
@@ -306,7 +306,7 @@ function AssinaturaPage() {
                         <Sparkles className="size-3" /> Premium
                       </span>
                     )}
-                    <h3 className="font-serif text-xl">{p.name}</h3>
+                    <h3 className="font-display text-xl">{p.name}</h3>
                     <p className="text-xs text-muted-foreground mt-1 min-h-[32px]">
                       {p.description}
                     </p>
@@ -373,7 +373,7 @@ function AssinaturaPage() {
               <section>
             <div className="flex items-center gap-2 mb-4">
               <Receipt className="size-4 text-muted-foreground" />
-              <h2 className="font-serif text-2xl">Extrato de pagamentos</h2>
+              <h2 className="font-display text-2xl">Extrato de pagamentos</h2>
             </div>
             <div className="rounded-2xl border border-border bg-card overflow-hidden">
               {paymentsQuery.isLoading ? (

@@ -25,6 +25,13 @@ export type AdminCustomerRow = {
   email: string | null;
   fullName: string | null;
   createdAt: string | null;
+  lastSignInAt: string | null;
+  totalGuides: number;
+  publishedGuides: number;
+  avgCompletenessScore: number;
+  lastEditedAt: string | null;
+  guestAccesses30d: number;
+  churnRisk: boolean;
   subscription: {
     id: string;
     plan: PlanKey | null;
@@ -71,6 +78,48 @@ export const adminListCustomers = createServerFn({ method: "GET" })
       )
       .order("created_at", { ascending: false });
 
+    // Enrich: fetch all properties with completeness signals
+    const { data: allProps } = await supabaseAdmin
+      .from("properties")
+      .select("id, owner_id, published, updated_at, name, wifi_ssid, wifi_password, checkin_instructions, house_rules, tagline, hero_image_url");
+
+    // Guide access logs last 30 days — for guest activity per host
+    const since30 = new Date(Date.now() - 30 * 86400_000).toISOString();
+    const { data: recentLogs } = await supabaseAdmin
+      .from("guide_access_logs")
+      .select("property_id, created_at")
+      .gte("created_at", since30);
+
+    // Map property_id → owner_id for guest count rollup
+    const propOwnerMap = new Map<string, string>();
+    const propsByOwner = new Map<string, typeof allProps>();
+    for (const p of allProps ?? []) {
+      propOwnerMap.set(p.id, p.owner_id);
+      const arr = propsByOwner.get(p.owner_id) ?? [];
+      arr.push(p);
+      propsByOwner.set(p.owner_id, arr);
+    }
+
+    // Guest accesses per owner in last 30 days
+    const guestAccessByOwner = new Map<string, number>();
+    for (const l of recentLogs ?? []) {
+      const ownerId = propOwnerMap.get(l.property_id);
+      if (ownerId) guestAccessByOwner.set(ownerId, (guestAccessByOwner.get(ownerId) ?? 0) + 1);
+    }
+
+    // Guide completeness score (0–100) per property
+    function guideScore(p: NonNullable<typeof allProps>[number]): number {
+      let score = 0;
+      if (p.published) score += 20;
+      if (p.hero_image_url) score += 15;
+      if (p.tagline) score += 10;
+      if (p.wifi_ssid) score += 15;
+      if (p.checkin_instructions) score += 20;
+      if (p.house_rules) score += 10;
+      if (p.wifi_password) score += 10;
+      return Math.min(score, 100);
+    }
+
     const profileMap = new Map((profiles ?? []).map((p) => [p.id, p.full_name]));
     // Latest sub per user
     const subMap = new Map<string, NonNullable<typeof subs>[number]>();
@@ -80,11 +129,40 @@ export const adminListCustomers = createServerFn({ method: "GET" })
 
     const customers: AdminCustomerRow[] = usersData.users.map((u) => {
       const s = subMap.get(u.id);
+      const props = propsByOwner.get(u.id) ?? [];
+      const totalGuides = props.length;
+      const publishedGuides = props.filter((p) => p.published).length;
+      const avgScore = totalGuides > 0
+        ? Math.round(props.reduce((sum, p) => sum + guideScore(p), 0) / totalGuides)
+        : 0;
+      const lastEditedAt = props.reduce<string | null>((acc, p) => {
+        const t = p.updated_at as string | null;
+        if (!t) return acc;
+        return !acc || t > acc ? t : acc;
+      }, null);
+      const guestAccesses30d = guestAccessByOwner.get(u.id) ?? 0;
+      // Churn risk: active sub + no login in 14d + no guest accesses in 30d
+      const lastLogin = (u as { last_sign_in_at?: string }).last_sign_in_at ?? null;
+      const daysSinceLogin = lastLogin
+        ? Math.floor((Date.now() - new Date(lastLogin).getTime()) / 86400_000)
+        : 999;
+      const churnRisk =
+        (s?.status === "active" || s?.status === "trialing") &&
+        daysSinceLogin > 14 &&
+        guestAccesses30d === 0;
+
       return {
         userId: u.id,
         email: u.email ?? null,
         fullName: profileMap.get(u.id) ?? null,
         createdAt: u.created_at ?? null,
+        lastSignInAt: lastLogin,
+        totalGuides,
+        publishedGuides,
+        avgCompletenessScore: avgScore,
+        lastEditedAt,
+        guestAccesses30d,
+        churnRisk,
         subscription: s
           ? {
               id: s.id,
@@ -109,8 +187,10 @@ export const adminListCustomers = createServerFn({ method: "GET" })
       };
     });
 
-    // Sort: with active sub first, then by created
+    // Sort: churn risk first, then active, then by created
     customers.sort((a, b) => {
+      if (a.churnRisk && !b.churnRisk) return -1;
+      if (!a.churnRisk && b.churnRisk) return 1;
       const sa = a.subscription?.status === "active" ? 0 : 1;
       const sb = b.subscription?.status === "active" ? 0 : 1;
       if (sa !== sb) return sa - sb;

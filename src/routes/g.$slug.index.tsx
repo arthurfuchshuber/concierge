@@ -172,17 +172,25 @@ function isRule(item: { title: string; description?: string | null }) {
 function Lockable({ locked, children }: { locked: boolean; children: React.ReactNode }) {
   if (!locked) return <>{children}</>;
   return (
-    <div className="relative">
-      <div className="blur-md select-none pointer-events-none" aria-hidden>
+    <div className="relative min-h-[80px]">
+      {/* Blurred content behind — kept for layout space */}
+      <div className="blur-md select-none pointer-events-none opacity-60" aria-hidden>
         {children}
       </div>
-      <div className="absolute inset-0 grid place-items-center px-4">
-        <div className="rounded-2xl bg-background/90 backdrop-blur-sm border border-border/60 px-4 py-3 max-w-[280px] text-center shadow-lg">
-          <Lock className="size-4 mx-auto text-muted-foreground mb-1.5" strokeWidth={1.75} />
-          <p className="text-[12px] font-semibold text-foreground">Acesso encerrado</p>
-          <p className="text-[11px] text-muted-foreground mt-1 leading-snug">
-            As informações de check-in ficam disponíveis até 12h após o início do check-in.
-          </p>
+      {/* Overlay — always fully visible, never clipped */}
+      <div className="absolute inset-0 flex items-center justify-center px-3 py-2">
+        <div className="w-full rounded-2xl bg-background/95 backdrop-blur-sm border border-border/60 shadow-lg overflow-hidden">
+          <div className="flex items-center gap-3 px-4 py-3">
+            <div className="size-8 rounded-xl bg-muted grid place-items-center shrink-0">
+              <Lock className="size-4 text-muted-foreground" strokeWidth={1.75} />
+            </div>
+            <div className="min-w-0">
+              <p className="text-[13px] font-semibold text-foreground leading-tight">Acesso encerrado</p>
+              <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">
+                Disponível 24h antes até 12h após o check-in.
+              </p>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -487,7 +495,7 @@ function Guide({ data }: { data: GuideOk }) {
 
             <footer className="mt-10 px-6 text-center flex items-center justify-center gap-2.5">
               {p.brand_logo_url ? (
-                <img src={p.brand_logo_url} alt={p.brand_name ? `Logotipo ${p.brand_name}` : "Logotipo da hospedagem"} className="h-5 w-auto object-contain opacity-80" />
+                <img src={p.brand_logo_url} alt={p.brand_name ? `Logotipo ${p.brand_name}` : "Logotipo da hospedagem"} loading="lazy" className="h-5 w-auto object-contain opacity-80" />
               ) : (
                 <GuideMark className="size-3.5 text-accent" />
               )}
@@ -1337,6 +1345,7 @@ function ThemeCard({
         <img
           src={image}
           alt=""
+          loading="lazy"
           className={`absolute inset-0 size-full object-cover transition-transform duration-500 group-hover:scale-105 ${
             isLight ? "opacity-25" : "opacity-70"
           }`}

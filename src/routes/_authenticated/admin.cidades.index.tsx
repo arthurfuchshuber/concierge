@@ -26,7 +26,7 @@ function AdminCitiesPage() {
         <div className="inline-flex items-center gap-2 text-[11px] uppercase tracking-[0.18em] text-muted-foreground font-semibold">
           <MapPin className="size-3" /> Administração
         </div>
-        <h1 className="font-serif text-3xl md:text-4xl">Na Cidade</h1>
+        <h1 className="font-display text-3xl md:text-4xl">Na Cidade</h1>
         <p className="text-sm text-muted-foreground max-w-3xl leading-relaxed">
           Pontos icônicos macro compartilhados entre todas as residências de uma mesma cidade.
           Diferente das recomendações "pertinho da residência", aqui você cadastra os endereços
@@ -144,7 +144,7 @@ function StatCard({
         <Icon className="size-4 text-muted-foreground" />
       </div>
       <div className="min-w-0">
-        <div className="text-2xl font-serif leading-none">{value}</div>
+        <div className="text-2xl font-display leading-none">{value}</div>
         <div className="text-[11px] uppercase tracking-wider text-muted-foreground mt-1">{label}</div>
       </div>
     </div>

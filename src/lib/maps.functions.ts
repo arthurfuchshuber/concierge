@@ -160,11 +160,16 @@ function extractCoords(url: string): { lat: number; lng: number } | null {
 async function gatewayFetch(path: string, init: RequestInit = {}) {
   const apiKey = process.env.LOVABLE_API_KEY;
   const mapsKey = process.env.GOOGLE_MAPS_API_KEY_2 ?? process.env.GOOGLE_MAPS_API_KEY;
-  if (!apiKey || !mapsKey) throw new Error("Google Maps connector não configurado.");
+  if (!apiKey || !mapsKey) throw new Error("Google Maps connector não configurado. Verifique LOVABLE_API_KEY e GOOGLE_MAPS_API_KEY nas variáveis de ambiente.");
   const headers = new Headers(init.headers);
   headers.set("Authorization", `Bearer ${apiKey}`);
   headers.set("X-Connection-Api-Key", mapsKey);
-  return fetch(`${GATEWAY}${path}`, { ...init, headers });
+  const res = await fetch(`${GATEWAY}${path}`, { ...init, headers });
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    console.error(`[Maps Gateway] ${res.status} ${path}`, body.slice(0, 300));
+  }
+  return res;
 }
 
 type GeoComponent = { types: string[]; long_name: string; short_name?: string };
@@ -387,7 +392,10 @@ Responda APENAS com JSON válido (sem markdown) no formato:
         response_format: { type: "json_object" },
       }),
     });
-    if (!res.ok) return {};
+    if (!res.ok) {
+      console.error("[Gemini] gateway error", res.status, await res.text().catch(() => ""));
+      return {};
+    }
     const j = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
     const content = j.choices?.[0]?.message?.content ?? "";
     const cleaned = content.replace(/^```json\s*/i, "").replace(/```\s*$/, "").trim();
@@ -401,7 +409,8 @@ Responda APENAS com JSON válido (sem markdown) no formato:
       }
     }
     return out;
-  } catch {
+  } catch (err) {
+    console.error("[Gemini] fetchIconicPlacesFromGemini error:", err);
     return {};
   }
 }
@@ -540,11 +549,11 @@ export const enrichFromMapsLink = createServerFn({ method: "POST" })
     // até 1,5km OU até 20 minutos a pé (≈1,6km a 80 m/min). Lugares city-wide
     // ficam em city_references, exibidos na seção "Na Cidade" do guia.
     const MIN_RATING = 3.8;
-    const MIN_REVIEWS_GLOBAL = 40;   // muito permissivo para pertinho — captura ref locais
+    const MIN_REVIEWS_GLOBAL = 20;   // permissivo para pertinho — captura ref locais
     const MAX_PER_TYPE = 25;
-    const PERTINHO_MAX_M = 1600;     // filtro de exibição: só mostra até 1,6km (~20min a pé)
-    const NEARBY_RADIUS_M = 2500;    // busca além do limite para garantir cobertura
-    const NEARBY_TEXT_RADIUS_M = 3000;
+    const PERTINHO_MAX_M = 2500;     // filtro de exibição: até 2,5km (~30min a pé)
+    const NEARBY_RADIUS_M = 3000;    // busca além do limite para garantir cobertura
+    const NEARBY_TEXT_RADIUS_M = 4000;
 
     const classifyByPrimaryType = (primaryType: string | undefined) => {
       if (!primaryType) return null;

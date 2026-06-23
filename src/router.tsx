@@ -21,6 +21,16 @@ async function handleUnauthorized() {
 
 export const getRouter = () => {
   const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: {
+        // Dados do painel raramente mudam em segundos. Evita refetch
+        // desnecessário ao refocar a janela — reduz carga no servidor.
+        staleTime: 30_000,       // 30s: considera fresh antes de refetch
+        gcTime: 5 * 60_000,     // 5min: mantém em cache antes de descartar
+        refetchOnWindowFocus: false, // não refetch ao voltar para a aba
+        retry: 1,                // 1 retry em vez de 3 (padrão)
+      },
+    },
     queryCache: new QueryCache({
       onError: (err) => {
         if (isUnauthorizedError(err)) void handleUnauthorized();

@@ -88,7 +88,7 @@ function Nav() {
           <div className="size-7 rounded-lg bg-foreground grid place-items-center">
             <Sparkles className="size-3.5 text-background" strokeWidth={2} />
           </div>
-          <span className="font-serif text-lg tracking-tight">SigmaGuide</span>
+          <span className="font-display text-lg tracking-tight">SigmaGuide</span>
         </Link>
         <div className="flex items-center gap-1">
           <Link
@@ -150,7 +150,7 @@ function Hero() {
           Para anfitriões de aluguel por temporada
         </motion.p>
 
-        <h1 className="font-serif text-[15vw] md:text-[9.5rem] lg:text-[11rem] leading-[0.92] tracking-[-0.02em] text-center text-balance">
+        <h1 className="font-display text-[15vw] md:text-[9.5rem] lg:text-[11rem] leading-[0.92] tracking-[-0.02em] text-center text-balance">
           <motion.span
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -262,7 +262,7 @@ function PhoneMock() {
             </div>
             <div className="absolute bottom-4 left-4 right-4 text-white">
               <p className="text-[9px] uppercase tracking-[0.2em] opacity-80">Casa Maré · Trancoso</p>
-              <h3 className="font-serif text-2xl leading-[1.05] mt-1">Bem-vindo a uma pausa lenta.</h3>
+              <h3 className="font-display text-2xl leading-[1.05] mt-1">Bem-vindo a uma pausa lenta.</h3>
             </div>
           </div>
           {/* Body */}
@@ -288,7 +288,7 @@ function PhoneMock() {
             </div>
             <div className="rounded-xl border border-border bg-card p-2.5">
               <p className="text-[8px] uppercase tracking-[0.2em] text-accent font-semibold">Aqui pertinho</p>
-              <p className="font-serif text-sm mt-1 leading-tight">Capim Santo</p>
+              <p className="font-display text-sm mt-1 leading-tight">Capim Santo</p>
               <p className="text-[9px] text-muted-foreground">Restaurante · 4 min a pé</p>
             </div>
           </div>
@@ -355,7 +355,7 @@ function HowItWorks() {
           Três passos
         </span>
       </div>
-      <h2 className="font-serif text-5xl md:text-7xl leading-[0.95] tracking-tight max-w-3xl text-balance">
+      <h2 className="font-display text-5xl md:text-7xl leading-[0.95] tracking-tight max-w-3xl text-balance">
         Do <span className="italic text-accent">link</span> ao guia em menos de um café.
       </h2>
 
@@ -371,7 +371,7 @@ function HowItWorks() {
           >
             <span className="font-mono text-xs text-muted-foreground">{s.n}</span>
             <div>
-              <h3 className="font-serif text-3xl leading-tight">{s.title}</h3>
+              <h3 className="font-display text-3xl leading-tight">{s.title}</h3>
               <p className="text-sm text-muted-foreground mt-3 leading-relaxed">{s.desc}</p>
             </div>
           </motion.div>
@@ -394,7 +394,7 @@ function DemoSection() {
             Demo
           </span>
         </div>
-        <h2 className="font-serif text-5xl md:text-7xl leading-[0.95] tracking-tight max-w-3xl text-balance">
+        <h2 className="font-display text-5xl md:text-7xl leading-[0.95] tracking-tight max-w-3xl text-balance">
           Um <span className="italic">link</span>. Dezenas de campos.
         </h2>
         <p className="mt-6 text-base md:text-lg text-muted-foreground max-w-xl leading-relaxed">
@@ -488,7 +488,7 @@ function ScopeCard({
         <p className="text-[10px] uppercase tracking-[0.3em] text-accent font-semibold">{tag}</p>
         <span className="text-[10px] font-mono text-muted-foreground/60">{items.length} itens</span>
       </div>
-      <p className="font-serif text-2xl mt-2">{subtitle}</p>
+      <p className="font-display text-2xl mt-2">{subtitle}</p>
       <div className="mt-5 space-y-2">
         {items.map((i) => (
           <div key={i.name} className="flex items-start justify-between gap-4 py-2 border-t border-border first:border-t-0">
@@ -548,7 +548,7 @@ function Pillars() {
           Seis decisões de design
         </span>
       </div>
-      <h2 className="font-serif text-5xl md:text-7xl leading-[0.95] tracking-tight max-w-3xl text-balance">
+      <h2 className="font-display text-5xl md:text-7xl leading-[0.95] tracking-tight max-w-3xl text-balance">
         Feito para anfitriões com <span className="italic text-accent">gosto</span>.
       </h2>
 
@@ -572,7 +572,7 @@ function Pillars() {
                   0{i + 1}
                 </span>
               </div>
-              <h3 className="font-serif text-2xl leading-tight">{p.title}</h3>
+              <h3 className="font-display text-2xl leading-tight">{p.title}</h3>
               <p className="text-sm text-muted-foreground mt-2 leading-relaxed">{p.desc}</p>
             </motion.div>
           );
@@ -590,7 +590,7 @@ function NoReservation() {
         <p className="text-[10px] uppercase tracking-[0.3em] text-background/60 font-semibold mb-10">
           Capítulo 04 — O que não fazemos
         </p>
-        <h2 className="font-serif text-5xl md:text-7xl leading-[0.95] tracking-tight text-balance">
+        <h2 className="font-display text-5xl md:text-7xl leading-[0.95] tracking-tight text-balance">
           Zero dado de <span className="italic text-accent">reserva</span>.
           <br />
           Por princípio.
@@ -641,7 +641,7 @@ function Manifesto() {
         <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground font-semibold mb-10">
           Manifesto
         </p>
-        <blockquote className="font-serif text-3xl md:text-5xl leading-[1.15] tracking-tight text-balance">
+        <blockquote className="font-display text-3xl md:text-5xl leading-[1.15] tracking-tight text-balance">
           “Um bom guia não substitui o anfitrião —
           <span className="italic text-accent"> conta a história </span>
           da casa quando ele não está por perto.”
@@ -663,7 +663,7 @@ function FinalCTA() {
         <p className="relative text-[10px] uppercase tracking-[0.3em] text-accent font-semibold mb-6">
           Comece agora
         </p>
-        <h2 className="relative font-serif text-5xl md:text-7xl leading-[0.95] tracking-tight text-balance">
+        <h2 className="relative font-display text-5xl md:text-7xl leading-[0.95] tracking-tight text-balance">
           Seu primeiro guia,
           <br />
           <span className="italic">em cinco minutos.</span>
@@ -730,7 +730,7 @@ function SocialProof() {
             Anfitriões reais
           </span>
         </div>
-        <h2 className="font-serif text-5xl md:text-7xl leading-[0.95] tracking-tight max-w-3xl text-balance">
+        <h2 className="font-display text-5xl md:text-7xl leading-[0.95] tracking-tight max-w-3xl text-balance">
           Anfitriões com <span className="italic text-accent">gosto</span> já usam.
         </h2>
         <div className="mt-16 grid md:grid-cols-3 gap-4">
@@ -744,7 +744,7 @@ function SocialProof() {
               className="rounded-2xl border border-border bg-background p-7 flex flex-col gap-5"
             >
               <div className="flex items-baseline gap-2">
-                <span className="font-serif text-5xl leading-none text-accent">{t.stat}</span>
+                <span className="font-display text-5xl leading-none text-accent">{t.stat}</span>
                 <span className="text-xs text-muted-foreground leading-tight max-w-[12ch]">{t.statLabel}</span>
               </div>
               <p className="text-[14.5px] leading-relaxed text-foreground/85 flex-1">
@@ -764,7 +764,7 @@ function SocialProof() {
             { value: "4.9★", label: "satisfação dos anfitriões" },
           ].map((s) => (
             <div key={s.label} className="text-center">
-              <p className="font-serif text-3xl">{s.value}</p>
+              <p className="font-display text-3xl">{s.value}</p>
               <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground mt-1">{s.label}</p>
             </div>
           ))}
@@ -785,7 +785,7 @@ function Footer() {
             <div className="size-6 rounded-md bg-foreground grid place-items-center">
               <Sparkles className="size-3 text-background" strokeWidth={2} />
             </div>
-            <span className="font-serif text-sm">SigmaGuide</span>
+            <span className="font-display text-sm">SigmaGuide</span>
           </div>
           <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground/70">
             Hospedagem com afeto · MMXXVI

@@ -39,9 +39,18 @@ export const Route = createFileRoute("/api/public/place-photo")({
 
         const headers = new Headers();
         const ct = upstream.headers.get("content-type") ?? "image/jpeg";
+        // Only allow image content types through
+        if (!ct.startsWith("image/")) {
+          return new Response("Invalid content type", { status: 502 });
+        }
         headers.set("Content-Type", ct);
-        // Cache agressivo: a foto referenciada por photoName é imutável.
+        // Aggressive cache: photo resource names are stable/immutable.
+        // 24h browser cache, 7d CDN/edge cache.
         headers.set("Cache-Control", "public, max-age=86400, s-maxage=604800, immutable");
+        headers.set("Vary", "Accept-Encoding");
+        // Security: prevent the image from being used as a script or iframe
+        headers.set("X-Content-Type-Options", "nosniff");
+        headers.set("Content-Security-Policy", "default-src 'none'; img-src 'self'");
         return new Response(upstream.body, { status: 200, headers });
       },
     },

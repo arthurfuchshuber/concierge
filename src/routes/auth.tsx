@@ -89,13 +89,13 @@ function AuthPage() {
           <div className="size-8 rounded-xl bg-primary grid place-items-center">
             <Sparkles className="size-4 text-primary-foreground" strokeWidth={2} />
           </div>
-          <span className="font-serif text-xl">SigmaGuide</span>
+          <span className="font-display text-xl">SigmaGuide</span>
         </Link>
       </header>
 
       <main className="flex-1 flex items-center justify-center px-6 pb-16">
         <div className="w-full max-w-sm">
-          <h1 className="font-serif text-4xl text-balance">
+          <h1 className="font-display text-4xl text-balance">
             {mode === "signin" ? "Bem-vindo de volta" : "Crie sua conta"}
           </h1>
           <p className="text-sm text-muted-foreground mt-2 mb-8">

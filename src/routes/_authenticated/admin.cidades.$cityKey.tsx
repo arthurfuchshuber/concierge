@@ -208,7 +208,7 @@ function AdminCityDetail() {
       <div className="pb-6 border-b border-border/60 flex items-start justify-between gap-4 flex-wrap">
         <div className="min-w-0">
           <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground font-semibold mb-2">Na Cidade</p>
-          <h1 className="font-serif text-3xl sm:text-4xl leading-tight">
+          <h1 className="font-display text-3xl sm:text-4xl leading-tight">
             {label}
             {state ? <span className="text-muted-foreground"> — {state}</span> : null}
           </h1>
@@ -420,7 +420,7 @@ function AdminCityDetail() {
           <div className="mx-auto size-12 rounded-full bg-secondary/60 flex items-center justify-center mb-4">
             <Sparkles className="size-5 text-muted-foreground" />
           </div>
-          <h3 className="font-serif text-lg mb-1">Nenhuma referência ainda</h3>
+          <h3 className="font-display text-lg mb-1">Nenhuma referência ainda</h3>
           <p className="text-sm text-muted-foreground max-w-sm mx-auto mb-5">
             Gere automaticamente pontos turísticos populares de {label} com IA, ou adicione manualmente seus favoritos.
           </p>

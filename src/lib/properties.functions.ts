@@ -137,6 +137,19 @@ export const listMyProperties = createServerFn({ method: "GET" })
     return await signPropertyImages(context.supabase, data ?? []);
   });
 
+// Versão leve: apenas os campos necessários para seleção de imóveis em UIs
+// como o CopyRecsDialog. Não carrega imagens assinadas, reduz payload.
+export const listMyPropertiesBrief = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { data, error } = await context.supabase
+      .from("properties")
+      .select("id, name, city, published")
+      .order("name", { ascending: true });
+    if (error) throw (await import("@/lib/db-errors.server")).safeDbError("properties", error);
+    return (data ?? []) as Array<{ id: string; name: string; city: string | null; published: boolean }>;
+  });
+
 const BulkPatch = z.object({
   checkin_time: z.string().max(8).optional(),
   checkin_time_max: z.string().max(8).optional(),
@@ -332,4 +345,94 @@ export const deleteProperty = createServerFn({ method: "POST" })
     const { error } = await context.supabase.from("properties").delete().eq("id", data.id);
     if (error) throw (await import("@/lib/db-errors.server")).safeDbError("properties", error);
     return { ok: true };
+  });
+
+// ---- COPY CITY RECS TO OTHER PROPERTIES --------------------------------
+// Copia recomendações "Pela cidade" (scope=city) de um imóvel para outros
+// imóveis do mesmo usuário. Substitui apenas as recs de scope "city" nos
+// destinos, mantendo as "nearby" intactas.
+export const copyCityRecsToProperties = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) =>
+    z.object({
+      sourcePropertyId: z.string().uuid(),
+      targetPropertyIds: z.array(z.string().uuid()).min(1).max(50),
+    }).parse(i),
+  )
+  .handler(async ({ data, context }) => {
+    // Usa supabaseAdmin para garantir permissão de leitura/escrita
+    // em property_recommendations de outros imóveis do mesmo dono.
+    // O cliente RLS do usuário (context.supabase) pode não ter acesso
+    // a rows de outros imóveis dependendo das policies configuradas.
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    // Verifica que o usuário autenticado é dono do imóvel fonte
+    const { data: src, error: srcErr } = await supabaseAdmin
+      .from("properties")
+      .select("id, owner_id")
+      .eq("id", data.sourcePropertyId)
+      .eq("owner_id", context.userId)
+      .maybeSingle();
+    if (srcErr || !src) throw new Error("Imóvel de origem não encontrado ou sem permissão.");
+
+    // Busca as recs "Pela cidade" do imóvel fonte
+    const { data: cityRecs, error: recsErr } = await supabaseAdmin
+      .from("property_recommendations")
+      .select("*")
+      .eq("property_id", data.sourcePropertyId)
+      .eq("scope", "city");
+    if (recsErr) throw new Error("Erro ao buscar recomendações.");
+    const recs = cityRecs ?? [];
+
+    // Garante que os destinos pertencem ao mesmo usuário autenticado
+    const { data: targets, error: tgtErr } = await supabaseAdmin
+      .from("properties")
+      .select("id")
+      .in("id", data.targetPropertyIds)
+      .eq("owner_id", (src as { owner_id: string }).owner_id);
+    if (tgtErr || !targets || targets.length === 0)
+      throw new Error("Nenhum imóvel destino válido encontrado.");
+
+    let copied = 0;
+    for (const target of targets as Array<{ id: string }>) {
+      // Remove recs "city" existentes no destino
+      await supabaseAdmin
+        .from("property_recommendations")
+        .delete()
+        .eq("property_id", target.id)
+        .eq("scope", "city");
+
+      if (recs.length > 0) {
+        const rows = recs.map((r, i) => {
+          const rec = r as Record<string, unknown>;
+          return {
+            property_id: target.id,
+            scope: rec.scope,
+            type: rec.type,
+            name: rec.name,
+            category: rec.category ?? null,
+            rating: rec.rating ?? null,
+            user_ratings_total: rec.user_ratings_total ?? null,
+            distance_text: rec.distance_text ?? null,
+            distance_meters: rec.distance_meters ?? null,
+            drive_minutes: rec.drive_minutes ?? null,
+            walk_minutes: rec.walk_minutes ?? null,
+            opening_hours: rec.opening_hours ?? null,
+            note: rec.note ?? null,
+            image_url: rec.image_url ?? null,
+            maps_url: rec.maps_url ?? null,
+            place_id: rec.place_id ?? null,
+            position: i,
+          };
+        });
+        const { error: insErr } = await supabaseAdmin
+          .from("property_recommendations")
+          .insert(rows);
+        if (!insErr) copied += 1;
+      } else {
+        copied += 1;
+      }
+    }
+
+    return { copied, total: targets.length };
   });

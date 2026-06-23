@@ -139,7 +139,7 @@ function PricingPage() {
             <div className="size-7 rounded-lg bg-foreground grid place-items-center">
               <Sparkles className="size-3.5 text-background" strokeWidth={2} />
             </div>
-            <span className="font-serif text-lg">SigmaGuide</span>
+            <span className="font-display text-lg">SigmaGuide</span>
           </Link>
           <Link to="/auth" className="text-sm px-4 py-2 rounded-full hover:bg-secondary">
             Entrar
@@ -150,7 +150,7 @@ function PricingPage() {
       <main className="max-w-6xl mx-auto px-5 py-16 md:py-24">
         <div className="text-center mb-12">
           <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground font-semibold">Planos</p>
-          <h1 className="font-serif text-4xl md:text-5xl mt-3">Escolha o plano ideal</h1>
+          <h1 className="font-display text-4xl md:text-5xl mt-3">Escolha o plano ideal</h1>
           <p className="text-muted-foreground mt-3 max-w-xl mx-auto">
             7 dias grátis em todos os planos pagos. Cancele a qualquer momento.
           </p>
@@ -169,7 +169,7 @@ function PricingPage() {
                   Mais popular
                 </span>
               )}
-              <h2 className="font-serif text-2xl">{plan.name}</h2>
+              <h2 className="font-display text-2xl">{plan.name}</h2>
               <p className="text-sm text-muted-foreground mt-1 min-h-[40px]">{plan.description}</p>
               <div className="mt-5 flex items-baseline gap-1">
                 <span className="text-3xl font-semibold">{plan.price}</span>

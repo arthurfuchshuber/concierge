@@ -19,7 +19,7 @@ function NotFoundComponent() {
     <div className="flex min-h-screen items-center justify-center bg-background px-6">
       <div className="max-w-md text-center">
         <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground font-semibold mb-2">404</p>
-        <h1 className="font-serif text-4xl">Página não encontrada</h1>
+        <h1 className="font-display text-4xl">Página não encontrada</h1>
         <p className="mt-3 text-sm text-muted-foreground">
           O caminho que você procura não existe.
         </p>
@@ -43,7 +43,7 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-6">
       <div className="max-w-md text-center">
-        <h1 className="font-serif text-3xl">Algo deu errado</h1>
+        <h1 className="font-display text-3xl">Algo deu errado</h1>
         <p className="mt-3 text-sm text-muted-foreground">
           Não conseguimos carregar esta página. Tente novamente.
         </p>
@@ -85,7 +85,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "" },
       {
         rel: "stylesheet",
-        href: "https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Playfair+Display:ital,wght@0,400;0,500;0,700;1,400;1,500&family=Inter:wght@300;400;500;600;700&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500&display=swap",
+        href: "https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400;1,500&family=DM+Serif+Display:ital@0;1&family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap",
       },
     ],
     scripts: [

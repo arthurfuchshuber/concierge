@@ -1,6 +1,15 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
+// Detect device type from user_agent string
+function detectDevice(ua: string | null): "mobile" | "tablet" | "desktop" {
+  if (!ua) return "desktop";
+  const u = ua.toLowerCase();
+  if (/ipad|android(?!.*mobile)|tablet/i.test(u)) return "tablet";
+  if (/iphone|android.*mobile|mobile|blackberry|windows phone/i.test(u)) return "mobile";
+  return "desktop";
+}
+
 export const getEngagementOverview = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
@@ -8,7 +17,7 @@ export const getEngagementOverview = createServerFn({ method: "GET" })
 
     const { data: props, error: propsErr } = await supabase
       .from("properties")
-      .select("id, name, slug, published, updated_at")
+      .select("id, name, slug, published, updated_at, wifi_ssid, wifi_password, checkin_instructions, house_rules, tagline, hero_image_url, recommendations:property_recommendations(id)")
       .eq("owner_id", userId)
       .order("name", { ascending: true });
     if (propsErr) throw propsErr;
@@ -22,6 +31,8 @@ export const getEngagementOverview = createServerFn({ method: "GET" })
         metrics: [],
         feedback: [],
         timeseries: [],
+        sectionEvents: [],
+        deviceBreakdown: { mobile: 0, tablet: 0, desktop: 0 },
         hostUsability: {
           totalGuides: 0,
           publishedGuides: 0,
@@ -29,6 +40,7 @@ export const getEngagementOverview = createServerFn({ method: "GET" })
           guidesWithKnowledge: 0,
           guidesWithBehavior: 0,
           lastEditedAt: null as string | null,
+          guideCompleteness: [] as Array<{ id: string; name: string; score: number; published: boolean }>,
         },
       };
     }
@@ -38,7 +50,6 @@ export const getEngagementOverview = createServerFn({ method: "GET" })
       { data: convs, error: convsErr },
       { data: msgs, error: msgsErr },
       { data: feedback, error: fbErr },
-      { count: faqsCount },
       { count: knowCount },
       { count: behCount },
     ] = await Promise.all([
@@ -64,7 +75,6 @@ export const getEngagementOverview = createServerFn({ method: "GET" })
         .from("chat_message_feedback")
         .select("message_id, conversation_id, property_id, reason, resolved, behavior_id, created_at")
         .eq("owner_id", userId),
-      supabase.from("property_faqs").select("property_id", { count: "exact", head: true }).in("property_id", propertyIds),
       supabase.from("host_knowledge").select("id", { count: "exact", head: true }).eq("owner_id", userId).eq("enabled", true),
       supabase.from("host_behavior").select("id", { count: "exact", head: true }).eq("owner_id", userId).eq("enabled", true),
     ]);
@@ -73,6 +83,36 @@ export const getEngagementOverview = createServerFn({ method: "GET" })
     if (msgsErr) throw msgsErr;
     if (fbErr) throw fbErr;
 
+    // Section events — track which sections guests open (fire-and-forget, table may not exist yet)
+    let sectionEventsRaw: Array<{ property_id: string; section: string; created_at: string }> = [];
+    try {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const { data: se } = await (supabaseAdmin.from("guide_section_events" as never) as ReturnType<typeof supabaseAdmin.from>)
+        .select("property_id, section, created_at")
+        .in("property_id", propertyIds)
+        .order("created_at", { ascending: false })
+        .limit(5000) as { data: typeof sectionEventsRaw | null };
+      sectionEventsRaw = se ?? [];
+    } catch {
+      // Table may not exist yet — degrade gracefully
+    }
+
+    // Section aggregation: count by section across all properties
+    const sectionCount = new Map<string, number>();
+    for (const e of sectionEventsRaw) {
+      sectionCount.set(e.section, (sectionCount.get(e.section) ?? 0) + 1);
+    }
+    const sectionEvents = Array.from(sectionCount.entries())
+      .map(([section, count]) => ({ section, count }))
+      .sort((a, b) => b.count - a.count);
+
+    // Device breakdown from user_agent
+    const deviceBreakdown = { mobile: 0, tablet: 0, desktop: 0 };
+    for (const l of logs ?? []) {
+      const d = detectDevice(l.user_agent);
+      deviceBreakdown[d]++;
+    }
+
     type PropMetric = {
       name: string;
       slug: string;
@@ -80,6 +120,7 @@ export const getEngagementOverview = createServerFn({ method: "GET" })
       conversations: number;
       messages: number;
       uniqueGuests: Set<string>;
+      sessionsWithoutChat: number;
       lastAccess: string | null;
       feedbackCount: number;
     };
@@ -92,10 +133,18 @@ export const getEngagementOverview = createServerFn({ method: "GET" })
         conversations: 0,
         messages: 0,
         uniqueGuests: new Set(),
+        sessionsWithoutChat: 0,
         lastAccess: null,
         feedbackCount: 0,
       });
     }
+
+    // Track sessions that started a conversation
+    const sessionsWithChat = new Set<string>();
+    for (const c of convs ?? []) {
+      sessionsWithChat.add(`${c.property_id}:${c.guest_session_id}`);
+    }
+
     for (const l of logs ?? []) {
       const m = byProp.get(l.property_id);
       if (!m) continue;
@@ -108,7 +157,7 @@ export const getEngagementOverview = createServerFn({ method: "GET" })
       if (m) m.conversations++;
     }
     for (const msg of msgs ?? []) {
-      const propId = (msg as any).property_chat_conversations?.property_id as string | undefined;
+      const propId = (msg as { property_chat_conversations?: { property_id?: string } }).property_chat_conversations?.property_id;
       if (!propId) continue;
       const m = byProp.get(propId);
       if (m) m.messages++;
@@ -126,11 +175,12 @@ export const getEngagementOverview = createServerFn({ method: "GET" })
       total_conversations: m.conversations,
       total_messages: m.messages,
       unique_guests: m.uniqueGuests.size,
+      ai_adoption_rate: m.accesses > 0 ? Math.round((m.conversations / m.accesses) * 100) : 0,
       last_access: m.lastAccess,
       feedback_count: m.feedbackCount,
     }));
 
-    // 30-day time series of accesses & conversations
+    // 30-day time series
     const now = new Date();
     const days: string[] = [];
     for (let i = 29; i >= 0; i--) {
@@ -152,24 +202,48 @@ export const getEngagementOverview = createServerFn({ method: "GET" })
     }
     const timeseries = Array.from(dayMap.values());
 
-    // Host usability — distinct properties that have FAQs (count > 0)
+    // Guide completeness score (0–100)
+    function guideScore(p: NonNullable<typeof props>[number]): number {
+      let score = 0;
+      if (p.published) score += 20;
+      if (p.hero_image_url) score += 15;
+      if (p.tagline) score += 10;
+      if (p.wifi_ssid) score += 15;
+      if (p.checkin_instructions) score += 20;
+      if (p.house_rules) score += 10;
+      if (p.wifi_password) score += 10;
+      const recCount = Array.isArray((p as { recommendations?: unknown[] }).recommendations)
+        ? ((p as { recommendations: unknown[] }).recommendations).length
+        : 0;
+      if (recCount > 0) score += 0; // already counted via published
+      return Math.min(score, 100);
+    }
+
+    // FAQs per property
     const { data: faqRows } = await supabase
       .from("property_faqs")
       .select("property_id")
       .in("property_id", propertyIds);
     const propsWithFaqs = new Set((faqRows ?? []).map((r) => r.property_id));
+
     const lastEditedAt = (props ?? []).reduce<string | null>((acc, p) => {
-      const t = (p as any).updated_at as string | null;
+      const t = (p as { updated_at?: string | null }).updated_at ?? null;
       if (!t) return acc;
       if (!acc || t > acc) return t;
       return acc;
     }, null);
 
+    const guideCompleteness = (props ?? []).map((p) => ({
+      id: p.id,
+      name: p.name as string,
+      score: guideScore(p),
+      published: !!(p as { published?: boolean }).published,
+    }));
+
     const propLookup = new Map((props ?? []).map((p) => [p.id, p.name as string]));
     const logsWithProp = (logs ?? []).map((l) => ({ ...l, property_name: propLookup.get(l.property_id) ?? "—" }));
     const convsWithProp = (convs ?? []).map((c) => ({ ...c, property_name: propLookup.get(c.property_id) ?? "—" }));
 
-    void faqsCount;
     return {
       properties: props ?? [],
       logs: logsWithProp,
@@ -177,13 +251,16 @@ export const getEngagementOverview = createServerFn({ method: "GET" })
       metrics,
       feedback: feedback ?? [],
       timeseries,
+      sectionEvents,
+      deviceBreakdown,
       hostUsability: {
         totalGuides: (props ?? []).length,
-        publishedGuides: (props ?? []).filter((p) => (p as any).published).length,
+        publishedGuides: (props ?? []).filter((p) => !!(p as { published?: boolean }).published).length,
         guidesWithFaqs: propsWithFaqs.size,
         guidesWithKnowledge: knowCount ?? 0,
         guidesWithBehavior: behCount ?? 0,
         lastEditedAt,
+        guideCompleteness,
       },
     };
   });

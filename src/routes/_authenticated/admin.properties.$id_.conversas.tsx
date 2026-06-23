@@ -48,7 +48,7 @@ function ConversationsPage() {
         <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground font-semibold mb-2">
           Conversas dos hóspedes
         </p>
-        <h1 className="font-serif text-2xl sm:text-3xl">{data?.property.name ?? "Carregando…"}</h1>
+        <h1 className="font-display text-2xl sm:text-3xl">{data?.property.name ?? "Carregando…"}</h1>
         <p className="text-sm text-muted-foreground mt-2">
           Perguntas e respostas trocadas com o assistente do guia.
         </p>

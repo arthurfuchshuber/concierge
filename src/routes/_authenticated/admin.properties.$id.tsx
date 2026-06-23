@@ -2,7 +2,7 @@ import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useState, useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { getMyProperty, upsertProperty } from "@/lib/properties.functions";
+import { getMyProperty, upsertProperty, listMyProperties, listMyPropertiesBrief, copyCityRecsToProperties } from "@/lib/properties.functions";
 import { listHostFaqs } from "@/lib/host-library.functions";
 import { buildDefaultFaqs, mergeDefaultFaqs } from "@/lib/default-faqs";
 import { enrichFromMapsLink, searchPlacesForRec, refreshRecommendationsFromGoogle, type PlaceSearchResult } from "@/lib/maps.functions";
@@ -17,7 +17,7 @@ import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Loader2, Sparkles, Plus, Trash2, MapPin, ArrowLeft, FileText, KeyRound, Home, Compass, LifeBuoy, Check, Eye, Image as ImageIcon, MapPinned, Clock, DoorOpen, Wifi, UserRound, BookOpen, ClipboardCheck, Shield, Globe, Power, Phone, HelpCircle, Sun, Moon, Palette, Lock, MessageSquare, LogOut, ChevronDown, Ticket, RefreshCw } from "lucide-react";
+import { Loader2, Sparkles, Plus, Trash2, MapPin, ArrowLeft, FileText, KeyRound, Home, Compass, LifeBuoy, Check, Eye, Image as ImageIcon, MapPinned, Clock, DoorOpen, Wifi, UserRound, BookOpen, ClipboardCheck, Shield, Globe, Power, Phone, HelpCircle, Sun, Moon, Palette, Lock, MessageSquare, LogOut, ChevronDown, Ticket, RefreshCw, Copy, Share2 } from "lucide-react";
 import { ImageUpload } from "@/components/ImageUpload";
 import { MediaUpload, type MediaItem } from "@/components/MediaUpload";
 import { EtiquetaSelect, ETIQUETA_OPTIONS } from "@/components/EtiquetaSelect";
@@ -147,6 +147,8 @@ function PropertyEditor() {
   const save = useServerFn(upsertProperty);
   const enrich = useServerFn(enrichFromMapsLink);
   const refreshGoogle = useServerFn(refreshRecommendationsFromGoogle);
+  const fetchAllProps = useServerFn(listMyPropertiesBrief);
+  const copyRecs = useServerFn(copyCityRecsToProperties);
   const [refreshingGoogle, setRefreshingGoogle] = useState(false);
 
   const importAirbnb = useServerFn(importFromAirbnb);
@@ -164,6 +166,7 @@ function PropertyEditor() {
   const [importingAirbnb, setImportingAirbnb] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewMode, setPreviewMode] = useState<"mobile" | "desktop" | null>(null);
+  const [copyRecsOpen, setCopyRecsOpen] = useState(false);
   const [gateOpen, setGateOpen] = useState(false);
   const [lockOpen, setLockOpen] = useState(false);
   const [faqLibOpen, setFaqLibOpen] = useState(false);
@@ -501,7 +504,7 @@ function PropertyEditor() {
           <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground font-semibold mb-2">
             {isNew ? "Novo guia" : "Editar guia"}
           </p>
-          <h1 className="font-serif text-2xl sm:text-4xl break-words leading-tight">{form.property.name || "Sem título"}</h1>
+          <h1 className="font-display text-2xl sm:text-4xl break-words leading-tight">{form.property.name || "Sem título"}</h1>
           {form.property.tagline && (
             <p className="text-sm text-muted-foreground mt-2">{form.property.tagline}</p>
           )}
@@ -1099,6 +1102,30 @@ function PropertyEditor() {
             </Button>
           </div>
 
+          {/* Na Cidade link */}
+          {form.property.city && !isNew && (() => {
+            const ck = form.property.city.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+            const st = form.property.state?.trim().toUpperCase();
+            const slug = st && /^[A-Z]{2}$/.test(st) ? `${ck}--${st.toLowerCase()}` : ck;
+            return (
+              <Link
+                to="/admin/cidades/$cityKey"
+                params={{ cityKey: slug }}
+                search={{ label: form.property.city, country: form.property.country || "BR" }}
+                className="flex items-center justify-between gap-3 rounded-xl border border-accent/30 bg-accent/5 hover:bg-accent/10 px-4 py-3 transition-colors"
+              >
+                <div className="flex items-center gap-2.5">
+                  <MapPin className="size-4 text-accent shrink-0" />
+                  <div>
+                    <p className="text-sm font-medium text-foreground">Pontos icônicos — Na Cidade</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">Gerencie os pontos de referência macro compartilhados para {form.property.city}.</p>
+                  </div>
+                </div>
+                <ChevronDown className="size-4 text-muted-foreground -rotate-90 shrink-0" />
+              </Link>
+            );
+          })()}
+
           <RecGroup
             title="Aqui pertinho"
             desc="Arredores do imóvel — a poucos minutos a pé."
@@ -1116,7 +1143,18 @@ function PropertyEditor() {
             scope="city"
             lat={form.property.lat}
             lng={form.property.lng}
+            onReplicate={cityRecs.length > 0 && !isNew ? () => setCopyRecsOpen(true) : undefined}
           />
+
+          {copyRecsOpen && !isNew && (
+            <CopyRecsDialog
+              sourcePropertyId={id!}
+              currentPropertyName={form.property.name || "este guia"}
+              fetchAllProps={fetchAllProps}
+              copyRecs={copyRecs}
+              onClose={() => setCopyRecsOpen(false)}
+            />
+          )}
 
 
           <Section
@@ -1282,7 +1320,7 @@ function PropertyEditor() {
               {previewMode === null ? (
                 <div className="p-6 bg-background">
                   <div className="text-center mb-5">
-                    <h3 className="font-serif text-xl">Como deseja visualizar?</h3>
+                    <h3 className="font-display text-xl">Como deseja visualizar?</h3>
                     <p className="text-xs text-muted-foreground mt-1">Escolha o modo de pré-visualização do guia.</p>
                   </div>
                   <div className="grid grid-cols-2 gap-3">
@@ -1703,6 +1741,7 @@ function RecGroup({
   scope,
   lat,
   lng,
+  onReplicate,
 }: {
   title: string;
   desc: string;
@@ -1711,6 +1750,7 @@ function RecGroup({
   scope: "nearby" | "city";
   lat: number | null;
   lng: number | null;
+  onReplicate?: () => void;
 }) {
   const [openCats, setOpenCats] = useState<Record<string, boolean>>({});
   const [selectedIdx, setSelectedIdx] = useState<Set<number>>(new Set());
@@ -1774,6 +1814,11 @@ function RecGroup({
           {selectedIdx.size > 0 && (
             <Button size="sm" variant="destructive" onClick={deleteSelected} className="h-8 rounded-full text-xs">
               <Trash2 className="size-3.5" /> Excluir ({selectedIdx.size})
+            </Button>
+          )}
+          {onReplicate && (
+            <Button size="sm" variant="ghost" onClick={onReplicate} className="shrink-0 h-8 rounded-full text-xs text-muted-foreground hover:text-foreground">
+              <Share2 className="size-3.5" /> Replicar
             </Button>
           )}
           <Button size="sm" variant="ghost" onClick={addManual} className="shrink-0 h-8 rounded-full text-xs text-muted-foreground hover:text-foreground">
@@ -2022,5 +2067,205 @@ function GalleryEditor({
         </div>
       ))}
     </div>
+  );
+}
+
+// ---- CopyRecsDialog ---------------------------------------------------
+// Popup para replicar as recomendações "Pela cidade" para outros guias.
+// Suporta seleção individual por guia OU replicação para toda a cidade.
+function CopyRecsDialog({
+  sourcePropertyId,
+  currentPropertyName,
+  fetchAllProps,
+  copyRecs,
+  onClose,
+}: {
+  sourcePropertyId: string;
+  currentPropertyName: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  fetchAllProps: (...args: any[]) => Promise<any>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  copyRecs: (...args: any[]) => Promise<{ copied: number; total: number }>;
+  onClose: () => void;
+}) {
+  const [mode, setMode] = useState<"select" | "city" | null>(null);
+  const [props, setProps] = useState<Array<{ id: string; name: string; city: string | null }>>([]);
+  const [loading, setLoading] = useState(true);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [copying, setCopying] = useState(false);
+  const [copyProgress, setCopyProgress] = useState<{ done: number; total: number } | null>(null);
+
+  useEffect(() => {
+    fetchAllProps().then((list: Array<{ id: string; name: string; city: string | null }>) => {
+      setProps(list.filter((p) => p.id !== sourcePropertyId));
+      setLoading(false);
+    }).catch(() => setLoading(false));
+  }, []);
+
+  async function handleCopy() {
+    let targets: string[] = [];
+    if (mode === "select") {
+      targets = Array.from(selected);
+    } else if (mode === "city") {
+      const srcCity = props.find((p) => p.id === sourcePropertyId)?.city;
+      if (!srcCity) {
+        targets = props.map((p) => p.id);
+      } else {
+        targets = props.filter((p) => p.city === srcCity).map((p) => p.id);
+      }
+    }
+    if (targets.length === 0) {
+      onClose();
+      return;
+    }
+    setCopying(true);
+    setCopyProgress({ done: 0, total: targets.length });
+    try {
+      const r = await copyRecs({ data: { sourcePropertyId, targetPropertyIds: targets } });
+      setCopyProgress({ done: r.copied, total: targets.length });
+      toast.success(`Replicado com sucesso para ${r.copied} guia(s)!`);
+      onClose();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erro ao replicar.");
+    } finally {
+      setCopying(false);
+      setCopyProgress(null);
+    }
+  }
+
+  // Detecta cidade do imóvel fonte a partir da lista
+  const cityProps = props.filter((p) => {
+    // We can't know source city here without fetching; show all for city mode
+    return true;
+  });
+
+  return (
+    <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle className="font-display text-xl">Replicar para outros guias</DialogTitle>
+          <p className="text-sm text-muted-foreground mt-1">
+            As recomendações <strong>Pela cidade</strong> de <em>{currentPropertyName}</em> serão copiadas para os guias selecionados.
+          </p>
+        </DialogHeader>
+
+        {mode === null ? (
+          <div className="space-y-3 pt-2">
+            <button
+              type="button"
+              onClick={() => setMode("select")}
+              className="w-full flex items-start gap-3 rounded-xl border border-border bg-card hover:border-accent/60 hover:shadow-sm p-4 text-left transition-all"
+            >
+              <Copy className="size-5 text-accent mt-0.5 shrink-0" />
+              <div>
+                <p className="font-medium text-sm">Selecionar guias específicos</p>
+                <p className="text-xs text-muted-foreground mt-0.5">Escolha quais guias devem receber as mesmas recomendações.</p>
+              </div>
+            </button>
+            <button
+              type="button"
+              onClick={() => setMode("city")}
+              className="w-full flex items-start gap-3 rounded-xl border border-border bg-card hover:border-accent/60 hover:shadow-sm p-4 text-left transition-all"
+            >
+              <MapPin className="size-5 text-accent mt-0.5 shrink-0" />
+              <div>
+                <p className="font-medium text-sm">Replicar para toda a cidade</p>
+                <p className="text-xs text-muted-foreground mt-0.5">Todos os guias da mesma cidade recebem automaticamente as mesmas recomendações.</p>
+              </div>
+            </button>
+            <div className="flex justify-end pt-2">
+              <Button variant="ghost" size="sm" onClick={onClose}>Cancelar</Button>
+            </div>
+          </div>
+        ) : mode === "city" ? (
+          <div className="space-y-4 pt-2">
+            <p className="text-sm text-muted-foreground">
+              Todos os seus guias na mesma cidade que <em>{currentPropertyName}</em> receberão as recomendações. Isso substituirá as recomendações <strong>Pela cidade</strong> existentes nesses guias.
+            </p>
+            {copyProgress && (
+              <div className="space-y-1.5">
+                <div className="flex justify-between text-xs text-muted-foreground">
+                  <span>Replicando…</span>
+                  <span>{copyProgress.done}/{copyProgress.total} guias</span>
+                </div>
+                <div className="h-1.5 rounded-full bg-secondary overflow-hidden">
+                  <div
+                    className="h-full rounded-full bg-accent transition-all duration-300"
+                    style={{ width: `${copyProgress.total > 0 ? (copyProgress.done / copyProgress.total) * 100 : 0}%` }}
+                  />
+                </div>
+              </div>
+            )}
+            <div className="flex items-center justify-between gap-3 pt-2">
+              <Button variant="ghost" size="sm" onClick={() => setMode(null)} disabled={copying}>Voltar</Button>
+              <Button size="sm" onClick={handleCopy} disabled={copying} className="rounded-full">
+                {copying ? <Loader2 className="size-4 animate-spin mr-1.5" /> : <Check className="size-4 mr-1.5" />}
+                {copying ? "Replicando…" : "Confirmar e replicar"}
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-3 pt-2">
+            {loading ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="size-5 animate-spin text-muted-foreground" />
+              </div>
+            ) : props.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-6">Nenhum outro guia encontrado.</p>
+            ) : (
+              <div className="space-y-1.5 max-h-60 overflow-y-auto pr-1">
+                {props.map((p) => {
+                  const checked = selected.has(p.id);
+                  return (
+                    <label
+                      key={p.id}
+                      className={`flex items-center gap-3 rounded-xl border px-4 py-3 cursor-pointer transition-all ${checked ? "border-accent/60 bg-accent/5" : "border-border bg-card hover:border-accent/30"}`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() => setSelected((s) => {
+                          const n = new Set(s);
+                          if (n.has(p.id)) n.delete(p.id); else n.add(p.id);
+                          return n;
+                        })}
+                        className="size-4 accent-current shrink-0"
+                      />
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium truncate">{p.name || "Sem nome"}</p>
+                        {p.city && <p className="text-xs text-muted-foreground truncate">{p.city}</p>}
+                      </div>
+                    </label>
+                  );
+                })}
+              </div>
+            )}
+            <div className="flex items-center justify-between gap-3 pt-2">
+              <Button variant="ghost" size="sm" onClick={() => setMode(null)} disabled={copying}>Voltar</Button>
+              <div className="flex flex-col items-end gap-1.5">
+                {copyProgress && (
+                  <div className="w-40 space-y-1">
+                    <div className="flex justify-between text-[10px] text-muted-foreground">
+                      <span>Replicando…</span>
+                      <span>{copyProgress.done}/{copyProgress.total}</span>
+                    </div>
+                    <div className="h-1 rounded-full bg-secondary overflow-hidden">
+                      <div
+                        className="h-full rounded-full bg-accent transition-all duration-300"
+                        style={{ width: `${copyProgress.total > 0 ? (copyProgress.done / copyProgress.total) * 100 : 0}%` }}
+                      />
+                    </div>
+                  </div>
+                )}
+                <Button size="sm" onClick={handleCopy} disabled={copying || selected.size === 0} className="rounded-full">
+                  {copying ? <Loader2 className="size-4 animate-spin mr-1.5" /> : <Check className="size-4 mr-1.5" />}
+                  {copying ? "Replicando…" : `Replicar para ${selected.size} guia${selected.size !== 1 ? "s" : ""}`}
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
   );
 }

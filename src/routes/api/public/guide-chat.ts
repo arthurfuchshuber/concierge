@@ -1,19 +1,49 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { getCookie } from "@tanstack/react-start/server";
 import { z } from "zod";
+import type { Database } from "@/integrations/supabase/types";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
-// In-process rate limiter: max 10 messages per sessionId per 60s window.
-// Resets on deployment (acceptable trade-off vs. DB overhead for this use case).
+type PropertyRow = Database["public"]["Tables"]["properties"]["Row"];
+
+// In-process rate limiters (reset on deployment — acceptable vs DB overhead).
+// 1) Per-session: max 10 messages per session per 60s
+// 2) Per-IP: max 30 messages per IP per 60s (prevents session spoofing)
+// 3) Per-guide: max 200 messages per guide per day (cost protection)
 const sessionMessageTimes = new Map<string, number[]>();
-function checkRateLimit(sessionId: string): boolean {
+const ipMessageTimes = new Map<string, number[]>();
+const guideDailyCount = new Map<string, { date: string; count: number }>();
+
+function checkRateLimit(sessionId: string, ip: string, slug: string): { ok: boolean; reason?: string } {
   const now = Date.now();
-  const window = 60_000;
-  const max = 10;
-  const times = (sessionMessageTimes.get(sessionId) ?? []).filter((t) => now - t < window);
-  if (times.length >= max) return false;
-  times.push(now);
-  sessionMessageTimes.set(sessionId, times);
-  return true;
+  const min = 60_000;
+  const day = 86_400_000;
+
+  // Session limit: 10/min
+  const sessionTimes = (sessionMessageTimes.get(sessionId) ?? []).filter((t) => now - t < min);
+  if (sessionTimes.length >= 10) return { ok: false, reason: "session" };
+  sessionTimes.push(now);
+  sessionMessageTimes.set(sessionId, sessionTimes);
+
+  // IP limit: 30/min (only when IP is available)
+  if (ip) {
+    const ipTimes = (ipMessageTimes.get(ip) ?? []).filter((t) => now - t < min);
+    if (ipTimes.length >= 30) return { ok: false, reason: "ip" };
+    ipTimes.push(now);
+    ipMessageTimes.set(ip, ipTimes);
+  }
+
+  // Guide daily budget: 200/day
+  const today = new Date().toISOString().slice(0, 10);
+  const guideBucket = guideDailyCount.get(slug);
+  if (guideBucket && guideBucket.date === today) {
+    if (guideBucket.count >= 200) return { ok: false, reason: "guide_daily" };
+    guideBucket.count += 1;
+  } else {
+    guideDailyCount.set(slug, { date: today, count: 1 });
+  }
+
+  return { ok: true };
 }
 
 const Body = z.object({
@@ -55,7 +85,7 @@ type CityReference = {
   note: string | null;
 };
 
-function buildContext(p: Record<string, unknown>, kids: {
+function buildContext(p: PropertyRow, kids: {
   manual: Array<Record<string, unknown>>;
   faqs: Array<Record<string, unknown>>;
   emergency: Array<Record<string, unknown>>;
@@ -78,12 +108,15 @@ function buildContext(p: Record<string, unknown>, kids: {
   if (p.checkout_instructions) lines.push(`Instruções de check-out: ${p.checkout_instructions}`);
   const locked = typeof p.access_codes_pin === "string" && p.access_codes_pin.trim().length > 0;
   const mask = (v: unknown) => (locked ? "[BLOQUEADO POR SENHA]" : v);
+  // host_phone é dado pessoal — sempre mascarado, independente de PIN.
+  // Hóspede deve usar os canais da plataforma (Airbnb/Booking) para contato.
+  const maskPhone = (_v: unknown) => "[Contate o anfitrião pela plataforma de reserva]";
   if (p.wifi_ssid) lines.push(`Wi-Fi rede: ${p.wifi_ssid}`);
   if (p.wifi_password) lines.push(`Wi-Fi senha: ${mask(p.wifi_password)}`);
   if (p.gate_code) lines.push(`Código do portão: ${mask(p.gate_code)}`);
   if (p.lock_code) lines.push(`Código da fechadura: ${mask(p.lock_code)}`);
   if (p.host_name) lines.push(`Anfitrião: ${p.host_name}`);
-  if (p.host_phone) lines.push(`Telefone do anfitrião: ${p.host_phone}`);
+  if (p.host_phone) lines.push(`Telefone do anfitrião: ${maskPhone(p.host_phone)}`);
 
   if (kids.knowledge.length) {
     lines.push("\n## Conhecimento do anfitrião");
@@ -154,8 +187,10 @@ export const Route = createFileRoute("/api/public/guide-chat")({
           return new Response(JSON.stringify({ error: "Entrada inválida." }), { status: 400, headers: { "Content-Type": "application/json" } });
         }
 
-        // Rate limit: 10 messages per session per minute
-        if (!checkRateLimit(body.sessionId)) {
+        // Rate limit checks
+        const clientIp = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "";
+        const rl = checkRateLimit(body.sessionId, clientIp, body.slug);
+        if (!rl.ok) {
           return new Response(
             JSON.stringify({ error: "Muitas mensagens em pouco tempo. Aguarde um momento." }),
             { status: 429, headers: { "Content-Type": "application/json" } },
@@ -174,7 +209,7 @@ export const Route = createFileRoute("/api/public/guide-chat")({
           .select("*")
           .eq("slug", body.slug)
           .eq("published", true)
-          .maybeSingle();
+          .maybeSingle<PropertyRow>();
 
         if (!prop) {
           return new Response(JSON.stringify({ error: "Guia não encontrado." }), { status: 404, headers: { "Content-Type": "application/json" } });
@@ -188,7 +223,7 @@ export const Route = createFileRoute("/api/public/guide-chat")({
 
         // Gate: AI chat is only available to Business / Enterprise plan owners.
         const { resolveOwnerPlanAdmin } = await import("@/lib/plan-guard.server");
-        const ownerPlan = await resolveOwnerPlanAdmin(supabaseAdmin as any, (prop as any).owner_id as string);
+        const ownerPlan = await resolveOwnerPlanAdmin(supabaseAdmin as SupabaseClient, prop.owner_id);
         if (!ownerPlan.features.ai) {
           return new Response(
             JSON.stringify({ error: "A assistente IA não está disponível neste guia." }),
@@ -197,10 +232,9 @@ export const Route = createFileRoute("/api/public/guide-chat")({
         }
 
         // Resolve city key for city_references lookup
-        const { cityKey, normalizeState } = await import("@/lib/city-key");
-        const ck = cityKey((prop as any).city as string | null);
-        const st = normalizeState((prop as any).state as string | null);
-        const propCountry = ((prop as any).country as string | null) ?? "BR";
+        const { cityKey } = await import("@/lib/city-key");
+        const ck = cityKey(prop.city);
+        const propCountry = prop.country ?? "BR";
 
         const [manualR, faqsR, emergR, checkoutR, recsR, knowledgeR, behaviorR, cityRefsR] = await Promise.all([
           supabaseAdmin.from("property_manual_items").select("title, description, body").eq("property_id", prop.id).order("position"),
@@ -211,22 +245,18 @@ export const Route = createFileRoute("/api/public/guide-chat")({
           supabaseAdmin.from("host_knowledge").select("title, body").eq("owner_id", prop.owner_id).eq("enabled", true).order("position"),
           supabaseAdmin.from("host_behavior").select("title, body").eq("owner_id", prop.owner_id).eq("enabled", true).order("position"),
           ck
-            ? (() => {
-                let q = supabaseAdmin
-                  .from("city_references")
-                  .select("name, category, type, note")
-                  .eq("city_key", ck)
-                  .eq("country", propCountry)
-                  .eq("is_hidden", false)
-                  .order("type")
-                  .order("user_ratings_total", { ascending: false });
-                q = st ? q.eq("state", st) : q.is("state", null);
-                return q;
-              })()
+            ? supabaseAdmin
+                .from("city_references")
+                .select("name, category, type, note")
+                .eq("city_key", ck)
+                .eq("country", propCountry)
+                .eq("is_hidden", false)
+                .order("type")
+                .order("user_ratings_total", { ascending: false })
             : Promise.resolve({ data: [] }),
         ]);
 
-        const systemContext = buildContext(prop as Record<string, unknown>, {
+        const systemContext = buildContext(prop, {
           manual: (manualR.data as Array<Record<string, unknown>>) ?? [],
           faqs: (faqsR.data as Array<Record<string, unknown>>) ?? [],
           emergency: (emergR.data as Array<Record<string, unknown>>) ?? [],

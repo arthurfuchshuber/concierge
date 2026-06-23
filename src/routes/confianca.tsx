@@ -72,7 +72,7 @@ function TrustPage() {
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-border bg-card text-xs text-muted-foreground">
             <ShieldCheck className="size-3.5" /> Página mantida pela SigmaGuide
           </div>
-          <h1 className="font-serif text-4xl mt-4">Central de Confiança</h1>
+          <h1 className="font-display text-4xl mt-4">Central de Confiança</h1>
           <p className="text-sm text-muted-foreground mt-2 max-w-2xl">
             Esta página é mantida pela equipe do SigmaGuide para responder dúvidas
             comuns sobre segurança, privacidade e operação do produto. Não constitui
@@ -223,7 +223,7 @@ function Block({
         <div className="size-8 rounded-lg bg-secondary grid place-items-center text-foreground">
           {icon}
         </div>
-        <h2 className="font-serif text-xl">{title}</h2>
+        <h2 className="font-display text-xl">{title}</h2>
       </div>
       <div className="text-sm text-foreground/85">{children}</div>
     </div>

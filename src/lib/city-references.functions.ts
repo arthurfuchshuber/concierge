@@ -38,6 +38,8 @@ async function isAdmin(ctx: any): Promise<boolean> {
 }
 
 // Admin OU dono de ao menos uma residência na cidade indicada.
+// Compara por city_key + country apenas — state pode ser inconsistente
+// entre registros (alguns salvos com UF, outros sem).
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function assertCanManageCity(
   ctx: any,
@@ -48,13 +50,13 @@ async function assertCanManageCity(
   const key = cityKey(args.city_label);
   const { data: rows } = await supabaseAdmin
     .from("properties")
-    .select("city, state, country")
+    .select("city, country")
     .eq("owner_id", ctx.userId);
   const owns = (rows ?? []).some((p) => {
-    const pState = normalizeState((p as { state: string | null }).state ?? null);
     const pCountry = ((p as { country: string | null }).country ?? "BR");
     const pKey = cityKey((p as { city: string | null }).city ?? "");
-    return pKey === key && pState === args.state && pCountry === args.country;
+    // Ignora state — deduplicação é por city_key + country
+    return pKey === key && pCountry === args.country;
   });
   if (!owns) throw new Error("Você não tem residências cadastradas nesta cidade.");
 }
@@ -84,8 +86,9 @@ export const listCityReferences = createServerFn({ method: "POST" })
     await assertCanManageCity(context, { city_label: data.city_label, state: normalizeState(data.state ?? null), country: data.country });
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const key = cityKey(data.city_label);
-    const st = normalizeState(data.state ?? null);
-    let q = supabaseAdmin
+    // Query by city_key + country only — state may differ across records due to
+    // historical inconsistency (some saved with state, some without). Showing all.
+    const { data: rows, error } = await supabaseAdmin
       .from("city_references")
       .select("*")
       .eq("city_key", key)
@@ -93,8 +96,6 @@ export const listCityReferences = createServerFn({ method: "POST" })
       .order("type")
       .order("display_order")
       .order("user_ratings_total", { ascending: false });
-    q = st ? q.eq("state", st) : q.is("state", null);
-    const { data: rows, error } = await q;
     if (error) throw new Error(error.message);
 
     const { data: job } = await supabaseAdmin
@@ -214,13 +215,14 @@ export async function runCityGeneration(input: {
   if (failed > 0 && status === "ok") status = "partial";
 
   {
-    let jobQ = supabaseAdmin
+    // Upsert do job por city_key + country apenas (ignora state para
+    // evitar jobs duplicados quando o mesmo city_key tem state inconsistente).
+    const { data: jobRow } = await supabaseAdmin
       .from("city_reference_jobs")
       .select("id")
       .eq("city_key", key)
-      .eq("country", country);
-    jobQ = st ? jobQ.eq("state", st) : jobQ.is("state", null);
-    const { data: jobRow } = await jobQ.maybeSingle();
+      .eq("country", country)
+      .maybeSingle();
     const jobPayload = {
       city_key: key,
       city_label: input.city_label,
@@ -394,15 +396,17 @@ export const listAdminCities = createServerFn({ method: "POST" })
       ref_count: number;
     };
     const map = new Map<string, Bucket>();
-    const k = (city_key: string, state: string | null, country: string) =>
-      `${city_key}|${state ?? ""}|${country}`;
+    // Use city_key+country as the deduplication key (ignore state inconsistency
+    // between properties — state may or may not be set across records).
+    const k = (city_key: string, country: string) =>
+      `${city_key}|${country}`;
 
     for (const p of (props ?? []) as Array<{ city: string | null; state: string | null; country: string | null }>) {
       if (!p.city) continue;
       const country = p.country ?? "BR";
       const state = normalizeState(p.state);
       const key = cityKey(p.city);
-      const id = k(key, state, country);
+      const id = k(key, country);
       const b = map.get(id) ?? {
         city_key: key,
         city_label: p.city,
@@ -414,10 +418,12 @@ export const listAdminCities = createServerFn({ method: "POST" })
         ref_count: 0,
       };
       b.properties += 1;
+      // Prefer state-set value for display
+      if (!b.state && state) b.state = state;
       map.set(id, b);
     }
     for (const j of (jobs ?? []) as Array<{ city_key: string; city_label: string; state: string | null; country: string; last_refreshed_at: string | null; last_status: string | null }>) {
-      const id = k(j.city_key, j.state, j.country);
+      const id = k(j.city_key, j.country);
       const existing = map.get(id);
       if (!existing && !admin) continue; // hosts: só cidades das próprias residências
       const b = existing ?? {
@@ -439,7 +445,7 @@ export const listAdminCities = createServerFn({ method: "POST" })
       .from("city_references")
       .select("city_key, state, country");
     for (const r of (refs ?? []) as Array<{ city_key: string; state: string | null; country: string }>) {
-      const id = k(r.city_key, r.state, r.country);
+      const id = k(r.city_key, r.country);
       const b = map.get(id);
       if (b) b.ref_count += 1;
     }

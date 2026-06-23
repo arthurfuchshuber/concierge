@@ -5,8 +5,9 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
-  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
-  --font-serif: "DM Serif Display", "Playfair Display", "Cormorant Garamond", Georgia, ui-serif, serif;
+  --font-sans: "Plus Jakarta Sans", "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "DM Serif Display", "Cormorant Garamond", Georgia, ui-serif, serif;
+  --font-display: "Plus Jakarta Sans", "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, monospace;
 
   --radius-sm: calc(var(--radius) - 4px);
@@ -123,9 +124,31 @@
     color: var(--color-foreground);
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
+    font-feature-settings: "kern", "liga", "calt";
   }
 
+  /* SaaS display headings — Plus Jakarta Sans, bold, tight tracking */
+  .font-display {
+    font-family: "Plus Jakarta Sans", "Inter", ui-sans-serif, system-ui, sans-serif;
+    font-weight: 700;
+    letter-spacing: -0.025em;
+    line-height: 1.1;
+    font-feature-settings: "kern", "liga", "calt", "ss01";
+  }
+
+  /* At xl+ sizes use extra-bold for more visual impact */
+  .font-display.text-4xl,
+  .font-display.text-5xl,
+  .font-display.text-6xl,
+  .md\:text-4xl.font-display,
+  .md\:text-5xl.font-display {
+    font-weight: 800;
+    letter-spacing: -0.03em;
+  }
+
+  /* Editorial serif — kept for the public guest guide only */
   .font-serif {
     font-family: var(--font-serif);
     letter-spacing: -0.02em;

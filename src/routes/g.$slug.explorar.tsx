@@ -170,14 +170,20 @@ function formatDriving(r: Rec): string | null {
   return null;
 }
 
-function safeHttpsHref(value: string | null | undefined): string | undefined {
-  if (!value) return undefined;
-  try {
-    const url = new URL(value);
-    return url.protocol === "https:" ? url.toString() : undefined;
-  } catch {
-    return undefined;
+function safeHttpsHref(value: string | null | undefined, fallbackName?: string): string | undefined {
+  if (value) {
+    try {
+      const url = new URL(value);
+      if (url.protocol === "https:") return url.toString();
+    } catch {
+      // fall through to fallback
+    }
   }
+  // Fallback: Google Maps search by name
+  if (fallbackName?.trim()) {
+    return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(fallbackName.trim())}`;
+  }
+  return undefined;
 }
 
 function todayOpening(hours: string[] | null | undefined): string | null {
@@ -431,16 +437,6 @@ function ExplorePage() {
             <h1 className="font-serif text-[2.1rem] md:text-[2.8rem] leading-[1.02] tracking-tight">
               {active ? active.meta.title : "Explore a Região"}
             </h1>
-            {(propLat !== null && propLng !== null) && (
-              <button
-                type="button"
-                onClick={() => setShowMap(true)}
-                className="shrink-0 mt-1 inline-flex items-center gap-1.5 rounded-full border border-accent/40 bg-accent/10 hover:bg-accent/20 text-accent px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] transition-colors"
-              >
-                <Map className="size-3.5" strokeWidth={2} />
-                Ver no mapa
-              </button>
-            )}
           </div>
           <p className="text-[13px] md:text-[14px] text-muted-foreground mt-3 leading-relaxed max-w-[52ch]">
             {active
@@ -487,7 +483,15 @@ function ExplorePage() {
 
 
         {categories.length === 0 && cityRefs.length === 0 && (!Array.isArray(p.marketplace_links) || p.marketplace_links.length === 0) && (
-          <p className="text-sm text-muted-foreground">Sem recomendações cadastradas ainda.</p>
+          <div className="flex flex-col items-center justify-center gap-3 py-16 text-center">
+            <div className="size-14 rounded-2xl bg-accent/10 grid place-items-center">
+              <Compass className="size-7 text-accent/60" strokeWidth={1.25} />
+            </div>
+            <p className="text-[15px] font-medium">Recomendações a caminho</p>
+            <p className="text-sm text-muted-foreground max-w-xs leading-relaxed">
+              O anfitrião ainda está preparando as dicas desta hospedagem. Volte em breve!
+            </p>
+          </div>
         )}
 
         {!active && (() => {
@@ -942,7 +946,7 @@ function CollapsibleSection({
 function RecCard({ rec }: { rec: Rec }) {
   const walking = formatWalking(rec);
   const driving = formatDriving(rec);
-  const href = safeHttpsHref(rec.maps_url);
+  const href = safeHttpsHref(rec.maps_url, rec.name);
   const typeLabel = TYPE_LABEL[rec.type] || rec.category || rec.type;
 
   const inner = (
@@ -1024,7 +1028,7 @@ function RecCard({ rec }: { rec: Rec }) {
 function RecRow({ rec }: { rec: Rec }) {
   const walking = formatWalking(rec);
   const driving = formatDriving(rec);
-  const href = safeHttpsHref(rec.maps_url);
+  const href = safeHttpsHref(rec.maps_url, rec.name);
   const typeLabel = TYPE_LABEL[rec.type] || rec.category || rec.type;
 
   const inner = (
@@ -1253,6 +1257,7 @@ function EmbeddedMapModal({
                     <img
                       src={rec.image_url}
                       alt={rec.name}
+                      loading="lazy"
                       className="size-9 rounded-lg object-cover shrink-0"
                     />
                   ) : (

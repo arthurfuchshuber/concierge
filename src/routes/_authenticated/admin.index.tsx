@@ -153,7 +153,7 @@ function Dashboard() {
       {/* Welcome */}
       <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-8">
         <div>
-          <h1 className="font-serif text-3xl md:text-4xl leading-tight">Bem-vindo de volta</h1>
+          <h1 className="font-display text-3xl md:text-4xl leading-tight">Bem-vindo de volta</h1>
           <p className="text-sm text-muted-foreground mt-1.5">
             Aqui está o resumo do seu painel hoje.
           </p>
@@ -194,7 +194,7 @@ function Dashboard() {
             <CreditCard className="size-4 text-muted-foreground" />
           </div>
           <div className="flex items-baseline gap-2 flex-wrap">
-            <span className="text-2xl font-serif">{planName}</span>
+            <span className="text-2xl font-display">{planName}</span>
             {sub.isTrialing && (
               <span className="text-[10px] uppercase tracking-wider font-semibold text-accent bg-accent/10 px-2 py-0.5 rounded-full">Trial</span>
             )}
@@ -245,7 +245,7 @@ function Dashboard() {
             <span className="text-sm font-medium text-muted-foreground">Uso de guias</span>
             <BookOpen className="size-4 text-muted-foreground" />
           </div>
-          <div className="text-2xl font-serif">
+          <div className="text-2xl font-display">
             {count}{" "}
             <span className="text-sm text-muted-foreground font-sans">
               / {planLimit ? (planLimit >= 9999 ? "ilimitado" : planLimit) : "—"}
@@ -289,7 +289,7 @@ function Dashboard() {
       {/* Guias section */}
       <div className="flex flex-col gap-4 mb-5">
         <div className="flex items-center justify-between gap-3">
-          <h2 className="font-serif text-2xl">Seus guias</h2>
+          <h2 className="font-display text-2xl">Seus guias</h2>
           <div className="flex items-center gap-1 rounded-full border border-border p-1 bg-card">
             <button
               onClick={() => setView("grid")}
@@ -398,10 +398,10 @@ function Dashboard() {
           <div className="flex items-center justify-between mb-5">
             <div>
               <p className="text-[10px] uppercase tracking-[0.2em] text-accent font-semibold mb-1">Primeiros passos</p>
-              <h3 className="font-serif text-xl">Crie seu primeiro guia em minutos</h3>
+              <h3 className="font-display text-xl">Crie seu primeiro guia em minutos</h3>
             </div>
             <div className="text-right">
-              <span className="text-2xl font-serif text-accent">01</span>
+              <span className="text-2xl font-display text-accent">01</span>
               <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">/ 05</p>
             </div>
           </div>
@@ -431,7 +431,7 @@ function Dashboard() {
           <div className="size-12 rounded-2xl bg-accent/10 grid place-items-center mx-auto mb-4">
             <BookOpen className="size-5 text-accent" />
           </div>
-          <h3 className="font-serif text-2xl mb-2">Crie seu primeiro guia</h3>
+          <h3 className="font-display text-2xl mb-2">Crie seu primeiro guia</h3>
           <p className="text-sm text-muted-foreground mb-6 max-w-md mx-auto">
             Você só precisa do nome do imóvel e do link do Google Maps. Cuidamos do resto.
           </p>
@@ -445,7 +445,7 @@ function Dashboard() {
           <div className="size-12 rounded-2xl bg-secondary grid place-items-center mx-auto mb-4">
             <Search className="size-5 text-muted-foreground" />
           </div>
-          <h3 className="font-serif text-xl mb-2">Nenhum guia encontrado</h3>
+          <h3 className="font-display text-xl mb-2">Nenhum guia encontrado</h3>
           <p className="text-sm text-muted-foreground mb-5 max-w-md mx-auto">
             Tente ajustar a busca ou limpar os filtros.
           </p>
@@ -712,7 +712,7 @@ function Dashboard() {
           {previewMode === null ? (
             <div className="p-6 bg-background">
               <div className="text-center mb-5">
-                <h3 className="font-serif text-xl">Como deseja visualizar?</h3>
+                <h3 className="font-display text-xl">Como deseja visualizar?</h3>
                 <p className="text-xs text-muted-foreground mt-1">Escolha como abrir o guia.</p>
               </div>
               <div className="grid grid-cols-2 gap-3">

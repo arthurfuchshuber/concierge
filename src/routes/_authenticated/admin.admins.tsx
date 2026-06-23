@@ -77,7 +77,7 @@ function AdminsPage() {
       <div className="inline-flex items-center gap-2 text-[10px] uppercase tracking-[0.18em] text-accent font-semibold mb-2">
         <Shield className="size-3" /> Admin SaaS
       </div>
-      <h1 className="font-serif text-3xl md:text-4xl flex items-center gap-2.5">
+      <h1 className="font-display text-3xl md:text-4xl flex items-center gap-2.5">
         <ShieldCheck className="size-7 text-muted-foreground" /> Administradores
       </h1>
       <p className="text-sm text-muted-foreground mt-1.5">

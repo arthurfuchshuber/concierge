@@ -5,11 +5,11 @@ import { useMemo, useState } from "react";
 import {
   Activity, MessageSquare, Users, BarChart3, Loader2, Bot, User as UserIcon,
   ExternalLink, Phone, Sparkles, AlertTriangle, BookOpen, Library, Home as HomeIcon,
-  ThumbsDown, RotateCcw, TrendingUp,
+  ThumbsDown, RotateCcw, TrendingUp, Smartphone, Monitor, Tablet, Layers, CheckCircle2,
 } from "lucide-react";
 import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, Tooltip as RTooltip,
-  ResponsiveContainer, CartesianGrid, Legend,
+  ResponsiveContainer, CartesianGrid, Legend, PieChart, Pie, Cell,
 } from "recharts";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
@@ -64,7 +64,7 @@ function BigNumber({ icon: Icon, label, value, hint }: { icon: any; label: strin
       <div className="flex items-center gap-2 text-xs text-muted-foreground">
         <Icon className="size-3.5" /> {label}
       </div>
-      <div className="text-2xl font-serif">{value}</div>
+      <div className="text-2xl font-display">{value}</div>
       {hint ? <div className="text-[11px] text-muted-foreground">{hint}</div> : null}
     </div>
   );
@@ -337,7 +337,7 @@ function EngagementPage() {
     <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
       <div className="mb-6 pb-5 border-b border-border/60">
         <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground font-semibold mb-2">Administração</p>
-        <h1 className="font-serif text-2xl sm:text-3xl">Engajamento</h1>
+        <h1 className="font-display text-2xl sm:text-3xl">Engajamento</h1>
         <p className="text-sm text-muted-foreground mt-2">
           Dashboards, conversas e métricas consolidadas de todas as suas hospedagens.
         </p>
@@ -364,7 +364,7 @@ function EngagementPage() {
           </div>
 
           <Tabs defaultValue="overview" className="w-full">
-            <TabsList className="mb-6 w-full">
+            <TabsList className="mb-6 w-full flex-wrap h-auto gap-1">
               <TabsTrigger value="overview" className="gap-2"><TrendingUp className="size-4" /> Visão geral</TabsTrigger>
               <TabsTrigger value="access" className="gap-2"><Activity className="size-4" /> Acessos</TabsTrigger>
               <TabsTrigger value="chat" className="gap-2">
@@ -375,6 +375,8 @@ function EngagementPage() {
                   </span>
                 ) : null}
               </TabsTrigger>
+              <TabsTrigger value="comportamento" className="gap-2"><Layers className="size-4" /> Comportamento</TabsTrigger>
+              <TabsTrigger value="guias" className="gap-2"><CheckCircle2 className="size-4" /> Guias</TabsTrigger>
               <TabsTrigger value="metrics" className="gap-2"><BarChart3 className="size-4" /> Métricas</TabsTrigger>
             </TabsList>
 
@@ -541,22 +543,163 @@ function EngagementPage() {
               )}
             </TabsContent>
 
+            {/* COMPORTAMENTO DO HÓSPEDE — dispositivos, seções, funil */}
+            <TabsContent value="comportamento" className="space-y-6">
+              {/* Device breakdown */}
+              <section className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="rounded-2xl border border-border bg-card p-4">
+                  <h3 className="text-sm font-medium mb-4 flex items-center gap-2">
+                    <Smartphone className="size-4 text-muted-foreground" /> Dispositivos dos hóspedes
+                  </h3>
+                  {(() => {
+                    const dev = data?.deviceBreakdown ?? { mobile: 0, tablet: 0, desktop: 0 };
+                    const total = dev.mobile + dev.tablet + dev.desktop || 1;
+                    const items = [
+                      { label: "Mobile", value: dev.mobile, icon: Smartphone, color: "#22d3ee" },
+                      { label: "Desktop", value: dev.desktop, icon: Monitor, color: "#fbbf24" },
+                      { label: "Tablet", value: dev.tablet, icon: Tablet, color: "#a78bfa" },
+                    ];
+                    return (
+                      <div className="space-y-3">
+                        {items.map((it) => {
+                          const pct = Math.round((it.value / total) * 100);
+                          const Icon = it.icon;
+                          return (
+                            <div key={it.label} className="flex items-center gap-3">
+                              <Icon className="size-4 text-muted-foreground shrink-0" />
+                              <div className="flex-1 min-w-0">
+                                <div className="flex justify-between text-xs mb-1">
+                                  <span className="font-medium">{it.label}</span>
+                                  <span className="text-muted-foreground tabular-nums">{it.value} ({pct}%)</span>
+                                </div>
+                                <div className="h-2 rounded-full bg-secondary overflow-hidden">
+                                  <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, backgroundColor: it.color }} />
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
+                  })()}
+                </div>
+
+                {/* AI adoption funnel */}
+                <div className="rounded-2xl border border-border bg-card p-4">
+                  <h3 className="text-sm font-medium mb-4 flex items-center gap-2">
+                    <Bot className="size-4 text-muted-foreground" /> Funil de engajamento com IA
+                  </h3>
+                  <div className="space-y-3">
+                    {[
+                      { label: "Acessaram o guia", value: totalAcc, color: "bg-accent/30" },
+                      { label: "Iniciaram conversa", value: totalConv, color: "bg-accent/60" },
+                      { label: "Enviaram mensagens", value: totalMsgs, color: "bg-accent" },
+                    ].map((step, i) => {
+                      const pct = totalAcc > 0 ? Math.round((step.value / totalAcc) * 100) : 0;
+                      return (
+                        <div key={i} className="flex items-center gap-3">
+                          <span className="text-[11px] text-muted-foreground w-5 tabular-nums shrink-0">{i + 1}</span>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex justify-between text-xs mb-1">
+                              <span className="font-medium">{step.label}</span>
+                              <span className="text-muted-foreground tabular-nums">{step.value.toLocaleString("pt-BR")} {i > 0 ? `(${pct}%)` : ""}</span>
+                            </div>
+                            <div className="h-2 rounded-full bg-secondary overflow-hidden">
+                              <div className={`h-full rounded-full ${step.color} transition-all`} style={{ width: `${pct}%` }} />
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </section>
+
+              {/* Sections accessed */}
+              {(data?.sectionEvents?.length ?? 0) > 0 && (
+                <section className="rounded-2xl border border-border bg-card p-4">
+                  <h3 className="text-sm font-medium mb-4 flex items-center gap-2">
+                    <Layers className="size-4 text-muted-foreground" /> Seções mais acessadas do guia
+                  </h3>
+                  <div className="space-y-2">
+                    {(data?.sectionEvents ?? []).slice(0, 10).map((s, i) => {
+                      const max = data!.sectionEvents[0]?.count ?? 1;
+                      const pct = Math.round((s.count / max) * 100);
+                      return (
+                        <div key={s.section} className="flex items-center gap-3">
+                          <span className="text-[11px] text-muted-foreground w-4 tabular-nums shrink-0">{i + 1}</span>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex justify-between text-xs mb-1">
+                              <span className="font-medium capitalize">{s.section}</span>
+                              <span className="text-muted-foreground tabular-nums">{s.count}</span>
+                            </div>
+                            <div className="h-1.5 rounded-full bg-secondary overflow-hidden">
+                              <div className="h-full rounded-full bg-accent/70 transition-all" style={{ width: `${pct}%` }} />
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </section>
+              )}
+            </TabsContent>
+
+            {/* GUIAS — completude e saúde de cada guia */}
+            <TabsContent value="guias" className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                Score de completude de cada guia — baseado em: publicado, foto de capa, tagline, Wi-Fi, instruções de check-in, regras e senha do Wi-Fi.
+              </p>
+              <div className="rounded-2xl border border-border overflow-hidden">
+                <div className="hidden md:grid grid-cols-12 gap-2 px-4 py-2.5 text-[11px] uppercase tracking-wide text-muted-foreground bg-muted/40 border-b border-border">
+                  <div className="col-span-4">Guia</div>
+                  <div className="col-span-2">Status</div>
+                  <div className="col-span-4">Completude</div>
+                  <div className="col-span-2 text-right">Score</div>
+                </div>
+                {(data?.hostUsability?.guideCompleteness ?? [])
+                  .sort((a, b) => a.score - b.score)
+                  .map((g) => (
+                    <div key={g.id} className="grid md:grid-cols-12 gap-2 px-4 py-3 border-b border-border/60 last:border-b-0 items-center">
+                      <div className="md:col-span-4 font-medium text-sm truncate">{g.name}</div>
+                      <div className="md:col-span-2">
+                        <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium ${g.published ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300" : "bg-muted text-muted-foreground"}`}>
+                          {g.published ? "Publicado" : "Rascunho"}
+                        </span>
+                      </div>
+                      <div className="md:col-span-4">
+                        <div className="h-2 rounded-full bg-secondary overflow-hidden">
+                          <div
+                            className={`h-full rounded-full transition-all ${g.score >= 80 ? "bg-emerald-500" : g.score >= 50 ? "bg-amber-500" : "bg-red-500"}`}
+                            style={{ width: `${g.score}%` }}
+                          />
+                        </div>
+                      </div>
+                      <div className={`md:col-span-2 text-right text-sm font-semibold tabular-nums ${g.score >= 80 ? "text-emerald-600 dark:text-emerald-400" : g.score >= 50 ? "text-amber-600 dark:text-amber-400" : "text-red-600 dark:text-red-400"}`}>
+                        {g.score}%
+                      </div>
+                    </div>
+                  ))}
+              </div>
+            </TabsContent>
+
             {/* METRICS */}
             <TabsContent value="metrics" className="space-y-3">
               {/* Desktop table */}
               <div className="hidden md:block rounded-2xl border border-border overflow-hidden">
                 <div className="grid grid-cols-12 gap-2 px-4 py-2.5 text-[11px] uppercase tracking-wide text-muted-foreground bg-muted/40 border-b border-border">
-                  <div className="col-span-4">Hospedagem</div>
+                  <div className="col-span-3">Hospedagem</div>
                   <div className="col-span-1 text-right">Acessos</div>
                   <div className="col-span-1 text-right">Conversas</div>
                   <div className="col-span-1 text-right">Mensagens</div>
                   <div className="col-span-1 text-right">Hóspedes</div>
+                  <div className="col-span-1 text-right">IA %</div>
                   <div className="col-span-1 text-right">Ineficaz</div>
                   <div className="col-span-3">Último acesso</div>
                 </div>
                 {data!.metrics.map((m) => (
                   <div key={m.property_id} className="grid grid-cols-12 gap-2 px-4 py-3 text-sm border-b border-border/60 last:border-b-0 items-center">
-                    <div className="col-span-4 font-medium truncate flex items-center gap-2">
+                    <div className="col-span-3 font-medium truncate flex items-center gap-2">
                       <Link to="/g/$slug" params={{ slug: m.property_slug }} target="_blank" className="hover:underline truncate inline-flex items-center gap-1">
                         {m.property_name} <ExternalLink className="size-3 opacity-60" />
                       </Link>
@@ -565,6 +708,9 @@ function EngagementPage() {
                     <div className="col-span-1 text-right tabular-nums">{m.total_conversations}</div>
                     <div className="col-span-1 text-right tabular-nums">{m.total_messages ?? 0}</div>
                     <div className="col-span-1 text-right tabular-nums">{m.unique_guests}</div>
+                    <div className={`col-span-1 text-right tabular-nums font-medium ${(m.ai_adoption_rate ?? 0) >= 30 ? "text-emerald-600 dark:text-emerald-400" : (m.ai_adoption_rate ?? 0) >= 10 ? "text-amber-600 dark:text-amber-400" : "text-muted-foreground"}`}>
+                      {m.ai_adoption_rate ?? 0}%
+                    </div>
                     <div className="col-span-1 text-right tabular-nums">{m.feedback_count ?? 0}</div>
                     <div className="col-span-3 text-muted-foreground text-xs">{fmt(m.last_access)}</div>
                   </div>

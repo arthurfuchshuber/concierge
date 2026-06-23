@@ -80,7 +80,7 @@ function ClientesPage() {
           <div className="inline-flex items-center gap-2 text-[10px] uppercase tracking-[0.18em] text-accent font-semibold mb-2">
             <Shield className="size-3" /> Admin SaaS
           </div>
-          <h1 className="font-serif text-3xl md:text-4xl flex items-center gap-2.5">
+          <h1 className="font-display text-3xl md:text-4xl flex items-center gap-2.5">
             <Users className="size-7 text-muted-foreground" /> Clientes
           </h1>
           <p className="text-sm text-muted-foreground mt-1.5">
@@ -99,7 +99,7 @@ function ClientesPage() {
       </div>
 
       {/* Stats */}
-      <div className="mt-6 grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="mt-6 grid grid-cols-2 md:grid-cols-5 gap-3">
         <StatCard label="Total" value={customers.length} />
         <StatCard
           label="Ativos"
@@ -115,6 +115,11 @@ function ClientesPage() {
           label="Cancelados"
           value={customers.filter((c) => c.subscription?.status === "canceled" || c.subscription?.status === "past_due").length}
           tone="muted"
+        />
+        <StatCard
+          label="Risco de churn"
+          value={customers.filter((c) => c.churnRisk).length}
+          tone="red"
         />
       </div>
 
@@ -185,13 +190,24 @@ function ClientesPage() {
                               Sem cobrança
                             </span>
                           )}
+                          {c.churnRisk && (
+                            <span className="text-[9px] uppercase tracking-wider font-semibold bg-red-500/15 text-red-600 dark:text-red-400 px-1.5 py-0.5 rounded-full">
+                              Risco churn
+                            </span>
+                          )}
                         </div>
                         {price && (
                           <div className="mt-1.5 text-[11px] text-muted-foreground tabular-nums">
                             {price}{hasCustom && " · personalizado"}
-                            {s?.currentPeriodEnd && ` · renova ${new Date(s.currentPeriodEnd).toLocaleDateString("pt-BR")}`}
                           </div>
                         )}
+                        <div className="mt-1.5 flex items-center gap-3 text-[11px] text-muted-foreground">
+                          <span>{c.publishedGuides}/{c.totalGuides} guias</span>
+                          <span>·</span>
+                          <span>{c.guestAccesses30d > 0 ? `${c.guestAccesses30d} acessos 30d` : "Sem hóspedes"}</span>
+                          <span>·</span>
+                          <span>Login: {c.lastSignInAt ? new Date(c.lastSignInAt).toLocaleDateString("pt-BR") : "Nunca"}</span>
+                        </div>
                       </div>
                     </div>
                   </li>
@@ -208,8 +224,9 @@ function ClientesPage() {
                     <th className="text-left font-semibold px-4 py-3.5">Plano</th>
                     <th className="text-left font-semibold px-4 py-3.5">Status</th>
                     <th className="text-right font-semibold px-4 py-3.5">Valor</th>
-                    <th className="text-left font-semibold px-4 py-3.5">Trial</th>
-                    <th className="text-left font-semibold px-4 py-3.5">Renova</th>
+                    <th className="text-left font-semibold px-4 py-3.5">Guias</th>
+                    <th className="text-left font-semibold px-4 py-3.5">Hóspedes 30d</th>
+                    <th className="text-left font-semibold px-4 py-3.5">Último login</th>
                     <th className="text-right font-semibold px-5 py-3.5">Ações</th>
                   </tr>
                 </thead>
@@ -280,18 +297,36 @@ function ClientesPage() {
                           )}
                         </td>
                         <td className="px-4 py-4 text-xs tabular-nums whitespace-nowrap">
-                          {s?.trialEndsAt ? (
-                            new Date(s.trialEndsAt).toLocaleDateString("pt-BR")
-                          ) : (
-                            <span className="text-muted-foreground/60">—</span>
-                          )}
+                          <div className="flex items-center gap-1.5">
+                            <span className={c.publishedGuides > 0 ? "font-medium" : "text-muted-foreground"}>
+                              {c.publishedGuides}/{c.totalGuides}
+                            </span>
+                            {c.totalGuides > 0 && (
+                              <div className="w-12 h-1.5 rounded-full bg-secondary overflow-hidden">
+                                <div
+                                  className={`h-full rounded-full ${c.avgCompletenessScore >= 70 ? "bg-emerald-500" : c.avgCompletenessScore >= 40 ? "bg-amber-500" : "bg-red-500"}`}
+                                  style={{ width: `${c.avgCompletenessScore}%` }}
+                                />
+                              </div>
+                            )}
+                          </div>
                         </td>
                         <td className="px-4 py-4 text-xs tabular-nums whitespace-nowrap">
-                          {s?.currentPeriodEnd ? (
-                            new Date(s.currentPeriodEnd).toLocaleDateString("pt-BR")
-                          ) : (
-                            <span className="text-muted-foreground/60">—</span>
-                          )}
+                          <span className={c.guestAccesses30d > 0 ? "font-medium text-emerald-600 dark:text-emerald-400" : "text-muted-foreground"}>
+                            {c.guestAccesses30d > 0 ? c.guestAccesses30d : "—"}
+                          </span>
+                        </td>
+                        <td className="px-4 py-4 text-xs whitespace-nowrap">
+                          <div className="flex items-center gap-1.5">
+                            {c.churnRisk && (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-red-500/15 text-red-600 dark:text-red-400 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider">
+                                Risco
+                              </span>
+                            )}
+                            <span className="text-muted-foreground">
+                              {c.lastSignInAt ? new Date(c.lastSignInAt).toLocaleDateString("pt-BR") : "Nunca"}
+                            </span>
+                          </div>
                         </td>
                         <td className="px-5 py-4 text-right">
                           <Button
@@ -578,7 +613,7 @@ function EditDialog({
   );
 }
 
-function StatCard({ label, value, tone }: { label: string; value: number; tone?: "emerald" | "amber" | "muted" }) {
+function StatCard({ label, value, tone }: { label: string; value: number; tone?: "emerald" | "amber" | "muted" | "red" }) {
   const toneClass =
     tone === "emerald"
       ? "text-emerald-600 dark:text-emerald-400"
@@ -586,11 +621,13 @@ function StatCard({ label, value, tone }: { label: string; value: number; tone?:
         ? "text-amber-600 dark:text-amber-400"
         : tone === "muted"
           ? "text-muted-foreground"
-          : "text-foreground";
+          : tone === "red"
+            ? "text-red-600 dark:text-red-400"
+            : "text-foreground";
   return (
     <div className="rounded-xl border border-border bg-card px-4 py-3">
       <div className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground font-semibold">{label}</div>
-      <div className={`text-2xl font-serif mt-1 tabular-nums ${toneClass}`}>{value}</div>
+      <div className={`text-2xl font-display mt-1 tabular-nums ${toneClass}`}>{value}</div>
     </div>
   );
 }
