@@ -602,8 +602,8 @@ export const enrichFromMapsLink = createServerFn({ method: "POST" })
     const textTasks: Array<{ q: string }> = [];
     for (const cat of TYPE_MAP) {
       const variants = cat.queryVariants ?? [`melhores ${cat.category.toLowerCase()}`];
-      // Usa até 4 variantes por categoria — mais abrangência no entorno
-      for (const v of variants.slice(0, 4)) textTasks.push({ q: `${v} perto` });
+      // Usa TODAS as variantes — mais abrangência no entorno
+      for (const v of variants) textTasks.push({ q: `${v} perto` });
     }
     const TEXT_CONCURRENCY = 6;
     for (let i = 0; i < textTasks.length; i += TEXT_CONCURRENCY) {
