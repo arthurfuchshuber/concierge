@@ -19,7 +19,7 @@ export const trackGuideEvent = createServerFn({ method: "POST" })
         .eq("published", true)
         .maybeSingle();
       if (!prop) return { ok: false };
-      await supabaseAdmin.from("guide_section_events").insert({
+      await (supabaseAdmin.from("guide_section_events" as any) as any).insert({
         property_id: prop.id,
         section: data.section,
         guest_session_id: data.sessionId,

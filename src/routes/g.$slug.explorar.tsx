@@ -581,7 +581,7 @@ function CategoryGrid({
 }) {
   if (categories.length === 0) {
     return (
-      <div className={`grid grid-cols-1 sm:grid-cols-2 gap-4 ${viewMode === "list" ? "hidden" : ""}`}>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {[1,2,3,4].map((k) => <SkeletonCard key={k} />)}
       </div>
     );
