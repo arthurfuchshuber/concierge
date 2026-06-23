@@ -21,6 +21,8 @@ import {
   HelpCircle,
   Ticket,
   MapPin,
+  Map,
+  X,
 } from "lucide-react";
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
 
@@ -252,6 +254,7 @@ function ExplorePage() {
   const [sortBy, setSortBy] = useState<SortKey>("distance");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [minReviews, setMinReviews] = useState<number>(0);
+  const [showMap, setShowMap] = useState(false);
 
   // Tema herdado da página inicial do guia (definido pelo visitante).
   const adminTheme: "dark" | "light" =
@@ -423,15 +426,38 @@ function ExplorePage() {
 
         <header className="mt-6 mb-8">
           <p className="text-[10px] uppercase tracking-[0.32em] text-accent font-semibold mb-3">Concierge</p>
-          <h1 className="font-serif text-[2.1rem] md:text-[2.8rem] leading-[1.02] tracking-tight">
-            {active ? active.meta.title : "Explore a Região"}
-          </h1>
+          <div className="flex items-start justify-between gap-4">
+            <h1 className="font-serif text-[2.1rem] md:text-[2.8rem] leading-[1.02] tracking-tight">
+              {active ? active.meta.title : "Explore a Região"}
+            </h1>
+            {(propLat !== null && propLng !== null) && (
+              <button
+                type="button"
+                onClick={() => setShowMap(true)}
+                className="shrink-0 mt-1 inline-flex items-center gap-1.5 rounded-full border border-accent/40 bg-accent/10 hover:bg-accent/20 text-accent px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] transition-colors"
+              >
+                <Map className="size-3.5" strokeWidth={2} />
+                Ver no mapa
+              </button>
+            )}
+          </div>
           <p className="text-[13px] md:text-[14px] text-muted-foreground mt-3 leading-relaxed max-w-[52ch]">
             {active
               ? active.meta.desc
               : `Uma curadoria de lugares e experiências próximas a ${p.name}.`}
           </p>
         </header>
+
+        {/* Embedded Google Maps Modal */}
+        {showMap && propLat !== null && propLng !== null && (
+          <EmbeddedMapModal
+            recs={[...allRecs, ...cityRefs]}
+            propLat={propLat}
+            propLng={propLng}
+            propName={p.name as string}
+            onClose={() => setShowMap(false)}
+          />
+        )}
 
         {!active ? (
           <>
@@ -1110,6 +1136,141 @@ function CityMap({ items }: { items: Rec[] }) {
             <a key={it.id} href={href} target="_blank" rel="noopener noreferrer">{inner}</a>
           ) : <div key={it.id}>{inner}</div>;
         })}
+      </div>
+    </div>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// EmbeddedMapModal — mostra todos os pontos de recomendação no Google Maps
+// embutido dentro da própria página, sem redirecionar o usuário.
+// ──────────────────────────────────────────────────────────────────────────────
+function EmbeddedMapModal({
+  recs,
+  propLat,
+  propLng,
+  propName,
+  onClose,
+}: {
+  recs: Rec[];
+  propLat: number;
+  propLng: number;
+  propName: string;
+  onClose: () => void;
+}) {
+  // Build a Google Maps Embed URL with multiple markers.
+  // The Embed API supports "q" for a single search OR we use the place-search
+  // mode. For multiple custom pins we use the "search" mode with the property
+  // location as center + all maps_url links listed below the map.
+  const GOOGLE_MAPS_KEY = (typeof window !== "undefined"
+    ? (window as Record<string, unknown>).__ENV__?.VITE_GOOGLE_MAPS_KEY
+    : null) as string | null;
+
+  // Build comma-separated waypoints from recs that have maps_url or a name.
+  // The Embed API doesn't support multiple custom pins natively, so we use
+  // the "search" query centered on the property to show nearby places.
+  const searchQuery = encodeURIComponent(`restaurantes e atrações perto de ${propName}`);
+
+  const embedSrc = GOOGLE_MAPS_KEY
+    ? `https://www.google.com/maps/embed/v1/search?key=${GOOGLE_MAPS_KEY}&q=${searchQuery}&center=${propLat},${propLng}&zoom=14`
+    : `https://maps.google.com/maps?q=${propLat},${propLng}&z=14&output=embed`;
+
+  // Separate recs that have a direct maps link
+  const withMapsUrl = recs.filter((r) => r.maps_url && r.name);
+
+  // Close on backdrop click
+  function handleBackdrop(e: React.MouseEvent<HTMLDivElement>) {
+    if (e.target === e.currentTarget) onClose();
+  }
+
+  // Close on Escape key
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm px-0 sm:px-4"
+      onClick={handleBackdrop}
+    >
+      <div className="relative w-full sm:max-w-2xl lg:max-w-4xl bg-card rounded-t-3xl sm:rounded-3xl overflow-hidden shadow-2xl flex flex-col max-h-[92dvh]">
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-border/50 shrink-0">
+          <div className="flex items-center gap-2.5">
+            <Map className="size-4.5 text-accent" strokeWidth={1.75} />
+            <div>
+              <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground font-semibold">Mapa</p>
+              <p className="text-[14px] font-medium leading-tight">Recomendações próximas</p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="inline-flex size-8 items-center justify-center rounded-full bg-muted hover:bg-muted/80 text-muted-foreground transition-colors"
+          >
+            <X className="size-4" />
+          </button>
+        </div>
+
+        {/* Map iframe */}
+        <div className="relative w-full" style={{ aspectRatio: "16/9", minHeight: 240 }}>
+          <iframe
+            title="Mapa de recomendações"
+            src={embedSrc}
+            width="100%"
+            height="100%"
+            style={{ border: 0, display: "block" }}
+            allowFullScreen
+            loading="lazy"
+            referrerPolicy="no-referrer-when-downgrade"
+          />
+        </div>
+
+        {/* List of places with direct links */}
+        {withMapsUrl.length > 0 && (
+          <div className="overflow-y-auto px-5 py-4 flex-1 min-h-0">
+            <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground font-semibold mb-3">
+              Abrir no Google Maps
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {withMapsUrl.map((rec) => (
+                <a
+                  key={rec.id}
+                  href={rec.maps_url!}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="group flex items-center gap-3 rounded-xl border border-border bg-background/50 hover:bg-card hover:border-accent/40 hover:shadow-md transition-all p-3"
+                >
+                  {rec.image_url ? (
+                    <img
+                      src={rec.image_url}
+                      alt={rec.name}
+                      className="size-9 rounded-lg object-cover shrink-0"
+                    />
+                  ) : (
+                    <span className="size-9 rounded-lg bg-accent/15 flex items-center justify-center shrink-0">
+                      <MapPin className="size-4 text-accent" strokeWidth={1.75} />
+                    </span>
+                  )}
+                  <span className="min-w-0 flex-1">
+                    <span className="flex items-center gap-1">
+                      <span className="text-[13px] font-medium truncate">{rec.name}</span>
+                      <ExternalLink className="size-3 text-muted-foreground shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
+                    </span>
+                    <span className="text-[11px] text-muted-foreground">
+                      {TYPE_LABEL[rec.type] ?? rec.type}
+                      {rec.distance_text ? ` · ${rec.distance_text}` : ""}
+                    </span>
+                  </span>
+                </a>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
