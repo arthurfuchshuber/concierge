@@ -8,6 +8,7 @@ import {
   generateCityReferences,
   toggleHideCityReference,
   deleteCityReference,
+  bulkDeleteCityReferences,
   addManualCityReference,
 } from "@/lib/city-references.functions";
 import { searchPlacesForRec, TYPE_MAP } from "@/lib/maps.functions";
