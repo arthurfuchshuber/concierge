@@ -38,6 +38,7 @@ function AdminCityDetail() {
   const generate = useServerFn(generateCityReferences);
   const toggleHide = useServerFn(toggleHideCityReference);
   const del = useServerFn(deleteCityReference);
+  const bulkDel = useServerFn(bulkDeleteCityReferences);
   const addManual = useServerFn(addManualCityReference);
   const searchPlaces = useServerFn(searchPlacesForRec);
   const qc = useQueryClient();
