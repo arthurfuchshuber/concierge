@@ -348,7 +348,13 @@ function AdminCityDetail() {
 
           <ul className="divide-y divide-border">
             {list.map((it) => (
-              <li key={it.id} className={`flex items-center gap-3 p-3 ${it.is_hidden ? "opacity-50" : ""}`}>
+              <li key={it.id} className={`flex items-center gap-3 p-3 ${it.is_hidden ? "opacity-50" : ""} ${selected.has(it.id) ? "bg-accent/5" : ""}`}>
+                <input
+                  type="checkbox"
+                  checked={selected.has(it.id)}
+                  onChange={() => toggleSel(it.id)}
+                  className="size-4 accent-current shrink-0"
+                />
                 {it.image_url ? (
                   <img src={it.image_url} alt="" className="size-14 rounded object-cover shrink-0" />
                 ) : (
