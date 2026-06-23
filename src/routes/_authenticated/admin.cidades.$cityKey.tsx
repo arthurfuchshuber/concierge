@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { ArrowLeft, Eye, EyeOff, Trash2, Sparkles, Plus, Star, Search, Loader2 } from "lucide-react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 
 
 const SearchSchema = z.object({
@@ -47,6 +48,7 @@ function AdminCityDetail() {
   });
 
   const [generating, setGenerating] = useState<string | null>(null);
+  const [generateProgress, setGenerateProgress] = useState<{ current: number; total: number; label: string } | null>(null);
   const [addOpen, setAddOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [searching, setSearching] = useState(false);
@@ -55,23 +57,56 @@ function AdminCityDetail() {
   async function handleGenerate(type?: string | null) {
     const key = type ?? "__all__";
     setGenerating(key);
-    try {
-      const r = await generate({ data: { city_label: label, state, country, type: type ?? null } });
-      if (r.status === "ok" || r.status === "partial") {
-        const catLabel = type
-          ? TYPE_MAP.find((c) => c.type === type)?.category ?? type
-          : "Todas categorias";
-        toast.success(`${catLabel} — ${r.total} encontrados (${r.inserted} novos, ${r.updated} atualizados${r.failed ? `, ${r.failed} falhas` : ""})`);
 
-        if (r.status === "partial" && r.message) toast.warning(r.message);
-      } else {
-        toast.error(`Falhou: ${r.message ?? "erro"}`);
+    if (!type) {
+      const categories = TYPE_MAP.map((c) => c.category);
+      const total = categories.length;
+      let step = 0;
+      setGenerateProgress({ current: 1, total, label: categories[0] });
+
+      const interval = setInterval(() => {
+        step += 1;
+        if (step < total) {
+          setGenerateProgress({ current: step + 1, total, label: categories[step] });
+        }
+      }, 4500);
+
+      try {
+        const r = await generate({ data: { city_label: label, state, country, type: null } });
+        clearInterval(interval);
+        setGenerateProgress(null);
+        if (r.status === "ok" || r.status === "partial") {
+          toast.success(`Concluído — ${r.total} encontrados (${r.inserted} novos, ${r.updated} atualizados${r.failed ? `, ${r.failed} falhas` : ""})`);
+          if (r.status === "partial" && r.message) toast.warning(r.message);
+        } else {
+          toast.error(`Falhou: ${r.message ?? "erro"}`);
+        }
+        await qc.invalidateQueries({ queryKey });
+      } catch (e) {
+        clearInterval(interval);
+        setGenerateProgress(null);
+        toast.error(e instanceof Error ? e.message : "Erro");
+      } finally {
+        setGenerating(null);
       }
-      await qc.invalidateQueries({ queryKey });
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Erro");
-    } finally {
-      setGenerating(null);
+    } else {
+      const catLabel = TYPE_MAP.find((c) => c.type === type)?.category ?? type;
+      setGenerateProgress({ current: 1, total: 1, label: catLabel });
+      try {
+        const r = await generate({ data: { city_label: label, state, country, type } });
+        if (r.status === "ok" || r.status === "partial") {
+          toast.success(`${catLabel} — ${r.total} encontrados (${r.inserted} novos, ${r.updated} atualizados${r.failed ? `, ${r.failed} falhas` : ""})`);
+          if (r.status === "partial" && r.message) toast.warning(r.message);
+        } else {
+          toast.error(`Falhou: ${r.message ?? "erro"}`);
+        }
+        await qc.invalidateQueries({ queryKey });
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : "Erro");
+      } finally {
+        setGenerating(null);
+        setGenerateProgress(null);
+      }
     }
   }
 
@@ -128,7 +163,6 @@ function AdminCityDetail() {
   }
 
   async function handleDelete(id: string) {
-    if (!confirm("Remover esta referência?")) return;
     await del({ data: { id } });
     await qc.invalidateQueries({ queryKey });
   }
@@ -162,14 +196,34 @@ function AdminCityDetail() {
             )}
           </p>
         </div>
-        <div className="flex gap-2 shrink-0">
-          <Button onClick={() => handleGenerate(null)} disabled={generating !== null}>
-            {generating === "__all__" ? <Loader2 className="size-4 mr-2 animate-spin" /> : <Sparkles className="size-4 mr-2" />}
-            Gerar tudo com IA
-          </Button>
-          <Button variant="outline" onClick={() => setAddOpen((v) => !v)}>
-            <Plus className="size-4 mr-2" /> Adicionar manual
-          </Button>
+        <div className="flex flex-col items-end gap-2 shrink-0">
+          <div className="flex gap-2">
+            <Button onClick={() => handleGenerate(null)} disabled={generating !== null}>
+              {generating === "__all__" ? <Loader2 className="size-4 mr-2 animate-spin" /> : <Sparkles className="size-4 mr-2" />}
+              Gerar tudo com IA
+            </Button>
+            <Button variant="outline" onClick={() => setAddOpen((v) => !v)}>
+              <Plus className="size-4 mr-2" /> Adicionar manual
+            </Button>
+          </div>
+          {generating === "__all__" && generateProgress && (
+            <div className="flex items-center gap-2.5 text-[11.5px] text-muted-foreground">
+              <div className="flex gap-0.5">
+                {Array.from({ length: generateProgress.total }).map((_, i) => (
+                  <span
+                    key={i}
+                    className={`block h-1 w-4 rounded-full transition-colors duration-500 ${
+                      i < generateProgress.current ? "bg-accent" : "bg-border"
+                    }`}
+                  />
+                ))}
+              </div>
+              <span>
+                Buscando <span className="text-foreground font-medium">{generateProgress.label}</span>…
+                <span className="ml-1 text-muted-foreground/60">{generateProgress.current}/{generateProgress.total}</span>
+              </span>
+            </div>
+          )}
         </div>
       </div>
 
@@ -275,14 +329,27 @@ function AdminCityDetail() {
                 >
                   {it.is_hidden ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
                 </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => handleDelete(it.id)}
-                  title="Remover"
-                >
-                  <Trash2 className="size-4 text-destructive" />
-                </Button>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="ghost" size="sm" title="Remover">
+                      <Trash2 className="size-4 text-destructive" />
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Remover referência?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        "{it.name}" será removido permanentemente desta cidade.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                      <AlertDialogAction onClick={() => handleDelete(it.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                        Remover
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
               </li>
             ))}
           </ul>
@@ -298,15 +365,34 @@ function AdminCityDetail() {
           <p className="text-sm text-muted-foreground max-w-sm mx-auto mb-5">
             Gere automaticamente pontos turísticos populares de {label} com IA, ou adicione manualmente seus favoritos.
           </p>
-          <div className="flex gap-2 justify-center">
-            <Button onClick={() => handleGenerate(null)} disabled={generating !== null}>
-              {generating === "__all__" ? <Loader2 className="size-4 mr-2 animate-spin" /> : <Sparkles className="size-4 mr-2" />}
-              Gerar com IA
-            </Button>
-
-            <Button variant="outline" onClick={() => setAddOpen(true)}>
-              <Plus className="size-4 mr-2" /> Adicionar manual
-            </Button>
+          <div className="flex flex-col items-center gap-3">
+            <div className="flex gap-2 justify-center">
+              <Button onClick={() => handleGenerate(null)} disabled={generating !== null}>
+                {generating === "__all__" ? <Loader2 className="size-4 mr-2 animate-spin" /> : <Sparkles className="size-4 mr-2" />}
+                Gerar com IA
+              </Button>
+              <Button variant="outline" onClick={() => setAddOpen(true)}>
+                <Plus className="size-4 mr-2" /> Adicionar manual
+              </Button>
+            </div>
+            {generating === "__all__" && generateProgress && (
+              <div className="flex flex-col items-center gap-1.5">
+                <div className="flex gap-0.5">
+                  {Array.from({ length: generateProgress.total }).map((_, i) => (
+                    <span
+                      key={i}
+                      className={`block h-1 w-4 rounded-full transition-colors duration-500 ${
+                        i < generateProgress.current ? "bg-accent" : "bg-border"
+                      }`}
+                    />
+                  ))}
+                </div>
+                <p className="text-[11.5px] text-muted-foreground">
+                  Buscando <span className="text-foreground font-medium">{generateProgress.label}</span>…{" "}
+                  <span className="text-muted-foreground/60">{generateProgress.current}/{generateProgress.total}</span>
+                </p>
+              </div>
+            )}
           </div>
         </div>
       )}

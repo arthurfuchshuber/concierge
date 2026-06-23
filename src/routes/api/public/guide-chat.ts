@@ -2,6 +2,20 @@ import { createFileRoute } from "@tanstack/react-router";
 import { getCookie } from "@tanstack/react-start/server";
 import { z } from "zod";
 
+// In-process rate limiter: max 10 messages per sessionId per 60s window.
+// Resets on deployment (acceptable trade-off vs. DB overhead for this use case).
+const sessionMessageTimes = new Map<string, number[]>();
+function checkRateLimit(sessionId: string): boolean {
+  const now = Date.now();
+  const window = 60_000;
+  const max = 10;
+  const times = (sessionMessageTimes.get(sessionId) ?? []).filter((t) => now - t < window);
+  if (times.length >= max) return false;
+  times.push(now);
+  sessionMessageTimes.set(sessionId, times);
+  return true;
+}
+
 const Body = z.object({
   slug: z.string().regex(/^[a-z0-9-]{1,64}$/),
   sessionId: z.string().min(8).max(80),
@@ -34,12 +48,20 @@ type Recommendation = {
   note: string | null;
 };
 
+type CityReference = {
+  name: string;
+  category: string | null;
+  type: string | null;
+  note: string | null;
+};
+
 function buildContext(p: Record<string, unknown>, kids: {
   manual: Array<Record<string, unknown>>;
   faqs: Array<Record<string, unknown>>;
   emergency: Array<Record<string, unknown>>;
   checkout: Array<Record<string, unknown>>;
   recommendations: Recommendation[];
+  cityReferences: CityReference[];
   knowledge: Array<Record<string, unknown>>;
   behavior: Array<Record<string, unknown>>;
 }) {
@@ -109,6 +131,15 @@ function buildContext(p: Record<string, unknown>, kids: {
       lines.push(`- ${parts.join(" ")}`);
     }
   }
+  if (kids.cityReferences.length) {
+    lines.push("\n## Referências da cidade (pontos turísticos e estabelecimentos curados pelo anfitrião)");
+    for (const r of kids.cityReferences.slice(0, 50)) {
+      const parts = [r.name];
+      if (r.category || r.type) parts.push(`(${[r.category, r.type].filter(Boolean).join(" / ")})`);
+      if (r.note) parts.push(`: ${r.note}`);
+      lines.push(`- ${parts.join(" ")}`);
+    }
+  }
   return lines.join("\n");
 }
 
@@ -121,6 +152,14 @@ export const Route = createFileRoute("/api/public/guide-chat")({
           body = Body.parse(await request.json());
         } catch (err) {
           return new Response(JSON.stringify({ error: "Entrada inválida." }), { status: 400, headers: { "Content-Type": "application/json" } });
+        }
+
+        // Rate limit: 10 messages per session per minute
+        if (!checkRateLimit(body.sessionId)) {
+          return new Response(
+            JSON.stringify({ error: "Muitas mensagens em pouco tempo. Aguarde um momento." }),
+            { status: 429, headers: { "Content-Type": "application/json" } },
+          );
         }
 
         const apiKey = process.env.LOVABLE_API_KEY;
@@ -157,7 +196,13 @@ export const Route = createFileRoute("/api/public/guide-chat")({
           );
         }
 
-        const [manualR, faqsR, emergR, checkoutR, recsR, knowledgeR, behaviorR] = await Promise.all([
+        // Resolve city key for city_references lookup
+        const { cityKey, normalizeState } = await import("@/lib/city-key");
+        const ck = cityKey((prop as any).city as string | null);
+        const st = normalizeState((prop as any).state as string | null);
+        const propCountry = ((prop as any).country as string | null) ?? "BR";
+
+        const [manualR, faqsR, emergR, checkoutR, recsR, knowledgeR, behaviorR, cityRefsR] = await Promise.all([
           supabaseAdmin.from("property_manual_items").select("title, description, body").eq("property_id", prop.id).order("position"),
           supabaseAdmin.from("property_faqs").select("question, answer").eq("property_id", prop.id).order("position"),
           supabaseAdmin.from("property_emergency_contacts").select("label, number").eq("property_id", prop.id).order("position"),
@@ -165,6 +210,20 @@ export const Route = createFileRoute("/api/public/guide-chat")({
           supabaseAdmin.from("property_recommendations").select("name, category, type, scope, distance_text, note").eq("property_id", prop.id).order("position"),
           supabaseAdmin.from("host_knowledge").select("title, body").eq("owner_id", prop.owner_id).eq("enabled", true).order("position"),
           supabaseAdmin.from("host_behavior").select("title, body").eq("owner_id", prop.owner_id).eq("enabled", true).order("position"),
+          ck
+            ? (() => {
+                let q = supabaseAdmin
+                  .from("city_references")
+                  .select("name, category, type, note")
+                  .eq("city_key", ck)
+                  .eq("country", propCountry)
+                  .eq("is_hidden", false)
+                  .order("type")
+                  .order("user_ratings_total", { ascending: false });
+                q = st ? q.eq("state", st) : q.is("state", null);
+                return q;
+              })()
+            : Promise.resolve({ data: [] }),
         ]);
 
         const systemContext = buildContext(prop as Record<string, unknown>, {
@@ -173,6 +232,7 @@ export const Route = createFileRoute("/api/public/guide-chat")({
           emergency: (emergR.data as Array<Record<string, unknown>>) ?? [],
           checkout: (checkoutR.data as Array<Record<string, unknown>>) ?? [],
           recommendations: (recsR.data as Recommendation[]) ?? [],
+          cityReferences: (cityRefsR.data as CityReference[]) ?? [],
           knowledge: (knowledgeR.data as Array<Record<string, unknown>>) ?? [],
           behavior: (behaviorR.data as Array<Record<string, unknown>>) ?? [],
         });
@@ -210,9 +270,11 @@ export const Route = createFileRoute("/api/public/guide-chat")({
           .from("property_chat_messages")
           .select("role, content")
           .eq("conversation_id", conversationId)
-          .order("created_at", { ascending: true })
-          .limit(40);
-        const prior = (priorRaw ?? []).filter((m) => m.role === "user" || m.role === "assistant");
+          .order("created_at", { ascending: false })
+          .limit(20);
+        const prior = (priorRaw ?? [])
+          .filter((m) => m.role === "user" || m.role === "assistant")
+          .reverse();
 
         // Persist user message
         await supabaseAdmin.from("property_chat_messages").insert({
@@ -231,7 +293,7 @@ export const Route = createFileRoute("/api/public/guide-chat")({
           method: "POST",
           headers: { "Content-Type": "application/json", "Lovable-API-Key": apiKey },
           body: JSON.stringify({
-            model: "google/gemini-3-flash-preview",
+            model: "google/gemini-2.5-flash",
             messages,
             tools: [{ google_search: {} }],
           }),

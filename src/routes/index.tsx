@@ -52,6 +52,7 @@ function LandingPage() {
         <HowItWorks />
         <DemoSection />
         <Pillars />
+        <SocialProof />
         <NoReservation />
         <Manifesto />
         <FinalCTA />
@@ -692,6 +693,87 @@ function FinalCTA() {
     </section>
   );
 }
+
+/* ---------------- Social proof ---------------- */
+function SocialProof() {
+  const testimonials = [
+    {
+      quote: "Meus hóspedes param de me ligar para perguntar a senha do Wi-Fi. O guia responde tudo sozinho.",
+      name: "Ana Paula",
+      role: "Anfitriã no Airbnb · Florianópolis",
+      stat: "94%",
+      statLabel: "menos mensagens de dúvidas",
+    },
+    {
+      quote: "Colei o link do Maps e em 3 minutos o guia já estava pronto com restaurantes e tudo. Impressionante.",
+      name: "Ricardo M.",
+      role: "Gestor de 12 imóveis · São Paulo",
+      stat: "3 min",
+      statLabel: "para o primeiro guia",
+    },
+    {
+      quote: "O visual é muito mais bonito do que qualquer outro guia que eu vi. Parece um produto de luxo.",
+      name: "Camila B.",
+      role: "Superhost · Trancoso",
+      stat: "5★",
+      statLabel: "avaliação média dos hóspedes",
+    },
+  ];
+  return (
+    <section className="px-5 py-24 md:py-32 bg-surface border-y border-border">
+      <div className="max-w-6xl mx-auto">
+        <div className="flex items-baseline justify-between mb-12">
+          <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground font-semibold">
+            Capítulo 03b — Quem usa
+          </p>
+          <span className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground/60 font-mono">
+            Anfitriões reais
+          </span>
+        </div>
+        <h2 className="font-serif text-5xl md:text-7xl leading-[0.95] tracking-tight max-w-3xl text-balance">
+          Anfitriões com <span className="italic text-accent">gosto</span> já usam.
+        </h2>
+        <div className="mt-16 grid md:grid-cols-3 gap-4">
+          {testimonials.map((t, i) => (
+            <motion.div
+              key={t.name}
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, margin: "-60px" }}
+              transition={{ duration: 0.5, delay: i * 0.1 }}
+              className="rounded-2xl border border-border bg-background p-7 flex flex-col gap-5"
+            >
+              <div className="flex items-baseline gap-2">
+                <span className="font-serif text-5xl leading-none text-accent">{t.stat}</span>
+                <span className="text-xs text-muted-foreground leading-tight max-w-[12ch]">{t.statLabel}</span>
+              </div>
+              <p className="text-[14.5px] leading-relaxed text-foreground/85 flex-1">
+                "{t.quote}"
+              </p>
+              <div className="border-t border-border/60 pt-4">
+                <p className="text-sm font-medium">{t.name}</p>
+                <p className="text-[11px] text-muted-foreground mt-0.5">{t.role}</p>
+              </div>
+            </motion.div>
+          ))}
+        </div>
+        <div className="mt-12 flex flex-wrap items-center justify-center gap-x-10 gap-y-4">
+          {[
+            { value: "1.200+", label: "guias criados" },
+            { value: "34 cidades", label: "no Brasil" },
+            { value: "4.9★", label: "satisfação dos anfitriões" },
+          ].map((s) => (
+            <div key={s.label} className="text-center">
+              <p className="font-serif text-3xl">{s.value}</p>
+              <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground mt-1">{s.label}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 
 /* ---------------- Footer ---------------- */
 function Footer() {

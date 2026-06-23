@@ -1,7 +1,9 @@
 import { createFileRoute, notFound, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { getPublicGuide, submitPin } from "@/lib/guide.functions";
+import { trackGuideEvent } from "@/lib/guide-analytics.functions";
 import { useI18n } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -192,6 +194,28 @@ function Guide({ data }: { data: GuideOk }) {
   const p = data.property as Record<string, any>;
   const { slug } = Route.useParams();
   const [section, setSection] = useState<Section>("home");
+  const trackEvent = useServerFn(trackGuideEvent);
+
+  function gotoSection(s: Section) {
+    setSection(s);
+    // Fire-and-forget analytics — never blocks navigation
+    const sid = typeof window !== "undefined"
+      ? (localStorage.getItem(`guide-chat-session:${slug}`) ?? "anon")
+      : "anon";
+    trackEvent({ data: { slug, section: s, sessionId: sid } }).catch(() => {});
+  }
+  const { lang, setLang } = useI18n();
+
+  // Auto-detect browser language on first visit (if no saved preference)
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const saved = localStorage.getItem("sg-lang");
+    if (saved === "pt" || saved === "en") return; // respect saved preference
+    const nav = navigator.language ?? navigator.languages?.[0] ?? "";
+    if (nav.toLowerCase().startsWith("pt")) setLang("pt");
+    else setLang("en");
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Identification gate is ALWAYS shown on first access (per host requirement).
   // The reservation code is only required when "exigir identificação do hóspede" is enabled.
@@ -243,6 +267,13 @@ function Guide({ data }: { data: GuideOk }) {
     try { window.localStorage.setItem(`guide-theme:${slug}`, next); } catch {}
   }
 
+  function toggleLang() {
+    const cycle: import("@/lib/i18n").Lang[] = ["pt", "en", "es", "fr"];
+    const idx = cycle.indexOf(lang as import("@/lib/i18n").Lang);
+    const next = cycle[(idx + 1) % cycle.length];
+    setLang(next);
+  }
+
 
   const galleryRaw: string[] = Array.isArray(p.gallery_images) ? p.gallery_images : [];
   const photos: string[] = galleryRaw.length ? galleryRaw : p.hero_image_url ? [p.hero_image_url] : [];
@@ -257,12 +288,49 @@ function Guide({ data }: { data: GuideOk }) {
   const hasSaida = !!(p.checkout_time || p.checkout_note || p.checkout_instructions);
   const hasResidencia = houseManual.length > 0;
   const hasFaq = !!(p.host_name || p.host_phone) || data.emergency.length > 0 || data.faqs.length > 0;
-  const hasExplore = Array.isArray(data.recommendations) && data.recommendations.length > 0;
+  const hasExplore = (Array.isArray(data.recommendations) && data.recommendations.length > 0) ||
+    (Array.isArray((data as any).cityReferences) && (data as any).cityReferences.length > 0);
 
   // Pick images for cards: theme_images first, then gallery fallback, then hero
   const themeImages = (p.theme_images ?? {}) as Record<string, string | undefined>;
   const pick = (i: number) => photos[i % Math.max(photos.length, 1)] ?? heroImg;
   const themePick = (key: string, fallbackIdx: number) => themeImages[key] || pick(fallbackIdx);
+
+  // Dynamic descriptions — real info visible before the card is opened
+  const checkinDesc = (() => {
+    const parts: string[] = [];
+    if (p.checkin_time) {
+      const t = String(p.checkin_time).match(/^(\d{1,2}):(\d{2})/);
+      if (t) parts.push(`Check-in a partir das ${t[1].padStart(2,"0")}h${t[2] !== "00" ? t[2] : ""}`);
+    }
+    if (p.wifi_ssid) parts.push(`Wi-Fi: ${p.wifi_ssid}`);
+    return parts[0] ?? "Endereço, códigos de acesso e horários.";
+  })();
+
+  const saidaDesc = (() => {
+    if (p.checkout_time) {
+      const t = String(p.checkout_time).match(/^(\d{1,2}):(\d{2})/);
+      if (t) return `Check-out até ${t[1].padStart(2,"0")}h${t[2] !== "00" ? t[2] : ""}`;
+    }
+    return "Horário e instruções para o check-out.";
+  })();
+
+  const residenciaDesc = houseManual.length > 0
+    ? `${houseManual.length} ${houseManual.length === 1 ? "item" : "itens"} no manual da casa`
+    : "Manual, comodidades e detalhes da casa.";
+
+  const exploreDesc = (() => {
+    const total = (Array.isArray(data.recommendations) ? data.recommendations.length : 0) +
+      (Array.isArray((data as any).cityReferences) ? (data as any).cityReferences.length : 0);
+    if (total > 0) return `${total} ${total === 1 ? "lugar curado" : "lugares curados"} pelo anfitrião`;
+    return "Restaurantes, atrações e experiências.";
+  })();
+
+  const faqDesc = (() => {
+    if (p.host_name) return `Fale com ${p.host_name}`;
+    if (data.faqs.length > 0) return `${data.faqs.length} pergunta${data.faqs.length > 1 ? "s" : ""} frequente${data.faqs.length > 1 ? "s" : ""}`;
+    return "Anfitrião, emergências e respostas rápidas.";
+  })();
 
   const allCards: Array<{
     key: Exclude<Section, "home"> | "explore";
@@ -278,7 +346,7 @@ function Guide({ data }: { data: GuideOk }) {
       key: "checkin",
       eyebrow: "Estadia",
       title: "Chegada",
-      desc: "Endereço, códigos de acesso e horários.",
+      desc: checkinDesc,
       icon: <KeyRound className="size-5" strokeWidth={1.5} />,
       image: themePick("checkin", 1),
       visible: hasCheckin,
@@ -288,7 +356,7 @@ function Guide({ data }: { data: GuideOk }) {
       key: "saida",
       eyebrow: "Estadia",
       title: "Saída",
-      desc: "Horário e instruções para o check-out.",
+      desc: saidaDesc,
       icon: <LogOut className="size-5" strokeWidth={1.5} />,
       image: themePick("saida", 5),
       visible: hasSaida,
@@ -298,7 +366,7 @@ function Guide({ data }: { data: GuideOk }) {
       key: "residencia",
       eyebrow: "A casa",
       title: "A Residência",
-      desc: "Manual, comodidades e detalhes da casa.",
+      desc: residenciaDesc,
       icon: <Home className="size-5" strokeWidth={1.5} />,
       image: themePick("residencia", 2),
       visible: hasResidencia,
@@ -308,7 +376,7 @@ function Guide({ data }: { data: GuideOk }) {
       key: "explore",
       eyebrow: "Concierge",
       title: "Explore a Região",
-      desc: "Restaurantes, atrações e experiências.",
+      desc: exploreDesc,
       icon: <Compass className="size-5" strokeWidth={1.5} />,
       image: themePick("explore", 4),
       visible: hasExplore,
@@ -318,7 +386,7 @@ function Guide({ data }: { data: GuideOk }) {
       key: "faq",
       eyebrow: "Suporte",
       title: "Dúvidas & Contatos",
-      desc: "Anfitrião, emergências e respostas rápidas.",
+      desc: faqDesc,
       icon: <HelpCircle className="size-5" strokeWidth={1.5} />,
       image: themePick("faq", 3),
       visible: hasFaq,
@@ -333,8 +401,15 @@ function Guide({ data }: { data: GuideOk }) {
         <GuideAccessGate slug={slug} propertyName={p.name as string} requireReservationCode={gateEnabled} onUnlock={setAccessRec} />
       )}
       <div className="mx-auto w-full max-w-md md:max-w-none">
+        <AnimatePresence mode="wait" initial={false}>
         {section === "home" ? (
-          <>
+          <motion.div
+            key="home"
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.28, ease: [0.4, 0, 0.2, 1] }}
+          >
             <HeroCompact
               name={heroTitle}
               tagline={p.tagline}
@@ -342,6 +417,8 @@ function Guide({ data }: { data: GuideOk }) {
               photos={photos}
               theme={theme}
               onToggleTheme={toggleTheme}
+              lang={lang}
+              onToggleLang={toggleLang}
             />
 
 
@@ -398,7 +475,7 @@ function Guide({ data }: { data: GuideOk }) {
                   ) : (
                     <button
                       key={c.key}
-                      onClick={() => c.to?.kind === "section" && setSection(c.to.value)}
+                      onClick={() => c.to?.kind === "section" && gotoSection(c.to.value)}
                       className="w-full text-left"
                     >
                       <ThemeCard title={c.title} desc={c.desc} icon={c.icon} image={c.image} theme={theme} />
@@ -420,10 +497,18 @@ function Guide({ data }: { data: GuideOk }) {
             </footer>
 
           </>
+          </motion.div>
         ) : (
+          <motion.div
+            key={section}
+            initial={{ opacity: 0, x: 18 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -18 }}
+            transition={{ duration: 0.26, ease: [0.4, 0, 0.2, 1] }}
+          >
           <Tabs value={section} onValueChange={(v) => setSection(v as Section)} className="px-5 md:px-10 lg:px-16 pt-6 md:pt-10 lg:max-w-3xl lg:mx-auto">
             <button
-              onClick={() => setSection("home")}
+              onClick={() => gotoSection("home")}
               className="inline-flex items-center gap-1.5 text-[10px] uppercase tracking-[0.24em] font-semibold text-muted-foreground hover:text-foreground transition-colors mb-6 md:mb-8"
             >
               <ArrowLeft className="size-3" /> Voltar ao guia
@@ -996,9 +1081,11 @@ function Guide({ data }: { data: GuideOk }) {
               )}
             </TabsContent>
           </Tabs>
+          </motion.div>
         )}
+        </AnimatePresence>
       </div>
-      {data.aiEnabled ? <GuideAiChat slug={slug} propertyName={heroTitle} /> : null}
+      {data.aiEnabled ? <GuideAiChat slug={slug} propertyName={heroTitle} guestName={accessRec?.name ?? null} /> : null}
       <PinDialog
         open={pinDialog.open}
         accessPin={accessPin}
@@ -1099,15 +1186,23 @@ function GuideMark({ className = "" }: { className?: string }) {
 }
 
 function HeroCompact({
-  name, tagline, city, photos, theme, onToggleTheme,
+  name, tagline, city, photos, theme, onToggleTheme, lang, onToggleLang,
 }: {
   name: string; tagline?: string; city?: string; photos: string[];
   theme: "dark" | "light"; onToggleTheme: () => void;
+  lang: string; onToggleLang: () => void;
 }) {
   const [idx, setIdx] = useState(0);
+  const [scrollY, setScrollY] = useState(0);
   const touchStartX = useRef<number | null>(null);
   const total = photos.length;
   const hasMany = total > 1;
+
+  useEffect(() => {
+    const onScroll = () => setScrollY(window.scrollY);
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
 
   function go(dir: number) {
     if (!hasMany) return;
@@ -1129,14 +1224,15 @@ function HeroCompact({
       onTouchStart={onTouchStart}
       onTouchEnd={onTouchEnd}
     >
-      {/* Photo slides */}
-      <div className="absolute inset-0">
+      {/* Photo slides with parallax */}
+      <div className="absolute inset-0 overflow-hidden">
         {photos.map((src, i) => (
           <img
             key={`${src}-${i}`}
             src={src}
             alt=""
-            className={`absolute inset-0 size-full object-cover object-[62%_50%] transition-opacity duration-500 ${i === idx ? "opacity-100" : "opacity-0"}`}
+            style={{ transform: `translateY(${scrollY * 0.28}px) scale(1.12)`, transformOrigin: "center top" }}
+            className={`absolute inset-0 size-full object-cover object-[62%_50%] transition-opacity duration-500 will-change-transform ${i === idx ? "opacity-100" : "opacity-0"}`}
           />
         ))}
       </div>
@@ -1153,15 +1249,26 @@ function HeroCompact({
             <span>Sigma</span><span className="text-accent">Guide</span>
           </p>
         </div>
-        <button
-          type="button"
-          onClick={onToggleTheme}
-          aria-label={theme === "dark" ? "Mudar para tema claro" : "Mudar para tema escuro"}
-          title={theme === "dark" ? "Tema claro" : "Tema escuro"}
-          className="grid size-9 shrink-0 place-items-center rounded-full border border-accent/55 bg-background/10 text-white/95 backdrop-blur-sm transition-colors hover:bg-accent/25 hover:text-white"
-        >
-          {theme === "dark" ? <Sun className="size-4" strokeWidth={1.75} /> : <Moon className="size-4" strokeWidth={1.75} />}
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={onToggleLang}
+            aria-label="Mudar idioma"
+            title="Mudar idioma"
+            className="h-9 px-3 shrink-0 inline-flex items-center justify-center rounded-full border border-accent/55 bg-background/10 text-white/95 backdrop-blur-sm transition-colors hover:bg-accent/25 hover:text-white text-[11px] font-semibold tracking-wider uppercase"
+          >
+            {lang === "pt" ? "PT" : lang === "es" ? "ES" : lang === "fr" ? "FR" : "EN"}
+          </button>
+          <button
+            type="button"
+            onClick={onToggleTheme}
+            aria-label={theme === "dark" ? "Mudar para tema claro" : "Mudar para tema escuro"}
+            title={theme === "dark" ? "Tema claro" : "Tema escuro"}
+            className="grid size-9 shrink-0 place-items-center rounded-full border border-accent/55 bg-background/10 text-white/95 backdrop-blur-sm transition-colors hover:bg-accent/25 hover:text-white"
+          >
+            {theme === "dark" ? <Sun className="size-4" strokeWidth={1.75} /> : <Moon className="size-4" strokeWidth={1.75} />}
+          </button>
+        </div>
       </header>
 
 

@@ -56,6 +56,7 @@ const PropertyInput = z.object({
   lat: z.number().optional().nullable(),
   lng: z.number().optional().nullable(),
   city: z.string().max(120).optional().nullable(),
+  state: z.string().max(60).optional().nullable(),
   country: z.string().max(120).optional().nullable(),
   checkin_time: z.string().max(8).optional().nullable(),
   checkin_time_max: z.string().max(8).optional().nullable(),
@@ -129,7 +130,7 @@ export const listMyProperties = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     const { data, error } = await context.supabase
       .from("properties")
-      .select("id, slug, name, tagline, hero_image_url, gallery_images, access_mode, pin_expires_at, published, city, country, address, lat, lng, updated_at")
+      .select("id, slug, name, tagline, hero_image_url, gallery_images, access_mode, pin_expires_at, published, city, country, address, lat, lng, updated_at, wifi_ssid, checkin_time, checkout_time")
       .order("updated_at", { ascending: false });
     if (error) throw (await import("@/lib/db-errors.server")).safeDbError("properties", error);
     const { signPropertyImages } = await import("@/lib/storage.server");

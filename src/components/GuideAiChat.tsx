@@ -41,8 +41,19 @@ function saveCachedMessages(slug: string, conversationId: string | undefined, me
   }
 }
 
-export function GuideAiChat({ slug, propertyName }: { slug: string; propertyName: string }) {
+// Returns a time-of-day greeting and context hint based on current hour
+function getTimeContext(): { greeting: string; hint: string } {
+  const h = new Date().getHours();
+  if (h >= 5 && h < 12) return { greeting: "Bom dia", hint: "Quer dicas de café da manhã ou padarias perto?" };
+  if (h >= 12 && h < 18) return { greeting: "Boa tarde", hint: "Posso indicar restaurantes abertos agora ou atrações para a tarde." };
+  if (h >= 18 && h < 23) return { greeting: "Boa noite", hint: "Procurando um jantar especial ou vida noturna?" };
+  return { greeting: "Olá", hint: "Posso ajudar com qualquer dúvida sobre a estadia." };
+}
+
+export function GuideAiChat({ slug, propertyName, guestName }: { slug: string; propertyName: string; guestName?: string | null }) {
   const [open, setOpen] = useState(false);
+  const [hasOpened, setHasOpened] = useState(false);
+  const [showNudge, setShowNudge] = useState(false);
   const [sessionId, setSessionId] = useState<string>("");
   const [conversationId, setConversationId] = useState<string | undefined>();
   const [messages, setMessages] = useState<Msg[]>([]);
@@ -50,12 +61,18 @@ export function GuideAiChat({ slug, propertyName }: { slug: string; propertyName
   const [loading, setLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const { greeting, hint } = getTimeContext();
 
   useEffect(() => {
     setSessionId(getSessionId(slug));
     const cached = loadCachedMessages(slug);
     setConversationId(cached.conversationId);
     setMessages(cached.messages);
+    // Show proactive nudge after 12s if user hasn't opened yet (only on fresh sessions)
+    if (cached.messages.length === 0) {
+      const t = setTimeout(() => setShowNudge(true), 12000);
+      return () => clearTimeout(t);
+    }
   }, [slug]);
 
   useEffect(() => {
@@ -66,6 +83,8 @@ export function GuideAiChat({ slug, propertyName }: { slug: string; propertyName
 
   useEffect(() => {
     if (open) {
+      setHasOpened(true);
+      setShowNudge(false);
       setTimeout(() => inputRef.current?.focus(), 80);
     }
   }, [open]);
@@ -116,38 +135,53 @@ export function GuideAiChat({ slug, propertyName }: { slug: string; propertyName
   return (
     <>
       {!open && (
-        <button
-          type="button"
-          onClick={() => setOpen(true)}
-          aria-label="Abrir assistente do guia"
-          title="Pergunte à IA"
-          className="group fixed bottom-5 right-5 z-40 grid size-16 place-items-center rounded-full text-emerald-950 shadow-[0_18px_44px_-14px_rgba(16,185,129,0.55)] hover:shadow-[0_22px_52px_-12px_rgba(16,185,129,0.7)] active:scale-95 transition-all"
-          style={{
-            background:
-              "radial-gradient(circle at 30% 25%, #d1fae5 0%, #86efac 45%, #4ade80 100%)",
-          }}
-        >
-          {/* halo pulsante */}
-          <span
-            aria-hidden="true"
-            className="absolute inset-0 rounded-full bg-emerald-400/40 animate-ping"
-            style={{ animationDuration: "2.4s" }}
-          />
-          <span
-            aria-hidden="true"
-            className="absolute inset-0 rounded-full ring-1 ring-emerald-200/60"
-          />
-          {/* faísca */}
-          <Sparkles
-            aria-hidden="true"
-            className="absolute -top-1 -right-1 size-4 text-emerald-50 drop-shadow-[0_2px_6px_rgba(16,185,129,0.8)] animate-pulse"
-            strokeWidth={2.4}
-          />
-          <MessageCircleMore
-            className="relative size-7 text-emerald-900 group-hover:scale-110 transition-transform"
-            strokeWidth={2}
-          />
-        </button>
+        <div className="fixed bottom-5 right-5 z-40 flex flex-col items-end gap-3">
+          {/* Proactive nudge bubble */}
+          {showNudge && !hasOpened && (
+            <div className="relative animate-in slide-in-from-bottom-2 fade-in duration-500">
+              <div className="max-w-[220px] rounded-2xl rounded-br-sm bg-background border border-border shadow-elevated px-4 py-3">
+                <button
+                  type="button"
+                  onClick={() => setShowNudge(false)}
+                  className="absolute top-2 right-2 size-5 grid place-items-center rounded-full text-muted-foreground hover:text-foreground transition-colors"
+                  aria-label="Fechar"
+                >
+                  <X className="size-3" />
+                </button>
+                <p className="text-[11px] font-semibold text-accent uppercase tracking-[0.18em] mb-1">Concierge IA</p>
+                <p className="text-[13px] leading-snug font-medium">
+                  {greeting}{guestName ? `, ${guestName.split(" ")[0]}` : ""}! 👋
+                </p>
+                <p className="text-[12px] text-muted-foreground mt-1 leading-relaxed">{hint}</p>
+                <button
+                  type="button"
+                  onClick={() => { setShowNudge(false); setOpen(true); }}
+                  className="mt-2.5 w-full text-[11.5px] font-medium text-accent hover:underline text-left"
+                >
+                  Perguntar agora →
+                </button>
+              </div>
+              {/* tail */}
+              <div className="absolute -bottom-1.5 right-5 size-3 bg-background border-r border-b border-border rotate-45" />
+            </div>
+          )}
+          <button
+            type="button"
+            onClick={() => setOpen(true)}
+            aria-label="Abrir assistente do guia"
+            title="Pergunte à IA"
+            className="group relative grid size-16 place-items-center rounded-full text-emerald-950 shadow-[0_18px_44px_-14px_rgba(16,185,129,0.55)] hover:shadow-[0_22px_52px_-12px_rgba(16,185,129,0.7)] active:scale-95 transition-all"
+            style={{
+              background:
+                "radial-gradient(circle at 30% 25%, #d1fae5 0%, #86efac 45%, #4ade80 100%)",
+            }}
+          >
+            <span aria-hidden="true" className="absolute inset-0 rounded-full bg-emerald-400/40 animate-ping" style={{ animationDuration: "2.4s" }} />
+            <span aria-hidden="true" className="absolute inset-0 rounded-full ring-1 ring-emerald-200/60" />
+            <Sparkles aria-hidden="true" className="absolute -top-1 -right-1 size-4 text-emerald-50 drop-shadow-[0_2px_6px_rgba(16,185,129,0.8)] animate-pulse" strokeWidth={2.4} />
+            <MessageCircleMore className="relative size-7 text-emerald-900 group-hover:scale-110 transition-transform" strokeWidth={2} />
+          </button>
+        </div>
       )}
 
       {open && (
@@ -186,9 +220,11 @@ export function GuideAiChat({ slug, propertyName }: { slug: string; propertyName
                 <div className="mx-auto size-12 rounded-2xl bg-emerald-100 text-emerald-700 grid place-items-center mb-3 ring-1 ring-emerald-200">
                   <MessageCircleMore className="size-5" strokeWidth={1.9} />
                 </div>
-                <p className="font-serif text-lg leading-tight">Como posso ajudar?</p>
+                <p className="font-serif text-lg leading-tight">
+                  {greeting}{guestName ? `, ${guestName.split(" ")[0]}` : ""}!
+                </p>
                 <p className="text-[12.5px] text-muted-foreground mt-2 max-w-[28ch] mx-auto leading-relaxed">
-                  Pergunte sobre check-in, Wi-Fi, regras da casa, dicas da região e mais.
+                  {hint}
                 </p>
                 <div className="mt-4 flex flex-wrap gap-1.5 justify-center">
                   {["Onde fica a casa?", "Qual a senha do Wi-Fi?", "O que fazer perto?"].map((q) => (

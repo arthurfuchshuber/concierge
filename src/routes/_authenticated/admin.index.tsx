@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Plus, ExternalLink, Pencil, Trash2, Lock, Globe, BookOpen, PlayCircle, CreditCard, LayoutGrid, List, Link2, Check, AlertTriangle, MapPin, ChevronDown, ChevronRight, PenSquare, Search, X } from "lucide-react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { useState, useMemo, useEffect } from "react";
 type StatusFilter = "all" | "published" | "draft";
@@ -19,6 +20,30 @@ export const Route = createFileRoute("/_authenticated/admin/")({
   component: Dashboard,
 });
 
+
+
+// Calculates a guide completeness score 0-100 based on filled fields.
+// Uses only fields available in listMyProperties.
+function guideCompleteness(p: {
+  name?: string | null; tagline?: string | null; hero_image_url?: string | null;
+  address?: string | null; city?: string | null; wifi_ssid?: string | null;
+  checkin_time?: string | null; checkout_time?: string | null;
+}): { score: number; label: string; color: string } {
+  const checks = [
+    !!p.name,
+    !!p.tagline,
+    !!p.hero_image_url,
+    !!p.address,
+    !!p.city,
+    !!p.wifi_ssid,
+    !!p.checkin_time,
+    !!p.checkout_time,
+  ];
+  const score = Math.round((checks.filter(Boolean).length / checks.length) * 100);
+  if (score >= 90) return { score, label: "Completo", color: "bg-emerald-500" };
+  if (score >= 60) return { score, label: "Bom", color: "bg-amber-400" };
+  return { score, label: "Incompleto", color: "bg-red-400" };
+}
 
 
 function Dashboard() {
@@ -74,7 +99,6 @@ function Dashboard() {
 
 
   async function handleDelete(id: string, name: string) {
-    if (!confirm(`Excluir "${name}"? Esta ação não pode ser desfeita.`)) return;
     try {
       await del({ data: { id } });
       toast.success("Guia excluído");
@@ -368,6 +392,39 @@ function Dashboard() {
           ))}
         </div>
       ) : !data?.length ? (
+        <div className="mb-8 rounded-2xl border border-accent/20 bg-card p-6">
+          <div className="flex items-center justify-between mb-5">
+            <div>
+              <p className="text-[10px] uppercase tracking-[0.2em] text-accent font-semibold mb-1">Primeiros passos</p>
+              <h3 className="font-serif text-xl">Crie seu primeiro guia em minutos</h3>
+            </div>
+            <div className="text-right">
+              <span className="text-2xl font-serif text-accent">01</span>
+              <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">/ 05</p>
+            </div>
+          </div>
+          <div className="space-y-3">
+            {([
+              { n: "01", label: "Cole o link do Google Maps da sua propriedade", done: false },
+              { n: "02", label: "Confira o endereço e adicione Wi-Fi", done: false },
+              { n: "03", label: "Configure os horários de check-in e check-out", done: false },
+              { n: "04", label: "Adicione recomendações de restaurantes e atrações", done: false },
+              { n: "05", label: "Publique e compartilhe o link com o hóspede", done: false },
+            ] as { n: string; label: string; done: boolean }[]).map((step) => (
+              <div key={step.n} className="flex items-center gap-3">
+                <span className="size-7 rounded-full border border-border text-[10px] font-mono text-muted-foreground grid place-items-center shrink-0">{step.n}</span>
+                <span className="text-[13.5px] text-foreground/80">{step.label}</span>
+              </div>
+            ))}
+          </div>
+          <Button
+            className="mt-5 rounded-full"
+            onClick={() => navigate({ to: "/admin/properties/$id", params: { id: "new" } })}
+            disabled={!sub.plan}
+          >
+            <Plus className="size-4 mr-1.5" /> Criar meu primeiro guia
+          </Button>
+        </div>
         <div className="rounded-2xl border border-dashed border-border bg-card/50 p-12 text-center">
           <div className="size-12 rounded-2xl bg-accent/10 grid place-items-center mx-auto mb-4">
             <BookOpen className="size-5 text-accent" />
@@ -413,7 +470,18 @@ function Dashboard() {
               <div className="p-4">
                 <h3 className="font-semibold leading-tight truncate">{p.name}</h3>
                 <p className="text-xs text-muted-foreground mt-1 truncate">{p.tagline || `${p.city ?? ""}${p.country ? `, ${p.country}` : ""}`}</p>
-                <div className="flex items-center gap-2 mt-4">
+                {(() => {
+                  const c = guideCompleteness(p as any);
+                  return (
+                    <div className="mt-2.5 flex items-center gap-2">
+                      <div className="flex-1 h-1 rounded-full bg-secondary overflow-hidden">
+                        <div className={`h-full rounded-full transition-all ${c.color}`} style={{ width: `${c.score}%` }} />
+                      </div>
+                      <span className="text-[10px] text-muted-foreground tabular-nums shrink-0">{c.score}%</span>
+                    </div>
+                  );
+                })()}
+                <div className="flex items-center gap-2 mt-3">
                   <Link to="/admin/properties/$id" params={{ id: p.id }} className="flex-1 inline-flex items-center justify-center gap-1 text-xs font-medium bg-secondary rounded-full py-2 hover:bg-secondary/70">
                     <Pencil className="size-3" /> Editar
                   </Link>
@@ -428,9 +496,27 @@ function Dashboard() {
                   >
                     {copiedId === p.id ? <Check className="size-3.5 text-accent" /> : <Link2 className="size-3.5" />}
                   </button>
-                  <button onClick={() => handleDelete(p.id, p.name)} title="Excluir" className="p-2 rounded-full hover:bg-destructive/10 text-muted-foreground hover:text-destructive" aria-label="Excluir">
-                    <Trash2 className="size-3.5" />
-                  </button>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <button title="Excluir" className="p-2 rounded-full hover:bg-destructive/10 text-muted-foreground hover:text-destructive" aria-label="Excluir">
+                        <Trash2 className="size-3.5" />
+                      </button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Excluir guia?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Isso removerá permanentemente "{p.name}" e não poderá ser desfeito.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction onClick={() => handleDelete(p.id, p.name)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                          Excluir
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
                 </div>
               </div>
             </div>

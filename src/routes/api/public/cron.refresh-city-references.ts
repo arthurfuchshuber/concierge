@@ -74,13 +74,21 @@ export const Route = createFileRoute("/api/public/cron/refresh-city-references")
           }
 
           const results: Array<{ city: string; state: string | null; ok: boolean; total?: number; error?: string }> = [];
-          for (const b of toRun) {
-            try {
-              const r = await runCityGeneration(b);
-              results.push({ city: b.city_label, state: b.state, ok: r.status === "ok", total: r.total });
-            } catch (e) {
-              results.push({ city: b.city_label, state: b.state, ok: false, error: e instanceof Error ? e.message : "unknown" });
-            }
+          // Processa até 3 cidades em paralelo para reduzir tempo total do cron.
+          const CRON_CONCURRENCY = 3;
+          for (let i = 0; i < toRun.length; i += CRON_CONCURRENCY) {
+            const batch = toRun.slice(i, i + CRON_CONCURRENCY);
+            const batchResults = await Promise.all(
+              batch.map(async (b) => {
+                try {
+                  const r = await runCityGeneration(b);
+                  return { city: b.city_label, state: b.state, ok: r.status === "ok", total: r.total };
+                } catch (e) {
+                  return { city: b.city_label, state: b.state, ok: false, error: e instanceof Error ? e.message : "unknown" };
+                }
+              }),
+            );
+            results.push(...batchResults);
           }
 
           return Response.json({ ok: true, processed: results.length, total_cities: cities.size, results });

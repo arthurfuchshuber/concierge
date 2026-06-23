@@ -64,6 +64,7 @@ type FormState = {
     lat: number | null;
     lng: number | null;
     city: string;
+    state: string;
     country: string;
     checkin_time: string;
     checkin_time_max: string;
@@ -116,7 +117,7 @@ function emptyForm(): FormState {
       theme_images: { checkin: "", residencia: "", faq: "", explore: "" },
       marketplace_links: [],
       address: "", maps_url: "", garage_maps_url: "",
-      lat: null, lng: null, city: "", country: "", checkin_time: "15:00", checkin_time_max: "", checkin_note: "", checkout_time: "11:00", checkout_time_min: "", checkout_note: "",
+      lat: null, lng: null, city: "", state: "", country: "", checkin_time: "15:00", checkin_time_max: "", checkin_note: "", checkout_time: "11:00", checkout_time_min: "", checkout_note: "",
       lock_code: "", lock_label: "Fechadura", gate_code: "", gate_label: "Portão", access_codes_pin: "", address_note: "", checkin_instructions: "", checkout_instructions: "", house_rules: "", checkin_media: [], gate_instructions: "", gate_media: [], gate_video_url: "", lock_instructions: "", lock_media: [], lock_video_url: "", wifi_ssid: "", wifi_password: "",
       host_name: "", host_phone: "", brand_name: "", brand_logo_url: "", access_mode: "public", pin_code: "", pin_expires_at: "",
       default_language: "pt", guide_theme: "dark", published: true, require_access_gate: false,
@@ -215,6 +216,7 @@ function PropertyEditor() {
         lat: (p.lat as number) ?? null,
         lng: (p.lng as number) ?? null,
         city: (p.city as string) ?? "",
+        state: (p.state as string) ?? "",
         country: (p.country as string) ?? "",
         checkin_time: (p.checkin_time as string) ?? "15:00",
         checkin_time_max: (p.checkin_time_max as string) ?? "",
@@ -318,6 +320,7 @@ function PropertyEditor() {
           lat: r.lat,
           lng: r.lng,
           city: r.city || f.property.city,
+          state: r.state || f.property.state,
           country: r.country || f.property.country,
           tagline: f.property.tagline || r.tagline || f.property.tagline,
           hero_image_url: f.property.hero_image_url || r.hero_image_url || f.property.hero_image_url,
@@ -425,6 +428,7 @@ function PropertyEditor() {
           maps_url: form.property.maps_url || null,
           garage_maps_url: form.property.garage_maps_url || null,
           city: form.property.city || null,
+          state: form.property.state || null,
           country: form.property.country || null,
           checkin_time: form.property.checkin_time || null,
           checkin_time_max: form.property.checkin_time_max || null,

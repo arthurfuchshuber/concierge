@@ -340,12 +340,14 @@ function pickBestPlacePhoto(photos: PlacePhoto[] | undefined): string | null {
 async function fetchIconicPlacesFromGemini(
   city: string,
   country: string,
+  state?: string | null,
 ): Promise<Record<string, string[]>> {
   const apiKey = process.env.LOVABLE_API_KEY;
   if (!apiKey || !city) return {};
 
+  const locationLabel = [city, state, country].filter(Boolean).join(", ");
   const categoriesPrompt = TYPE_MAP.map((c) => `- ${c.type}: ${c.category}`).join("\n");
-  const prompt = `Você é um concierge local com profundo conhecimento de ${city}${country ? `, ${country}` : ""}. Sua missão é montar uma curadoria PRECISA e ABRANGENTE dos melhores lugares em cada categoria.
+  const prompt = `Você é um concierge local com profundo conhecimento de ${locationLabel}. Sua missão é montar uma curadoria PRECISA e ABRANGENTE dos melhores lugares em cada categoria.
 
 REGRAS CRÍTICAS:
 1. Inclua APENAS estabelecimentos consolidados, com no MÍNIMO 200 avaliações no Google Maps. Se você não tem certeza que o lugar tem 200+ avaliações, NÃO inclua.
@@ -379,7 +381,7 @@ Responda APENAS com JSON válido (sem markdown) no formato:
       body: JSON.stringify({
         model: "google/gemini-2.5-flash",
         messages: [
-          { role: "system", content: "Você é um concierge local que conhece em profundidade as cidades brasileiras. Responda sempre com JSON válido, sem markdown." },
+          { role: "system", content: "Você é um concierge local que conhece em profundidade as cidades brasileiras e seus estados. Responda sempre com JSON válido, sem markdown." },
           { role: "user", content: prompt },
         ],
         response_format: { type: "json_object" },
@@ -538,11 +540,11 @@ export const enrichFromMapsLink = createServerFn({ method: "POST" })
     // até 1,5km OU até 20 minutos a pé (≈1,6km a 80 m/min). Lugares city-wide
     // ficam em city_references, exibidos na seção "Na Cidade" do guia.
     const MIN_RATING = 4.0;
-    const MIN_REVIEWS_GLOBAL = 150;
-    const MAX_PER_TYPE = 15;
-    const PERTINHO_MAX_M = 1600; // 1,5km ou 20min a pé
-    const NEARBY_RADIUS_M = 1600;
-    const NEARBY_TEXT_RADIUS_M = 2000; // viés ligeiramente maior para text search
+    const MIN_REVIEWS_GLOBAL = 100;  // reduzido para capturar mais lugares locais
+    const MAX_PER_TYPE = 20;         // mais resultados por categoria
+    const PERTINHO_MAX_M = 1600;     // filtro de exibição: só mostra até 1,6km
+    const NEARBY_RADIUS_M = 3000;    // busca num raio maior para não perder nada próximo
+    const NEARBY_TEXT_RADIUS_M = 3500; // text search ainda mais abrangente
 
     const classifyByPrimaryType = (primaryType: string | undefined) => {
       if (!primaryType) return null;
@@ -600,14 +602,14 @@ export const enrichFromMapsLink = createServerFn({ method: "POST" })
     const textTasks: Array<{ q: string }> = [];
     for (const cat of TYPE_MAP) {
       const variants = cat.queryVariants ?? [`melhores ${cat.category.toLowerCase()}`];
-      // Limita a 3 variantes por categoria no nearby (evita explodir chamadas)
-      for (const v of variants.slice(0, 3)) textTasks.push({ q: `${v} perto` });
+      // Usa até 4 variantes por categoria — mais abrangência no entorno
+      for (const v of variants.slice(0, 4)) textTasks.push({ q: `${v} perto` });
     }
     const TEXT_CONCURRENCY = 6;
     for (let i = 0; i < textTasks.length; i += TEXT_CONCURRENCY) {
       const batch = textTasks.slice(i, i + TEXT_CONCURRENCY);
       const results = await Promise.all(
-        batch.map(({ q }) => placesText(q, coords!.lat, coords!.lng, undefined, NEARBY_TEXT_RADIUS_M)),
+        batch.map(({ q }) => placesTextRestricted(q, coords!.lat, coords!.lng, NEARBY_TEXT_RADIUS_M)),
       );
       for (const items of results) {
         for (const p of items) ingest(p);
@@ -900,6 +902,7 @@ const CITY_MIN_RATING = 4.0;
 const CITY_MIN_REVIEWS = 200;
 const CITY_MAX_PER_TYPE = 25;
 
+// Busca textual SEM bias geográfico — usada internamente como fallback
 async function placesTextNoBias(query: string): Promise<(PlaceRaw & { formattedAddress?: string })[]> {
   const res = await gatewayFetch(`/places/v1/places:searchText`, {
     method: "POST",
@@ -910,6 +913,34 @@ async function placesTextNoBias(query: string): Promise<(PlaceRaw & { formattedA
     body: JSON.stringify({
       textQuery: query,
       maxResultCount: 20,
+    }),
+  });
+  if (!res.ok) return [];
+  const j = (await res.json()) as { places?: (PlaceRaw & { formattedAddress?: string })[] };
+  return j.places ?? [];
+}
+
+// Busca textual COM restrição geográfica (locationRestriction, não bias).
+// Garante que os resultados ficam DENTRO do círculo — elimina falsos positivos
+// de cidades vizinhas ou pontos distantes retornados pelo Google.
+async function placesTextRestricted(
+  query: string,
+  lat: number,
+  lng: number,
+  radiusMeters: number,
+): Promise<(PlaceRaw & { formattedAddress?: string })[]> {
+  const res = await gatewayFetch(`/places/v1/places:searchText`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-Goog-FieldMask": `${PLACE_FIELD_MASK},places.formattedAddress`,
+    },
+    body: JSON.stringify({
+      textQuery: query,
+      maxResultCount: 20,
+      locationRestriction: {
+        circle: { center: { latitude: lat, longitude: lng }, radius: radiusMeters },
+      },
     }),
   });
   if (!res.ok) return [];
@@ -950,6 +981,17 @@ export async function generateCityReferencesFromMaps(input: {
     ? TYPE_MAP.filter((c) => c.type === type)
     : TYPE_MAP;
 
+  // Geocodifica a cidade para obter coordenadas centrais.
+  // Isso permite usar locationRestriction (hard boundary) em vez de
+  // locationBias — evita que o Google retorne lugares de cidades vizinhas.
+  const cityCenter = await resolveCityCenter(city_label, state, country);
+
+  // Raio da restrição geográfica em metros.
+  // 35km cobre cidades médias; para praias/atrações naturais próximas
+  // (ex.: Cataratas de Iguaçu em Foz do Iguaçu) usamos 60km.
+  const CITY_RADIUS_M = 35_000;
+  const ATTRACTION_RADIUS_M = 60_000; // atrações têm raio maior (parques nacionais, etc.)
+
   const isQuality = (p: PlaceRaw) =>
     typeof p.rating === "number" &&
     p.rating >= CITY_MIN_RATING &&
@@ -979,13 +1021,34 @@ export async function generateCityReferencesFromMaps(input: {
     // Se a categoria real for diferente da hint, só aceita se também estiver
     // dentro do escopo solicitado (targetTypes).
     if (!targetTypes.some((c) => c.type === realCat.type)) return;
+
+    // Validação geográfica extra: se temos coordenadas da cidade, descarta
+    // qualquer lugar que esteja além do raio permitido para a categoria.
+    if (cityCenter) {
+      const dist = haversineMeters(cityCenter, { lat: p.location.latitude, lng: p.location.longitude });
+      const maxDist = realCat.type === "attraction" || realCat.type === "beach"
+        ? ATTRACTION_RADIUS_M
+        : CITY_RADIUS_M;
+      if (dist > maxDist) return; // fora da cidade — descarta
+    }
+
     seenIds.add(p.id);
     const arr = byCategory.get(realCat.type) ?? [];
     arr.push({ ...p, _cat: realCat });
     byCategory.set(realCat.type, arr);
   };
 
-  // 1) Múltiplas queries por categoria — busca mais profunda
+  // Função auxiliar: usa restrição geográfica quando possível,
+  // cai para sem-bias como fallback quando não temos coords.
+  const searchForCity = (query: string, cat: TypeMapEntry) => {
+    if (!cityCenter) return placesTextNoBias(query);
+    const radius = cat.type === "attraction" || cat.type === "beach"
+      ? ATTRACTION_RADIUS_M
+      : CITY_RADIUS_M;
+    return placesTextRestricted(query, cityCenter.lat, cityCenter.lng, radius);
+  };
+
+  // 1) Múltiplas queries por categoria com restrição geográfica
   const queryTasks: Array<{ q: string; cat: TypeMapEntry }> = [];
   for (const cat of targetTypes) {
     const variants = cat.queryVariants ?? [`melhores ${cat.category.toLowerCase()} em`];
@@ -996,15 +1059,17 @@ export async function generateCityReferencesFromMaps(input: {
   for (let i = 0; i < queryTasks.length; i += QUERY_CONCURRENCY) {
     const batch = queryTasks.slice(i, i + QUERY_CONCURRENCY);
     const results = await Promise.all(
-      batch.map(async ({ q, cat }) => ({ items: await placesTextNoBias(q), cat })),
+      batch.map(async ({ q, cat }) => ({ items: await searchForCity(q, cat), cat })),
     );
     for (const { items, cat } of results) {
       for (const p of items) ingest(p, cat);
     }
   }
 
-  // 2) Curadoria via Gemini — nomes icônicos resolvidos por busca textual
-  const iconic = await fetchIconicPlacesFromGemini(city_label, country);
+  // 2) Curadoria via Gemini — nomes icônicos resolvidos com restrição geográfica.
+  // O nome exato do Google Maps + cidade evita ambiguidade, e o círculo
+  // garante que não pega homônimos de outras cidades.
+  const iconic = await fetchIconicPlacesFromGemini(city_label, country, state);
   const tasks: Array<{ name: string; cat: TypeMapEntry }> = [];
   for (const cat of targetTypes) {
     const names = iconic[cat.type] ?? [];
@@ -1015,9 +1080,9 @@ export async function generateCityReferencesFromMaps(input: {
     const batch = tasks.slice(i, i + CONCURRENCY);
     const results = await Promise.all(
       batch.map(async ({ name, cat }) => {
-        const resolved = await placesTextNoBias(`${name} ${cityQ}`);
-        // pega TODOS que batem em qualidade, não só o melhor — assim Iguaçu BR
-        // e Iguazú AR podem coexistir.
+        // Busca com restrição geográfica quando possível — evita pegar
+        // lugares com nome igual em outras cidades ou estados.
+        const resolved = await searchForCity(`${name} ${cityQ}`, cat);
         return { items: resolved, cat };
       }),
     );

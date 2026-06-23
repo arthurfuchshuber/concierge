@@ -1,5 +1,5 @@
 import { createFileRoute, notFound, Link } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
 import { getPublicGuide } from "@/lib/guide.functions";
 import {
   ArrowLeft,
@@ -340,8 +340,6 @@ function ExplorePage() {
       })
       .filter((x) => x.name);
   }, [r, propLat, propLng]);
-  const cityLabel = (p.city as string | null) ?? "sua cidade";
-
   // Constrói nearby/city por meta-categoria a partir de:
   // - property_recommendations: pertinho (<=1,5km ou <=20min a pé) → "Pertinho";
   //   demais → "Na Cidade";
@@ -397,7 +395,6 @@ function ExplorePage() {
   const active = (activeKey
     ? categoriesUnfiltered.find((c) => c.meta.key === activeKey)
     : null) ?? null;
-  const showingCityRefs = activeKey === "__city_refs";
 
   return (
     <div
@@ -427,18 +424,16 @@ function ExplorePage() {
         <header className="mt-6 mb-8">
           <p className="text-[10px] uppercase tracking-[0.32em] text-accent font-semibold mb-3">Concierge</p>
           <h1 className="font-serif text-[2.1rem] md:text-[2.8rem] leading-[1.02] tracking-tight">
-            {showingCityRefs ? `Referências em ${cityLabel}` : active ? active.meta.title : "Explore a Região"}
+            {active ? active.meta.title : "Explore a Região"}
           </h1>
           <p className="text-[13px] md:text-[14px] text-muted-foreground mt-3 leading-relaxed max-w-[52ch]">
-            {showingCityRefs
-              ? `Pontos icônicos e endereços que valem a viagem em ${cityLabel}.`
-              : active
-                ? active.meta.desc
-                : `Uma curadoria de lugares e experiências próximas a ${p.name}.`}
+            {active
+              ? active.meta.desc
+              : `Uma curadoria de lugares e experiências próximas a ${p.name}.`}
           </p>
         </header>
 
-        {!active && !showingCityRefs ? (
+        {!active ? (
           <>
             <div className="flex items-center justify-between gap-3 flex-wrap mb-4">
               <MinReviewsFilter value={minReviews} onChange={setMinReviews} />
@@ -449,24 +444,8 @@ function ExplorePage() {
             ) : (
               <CategoryList categories={categories} onPick={(k) => setActiveKey(k)} />
             )}
-            {cityRefs.length > 0 && (
-              <CityReferencesCard
-                items={cityRefs}
-                cityLabel={cityLabel}
-                viewMode={viewMode}
-                onPick={() => setActiveKey("__city_refs")}
-              />
-            )}
+
           </>
-        ) : showingCityRefs ? (
-          <CityReferencesDetail
-            items={cityRefs}
-            cityLabel={cityLabel}
-            sortBy={sortBy}
-            setSortBy={setSortBy}
-            viewMode={viewMode}
-            setViewMode={setViewMode}
-          />
         ) : (
           <CategoryDetail
             nearby={sortRecs(active!.nearby, sortBy)}
@@ -561,6 +540,33 @@ function ExplorePage() {
   );
 }
 
+function SkeletonCard() {
+  return (
+    <div className="bg-card border border-border rounded-2xl overflow-hidden animate-pulse">
+      <div className="aspect-[16/10] w-full bg-secondary" />
+      <div className="p-5 space-y-3">
+        <div className="h-5 bg-secondary rounded-lg w-3/4" />
+        <div className="h-3.5 bg-secondary rounded w-full" />
+        <div className="h-3.5 bg-secondary rounded w-2/3" />
+      </div>
+    </div>
+  );
+}
+
+function SkeletonRow() {
+  return (
+    <div className="flex gap-4 bg-card border border-border rounded-2xl p-3 animate-pulse">
+      <div className="size-24 sm:size-28 shrink-0 rounded-xl bg-secondary" />
+      <div className="flex-1 space-y-2 py-1">
+        <div className="h-4 bg-secondary rounded w-2/3" />
+        <div className="h-3 bg-secondary rounded w-1/3" />
+        <div className="h-3 bg-secondary rounded w-full" />
+      </div>
+    </div>
+  );
+}
+
+
 function CategoryGrid({
   categories,
   onPick,
@@ -573,6 +579,13 @@ function CategoryGrid({
   }[];
   onPick: (k: string) => void;
 }) {
+  if (categories.length === 0) {
+    return (
+      <div className={`grid grid-cols-1 sm:grid-cols-2 gap-4 ${viewMode === "list" ? "hidden" : ""}`}>
+        {[1,2,3,4].map((k) => <SkeletonCard key={k} />)}
+      </div>
+    );
+  }
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
       {categories.map(({ meta, count, nearby, city }) => {
@@ -701,7 +714,7 @@ function CategoryDetail({
 
   const sections = [
     { key: "nearby", eyebrow: "A poucos minutos", title: "Pertinho da Residência", items: nearbyFiltered, total: nearby.length },
-    { key: "city", eyebrow: "Vale o deslocamento", title: "Na Cidade", items: cityFiltered, total: city.length },
+    { key: "city", eyebrow: "Vale a viagem", title: "Referências na Cidade", items: cityFiltered, total: city.length },
   ].filter((s) => s.total > 0);
 
   return (
@@ -713,7 +726,8 @@ function CategoryDetail({
         </div>
         <ViewToggle viewMode={viewMode} setViewMode={setViewMode} />
       </div>
-      <div className="mt-8 space-y-6">
+      {cityFiltered.length > 1 && <div className="mt-6"><CityMap items={cityFiltered} /></div>}
+      <div className="mt-4 space-y-6">
         {sections.map((s) => (
           <CollapsibleSection
             key={s.key}
@@ -1057,171 +1071,46 @@ function RecRow({ rec }: { rec: Rec }) {
   return inner;
 }
 
-void ShoppingBag;
-void MapPin;
 
-function CityReferencesCard({
-  items,
-  cityLabel,
-  viewMode,
-  onPick,
-}: {
-  items: Rec[];
-  cityLabel: string;
-  viewMode: "grid" | "list";
-  onPick: () => void;
-}) {
-  // Capa: foto do lugar com MAIS avaliações entre as referências.
-  const hero =
-    [...items]
-      .filter((x) => x.image_url)
-      .sort((a, b) => (b.user_ratings_total ?? 0) - (a.user_ratings_total ?? 0))[0]?.image_url ?? null;
-  const count = items.length;
+// ─── CityMap: visual grid of pinned places linking to Google Maps ─────────────
+function CityMap({ items }: { items: Rec[] }) {
+  const withImg = items.filter((it) => it.image_url).slice(0, 6);
+  if (withImg.length < 2) return null;
 
-  if (viewMode === "list") {
-    return (
-      <button
-        type="button"
-        onClick={onPick}
-        className="group mt-3 flex w-full gap-4 bg-card border border-accent/30 rounded-2xl p-3 text-left hover:border-accent/60 hover:shadow-lg transition-all"
-      >
-        <div className="relative size-24 sm:size-28 shrink-0 overflow-hidden rounded-xl bg-secondary">
-          {hero ? (
-            <img src={hero} alt="" loading="lazy" className="absolute inset-0 size-full object-cover group-hover:scale-[1.04] transition-transform duration-500" />
-          ) : (
-            <div className="absolute inset-0 grid place-items-center bg-gradient-to-br from-accent/20 to-accent/5">
-              <MapPin className="size-8 text-accent/70" strokeWidth={1.25} />
+  const categoryColors: Record<string, string> = {
+    attraction: "bg-amber-500", restaurant: "bg-red-500", bar: "bg-purple-500",
+    cafe: "bg-yellow-600", beach: "bg-blue-500", park: "bg-green-500",
+    market: "bg-orange-500", pharmacy: "bg-pink-500", shopping: "bg-indigo-500",
+    nightlife: "bg-violet-500",
+  };
+
+  return (
+    <div className="rounded-2xl border border-border overflow-hidden bg-card mb-2">
+      <div className="px-5 py-3 border-b border-border/50 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <MapPin className="size-4 text-accent" strokeWidth={1.75} />
+          <h3 className="text-[13px] font-medium">Destaque visual</h3>
+        </div>
+        <span className="text-[11px] text-muted-foreground">{items.length} pontos</span>
+      </div>
+      <div className="p-3 grid grid-cols-3 sm:grid-cols-6 gap-2">
+        {withImg.map((it) => {
+          const href = it.maps_url ?? undefined;
+          const color = categoryColors[it.type] ?? "bg-accent";
+          const inner = (
+            <div className="group relative overflow-hidden rounded-xl aspect-square cursor-pointer hover:scale-[1.03] transition-transform">
+              <img src={it.image_url!} alt={it.name} className="absolute inset-0 size-full object-cover" loading="lazy" />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
+              <div className={`absolute top-1.5 left-1.5 size-2 rounded-full ${color} ring-1 ring-white/50`} />
+              <p className="absolute bottom-1.5 left-1.5 right-1.5 text-[10px] font-medium text-white leading-tight line-clamp-2">{it.name}</p>
+              <ExternalLink className="absolute top-1.5 right-1.5 size-2.5 text-white/70 opacity-0 group-hover:opacity-100 transition-opacity" />
             </div>
-          )}
-        </div>
-        <div className="flex-1 min-w-0 flex flex-col justify-center gap-1">
-          <p className="inline-flex items-center gap-1.5 text-[10px] uppercase tracking-[0.2em] font-semibold text-accent">
-            <MapPin className="size-3.5" strokeWidth={1.75} />
-            {count} {count === 1 ? "referência" : "referências"}
-          </p>
-          <h2 className="font-serif text-[1.3rem] leading-tight">Referências em {cityLabel}</h2>
-          <p className="text-[12.5px] text-muted-foreground leading-relaxed line-clamp-2">
-            Pontos icônicos e endereços que valem a viagem.
-          </p>
-        </div>
-      </button>
-    );
-  }
-
-  return (
-    <button
-      type="button"
-      onClick={onPick}
-      className="group mt-4 relative w-full overflow-hidden rounded-2xl border border-accent/30 bg-card text-left hover:border-accent/60 hover:shadow-xl transition-all"
-    >
-      <div className="relative aspect-[21/9] w-full overflow-hidden bg-secondary">
-        {hero ? (
-          <img src={hero} alt="" loading="lazy" className="absolute inset-0 size-full object-cover group-hover:scale-[1.04] transition-transform duration-500" />
-        ) : (
-          <div className="absolute inset-0 grid place-items-center bg-gradient-to-br from-accent/20 to-accent/5">
-            <MapPin className="size-12 text-accent/70" strokeWidth={1.25} />
-          </div>
-        )}
-        <div className="absolute inset-0 bg-gradient-to-t from-background/90 via-background/30 to-transparent" />
-        <div className="absolute top-3 left-3 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-background/85 backdrop-blur text-[10px] uppercase tracking-[0.2em] font-semibold text-foreground/85">
-          <MapPin className="size-3.5 text-accent" strokeWidth={1.75} />
-          {count} {count === 1 ? "referência" : "referências"}
-        </div>
+          );
+          return href ? (
+            <a key={it.id} href={href} target="_blank" rel="noopener noreferrer">{inner}</a>
+          ) : <div key={it.id}>{inner}</div>;
+        })}
       </div>
-      <div className="p-5">
-        <p className="text-[10px] uppercase tracking-[0.28em] text-accent font-semibold">Macro</p>
-        <h2 className="font-serif text-[1.5rem] md:text-[1.7rem] leading-tight mt-1">Referências em {cityLabel}</h2>
-        <p className="text-[12.5px] text-muted-foreground mt-1.5 leading-relaxed">
-          Pontos icônicos e endereços que valem a viagem em {cityLabel}.
-        </p>
-        <div className="mt-3 inline-flex items-center gap-1.5 text-[10.5px] uppercase tracking-[0.24em] font-semibold text-accent">
-          Ver tudo
-          <span aria-hidden className="transition-transform group-hover:translate-x-0.5">→</span>
-        </div>
-      </div>
-    </button>
-  );
-}
-
-function CityReferencesDetail({
-  items,
-  cityLabel,
-  sortBy,
-  setSortBy,
-  viewMode,
-  setViewMode,
-}: {
-  items: Rec[];
-  cityLabel: string;
-  sortBy: SortKey;
-  setSortBy: (s: SortKey) => void;
-  viewMode: "grid" | "list";
-  setViewMode: (v: "grid" | "list") => void;
-}) {
-  const [minReviews, setMinReviews] = useState(0);
-
-  // Agrupa por TYPE (cada subcategoria é uma seção própria).
-  const grouped = useMemo(() => {
-    const map = new Map<string, Rec[]>();
-    for (const it of items) {
-      if (minReviews > 0 && (it.user_ratings_total ?? 0) < minReviews) continue;
-      const arr = map.get(it.type) ?? [];
-      arr.push(it);
-      map.set(it.type, arr);
-    }
-    return Array.from(map.entries())
-      .map(([type, list]) => ({ type, items: sortRecs(list, sortBy) }))
-      .sort((a, b) => a.type.localeCompare(b.type));
-  }, [items, sortBy, minReviews]);
-
-  return (
-    <>
-      <div className="flex items-center justify-between gap-3 flex-wrap">
-        <div className="flex items-center gap-3 flex-wrap">
-          <SortBar sortBy={sortBy} setSortBy={setSortBy} />
-          <MinReviewsFilter value={minReviews} onChange={setMinReviews} />
-        </div>
-        <ViewToggle viewMode={viewMode} setViewMode={setViewMode} />
-      </div>
-      <div className="mt-8 space-y-6">
-        {grouped.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
-            Nenhuma referência cadastrada para {cityLabel} ainda.
-          </p>
-        ) : (
-          grouped.map((g) => {
-            const typeLabel = TYPE_LABEL[g.type] || g.items[0]?.category || g.type;
-            return (
-              <section key={g.type} className="border border-border rounded-2xl bg-card/40 overflow-hidden">
-                <div className="px-5 py-4 border-b border-border/50">
-                  <p className="text-[10px] uppercase tracking-[0.28em] text-accent font-semibold">Categoria</p>
-                  <h3 className="font-serif text-[1.35rem] md:text-[1.55rem] leading-tight mt-0.5">
-                    {typeLabel}
-                    <span className="ml-2 text-[12px] text-muted-foreground font-sans font-normal">
-                      ({g.items.length})
-                    </span>
-                  </h3>
-                </div>
-                <div className="px-5 pb-5 pt-4">
-                  {viewMode === "grid" ? (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {g.items.map((rec) => (
-                        <RecCard key={rec.id} rec={rec} />
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="flex flex-col gap-3">
-                      {g.items.map((rec) => (
-                        <RecRow key={rec.id} rec={rec} />
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </section>
-            );
-          })
-        )}
-      </div>
-    </>
+    </div>
   );
 }

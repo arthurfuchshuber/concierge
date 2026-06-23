@@ -13,6 +13,15 @@ export const Route = createFileRoute("/sitemap.xml")({
   server: {
     handlers: {
       GET: async () => {
+        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+        const { data: guides } = await supabaseAdmin
+          .from("properties")
+          .select("slug, updated_at")
+          .eq("published", true)
+          .eq("access_mode", "public")
+          .order("updated_at", { ascending: false })
+          .limit(500);
+
         const entries: SitemapEntry[] = [
           { path: "/", changefreq: "weekly", priority: "1.0" },
           { path: "/precos", changefreq: "monthly", priority: "0.9" },
@@ -22,10 +31,20 @@ export const Route = createFileRoute("/sitemap.xml")({
           { path: "/reembolso", changefreq: "yearly", priority: "0.3" },
         ];
 
-        const urls = entries.map((e) =>
+        const guideEntries: SitemapEntry[] = (guides ?? []).map((g) => ({
+          path: `/g/${g.slug}`,
+          changefreq: "weekly" as const,
+          priority: "0.7",
+          lastmod: g.updated_at ? new Date(g.updated_at).toISOString().split("T")[0] : undefined,
+        }));
+
+        const allEntries = [...entries, ...guideEntries];
+
+        const urls = allEntries.map((e) =>
           [
             `  <url>`,
             `    <loc>${BASE_URL}${e.path}</loc>`,
+            (e as any).lastmod ? `    <lastmod>${(e as any).lastmod}</lastmod>` : null,
             e.changefreq ? `    <changefreq>${e.changefreq}</changefreq>` : null,
             e.priority ? `    <priority>${e.priority}</priority>` : null,
             `  </url>`,

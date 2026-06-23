@@ -114,12 +114,18 @@ export const submitPin = createServerFn({ method: "POST" })
     if (!prop.pin_code || prop.pin_code !== data.pin) {
       return { ok: false as const, reason: "wrong" };
     }
+    // maxAge alinhado com pin_expires_at: o cookie expira junto com o guia.
+    // Fallback de 24h quando não há data de expiração configurada.
+    const expiresAt = prop.pin_expires_at ? new Date(prop.pin_expires_at).getTime() : null;
+    const maxAge = expiresAt
+      ? Math.max(60, Math.floor((expiresAt - Date.now()) / 1000))
+      : 60 * 60 * 24;
     setCookie(`sg-pin-${prop.id}`, "ok", {
       httpOnly: true,
       secure: true,
       sameSite: "lax",
       path: "/",
-      maxAge: 60 * 60 * 24, // 24h
+      maxAge,
     });
     return { ok: true as const };
   });
