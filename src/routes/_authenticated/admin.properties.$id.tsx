@@ -347,6 +347,7 @@ function PropertyEditor() {
             note: rec.note,
           })),
         ],
+      }));
       const nearby = r.recommendations.filter((x) => x.scope === "nearby").length;
       const city = r.recommendations.filter((x) => x.scope === "city").length;
       const extras: string[] = [];
