@@ -1713,6 +1713,7 @@ function RecGroup({
   lng: number | null;
 }) {
   const [openCats, setOpenCats] = useState<Record<string, boolean>>({});
+  const [selectedIdx, setSelectedIdx] = useState<Set<number>>(new Set());
 
   const groups = new Map<string, { items: RecItem[]; indices: number[] }>();
   items.forEach((it, idx) => {
@@ -1737,6 +1738,22 @@ function RecGroup({
   function addManual() {
     onChange([...items, { scope, type: "other", name: "" }]);
   }
+  function toggleSelect(idx: number) {
+    setSelectedIdx((s) => {
+      const n = new Set(s);
+      if (n.has(idx)) n.delete(idx); else n.add(idx);
+      return n;
+    });
+  }
+  function toggleSelectAll() {
+    setSelectedIdx((s) => (s.size === items.length ? new Set() : new Set(items.map((_, i) => i))));
+  }
+  function deleteSelected() {
+    if (selectedIdx.size === 0) return;
+    if (!confirm(`Remover ${selectedIdx.size} item(ns) selecionado(s)?`)) return;
+    onChange(items.filter((_, j) => !selectedIdx.has(j)));
+    setSelectedIdx(new Set());
+  }
 
   return (
     <Section
@@ -1744,9 +1761,25 @@ function RecGroup({
       title={title}
       desc={desc}
       action={
-        <Button size="sm" variant="ghost" onClick={addManual} className="shrink-0 h-8 rounded-full text-xs text-muted-foreground hover:text-foreground">
-          <Plus className="size-3.5" /> manual
-        </Button>
+        <div className="flex items-center gap-1.5">
+          {items.length > 0 && (
+            <button
+              type="button"
+              onClick={toggleSelectAll}
+              className="text-[11px] text-muted-foreground hover:text-foreground transition-colors px-2"
+            >
+              {selectedIdx.size === items.length ? "Limpar" : "Selecionar todos"}
+            </button>
+          )}
+          {selectedIdx.size > 0 && (
+            <Button size="sm" variant="destructive" onClick={deleteSelected} className="h-8 rounded-full text-xs">
+              <Trash2 className="size-3.5" /> Excluir ({selectedIdx.size})
+            </Button>
+          )}
+          <Button size="sm" variant="ghost" onClick={addManual} className="shrink-0 h-8 rounded-full text-xs text-muted-foreground hover:text-foreground">
+            <Plus className="size-3.5" /> manual
+          </Button>
+        </div>
       }
     >
       <PlaceAutocomplete
@@ -1763,53 +1796,84 @@ function RecGroup({
         <div className="space-y-2">
           {groupEntries.map(([cat, g]) => {
             const open = openCats[cat] ?? false;
+            const groupSelected = g.indices.filter((i) => selectedIdx.has(i)).length;
+            const allInGroup = groupSelected === g.indices.length && g.indices.length > 0;
             return (
               <div key={cat} className="rounded-xl border border-border/60 bg-background/40 overflow-hidden">
-                <button
-                  type="button"
-                  onClick={() => setOpenCats((p) => ({ ...p, [cat]: !open }))}
-                  className="w-full flex items-center justify-between gap-3 px-3.5 py-2.5 text-left hover:bg-muted/30 transition-colors"
-                  aria-expanded={open}
-                >
-                  <div className="flex items-center gap-2 min-w-0">
-                    <span className="text-sm font-medium truncate">{cat}</span>
-                    <span className="text-[11px] text-muted-foreground">({g.items.length})</span>
-                  </div>
-                  <ChevronDown className={`size-4 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`} />
-                </button>
+                <div className="flex items-center gap-2 px-3.5 py-2.5 hover:bg-muted/30 transition-colors">
+                  <input
+                    type="checkbox"
+                    checked={allInGroup}
+                    onChange={() =>
+                      setSelectedIdx((s) => {
+                        const n = new Set(s);
+                        if (allInGroup) g.indices.forEach((i) => n.delete(i));
+                        else g.indices.forEach((i) => n.add(i));
+                        return n;
+                      })
+                    }
+                    className="size-4 accent-current"
+                    onClick={(e) => e.stopPropagation()}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setOpenCats((p) => ({ ...p, [cat]: !open }))}
+                    className="flex-1 flex items-center justify-between gap-3 text-left"
+                    aria-expanded={open}
+                  >
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="text-sm font-medium truncate">{cat}</span>
+                      <span className="text-[11px] text-muted-foreground">
+                        ({g.items.length}{groupSelected > 0 ? ` · ${groupSelected} sel.` : ""})
+                      </span>
+                    </div>
+                    <ChevronDown className={`size-4 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`} />
+                  </button>
+                </div>
                 {open && (
                   <div className="border-t border-border/50 px-3.5 py-3 space-y-2.5">
                     {g.items.map((r, k) => {
                       const idx = g.indices[k];
+                      const checked = selectedIdx.has(idx);
                       return (
-                        <ItemCard key={idx} onRemove={() => removeAt(idx)}>
-                          <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-2">
-                            <Input placeholder="Nome" value={r.name} maxLength={200}
-                              onChange={(e) => updateAt(idx, { name: e.target.value })} />
-                            <Select value={r.type} onValueChange={(v) => updateAt(idx, { type: v })}>
-                              <SelectTrigger className="w-full sm:w-36"><SelectValue /></SelectTrigger>
-                              <SelectContent>
-                                {["restaurant","bar","cafe","beach","attraction","market","pharmacy","park","nightlife","shopping","other"].map((t) => (
-                                  <SelectItem key={t} value={t}>{t}</SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
+                        <div key={idx} className="flex items-start gap-2">
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={() => toggleSelect(idx)}
+                            className="mt-3 size-4 accent-current shrink-0"
+                          />
+                          <div className="flex-1 min-w-0">
+                            <ItemCard onRemove={() => removeAt(idx)}>
+                              <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-2">
+                                <Input placeholder="Nome" value={r.name} maxLength={200}
+                                  onChange={(e) => updateAt(idx, { name: e.target.value })} />
+                                <Select value={r.type} onValueChange={(v) => updateAt(idx, { type: v })}>
+                                  <SelectTrigger className="w-full sm:w-36"><SelectValue /></SelectTrigger>
+                                  <SelectContent>
+                                    {["restaurant","bar","cafe","beach","attraction","market","pharmacy","park","nightlife","shopping","other"].map((t) => (
+                                      <SelectItem key={t} value={t}>{t}</SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              <div className="grid grid-cols-2 gap-2">
+                                <Input placeholder="Distância (texto)" value={r.distance_text ?? ""} maxLength={80}
+                                  onChange={(e) => updateAt(idx, { distance_text: e.target.value })} />
+                                <Input placeholder="Link Maps" value={r.maps_url ?? ""} maxLength={2048}
+                                  onChange={(e) => updateAt(idx, { maps_url: e.target.value })} />
+                              </div>
+                              <Textarea placeholder="Nota pessoal (opcional)" value={r.note ?? ""} maxLength={1000}
+                                onChange={(e) => updateAt(idx, { note: e.target.value })} />
+                              {(r.category || r.rating) && (
+                                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                  <MapPin className="size-3" /> {r.category} {r.rating ? `· ★ ${r.rating}` : ""}
+                                  {r.user_ratings_total ? ` (${r.user_ratings_total.toLocaleString("pt-BR")})` : ""}
+                                </div>
+                              )}
+                            </ItemCard>
                           </div>
-                          <div className="grid grid-cols-2 gap-2">
-                            <Input placeholder="Distância (texto)" value={r.distance_text ?? ""} maxLength={80}
-                              onChange={(e) => updateAt(idx, { distance_text: e.target.value })} />
-                            <Input placeholder="Link Maps" value={r.maps_url ?? ""} maxLength={2048}
-                              onChange={(e) => updateAt(idx, { maps_url: e.target.value })} />
-                          </div>
-                          <Textarea placeholder="Nota pessoal (opcional)" value={r.note ?? ""} maxLength={1000}
-                            onChange={(e) => updateAt(idx, { note: e.target.value })} />
-                          {(r.category || r.rating) && (
-                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                              <MapPin className="size-3" /> {r.category} {r.rating ? `· ★ ${r.rating}` : ""}
-                              {r.user_ratings_total ? ` (${r.user_ratings_total.toLocaleString("pt-BR")})` : ""}
-                            </div>
-                          )}
-                        </ItemCard>
+                        </div>
                       );
                     })}
                   </div>
