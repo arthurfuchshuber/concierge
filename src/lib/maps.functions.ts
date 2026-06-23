@@ -539,12 +539,12 @@ export const enrichFromMapsLink = createServerFn({ method: "POST" })
     // bater com a categoria. Recomendações do GUIA são SOMENTE "pertinho":
     // até 1,5km OU até 20 minutos a pé (≈1,6km a 80 m/min). Lugares city-wide
     // ficam em city_references, exibidos na seção "Na Cidade" do guia.
-    const MIN_RATING = 4.0;
-    const MIN_REVIEWS_GLOBAL = 100;  // reduzido para capturar mais lugares locais
-    const MAX_PER_TYPE = 20;         // mais resultados por categoria
-    const PERTINHO_MAX_M = 1600;     // filtro de exibição: só mostra até 1,6km
-    const NEARBY_RADIUS_M = 3000;    // busca num raio maior para não perder nada próximo
-    const NEARBY_TEXT_RADIUS_M = 3500; // text search ainda mais abrangente
+    const MIN_RATING = 3.8;
+    const MIN_REVIEWS_GLOBAL = 40;   // muito permissivo para pertinho — captura ref locais
+    const MAX_PER_TYPE = 25;
+    const PERTINHO_MAX_M = 1600;     // filtro de exibição: só mostra até 1,6km (~20min a pé)
+    const NEARBY_RADIUS_M = 2500;    // busca além do limite para garantir cobertura
+    const NEARBY_TEXT_RADIUS_M = 3000;
 
     const classifyByPrimaryType = (primaryType: string | undefined) => {
       if (!primaryType) return null;
