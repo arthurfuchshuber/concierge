@@ -55,6 +55,27 @@ function AdminCityDetail() {
   const [searchTerm, setSearchTerm] = useState("");
   const [searching, setSearching] = useState(false);
   const [results, setResults] = useState<Awaited<ReturnType<typeof searchPlaces>>>([]);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+
+  function toggleSel(id: string) {
+    setSelected((s) => {
+      const n = new Set(s);
+      if (n.has(id)) n.delete(id); else n.add(id);
+      return n;
+    });
+  }
+  async function handleBulkDelete() {
+    if (selected.size === 0) return;
+    if (!confirm(`Excluir ${selected.size} referência(s) selecionada(s)?`)) return;
+    try {
+      await bulkDel({ data: { ids: Array.from(selected) } });
+      toast.success(`${selected.size} removida(s)`);
+      setSelected(new Set());
+      await qc.invalidateQueries({ queryKey });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erro ao excluir");
+    }
+  }
 
   async function handleGenerate(type?: string | null) {
     const key = type ?? "__all__";
