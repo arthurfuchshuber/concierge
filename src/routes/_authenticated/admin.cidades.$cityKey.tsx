@@ -335,6 +335,15 @@ function AdminCityDetail() {
               </h3>
             </div>
             <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => handleGenerate(type)}
+              disabled={generating !== null}
+              title={`Regenerar ${list[0]?.category ?? type} com IA`}
+            >
+              {generating === type ? <Loader2 className="size-3.5 mr-1.5 animate-spin" /> : <Sparkles className="size-3.5 mr-1.5" />}
+              Regenerar
+            </Button>
           </div>
 
           <ul className="divide-y divide-border">
