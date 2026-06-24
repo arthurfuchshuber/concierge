@@ -430,7 +430,7 @@ function Guide({ data }: { data: GuideOk }) {
             />
 
 
-            <div className="px-5 md:px-10 lg:px-16 mt-5 md:mt-7 relative z-10 mb-4 md:mb-6 space-y-3">
+            <div className="px-5 md:px-10 lg:px-16 mt-2 md:mt-3 relative z-10 mb-4 md:mb-6 space-y-3">
               <div className="md:max-w-md lg:max-w-lg">
                 <WifiStrip
                   ssid={p.wifi_ssid}
@@ -1226,7 +1226,7 @@ function HeroCompact({
 
   return (
     <section
-      className="relative overflow-hidden px-5 md:px-10 lg:px-16 pb-12 md:pb-16 pt-4 md:pt-8"
+      className="relative overflow-hidden px-5 md:px-10 lg:px-16 pb-6 md:pb-8 pt-4 md:pt-8"
       onTouchStart={onTouchStart}
       onTouchEnd={onTouchEnd}
     >
@@ -1284,7 +1284,7 @@ function HeroCompact({
             <MapPin className="size-3 text-accent" strokeWidth={2.2} /> {city}
           </span>
         )}
-        <h1 className="font-serif text-[2.1rem] md:text-[3.75rem] leading-[0.95] tracking-[-0.01em] text-white text-balance max-w-[320px] md:max-w-[760px] drop-shadow-[0_2px_20px_rgba(0,0,0,0.45)]">
+        <h1 className="font-serif text-[1.95rem] md:text-[3.5rem] leading-[1] tracking-[-0.01em] text-white text-balance max-w-[360px] md:max-w-[820px] drop-shadow-[0_2px_20px_rgba(0,0,0,0.45)] line-clamp-2">
           {name}
         </h1>
 
@@ -1947,7 +1947,7 @@ function WifiStrip({
 }) {
   const [revealed, setRevealed] = useState(false);
   const [copied, setCopied] = useState(false);
-  void theme;
+  const isLight = theme === "light";
 
   const showing = unlocked && revealed;
   const masked = password ? "•".repeat(Math.min(password.length, 12)) : "—";
@@ -1987,9 +1987,9 @@ function WifiStrip({
   }
 
   return (
-    <div className="wifi-shimmer relative overflow-hidden rounded-[22px] border border-border bg-card shadow-[0_4px_18px_-8px_rgba(0,0,0,0.10)] dark:border-amber-500/25 dark:bg-[linear-gradient(135deg,oklch(0.22_0.05_55/0.95)_0%,oklch(0.16_0.04_50/0.92)_60%,oklch(0.12_0.03_45/0.95)_100%)] dark:shadow-[0_14px_40px_-18px_oklch(from_var(--accent)_l_c_h/0.55)]">
-      <div className="pointer-events-none absolute inset-0 opacity-[0.04] dark:opacity-[0.07] [background-image:radial-gradient(oklch(var(--accent))_1px,transparent_1px)] [background-size:14px_14px]" />
-      <div className="pointer-events-none absolute -top-12 -right-12 size-40 rounded-full bg-accent/15 dark:bg-accent/25 blur-3xl" />
+    <div className={`wifi-shimmer relative overflow-hidden rounded-[22px] border ${isLight ? "border-border bg-card shadow-[0_4px_18px_-8px_rgba(0,0,0,0.10)]" : "border-amber-500/25 bg-[linear-gradient(135deg,oklch(0.22_0.05_55/0.95)_0%,oklch(0.16_0.04_50/0.92)_60%,oklch(0.12_0.03_45/0.95)_100%)] shadow-[0_14px_40px_-18px_oklch(from_var(--accent)_l_c_h/0.55)]"}`}>
+      <div className={`pointer-events-none absolute inset-0 ${isLight ? "opacity-[0.04]" : "opacity-[0.07]"} [background-image:radial-gradient(oklch(var(--accent))_1px,transparent_1px)] [background-size:14px_14px]`} />
+      <div className={`pointer-events-none absolute -top-12 -right-12 size-40 rounded-full ${isLight ? "bg-accent/15" : "bg-accent/25"} blur-3xl`} />
       <div className="relative flex items-center gap-4 px-5 py-4 md:px-6 md:py-5">
         <span className="relative grid size-14 shrink-0 place-items-center rounded-2xl bg-accent text-accent-foreground ring-1 ring-accent/60 shadow-[0_8px_24px_-8px_oklch(var(--accent)/0.7),inset_0_1px_0_rgba(255,255,255,0.25)]">
           <span className="wifi-pulse pointer-events-none absolute -inset-1 rounded-2xl bg-accent/30 blur-md -z-10" />
