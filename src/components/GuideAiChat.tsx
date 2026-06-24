@@ -157,12 +157,13 @@ export function GuideAiChat({ slug, propertyName, guestName }: { slug: string; p
               <div className="max-w-[244px] rounded-2xl rounded-br-sm bg-background border border-border shadow-elevated px-4 py-3">
                 <button
                   type="button"
-                  onClick={() => setShowNudge(false)}
+                  onClick={dismissNudge}
                   className="absolute top-2 right-2 size-5 grid place-items-center rounded-full text-muted-foreground hover:text-foreground transition-colors"
                   aria-label="Fechar"
                 >
                   <X className="size-3" />
                 </button>
+
                 <p className="text-[10px] font-semibold text-accent/80 uppercase tracking-[0.18em] mb-1">Concierge IA</p>
                 <p className="text-[13px] leading-snug font-medium">
                   {greeting}{guestName ? `, ${guestName.split(" ")[0]}` : ""}! 👋
