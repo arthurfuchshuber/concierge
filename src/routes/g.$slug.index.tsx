@@ -1410,6 +1410,124 @@ function StepList({ text, dense = false }: { text: string; dense?: boolean }) {
   );
 }
 
+type RuleCategory = {
+  key: string;
+  label: string;
+  icon: React.ReactNode;
+  tone: string; // tailwind classes for icon bg/border
+  patterns: RegExp[];
+};
+
+const RULE_CATEGORIES: RuleCategory[] = [
+  {
+    key: "silencio",
+    label: "Silêncio e vizinhos",
+    icon: <Moon className="size-[14px]" strokeWidth={1.9} />,
+    tone: "bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-300 ring-indigo-200/60 dark:ring-indigo-400/20",
+    patterns: [/sil[êe]ncio/i, /barulh/i, /vizinh/i, /som\b/i, /m[úu]sica/i, /festa/i, /22h|23h|noite/i],
+  },
+  {
+    key: "substancias",
+    label: "Substâncias",
+    icon: <Flame className="size-[14px]" strokeWidth={1.9} />,
+    tone: "bg-rose-50 dark:bg-rose-500/10 text-rose-600 dark:text-rose-300 ring-rose-200/60 dark:ring-rose-400/20",
+    patterns: [/fumar|cigarr|tabac|vape|narguil/i, /[áa]lcool|bebid/i, /drog|entorpec/i],
+  },
+  {
+    key: "animais",
+    label: "Animais",
+    icon: <PawPrint className="size-[14px]" strokeWidth={1.9} />,
+    tone: "bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-300 ring-amber-200/60 dark:ring-amber-400/20",
+    patterns: [/pet|animal|animais|c[ãa]o|gato/i],
+  },
+  {
+    key: "limpeza",
+    label: "Limpeza e cuidado",
+    icon: <Trash2 className="size-[14px]" strokeWidth={1.9} />,
+    tone: "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 ring-emerald-200/60 dark:ring-emerald-400/20",
+    patterns: [/lixo|residu|sujei|limpe/i, /toalha|len[çc]ol|cama/i, /dano|estragar|quebrar/i],
+  },
+  {
+    key: "seguranca",
+    label: "Segurança",
+    icon: <ShowerHead className="size-[14px]" strokeWidth={1.9} />,
+    tone: "bg-sky-50 dark:bg-sky-500/10 text-sky-700 dark:text-sky-300 ring-sky-200/60 dark:ring-sky-400/20",
+    patterns: [/chave|fechadura|porta|port[ãa]o|janela|tranc/i, /seguran[çc]a|inc[êe]ndio|fogo/i, /piscina|crian[çc]a/i],
+  },
+  {
+    key: "visitas",
+    label: "Visitas e ocupação",
+    icon: <UserRound className="size-[14px]" strokeWidth={1.9} />,
+    tone: "bg-violet-50 dark:bg-violet-500/10 text-violet-700 dark:text-violet-300 ring-violet-200/60 dark:ring-violet-400/20",
+    patterns: [/visit|convidad|h[óo]sped/i, /evento|festa|reuni/i, /sublocar|alug/i],
+  },
+];
+
+function categorizeRule(rule: string): RuleCategory {
+  for (const cat of RULE_CATEGORIES) {
+    if (cat.patterns.some((re) => re.test(rule))) return cat;
+  }
+  return {
+    key: "outros",
+    label: "Outras combinações",
+    icon: <ListChecks className="size-[14px]" strokeWidth={1.9} />,
+    tone: "bg-neutral-100 dark:bg-white/5 text-neutral-700 dark:text-white/80 ring-neutral-200/60 dark:ring-white/10",
+  };
+}
+
+function RulesGrid({ text }: { text: string }) {
+  const rules = text
+    .split(/\r?\n/)
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .map((s) => s.replace(/^\s*(?:\d+[.)\-º°]\s*|[-•·*]\s*)/, "").trim())
+    .filter(Boolean);
+  if (rules.length === 0) return null;
+
+  const groups = new Map<string, { cat: RuleCategory; items: string[] }>();
+  for (const r of rules) {
+    const cat = categorizeRule(r);
+    const slot = groups.get(cat.key) ?? { cat, items: [] };
+    slot.items.push(r);
+    groups.set(cat.key, slot);
+  }
+
+  return (
+    <div className="space-y-6">
+      {Array.from(groups.values()).map(({ cat, items }) => (
+        <section key={cat.key} className="space-y-3">
+          <header className="flex items-center gap-2.5">
+            <span className={`grid size-7 place-items-center rounded-lg ring-1 ${cat.tone}`}>
+              {cat.icon}
+            </span>
+            <h4 className="text-[11.5px] font-semibold uppercase tracking-[0.18em] text-foreground/85">
+              {cat.label}
+            </h4>
+            <span className="h-px flex-1 bg-border/60" />
+            <span className="text-[10.5px] font-medium tabular-nums text-muted-foreground">
+              {items.length}
+            </span>
+          </header>
+          <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {items.map((item, i) => (
+              <li
+                key={i}
+                className="flex items-start gap-2.5 rounded-xl border border-border/60 bg-card/50 px-3 py-2.5"
+              >
+                <span className={`mt-0.5 grid size-5 shrink-0 place-items-center rounded-full ring-1 ${cat.tone}`}>
+                  <span className="size-1.5 rounded-full bg-current" />
+                </span>
+                <span className="text-[13.5px] leading-[1.45] text-foreground/85">{item}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ))}
+    </div>
+  );
+}
+
+
 function SubItem({
   icon, label, hint, children,
 }: {
