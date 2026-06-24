@@ -171,6 +171,7 @@ function PropertyEditor() {
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewMode, setPreviewMode] = useState<"mobile" | "desktop" | null>(null);
   const [copyRecsOpen, setCopyRecsOpen] = useState(false);
+  const [genCityModeOpen, setGenCityModeOpen] = useState(false);
   const [gateOpen, setGateOpen] = useState(false);
   const [lockOpen, setLockOpen] = useState(false);
   const [faqLibOpen, setFaqLibOpen] = useState(false);
