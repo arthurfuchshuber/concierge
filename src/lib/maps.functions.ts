@@ -90,7 +90,7 @@ export const TYPE_MAP: {
   { type: "beach", placesTypes: ["beach"], acceptedPrimaryTypes: ["beach"], category: "Praias", queryVariants: ["melhores praias em", "praias famosas em", "praias para visitar em"] },
   { type: "market", placesTypes: ["supermarket", "grocery_store"], acceptedPrimaryTypes: ["supermarket", "grocery_store", "convenience_store", "food_store", "market"], category: "Mercados", queryVariants: ["supermercados em", "mercados em", "hipermercados em"] },
   { type: "pharmacy", placesTypes: ["pharmacy"], acceptedPrimaryTypes: ["pharmacy", "drugstore"], category: "Farmácias", queryVariants: ["farmácias em", "drogarias em", "farmácia 24 horas em", "drogaria 24h em", "rede de farmácia em"] },
-  { type: "park", placesTypes: ["park"], acceptedPrimaryTypes: ["park", "state_park", "dog_park", "city_park", "plaza", "town_square", "garden", "botanical_garden", "playground"], category: "Praças, Lagos e Parques", queryVariants: ["praças famosas em", "parques urbanos em", "parques municipais em", "lagos em", "áreas verdes em", "espaços públicos de lazer em", "jardins públicos em"] },
+  { type: "park", placesTypes: ["park"], acceptedPrimaryTypes: ["park", "state_park", "dog_park", "city_park", "plaza", "town_square"], category: "Praças, Lagos e Parques", queryVariants: ["praças famosas em", "parques urbanos em", "parques municipais em", "lagos em", "áreas verdes em", "espaços públicos de lazer em", "jardins públicos em"] },
   { type: "shopping", placesTypes: ["shopping_mall"], acceptedPrimaryTypes: ["shopping_mall", "department_store"], category: "Compras", queryVariants: ["shoppings em", "shopping centers em", "centros de compras em"] },
 ];
 
