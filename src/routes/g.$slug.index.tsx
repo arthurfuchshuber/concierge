@@ -469,7 +469,7 @@ function Guide({ data }: { data: GuideOk }) {
                 <span className="h-px flex-1 bg-accent/40" />
               </div>
 
-              <div className="space-y-2.5 md:space-y-0 md:grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 md:gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-5 lg:gap-6">
                 {cards.map((c) =>
                   c.to?.kind === "link" ? (
                     <Link
