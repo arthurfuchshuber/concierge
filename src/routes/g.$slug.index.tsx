@@ -463,10 +463,10 @@ function Guide({ data }: { data: GuideOk }) {
 
             <section id="guide-actions" className="px-5 md:px-10 lg:px-16 relative z-10">
               <div className="flex items-center gap-3 mb-3 md:mb-5">
-                <p className="shrink-0 text-[9px] uppercase tracking-[0.3em] text-accent font-semibold">
+                <p className="shrink-0 text-[9px] uppercase tracking-[0.3em] text-accent/75 font-semibold">
                   O que você deseja acessar?
                 </p>
-                <span className="h-px flex-1 bg-accent/40" />
+                <span className="h-px flex-1 bg-accent/20" />
               </div>
 
               <div className="grid grid-cols-2 gap-3 sm:gap-4 md:gap-5 lg:gap-6">
@@ -497,7 +497,7 @@ function Guide({ data }: { data: GuideOk }) {
               {p.brand_logo_url ? (
                 <img src={p.brand_logo_url} alt={p.brand_name ? `Logotipo ${p.brand_name}` : "Logotipo da hospedagem"} loading="lazy" className="h-5 w-auto object-contain opacity-80" />
               ) : (
-                <GuideMark className="size-3.5 text-accent" />
+                <GuideMark className="size-3.5 text-accent/70" />
               )}
               <p className="text-[10px] uppercase tracking-[0.3em] text-foreground/80 font-semibold">
                 {p.brand_name || "Seu guia. Sua experiência."}
@@ -608,7 +608,7 @@ function Guide({ data }: { data: GuideOk }) {
                           )}
                           {p.checkin_note && (
                             <div className="mt-3 rounded-2xl border border-accent/30 bg-accent/[0.06] px-4 py-3">
-                              <p className="text-[10px] uppercase tracking-[0.2em] text-accent font-semibold mb-1.5">Observação</p>
+                              <p className="text-[10px] uppercase tracking-[0.2em] text-accent/75 font-semibold mb-1.5">Observação</p>
                               <p className="text-[14px] text-foreground/85 leading-relaxed whitespace-pre-line">{String(p.checkin_note)}</p>
                             </div>
                           )}
@@ -646,7 +646,7 @@ function Guide({ data }: { data: GuideOk }) {
                                     rel="noopener noreferrer"
                                     className="flex items-center gap-3 px-3.5 py-3.5 hover:bg-card/40 active:bg-card/60 transition-colors"
                                   >
-                                    <span className="size-8 rounded-lg bg-accent/15 text-accent grid place-items-center shrink-0">
+                                    <span className="size-8 rounded-lg bg-accent/10 text-accent/75 grid place-items-center shrink-0">
                                       <MapPin className="size-[14px]" strokeWidth={1.75} />
                                     </span>
                                     <div className="flex-1 min-w-0 text-left">
@@ -665,7 +665,7 @@ function Guide({ data }: { data: GuideOk }) {
                                     rel="noopener noreferrer"
                                     className="flex items-center gap-3 px-3.5 py-3.5 hover:bg-card/40 active:bg-card/60 transition-colors"
                                   >
-                                    <span className="size-8 rounded-lg bg-accent/15 text-accent grid place-items-center shrink-0">
+                                    <span className="size-8 rounded-lg bg-accent/10 text-accent/75 grid place-items-center shrink-0">
                                       <Car className="size-[14px]" strokeWidth={1.75} />
                                     </span>
                                     <div className="flex-1 min-w-0 text-left">
@@ -896,7 +896,7 @@ function Guide({ data }: { data: GuideOk }) {
                           )}
                           {p.checkout_note && (
                             <div className="mt-3 rounded-2xl border border-accent/30 bg-accent/[0.06] px-4 py-3">
-                              <p className="text-[10px] uppercase tracking-[0.2em] text-accent font-semibold mb-1.5">Observação</p>
+                              <p className="text-[10px] uppercase tracking-[0.2em] text-accent/75 font-semibold mb-1.5">Observação</p>
                               <p className="text-[14px] text-foreground/85 leading-relaxed whitespace-pre-line">{String(p.checkout_note)}</p>
                             </div>
                           )}
@@ -978,7 +978,7 @@ function Guide({ data }: { data: GuideOk }) {
                       <ul className="space-y-2">
                         {data.checkout.map((c: any) => (
                           <li key={c.id} className="flex items-start gap-3 bg-card border border-border rounded-xl p-3 text-sm">
-                            <Check className="size-4 mt-0.5 text-accent shrink-0" />
+                            <Check className="size-4 mt-0.5 text-accent/75 shrink-0" />
                             <span>{c.label}</span>
                           </li>
                         ))}
@@ -1031,7 +1031,7 @@ function Guide({ data }: { data: GuideOk }) {
                         href={`tel:${e.number}`}
                         className="flex items-center gap-3 bg-card border border-border rounded-xl p-3 active:scale-[0.98] transition-transform hover:border-accent/50"
                       >
-                        <span className="size-10 rounded-full bg-accent/15 text-accent grid place-items-center shrink-0">
+                        <span className="size-10 rounded-full bg-accent/10 text-accent/75 grid place-items-center shrink-0">
                           <Phone className="size-[18px]" strokeWidth={1.75} />
                         </span>
                         <div className="min-w-0 flex-1">
@@ -1050,7 +1050,7 @@ function Guide({ data }: { data: GuideOk }) {
                     <h3 className="text-[10px] uppercase tracking-[0.2em] font-semibold text-muted-foreground">Anfitrião</h3>
                   </div>
                   <div className="flex items-center gap-3 rounded-xl border border-border/70 bg-card/40 p-3">
-                    <div className="size-10 rounded-full bg-accent/15 text-accent grid place-items-center text-sm font-semibold shrink-0">
+                    <div className="size-10 rounded-full bg-accent/10 text-accent/75 grid place-items-center text-sm font-semibold shrink-0">
                       {(p.host_name as string | undefined)?.trim()?.charAt(0)?.toUpperCase() ?? <UserRound className="size-4" />}
                     </div>
                     <div className="min-w-0 flex-1">
@@ -1134,7 +1134,7 @@ function ResidenciaCard({ item }: { item: { id: string; title: string; descripti
         onClick={() => setOpen(true)}
         className="group relative text-left bg-card border border-border rounded-2xl p-4 hover:border-accent/50 hover:shadow-[0_8px_24px_-12px_oklch(from_var(--accent)_l_c_h/0.5)] active:scale-[0.98] transition-all min-h-[120px] flex flex-col gap-3"
       >
-        <span className="grid size-10 place-items-center rounded-xl bg-accent/12 text-accent group-hover:bg-accent/20 transition-colors">
+        <span className="grid size-10 place-items-center rounded-xl bg-accent/10 text-accent/75 group-hover:bg-accent/15 transition-colors">
           {residenciaIcon(item.title)}
         </span>
         <div className="flex-1 min-w-0">
@@ -1143,14 +1143,14 @@ function ResidenciaCard({ item }: { item: { id: string; title: string; descripti
             <p className="text-[11.5px] text-muted-foreground mt-1 line-clamp-2 leading-snug">{item.description}</p>
           )}
         </div>
-        <ChevronRight className="absolute top-3 right-3 size-4 text-muted-foreground/60 group-hover:text-accent transition-colors" />
+        <ChevronRight className="absolute top-3 right-3 size-4 text-muted-foreground/60 group-hover:text-accent/75 transition-colors" />
       </button>
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
             <div className="flex items-center gap-3 text-left">
-              <span className="grid size-10 place-items-center rounded-xl bg-accent/15 text-accent shrink-0">
+              <span className="grid size-10 place-items-center rounded-xl bg-accent/10 text-accent/75 shrink-0">
                 {residenciaIcon(item.title)}
               </span>
               <DialogTitle className="font-serif text-xl leading-tight">{item.title}</DialogTitle>
@@ -1250,9 +1250,9 @@ function HeroCompact({
 
       <header className="relative z-10 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <GuideMark className="size-5 text-accent" />
+          <GuideMark className="size-5 text-accent/75" />
           <p className="font-serif text-[1.25rem] leading-none text-white">
-            <span>Sigma</span><span className="text-accent">Guide</span>
+            <span>Sigma</span><span className="text-accent/80">Guide</span>
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -1281,7 +1281,7 @@ function HeroCompact({
       <div className="relative z-10 mt-14 md:mt-24">
         {city && (
           <span className="mb-4 inline-flex items-center gap-1.5 rounded-full border border-white/25 bg-black/30 backdrop-blur-md px-3 py-1.5 text-[10.5px] md:text-[11px] font-semibold uppercase tracking-[0.22em] text-white/95">
-            <MapPin className="size-3 text-accent" strokeWidth={2.2} /> {city}
+            <MapPin className="size-3 text-accent/80" strokeWidth={2} /> {city}
           </span>
         )}
         <h1 className="font-serif text-[1.95rem] md:text-[3.5rem] leading-[1] tracking-[-0.01em] text-white text-balance max-w-[360px] md:max-w-[820px] drop-shadow-[0_2px_20px_rgba(0,0,0,0.45)] line-clamp-2">
@@ -1297,7 +1297,7 @@ function HeroCompact({
                 type="button"
                 onClick={() => setIdx(i)}
                 aria-label={`Ir para foto ${i + 1}`}
-                className={`h-1.5 rounded-full transition-all ${i === idx ? "w-6 bg-accent" : "w-1.5 bg-white/50 hover:bg-white/80"}`}
+                className={`h-1.5 rounded-full transition-all ${i === idx ? "w-6 bg-accent/80" : "w-1.5 bg-white/50 hover:bg-white/80"}`}
               />
             ))}
           </div>
@@ -1364,7 +1364,14 @@ function ThemeCard({
       />
 
       <div className="relative z-10 flex h-full flex-col p-3.5 sm:p-4 md:p-5">
-        <span className="grid size-10 sm:size-11 md:size-12 place-items-center rounded-xl bg-accent text-accent-foreground ring-1 ring-accent/50 shadow-[0_6px_18px_-8px_oklch(var(--accent)/0.55),inset_0_1px_0_rgba(255,255,255,0.2)]">
+        <span
+          className={
+            "grid size-10 sm:size-11 md:size-12 place-items-center rounded-xl ring-1 transition-colors " +
+            (isLight
+              ? "bg-accent/15 text-accent/80 ring-accent/20 shadow-[0_4px_14px_-10px_oklch(from_var(--accent)_l_c_h/0.35)]"
+              : "bg-accent/10 text-accent/75 ring-accent/15 shadow-[0_4px_14px_-10px_oklch(from_var(--accent)_l_c_h/0.28)]")
+          }
+        >
           <span className="[&>svg]:size-[20px] sm:[&>svg]:size-[22px] md:[&>svg]:size-6 [&>svg]:stroke-[2.2]">
             {icon}
           </span>
@@ -1389,7 +1396,7 @@ function ThemeCard({
         </div>
         <span
           className={
-            "absolute right-3 top-3 sm:right-4 sm:top-4 grid size-7 sm:size-8 place-items-center rounded-full transition-all duration-300 group-hover:bg-accent group-hover:text-accent-foreground group-hover:border-accent " +
+            "absolute right-3 top-3 sm:right-4 sm:top-4 grid size-7 sm:size-8 place-items-center rounded-full transition-all duration-300 group-hover:bg-accent/15 group-hover:text-accent/80 group-hover:border-accent/25 " +
             (isLight
               ? "bg-background/80 border border-border text-muted-foreground"
               : "bg-white/10 backdrop-blur-md border border-white/15 text-white/85")
@@ -1426,7 +1433,7 @@ function StepList({ text, dense = false }: { text: string; dense?: boolean }) {
         <li key={i} className="relative flex items-start gap-4">
           <span
             aria-hidden
-            className="relative z-10 mt-0.5 shrink-0 grid place-items-center size-9 rounded-full bg-accent text-accent-foreground text-[13px] font-semibold tabular-nums leading-none shadow-[0_4px_14px_-4px_oklch(var(--accent)/0.55)] ring-4 ring-background"
+            className="relative z-10 mt-0.5 shrink-0 grid place-items-center size-9 rounded-full bg-accent/15 text-accent/85 text-[13px] font-semibold tabular-nums leading-none shadow-[0_4px_14px_-8px_oklch(from_var(--accent)_l_c_h/0.3)] ring-4 ring-background"
           >
             {i + 1}
           </span>
@@ -1569,7 +1576,7 @@ function SubItem({
     <AccordionItem value={id} className="border border-border/70 rounded-2xl overflow-hidden bg-card/60 backdrop-blur-sm data-[state=open]:border-accent/40 data-[state=open]:shadow-[0_8px_28px_-16px_oklch(from_var(--accent)_l_c_h/0.45)] transition-all">
       <AccordionTrigger className="px-5 py-4 md:py-5 hover:no-underline">
         <div className="flex items-center gap-4 flex-1 min-w-0">
-          <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-accent/12 text-accent ring-1 ring-accent/20">
+          <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-accent/10 text-accent/75 ring-1 ring-accent/15">
             {icon}
           </span>
           <div className="flex-1 min-w-0 text-left">
@@ -1635,7 +1642,7 @@ function AccessBlock({
         onClick={() => hasMore && setOpen((o) => !o)}
         className={`flex items-center gap-3 px-4 py-3.5 ${hasMore ? "cursor-pointer select-none hover:bg-card/30 active:bg-card/50 transition-colors" : ""}`}
       >
-        <div className="grid size-8 shrink-0 place-items-center rounded-lg bg-accent/15 text-accent">
+        <div className="grid size-8 shrink-0 place-items-center rounded-lg bg-accent/10 text-accent/75">
           <Icon className="size-[14px]" strokeWidth={1.75} />
         </div>
         <div className="flex-1 min-w-0">
@@ -1658,7 +1665,7 @@ function AccessBlock({
               type="button"
               onClick={handleEye}
               aria-label={showing ? `Ocultar ${resolvedLabel}` : `Visualizar ${resolvedLabel}`}
-              className="grid size-8 place-items-center rounded-full bg-accent text-accent-foreground hover:brightness-110 transition-all"
+              className="grid size-8 place-items-center rounded-full bg-foreground text-background hover:opacity-90 transition-all"
             >
               {showing ? <EyeOff className="size-3.5" strokeWidth={2} /> : <Eye className="size-3.5" strokeWidth={2} />}
             </button>
@@ -1687,8 +1694,8 @@ function AccessBlock({
               rel="noopener noreferrer"
               className="flex items-center gap-2.5 group"
             >
-              <PlayCircle className="size-[18px] text-accent shrink-0" strokeWidth={1.75} />
-              <span className="text-[14px] font-medium text-foreground flex-1 group-hover:text-accent transition-colors">Assistir tutorial em vídeo</span>
+              <PlayCircle className="size-[18px] text-accent/75 shrink-0" strokeWidth={1.75} />
+              <span className="text-[14px] font-medium text-foreground flex-1 group-hover:text-accent/75 transition-colors">Assistir tutorial em vídeo</span>
               <ExternalLink className="size-3.5 text-muted-foreground" />
             </a>
           )}
@@ -1838,7 +1845,7 @@ function CopyCard({ icon, eyebrow, label, value, flat }: { icon?: React.ReactNod
       >
         <div className="flex items-center gap-3 min-w-0">
           {icon && (
-            <div className="size-9 rounded-lg bg-accent/12 text-accent grid place-items-center shrink-0">
+            <div className="size-9 rounded-lg bg-accent/10 text-accent/75 grid place-items-center shrink-0">
               {icon}
             </div>
           )}
@@ -1856,7 +1863,7 @@ function CopyCard({ icon, eyebrow, label, value, flat }: { icon?: React.ReactNod
   return (
     <button onClick={copy} className="w-full bg-card border border-border rounded-2xl p-5 flex items-center justify-between gap-4 active:scale-[0.99] transition-transform hover:border-accent/40">
       <div className="flex items-center gap-4 min-w-0">
-        {icon && <div className="size-12 rounded-xl bg-gradient-to-br from-accent/20 to-accent/5 text-accent grid place-items-center shrink-0">{icon}</div>}
+        {icon && <div className="size-12 rounded-xl bg-gradient-to-br from-accent/12 to-accent/5 text-accent/75 grid place-items-center shrink-0">{icon}</div>}
         <div className="min-w-0 text-left">
           {eyebrow && <p className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground font-semibold">{eyebrow}</p>}
           <p className="text-lg sm:text-xl font-semibold tracking-tight mt-0.5 break-all leading-snug">{value}</p>
@@ -1900,7 +1907,7 @@ function GatedCopyCard({ icon, eyebrow, value, unlocked, requestUnlock, hasPin }
     <div className="w-full flex items-center justify-between gap-3 px-3.5 py-3">
       <div className="flex items-center gap-3 min-w-0">
         {icon && (
-          <div className="size-9 rounded-lg bg-accent/12 text-accent grid place-items-center shrink-0">
+          <div className="size-9 rounded-lg bg-accent/10 text-accent/75 grid place-items-center shrink-0">
             {icon}
           </div>
         )}
@@ -1916,7 +1923,7 @@ function GatedCopyCard({ icon, eyebrow, value, unlocked, requestUnlock, hasPin }
           {copied ? <Check className="size-3.5 text-accent" /> : <Copy className="size-3.5 text-muted-foreground" />}
         </button>
         {hasPin && (
-          <button onClick={eye} aria-label={showing ? "Ocultar" : "Visualizar"} className="size-8 rounded-full bg-accent text-accent-foreground grid place-items-center">
+          <button onClick={eye} aria-label={showing ? "Ocultar" : "Visualizar"} className="size-8 rounded-full bg-foreground text-background grid place-items-center">
             {showing ? <EyeOff className="size-3.5" strokeWidth={2} /> : <Eye className="size-3.5" strokeWidth={2} />}
           </button>
         )}
@@ -1991,12 +1998,12 @@ function WifiStrip({
       <div className={`pointer-events-none absolute inset-0 ${isLight ? "opacity-[0.04]" : "opacity-[0.07]"} [background-image:radial-gradient(oklch(var(--accent))_1px,transparent_1px)] [background-size:14px_14px]`} />
       <div className={`pointer-events-none absolute -top-12 -right-12 size-40 rounded-full ${isLight ? "bg-accent/15" : "bg-accent/25"} blur-3xl`} />
       <div className="relative flex items-center gap-4 px-5 py-4 md:px-6 md:py-5">
-        <span className="relative grid size-14 shrink-0 place-items-center rounded-2xl bg-accent text-accent-foreground ring-1 ring-accent/60 shadow-[0_8px_24px_-8px_oklch(var(--accent)/0.7),inset_0_1px_0_rgba(255,255,255,0.25)]">
-          <span className="wifi-pulse pointer-events-none absolute -inset-1 rounded-2xl bg-accent/30 blur-md -z-10" />
-          <Wifi className="relative size-[24px]" strokeWidth={2.4} />
+        <span className={`relative grid size-14 shrink-0 place-items-center rounded-2xl ring-1 ${isLight ? "bg-accent/15 text-accent/80 ring-accent/20 shadow-[0_6px_18px_-12px_oklch(from_var(--accent)_l_c_h/0.32)]" : "bg-accent/10 text-accent/75 ring-accent/15 shadow-[0_6px_18px_-12px_oklch(from_var(--accent)_l_c_h/0.24)]"}`}>
+          <span className="wifi-pulse pointer-events-none absolute -inset-1 rounded-2xl bg-accent/15 blur-md -z-10" />
+          <Wifi className="relative size-[24px]" strokeWidth={2} />
         </span>
         <div className="flex-1 min-w-0">
-          <p className="text-[10px] uppercase tracking-[0.32em] text-accent font-semibold">Senha do Wi-Fi</p>
+          <p className="text-[10px] uppercase tracking-[0.32em] text-accent/75 font-semibold">Senha do Wi-Fi</p>
           <p className="text-[13px] text-foreground/85 truncate font-medium mt-0.5">{ssid || "Rede da casa"}</p>
           <p className={`font-mono text-[16px] md:text-[18px] font-semibold tracking-[0.22em] mt-1 truncate ${showing ? "text-foreground" : "text-foreground/75"}`}>
             {password ? (showing ? password : masked) : "—"}
@@ -2007,7 +2014,7 @@ function WifiStrip({
             <button
               onClick={copyPwd}
               aria-label="Copiar senha do Wi-Fi"
-              className="inline-flex items-center gap-1.5 rounded-full bg-accent text-accent-foreground px-3.5 py-2 text-[12px] font-semibold tracking-wide hover:brightness-110 active:scale-95 transition-all shadow-[0_6px_18px_-6px_oklch(var(--accent)/0.65)]"
+              className="inline-flex items-center gap-1.5 rounded-full bg-foreground text-background px-3.5 py-2 text-[12px] font-semibold tracking-wide hover:opacity-90 active:scale-95 transition-all shadow-[0_6px_18px_-10px_oklch(from_var(--foreground)_l_c_h/0.35)]"
             >
               {copied ? <Check className="size-3.5" strokeWidth={2.4} /> : <Copy className="size-3.5" strokeWidth={2.4} />}
               <span>{copied ? "Copiado" : "Copiar"}</span>
@@ -2093,12 +2100,12 @@ function AccessCodesStrip({
       <div className="pointer-events-none absolute inset-0 opacity-[0.08] [background-image:radial-gradient(oklch(var(--accent))_1px,transparent_1px)] [background-size:14px_14px]" />
       <div className="pointer-events-none absolute -top-10 -right-10 size-32 rounded-full bg-accent/20 blur-3xl" />
       <div className="relative flex items-center gap-3.5 px-4 py-3.5">
-        <span className="relative grid size-10 shrink-0 place-items-center rounded-full bg-[radial-gradient(circle_at_30%_30%,oklch(var(--accent)/0.35),oklch(var(--accent)/0.05))] text-accent ring-1 ring-accent/45">
+        <span className={`relative grid size-10 shrink-0 place-items-center rounded-full ${isLight ? "bg-accent/15 text-accent/80 ring-1 ring-accent/20" : "bg-accent/10 text-accent/75 ring-1 ring-accent/15"}`}>
           <KeyRound className="relative size-[18px]" strokeWidth={1.75} />
         </span>
         <div className="flex-1 min-w-0">
           <div className="flex items-baseline gap-2">
-            <p className="text-[9px] uppercase tracking-[0.32em] text-accent font-semibold">Códigos de acesso</p>
+            <p className="text-[9px] uppercase tracking-[0.32em] text-accent/75 font-semibold">Códigos de acesso</p>
             <span className="h-px flex-1 bg-gradient-to-r from-accent/40 to-transparent" />
           </div>
           {showing ? (
@@ -2142,7 +2149,7 @@ function AccessCodesStrip({
         <button
           onClick={handleEyeClick}
           aria-label={showing ? "Ocultar códigos" : "Visualizar códigos"}
-          className="grid size-9 place-items-center rounded-full bg-accent text-accent-foreground hover:brightness-110 transition-all shadow-[0_4px_12px_-4px_oklch(var(--accent)/0.6)] shrink-0"
+          className="grid size-9 place-items-center rounded-full bg-foreground text-background hover:opacity-90 transition-all shadow-[0_4px_12px_-8px_oklch(from_var(--foreground)_l_c_h/0.35)] shrink-0"
         >
           {showing ? <EyeOff className="size-4" strokeWidth={2} /> : <Eye className="size-4" strokeWidth={2} />}
         </button>
