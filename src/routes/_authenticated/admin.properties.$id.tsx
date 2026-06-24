@@ -2367,45 +2367,55 @@ function GenerateModeDialog({
 }) {
   return (
     <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
-      <DialogContent className="max-w-xl">
-        <DialogHeader>
-          <DialogTitle>Como você deseja gerar as recomendações?</DialogTitle>
-        </DialogHeader>
-        <div className="grid gap-3 mt-2">
-          <button
-            type="button"
-            onClick={() => onPick("fill")}
-            className="text-left rounded-xl border border-border bg-background/60 hover:border-foreground/30 hover:bg-muted/30 transition-colors p-4"
-          >
-            <div className="flex items-center gap-2 mb-1">
-              <Sparkles className="size-4 text-primary" />
-              <p className="text-sm font-semibold">Gerar apenas os excedentes</p>
-              <span className="ml-auto text-[10px] uppercase tracking-wider text-primary/80 font-medium">Recomendado</span>
-            </div>
-            <p className="text-xs text-muted-foreground leading-relaxed">
-              Mantém todas as referências atuais e adiciona apenas pontos novos de alta qualidade,
-              respeitando o limite máximo por categoria. Se não houver novos locais relevantes,
-              nada é adicionado.
-            </p>
-          </button>
-          <button
-            type="button"
-            onClick={() => onPick("replace")}
-            className="text-left rounded-xl border border-border bg-background/60 hover:border-destructive/40 hover:bg-destructive/5 transition-colors p-4"
-          >
-            <div className="flex items-center gap-2 mb-1">
-              <RefreshCw className="size-4 text-destructive" />
-              <p className="text-sm font-semibold">Recriar tudo do zero</p>
-            </div>
-            <p className="text-xs text-muted-foreground leading-relaxed">
-              {hasExisting
-                ? "Remove todas as referências atuais da cidade e gera uma nova seleção completa."
-                : "Gera uma seleção completa de referências para a cidade."}
-            </p>
-          </button>
+      <DialogContent className="max-w-xl p-0 overflow-hidden">
+        <div className="px-6 pt-6 pb-4 text-center border-b border-border/40">
+          <div className="mx-auto mb-3 grid place-items-center size-11 rounded-full bg-primary/10 ring-1 ring-primary/20 text-primary">
+            <Sparkles className="size-5" strokeWidth={1.75} />
+          </div>
+          <DialogTitle className="font-display text-xl tracking-tight">Como gerar as recomendações?</DialogTitle>
+          <p className="text-[13px] text-muted-foreground mt-1.5 leading-relaxed max-w-sm mx-auto">
+            Escolha o modo de geração com IA.
+          </p>
         </div>
-        <div className="flex justify-end mt-2">
-          <Button variant="ghost" size="sm" onClick={onClose}>Cancelar</Button>
+        <div className="px-6 pb-6 pt-4">
+          <div className="grid gap-2.5">
+            <button
+              type="button"
+              onClick={() => onPick("fill")}
+              className="group text-left rounded-2xl border border-border bg-card hover:border-primary/40 hover:bg-primary/[0.03] hover:shadow-sm transition-all p-4"
+            >
+              <div className="flex items-center gap-2.5 mb-1.5">
+                <span className="grid place-items-center size-8 rounded-full bg-primary/10 text-primary shrink-0">
+                  <Sparkles className="size-4" strokeWidth={1.75} />
+                </span>
+                <p className="text-sm font-semibold">Gerar apenas os excedentes</p>
+                <span className="ml-auto text-[10px] uppercase tracking-wider text-primary/80 font-medium">Recomendado</span>
+              </div>
+              <p className="text-[12px] text-muted-foreground leading-relaxed pl-[42px]">
+                Mantém todas as referências atuais e adiciona apenas pontos novos de alta qualidade, respeitando o limite máximo por categoria.
+              </p>
+            </button>
+            <button
+              type="button"
+              onClick={() => onPick("replace")}
+              className="group text-left rounded-2xl border border-border bg-card hover:border-destructive/40 hover:bg-destructive/[0.03] hover:shadow-sm transition-all p-4"
+            >
+              <div className="flex items-center gap-2.5 mb-1.5">
+                <span className="grid place-items-center size-8 rounded-full bg-destructive/10 text-destructive shrink-0">
+                  <RefreshCw className="size-4" strokeWidth={1.75} />
+                </span>
+                <p className="text-sm font-semibold">Recriar tudo do zero</p>
+              </div>
+              <p className="text-[12px] text-muted-foreground leading-relaxed pl-[42px]">
+                {hasExisting
+                  ? "Remove todas as referências atuais da cidade e gera uma nova seleção completa."
+                  : "Gera uma seleção completa de referências para a cidade."}
+              </p>
+            </button>
+          </div>
+          <div className="flex justify-end mt-3">
+            <Button variant="ghost" size="sm" onClick={onClose} className="text-muted-foreground hover:text-foreground">Cancelar</Button>
+          </div>
         </div>
       </DialogContent>
     </Dialog>
