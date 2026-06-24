@@ -1,81 +1,64 @@
-## Objetivo
+# Plano de execução — Guias + Assistente IA
 
-Criar um novo tipo de recomendação **macro por cidade** (ex.: "Ponte Hercílio Luz" em Florianópolis) que:
-
-- É **compartilhada** entre todas as propriedades da mesma `cidade + estado`.
-- Vive em **aba/categoria própria** no guia público ("Referências em [Cidade]"), separada das recomendações "pertinho da residência".
-- É gerada de forma **híbrida**: o sistema gera automaticamente via Gemini + Google Maps, e o admin pode editar, adicionar ou remover manualmente.
-- É renovada por um **job automático periódico** (semanal).
-
-As recomendações atuais (`property_recommendations`) continuam exclusivas de cada residência — nada muda no racional do "pertinho".
+Como o pacote tem 7 frentes, vou propor a execução em **4 fases incrementais**, cada uma testável de forma isolada, para evitar um PR monolítico e regressões em cascata.
 
 ---
 
-## 1. Modelo de dados
+## Fase 1 — Correção crítica + limpeza imediata (urgente)
 
-Nova tabela `public.city_references` no Supabase:
+**1.1 Bug: importação "Na Cidade" não traz nada (0 encontrados)**
+- Investigar `generateCityReferences` em `src/lib/maps.functions.ts` e `addAutoCityReferences` em `src/lib/city-references.functions.ts`.
+- Suspeitas iniciais: (a) filtro anti-duplicidade recente (`place_id` + nome case-insensitive) está descartando tudo; (b) `MIN_RATING`/`MIN_REVIEWS` ficaram altos demais para Places API New; (c) o scope `city` não está sendo persistido; (d) o raio/region bias está vazio.
+- Adicionar logs no handler, rodar manualmente via `stack_modern--invoke-server-function` para reproduzir e corrigir.
 
-- Chave de cidade: `city` (texto normalizado, ex.: "florianopolis"), `state` (UF), `country` (default "BR"), `city_label` (label de exibição, ex.: "Florianópolis").
-- Categoria: `category` (mesma enum/valores das categorias atuais — bares_restaurantes, pontos_turisticos, etc.).
-- Dados do lugar (mesmo shape de `property_recommendations`): `place_id`, `name`, `description`, `address`, `rating`, `user_ratings_total`, `price_level`, `primary_type`, `lat`, `lng`, `photo_url`, `maps_url`, `website`, `phone`.
-- Curadoria: `source` (`auto` | `manual`), `is_hidden` (admin pode esconder sem deletar), `display_order`.
-- Índice único: `(city, state, place_id)` para evitar duplicatas por cidade.
-- RLS: leitura pública (anon + authenticated), escrita só por `service_role` e admins (via `has_role`).
+**1.2 Remover "Ver Mapa"**
+- Remover botão e referências visuais em `g.$slug.explorar.tsx` e onde mais aparecer. Manter componente `<GuideMap>` no código (não deletar arquivo) para reativação futura.
 
-Também adicionar coluna `city_refs_last_refreshed_at` em uma nova tabela de controle `public.city_reference_jobs` para saber quando cada cidade foi atualizada pela última vez — evita re-rodar a mesma cidade quando várias residências da mesma cidade existem.
+**1.3 Remover "Na Cidade" do menu lateral admin**
+- Tirar item de navegação em `admin.tsx`.
+- A página `admin.cidades.*` continua existindo mas só acessível via link interno (não vou apagar ainda, para não quebrar a Fase 2).
 
-## 2. Geração híbrida
+---
 
-**Server function** `generateCityReferences({ city, state })`:
+## Fase 2 — Centralizar "Pela Cidade" dentro do guia
 
-1. Reaproveita o pipeline atual de `maps.functions.ts` (Gemini sugere lista por categoria + valida no Google Places New).
-2. Aplica os mesmos filtros de qualidade: 200+ avaliações, rating ≥ 4.0, foto landscape ≥ 1600px, `primaryType` válido para a categoria.
-3. **Escopo macro**: o prompt do Gemini passa a pedir "pontos icônicos / referências da cidade inteira" (e não "perto deste endereço"). Sem `locationBias` por coordenada — busca por `textQuery` na cidade.
-4. Faz `upsert` em `city_references` com `source='auto'`, preservando registros `source='manual'` e respeitando `is_hidden`.
+- No card "Pela cidade" de `admin.properties.$id.tsx`, embutir o fluxo completo:
+  - botão "Gerar com IA" (chama `generateCityReferences` para a cidade da propriedade);
+  - busca manual (mesma autocomplete já usada em "Aqui pertinho");
+  - listagem com seleção em massa e exclusão (já existe lógica equivalente — reusar).
+- Eliminar redirecionamento para `admin/cidades/$cityKey`. Após Fase 2 estável, posso deletar essas rotas em uma fase futura se você confirmar.
 
-**Admin UI** (nova página `/admin/cidades/[cidade-uf]`):
+---
 
-- Lista todas as referências da cidade agrupadas por categoria.
-- Botões: "Gerar com IA", "Adicionar manualmente", editar, ocultar, remover.
-- Mostra `last_refreshed_at` e botão "Atualizar agora".
+## Fase 3 — Replicação para outros guias
 
-## 3. Exibição no guia público
+- Botão "Replicar" no card "Pela cidade" abre Dialog (`shadcn/ui`) com duas tabs:
+  - **Guias específicos**: lista de propriedades do host com checkboxes + busca.
+  - **Por cidade**: select de cidade → replica para todas as propriedades daquela cidade.
+- Nova server function `replicateCityReferences({ sourcePropertyId, targetPropertyIds })` que faz upsert em massa nas propriedades-alvo, respeitando anti-duplicidade por `place_id`.
 
-Nova aba/categoria **"Referências em [Cidade]"** em `src/routes/g.$slug.explorar.tsx`:
+---
 
-- Aparece ao lado das categorias atuais (Bares, Pontos Turísticos, etc.).
-- Carrega de `city_references` filtrando por `(city, state)` da propriedade.
-- Mesma UI de capa (foto do lugar com mais avaliações) e cards.
-- Só renderiza se houver pelo menos 1 referência cadastrada para a cidade (regra do core: campo vazio = ocultar).
+## Fase 4 — IA proativa, aprendizado e tipografia
 
-As recomendações de raio próximo continuam exatamente como estão, em `property_recommendations`.
+**4.1 IA proativa (chat fechado)**
+- Em `GuideAiChat.tsx`, adicionar bubble flutuante acima do botão, com mensagens rotativas contextuais (4–6 frases hard-coded por enquanto, escolhidas conforme a aba/contexto). Aparece após N segundos de inatividade, descartável, não reaparece na mesma sessão.
 
-## 4. Refresh automático periódico
+**4.2 IA com aprendizado progressivo**
+- Persistir eventos de interação do guest (categorias clicadas, lugares vistos, buscas) numa nova tabela `guest_interactions` (já existe `guide_section_events` — verifico se dá pra reusar).
+- Injetar resumo desses sinais no `systemPrompt` da chat function a cada turno.
+- *Escopo desta fase: MVP. Embeddings/RAG ficam fora; só prompt-engineering com agregados simples.*
 
-Novo endpoint `src/routes/api/public/cron.refresh-city-references.ts`:
+**4.3 Refatoração tipográfica premium**
+- Adotar par tipográfico SaaS premium. Sugestão default: **Geist** (UI) + **Geist Mono** (code/labels) — ou **Inter Tight** + **Instrument Serif** para um toque editorial. Vou perguntar a preferência antes de aplicar.
+- Definir escala consistente em `src/styles.css` (tokens `--font-display`, `--font-sans`, `--text-xs..--text-5xl`, `--leading-*`, `--tracking-*`).
+- Aplicar via classes utilitárias em: títulos, subtítulos, descrições, menus, botões, cards, modais, forms, tabelas, empty states.
+- Carregar fontes via `<link>` no `__root.tsx` (não `@import` no CSS, conforme guardrail Tailwind v4).
 
-- Lista todas as cidades distintas com propriedades ativas.
-- Para cada cidade não atualizada nos últimos 7 dias, dispara `generateCityReferences`.
-- Job `pg_cron` semanal (domingos 3h) chamando o endpoint com `apikey` header.
+---
 
-## 5. Mudanças nos arquivos
+## Como sugiro tocar
 
-- `supabase/migrations/...`: criar tabelas `city_references` e `city_reference_jobs` com GRANTs, RLS e policies.
-- `src/lib/city-references.functions.ts`: server functions `getCityReferences`, `generateCityReferences`, `upsertCityReference`, `deleteCityReference`, `toggleHideCityReference`.
-- `src/lib/maps.functions.ts`: extrair função genérica `searchPlacesForCategory({ textQuery, category, locationBias? })` para reaproveitar no escopo cidade (sem bias).
-- `src/routes/admin.cidades.$cityKey.tsx`: nova página de admin para gerenciar referências da cidade.
-- `src/routes/admin.properties.$id.tsx`: adicionar link "Gerenciar referências da cidade" ao lado de "Sincronizar com Google".
-- `src/routes/g.$slug.explorar.tsx`: adicionar nova aba "Referências em [Cidade]".
-- `src/routes/api/public/cron.refresh-city-references.ts`: endpoint de refresh.
-- `supabase/insert` (via tool): agendar `pg_cron` semanal.
+Faço **Fase 1 agora** (é o que está te travando) e te devolvo para validar. Depois seguimos Fase 2 → 3 → 4 em mensagens separadas, com a Fase 4.3 (tipografia) precedida de uma escolha visual rápida do par de fontes.
 
-## 6. Critérios de aceite
-
-- Cadastrar duas propriedades em Florianópolis → ambas mostram a mesma lista em "Referências em Florianópolis".
-- Cadastrar uma propriedade em outra cidade → não vê as referências de Florianópolis.
-- Admin esconde uma referência → some no guia público sem reaparecer no próximo refresh automático.
-- Admin adiciona manualmente uma referência → persiste mesmo após refresh automático.
-- Aba só aparece quando há pelo menos 1 referência ativa para a cidade.
-- Filtros de qualidade do racional atual (200+ avaliações, fotos landscape de alta resolução, categoria correta) continuam valendo.
-
-Posso seguir com a implementação?
+Confirma esse encadeamento? Se quiser que eu já comece a Fase 1 sem esperar, é só dizer **"vai"**.

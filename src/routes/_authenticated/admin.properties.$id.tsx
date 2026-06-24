@@ -1102,29 +1102,7 @@ function PropertyEditor() {
             </Button>
           </div>
 
-          {/* Na Cidade link */}
-          {form.property.city && !isNew && (() => {
-            const ck = form.property.city.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
-            const st = form.property.state?.trim().toUpperCase();
-            const slug = st && /^[A-Z]{2}$/.test(st) ? `${ck}--${st.toLowerCase()}` : ck;
-            return (
-              <Link
-                to="/admin/cidades/$cityKey"
-                params={{ cityKey: slug }}
-                search={{ label: form.property.city, country: form.property.country || "BR" }}
-                className="flex items-center justify-between gap-3 rounded-xl border border-accent/30 bg-accent/5 hover:bg-accent/10 px-4 py-3 transition-colors"
-              >
-                <div className="flex items-center gap-2.5">
-                  <MapPin className="size-4 text-accent shrink-0" />
-                  <div>
-                    <p className="text-sm font-medium text-foreground">Pontos icônicos — Na Cidade</p>
-                    <p className="text-xs text-muted-foreground mt-0.5">Gerencie os pontos de referência macro compartilhados para {form.property.city}.</p>
-                  </div>
-                </div>
-                <ChevronDown className="size-4 text-muted-foreground -rotate-90 shrink-0" />
-              </Link>
-            );
-          })()}
+          {/* Pontos icônicos da cidade agora vivem dentro do card "Pela cidade" abaixo. */}
 
           <RecGroup
             title="Aqui pertinho"
