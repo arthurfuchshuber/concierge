@@ -996,10 +996,11 @@ export async function generateCityReferencesFromMaps(input: {
   const cityCenter = await resolveCityCenter(city_label, state, country);
 
   // Raio da restrição geográfica em metros.
-  // 35km cobre cidades médias; para praias/atrações naturais próximas
-  // (ex.: Cataratas de Iguaçu em Foz do Iguaçu) usamos 60km.
+  // Google Places API New impõe um MÁXIMO de 50.000 m em
+  // `locationRestriction.circle.radius`. Acima disso, a API retorna 400 e
+  // perdemos todos os resultados silenciosamente.
   const CITY_RADIUS_M = 35_000;
-  const ATTRACTION_RADIUS_M = 60_000; // atrações têm raio maior (parques nacionais, etc.)
+  const ATTRACTION_RADIUS_M = 50_000; // cap do Google — antes estava 60_000 (bug)
 
   const isQuality = (p: PlaceRaw) =>
     typeof p.rating === "number" &&
