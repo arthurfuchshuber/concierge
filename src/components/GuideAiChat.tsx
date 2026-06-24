@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { MessageCircleMore, Send, X, Loader2, Sparkles } from "lucide-react";
+import { MessageCircleMore, Send, X, Loader2 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
@@ -44,10 +44,10 @@ function saveCachedMessages(slug: string, conversationId: string | undefined, me
 // Returns a time-of-day greeting and context hint based on current hour
 function getTimeContext(): { greeting: string; hint: string } {
   const h = new Date().getHours();
-  if (h >= 5 && h < 12) return { greeting: "Bom dia", hint: "Quer dicas de café da manhã ou padarias perto?" };
-  if (h >= 12 && h < 18) return { greeting: "Boa tarde", hint: "Posso indicar restaurantes abertos agora ou atrações para a tarde." };
-  if (h >= 18 && h < 23) return { greeting: "Boa noite", hint: "Procurando um jantar especial ou vida noturna?" };
-  return { greeting: "Olá", hint: "Posso ajudar com qualquer dúvida sobre a estadia." };
+  if (h >= 5 && h < 12) return { greeting: "Bom dia", hint: "Posso sugerir cafés, padarias e um roteiro leve para começar bem o dia." };
+  if (h >= 12 && h < 18) return { greeting: "Boa tarde", hint: "Posso indicar restaurantes abertos agora, passeios próximos e experiências para hoje." };
+  if (h >= 18 && h < 23) return { greeting: "Boa noite", hint: "Posso recomendar jantar, drinks, delivery ou um programa especial perto daqui." };
+  return { greeting: "Olá", hint: "Posso resolver dúvidas da estadia e sugerir boas escolhas ao seu redor." };
 }
 
 export function GuideAiChat({ slug, propertyName, guestName }: { slug: string; propertyName: string; guestName?: string | null }) {
@@ -139,7 +139,7 @@ export function GuideAiChat({ slug, propertyName, guestName }: { slug: string; p
           {/* Proactive nudge bubble */}
           {showNudge && !hasOpened && (
             <div className="relative animate-in slide-in-from-bottom-2 fade-in duration-500">
-              <div className="max-w-[220px] rounded-2xl rounded-br-sm bg-background border border-border shadow-elevated px-4 py-3">
+              <div className="max-w-[244px] rounded-2xl rounded-br-sm bg-background border border-border shadow-elevated px-4 py-3">
                 <button
                   type="button"
                   onClick={() => setShowNudge(false)}
@@ -148,7 +148,7 @@ export function GuideAiChat({ slug, propertyName, guestName }: { slug: string; p
                 >
                   <X className="size-3" />
                 </button>
-                <p className="text-[11px] font-semibold text-accent uppercase tracking-[0.18em] mb-1">Concierge IA</p>
+                <p className="text-[10px] font-semibold text-accent/80 uppercase tracking-[0.18em] mb-1">Concierge IA</p>
                 <p className="text-[13px] leading-snug font-medium">
                   {greeting}{guestName ? `, ${guestName.split(" ")[0]}` : ""}! 👋
                 </p>
@@ -156,9 +156,9 @@ export function GuideAiChat({ slug, propertyName, guestName }: { slug: string; p
                 <button
                   type="button"
                   onClick={() => { setShowNudge(false); setOpen(true); }}
-                  className="mt-2.5 w-full text-[11.5px] font-medium text-accent hover:underline text-left"
+                  className="mt-2.5 w-full text-[11.5px] font-semibold text-foreground hover:text-accent transition-colors text-left"
                 >
-                  Perguntar agora →
+                  Pedir sugestões agora →
                 </button>
               </div>
               {/* tail */}
@@ -169,16 +169,15 @@ export function GuideAiChat({ slug, propertyName, guestName }: { slug: string; p
             type="button"
             onClick={() => setOpen(true)}
             aria-label="Abrir assistente do guia"
-            title="Pergunte à IA"
-            className="group relative inline-flex items-center gap-2.5 pl-2 pr-2 sm:pr-5 sm:pl-2.5 h-14 rounded-full bg-accent text-accent-foreground shadow-[0_14px_36px_-12px_oklch(from_var(--accent)_l_c_h/0.55)] hover:shadow-[0_18px_44px_-10px_oklch(from_var(--accent)_l_c_h/0.7)] active:scale-95 transition-all"
+            title="Peça dicas à IA"
+            className="group relative inline-flex items-center gap-2.5 pl-2 pr-2 sm:pr-5 sm:pl-2.5 h-14 rounded-full bg-foreground text-background shadow-[0_14px_36px_-16px_oklch(from_var(--foreground)_l_c_h/0.45)] hover:shadow-[0_18px_44px_-18px_oklch(from_var(--foreground)_l_c_h/0.55)] active:scale-95 transition-all"
           >
-            <span className="relative grid size-10 place-items-center rounded-full bg-white/15 backdrop-blur-sm">
-              <span aria-hidden="true" className="absolute inset-0 rounded-full bg-accent/35 animate-ping" style={{ animationDuration: "2.6s" }} />
-              <Sparkles aria-hidden="true" className="absolute -top-0.5 -right-0.5 size-3.5 text-accent-foreground/95 animate-pulse" strokeWidth={2.4} />
+            <span className="relative grid size-10 place-items-center rounded-full bg-background/15 backdrop-blur-sm">
+              <span aria-hidden="true" className="absolute inset-0 rounded-full bg-background/20 animate-ping" style={{ animationDuration: "2.9s" }} />
               <MessageCircleMore className="relative size-5 group-hover:scale-110 transition-transform" strokeWidth={2} />
             </span>
             <span className="hidden sm:inline text-[13px] font-semibold tracking-tight pr-1">
-              Falar com anfitrião
+              Pedir dicas à IA
             </span>
           </button>
 

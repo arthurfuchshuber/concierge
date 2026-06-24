@@ -466,7 +466,7 @@ function Guide({ data }: { data: GuideOk }) {
                 <p className="shrink-0 text-[9px] uppercase tracking-[0.3em] text-accent font-semibold">
                   O que você deseja acessar?
                 </p>
-                <span className="h-px flex-1 bg-accent/40" />
+                <span className="h-px flex-1 bg-accent/20" />
               </div>
 
               <div className="grid grid-cols-2 gap-3 sm:gap-4 md:gap-5 lg:gap-6">
@@ -1281,7 +1281,7 @@ function HeroCompact({
       <div className="relative z-10 mt-14 md:mt-24">
         {city && (
           <span className="mb-4 inline-flex items-center gap-1.5 rounded-full border border-white/25 bg-black/30 backdrop-blur-md px-3 py-1.5 text-[10.5px] md:text-[11px] font-semibold uppercase tracking-[0.22em] text-white/95">
-            <MapPin className="size-3 text-accent" strokeWidth={2.2} /> {city}
+            <MapPin className="size-3 text-accent/80" strokeWidth={2} /> {city}
           </span>
         )}
         <h1 className="font-serif text-[1.95rem] md:text-[3.5rem] leading-[1] tracking-[-0.01em] text-white text-balance max-w-[360px] md:max-w-[820px] drop-shadow-[0_2px_20px_rgba(0,0,0,0.45)] line-clamp-2">
@@ -1364,7 +1364,14 @@ function ThemeCard({
       />
 
       <div className="relative z-10 flex h-full flex-col p-3.5 sm:p-4 md:p-5">
-        <span className="grid size-10 sm:size-11 md:size-12 place-items-center rounded-xl bg-accent text-accent-foreground ring-1 ring-accent/50 shadow-[0_6px_18px_-8px_oklch(var(--accent)/0.55),inset_0_1px_0_rgba(255,255,255,0.2)]">
+        <span
+          className={
+            "grid size-10 sm:size-11 md:size-12 place-items-center rounded-xl ring-1 transition-colors " +
+            (isLight
+              ? "bg-accent/14 text-accent ring-accent/22 shadow-[0_4px_14px_-10px_oklch(from_var(--accent)_l_c_h/0.35)]"
+              : "bg-accent/10 text-accent/85 ring-accent/18 shadow-[0_4px_14px_-10px_oklch(from_var(--accent)_l_c_h/0.28)]")
+          }
+        >
           <span className="[&>svg]:size-[20px] sm:[&>svg]:size-[22px] md:[&>svg]:size-6 [&>svg]:stroke-[2.2]">
             {icon}
           </span>
@@ -1389,7 +1396,7 @@ function ThemeCard({
         </div>
         <span
           className={
-            "absolute right-3 top-3 sm:right-4 sm:top-4 grid size-7 sm:size-8 place-items-center rounded-full transition-all duration-300 group-hover:bg-accent group-hover:text-accent-foreground group-hover:border-accent " +
+            "absolute right-3 top-3 sm:right-4 sm:top-4 grid size-7 sm:size-8 place-items-center rounded-full transition-all duration-300 group-hover:bg-accent/14 group-hover:text-accent group-hover:border-accent/25 " +
             (isLight
               ? "bg-background/80 border border-border text-muted-foreground"
               : "bg-white/10 backdrop-blur-md border border-white/15 text-white/85")
@@ -1991,9 +1998,9 @@ function WifiStrip({
       <div className={`pointer-events-none absolute inset-0 ${isLight ? "opacity-[0.04]" : "opacity-[0.07]"} [background-image:radial-gradient(oklch(var(--accent))_1px,transparent_1px)] [background-size:14px_14px]`} />
       <div className={`pointer-events-none absolute -top-12 -right-12 size-40 rounded-full ${isLight ? "bg-accent/15" : "bg-accent/25"} blur-3xl`} />
       <div className="relative flex items-center gap-4 px-5 py-4 md:px-6 md:py-5">
-        <span className="relative grid size-14 shrink-0 place-items-center rounded-2xl bg-accent text-accent-foreground ring-1 ring-accent/60 shadow-[0_8px_24px_-8px_oklch(var(--accent)/0.7),inset_0_1px_0_rgba(255,255,255,0.25)]">
-          <span className="wifi-pulse pointer-events-none absolute -inset-1 rounded-2xl bg-accent/30 blur-md -z-10" />
-          <Wifi className="relative size-[24px]" strokeWidth={2.4} />
+        <span className={`relative grid size-14 shrink-0 place-items-center rounded-2xl ring-1 ${isLight ? "bg-accent/14 text-accent ring-accent/22 shadow-[0_6px_18px_-12px_oklch(from_var(--accent)_l_c_h/0.32)]" : "bg-accent/10 text-accent/85 ring-accent/18 shadow-[0_6px_18px_-12px_oklch(from_var(--accent)_l_c_h/0.24)]"}`}>
+          <span className="wifi-pulse pointer-events-none absolute -inset-1 rounded-2xl bg-accent/14 blur-md -z-10" />
+          <Wifi className="relative size-[24px]" strokeWidth={2} />
         </span>
         <div className="flex-1 min-w-0">
           <p className="text-[10px] uppercase tracking-[0.32em] text-accent font-semibold">Senha do Wi-Fi</p>
@@ -2007,7 +2014,7 @@ function WifiStrip({
             <button
               onClick={copyPwd}
               aria-label="Copiar senha do Wi-Fi"
-              className="inline-flex items-center gap-1.5 rounded-full bg-accent text-accent-foreground px-3.5 py-2 text-[12px] font-semibold tracking-wide hover:brightness-110 active:scale-95 transition-all shadow-[0_6px_18px_-6px_oklch(var(--accent)/0.65)]"
+              className="inline-flex items-center gap-1.5 rounded-full bg-foreground text-background px-3.5 py-2 text-[12px] font-semibold tracking-wide hover:opacity-90 active:scale-95 transition-all shadow-[0_6px_18px_-10px_oklch(from_var(--foreground)_l_c_h/0.35)]"
             >
               {copied ? <Check className="size-3.5" strokeWidth={2.4} /> : <Copy className="size-3.5" strokeWidth={2.4} />}
               <span>{copied ? "Copiado" : "Copiar"}</span>
@@ -2093,7 +2100,7 @@ function AccessCodesStrip({
       <div className="pointer-events-none absolute inset-0 opacity-[0.08] [background-image:radial-gradient(oklch(var(--accent))_1px,transparent_1px)] [background-size:14px_14px]" />
       <div className="pointer-events-none absolute -top-10 -right-10 size-32 rounded-full bg-accent/20 blur-3xl" />
       <div className="relative flex items-center gap-3.5 px-4 py-3.5">
-        <span className="relative grid size-10 shrink-0 place-items-center rounded-full bg-[radial-gradient(circle_at_30%_30%,oklch(var(--accent)/0.35),oklch(var(--accent)/0.05))] text-accent ring-1 ring-accent/45">
+        <span className={`relative grid size-10 shrink-0 place-items-center rounded-full ${isLight ? "bg-accent/12 text-accent ring-1 ring-accent/22" : "bg-accent/10 text-accent/85 ring-1 ring-accent/18"}`}>
           <KeyRound className="relative size-[18px]" strokeWidth={1.75} />
         </span>
         <div className="flex-1 min-w-0">
@@ -2142,7 +2149,7 @@ function AccessCodesStrip({
         <button
           onClick={handleEyeClick}
           aria-label={showing ? "Ocultar códigos" : "Visualizar códigos"}
-          className="grid size-9 place-items-center rounded-full bg-accent text-accent-foreground hover:brightness-110 transition-all shadow-[0_4px_12px_-4px_oklch(var(--accent)/0.6)] shrink-0"
+          className="grid size-9 place-items-center rounded-full bg-foreground text-background hover:opacity-90 transition-all shadow-[0_4px_12px_-8px_oklch(from_var(--foreground)_l_c_h/0.35)] shrink-0"
         >
           {showing ? <EyeOff className="size-4" strokeWidth={2} /> : <Eye className="size-4" strokeWidth={2} />}
         </button>
