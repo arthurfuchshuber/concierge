@@ -1977,7 +1977,7 @@ function RecGroup({
   onGenerate?: () => void;
   generating?: boolean;
 }) {
-  const [openCats, setOpenCats] = useState<Record<string, boolean>>({});
+  const [openCat, setOpenCat] = useState<string | null>(null);
   const [selectedIdx, setSelectedIdx] = useState<Set<number>>(new Set());
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
 
