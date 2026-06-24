@@ -555,13 +555,8 @@ export const enrichFromMapsLink = createServerFn({ method: "POST" })
     const NEARBY_RADIUS_M = 3000;    // busca além do limite para garantir cobertura
     const NEARBY_TEXT_RADIUS_M = 4000;
 
-    const classifyByPrimaryType = (primaryType: string | undefined) => {
-      if (!primaryType) return null;
-      for (const cat of TYPE_MAP) {
-        if (cat.acceptedPrimaryTypes.includes(primaryType)) return cat;
-      }
-      return null;
-    };
+    // Usa o classificador global (com BLOCKED_PRIMARY_TYPES) — definido mais abaixo.
+    // Hotéis/agências/eventos/lojas são descartados mesmo quando aparecem no Nearby.
 
     const isQuality = (p: PlaceRaw) =>
       typeof p.rating === "number" &&
