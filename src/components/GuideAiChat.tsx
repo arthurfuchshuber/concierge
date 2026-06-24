@@ -68,11 +68,9 @@ export function GuideAiChat({ slug, propertyName, guestName }: { slug: string; p
     const cached = loadCachedMessages(slug);
     setConversationId(cached.conversationId);
     setMessages(cached.messages);
-    // Show proactive nudge after 12s if user hasn't opened yet (only on fresh sessions)
-    if (cached.messages.length === 0) {
-      const t = setTimeout(() => setShowNudge(true), 2500);
-      return () => clearTimeout(t);
-    }
+    // Show a light proactive nudge after the page settles, without depending on a fresh chat.
+    const t = setTimeout(() => setShowNudge(true), 2800);
+    return () => clearTimeout(t);
   }, [slug]);
 
   useEffect(() => {
@@ -151,6 +149,9 @@ export function GuideAiChat({ slug, propertyName, guestName }: { slug: string; p
                 <p className="text-[10px] font-semibold text-accent/80 uppercase tracking-[0.18em] mb-1">Concierge IA</p>
                 <p className="text-[13px] leading-snug font-medium">
                   {greeting}{guestName ? `, ${guestName.split(" ")[0]}` : ""}! 👋
+                </p>
+                <p className="text-[12px] text-foreground/85 mt-1 leading-snug font-medium">
+                  Quer uma recomendação personalizada?
                 </p>
                 <p className="text-[12px] text-muted-foreground mt-1 leading-relaxed">{hint}</p>
                 <button
