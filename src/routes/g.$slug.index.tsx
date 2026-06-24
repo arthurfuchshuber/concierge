@@ -430,7 +430,7 @@ function Guide({ data }: { data: GuideOk }) {
             />
 
 
-            <div className="px-5 md:px-10 lg:px-16 mt-5 md:mt-7 relative z-10 mb-4 md:mb-6 space-y-3">
+            <div className="px-5 md:px-10 lg:px-16 mt-2 md:mt-3 relative z-10 mb-4 md:mb-6 space-y-3">
               <div className="md:max-w-md lg:max-w-lg">
                 <WifiStrip
                   ssid={p.wifi_ssid}
