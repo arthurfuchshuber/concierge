@@ -510,8 +510,10 @@ function CardTab({
       });
     } catch (e) {
       console.error("[CardValidation] failed to open Paddle inline checkout", e);
-      toast.error("Não consegui abrir o checkout. Recarregue a página e tente novamente.");
+      const msg = e instanceof Error ? e.message : "erro desconhecido";
+      toast.error(`Não consegui abrir o checkout: ${msg}`);
       setOpenedInline(false);
+
     } finally {
       setOpeningInline(false);
     }
@@ -540,16 +542,17 @@ function CardTab({
             <div className="flex-1 min-w-0">
               <h3 className="font-medium text-base">Validação de cartão obrigatória</h3>
               <p className="text-xs text-muted-foreground mt-1">
-                Exigimos um cartão válido em todas as contas para fins de validação e segurança. <strong className="text-foreground">Você não será cobrado</strong> — o cartão é apenas autenticado pelo provedor de pagamento.
+                Exigimos um cartão válido em todas as contas para fins de validação e segurança. <strong className="text-foreground">Você tem 7 dias para usar sem ser cobrado. Após esse período, será cobrado normalmente.</strong>
               </p>
               <div className="mt-3 rounded-xl bg-background/60 border border-border p-3 text-xs">
                 <p className="font-medium mb-1">Como funciona:</p>
                 <ol className="space-y-0.5 list-decimal list-inside text-muted-foreground">
                   <li>O formulário do provedor de pagamento abre aqui mesmo, sem sair do sistema.</li>
-                  <li>O cartão é autenticado com segurança — nenhum valor é debitado.</li>
-                  <li>Pronto. Sua conta segue ativa normalmente.</li>
+                  <li>O cartão é autenticado com segurança e ativa seus 7 dias grátis.</li>
+                  <li>Após os 7 dias, a cobrança recorrente começa normalmente — cancele a qualquer momento antes disso.</li>
                 </ol>
               </div>
+
               {!openedInline && (
                 <div className="mt-4 flex flex-wrap gap-2">
                   <Button
