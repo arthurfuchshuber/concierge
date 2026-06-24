@@ -1651,6 +1651,8 @@ function Section({
   desc,
   action,
   tone = "default",
+  collapsible = false,
+  defaultOpen = false,
   children,
 }: {
   icon?: IconType;
@@ -1658,9 +1660,13 @@ function Section({
   desc?: string;
   action?: React.ReactNode;
   tone?: "default" | "accent";
+  collapsible?: boolean;
+  defaultOpen?: boolean;
   children: React.ReactNode;
 }) {
   const accent = tone === "accent";
+  const [open, setOpen] = useState(defaultOpen);
+  const isOpen = collapsible ? open : true;
   return (
     <section
       className={[
@@ -1671,8 +1677,14 @@ function Section({
       ].join(" ")}
     >
       {(title || action) && (
-        <header className="flex items-start justify-between gap-3 px-4 sm:px-5 pt-4 sm:pt-5 pb-3.5">
-          <div className="flex items-start gap-3 min-w-0">
+        <header className="flex flex-wrap items-start justify-between gap-3 px-4 sm:px-5 pt-4 sm:pt-5 pb-3.5">
+          <button
+            type="button"
+            onClick={() => collapsible && setOpen((v) => !v)}
+            className={`flex items-start gap-3 min-w-0 flex-1 text-left ${collapsible ? "cursor-pointer" : "cursor-default"}`}
+            aria-expanded={collapsible ? isOpen : undefined}
+            disabled={!collapsible}
+          >
             {Icon && (
               <span
                 className={[
@@ -1683,20 +1695,26 @@ function Section({
                 <Icon className="size-4" strokeWidth={2} />
               </span>
             )}
-            <div className="min-w-0">
+            <div className="min-w-0 flex-1">
               {title && <h3 className="text-sm font-semibold leading-tight text-foreground">{title}</h3>}
               {desc && <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{desc}</p>}
             </div>
-          </div>
-          {action}
+            {collapsible && (
+              <ChevronDown className={`size-4 text-muted-foreground transition-transform shrink-0 mt-1.5 ${isOpen ? "rotate-180" : ""}`} />
+            )}
+          </button>
+          {action && <div className="flex flex-wrap items-center gap-1.5 ml-auto">{action}</div>}
         </header>
       )}
-      <div className={`${title || action ? "border-t border-border/50" : ""} px-4 sm:px-5 py-4 sm:py-5 space-y-3.5`}>
-        {children}
-      </div>
+      {isOpen && (
+        <div className={`${title || action ? "border-t border-border/50" : ""} px-4 sm:px-5 py-4 sm:py-5 space-y-3.5`}>
+          {children}
+        </div>
+      )}
     </section>
   );
 }
+
 
 
 function Field({ label, hint, required, children }: { label: string; hint?: string; required?: boolean; children: React.ReactNode }) {
