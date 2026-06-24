@@ -1120,7 +1120,7 @@ function PropertyEditor() {
             </div>
           </Section>
 
-          <Section icon={UserRound} title="Contato do anfitrião">
+          <Section icon={UserRound} title="Contato do anfitrião" collapsible>
             <div className="grid grid-cols-2 gap-3">
               <Field label="Nome"><Input value={form.property.host_name} maxLength={120} onChange={(e) => update("host_name", e.target.value)} /></Field>
               <Field label="Telefone (WhatsApp)"><Input value={form.property.host_phone} maxLength={40} onChange={(e) => update("host_phone", e.target.value)} /></Field>
