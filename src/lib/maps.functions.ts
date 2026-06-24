@@ -90,7 +90,7 @@ export const TYPE_MAP: {
   { type: "beach", placesTypes: ["beach"], acceptedPrimaryTypes: ["beach"], category: "Praias", queryVariants: ["melhores praias em", "praias famosas em", "praias para visitar em"] },
   { type: "market", placesTypes: ["supermarket", "grocery_store"], acceptedPrimaryTypes: ["supermarket", "grocery_store", "convenience_store", "food_store", "market"], category: "Mercados", queryVariants: ["supermercados em", "mercados em", "hipermercados em"] },
   { type: "pharmacy", placesTypes: ["pharmacy"], acceptedPrimaryTypes: ["pharmacy", "drugstore"], category: "Farmácias", queryVariants: ["farmácias em", "drogarias em", "farmácia 24 horas em", "drogaria 24h em", "rede de farmácia em"] },
-  { type: "park", placesTypes: ["park"], acceptedPrimaryTypes: ["park", "state_park", "dog_park", "city_park"], category: "Parques", queryVariants: ["parques urbanos em", "parques municipais em", "praças famosas em"] },
+  { type: "park", placesTypes: ["park"], acceptedPrimaryTypes: ["park", "state_park", "dog_park", "city_park", "plaza", "town_square"], category: "Praças, Lagos e Parques", queryVariants: ["praças famosas em", "parques urbanos em", "parques municipais em", "lagos em", "áreas verdes em", "espaços públicos de lazer em", "jardins públicos em"] },
   { type: "shopping", placesTypes: ["shopping_mall"], acceptedPrimaryTypes: ["shopping_mall", "department_store"], category: "Compras", queryVariants: ["shoppings em", "shopping centers em", "centros de compras em"] },
 ];
 
@@ -313,12 +313,13 @@ function buildPhotoUrl(photoName: string | undefined): string | null {
   return `/api/public/place-photo?name=${encodeURIComponent(photoName)}&w=1600`;
 }
 
-// Escolhe a melhor foto do lugar: prioriza landscape de alta resolução
-// (≥1600px, proporção 1.2-2.5). Evita retratos, quadrados e thumbs
-// pequenas — que costumam ser fotos "ruins/desfocadas/mexidas" tiradas
-// por usuários. Fallback: maior foto disponível.
+// Escolhe a melhor foto do lugar: prioriza a MAIOR foto landscape em alta
+// resolução (≥1600×900, proporção 1.2-2.5). Quando há várias boas, pega a
+// de maior área — fotos profissionais/institucionais quase sempre são as
+// maiores. Evita retratos, quadrados e thumbs pequenas (fotos "ruins").
 function pickBestPlacePhoto(photos: PlacePhoto[] | undefined): string | null {
   if (!photos || photos.length === 0) return null;
+  const area = (p: PlacePhoto) => (p.widthPx ?? 0) * (p.heightPx ?? 0);
   const isGood = (p: PlacePhoto) => {
     const w = p.widthPx ?? 0;
     const h = p.heightPx ?? 0;
@@ -326,8 +327,8 @@ function pickBestPlacePhoto(photos: PlacePhoto[] | undefined): string | null {
     const ar = w / h;
     return ar >= 1.2 && ar <= 2.5;
   };
-  const good = photos.find(isGood);
-  if (good) return buildPhotoUrl(good.name);
+  const good = [...photos].filter(isGood).sort((a, b) => area(b) - area(a));
+  if (good.length > 0) return buildPhotoUrl(good[0].name);
   // Fallback: pega a maior foto disponível (por área), evitando portraits muito altos
   const ranked = [...photos]
     .filter((p) => {
@@ -336,7 +337,7 @@ function pickBestPlacePhoto(photos: PlacePhoto[] | undefined): string | null {
       if (!w || !h) return true;
       return w / h >= 0.9; // descarta portraits estreitos
     })
-    .sort((a, b) => ((b.widthPx ?? 0) * (b.heightPx ?? 0)) - ((a.widthPx ?? 0) * (a.heightPx ?? 0)));
+    .sort((a, b) => area(b) - area(a));
   return buildPhotoUrl((ranked[0] ?? photos[0]).name);
 }
 
@@ -550,18 +551,13 @@ export const enrichFromMapsLink = createServerFn({ method: "POST" })
     // ficam em city_references, exibidos na seção "Na Cidade" do guia.
     const MIN_RATING = 3.8;
     const MIN_REVIEWS_GLOBAL = 20;   // permissivo para pertinho — captura ref locais
-    const MAX_PER_TYPE = 25;
+    const MAX_PER_TYPE = 10;        // limite "Pertinho da Residência"
     const PERTINHO_MAX_M = 2500;     // filtro de exibição: até 2,5km (~30min a pé)
     const NEARBY_RADIUS_M = 3000;    // busca além do limite para garantir cobertura
     const NEARBY_TEXT_RADIUS_M = 4000;
 
-    const classifyByPrimaryType = (primaryType: string | undefined) => {
-      if (!primaryType) return null;
-      for (const cat of TYPE_MAP) {
-        if (cat.acceptedPrimaryTypes.includes(primaryType)) return cat;
-      }
-      return null;
-    };
+    // Usa o classificador global (com BLOCKED_PRIMARY_TYPES) — definido mais abaixo.
+    // Hotéis/agências/eventos/lojas são descartados mesmo quando aparecem no Nearby.
 
     const isQuality = (p: PlaceRaw) =>
       typeof p.rating === "number" &&
@@ -907,13 +903,14 @@ export type CityReferenceRow = {
   opening_hours: string[] | null;
 };
 
-const CITY_MIN_RATING = 3.8;
-const CITY_MIN_REVIEWS_DEFAULT = 40;
-const CITY_MAX_PER_TYPE = 30;
+const CITY_MIN_RATING = 4.0;
+const CITY_MIN_REVIEWS_DEFAULT = 80;
+const CITY_MAX_PER_TYPE = 20; // limite "Referências da Cidade"
 
 function cityMinReviewsForType(type: string) {
-  if (["market", "pharmacy", "park", "beach", "nightlife"].includes(type)) return 25;
-  if (["attraction", "restaurant", "bar", "cafe", "shopping"].includes(type)) return 50;
+  if (["market", "pharmacy"].includes(type)) return 40;
+  if (["park", "beach", "nightlife"].includes(type)) return 60;
+  if (["attraction", "restaurant", "bar", "cafe", "shopping"].includes(type)) return 120;
   return CITY_MIN_REVIEWS_DEFAULT;
 }
 
@@ -963,10 +960,35 @@ async function placesTextRestricted(
   return j.places ?? [];
 }
 
+// Tipos do Google Places que NUNCA devem entrar em nenhuma categoria do guia.
+// Defesa em profundidade: hotéis, agências, eventos, lojas, escritórios etc.
+// — esses costumam aparecer em buscas por "pontos turísticos" e poluir o resultado.
+const BLOCKED_PRIMARY_TYPES = new Set<string>([
+  // Hospedagem
+  "lodging", "hotel", "resort_hotel", "motel", "extended_stay_hotel",
+  "bed_and_breakfast", "guest_house", "hostel", "campground", "rv_park",
+  "cottage", "inn", "private_guest_room",
+  // Turismo / agências / eventos
+  "travel_agency", "tour_agency", "tourist_information_center",
+  "event_venue", "wedding_venue", "banquet_hall", "convention_center",
+  "auditorium", "conference_center",
+  // Lojas/serviços genéricos
+  "store", "book_store", "stationery_store", "office_supply_store",
+  "clothing_store", "shoe_store", "electronics_store", "furniture_store",
+  "hardware_store", "home_goods_store", "jewelry_store", "gift_shop",
+  "beauty_salon", "hair_salon", "spa", "gym", "fitness_center",
+  // Saúde/serviços
+  "hospital", "doctor", "dentist", "veterinary_care", "bank", "atm",
+  "real_estate_agency", "insurance_agency", "lawyer", "post_office",
+  // POIs genéricos sem categoria útil
+  "point_of_interest", "establishment", "premise", "subpremise",
+]);
+
 // Decide a categoria FINAL de um lugar com base em primaryType, respeitando
 // a ordem de prioridade do TYPE_MAP (attraction antes de park, etc.).
 function classifyByPrimaryType(primaryType: string | undefined): TypeMapEntry | null {
   if (!primaryType) return null;
+  if (BLOCKED_PRIMARY_TYPES.has(primaryType)) return null;
   for (const cat of TYPE_MAP) {
     if (cat.acceptedPrimaryTypes.includes(primaryType)) return cat;
   }
@@ -1026,15 +1048,15 @@ export async function generateCityReferencesFromMaps(input: {
   // Diagnóstico — contadores para entender por que algo é descartado.
   const drop = { noLoc: 0, lowQuality: 0, dup: 0, noClass: 0, wrongType: 0, outOfScope: 0, tooFar: 0, kept: 0 };
 
-  const ingest = (p: PlaceRaw & { formattedAddress?: string }, hintCat: TypeMapEntry) => {
+  const ingest = (p: PlaceRaw & { formattedAddress?: string }, _hintCat: TypeMapEntry) => {
     if (!p.id || !p.location) { drop.noLoc++; return; }
     if (seenIds.has(p.id)) { drop.dup++; return; }
-    // Reclassifica pelo primaryType (prioridade do TYPE_MAP). Se não bater,
-    // CAI no hintCat (a categoria que motivou a busca) — antes descartávamos.
-    // Isso preserva resultados quando o Google devolve primaryTypes genéricos
-    // (ex.: "establishment", "point_of_interest") fora do TYPE_MAP.
-    let realCat = classifyByPrimaryType(p.primaryType);
-    if (!realCat) realCat = hintCat;
+    // Classificação ESTRITA pelo primaryType. Se o Google não devolve um tipo
+    // que bate exatamente com alguma categoria do TYPE_MAP (ou se for um tipo
+    // explicitamente bloqueado — hotéis, agências, eventos, lojas), DESCARTA.
+    // Antes caíamos no hintCat e isso poluía o resultado (hotel virando "ponto turístico").
+    const realCat = classifyByPrimaryType(p.primaryType);
+    if (!realCat) { drop.noClass++; return; }
     // Se o usuário pediu apenas 1 tipo (regen por categoria), filtra.
     if (type && realCat.type !== type) { drop.wrongType++; return; }
     if (!targetTypes.some((c) => c.type === realCat.type)) { drop.outOfScope++; return; }
@@ -1111,16 +1133,17 @@ export async function generateCityReferencesFromMaps(input: {
     }
   }
 
-  // 3) Monta saída ordenada por categoria → top N por reviews
+  // 3) Monta saída ordenada por categoria → top N por SCORE composto
+  // (rating × log(reviews)) — qualidade + popularidade, não só nota.
+  const qualityScore = (p: PlaceRaw) => {
+    const r = p.rating ?? 0;
+    const n = p.userRatingCount ?? 0;
+    return r * Math.log10(n + 10);
+  };
   const out: CityReferenceRow[] = [];
   for (const cat of targetTypes) {
     const arr = (byCategory.get(cat.type) ?? [])
-      .sort((a, b) => {
-        const ra = a.rating ?? 0;
-        const rb = b.rating ?? 0;
-        if (rb !== ra) return rb - ra;
-        return (b.userRatingCount ?? 0) - (a.userRatingCount ?? 0);
-      })
+      .sort((a, b) => qualityScore(b) - qualityScore(a))
       .slice(0, CITY_MAX_PER_TYPE);
 
     // Desambiguação por nome: se houver mais de um lugar com o mesmo nome
