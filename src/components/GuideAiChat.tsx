@@ -171,13 +171,10 @@ export function GuideAiChat({ slug, propertyName, guestName }: { slug: string; p
             onClick={() => setOpen(true)}
             aria-label="Abrir assistente do guia"
             title="Peça dicas à IA"
-            className="group relative inline-flex items-center gap-2.5 pl-2 pr-2 sm:pr-5 sm:pl-2.5 h-14 rounded-full bg-foreground text-background shadow-[0_14px_36px_-16px_oklch(from_var(--foreground)_l_c_h/0.45)] hover:shadow-[0_18px_44px_-18px_oklch(from_var(--foreground)_l_c_h/0.55)] active:scale-95 transition-all"
+            className="group relative inline-flex items-center gap-2 px-4 sm:px-5 h-14 rounded-full bg-foreground text-background shadow-[0_14px_36px_-16px_oklch(from_var(--foreground)_l_c_h/0.45)] hover:shadow-[0_18px_44px_-18px_oklch(from_var(--foreground)_l_c_h/0.55)] active:scale-95 transition-all"
           >
-            <span className="relative grid size-10 place-items-center rounded-full bg-background/15 backdrop-blur-sm">
-              <span aria-hidden="true" className="absolute inset-0 rounded-full bg-background/20 animate-ping" style={{ animationDuration: "2.9s" }} />
-              <MessageCircleMore className="relative size-5 group-hover:scale-110 transition-transform" strokeWidth={2} />
-            </span>
-            <span className="hidden sm:inline text-[13px] font-semibold tracking-tight pr-1">
+            <MessageCircleMore className="relative size-5 group-hover:scale-110 transition-transform" strokeWidth={2} />
+            <span className="hidden sm:inline text-[13px] font-semibold tracking-tight">
               Pedir dicas à IA
             </span>
           </button>
