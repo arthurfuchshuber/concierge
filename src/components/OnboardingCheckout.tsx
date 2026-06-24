@@ -43,12 +43,13 @@ export function OnboardingCheckout({ onSignOut }: { onSignOut?: () => void }) {
     <div className="min-h-screen w-full grid place-items-center px-4 sm:px-6 py-8 sm:py-10 bg-background">
       <div className="w-full max-w-5xl">
         <div className="text-center mb-6 sm:mb-8">
-          <div className="size-11 rounded-2xl bg-accent/10 grid place-items-center mx-auto mb-3">
-            <Sparkles className="size-5 text-accent" />
+          <div className="inline-flex items-center gap-2 rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 px-3.5 py-1.5 mb-4 border border-emerald-500/20">
+            <Sparkles className="size-3.5" />
+            <span className="text-xs font-semibold uppercase tracking-wider">7 dias grátis · sem cobrança no cadastro</span>
           </div>
           <h1 className="font-serif text-2xl sm:text-3xl">Vamos ativar sua conta</h1>
-          <p className="text-sm text-muted-foreground mt-2 max-w-md mx-auto">
-            Escolha um plano e cadastre o cartão para liberar o painel. Você pode cancelar quando quiser.
+          <p className="text-sm text-muted-foreground mt-2 max-w-lg mx-auto">
+            Escolha um plano e cadastre o cartão para liberar o painel. <strong className="text-foreground">Você não será cobrado nos primeiros 7 dias</strong> — cancele a qualquer momento antes do fim do período de teste sem nenhum custo.
           </p>
         </div>
 
