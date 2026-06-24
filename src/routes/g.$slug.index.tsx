@@ -830,11 +830,10 @@ function Guide({ data }: { data: GuideOk }) {
                         label="Proibido Neste Espaço"
                         hint="O que não é permitido durante a estadia"
                       >
-                        <div className="rounded-2xl border border-border/60 bg-background/40 px-4 py-4">
-                          <StepList text={String((p as Record<string, unknown>).house_rules)} dense />
-                        </div>
+                        <RulesGrid text={String((p as Record<string, unknown>).house_rules)} />
                       </SubItem>
                     ) : null}
+
                   </SubList>
                 );
               })()}
