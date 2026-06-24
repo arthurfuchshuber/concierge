@@ -154,6 +154,8 @@ function PropertyEditor() {
   const fetchAllProps = useServerFn(listMyPropertiesBrief);
   const copyRecs = useServerFn(copyCityRecsToProperties);
   const [refreshingGoogle, setRefreshingGoogle] = useState(false);
+  const [openFaqIdx, setOpenFaqIdx] = useState<number | null>(null);
+
 
   const importAirbnb = useServerFn(importFromAirbnb);
   const { info: sub } = useSubscription();
