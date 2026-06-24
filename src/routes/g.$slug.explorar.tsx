@@ -728,6 +728,7 @@ function CategoryDetail({
   isTouristCategory: boolean;
 }) {
   const [minReviews, setMinReviews] = useState(0);
+  const [openSubcat, setOpenSubcat] = useState<string | null>(null);
 
   const applyFilter = (arr: Rec[]) => {
     if (minReviews <= 0) return arr;
