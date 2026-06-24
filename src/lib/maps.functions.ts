@@ -1051,15 +1051,15 @@ export async function generateCityReferencesFromMaps(input: {
   // Diagnóstico — contadores para entender por que algo é descartado.
   const drop = { noLoc: 0, lowQuality: 0, dup: 0, noClass: 0, wrongType: 0, outOfScope: 0, tooFar: 0, kept: 0 };
 
-  const ingest = (p: PlaceRaw & { formattedAddress?: string }, hintCat: TypeMapEntry) => {
+  const ingest = (p: PlaceRaw & { formattedAddress?: string }, _hintCat: TypeMapEntry) => {
     if (!p.id || !p.location) { drop.noLoc++; return; }
     if (seenIds.has(p.id)) { drop.dup++; return; }
-    // Reclassifica pelo primaryType (prioridade do TYPE_MAP). Se não bater,
-    // CAI no hintCat (a categoria que motivou a busca) — antes descartávamos.
-    // Isso preserva resultados quando o Google devolve primaryTypes genéricos
-    // (ex.: "establishment", "point_of_interest") fora do TYPE_MAP.
-    let realCat = classifyByPrimaryType(p.primaryType);
-    if (!realCat) realCat = hintCat;
+    // Classificação ESTRITA pelo primaryType. Se o Google não devolve um tipo
+    // que bate exatamente com alguma categoria do TYPE_MAP (ou se for um tipo
+    // explicitamente bloqueado — hotéis, agências, eventos, lojas), DESCARTA.
+    // Antes caíamos no hintCat e isso poluía o resultado (hotel virando "ponto turístico").
+    const realCat = classifyByPrimaryType(p.primaryType);
+    if (!realCat) { drop.noClass++; return; }
     // Se o usuário pediu apenas 1 tipo (regen por categoria), filtra.
     if (type && realCat.type !== type) { drop.wrongType++; return; }
     if (!targetTypes.some((c) => c.type === realCat.type)) { drop.outOfScope++; return; }
