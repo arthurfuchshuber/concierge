@@ -449,7 +449,7 @@ function PropertyEditor() {
       };
       const { generated } = await fetchGeneratedCityRecommendations(request);
 
-      const CAP_PER_CATEGORY = 20;
+      const CAP_PER_CATEGORY = 30;
       let added = 0;
       let replaced = 0;
       setForm((f) => {
