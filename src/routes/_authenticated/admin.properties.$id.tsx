@@ -2484,42 +2484,51 @@ function CopyRecsDialog({
 
   return (
     <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle className="font-display text-xl">Replicar para outros guias</DialogTitle>
-          <p className="text-sm text-muted-foreground mt-1">
-            As recomendações <strong>Pela cidade</strong> de <em>{currentPropertyName}</em> serão copiadas para os guias selecionados.
+      <DialogContent className="sm:max-w-md p-0 overflow-hidden">
+        <div className="px-6 pt-6 pb-4 text-center border-b border-border/40">
+          <div className="mx-auto mb-3 grid place-items-center size-11 rounded-full bg-accent/10 ring-1 ring-accent/20 text-accent">
+            <Share2 className="size-5" strokeWidth={1.75} />
+          </div>
+          <DialogTitle className="font-display text-xl tracking-tight">Replicar para outros guias</DialogTitle>
+          <p className="text-[13px] text-muted-foreground mt-1.5 leading-relaxed max-w-sm mx-auto">
+            As recomendações <strong className="text-foreground/90">Pela cidade</strong> de <em>{currentPropertyName}</em> serão copiadas para os guias selecionados.
           </p>
-        </DialogHeader>
+        </div>
 
+        <div className="px-6 pb-6 pt-4">
         {mode === null ? (
-          <div className="space-y-3 pt-2">
+          <div className="space-y-2.5">
             <button
               type="button"
               onClick={() => setMode("select")}
-              className="w-full flex items-start gap-3 rounded-xl border border-border bg-card hover:border-accent/60 hover:shadow-sm p-4 text-left transition-all"
+              className="group w-full flex items-start gap-3.5 rounded-2xl border border-border bg-card hover:border-accent/50 hover:bg-accent/[0.03] hover:shadow-sm p-4 text-left transition-all"
             >
-              <Copy className="size-5 text-accent mt-0.5 shrink-0" />
-              <div>
+              <span className="grid place-items-center size-9 rounded-full bg-accent/10 text-accent group-hover:bg-accent/15 shrink-0 transition-colors">
+                <Copy className="size-4" strokeWidth={1.75} />
+              </span>
+              <div className="min-w-0 flex-1">
                 <p className="font-medium text-sm">Selecionar guias específicos</p>
-                <p className="text-xs text-muted-foreground mt-0.5">Escolha quais guias devem receber as mesmas recomendações.</p>
+                <p className="text-[12px] text-muted-foreground mt-0.5 leading-relaxed">Escolha quais guias devem receber as mesmas recomendações.</p>
               </div>
             </button>
             <button
               type="button"
               onClick={() => setMode("city")}
-              className="w-full flex items-start gap-3 rounded-xl border border-border bg-card hover:border-accent/60 hover:shadow-sm p-4 text-left transition-all"
+              className="group w-full flex items-start gap-3.5 rounded-2xl border border-border bg-card hover:border-accent/50 hover:bg-accent/[0.03] hover:shadow-sm p-4 text-left transition-all"
             >
-              <MapPin className="size-5 text-accent mt-0.5 shrink-0" />
-              <div>
+              <span className="grid place-items-center size-9 rounded-full bg-accent/10 text-accent group-hover:bg-accent/15 shrink-0 transition-colors">
+                <MapPin className="size-4" strokeWidth={1.75} />
+              </span>
+              <div className="min-w-0 flex-1">
                 <p className="font-medium text-sm">Replicar para toda a cidade</p>
-                <p className="text-xs text-muted-foreground mt-0.5">Todos os guias da mesma cidade recebem automaticamente as mesmas recomendações.</p>
+                <p className="text-[12px] text-muted-foreground mt-0.5 leading-relaxed">Todos os guias da mesma cidade recebem automaticamente as mesmas recomendações.</p>
               </div>
             </button>
-            <div className="flex justify-end pt-2">
-              <Button variant="ghost" size="sm" onClick={onClose}>Cancelar</Button>
+            <div className="flex justify-end pt-3">
+              <Button variant="ghost" size="sm" onClick={onClose} className="text-muted-foreground hover:text-foreground">Cancelar</Button>
             </div>
           </div>
+
         ) : mode === "city" ? (
           <div className="space-y-4 pt-2">
             <p className="text-sm text-muted-foreground">
