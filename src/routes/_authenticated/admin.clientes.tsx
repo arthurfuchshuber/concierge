@@ -602,6 +602,14 @@ function EditDialog({
               rows={3}
             />
           </div>
+
+          {plan === "enterprise" && (
+            <EnterpriseSection
+              customer={customer}
+              environment={environment}
+              defaultAmountCents={s?.customPriceCents ?? null}
+            />
+          )}
         </div>
 
         <DialogFooter>
