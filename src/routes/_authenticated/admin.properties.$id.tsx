@@ -18,7 +18,7 @@ import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Loader2, Sparkles, Plus, Trash2, MapPin, ArrowLeft, FileText, KeyRound, Home, Compass, LifeBuoy, Check, Eye, Image as ImageIcon, MapPinned, Clock, DoorOpen, Wifi, UserRound, BookOpen, ClipboardCheck, Shield, Globe, Power, Phone, HelpCircle, Sun, Moon, Palette, Lock, MessageSquare, LogOut, ChevronDown, Ticket, RefreshCw, Copy, Share2 } from "lucide-react";
+import { Loader2, Sparkles, Plus, Trash2, MapPin, ArrowLeft, FileText, KeyRound, Home, Compass, LifeBuoy, Check, Eye, Image as ImageIcon, MapPinned, Clock, DoorOpen, Wifi, UserRound, BookOpen, ClipboardCheck, Shield, Globe, Power, Phone, HelpCircle, Sun, Moon, Palette, Lock, MessageSquare, LogOut, ChevronDown, Ticket, RefreshCw, Copy, Share2, X } from "lucide-react";
 import { ImageUpload } from "@/components/ImageUpload";
 import { MediaUpload, type MediaItem } from "@/components/MediaUpload";
 import { EtiquetaSelect, ETIQUETA_OPTIONS } from "@/components/EtiquetaSelect";
@@ -1491,13 +1491,13 @@ function PropertyEditor() {
                 previewMode === "desktop"
                   ? "p-0 gap-0 overflow-hidden border-0 bg-transparent shadow-none sm:max-w-[1100px] w-[min(95vw,1100px)] [&>button]:hidden"
                   : previewMode === "mobile"
-                  ? "p-0 gap-0 overflow-hidden border-0 bg-transparent shadow-none sm:max-w-[400px] w-[min(92vw,400px)] [&>button]:hidden"
+                  ? "p-0 gap-0 overflow-visible border-0 bg-transparent shadow-none sm:max-w-[340px] w-[min(82vw,340px)] [&>button]:hidden"
                   : "p-0 gap-0 overflow-hidden sm:max-w-[420px] w-[min(92vw,420px)] [&>button]:hidden"
               }
             >
               <DialogTitle className="sr-only">Pré-visualização do guia</DialogTitle>
               {previewMode === null ? (
-                <div className="p-6 bg-background">
+                <div className="p-6 bg-background rounded-2xl border border-border shadow-xl">
                   <div className="text-center mb-5">
                     <h3 className="font-display text-xl">Como deseja visualizar?</h3>
                     <p className="text-xs text-muted-foreground mt-1">Escolha o modo de pré-visualização do guia.</p>
@@ -1530,14 +1530,47 @@ function PropertyEditor() {
                     Cancelar
                   </button>
                 </div>
+              ) : previewMode === "mobile" ? (
+                <div className="relative mx-auto" style={{ width: "100%" }}>
+                  {/* Phone bezel */}
+                  <div className="relative rounded-[2.4rem] bg-neutral-900 p-2.5 shadow-[0_40px_90px_-25px_rgba(0,0,0,0.6)] ring-1 ring-white/10">
+                    {/* Notch */}
+                    <div className="absolute top-1 left-1/2 -translate-x-1/2 z-10 h-5 w-24 rounded-b-2xl bg-neutral-900" />
+                    <div className="flex flex-col h-[78vh] max-h-[720px] overflow-hidden rounded-[1.7rem] bg-background">
+                      <div className="flex items-center justify-between gap-2 px-3 h-7 bg-background/95 backdrop-blur border-b border-border/40 shrink-0">
+                        <span className="inline-flex size-1.5 rounded-full bg-emerald-500/80" />
+                        <p className="text-[10px] font-medium text-muted-foreground/80 truncate flex-1">/g/{previewSlug}</p>
+                        <button
+                          type="button"
+                          onClick={() => setPreviewMode(null)}
+                          aria-label="Trocar modo"
+                          className="h-5 px-1.5 inline-flex items-center rounded-full text-[9px] uppercase tracking-wider font-medium text-muted-foreground/70 hover:text-foreground hover:bg-muted transition-colors"
+                        >
+                          Mobile
+                        </button>
+                      </div>
+                      <iframe
+                        src={`/g/${previewSlug}`}
+                        title="Pré-visualização do guia"
+                        className="w-full flex-1 border-0 bg-background"
+                      />
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setPreviewOpen(false)}
+                    aria-label="Fechar"
+                    className="absolute -top-2 -right-2 size-8 grid place-items-center rounded-full bg-background border border-border text-foreground/80 hover:text-foreground hover:bg-secondary shadow-lg transition-colors"
+                  >
+                    <X className="size-4" />
+                  </button>
+                </div>
               ) : (
-                <div className={`flex flex-col ${previewMode === "desktop" ? "h-[85vh] max-h-[820px] rounded-2xl" : "h-[85vh] max-h-[820px] rounded-[2rem]"} overflow-hidden bg-background shadow-[0_30px_80px_-20px_rgba(0,0,0,0.45)] ring-1 ring-black/10`}>
+                <div className="flex flex-col h-[85vh] max-h-[820px] rounded-2xl overflow-hidden bg-background shadow-[0_30px_80px_-20px_rgba(0,0,0,0.45)] ring-1 ring-black/10">
                   <div className="flex items-center justify-between gap-3 px-4 h-9 bg-background/95 backdrop-blur border-b border-border/40 shrink-0">
                     <div className="flex items-center gap-2 min-w-0">
                       <span className="inline-flex size-1.5 rounded-full bg-emerald-500/80" />
-                      <p className="text-[11px] font-medium text-muted-foreground/80 truncate">
-                        /g/{previewSlug}
-                      </p>
+                      <p className="text-[11px] font-medium text-muted-foreground/80 truncate">/g/{previewSlug}</p>
                     </div>
                     <div className="flex items-center gap-1">
                       <button
@@ -1546,7 +1579,7 @@ function PropertyEditor() {
                         aria-label="Trocar modo"
                         className="h-6 px-2 inline-flex items-center rounded-full text-[10px] uppercase tracking-wider font-medium text-muted-foreground/70 hover:text-foreground hover:bg-muted transition-colors"
                       >
-                        {previewMode === "mobile" ? "Mobile" : "Navegador"}
+                        Navegador
                       </button>
                       <button
                         type="button"
@@ -2334,45 +2367,55 @@ function GenerateModeDialog({
 }) {
   return (
     <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
-      <DialogContent className="max-w-xl">
-        <DialogHeader>
-          <DialogTitle>Como você deseja gerar as recomendações?</DialogTitle>
-        </DialogHeader>
-        <div className="grid gap-3 mt-2">
-          <button
-            type="button"
-            onClick={() => onPick("fill")}
-            className="text-left rounded-xl border border-border bg-background/60 hover:border-foreground/30 hover:bg-muted/30 transition-colors p-4"
-          >
-            <div className="flex items-center gap-2 mb-1">
-              <Sparkles className="size-4 text-primary" />
-              <p className="text-sm font-semibold">Gerar apenas os excedentes</p>
-              <span className="ml-auto text-[10px] uppercase tracking-wider text-primary/80 font-medium">Recomendado</span>
-            </div>
-            <p className="text-xs text-muted-foreground leading-relaxed">
-              Mantém todas as referências atuais e adiciona apenas pontos novos de alta qualidade,
-              respeitando o limite máximo por categoria. Se não houver novos locais relevantes,
-              nada é adicionado.
-            </p>
-          </button>
-          <button
-            type="button"
-            onClick={() => onPick("replace")}
-            className="text-left rounded-xl border border-border bg-background/60 hover:border-destructive/40 hover:bg-destructive/5 transition-colors p-4"
-          >
-            <div className="flex items-center gap-2 mb-1">
-              <RefreshCw className="size-4 text-destructive" />
-              <p className="text-sm font-semibold">Recriar tudo do zero</p>
-            </div>
-            <p className="text-xs text-muted-foreground leading-relaxed">
-              {hasExisting
-                ? "Remove todas as referências atuais da cidade e gera uma nova seleção completa."
-                : "Gera uma seleção completa de referências para a cidade."}
-            </p>
-          </button>
+      <DialogContent className="max-w-xl p-0 overflow-hidden">
+        <div className="px-6 pt-6 pb-4 text-center border-b border-border/40">
+          <div className="mx-auto mb-3 grid place-items-center size-11 rounded-full bg-primary/10 ring-1 ring-primary/20 text-primary">
+            <Sparkles className="size-5" strokeWidth={1.75} />
+          </div>
+          <DialogTitle className="font-display text-xl tracking-tight">Como gerar as recomendações?</DialogTitle>
+          <p className="text-[13px] text-muted-foreground mt-1.5 leading-relaxed max-w-sm mx-auto">
+            Escolha o modo de geração com IA.
+          </p>
         </div>
-        <div className="flex justify-end mt-2">
-          <Button variant="ghost" size="sm" onClick={onClose}>Cancelar</Button>
+        <div className="px-6 pb-6 pt-4">
+          <div className="grid gap-2.5">
+            <button
+              type="button"
+              onClick={() => onPick("fill")}
+              className="group text-left rounded-2xl border border-border bg-card hover:border-primary/40 hover:bg-primary/[0.03] hover:shadow-sm transition-all p-4"
+            >
+              <div className="flex items-center gap-2.5 mb-1.5">
+                <span className="grid place-items-center size-8 rounded-full bg-primary/10 text-primary shrink-0">
+                  <Sparkles className="size-4" strokeWidth={1.75} />
+                </span>
+                <p className="text-sm font-semibold">Gerar apenas os excedentes</p>
+                <span className="ml-auto text-[10px] uppercase tracking-wider text-primary/80 font-medium">Recomendado</span>
+              </div>
+              <p className="text-[12px] text-muted-foreground leading-relaxed pl-[42px]">
+                Mantém todas as referências atuais e adiciona apenas pontos novos de alta qualidade, respeitando o limite máximo por categoria.
+              </p>
+            </button>
+            <button
+              type="button"
+              onClick={() => onPick("replace")}
+              className="group text-left rounded-2xl border border-border bg-card hover:border-destructive/40 hover:bg-destructive/[0.03] hover:shadow-sm transition-all p-4"
+            >
+              <div className="flex items-center gap-2.5 mb-1.5">
+                <span className="grid place-items-center size-8 rounded-full bg-destructive/10 text-destructive shrink-0">
+                  <RefreshCw className="size-4" strokeWidth={1.75} />
+                </span>
+                <p className="text-sm font-semibold">Recriar tudo do zero</p>
+              </div>
+              <p className="text-[12px] text-muted-foreground leading-relaxed pl-[42px]">
+                {hasExisting
+                  ? "Remove todas as referências atuais da cidade e gera uma nova seleção completa."
+                  : "Gera uma seleção completa de referências para a cidade."}
+              </p>
+            </button>
+          </div>
+          <div className="flex justify-end mt-3">
+            <Button variant="ghost" size="sm" onClick={onClose} className="text-muted-foreground hover:text-foreground">Cancelar</Button>
+          </div>
         </div>
       </DialogContent>
     </Dialog>
@@ -2451,42 +2494,51 @@ function CopyRecsDialog({
 
   return (
     <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle className="font-display text-xl">Replicar para outros guias</DialogTitle>
-          <p className="text-sm text-muted-foreground mt-1">
-            As recomendações <strong>Pela cidade</strong> de <em>{currentPropertyName}</em> serão copiadas para os guias selecionados.
+      <DialogContent className="sm:max-w-md p-0 overflow-hidden">
+        <div className="px-6 pt-6 pb-4 text-center border-b border-border/40">
+          <div className="mx-auto mb-3 grid place-items-center size-11 rounded-full bg-accent/10 ring-1 ring-accent/20 text-accent">
+            <Share2 className="size-5" strokeWidth={1.75} />
+          </div>
+          <DialogTitle className="font-display text-xl tracking-tight">Replicar para outros guias</DialogTitle>
+          <p className="text-[13px] text-muted-foreground mt-1.5 leading-relaxed max-w-sm mx-auto">
+            As recomendações <strong className="text-foreground/90">Pela cidade</strong> de <em>{currentPropertyName}</em> serão copiadas para os guias selecionados.
           </p>
-        </DialogHeader>
+        </div>
 
+        <div className="px-6 pb-6 pt-4">
         {mode === null ? (
-          <div className="space-y-3 pt-2">
+          <div className="space-y-2.5">
             <button
               type="button"
               onClick={() => setMode("select")}
-              className="w-full flex items-start gap-3 rounded-xl border border-border bg-card hover:border-accent/60 hover:shadow-sm p-4 text-left transition-all"
+              className="group w-full flex items-start gap-3.5 rounded-2xl border border-border bg-card hover:border-accent/50 hover:bg-accent/[0.03] hover:shadow-sm p-4 text-left transition-all"
             >
-              <Copy className="size-5 text-accent mt-0.5 shrink-0" />
-              <div>
+              <span className="grid place-items-center size-9 rounded-full bg-accent/10 text-accent group-hover:bg-accent/15 shrink-0 transition-colors">
+                <Copy className="size-4" strokeWidth={1.75} />
+              </span>
+              <div className="min-w-0 flex-1">
                 <p className="font-medium text-sm">Selecionar guias específicos</p>
-                <p className="text-xs text-muted-foreground mt-0.5">Escolha quais guias devem receber as mesmas recomendações.</p>
+                <p className="text-[12px] text-muted-foreground mt-0.5 leading-relaxed">Escolha quais guias devem receber as mesmas recomendações.</p>
               </div>
             </button>
             <button
               type="button"
               onClick={() => setMode("city")}
-              className="w-full flex items-start gap-3 rounded-xl border border-border bg-card hover:border-accent/60 hover:shadow-sm p-4 text-left transition-all"
+              className="group w-full flex items-start gap-3.5 rounded-2xl border border-border bg-card hover:border-accent/50 hover:bg-accent/[0.03] hover:shadow-sm p-4 text-left transition-all"
             >
-              <MapPin className="size-5 text-accent mt-0.5 shrink-0" />
-              <div>
+              <span className="grid place-items-center size-9 rounded-full bg-accent/10 text-accent group-hover:bg-accent/15 shrink-0 transition-colors">
+                <MapPin className="size-4" strokeWidth={1.75} />
+              </span>
+              <div className="min-w-0 flex-1">
                 <p className="font-medium text-sm">Replicar para toda a cidade</p>
-                <p className="text-xs text-muted-foreground mt-0.5">Todos os guias da mesma cidade recebem automaticamente as mesmas recomendações.</p>
+                <p className="text-[12px] text-muted-foreground mt-0.5 leading-relaxed">Todos os guias da mesma cidade recebem automaticamente as mesmas recomendações.</p>
               </div>
             </button>
-            <div className="flex justify-end pt-2">
-              <Button variant="ghost" size="sm" onClick={onClose}>Cancelar</Button>
+            <div className="flex justify-end pt-3">
+              <Button variant="ghost" size="sm" onClick={onClose} className="text-muted-foreground hover:text-foreground">Cancelar</Button>
             </div>
           </div>
+
         ) : mode === "city" ? (
           <div className="space-y-4 pt-2">
             <p className="text-sm text-muted-foreground">
@@ -2575,6 +2627,7 @@ function CopyRecsDialog({
             </div>
           </div>
         )}
+        </div>
       </DialogContent>
     </Dialog>
   );

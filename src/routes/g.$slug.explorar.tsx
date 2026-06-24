@@ -259,7 +259,7 @@ function ExplorePage() {
   const { slug } = Route.useParams();
   const [activeKey, setActiveKey] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<SortKey>("distance");
-  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [viewMode, setViewMode] = useState<"grid" | "list">("list");
   const [minReviews, setMinReviews] = useState<number>(0);
   // "Ver Mapa" temporariamente desabilitado — state preservado no histórico do arquivo.
 
@@ -728,6 +728,7 @@ function CategoryDetail({
   isTouristCategory: boolean;
 }) {
   const [minReviews, setMinReviews] = useState(0);
+  const [openSubcat, setOpenSubcat] = useState<string | null>(null);
 
   const applyFilter = (arr: Rec[]) => {
     if (minReviews <= 0) return arr;
@@ -753,20 +754,26 @@ function CategoryDetail({
       </div>
       {cityFiltered.length > 1 && <div className="mt-6"><CityMap items={cityFiltered} /></div>}
       <div className="mt-4 space-y-6">
-        {sections.map((s) => (
-          <CollapsibleSection
-            key={s.key}
-            eyebrow={s.eyebrow}
-            title={s.title}
-            items={s.items}
-            totalCount={s.total}
-            viewMode={viewMode}
-          />
-        ))}
+        {(() => {
+          const [openKey, setOpenKey] = [openSubcat, setOpenSubcat] as const;
+          return sections.map((s) => (
+            <CollapsibleSection
+              key={s.key}
+              eyebrow={s.eyebrow}
+              title={s.title}
+              items={s.items}
+              totalCount={s.total}
+              viewMode={viewMode}
+              open={openKey === s.key}
+              onToggle={() => setOpenKey(openKey === s.key ? null : s.key)}
+            />
+          ));
+        })()}
         {sections.length === 0 && (
           <p className="text-sm text-muted-foreground">Nada cadastrado nesta categoria.</p>
         )}
       </div>
+
     </>
   );
 }
@@ -876,21 +883,27 @@ function CollapsibleSection({
   items,
   totalCount,
   viewMode,
+  open: openProp,
+  onToggle,
 }: {
   eyebrow: string;
   title: string;
   items: Rec[];
   totalCount: number;
   viewMode: "grid" | "list";
+  open?: boolean;
+  onToggle?: () => void;
 }) {
-  const [open, setOpen] = useState(false);
+  const [localOpen, setLocalOpen] = useState(false);
+  const open = openProp ?? localOpen;
+  const toggle = onToggle ?? (() => setLocalOpen((v) => !v));
   const isFiltered = items.length !== totalCount;
 
   return (
     <section className="border border-border rounded-2xl bg-card/40 overflow-hidden">
       <button
         type="button"
-        onClick={() => setOpen((v) => !v)}
+        onClick={toggle}
         className="w-full flex items-center justify-between gap-3 px-5 py-4 text-left hover:bg-card/80 transition-colors"
         aria-expanded={open}
       >

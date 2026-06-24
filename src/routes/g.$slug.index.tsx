@@ -2171,16 +2171,17 @@ function AccessCodesStrip({
       </div>
       {checkinInstructions && checkinInstructions.trim() && (
         <Dialog open={instrOpen} onOpenChange={setInstrOpen}>
-          <DialogContent className="max-w-md">
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2 text-base">
-                <span className="grid size-8 place-items-center rounded-xl bg-accent/15 text-accent/85 ring-1 ring-accent/20">
-                  <KeyRound className="size-4" strokeWidth={2} />
-                </span>
-                Instruções de acesso
-              </DialogTitle>
-            </DialogHeader>
-            <div className="mt-2 max-h-[60vh] overflow-y-auto pr-1">
+          <DialogContent className="max-w-md p-0 overflow-hidden">
+            <div className="px-6 pt-6 pb-4 text-center border-b border-border/40">
+              <div className="mx-auto mb-3 grid place-items-center size-12 rounded-full bg-accent/12 ring-1 ring-accent/25 text-accent">
+                <KeyRound className="size-5" strokeWidth={1.75} />
+              </div>
+              <DialogTitle className="font-display text-xl tracking-tight">Instruções de acesso</DialogTitle>
+              <p className="text-[12.5px] text-muted-foreground mt-1.5 leading-relaxed max-w-xs mx-auto">
+                Passo a passo para sua chegada à residência.
+              </p>
+            </div>
+            <div className="px-6 py-5 max-h-[60vh] overflow-y-auto">
               <StepList text={String(checkinInstructions)} dense />
             </div>
           </DialogContent>
