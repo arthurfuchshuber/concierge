@@ -845,10 +845,13 @@ function PropertyEditor() {
             </Field>
           </Section>
 
+          </SectionGroup>
         </TabsContent>
 
         <TabsContent value="access" className="space-y-5 mt-6">
+          <SectionGroup>
           <Section icon={Shield} title="Modo de acesso" desc="Quem pode visualizar este guia.">
+
             <Field label="Modo de acesso do Guia">
               <Select value={form.property.access_mode} onValueChange={(v) => update("access_mode", v as "public" | "pin")}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
