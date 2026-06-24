@@ -1154,6 +1154,11 @@ export async function generateCityReferencesFromMaps(input: {
     }
   }
 
+  console.log(
+    `[CityRefs] ${cityQ} center=${cityCenter ? `${cityCenter.lat.toFixed(3)},${cityCenter.lng.toFixed(3)}` : "null"} `
+    + `drop=${JSON.stringify(drop)} out=${out.length}`,
+  );
+
   return out;
 }
 
