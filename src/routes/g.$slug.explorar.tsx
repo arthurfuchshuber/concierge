@@ -259,7 +259,7 @@ function ExplorePage() {
   const { slug } = Route.useParams();
   const [activeKey, setActiveKey] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<SortKey>("distance");
-  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [viewMode, setViewMode] = useState<"grid" | "list">("list");
   const [minReviews, setMinReviews] = useState<number>(0);
   // "Ver Mapa" temporariamente desabilitado — state preservado no histórico do arquivo.
 
