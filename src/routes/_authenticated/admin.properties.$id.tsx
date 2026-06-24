@@ -1219,10 +1219,13 @@ function PropertyEditor() {
               </ItemCard>
             ))}
           </Section>
+          </SectionGroup>
         </TabsContent>
 
         <TabsContent value="recs" className="space-y-5 mt-6">
+          <SectionGroup>
           <div className="rounded-xl border border-dashed border-border/70 bg-muted/30 px-4 py-3 text-xs text-muted-foreground leading-relaxed space-y-2">
+
             <p>
               Recomendações vêm do Google Maps. Edite, remova ou adicione manualmente. <span className="text-foreground/80">Sincronizamos automaticamente uma vez por dia.</span>
             </p>
