@@ -2112,7 +2112,7 @@ function RecGroup({
                   />
                   <button
                     type="button"
-                    onClick={() => setOpenCats((p) => ({ ...p, [cat]: !open }))}
+                    onClick={() => setOpenCat(open ? null : cat)}
                     className="flex-1 flex items-center justify-between gap-3 text-left"
                     aria-expanded={open}
                   >
