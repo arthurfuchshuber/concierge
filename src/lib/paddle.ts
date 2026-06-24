@@ -12,34 +12,78 @@ export function getPaddleEnvironment(): "sandbox" | "live" {
   return clientToken?.startsWith("test_") ? "sandbox" : "live";
 }
 
-let paddleInitialized = false;
+let paddleInitPromise: Promise<void> | null = null;
 
-export async function initializePaddle() {
-  if (paddleInitialized) return;
+export async function initializePaddle(): Promise<void> {
+  if (paddleInitPromise) return paddleInitPromise;
   if (!clientToken) throw new Error("VITE_PAYMENTS_CLIENT_TOKEN is not set");
 
-  return new Promise<void>((resolve, reject) => {
-    const existing = document.querySelector<HTMLScriptElement>(
-      'script[src="https://cdn.paddle.com/paddle/v2/paddle.js"]',
-    );
-    const onReady = () => {
-      const paddleJsEnvironment =
-        getPaddleEnvironment() === "sandbox" ? "sandbox" : "production";
-      window.Paddle.Environment.set(paddleJsEnvironment);
-      window.Paddle.Initialize({ token: clientToken });
-      paddleInitialized = true;
-      resolve();
+  paddleInitPromise = new Promise<void>((resolve, reject) => {
+    const SRC = "https://cdn.paddle.com/paddle/v2/paddle.js";
+    const finalize = () => {
+      try {
+        if (!window.Paddle) {
+          reject(new Error("Paddle SDK script carregou mas window.Paddle não existe (bloqueador?)."));
+          return;
+        }
+        const paddleJsEnvironment =
+          getPaddleEnvironment() === "sandbox" ? "sandbox" : "production";
+        window.Paddle.Environment.set(paddleJsEnvironment);
+        window.Paddle.Initialize({
+          token: clientToken,
+          eventCallback: (data: any) => {
+            // Surface checkout errors for debugging.
+            if (data?.name === "checkout.error" || data?.name === "checkout.warning") {
+              // eslint-disable-next-line no-console
+              console.error("[Paddle event]", data?.name, data);
+            }
+          },
+        });
+        resolve();
+      } catch (err) {
+        reject(err);
+      }
     };
-    if (existing && window.Paddle) {
-      onReady();
+
+    // Already loaded
+    if (window.Paddle) {
+      finalize();
       return;
     }
-    const script = existing ?? document.createElement("script");
-    script.src = "https://cdn.paddle.com/paddle/v2/paddle.js";
-    script.onload = onReady;
-    script.onerror = reject;
-    if (!existing) document.head.appendChild(script);
+
+    const existing = document.querySelector<HTMLScriptElement>(`script[src="${SRC}"]`);
+    if (existing) {
+      // Script tag exists but may still be loading — poll for window.Paddle.
+      const start = Date.now();
+      const iv = setInterval(() => {
+        if (window.Paddle) {
+          clearInterval(iv);
+          finalize();
+        } else if (Date.now() - start > 10000) {
+          clearInterval(iv);
+          reject(new Error("Tempo esgotado aguardando o carregamento do Paddle SDK."));
+        }
+      }, 100);
+      existing.addEventListener("error", () => {
+        clearInterval(iv);
+        reject(new Error("Falha ao carregar o Paddle SDK (script error)."));
+      });
+      return;
+    }
+
+    const script = document.createElement("script");
+    script.src = SRC;
+    script.async = true;
+    script.onload = finalize;
+    script.onerror = () => reject(new Error("Falha ao carregar o Paddle SDK (rede/bloqueador)."));
+    document.head.appendChild(script);
+  }).catch((err) => {
+    // Allow retry on next call.
+    paddleInitPromise = null;
+    throw err;
   });
+
+  return paddleInitPromise;
 }
 
 const priceCache = new Map<string, string>();
