@@ -1284,7 +1284,7 @@ function HeroCompact({
             <MapPin className="size-3 text-accent" strokeWidth={2.2} /> {city}
           </span>
         )}
-        <h1 className="font-serif text-[2.1rem] md:text-[3.75rem] leading-[0.95] tracking-[-0.01em] text-white text-balance max-w-[320px] md:max-w-[760px] drop-shadow-[0_2px_20px_rgba(0,0,0,0.45)]">
+        <h1 className="font-serif text-[1.95rem] md:text-[3.5rem] leading-[1] tracking-[-0.01em] text-white text-balance max-w-[360px] md:max-w-[820px] drop-shadow-[0_2px_20px_rgba(0,0,0,0.45)] line-clamp-2">
           {name}
         </h1>
 
