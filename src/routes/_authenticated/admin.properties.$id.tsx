@@ -1175,8 +1175,10 @@ function PropertyEditor() {
             icon={BookOpen}
             title="Manual da casa"
             desc="Instruções de equipamentos e funcionamento."
+            collapsible
             action={<AddBtn onClick={() => setForm((f) => ({ ...f, manual: [...f.manual, { title: "", description: "", body: "" }] }))} />}
           >
+
             {form.manual.length === 0 ? (
               <EmptyHint text="Nenhum item ainda. Adicione instruções para ar-condicionado, TV, fechadura, etc." />
             ) : form.manual.map((m, i) => (
