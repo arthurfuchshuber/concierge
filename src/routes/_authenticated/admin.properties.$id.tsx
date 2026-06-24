@@ -2090,7 +2090,7 @@ function RecGroup({
       ) : (
         <div className="space-y-2">
           {groupEntries.map(([cat, g]) => {
-            const open = openCats[cat] ?? false;
+            const open = openCat === cat;
             const groupSelected = g.indices.filter((i) => selectedIdx.has(i)).length;
             const allInGroup = groupSelected === g.indices.length && g.indices.length > 0;
             return (
