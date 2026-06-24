@@ -6,6 +6,7 @@ import { getMyProperty, upsertProperty, listMyProperties, listMyPropertiesBrief,
 import { listHostFaqs } from "@/lib/host-library.functions";
 import { buildDefaultFaqs, mergeDefaultFaqs } from "@/lib/default-faqs";
 import { enrichFromMapsLink, searchPlacesForRec, refreshRecommendationsFromGoogle, type PlaceSearchResult } from "@/lib/maps.functions";
+import { generateCityReferences, listCityReferences } from "@/lib/city-references.functions";
 import { importFromAirbnb } from "@/lib/airbnb.functions";
 import { useSubscription } from "@/hooks/useSubscription";
 
@@ -146,6 +147,8 @@ function PropertyEditor() {
   const fetchProp = useServerFn(getMyProperty);
   const save = useServerFn(upsertProperty);
   const enrich = useServerFn(enrichFromMapsLink);
+  const generateCityRefs = useServerFn(generateCityReferences);
+  const listGeneratedCityRefs = useServerFn(listCityReferences);
   const refreshGoogle = useServerFn(refreshRecommendationsFromGoogle);
   const fetchAllProps = useServerFn(listMyPropertiesBrief);
   const copyRecs = useServerFn(copyCityRecsToProperties);
@@ -161,6 +164,7 @@ function PropertyEditor() {
   const [form, setForm] = useState<FormState>(() => emptyForm());
   const [step, setStep] = useState<string>("basics");
   const [enriching, setEnriching] = useState(false);
+  const [generatingCityRecs, setGeneratingCityRecs] = useState(false);
   const [saving, setSaving] = useState(false);
   const [airbnbUrl, setAirbnbUrl] = useState("");
   const [importingAirbnb, setImportingAirbnb] = useState(false);
@@ -362,6 +366,71 @@ function PropertyEditor() {
       toast.error(e instanceof Error ? e.message : "Erro ao enriquecer");
     } finally {
       setEnriching(false);
+    }
+  }
+
+  async function handleGenerateCityRecommendations() {
+    const city = form.property.city.trim();
+    if (!city) {
+      toast.error("Preencha a cidade antes de gerar recomendações.");
+      return;
+    }
+    setGeneratingCityRecs(true);
+    try {
+      const request = {
+        city_label: city,
+        state: form.property.state?.trim() || null,
+        country: form.property.country?.trim() || "BR",
+      };
+      const result = await generateCityRefs({ data: request });
+      const listed = await listGeneratedCityRefs({ data: { ...request, includeHidden: false } });
+      const generated = ((listed.items ?? []) as Array<Record<string, unknown>>)
+        .filter((r) => !(r.is_hidden as boolean | undefined))
+        .map((r): RecItem => ({
+          scope: "city",
+          type: (r.type as string) || "other",
+          name: (r.name as string) || "",
+          category: (r.category as string | null) ?? null,
+          rating: (r.rating as number | null) ?? null,
+          user_ratings_total: (r.user_ratings_total as number | null) ?? null,
+          distance_text: null,
+          distance_meters: null,
+          drive_minutes: null,
+          walk_minutes: null,
+          opening_hours: (r.opening_hours as string[] | null) ?? null,
+          note: (r.note as string | null) ?? null,
+          image_url: (r.image_url as string | null) ?? null,
+          maps_url: (r.maps_url as string | null) ?? null,
+          place_id: (r.place_id as string | null) ?? null,
+        }))
+        .filter((r) => r.name.trim().length > 0);
+
+      let added = 0;
+      setForm((f) => {
+        const normalize = (s: string) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, " ").trim();
+        const nearby = f.recommendations.filter((r) => r.scope === "nearby");
+        const currentCity = f.recommendations.filter((r) => r.scope === "city");
+        const seen = new Set(currentCity.map((r) => r.place_id ? `id:${r.place_id}` : `name:${normalize(r.name)}`));
+        const merged = [...currentCity];
+        for (const rec of generated) {
+          const key = rec.place_id ? `id:${rec.place_id}` : `name:${normalize(rec.name)}`;
+          if (seen.has(key)) continue;
+          seen.add(key);
+          merged.push(rec);
+          added += 1;
+        }
+        return { ...f, recommendations: [...nearby, ...merged] };
+      });
+
+      if (generated.length === 0) {
+        toast.error(result.message || "Não encontrei pontos suficientes para esta cidade.");
+      } else {
+        toast.success(`Pela cidade gerado: ${added} novo(s) · ${generated.length} disponíveis`);
+      }
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erro ao gerar recomendações da cidade");
+    } finally {
+      setGeneratingCityRecs(false);
     }
   }
 
@@ -1121,6 +1190,8 @@ function PropertyEditor() {
             scope="city"
             lat={form.property.lat}
             lng={form.property.lng}
+            onGenerate={handleGenerateCityRecommendations}
+            generating={generatingCityRecs}
             onReplicate={cityRecs.length > 0 && !isNew ? () => setCopyRecsOpen(true) : undefined}
           />
 
@@ -1720,6 +1791,8 @@ function RecGroup({
   lat,
   lng,
   onReplicate,
+  onGenerate,
+  generating,
 }: {
   title: string;
   desc: string;
@@ -1729,6 +1802,8 @@ function RecGroup({
   lat: number | null;
   lng: number | null;
   onReplicate?: () => void;
+  onGenerate?: () => void;
+  generating?: boolean;
 }) {
   const [openCats, setOpenCats] = useState<Record<string, boolean>>({});
   const [selectedIdx, setSelectedIdx] = useState<Set<number>>(new Set());
@@ -1797,6 +1872,12 @@ function RecGroup({
           {onReplicate && (
             <Button size="sm" variant="ghost" onClick={onReplicate} className="shrink-0 h-8 rounded-full text-xs text-muted-foreground hover:text-foreground">
               <Share2 className="size-3.5" /> Replicar
+            </Button>
+          )}
+          {onGenerate && (
+            <Button size="sm" variant="secondary" onClick={onGenerate} disabled={generating} className="shrink-0 h-8 rounded-full text-xs">
+              {generating ? <Loader2 className="size-3.5 animate-spin" /> : <Sparkles className="size-3.5" />}
+              Gerar com IA
             </Button>
           )}
           <Button size="sm" variant="ghost" onClick={addManual} className="shrink-0 h-8 rounded-full text-xs text-muted-foreground hover:text-foreground">
