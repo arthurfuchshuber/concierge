@@ -34,6 +34,34 @@ export type AirbnbImportResult = {
   hero_image_url: string | null;
 };
 
+type FirecrawlScrapeOptions = {
+  formats?: Array<string | { type: "json"; schema?: Record<string, unknown>; prompt?: string }>;
+  onlyMainContent?: boolean;
+  waitFor?: number;
+};
+
+async function scrapeWithFirecrawl(apiKey: string, url: string, options: FirecrawlScrapeOptions): Promise<unknown> {
+  const response = await fetch("https://api.firecrawl.dev/v2/scrape", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ url, ...options }),
+  });
+
+  const payload = await response.json().catch(() => null);
+  if (!response.ok) {
+    const message =
+      payload && typeof payload === "object" && "error" in payload && typeof payload.error === "string"
+        ? payload.error
+        : response.statusText;
+    throw new Error(message || `Firecrawl retornou HTTP ${response.status}`);
+  }
+
+  return payload;
+}
+
 function normalizeHour(hour: number, minute: number, meridiem?: string | null): string {
   let h = hour;
   if (meridiem) {
@@ -78,9 +106,6 @@ export const importFromAirbnb = createServerFn({ method: "POST" })
     if (!apiKey) throw new Error("Integração Firecrawl indisponível");
 
 
-    const { default: Firecrawl } = await import("@mendable/firecrawl-js");
-    const firecrawl = new Firecrawl({ apiKey });
-
     // Use scrape with JSON extraction via prompt — handles JS rendering and Airbnb's anti-bot.
     const extractionSchema = {
       type: "object",
@@ -104,14 +129,14 @@ export const importFromAirbnb = createServerFn({ method: "POST" })
 
     let result: unknown;
     let lastErr: unknown;
-    const attempts: Parameters<typeof firecrawl.scrape>[1][] = [
+    const attempts: FirecrawlScrapeOptions[] = [
       { formats: [{ type: "json", schema: extractionSchema }], onlyMainContent: false, waitFor: 2500 },
       { formats: [{ type: "json", schema: extractionSchema }], onlyMainContent: false },
       { formats: [{ type: "json", prompt: "Extract title, description (tagline), city, country, checkin_time, checkout_time, and up to 4 photo URLs from muscache.com." }], onlyMainContent: false },
     ];
     for (const opts of attempts) {
       try {
-        result = await firecrawl.scrape(data.url, opts);
+        result = await scrapeWithFirecrawl(apiKey, data.url, opts);
         lastErr = undefined;
         break;
       } catch (e) {
