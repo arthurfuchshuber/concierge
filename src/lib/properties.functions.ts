@@ -427,7 +427,8 @@ export const copyCityRecsToProperties = createServerFn({ method: "POST" })
         });
         const { error: insErr } = await supabaseAdmin
           .from("property_recommendations")
-          .insert(rows);
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          .insert(rows as any);
         if (!insErr) copied += 1;
       } else {
         copied += 1;
