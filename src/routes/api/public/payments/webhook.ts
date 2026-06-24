@@ -13,8 +13,30 @@ function getSupabase(): any {
   return _supabase;
 }
 
+function nextMonthFirstDayISO(after: Date): string {
+  const d = new Date(Date.UTC(after.getUTCFullYear(), after.getUTCMonth() + 1, 1, 12, 0, 0));
+  return d.toISOString();
+}
+
+async function anchorSubscriptionDay1(env: PaddleEnv, subscriptionId: string, currentNextBilled: string | undefined | null) {
+  if (!currentNextBilled) return;
+  try {
+    const { gatewayFetch } = await import("@/lib/paddle.server");
+    const newAnchor = nextMonthFirstDayISO(new Date(currentNextBilled));
+    await gatewayFetch(env, `/subscriptions/${subscriptionId}`, {
+      method: "PATCH",
+      body: JSON.stringify({
+        next_billed_at: newAnchor,
+        proration_billing_mode: "prorated_next_billing_period",
+      }),
+    });
+  } catch (e) {
+    console.error("payments.webhook: anchor day1 failed", e);
+  }
+}
+
 async function handleSubscriptionCreated(data: any, env: PaddleEnv) {
-  const { id, customerId, items, status, currentBillingPeriod, customData } = data;
+  const { id, customerId, items, status, currentBillingPeriod, customData, nextBilledAt } = data;
 
   const userId = customData?.userId;
   if (!userId) {
@@ -23,32 +45,56 @@ async function handleSubscriptionCreated(data: any, env: PaddleEnv) {
   }
 
   const item = items?.[0];
-  const priceId = item?.price?.importMeta?.externalId;
   const productId = item?.product?.importMeta?.externalId;
-  if (!priceId || !productId) {
-    console.warn("payments.webhook: missing importMeta.externalId", {
+  // Enterprise custom: o price é ad-hoc por cliente. Usamos o external_id real
+  // se existir, senão caímos para "enterprise_custom" como flag genérica.
+  const priceExternalId = item?.price?.importMeta?.externalId ?? "enterprise_custom";
+  if (!productId) {
+    console.warn("payments.webhook: missing product.importMeta.externalId", {
       id,
-      rawPriceId: item?.price?.id,
       rawProductId: item?.product?.id,
     });
     return;
   }
 
-  await getSupabase().from("subscriptions").upsert(
-    {
-      user_id: userId,
-      paddle_subscription_id: id,
-      paddle_customer_id: customerId,
-      product_id: productId,
-      price_id: priceId,
-      status,
-      current_period_start: currentBillingPeriod?.startsAt,
-      current_period_end: currentBillingPeriod?.endsAt,
-      environment: env,
-      updated_at: new Date().toISOString(),
-    },
-    { onConflict: "paddle_subscription_id" },
-  );
+  const customAmountCents = customData?.monthly_amount_brl_cents ?? null;
+  const adminCreated = customData?.admin_created === true;
+  const anchorToDay1 = customData?.anchor_to_day_1 === true;
+  const trialEndsAt = data?.firstBilledAt ?? data?.nextBilledAt ?? null;
+
+  const row: Record<string, unknown> = {
+    user_id: userId,
+    paddle_subscription_id: id,
+    paddle_customer_id: customerId,
+    product_id: productId,
+    price_id: priceExternalId,
+    status,
+    current_period_start: currentBillingPeriod?.startsAt,
+    current_period_end: currentBillingPeriod?.endsAt,
+    environment: env,
+    updated_at: new Date().toISOString(),
+  };
+  if (customAmountCents !== null) {
+    row.custom_price_cents = customAmountCents;
+    row.custom_currency = "BRL";
+  }
+  if (adminCreated) {
+    row.is_manual = true;
+    row.enterprise_request = true;
+  }
+  if (status === "trialing") {
+    row.trial_ends_at = trialEndsAt;
+  }
+  if (anchorToDay1) {
+    row.billing_anchor_day = 1;
+  }
+
+  await getSupabase().from("subscriptions").upsert(row, { onConflict: "paddle_subscription_id" });
+
+  // Após criar, se for Enterprise admin-created, ancorar para próximo dia 1
+  if (anchorToDay1) {
+    await anchorSubscriptionDay1(env, id, nextBilledAt);
+  }
 }
 
 async function handleSubscriptionUpdated(data: any, env: PaddleEnv) {
