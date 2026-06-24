@@ -2617,6 +2617,7 @@ function CopyRecsDialog({
             </div>
           </div>
         )}
+        </div>
       </DialogContent>
     </Dialog>
   );
