@@ -1472,6 +1472,7 @@ function categorizeRule(rule: string): RuleCategory {
     label: "Outras combinações",
     icon: <ListChecks className="size-[14px]" strokeWidth={1.9} />,
     tone: "bg-neutral-100 dark:bg-white/5 text-neutral-700 dark:text-white/80 ring-neutral-200/60 dark:ring-white/10",
+    patterns: [],
   };
 }
 
