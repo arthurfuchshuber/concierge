@@ -1832,43 +1832,38 @@ function WifiStrip({
   }
 
   return (
-    <div className={`wifi-shimmer relative overflow-hidden rounded-2xl backdrop-blur-sm shadow-[0_8px_30px_-12px_oklch(from_var(--accent)_l_c_h/0.35)] ${
-      isLight
-        ? "bg-[linear-gradient(135deg,oklch(from_var(--card)_l_c_h/0.98)_0%,oklch(from_var(--card)_l_c_h/0.94)_60%,oklch(from_var(--card)_l_c_h/0.98)_100%)]"
-        : "bg-[linear-gradient(135deg,oklch(0.18_0.04_55/0.95)_0%,oklch(0.12_0.02_50/0.92)_60%,oklch(0.08_0.01_45/0.95)_100%)]"
-    }`}>
-      <div className="pointer-events-none absolute inset-0 opacity-[0.08] [background-image:radial-gradient(oklch(var(--accent))_1px,transparent_1px)] [background-size:14px_14px]" />
-      <div className="pointer-events-none absolute -top-10 -right-10 size-32 rounded-full bg-accent/20 blur-3xl" />
-      <div className="relative flex items-center gap-3.5 px-4 py-3.5">
-        <span className="relative grid size-10 shrink-0 place-items-center rounded-full bg-[radial-gradient(circle_at_30%_30%,oklch(var(--accent)/0.35),oklch(var(--accent)/0.05))] text-accent ring-1 ring-accent/45">
-          <span className="wifi-pulse pointer-events-none absolute inset-0 rounded-full bg-accent/25 blur-md" />
-          <Wifi className="relative size-[18px]" strokeWidth={1.75} />
+    <div className="wifi-shimmer relative overflow-hidden rounded-[22px] border border-amber-500/25 bg-[linear-gradient(135deg,oklch(0.96_0.05_75)_0%,oklch(0.93_0.07_72)_55%,oklch(0.9_0.09_68)_100%)] dark:bg-[linear-gradient(135deg,oklch(0.22_0.05_55/0.95)_0%,oklch(0.16_0.04_50/0.92)_60%,oklch(0.12_0.03_45/0.95)_100%)] shadow-[0_14px_40px_-18px_oklch(from_var(--accent)_l_c_h/0.55)]">
+      <div className="pointer-events-none absolute inset-0 opacity-[0.07] [background-image:radial-gradient(oklch(var(--accent))_1px,transparent_1px)] [background-size:14px_14px]" />
+      <div className="pointer-events-none absolute -top-12 -right-12 size-40 rounded-full bg-accent/25 blur-3xl" />
+      <div className="relative flex items-center gap-4 px-5 py-4 md:px-6 md:py-5">
+        <span className="relative grid size-14 shrink-0 place-items-center rounded-2xl bg-[radial-gradient(circle_at_30%_30%,oklch(var(--accent)/0.55),oklch(var(--accent)/0.15))] text-accent-foreground ring-1 ring-accent/45 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+          <span className="wifi-pulse pointer-events-none absolute inset-0 rounded-2xl bg-accent/25 blur-md" />
+          <Wifi className="relative size-[22px]" strokeWidth={1.9} />
         </span>
         <div className="flex-1 min-w-0">
-          <div className="flex items-baseline gap-2">
-            <p className="text-[9px] uppercase tracking-[0.32em] text-accent font-semibold">Senha do Wi-Fi</p>
-            <span className="h-px flex-1 bg-gradient-to-r from-accent/40 to-transparent" />
-          </div>
-          <p className="text-[13px] text-foreground/90 truncate font-medium mt-0.5">{ssid || "Rede da casa"}</p>
-          <p className={`font-mono text-[13px] tracking-[0.18em] mt-0.5 truncate ${showing ? "text-foreground font-semibold" : "text-foreground/85"}`}>
+          <p className="text-[10px] uppercase tracking-[0.32em] text-accent font-semibold">Senha do Wi-Fi</p>
+          <p className="text-[13px] text-foreground/85 truncate font-medium mt-0.5">{ssid || "Rede da casa"}</p>
+          <p className={`font-mono text-[16px] md:text-[18px] font-semibold tracking-[0.22em] mt-1 truncate ${showing ? "text-foreground" : "text-foreground/75"}`}>
             {password ? (showing ? password : masked) : "—"}
           </p>
         </div>
         {password && (
-          <div className="flex items-center gap-1.5 shrink-0">
+          <div className="flex flex-col items-end gap-2 shrink-0">
             <button
               onClick={copyPwd}
               aria-label="Copiar senha do Wi-Fi"
-              className="grid size-9 place-items-center rounded-full bg-secondary text-foreground hover:bg-secondary/80 transition-all"
+              className="inline-flex items-center gap-1.5 rounded-full bg-accent text-accent-foreground px-3.5 py-2 text-[12px] font-semibold tracking-wide hover:brightness-110 active:scale-95 transition-all shadow-[0_6px_18px_-6px_oklch(var(--accent)/0.65)]"
             >
-              {copied ? <Check className="size-4 text-accent" /> : <Copy className="size-4" />}
+              {copied ? <Check className="size-3.5" strokeWidth={2.4} /> : <Copy className="size-3.5" strokeWidth={2.4} />}
+              <span>{copied ? "Copiado" : "Copiar"}</span>
             </button>
             <button
               onClick={handleEyeClick}
               aria-label={showing ? "Ocultar senha do Wi-Fi" : "Visualizar senha do Wi-Fi"}
-              className="grid size-9 place-items-center rounded-full bg-accent text-accent-foreground hover:brightness-110 transition-all shadow-[0_4px_12px_-4px_oklch(var(--accent)/0.6)]"
+              className="inline-flex items-center gap-1.5 text-[11px] font-medium text-foreground/70 hover:text-foreground transition-colors"
             >
-              {showing ? <EyeOff className="size-4" strokeWidth={2} /> : <Eye className="size-4" strokeWidth={2} />}
+              {showing ? <EyeOff className="size-3" strokeWidth={2} /> : <Eye className="size-3" strokeWidth={2} />}
+              <span>{showing ? "Ocultar" : "Mostrar"}</span>
             </button>
           </div>
         )}
