@@ -449,7 +449,7 @@ function PropertyEditor() {
       };
       const { generated } = await fetchGeneratedCityRecommendations(request);
 
-      const CAP_PER_CATEGORY = 20;
+      const CAP_PER_CATEGORY = 30;
       let added = 0;
       let replaced = 0;
       setForm((f) => {
@@ -729,9 +729,16 @@ function PropertyEditor() {
 
 
           <Section icon={FileText} title="Identidade do guia" desc="Como o guia se apresenta aos hóspedes.">
-            <Field label="Nome do imóvel" required>
-              <Input value={form.property.name} maxLength={120}
-                onChange={(e) => { update("name", e.target.value); if (isNew && !form.property.slug) update("slug", slugify(e.target.value)); }} />
+            <Field label="Nome do imóvel" required hint={`Máx. 80 caracteres — ${form.property.name.length}/80. Curto e memorável funciona melhor no cabeçalho do guia.`}>
+              <Input value={form.property.name} maxLength={80}
+                onChange={(e) => {
+                  const v = e.target.value.slice(0, 80);
+                  if (e.target.value.length > 80) {
+                    toast.info("O nome do guia tem limite de 80 caracteres — algo curto e marcante funciona melhor no topo do guia.", { id: "name-cap" });
+                  }
+                  update("name", v);
+                  if (isNew && !form.property.slug) update("slug", slugify(v));
+                }} />
             </Field>
             <Field label="URL pública (slug)" hint="Aparece em /g/seu-slug">
               <Input value={form.property.slug} maxLength={60} onChange={(e) => update("slug", slugify(e.target.value))} />
@@ -740,6 +747,7 @@ function PropertyEditor() {
               <EtiquetaSelect value={form.property.tagline} onChange={(v) => update("tagline", v)} />
             </Field>
           </Section>
+
 
           <Section icon={ImageIcon} title="Fotos da residência" desc="Até 4 fotos. A primeira será usada como capa.">
             <GalleryEditor
@@ -2014,6 +2022,11 @@ function RecGroup({
   const [selectedIdx, setSelectedIdx] = useState<Set<number>>(new Set());
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
 
+  const CAP_PER_SUBCATEGORY = scope === "nearby" ? 10 : 30;
+  const CAP_MSG = scope === "nearby"
+    ? "Limite de 10 pontos por subcategoria aqui pertinho. Foque nos melhores — qualidade vale mais que quantidade para o hóspede."
+    : "Limite de 30 referências por subcategoria pela cidade. Mantenha apenas as mais relevantes — uma curadoria enxuta gera muito mais confiança.";
+
   const groups = new Map<string, { items: RecItem[]; indices: number[] }>();
   items.forEach((it, idx) => {
     const key = it.category || it.type || "Outros";
@@ -2023,10 +2036,18 @@ function RecGroup({
     groups.set(key, g);
   });
   const groupEntries = Array.from(groups.entries()).sort((a, b) => a[0].localeCompare(b[0]));
+  const hasFullGroup = groupEntries.some(([, g]) => g.items.length >= CAP_PER_SUBCATEGORY);
 
   const existingPlaceIds = new Set(
     items.map((i) => i.place_id).filter((x): x is string => !!x),
   );
+
+  function countFor(cat: string) {
+    return groups.get(cat)?.items.length ?? 0;
+  }
+  function canAdd(cat: string) {
+    return countFor(cat) < CAP_PER_SUBCATEGORY;
+  }
 
   function updateAt(idx: number, patch: Partial<RecItem>) {
     onChange(items.map((x, j) => (j === idx ? { ...x, ...patch } : x)));
@@ -2035,8 +2056,21 @@ function RecGroup({
     onChange(items.filter((_, j) => j !== idx));
   }
   function addManual() {
+    if (!canAdd("Outros")) {
+      toast.info(CAP_MSG, { id: `cap-${scope}-Outros`, duration: 6500 });
+      return;
+    }
     onChange([...items, { scope, type: "other", name: "" }]);
   }
+  function handlePlaceSelect(rec: RecItem) {
+    const cat = rec.category || rec.type || "Outros";
+    if (!canAdd(cat)) {
+      toast.info(`Subcategoria "${cat}" já atingiu o limite. ${CAP_MSG}`, { id: `cap-${scope}-${cat}`, duration: 6500 });
+      return;
+    }
+    onChange([...items, rec]);
+  }
+
   function toggleSelect(idx: number) {
     setSelectedIdx((s) => {
       const n = new Set(s);
@@ -2115,8 +2149,15 @@ function RecGroup({
         lat={lat}
         lng={lng}
         existingPlaceIds={existingPlaceIds}
-        onSelect={(rec) => onChange([...items, rec])}
+        onSelect={handlePlaceSelect}
       />
+
+      {hasFullGroup && (
+        <div className="rounded-lg border border-amber-300/60 bg-amber-50 text-amber-900 dark:bg-amber-950/30 dark:text-amber-100 px-3 py-2 text-[12px] leading-relaxed">
+          <strong className="font-semibold">Subcategoria cheia.</strong> {CAP_MSG}
+        </div>
+      )}
+
 
 
       {items.length === 0 ? (
@@ -2152,9 +2193,10 @@ function RecGroup({
                   >
                     <div className="flex items-center gap-2 min-w-0">
                       <span className="text-sm font-medium truncate">{cat}</span>
-                      <span className="text-[11px] text-muted-foreground">
-                        ({g.items.length}{groupSelected > 0 ? ` · ${groupSelected} sel.` : ""})
+                      <span className={`text-[11px] ${g.items.length >= CAP_PER_SUBCATEGORY ? "text-amber-600 font-medium" : "text-muted-foreground"}`}>
+                        ({g.items.length}/{CAP_PER_SUBCATEGORY}{groupSelected > 0 ? ` · ${groupSelected} sel.` : ""})
                       </span>
+
                     </div>
                     <ChevronDown className={`size-4 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`} />
                   </button>
