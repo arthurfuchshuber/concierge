@@ -1947,7 +1947,7 @@ function WifiStrip({
 }) {
   const [revealed, setRevealed] = useState(false);
   const [copied, setCopied] = useState(false);
-  void theme;
+  const isLight = theme === "light";
 
   const showing = unlocked && revealed;
   const masked = password ? "•".repeat(Math.min(password.length, 12)) : "—";
