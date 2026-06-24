@@ -35,13 +35,18 @@ export function usePaddleCheckout() {
       };
 
       if (options.frameTarget) {
-        const el = document.getElementById(options.frameTarget);
+        const el =
+          document.getElementsByClassName(options.frameTarget)[0] ||
+          document.getElementById(options.frameTarget);
         if (!el) {
-          throw new Error(`Elemento "#${options.frameTarget}" não existe no DOM.`);
+          throw new Error(`Elemento "${options.frameTarget}" não existe no DOM.`);
         }
+        // Paddle espera o frameTarget como nome de classe, não como id.
+        el.classList.add(options.frameTarget);
+        el.replaceChildren();
         settings.displayMode = "inline";
         settings.frameTarget = options.frameTarget;
-        settings.frameInitialHeight = 480;
+        settings.frameInitialHeight = "520";
         settings.frameStyle =
           options.frameStyle ||
           "width: 100%; min-width: 312px; background-color: transparent; border: none;";
