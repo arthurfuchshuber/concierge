@@ -787,6 +787,7 @@ function PropertyEditor() {
             icon={DoorOpen}
             title="Instruções de check-in"
             desc="Passo a passo da chegada. Escreva uma instrução por linha — cada linha vira uma etapa numerada no guia."
+            collapsible
           >
             <Field label="Passo a passo (opcional)" hint="Uma etapa por linha. Linhas em branco são ignoradas.">
               <Textarea
@@ -811,6 +812,7 @@ function PropertyEditor() {
             icon={LogOut}
             title="Instruções de check-out"
             desc="Passo a passo da saída. Mesmo formato: uma instrução por linha."
+            collapsible
           >
             <Field label="Passo a passo (opcional)" hint="Uma etapa por linha. Linhas em branco são ignoradas.">
               <Textarea
@@ -827,6 +829,7 @@ function PropertyEditor() {
             icon={ClipboardCheck}
             title="Regras do espaço"
             desc="O que os hóspedes precisam respeitar durante a estadia. Uma regra por linha — cada linha vira um item numerado no guia."
+            collapsible
           >
             <Field label="Regras (opcional)" hint="Uma regra por linha. Linhas em branco são ignoradas.">
               <Textarea
@@ -838,6 +841,7 @@ function PropertyEditor() {
               />
             </Field>
           </Section>
+
         </TabsContent>
 
         <TabsContent value="access" className="space-y-5 mt-6">
