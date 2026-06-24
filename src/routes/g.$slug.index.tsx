@@ -469,7 +469,7 @@ function Guide({ data }: { data: GuideOk }) {
                 <span className="h-px flex-1 bg-accent/40" />
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-5 lg:gap-6">
+              <div className="grid grid-cols-2 gap-3 sm:gap-4 md:gap-5 lg:gap-6">
                 {cards.map((c) =>
                   c.to?.kind === "link" ? (
                     <Link
@@ -1339,7 +1339,7 @@ function ThemeCard({
   title: string; desc: string; icon: React.ReactNode; image?: string; theme?: "dark" | "light";
 }) {
   return (
-    <div className="group relative flex h-[220px] md:h-[260px] flex-col overflow-hidden rounded-[22px] border border-white/10 bg-neutral-900 shadow-[0_8px_30px_-12px_rgba(0,0,0,0.4)] transition-all duration-500 ease-out hover:-translate-y-1 hover:shadow-[0_24px_60px_-20px_oklch(from_var(--accent)_l_c_h/0.55),0_0_0_1px_oklch(from_var(--accent)_l_c_h/0.35)] active:scale-[0.99]">
+    <div className="group relative flex h-[160px] sm:h-[180px] md:h-[200px] flex-col overflow-hidden rounded-[20px] border border-white/10 bg-neutral-900 shadow-[0_8px_30px_-12px_rgba(0,0,0,0.4)] transition-all duration-500 ease-out hover:-translate-y-1 hover:shadow-[0_24px_60px_-20px_oklch(from_var(--accent)_l_c_h/0.55),0_0_0_1px_oklch(from_var(--accent)_l_c_h/0.35)] active:scale-[0.99]">
       {image && (
         <img
           src={image}
@@ -1352,22 +1352,23 @@ function ThemeCard({
       <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,0.25)_0%,rgba(0,0,0,0.55)_55%,rgba(0,0,0,0.88)_100%)]" />
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_15%,oklch(from_var(--accent)_l_c_h/0.18),transparent_55%)] opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
 
-      <div className="relative z-10 flex h-full flex-col p-5 md:p-6">
-        <span className="grid size-12 md:size-14 place-items-center rounded-2xl border border-white/20 bg-white/5 backdrop-blur-md text-accent shadow-[inset_0_1px_0_rgba(255,255,255,0.1)]">
-          <span className="[&>svg]:size-6 md:[&>svg]:size-[26px]">{icon}</span>
+      <div className="relative z-10 flex h-full flex-col p-3.5 sm:p-4 md:p-5">
+        <span className="grid size-9 sm:size-10 md:size-11 place-items-center rounded-xl border border-white/20 bg-white/5 backdrop-blur-md text-accent shadow-[inset_0_1px_0_rgba(255,255,255,0.1)]">
+          <span className="[&>svg]:size-[18px] sm:[&>svg]:size-5 md:[&>svg]:size-[22px]">{icon}</span>
         </span>
         <div className="mt-auto">
-          <h3 className="font-serif text-[1.5rem] md:text-[1.75rem] leading-[1.05] tracking-tight text-white text-balance">
+          <h3 className="font-serif text-[1.1rem] sm:text-[1.25rem] md:text-[1.4rem] leading-[1.1] tracking-tight text-white text-balance">
             {title}
           </h3>
-          <p className="mt-1.5 text-[12.5px] md:text-[13px] leading-[1.5] text-white/70 line-clamp-2 max-w-[34ch]">
+          <p className="mt-1 text-[11px] sm:text-[12px] md:text-[12.5px] leading-[1.45] text-white/70 line-clamp-2 max-w-[34ch]">
             {desc}
           </p>
         </div>
-        <span className="absolute right-5 top-5 md:right-6 md:top-6 grid size-9 place-items-center rounded-full bg-white/10 backdrop-blur-md border border-white/15 text-white/85 transition-all duration-300 group-hover:bg-accent group-hover:text-accent-foreground group-hover:border-accent">
-          <ArrowRight className="size-4" strokeWidth={1.75} />
+        <span className="absolute right-3 top-3 sm:right-4 sm:top-4 grid size-7 sm:size-8 place-items-center rounded-full bg-white/10 backdrop-blur-md border border-white/15 text-white/85 transition-all duration-300 group-hover:bg-accent group-hover:text-accent-foreground group-hover:border-accent">
+          <ArrowRight className="size-3.5" strokeWidth={1.75} />
         </span>
       </div>
+
     </div>
   );
 }
