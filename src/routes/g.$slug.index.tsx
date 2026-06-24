@@ -1375,7 +1375,7 @@ function ThemeCard({
 
 function SubList({ children }: { children: React.ReactNode }) {
   return (
-    <Accordion type="single" collapsible className="bg-card border border-border rounded-2xl overflow-hidden divide-y divide-border/70">
+    <Accordion type="single" collapsible className="space-y-3 md:space-y-3.5">
       {children}
     </Accordion>
   );
@@ -1390,16 +1390,21 @@ function StepList({ text, dense = false }: { text: string; dense?: boolean }) {
     .filter((s) => s.length > 0);
   if (steps.length === 0) return null;
   return (
-    <ol className={dense ? "space-y-3" : "space-y-3.5"}>
+    <ol className={`relative ${dense ? "space-y-5" : "space-y-6"} pl-2`}>
+      {/* Vertical connector line */}
+      <span aria-hidden className="pointer-events-none absolute left-[18px] top-3 bottom-3 w-px bg-gradient-to-b from-accent/50 via-accent/25 to-transparent" />
       {steps.map((step, i) => (
-        <li key={i} className="flex items-start gap-3">
+        <li key={i} className="relative flex items-start gap-4">
           <span
             aria-hidden
-            className="mt-px shrink-0 grid place-items-center size-6 rounded-full border border-border/70 text-muted-foreground text-[12px] font-medium tabular-nums leading-none"
+            className="relative z-10 mt-0.5 shrink-0 grid place-items-center size-9 rounded-full bg-accent text-accent-foreground text-[13px] font-semibold tabular-nums leading-none shadow-[0_4px_14px_-4px_oklch(var(--accent)/0.55)] ring-4 ring-background"
           >
             {i + 1}
           </span>
-          <span className="text-[14px] leading-[1.55] text-foreground/90 pt-0.5">{step}</span>
+          <div className="flex-1 min-w-0 pt-1.5">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-accent/80 mb-1">Passo {i + 1}</p>
+            <p className="text-[14.5px] leading-[1.6] text-foreground/90">{step}</p>
+          </div>
         </li>
       ))}
     </ol>
@@ -1413,19 +1418,19 @@ function SubItem({
 }) {
   const id = label.toLowerCase().replace(/\s+/g, "-");
   return (
-    <AccordionItem value={id} className="border-0">
-      <AccordionTrigger className="px-4 py-3.5 hover:no-underline">
-        <div className="flex items-center gap-3.5 flex-1 min-w-0">
-          <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-secondary text-foreground/80">
+    <AccordionItem value={id} className="border border-border/70 rounded-2xl overflow-hidden bg-card/60 backdrop-blur-sm data-[state=open]:border-accent/40 data-[state=open]:shadow-[0_8px_28px_-16px_oklch(from_var(--accent)_l_c_h/0.45)] transition-all">
+      <AccordionTrigger className="px-5 py-4 md:py-5 hover:no-underline">
+        <div className="flex items-center gap-4 flex-1 min-w-0">
+          <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-accent/12 text-accent ring-1 ring-accent/20">
             {icon}
           </span>
           <div className="flex-1 min-w-0 text-left">
-            <p className="text-[15px] leading-tight font-medium text-foreground">{label}</p>
-            {hint && <p className="text-[12px] text-muted-foreground mt-0.5 truncate">{hint}</p>}
+            <p className="text-[15.5px] leading-tight font-semibold text-foreground tracking-tight">{label}</p>
+            {hint && <p className="text-[12.5px] text-muted-foreground mt-1 truncate">{hint}</p>}
           </div>
         </div>
       </AccordionTrigger>
-      <AccordionContent className="px-3 pb-4 pt-0">
+      <AccordionContent className="px-5 pb-5 pt-1">
         {children}
       </AccordionContent>
     </AccordionItem>
