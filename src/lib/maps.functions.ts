@@ -1137,16 +1137,17 @@ export async function generateCityReferencesFromMaps(input: {
     }
   }
 
-  // 3) Monta saída ordenada por categoria → top N por reviews
+  // 3) Monta saída ordenada por categoria → top N por SCORE composto
+  // (rating × log(reviews)) — qualidade + popularidade, não só nota.
+  const qualityScore = (p: PlaceRaw) => {
+    const r = p.rating ?? 0;
+    const n = p.userRatingCount ?? 0;
+    return r * Math.log10(n + 10);
+  };
   const out: CityReferenceRow[] = [];
   for (const cat of targetTypes) {
     const arr = (byCategory.get(cat.type) ?? [])
-      .sort((a, b) => {
-        const ra = a.rating ?? 0;
-        const rb = b.rating ?? 0;
-        if (rb !== ra) return rb - ra;
-        return (b.userRatingCount ?? 0) - (a.userRatingCount ?? 0);
-      })
+      .sort((a, b) => qualityScore(b) - qualityScore(a))
       .slice(0, CITY_MAX_PER_TYPE);
 
     // Desambiguação por nome: se houver mais de um lugar com o mesmo nome
