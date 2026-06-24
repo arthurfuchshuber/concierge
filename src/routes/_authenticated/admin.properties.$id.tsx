@@ -652,15 +652,9 @@ function PropertyEditor() {
       <Link to="/admin" className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground mb-5 transition-colors">
         <ArrowLeft className="size-3.5" /> Voltar
       </Link>
-      <div className="mb-7 sm:mb-9 pb-6 border-b border-border/60 flex items-start justify-between gap-4">
-        <div>
-          <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground font-semibold mb-2">
-            {isNew ? "Novo guia" : "Editar guia"}
-          </p>
-          <h1 className="font-display text-2xl sm:text-4xl break-words leading-tight">{form.property.name || "Sem título"}</h1>
-          {form.property.tagline && (
-            <p className="text-sm text-muted-foreground mt-2">{form.property.tagline}</p>
-          )}
+      <div className="mb-4 sm:mb-5 pb-4 border-b border-border/60 flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <h1 className="font-display text-2xl sm:text-4xl break-words leading-tight line-clamp-2">{form.property.name || "Sem título"}</h1>
         </div>
         {!isNew && (
           <div className="shrink-0 flex items-center gap-2">
@@ -681,6 +675,7 @@ function PropertyEditor() {
           </div>
         )}
       </div>
+
 
       <Tabs value={step} onValueChange={setStep}>
         <Stepper
