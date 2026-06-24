@@ -2047,6 +2047,7 @@ function AccessCodesStrip({
   hasAccessRec,
   gateEnabled,
   theme,
+  checkinInstructions,
 }: {
   gateCode: string | null;
   lockCode: string | null;
@@ -2058,8 +2059,10 @@ function AccessCodesStrip({
   hasAccessRec: boolean;
   gateEnabled: boolean;
   theme: "dark" | "light";
+  checkinInstructions?: string | null;
 }) {
   const [revealed, setRevealed] = useState(false);
+  const [instrOpen, setInstrOpen] = useState(false);
   const isLight = theme === "light";
   const gLabel = (gateLabel || "").trim() || "Portão";
   const lLabel = (lockLabel || "").trim() || "Fechadura";
