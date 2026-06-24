@@ -1113,7 +1113,7 @@ function PropertyEditor() {
             </div>
           </Section>
 
-          <Section icon={Wifi} title="Wi-Fi">
+          <Section icon={Wifi} title="Wi-Fi" collapsible>
             <div className="grid grid-cols-2 gap-3">
               <Field label="Rede (SSID)"><Input value={form.property.wifi_ssid} maxLength={64} onChange={(e) => update("wifi_ssid", e.target.value)} /></Field>
               <Field label="Senha"><Input value={form.property.wifi_password} maxLength={64} onChange={(e) => update("wifi_password", e.target.value)} /></Field>
