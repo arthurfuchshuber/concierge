@@ -1288,7 +1288,7 @@ function HeroCompact({
           {name}
         </h1>
 
-        <span className="mt-5 md:mt-7 block h-[2px] w-12 md:w-16 bg-accent" />
+        
         {hasMany && (
           <div className="mt-5 md:mt-7 flex gap-1.5">
             {photos.map((_, i) => (

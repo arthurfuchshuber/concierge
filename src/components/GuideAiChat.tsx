@@ -70,7 +70,7 @@ export function GuideAiChat({ slug, propertyName, guestName }: { slug: string; p
     setMessages(cached.messages);
     // Show proactive nudge after 12s if user hasn't opened yet (only on fresh sessions)
     if (cached.messages.length === 0) {
-      const t = setTimeout(() => setShowNudge(true), 12000);
+      const t = setTimeout(() => setShowNudge(true), 2500);
       return () => clearTimeout(t);
     }
   }, [slug]);
