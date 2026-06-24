@@ -113,6 +113,16 @@ export function OnboardingCheckout({ onSignOut }: { onSignOut?: () => void }) {
               <span className="text-sm font-semibold">{plan.priceLabel}/mês</span>
             </div>
 
+            <div className="rounded-xl bg-emerald-500/5 border border-emerald-500/20 p-3 mb-3 text-xs flex items-start gap-2">
+              <ShieldCheck className="size-4 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+              <div>
+                <p className="font-medium text-foreground">Sem cobrança nos próximos 7 dias</p>
+                <p className="text-muted-foreground mt-0.5">
+                  O cartão é necessário para garantir continuidade, mas só será cobrado depois do período de teste. Cancele antes e nada é debitado.
+                </p>
+              </div>
+            </div>
+
             {!opened && (
               <button
                 onClick={() => openInlineCheckout(selected)}
@@ -125,7 +135,7 @@ export function OnboardingCheckout({ onSignOut }: { onSignOut?: () => void }) {
                   </>
                 ) : (
                   <>
-                    <CreditCard className="size-4" /> Cadastrar cartão e ativar
+                    <CreditCard className="size-4" /> Iniciar 7 dias grátis
                   </>
                 )}
               </button>
