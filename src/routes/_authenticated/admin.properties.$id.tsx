@@ -23,6 +23,7 @@ import { ImageUpload } from "@/components/ImageUpload";
 import { MediaUpload, type MediaItem } from "@/components/MediaUpload";
 import { EtiquetaSelect, ETIQUETA_OPTIONS } from "@/components/EtiquetaSelect";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { TimePicker } from "@/components/ui/time-picker";
 import { DateTimePicker } from "@/components/ui/date-picker";
 
@@ -171,6 +172,7 @@ function PropertyEditor() {
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewMode, setPreviewMode] = useState<"mobile" | "desktop" | null>(null);
   const [copyRecsOpen, setCopyRecsOpen] = useState(false);
+  const [genCityModeOpen, setGenCityModeOpen] = useState(false);
   const [gateOpen, setGateOpen] = useState(false);
   const [lockOpen, setLockOpen] = useState(false);
   const [faqLibOpen, setFaqLibOpen] = useState(false);
@@ -430,7 +432,7 @@ function PropertyEditor() {
     }
   }
 
-  async function handleGenerateCityRecommendations() {
+  async function handleGenerateCityRecommendations(mode: "replace" | "fill" = "fill") {
     const city = form.property.city.trim();
     if (!city) {
       toast.error("Preencha a cidade antes de gerar recomendações.");
@@ -443,21 +445,70 @@ function PropertyEditor() {
         state: form.property.state?.trim() || null,
         country: form.property.country?.trim() || "BR",
       };
-      const { result, generated } = await fetchGeneratedCityRecommendations(request);
+      const { generated } = await fetchGeneratedCityRecommendations(request);
 
+      const CAP_PER_CATEGORY = 20;
       let added = 0;
+      let replaced = 0;
       setForm((f) => {
         const nearby = f.recommendations.filter((r) => r.scope === "nearby");
         const currentCity = f.recommendations.filter((r) => r.scope === "city");
-        const cityMerge = mergeCityRecommendations(currentCity, generated);
-        added = cityMerge.added;
-        return { ...f, recommendations: [...nearby, ...cityMerge.merged] };
+
+        if (mode === "replace") {
+          // Recria do zero: substitui completamente as referências da cidade.
+          // Respeita o teto por categoria.
+          const byCat = new Map<string, RecItem[]>();
+          for (const rec of generated) {
+            const cat = rec.category || rec.type || "Outros";
+            const arr = byCat.get(cat) ?? [];
+            if (arr.length < CAP_PER_CATEGORY) arr.push(rec);
+            byCat.set(cat, arr);
+          }
+          const fresh = Array.from(byCat.values()).flat();
+          replaced = fresh.length;
+          return { ...f, recommendations: [...nearby, ...fresh] };
+        }
+
+        // mode === "fill": preserva o existente, completa apenas excedentes
+        // respeitando o teto por categoria. Dedup por place_id ou nome.
+        const seen = new Set(
+          currentCity.map((r) => (r.place_id ? `id:${r.place_id}` : `name:${normalizeRecName(r.name)}`)),
+        );
+        const counts = new Map<string, number>();
+        for (const r of currentCity) {
+          const cat = r.category || r.type || "Outros";
+          counts.set(cat, (counts.get(cat) ?? 0) + 1);
+        }
+        const merged = [...currentCity];
+        for (const rec of generated) {
+          const key = rec.place_id ? `id:${rec.place_id}` : `name:${normalizeRecName(rec.name)}`;
+          if (seen.has(key)) continue;
+          const cat = rec.category || rec.type || "Outros";
+          const c = counts.get(cat) ?? 0;
+          if (c >= CAP_PER_CATEGORY) continue;
+          seen.add(key);
+          counts.set(cat, c + 1);
+          merged.push(rec);
+          added += 1;
+        }
+        return { ...f, recommendations: [...nearby, ...merged] };
       });
 
-      if (generated.length === 0) {
-        toast.error(result.message || "Não encontrei pontos suficientes para esta cidade.");
+      if (mode === "replace") {
+        if (replaced === 0) {
+          toast.error("Não encontrei pontos suficientes com qualidade para esta cidade.");
+        } else {
+          toast.success(`Recriado: ${replaced} referências da cidade`);
+        }
       } else {
-        toast.success(`Pela cidade gerado: ${added} novo(s) · ${generated.length} disponíveis`);
+        if (added === 0) {
+          toast.info(
+            "Não foram encontrados novos locais com qualidade suficiente. As referências atuais já representam a melhor seleção disponível para esta cidade.",
+            { duration: 6500 },
+          );
+        } else {
+          toast.success(`Adicionado: ${added} novo(s) ponto(s) com qualidade`);
+        }
       }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Erro ao gerar recomendações da cidade");
@@ -465,6 +516,7 @@ function PropertyEditor() {
       setGeneratingCityRecs(false);
     }
   }
+
 
   async function handleImportAirbnb() {
     if (!airbnbUrl.trim()) {
@@ -1222,10 +1274,21 @@ function PropertyEditor() {
             scope="city"
             lat={form.property.lat}
             lng={form.property.lng}
-            onGenerate={handleGenerateCityRecommendations}
+            onGenerate={() => setGenCityModeOpen(true)}
             generating={generatingCityRecs}
             onReplicate={cityRecs.length > 0 && !isNew ? () => setCopyRecsOpen(true) : undefined}
           />
+
+          {genCityModeOpen && (
+            <GenerateModeDialog
+              hasExisting={cityRecs.length > 0}
+              onClose={() => setGenCityModeOpen(false)}
+              onPick={(mode) => {
+                setGenCityModeOpen(false);
+                void handleGenerateCityRecommendations(mode);
+              }}
+            />
+          )}
 
           {copyRecsOpen && !isNew && (
             <CopyRecsDialog
@@ -1236,6 +1299,7 @@ function PropertyEditor() {
               onClose={() => setCopyRecsOpen(false)}
             />
           )}
+
 
 
           <Section
@@ -1839,6 +1903,7 @@ function RecGroup({
 }) {
   const [openCats, setOpenCats] = useState<Record<string, boolean>>({});
   const [selectedIdx, setSelectedIdx] = useState<Set<number>>(new Set());
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
 
   const groups = new Map<string, { items: RecItem[]; indices: number[] }>();
   items.forEach((it, idx) => {
@@ -1875,10 +1940,11 @@ function RecGroup({
   }
   function deleteSelected() {
     if (selectedIdx.size === 0) return;
-    if (!confirm(`Remover ${selectedIdx.size} item(ns) selecionado(s)?`)) return;
     onChange(items.filter((_, j) => !selectedIdx.has(j)));
     setSelectedIdx(new Set());
+    setConfirmDeleteOpen(false);
   }
+
 
   return (
     <Section
@@ -1897,10 +1963,27 @@ function RecGroup({
             </button>
           )}
           {selectedIdx.size > 0 && (
-            <Button size="sm" variant="destructive" onClick={deleteSelected} className="h-8 rounded-full text-xs">
+            <Button size="sm" variant="destructive" onClick={() => setConfirmDeleteOpen(true)} className="h-8 rounded-full text-xs">
               <Trash2 className="size-3.5" /> Excluir ({selectedIdx.size})
             </Button>
           )}
+          <AlertDialog open={confirmDeleteOpen} onOpenChange={setConfirmDeleteOpen}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Excluir {selectedIdx.size} item(ns)?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Esta ação remove <strong>{selectedIdx.size}</strong> recomendaç{selectedIdx.size === 1 ? "ão" : "ões"} selecionada{selectedIdx.size === 1 ? "" : "s"} da lista. Você poderá adicioná-las novamente depois, manualmente ou via "Gerar com IA".
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                <AlertDialogAction onClick={deleteSelected} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                  Excluir
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+
           {onReplicate && (
             <Button size="sm" variant="ghost" onClick={onReplicate} className="shrink-0 h-8 rounded-full text-xs text-muted-foreground hover:text-foreground">
               <Share2 className="size-3.5" /> Replicar
@@ -2161,9 +2244,68 @@ function GalleryEditor({
   );
 }
 
+// ---- GenerateModeDialog ----------------------------------------------
+// Popup para escolher entre recriar tudo ou apenas completar os excedentes.
+function GenerateModeDialog({
+  hasExisting,
+  onClose,
+  onPick,
+}: {
+  hasExisting: boolean;
+  onClose: () => void;
+  onPick: (mode: "replace" | "fill") => void;
+}) {
+  return (
+    <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent className="max-w-xl">
+        <DialogHeader>
+          <DialogTitle>Como você deseja gerar as recomendações?</DialogTitle>
+        </DialogHeader>
+        <div className="grid gap-3 mt-2">
+          <button
+            type="button"
+            onClick={() => onPick("fill")}
+            className="text-left rounded-xl border border-border bg-background/60 hover:border-foreground/30 hover:bg-muted/30 transition-colors p-4"
+          >
+            <div className="flex items-center gap-2 mb-1">
+              <Sparkles className="size-4 text-primary" />
+              <p className="text-sm font-semibold">Gerar apenas os excedentes</p>
+              <span className="ml-auto text-[10px] uppercase tracking-wider text-primary/80 font-medium">Recomendado</span>
+            </div>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Mantém todas as referências atuais e adiciona apenas pontos novos de alta qualidade,
+              respeitando o limite máximo por categoria. Se não houver novos locais relevantes,
+              nada é adicionado.
+            </p>
+          </button>
+          <button
+            type="button"
+            onClick={() => onPick("replace")}
+            className="text-left rounded-xl border border-border bg-background/60 hover:border-destructive/40 hover:bg-destructive/5 transition-colors p-4"
+          >
+            <div className="flex items-center gap-2 mb-1">
+              <RefreshCw className="size-4 text-destructive" />
+              <p className="text-sm font-semibold">Recriar tudo do zero</p>
+            </div>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              {hasExisting
+                ? "Remove todas as referências atuais da cidade e gera uma nova seleção completa."
+                : "Gera uma seleção completa de referências para a cidade."}
+            </p>
+          </button>
+        </div>
+        <div className="flex justify-end mt-2">
+          <Button variant="ghost" size="sm" onClick={onClose}>Cancelar</Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // ---- CopyRecsDialog ---------------------------------------------------
 // Popup para replicar as recomendações "Pela cidade" para outros guias.
 // Suporta seleção individual por guia OU replicação para toda a cidade.
+
 function CopyRecsDialog({
   sourcePropertyId,
   currentPropertyName,
