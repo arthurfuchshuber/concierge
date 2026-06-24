@@ -2022,6 +2022,11 @@ function RecGroup({
   const [selectedIdx, setSelectedIdx] = useState<Set<number>>(new Set());
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
 
+  const CAP_PER_SUBCATEGORY = scope === "nearby" ? 10 : 30;
+  const CAP_MSG = scope === "nearby"
+    ? "Limite de 10 pontos por subcategoria aqui pertinho. Foque nos melhores — qualidade vale mais que quantidade para o hóspede."
+    : "Limite de 30 referências por subcategoria pela cidade. Mantenha apenas as mais relevantes — uma curadoria enxuta gera muito mais confiança.";
+
   const groups = new Map<string, { items: RecItem[]; indices: number[] }>();
   items.forEach((it, idx) => {
     const key = it.category || it.type || "Outros";
@@ -2031,10 +2036,18 @@ function RecGroup({
     groups.set(key, g);
   });
   const groupEntries = Array.from(groups.entries()).sort((a, b) => a[0].localeCompare(b[0]));
+  const hasFullGroup = groupEntries.some(([, g]) => g.items.length >= CAP_PER_SUBCATEGORY);
 
   const existingPlaceIds = new Set(
     items.map((i) => i.place_id).filter((x): x is string => !!x),
   );
+
+  function countFor(cat: string) {
+    return groups.get(cat)?.items.length ?? 0;
+  }
+  function canAdd(cat: string) {
+    return countFor(cat) < CAP_PER_SUBCATEGORY;
+  }
 
   function updateAt(idx: number, patch: Partial<RecItem>) {
     onChange(items.map((x, j) => (j === idx ? { ...x, ...patch } : x)));
@@ -2043,8 +2056,21 @@ function RecGroup({
     onChange(items.filter((_, j) => j !== idx));
   }
   function addManual() {
+    if (!canAdd("Outros")) {
+      toast.info(CAP_MSG, { id: `cap-${scope}-Outros`, duration: 6500 });
+      return;
+    }
     onChange([...items, { scope, type: "other", name: "" }]);
   }
+  function handlePlaceSelect(rec: RecItem) {
+    const cat = rec.category || rec.type || "Outros";
+    if (!canAdd(cat)) {
+      toast.info(`Subcategoria "${cat}" já atingiu o limite. ${CAP_MSG}`, { id: `cap-${scope}-${cat}`, duration: 6500 });
+      return;
+    }
+    onChange([...items, rec]);
+  }
+
   function toggleSelect(idx: number) {
     setSelectedIdx((s) => {
       const n = new Set(s);
