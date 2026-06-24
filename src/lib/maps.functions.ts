@@ -550,7 +550,7 @@ export const enrichFromMapsLink = createServerFn({ method: "POST" })
     // ficam em city_references, exibidos na seção "Na Cidade" do guia.
     const MIN_RATING = 3.8;
     const MIN_REVIEWS_GLOBAL = 20;   // permissivo para pertinho — captura ref locais
-    const MAX_PER_TYPE = 25;
+    const MAX_PER_TYPE = 10;        // limite "Pertinho da Residência"
     const PERTINHO_MAX_M = 2500;     // filtro de exibição: até 2,5km (~30min a pé)
     const NEARBY_RADIUS_M = 3000;    // busca além do limite para garantir cobertura
     const NEARBY_TEXT_RADIUS_M = 4000;
