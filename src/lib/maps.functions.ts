@@ -907,13 +907,14 @@ export type CityReferenceRow = {
   opening_hours: string[] | null;
 };
 
-const CITY_MIN_RATING = 3.8;
-const CITY_MIN_REVIEWS_DEFAULT = 40;
-const CITY_MAX_PER_TYPE = 30;
+const CITY_MIN_RATING = 4.0;
+const CITY_MIN_REVIEWS_DEFAULT = 80;
+const CITY_MAX_PER_TYPE = 20; // limite "Referências da Cidade"
 
 function cityMinReviewsForType(type: string) {
-  if (["market", "pharmacy", "park", "beach", "nightlife"].includes(type)) return 25;
-  if (["attraction", "restaurant", "bar", "cafe", "shopping"].includes(type)) return 50;
+  if (["market", "pharmacy"].includes(type)) return 40;
+  if (["park", "beach", "nightlife"].includes(type)) return 60;
+  if (["attraction", "restaurant", "bar", "cafe", "shopping"].includes(type)) return 120;
   return CITY_MIN_REVIEWS_DEFAULT;
 }
 
