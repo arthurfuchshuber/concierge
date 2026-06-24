@@ -1115,14 +1115,14 @@ function PropertyEditor() {
             </div>
           </Section>
 
-          <Section icon={Wifi} title="Wi-Fi" collapsible>
+          <Section icon={Wifi} title="Wi-Fi" desc="Rede e senha exibidas no card de Wi-Fi do guia público." collapsible>
             <div className="grid grid-cols-2 gap-3">
               <Field label="Rede (SSID)"><Input value={form.property.wifi_ssid} maxLength={64} onChange={(e) => update("wifi_ssid", e.target.value)} /></Field>
               <Field label="Senha"><Input value={form.property.wifi_password} maxLength={64} onChange={(e) => update("wifi_password", e.target.value)} /></Field>
             </div>
           </Section>
 
-          <Section icon={UserRound} title="Contato do anfitrião" collapsible>
+          <Section icon={UserRound} title="Contato do anfitrião" desc="Nome e WhatsApp para que o hóspede possa falar com você." collapsible>
             <div className="grid grid-cols-2 gap-3">
               <Field label="Nome"><Input value={form.property.host_name} maxLength={120} onChange={(e) => update("host_name", e.target.value)} /></Field>
               <Field label="Telefone (WhatsApp)"><Input value={form.property.host_phone} maxLength={40} onChange={(e) => update("host_phone", e.target.value)} /></Field>
