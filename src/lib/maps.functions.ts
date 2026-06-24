@@ -907,9 +907,15 @@ export type CityReferenceRow = {
   opening_hours: string[] | null;
 };
 
-const CITY_MIN_RATING = 4.0;
-const CITY_MIN_REVIEWS = 80;
-const CITY_MAX_PER_TYPE = 25;
+const CITY_MIN_RATING = 3.8;
+const CITY_MIN_REVIEWS_DEFAULT = 40;
+const CITY_MAX_PER_TYPE = 30;
+
+function cityMinReviewsForType(type: string) {
+  if (["market", "pharmacy", "park", "beach", "nightlife"].includes(type)) return 25;
+  if (["attraction", "restaurant", "bar", "cafe", "shopping"].includes(type)) return 50;
+  return CITY_MIN_REVIEWS_DEFAULT;
+}
 
 // Busca textual SEM bias geográfico — usada internamente como fallback
 async function placesTextNoBias(query: string): Promise<(PlaceRaw & { formattedAddress?: string })[]> {
@@ -929,9 +935,9 @@ async function placesTextNoBias(query: string): Promise<(PlaceRaw & { formattedA
   return j.places ?? [];
 }
 
-// Busca textual COM restrição geográfica (locationRestriction, não bias).
-// Garante que os resultados ficam DENTRO do círculo — elimina falsos positivos
-// de cidades vizinhas ou pontos distantes retornados pelo Google.
+// Busca textual com viés geográfico circular. No Places Text Search (New),
+// `locationRestriction.circle` é inválido; a API aceita círculo em
+// `locationBias`. A validação final de distância continua no nosso código.
 async function placesTextRestricted(
   query: string,
   lat: number,
@@ -947,7 +953,7 @@ async function placesTextRestricted(
     body: JSON.stringify({
       textQuery: query,
       maxResultCount: 20,
-      locationRestriction: {
+      locationBias: {
         circle: { center: { latitude: lat, longitude: lng }, radius: radiusMeters },
       },
     }),
@@ -1002,11 +1008,11 @@ export async function generateCityReferencesFromMaps(input: {
   const CITY_RADIUS_M = 35_000;
   const ATTRACTION_RADIUS_M = 50_000; // cap do Google — antes estava 60_000 (bug)
 
-  const isQuality = (p: PlaceRaw) =>
+  const isQuality = (p: PlaceRaw, cat: TypeMapEntry) =>
     typeof p.rating === "number" &&
     p.rating >= CITY_MIN_RATING &&
     typeof p.userRatingCount === "number" &&
-    p.userRatingCount >= CITY_MIN_REVIEWS;
+    p.userRatingCount >= cityMinReviewsForType(cat.type);
 
   const buildNote = (p: PlaceRaw): string | null => {
     const t = p.editorialSummary?.text ?? p.generativeSummary?.overview?.text ?? null;
@@ -1024,7 +1030,6 @@ export async function generateCityReferencesFromMaps(input: {
 
   const ingest = (p: PlaceRaw & { formattedAddress?: string }, hintCat: TypeMapEntry) => {
     if (!p.id || !p.location) { drop.noLoc++; return; }
-    if (!isQuality(p)) { drop.lowQuality++; return; }
     if (seenIds.has(p.id)) { drop.dup++; return; }
     // Reclassifica pelo primaryType (prioridade do TYPE_MAP). Se não bater,
     // CAI no hintCat (a categoria que motivou a busca) — antes descartávamos.
@@ -1035,6 +1040,7 @@ export async function generateCityReferencesFromMaps(input: {
     // Se o usuário pediu apenas 1 tipo (regen por categoria), filtra.
     if (type && realCat.type !== type) { drop.wrongType++; return; }
     if (!targetTypes.some((c) => c.type === realCat.type)) { drop.outOfScope++; return; }
+    if (!isQuality(p, realCat)) { drop.lowQuality++; return; }
 
     // Validação geográfica extra: se temos coordenadas da cidade, descarta
     // qualquer lugar que esteja além do raio permitido para a categoria.
@@ -1053,14 +1059,15 @@ export async function generateCityReferencesFromMaps(input: {
     byCategory.set(realCat.type, arr);
   };
 
-  // Função auxiliar: usa restrição geográfica quando possível,
-  // cai para sem-bias como fallback quando não temos coords.
-  const searchForCity = (query: string, cat: TypeMapEntry) => {
+  // Função auxiliar: usa viés geográfico quando possível e cai para busca
+  // ampla quando a API não devolve itens para a cidade.
+  const searchForCity = async (query: string, cat: TypeMapEntry) => {
     if (!cityCenter) return placesTextNoBias(query);
     const radius = cat.type === "attraction" || cat.type === "beach"
       ? ATTRACTION_RADIUS_M
       : CITY_RADIUS_M;
-    return placesTextRestricted(query, cityCenter.lat, cityCenter.lng, radius);
+    const biased = await placesTextRestricted(query, cityCenter.lat, cityCenter.lng, radius);
+    return biased.length > 0 ? biased : placesTextNoBias(query);
   };
 
   // 1) Múltiplas queries por categoria com restrição geográfica
