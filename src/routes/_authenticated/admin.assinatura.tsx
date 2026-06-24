@@ -570,7 +570,7 @@ function CardTab({
               {!openedInline && (
                 <div className="mt-4 flex flex-wrap gap-2">
                   <Button
-                    onClick={startCardValidation}
+                    onClick={() => startCardValidation()}
                     disabled={!user || openingInline}
                     className="rounded-full"
                   >
