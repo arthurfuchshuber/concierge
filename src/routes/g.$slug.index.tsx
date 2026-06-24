@@ -1962,9 +1962,9 @@ function WifiStrip({
       <div className="pointer-events-none absolute inset-0 opacity-[0.07] [background-image:radial-gradient(oklch(var(--accent))_1px,transparent_1px)] [background-size:14px_14px]" />
       <div className="pointer-events-none absolute -top-12 -right-12 size-40 rounded-full bg-accent/25 blur-3xl" />
       <div className="relative flex items-center gap-4 px-5 py-4 md:px-6 md:py-5">
-        <span className="relative grid size-14 shrink-0 place-items-center rounded-2xl bg-[radial-gradient(circle_at_30%_30%,oklch(var(--accent)/0.55),oklch(var(--accent)/0.15))] text-accent-foreground ring-1 ring-accent/45 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
-          <span className="wifi-pulse pointer-events-none absolute inset-0 rounded-2xl bg-accent/25 blur-md" />
-          <Wifi className="relative size-[22px]" strokeWidth={1.9} />
+        <span className="relative grid size-14 shrink-0 place-items-center rounded-2xl bg-accent text-accent-foreground ring-1 ring-accent/60 shadow-[0_8px_24px_-8px_oklch(var(--accent)/0.7),inset_0_1px_0_rgba(255,255,255,0.25)]">
+          <span className="wifi-pulse pointer-events-none absolute -inset-1 rounded-2xl bg-accent/30 blur-md -z-10" />
+          <Wifi className="relative size-[24px]" strokeWidth={2.4} />
         </span>
         <div className="flex-1 min-w-0">
           <p className="text-[10px] uppercase tracking-[0.32em] text-accent font-semibold">Senha do Wi-Fi</p>
