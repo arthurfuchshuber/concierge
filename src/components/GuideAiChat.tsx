@@ -199,7 +199,7 @@ export function GuideAiChat({ slug, propertyName, guestName }: { slug: string; p
                 <MessageCircleMore className="size-4" strokeWidth={1.9} />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-[10px] uppercase tracking-[0.24em] text-accent font-semibold">Concierge IA</p>
+                <p className="text-[10px] uppercase tracking-[0.24em] text-accent/75 font-semibold">Concierge IA</p>
                 <p className="text-[13px] font-medium truncate">{propertyName}</p>
               </div>
               <button
@@ -271,7 +271,7 @@ export function GuideAiChat({ slug, propertyName, guestName }: { slug: string; p
 
           {/* Composer */}
           <div className="px-3 pb-3 pt-2 border-t border-border bg-background">
-            <div className="flex items-end gap-2 bg-card border border-border rounded-2xl px-3 py-2 focus-within:border-accent/60 transition-colors">
+            <div className="flex items-end gap-2 bg-card border border-border rounded-2xl px-3 py-2 focus-within:border-accent/35 transition-colors">
               <textarea
                 ref={inputRef}
                 value={input}
@@ -287,7 +287,7 @@ export function GuideAiChat({ slug, propertyName, guestName }: { slug: string; p
                 onClick={send}
                 disabled={loading || !input.trim()}
                 aria-label="Enviar"
-                className="grid size-9 place-items-center rounded-full bg-accent text-accent-foreground hover:brightness-110 active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
+                className="grid size-9 place-items-center rounded-full bg-foreground text-background hover:opacity-90 active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
               >
                 {loading ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" strokeWidth={2} />}
               </button>
