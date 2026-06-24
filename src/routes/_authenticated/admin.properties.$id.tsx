@@ -2193,9 +2193,10 @@ function RecGroup({
                   >
                     <div className="flex items-center gap-2 min-w-0">
                       <span className="text-sm font-medium truncate">{cat}</span>
-                      <span className="text-[11px] text-muted-foreground">
-                        ({g.items.length}{groupSelected > 0 ? ` · ${groupSelected} sel.` : ""})
+                      <span className={`text-[11px] ${g.items.length >= CAP_PER_SUBCATEGORY ? "text-amber-600 font-medium" : "text-muted-foreground"}`}>
+                        ({g.items.length}/{CAP_PER_SUBCATEGORY}{groupSelected > 0 ? ` · ${groupSelected} sel.` : ""})
                       </span>
+
                     </div>
                     <ChevronDown className={`size-4 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`} />
                   </button>
