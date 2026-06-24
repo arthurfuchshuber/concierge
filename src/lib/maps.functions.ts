@@ -997,14 +997,12 @@ export async function generateCityReferencesFromMaps(input: {
     : TYPE_MAP;
 
   // Geocodifica a cidade para obter coordenadas centrais.
-  // Isso permite usar locationRestriction (hard boundary) em vez de
-  // locationBias — evita que o Google retorne lugares de cidades vizinhas.
+  // Isso permite usar um viés geográfico forte e validar distância no nosso código.
   const cityCenter = await resolveCityCenter(city_label, state, country);
 
   // Raio da restrição geográfica em metros.
   // Google Places API New impõe um MÁXIMO de 50.000 m em
-  // `locationRestriction.circle.radius`. Acima disso, a API retorna 400 e
-  // perdemos todos os resultados silenciosamente.
+  // `locationBias.circle.radius`. Mantemos no limite aceito e filtramos distância localmente.
   const CITY_RADIUS_M = 35_000;
   const ATTRACTION_RADIUS_M = 50_000; // cap do Google — antes estava 60_000 (bug)
 
