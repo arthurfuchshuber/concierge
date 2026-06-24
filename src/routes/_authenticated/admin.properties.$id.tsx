@@ -2224,9 +2224,68 @@ function GalleryEditor({
   );
 }
 
+// ---- GenerateModeDialog ----------------------------------------------
+// Popup para escolher entre recriar tudo ou apenas completar os excedentes.
+function GenerateModeDialog({
+  hasExisting,
+  onClose,
+  onPick,
+}: {
+  hasExisting: boolean;
+  onClose: () => void;
+  onPick: (mode: "replace" | "fill") => void;
+}) {
+  return (
+    <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent className="max-w-xl">
+        <DialogHeader>
+          <DialogTitle>Como você deseja gerar as recomendações?</DialogTitle>
+        </DialogHeader>
+        <div className="grid gap-3 mt-2">
+          <button
+            type="button"
+            onClick={() => onPick("fill")}
+            className="text-left rounded-xl border border-border bg-background/60 hover:border-foreground/30 hover:bg-muted/30 transition-colors p-4"
+          >
+            <div className="flex items-center gap-2 mb-1">
+              <Sparkles className="size-4 text-primary" />
+              <p className="text-sm font-semibold">Gerar apenas os excedentes</p>
+              <span className="ml-auto text-[10px] uppercase tracking-wider text-primary/80 font-medium">Recomendado</span>
+            </div>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Mantém todas as referências atuais e adiciona apenas pontos novos de alta qualidade,
+              respeitando o limite máximo por categoria. Se não houver novos locais relevantes,
+              nada é adicionado.
+            </p>
+          </button>
+          <button
+            type="button"
+            onClick={() => onPick("replace")}
+            className="text-left rounded-xl border border-border bg-background/60 hover:border-destructive/40 hover:bg-destructive/5 transition-colors p-4"
+          >
+            <div className="flex items-center gap-2 mb-1">
+              <RefreshCw className="size-4 text-destructive" />
+              <p className="text-sm font-semibold">Recriar tudo do zero</p>
+            </div>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              {hasExisting
+                ? "Remove todas as referências atuais da cidade e gera uma nova seleção completa."
+                : "Gera uma seleção completa de referências para a cidade."}
+            </p>
+          </button>
+        </div>
+        <div className="flex justify-end mt-2">
+          <Button variant="ghost" size="sm" onClick={onClose}>Cancelar</Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // ---- CopyRecsDialog ---------------------------------------------------
 // Popup para replicar as recomendações "Pela cidade" para outros guias.
 // Suporta seleção individual por guia OU replicação para toda a cidade.
+
 function CopyRecsDialog({
   sourcePropertyId,
   currentPropertyName,
