@@ -520,51 +520,13 @@ function EditDialog({
             />
           </div>
 
-          <div className="space-y-1.5">
-            <Label>Próxima renovação</Label>
-            <DatePicker
-              value={currentPeriodEnd}
-              onChange={setCurrentPeriodEnd}
-              placeholder="Sem renovação programada"
+          {plan === "enterprise" && (
+            <EnterpriseSection
+              customer={customer}
+              environment={environment}
+              defaultAmountCents={s?.customPriceCents ?? null}
             />
-          </div>
-
-          <div className="space-y-1.5">
-            <Label className="flex items-center justify-between">
-              Cancelar no fim do período
-              <Switch
-                checked={cancelAtPeriodEnd}
-                onCheckedChange={setCancelAtPeriodEnd}
-              />
-            </Label>
-            <p className="text-xs text-muted-foreground">
-              Se ativo, o cliente mantém acesso até a data acima e depois é cancelado.
-            </p>
-          </div>
-
-          <div className="space-y-1.5 sm:col-span-2">
-            <Label>Valor personalizado a cobrar</Label>
-            <div className="flex gap-2">
-              <Input
-                type="number"
-                step="0.01"
-                min="0"
-                placeholder={s?.plan ? PLANS[s.plan].priceLabel : "Ex: 149.90"}
-                value={customPrice}
-                onChange={(e) => setCustomPrice(e.target.value)}
-                className="flex-1"
-              />
-              <Input
-                value={customCurrency}
-                onChange={(e) => setCustomCurrency(e.target.value.toUpperCase().slice(0, 3))}
-                placeholder="BRL"
-                className="w-24"
-              />
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Deixe em branco para usar o preço padrão do plano. Use isso para descontos especiais ou contratos.
-            </p>
-          </div>
+          )}
 
           <div className="space-y-1.5 sm:col-span-2">
             <Label>Limite de guias (override)</Label>
@@ -602,14 +564,6 @@ function EditDialog({
               rows={3}
             />
           </div>
-
-          {plan === "enterprise" && (
-            <EnterpriseSection
-              customer={customer}
-              environment={environment}
-              defaultAmountCents={s?.customPriceCents ?? null}
-            />
-          )}
         </div>
 
         <DialogFooter>
