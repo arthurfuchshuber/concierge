@@ -1289,18 +1289,14 @@ function HeroCompact({
           {name}
         </h1>
 
-        {city && (
-          <p className="mt-2.5 md:mt-4 inline-flex items-center gap-2 text-[0.8rem] md:text-[0.95rem] leading-none text-white/85">
-            <MapPin className="size-3.5 text-white/85 fill-white/85" strokeWidth={0} /> {city}
-          </p>
-        )}
-        <span className="mt-3.5 md:mt-5 block h-[2px] w-10 md:w-14 bg-accent" />
+        <span className="mt-5 md:mt-7 block h-[2px] w-12 md:w-16 bg-accent" />
         {tagline && (
-          <p className="mt-3 md:mt-4 text-[0.85rem] md:text-[1rem] leading-[1.5] text-white/80 md:max-w-[52ch]">
+          <p className="mt-4 md:mt-5 text-[0.9rem] md:text-[1.05rem] leading-[1.55] text-white/85 md:max-w-[56ch] font-light">
             {tagline}
           </p>
         )}
       </div>
+
 
       {hasMany && (
         <>
