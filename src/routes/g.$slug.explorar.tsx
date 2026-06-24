@@ -883,21 +883,27 @@ function CollapsibleSection({
   items,
   totalCount,
   viewMode,
+  open: openProp,
+  onToggle,
 }: {
   eyebrow: string;
   title: string;
   items: Rec[];
   totalCount: number;
   viewMode: "grid" | "list";
+  open?: boolean;
+  onToggle?: () => void;
 }) {
-  const [open, setOpen] = useState(false);
+  const [localOpen, setLocalOpen] = useState(false);
+  const open = openProp ?? localOpen;
+  const toggle = onToggle ?? (() => setLocalOpen((v) => !v));
   const isFiltered = items.length !== totalCount;
 
   return (
     <section className="border border-border rounded-2xl bg-card/40 overflow-hidden">
       <button
         type="button"
-        onClick={() => setOpen((v) => !v)}
+        onClick={toggle}
         className="w-full flex items-center justify-between gap-3 px-5 py-4 text-left hover:bg-card/80 transition-colors"
         aria-expanded={open}
       >
