@@ -1243,9 +1243,9 @@ function HeroCompact({
           />
         ))}
       </div>
-      {/* lighter overlay so the photo stays vivid in both themes; just enough for text legibility */}
-      <div className="absolute inset-0 bg-[linear-gradient(90deg,oklch(0.02_0.004_40/0.48)_0%,oklch(0.02_0.004_40/0.18)_45%,oklch(0.02_0.004_40/0)_100%)]" />
-      <div className="absolute inset-0 bg-[linear-gradient(180deg,oklch(0.02_0.004_40/0.18)_0%,transparent_30%,oklch(0.02_0.004_40/0.32)_82%,oklch(0.02_0.004_40/0.85)_100%)]" />
+      {/* Elegant cinematic gradient — keeps photo vivid, deepens at bottom for legibility */}
+      <div className="absolute inset-0 bg-[linear-gradient(115deg,rgba(0,0,0,0.65)_0%,rgba(0,0,0,0.35)_38%,rgba(0,0,0,0.05)_70%,rgba(0,0,0,0.25)_100%)]" />
+      <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,0.25)_0%,transparent_28%,rgba(0,0,0,0.45)_78%,rgba(0,0,0,0.92)_100%)]" />
       {/* bottom fade INTO the page background so the transition is seamless in any theme */}
       <div className="absolute inset-x-0 bottom-0 h-32 md:h-40 bg-[linear-gradient(180deg,transparent_0%,var(--background)_100%)]" />
 
@@ -1262,7 +1262,7 @@ function HeroCompact({
             onClick={onToggleLang}
             aria-label="Mudar idioma"
             title="Mudar idioma"
-            className="h-9 px-3 shrink-0 inline-flex items-center justify-center rounded-full border border-accent/55 bg-background/10 text-white/95 backdrop-blur-sm transition-colors hover:bg-accent/25 hover:text-white text-[11px] font-semibold tracking-wider uppercase"
+            className="h-9 px-3 shrink-0 inline-flex items-center justify-center rounded-full border border-white/25 bg-black/30 text-white/95 backdrop-blur-md transition-colors hover:bg-accent/30 hover:text-white text-[11px] font-semibold tracking-wider uppercase"
           >
             {lang === "pt" ? "PT" : lang === "es" ? "ES" : lang === "fr" ? "FR" : "EN"}
           </button>
@@ -1271,7 +1271,7 @@ function HeroCompact({
             onClick={onToggleTheme}
             aria-label={theme === "dark" ? "Mudar para tema claro" : "Mudar para tema escuro"}
             title={theme === "dark" ? "Tema claro" : "Tema escuro"}
-            className="grid size-9 shrink-0 place-items-center rounded-full border border-accent/55 bg-background/10 text-white/95 backdrop-blur-sm transition-colors hover:bg-accent/25 hover:text-white"
+            className="grid size-9 shrink-0 place-items-center rounded-full border border-white/25 bg-black/30 text-white/95 backdrop-blur-md transition-colors hover:bg-accent/30 hover:text-white"
           >
             {theme === "dark" ? <Sun className="size-4" strokeWidth={1.75} /> : <Moon className="size-4" strokeWidth={1.75} />}
           </button>
@@ -1280,10 +1280,15 @@ function HeroCompact({
 
 
       <div className="relative z-10 mt-14 md:mt-24">
-        <p className="mb-2.5 text-[10px] font-semibold uppercase tracking-[0.36em] text-accent">Bem-vindo</p>
-        <h1 className="font-serif text-[1.75rem] md:text-[3rem] leading-[1.0] text-white text-balance max-w-[300px] md:max-w-[640px]">
+        {city && (
+          <span className="mb-4 inline-flex items-center gap-1.5 rounded-full border border-white/25 bg-black/30 backdrop-blur-md px-3 py-1.5 text-[10.5px] md:text-[11px] font-semibold uppercase tracking-[0.22em] text-white/95">
+            <MapPin className="size-3 text-accent" strokeWidth={2.2} /> {city}
+          </span>
+        )}
+        <h1 className="font-serif text-[2.1rem] md:text-[3.75rem] leading-[0.95] tracking-[-0.01em] text-white text-balance max-w-[320px] md:max-w-[760px] drop-shadow-[0_2px_20px_rgba(0,0,0,0.45)]">
           {name}
         </h1>
+
         {city && (
           <p className="mt-2.5 md:mt-4 inline-flex items-center gap-2 text-[0.8rem] md:text-[0.95rem] leading-none text-white/85">
             <MapPin className="size-3.5 text-white/85 fill-white/85" strokeWidth={0} /> {city}
