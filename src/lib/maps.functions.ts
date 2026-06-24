@@ -1019,18 +1019,22 @@ export async function generateCityReferencesFromMaps(input: {
   const byCategory = new Map<string, Array<PlaceRaw & { formattedAddress?: string; _cat: TypeMapEntry }>>();
   const seenIds = new Set<string>();
 
+  // Diagnóstico — contadores para entender por que algo é descartado.
+  const drop = { noLoc: 0, lowQuality: 0, dup: 0, noClass: 0, wrongType: 0, outOfScope: 0, tooFar: 0, kept: 0 };
+
   const ingest = (p: PlaceRaw & { formattedAddress?: string }, hintCat: TypeMapEntry) => {
-    if (!p.id || !p.location || !isQuality(p)) return;
-    if (seenIds.has(p.id)) return;
-    // Reclassifica pelo primaryType (prioridade do TYPE_MAP). Se o primaryType
-    // do Google não corresponder a nenhuma cat aceita, descarta.
-    const realCat = classifyByPrimaryType(p.primaryType) ?? null;
-    if (!realCat) return;
+    if (!p.id || !p.location) { drop.noLoc++; return; }
+    if (!isQuality(p)) { drop.lowQuality++; return; }
+    if (seenIds.has(p.id)) { drop.dup++; return; }
+    // Reclassifica pelo primaryType (prioridade do TYPE_MAP). Se não bater,
+    // CAI no hintCat (a categoria que motivou a busca) — antes descartávamos.
+    // Isso preserva resultados quando o Google devolve primaryTypes genéricos
+    // (ex.: "establishment", "point_of_interest") fora do TYPE_MAP.
+    let realCat = classifyByPrimaryType(p.primaryType);
+    if (!realCat) realCat = hintCat;
     // Se o usuário pediu apenas 1 tipo (regen por categoria), filtra.
-    if (type && realCat.type !== type) return;
-    // Se a categoria real for diferente da hint, só aceita se também estiver
-    // dentro do escopo solicitado (targetTypes).
-    if (!targetTypes.some((c) => c.type === realCat.type)) return;
+    if (type && realCat.type !== type) { drop.wrongType++; return; }
+    if (!targetTypes.some((c) => c.type === realCat.type)) { drop.outOfScope++; return; }
 
     // Validação geográfica extra: se temos coordenadas da cidade, descarta
     // qualquer lugar que esteja além do raio permitido para a categoria.
@@ -1039,10 +1043,11 @@ export async function generateCityReferencesFromMaps(input: {
       const maxDist = realCat.type === "attraction" || realCat.type === "beach"
         ? ATTRACTION_RADIUS_M
         : CITY_RADIUS_M;
-      if (dist > maxDist) return; // fora da cidade — descarta
+      if (dist > maxDist) { drop.tooFar++; return; }
     }
 
     seenIds.add(p.id);
+    drop.kept++;
     const arr = byCategory.get(realCat.type) ?? [];
     arr.push({ ...p, _cat: realCat });
     byCategory.set(realCat.type, arr);
