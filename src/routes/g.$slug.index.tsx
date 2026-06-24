@@ -469,7 +469,7 @@ function Guide({ data }: { data: GuideOk }) {
                 <span className="h-px flex-1 bg-accent/40" />
               </div>
 
-              <div className="space-y-2.5 md:space-y-0 md:grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 md:gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-5 lg:gap-6">
                 {cards.map((c) =>
                   c.to?.kind === "link" ? (
                     <Link
@@ -830,11 +830,10 @@ function Guide({ data }: { data: GuideOk }) {
                         label="Proibido Neste Espaço"
                         hint="O que não é permitido durante a estadia"
                       >
-                        <div className="rounded-2xl border border-border/60 bg-background/40 px-4 py-4">
-                          <StepList text={String((p as Record<string, unknown>).house_rules)} dense />
-                        </div>
+                        <RulesGrid text={String((p as Record<string, unknown>).house_rules)} />
                       </SubItem>
                     ) : null}
+
                   </SubList>
                 );
               })()}
@@ -1243,9 +1242,9 @@ function HeroCompact({
           />
         ))}
       </div>
-      {/* lighter overlay so the photo stays vivid in both themes; just enough for text legibility */}
-      <div className="absolute inset-0 bg-[linear-gradient(90deg,oklch(0.02_0.004_40/0.48)_0%,oklch(0.02_0.004_40/0.18)_45%,oklch(0.02_0.004_40/0)_100%)]" />
-      <div className="absolute inset-0 bg-[linear-gradient(180deg,oklch(0.02_0.004_40/0.18)_0%,transparent_30%,oklch(0.02_0.004_40/0.32)_82%,oklch(0.02_0.004_40/0.85)_100%)]" />
+      {/* Elegant cinematic gradient — keeps photo vivid, deepens at bottom for legibility */}
+      <div className="absolute inset-0 bg-[linear-gradient(115deg,rgba(0,0,0,0.65)_0%,rgba(0,0,0,0.35)_38%,rgba(0,0,0,0.05)_70%,rgba(0,0,0,0.25)_100%)]" />
+      <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,0.25)_0%,transparent_28%,rgba(0,0,0,0.45)_78%,rgba(0,0,0,0.92)_100%)]" />
       {/* bottom fade INTO the page background so the transition is seamless in any theme */}
       <div className="absolute inset-x-0 bottom-0 h-32 md:h-40 bg-[linear-gradient(180deg,transparent_0%,var(--background)_100%)]" />
 
@@ -1262,7 +1261,7 @@ function HeroCompact({
             onClick={onToggleLang}
             aria-label="Mudar idioma"
             title="Mudar idioma"
-            className="h-9 px-3 shrink-0 inline-flex items-center justify-center rounded-full border border-accent/55 bg-background/10 text-white/95 backdrop-blur-sm transition-colors hover:bg-accent/25 hover:text-white text-[11px] font-semibold tracking-wider uppercase"
+            className="h-9 px-3 shrink-0 inline-flex items-center justify-center rounded-full border border-white/25 bg-black/30 text-white/95 backdrop-blur-md transition-colors hover:bg-accent/30 hover:text-white text-[11px] font-semibold tracking-wider uppercase"
           >
             {lang === "pt" ? "PT" : lang === "es" ? "ES" : lang === "fr" ? "FR" : "EN"}
           </button>
@@ -1271,7 +1270,7 @@ function HeroCompact({
             onClick={onToggleTheme}
             aria-label={theme === "dark" ? "Mudar para tema claro" : "Mudar para tema escuro"}
             title={theme === "dark" ? "Tema claro" : "Tema escuro"}
-            className="grid size-9 shrink-0 place-items-center rounded-full border border-accent/55 bg-background/10 text-white/95 backdrop-blur-sm transition-colors hover:bg-accent/25 hover:text-white"
+            className="grid size-9 shrink-0 place-items-center rounded-full border border-white/25 bg-black/30 text-white/95 backdrop-blur-md transition-colors hover:bg-accent/30 hover:text-white"
           >
             {theme === "dark" ? <Sun className="size-4" strokeWidth={1.75} /> : <Moon className="size-4" strokeWidth={1.75} />}
           </button>
@@ -1280,22 +1279,23 @@ function HeroCompact({
 
 
       <div className="relative z-10 mt-14 md:mt-24">
-        <p className="mb-2.5 text-[10px] font-semibold uppercase tracking-[0.36em] text-accent">Bem-vindo</p>
-        <h1 className="font-serif text-[1.75rem] md:text-[3rem] leading-[1.0] text-white text-balance max-w-[300px] md:max-w-[640px]">
+        {city && (
+          <span className="mb-4 inline-flex items-center gap-1.5 rounded-full border border-white/25 bg-black/30 backdrop-blur-md px-3 py-1.5 text-[10.5px] md:text-[11px] font-semibold uppercase tracking-[0.22em] text-white/95">
+            <MapPin className="size-3 text-accent" strokeWidth={2.2} /> {city}
+          </span>
+        )}
+        <h1 className="font-serif text-[2.1rem] md:text-[3.75rem] leading-[0.95] tracking-[-0.01em] text-white text-balance max-w-[320px] md:max-w-[760px] drop-shadow-[0_2px_20px_rgba(0,0,0,0.45)]">
           {name}
         </h1>
-        {city && (
-          <p className="mt-2.5 md:mt-4 inline-flex items-center gap-2 text-[0.8rem] md:text-[0.95rem] leading-none text-white/85">
-            <MapPin className="size-3.5 text-white/85 fill-white/85" strokeWidth={0} /> {city}
-          </p>
-        )}
-        <span className="mt-3.5 md:mt-5 block h-[2px] w-10 md:w-14 bg-accent" />
+
+        <span className="mt-5 md:mt-7 block h-[2px] w-12 md:w-16 bg-accent" />
         {tagline && (
-          <p className="mt-3 md:mt-4 text-[0.85rem] md:text-[1rem] leading-[1.5] text-white/80 md:max-w-[52ch]">
+          <p className="mt-4 md:mt-5 text-[0.9rem] md:text-[1.05rem] leading-[1.55] text-white/85 md:max-w-[56ch] font-light">
             {tagline}
           </p>
         )}
       </div>
+
 
       {hasMany && (
         <>
@@ -1334,50 +1334,38 @@ function HeroCompact({
 
 
 function ThemeCard({
-  title, desc, icon, image, theme,
+  title, desc, icon, image,
 }: {
-  title: string; desc: string; icon: React.ReactNode; image?: string; theme: "dark" | "light";
+  title: string; desc: string; icon: React.ReactNode; image?: string; theme?: "dark" | "light";
 }) {
-  const isLight = theme === "light";
   return (
-    <div className="group relative min-h-[112px] overflow-hidden rounded-2xl border border-accent/30 bg-card transition-all duration-500 ease-out hover:border-transparent hover:shadow-[0_0_0_1px_oklch(from_var(--accent)_l_c_h/0.25),0_10px_40px_-8px_oklch(from_var(--accent)_l_c_h/0.45),0_0_60px_-10px_oklch(from_var(--accent)_l_c_h/0.35)] hover:-translate-y-0.5 active:scale-[0.99] active:translate-y-0">
+    <div className="group relative flex h-[220px] md:h-[260px] flex-col overflow-hidden rounded-[22px] border border-white/10 bg-neutral-900 shadow-[0_8px_30px_-12px_rgba(0,0,0,0.4)] transition-all duration-500 ease-out hover:-translate-y-1 hover:shadow-[0_24px_60px_-20px_oklch(from_var(--accent)_l_c_h/0.55),0_0_0_1px_oklch(from_var(--accent)_l_c_h/0.35)] active:scale-[0.99]">
       {image && (
         <img
           src={image}
           alt=""
           loading="lazy"
-          className={`absolute inset-0 size-full object-cover transition-transform duration-500 group-hover:scale-105 ${
-            isLight ? "opacity-25" : "opacity-70"
-          }`}
+          className="absolute inset-0 size-full object-cover transition-transform duration-[1200ms] ease-out group-hover:scale-[1.08]"
         />
       )}
-      {isLight ? (
-        <>
-          <div className="absolute inset-0 bg-[linear-gradient(90deg,oklch(from_var(--card)_l_c_h/0.98)_0%,oklch(from_var(--card)_l_c_h/0.9)_45%,oklch(from_var(--card)_l_c_h/0.7)_80%,oklch(from_var(--card)_l_c_h/0.88)_100%)]" />
-          <div className="absolute inset-0 bg-[linear-gradient(180deg,oklch(from_var(--card)_l_c_h/0.4),oklch(from_var(--card)_l_c_h/0.85))]" />
-        </>
-      ) : (
-        <>
-          <div className="absolute inset-0 bg-[linear-gradient(90deg,oklch(0.02_0.004_40/0.96)_0%,oklch(0.02_0.004_40/0.78)_38%,oklch(0.02_0.004_40/0.28)_72%,oklch(0.02_0.004_40/0.55)_100%)]" />
-          <div className="absolute inset-0 bg-[linear-gradient(180deg,oklch(0.02_0.004_40/0.1),oklch(0.02_0.004_40/0.55))]" />
-        </>
-      )}
-      <div className="relative flex min-h-[112px] items-center gap-4 px-4 py-3.5 pr-14">
-        <span className={`grid size-11 shrink-0 place-items-center rounded-full border backdrop-blur-sm ${
-          isLight
-            ? "border-accent/40 bg-accent/10 text-accent"
-            : "border-accent/45 bg-background/20 text-accent"
-        }`}>
-          {icon}
+      {/* Dark overlay — premium hospitality feel */}
+      <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,0.25)_0%,rgba(0,0,0,0.55)_55%,rgba(0,0,0,0.88)_100%)]" />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_15%,oklch(from_var(--accent)_l_c_h/0.18),transparent_55%)] opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+
+      <div className="relative z-10 flex h-full flex-col p-5 md:p-6">
+        <span className="grid size-12 md:size-14 place-items-center rounded-2xl border border-white/20 bg-white/5 backdrop-blur-md text-accent shadow-[inset_0_1px_0_rgba(255,255,255,0.1)]">
+          <span className="[&>svg]:size-6 md:[&>svg]:size-[26px]">{icon}</span>
         </span>
-        <div className="flex-1 min-w-0">
-          <h3 className={`font-serif text-[1.15rem] leading-[1.1] text-balance ${isLight ? "text-foreground" : "text-white"}`}>{title}</h3>
-          <p className={`mt-1 text-[11.5px] leading-[1.4] line-clamp-2 ${isLight ? "text-muted-foreground" : "text-white/72"}`}>{desc}</p>
+        <div className="mt-auto">
+          <h3 className="font-serif text-[1.5rem] md:text-[1.75rem] leading-[1.05] tracking-tight text-white text-balance">
+            {title}
+          </h3>
+          <p className="mt-1.5 text-[12.5px] md:text-[13px] leading-[1.5] text-white/70 line-clamp-2 max-w-[34ch]">
+            {desc}
+          </p>
         </div>
-        <span className={`absolute right-3.5 top-1/2 grid size-9 -translate-y-1/2 place-items-center rounded-full border transition-colors group-hover:bg-accent group-hover:text-background ${
-          isLight ? "border-accent/70 text-accent" : "border-accent/75 text-white"
-        }`}>
-          <ArrowRight className="size-4" strokeWidth={1.6} />
+        <span className="absolute right-5 top-5 md:right-6 md:top-6 grid size-9 place-items-center rounded-full bg-white/10 backdrop-blur-md border border-white/15 text-white/85 transition-all duration-300 group-hover:bg-accent group-hover:text-accent-foreground group-hover:border-accent">
+          <ArrowRight className="size-4" strokeWidth={1.75} />
         </span>
       </div>
     </div>
@@ -1386,7 +1374,7 @@ function ThemeCard({
 
 function SubList({ children }: { children: React.ReactNode }) {
   return (
-    <Accordion type="single" collapsible className="bg-card border border-border rounded-2xl overflow-hidden divide-y divide-border/70">
+    <Accordion type="single" collapsible className="space-y-3 md:space-y-3.5">
       {children}
     </Accordion>
   );
@@ -1401,21 +1389,145 @@ function StepList({ text, dense = false }: { text: string; dense?: boolean }) {
     .filter((s) => s.length > 0);
   if (steps.length === 0) return null;
   return (
-    <ol className={dense ? "space-y-3" : "space-y-3.5"}>
+    <ol className={`relative ${dense ? "space-y-5" : "space-y-6"} pl-2`}>
+      {/* Vertical connector line */}
+      <span aria-hidden className="pointer-events-none absolute left-[18px] top-3 bottom-3 w-px bg-gradient-to-b from-accent/50 via-accent/25 to-transparent" />
       {steps.map((step, i) => (
-        <li key={i} className="flex items-start gap-3">
+        <li key={i} className="relative flex items-start gap-4">
           <span
             aria-hidden
-            className="mt-px shrink-0 grid place-items-center size-6 rounded-full border border-border/70 text-muted-foreground text-[12px] font-medium tabular-nums leading-none"
+            className="relative z-10 mt-0.5 shrink-0 grid place-items-center size-9 rounded-full bg-accent text-accent-foreground text-[13px] font-semibold tabular-nums leading-none shadow-[0_4px_14px_-4px_oklch(var(--accent)/0.55)] ring-4 ring-background"
           >
             {i + 1}
           </span>
-          <span className="text-[14px] leading-[1.55] text-foreground/90 pt-0.5">{step}</span>
+          <div className="flex-1 min-w-0 pt-1.5">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-accent/80 mb-1">Passo {i + 1}</p>
+            <p className="text-[14.5px] leading-[1.6] text-foreground/90">{step}</p>
+          </div>
         </li>
       ))}
     </ol>
   );
 }
+
+type RuleCategory = {
+  key: string;
+  label: string;
+  icon: React.ReactNode;
+  tone: string; // tailwind classes for icon bg/border
+  patterns: RegExp[];
+};
+
+const RULE_CATEGORIES: RuleCategory[] = [
+  {
+    key: "silencio",
+    label: "Silêncio e vizinhos",
+    icon: <Moon className="size-[14px]" strokeWidth={1.9} />,
+    tone: "bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-300 ring-indigo-200/60 dark:ring-indigo-400/20",
+    patterns: [/sil[êe]ncio/i, /barulh/i, /vizinh/i, /som\b/i, /m[úu]sica/i, /festa/i, /22h|23h|noite/i],
+  },
+  {
+    key: "substancias",
+    label: "Substâncias",
+    icon: <Flame className="size-[14px]" strokeWidth={1.9} />,
+    tone: "bg-rose-50 dark:bg-rose-500/10 text-rose-600 dark:text-rose-300 ring-rose-200/60 dark:ring-rose-400/20",
+    patterns: [/fumar|cigarr|tabac|vape|narguil/i, /[áa]lcool|bebid/i, /drog|entorpec/i],
+  },
+  {
+    key: "animais",
+    label: "Animais",
+    icon: <PawPrint className="size-[14px]" strokeWidth={1.9} />,
+    tone: "bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-300 ring-amber-200/60 dark:ring-amber-400/20",
+    patterns: [/pet|animal|animais|c[ãa]o|gato/i],
+  },
+  {
+    key: "limpeza",
+    label: "Limpeza e cuidado",
+    icon: <Trash2 className="size-[14px]" strokeWidth={1.9} />,
+    tone: "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 ring-emerald-200/60 dark:ring-emerald-400/20",
+    patterns: [/lixo|residu|sujei|limpe/i, /toalha|len[çc]ol|cama/i, /dano|estragar|quebrar/i],
+  },
+  {
+    key: "seguranca",
+    label: "Segurança",
+    icon: <ShowerHead className="size-[14px]" strokeWidth={1.9} />,
+    tone: "bg-sky-50 dark:bg-sky-500/10 text-sky-700 dark:text-sky-300 ring-sky-200/60 dark:ring-sky-400/20",
+    patterns: [/chave|fechadura|porta|port[ãa]o|janela|tranc/i, /seguran[çc]a|inc[êe]ndio|fogo/i, /piscina|crian[çc]a/i],
+  },
+  {
+    key: "visitas",
+    label: "Visitas e ocupação",
+    icon: <UserRound className="size-[14px]" strokeWidth={1.9} />,
+    tone: "bg-violet-50 dark:bg-violet-500/10 text-violet-700 dark:text-violet-300 ring-violet-200/60 dark:ring-violet-400/20",
+    patterns: [/visit|convidad|h[óo]sped/i, /evento|festa|reuni/i, /sublocar|alug/i],
+  },
+];
+
+function categorizeRule(rule: string): RuleCategory {
+  for (const cat of RULE_CATEGORIES) {
+    if (cat.patterns.some((re) => re.test(rule))) return cat;
+  }
+  return {
+    key: "outros",
+    label: "Outras combinações",
+    icon: <ListChecks className="size-[14px]" strokeWidth={1.9} />,
+    tone: "bg-neutral-100 dark:bg-white/5 text-neutral-700 dark:text-white/80 ring-neutral-200/60 dark:ring-white/10",
+    patterns: [],
+  };
+}
+
+function RulesGrid({ text }: { text: string }) {
+  const rules = text
+    .split(/\r?\n/)
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .map((s) => s.replace(/^\s*(?:\d+[.)\-º°]\s*|[-•·*]\s*)/, "").trim())
+    .filter(Boolean);
+  if (rules.length === 0) return null;
+
+  const groups = new Map<string, { cat: RuleCategory; items: string[] }>();
+  for (const r of rules) {
+    const cat = categorizeRule(r);
+    const slot = groups.get(cat.key) ?? { cat, items: [] };
+    slot.items.push(r);
+    groups.set(cat.key, slot);
+  }
+
+  return (
+    <div className="space-y-6">
+      {Array.from(groups.values()).map(({ cat, items }) => (
+        <section key={cat.key} className="space-y-3">
+          <header className="flex items-center gap-2.5">
+            <span className={`grid size-7 place-items-center rounded-lg ring-1 ${cat.tone}`}>
+              {cat.icon}
+            </span>
+            <h4 className="text-[11.5px] font-semibold uppercase tracking-[0.18em] text-foreground/85">
+              {cat.label}
+            </h4>
+            <span className="h-px flex-1 bg-border/60" />
+            <span className="text-[10.5px] font-medium tabular-nums text-muted-foreground">
+              {items.length}
+            </span>
+          </header>
+          <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {items.map((item, i) => (
+              <li
+                key={i}
+                className="flex items-start gap-2.5 rounded-xl border border-border/60 bg-card/50 px-3 py-2.5"
+              >
+                <span className={`mt-0.5 grid size-5 shrink-0 place-items-center rounded-full ring-1 ${cat.tone}`}>
+                  <span className="size-1.5 rounded-full bg-current" />
+                </span>
+                <span className="text-[13.5px] leading-[1.45] text-foreground/85">{item}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ))}
+    </div>
+  );
+}
+
 
 function SubItem({
   icon, label, hint, children,
@@ -1424,19 +1536,19 @@ function SubItem({
 }) {
   const id = label.toLowerCase().replace(/\s+/g, "-");
   return (
-    <AccordionItem value={id} className="border-0">
-      <AccordionTrigger className="px-4 py-3.5 hover:no-underline">
-        <div className="flex items-center gap-3.5 flex-1 min-w-0">
-          <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-secondary text-foreground/80">
+    <AccordionItem value={id} className="border border-border/70 rounded-2xl overflow-hidden bg-card/60 backdrop-blur-sm data-[state=open]:border-accent/40 data-[state=open]:shadow-[0_8px_28px_-16px_oklch(from_var(--accent)_l_c_h/0.45)] transition-all">
+      <AccordionTrigger className="px-5 py-4 md:py-5 hover:no-underline">
+        <div className="flex items-center gap-4 flex-1 min-w-0">
+          <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-accent/12 text-accent ring-1 ring-accent/20">
             {icon}
           </span>
           <div className="flex-1 min-w-0 text-left">
-            <p className="text-[15px] leading-tight font-medium text-foreground">{label}</p>
-            {hint && <p className="text-[12px] text-muted-foreground mt-0.5 truncate">{hint}</p>}
+            <p className="text-[15.5px] leading-tight font-semibold text-foreground tracking-tight">{label}</p>
+            {hint && <p className="text-[12.5px] text-muted-foreground mt-1 truncate">{hint}</p>}
           </div>
         </div>
       </AccordionTrigger>
-      <AccordionContent className="px-3 pb-4 pt-0">
+      <AccordionContent className="px-5 pb-5 pt-1">
         {children}
       </AccordionContent>
     </AccordionItem>
@@ -1805,7 +1917,8 @@ function WifiStrip({
 }) {
   const [revealed, setRevealed] = useState(false);
   const [copied, setCopied] = useState(false);
-  const isLight = theme === "light";
+  void theme;
+
   const showing = unlocked && revealed;
   const masked = password ? "•".repeat(Math.min(password.length, 12)) : "—";
 
@@ -1844,43 +1957,38 @@ function WifiStrip({
   }
 
   return (
-    <div className={`wifi-shimmer relative overflow-hidden rounded-2xl backdrop-blur-sm shadow-[0_8px_30px_-12px_oklch(from_var(--accent)_l_c_h/0.35)] ${
-      isLight
-        ? "bg-[linear-gradient(135deg,oklch(from_var(--card)_l_c_h/0.98)_0%,oklch(from_var(--card)_l_c_h/0.94)_60%,oklch(from_var(--card)_l_c_h/0.98)_100%)]"
-        : "bg-[linear-gradient(135deg,oklch(0.18_0.04_55/0.95)_0%,oklch(0.12_0.02_50/0.92)_60%,oklch(0.08_0.01_45/0.95)_100%)]"
-    }`}>
-      <div className="pointer-events-none absolute inset-0 opacity-[0.08] [background-image:radial-gradient(oklch(var(--accent))_1px,transparent_1px)] [background-size:14px_14px]" />
-      <div className="pointer-events-none absolute -top-10 -right-10 size-32 rounded-full bg-accent/20 blur-3xl" />
-      <div className="relative flex items-center gap-3.5 px-4 py-3.5">
-        <span className="relative grid size-10 shrink-0 place-items-center rounded-full bg-[radial-gradient(circle_at_30%_30%,oklch(var(--accent)/0.35),oklch(var(--accent)/0.05))] text-accent ring-1 ring-accent/45">
-          <span className="wifi-pulse pointer-events-none absolute inset-0 rounded-full bg-accent/25 blur-md" />
-          <Wifi className="relative size-[18px]" strokeWidth={1.75} />
+    <div className="wifi-shimmer relative overflow-hidden rounded-[22px] border border-amber-500/25 bg-[linear-gradient(135deg,oklch(0.96_0.05_75)_0%,oklch(0.93_0.07_72)_55%,oklch(0.9_0.09_68)_100%)] dark:bg-[linear-gradient(135deg,oklch(0.22_0.05_55/0.95)_0%,oklch(0.16_0.04_50/0.92)_60%,oklch(0.12_0.03_45/0.95)_100%)] shadow-[0_14px_40px_-18px_oklch(from_var(--accent)_l_c_h/0.55)]">
+      <div className="pointer-events-none absolute inset-0 opacity-[0.07] [background-image:radial-gradient(oklch(var(--accent))_1px,transparent_1px)] [background-size:14px_14px]" />
+      <div className="pointer-events-none absolute -top-12 -right-12 size-40 rounded-full bg-accent/25 blur-3xl" />
+      <div className="relative flex items-center gap-4 px-5 py-4 md:px-6 md:py-5">
+        <span className="relative grid size-14 shrink-0 place-items-center rounded-2xl bg-[radial-gradient(circle_at_30%_30%,oklch(var(--accent)/0.55),oklch(var(--accent)/0.15))] text-accent-foreground ring-1 ring-accent/45 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+          <span className="wifi-pulse pointer-events-none absolute inset-0 rounded-2xl bg-accent/25 blur-md" />
+          <Wifi className="relative size-[22px]" strokeWidth={1.9} />
         </span>
         <div className="flex-1 min-w-0">
-          <div className="flex items-baseline gap-2">
-            <p className="text-[9px] uppercase tracking-[0.32em] text-accent font-semibold">Senha do Wi-Fi</p>
-            <span className="h-px flex-1 bg-gradient-to-r from-accent/40 to-transparent" />
-          </div>
-          <p className="text-[13px] text-foreground/90 truncate font-medium mt-0.5">{ssid || "Rede da casa"}</p>
-          <p className={`font-mono text-[13px] tracking-[0.18em] mt-0.5 truncate ${showing ? "text-foreground font-semibold" : "text-foreground/85"}`}>
+          <p className="text-[10px] uppercase tracking-[0.32em] text-accent font-semibold">Senha do Wi-Fi</p>
+          <p className="text-[13px] text-foreground/85 truncate font-medium mt-0.5">{ssid || "Rede da casa"}</p>
+          <p className={`font-mono text-[16px] md:text-[18px] font-semibold tracking-[0.22em] mt-1 truncate ${showing ? "text-foreground" : "text-foreground/75"}`}>
             {password ? (showing ? password : masked) : "—"}
           </p>
         </div>
         {password && (
-          <div className="flex items-center gap-1.5 shrink-0">
+          <div className="flex flex-col items-end gap-2 shrink-0">
             <button
               onClick={copyPwd}
               aria-label="Copiar senha do Wi-Fi"
-              className="grid size-9 place-items-center rounded-full bg-secondary text-foreground hover:bg-secondary/80 transition-all"
+              className="inline-flex items-center gap-1.5 rounded-full bg-accent text-accent-foreground px-3.5 py-2 text-[12px] font-semibold tracking-wide hover:brightness-110 active:scale-95 transition-all shadow-[0_6px_18px_-6px_oklch(var(--accent)/0.65)]"
             >
-              {copied ? <Check className="size-4 text-accent" /> : <Copy className="size-4" />}
+              {copied ? <Check className="size-3.5" strokeWidth={2.4} /> : <Copy className="size-3.5" strokeWidth={2.4} />}
+              <span>{copied ? "Copiado" : "Copiar"}</span>
             </button>
             <button
               onClick={handleEyeClick}
               aria-label={showing ? "Ocultar senha do Wi-Fi" : "Visualizar senha do Wi-Fi"}
-              className="grid size-9 place-items-center rounded-full bg-accent text-accent-foreground hover:brightness-110 transition-all shadow-[0_4px_12px_-4px_oklch(var(--accent)/0.6)]"
+              className="inline-flex items-center gap-1.5 text-[11px] font-medium text-foreground/70 hover:text-foreground transition-colors"
             >
-              {showing ? <EyeOff className="size-4" strokeWidth={2} /> : <Eye className="size-4" strokeWidth={2} />}
+              {showing ? <EyeOff className="size-3" strokeWidth={2} /> : <Eye className="size-3" strokeWidth={2} />}
+              <span>{showing ? "Ocultar" : "Mostrar"}</span>
             </button>
           </div>
         )}
