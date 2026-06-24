@@ -844,6 +844,7 @@ export type Database = {
       subscriptions: {
         Row: {
           admin_notes: string | null
+          billing_anchor_day: number | null
           billing_paused: boolean
           cancel_at_period_end: boolean | null
           created_at: string | null
@@ -851,6 +852,7 @@ export type Database = {
           current_period_start: string | null
           custom_currency: string | null
           custom_price_cents: number | null
+          enterprise_request: boolean | null
           environment: string
           id: string
           is_manual: boolean
@@ -866,6 +868,7 @@ export type Database = {
         }
         Insert: {
           admin_notes?: string | null
+          billing_anchor_day?: number | null
           billing_paused?: boolean
           cancel_at_period_end?: boolean | null
           created_at?: string | null
@@ -873,6 +876,7 @@ export type Database = {
           current_period_start?: string | null
           custom_currency?: string | null
           custom_price_cents?: number | null
+          enterprise_request?: boolean | null
           environment?: string
           id?: string
           is_manual?: boolean
@@ -888,6 +892,7 @@ export type Database = {
         }
         Update: {
           admin_notes?: string | null
+          billing_anchor_day?: number | null
           billing_paused?: boolean
           cancel_at_period_end?: boolean | null
           created_at?: string | null
@@ -895,6 +900,7 @@ export type Database = {
           current_period_start?: string | null
           custom_currency?: string | null
           custom_price_cents?: number | null
+          enterprise_request?: boolean | null
           environment?: string
           id?: string
           is_manual?: boolean
