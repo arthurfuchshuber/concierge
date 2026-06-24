@@ -497,7 +497,7 @@ function CardTab({
     const useInline = !opts?.forceOverlay;
     setOpeningInline(true);
     if (useInline) {
-      // Reveal the container BEFORE opening Paddle.
+      // Revela o container ANTES de chamar o Paddle.
       setOpenedInline(true);
       await new Promise((r) => setTimeout(r, 50));
     }
@@ -505,24 +505,9 @@ function CardTab({
       await openCheckout({
         priceId: PLANS.starter.priceId,
         customerEmail: user.email ?? undefined,
-        customData: { userId: user.id, purpose: "card_validation" },
-        successUrl: `${window.location.origin}/admin/assinatura?checkout=success`,
+        customData: { userId: user.id },
         frameTarget: useInline ? "sigma-card-validation-checkout" : undefined,
       });
-
-      if (useInline) {
-        // Watchdog: if no iframe appears in the container within 6s, fallback to overlay.
-        setTimeout(() => {
-          const el = document.getElementById("sigma-card-validation-checkout");
-          const hasIframe = !!el?.querySelector("iframe");
-          if (!hasIframe) {
-            console.warn("[CardValidation] inline iframe never appeared — falling back to overlay");
-            setOpenedInline(false);
-            toast.info("Abrindo checkout em janela sobreposta…");
-            void startCardValidation({ forceOverlay: true });
-          }
-        }, 6000);
-      }
     } catch (e) {
       console.error("[CardValidation] failed to open Paddle checkout", e);
       const msg = e instanceof Error ? e.message : "erro desconhecido";
