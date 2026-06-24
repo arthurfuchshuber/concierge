@@ -1289,10 +1289,18 @@ function HeroCompact({
         </h1>
 
         <span className="mt-5 md:mt-7 block h-[2px] w-12 md:w-16 bg-accent" />
-        {tagline && (
-          <p className="mt-4 md:mt-5 text-[0.9rem] md:text-[1.05rem] leading-[1.55] text-white/85 md:max-w-[56ch] font-light">
-            {tagline}
-          </p>
+        {hasMany && (
+          <div className="mt-5 md:mt-7 flex gap-1.5">
+            {photos.map((_, i) => (
+              <button
+                key={i}
+                type="button"
+                onClick={() => setIdx(i)}
+                aria-label={`Ir para foto ${i + 1}`}
+                className={`h-1.5 rounded-full transition-all ${i === idx ? "w-6 bg-accent" : "w-1.5 bg-white/50 hover:bg-white/80"}`}
+              />
+            ))}
+          </div>
         )}
       </div>
 
@@ -1315,17 +1323,6 @@ function HeroCompact({
           >
             <ArrowRight className="size-4" />
           </button>
-          <div className="absolute bottom-20 md:bottom-28 left-0 right-0 z-10 flex justify-center gap-1.5">
-            {photos.map((_, i) => (
-              <button
-                key={i}
-                type="button"
-                onClick={() => setIdx(i)}
-                aria-label={`Ir para foto ${i + 1}`}
-                className={`h-1.5 rounded-full transition-all ${i === idx ? "w-6 bg-accent" : "w-1.5 bg-white/50 hover:bg-white/80"}`}
-              />
-            ))}
-          </div>
         </>
       )}
     </section>
