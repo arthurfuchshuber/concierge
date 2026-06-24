@@ -908,7 +908,7 @@ export type CityReferenceRow = {
 };
 
 const CITY_MIN_RATING = 4.0;
-const CITY_MIN_REVIEWS = 200;
+const CITY_MIN_REVIEWS = 80;
 const CITY_MAX_PER_TYPE = 25;
 
 // Busca textual SEM bias geográfico — usada internamente como fallback
