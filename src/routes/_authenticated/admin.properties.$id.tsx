@@ -897,7 +897,7 @@ function PropertyEditor() {
         </TabsContent>
 
         <TabsContent value="house" className="space-y-5 mt-6">
-          <Section icon={Clock} title="Horários" desc="Janelas de check-in e check-out.">
+          <Section icon={Clock} title="Horários" desc="Janelas de check-in e check-out." collapsible>
             <div className="grid grid-cols-2 gap-3">
               <Field label="Check-in a partir de"><TimePicker value={form.property.checkin_time} onChange={(v) => update("checkin_time", v)} placeholder="15:00" /></Field>
               <Field label="Check-in até" hint="opcional"><TimePicker value={form.property.checkin_time_max} onChange={(v) => update("checkin_time_max", v)} placeholder="22:00" /></Field>
