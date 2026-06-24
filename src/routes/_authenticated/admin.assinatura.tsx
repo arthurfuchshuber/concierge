@@ -492,28 +492,42 @@ function CardTab({
   const [openingInline, setOpeningInline] = useState(false);
   const [openedInline, setOpenedInline] = useState(false);
 
-  async function startCardValidation() {
+  async function startCardValidation(opts?: { forceOverlay?: boolean }) {
     if (!user) return;
+    const useInline = !opts?.forceOverlay;
     setOpeningInline(true);
-    // Reveal the container BEFORE opening Paddle — the SDK needs a visible
-    // mount node, otherwise the iframe is created but never rendered.
-    setOpenedInline(true);
-    // Allow React to flush the layout change before Paddle attaches.
-    await new Promise((r) => setTimeout(r, 50));
+    if (useInline) {
+      // Reveal the container BEFORE opening Paddle.
+      setOpenedInline(true);
+      await new Promise((r) => setTimeout(r, 50));
+    }
     try {
       await openCheckout({
         priceId: PLANS.starter.priceId,
         customerEmail: user.email ?? undefined,
         customData: { userId: user.id, purpose: "card_validation" },
         successUrl: `${window.location.origin}/admin/assinatura?checkout=success`,
-        frameTarget: "sigma-card-validation-checkout",
+        frameTarget: useInline ? "sigma-card-validation-checkout" : undefined,
       });
+
+      if (useInline) {
+        // Watchdog: if no iframe appears in the container within 6s, fallback to overlay.
+        setTimeout(() => {
+          const el = document.getElementById("sigma-card-validation-checkout");
+          const hasIframe = !!el?.querySelector("iframe");
+          if (!hasIframe) {
+            console.warn("[CardValidation] inline iframe never appeared — falling back to overlay");
+            setOpenedInline(false);
+            toast.info("Abrindo checkout em janela sobreposta…");
+            void startCardValidation({ forceOverlay: true });
+          }
+        }, 6000);
+      }
     } catch (e) {
-      console.error("[CardValidation] failed to open Paddle inline checkout", e);
+      console.error("[CardValidation] failed to open Paddle checkout", e);
       const msg = e instanceof Error ? e.message : "erro desconhecido";
       toast.error(`Não consegui abrir o checkout: ${msg}`);
       setOpenedInline(false);
-
     } finally {
       setOpeningInline(false);
     }
@@ -556,7 +570,7 @@ function CardTab({
               {!openedInline && (
                 <div className="mt-4 flex flex-wrap gap-2">
                   <Button
-                    onClick={startCardValidation}
+                    onClick={() => startCardValidation()}
                     disabled={!user || openingInline}
                     className="rounded-full"
                   >
