@@ -1491,13 +1491,13 @@ function PropertyEditor() {
                 previewMode === "desktop"
                   ? "p-0 gap-0 overflow-hidden border-0 bg-transparent shadow-none sm:max-w-[1100px] w-[min(95vw,1100px)] [&>button]:hidden"
                   : previewMode === "mobile"
-                  ? "p-0 gap-0 overflow-hidden border-0 bg-transparent shadow-none sm:max-w-[400px] w-[min(92vw,400px)] [&>button]:hidden"
+                  ? "p-0 gap-0 overflow-visible border-0 bg-transparent shadow-none sm:max-w-[340px] w-[min(82vw,340px)] [&>button]:hidden"
                   : "p-0 gap-0 overflow-hidden sm:max-w-[420px] w-[min(92vw,420px)] [&>button]:hidden"
               }
             >
               <DialogTitle className="sr-only">Pré-visualização do guia</DialogTitle>
               {previewMode === null ? (
-                <div className="p-6 bg-background">
+                <div className="p-6 bg-background rounded-2xl border border-border shadow-xl">
                   <div className="text-center mb-5">
                     <h3 className="font-display text-xl">Como deseja visualizar?</h3>
                     <p className="text-xs text-muted-foreground mt-1">Escolha o modo de pré-visualização do guia.</p>
@@ -1530,14 +1530,47 @@ function PropertyEditor() {
                     Cancelar
                   </button>
                 </div>
+              ) : previewMode === "mobile" ? (
+                <div className="relative mx-auto" style={{ width: "100%" }}>
+                  {/* Phone bezel */}
+                  <div className="relative rounded-[2.4rem] bg-neutral-900 p-2.5 shadow-[0_40px_90px_-25px_rgba(0,0,0,0.6)] ring-1 ring-white/10">
+                    {/* Notch */}
+                    <div className="absolute top-1 left-1/2 -translate-x-1/2 z-10 h-5 w-24 rounded-b-2xl bg-neutral-900" />
+                    <div className="flex flex-col h-[78vh] max-h-[720px] overflow-hidden rounded-[1.7rem] bg-background">
+                      <div className="flex items-center justify-between gap-2 px-3 h-7 bg-background/95 backdrop-blur border-b border-border/40 shrink-0">
+                        <span className="inline-flex size-1.5 rounded-full bg-emerald-500/80" />
+                        <p className="text-[10px] font-medium text-muted-foreground/80 truncate flex-1">/g/{previewSlug}</p>
+                        <button
+                          type="button"
+                          onClick={() => setPreviewMode(null)}
+                          aria-label="Trocar modo"
+                          className="h-5 px-1.5 inline-flex items-center rounded-full text-[9px] uppercase tracking-wider font-medium text-muted-foreground/70 hover:text-foreground hover:bg-muted transition-colors"
+                        >
+                          Mobile
+                        </button>
+                      </div>
+                      <iframe
+                        src={`/g/${previewSlug}`}
+                        title="Pré-visualização do guia"
+                        className="w-full flex-1 border-0 bg-background"
+                      />
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setPreviewOpen(false)}
+                    aria-label="Fechar"
+                    className="absolute -top-2 -right-2 size-8 grid place-items-center rounded-full bg-background border border-border text-foreground/80 hover:text-foreground hover:bg-secondary shadow-lg transition-colors"
+                  >
+                    <X className="size-4" />
+                  </button>
+                </div>
               ) : (
-                <div className={`flex flex-col ${previewMode === "desktop" ? "h-[85vh] max-h-[820px] rounded-2xl" : "h-[85vh] max-h-[820px] rounded-[2rem]"} overflow-hidden bg-background shadow-[0_30px_80px_-20px_rgba(0,0,0,0.45)] ring-1 ring-black/10`}>
+                <div className="flex flex-col h-[85vh] max-h-[820px] rounded-2xl overflow-hidden bg-background shadow-[0_30px_80px_-20px_rgba(0,0,0,0.45)] ring-1 ring-black/10">
                   <div className="flex items-center justify-between gap-3 px-4 h-9 bg-background/95 backdrop-blur border-b border-border/40 shrink-0">
                     <div className="flex items-center gap-2 min-w-0">
                       <span className="inline-flex size-1.5 rounded-full bg-emerald-500/80" />
-                      <p className="text-[11px] font-medium text-muted-foreground/80 truncate">
-                        /g/{previewSlug}
-                      </p>
+                      <p className="text-[11px] font-medium text-muted-foreground/80 truncate">/g/{previewSlug}</p>
                     </div>
                     <div className="flex items-center gap-1">
                       <button
@@ -1546,7 +1579,7 @@ function PropertyEditor() {
                         aria-label="Trocar modo"
                         className="h-6 px-2 inline-flex items-center rounded-full text-[10px] uppercase tracking-wider font-medium text-muted-foreground/70 hover:text-foreground hover:bg-muted transition-colors"
                       >
-                        {previewMode === "mobile" ? "Mobile" : "Navegador"}
+                        Navegador
                       </button>
                       <button
                         type="button"
