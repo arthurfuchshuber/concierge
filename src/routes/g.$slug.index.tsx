@@ -1380,7 +1380,7 @@ function ThemeCard({
           </h3>
           <p
             className={
-              "mt-1 text-[11px] sm:text-[12px] md:text-[12.5px] leading-[1.45] line-clamp-2 max-w-[34ch] " +
+              "mt-1 text-[11px] sm:text-[12px] md:text-[12.5px] leading-[1.45] truncate " +
               (isLight ? "text-muted-foreground" : "text-white/65")
             }
           >
