@@ -456,6 +456,7 @@ function Guide({ data }: { data: GuideOk }) {
                     hasAccessRec={!!accessRec}
                     gateEnabled={gateEnabled}
                     theme={theme}
+                    checkinInstructions={p.checkin_instructions as string | null}
                   />
                 </div>
               )}
