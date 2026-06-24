@@ -1468,7 +1468,9 @@ function PropertyEditor() {
               );
             })}
           </Section>
+          </SectionGroup>
         </TabsContent>
+
 
       </Tabs>
 
