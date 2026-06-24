@@ -1336,12 +1336,15 @@ function PropertyEditor() {
               </ItemCard>
             ))}
           </Section>
+          </SectionGroup>
         </TabsContent>
 
         <TabsContent value="extras" className="space-y-5 mt-6">
+          <SectionGroup>
           <Section
             icon={Phone}
             title="Emergências"
+
             desc="Telefones úteis em caso de urgência."
             action={<AddBtn onClick={() => setForm((f) => ({ ...f, emergency: [...f.emergency, { label: "", number: "" }] }))} />}
           >
