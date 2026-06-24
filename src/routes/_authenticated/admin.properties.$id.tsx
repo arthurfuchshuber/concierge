@@ -311,6 +311,51 @@ function PropertyEditor() {
     setForm((f) => ({ ...f, property: { ...f.property, [key]: value } }));
   }
 
+  const normalizeRecName = (s: string) =>
+    s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, " ").trim();
+
+  const cityRefToRec = (r: Record<string, unknown>): RecItem => ({
+    scope: "city",
+    type: (r.type as string) || "other",
+    name: (r.name as string) || "",
+    category: (r.category as string | null) ?? null,
+    rating: (r.rating as number | null) ?? null,
+    user_ratings_total: (r.user_ratings_total as number | null) ?? null,
+    distance_text: null,
+    distance_meters: null,
+    drive_minutes: null,
+    walk_minutes: null,
+    opening_hours: (r.opening_hours as string[] | null) ?? null,
+    note: (r.note as string | null) ?? null,
+    image_url: (r.image_url as string | null) ?? null,
+    maps_url: (r.maps_url as string | null) ?? null,
+    place_id: (r.place_id as string | null) ?? null,
+  });
+
+  async function fetchGeneratedCityRecommendations(input: { city_label: string; state: string | null; country: string }) {
+    const result = await generateCityRefs({ data: input });
+    const listed = await listGeneratedCityRefs({ data: { ...input, includeHidden: false } });
+    const generated = ((listed.items ?? []) as Array<Record<string, unknown>>)
+      .filter((r) => !(r.is_hidden as boolean | undefined))
+      .map(cityRefToRec)
+      .filter((r) => r.name.trim().length > 0);
+    return { result, generated };
+  }
+
+  function mergeCityRecommendations(current: RecItem[], generated: RecItem[]) {
+    let added = 0;
+    const seen = new Set(current.map((r) => r.place_id ? `id:${r.place_id}` : `name:${normalizeRecName(r.name)}`));
+    const merged = [...current];
+    for (const rec of generated) {
+      const key = rec.place_id ? `id:${rec.place_id}` : `name:${normalizeRecName(rec.name)}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      merged.push(rec);
+      added += 1;
+    }
+    return { merged, added };
+  }
+
   async function handleEnrich() {
     if (!form.property.maps_url) {
       toast.error("Cole o link do Google Maps primeiro");
@@ -319,6 +364,20 @@ function PropertyEditor() {
     setEnriching(true);
     try {
       const r = await enrich({ data: { mapsUrl: form.property.maps_url } });
+      let generatedCity: RecItem[] = [];
+      const cityForGeneration = (r.city || form.property.city).trim();
+      if (cityForGeneration) {
+        try {
+          const generated = await fetchGeneratedCityRecommendations({
+            city_label: cityForGeneration,
+            state: (r.state || form.property.state || "").trim() || null,
+            country: (r.country || form.property.country || "BR").trim() || "BR",
+          });
+          generatedCity = generated.generated;
+        } catch (cityError) {
+          console.warn("[CityRefs] auto-fill city generation skipped", cityError);
+        }
+      }
       setForm((f) => ({
         ...f,
         property: {
@@ -333,30 +392,32 @@ function PropertyEditor() {
           hero_image_url: f.property.hero_image_url || r.hero_image_url || f.property.hero_image_url,
           gallery_images: f.property.gallery_images.length ? f.property.gallery_images : (r.gallery_images ?? []).slice(0, 4),
         },
-        recommendations: [
-          // Preserva os itens "Pela cidade" já existentes (não foram regerados).
-          ...f.recommendations.filter((x) => x.scope === "city"),
-          ...r.recommendations.map((rec) => ({
-            scope: rec.scope,
-            type: rec.type,
-            name: rec.name,
-            category: rec.category,
-            rating: rec.rating,
-            user_ratings_total: rec.user_ratings_total,
-            distance_text: rec.distance_text,
-            distance_meters: rec.distance_meters,
-            drive_minutes: rec.drive_minutes,
-            walk_minutes: rec.walk_minutes,
-            opening_hours: rec.opening_hours,
-            image_url: rec.image_url,
-            maps_url: rec.maps_url,
-            place_id: rec.place_id,
-            note: rec.note,
-          })),
-        ],
+        recommendations: (() => {
+          const cityMerge = mergeCityRecommendations(f.recommendations.filter((x) => x.scope === "city"), generatedCity);
+          return [
+            ...cityMerge.merged,
+            ...r.recommendations.map((rec) => ({
+              scope: rec.scope,
+              type: rec.type,
+              name: rec.name,
+              category: rec.category,
+              rating: rec.rating,
+              user_ratings_total: rec.user_ratings_total,
+              distance_text: rec.distance_text,
+              distance_meters: rec.distance_meters,
+              drive_minutes: rec.drive_minutes,
+              walk_minutes: rec.walk_minutes,
+              opening_hours: rec.opening_hours,
+              image_url: rec.image_url,
+              maps_url: rec.maps_url,
+              place_id: rec.place_id,
+              note: rec.note,
+            })),
+          ];
+        })(),
       }));
       const nearby = r.recommendations.filter((x) => x.scope === "nearby").length;
-      const city = r.recommendations.filter((x) => x.scope === "city").length;
+      const city = generatedCity.length;
       const extras: string[] = [];
       if (r.tagline) extras.push("descrição");
       if (r.hero_image_url) extras.push("foto de capa");
@@ -382,43 +443,14 @@ function PropertyEditor() {
         state: form.property.state?.trim() || null,
         country: form.property.country?.trim() || "BR",
       };
-      const result = await generateCityRefs({ data: request });
-      const listed = await listGeneratedCityRefs({ data: { ...request, includeHidden: false } });
-      const generated = ((listed.items ?? []) as Array<Record<string, unknown>>)
-        .filter((r) => !(r.is_hidden as boolean | undefined))
-        .map((r): RecItem => ({
-          scope: "city",
-          type: (r.type as string) || "other",
-          name: (r.name as string) || "",
-          category: (r.category as string | null) ?? null,
-          rating: (r.rating as number | null) ?? null,
-          user_ratings_total: (r.user_ratings_total as number | null) ?? null,
-          distance_text: null,
-          distance_meters: null,
-          drive_minutes: null,
-          walk_minutes: null,
-          opening_hours: (r.opening_hours as string[] | null) ?? null,
-          note: (r.note as string | null) ?? null,
-          image_url: (r.image_url as string | null) ?? null,
-          maps_url: (r.maps_url as string | null) ?? null,
-          place_id: (r.place_id as string | null) ?? null,
-        }))
-        .filter((r) => r.name.trim().length > 0);
+      const { result, generated } = await fetchGeneratedCityRecommendations(request);
 
       let added = 0;
       setForm((f) => {
-        const normalize = (s: string) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, " ").trim();
         const nearby = f.recommendations.filter((r) => r.scope === "nearby");
         const currentCity = f.recommendations.filter((r) => r.scope === "city");
-        const seen = new Set(currentCity.map((r) => r.place_id ? `id:${r.place_id}` : `name:${normalize(r.name)}`));
-        const merged = [...currentCity];
-        for (const rec of generated) {
-          const key = rec.place_id ? `id:${rec.place_id}` : `name:${normalize(rec.name)}`;
-          if (seen.has(key)) continue;
-          seen.add(key);
-          merged.push(rec);
-          added += 1;
-        }
+        const cityMerge = mergeCityRecommendations(currentCity, generated);
+        added = cityMerge.added;
         return { ...f, recommendations: [...nearby, ...merged] };
       });
 
