@@ -1273,10 +1273,21 @@ function PropertyEditor() {
             scope="city"
             lat={form.property.lat}
             lng={form.property.lng}
-            onGenerate={handleGenerateCityRecommendations}
+            onGenerate={() => setGenCityModeOpen(true)}
             generating={generatingCityRecs}
             onReplicate={cityRecs.length > 0 && !isNew ? () => setCopyRecsOpen(true) : undefined}
           />
+
+          {genCityModeOpen && (
+            <GenerateModeDialog
+              hasExisting={cityRecs.length > 0}
+              onClose={() => setGenCityModeOpen(false)}
+              onPick={(mode) => {
+                setGenCityModeOpen(false);
+                void handleGenerateCityRecommendations(mode);
+              }}
+            />
+          )}
 
           {copyRecsOpen && !isNew && (
             <CopyRecsDialog
@@ -1287,6 +1298,7 @@ function PropertyEditor() {
               onClose={() => setCopyRecsOpen(false)}
             />
           )}
+
 
 
           <Section
