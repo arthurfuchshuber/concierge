@@ -8,6 +8,11 @@ import {
   checkIsAdmin,
   type AdminCustomerRow,
 } from "@/lib/admin-subs.functions";
+import {
+  adminCreateEnterpriseSubscription,
+  adminAnchorSubscriptionToDay1,
+  adminCancelEnterpriseSubscription,
+} from "@/lib/admin-enterprise.functions";
 import { PLANS, type PlanKey } from "@/lib/payments.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,7 +34,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Search, Users, Pencil, Loader2, Shield } from "lucide-react";
+import { Search, Users, Pencil, Loader2, Shield, Crown, Anchor, Ban, Calendar } from "lucide-react";
 import { DatePicker } from "@/components/ui/date-picker";
 import { toast } from "sonner";
 
@@ -597,6 +602,14 @@ function EditDialog({
               rows={3}
             />
           </div>
+
+          {plan === "enterprise" && (
+            <EnterpriseSection
+              customer={customer}
+              environment={environment}
+              defaultAmountCents={s?.customPriceCents ?? null}
+            />
+          )}
         </div>
 
         <DialogFooter>
@@ -649,5 +662,178 @@ function StatusBadge({ status }: { status?: string | null }) {
       <span className={`size-1.5 rounded-full ${info.dot}`} />
       {info.label}
     </span>
+  );
+}
+
+function EnterpriseSection({
+  customer,
+  environment,
+  defaultAmountCents,
+}: {
+  customer: AdminCustomerRow;
+  environment: "sandbox" | "live";
+  defaultAmountCents: number | null;
+}) {
+  const createFn = useServerFn(adminCreateEnterpriseSubscription);
+  const anchorFn = useServerFn(adminAnchorSubscriptionToDay1);
+  const cancelFn = useServerFn(adminCancelEnterpriseSubscription);
+
+  const s = customer.subscription;
+  const paddleSubId = s?.paddleSubscriptionId ?? "";
+  const hasRealSub = paddleSubId.startsWith("sub_");
+
+  const [amount, setAmount] = useState(
+    defaultAmountCents != null ? (defaultAmountCents / 100).toString() : "",
+  );
+  const [trial, setTrial] = useState("7");
+  const [busy, setBusy] = useState<"create" | "anchor" | "cancel-soft" | "cancel-now" | null>(null);
+
+  async function handleCreate() {
+    if (!customer.email) {
+      toast.error("Cliente sem email cadastrado.");
+      return;
+    }
+    const cents = Math.round(parseFloat(amount.replace(",", ".")) * 100);
+    if (!cents || cents < 70) {
+      toast.error("Valor inválido (mínimo R$ 0,70)");
+      return;
+    }
+    const trialDays = parseInt(trial, 10);
+    if (Number.isNaN(trialDays) || trialDays < 0 || trialDays > 90) {
+      toast.error("Trial inválido (0-90 dias)");
+      return;
+    }
+    setBusy("create");
+    try {
+      const res = await createFn({
+        data: {
+          email: customer.email,
+          monthlyAmountBRLCents: cents,
+          trialDays,
+          environment,
+        },
+      });
+      toast.success(`Assinatura Enterprise criada. Transaction ${res.transactionId}.`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erro ao criar assinatura");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function handleAnchor() {
+    setBusy("anchor");
+    try {
+      const r = await anchorFn({ data: { paddleSubscriptionId: paddleSubId, environment } });
+      toast.success(`Cobrança ancorada para ${new Date(r.anchoredTo).toLocaleDateString("pt-BR")}`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erro ao ancorar");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function handleCancel(immediate: boolean) {
+    if (!confirm(immediate ? "Cancelar imediatamente?" : "Cancelar no fim do período atual?")) return;
+    setBusy(immediate ? "cancel-now" : "cancel-soft");
+    try {
+      await cancelFn({ data: { paddleSubscriptionId: paddleSubId, environment, immediate } });
+      toast.success("Cancelamento solicitado");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erro ao cancelar");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  return (
+    <div className="sm:col-span-2 rounded-xl border border-accent/30 bg-accent/5 p-4 space-y-3">
+      <div className="flex items-center gap-2 text-accent font-semibold text-sm">
+        <Crown className="size-4" /> Regras Enterprise
+      </div>
+      <p className="text-xs text-muted-foreground">
+        Cobrança recorrente todo dia 1 do mês. A primeira cobrança após o trial é proporcional aos dias até o próximo dia 1.
+        O cliente precisa ter cartão cadastrado no Paddle antes de criar a assinatura.
+      </p>
+
+      {!hasRealSub && (
+        <div className="space-y-3 pt-1">
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label className="text-xs">Valor mensal (R$)</Label>
+              <Input
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                placeholder="230.00"
+                inputMode="decimal"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Trial (dias)</Label>
+              <Input
+                type="number"
+                min="0"
+                max="90"
+                value={trial}
+                onChange={(e) => setTrial(e.target.value)}
+              />
+            </div>
+          </div>
+          <Button
+            type="button"
+            onClick={handleCreate}
+            disabled={busy === "create"}
+            className="w-full"
+          >
+            {busy === "create" ? (
+              <Loader2 className="size-4 animate-spin mr-1.5" />
+            ) : (
+              <Crown className="size-4 mr-1.5" />
+            )}
+            Criar assinatura Enterprise no Paddle
+          </Button>
+        </div>
+      )}
+
+      {hasRealSub && (
+        <div className="space-y-2 pt-1">
+          <div className="text-xs text-muted-foreground font-mono break-all">
+            {paddleSubId}
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleAnchor}
+              disabled={busy === "anchor"}
+            >
+              {busy === "anchor" ? <Loader2 className="size-3 animate-spin mr-1.5" /> : <Anchor className="size-3 mr-1.5" />}
+              Ancorar dia 1
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => handleCancel(false)}
+              disabled={busy === "cancel-soft" || s?.status === "canceled"}
+            >
+              {busy === "cancel-soft" ? <Loader2 className="size-3 animate-spin mr-1.5" /> : <Calendar className="size-3 mr-1.5" />}
+              Cancelar fim do período
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => handleCancel(true)}
+              disabled={busy === "cancel-now" || s?.status === "canceled"}
+            >
+              {busy === "cancel-now" ? <Loader2 className="size-3 animate-spin mr-1.5" /> : <Ban className="size-3 mr-1.5" />}
+              Cancelar agora
+            </Button>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
