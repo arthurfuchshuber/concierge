@@ -1224,35 +1224,35 @@ function PropertyEditor() {
 
         <TabsContent value="recs" className="space-y-5 mt-6">
           <SectionGroup>
-          <div className="rounded-xl border border-dashed border-border/70 bg-muted/30 px-4 py-3 text-xs text-muted-foreground leading-relaxed space-y-2">
-
-            <p>
-              Recomendações vêm do Google Maps. Edite, remova ou adicione manualmente. <span className="text-foreground/80">Sincronizamos automaticamente uma vez por dia.</span>
+          <div className="flex items-center gap-3 rounded-xl border border-dashed border-border/70 bg-muted/30 px-3.5 py-2.5">
+            <p className="flex-1 text-[11px] text-muted-foreground leading-snug">
+              Recomendações vêm do Google Maps. <span className="text-foreground/80">Sincronizamos 1×/dia.</span>
             </p>
-            <div className="flex justify-end">
-              <Button
-                type="button"
-                variant="secondary"
-                size="sm"
-                disabled={refreshingGoogle || isNew}
-                onClick={async () => {
-                  if (isNew) return;
-                  setRefreshingGoogle(true);
-                  try {
-                    const r = await refreshGoogle({ data: { propertyId: id } });
-                    toast.success(`Atualizado ${r.updated}/${r.total} do Google${r.failed ? ` · ${r.failed} sem retorno` : ""}`);
-                  } catch (e) {
-                    toast.error(e instanceof Error ? e.message : "Falha ao sincronizar");
-                  } finally {
-                    setRefreshingGoogle(false);
-                  }
-                }}
-              >
-                {refreshingGoogle ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}
-                <span className="ml-1.5">{refreshingGoogle ? "Sincronizando…" : "Atualizar do Google"}</span>
-              </Button>
-            </div>
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              className="h-8 rounded-full text-xs shrink-0"
+              disabled={refreshingGoogle || isNew}
+              onClick={async () => {
+                if (isNew) return;
+                setRefreshingGoogle(true);
+                try {
+                  const r = await refreshGoogle({ data: { propertyId: id } });
+                  toast.success(`Atualizado ${r.updated}/${r.total} do Google${r.failed ? ` · ${r.failed} sem retorno` : ""}`);
+                } catch (e) {
+                  toast.error(e instanceof Error ? e.message : "Falha ao sincronizar");
+                } finally {
+                  setRefreshingGoogle(false);
+                }
+              }}
+            >
+              {refreshingGoogle ? <Loader2 className="size-3.5 animate-spin" /> : <RefreshCw className="size-3.5" />}
+              <span className="ml-1.5 hidden sm:inline">{refreshingGoogle ? "Sincronizando…" : "Atualizar"}</span>
+              <span className="ml-1.5 sm:hidden">Sync</span>
+            </Button>
           </div>
+
 
 
           {/* Pontos icônicos da cidade agora vivem dentro do card "Pela cidade" abaixo. */}
