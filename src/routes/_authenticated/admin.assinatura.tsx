@@ -585,7 +585,11 @@ function CardTab({
               )}
               <div
                 id="sigma-card-validation-checkout"
-                className={openedInline ? "mt-4 rounded-xl min-h-[520px] bg-background/40" : "hidden"}
+                className={
+                  openedInline
+                    ? "sigma-card-validation-checkout mt-4 rounded-xl min-h-[520px] bg-background/40 overflow-hidden"
+                    : "sigma-card-validation-checkout hidden"
+                }
               />
               {openedInline && (
                 <p className="mt-2 text-[11px] text-muted-foreground">
