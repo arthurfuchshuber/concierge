@@ -5,10 +5,10 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
-  --font-sans: "Plus Jakarta Sans", "Inter", ui-sans-serif, system-ui, sans-serif;
-  --font-serif: "DM Serif Display", "Cormorant Garamond", Georgia, ui-serif, serif;
-  --font-display: "Plus Jakarta Sans", "Inter", ui-sans-serif, system-ui, sans-serif;
-  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+  --font-sans: "Geist", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "Geist", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Geist", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, monospace;
 
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
@@ -129,12 +129,12 @@
     font-feature-settings: "kern", "liga", "calt";
   }
 
-  /* SaaS display headings — Plus Jakarta Sans, bold, tight tracking */
+  /* SaaS display headings — Geist, clean, premium and highly legible */
   .font-display {
-    font-family: "Plus Jakarta Sans", "Inter", ui-sans-serif, system-ui, sans-serif;
-    font-weight: 700;
-    letter-spacing: -0.025em;
-    line-height: 1.1;
+    font-family: var(--font-display);
+    font-weight: 650;
+    letter-spacing: 0;
+    line-height: 1.04;
     font-feature-settings: "kern", "liga", "calt", "ss01";
   }
 
@@ -145,15 +145,21 @@
   .md\:text-4xl.font-display,
   .md\:text-5xl.font-display {
     font-weight: 800;
-    letter-spacing: -0.03em;
+    letter-spacing: 0;
   }
 
-  /* Editorial serif — kept for the public guest guide only */
+  /* Legacy class name, now mapped to Geist for a premium SaaS feel */
   .font-serif {
     font-family: var(--font-serif);
-    letter-spacing: -0.02em;
-    font-weight: 400;
-    font-feature-settings: "kern", "liga", "calt", "onum";
+    letter-spacing: 0;
+    font-weight: 680;
+    line-height: 1.04;
+    font-feature-settings: "kern", "liga", "calt", "ss01";
+  }
+
+  .sigma-public-guide .font-serif,
+  .sigma-public-guide .font-display {
+    letter-spacing: 0 !important;
   }
 
   .sigma-public-guide {
@@ -170,19 +176,19 @@
     --primary: oklch(0.985 0.008 80);
   }
 
-  /* Tema branco gelo — claro, suave, levemente quente, mais editorial */
+  /* Tema branco gelo — claro, preciso e com acabamento SaaS premium */
   .sigma-public-guide.theme-light {
-    --background: oklch(0.992 0.004 85);
-    --foreground: oklch(0.18 0.012 50);
-    --card: oklch(1 0 0);
-    --card-foreground: oklch(0.18 0.012 50);
-    --muted-foreground: oklch(0.42 0.012 60);
-    --accent: oklch(0.52 0.13 50);
-    --accent-foreground: oklch(0.992 0.004 85);
-    --border: oklch(0.88 0.008 80);
-    --secondary: oklch(0.96 0.008 80);
-    --muted: oklch(0.965 0.006 80);
-    --primary: oklch(0.18 0.012 50);
+    --background: oklch(0.988 0.003 250);
+    --foreground: oklch(0.18 0.018 255);
+    --card: oklch(1 0 0 / 0.96);
+    --card-foreground: oklch(0.18 0.018 255);
+    --muted-foreground: oklch(0.46 0.018 255);
+    --accent: oklch(0.63 0.13 65);
+    --accent-foreground: oklch(0.16 0.018 255);
+    --border: oklch(0.84 0.012 250);
+    --secondary: oklch(0.95 0.008 250);
+    --muted: oklch(0.955 0.007 250);
+    --primary: oklch(0.18 0.018 255);
   }
 
   .font-mono {
