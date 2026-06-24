@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { getMyProperty, upsertProperty, listMyProperties, listMyPropertiesBrief, copyCityRecsToProperties } from "@/lib/properties.functions";
 import { listHostFaqs } from "@/lib/host-library.functions";
@@ -694,6 +694,7 @@ function PropertyEditor() {
 
 
         <TabsContent value="basics" className="space-y-5 mt-6">
+          <SectionGroup>
           <Section
             icon={Sparkles}
             tone="accent"
@@ -844,10 +845,13 @@ function PropertyEditor() {
             </Field>
           </Section>
 
+          </SectionGroup>
         </TabsContent>
 
         <TabsContent value="access" className="space-y-5 mt-6">
+          <SectionGroup>
           <Section icon={Shield} title="Modo de acesso" desc="Quem pode visualizar este guia.">
+
             <Field label="Modo de acesso do Guia">
               <Select value={form.property.access_mode} onValueChange={(v) => update("access_mode", v as "public" | "pin")}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
@@ -896,10 +900,13 @@ function PropertyEditor() {
             </div>
             <Switch checked={form.property.published} onCheckedChange={(v) => update("published", v)} />
           </div>
+          </SectionGroup>
         </TabsContent>
 
         <TabsContent value="house" className="space-y-5 mt-6">
+          <SectionGroup>
           <Section icon={Clock} title="Horários" desc="Janelas de check-in e check-out." collapsible>
+
             <div className="grid grid-cols-2 gap-3">
               <Field label="Check-in a partir de"><TimePicker value={form.property.checkin_time} onChange={(v) => update("checkin_time", v)} placeholder="15:00" /></Field>
               <Field label="Check-in até" hint="opcional"><TimePicker value={form.property.checkin_time_max} onChange={(v) => update("checkin_time_max", v)} placeholder="22:00" /></Field>
@@ -1115,14 +1122,14 @@ function PropertyEditor() {
             </div>
           </Section>
 
-          <Section icon={Wifi} title="Wi-Fi" collapsible>
+          <Section icon={Wifi} title="Wi-Fi" desc="Rede e senha exibidas no card de Wi-Fi do guia público." collapsible>
             <div className="grid grid-cols-2 gap-3">
               <Field label="Rede (SSID)"><Input value={form.property.wifi_ssid} maxLength={64} onChange={(e) => update("wifi_ssid", e.target.value)} /></Field>
               <Field label="Senha"><Input value={form.property.wifi_password} maxLength={64} onChange={(e) => update("wifi_password", e.target.value)} /></Field>
             </div>
           </Section>
 
-          <Section icon={UserRound} title="Contato do anfitrião" collapsible>
+          <Section icon={UserRound} title="Contato do anfitrião" desc="Nome e WhatsApp para que o hóspede possa falar com você." collapsible>
             <div className="grid grid-cols-2 gap-3">
               <Field label="Nome"><Input value={form.property.host_name} maxLength={120} onChange={(e) => update("host_name", e.target.value)} /></Field>
               <Field label="Telefone (WhatsApp)"><Input value={form.property.host_phone} maxLength={40} onChange={(e) => update("host_phone", e.target.value)} /></Field>
@@ -1212,37 +1219,40 @@ function PropertyEditor() {
               </ItemCard>
             ))}
           </Section>
+          </SectionGroup>
         </TabsContent>
 
         <TabsContent value="recs" className="space-y-5 mt-6">
-          <div className="rounded-xl border border-dashed border-border/70 bg-muted/30 px-4 py-3 text-xs text-muted-foreground leading-relaxed space-y-2">
-            <p>
-              Recomendações vêm do Google Maps. Edite, remova ou adicione manualmente. <span className="text-foreground/80">Sincronizamos automaticamente uma vez por dia.</span>
+          <SectionGroup>
+          <div className="flex items-center gap-3 rounded-xl border border-dashed border-border/70 bg-muted/30 px-3.5 py-2.5">
+            <p className="flex-1 text-[11px] text-muted-foreground leading-snug">
+              Recomendações vêm do Google Maps. <span className="text-foreground/80">Sincronizamos 1×/dia.</span>
             </p>
-            <div className="flex justify-end">
-              <Button
-                type="button"
-                variant="secondary"
-                size="sm"
-                disabled={refreshingGoogle || isNew}
-                onClick={async () => {
-                  if (isNew) return;
-                  setRefreshingGoogle(true);
-                  try {
-                    const r = await refreshGoogle({ data: { propertyId: id } });
-                    toast.success(`Atualizado ${r.updated}/${r.total} do Google${r.failed ? ` · ${r.failed} sem retorno` : ""}`);
-                  } catch (e) {
-                    toast.error(e instanceof Error ? e.message : "Falha ao sincronizar");
-                  } finally {
-                    setRefreshingGoogle(false);
-                  }
-                }}
-              >
-                {refreshingGoogle ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}
-                <span className="ml-1.5">{refreshingGoogle ? "Sincronizando…" : "Atualizar do Google"}</span>
-              </Button>
-            </div>
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              className="h-8 rounded-full text-xs shrink-0"
+              disabled={refreshingGoogle || isNew}
+              onClick={async () => {
+                if (isNew) return;
+                setRefreshingGoogle(true);
+                try {
+                  const r = await refreshGoogle({ data: { propertyId: id } });
+                  toast.success(`Atualizado ${r.updated}/${r.total} do Google${r.failed ? ` · ${r.failed} sem retorno` : ""}`);
+                } catch (e) {
+                  toast.error(e instanceof Error ? e.message : "Falha ao sincronizar");
+                } finally {
+                  setRefreshingGoogle(false);
+                }
+              }}
+            >
+              {refreshingGoogle ? <Loader2 className="size-3.5 animate-spin" /> : <RefreshCw className="size-3.5" />}
+              <span className="ml-1.5 hidden sm:inline">{refreshingGoogle ? "Sincronizando…" : "Atualizar"}</span>
+              <span className="ml-1.5 sm:hidden">Sync</span>
+            </Button>
           </div>
+
 
 
           {/* Pontos icônicos da cidade agora vivem dentro do card "Pela cidade" abaixo. */}
@@ -1326,12 +1336,15 @@ function PropertyEditor() {
               </ItemCard>
             ))}
           </Section>
+          </SectionGroup>
         </TabsContent>
 
         <TabsContent value="extras" className="space-y-5 mt-6">
+          <SectionGroup>
           <Section
             icon={Phone}
             title="Emergências"
+
             desc="Telefones úteis em caso de urgência."
             action={<AddBtn onClick={() => setForm((f) => ({ ...f, emergency: [...f.emergency, { label: "", number: "" }] }))} />}
           >
@@ -1455,7 +1468,9 @@ function PropertyEditor() {
               );
             })}
           </Section>
+          </SectionGroup>
         </TabsContent>
+
 
       </Tabs>
 
@@ -1669,7 +1684,20 @@ function PropertyEditor() {
 
 type IconType = React.ComponentType<{ className?: string; strokeWidth?: number }>;
 
+const SectionGroupContext = React.createContext<{
+  openId: string | null;
+  setOpenId: (id: string | null) => void;
+} | null>(null);
+
+function SectionGroup({ children, defaultOpenId = null }: { children: React.ReactNode; defaultOpenId?: string | null }) {
+  const [openId, setOpenId] = useState<string | null>(defaultOpenId);
+  return (
+    <SectionGroupContext.Provider value={{ openId, setOpenId }}>{children}</SectionGroupContext.Provider>
+  );
+}
+
 function Section({
+  id,
   icon: Icon,
   title,
   desc,
@@ -1679,6 +1707,7 @@ function Section({
   defaultOpen = false,
   children,
 }: {
+  id?: string;
   icon?: IconType;
   title?: string;
   desc?: string;
@@ -1689,8 +1718,18 @@ function Section({
   children: React.ReactNode;
 }) {
   const accent = tone === "accent";
-  const [open, setOpen] = useState(defaultOpen);
-  const isOpen = collapsible ? open : true;
+  const group = React.useContext(SectionGroupContext);
+  const autoId = React.useId();
+  const sid = id ?? autoId;
+  const [localOpen, setLocalOpen] = useState(defaultOpen);
+  const inGroup = collapsible && !!group;
+  const groupOpen = inGroup && group!.openId === sid;
+  const isOpen = collapsible ? (inGroup ? groupOpen : localOpen) : true;
+  const toggle = () => {
+    if (!collapsible) return;
+    if (inGroup) group!.setOpenId(groupOpen ? null : sid);
+    else setLocalOpen((v) => !v);
+  };
   return (
     <section
       className={[
@@ -1704,7 +1743,7 @@ function Section({
         <header className="flex flex-wrap items-start justify-between gap-3 px-4 sm:px-5 pt-4 sm:pt-5 pb-3.5">
           <button
             type="button"
-            onClick={() => collapsible && setOpen((v) => !v)}
+            onClick={toggle}
             className={`flex items-start gap-3 min-w-0 flex-1 text-left ${collapsible ? "cursor-pointer" : "cursor-default"}`}
             aria-expanded={collapsible ? isOpen : undefined}
             disabled={!collapsible}
@@ -1938,7 +1977,7 @@ function RecGroup({
   onGenerate?: () => void;
   generating?: boolean;
 }) {
-  const [openCats, setOpenCats] = useState<Record<string, boolean>>({});
+  const [openCat, setOpenCat] = useState<string | null>(null);
   const [selectedIdx, setSelectedIdx] = useState<Set<number>>(new Set());
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
 
@@ -1988,39 +2027,39 @@ function RecGroup({
       icon={scope === "nearby" ? MapPin : Compass}
       title={title}
       desc={desc}
-      action={
-        <div className="flex items-center gap-1.5">
-          {items.length > 0 && (
-            <button
-              type="button"
-              onClick={toggleSelectAll}
-              className="text-[11px] text-muted-foreground hover:text-foreground transition-colors px-2"
-            >
-              {selectedIdx.size === items.length ? "Limpar" : "Selecionar todos"}
-            </button>
-          )}
-          {selectedIdx.size > 0 && (
-            <Button size="sm" variant="destructive" onClick={() => setConfirmDeleteOpen(true)} className="h-8 rounded-full text-xs">
-              <Trash2 className="size-3.5" /> Excluir ({selectedIdx.size})
-            </Button>
-          )}
-          <AlertDialog open={confirmDeleteOpen} onOpenChange={setConfirmDeleteOpen}>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Excluir {selectedIdx.size} item(ns)?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  Esta ação remove <strong>{selectedIdx.size}</strong> recomendaç{selectedIdx.size === 1 ? "ão" : "ões"} selecionada{selectedIdx.size === 1 ? "" : "s"} da lista. Você poderá adicioná-las novamente depois, manualmente ou via "Gerar com IA".
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                <AlertDialogAction onClick={deleteSelected} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                  Excluir
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-
+    >
+      <div className="flex flex-wrap items-center gap-1.5 -mt-1">
+        {items.length > 0 && (
+          <button
+            type="button"
+            onClick={toggleSelectAll}
+            className="text-[11px] text-muted-foreground hover:text-foreground transition-colors px-2 h-8 inline-flex items-center"
+          >
+            {selectedIdx.size === items.length ? "Limpar" : "Selecionar todos"}
+          </button>
+        )}
+        {selectedIdx.size > 0 && (
+          <Button size="sm" variant="destructive" onClick={() => setConfirmDeleteOpen(true)} className="h-8 rounded-full text-xs">
+            <Trash2 className="size-3.5" /> Excluir ({selectedIdx.size})
+          </Button>
+        )}
+        <AlertDialog open={confirmDeleteOpen} onOpenChange={setConfirmDeleteOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Excluir {selectedIdx.size} item(ns)?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Esta ação remove <strong>{selectedIdx.size}</strong> recomendaç{selectedIdx.size === 1 ? "ão" : "ões"} selecionada{selectedIdx.size === 1 ? "" : "s"} da lista. Você poderá adicioná-las novamente depois, manualmente ou via "Gerar com IA".
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction onClick={deleteSelected} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                Excluir
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+        <div className="ml-auto flex items-center gap-1.5">
           {onReplicate && (
             <Button size="sm" variant="ghost" onClick={onReplicate} className="shrink-0 h-8 rounded-full text-xs text-muted-foreground hover:text-foreground">
               <Share2 className="size-3.5" /> Replicar
@@ -2036,8 +2075,8 @@ function RecGroup({
             <Plus className="size-3.5" /> manual
           </Button>
         </div>
-      }
-    >
+      </div>
+
       <PlaceAutocomplete
         scope={scope}
         lat={lat}
@@ -2046,12 +2085,13 @@ function RecGroup({
         onSelect={(rec) => onChange([...items, rec])}
       />
 
+
       {items.length === 0 ? (
         <EmptyHint text="Nenhuma recomendação. Busque um lugar acima ou use o auto-preenchimento." />
       ) : (
         <div className="space-y-2">
           {groupEntries.map(([cat, g]) => {
-            const open = openCats[cat] ?? false;
+            const open = openCat === cat;
             const groupSelected = g.indices.filter((i) => selectedIdx.has(i)).length;
             const allInGroup = groupSelected === g.indices.length && g.indices.length > 0;
             return (
@@ -2073,7 +2113,7 @@ function RecGroup({
                   />
                   <button
                     type="button"
-                    onClick={() => setOpenCats((p) => ({ ...p, [cat]: !open }))}
+                    onClick={() => setOpenCat(open ? null : cat)}
                     className="flex-1 flex items-center justify-between gap-3 text-left"
                     aria-expanded={open}
                   >
