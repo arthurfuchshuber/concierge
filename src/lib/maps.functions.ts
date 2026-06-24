@@ -963,10 +963,35 @@ async function placesTextRestricted(
   return j.places ?? [];
 }
 
+// Tipos do Google Places que NUNCA devem entrar em nenhuma categoria do guia.
+// Defesa em profundidade: hotéis, agências, eventos, lojas, escritórios etc.
+// — esses costumam aparecer em buscas por "pontos turísticos" e poluir o resultado.
+const BLOCKED_PRIMARY_TYPES = new Set<string>([
+  // Hospedagem
+  "lodging", "hotel", "resort_hotel", "motel", "extended_stay_hotel",
+  "bed_and_breakfast", "guest_house", "hostel", "campground", "rv_park",
+  "cottage", "inn", "private_guest_room",
+  // Turismo / agências / eventos
+  "travel_agency", "tour_agency", "tourist_information_center",
+  "event_venue", "wedding_venue", "banquet_hall", "convention_center",
+  "auditorium", "conference_center",
+  // Lojas/serviços genéricos
+  "store", "book_store", "stationery_store", "office_supply_store",
+  "clothing_store", "shoe_store", "electronics_store", "furniture_store",
+  "hardware_store", "home_goods_store", "jewelry_store", "gift_shop",
+  "beauty_salon", "hair_salon", "spa", "gym", "fitness_center",
+  // Saúde/serviços
+  "hospital", "doctor", "dentist", "veterinary_care", "bank", "atm",
+  "real_estate_agency", "insurance_agency", "lawyer", "post_office",
+  // POIs genéricos sem categoria útil
+  "point_of_interest", "establishment", "premise", "subpremise",
+]);
+
 // Decide a categoria FINAL de um lugar com base em primaryType, respeitando
 // a ordem de prioridade do TYPE_MAP (attraction antes de park, etc.).
 function classifyByPrimaryType(primaryType: string | undefined): TypeMapEntry | null {
   if (!primaryType) return null;
+  if (BLOCKED_PRIMARY_TYPES.has(primaryType)) return null;
   for (const cat of TYPE_MAP) {
     if (cat.acceptedPrimaryTypes.includes(primaryType)) return cat;
   }
