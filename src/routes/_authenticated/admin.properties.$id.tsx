@@ -1133,7 +1133,9 @@ function PropertyEditor() {
             desc={canBrand
               ? "Substitua a marca exibida no rodapé do guia público pela sua. Logomarca e nome aparecerão para os hóspedes."
               : "Disponível exclusivamente no plano Enterprise. Faça upgrade para exibir sua própria marca no rodapé do guia."}
+            collapsible
           >
+
             {!canBrand && (
               <div className="mb-3 rounded-xl border border-border bg-secondary/40 p-3 text-xs text-muted-foreground flex items-start gap-2">
                 <Lock className="size-3.5 shrink-0 mt-0.5" />
