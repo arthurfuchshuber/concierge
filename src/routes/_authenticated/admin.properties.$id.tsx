@@ -451,7 +451,7 @@ function PropertyEditor() {
         const currentCity = f.recommendations.filter((r) => r.scope === "city");
         const cityMerge = mergeCityRecommendations(currentCity, generated);
         added = cityMerge.added;
-        return { ...f, recommendations: [...nearby, ...merged] };
+        return { ...f, recommendations: [...nearby, ...cityMerge.merged] };
       });
 
       if (generated.length === 0) {
