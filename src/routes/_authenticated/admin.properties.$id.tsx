@@ -1902,6 +1902,7 @@ function RecGroup({
 }) {
   const [openCats, setOpenCats] = useState<Record<string, boolean>>({});
   const [selectedIdx, setSelectedIdx] = useState<Set<number>>(new Set());
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
 
   const groups = new Map<string, { items: RecItem[]; indices: number[] }>();
   items.forEach((it, idx) => {
