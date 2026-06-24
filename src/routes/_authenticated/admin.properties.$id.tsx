@@ -1197,8 +1197,10 @@ function PropertyEditor() {
             icon={ClipboardCheck}
             title="Checklist de check-out"
             desc="O que o hóspede deve fazer antes de sair."
+            collapsible
             action={<AddBtn onClick={() => setForm((f) => ({ ...f, checkout: [...f.checkout, { label: "" }] }))} />}
           >
+
             {form.checkout.length === 0 ? (
               <EmptyHint text="Ex: trancar a porta, deixar a chave na mesa, fechar janelas." />
             ) : form.checkout.map((c, i) => (
