@@ -157,8 +157,10 @@ export const createPortalSession = createServerFn({ method: "POST" })
       .maybeSingle();
     if (error) throw (await import("@/lib/db-errors.server")).safeDbError("subscriptions", error);
     if (!sub) throw new Error("Nenhuma assinatura encontrada");
-    if (!sub.paddle_customer_id?.startsWith("ctm_") && !sub.paddle_customer_id?.startsWith("cus_")) {
-      throw new Error("Esta assinatura foi configurada manualmente e não possui portal de pagamentos.");
+    const customerId = sub.paddle_customer_id ?? "";
+    const isRealPaddleCustomer = customerId.startsWith("ctm_") || customerId.startsWith("cus_");
+    if (!isRealPaddleCustomer) {
+      throw new Error("Esta é uma conta de cortesia configurada manualmente — não há cobrança recorrente nem cartão a gerenciar.");
     }
 
     const paddle = getPaddleClient(sub.environment as PaddleEnv);
