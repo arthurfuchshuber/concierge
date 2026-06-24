@@ -1334,41 +1334,73 @@ function HeroCompact({
 
 
 function ThemeCard({
-  title, desc, icon, image,
+  title, desc, icon, theme = "dark",
 }: {
   title: string; desc: string; icon: React.ReactNode; image?: string; theme?: "dark" | "light";
 }) {
+  const isLight = theme === "light";
   return (
-    <div className="group relative flex h-[160px] sm:h-[180px] md:h-[200px] flex-col overflow-hidden rounded-[20px] border border-white/10 bg-neutral-900 shadow-[0_8px_30px_-12px_rgba(0,0,0,0.4)] transition-all duration-500 ease-out hover:-translate-y-1 hover:shadow-[0_24px_60px_-20px_oklch(from_var(--accent)_l_c_h/0.55),0_0_0_1px_oklch(from_var(--accent)_l_c_h/0.35)] active:scale-[0.99]">
-      {image && (
-        <img
-          src={image}
-          alt=""
-          loading="lazy"
-          className="absolute inset-0 size-full object-cover transition-transform duration-[1200ms] ease-out group-hover:scale-[1.08]"
-        />
-      )}
-      {/* Dark overlay — premium hospitality feel */}
-      <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,0.25)_0%,rgba(0,0,0,0.55)_55%,rgba(0,0,0,0.88)_100%)]" />
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_15%,oklch(from_var(--accent)_l_c_h/0.18),transparent_55%)] opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+    <div
+      className={
+        "group relative flex h-[150px] sm:h-[170px] md:h-[190px] flex-col overflow-hidden rounded-[20px] transition-all duration-500 ease-out hover:-translate-y-1 active:scale-[0.99] " +
+        (isLight
+          ? "border border-border bg-card shadow-[0_4px_18px_-8px_rgba(0,0,0,0.10)] hover:shadow-[0_18px_40px_-18px_oklch(from_var(--accent)_l_c_h/0.45),0_0_0_1px_oklch(from_var(--accent)_l_c_h/0.3)]"
+          : "border border-white/10 bg-[linear-gradient(160deg,oklch(0.22_0.01_60)_0%,oklch(0.16_0.008_55)_100%)] shadow-[0_8px_30px_-12px_rgba(0,0,0,0.5)] hover:shadow-[0_24px_60px_-20px_oklch(from_var(--accent)_l_c_h/0.55),0_0_0_1px_oklch(from_var(--accent)_l_c_h/0.35)]")
+      }
+    >
+      {/* Subtle abstract accent — pattern + soft glow */}
+      <div
+        aria-hidden
+        className={
+          "pointer-events-none absolute inset-0 " +
+          (isLight ? "opacity-[0.05]" : "opacity-[0.08]") +
+          " [background-image:radial-gradient(oklch(var(--accent))_1px,transparent_1px)] [background-size:14px_14px]"
+        }
+      />
+      <div
+        aria-hidden
+        className="pointer-events-none absolute -top-16 -right-16 size-48 rounded-full bg-accent/20 blur-3xl opacity-60 group-hover:opacity-100 transition-opacity duration-500"
+      />
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-x-0 bottom-0 h-20 bg-[linear-gradient(180deg,transparent,oklch(from_var(--accent)_l_c_h/0.08))]"
+      />
 
       <div className="relative z-10 flex h-full flex-col p-3.5 sm:p-4 md:p-5">
-        <span className="grid size-9 sm:size-10 md:size-11 place-items-center rounded-xl border border-white/20 bg-white/5 backdrop-blur-md text-accent shadow-[inset_0_1px_0_rgba(255,255,255,0.1)]">
-          <span className="[&>svg]:size-[18px] sm:[&>svg]:size-5 md:[&>svg]:size-[22px]">{icon}</span>
+        <span className="grid size-10 sm:size-11 md:size-12 place-items-center rounded-xl bg-accent text-accent-foreground ring-1 ring-accent/50 shadow-[0_6px_18px_-8px_oklch(var(--accent)/0.55),inset_0_1px_0_rgba(255,255,255,0.2)]">
+          <span className="[&>svg]:size-[20px] sm:[&>svg]:size-[22px] md:[&>svg]:size-6 [&>svg]:stroke-[2.2]">
+            {icon}
+          </span>
         </span>
-        <div className="mt-auto">
-          <h3 className="font-serif text-[1.1rem] sm:text-[1.25rem] md:text-[1.4rem] leading-[1.1] tracking-tight text-white text-balance">
+        <div className="mt-auto min-w-0">
+          <h3
+            className={
+              "font-serif text-[1.05rem] sm:text-[1.18rem] md:text-[1.3rem] leading-[1.1] tracking-tight truncate " +
+              (isLight ? "text-foreground" : "text-white")
+            }
+          >
             {title}
           </h3>
-          <p className="mt-1 text-[11px] sm:text-[12px] md:text-[12.5px] leading-[1.45] text-white/70 line-clamp-2 max-w-[34ch]">
+          <p
+            className={
+              "mt-1 text-[11px] sm:text-[12px] md:text-[12.5px] leading-[1.45] line-clamp-2 max-w-[34ch] " +
+              (isLight ? "text-muted-foreground" : "text-white/65")
+            }
+          >
             {desc}
           </p>
         </div>
-        <span className="absolute right-3 top-3 sm:right-4 sm:top-4 grid size-7 sm:size-8 place-items-center rounded-full bg-white/10 backdrop-blur-md border border-white/15 text-white/85 transition-all duration-300 group-hover:bg-accent group-hover:text-accent-foreground group-hover:border-accent">
-          <ArrowRight className="size-3.5" strokeWidth={1.75} />
+        <span
+          className={
+            "absolute right-3 top-3 sm:right-4 sm:top-4 grid size-7 sm:size-8 place-items-center rounded-full transition-all duration-300 group-hover:bg-accent group-hover:text-accent-foreground group-hover:border-accent " +
+            (isLight
+              ? "bg-background/80 border border-border text-muted-foreground"
+              : "bg-white/10 backdrop-blur-md border border-white/15 text-white/85")
+          }
+        >
+          <ArrowRight className="size-3.5" strokeWidth={2} />
         </span>
       </div>
-
     </div>
   );
 }
