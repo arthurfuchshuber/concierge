@@ -10,7 +10,10 @@ export function usePaddleCheckout() {
     customerEmail?: string;
     customData?: Record<string, string>;
     successUrl?: string;
-    /** When set, renders inline checkout inside the element with this id. */
+    /**
+     * Quando definido, renderiza o checkout inline dentro do elemento
+     * que tenha esta CLASSE CSS (não id — Paddle.js procura por classe).
+     */
     frameTarget?: string;
     frameStyle?: string;
   }) => {
@@ -24,29 +27,25 @@ export function usePaddleCheckout() {
       let paddlePriceId: string;
       try {
         paddlePriceId = await getPaddlePriceId(options.priceId);
-      } catch (e) {
+      } catch {
         throw new Error(`Preço "${options.priceId}" não encontrado no provedor.`);
       }
 
       const settings: Record<string, unknown> = {
-        successUrl:
-          options.successUrl || `${window.location.origin}/admin/assinatura?checkout=success`,
         allowLogout: false,
       };
+      if (options.successUrl) settings.successUrl = options.successUrl;
 
       if (options.frameTarget) {
-        const el =
-          document.getElementsByClassName(options.frameTarget)[0] ||
-          document.getElementById(options.frameTarget);
+        const el = document.getElementsByClassName(options.frameTarget)[0];
         if (!el) {
-          throw new Error(`Elemento "${options.frameTarget}" não existe no DOM.`);
+          throw new Error(`Container "${options.frameTarget}" não existe no DOM.`);
         }
-        // Paddle espera o frameTarget como nome de classe, não como id.
-        el.classList.add(options.frameTarget);
+        // Garante que o container esteja vazio (re-abrir, fallback, etc).
         el.replaceChildren();
         settings.displayMode = "inline";
         settings.frameTarget = options.frameTarget;
-        settings.frameInitialHeight = "520";
+        settings.frameInitialHeight = "450";
         settings.frameStyle =
           options.frameStyle ||
           "width: 100%; min-width: 312px; background-color: transparent; border: none;";
@@ -55,17 +54,20 @@ export function usePaddleCheckout() {
         settings.variant = "one-page";
       }
 
-      window.Paddle.Checkout.open({
+      const payload: Record<string, unknown> = {
         items: [{ priceId: paddlePriceId, quantity: options.quantity ?? 1 }],
-        customer: options.customerEmail ? { email: options.customerEmail } : undefined,
-        customData: options.customData,
         settings,
-      });
+      };
+      if (options.customerEmail) payload.customer = { email: options.customerEmail };
+      if (options.customData && Object.keys(options.customData).length > 0) {
+        payload.customData = options.customData;
+      }
+
+      window.Paddle.Checkout.open(payload);
     } finally {
       setLoading(false);
     }
   };
-
 
   return { openCheckout, loading };
 }
