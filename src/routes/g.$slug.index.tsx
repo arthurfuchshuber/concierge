@@ -2144,17 +2144,47 @@ function AccessCodesStrip({
             </>
           )}
         </div>
-        <div className="flex flex-col items-end gap-2 shrink-0">
-          <button
-            onClick={handleEyeClick}
-            aria-label={showing ? "Ocultar códigos" : "Visualizar códigos"}
-            className="inline-flex items-center gap-1.5 rounded-full bg-foreground text-background px-3.5 py-2 text-[12px] font-semibold tracking-wide hover:opacity-90 active:scale-95 transition-all shadow-[0_6px_18px_-10px_oklch(from_var(--foreground)_l_c_h/0.35)]"
-          >
-            {showing ? <EyeOff className="size-3.5" strokeWidth={2.4} /> : <Eye className="size-3.5" strokeWidth={2.4} />}
-            <span>{showing ? "Ocultar" : "Mostrar"}</span>
-          </button>
+        <div className="flex flex-col items-center justify-center gap-2 shrink-0">
+          {!showing && (
+            <button
+              onClick={handleEyeClick}
+              aria-label="Visualizar códigos"
+              className="inline-flex items-center gap-1.5 rounded-full bg-foreground text-background px-3.5 py-2 text-[12px] font-semibold tracking-wide hover:opacity-90 active:scale-95 transition-all shadow-[0_6px_18px_-10px_oklch(from_var(--foreground)_l_c_h/0.35)]"
+            >
+              <Eye className="size-3.5" strokeWidth={2.4} />
+              <span>Mostrar</span>
+            </button>
+          )}
+          {checkinInstructions && checkinInstructions.trim() && (
+            <button
+              type="button"
+              onClick={() => setInstrOpen(true)}
+              aria-label="Ver instruções de check-in"
+              className="inline-flex items-center gap-1.5 text-[11px] font-medium text-foreground/70 hover:text-foreground transition-colors"
+            >
+              <HelpCircle className="size-3" strokeWidth={2} />
+              <span>Ver instruções</span>
+            </button>
+          )}
         </div>
       </div>
+      {checkinInstructions && checkinInstructions.trim() && (
+        <Dialog open={instrOpen} onOpenChange={setInstrOpen}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-base">
+                <span className="grid size-8 place-items-center rounded-xl bg-accent/15 text-accent/85 ring-1 ring-accent/20">
+                  <KeyRound className="size-4" strokeWidth={2} />
+                </span>
+                Instruções de acesso
+              </DialogTitle>
+            </DialogHeader>
+            <div className="mt-2 max-h-[60vh] overflow-y-auto pr-1">
+              <StepList text={String(checkinInstructions)} dense />
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
 
   );
