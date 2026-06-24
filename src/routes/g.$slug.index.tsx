@@ -1997,7 +1997,7 @@ function WifiStrip({
     <div className={`wifi-shimmer relative overflow-hidden rounded-[22px] border ${isLight ? "border-border bg-card shadow-[0_4px_18px_-8px_rgba(0,0,0,0.10)]" : "border-amber-500/25 bg-[linear-gradient(135deg,oklch(0.22_0.05_55/0.95)_0%,oklch(0.16_0.04_50/0.92)_60%,oklch(0.12_0.03_45/0.95)_100%)] shadow-[0_14px_40px_-18px_oklch(from_var(--accent)_l_c_h/0.55)]"}`}>
       <div className={`pointer-events-none absolute inset-0 ${isLight ? "opacity-[0.04]" : "opacity-[0.07]"} [background-image:radial-gradient(oklch(var(--accent))_1px,transparent_1px)] [background-size:14px_14px]`} />
       <div className={`pointer-events-none absolute -top-12 -right-12 size-40 rounded-full ${isLight ? "bg-accent/15" : "bg-accent/25"} blur-3xl`} />
-      <div className="relative flex items-center gap-4 px-5 py-4 md:px-6 md:py-5">
+      <div className="relative flex items-center gap-4 px-5 py-3 md:px-6 md:py-3.5">
         <span className={`relative grid size-14 shrink-0 place-items-center rounded-2xl ring-1 ${isLight ? "bg-accent/15 text-accent/80 ring-accent/20 shadow-[0_6px_18px_-12px_oklch(from_var(--accent)_l_c_h/0.32)]" : "bg-accent/10 text-accent/75 ring-accent/15 shadow-[0_6px_18px_-12px_oklch(from_var(--accent)_l_c_h/0.24)]"}`}>
           <span className="wifi-pulse pointer-events-none absolute -inset-1 rounded-2xl bg-accent/15 blur-md -z-10" />
           <Wifi className="relative size-[24px]" strokeWidth={2} />
@@ -2092,69 +2092,66 @@ function AccessCodesStrip({
   const hint = gateCode && lockCode ? `${gLabel} e ${lLabel.toLowerCase()}` : gateCode ? gLabel : lLabel;
 
   return (
-    <div className={`relative overflow-hidden rounded-2xl backdrop-blur-sm shadow-[0_8px_30px_-12px_oklch(from_var(--accent)_l_c_h/0.35)] ${
-      isLight
-        ? "bg-[linear-gradient(135deg,oklch(from_var(--card)_l_c_h/0.98)_0%,oklch(from_var(--card)_l_c_h/0.94)_60%,oklch(from_var(--card)_l_c_h/0.98)_100%)]"
-        : "bg-[linear-gradient(135deg,oklch(0.18_0.04_55/0.95)_0%,oklch(0.12_0.02_50/0.92)_60%,oklch(0.08_0.01_45/0.95)_100%)]"
-    }`}>
-      <div className="pointer-events-none absolute inset-0 opacity-[0.08] [background-image:radial-gradient(oklch(var(--accent))_1px,transparent_1px)] [background-size:14px_14px]" />
-      <div className="pointer-events-none absolute -top-10 -right-10 size-32 rounded-full bg-accent/20 blur-3xl" />
-      <div className="relative flex items-center gap-3.5 px-4 py-3.5">
-        <span className={`relative grid size-10 shrink-0 place-items-center rounded-full ${isLight ? "bg-accent/15 text-accent/80 ring-1 ring-accent/20" : "bg-accent/10 text-accent/75 ring-1 ring-accent/15"}`}>
-          <KeyRound className="relative size-[18px]" strokeWidth={1.75} />
+    <div className={`wifi-shimmer relative overflow-hidden rounded-[22px] border ${isLight ? "border-border bg-card shadow-[0_4px_18px_-8px_rgba(0,0,0,0.10)]" : "border-amber-500/25 bg-[linear-gradient(135deg,oklch(0.22_0.05_55/0.95)_0%,oklch(0.16_0.04_50/0.92)_60%,oklch(0.12_0.03_45/0.95)_100%)] shadow-[0_14px_40px_-18px_oklch(from_var(--accent)_l_c_h/0.55)]"}`}>
+      <div className={`pointer-events-none absolute inset-0 ${isLight ? "opacity-[0.04]" : "opacity-[0.07]"} [background-image:radial-gradient(oklch(var(--accent))_1px,transparent_1px)] [background-size:14px_14px]`} />
+      <div className={`pointer-events-none absolute -top-12 -right-12 size-40 rounded-full ${isLight ? "bg-accent/15" : "bg-accent/25"} blur-3xl`} />
+      <div className="relative flex items-center gap-4 px-5 py-3 md:px-6 md:py-3.5">
+        <span className={`relative grid size-14 shrink-0 place-items-center rounded-2xl ring-1 ${isLight ? "bg-accent/15 text-accent/80 ring-accent/20 shadow-[0_6px_18px_-12px_oklch(from_var(--accent)_l_c_h/0.32)]" : "bg-accent/10 text-accent/75 ring-accent/15 shadow-[0_6px_18px_-12px_oklch(from_var(--accent)_l_c_h/0.24)]"}`}>
+          <KeyRound className="relative size-[22px]" strokeWidth={2} />
         </span>
         <div className="flex-1 min-w-0">
-          <div className="flex items-baseline gap-2">
-            <p className="text-[9px] uppercase tracking-[0.32em] text-accent/75 font-semibold">Códigos de acesso</p>
-            <span className="h-px flex-1 bg-gradient-to-r from-accent/40 to-transparent" />
-          </div>
+          <p className="text-[10px] uppercase tracking-[0.32em] text-accent/75 font-semibold">Códigos de acesso</p>
           {showing ? (
-            <div className="mt-1 space-y-1.5">
+            <div className="mt-1 space-y-0.5">
               {gateCode && (
                 <button
                   type="button"
-                  onClick={() => copyCode(gateCode, `Código d${gLabel.toLowerCase().startsWith("a") ? "a" : "o"} ${gLabel.toLowerCase()}`)}
-                  className="w-full flex items-center justify-between gap-2 text-left"
+                  onClick={() => copyCode(gateCode, gLabel)}
+                  className="w-full flex items-center justify-between gap-3 text-left group"
                 >
-                  <span className="text-[11px] text-muted-foreground font-medium shrink-0">{gLabel}</span>
-                  <span className="font-mono text-[14px] font-semibold tracking-[0.18em] text-foreground truncate flex items-center gap-1.5">
+                  <span className="text-[12px] text-foreground/75 font-medium shrink-0">{gLabel}</span>
+                  <span className="font-mono text-[15px] md:text-[16px] font-semibold tracking-[0.22em] text-foreground flex items-center gap-1.5">
                     {gateCode}
-                    <Copy className="size-3 text-muted-foreground" />
+                    <Copy className="size-3 text-foreground/50 group-hover:text-foreground/80 transition-colors" strokeWidth={2.2} />
                   </span>
                 </button>
               )}
               {lockCode && (
                 <button
                   type="button"
-                  onClick={() => copyCode(lockCode, `Código d${lLabel.toLowerCase().startsWith("a") ? "a" : "o"} ${lLabel.toLowerCase()}`)}
-                  className="w-full flex items-center justify-between gap-2 text-left"
+                  onClick={() => copyCode(lockCode, lLabel)}
+                  className="w-full flex items-center justify-between gap-3 text-left group"
                 >
-                  <span className="text-[11px] text-muted-foreground font-medium shrink-0">{lLabel}</span>
-                  <span className="font-mono text-[14px] font-semibold tracking-[0.18em] text-foreground truncate flex items-center gap-1.5">
+                  <span className="text-[12px] text-foreground/75 font-medium shrink-0">{lLabel}</span>
+                  <span className="font-mono text-[15px] md:text-[16px] font-semibold tracking-[0.22em] text-foreground flex items-center gap-1.5">
                     {lockCode}
-                    <Copy className="size-3 text-muted-foreground" />
+                    <Copy className="size-3 text-foreground/50 group-hover:text-foreground/80 transition-colors" strokeWidth={2.2} />
                   </span>
                 </button>
               )}
             </div>
           ) : (
             <>
-              <p className="text-[13px] text-foreground/90 truncate font-medium mt-0.5">{hint}</p>
-              <p className="font-mono text-[13px] tracking-[0.2em] text-foreground/60 mt-0.5 truncate">
-                {"•".repeat(8)}
+              <p className="text-[13px] text-foreground/85 truncate font-medium mt-0.5">{hint}</p>
+              <p className="font-mono text-[16px] md:text-[18px] font-semibold tracking-[0.22em] text-foreground/75 mt-1 truncate">
+                {"•".repeat(10)}
               </p>
             </>
           )}
         </div>
-        <button
-          onClick={handleEyeClick}
-          aria-label={showing ? "Ocultar códigos" : "Visualizar códigos"}
-          className="grid size-9 place-items-center rounded-full bg-foreground text-background hover:opacity-90 transition-all shadow-[0_4px_12px_-8px_oklch(from_var(--foreground)_l_c_h/0.35)] shrink-0"
-        >
-          {showing ? <EyeOff className="size-4" strokeWidth={2} /> : <Eye className="size-4" strokeWidth={2} />}
-        </button>
+        <div className="flex flex-col items-end gap-2 shrink-0">
+          <button
+            onClick={handleEyeClick}
+            aria-label={showing ? "Ocultar códigos" : "Visualizar códigos"}
+            className="inline-flex items-center gap-1.5 rounded-full bg-foreground text-background px-3.5 py-2 text-[12px] font-semibold tracking-wide hover:opacity-90 active:scale-95 transition-all shadow-[0_6px_18px_-10px_oklch(from_var(--foreground)_l_c_h/0.35)]"
+          >
+            {showing ? <EyeOff className="size-3.5" strokeWidth={2.4} /> : <Eye className="size-3.5" strokeWidth={2.4} />}
+            <span>{showing ? "Ocultar" : "Mostrar"}</span>
+          </button>
+        </div>
       </div>
     </div>
+
   );
 }
 
