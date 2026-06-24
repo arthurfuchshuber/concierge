@@ -495,15 +495,23 @@ function CardTab({
   async function startCardValidation() {
     if (!user) return;
     setOpeningInline(true);
+    // Reveal the container BEFORE opening Paddle — the SDK needs a visible
+    // mount node, otherwise the iframe is created but never rendered.
+    setOpenedInline(true);
+    // Allow React to flush the layout change before Paddle attaches.
+    await new Promise((r) => setTimeout(r, 50));
     try {
       await openCheckout({
         priceId: PLANS.starter.priceId,
         customerEmail: user.email ?? undefined,
-        customData: { userId: user.id },
+        customData: { userId: user.id, purpose: "card_validation" },
         successUrl: `${window.location.origin}/admin/assinatura?checkout=success`,
         frameTarget: "sigma-card-validation-checkout",
       });
-      setOpenedInline(true);
+    } catch (e) {
+      console.error("[CardValidation] failed to open Paddle inline checkout", e);
+      toast.error("Não consegui abrir o checkout. Recarregue a página e tente novamente.");
+      setOpenedInline(false);
     } finally {
       setOpeningInline(false);
     }
@@ -530,16 +538,16 @@ function CardTab({
               <AlertTriangle className="size-5 text-yellow-600 dark:text-yellow-400" />
             </div>
             <div className="flex-1 min-w-0">
-              <h3 className="font-medium text-base">Cadastro de cartão obrigatório</h3>
+              <h3 className="font-medium text-base">Validação de cartão obrigatória</h3>
               <p className="text-xs text-muted-foreground mt-1">
-                Sua conta foi ativada como cortesia, mas exigimos um cartão válido em todas as contas para fins de validação e segurança. <strong className="text-foreground">Você não será cobrado</strong> — o cartão é apenas autenticado pelo provedor de pagamento.
+                Exigimos um cartão válido em todas as contas para fins de validação e segurança. <strong className="text-foreground">Você não será cobrado</strong> — o cartão é apenas autenticado pelo provedor de pagamento.
               </p>
               <div className="mt-3 rounded-xl bg-background/60 border border-border p-3 text-xs">
                 <p className="font-medium mb-1">Como funciona:</p>
                 <ol className="space-y-0.5 list-decimal list-inside text-muted-foreground">
-                  <li>Você inicia o checkout do plano Starter com 7 dias grátis.</li>
-                  <li>O cartão é validado e armazenado com segurança no Paddle.</li>
-                  <li>Cancele a assinatura Starter assim que terminar — sua cortesia continua intacta.</li>
+                  <li>O formulário do provedor de pagamento abre aqui mesmo, sem sair do sistema.</li>
+                  <li>O cartão é autenticado com segurança — nenhum valor é debitado.</li>
+                  <li>Pronto. Sua conta segue ativa normalmente.</li>
                 </ol>
               </div>
               {!openedInline && (
@@ -560,8 +568,13 @@ function CardTab({
               )}
               <div
                 id="sigma-card-validation-checkout"
-                className={`mt-4 rounded-xl ${openedInline ? "min-h-[500px]" : "hidden"}`}
+                className={openedInline ? "mt-4 rounded-xl min-h-[520px] bg-background/40" : "hidden"}
               />
+              {openedInline && (
+                <p className="mt-2 text-[11px] text-muted-foreground">
+                  Caso o formulário não carregue em alguns segundos, recarregue a página e tente novamente.
+                </p>
+              )}
               <div className="mt-3 text-[11px] text-muted-foreground flex items-center gap-1.5">
                 <ShieldCheck className="size-3.5" /> Dados do cartão ficam no provedor de pagamento — nunca passam pelos servidores da SigmaGuide.
               </div>
@@ -571,6 +584,7 @@ function CardTab({
       </div>
     );
   }
+
   return (
     <div className="rounded-2xl border border-border bg-card p-5 sm:p-6">
       <div className="flex items-start gap-4">
