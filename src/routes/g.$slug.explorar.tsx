@@ -261,7 +261,7 @@ function ExplorePage() {
   const [sortBy, setSortBy] = useState<SortKey>("distance");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [minReviews, setMinReviews] = useState<number>(0);
-  const [showMap, setShowMap] = useState(false);
+  // "Ver Mapa" temporariamente desabilitado — state preservado no histórico do arquivo.
 
   // Tema herdado da página inicial do guia (definido pelo visitante).
   const adminTheme: "dark" | "light" =
