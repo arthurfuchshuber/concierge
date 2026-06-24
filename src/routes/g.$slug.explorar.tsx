@@ -753,20 +753,26 @@ function CategoryDetail({
       </div>
       {cityFiltered.length > 1 && <div className="mt-6"><CityMap items={cityFiltered} /></div>}
       <div className="mt-4 space-y-6">
-        {sections.map((s) => (
-          <CollapsibleSection
-            key={s.key}
-            eyebrow={s.eyebrow}
-            title={s.title}
-            items={s.items}
-            totalCount={s.total}
-            viewMode={viewMode}
-          />
-        ))}
+        {(() => {
+          const [openKey, setOpenKey] = [openSubcat, setOpenSubcat] as const;
+          return sections.map((s) => (
+            <CollapsibleSection
+              key={s.key}
+              eyebrow={s.eyebrow}
+              title={s.title}
+              items={s.items}
+              totalCount={s.total}
+              viewMode={viewMode}
+              open={openKey === s.key}
+              onToggle={() => setOpenKey(openKey === s.key ? null : s.key)}
+            />
+          ));
+        })()}
         {sections.length === 0 && (
           <p className="text-sm text-muted-foreground">Nada cadastrado nesta categoria.</p>
         )}
       </div>
+
     </>
   );
 }
