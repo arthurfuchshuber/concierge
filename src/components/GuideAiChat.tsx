@@ -68,10 +68,27 @@ export function GuideAiChat({ slug, propertyName, guestName }: { slug: string; p
     const cached = loadCachedMessages(slug);
     setConversationId(cached.conversationId);
     setMessages(cached.messages);
-    // Show a light proactive nudge after the page settles, without depending on a fresh chat.
+    // Respect a per-session dismissal of the nudge bubble.
+    let dismissed = false;
+    try {
+      dismissed = window.sessionStorage.getItem(`guide-chat-nudge-dismissed:${slug}`) === "1";
+    } catch {
+      // ignore
+    }
+    if (dismissed) return;
     const t = setTimeout(() => setShowNudge(true), 2800);
     return () => clearTimeout(t);
   }, [slug]);
+
+  function dismissNudge() {
+    setShowNudge(false);
+    try {
+      window.sessionStorage.setItem(`guide-chat-nudge-dismissed:${slug}`, "1");
+    } catch {
+      // ignore
+    }
+  }
+
 
   useEffect(() => {
     if (open && scrollRef.current) {
