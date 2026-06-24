@@ -1939,10 +1939,11 @@ function RecGroup({
   }
   function deleteSelected() {
     if (selectedIdx.size === 0) return;
-    if (!confirm(`Remover ${selectedIdx.size} item(ns) selecionado(s)?`)) return;
     onChange(items.filter((_, j) => !selectedIdx.has(j)));
     setSelectedIdx(new Set());
+    setConfirmDeleteOpen(false);
   }
+
 
   return (
     <Section
