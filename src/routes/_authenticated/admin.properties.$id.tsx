@@ -694,6 +694,7 @@ function PropertyEditor() {
 
 
         <TabsContent value="basics" className="space-y-5 mt-6">
+          <SectionGroup>
           <Section
             icon={Sparkles}
             tone="accent"
