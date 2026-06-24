@@ -2010,7 +2010,7 @@ function WifiStrip({
           </p>
         </div>
         {password && (
-          <div className="flex flex-col items-end gap-2 shrink-0">
+          <div className="flex flex-col items-center justify-center gap-2 shrink-0">
             <button
               onClick={copyPwd}
               aria-label="Copiar senha do Wi-Fi"
@@ -2019,14 +2019,16 @@ function WifiStrip({
               {copied ? <Check className="size-3.5" strokeWidth={2.4} /> : <Copy className="size-3.5" strokeWidth={2.4} />}
               <span>{copied ? "Copiado" : "Copiar"}</span>
             </button>
-            <button
-              onClick={handleEyeClick}
-              aria-label={showing ? "Ocultar senha do Wi-Fi" : "Visualizar senha do Wi-Fi"}
-              className="inline-flex items-center gap-1.5 text-[11px] font-medium text-foreground/70 hover:text-foreground transition-colors"
-            >
-              {showing ? <EyeOff className="size-3" strokeWidth={2} /> : <Eye className="size-3" strokeWidth={2} />}
-              <span>{showing ? "Ocultar" : "Mostrar"}</span>
-            </button>
+            {!showing && (
+              <button
+                onClick={handleEyeClick}
+                aria-label="Visualizar senha do Wi-Fi"
+                className="inline-flex items-center gap-1.5 text-[11px] font-medium text-foreground/70 hover:text-foreground transition-colors"
+              >
+                <Eye className="size-3" strokeWidth={2} />
+                <span>Mostrar</span>
+              </button>
+            )}
           </div>
         )}
       </div>
