@@ -68,10 +68,27 @@ export function GuideAiChat({ slug, propertyName, guestName }: { slug: string; p
     const cached = loadCachedMessages(slug);
     setConversationId(cached.conversationId);
     setMessages(cached.messages);
-    // Show a light proactive nudge after the page settles, without depending on a fresh chat.
+    // Respect a per-session dismissal of the nudge bubble.
+    let dismissed = false;
+    try {
+      dismissed = window.sessionStorage.getItem(`guide-chat-nudge-dismissed:${slug}`) === "1";
+    } catch {
+      // ignore
+    }
+    if (dismissed) return;
     const t = setTimeout(() => setShowNudge(true), 2800);
     return () => clearTimeout(t);
   }, [slug]);
+
+  function dismissNudge() {
+    setShowNudge(false);
+    try {
+      window.sessionStorage.setItem(`guide-chat-nudge-dismissed:${slug}`, "1");
+    } catch {
+      // ignore
+    }
+  }
+
 
   useEffect(() => {
     if (open && scrollRef.current) {
@@ -140,12 +157,13 @@ export function GuideAiChat({ slug, propertyName, guestName }: { slug: string; p
               <div className="max-w-[244px] rounded-2xl rounded-br-sm bg-background border border-border shadow-elevated px-4 py-3">
                 <button
                   type="button"
-                  onClick={() => setShowNudge(false)}
+                  onClick={dismissNudge}
                   className="absolute top-2 right-2 size-5 grid place-items-center rounded-full text-muted-foreground hover:text-foreground transition-colors"
                   aria-label="Fechar"
                 >
                   <X className="size-3" />
                 </button>
+
                 <p className="text-[10px] font-semibold text-accent/80 uppercase tracking-[0.18em] mb-1">Concierge IA</p>
                 <p className="text-[13px] leading-snug font-medium">
                   {greeting}{guestName ? `, ${guestName.split(" ")[0]}` : ""}! 👋
