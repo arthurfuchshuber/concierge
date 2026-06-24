@@ -17,7 +17,16 @@ export function usePaddleCheckout() {
     setLoading(true);
     try {
       await initializePaddle();
-      const paddlePriceId = await getPaddlePriceId(options.priceId);
+      if (!window.Paddle?.Checkout?.open) {
+        throw new Error("Paddle SDK não carregou. Verifique bloqueadores de anúncio/script.");
+      }
+
+      let paddlePriceId: string;
+      try {
+        paddlePriceId = await getPaddlePriceId(options.priceId);
+      } catch (e) {
+        throw new Error(`Preço "${options.priceId}" não encontrado no provedor.`);
+      }
 
       const settings: Record<string, unknown> = {
         successUrl:
@@ -26,6 +35,10 @@ export function usePaddleCheckout() {
       };
 
       if (options.frameTarget) {
+        const el = document.getElementById(options.frameTarget);
+        if (!el) {
+          throw new Error(`Elemento "#${options.frameTarget}" não existe no DOM.`);
+        }
         settings.displayMode = "inline";
         settings.frameTarget = options.frameTarget;
         settings.frameInitialHeight = 480;
@@ -47,6 +60,7 @@ export function usePaddleCheckout() {
       setLoading(false);
     }
   };
+
 
   return { openCheckout, loading };
 }
