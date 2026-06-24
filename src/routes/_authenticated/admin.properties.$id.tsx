@@ -154,6 +154,8 @@ function PropertyEditor() {
   const fetchAllProps = useServerFn(listMyPropertiesBrief);
   const copyRecs = useServerFn(copyCityRecsToProperties);
   const [refreshingGoogle, setRefreshingGoogle] = useState(false);
+  const [openFaqIdx, setOpenFaqIdx] = useState<number | null>(null);
+
 
   const importAirbnb = useServerFn(importFromAirbnb);
   const { info: sub } = useSubscription();
@@ -652,15 +654,9 @@ function PropertyEditor() {
       <Link to="/admin" className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground mb-5 transition-colors">
         <ArrowLeft className="size-3.5" /> Voltar
       </Link>
-      <div className="mb-7 sm:mb-9 pb-6 border-b border-border/60 flex items-start justify-between gap-4">
-        <div>
-          <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground font-semibold mb-2">
-            {isNew ? "Novo guia" : "Editar guia"}
-          </p>
-          <h1 className="font-display text-2xl sm:text-4xl break-words leading-tight">{form.property.name || "Sem título"}</h1>
-          {form.property.tagline && (
-            <p className="text-sm text-muted-foreground mt-2">{form.property.tagline}</p>
-          )}
+      <div className="mb-4 sm:mb-5 pb-4 border-b border-border/60 flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <h1 className="font-display text-2xl sm:text-4xl break-words leading-tight line-clamp-2">{form.property.name || "Sem título"}</h1>
         </div>
         {!isNew && (
           <div className="shrink-0 flex items-center gap-2">
@@ -681,6 +677,7 @@ function PropertyEditor() {
           </div>
         )}
       </div>
+
 
       <Tabs value={step} onValueChange={setStep}>
         <Stepper
@@ -792,6 +789,7 @@ function PropertyEditor() {
             icon={DoorOpen}
             title="Instruções de check-in"
             desc="Passo a passo da chegada. Escreva uma instrução por linha — cada linha vira uma etapa numerada no guia."
+            collapsible
           >
             <Field label="Passo a passo (opcional)" hint="Uma etapa por linha. Linhas em branco são ignoradas.">
               <Textarea
@@ -816,6 +814,7 @@ function PropertyEditor() {
             icon={LogOut}
             title="Instruções de check-out"
             desc="Passo a passo da saída. Mesmo formato: uma instrução por linha."
+            collapsible
           >
             <Field label="Passo a passo (opcional)" hint="Uma etapa por linha. Linhas em branco são ignoradas.">
               <Textarea
@@ -832,6 +831,7 @@ function PropertyEditor() {
             icon={ClipboardCheck}
             title="Regras do espaço"
             desc="O que os hóspedes precisam respeitar durante a estadia. Uma regra por linha — cada linha vira um item numerado no guia."
+            collapsible
           >
             <Field label="Regras (opcional)" hint="Uma regra por linha. Linhas em branco são ignoradas.">
               <Textarea
@@ -843,6 +843,7 @@ function PropertyEditor() {
               />
             </Field>
           </Section>
+
         </TabsContent>
 
         <TabsContent value="access" className="space-y-5 mt-6">
@@ -869,25 +870,7 @@ function PropertyEditor() {
             )}
           </Section>
 
-          <Section icon={Lock} title="Portal de segurança" desc="Exige que o hóspede informe nome, código da reserva e data de check-in antes de acessar o guia. Os acessos ficam registrados na aba Acessos.">
-            <div className="flex items-center justify-between rounded-xl bg-muted/40 px-4 py-3.5 border border-border/60">
-              <div className="flex items-center gap-2.5 min-w-0">
-                <span className={`inline-block size-2.5 rounded-full shrink-0 ${form.property.require_access_gate ? "bg-emerald-500" : "bg-muted-foreground/50"}`} />
-                <div className="min-w-0">
-                  <p className="text-sm font-medium leading-tight">Exigir identificação do hóspede</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    {form.property.require_access_gate
-                      ? "Ativo — o guia abre apenas após o preenchimento dos dados da reserva."
-                      : "Inativo — qualquer visitante com o link vê o guia diretamente."}
-                  </p>
-                </div>
-              </div>
-              <Switch checked={form.property.require_access_gate} onCheckedChange={(v) => update("require_access_gate", v)} />
-            </div>
-            <p className="text-[11px] text-muted-foreground mt-2">
-              Quando ativo, as informações de check-in (códigos, senha do wi-fi e instruções de chegada) ficam ofuscadas 12 horas após o horário de check-in informado pelo hóspede.
-            </p>
-          </Section>
+
 
           <Section icon={Globe} title="Idioma">
             <Field label="Idioma padrão">
@@ -916,7 +899,7 @@ function PropertyEditor() {
         </TabsContent>
 
         <TabsContent value="house" className="space-y-5 mt-6">
-          <Section icon={Clock} title="Horários" desc="Janelas de check-in e check-out.">
+          <Section icon={Clock} title="Horários" desc="Janelas de check-in e check-out." collapsible>
             <div className="grid grid-cols-2 gap-3">
               <Field label="Check-in a partir de"><TimePicker value={form.property.checkin_time} onChange={(v) => update("checkin_time", v)} placeholder="15:00" /></Field>
               <Field label="Check-in até" hint="opcional"><TimePicker value={form.property.checkin_time_max} onChange={(v) => update("checkin_time_max", v)} placeholder="22:00" /></Field>
@@ -945,7 +928,7 @@ function PropertyEditor() {
             </div>
           </Section>
 
-          <Section icon={DoorOpen} title="Entrada" desc="Ative apenas os tipos de acesso que existem na propriedade.">
+          <Section icon={DoorOpen} title="Entrada" desc="Ative apenas os tipos de acesso que existem na propriedade." collapsible>
             <div className="space-y-3">
               {/* Portão */}
               <div className={`rounded-2xl border ${gateOpen ? "border-primary/40 bg-primary/[0.04]" : "border-border/60 bg-card/30"} transition-colors`}>
@@ -1132,14 +1115,14 @@ function PropertyEditor() {
             </div>
           </Section>
 
-          <Section icon={Wifi} title="Wi-Fi">
+          <Section icon={Wifi} title="Wi-Fi" collapsible>
             <div className="grid grid-cols-2 gap-3">
               <Field label="Rede (SSID)"><Input value={form.property.wifi_ssid} maxLength={64} onChange={(e) => update("wifi_ssid", e.target.value)} /></Field>
               <Field label="Senha"><Input value={form.property.wifi_password} maxLength={64} onChange={(e) => update("wifi_password", e.target.value)} /></Field>
             </div>
           </Section>
 
-          <Section icon={UserRound} title="Contato do anfitrião">
+          <Section icon={UserRound} title="Contato do anfitrião" collapsible>
             <div className="grid grid-cols-2 gap-3">
               <Field label="Nome"><Input value={form.property.host_name} maxLength={120} onChange={(e) => update("host_name", e.target.value)} /></Field>
               <Field label="Telefone (WhatsApp)"><Input value={form.property.host_phone} maxLength={40} onChange={(e) => update("host_phone", e.target.value)} /></Field>
@@ -1152,7 +1135,9 @@ function PropertyEditor() {
             desc={canBrand
               ? "Substitua a marca exibida no rodapé do guia público pela sua. Logomarca e nome aparecerão para os hóspedes."
               : "Disponível exclusivamente no plano Enterprise. Faça upgrade para exibir sua própria marca no rodapé do guia."}
+            collapsible
           >
+
             {!canBrand && (
               <div className="mb-3 rounded-xl border border-border bg-secondary/40 p-3 text-xs text-muted-foreground flex items-start gap-2">
                 <Lock className="size-3.5 shrink-0 mt-0.5" />
@@ -1192,8 +1177,10 @@ function PropertyEditor() {
             icon={BookOpen}
             title="Manual da casa"
             desc="Instruções de equipamentos e funcionamento."
+            collapsible
             action={<AddBtn onClick={() => setForm((f) => ({ ...f, manual: [...f.manual, { title: "", description: "", body: "" }] }))} />}
           >
+
             {form.manual.length === 0 ? (
               <EmptyHint text="Nenhum item ainda. Adicione instruções para ar-condicionado, TV, fechadura, etc." />
             ) : form.manual.map((m, i) => (
@@ -1212,8 +1199,10 @@ function PropertyEditor() {
             icon={ClipboardCheck}
             title="Checklist de check-out"
             desc="O que o hóspede deve fazer antes de sair."
+            collapsible
             action={<AddBtn onClick={() => setForm((f) => ({ ...f, checkout: [...f.checkout, { label: "" }] }))} />}
           >
+
             {form.checkout.length === 0 ? (
               <EmptyHint text="Ex: trancar a porta, deixar a chave na mesa, fechar janelas." />
             ) : form.checkout.map((c, i) => (
@@ -1226,34 +1215,35 @@ function PropertyEditor() {
         </TabsContent>
 
         <TabsContent value="recs" className="space-y-5 mt-6">
-          <div className="rounded-xl border border-dashed border-border/70 bg-muted/30 px-4 py-3 text-xs text-muted-foreground leading-relaxed flex items-start gap-3 justify-between">
-            <span>
-              Recomendações vêm do auto-preenchimento do Google Maps. Você pode editar, remover ou adicionar manualmente.
-              <br />
-              <span className="text-foreground/80">Sincronizamos automaticamente uma vez por dia</span> (avaliação, total de reviews, horários, foto e link). Use o botão ao lado para forçar agora.
-            </span>
-            <Button
-              type="button"
-              variant="secondary"
-              size="sm"
-              disabled={refreshingGoogle || isNew}
-              onClick={async () => {
-                if (isNew) return;
-                setRefreshingGoogle(true);
-                try {
-                  const r = await refreshGoogle({ data: { propertyId: id } });
-                  toast.success(`Atualizado ${r.updated}/${r.total} do Google${r.failed ? ` · ${r.failed} sem retorno` : ""}`);
-                } catch (e) {
-                  toast.error(e instanceof Error ? e.message : "Falha ao sincronizar");
-                } finally {
-                  setRefreshingGoogle(false);
-                }
-              }}
-            >
-              {refreshingGoogle ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}
-              <span className="ml-1.5">{refreshingGoogle ? "Sincronizando…" : "Atualizar do Google"}</span>
-            </Button>
+          <div className="rounded-xl border border-dashed border-border/70 bg-muted/30 px-4 py-3 text-xs text-muted-foreground leading-relaxed space-y-2">
+            <p>
+              Recomendações vêm do Google Maps. Edite, remova ou adicione manualmente. <span className="text-foreground/80">Sincronizamos automaticamente uma vez por dia.</span>
+            </p>
+            <div className="flex justify-end">
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                disabled={refreshingGoogle || isNew}
+                onClick={async () => {
+                  if (isNew) return;
+                  setRefreshingGoogle(true);
+                  try {
+                    const r = await refreshGoogle({ data: { propertyId: id } });
+                    toast.success(`Atualizado ${r.updated}/${r.total} do Google${r.failed ? ` · ${r.failed} sem retorno` : ""}`);
+                  } catch (e) {
+                    toast.error(e instanceof Error ? e.message : "Falha ao sincronizar");
+                  } finally {
+                    setRefreshingGoogle(false);
+                  }
+                }}
+              >
+                {refreshingGoogle ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}
+                <span className="ml-1.5">{refreshingGoogle ? "Sincronizando…" : "Atualizar do Google"}</span>
+              </Button>
+            </div>
           </div>
+
 
           {/* Pontos icônicos da cidade agora vivem dentro do card "Pela cidade" abaixo. */}
 
@@ -1411,33 +1401,62 @@ function PropertyEditor() {
                   faqs: f.faqs.map((x, j) => j === i ? { ...x, tags: x.tags.includes(tag) ? x.tags.filter((t) => t !== tag) : [...x.tags, tag] } : x),
                 }));
               };
+              const isOpen = openFaqIdx === i;
               return (
-                <ItemCard key={i} onRemove={() => setForm((f) => ({ ...f, faqs: f.faqs.filter((_, j) => j !== i) }))}>
-                  <Input placeholder="Pergunta" value={m.question} maxLength={200} onChange={(e) => setForm((f) => ({ ...f, faqs: f.faqs.map((x, j) => j === i ? { ...x, question: e.target.value } : x) }))} />
-                  <Textarea placeholder="Resposta" value={m.answer} maxLength={2000} onChange={(e) => setForm((f) => ({ ...f, faqs: f.faqs.map((x, j) => j === i ? { ...x, answer: e.target.value } : x) }))} />
-                  <div className="space-y-1.5">
-                    <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Exibir também em</p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {FAQ_TAGS.map((t) => {
-                        const active = m.tags.includes(t.value);
-                        return (
-                          <button
-                            key={t.value}
-                            type="button"
-                            onClick={() => toggleTag(t.value)}
-                            className={`px-2.5 py-1 rounded-full text-xs border transition-colors ${active ? "bg-accent text-accent-foreground border-accent" : "bg-background border-border text-muted-foreground hover:border-accent/50"}`}
-                          >
-                            {t.label}
-                          </button>
-                        );
-                      })}
-                    </div>
+                <div key={i} className="group bg-background border border-border/60 rounded-xl overflow-hidden hover:border-border transition-colors">
+                  <div className="flex items-center gap-2 px-3.5 py-3">
+                    <button
+                      type="button"
+                      onClick={() => setOpenFaqIdx(isOpen ? null : i)}
+                      className="flex-1 flex items-center gap-2 min-w-0 text-left"
+                      aria-expanded={isOpen}
+                    >
+                      <span className="text-sm font-medium truncate flex-1">
+                        {m.question || <span className="text-muted-foreground italic">Sem pergunta</span>}
+                      </span>
+                      <ChevronDown className={`size-4 text-muted-foreground transition-transform shrink-0 ${isOpen ? "rotate-180" : ""}`} />
+                    </button>
+                    <button
+                      onClick={() => {
+                        setForm((f) => ({ ...f, faqs: f.faqs.filter((_, j) => j !== i) }));
+                        if (openFaqIdx === i) setOpenFaqIdx(null);
+                      }}
+                      aria-label="Remover"
+                      className="p-1.5 rounded-md text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors opacity-60 group-hover:opacity-100"
+                    >
+                      <Trash2 className="size-3.5" />
+                    </button>
                   </div>
-                </ItemCard>
+                  {isOpen && (
+                    <div className="px-3.5 pb-3.5 pt-1 space-y-2.5 border-t border-border/40">
+                      <Input placeholder="Pergunta" value={m.question} maxLength={200} onChange={(e) => setForm((f) => ({ ...f, faqs: f.faqs.map((x, j) => j === i ? { ...x, question: e.target.value } : x) }))} />
+                      <Textarea placeholder="Resposta" value={m.answer} maxLength={2000} onChange={(e) => setForm((f) => ({ ...f, faqs: f.faqs.map((x, j) => j === i ? { ...x, answer: e.target.value } : x) }))} />
+                      <div className="space-y-1.5">
+                        <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Exibir também em</p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {FAQ_TAGS.map((t) => {
+                            const active = m.tags.includes(t.value);
+                            return (
+                              <button
+                                key={t.value}
+                                type="button"
+                                onClick={() => toggleTag(t.value)}
+                                className={`px-2.5 py-1 rounded-full text-xs border transition-colors ${active ? "bg-accent text-accent-foreground border-accent" : "bg-background border-border text-muted-foreground hover:border-accent/50"}`}
+                              >
+                                {t.label}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
               );
             })}
           </Section>
         </TabsContent>
+
       </Tabs>
 
       {previewSlug && (
@@ -1656,6 +1675,8 @@ function Section({
   desc,
   action,
   tone = "default",
+  collapsible = false,
+  defaultOpen = false,
   children,
 }: {
   icon?: IconType;
@@ -1663,9 +1684,13 @@ function Section({
   desc?: string;
   action?: React.ReactNode;
   tone?: "default" | "accent";
+  collapsible?: boolean;
+  defaultOpen?: boolean;
   children: React.ReactNode;
 }) {
   const accent = tone === "accent";
+  const [open, setOpen] = useState(defaultOpen);
+  const isOpen = collapsible ? open : true;
   return (
     <section
       className={[
@@ -1676,8 +1701,14 @@ function Section({
       ].join(" ")}
     >
       {(title || action) && (
-        <header className="flex items-start justify-between gap-3 px-4 sm:px-5 pt-4 sm:pt-5 pb-3.5">
-          <div className="flex items-start gap-3 min-w-0">
+        <header className="flex flex-wrap items-start justify-between gap-3 px-4 sm:px-5 pt-4 sm:pt-5 pb-3.5">
+          <button
+            type="button"
+            onClick={() => collapsible && setOpen((v) => !v)}
+            className={`flex items-start gap-3 min-w-0 flex-1 text-left ${collapsible ? "cursor-pointer" : "cursor-default"}`}
+            aria-expanded={collapsible ? isOpen : undefined}
+            disabled={!collapsible}
+          >
             {Icon && (
               <span
                 className={[
@@ -1688,20 +1719,26 @@ function Section({
                 <Icon className="size-4" strokeWidth={2} />
               </span>
             )}
-            <div className="min-w-0">
+            <div className="min-w-0 flex-1">
               {title && <h3 className="text-sm font-semibold leading-tight text-foreground">{title}</h3>}
               {desc && <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{desc}</p>}
             </div>
-          </div>
-          {action}
+            {collapsible && (
+              <ChevronDown className={`size-4 text-muted-foreground transition-transform shrink-0 mt-1.5 ${isOpen ? "rotate-180" : ""}`} />
+            )}
+          </button>
+          {action && <div className="flex flex-wrap items-center gap-1.5 ml-auto">{action}</div>}
         </header>
       )}
-      <div className={`${title || action ? "border-t border-border/50" : ""} px-4 sm:px-5 py-4 sm:py-5 space-y-3.5`}>
-        {children}
-      </div>
+      {isOpen && (
+        <div className={`${title || action ? "border-t border-border/50" : ""} px-4 sm:px-5 py-4 sm:py-5 space-y-3.5`}>
+          {children}
+        </div>
+      )}
     </section>
   );
 }
+
 
 
 function Field({ label, hint, required, children }: { label: string; hint?: string; required?: boolean; children: React.ReactNode }) {
