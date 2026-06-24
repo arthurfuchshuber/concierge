@@ -926,7 +926,7 @@ function PropertyEditor() {
             </div>
           </Section>
 
-          <Section icon={DoorOpen} title="Entrada" desc="Ative apenas os tipos de acesso que existem na propriedade.">
+          <Section icon={DoorOpen} title="Entrada" desc="Ative apenas os tipos de acesso que existem na propriedade." collapsible>
             <div className="space-y-3">
               {/* Portão */}
               <div className={`rounded-2xl border ${gateOpen ? "border-primary/40 bg-primary/[0.04]" : "border-border/60 bg-card/30"} transition-colors`}>
