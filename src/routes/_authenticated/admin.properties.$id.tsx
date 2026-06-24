@@ -729,9 +729,16 @@ function PropertyEditor() {
 
 
           <Section icon={FileText} title="Identidade do guia" desc="Como o guia se apresenta aos hóspedes.">
-            <Field label="Nome do imóvel" required>
-              <Input value={form.property.name} maxLength={120}
-                onChange={(e) => { update("name", e.target.value); if (isNew && !form.property.slug) update("slug", slugify(e.target.value)); }} />
+            <Field label="Nome do imóvel" required hint={`Máx. 80 caracteres — ${form.property.name.length}/80. Curto e memorável funciona melhor no cabeçalho do guia.`}>
+              <Input value={form.property.name} maxLength={80}
+                onChange={(e) => {
+                  const v = e.target.value.slice(0, 80);
+                  if (e.target.value.length > 80) {
+                    toast.info("O nome do guia tem limite de 80 caracteres — algo curto e marcante funciona melhor no topo do guia.", { id: "name-cap" });
+                  }
+                  update("name", v);
+                  if (isNew && !form.property.slug) update("slug", slugify(v));
+                }} />
             </Field>
             <Field label="URL pública (slug)" hint="Aparece em /g/seu-slug">
               <Input value={form.property.slug} maxLength={60} onChange={(e) => update("slug", slugify(e.target.value))} />
@@ -740,6 +747,7 @@ function PropertyEditor() {
               <EtiquetaSelect value={form.property.tagline} onChange={(v) => update("tagline", v)} />
             </Field>
           </Section>
+
 
           <Section icon={ImageIcon} title="Fotos da residência" desc="Até 4 fotos. A primeira será usada como capa.">
             <GalleryEditor
