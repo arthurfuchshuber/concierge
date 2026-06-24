@@ -445,16 +445,7 @@ function ExplorePage() {
           </p>
         </header>
 
-        {/* Embedded Google Maps Modal */}
-        {showMap && propLat !== null && propLng !== null && (
-          <EmbeddedMapModal
-            recs={[...allRecs, ...cityRefs]}
-            propLat={propLat}
-            propLng={propLng}
-            propName={p.name as string}
-            onClose={() => setShowMap(false)}
-          />
-        )}
+        {/* "Ver Mapa" temporariamente desabilitado — componente EmbeddedMapModal preservado abaixo para reativação futura. */}
 
         {!active ? (
           <>
