@@ -1401,33 +1401,62 @@ function PropertyEditor() {
                   faqs: f.faqs.map((x, j) => j === i ? { ...x, tags: x.tags.includes(tag) ? x.tags.filter((t) => t !== tag) : [...x.tags, tag] } : x),
                 }));
               };
+              const isOpen = openFaqIdx === i;
               return (
-                <ItemCard key={i} onRemove={() => setForm((f) => ({ ...f, faqs: f.faqs.filter((_, j) => j !== i) }))}>
-                  <Input placeholder="Pergunta" value={m.question} maxLength={200} onChange={(e) => setForm((f) => ({ ...f, faqs: f.faqs.map((x, j) => j === i ? { ...x, question: e.target.value } : x) }))} />
-                  <Textarea placeholder="Resposta" value={m.answer} maxLength={2000} onChange={(e) => setForm((f) => ({ ...f, faqs: f.faqs.map((x, j) => j === i ? { ...x, answer: e.target.value } : x) }))} />
-                  <div className="space-y-1.5">
-                    <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Exibir também em</p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {FAQ_TAGS.map((t) => {
-                        const active = m.tags.includes(t.value);
-                        return (
-                          <button
-                            key={t.value}
-                            type="button"
-                            onClick={() => toggleTag(t.value)}
-                            className={`px-2.5 py-1 rounded-full text-xs border transition-colors ${active ? "bg-accent text-accent-foreground border-accent" : "bg-background border-border text-muted-foreground hover:border-accent/50"}`}
-                          >
-                            {t.label}
-                          </button>
-                        );
-                      })}
-                    </div>
+                <div key={i} className="group bg-background border border-border/60 rounded-xl overflow-hidden hover:border-border transition-colors">
+                  <div className="flex items-center gap-2 px-3.5 py-3">
+                    <button
+                      type="button"
+                      onClick={() => setOpenFaqIdx(isOpen ? null : i)}
+                      className="flex-1 flex items-center gap-2 min-w-0 text-left"
+                      aria-expanded={isOpen}
+                    >
+                      <span className="text-sm font-medium truncate flex-1">
+                        {m.question || <span className="text-muted-foreground italic">Sem pergunta</span>}
+                      </span>
+                      <ChevronDown className={`size-4 text-muted-foreground transition-transform shrink-0 ${isOpen ? "rotate-180" : ""}`} />
+                    </button>
+                    <button
+                      onClick={() => {
+                        setForm((f) => ({ ...f, faqs: f.faqs.filter((_, j) => j !== i) }));
+                        if (openFaqIdx === i) setOpenFaqIdx(null);
+                      }}
+                      aria-label="Remover"
+                      className="p-1.5 rounded-md text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors opacity-60 group-hover:opacity-100"
+                    >
+                      <Trash2 className="size-3.5" />
+                    </button>
                   </div>
-                </ItemCard>
+                  {isOpen && (
+                    <div className="px-3.5 pb-3.5 pt-1 space-y-2.5 border-t border-border/40">
+                      <Input placeholder="Pergunta" value={m.question} maxLength={200} onChange={(e) => setForm((f) => ({ ...f, faqs: f.faqs.map((x, j) => j === i ? { ...x, question: e.target.value } : x) }))} />
+                      <Textarea placeholder="Resposta" value={m.answer} maxLength={2000} onChange={(e) => setForm((f) => ({ ...f, faqs: f.faqs.map((x, j) => j === i ? { ...x, answer: e.target.value } : x) }))} />
+                      <div className="space-y-1.5">
+                        <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Exibir também em</p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {FAQ_TAGS.map((t) => {
+                            const active = m.tags.includes(t.value);
+                            return (
+                              <button
+                                key={t.value}
+                                type="button"
+                                onClick={() => toggleTag(t.value)}
+                                className={`px-2.5 py-1 rounded-full text-xs border transition-colors ${active ? "bg-accent text-accent-foreground border-accent" : "bg-background border-border text-muted-foreground hover:border-accent/50"}`}
+                              >
+                                {t.label}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
               );
             })}
           </Section>
         </TabsContent>
+
       </Tabs>
 
       {previewSlug && (
