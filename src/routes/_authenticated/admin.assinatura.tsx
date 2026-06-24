@@ -510,8 +510,10 @@ function CardTab({
       });
     } catch (e) {
       console.error("[CardValidation] failed to open Paddle inline checkout", e);
-      toast.error("Não consegui abrir o checkout. Recarregue a página e tente novamente.");
+      const msg = e instanceof Error ? e.message : "erro desconhecido";
+      toast.error(`Não consegui abrir o checkout: ${msg}`);
       setOpenedInline(false);
+
     } finally {
       setOpeningInline(false);
     }
