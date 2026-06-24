@@ -430,7 +430,7 @@ function Guide({ data }: { data: GuideOk }) {
             />
 
 
-            <div className="px-5 md:px-10 lg:px-16 -mt-14 md:-mt-16 relative z-10 mb-4 md:mb-6 space-y-3">
+            <div className="px-5 md:px-10 lg:px-16 mt-5 md:mt-7 relative z-10 mb-4 md:mb-6 space-y-3">
               <div className="md:max-w-md lg:max-w-lg">
                 <WifiStrip
                   ssid={p.wifi_ssid}
@@ -1226,7 +1226,7 @@ function HeroCompact({
 
   return (
     <section
-      className="relative min-h-[420px] md:min-h-[520px] overflow-hidden px-5 md:px-10 lg:px-16 pb-32 md:pb-40 pt-4 md:pt-8"
+      className="relative overflow-hidden px-5 md:px-10 lg:px-16 pb-12 md:pb-16 pt-4 md:pt-8"
       onTouchStart={onTouchStart}
       onTouchEnd={onTouchEnd}
     >
@@ -1289,10 +1289,18 @@ function HeroCompact({
         </h1>
 
         <span className="mt-5 md:mt-7 block h-[2px] w-12 md:w-16 bg-accent" />
-        {tagline && (
-          <p className="mt-4 md:mt-5 text-[0.9rem] md:text-[1.05rem] leading-[1.55] text-white/85 md:max-w-[56ch] font-light">
-            {tagline}
-          </p>
+        {hasMany && (
+          <div className="mt-5 md:mt-7 flex gap-1.5">
+            {photos.map((_, i) => (
+              <button
+                key={i}
+                type="button"
+                onClick={() => setIdx(i)}
+                aria-label={`Ir para foto ${i + 1}`}
+                className={`h-1.5 rounded-full transition-all ${i === idx ? "w-6 bg-accent" : "w-1.5 bg-white/50 hover:bg-white/80"}`}
+              />
+            ))}
+          </div>
         )}
       </div>
 
@@ -1315,17 +1323,6 @@ function HeroCompact({
           >
             <ArrowRight className="size-4" />
           </button>
-          <div className="absolute bottom-20 md:bottom-28 left-0 right-0 z-10 flex justify-center gap-1.5">
-            {photos.map((_, i) => (
-              <button
-                key={i}
-                type="button"
-                onClick={() => setIdx(i)}
-                aria-label={`Ir para foto ${i + 1}`}
-                className={`h-1.5 rounded-full transition-all ${i === idx ? "w-6 bg-accent" : "w-1.5 bg-white/50 hover:bg-white/80"}`}
-              />
-            ))}
-          </div>
         </>
       )}
     </section>
@@ -1383,7 +1380,7 @@ function ThemeCard({
           </h3>
           <p
             className={
-              "mt-1 text-[11px] sm:text-[12px] md:text-[12.5px] leading-[1.45] line-clamp-2 max-w-[34ch] " +
+              "mt-1 text-[11px] sm:text-[12px] md:text-[12.5px] leading-[1.45] truncate " +
               (isLight ? "text-muted-foreground" : "text-white/65")
             }
           >
@@ -1990,9 +1987,9 @@ function WifiStrip({
   }
 
   return (
-    <div className="wifi-shimmer relative overflow-hidden rounded-[22px] border border-amber-500/25 bg-[linear-gradient(135deg,oklch(0.96_0.05_75)_0%,oklch(0.93_0.07_72)_55%,oklch(0.9_0.09_68)_100%)] dark:bg-[linear-gradient(135deg,oklch(0.22_0.05_55/0.95)_0%,oklch(0.16_0.04_50/0.92)_60%,oklch(0.12_0.03_45/0.95)_100%)] shadow-[0_14px_40px_-18px_oklch(from_var(--accent)_l_c_h/0.55)]">
-      <div className="pointer-events-none absolute inset-0 opacity-[0.07] [background-image:radial-gradient(oklch(var(--accent))_1px,transparent_1px)] [background-size:14px_14px]" />
-      <div className="pointer-events-none absolute -top-12 -right-12 size-40 rounded-full bg-accent/25 blur-3xl" />
+    <div className="wifi-shimmer relative overflow-hidden rounded-[22px] border border-border bg-card shadow-[0_4px_18px_-8px_rgba(0,0,0,0.10)] dark:border-amber-500/25 dark:bg-[linear-gradient(135deg,oklch(0.22_0.05_55/0.95)_0%,oklch(0.16_0.04_50/0.92)_60%,oklch(0.12_0.03_45/0.95)_100%)] dark:shadow-[0_14px_40px_-18px_oklch(from_var(--accent)_l_c_h/0.55)]">
+      <div className="pointer-events-none absolute inset-0 opacity-[0.04] dark:opacity-[0.07] [background-image:radial-gradient(oklch(var(--accent))_1px,transparent_1px)] [background-size:14px_14px]" />
+      <div className="pointer-events-none absolute -top-12 -right-12 size-40 rounded-full bg-accent/15 dark:bg-accent/25 blur-3xl" />
       <div className="relative flex items-center gap-4 px-5 py-4 md:px-6 md:py-5">
         <span className="relative grid size-14 shrink-0 place-items-center rounded-2xl bg-accent text-accent-foreground ring-1 ring-accent/60 shadow-[0_8px_24px_-8px_oklch(var(--accent)/0.7),inset_0_1px_0_rgba(255,255,255,0.25)]">
           <span className="wifi-pulse pointer-events-none absolute -inset-1 rounded-2xl bg-accent/30 blur-md -z-10" />
