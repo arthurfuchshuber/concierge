@@ -365,6 +365,7 @@ function AssinaturaPage() {
                 isManual={info.isManual}
                 onOpenPortal={openPortal}
                 opening={opening}
+                user={user}
               />
             </TabsContent>
 
