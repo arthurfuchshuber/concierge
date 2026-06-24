@@ -195,7 +195,7 @@ const dict = {
     "concierge.cat.attraction": "Atracciones",
     "concierge.cat.market": "Mercados",
     "concierge.cat.pharmacy": "Farmacias",
-    "concierge.cat.park": "Parques",
+    "concierge.cat.park": "Plazas, Lagos y Parques",
     "concierge.cat.nightlife": "Vida nocturna",
     "concierge.cat.shopping": "Compras",
     "concierge.cat.other": "Otros",
