@@ -1945,6 +1945,179 @@ function PlaceAutocomplete({
   );
 }
 
+// ===== CityRefsGroup =====================================================
+// Wrapper que conecta a UI do RecGroup à tabela compartilhada city_references.
+// Lê via React Query, escreve via server fns (add/update/delete). Edições no
+// nome/nota são debouncadas para não chamar o servidor a cada tecla.
+type CityRefRow = {
+  id: string;
+  type: string;
+  name: string;
+  category: string | null;
+  rating: number | null;
+  user_ratings_total: number | null;
+  opening_hours: string[] | null;
+  note: string | null;
+  image_url: string | null;
+  maps_url: string | null;
+  place_id: string | null;
+  is_hidden?: boolean;
+};
+
+function rowToRec(r: CityRefRow): RecItem {
+  return {
+    scope: "city",
+    type: r.type || "other",
+    name: r.name || "",
+    category: r.category ?? null,
+    rating: r.rating ?? null,
+    user_ratings_total: r.user_ratings_total ?? null,
+    distance_text: null,
+    distance_meters: null,
+    drive_minutes: null,
+    walk_minutes: null,
+    opening_hours: r.opening_hours ?? null,
+    note: r.note ?? null,
+    image_url: r.image_url ?? null,
+    maps_url: r.maps_url ?? null,
+    place_id: r.place_id ?? null,
+    _dbId: r.id,
+  };
+}
+
+function CityRefsGroup({
+  cityLabel,
+  state,
+  country,
+  propertyLat,
+  propertyLng,
+  queryKey,
+  onGenerate,
+  generating,
+  listFn,
+  addFn,
+  updateFn,
+  bulkDeleteFn,
+  invalidate,
+}: {
+  cityLabel: string;
+  state: string | null;
+  country: string;
+  propertyLat: number | null;
+  propertyLng: number | null;
+  queryKey: readonly unknown[];
+  onGenerate: () => void;
+  generating: boolean;
+  listFn: (args: { data: { city_label: string; state: string | null; country: string; includeHidden?: boolean } }) => Promise<{ items: unknown[] }>;
+  addFn: (args: { data: Record<string, unknown> }) => Promise<{ id: string | null; duplicate?: boolean }>;
+  updateFn: (args: { data: { id: string; patch: Record<string, unknown> } }) => Promise<{ ok: boolean }>;
+  bulkDeleteFn: (args: { data: { ids: string[] } }) => Promise<{ ok: boolean; deleted?: number }>;
+  invalidate: () => void;
+}) {
+  const city = (cityLabel || "").trim();
+  const q = useQuery({
+    queryKey,
+    queryFn: () => listFn({ data: { city_label: city, state, country, includeHidden: false } }),
+    enabled: !!city,
+  });
+
+  const serverItems: RecItem[] = React.useMemo(() => {
+    const rows = (q.data?.items ?? []) as CityRefRow[];
+    return rows.filter((r) => !r.is_hidden).map(rowToRec);
+  }, [q.data]);
+
+  // Estado local para edições otimistas (nome/nota/maps_url). Reconciliamos
+  // com o servidor sempre que a query atualiza.
+  const [localItems, setLocalItems] = React.useState<RecItem[]>(serverItems);
+  React.useEffect(() => { setLocalItems(serverItems); }, [serverItems]);
+
+  // Debounce de updates por id (chave -> timeout).
+  const pendingUpdates = React.useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+  function scheduleUpdate(id: string, patch: Record<string, unknown>) {
+    const map = pendingUpdates.current;
+    const existing = map.get(id);
+    if (existing) clearTimeout(existing);
+    const t = setTimeout(() => {
+      map.delete(id);
+      updateFn({ data: { id, patch } })
+        .then(() => invalidate())
+        .catch((e) => toast.error(e instanceof Error ? e.message : "Erro ao salvar alteração"));
+    }, 700);
+    map.set(id, t);
+  }
+
+  function handleChange(next: RecItem[]) {
+    const prev = localItems;
+    setLocalItems(next);
+
+    if (!city) {
+      toast.error("Defina a cidade do imóvel antes de gerenciar referências.");
+      return;
+    }
+
+    // Exclusões: ids presentes em prev e ausentes em next.
+    const prevIds = new Set(prev.map((p) => p._dbId).filter(Boolean) as string[]);
+    const nextIds = new Set(next.map((p) => p._dbId).filter(Boolean) as string[]);
+    const deletedIds = [...prevIds].filter((id) => !nextIds.has(id));
+    if (deletedIds.length) {
+      bulkDeleteFn({ data: { ids: deletedIds } })
+        .then(() => invalidate())
+        .catch((e) => toast.error(e instanceof Error ? e.message : "Erro ao excluir"));
+    }
+
+    // Adições: itens em next sem _dbId E com nome preenchido.
+    const additions = next.filter((n) => !n._dbId && n.name && n.name.trim().length > 0);
+    for (const rec of additions) {
+      addFn({
+        data: {
+          city_label: city,
+          state,
+          country,
+          type: rec.type || "other",
+          category: rec.category || rec.type || "Outros",
+          name: rec.name.trim(),
+          place_id: rec.place_id ?? null,
+          note: rec.note ?? null,
+          rating: rec.rating ?? null,
+          user_ratings_total: rec.user_ratings_total ?? null,
+          image_url: rec.image_url ?? null,
+          maps_url: rec.maps_url ?? null,
+        },
+      })
+        .then(() => invalidate())
+        .catch((e) => toast.error(e instanceof Error ? e.message : "Erro ao adicionar"));
+    }
+
+    // Updates: mesmo _dbId, campos editáveis diferentes (nome/tipo/nota/maps_url).
+    for (const n of next) {
+      if (!n._dbId) continue;
+      const before = prev.find((p) => p._dbId === n._dbId);
+      if (!before) continue;
+      const patch: Record<string, unknown> = {};
+      if ((n.name ?? "") !== (before.name ?? "")) patch.name = n.name;
+      if ((n.type ?? "") !== (before.type ?? "")) patch.type = n.type;
+      if ((n.note ?? null) !== (before.note ?? null)) patch.note = n.note ?? null;
+      if ((n.maps_url ?? null) !== (before.maps_url ?? null)) patch.maps_url = n.maps_url ?? null;
+      if (Object.keys(patch).length) scheduleUpdate(n._dbId, patch);
+    }
+  }
+
+  return (
+    <RecGroup
+      title="Pela cidade"
+      desc="Vale a visita — alguns minutos de carro. Compartilhado entre todos os guias desta cidade."
+      items={localItems}
+      onChange={handleChange}
+      scope="city"
+      lat={propertyLat}
+      lng={propertyLng}
+      onGenerate={onGenerate}
+      generating={generating || q.isFetching}
+    />
+  );
+}
+
+
 function RecGroup({
   title,
   desc,
