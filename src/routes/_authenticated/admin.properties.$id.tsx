@@ -2172,6 +2172,7 @@ function RecGroup({
   const [openCat, setOpenCat] = useState<string | null>(null);
   const [selectedIdx, setSelectedIdx] = useState<Set<number>>(new Set());
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
+  const { data: taxonomy } = useTaxonomy();
 
   const CAP_PER_SUBCATEGORY = scope === "nearby" ? 10 : 30;
   const CAP_MSG = scope === "nearby"
