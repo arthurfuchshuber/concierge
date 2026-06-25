@@ -50,6 +50,8 @@ type RecItem = {
   image_url?: string | null;
   maps_url?: string | null;
   place_id?: string | null;
+  lat?: number | null;
+  lng?: number | null;
   // Server id, presente quando o item já existe em city_references.
   _dbId?: string;
 };
@@ -579,7 +581,8 @@ function PropertyEditor() {
             : null,
         },
         // Apenas "Aqui pertinho" é por imóvel; "Pela cidade" mora em city_references.
-        recommendations: form.recommendations.filter((r) => r.scope === "nearby" && r.name && r.name.trim().length > 0),
+        // Só persiste pontos vindos do Google (com place_id).
+        recommendations: form.recommendations.filter((r) => r.scope === "nearby" && r.place_id && r.name && r.name.trim().length > 0),
         manual: form.manual.filter((m) => m.title),
         emergency: form.emergency.filter((m) => m.label && m.number),
         faqs: form.faqs.filter((m) => m.question && m.answer),
@@ -1883,6 +1886,8 @@ function PlaceAutocomplete({
       image_url: p.image_url,
       maps_url: p.maps_url,
       place_id: p.place_id,
+      lat: p.lat ?? null,
+      lng: p.lng ?? null,
     };
     onSelect(rec);
     setQuery("");
@@ -2071,7 +2076,8 @@ function CityRefsGroup({
     // Adições: itens em next sem _dbId E com nome preenchido.
     // - Autocomplete (tem place_id): grava imediatamente, dedup por place_id.
     // - Manual (sem place_id): debounce 900ms para não chamar a cada tecla.
-    const additions = next.filter((n) => !n._dbId && n.name && n.name.trim().length > 0);
+    // Só permite adicionar pontos vindos do Google (com place_id).
+    const additions = next.filter((n) => !n._dbId && n.place_id && n.name && n.name.trim().length > 0);
     const inflight = inflightAdds.current;
     const fire = (rec: RecItem, key: string) => {
       addFn({
@@ -2082,12 +2088,15 @@ function CityRefsGroup({
           type: rec.type || "other",
           category: rec.category || rec.type || "Outros",
           name: rec.name.trim(),
-          place_id: rec.place_id ?? null,
+          place_id: rec.place_id!,
           note: rec.note ?? null,
           rating: rec.rating ?? null,
           user_ratings_total: rec.user_ratings_total ?? null,
           image_url: rec.image_url ?? null,
           maps_url: rec.maps_url ?? null,
+          opening_hours: rec.opening_hours ?? null,
+          lat: rec.lat ?? null,
+          lng: rec.lng ?? null,
         },
       })
         .then(() => invalidate())
@@ -2095,23 +2104,10 @@ function CityRefsGroup({
         .finally(() => inflight.delete(key));
     };
     for (const rec of additions) {
-      if (rec.place_id) {
-        const key = `id:${rec.place_id}`;
-        if (inflight.has(key)) continue;
-        inflight.add(key);
-        fire(rec, key);
-      } else {
-        const key = `name:${rec.name.trim().toLowerCase()}`;
-        const existing = pendingAdds.current.get(key);
-        if (existing) clearTimeout(existing);
-        const t = setTimeout(() => {
-          pendingAdds.current.delete(key);
-          if (inflight.has(key)) return;
-          inflight.add(key);
-          fire(rec, key);
-        }, 900);
-        pendingAdds.current.set(key, t);
-      }
+      const key = `id:${rec.place_id}`;
+      if (inflight.has(key)) continue;
+      inflight.add(key);
+      fire(rec, key);
     }
 
 
@@ -2174,11 +2170,7 @@ function RecGroup({
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const { data: taxonomy } = useTaxonomy();
 
-  const CAP_PER_SUBCATEGORY = scope === "nearby" ? 10 : 30;
-  const CAP_MSG = scope === "nearby"
-    ? "Limite de 10 pontos por subcategoria aqui pertinho. Foque nos melhores — qualidade vale mais que quantidade para o hóspede."
-    : "Limite de 30 referências por subcategoria pela cidade. Mantenha apenas as mais relevantes — uma curadoria enxuta gera muito mais confiança.";
-
+  // Sem limite por subcategoria — usuário pode adicionar quantos pontos quiser.
   const groups = new Map<string, { items: RecItem[]; indices: number[] }>();
   items.forEach((it, idx) => {
     const key = it.category || it.type || "Outros";
@@ -2188,18 +2180,11 @@ function RecGroup({
     groups.set(key, g);
   });
   const groupEntries = Array.from(groups.entries()).sort((a, b) => a[0].localeCompare(b[0]));
-  const hasFullGroup = groupEntries.some(([, g]) => g.items.length >= CAP_PER_SUBCATEGORY);
 
   const existingPlaceIds = new Set(
     items.map((i) => i.place_id).filter((x): x is string => !!x),
   );
 
-  function countFor(cat: string) {
-    return groups.get(cat)?.items.length ?? 0;
-  }
-  function canAdd(cat: string) {
-    return countFor(cat) < CAP_PER_SUBCATEGORY;
-  }
 
   function updateAt(idx: number, patch: Partial<RecItem>) {
     onChange(items.map((x, j) => (j === idx ? { ...x, ...patch } : x)));
@@ -2207,19 +2192,7 @@ function RecGroup({
   function removeAt(idx: number) {
     onChange(items.filter((_, j) => j !== idx));
   }
-  function addManual() {
-    if (!canAdd("Outros")) {
-      toast.info(CAP_MSG, { id: `cap-${scope}-Outros`, duration: 6500 });
-      return;
-    }
-    onChange([...items, { scope, type: "other", name: "" }]);
-  }
   function handlePlaceSelect(rec: RecItem) {
-    const cat = rec.category || rec.type || "Outros";
-    if (!canAdd(cat)) {
-      toast.info(`Subcategoria "${cat}" já atingiu o limite. ${CAP_MSG}`, { id: `cap-${scope}-${cat}`, duration: 6500 });
-      return;
-    }
     onChange([...items, rec]);
   }
 
@@ -2290,9 +2263,6 @@ function RecGroup({
               Gerar com IA
             </Button>
           )}
-          <Button size="sm" variant="ghost" onClick={addManual} className="shrink-0 h-8 rounded-full text-xs text-muted-foreground hover:text-foreground">
-            <Plus className="size-3.5" /> manual
-          </Button>
         </div>
       </div>
 
@@ -2304,11 +2274,8 @@ function RecGroup({
         onSelect={handlePlaceSelect}
       />
 
-      {hasFullGroup && (
-        <div className="rounded-lg border border-amber-300/60 bg-amber-50 text-amber-900 dark:bg-amber-950/30 dark:text-amber-100 px-3 py-2 text-[12px] leading-relaxed">
-          <strong className="font-semibold">Subcategoria cheia.</strong> {CAP_MSG}
-        </div>
-      )}
+
+
 
 
 
@@ -2345,8 +2312,8 @@ function RecGroup({
                   >
                     <div className="flex items-center gap-2 min-w-0">
                       <span className="text-sm font-medium truncate">{cat}</span>
-                      <span className={`text-[11px] ${g.items.length >= CAP_PER_SUBCATEGORY ? "text-amber-600 font-medium" : "text-muted-foreground"}`}>
-                        ({g.items.length}/{CAP_PER_SUBCATEGORY}{groupSelected > 0 ? ` · ${groupSelected} sel.` : ""})
+                      <span className="text-[11px] text-muted-foreground">
+                        ({g.items.length}{groupSelected > 0 ? ` · ${groupSelected} sel.` : ""})
                       </span>
 
                     </div>

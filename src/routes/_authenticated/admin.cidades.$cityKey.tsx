@@ -153,6 +153,10 @@ function AdminCityDetail() {
   }
 
   async function handleAdd(place: typeof results[number]) {
+    if (!place.place_id) {
+      toast.error("Esse local não tem cadastro no Google. Use a busca para selecionar um ponto válido.");
+      return;
+    }
     try {
       const result = await addManual({
         data: {
@@ -171,6 +175,7 @@ function AdminCityDetail() {
           lng: place.lng,
           image_url: place.image_url,
           maps_url: place.maps_url,
+          opening_hours: place.opening_hours,
         },
       });
       if ((result as { duplicate?: boolean })?.duplicate) {

@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { refreshStaleRecommendations } from "@/lib/maps.functions";
+import { refreshStaleRecommendations, refreshStaleCityReferencesByPlaceId } from "@/lib/maps.functions";
 
 // Cron público: chamado pelo pg_cron diário. Autentica via apikey (anon).
 export const Route = createFileRoute("/api/public/cron/refresh-recommendations")({
@@ -24,7 +24,8 @@ export const Route = createFileRoute("/api/public/cron/refresh-recommendations")
         }
         try {
           const result = await refreshStaleRecommendations(limit);
-          return Response.json({ ok: true, ...result });
+          const cityResult = await refreshStaleCityReferencesByPlaceId(limit);
+          return Response.json({ ok: true, recommendations: result, city_references: cityResult });
         } catch (e) {
           return Response.json(
             { ok: false, error: e instanceof Error ? e.message : "unknown" },

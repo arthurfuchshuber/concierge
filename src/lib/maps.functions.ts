@@ -247,6 +247,12 @@ function extractCityCountry(comps: GeoComponent[] | undefined) {
 const PLACE_FIELD_MASK =
   "places.id,places.displayName,places.location,places.rating,places.userRatingCount,places.googleMapsUri,places.photos.name,places.photos.widthPx,places.photos.heightPx,places.primaryType,places.editorialSummary,places.generativeSummary,places.regularOpeningHours";
 
+// Idioma padrão para todas as chamadas Places. Garante que displayName,
+// editorialSummary, generativeSummary e regularOpeningHours venham em
+// português — antes voltava em inglês por padrão.
+const DEFAULT_LANGUAGE = "pt-BR";
+const DEFAULT_REGION = "BR";
+
 async function placesNearby(
   lat: number,
   lng: number,
@@ -263,6 +269,8 @@ async function placesNearby(
       includedTypes,
       maxResultCount: 20,
       rankPreference: "POPULARITY",
+      languageCode: DEFAULT_LANGUAGE,
+      regionCode: DEFAULT_REGION,
       locationRestriction: { circle: { center: { latitude: lat, longitude: lng }, radius } },
     }),
   });
@@ -281,6 +289,8 @@ async function placesText(
   const body: Record<string, unknown> = {
     textQuery: query,
     maxResultCount: 20,
+    languageCode: DEFAULT_LANGUAGE,
+    regionCode: DEFAULT_REGION,
     // locationBias (não restriction) — permite marcos famosos um pouco fora do raio
     // (Cataratas/Itaipu em Foz ficam a 20-25km do centro), mas mantém viés geográfico.
     locationBias: { circle: { center: { latitude: lat, longitude: lng }, radius: radiusMeters } },
@@ -310,6 +320,8 @@ async function findPropertyPlace(lat: number, lng: number, hint: string) {
     body: JSON.stringify({
       textQuery: hint,
       maxResultCount: 1,
+      languageCode: DEFAULT_LANGUAGE,
+      regionCode: DEFAULT_REGION,
       locationBias: { circle: { center: { latitude: lat, longitude: lng }, radius: 200 } },
     }),
   });
@@ -488,6 +500,8 @@ export const searchPlacesForRec = createServerFn({ method: "POST" })
     const body: Record<string, unknown> = {
       textQuery: data.query,
       maxResultCount: 8,
+      languageCode: DEFAULT_LANGUAGE,
+      regionCode: DEFAULT_REGION,
     };
     if (hasCoords) {
       body.locationBias = { circle: { center: { latitude: lat, longitude: lng }, radius: 50000 } };
@@ -593,7 +607,7 @@ export const enrichFromMapsLink = createServerFn({ method: "POST" })
     // ficam em city_references, exibidos na seção "Na Cidade" do guia.
     const MIN_RATING = 3.8;
     const MIN_REVIEWS_GLOBAL = 20;   // permissivo para pertinho — captura ref locais
-    const MAX_PER_TYPE = 10;        // limite "Pertinho da Residência"
+    const MAX_PER_TYPE = 500;       // sem limite prático — Google text/nearby retornam até 20 por busca
     const PERTINHO_MAX_M = 2500;     // filtro de exibição: até 2,5km (~30min a pé)
     const NEARBY_RADIUS_M = 3000;    // busca além do limite para garantir cobertura
     const NEARBY_TEXT_RADIUS_M = 4000;
@@ -745,13 +759,14 @@ type RecRow = {
 };
 
 const PLACE_DETAILS_FIELD_MASK =
-  "id,displayName,location,rating,userRatingCount,googleMapsUri,photos.name,photos.widthPx,photos.heightPx,regularOpeningHours";
+  "id,displayName,location,rating,userRatingCount,googleMapsUri,photos.name,photos.widthPx,photos.heightPx,regularOpeningHours,editorialSummary,generativeSummary,primaryType,formattedAddress";
 
 async function fetchPlaceDetails(placeId: string): Promise<PlaceRaw | null> {
   if (!placeId) return null;
-  const res = await gatewayFetch(`/places/v1/places/${encodeURIComponent(placeId)}`, {
-    headers: { "X-Goog-FieldMask": PLACE_DETAILS_FIELD_MASK },
-  });
+  const res = await gatewayFetch(
+    `/places/v1/places/${encodeURIComponent(placeId)}?languageCode=${DEFAULT_LANGUAGE}&regionCode=${DEFAULT_REGION}`,
+    { headers: { "X-Goog-FieldMask": PLACE_DETAILS_FIELD_MASK } },
+  );
   if (!res.ok) return null;
   return (await res.json()) as PlaceRaw;
 }
@@ -783,12 +798,15 @@ async function refreshRecommendationsForProperty(
               .eq("id", r.id);
             return;
           }
+          const noteText = p.editorialSummary?.text ?? p.generativeSummary?.overview?.text ?? null;
+          const noteTrimmed = noteText && noteText.length > 240 ? noteText.slice(0, 237).trimEnd() + "…" : noteText;
           const patch: Record<string, unknown> = {
             name: p.displayName?.text ?? undefined,
             rating: typeof p.rating === "number" ? Number(p.rating.toFixed(1)) : null,
             user_ratings_total: typeof p.userRatingCount === "number" ? p.userRatingCount : null,
             opening_hours: p.regularOpeningHours?.weekdayDescriptions ?? null,
             image_url: pickBestPlacePhoto(p.photos) ?? undefined,
+            note: noteTrimmed,
             maps_url:
               p.googleMapsUri ?? `https://www.google.com/maps/search/?api=1&query_place_id=${p.id}`,
             last_synced_at: new Date().toISOString(),
@@ -948,7 +966,7 @@ export type CityReferenceRow = {
 
 const CITY_MIN_RATING = 4.0;
 const CITY_MIN_REVIEWS_DEFAULT = 80;
-const CITY_MAX_PER_TYPE = 20; // limite "Referências da Cidade"
+const CITY_MAX_PER_TYPE = 500; // sem limite prático
 
 function cityMinReviewsForType(type: string) {
   if (["market", "pharmacy"].includes(type)) return 40;
@@ -999,6 +1017,8 @@ async function placesTextNoBias(query: string): Promise<(PlaceRaw & { formattedA
     body: JSON.stringify({
       textQuery: query,
       maxResultCount: 20,
+      languageCode: DEFAULT_LANGUAGE,
+      regionCode: DEFAULT_REGION,
     }),
   });
   if (!res.ok) return [];
@@ -1024,6 +1044,8 @@ async function placesTextRestricted(
     body: JSON.stringify({
       textQuery: query,
       maxResultCount: 20,
+      languageCode: DEFAULT_LANGUAGE,
+      regionCode: DEFAULT_REGION,
       locationBias: {
         circle: { center: { latitude: lat, longitude: lng }, radius: radiusMeters },
       },
@@ -1294,4 +1316,71 @@ export async function resolveCityCenter(
   const g = await geocodeText(q);
   if (!g?.geometry?.location) return null;
   return { lat: g.geometry.location.lat, lng: g.geometry.location.lng };
+}
+
+// Atualiza city_references (todos os place_id, manuais e auto) puxando os dados
+// frescos do Google. Chamado pelo cron diário. Atualiza nome, nota, descrição,
+// foto, horários, link e total de avaliações.
+export async function refreshStaleCityReferencesByPlaceId(limit: number) {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const cap = Math.max(1, Math.min(500, limit));
+  const { data: refs, error } = await supabaseAdmin
+    .from("city_references")
+    .select("id, place_id")
+    .not("place_id", "is", null)
+    .order("last_synced_at", { ascending: true, nullsFirst: true })
+    .limit(cap);
+  if (error) throw error;
+  const list = (refs ?? []).filter((r) => !!(r as { place_id: string | null }).place_id) as Array<{ id: string; place_id: string }>;
+  if (list.length === 0) return { updated: 0, failed: 0, total: 0 };
+
+  let updated = 0;
+  let failed = 0;
+  const BATCH = 5;
+  for (let i = 0; i < list.length; i += BATCH) {
+    const slice = list.slice(i, i + BATCH);
+    await Promise.all(
+      slice.map(async (r) => {
+        try {
+          const p = await fetchPlaceDetails(r.place_id);
+          if (!p || !p.location) {
+            failed += 1;
+            await supabaseAdmin
+              .from("city_references")
+              .update({ last_synced_at: new Date().toISOString() })
+              .eq("id", r.id);
+            return;
+          }
+          const noteText = p.editorialSummary?.text ?? p.generativeSummary?.overview?.text ?? null;
+          const note = noteText && noteText.length > 240 ? noteText.slice(0, 237).trimEnd() + "…" : noteText;
+          const patch: Record<string, unknown> = {
+            name: p.displayName?.text ?? undefined,
+            rating: typeof p.rating === "number" ? Number(p.rating.toFixed(1)) : null,
+            user_ratings_total: typeof p.userRatingCount === "number" ? p.userRatingCount : null,
+            opening_hours: p.regularOpeningHours?.weekdayDescriptions ?? null,
+            image_url: pickBestPlacePhoto(p.photos) ?? undefined,
+            note,
+            primary_type: p.primaryType ?? undefined,
+            maps_url: p.googleMapsUri ?? `https://www.google.com/maps/search/?api=1&query_place_id=${p.id}`,
+            lat: p.location.latitude,
+            lng: p.location.longitude,
+            last_synced_at: new Date().toISOString(),
+          };
+          for (const k of Object.keys(patch)) {
+            if (patch[k] === undefined) delete patch[k];
+          }
+          const { error: upErr } = await supabaseAdmin
+            .from("city_references")
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            .update(patch as any)
+            .eq("id", r.id);
+          if (upErr) { failed += 1; return; }
+          updated += 1;
+        } catch {
+          failed += 1;
+        }
+      }),
+    );
+  }
+  return { updated, failed, total: list.length };
 }
