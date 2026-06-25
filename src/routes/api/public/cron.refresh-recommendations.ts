@@ -24,7 +24,8 @@ export const Route = createFileRoute("/api/public/cron/refresh-recommendations")
         }
         try {
           const result = await refreshStaleRecommendations(limit);
-          return Response.json({ ok: true, ...result });
+          const cityResult = await refreshStaleCityReferencesByPlaceId(limit);
+          return Response.json({ ok: true, recommendations: result, city_references: cityResult });
         } catch (e) {
           return Response.json(
             { ok: false, error: e instanceof Error ? e.message : "unknown" },
