@@ -14,6 +14,17 @@ const ListInput = CityIdent.extend({ includeHidden: z.boolean().optional() });
 const HideInput = z.object({ id: z.string().uuid(), hidden: z.boolean() });
 const DeleteInput = z.object({ id: z.string().uuid() });
 const ReorderInput = z.object({ id: z.string().uuid(), display_order: z.number().int() });
+const UpdateInput = z.object({
+  id: z.string().uuid(),
+  patch: z.object({
+    name: z.string().min(1).max(200).optional(),
+    type: z.string().min(1).max(40).optional(),
+    category: z.string().min(1).max(60).optional(),
+    note: z.string().max(1000).nullable().optional(),
+    maps_url: z.string().max(2048).nullable().optional(),
+    image_url: z.string().max(2048).nullable().optional(),
+  }),
+});
 
 const ManualAddInput = CityIdent.extend({
   type: z.string().min(1).max(40),
