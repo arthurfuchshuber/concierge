@@ -6,7 +6,7 @@ import { getMyProperty, upsertProperty, listMyProperties, listMyPropertiesBrief,
 import { listHostFaqs } from "@/lib/host-library.functions";
 import { buildDefaultFaqs, mergeDefaultFaqs } from "@/lib/default-faqs";
 import { enrichFromMapsLink, searchPlacesForRec, refreshRecommendationsFromGoogle, type PlaceSearchResult } from "@/lib/maps.functions";
-import { generateCityReferences, listCityReferences } from "@/lib/city-references.functions";
+import { generateCityReferences, listCityReferences, addManualCityReference, updateCityReference, bulkDeleteCityReferences } from "@/lib/city-references.functions";
 import { importFromAirbnb } from "@/lib/airbnb.functions";
 import { useSubscription } from "@/hooks/useSubscription";
 
