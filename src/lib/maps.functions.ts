@@ -480,6 +480,7 @@ export const searchPlacesForRec = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => SearchInputSchema.parse(input))
   .handler(async ({ data }): Promise<PlaceSearchResult[]> => {
+    await hydrateTypeMap();
     const hasCoords = typeof data.lat === "number" && typeof data.lng === "number";
     const lat = hasCoords ? (data.lat as number) : 0;
     const lng = hasCoords ? (data.lng as number) : 0;
