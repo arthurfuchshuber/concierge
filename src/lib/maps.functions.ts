@@ -1317,3 +1317,70 @@ export async function resolveCityCenter(
   if (!g?.geometry?.location) return null;
   return { lat: g.geometry.location.lat, lng: g.geometry.location.lng };
 }
+
+// Atualiza city_references (todos os place_id, manuais e auto) puxando os dados
+// frescos do Google. Chamado pelo cron diário. Atualiza nome, nota, descrição,
+// foto, horários, link e total de avaliações.
+export async function refreshStaleCityReferencesByPlaceId(limit: number) {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const cap = Math.max(1, Math.min(500, limit));
+  const { data: refs, error } = await supabaseAdmin
+    .from("city_references")
+    .select("id, place_id")
+    .not("place_id", "is", null)
+    .order("last_synced_at", { ascending: true, nullsFirst: true })
+    .limit(cap);
+  if (error) throw error;
+  const list = (refs ?? []).filter((r) => !!(r as { place_id: string | null }).place_id) as Array<{ id: string; place_id: string }>;
+  if (list.length === 0) return { updated: 0, failed: 0, total: 0 };
+
+  let updated = 0;
+  let failed = 0;
+  const BATCH = 5;
+  for (let i = 0; i < list.length; i += BATCH) {
+    const slice = list.slice(i, i + BATCH);
+    await Promise.all(
+      slice.map(async (r) => {
+        try {
+          const p = await fetchPlaceDetails(r.place_id);
+          if (!p || !p.location) {
+            failed += 1;
+            await supabaseAdmin
+              .from("city_references")
+              .update({ last_synced_at: new Date().toISOString() })
+              .eq("id", r.id);
+            return;
+          }
+          const noteText = p.editorialSummary?.text ?? p.generativeSummary?.overview?.text ?? null;
+          const note = noteText && noteText.length > 240 ? noteText.slice(0, 237).trimEnd() + "…" : noteText;
+          const patch: Record<string, unknown> = {
+            name: p.displayName?.text ?? undefined,
+            rating: typeof p.rating === "number" ? Number(p.rating.toFixed(1)) : null,
+            user_ratings_total: typeof p.userRatingCount === "number" ? p.userRatingCount : null,
+            opening_hours: p.regularOpeningHours?.weekdayDescriptions ?? null,
+            image_url: pickBestPlacePhoto(p.photos) ?? undefined,
+            note,
+            primary_type: p.primaryType ?? undefined,
+            maps_url: p.googleMapsUri ?? `https://www.google.com/maps/search/?api=1&query_place_id=${p.id}`,
+            lat: p.location.latitude,
+            lng: p.location.longitude,
+            last_synced_at: new Date().toISOString(),
+          };
+          for (const k of Object.keys(patch)) {
+            if (patch[k] === undefined) delete patch[k];
+          }
+          const { error: upErr } = await supabaseAdmin
+            .from("city_references")
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            .update(patch as any)
+            .eq("id", r.id);
+          if (upErr) { failed += 1; return; }
+          updated += 1;
+        } catch {
+          failed += 1;
+        }
+      }),
+    );
+  }
+  return { updated, failed, total: list.length };
+}
