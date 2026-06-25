@@ -909,9 +909,40 @@ const CITY_MAX_PER_TYPE = 20; // limite "Referências da Cidade"
 
 function cityMinReviewsForType(type: string) {
   if (["market", "pharmacy"].includes(type)) return 40;
-  if (["park", "beach", "nightlife"].includes(type)) return 60;
-  if (["attraction", "restaurant", "bar", "cafe", "shopping"].includes(type)) return 120;
+  if (["park", "nightlife"].includes(type)) return 80;
+  if (["beach"].includes(type)) return 120;
+  if (["restaurant", "bar", "cafe", "shopping"].includes(type)) return 150;
+  if (["attraction"].includes(type)) return 200; // ícones de fato, não atrações secundárias
   return CITY_MIN_REVIEWS_DEFAULT;
+}
+
+// Normaliza um nome agressivamente para detectar duplicatas semânticas.
+// Remove acentos, pontuação, parênteses, palavras genéricas que aparecem em
+// variantes do mesmo lugar (park/parque/national/nacional/falls/cataratas/
+// tour/visit/mirante/binacional/de/do/da/the/of/etc.) e ordena tokens para
+// que "Iguazzu Falls Park" e "Parque Cataratas" caiam no mesmo bucket quando
+// combinados com proximidade geográfica.
+const DEDUPE_STOPWORDS = new Set([
+  "de", "do", "da", "dos", "das", "the", "of", "and", "e",
+  "park", "parque", "national", "nacional",
+  "falls", "cataratas", "cataract", "waterfall", "waterfalls",
+  "tour", "visit", "passeio",
+  "mirante", "viewpoint", "lookout",
+  "binacional", "binational",
+  "centro", "center",
+  "museu", "museum",
+  "complexo", "complex",
+]);
+function dedupeKey(name: string): string {
+  return name
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[()[\]{}'"!?.,;:|/\\-]/g, " ")
+    .split(/\s+/)
+    .filter((t) => t && !DEDUPE_STOPWORDS.has(t))
+    .sort()
+    .join(" ");
 }
 
 // Busca textual SEM bias geográfico — usada internamente como fallback
