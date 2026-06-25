@@ -320,6 +320,14 @@ function PropertyEditor() {
       })),
 
     });
+    // marca hidratação no próximo tick para evitar disparo do autosave
+    // imediatamente após carregar do servidor.
+    setTimeout(() => {
+      hydratedRef.current = true;
+      lastSavedRecsRef.current = JSON.stringify(
+        (data.recommendations ?? []).filter((r: Record<string, unknown>) => r.scope === "nearby"),
+      );
+    }, 0);
   }, [data, isNew]);
 
   function update<K extends keyof FormState["property"]>(key: K, value: FormState["property"][K]) {
