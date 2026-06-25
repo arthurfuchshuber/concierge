@@ -49,8 +49,8 @@ async function isAdmin(ctx: any): Promise<boolean> {
 }
 
 // Admin OU dono de ao menos uma residência na cidade indicada.
-// Compara por city_key + country apenas — state pode ser inconsistente
-// entre registros (alguns salvos com UF, outros sem).
+// Compara por city_key apenas: as referências são compartilhadas por cidade,
+// independentemente de variações em state/country salvas historicamente.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function assertCanManageCity(
   ctx: any,
@@ -61,13 +61,11 @@ async function assertCanManageCity(
   const key = cityKey(args.city_label);
   const { data: rows } = await supabaseAdmin
     .from("properties")
-    .select("city, country")
+    .select("city")
     .eq("owner_id", ctx.userId);
   const owns = (rows ?? []).some((p) => {
-    const pCountry = ((p as { country: string | null }).country ?? "BR");
     const pKey = cityKey((p as { city: string | null }).city ?? "");
-    // Ignora state — deduplicação é por city_key + country
-    return pKey === key && pCountry === args.country;
+    return pKey === key;
   });
   if (!owns) throw new Error("Você não tem residências cadastradas nesta cidade.");
 }
@@ -97,13 +95,12 @@ export const listCityReferences = createServerFn({ method: "POST" })
     await assertCanManageCity(context, { city_label: data.city_label, state: normalizeState(data.state ?? null), country: data.country });
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const key = cityKey(data.city_label);
-    // Query by city_key + country only — state may differ across records due to
-    // historical inconsistency (some saved with state, some without). Showing all.
+    // Query by city_key only — "Referências da Cidade" é uma fonte única
+    // compartilhada por todos os guias desta cidade.
     const { data: rows, error } = await supabaseAdmin
       .from("city_references")
       .select("*")
       .eq("city_key", key)
-      .eq("country", data.country)
       .order("type")
       .order("display_order")
       .order("user_ratings_total", { ascending: false });
@@ -113,7 +110,6 @@ export const listCityReferences = createServerFn({ method: "POST" })
       .from("city_reference_jobs")
       .select("*")
       .eq("city_key", key)
-      .eq("country", data.country)
       .maybeSingle();
 
     return { items: rows ?? [], job };
@@ -164,9 +160,7 @@ export async function runCityGeneration(input: {
   let existingQ = supabaseAdmin
     .from("city_references")
     .select("id, place_id, name, is_hidden, source")
-    .eq("city_key", key)
-    .eq("country", country);
-  existingQ = st ? existingQ.eq("state", st) : existingQ.is("state", null);
+    .eq("city_key", key);
   const { data: existing } = await existingQ;
   const byPlace = new Map<string, { id: string; is_hidden: boolean }>();
   const byName = new Map<string, { id: string; is_hidden: boolean }>();
@@ -232,7 +226,6 @@ export async function runCityGeneration(input: {
       .from("city_reference_jobs")
       .select("id")
       .eq("city_key", key)
-      .eq("country", country)
       .maybeSingle();
     const jobPayload = {
       city_key: key,
@@ -377,14 +370,12 @@ export const addManualCityReference = createServerFn({ method: "POST" })
     };
     // Find-or-insert manualmente: nunca duplica o mesmo ponto. Procura por
     // (a) place_id quando informado, OU (b) mesmo nome (case-insensitive)
-    // dentro da mesma cidade/estado/país. Se já existir, faz UPDATE em vez
+    // dentro da mesma cidade. Se já existir, faz UPDATE em vez
     // de INSERT.
     let existingQ = supabaseAdmin
       .from("city_references")
       .select("id, place_id, name")
-      .eq("city_key", key)
-      .eq("country", data.country);
-    existingQ = st ? existingQ.eq("state", st) : existingQ.is("state", null);
+      .eq("city_key", key);
     const { data: existingList } = await existingQ;
     const normalized = payload.name.trim().toLowerCase();
     const existing = (existingList ?? []).find((row) => {
@@ -435,17 +426,14 @@ export const listAdminCities = createServerFn({ method: "POST" })
       ref_count: number;
     };
     const map = new Map<string, Bucket>();
-    // Use city_key+country as the deduplication key (ignore state inconsistency
-    // between properties — state may or may not be set across records).
-    const k = (city_key: string, country: string) =>
-      `${city_key}|${country}`;
+    const k = (city_key: string) => city_key;
 
     for (const p of (props ?? []) as Array<{ city: string | null; state: string | null; country: string | null }>) {
       if (!p.city) continue;
       const country = p.country ?? "BR";
       const state = normalizeState(p.state);
       const key = cityKey(p.city);
-      const id = k(key, country);
+      const id = k(key);
       const b = map.get(id) ?? {
         city_key: key,
         city_label: p.city,
@@ -462,7 +450,7 @@ export const listAdminCities = createServerFn({ method: "POST" })
       map.set(id, b);
     }
     for (const j of (jobs ?? []) as Array<{ city_key: string; city_label: string; state: string | null; country: string; last_refreshed_at: string | null; last_status: string | null }>) {
-      const id = k(j.city_key, j.country);
+      const id = k(j.city_key);
       const existing = map.get(id);
       if (!existing && !admin) continue; // hosts: só cidades das próprias residências
       const b = existing ?? {
@@ -484,7 +472,7 @@ export const listAdminCities = createServerFn({ method: "POST" })
       .from("city_references")
       .select("city_key, state, country");
     for (const r of (refs ?? []) as Array<{ city_key: string; state: string | null; country: string }>) {
-      const id = k(r.city_key, r.country);
+      const id = k(r.city_key);
       const b = map.get(id);
       if (b) b.ref_count += 1;
     }

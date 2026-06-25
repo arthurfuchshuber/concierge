@@ -17,6 +17,7 @@ import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { ArrowLeft, Eye, EyeOff, Trash2, Sparkles, Plus, Star, Search, Loader2 } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { useCityReferencesRealtime } from "@/hooks/useCityReferencesRealtime";
 
 
 const SearchSchema = z.object({
@@ -47,6 +48,10 @@ function AdminCityDetail() {
   const { data, isLoading, refetch } = useQuery({
     queryKey,
     queryFn: () => list({ data: { city_label: label, state, country, includeHidden: true } }),
+  });
+
+  useCityReferencesRealtime(label, () => {
+    void qc.invalidateQueries({ queryKey });
   });
 
   const [generating, setGenerating] = useState<string | null>(null);

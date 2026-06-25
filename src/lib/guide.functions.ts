@@ -7,7 +7,7 @@ const SlugInput = z.object({ slug: z.string().regex(/^[a-z0-9-]{1,64}$/) });
 async function loadFullGuide(supabaseAdmin: typeof import("@/integrations/supabase/client.server").supabaseAdmin, propertyId: string) {
   const [manual, recs, emerg, faqs, checkout] = await Promise.all([
     supabaseAdmin.from("property_manual_items").select("*").eq("property_id", propertyId).order("position"),
-    supabaseAdmin.from("property_recommendations").select("*").eq("property_id", propertyId).order("scope").order("type").order("position"),
+    supabaseAdmin.from("property_recommendations").select("*").eq("property_id", propertyId).eq("scope", "nearby").order("type").order("position"),
     supabaseAdmin.from("property_emergency_contacts").select("*").eq("property_id", propertyId).order("position"),
     supabaseAdmin.from("property_faqs").select("*").eq("property_id", propertyId).order("position"),
     supabaseAdmin.from("property_checkout_items").select("*").eq("property_id", propertyId).order("position"),
@@ -73,12 +73,12 @@ export const getPublicGuide = createServerFn({ method: "POST" })
     const country = ((prop as any).country as string | null) ?? "BR";
     let cityReferences: any[] = [];
     if (ck) {
-      // Query by city_key + country only — state may differ across records
+      // Query by city_key only — city references are shared by every guide
+      // for the same city, regardless of state/country label inconsistencies.
       const { data } = await supabaseAdmin
         .from("city_references")
         .select("id, category, type, name, note, address, rating, user_ratings_total, image_url, maps_url, opening_hours, lat, lng, place_id, display_order")
         .eq("city_key", ck)
-        .eq("country", country)
         .eq("is_hidden", false)
         .order("type")
         .order("display_order")
