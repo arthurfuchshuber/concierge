@@ -2164,9 +2164,6 @@ function RecGroup({
   const { data: taxonomy } = useTaxonomy();
 
   // Sem limite por subcategoria — usuário pode adicionar quantos pontos quiser.
-  const CAP_PER_SUBCATEGORY = Number.POSITIVE_INFINITY;
-  const CAP_MSG = "";
-
   const groups = new Map<string, { items: RecItem[]; indices: number[] }>();
   items.forEach((it, idx) => {
     const key = it.category || it.type || "Outros";
@@ -2176,18 +2173,11 @@ function RecGroup({
     groups.set(key, g);
   });
   const groupEntries = Array.from(groups.entries()).sort((a, b) => a[0].localeCompare(b[0]));
-  const hasFullGroup = groupEntries.some(([, g]) => g.items.length >= CAP_PER_SUBCATEGORY);
 
   const existingPlaceIds = new Set(
     items.map((i) => i.place_id).filter((x): x is string => !!x),
   );
 
-  function countFor(cat: string) {
-    return groups.get(cat)?.items.length ?? 0;
-  }
-  function canAdd(cat: string) {
-    return countFor(cat) < CAP_PER_SUBCATEGORY;
-  }
 
   function updateAt(idx: number, patch: Partial<RecItem>) {
     onChange(items.map((x, j) => (j === idx ? { ...x, ...patch } : x)));
