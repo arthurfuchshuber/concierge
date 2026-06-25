@@ -83,8 +83,9 @@ type Rec = {
 };
 
 
-// Fallback labels — usados quando a taxonomia ainda não carregou
-const TYPE_LABEL_FALLBACK: Record<string, string> = {
+// Fallback labels — usados pelos componentes-filhos enquanto a taxonomia carrega.
+// O componente principal hidrata `TYPE_LABEL` em runtime com os dados do DB.
+const TYPE_LABEL: Record<string, string> = {
   restaurant: "Restaurante",
   bar: "Bar",
   cafe: "Café",
@@ -96,6 +97,7 @@ const TYPE_LABEL_FALLBACK: Record<string, string> = {
   beach: "Praia",
   attraction: "Atração",
 };
+const TYPE_LABEL_FALLBACK = TYPE_LABEL;
 
 type MetaCategory = {
   key: string;
