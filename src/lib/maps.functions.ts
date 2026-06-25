@@ -1044,6 +1044,8 @@ async function placesTextRestricted(
     body: JSON.stringify({
       textQuery: query,
       maxResultCount: 20,
+      languageCode: DEFAULT_LANGUAGE,
+      regionCode: DEFAULT_REGION,
       locationBias: {
         circle: { center: { latitude: lat, longitude: lng }, radius: radiusMeters },
       },
