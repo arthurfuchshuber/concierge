@@ -1017,6 +1017,8 @@ async function placesTextNoBias(query: string): Promise<(PlaceRaw & { formattedA
     body: JSON.stringify({
       textQuery: query,
       maxResultCount: 20,
+      languageCode: DEFAULT_LANGUAGE,
+      regionCode: DEFAULT_REGION,
     }),
   });
   if (!res.ok) return [];
