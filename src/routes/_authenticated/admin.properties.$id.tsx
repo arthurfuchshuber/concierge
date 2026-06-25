@@ -599,7 +599,6 @@ function PropertyEditor() {
   }
 
   const nearbyRecs = form.recommendations.filter((r) => r.scope === "nearby");
-  const cityRecs = form.recommendations.filter((r) => r.scope === "city");
   const savedSlug = !isNew ? ((data?.property as Record<string, unknown> | undefined)?.slug as string | undefined) : undefined;
   const previewSlug = savedSlug || form.property.slug;
 
