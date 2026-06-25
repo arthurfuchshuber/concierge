@@ -1666,6 +1666,11 @@ function PropertyEditor() {
             <ArrowLeft className="size-3.5 rotate-180" />
           </Button>
           <div className="flex items-center gap-2 w-full sm:w-auto sm:ml-auto">
+            {step === "recs" && !isNew && (
+              <span className="text-[11px] text-muted-foreground hidden sm:inline-flex items-center gap-1.5">
+                {autoSaving ? (<><Loader2 className="size-3 animate-spin" /> Salvando…</>) : "Alterações salvas automaticamente"}
+              </span>
+            )}
             <Button variant="ghost" size="sm" className="flex-1 sm:flex-none" onClick={() => navigate({ to: "/admin" })}>Cancelar</Button>
             <Button size="sm" className="flex-1 sm:flex-none" onClick={handleSave} disabled={saving || !form.property.name}>
               {saving ? <Loader2 className="size-4 animate-spin mr-1.5" /> : null}
