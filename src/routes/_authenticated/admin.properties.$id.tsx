@@ -2266,9 +2266,6 @@ function RecGroup({
               Gerar com IA
             </Button>
           )}
-          <Button size="sm" variant="ghost" onClick={addManual} className="shrink-0 h-8 rounded-full text-xs text-muted-foreground hover:text-foreground">
-            <Plus className="size-3.5" /> manual
-          </Button>
         </div>
       </div>
 
