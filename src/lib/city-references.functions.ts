@@ -366,6 +366,7 @@ export const addManualCityReference = createServerFn({ method: "POST" })
       lng: data.lng ?? null,
       image_url: data.image_url ?? null,
       maps_url: data.maps_url ?? null,
+      opening_hours: data.opening_hours ?? null,
       source: "manual",
       is_hidden: false,
       last_synced_at: new Date().toISOString(),
