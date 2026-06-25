@@ -28,6 +28,7 @@ import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/
 import { GuideAiChat } from "@/components/GuideAiChat";
 import { toTitleCase } from "@/lib/text";
 import { useCityReferencesRealtime } from "@/hooks/useCityReferencesRealtime";
+import { useTaxonomy } from "@/components/admin/TagPicker";
 
 
 
@@ -82,6 +83,8 @@ type Rec = {
 };
 
 
+// Fallback labels — usados pelos componentes-filhos enquanto a taxonomia carrega.
+// O componente principal hidrata `TYPE_LABEL` em runtime com os dados do DB.
 const TYPE_LABEL: Record<string, string> = {
   restaurant: "Restaurante",
   bar: "Bar",
@@ -94,6 +97,7 @@ const TYPE_LABEL: Record<string, string> = {
   beach: "Praia",
   attraction: "Atração",
 };
+const TYPE_LABEL_FALLBACK = TYPE_LABEL;
 
 type MetaCategory = {
   key: string;
@@ -103,43 +107,16 @@ type MetaCategory = {
   types: string[];
 };
 
-const META_CATEGORIES: MetaCategory[] = [
-  {
-    key: "food",
-    title: "Bares e Restaurantes",
-    desc: "Onde comer, beber e brindar.",
-    Icon: Utensils,
-    types: ["restaurant", "bar"],
-  },
-  {
-    key: "sights",
-    title: "Pontos Turísticos",
-    desc: "Atrações imperdíveis pela região.",
-    Icon: Landmark,
-    types: ["attraction", "park", "beach"],
-  },
-  {
-    key: "cafe",
-    title: "Padarias e Cafeterias",
-    desc: "Para a pausa do café e do pão fresquinho.",
-    Icon: Coffee,
-    types: ["cafe"],
-  },
-  {
-    key: "fun",
-    title: "Lazer e Compras",
-    desc: "Mercados, shoppings e vida noturna.",
-    Icon: PartyPopper,
-    types: ["shopping", "market", "nightlife"],
-  },
-  {
-    key: "health",
-    title: "Saúde e Farmácias",
-    desc: "Cuidados e emergências por perto.",
-    Icon: Cross,
-    types: ["pharmacy"],
-  },
-];
+function iconForCategorySlug(slug: string): MetaCategory["Icon"] {
+  const s = (slug || "").toLowerCase();
+  if (/(restaur|comida|food)/.test(s)) return Utensils;
+  if (/(bar|noturn|night)/.test(s)) return PartyPopper;
+  if (/(caf|padar)/.test(s)) return Coffee;
+  if (/(atra|turis|sight|parqu|praia|lago)/.test(s)) return Landmark;
+  if (/(compr|shop|merc)/.test(s)) return ShoppingBag;
+  if (/(farm|saud|health)/.test(s)) return Cross;
+  return Compass;
+}
 
 function hasMeaningfulInfo(r: Rec): boolean {
   return !!(r.name && (r.image_url || r.rating || r.distance_text || r.distance_meters || r.note));
@@ -393,17 +370,61 @@ function ExplorePage() {
     return { meta, items: [...nearby, ...city], nearby, city, count: total };
   };
 
+  // Categorias agora vêm da taxonomia configurada pelo admin (DB).
+  const { data: taxonomy } = useTaxonomy();
+  const dynamicMetas: MetaCategory[] = useMemo(() => {
+    const cats = taxonomy?.categories ?? [];
+    const tags = taxonomy?.tags ?? [];
+    return cats.map((c) => {
+      const types = tags.filter((t) => t.category_id === c.id).map((t) => t.slug);
+      return {
+        key: c.slug,
+        title: c.label,
+        desc: "",
+        Icon: iconForCategorySlug(c.slug),
+        types,
+      };
+    });
+  }, [taxonomy]);
+
+  // Tipos órfãos: aparecem em allRecs/cityRefs mas não constam de nenhuma categoria.
+  // Agrupamos sob "Outros" para não desaparecerem do guia.
+  const orphanMeta: MetaCategory | null = useMemo(() => {
+    const known = new Set(dynamicMetas.flatMap((m) => m.types));
+    const orphanTypes = new Set<string>();
+    [...allRecs, ...cityRefs].forEach((r) => { if (r.type && !known.has(r.type)) orphanTypes.add(r.type); });
+    if (orphanTypes.size === 0) return null;
+    return {
+      key: "__outros__",
+      title: "Outros",
+      desc: "",
+      Icon: Compass,
+      types: Array.from(orphanTypes),
+    };
+  }, [dynamicMetas, allRecs, cityRefs]);
+
+  const allMetas = useMemo(
+    () => (orphanMeta ? [...dynamicMetas, orphanMeta] : dynamicMetas),
+    [dynamicMetas, orphanMeta],
+  );
+
   const categories = useMemo(
-    () => META_CATEGORIES.map((m) => buildBuckets(m, true)).filter((c) => c.count > 0),
+    () => allMetas.map((m) => buildBuckets(m, true)).filter((c) => c.count > 0),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [allRecs, cityRefs, minReviews],
+    [allMetas, allRecs, cityRefs, minReviews],
   );
 
   const categoriesUnfiltered = useMemo(
-    () => META_CATEGORIES.map((m) => buildBuckets(m, false)).filter((c) => c.count > 0),
+    () => allMetas.map((m) => buildBuckets(m, false)).filter((c) => c.count > 0),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [allRecs, cityRefs],
+    [allMetas, allRecs, cityRefs],
   );
+
+  // Mantém o mapa de label sincronizado com a taxonomia (mutação intencional
+  // do objeto module-level para que componentes-filhos enxerguem labels reais).
+  useEffect(() => {
+    (taxonomy?.tags ?? []).forEach((t) => { TYPE_LABEL[t.slug] = t.label; });
+  }, [taxonomy]);
 
   const active = (activeKey
     ? categoriesUnfiltered.find((c) => c.meta.key === activeKey)
