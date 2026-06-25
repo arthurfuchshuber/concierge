@@ -500,6 +500,8 @@ export const searchPlacesForRec = createServerFn({ method: "POST" })
     const body: Record<string, unknown> = {
       textQuery: data.query,
       maxResultCount: 8,
+      languageCode: DEFAULT_LANGUAGE,
+      regionCode: DEFAULT_REGION,
     };
     if (hasCoords) {
       body.locationBias = { circle: { center: { latitude: lat, longitude: lng }, radius: 50000 } };
