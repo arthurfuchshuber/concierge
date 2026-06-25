@@ -156,8 +156,6 @@ function PropertyEditor() {
   const updateCityRefFn = useServerFn(updateCityReference);
   const bulkDeleteCityRefsFn = useServerFn(bulkDeleteCityReferences);
   const refreshGoogle = useServerFn(refreshRecommendationsFromGoogle);
-  const fetchAllProps = useServerFn(listMyPropertiesBrief);
-  const copyRecs = useServerFn(copyCityRecsToProperties);
   const queryClient = useQueryClient();
   const [refreshingGoogle, setRefreshingGoogle] = useState(false);
   const [openFaqIdx, setOpenFaqIdx] = useState<number | null>(null);
