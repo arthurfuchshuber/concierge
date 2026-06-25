@@ -316,6 +316,27 @@ export const reorderCityReference = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+// ---- UPDATE -----------------------------------------------------------
+export const updateCityReference = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => UpdateInput.parse(i))
+  .handler(async ({ data, context }) => {
+    await assertCanManageRefById(context, data.id);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const patch: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(data.patch)) {
+      if (v !== undefined) patch[k] = v;
+    }
+    if (Object.keys(patch).length === 0) return { ok: true };
+    const { error } = await supabaseAdmin
+      .from("city_references")
+      .update(patch)
+      .eq("id", data.id);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+
 // ---- MANUAL ADD -------------------------------------------------------
 export const addManualCityReference = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
