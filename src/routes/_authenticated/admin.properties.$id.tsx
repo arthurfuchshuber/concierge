@@ -2163,10 +2163,9 @@ function RecGroup({
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const { data: taxonomy } = useTaxonomy();
 
-  const CAP_PER_SUBCATEGORY = scope === "nearby" ? 10 : 30;
-  const CAP_MSG = scope === "nearby"
-    ? "Limite de 10 pontos por subcategoria aqui pertinho. Foque nos melhores — qualidade vale mais que quantidade para o hóspede."
-    : "Limite de 30 referências por subcategoria pela cidade. Mantenha apenas as mais relevantes — uma curadoria enxuta gera muito mais confiança.";
+  // Sem limite por subcategoria — usuário pode adicionar quantos pontos quiser.
+  const CAP_PER_SUBCATEGORY = Number.POSITIVE_INFINITY;
+  const CAP_MSG = "";
 
   const groups = new Map<string, { items: RecItem[]; indices: number[] }>();
   items.forEach((it, idx) => {
