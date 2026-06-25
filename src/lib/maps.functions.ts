@@ -1172,8 +1172,25 @@ export async function generateCityReferencesFromMaps(input: {
     return r * Math.log10(n + 10);
   };
   const out: CityReferenceRow[] = [];
+  // Dedupe global por chave semântica (mesmo lugar em variantes de nome).
+  // Mantém o de maior score. Aplica ANTES de cortar top N para não desperdiçar
+  // slots com duplicatas (Cataratas / Iguazzu Falls / Iguazu National Park ...).
+  const globalDedupe = new Map<string, { p: PlaceRaw & { formattedAddress?: string; _cat: TypeMapEntry }; score: number }>();
+  for (const cat of targetTypes) {
+    const arr = byCategory.get(cat.type) ?? [];
+    for (const p of arr) {
+      const key = dedupeKey(p.displayName?.text ?? "");
+      if (!key) continue;
+      const score = qualityScore(p);
+      const prev = globalDedupe.get(key);
+      if (!prev || score > prev.score) globalDedupe.set(key, { p, score });
+    }
+  }
+  const survivorIds = new Set(Array.from(globalDedupe.values()).map((v) => v.p.id));
+
   for (const cat of targetTypes) {
     const arr = (byCategory.get(cat.type) ?? [])
+      .filter((p) => survivorIds.has(p.id))
       .sort((a, b) => qualityScore(b) - qualityScore(a))
       .slice(0, CITY_MAX_PER_TYPE);
 
