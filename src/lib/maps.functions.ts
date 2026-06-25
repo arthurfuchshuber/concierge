@@ -798,12 +798,15 @@ async function refreshRecommendationsForProperty(
               .eq("id", r.id);
             return;
           }
+          const noteText = p.editorialSummary?.text ?? p.generativeSummary?.overview?.text ?? null;
+          const noteTrimmed = noteText && noteText.length > 240 ? noteText.slice(0, 237).trimEnd() + "…" : noteText;
           const patch: Record<string, unknown> = {
             name: p.displayName?.text ?? undefined,
             rating: typeof p.rating === "number" ? Number(p.rating.toFixed(1)) : null,
             user_ratings_total: typeof p.userRatingCount === "number" ? p.userRatingCount : null,
             opening_hours: p.regularOpeningHours?.weekdayDescriptions ?? null,
             image_url: pickBestPlacePhoto(p.photos) ?? undefined,
+            note: noteTrimmed,
             maps_url:
               p.googleMapsUri ?? `https://www.google.com/maps/search/?api=1&query_place_id=${p.id}`,
             last_synced_at: new Date().toISOString(),
