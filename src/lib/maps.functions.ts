@@ -966,7 +966,7 @@ export type CityReferenceRow = {
 
 const CITY_MIN_RATING = 4.0;
 const CITY_MIN_REVIEWS_DEFAULT = 80;
-const CITY_MAX_PER_TYPE = 20; // limite "Referências da Cidade"
+const CITY_MAX_PER_TYPE = 500; // sem limite prático
 
 function cityMinReviewsForType(type: string) {
   if (["market", "pharmacy"].includes(type)) return 40;
