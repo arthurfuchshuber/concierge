@@ -1886,6 +1886,8 @@ function PlaceAutocomplete({
       image_url: p.image_url,
       maps_url: p.maps_url,
       place_id: p.place_id,
+      lat: p.lat ?? null,
+      lng: p.lng ?? null,
     };
     onSelect(rec);
     setQuery("");
