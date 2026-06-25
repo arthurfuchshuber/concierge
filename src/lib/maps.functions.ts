@@ -320,6 +320,8 @@ async function findPropertyPlace(lat: number, lng: number, hint: string) {
     body: JSON.stringify({
       textQuery: hint,
       maxResultCount: 1,
+      languageCode: DEFAULT_LANGUAGE,
+      regionCode: DEFAULT_REGION,
       locationBias: { circle: { center: { latitude: lat, longitude: lng }, radius: 200 } },
     }),
   });
