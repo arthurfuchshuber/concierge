@@ -1086,6 +1086,7 @@ export async function generateCityReferencesFromMaps(input: {
   country: string;
   type?: string | null;
 }): Promise<CityReferenceRow[]> {
+  await hydrateTypeMap();
   const { city_label, state, country, type } = input;
   const cityQ = state ? `${city_label}, ${state}` : city_label;
   const targetTypes = type
