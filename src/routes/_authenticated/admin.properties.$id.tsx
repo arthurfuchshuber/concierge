@@ -2071,7 +2071,8 @@ function CityRefsGroup({
     // Adições: itens em next sem _dbId E com nome preenchido.
     // - Autocomplete (tem place_id): grava imediatamente, dedup por place_id.
     // - Manual (sem place_id): debounce 900ms para não chamar a cada tecla.
-    const additions = next.filter((n) => !n._dbId && n.name && n.name.trim().length > 0);
+    // Só permite adicionar pontos vindos do Google (com place_id).
+    const additions = next.filter((n) => !n._dbId && n.place_id && n.name && n.name.trim().length > 0);
     const inflight = inflightAdds.current;
     const fire = (rec: RecItem, key: string) => {
       addFn({
@@ -2082,12 +2083,13 @@ function CityRefsGroup({
           type: rec.type || "other",
           category: rec.category || rec.type || "Outros",
           name: rec.name.trim(),
-          place_id: rec.place_id ?? null,
+          place_id: rec.place_id!,
           note: rec.note ?? null,
           rating: rec.rating ?? null,
           user_ratings_total: rec.user_ratings_total ?? null,
           image_url: rec.image_url ?? null,
           maps_url: rec.maps_url ?? null,
+          opening_hours: rec.opening_hours ?? null,
         },
       })
         .then(() => invalidate())
@@ -2095,23 +2097,10 @@ function CityRefsGroup({
         .finally(() => inflight.delete(key));
     };
     for (const rec of additions) {
-      if (rec.place_id) {
-        const key = `id:${rec.place_id}`;
-        if (inflight.has(key)) continue;
-        inflight.add(key);
-        fire(rec, key);
-      } else {
-        const key = `name:${rec.name.trim().toLowerCase()}`;
-        const existing = pendingAdds.current.get(key);
-        if (existing) clearTimeout(existing);
-        const t = setTimeout(() => {
-          pendingAdds.current.delete(key);
-          if (inflight.has(key)) return;
-          inflight.add(key);
-          fire(rec, key);
-        }, 900);
-        pendingAdds.current.set(key, t);
-      }
+      const key = `id:${rec.place_id}`;
+      if (inflight.has(key)) continue;
+      inflight.add(key);
+      fire(rec, key);
     }
 
 
