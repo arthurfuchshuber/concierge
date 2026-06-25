@@ -759,13 +759,14 @@ type RecRow = {
 };
 
 const PLACE_DETAILS_FIELD_MASK =
-  "id,displayName,location,rating,userRatingCount,googleMapsUri,photos.name,photos.widthPx,photos.heightPx,regularOpeningHours";
+  "id,displayName,location,rating,userRatingCount,googleMapsUri,photos.name,photos.widthPx,photos.heightPx,regularOpeningHours,editorialSummary,generativeSummary,primaryType,formattedAddress";
 
 async function fetchPlaceDetails(placeId: string): Promise<PlaceRaw | null> {
   if (!placeId) return null;
-  const res = await gatewayFetch(`/places/v1/places/${encodeURIComponent(placeId)}`, {
-    headers: { "X-Goog-FieldMask": PLACE_DETAILS_FIELD_MASK },
-  });
+  const res = await gatewayFetch(
+    `/places/v1/places/${encodeURIComponent(placeId)}?languageCode=${DEFAULT_LANGUAGE}&regionCode=${DEFAULT_REGION}`,
+    { headers: { "X-Goog-FieldMask": PLACE_DETAILS_FIELD_MASK } },
+  );
   if (!res.ok) return null;
   return (await res.json()) as PlaceRaw;
 }
