@@ -2062,9 +2062,17 @@ function CityRefsGroup({
         .catch((e) => toast.error(e instanceof Error ? e.message : "Erro ao excluir"));
     }
 
-    // Adições: itens em next sem _dbId E com nome preenchido.
-    const additions = next.filter((n) => !n._dbId && n.name && n.name.trim().length > 0);
+    // Adições: itens em next sem _dbId E com nome preenchido (autocomplete já
+    // traz place_id; manual fica como rascunho até o usuário digitar um nome).
+    // Quando vem do autocomplete, gravamos imediatamente. Para manual sem
+    // place_id, deixamos o usuário continuar editando e gravamos no blur do
+    // próximo update — não criamos enquanto digita.
+    const additions = next.filter((n) => !n._dbId && n.place_id && n.name && n.name.trim().length > 0);
+    const inflight = inflightAdds.current;
     for (const rec of additions) {
+      const key = rec.place_id || rec.name.trim().toLowerCase();
+      if (inflight.has(key)) continue;
+      inflight.add(key);
       addFn({
         data: {
           city_label: city,
@@ -2082,8 +2090,10 @@ function CityRefsGroup({
         },
       })
         .then(() => invalidate())
-        .catch((e) => toast.error(e instanceof Error ? e.message : "Erro ao adicionar"));
+        .catch((e) => toast.error(e instanceof Error ? e.message : "Erro ao adicionar"))
+        .finally(() => inflight.delete(key));
     }
+
 
     // Updates: mesmo _dbId, campos editáveis diferentes (nome/tipo/nota/maps_url).
     for (const n of next) {
