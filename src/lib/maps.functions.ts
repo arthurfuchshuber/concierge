@@ -247,6 +247,12 @@ function extractCityCountry(comps: GeoComponent[] | undefined) {
 const PLACE_FIELD_MASK =
   "places.id,places.displayName,places.location,places.rating,places.userRatingCount,places.googleMapsUri,places.photos.name,places.photos.widthPx,places.photos.heightPx,places.primaryType,places.editorialSummary,places.generativeSummary,places.regularOpeningHours";
 
+// Idioma padrão para todas as chamadas Places. Garante que displayName,
+// editorialSummary, generativeSummary e regularOpeningHours venham em
+// português — antes voltava em inglês por padrão.
+const DEFAULT_LANGUAGE = "pt-BR";
+const DEFAULT_REGION = "BR";
+
 async function placesNearby(
   lat: number,
   lng: number,
@@ -263,6 +269,8 @@ async function placesNearby(
       includedTypes,
       maxResultCount: 20,
       rankPreference: "POPULARITY",
+      languageCode: DEFAULT_LANGUAGE,
+      regionCode: DEFAULT_REGION,
       locationRestriction: { circle: { center: { latitude: lat, longitude: lng }, radius } },
     }),
   });
@@ -281,6 +289,8 @@ async function placesText(
   const body: Record<string, unknown> = {
     textQuery: query,
     maxResultCount: 20,
+    languageCode: DEFAULT_LANGUAGE,
+    regionCode: DEFAULT_REGION,
     // locationBias (não restriction) — permite marcos famosos um pouco fora do raio
     // (Cataratas/Itaipu em Foz ficam a 20-25km do centro), mas mantém viés geográfico.
     locationBias: { circle: { center: { latitude: lat, longitude: lng }, radius: radiusMeters } },
