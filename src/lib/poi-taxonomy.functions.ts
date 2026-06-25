@@ -210,7 +210,8 @@ export const updatePoiTag = createServerFn({ method: "POST" })
   .inputValidator((i: unknown) => UpdateTagSchema.parse(i))
   .handler(async ({ data, context }) => {
     await assertAdmin(context);
-    const patch: Record<string, unknown> = {};
+    type TagUpdate = Database["public"]["Tables"]["poi_tags"]["Update"];
+    const patch: TagUpdate = {};
     if (data.label !== undefined) patch.label = data.label.trim();
     if (data.category_id !== undefined) patch.category_id = data.category_id;
     if (data.accepted_primary_types !== undefined) patch.accepted_primary_types = data.accepted_primary_types;
