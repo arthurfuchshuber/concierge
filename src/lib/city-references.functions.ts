@@ -30,7 +30,8 @@ const ManualAddInput = CityIdent.extend({
   type: z.string().min(1).max(40),
   category: z.string().min(1).max(60),
   name: z.string().min(1).max(200),
-  place_id: z.string().max(200).nullable().optional(),
+  // place_id é OBRIGATÓRIO — só aceitamos pontos cadastrados no Google.
+  place_id: z.string().min(1).max(200),
   note: z.string().max(800).nullable().optional(),
   address: z.string().max(400).nullable().optional(),
   rating: z.number().nullable().optional(),
@@ -40,6 +41,7 @@ const ManualAddInput = CityIdent.extend({
   lng: z.number().nullable().optional(),
   image_url: z.string().max(2048).nullable().optional(),
   maps_url: z.string().max(2048).nullable().optional(),
+  opening_hours: z.array(z.string().max(200)).max(14).nullable().optional(),
 });
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
