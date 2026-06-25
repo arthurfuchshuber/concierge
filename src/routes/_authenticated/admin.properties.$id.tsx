@@ -2064,17 +2064,12 @@ function CityRefsGroup({
         .catch((e) => toast.error(e instanceof Error ? e.message : "Erro ao excluir"));
     }
 
-    // Adições: itens em next sem _dbId E com nome preenchido (autocomplete já
-    // traz place_id; manual fica como rascunho até o usuário digitar um nome).
-    // Quando vem do autocomplete, gravamos imediatamente. Para manual sem
-    // place_id, deixamos o usuário continuar editando e gravamos no blur do
-    // próximo update — não criamos enquanto digita.
-    const additions = next.filter((n) => !n._dbId && n.place_id && n.name && n.name.trim().length > 0);
+    // Adições: itens em next sem _dbId E com nome preenchido.
+    // - Autocomplete (tem place_id): grava imediatamente, dedup por place_id.
+    // - Manual (sem place_id): debounce 900ms para não chamar a cada tecla.
+    const additions = next.filter((n) => !n._dbId && n.name && n.name.trim().length > 0);
     const inflight = inflightAdds.current;
-    for (const rec of additions) {
-      const key = rec.place_id || rec.name.trim().toLowerCase();
-      if (inflight.has(key)) continue;
-      inflight.add(key);
+    const fire = (rec: RecItem, key: string) => {
       addFn({
         data: {
           city_label: city,
@@ -2094,7 +2089,27 @@ function CityRefsGroup({
         .then(() => invalidate())
         .catch((e) => toast.error(e instanceof Error ? e.message : "Erro ao adicionar"))
         .finally(() => inflight.delete(key));
+    };
+    for (const rec of additions) {
+      if (rec.place_id) {
+        const key = `id:${rec.place_id}`;
+        if (inflight.has(key)) continue;
+        inflight.add(key);
+        fire(rec, key);
+      } else {
+        const key = `name:${rec.name.trim().toLowerCase()}`;
+        const existing = pendingAdds.current.get(key);
+        if (existing) clearTimeout(existing);
+        const t = setTimeout(() => {
+          pendingAdds.current.delete(key);
+          if (inflight.has(key)) return;
+          inflight.add(key);
+          fire(rec, key);
+        }, 900);
+        pendingAdds.current.set(key, t);
+      }
     }
+
 
 
     // Updates: mesmo _dbId, campos editáveis diferentes (nome/tipo/nota/maps_url).
