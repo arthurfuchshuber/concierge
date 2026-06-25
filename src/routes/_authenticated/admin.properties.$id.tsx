@@ -323,47 +323,21 @@ function PropertyEditor() {
 
   const normalizeRecName = (s: string) =>
     s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, " ").trim();
+  void normalizeRecName; // mantém helper para uso futuro / debug
 
-  const cityRefToRec = (r: Record<string, unknown>): RecItem => ({
-    scope: "city",
-    type: (r.type as string) || "other",
-    name: (r.name as string) || "",
-    category: (r.category as string | null) ?? null,
-    rating: (r.rating as number | null) ?? null,
-    user_ratings_total: (r.user_ratings_total as number | null) ?? null,
-    distance_text: null,
-    distance_meters: null,
-    drive_minutes: null,
-    walk_minutes: null,
-    opening_hours: (r.opening_hours as string[] | null) ?? null,
-    note: (r.note as string | null) ?? null,
-    image_url: (r.image_url as string | null) ?? null,
-    maps_url: (r.maps_url as string | null) ?? null,
-    place_id: (r.place_id as string | null) ?? null,
-  });
+  // Chave estável da query de city_references desta cidade.
+  const cityRefsKey = React.useMemo(
+    () => [
+      "cityRefs",
+      (form.property.city || "").trim().toLowerCase(),
+      (form.property.state || "").trim().toUpperCase(),
+      (form.property.country || "BR").trim(),
+    ] as const,
+    [form.property.city, form.property.state, form.property.country],
+  );
 
-  async function fetchGeneratedCityRecommendations(input: { city_label: string; state: string | null; country: string }) {
-    const result = await generateCityRefs({ data: input });
-    const listed = await listGeneratedCityRefs({ data: { ...input, includeHidden: false } });
-    const generated = ((listed.items ?? []) as Array<Record<string, unknown>>)
-      .filter((r) => !(r.is_hidden as boolean | undefined))
-      .map(cityRefToRec)
-      .filter((r) => r.name.trim().length > 0);
-    return { result, generated };
-  }
-
-  function mergeCityRecommendations(current: RecItem[], generated: RecItem[]) {
-    let added = 0;
-    const seen = new Set(current.map((r) => r.place_id ? `id:${r.place_id}` : `name:${normalizeRecName(r.name)}`));
-    const merged = [...current];
-    for (const rec of generated) {
-      const key = rec.place_id ? `id:${rec.place_id}` : `name:${normalizeRecName(rec.name)}`;
-      if (seen.has(key)) continue;
-      seen.add(key);
-      merged.push(rec);
-      added += 1;
-    }
-    return { merged, added };
+  function invalidateCityRefs() {
+    queryClient.invalidateQueries({ queryKey: cityRefsKey });
   }
 
   async function handleEnrich() {
@@ -374,16 +348,21 @@ function PropertyEditor() {
     setEnriching(true);
     try {
       const r = await enrich({ data: { mapsUrl: form.property.maps_url } });
-      let generatedCity: RecItem[] = [];
+      // Geração das referências da cidade roda em paralelo e grava direto em
+      // city_references — não precisamos mais misturar no form do imóvel.
       const cityForGeneration = (r.city || form.property.city).trim();
+      let cityGenCount = 0;
       if (cityForGeneration) {
         try {
-          const generated = await fetchGeneratedCityRecommendations({
-            city_label: cityForGeneration,
-            state: (r.state || form.property.state || "").trim() || null,
-            country: (r.country || form.property.country || "BR").trim() || "BR",
+          const result = await generateCityRefs({
+            data: {
+              city_label: cityForGeneration,
+              state: (r.state || form.property.state || "").trim() || null,
+              country: (r.country || form.property.country || "BR").trim() || "BR",
+            },
           });
-          generatedCity = generated.generated;
+          cityGenCount = (result.inserted ?? 0) + (result.updated ?? 0);
+          invalidateCityRefs();
         } catch (cityError) {
           console.warn("[CityRefs] auto-fill city generation skipped", cityError);
         }
@@ -402,37 +381,34 @@ function PropertyEditor() {
           hero_image_url: f.property.hero_image_url || r.hero_image_url || f.property.hero_image_url,
           gallery_images: f.property.gallery_images.length ? f.property.gallery_images : (r.gallery_images ?? []).slice(0, 4),
         },
-        recommendations: (() => {
-          const cityMerge = mergeCityRecommendations(f.recommendations.filter((x) => x.scope === "city"), generatedCity);
-          return [
-            ...cityMerge.merged,
-            ...r.recommendations.map((rec) => ({
-              scope: rec.scope,
-              type: rec.type,
-              name: rec.name,
-              category: rec.category,
-              rating: rec.rating,
-              user_ratings_total: rec.user_ratings_total,
-              distance_text: rec.distance_text,
-              distance_meters: rec.distance_meters,
-              drive_minutes: rec.drive_minutes,
-              walk_minutes: rec.walk_minutes,
-              opening_hours: rec.opening_hours,
-              image_url: rec.image_url,
-              maps_url: rec.maps_url,
-              place_id: rec.place_id,
-              note: rec.note,
-            })),
-          ];
-        })(),
+        // Mantém apenas "Aqui pertinho" no form; "Pela cidade" é compartilhado.
+        recommendations: [
+          ...f.recommendations.filter((x) => x.scope === "nearby"),
+          ...r.recommendations.filter((rec) => rec.scope === "nearby").map((rec) => ({
+            scope: rec.scope,
+            type: rec.type,
+            name: rec.name,
+            category: rec.category,
+            rating: rec.rating,
+            user_ratings_total: rec.user_ratings_total,
+            distance_text: rec.distance_text,
+            distance_meters: rec.distance_meters,
+            drive_minutes: rec.drive_minutes,
+            walk_minutes: rec.walk_minutes,
+            opening_hours: rec.opening_hours,
+            image_url: rec.image_url,
+            maps_url: rec.maps_url,
+            place_id: rec.place_id,
+            note: rec.note,
+          })),
+        ],
       }));
       const nearby = r.recommendations.filter((x) => x.scope === "nearby").length;
-      const city = generatedCity.length;
       const extras: string[] = [];
       if (r.tagline) extras.push("descrição");
       if (r.hero_image_url) extras.push("foto de capa");
       const extraStr = extras.length ? ` · ${extras.join(" + ")}` : "";
-      toast.success(`Preenchido! ${nearby} arredores · ${city} pela cidade${extraStr}`);
+      toast.success(`Preenchido! ${nearby} arredores · ${cityGenCount} pela cidade${extraStr}`);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Erro ao enriquecer");
     } finally {
@@ -453,69 +429,39 @@ function PropertyEditor() {
         state: form.property.state?.trim() || null,
         country: form.property.country?.trim() || "BR",
       };
-      const { generated } = await fetchGeneratedCityRecommendations(request);
-
-      const CAP_PER_CATEGORY = 30;
-      let added = 0;
-      let replaced = 0;
-      setForm((f) => {
-        const nearby = f.recommendations.filter((r) => r.scope === "nearby");
-        const currentCity = f.recommendations.filter((r) => r.scope === "city");
-
-        if (mode === "replace") {
-          // Recria do zero: substitui completamente as referências da cidade.
-          // Respeita o teto por categoria.
-          const byCat = new Map<string, RecItem[]>();
-          for (const rec of generated) {
-            const cat = rec.category || rec.type || "Outros";
-            const arr = byCat.get(cat) ?? [];
-            if (arr.length < CAP_PER_CATEGORY) arr.push(rec);
-            byCat.set(cat, arr);
-          }
-          const fresh = Array.from(byCat.values()).flat();
-          replaced = fresh.length;
-          return { ...f, recommendations: [...nearby, ...fresh] };
-        }
-
-        // mode === "fill": preserva o existente, completa apenas excedentes
-        // respeitando o teto por categoria. Dedup por place_id ou nome.
-        const seen = new Set(
-          currentCity.map((r) => (r.place_id ? `id:${r.place_id}` : `name:${normalizeRecName(r.name)}`)),
-        );
-        const counts = new Map<string, number>();
-        for (const r of currentCity) {
-          const cat = r.category || r.type || "Outros";
-          counts.set(cat, (counts.get(cat) ?? 0) + 1);
-        }
-        const merged = [...currentCity];
-        for (const rec of generated) {
-          const key = rec.place_id ? `id:${rec.place_id}` : `name:${normalizeRecName(rec.name)}`;
-          if (seen.has(key)) continue;
-          const cat = rec.category || rec.type || "Outros";
-          const c = counts.get(cat) ?? 0;
-          if (c >= CAP_PER_CATEGORY) continue;
-          seen.add(key);
-          counts.set(cat, c + 1);
-          merged.push(rec);
-          added += 1;
-        }
-        return { ...f, recommendations: [...nearby, ...merged] };
-      });
-
       if (mode === "replace") {
-        if (replaced === 0) {
+        // Apaga as atuais (auto + manual) antes de regerar.
+        try {
+          const existing = await listGeneratedCityRefs({ data: { ...request, includeHidden: true } });
+          const ids = ((existing.items ?? []) as Array<{ id: string }>).map((r) => r.id);
+          if (ids.length) {
+            // bulk delete suporta no máximo 500 ids por chamada.
+            for (let i = 0; i < ids.length; i += 500) {
+              await bulkDeleteCityRefsFn({ data: { ids: ids.slice(i, i + 500) } });
+            }
+          }
+        } catch (e) {
+          console.warn("[CityRefs] replace: bulk delete failed", e);
+        }
+      }
+      const result = await generateCityRefs({ data: request });
+      invalidateCityRefs();
+      const added = (result.inserted ?? 0);
+      const updated = (result.updated ?? 0);
+      if (mode === "replace") {
+        if (result.total === 0) {
           toast.error("Não encontrei pontos suficientes com qualidade para esta cidade.");
         } else {
-          toast.success(`Recriado: ${replaced} referências da cidade`);
+          toast.success(`Recriado: ${result.total} referências da cidade`);
         }
       } else {
-        if (added === 0) {
+        if (added === 0 && updated === 0) {
           toast.info(
             "Não foram encontrados novos locais com qualidade suficiente. As referências atuais já representam a melhor seleção disponível para esta cidade.",
             { duration: 6500 },
           );
         } else {
-          toast.success(`Adicionado: ${added} novo(s) ponto(s) com qualidade`);
+          toast.success(`${added} novo(s) · ${updated} atualizado(s)`);
         }
       }
     } catch (e) {
@@ -524,6 +470,7 @@ function PropertyEditor() {
       setGeneratingCityRecs(false);
     }
   }
+
 
 
   async function handleImportAirbnb() {
