@@ -323,9 +323,16 @@ export const updateCityReference = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     await assertCanManageRefById(context, data.id);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const patch: Record<string, unknown> = {};
+    const patch: Partial<{
+      name: string;
+      type: string;
+      category: string;
+      note: string | null;
+      maps_url: string | null;
+      image_url: string | null;
+    }> = {};
     for (const [k, v] of Object.entries(data.patch)) {
-      if (v !== undefined) patch[k] = v;
+      if (v !== undefined) (patch as Record<string, unknown>)[k] = v;
     }
     if (Object.keys(patch).length === 0) return { ok: true };
     const { error } = await supabaseAdmin
