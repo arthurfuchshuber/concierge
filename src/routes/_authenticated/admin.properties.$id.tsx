@@ -2030,6 +2030,7 @@ function CityRefsGroup({
 
   // Debounce de updates por id (chave -> timeout).
   const pendingUpdates = React.useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+  const pendingAdds = React.useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
   const inflightAdds = React.useRef<Set<string>>(new Set());
   function scheduleUpdate(id: string, patch: Record<string, unknown>) {
     const map = pendingUpdates.current;
