@@ -365,6 +365,89 @@ export type Database = {
         }
         Relationships: []
       }
+      poi_categories: {
+        Row: {
+          created_at: string
+          display_order: number
+          id: string
+          is_protected: boolean
+          label: string
+          slug: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          display_order?: number
+          id?: string
+          is_protected?: boolean
+          label: string
+          slug: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          display_order?: number
+          id?: string
+          is_protected?: boolean
+          label?: string
+          slug?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      poi_tags: {
+        Row: {
+          accepted_primary_types: string[]
+          category_id: string
+          created_at: string
+          display_order: number
+          id: string
+          is_protected: boolean
+          label: string
+          min_reviews: number
+          places_types: string[]
+          query_variants: string[]
+          slug: string
+          updated_at: string
+        }
+        Insert: {
+          accepted_primary_types?: string[]
+          category_id: string
+          created_at?: string
+          display_order?: number
+          id?: string
+          is_protected?: boolean
+          label: string
+          min_reviews?: number
+          places_types?: string[]
+          query_variants?: string[]
+          slug: string
+          updated_at?: string
+        }
+        Update: {
+          accepted_primary_types?: string[]
+          category_id?: string
+          created_at?: string
+          display_order?: number
+          id?: string
+          is_protected?: boolean
+          label?: string
+          min_reviews?: number
+          places_types?: string[]
+          query_variants?: string[]
+          slug?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "poi_tags_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "poi_categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null

@@ -75,7 +75,7 @@ type EnrichResult = {
 // Ordem é PRIORIDADE: categorias mais específicas/preferidas primeiro.
 // Atrações vêm ANTES de parques porque "national_park" / "tourist_attraction"
 // devem ser classificados como Atração (ex.: Iguaçu/Iguazú).
-export const TYPE_MAP: {
+export let TYPE_MAP: {
   type: PlaceItem["type"];
   placesTypes: string[];
   acceptedPrimaryTypes: string[];
@@ -95,6 +95,46 @@ export const TYPE_MAP: {
 ];
 
 export type TypeMapEntry = (typeof TYPE_MAP)[number];
+
+// Hidrata TYPE_MAP a partir das tabelas poi_tags/poi_categories. As tags-base
+// (is_protected=true) preservam seu mapeamento Google original; o label/categoria
+// pode ser renomeado. Tags customizadas (is_protected=false) entram como novas
+// entradas no array. Chamado no início de cada handler.
+let _typeMapHydratedAt = 0;
+const TYPE_MAP_TTL_MS = 60_000;
+async function hydrateTypeMap(): Promise<void> {
+  if (Date.now() - _typeMapHydratedAt < TYPE_MAP_TTL_MS) return;
+  try {
+    const { loadTaxonomyCached } = await import("./poi-taxonomy.functions");
+    const tax = await loadTaxonomyCached();
+    if (!tax.tags.length) return;
+    const baseBySlug = new Map(TYPE_MAP.map((t) => [t.type, t]));
+    const next: typeof TYPE_MAP = [];
+    for (const t of tax.tags) {
+      const base = baseBySlug.get(t.slug);
+      if (base) {
+        // Tag-base: preserva mapping Google, sobrescreve apenas label/categoria.
+        next.push({ ...base, category: t.category_label });
+      } else if (t.accepted_primary_types.length || t.places_types.length) {
+        // Tag custom com mapping → IA classifica.
+        next.push({
+          type: t.slug,
+          placesTypes: t.places_types,
+          acceptedPrimaryTypes: t.accepted_primary_types,
+          category: t.category_label,
+          queryVariants: t.query_variants.length ? t.query_variants : undefined,
+        });
+      }
+      // Tag custom sem mapping → não participa da geração por IA (só seleção manual).
+    }
+    if (next.length) {
+      TYPE_MAP = next;
+      _typeMapHydratedAt = Date.now();
+    }
+  } catch (e) {
+    console.error("[hydrateTypeMap]", e);
+  }
+}
 
 
 function haversineMeters(a: { lat: number; lng: number }, b: { lat: number; lng: number }) {
@@ -440,6 +480,7 @@ export const searchPlacesForRec = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => SearchInputSchema.parse(input))
   .handler(async ({ data }): Promise<PlaceSearchResult[]> => {
+    await hydrateTypeMap();
     const hasCoords = typeof data.lat === "number" && typeof data.lng === "number";
     const lat = hasCoords ? (data.lat as number) : 0;
     const lng = hasCoords ? (data.lng as number) : 0;
@@ -502,6 +543,7 @@ export const enrichFromMapsLink = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => InputSchema.parse(input))
   .handler(async ({ data }): Promise<EnrichResult> => {
+    await hydrateTypeMap();
     const resolved = await resolveShortUrl(data.mapsUrl);
     let coords = extractCoords(resolved);
     let geocoded: Awaited<ReturnType<typeof reverseGeocode>> = null;
@@ -792,6 +834,7 @@ export const refreshRecommendationsFromGoogle = createServerFn({ method: "POST" 
   .middleware([requireSupabaseAuth])
   .inputValidator((i: unknown) => RefreshInput.parse(i))
   .handler(async ({ data, context }) => {
+    await hydrateTypeMap();
     const { userId } = context;
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
@@ -1043,6 +1086,7 @@ export async function generateCityReferencesFromMaps(input: {
   country: string;
   type?: string | null;
 }): Promise<CityReferenceRow[]> {
+  await hydrateTypeMap();
   const { city_label, state, country, type } = input;
   const cityQ = state ? `${city_label}, ${state}` : city_label;
   const targetTypes = type

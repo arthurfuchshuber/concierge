@@ -27,6 +27,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { TimePicker } from "@/components/ui/time-picker";
 import { DateTimePicker } from "@/components/ui/date-picker";
+import { TagPicker, useTaxonomy } from "@/components/admin/TagPicker";
 
 export const Route = createFileRoute("/_authenticated/admin/properties/$id")({
   component: PropertyEditor,
@@ -2171,6 +2172,7 @@ function RecGroup({
   const [openCat, setOpenCat] = useState<string | null>(null);
   const [selectedIdx, setSelectedIdx] = useState<Set<number>>(new Set());
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
+  const { data: taxonomy } = useTaxonomy();
 
   const CAP_PER_SUBCATEGORY = scope === "nearby" ? 10 : 30;
   const CAP_MSG = scope === "nearby"
@@ -2369,14 +2371,15 @@ function RecGroup({
                               <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-2">
                                 <Input placeholder="Nome" value={r.name} maxLength={200}
                                   onChange={(e) => updateAt(idx, { name: e.target.value })} />
-                                <Select value={r.type} onValueChange={(v) => updateAt(idx, { type: v })}>
-                                  <SelectTrigger className="w-full sm:w-36"><SelectValue /></SelectTrigger>
-                                  <SelectContent>
-                                    {["restaurant","bar","cafe","beach","attraction","market","pharmacy","park","nightlife","shopping","other"].map((t) => (
-                                      <SelectItem key={t} value={t}>{t}</SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
+                                <TagPicker
+                                  value={r.type}
+                                  onChange={(v) => {
+                                    // sincroniza category com base na nova tag
+                                    const tags = taxonomy?.tags ?? [];
+                                    const tag = tags.find((t) => t.slug === v);
+                                    updateAt(idx, { type: v, category: tag?.category_label ?? r.category ?? null });
+                                  }}
+                                />
                               </div>
                               <div className="grid grid-cols-2 gap-2">
                                 <Input placeholder="Distância (texto)" value={r.distance_text ?? ""} maxLength={80}
