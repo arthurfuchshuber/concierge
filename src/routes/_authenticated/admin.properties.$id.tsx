@@ -2352,11 +2352,15 @@ function RecGroup({
                                   value={r.type}
                                   onChange={(v) => {
                                     // sincroniza category com base na nova tag
+                                    // e segue o item até a nova categoria
                                     const tags = taxonomy?.tags ?? [];
                                     const tag = tags.find((t) => t.slug === v);
-                                    updateAt(idx, { type: v, category: tag?.category_label ?? r.category ?? null });
+                                    const newCat = tag?.category_label ?? r.category ?? null;
+                                    updateAt(idx, { type: v, category: newCat });
+                                    if (newCat) setOpenCat(newCat);
                                   }}
                                 />
+
                               </div>
                               <div className="grid grid-cols-2 gap-2">
                                 <Input placeholder="Distância (texto)" value={r.distance_text ?? ""} maxLength={80}
