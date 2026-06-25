@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
 import { GuideAiChat } from "@/components/GuideAiChat";
+import { toTitleCase } from "@/lib/text";
 
 
 
@@ -309,7 +310,9 @@ function ExplorePage() {
     return Math.round(2 * R * Math.asin(Math.sqrt(h)));
   };
 
-  const allRecs: Rec[] = (r.recommendations as Rec[]).filter(hasMeaningfulInfo);
+  const allRecs: Rec[] = (r.recommendations as Rec[])
+    .filter(hasMeaningfulInfo)
+    .map((rec) => ({ ...rec, name: toTitleCase(rec.name) }));
 
   // Referências macro da cidade — compartilhadas entre todas as residências
   // da mesma cidade. Vindas de city_references (alimentadas pelo admin).
@@ -335,7 +338,7 @@ function ExplorePage() {
           id: c.id as string,
           scope: "city",
           type: (c.type as string) ?? "other",
-          name: (c.name as string) ?? "",
+          name: toTitleCase((c.name as string) ?? ""),
           category: (c.category as string) ?? null,
           rating: (c.rating as number) ?? null,
           user_ratings_total: (c.user_ratings_total as number) ?? null,

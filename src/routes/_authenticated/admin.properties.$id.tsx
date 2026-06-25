@@ -1,12 +1,12 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import React, { useState, useEffect, useRef } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { getMyProperty, upsertProperty, listMyProperties, listMyPropertiesBrief, copyCityRecsToProperties } from "@/lib/properties.functions";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { getMyProperty, upsertProperty, listMyProperties } from "@/lib/properties.functions";
 import { listHostFaqs } from "@/lib/host-library.functions";
 import { buildDefaultFaqs, mergeDefaultFaqs } from "@/lib/default-faqs";
 import { enrichFromMapsLink, searchPlacesForRec, refreshRecommendationsFromGoogle, type PlaceSearchResult } from "@/lib/maps.functions";
-import { generateCityReferences, listCityReferences } from "@/lib/city-references.functions";
+import { generateCityReferences, listCityReferences, addManualCityReference, updateCityReference, bulkDeleteCityReferences } from "@/lib/city-references.functions";
 import { importFromAirbnb } from "@/lib/airbnb.functions";
 import { useSubscription } from "@/hooks/useSubscription";
 
@@ -48,6 +48,8 @@ type RecItem = {
   image_url?: string | null;
   maps_url?: string | null;
   place_id?: string | null;
+  // Server id, presente quando o item já existe em city_references.
+  _dbId?: string;
 };
 
 
@@ -150,9 +152,11 @@ function PropertyEditor() {
   const enrich = useServerFn(enrichFromMapsLink);
   const generateCityRefs = useServerFn(generateCityReferences);
   const listGeneratedCityRefs = useServerFn(listCityReferences);
+  const addCityRefFn = useServerFn(addManualCityReference);
+  const updateCityRefFn = useServerFn(updateCityReference);
+  const bulkDeleteCityRefsFn = useServerFn(bulkDeleteCityReferences);
   const refreshGoogle = useServerFn(refreshRecommendationsFromGoogle);
-  const fetchAllProps = useServerFn(listMyPropertiesBrief);
-  const copyRecs = useServerFn(copyCityRecsToProperties);
+  const queryClient = useQueryClient();
   const [refreshingGoogle, setRefreshingGoogle] = useState(false);
   const [openFaqIdx, setOpenFaqIdx] = useState<number | null>(null);
 
@@ -173,7 +177,6 @@ function PropertyEditor() {
   const [importingAirbnb, setImportingAirbnb] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewMode, setPreviewMode] = useState<"mobile" | "desktop" | null>(null);
-  const [copyRecsOpen, setCopyRecsOpen] = useState(false);
   const [genCityModeOpen, setGenCityModeOpen] = useState(false);
   const [gateOpen, setGateOpen] = useState(false);
   const [lockOpen, setLockOpen] = useState(false);
@@ -317,47 +320,21 @@ function PropertyEditor() {
 
   const normalizeRecName = (s: string) =>
     s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, " ").trim();
+  void normalizeRecName; // mantém helper para uso futuro / debug
 
-  const cityRefToRec = (r: Record<string, unknown>): RecItem => ({
-    scope: "city",
-    type: (r.type as string) || "other",
-    name: (r.name as string) || "",
-    category: (r.category as string | null) ?? null,
-    rating: (r.rating as number | null) ?? null,
-    user_ratings_total: (r.user_ratings_total as number | null) ?? null,
-    distance_text: null,
-    distance_meters: null,
-    drive_minutes: null,
-    walk_minutes: null,
-    opening_hours: (r.opening_hours as string[] | null) ?? null,
-    note: (r.note as string | null) ?? null,
-    image_url: (r.image_url as string | null) ?? null,
-    maps_url: (r.maps_url as string | null) ?? null,
-    place_id: (r.place_id as string | null) ?? null,
-  });
+  // Chave estável da query de city_references desta cidade.
+  const cityRefsKey = React.useMemo(
+    () => [
+      "cityRefs",
+      (form.property.city || "").trim().toLowerCase(),
+      (form.property.state || "").trim().toUpperCase(),
+      (form.property.country || "BR").trim(),
+    ] as const,
+    [form.property.city, form.property.state, form.property.country],
+  );
 
-  async function fetchGeneratedCityRecommendations(input: { city_label: string; state: string | null; country: string }) {
-    const result = await generateCityRefs({ data: input });
-    const listed = await listGeneratedCityRefs({ data: { ...input, includeHidden: false } });
-    const generated = ((listed.items ?? []) as Array<Record<string, unknown>>)
-      .filter((r) => !(r.is_hidden as boolean | undefined))
-      .map(cityRefToRec)
-      .filter((r) => r.name.trim().length > 0);
-    return { result, generated };
-  }
-
-  function mergeCityRecommendations(current: RecItem[], generated: RecItem[]) {
-    let added = 0;
-    const seen = new Set(current.map((r) => r.place_id ? `id:${r.place_id}` : `name:${normalizeRecName(r.name)}`));
-    const merged = [...current];
-    for (const rec of generated) {
-      const key = rec.place_id ? `id:${rec.place_id}` : `name:${normalizeRecName(rec.name)}`;
-      if (seen.has(key)) continue;
-      seen.add(key);
-      merged.push(rec);
-      added += 1;
-    }
-    return { merged, added };
+  function invalidateCityRefs() {
+    queryClient.invalidateQueries({ queryKey: cityRefsKey });
   }
 
   async function handleEnrich() {
@@ -368,16 +345,21 @@ function PropertyEditor() {
     setEnriching(true);
     try {
       const r = await enrich({ data: { mapsUrl: form.property.maps_url } });
-      let generatedCity: RecItem[] = [];
+      // Geração das referências da cidade roda em paralelo e grava direto em
+      // city_references — não precisamos mais misturar no form do imóvel.
       const cityForGeneration = (r.city || form.property.city).trim();
+      let cityGenCount = 0;
       if (cityForGeneration) {
         try {
-          const generated = await fetchGeneratedCityRecommendations({
-            city_label: cityForGeneration,
-            state: (r.state || form.property.state || "").trim() || null,
-            country: (r.country || form.property.country || "BR").trim() || "BR",
+          const result = await generateCityRefs({
+            data: {
+              city_label: cityForGeneration,
+              state: (r.state || form.property.state || "").trim() || null,
+              country: (r.country || form.property.country || "BR").trim() || "BR",
+            },
           });
-          generatedCity = generated.generated;
+          cityGenCount = (result.inserted ?? 0) + (result.updated ?? 0);
+          invalidateCityRefs();
         } catch (cityError) {
           console.warn("[CityRefs] auto-fill city generation skipped", cityError);
         }
@@ -396,37 +378,34 @@ function PropertyEditor() {
           hero_image_url: f.property.hero_image_url || r.hero_image_url || f.property.hero_image_url,
           gallery_images: f.property.gallery_images.length ? f.property.gallery_images : (r.gallery_images ?? []).slice(0, 4),
         },
-        recommendations: (() => {
-          const cityMerge = mergeCityRecommendations(f.recommendations.filter((x) => x.scope === "city"), generatedCity);
-          return [
-            ...cityMerge.merged,
-            ...r.recommendations.map((rec) => ({
-              scope: rec.scope,
-              type: rec.type,
-              name: rec.name,
-              category: rec.category,
-              rating: rec.rating,
-              user_ratings_total: rec.user_ratings_total,
-              distance_text: rec.distance_text,
-              distance_meters: rec.distance_meters,
-              drive_minutes: rec.drive_minutes,
-              walk_minutes: rec.walk_minutes,
-              opening_hours: rec.opening_hours,
-              image_url: rec.image_url,
-              maps_url: rec.maps_url,
-              place_id: rec.place_id,
-              note: rec.note,
-            })),
-          ];
-        })(),
+        // Mantém apenas "Aqui pertinho" no form; "Pela cidade" é compartilhado.
+        recommendations: [
+          ...f.recommendations.filter((x) => x.scope === "nearby"),
+          ...r.recommendations.filter((rec) => rec.scope === "nearby").map((rec) => ({
+            scope: rec.scope,
+            type: rec.type,
+            name: rec.name,
+            category: rec.category,
+            rating: rec.rating,
+            user_ratings_total: rec.user_ratings_total,
+            distance_text: rec.distance_text,
+            distance_meters: rec.distance_meters,
+            drive_minutes: rec.drive_minutes,
+            walk_minutes: rec.walk_minutes,
+            opening_hours: rec.opening_hours,
+            image_url: rec.image_url,
+            maps_url: rec.maps_url,
+            place_id: rec.place_id,
+            note: rec.note,
+          })),
+        ],
       }));
       const nearby = r.recommendations.filter((x) => x.scope === "nearby").length;
-      const city = generatedCity.length;
       const extras: string[] = [];
       if (r.tagline) extras.push("descrição");
       if (r.hero_image_url) extras.push("foto de capa");
       const extraStr = extras.length ? ` · ${extras.join(" + ")}` : "";
-      toast.success(`Preenchido! ${nearby} arredores · ${city} pela cidade${extraStr}`);
+      toast.success(`Preenchido! ${nearby} arredores · ${cityGenCount} pela cidade${extraStr}`);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Erro ao enriquecer");
     } finally {
@@ -447,69 +426,39 @@ function PropertyEditor() {
         state: form.property.state?.trim() || null,
         country: form.property.country?.trim() || "BR",
       };
-      const { generated } = await fetchGeneratedCityRecommendations(request);
-
-      const CAP_PER_CATEGORY = 30;
-      let added = 0;
-      let replaced = 0;
-      setForm((f) => {
-        const nearby = f.recommendations.filter((r) => r.scope === "nearby");
-        const currentCity = f.recommendations.filter((r) => r.scope === "city");
-
-        if (mode === "replace") {
-          // Recria do zero: substitui completamente as referências da cidade.
-          // Respeita o teto por categoria.
-          const byCat = new Map<string, RecItem[]>();
-          for (const rec of generated) {
-            const cat = rec.category || rec.type || "Outros";
-            const arr = byCat.get(cat) ?? [];
-            if (arr.length < CAP_PER_CATEGORY) arr.push(rec);
-            byCat.set(cat, arr);
-          }
-          const fresh = Array.from(byCat.values()).flat();
-          replaced = fresh.length;
-          return { ...f, recommendations: [...nearby, ...fresh] };
-        }
-
-        // mode === "fill": preserva o existente, completa apenas excedentes
-        // respeitando o teto por categoria. Dedup por place_id ou nome.
-        const seen = new Set(
-          currentCity.map((r) => (r.place_id ? `id:${r.place_id}` : `name:${normalizeRecName(r.name)}`)),
-        );
-        const counts = new Map<string, number>();
-        for (const r of currentCity) {
-          const cat = r.category || r.type || "Outros";
-          counts.set(cat, (counts.get(cat) ?? 0) + 1);
-        }
-        const merged = [...currentCity];
-        for (const rec of generated) {
-          const key = rec.place_id ? `id:${rec.place_id}` : `name:${normalizeRecName(rec.name)}`;
-          if (seen.has(key)) continue;
-          const cat = rec.category || rec.type || "Outros";
-          const c = counts.get(cat) ?? 0;
-          if (c >= CAP_PER_CATEGORY) continue;
-          seen.add(key);
-          counts.set(cat, c + 1);
-          merged.push(rec);
-          added += 1;
-        }
-        return { ...f, recommendations: [...nearby, ...merged] };
-      });
-
       if (mode === "replace") {
-        if (replaced === 0) {
+        // Apaga as atuais (auto + manual) antes de regerar.
+        try {
+          const existing = await listGeneratedCityRefs({ data: { ...request, includeHidden: true } });
+          const ids = ((existing.items ?? []) as Array<{ id: string }>).map((r) => r.id);
+          if (ids.length) {
+            // bulk delete suporta no máximo 500 ids por chamada.
+            for (let i = 0; i < ids.length; i += 500) {
+              await bulkDeleteCityRefsFn({ data: { ids: ids.slice(i, i + 500) } });
+            }
+          }
+        } catch (e) {
+          console.warn("[CityRefs] replace: bulk delete failed", e);
+        }
+      }
+      const result = await generateCityRefs({ data: request });
+      invalidateCityRefs();
+      const added = (result.inserted ?? 0);
+      const updated = (result.updated ?? 0);
+      if (mode === "replace") {
+        if (result.total === 0) {
           toast.error("Não encontrei pontos suficientes com qualidade para esta cidade.");
         } else {
-          toast.success(`Recriado: ${replaced} referências da cidade`);
+          toast.success(`Recriado: ${result.total} referências da cidade`);
         }
       } else {
-        if (added === 0) {
+        if (added === 0 && updated === 0) {
           toast.info(
             "Não foram encontrados novos locais com qualidade suficiente. As referências atuais já representam a melhor seleção disponível para esta cidade.",
             { duration: 6500 },
           );
         } else {
-          toast.success(`Adicionado: ${added} novo(s) ponto(s) com qualidade`);
+          toast.success(`${added} novo(s) · ${updated} atualizado(s)`);
         }
       }
     } catch (e) {
@@ -518,6 +467,7 @@ function PropertyEditor() {
       setGeneratingCityRecs(false);
     }
   }
+
 
 
   async function handleImportAirbnb() {
@@ -624,7 +574,8 @@ function PropertyEditor() {
             ? new Date(form.property.pin_expires_at).toISOString()
             : null,
         },
-        recommendations: form.recommendations.filter((r) => r.name && r.name.trim().length > 0),
+        // Apenas "Aqui pertinho" é por imóvel; "Pela cidade" mora em city_references.
+        recommendations: form.recommendations.filter((r) => r.scope === "nearby" && r.name && r.name.trim().length > 0),
         manual: form.manual.filter((m) => m.title),
         emergency: form.emergency.filter((m) => m.label && m.number),
         faqs: form.faqs.filter((m) => m.question && m.answer),
@@ -645,7 +596,6 @@ function PropertyEditor() {
   }
 
   const nearbyRecs = form.recommendations.filter((r) => r.scope === "nearby");
-  const cityRecs = form.recommendations.filter((r) => r.scope === "city");
   const savedSlug = !isNew ? ((data?.property as Record<string, unknown> | undefined)?.slug as string | undefined) : undefined;
   const previewSlug = savedSlug || form.property.slug;
 
@@ -1263,33 +1213,38 @@ function PropertyEditor() {
 
 
 
-          {/* Pontos icônicos da cidade agora vivem dentro do card "Pela cidade" abaixo. */}
+          {/* "Aqui pertinho" é por imóvel; "Pela cidade" mora em city_references
+              (compartilhado entre todos os guias da mesma cidade). */}
 
           <RecGroup
             title="Aqui pertinho"
             desc="Arredores do imóvel — a poucos minutos a pé."
             items={nearbyRecs}
-            onChange={(items) => setForm((f) => ({ ...f, recommendations: [...items, ...cityRecs] }))}
+            onChange={(items) => setForm((f) => ({ ...f, recommendations: items }))}
             scope="nearby"
             lat={form.property.lat}
             lng={form.property.lng}
           />
-          <RecGroup
-            title="Pela cidade"
-            desc="Vale a visita — alguns minutos de carro."
-            items={cityRecs}
-            onChange={(items) => setForm((f) => ({ ...f, recommendations: [...nearbyRecs, ...items] }))}
-            scope="city"
-            lat={form.property.lat}
-            lng={form.property.lng}
+
+          <CityRefsGroup
+            cityLabel={form.property.city}
+            state={form.property.state || null}
+            country={form.property.country || "BR"}
+            propertyLat={form.property.lat}
+            propertyLng={form.property.lng}
+            queryKey={cityRefsKey}
             onGenerate={() => setGenCityModeOpen(true)}
             generating={generatingCityRecs}
-            onReplicate={cityRecs.length > 0 && !isNew ? () => setCopyRecsOpen(true) : undefined}
+            listFn={listGeneratedCityRefs}
+            addFn={addCityRefFn}
+            updateFn={updateCityRefFn}
+            bulkDeleteFn={bulkDeleteCityRefsFn}
+            invalidate={invalidateCityRefs}
           />
 
           {genCityModeOpen && (
             <GenerateModeDialog
-              hasExisting={cityRecs.length > 0}
+              hasExisting={true}
               onClose={() => setGenCityModeOpen(false)}
               onPick={(mode) => {
                 setGenCityModeOpen(false);
@@ -1298,15 +1253,7 @@ function PropertyEditor() {
             />
           )}
 
-          {copyRecsOpen && !isNew && (
-            <CopyRecsDialog
-              sourcePropertyId={id!}
-              currentPropertyName={form.property.name || "este guia"}
-              fetchAllProps={fetchAllProps}
-              copyRecs={copyRecs}
-              onClose={() => setCopyRecsOpen(false)}
-            />
-          )}
+
 
 
 
@@ -1995,6 +1942,206 @@ function PlaceAutocomplete({
   );
 }
 
+// ===== CityRefsGroup =====================================================
+// Wrapper que conecta a UI do RecGroup à tabela compartilhada city_references.
+// Lê via React Query, escreve via server fns (add/update/delete). Edições no
+// nome/nota são debouncadas para não chamar o servidor a cada tecla.
+type CityRefRow = {
+  id: string;
+  type: string;
+  name: string;
+  category: string | null;
+  rating: number | null;
+  user_ratings_total: number | null;
+  opening_hours: string[] | null;
+  note: string | null;
+  image_url: string | null;
+  maps_url: string | null;
+  place_id: string | null;
+  is_hidden?: boolean;
+};
+
+function rowToRec(r: CityRefRow): RecItem {
+  return {
+    scope: "city",
+    type: r.type || "other",
+    name: r.name || "",
+    category: r.category ?? null,
+    rating: r.rating ?? null,
+    user_ratings_total: r.user_ratings_total ?? null,
+    distance_text: null,
+    distance_meters: null,
+    drive_minutes: null,
+    walk_minutes: null,
+    opening_hours: r.opening_hours ?? null,
+    note: r.note ?? null,
+    image_url: r.image_url ?? null,
+    maps_url: r.maps_url ?? null,
+    place_id: r.place_id ?? null,
+    _dbId: r.id,
+  };
+}
+
+function CityRefsGroup({
+  cityLabel,
+  state,
+  country,
+  propertyLat,
+  propertyLng,
+  queryKey,
+  onGenerate,
+  generating,
+  listFn,
+  addFn,
+  updateFn,
+  bulkDeleteFn,
+  invalidate,
+}: {
+  cityLabel: string;
+  state: string | null;
+  country: string;
+  propertyLat: number | null;
+  propertyLng: number | null;
+  queryKey: readonly unknown[];
+  onGenerate: () => void;
+  generating: boolean;
+  listFn: (args: { data: { city_label: string; state: string | null; country: string; includeHidden?: boolean } }) => Promise<{ items: unknown[] }>;
+  addFn: (args: { data: Record<string, unknown> }) => Promise<{ id: string | null; duplicate?: boolean }>;
+  updateFn: (args: { data: { id: string; patch: Record<string, unknown> } }) => Promise<{ ok: boolean }>;
+  bulkDeleteFn: (args: { data: { ids: string[] } }) => Promise<{ ok: boolean; deleted?: number }>;
+  invalidate: () => void;
+}) {
+  const city = (cityLabel || "").trim();
+  const q = useQuery({
+    queryKey,
+    queryFn: () => listFn({ data: { city_label: city, state, country, includeHidden: false } }),
+    enabled: !!city,
+  });
+
+  const serverItems: RecItem[] = React.useMemo(() => {
+    const rows = (q.data?.items ?? []) as CityRefRow[];
+    return rows.filter((r) => !r.is_hidden).map(rowToRec);
+  }, [q.data]);
+
+  // Estado local para edições otimistas (nome/nota/maps_url). Reconciliamos
+  // com o servidor sempre que a query atualiza.
+  const [localItems, setLocalItems] = React.useState<RecItem[]>(serverItems);
+  React.useEffect(() => { setLocalItems(serverItems); }, [serverItems]);
+
+  // Debounce de updates por id (chave -> timeout).
+  const pendingUpdates = React.useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+  const pendingAdds = React.useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+  const inflightAdds = React.useRef<Set<string>>(new Set());
+  function scheduleUpdate(id: string, patch: Record<string, unknown>) {
+    const map = pendingUpdates.current;
+    const existing = map.get(id);
+    if (existing) clearTimeout(existing);
+    const t = setTimeout(() => {
+      map.delete(id);
+      updateFn({ data: { id, patch } })
+        .then(() => invalidate())
+        .catch((e) => toast.error(e instanceof Error ? e.message : "Erro ao salvar alteração"));
+    }, 700);
+    map.set(id, t);
+  }
+
+  function handleChange(next: RecItem[]) {
+    const prev = localItems;
+    setLocalItems(next);
+
+    if (!city) {
+      toast.error("Defina a cidade do imóvel antes de gerenciar referências.");
+      return;
+    }
+
+    // Exclusões: ids presentes em prev e ausentes em next.
+    const prevIds = new Set(prev.map((p) => p._dbId).filter(Boolean) as string[]);
+    const nextIds = new Set(next.map((p) => p._dbId).filter(Boolean) as string[]);
+    const deletedIds = [...prevIds].filter((id) => !nextIds.has(id));
+    if (deletedIds.length) {
+      bulkDeleteFn({ data: { ids: deletedIds } })
+        .then(() => invalidate())
+        .catch((e) => toast.error(e instanceof Error ? e.message : "Erro ao excluir"));
+    }
+
+    // Adições: itens em next sem _dbId E com nome preenchido.
+    // - Autocomplete (tem place_id): grava imediatamente, dedup por place_id.
+    // - Manual (sem place_id): debounce 900ms para não chamar a cada tecla.
+    const additions = next.filter((n) => !n._dbId && n.name && n.name.trim().length > 0);
+    const inflight = inflightAdds.current;
+    const fire = (rec: RecItem, key: string) => {
+      addFn({
+        data: {
+          city_label: city,
+          state,
+          country,
+          type: rec.type || "other",
+          category: rec.category || rec.type || "Outros",
+          name: rec.name.trim(),
+          place_id: rec.place_id ?? null,
+          note: rec.note ?? null,
+          rating: rec.rating ?? null,
+          user_ratings_total: rec.user_ratings_total ?? null,
+          image_url: rec.image_url ?? null,
+          maps_url: rec.maps_url ?? null,
+        },
+      })
+        .then(() => invalidate())
+        .catch((e) => toast.error(e instanceof Error ? e.message : "Erro ao adicionar"))
+        .finally(() => inflight.delete(key));
+    };
+    for (const rec of additions) {
+      if (rec.place_id) {
+        const key = `id:${rec.place_id}`;
+        if (inflight.has(key)) continue;
+        inflight.add(key);
+        fire(rec, key);
+      } else {
+        const key = `name:${rec.name.trim().toLowerCase()}`;
+        const existing = pendingAdds.current.get(key);
+        if (existing) clearTimeout(existing);
+        const t = setTimeout(() => {
+          pendingAdds.current.delete(key);
+          if (inflight.has(key)) return;
+          inflight.add(key);
+          fire(rec, key);
+        }, 900);
+        pendingAdds.current.set(key, t);
+      }
+    }
+
+
+
+    // Updates: mesmo _dbId, campos editáveis diferentes (nome/tipo/nota/maps_url).
+    for (const n of next) {
+      if (!n._dbId) continue;
+      const before = prev.find((p) => p._dbId === n._dbId);
+      if (!before) continue;
+      const patch: Record<string, unknown> = {};
+      if ((n.name ?? "") !== (before.name ?? "")) patch.name = n.name;
+      if ((n.type ?? "") !== (before.type ?? "")) patch.type = n.type;
+      if ((n.note ?? null) !== (before.note ?? null)) patch.note = n.note ?? null;
+      if ((n.maps_url ?? null) !== (before.maps_url ?? null)) patch.maps_url = n.maps_url ?? null;
+      if (Object.keys(patch).length) scheduleUpdate(n._dbId, patch);
+    }
+  }
+
+  return (
+    <RecGroup
+      title="Pela cidade"
+      desc="Vale a visita — alguns minutos de carro. Compartilhado entre todos os guias desta cidade."
+      items={localItems}
+      onChange={handleChange}
+      scope="city"
+      lat={propertyLat}
+      lng={propertyLng}
+      onGenerate={onGenerate}
+      generating={generating || q.isFetching}
+    />
+  );
+}
+
+
 function RecGroup({
   title,
   desc,
@@ -2464,213 +2611,3 @@ function GenerateModeDialog({
   );
 }
 
-// ---- CopyRecsDialog ---------------------------------------------------
-// Popup para replicar as recomendações "Pela cidade" para outros guias.
-// Suporta seleção individual por guia OU replicação para toda a cidade.
-
-function CopyRecsDialog({
-  sourcePropertyId,
-  currentPropertyName,
-  fetchAllProps,
-  copyRecs,
-  onClose,
-}: {
-  sourcePropertyId: string;
-  currentPropertyName: string;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  fetchAllProps: (...args: any[]) => Promise<any>;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  copyRecs: (...args: any[]) => Promise<{ copied: number; total: number }>;
-  onClose: () => void;
-}) {
-  const [mode, setMode] = useState<"select" | "city" | null>(null);
-  const [props, setProps] = useState<Array<{ id: string; name: string; city: string | null }>>([]);
-  const [loading, setLoading] = useState(true);
-  const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [copying, setCopying] = useState(false);
-  const [copyProgress, setCopyProgress] = useState<{ done: number; total: number } | null>(null);
-
-  useEffect(() => {
-    fetchAllProps().then((list: Array<{ id: string; name: string; city: string | null }>) => {
-      setProps(list.filter((p) => p.id !== sourcePropertyId));
-      setLoading(false);
-    }).catch(() => setLoading(false));
-  }, []);
-
-  async function handleCopy() {
-    let targets: string[] = [];
-    if (mode === "select") {
-      targets = Array.from(selected);
-    } else if (mode === "city") {
-      const srcCity = props.find((p) => p.id === sourcePropertyId)?.city;
-      if (!srcCity) {
-        targets = props.map((p) => p.id);
-      } else {
-        targets = props.filter((p) => p.city === srcCity).map((p) => p.id);
-      }
-    }
-    if (targets.length === 0) {
-      onClose();
-      return;
-    }
-    setCopying(true);
-    setCopyProgress({ done: 0, total: targets.length });
-    try {
-      const r = await copyRecs({ data: { sourcePropertyId, targetPropertyIds: targets } });
-      setCopyProgress({ done: r.copied, total: targets.length });
-      toast.success(`Replicado com sucesso para ${r.copied} guia(s)!`);
-      onClose();
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Erro ao replicar.");
-    } finally {
-      setCopying(false);
-      setCopyProgress(null);
-    }
-  }
-
-  // Detecta cidade do imóvel fonte a partir da lista
-  const cityProps = props.filter((p) => {
-    // We can't know source city here without fetching; show all for city mode
-    return true;
-  });
-
-  return (
-    <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
-      <DialogContent className="sm:max-w-md p-0 overflow-hidden">
-        <div className="px-6 pt-6 pb-4 text-center border-b border-border/40">
-          <div className="mx-auto mb-3 grid place-items-center size-11 rounded-full bg-accent/10 ring-1 ring-accent/20 text-accent">
-            <Share2 className="size-5" strokeWidth={1.75} />
-          </div>
-          <DialogTitle className="font-display text-xl tracking-tight">Replicar para outros guias</DialogTitle>
-          <p className="text-[13px] text-muted-foreground mt-1.5 leading-relaxed max-w-sm mx-auto">
-            As recomendações <strong className="text-foreground/90">Pela cidade</strong> de <em>{currentPropertyName}</em> serão copiadas para os guias selecionados.
-          </p>
-        </div>
-
-        <div className="px-6 pb-6 pt-4">
-        {mode === null ? (
-          <div className="space-y-2.5">
-            <button
-              type="button"
-              onClick={() => setMode("select")}
-              className="group w-full flex items-start gap-3.5 rounded-2xl border border-border bg-card hover:border-accent/50 hover:bg-accent/[0.03] hover:shadow-sm p-4 text-left transition-all"
-            >
-              <span className="grid place-items-center size-9 rounded-full bg-accent/10 text-accent group-hover:bg-accent/15 shrink-0 transition-colors">
-                <Copy className="size-4" strokeWidth={1.75} />
-              </span>
-              <div className="min-w-0 flex-1">
-                <p className="font-medium text-sm">Selecionar guias específicos</p>
-                <p className="text-[12px] text-muted-foreground mt-0.5 leading-relaxed">Escolha quais guias devem receber as mesmas recomendações.</p>
-              </div>
-            </button>
-            <button
-              type="button"
-              onClick={() => setMode("city")}
-              className="group w-full flex items-start gap-3.5 rounded-2xl border border-border bg-card hover:border-accent/50 hover:bg-accent/[0.03] hover:shadow-sm p-4 text-left transition-all"
-            >
-              <span className="grid place-items-center size-9 rounded-full bg-accent/10 text-accent group-hover:bg-accent/15 shrink-0 transition-colors">
-                <MapPin className="size-4" strokeWidth={1.75} />
-              </span>
-              <div className="min-w-0 flex-1">
-                <p className="font-medium text-sm">Replicar para toda a cidade</p>
-                <p className="text-[12px] text-muted-foreground mt-0.5 leading-relaxed">Todos os guias da mesma cidade recebem automaticamente as mesmas recomendações.</p>
-              </div>
-            </button>
-            <div className="flex justify-end pt-3">
-              <Button variant="ghost" size="sm" onClick={onClose} className="text-muted-foreground hover:text-foreground">Cancelar</Button>
-            </div>
-          </div>
-
-        ) : mode === "city" ? (
-          <div className="space-y-4 pt-2">
-            <p className="text-sm text-muted-foreground">
-              Todos os seus guias na mesma cidade que <em>{currentPropertyName}</em> receberão as recomendações. Isso substituirá as recomendações <strong>Pela cidade</strong> existentes nesses guias.
-            </p>
-            {copyProgress && (
-              <div className="space-y-1.5">
-                <div className="flex justify-between text-xs text-muted-foreground">
-                  <span>Replicando…</span>
-                  <span>{copyProgress.done}/{copyProgress.total} guias</span>
-                </div>
-                <div className="h-1.5 rounded-full bg-secondary overflow-hidden">
-                  <div
-                    className="h-full rounded-full bg-accent transition-all duration-300"
-                    style={{ width: `${copyProgress.total > 0 ? (copyProgress.done / copyProgress.total) * 100 : 0}%` }}
-                  />
-                </div>
-              </div>
-            )}
-            <div className="flex items-center justify-between gap-3 pt-2">
-              <Button variant="ghost" size="sm" onClick={() => setMode(null)} disabled={copying}>Voltar</Button>
-              <Button size="sm" onClick={handleCopy} disabled={copying} className="rounded-full">
-                {copying ? <Loader2 className="size-4 animate-spin mr-1.5" /> : <Check className="size-4 mr-1.5" />}
-                {copying ? "Replicando…" : "Confirmar e replicar"}
-              </Button>
-            </div>
-          </div>
-        ) : (
-          <div className="space-y-3 pt-2">
-            {loading ? (
-              <div className="flex items-center justify-center py-8">
-                <Loader2 className="size-5 animate-spin text-muted-foreground" />
-              </div>
-            ) : props.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-6">Nenhum outro guia encontrado.</p>
-            ) : (
-              <div className="space-y-1.5 max-h-60 overflow-y-auto pr-1">
-                {props.map((p) => {
-                  const checked = selected.has(p.id);
-                  return (
-                    <label
-                      key={p.id}
-                      className={`flex items-center gap-3 rounded-xl border px-4 py-3 cursor-pointer transition-all ${checked ? "border-accent/60 bg-accent/5" : "border-border bg-card hover:border-accent/30"}`}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={checked}
-                        onChange={() => setSelected((s) => {
-                          const n = new Set(s);
-                          if (n.has(p.id)) n.delete(p.id); else n.add(p.id);
-                          return n;
-                        })}
-                        className="size-4 accent-current shrink-0"
-                      />
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium truncate">{p.name || "Sem nome"}</p>
-                        {p.city && <p className="text-xs text-muted-foreground truncate">{p.city}</p>}
-                      </div>
-                    </label>
-                  );
-                })}
-              </div>
-            )}
-            <div className="flex items-center justify-between gap-3 pt-2">
-              <Button variant="ghost" size="sm" onClick={() => setMode(null)} disabled={copying}>Voltar</Button>
-              <div className="flex flex-col items-end gap-1.5">
-                {copyProgress && (
-                  <div className="w-40 space-y-1">
-                    <div className="flex justify-between text-[10px] text-muted-foreground">
-                      <span>Replicando…</span>
-                      <span>{copyProgress.done}/{copyProgress.total}</span>
-                    </div>
-                    <div className="h-1 rounded-full bg-secondary overflow-hidden">
-                      <div
-                        className="h-full rounded-full bg-accent transition-all duration-300"
-                        style={{ width: `${copyProgress.total > 0 ? (copyProgress.done / copyProgress.total) * 100 : 0}%` }}
-                      />
-                    </div>
-                  </div>
-                )}
-                <Button size="sm" onClick={handleCopy} disabled={copying || selected.size === 0} className="rounded-full">
-                  {copying ? <Loader2 className="size-4 animate-spin mr-1.5" /> : <Check className="size-4 mr-1.5" />}
-                  {copying ? "Replicando…" : `Replicar para ${selected.size} guia${selected.size !== 1 ? "s" : ""}`}
-                </Button>
-              </div>
-            </div>
-          </div>
-        )}
-        </div>
-      </DialogContent>
-    </Dialog>
-  );
-}

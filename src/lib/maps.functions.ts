@@ -909,9 +909,40 @@ const CITY_MAX_PER_TYPE = 20; // limite "Referências da Cidade"
 
 function cityMinReviewsForType(type: string) {
   if (["market", "pharmacy"].includes(type)) return 40;
-  if (["park", "beach", "nightlife"].includes(type)) return 60;
-  if (["attraction", "restaurant", "bar", "cafe", "shopping"].includes(type)) return 120;
+  if (["park", "nightlife"].includes(type)) return 80;
+  if (["beach"].includes(type)) return 120;
+  if (["restaurant", "bar", "cafe", "shopping"].includes(type)) return 150;
+  if (["attraction"].includes(type)) return 200; // ícones de fato, não atrações secundárias
   return CITY_MIN_REVIEWS_DEFAULT;
+}
+
+// Normaliza um nome agressivamente para detectar duplicatas semânticas.
+// Remove acentos, pontuação, parênteses, palavras genéricas que aparecem em
+// variantes do mesmo lugar (park/parque/national/nacional/falls/cataratas/
+// tour/visit/mirante/binacional/de/do/da/the/of/etc.) e ordena tokens para
+// que "Iguazzu Falls Park" e "Parque Cataratas" caiam no mesmo bucket quando
+// combinados com proximidade geográfica.
+const DEDUPE_STOPWORDS = new Set([
+  "de", "do", "da", "dos", "das", "the", "of", "and", "e",
+  "park", "parque", "national", "nacional",
+  "falls", "cataratas", "cataract", "waterfall", "waterfalls",
+  "tour", "visit", "passeio",
+  "mirante", "viewpoint", "lookout",
+  "binacional", "binational",
+  "centro", "center",
+  "museu", "museum",
+  "complexo", "complex",
+]);
+function dedupeKey(name: string): string {
+  return name
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[()[\]{}'"!?.,;:|/\\-]/g, " ")
+    .split(/\s+/)
+    .filter((t) => t && !DEDUPE_STOPWORDS.has(t))
+    .sort()
+    .join(" ");
 }
 
 // Busca textual SEM bias geográfico — usada internamente como fallback
@@ -1141,8 +1172,25 @@ export async function generateCityReferencesFromMaps(input: {
     return r * Math.log10(n + 10);
   };
   const out: CityReferenceRow[] = [];
+  // Dedupe global por chave semântica (mesmo lugar em variantes de nome).
+  // Mantém o de maior score. Aplica ANTES de cortar top N para não desperdiçar
+  // slots com duplicatas (Cataratas / Iguazzu Falls / Iguazu National Park ...).
+  const globalDedupe = new Map<string, { p: PlaceRaw & { formattedAddress?: string; _cat: TypeMapEntry }; score: number }>();
+  for (const cat of targetTypes) {
+    const arr = byCategory.get(cat.type) ?? [];
+    for (const p of arr) {
+      const key = dedupeKey(p.displayName?.text ?? "");
+      if (!key) continue;
+      const score = qualityScore(p);
+      const prev = globalDedupe.get(key);
+      if (!prev || score > prev.score) globalDedupe.set(key, { p, score });
+    }
+  }
+  const survivorIds = new Set(Array.from(globalDedupe.values()).map((v) => v.p.id));
+
   for (const cat of targetTypes) {
     const arr = (byCategory.get(cat.type) ?? [])
+      .filter((p) => survivorIds.has(p.id))
       .sort((a, b) => qualityScore(b) - qualityScore(a))
       .slice(0, CITY_MAX_PER_TYPE);
 
