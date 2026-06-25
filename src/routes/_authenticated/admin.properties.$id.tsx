@@ -2277,11 +2277,8 @@ function RecGroup({
         onSelect={handlePlaceSelect}
       />
 
-      {hasFullGroup && (
-        <div className="rounded-lg border border-amber-300/60 bg-amber-50 text-amber-900 dark:bg-amber-950/30 dark:text-amber-100 px-3 py-2 text-[12px] leading-relaxed">
-          <strong className="font-semibold">Subcategoria cheia.</strong> {CAP_MSG}
-        </div>
-      )}
+
+
 
 
 
