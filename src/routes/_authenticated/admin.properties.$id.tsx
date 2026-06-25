@@ -2170,10 +2170,20 @@ function RecGroup({
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const { data: taxonomy } = useTaxonomy();
 
+  // Mapa slug-da-tag → label-da-categoria (fonte da verdade ao agrupar).
+  const tagToCategoryLabel = React.useMemo(() => {
+    const m = new Map<string, string>();
+    (taxonomy?.tags ?? []).forEach((t) => m.set(t.slug, t.category_label));
+    return m;
+  }, [taxonomy]);
+
   // Sem limite por subcategoria — usuário pode adicionar quantos pontos quiser.
   const groups = new Map<string, { items: RecItem[]; indices: number[] }>();
   items.forEach((it, idx) => {
-    const key = it.category || it.type || "Outros";
+    // Resolve categoria do item dinamicamente pela tag atual; fallback ao
+    // category salvo; por fim, "Outros". Isso garante que mudar a tag inline
+    // move o item de grupo imediatamente, sem refresh.
+    const key = tagToCategoryLabel.get(it.type) || it.category || "Outros";
     const g = groups.get(key) ?? { items: [], indices: [] };
     g.items.push(it);
     g.indices.push(idx);
