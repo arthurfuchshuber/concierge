@@ -2195,19 +2195,7 @@ function RecGroup({
   function removeAt(idx: number) {
     onChange(items.filter((_, j) => j !== idx));
   }
-  function addManual() {
-    if (!canAdd("Outros")) {
-      toast.info(CAP_MSG, { id: `cap-${scope}-Outros`, duration: 6500 });
-      return;
-    }
-    onChange([...items, { scope, type: "other", name: "" }]);
-  }
   function handlePlaceSelect(rec: RecItem) {
-    const cat = rec.category || rec.type || "Outros";
-    if (!canAdd(cat)) {
-      toast.info(`Subcategoria "${cat}" já atingiu o limite. ${CAP_MSG}`, { id: `cap-${scope}-${cat}`, duration: 6500 });
-      return;
-    }
     onChange([...items, rec]);
   }
 
