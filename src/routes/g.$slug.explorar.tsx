@@ -1,4 +1,4 @@
-import { createFileRoute, notFound, Link } from "@tanstack/react-router";
+import { createFileRoute, notFound, Link, useRouter } from "@tanstack/react-router";
 import { useMemo, useState, useEffect, useRef } from "react";
 import { getPublicGuide } from "@/lib/guide.functions";
 import {
@@ -27,6 +27,7 @@ import {
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
 import { GuideAiChat } from "@/components/GuideAiChat";
 import { toTitleCase } from "@/lib/text";
+import { useCityReferencesRealtime } from "@/hooks/useCityReferencesRealtime";
 
 
 
@@ -257,6 +258,7 @@ function sortRecs(list: Rec[], by: SortKey): Rec[] {
 
 function ExplorePage() {
   const r = Route.useLoaderData();
+  const router = useRouter();
   const { slug } = Route.useParams();
   const [activeKey, setActiveKey] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<SortKey>("distance");
@@ -284,6 +286,9 @@ function ExplorePage() {
   }
 
   const p = r.property as Record<string, any>;
+  useCityReferencesRealtime((p.city as string | null) ?? null, () => {
+    void router.invalidate();
+  });
   const propLat = typeof p.lat === "number" ? (p.lat as number) : null;
   const propLng = typeof p.lng === "number" ? (p.lng as number) : null;
 
@@ -311,6 +316,7 @@ function ExplorePage() {
   };
 
   const allRecs: Rec[] = (r.recommendations as Rec[])
+    .filter((rec) => rec.scope === "nearby")
     .filter(hasMeaningfulInfo)
     .map((rec) => ({ ...rec, name: toTitleCase(rec.name) }));
 
@@ -354,10 +360,8 @@ function ExplorePage() {
       .filter((x) => x.name);
   }, [r, propLat, propLng]);
   // Constrói nearby/city por meta-categoria a partir de:
-  // - property_recommendations: pertinho (<=1,5km ou <=20min a pé) → "Pertinho";
-  //   demais → "Na Cidade";
-  // - city_references: sempre em "Na Cidade"; quando também forem pertinho,
-  //   aparecem em AMBAS as seções (sem dedupe entre nearby/city).
+  // - property_recommendations: apenas "Pertinho" do imóvel;
+  // - city_references: apenas "Referências na Cidade", compartilhadas.
   const buildBuckets = (meta: MetaCategory, applyMinReviews: boolean) => {
     const passesReviews = (x: Rec) =>
       !applyMinReviews || minReviews <= 0 || (x.user_ratings_total ?? 0) >= minReviews;
@@ -365,24 +369,19 @@ function ExplorePage() {
     const cityInType = cityRefs.filter((rec) => meta.types.includes(rec.type) && passesReviews(rec));
 
     const nearbyFromRecs = recsInType.filter(isPertinho);
-    const farFromRecs = recsInType.filter((x) => !isPertinho(x));
-    const nearbyFromCity = cityInType.filter(isPertinho);
 
-    // Dedupe entre Pertinho de recs e Pertinho de cityRefs (mesmo place)
     const seen = new Set<string>();
     const nearby: Rec[] = [];
-    for (const x of [...nearbyFromRecs, ...nearbyFromCity]) {
+    for (const x of nearbyFromRecs) {
       const k = (x.name || "").toLowerCase().trim();
       if (!k || seen.has(k)) continue;
       seen.add(k);
       nearby.push(x);
     }
 
-    // "Na Cidade" = cityRefs + recs que não couberam em pertinho.
-    // Mesmo lugar PODE aparecer também em pertinho (regra do usuário).
     const seenCity = new Set<string>();
     const city: Rec[] = [];
-    for (const x of [...cityInType, ...farFromRecs]) {
+    for (const x of cityInType) {
       const k = (x.name || "").toLowerCase().trim();
       if (!k || seenCity.has(k)) continue;
       seenCity.add(k);

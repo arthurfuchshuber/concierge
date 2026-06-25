@@ -9,6 +9,7 @@ import { enrichFromMapsLink, searchPlacesForRec, refreshRecommendationsFromGoogl
 import { generateCityReferences, listCityReferences, addManualCityReference, updateCityReference, bulkDeleteCityReferences } from "@/lib/city-references.functions";
 import { importFromAirbnb } from "@/lib/airbnb.functions";
 import { useSubscription } from "@/hooks/useSubscription";
+import { useCityReferencesRealtime } from "@/hooks/useCityReferencesRealtime";
 
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -336,6 +337,8 @@ function PropertyEditor() {
   function invalidateCityRefs() {
     queryClient.invalidateQueries({ queryKey: cityRefsKey });
   }
+
+  useCityReferencesRealtime(form.property.city, invalidateCityRefs);
 
   async function handleEnrich() {
     if (!form.property.maps_url) {
