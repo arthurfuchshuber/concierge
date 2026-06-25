@@ -276,6 +276,10 @@ function ExplorePage() {
     const stored = window.localStorage.getItem(`guide-theme:${slug}`);
     return stored === "dark" || stored === "light" ? stored : adminTheme;
   });
+  const realtimeCityLabel = r.status === "ok" ? ((r.property as Record<string, unknown>).city as string | null) : null;
+  useCityReferencesRealtime(realtimeCityLabel, () => {
+    void router.invalidate();
+  });
 
   if (r.status !== "ok") {
     return (
@@ -286,9 +290,6 @@ function ExplorePage() {
   }
 
   const p = r.property as Record<string, any>;
-  useCityReferencesRealtime((p.city as string | null) ?? null, () => {
-    void router.invalidate();
-  });
   const propLat = typeof p.lat === "number" ? (p.lat as number) : null;
   const propLng = typeof p.lng === "number" ? (p.lng as number) : null;
 
