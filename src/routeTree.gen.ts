@@ -26,6 +26,7 @@ import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authentic
 import { Route as GSlugExplorarRouteImport } from './routes/g.$slug.explorar'
 import { Route as ApiPublicPlacePhotoRouteImport } from './routes/api/public/place-photo'
 import { Route as ApiPublicGuideChatRouteImport } from './routes/api/public/guide-chat'
+import { Route as AuthenticatedAdminTaxonomiaRouteImport } from './routes/_authenticated/admin.taxonomia'
 import { Route as AuthenticatedAdminEngajamentoRouteImport } from './routes/_authenticated/admin.engajamento'
 import { Route as AuthenticatedAdminClientesRouteImport } from './routes/_authenticated/admin.clientes'
 import { Route as AuthenticatedAdminBibliotecaRouteImport } from './routes/_authenticated/admin.biblioteca'
@@ -124,6 +125,12 @@ const ApiPublicGuideChatRoute = ApiPublicGuideChatRouteImport.update({
   path: '/api/public/guide-chat',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedAdminTaxonomiaRoute =
+  AuthenticatedAdminTaxonomiaRouteImport.update({
+    id: '/taxonomia',
+    path: '/taxonomia',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
 const AuthenticatedAdminEngajamentoRoute =
   AuthenticatedAdminEngajamentoRouteImport.update({
     id: '/engajamento',
@@ -220,6 +227,7 @@ export interface FileRoutesByFullPath {
   '/admin/biblioteca': typeof AuthenticatedAdminBibliotecaRoute
   '/admin/clientes': typeof AuthenticatedAdminClientesRoute
   '/admin/engajamento': typeof AuthenticatedAdminEngajamentoRoute
+  '/admin/taxonomia': typeof AuthenticatedAdminTaxonomiaRoute
   '/api/public/guide-chat': typeof ApiPublicGuideChatRoute
   '/api/public/place-photo': typeof ApiPublicPlacePhotoRoute
   '/g/$slug/explorar': typeof GSlugExplorarRoute
@@ -249,6 +257,7 @@ export interface FileRoutesByTo {
   '/admin/biblioteca': typeof AuthenticatedAdminBibliotecaRoute
   '/admin/clientes': typeof AuthenticatedAdminClientesRoute
   '/admin/engajamento': typeof AuthenticatedAdminEngajamentoRoute
+  '/admin/taxonomia': typeof AuthenticatedAdminTaxonomiaRoute
   '/api/public/guide-chat': typeof ApiPublicGuideChatRoute
   '/api/public/place-photo': typeof ApiPublicPlacePhotoRoute
   '/g/$slug/explorar': typeof GSlugExplorarRoute
@@ -282,6 +291,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/biblioteca': typeof AuthenticatedAdminBibliotecaRoute
   '/_authenticated/admin/clientes': typeof AuthenticatedAdminClientesRoute
   '/_authenticated/admin/engajamento': typeof AuthenticatedAdminEngajamentoRoute
+  '/_authenticated/admin/taxonomia': typeof AuthenticatedAdminTaxonomiaRoute
   '/api/public/guide-chat': typeof ApiPublicGuideChatRoute
   '/api/public/place-photo': typeof ApiPublicPlacePhotoRoute
   '/g/$slug/explorar': typeof GSlugExplorarRoute
@@ -315,6 +325,7 @@ export interface FileRouteTypes {
     | '/admin/biblioteca'
     | '/admin/clientes'
     | '/admin/engajamento'
+    | '/admin/taxonomia'
     | '/api/public/guide-chat'
     | '/api/public/place-photo'
     | '/g/$slug/explorar'
@@ -344,6 +355,7 @@ export interface FileRouteTypes {
     | '/admin/biblioteca'
     | '/admin/clientes'
     | '/admin/engajamento'
+    | '/admin/taxonomia'
     | '/api/public/guide-chat'
     | '/api/public/place-photo'
     | '/g/$slug/explorar'
@@ -376,6 +388,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/biblioteca'
     | '/_authenticated/admin/clientes'
     | '/_authenticated/admin/engajamento'
+    | '/_authenticated/admin/taxonomia'
     | '/api/public/guide-chat'
     | '/api/public/place-photo'
     | '/g/$slug/explorar'
@@ -531,6 +544,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicGuideChatRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/admin/taxonomia': {
+      id: '/_authenticated/admin/taxonomia'
+      path: '/taxonomia'
+      fullPath: '/admin/taxonomia'
+      preLoaderRoute: typeof AuthenticatedAdminTaxonomiaRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
     '/_authenticated/admin/engajamento': {
       id: '/_authenticated/admin/engajamento'
       path: '/engajamento'
@@ -631,6 +651,7 @@ interface AuthenticatedAdminRouteChildren {
   AuthenticatedAdminBibliotecaRoute: typeof AuthenticatedAdminBibliotecaRoute
   AuthenticatedAdminClientesRoute: typeof AuthenticatedAdminClientesRoute
   AuthenticatedAdminEngajamentoRoute: typeof AuthenticatedAdminEngajamentoRoute
+  AuthenticatedAdminTaxonomiaRoute: typeof AuthenticatedAdminTaxonomiaRoute
   AuthenticatedAdminIndexRoute: typeof AuthenticatedAdminIndexRoute
   AuthenticatedAdminCidadesCityKeyRoute: typeof AuthenticatedAdminCidadesCityKeyRoute
   AuthenticatedAdminPropertiesIdRoute: typeof AuthenticatedAdminPropertiesIdRoute
@@ -645,6 +666,7 @@ const AuthenticatedAdminRouteChildren: AuthenticatedAdminRouteChildren = {
   AuthenticatedAdminBibliotecaRoute: AuthenticatedAdminBibliotecaRoute,
   AuthenticatedAdminClientesRoute: AuthenticatedAdminClientesRoute,
   AuthenticatedAdminEngajamentoRoute: AuthenticatedAdminEngajamentoRoute,
+  AuthenticatedAdminTaxonomiaRoute: AuthenticatedAdminTaxonomiaRoute,
   AuthenticatedAdminIndexRoute: AuthenticatedAdminIndexRoute,
   AuthenticatedAdminCidadesCityKeyRoute: AuthenticatedAdminCidadesCityKeyRoute,
   AuthenticatedAdminPropertiesIdRoute: AuthenticatedAdminPropertiesIdRoute,
