@@ -137,7 +137,10 @@ export const updatePoiCategory = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
-const DeleteCategorySchema = z.object({ id: z.string().uuid() });
+const DeleteCategorySchema = z.object({
+  id: z.string().uuid(),
+  reassign_to_category_id: z.string().uuid().optional(),
+});
 export const deletePoiCategory = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((i: unknown) => DeleteCategorySchema.parse(i))
@@ -154,11 +157,63 @@ export const deletePoiCategory = createServerFn({ method: "POST" })
       .from("poi_tags")
       .select("id", { count: "exact", head: true })
       .eq("category_id", data.id);
-    if ((count ?? 0) > 0) throw new Error("Mova ou exclua as tags desta categoria antes.");
+    if ((count ?? 0) > 0) {
+      if (!data.reassign_to_category_id) {
+        throw new Error("Escolha uma categoria de destino para as tags.");
+      }
+      if (data.reassign_to_category_id === data.id) {
+        throw new Error("Destino inválido.");
+      }
+      const { error: moveErr } = await context.supabase
+        .from("poi_tags")
+        .update({ category_id: data.reassign_to_category_id })
+        .eq("category_id", data.id);
+      if (moveErr) throw new Error(moveErr.message);
+    }
     const { error } = await context.supabase.from("poi_categories").delete().eq("id", data.id);
     if (error) throw new Error(error.message);
     invalidateTaxonomyCache();
     return { ok: true };
+  });
+
+// ---- Bulk tag operations ----
+const BulkMoveSchema = z.object({
+  tag_ids: z.array(z.string().uuid()).min(1),
+  category_id: z.string().uuid(),
+});
+export const bulkMovePoiTags = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => BulkMoveSchema.parse(i))
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context);
+    const { error } = await context.supabase
+      .from("poi_tags")
+      .update({ category_id: data.category_id })
+      .in("id", data.tag_ids);
+    if (error) throw new Error(error.message);
+    invalidateTaxonomyCache();
+    return { ok: true };
+  });
+
+const BulkDeleteSchema = z.object({ tag_ids: z.array(z.string().uuid()).min(1) });
+export const bulkDeletePoiTags = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => BulkDeleteSchema.parse(i))
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context);
+    // Never delete protected tags — silently skip them
+    const { data: rows } = await context.supabase
+      .from("poi_tags")
+      .select("id,is_protected")
+      .in("id", data.tag_ids);
+    const removable = (rows ?? []).filter((r) => !r.is_protected).map((r) => r.id);
+    if (removable.length === 0) {
+      throw new Error("Nenhuma tag pode ser excluída (todas são padrão do Google).");
+    }
+    const { error } = await context.supabase.from("poi_tags").delete().in("id", removable);
+    if (error) throw new Error(error.message);
+    invalidateTaxonomyCache();
+    return { ok: true, deleted: removable.length, skipped: data.tag_ids.length - removable.length };
   });
 
 // ---- Tags ----
