@@ -420,11 +420,10 @@ function ExplorePage() {
     [allMetas, allRecs, cityRefs],
   );
 
-  // Mapa de label por slug — usado nos cards de detalhe
-  const TYPE_LABEL: Record<string, string> = useMemo(() => {
-    const out: Record<string, string> = { ...TYPE_LABEL_FALLBACK };
-    (taxonomy?.tags ?? []).forEach((t) => { out[t.slug] = t.label; });
-    return out;
+  // Mantém o mapa de label sincronizado com a taxonomia (mutação intencional
+  // do objeto module-level para que componentes-filhos enxerguem labels reais).
+  useEffect(() => {
+    (taxonomy?.tags ?? []).forEach((t) => { TYPE_LABEL[t.slug] = t.label; });
   }, [taxonomy]);
 
   const active = (activeKey
