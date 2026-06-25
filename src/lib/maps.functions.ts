@@ -543,6 +543,7 @@ export const enrichFromMapsLink = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => InputSchema.parse(input))
   .handler(async ({ data }): Promise<EnrichResult> => {
+    await hydrateTypeMap();
     const resolved = await resolveShortUrl(data.mapsUrl);
     let coords = extractCoords(resolved);
     let geocoded: Awaited<ReturnType<typeof reverseGeocode>> = null;
