@@ -310,7 +310,9 @@ function ExplorePage() {
     return Math.round(2 * R * Math.asin(Math.sqrt(h)));
   };
 
-  const allRecs: Rec[] = (r.recommendations as Rec[]).filter(hasMeaningfulInfo);
+  const allRecs: Rec[] = (r.recommendations as Rec[])
+    .filter(hasMeaningfulInfo)
+    .map((rec) => ({ ...rec, name: toTitleCase(rec.name) }));
 
   // Referências macro da cidade — compartilhadas entre todas as residências
   // da mesma cidade. Vindas de city_references (alimentadas pelo admin).
