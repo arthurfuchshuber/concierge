@@ -2095,6 +2095,8 @@ function CityRefsGroup({
           image_url: rec.image_url ?? null,
           maps_url: rec.maps_url ?? null,
           opening_hours: rec.opening_hours ?? null,
+          lat: rec.lat ?? null,
+          lng: rec.lng ?? null,
         },
       })
         .then(() => invalidate())
