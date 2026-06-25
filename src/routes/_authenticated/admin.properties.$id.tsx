@@ -2370,14 +2370,15 @@ function RecGroup({
                               <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-2">
                                 <Input placeholder="Nome" value={r.name} maxLength={200}
                                   onChange={(e) => updateAt(idx, { name: e.target.value })} />
-                                <Select value={r.type} onValueChange={(v) => updateAt(idx, { type: v })}>
-                                  <SelectTrigger className="w-full sm:w-36"><SelectValue /></SelectTrigger>
-                                  <SelectContent>
-                                    {["restaurant","bar","cafe","beach","attraction","market","pharmacy","park","nightlife","shopping","other"].map((t) => (
-                                      <SelectItem key={t} value={t}>{t}</SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
+                                <TagPicker
+                                  value={r.type}
+                                  onChange={(v) => {
+                                    // sincroniza category com base na nova tag
+                                    const tags = taxonomy?.tags ?? [];
+                                    const tag = tags.find((t) => t.slug === v);
+                                    updateAt(idx, { type: v, category: tag?.category_label ?? r.category ?? null });
+                                  }}
+                                />
                               </div>
                               <div className="grid grid-cols-2 gap-2">
                                 <Input placeholder="Distância (texto)" value={r.distance_text ?? ""} maxLength={80}
