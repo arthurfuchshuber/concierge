@@ -338,7 +338,7 @@ function ExplorePage() {
           id: c.id as string,
           scope: "city",
           type: (c.type as string) ?? "other",
-          name: (c.name as string) ?? "",
+          name: toTitleCase((c.name as string) ?? ""),
           category: (c.category as string) ?? null,
           rating: (c.rating as number) ?? null,
           user_ratings_total: (c.user_ratings_total as number) ?? null,
