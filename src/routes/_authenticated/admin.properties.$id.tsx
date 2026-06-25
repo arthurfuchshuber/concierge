@@ -610,9 +610,64 @@ function PropertyEditor() {
     }
   }
 
+  // ---- Autosave da aba "Recomendações" ----
+  // Salva silenciosamente as recomendações "Aqui pertinho" 1.2s após a última
+  // alteração enquanto o usuário está na aba "recs". "Pela cidade" já é
+  // persistido inline em city_references via mutations próprias.
+  useEffect(() => {
+    if (!hydratedRef.current || isNew || step !== "recs" || saving) return;
+    const nearby = form.recommendations.filter((r) => r.scope === "nearby");
+    const snapshot = JSON.stringify(nearby);
+    if (snapshot === lastSavedRecsRef.current) return;
+
+    if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current);
+    autosaveTimerRef.current = setTimeout(async () => {
+      try {
+        setAutoSaving(true);
+        const galleryImages = form.property.gallery_images.filter((u) => u.trim()).slice(0, 4);
+        const payload = {
+          id,
+          property: {
+            ...form.property,
+            slug: form.property.slug || slugify(form.property.name),
+            tagline: form.property.tagline || null,
+            hero_image_url: galleryImages[0] || form.property.hero_image_url || null,
+            gallery_images: galleryImages,
+            theme_images: {
+              checkin: form.property.theme_images.checkin || undefined,
+              residencia: form.property.theme_images.residencia || undefined,
+              faq: form.property.theme_images.faq || undefined,
+              explore: form.property.theme_images.explore || undefined,
+            },
+            marketplace_links: form.property.marketplace_links
+              .map((m) => ({ label: m.label.trim(), url: m.url.trim(), description: m.description.trim() || null }))
+              .filter((m) => m.label && m.url),
+          },
+          recommendations: nearby.filter((r) => r.place_id && r.name && r.name.trim().length > 0),
+          manual: form.manual.filter((m) => m.title),
+          emergency: form.emergency.filter((m) => m.label && m.number),
+          faqs: form.faqs.filter((m) => m.question && m.answer),
+          checkout: form.checkout.filter((m) => m.label),
+        };
+        await save({ data: payload });
+        lastSavedRecsRef.current = snapshot;
+      } catch (e) {
+        console.warn("[autosave] recs", e);
+      } finally {
+        setAutoSaving(false);
+      }
+    }, 1200);
+
+    return () => {
+      if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.recommendations, step, isNew]);
+
   if (!isNew && isLoading) {
     return <div className="max-w-4xl mx-auto px-6 py-10 text-sm text-muted-foreground">Carregando…</div>;
   }
+
 
   const nearbyRecs = form.recommendations.filter((r) => r.scope === "nearby");
   const savedSlug = !isNew ? ((data?.property as Record<string, unknown> | undefined)?.slug as string | undefined) : undefined;
