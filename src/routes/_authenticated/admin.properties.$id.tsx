@@ -1216,33 +1216,38 @@ function PropertyEditor() {
 
 
 
-          {/* Pontos icônicos da cidade agora vivem dentro do card "Pela cidade" abaixo. */}
+          {/* "Aqui pertinho" é por imóvel; "Pela cidade" mora em city_references
+              (compartilhado entre todos os guias da mesma cidade). */}
 
           <RecGroup
             title="Aqui pertinho"
             desc="Arredores do imóvel — a poucos minutos a pé."
             items={nearbyRecs}
-            onChange={(items) => setForm((f) => ({ ...f, recommendations: [...items, ...cityRecs] }))}
+            onChange={(items) => setForm((f) => ({ ...f, recommendations: items }))}
             scope="nearby"
             lat={form.property.lat}
             lng={form.property.lng}
           />
-          <RecGroup
-            title="Pela cidade"
-            desc="Vale a visita — alguns minutos de carro."
-            items={cityRecs}
-            onChange={(items) => setForm((f) => ({ ...f, recommendations: [...nearbyRecs, ...items] }))}
-            scope="city"
-            lat={form.property.lat}
-            lng={form.property.lng}
+
+          <CityRefsGroup
+            cityLabel={form.property.city}
+            state={form.property.state || null}
+            country={form.property.country || "BR"}
+            propertyLat={form.property.lat}
+            propertyLng={form.property.lng}
+            queryKey={cityRefsKey}
             onGenerate={() => setGenCityModeOpen(true)}
             generating={generatingCityRecs}
-            onReplicate={cityRecs.length > 0 && !isNew ? () => setCopyRecsOpen(true) : undefined}
+            listFn={listGeneratedCityRefs}
+            addFn={addCityRefFn}
+            updateFn={updateCityRefFn}
+            bulkDeleteFn={bulkDeleteCityRefsFn}
+            invalidate={invalidateCityRefs}
           />
 
           {genCityModeOpen && (
             <GenerateModeDialog
-              hasExisting={cityRecs.length > 0}
+              hasExisting={true}
               onClose={() => setGenCityModeOpen(false)}
               onPick={(mode) => {
                 setGenCityModeOpen(false);
@@ -1251,15 +1256,7 @@ function PropertyEditor() {
             />
           )}
 
-          {copyRecsOpen && !isNew && (
-            <CopyRecsDialog
-              sourcePropertyId={id!}
-              currentPropertyName={form.property.name || "este guia"}
-              fetchAllProps={fetchAllProps}
-              copyRecs={copyRecs}
-              onClose={() => setCopyRecsOpen(false)}
-            />
-          )}
+
 
 
 
