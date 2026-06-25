@@ -624,7 +624,8 @@ function PropertyEditor() {
             ? new Date(form.property.pin_expires_at).toISOString()
             : null,
         },
-        recommendations: form.recommendations.filter((r) => r.name && r.name.trim().length > 0),
+        // Apenas "Aqui pertinho" é por imóvel; "Pela cidade" mora em city_references.
+        recommendations: form.recommendations.filter((r) => r.scope === "nearby" && r.name && r.name.trim().length > 0),
         manual: form.manual.filter((m) => m.title),
         emergency: form.emergency.filter((m) => m.label && m.number),
         faqs: form.faqs.filter((m) => m.question && m.answer),
