@@ -173,6 +173,10 @@ function PropertyEditor() {
 
 
   const [form, setForm] = useState<FormState>(() => emptyForm());
+  const hydratedRef = useRef(false);
+  const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastSavedRecsRef = useRef<string>("");
+  const [autoSaving, setAutoSaving] = useState(false);
   const [step, setStep] = useState<string>("basics");
   const [enriching, setEnriching] = useState(false);
   const [generatingCityRecs, setGeneratingCityRecs] = useState(false);
