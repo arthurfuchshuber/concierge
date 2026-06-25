@@ -50,6 +50,8 @@ type RecItem = {
   image_url?: string | null;
   maps_url?: string | null;
   place_id?: string | null;
+  lat?: number | null;
+  lng?: number | null;
   // Server id, presente quando o item já existe em city_references.
   _dbId?: string;
 };
