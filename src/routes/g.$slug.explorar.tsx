@@ -83,7 +83,8 @@ type Rec = {
 };
 
 
-const TYPE_LABEL: Record<string, string> = {
+// Fallback labels — usados quando a taxonomia ainda não carregou
+const TYPE_LABEL_FALLBACK: Record<string, string> = {
   restaurant: "Restaurante",
   bar: "Bar",
   cafe: "Café",
@@ -104,43 +105,16 @@ type MetaCategory = {
   types: string[];
 };
 
-const META_CATEGORIES: MetaCategory[] = [
-  {
-    key: "food",
-    title: "Bares e Restaurantes",
-    desc: "Onde comer, beber e brindar.",
-    Icon: Utensils,
-    types: ["restaurant", "bar"],
-  },
-  {
-    key: "sights",
-    title: "Pontos Turísticos",
-    desc: "Atrações imperdíveis pela região.",
-    Icon: Landmark,
-    types: ["attraction", "park", "beach"],
-  },
-  {
-    key: "cafe",
-    title: "Padarias e Cafeterias",
-    desc: "Para a pausa do café e do pão fresquinho.",
-    Icon: Coffee,
-    types: ["cafe"],
-  },
-  {
-    key: "fun",
-    title: "Lazer e Compras",
-    desc: "Mercados, shoppings e vida noturna.",
-    Icon: PartyPopper,
-    types: ["shopping", "market", "nightlife"],
-  },
-  {
-    key: "health",
-    title: "Saúde e Farmácias",
-    desc: "Cuidados e emergências por perto.",
-    Icon: Cross,
-    types: ["pharmacy"],
-  },
-];
+function iconForCategorySlug(slug: string): MetaCategory["Icon"] {
+  const s = (slug || "").toLowerCase();
+  if (/(restaur|comida|food)/.test(s)) return Utensils;
+  if (/(bar|noturn|night)/.test(s)) return PartyPopper;
+  if (/(caf|padar)/.test(s)) return Coffee;
+  if (/(atra|turis|sight|parqu|praia|lago)/.test(s)) return Landmark;
+  if (/(compr|shop|merc)/.test(s)) return ShoppingBag;
+  if (/(farm|saud|health)/.test(s)) return Cross;
+  return Compass;
+}
 
 function hasMeaningfulInfo(r: Rec): boolean {
   return !!(r.name && (r.image_url || r.rating || r.distance_text || r.distance_meters || r.note));
