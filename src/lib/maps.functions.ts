@@ -834,6 +834,7 @@ export const refreshRecommendationsFromGoogle = createServerFn({ method: "POST" 
   .middleware([requireSupabaseAuth])
   .inputValidator((i: unknown) => RefreshInput.parse(i))
   .handler(async ({ data, context }) => {
+    await hydrateTypeMap();
     const { userId } = context;
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
