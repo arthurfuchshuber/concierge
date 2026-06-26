@@ -2528,6 +2528,7 @@ function RecGroup({
                       canEdit={!!taxonomy?.categories.find((c) => c.label === cat) && !taxonomy?.categories.find((c) => c.label === cat)?.is_protected}
                     />
                     {g.items.map((r, k) => {
+                      if (filterActive && !matchesFilter(r)) return null;
                       const idx = g.indices[k];
                       const checked = selectedIdx.has(idx);
                       return (
