@@ -410,13 +410,14 @@ export const activateSigmaPackOnProperty = createServerFn({ method: "POST" })
     z.object({ property_id: z.string().uuid(), city_key: z.string() }).parse(i),
   )
   .handler(async ({ data, context }) => {
-    // Verify ownership via RLS by selecting the property
+    // Verify ownership via RLS
     const { data: prop, error: propErr } = await context.supabase
       .from("properties")
-      .select("id, marketplace_links")
+      .select("id, owner_id, marketplace_links")
       .eq("id", data.property_id)
       .maybeSingle();
     if (propErr || !prop) throw new Error("Imóvel não encontrado.");
+    const propRow = prop as { id: string; owner_id: string; marketplace_links: unknown };
 
     const sb = publicClient();
     const { data: pack } = await sb
@@ -427,19 +428,48 @@ export const activateSigmaPackOnProperty = createServerFn({ method: "POST" })
       .maybeSingle();
     if (!pack) throw new Error("Recomendação SigmaGuide indisponível para esta cidade.");
 
-    // Snapshot current marketplace links so we can restore on deactivate.
+    // Load source content
+    const [{ data: sigmaMkt }, { data: sigmaFaqs }, { data: ownFaqs }] = await Promise.all([
+      sb.from("sigma_city_marketplace").select("label, url, description").eq("city_key", data.city_key).order("position"),
+      sb.from("sigma_city_faqs").select("question, answer").eq("city_key", data.city_key).order("position"),
+      context.supabase.from("property_faqs").select("*").eq("property_id", data.property_id),
+    ]);
+
+    // Snapshot current marketplace + faqs so we can restore on deactivate.
     const snapshot = {
-      marketplace_links: (prop as { marketplace_links: unknown }).marketplace_links ?? [],
+      marketplace_links: propRow.marketplace_links ?? [],
+      property_faqs: ownFaqs ?? [],
     };
-    const { error } = await context.supabase
+
+    // Replace marketplace_links with sigma content
+    const newMkt = (sigmaMkt ?? []).map((m) => ({
+      label: m.label,
+      url: m.url,
+      description: m.description ?? null,
+    }));
+    const { error: upErr } = await context.supabase
       .from("properties")
       .update({
         sigma_pack_city_key: data.city_key,
         sigma_pack_activated_at: new Date().toISOString(),
         sigma_pack_snapshot: snapshot as never,
+        marketplace_links: newMkt as never,
       })
       .eq("id", data.property_id);
-    if (error) throw new Error(error.message);
+    if (upErr) throw new Error(upErr.message);
+
+    // Replace property_faqs with sigma faqs (mark them sigma-sourced via category prefix)
+    await context.supabase.from("property_faqs").delete().eq("property_id", data.property_id);
+    if ((sigmaFaqs ?? []).length) {
+      const rows = (sigmaFaqs ?? []).map((f, idx) => ({
+        property_id: data.property_id,
+        question: f.question,
+        answer: f.answer,
+        category: "sigma",
+        position: idx,
+      }));
+      await context.supabase.from("property_faqs").insert(rows as never);
+    }
     return { ok: true };
   });
 
