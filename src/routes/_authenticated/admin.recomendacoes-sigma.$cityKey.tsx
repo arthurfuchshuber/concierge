@@ -185,7 +185,7 @@ function MarketplaceTab({ cityKey, items, refresh }: { cityKey: string; items: A
   return (
     <div className="space-y-3">
       <div className="rounded-2xl border border-border/60 bg-card p-4 space-y-3">
-        <h3 className="text-sm font-medium">Adicionar reserva/marketplace</h3>
+        <h3 className="text-sm font-medium">Adicionar link de marketplace</h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
           <Input value={label} onChange={(e) => setLabel(e.target.value)} placeholder="Nome (ex: Airbnb Experiences)" />
           <Input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://..." />
