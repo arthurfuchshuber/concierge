@@ -948,8 +948,8 @@ function MinReviewsFilter({ value, onChange, items }: { value: number; onChange:
   if (opts.length <= 1) return null;
   return (
     <div className="inline-flex items-center rounded-full border border-border bg-card/60 backdrop-blur p-1">
-      <span className="px-2.5 text-[10px] uppercase tracking-[0.18em] font-semibold text-muted-foreground">
-        Avaliações
+      <span className="pl-2 pr-1 flex items-center text-muted-foreground" aria-label="Avaliações">
+        <Star className="size-3.5 fill-current text-accent" strokeWidth={0} />
       </span>
       {opts.map((o) => {
         const on = value === o.v;
