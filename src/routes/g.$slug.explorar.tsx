@@ -233,6 +233,42 @@ function sortRecs(list: Rec[], by: SortKey): Rec[] {
   return arr;
 }
 
+function matchesQuery(rec: Rec, q: string): boolean {
+  const needle = q.trim().toLowerCase();
+  if (!needle) return true;
+  const hay = [
+    rec.name,
+    rec.category ?? "",
+    TYPE_LABEL[rec.type] ?? rec.type,
+    rec.note ?? "",
+  ].join(" \u0001 ").toLowerCase();
+  return hay.includes(needle);
+}
+
+function SearchBar({ value, onChange, placeholder }: { value: string; onChange: (s: string) => void; placeholder?: string }) {
+  return (
+    <div className="relative w-full mt-3">
+      <input
+        type="search"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder ?? "Buscar por nome, categoria ou descrição…"}
+        className="w-full rounded-full border border-border bg-card/60 backdrop-blur px-4 py-2.5 pr-10 text-[13px] placeholder:text-muted-foreground/70 focus:outline-none focus:border-accent/60 focus:bg-card transition-colors"
+      />
+      {value && (
+        <button
+          type="button"
+          aria-label="Limpar busca"
+          onClick={() => onChange("")}
+          className="absolute right-2.5 top-1/2 -translate-y-1/2 inline-flex size-6 items-center justify-center rounded-full text-muted-foreground hover:text-foreground hover:bg-muted/60"
+        >
+          <X className="size-3.5" />
+        </button>
+      )}
+    </div>
+  );
+}
+
 function ExplorePage() {
   const r = Route.useLoaderData();
   const router = useRouter();
@@ -241,6 +277,7 @@ function ExplorePage() {
   const [sortBy, setSortBy] = useState<SortKey>("distance");
   const [viewMode, setViewMode] = useState<"grid" | "list">("list");
   const [minReviews, setMinReviews] = useState<number>(0);
+  const [query, setQuery] = useState<string>("");
   // "Ver Mapa" temporariamente desabilitado — state preservado no histórico do arquivo.
 
   // Tema herdado da página inicial do guia (definido pelo visitante).
@@ -343,8 +380,9 @@ function ExplorePage() {
   const buildBuckets = (meta: MetaCategory, applyMinReviews: boolean) => {
     const passesReviews = (x: Rec) =>
       !applyMinReviews || minReviews <= 0 || (x.user_ratings_total ?? 0) >= minReviews;
-    const recsInType = allRecs.filter((rec) => meta.types.includes(rec.type) && passesReviews(rec));
-    const cityInType = cityRefs.filter((rec) => meta.types.includes(rec.type) && passesReviews(rec));
+    const passesQuery = (x: Rec) => matchesQuery(x, query);
+    const recsInType = allRecs.filter((rec) => meta.types.includes(rec.type) && passesReviews(rec) && passesQuery(rec));
+    const cityInType = cityRefs.filter((rec) => meta.types.includes(rec.type) && passesReviews(rec) && passesQuery(rec));
 
     const nearbyFromRecs = recsInType.filter(isPertinho);
 
@@ -471,51 +509,14 @@ function ExplorePage() {
 
         {/* "Ver Mapa" temporariamente desabilitado — componente EmbeddedMapModal preservado abaixo para reativação futura. */}
 
-        {!active ? (
-          <>
-            <div className="flex items-center justify-between gap-3 flex-wrap mb-4">
-              <MinReviewsFilter value={minReviews} onChange={setMinReviews} items={[...allRecs, ...cityRefs]} />
-              <ViewToggle viewMode={viewMode} setViewMode={setViewMode} />
-            </div>
-            {viewMode === "grid" ? (
-              <CategoryGrid categories={categories} onPick={(k) => setActiveKey(k)} />
-            ) : (
-              <CategoryList categories={categories} onPick={(k) => setActiveKey(k)} />
-            )}
-
-          </>
-        ) : (
-          <CategoryDetail
-            nearby={sortRecs(active!.nearby, sortBy)}
-            city={sortRecs(active!.city, sortBy)}
-            sortBy={sortBy}
-            setSortBy={setSortBy}
-            viewMode={viewMode}
-            setViewMode={setViewMode}
-            isTouristCategory={active!.meta.key === "sights"}
-          />
-        )}
-
-
-        {categories.length === 0 && cityRefs.length === 0 && (!Array.isArray(p.marketplace_links) || p.marketplace_links.length === 0) && (
-          <div className="flex flex-col items-center justify-center gap-3 py-16 text-center">
-            <div className="size-14 rounded-2xl bg-accent/10 grid place-items-center">
-              <Compass className="size-7 text-accent/60" strokeWidth={1.25} />
-            </div>
-            <p className="text-[15px] font-medium">Recomendações a caminho</p>
-            <p className="text-sm text-muted-foreground max-w-xs leading-relaxed">
-              O anfitrião ainda está preparando as dicas desta hospedagem. Volte em breve!
-            </p>
-          </div>
-        )}
-
-        {!active && (() => {
+        {(() => {
+          if (active) return null;
           const links = (Array.isArray(p.marketplace_links) ? p.marketplace_links : []).filter(
             (m: any) => m && typeof m.label === "string" && m.label.trim() && typeof m.url === "string" && m.url.trim(),
           );
           if (links.length === 0) return null;
           return (
-            <div className="mt-12">
+            <div className="mb-8">
               <div className="mb-3 flex items-center gap-2">
                 <Ticket className="size-4 text-muted-foreground" />
                 <h3 className="text-xs uppercase tracking-[0.18em] font-semibold text-muted-foreground">Reservas & experiências</h3>
@@ -549,6 +550,47 @@ function ExplorePage() {
             </div>
           );
         })()}
+
+        {!active ? (
+          <>
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <MinReviewsFilter value={minReviews} onChange={setMinReviews} items={[...allRecs, ...cityRefs]} />
+              <ViewToggle viewMode={viewMode} setViewMode={setViewMode} />
+            </div>
+            <SearchBar value={query} onChange={setQuery} />
+            <div className="mt-5">
+              {viewMode === "grid" ? (
+                <CategoryGrid categories={categories} onPick={(k) => setActiveKey(k)} />
+              ) : (
+                <CategoryList categories={categories} onPick={(k) => setActiveKey(k)} />
+              )}
+            </div>
+          </>
+        ) : (
+          <CategoryDetail
+            nearby={active!.nearby}
+            city={active!.city}
+            sortBy={sortBy}
+            setSortBy={setSortBy}
+            viewMode={viewMode}
+            setViewMode={setViewMode}
+            isTouristCategory={active!.meta.key === "sights"}
+          />
+        )}
+
+
+        {categories.length === 0 && cityRefs.length === 0 && (!Array.isArray(p.marketplace_links) || p.marketplace_links.length === 0) && (
+          <div className="flex flex-col items-center justify-center gap-3 py-16 text-center">
+            <div className="size-14 rounded-2xl bg-accent/10 grid place-items-center">
+              <Compass className="size-7 text-accent/60" strokeWidth={1.25} />
+            </div>
+            <p className="text-[15px] font-medium">Recomendações a caminho</p>
+            <p className="text-sm text-muted-foreground max-w-xs leading-relaxed">
+              O anfitrião ainda está preparando as dicas desta hospedagem. Volte em breve!
+            </p>
+          </div>
+        )}
+
 
         {!active && (() => {
           const tagged = (r.faqs ?? []).filter((f: any) => Array.isArray(f?.tags) && f.tags.includes("explore"));
@@ -756,6 +798,7 @@ function CategoryDetail({
   // mostramos todos os itens da categoria.
   const [showNear, setShowNear] = useState(false);
   const [showRefs, setShowRefs] = useState(false);
+  const [query, setQuery] = useState("");
 
   // Combina pertinho + cidade num único pool e deduplica por nome.
   const allItems = useMemo(() => {
@@ -783,8 +826,11 @@ function CategoryDetail({
     if (minReviews > 0) {
       arr = arr.filter((r) => (r.user_ratings_total ?? 0) >= minReviews);
     }
+    if (query.trim()) {
+      arr = arr.filter((r) => matchesQuery(r, query));
+    }
     return arr;
-  }, [allItems, showNear, showRefs, minReviews]);
+  }, [allItems, showNear, showRefs, minReviews, query]);
 
   const sorted = useMemo(() => sortRecs(filtered, sortBy), [filtered, sortBy]);
   const nearCount = allItems.filter(isNear).length;
@@ -809,6 +855,8 @@ function CategoryDetail({
         <MinReviewsFilter value={minReviews} onChange={setMinReviews} items={allItems} />
         <ViewToggle viewMode={viewMode} setViewMode={setViewMode} />
       </div>
+      {/* Linha 3: busca livre */}
+      <SearchBar value={query} onChange={setQuery} />
 
       <div className="mt-5">
         {sorted.length === 0 ? (
@@ -838,7 +886,7 @@ function ProximityFilters({
 }) {
   const opts = [
     { key: "near", label: "Pertinho", on: showNear, toggle: () => setShowNear(!showNear), count: nearCount },
-    { key: "refs", label: "Referências", on: showRefs, toggle: () => setShowRefs(!showRefs), count: refsCount },
+    { key: "refs", label: "Referências na Cidade", on: showRefs, toggle: () => setShowRefs(!showRefs), count: refsCount },
   ].filter((o) => o.count > 0);
   if (opts.length === 0) return null;
   return (

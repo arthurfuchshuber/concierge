@@ -27,7 +27,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { TimePicker } from "@/components/ui/time-picker";
 import { DateTimePicker } from "@/components/ui/date-picker";
-import { TagPicker, useTaxonomy } from "@/components/admin/TagPicker";
+import { TagPicker, useTaxonomy, TAXONOMY_QUERY_KEY } from "@/components/admin/TagPicker";
+import { updatePoiCategory } from "@/lib/poi-taxonomy.functions";
+import { Pencil, Check as CheckIcon, X as XIcon } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/admin/properties/$id")({
   component: PropertyEditor,
@@ -2392,12 +2394,15 @@ function RecGroup({
                     className="flex-1 flex items-center justify-between gap-3 text-left"
                     aria-expanded={open}
                   >
-                    <div className="flex items-center gap-2 min-w-0">
-                      <span className="text-sm font-medium truncate">{cat}</span>
+                    <div className="flex items-center gap-2 min-w-0 flex-1">
+                      <InlineCategoryRename
+                        currentLabel={cat}
+                        categoryId={taxonomy?.categories.find((c) => c.label === cat)?.id ?? null}
+                        isProtected={!!taxonomy?.categories.find((c) => c.label === cat)?.is_protected}
+                      />
                       <span className="text-[11px] text-muted-foreground">
                         ({g.items.length}{groupSelected > 0 ? ` · ${groupSelected} sel.` : ""})
                       </span>
-
                     </div>
                     <ChevronDown className={`size-4 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`} />
                   </button>
@@ -2462,6 +2467,101 @@ function RecGroup({
         </div>
       )}
     </Section>
+  );
+}
+
+
+function InlineCategoryRename({
+  currentLabel,
+  categoryId,
+  isProtected,
+}: {
+  currentLabel: string;
+  categoryId: string | null;
+  isProtected: boolean;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState(currentLabel);
+  const [saving, setSaving] = useState(false);
+  const qc = useQueryClient();
+  const updateFn = useServerFn(updatePoiCategory);
+
+  useEffect(() => { setValue(currentLabel); }, [currentLabel]);
+
+  const canEdit = !!categoryId && !isProtected;
+
+  const commit = async (e?: React.SyntheticEvent) => {
+    e?.stopPropagation?.();
+    const next = value.trim();
+    if (!next || next === currentLabel || !categoryId) {
+      setEditing(false);
+      setValue(currentLabel);
+      return;
+    }
+    try {
+      setSaving(true);
+      await updateFn({ data: { id: categoryId, label: next } });
+      await qc.invalidateQueries({ queryKey: TAXONOMY_QUERY_KEY });
+      toast.success("Categoria renomeada");
+      setEditing(false);
+    } catch (err: any) {
+      toast.error(err?.message || "Erro ao renomear");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (editing) {
+    return (
+      <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+        <Input
+          autoFocus
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") { e.preventDefault(); commit(e); }
+            if (e.key === "Escape") { e.preventDefault(); setEditing(false); setValue(currentLabel); }
+          }}
+          disabled={saving}
+          className="h-7 text-sm w-44"
+          maxLength={80}
+        />
+        <button
+          type="button"
+          onClick={commit}
+          disabled={saving}
+          className="inline-flex size-7 items-center justify-center rounded-md hover:bg-muted text-emerald-600"
+          aria-label="Salvar"
+        >
+          {saving ? <Loader2 className="size-3.5 animate-spin" /> : <CheckIcon className="size-3.5" />}
+        </button>
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); setEditing(false); setValue(currentLabel); }}
+          className="inline-flex size-7 items-center justify-center rounded-md hover:bg-muted text-muted-foreground"
+          aria-label="Cancelar"
+        >
+          <XIcon className="size-3.5" />
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-1.5 min-w-0">
+      <span className="text-sm font-medium truncate">{currentLabel}</span>
+      {canEdit && (
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); setEditing(true); }}
+          className="inline-flex size-6 items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-muted opacity-60 hover:opacity-100"
+          aria-label="Renomear categoria"
+          title="Renomear categoria"
+        >
+          <Pencil className="size-3" />
+        </button>
+      )}
+    </div>
   );
 }
 
