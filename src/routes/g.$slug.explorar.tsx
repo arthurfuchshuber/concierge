@@ -509,6 +509,36 @@ function ExplorePage() {
 
         {/* "Ver Mapa" temporariamente desabilitado — componente EmbeddedMapModal preservado abaixo para reativação futura. */}
 
+        {!active ? (
+          <>
+            <div className="flex items-center gap-3 flex-wrap">
+              <MinReviewsFilter value={minReviews} onChange={setMinReviews} items={[...allRecs, ...cityRefs]} />
+              <div className="ml-auto">
+                <ViewToggle viewMode={viewMode} setViewMode={setViewMode} />
+              </div>
+            </div>
+            <SearchBar value={query} onChange={setQuery} />
+            <div className="mt-5">
+              {viewMode === "grid" ? (
+                <CategoryGrid categories={categories} onPick={(k) => setActiveKey(k)} />
+              ) : (
+                <CategoryList categories={categories} onPick={(k) => setActiveKey(k)} />
+              )}
+            </div>
+          </>
+        ) : (
+          <CategoryDetail
+            nearby={active!.nearby}
+            city={active!.city}
+            sortBy={sortBy}
+            setSortBy={setSortBy}
+            viewMode={viewMode}
+            setViewMode={setViewMode}
+            isTouristCategory={active!.meta.key === "sights"}
+          />
+        )}
+
+        {/* Reservas & marketplace — fica ao final da página (somente fora do detalhe). */}
         {(() => {
           if (active) return null;
           const links = (Array.isArray(p.marketplace_links) ? p.marketplace_links : []).filter(
@@ -516,7 +546,7 @@ function ExplorePage() {
           );
           if (links.length === 0) return null;
           return (
-            <div className="mb-8">
+            <div className="mt-10">
               <div className="mb-3 flex items-center gap-2">
                 <Ticket className="size-4 text-muted-foreground" />
                 <h3 className="text-xs uppercase tracking-[0.18em] font-semibold text-muted-foreground">Reservas & experiências</h3>
@@ -550,33 +580,6 @@ function ExplorePage() {
             </div>
           );
         })()}
-
-        {!active ? (
-          <>
-            <div className="flex items-center justify-between gap-3 flex-wrap">
-              <MinReviewsFilter value={minReviews} onChange={setMinReviews} items={[...allRecs, ...cityRefs]} />
-              <ViewToggle viewMode={viewMode} setViewMode={setViewMode} />
-            </div>
-            <SearchBar value={query} onChange={setQuery} />
-            <div className="mt-5">
-              {viewMode === "grid" ? (
-                <CategoryGrid categories={categories} onPick={(k) => setActiveKey(k)} />
-              ) : (
-                <CategoryList categories={categories} onPick={(k) => setActiveKey(k)} />
-              )}
-            </div>
-          </>
-        ) : (
-          <CategoryDetail
-            nearby={active!.nearby}
-            city={active!.city}
-            sortBy={sortBy}
-            setSortBy={setSortBy}
-            viewMode={viewMode}
-            setViewMode={setViewMode}
-            isTouristCategory={active!.meta.key === "sights"}
-          />
-        )}
 
 
         {categories.length === 0 && cityRefs.length === 0 && (!Array.isArray(p.marketplace_links) || p.marketplace_links.length === 0) && (
