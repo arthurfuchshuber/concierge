@@ -498,7 +498,7 @@ export const deactivateSigmaPackOnProperty = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
 
     // Restore FAQs: remove sigma-sourced, re-insert snapshot
-    await context.supabase.from("property_faqs").delete().eq("property_id", data.property_id).eq("category", "sigma");
+    await context.supabase.from("property_faqs").delete().eq("property_id", data.property_id).contains("tags", ["sigma"]);
     if (snap && Array.isArray(snap.property_faqs) && snap.property_faqs.length) {
       const rows = snap.property_faqs.map((f) => ({
         ...(f as Record<string, unknown>),
