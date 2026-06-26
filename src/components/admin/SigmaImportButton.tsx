@@ -76,9 +76,9 @@ export function SigmaImportButton({ propertyId }: { propertyId: string }) {
           size="sm" variant="outline"
           onClick={() => setConfirmOff(true)}
           className="shrink-0 h-8 rounded-full text-xs bg-amber-500/10 border-amber-400/40 text-amber-200 hover:bg-amber-500/20"
-          title="Você está usando a recomendação SigmaGuide"
+          title="SigmaGuide ativo — clique para desativar"
         >
-          <Lock className="size-3.5" /> SigmaGuide ativo
+          <Lock className="size-3.5" /> <span className="hidden sm:inline">SigmaGuide ativo</span>
         </Button>
         <AlertDialog open={confirmOff} onOpenChange={(o) => { if (!o) setConfirmOff(false); }}>
           <AlertDialogContent>
@@ -106,8 +106,9 @@ export function SigmaImportButton({ propertyId }: { propertyId: string }) {
         size="sm" variant="outline"
         onClick={() => setOpen(true)}
         className="shrink-0 h-8 rounded-full text-xs border-amber-400/40 text-amber-200 hover:bg-amber-500/10"
+        title="Importar do SigmaGuide"
       >
-        <Star className="size-3.5" /> Usar SigmaGuide
+        <Star className="size-3.5" /> <span className="hidden sm:inline">Importar do SigmaGuide</span>
       </Button>
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-md">
@@ -199,10 +200,11 @@ export function SaveAsSigmaPackButton({ propertyId }: { propertyId: string }) {
       <Button
         size="sm" variant="outline"
         onClick={() => setConfirm(true)}
-        className="shrink-0 h-8 rounded-full text-xs border-fuchsia-400/40 text-fuchsia-200 hover:bg-fuchsia-500/10"
-        title="Admin: salvar este guia como recomendação oficial SigmaGuide para a cidade"
+        className="shrink-0 h-8 w-8 p-0 rounded-full text-xs border-fuchsia-400/40 text-fuchsia-200 hover:bg-fuchsia-500/10"
+        title="Salvar este guia como recomendação SigmaGuide oficial para a cidade"
+        aria-label="Salvar Recomendações SigmaGuide"
       >
-        <Save className="size-3.5" /> Salvar Recomendações
+        <Save className="size-3.5" />
       </Button>
       <AlertDialog open={confirm} onOpenChange={(o) => { if (!o) setConfirm(false); }}>
         <AlertDialogContent>
