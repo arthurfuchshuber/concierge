@@ -2225,6 +2225,7 @@ function CityRefsGroup({
           opening_hours: rec.opening_hours ?? null,
           lat: rec.lat ?? null,
           lng: rec.lng ?? null,
+          propertyId,
         },
       })
         .then(() => invalidate())
