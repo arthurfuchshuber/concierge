@@ -2338,6 +2338,7 @@ function RecGroup({
           </AlertDialogContent>
         </AlertDialog>
         <div className="ml-auto flex items-center gap-1.5">
+          {headerExtra}
           {onReplicate && (
             <Button size="sm" variant="ghost" onClick={onReplicate} className="shrink-0 h-8 rounded-full text-xs text-muted-foreground hover:text-foreground">
               <Share2 className="size-3.5" /> Replicar
