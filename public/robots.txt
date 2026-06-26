@@ -4,4 +4,4 @@ Disallow: /admin
 Disallow: /auth
 Disallow: /api/
 
-Sitemap: https://guiadigital.anfitriaosigma.com.br/sitemap.xml
+Sitemap: https://guia.anfitriaosigma.com.br/sitemap.xml
