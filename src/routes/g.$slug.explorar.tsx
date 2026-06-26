@@ -886,7 +886,7 @@ function ProximityFilters({
 }) {
   const opts = [
     { key: "near", label: "Pertinho", on: showNear, toggle: () => setShowNear(!showNear), count: nearCount },
-    { key: "refs", label: "Referências", on: showRefs, toggle: () => setShowRefs(!showRefs), count: refsCount },
+    { key: "refs", label: "Referências na Cidade", on: showRefs, toggle: () => setShowRefs(!showRefs), count: refsCount },
   ].filter((o) => o.count > 0);
   if (opts.length === 0) return null;
   return (
