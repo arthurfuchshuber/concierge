@@ -113,15 +113,51 @@ async function assertCanManageRefById(ctx: any, id: string) {
 }
 
 // ---- LIST -------------------------------------------------------------
+// Quando `propertyId` é informado: lista apenas as refs do escopo dessa property
+// (group_id se membro de um grupo; senão property_id). Esse é o modo NOVO.
+// Sem `propertyId`: mantém o comportamento legado por city_key (usado pela
+// página admin.cidades como visão administrativa).
 export const listCityReferences = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((i: unknown) => ListInput.parse(i))
   .handler(async ({ data, context }) => {
-    await assertCanManageCity(context, { city_label: data.city_label, state: normalizeState(data.state ?? null), country: data.country });
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    if (data.propertyId) {
+      // Modo por escopo (property/group). Permissão: dono OU admin.
+      const { data: prop } = await supabaseAdmin
+        .from("properties")
+        .select("owner_id")
+        .eq("id", data.propertyId)
+        .maybeSingle();
+      if (!prop) throw new Error("Imóvel não encontrado.");
+      const { data: isAdmin } = await context.supabase.rpc("has_role", {
+        _user_id: context.userId, _role: "admin",
+      });
+      if ((prop as { owner_id: string }).owner_id !== context.userId && !isAdmin) {
+        throw new Error("Sem permissão.");
+      }
+      const scope = await resolvePropertyScope(supabaseAdmin, data.propertyId);
+      let q = supabaseAdmin
+        .from("city_references")
+        .select("*")
+        .order("type")
+        .order("display_order")
+        .order("user_ratings_total", { ascending: false });
+      if (scope.groupId) {
+        q = q.eq("group_id", scope.groupId);
+      } else {
+        q = q.eq("property_id", scope.propertyId).is("group_id", null);
+      }
+      if (!data.includeHidden) q = q.eq("is_hidden", false);
+      const { data: rows, error } = await q;
+      if (error) throw new Error(error.message);
+      return { items: rows ?? [], job: null, scope };
+    }
+
+    // Modo legado (city_key). Mantido só para a página admin.cidades.
+    await assertCanManageCity(context, { city_label: data.city_label, state: normalizeState(data.state ?? null), country: data.country });
     const key = cityKey(data.city_label);
-    // Query by city_key only — "Referências da Cidade" é uma fonte única
-    // compartilhada por todos os guias desta cidade.
     const { data: rows, error } = await supabaseAdmin
       .from("city_references")
       .select("*")
@@ -137,10 +173,25 @@ export const listCityReferences = createServerFn({ method: "POST" })
       .eq("city_key", key)
       .maybeSingle();
 
-    return { items: rows ?? [], job };
+    return { items: rows ?? [], job, scope: null };
   });
 
-const GenerateInput = CityIdent.extend({ type: z.string().min(1).max(40).nullable().optional() });
+const GenerateInput = CityIdent.extend({
+  type: z.string().min(1).max(40).nullable().optional(),
+  propertyId: z.string().uuid().nullable().optional(),
+});
+
+// ---- GENERATE ---------------------------------------------------------
+export const generateCityReferences = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => GenerateInput.parse(i))
+  .handler(async ({ data, context }) => {
+    await assertCanManageCity(context, { city_label: data.city_label, state: normalizeState(data.state ?? null), country: data.country });
+    const { assertFeature } = await import("@/lib/plan-guard.server");
+    await assertFeature(context.supabase, context.userId, "autoImport");
+    return runCityGeneration({ ...data, type: data.type ?? null, propertyId: data.propertyId ?? null });
+  });
+
 
 // ---- GENERATE ---------------------------------------------------------
 export const generateCityReferences = createServerFn({ method: "POST" })
