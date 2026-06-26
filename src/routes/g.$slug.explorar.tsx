@@ -741,7 +741,6 @@ function CategoryDetail({
   setSortBy,
   viewMode,
   setViewMode,
-  isTouristCategory,
 }: {
   nearby: Rec[];
   city: Rec[];
@@ -752,53 +751,111 @@ function CategoryDetail({
   isTouristCategory: boolean;
 }) {
   const [minReviews, setMinReviews] = useState(0);
-  const [openSubcat, setOpenSubcat] = useState<string | null>(null);
+  // Filtros de proximidade: "pertinho" (<=1,6 km) e "refs" (rating>=4.5 e
+  // user_ratings_total>=500). Podem ser combinados; quando ambos desligados,
+  // mostramos todos os itens da categoria.
+  const [showNear, setShowNear] = useState(false);
+  const [showRefs, setShowRefs] = useState(false);
 
-  const applyFilter = (arr: Rec[]) => {
-    if (minReviews <= 0) return arr;
-    return arr.filter((rec) => (rec.user_ratings_total ?? 0) >= minReviews);
-  };
+  // Combina pertinho + cidade num único pool e deduplica por nome.
+  const allItems = useMemo(() => {
+    const seen = new Set<string>();
+    const out: Rec[] = [];
+    for (const x of [...nearby, ...city]) {
+      const k = (x.name || "").toLowerCase().trim();
+      if (!k || seen.has(k)) continue;
+      seen.add(k);
+      out.push(x);
+    }
+    return out;
+  }, [nearby, city]);
 
-  const nearbyFiltered = applyFilter(nearby);
-  const cityFiltered = applyFilter(city);
+  const isNear = (r: Rec) =>
+    (typeof r.distance_meters === "number" && r.distance_meters > 0 && r.distance_meters <= 1600);
+  const isRef = (r: Rec) =>
+    (r.rating ?? 0) >= 4.5 && (r.user_ratings_total ?? 0) >= 500;
 
-  const sections = [
-    { key: "nearby", eyebrow: "A poucos minutos", title: "Pertinho da Residência", items: nearbyFiltered, total: nearby.length },
-    { key: "city", eyebrow: "Vale a viagem", title: "Referências na Cidade", items: cityFiltered, total: city.length },
-  ].filter((s) => s.total > 0);
+  const filtered = useMemo(() => {
+    let arr = allItems;
+    if (showNear || showRefs) {
+      arr = arr.filter((r) => (showNear && isNear(r)) || (showRefs && isRef(r)));
+    }
+    if (minReviews > 0) {
+      arr = arr.filter((r) => (r.user_ratings_total ?? 0) >= minReviews);
+    }
+    return arr;
+  }, [allItems, showNear, showRefs, minReviews]);
+
+  const sorted = useMemo(() => sortRecs(filtered, sortBy), [filtered, sortBy]);
+  const nearCount = allItems.filter(isNear).length;
+  const refsCount = allItems.filter(isRef).length;
 
   return (
     <>
-      <div className="flex items-center justify-between gap-3 flex-wrap">
-        <div className="flex items-center gap-3 flex-wrap">
-          <SortBar sortBy={sortBy} setSortBy={setSortBy} />
-          <MinReviewsFilter value={minReviews} onChange={setMinReviews} />
-        </div>
+      {/* Linha 1: ordenação + filtros de proximidade */}
+      <div className="flex items-center gap-3 flex-wrap">
+        <SortBar sortBy={sortBy} setSortBy={setSortBy} />
+        <ProximityFilters
+          showNear={showNear}
+          setShowNear={setShowNear}
+          showRefs={showRefs}
+          setShowRefs={setShowRefs}
+          nearCount={nearCount}
+          refsCount={refsCount}
+        />
+      </div>
+      {/* Linha 2: avaliações + view toggle à direita */}
+      <div className="flex items-center justify-between gap-3 flex-wrap mt-3">
+        <MinReviewsFilter value={minReviews} onChange={setMinReviews} items={allItems} />
         <ViewToggle viewMode={viewMode} setViewMode={setViewMode} />
       </div>
-      {cityFiltered.length > 1 && <div className="mt-6"><CityMap items={cityFiltered} /></div>}
-      <div className="mt-4 space-y-6">
-        {(() => {
-          const [openKey, setOpenKey] = [openSubcat, setOpenSubcat] as const;
-          return sections.map((s) => (
-            <CollapsibleSection
-              key={s.key}
-              eyebrow={s.eyebrow}
-              title={s.title}
-              items={s.items}
-              totalCount={s.total}
-              viewMode={viewMode}
-              open={openKey === s.key}
-              onToggle={() => setOpenKey(openKey === s.key ? null : s.key)}
-            />
-          ));
-        })()}
-        {sections.length === 0 && (
-          <p className="text-sm text-muted-foreground">Nada cadastrado nesta categoria.</p>
+
+      <div className="mt-5">
+        {sorted.length === 0 ? (
+          <p className="text-sm text-muted-foreground py-8 text-center">
+            Nenhum lugar com esses filtros.
+          </p>
+        ) : viewMode === "grid" ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {sorted.map((rec) => <RecCard key={rec.id} rec={rec} />)}
+          </div>
+        ) : (
+          <div className="flex flex-col gap-3">
+            {sorted.map((rec) => <RecRow key={rec.id} rec={rec} />)}
+          </div>
         )}
       </div>
-
     </>
+  );
+}
+
+function ProximityFilters({
+  showNear, setShowNear, showRefs, setShowRefs, nearCount, refsCount,
+}: {
+  showNear: boolean; setShowNear: (b: boolean) => void;
+  showRefs: boolean; setShowRefs: (b: boolean) => void;
+  nearCount: number; refsCount: number;
+}) {
+  const opts = [
+    { key: "near", label: "Pertinho", on: showNear, toggle: () => setShowNear(!showNear), count: nearCount },
+    { key: "refs", label: "Referências", on: showRefs, toggle: () => setShowRefs(!showRefs), count: refsCount },
+  ].filter((o) => o.count > 0);
+  if (opts.length === 0) return null;
+  return (
+    <div className="inline-flex items-center rounded-full border border-border bg-card/60 backdrop-blur p-1">
+      {opts.map((o) => (
+        <button
+          key={o.key}
+          type="button"
+          onClick={o.toggle}
+          className={`px-3 py-1.5 rounded-full text-[11.5px] font-medium transition-colors ${
+            o.on ? "bg-accent text-accent-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          {o.label}
+        </button>
+      ))}
+    </div>
   );
 }
 
