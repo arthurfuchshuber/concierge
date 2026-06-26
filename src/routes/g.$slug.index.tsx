@@ -272,7 +272,8 @@ function Guide({ data }: { data: GuideOk }) {
   const hasAccessPin = !!(p as any).hasAccessPin;
   const initialUnlocked = !!(p as any).accessUnlocked;
   const [unlocked, setUnlocked] = useState(initialUnlocked);
-  const [revealedCodes, setRevealedCodes] = useState<{ wifi_password?: string | null; lock_code?: string | null; gate_code?: string | null }>({});
+
+
   const [pinDialog, setPinDialog] = useState<{ open: boolean; cb: (() => void) | null }>({ open: false, cb: null });
   const requestUnlock = (cb?: () => void) => {
     if (!hasAccessPin || unlocked) {
