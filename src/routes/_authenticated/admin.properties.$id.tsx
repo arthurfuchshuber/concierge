@@ -1308,7 +1308,7 @@ function PropertyEditor() {
               scope="nearby"
               lat={form.property.lat}
               lng={form.property.lng}
-              existingPlaceIds={new Set(form.recommendations.map((r) => r.place_id).filter((x): x is string => !!x))}
+              existingPlaceIds={allExistingPlaceIds}
               onSelect={(rec) => {
                 const isNearby = (rec.distance_meters != null && rec.distance_meters <= 1500) || (rec.walk_minutes != null && rec.walk_minutes <= 20);
                 if (isNearby) {
@@ -1352,7 +1352,11 @@ function PropertyEditor() {
             lat={form.property.lat}
             lng={form.property.lng}
             hideSearch
+            onGenerate={handleGenerateNearby}
+            generating={generatingNearbyRecs}
+            headerExtra={<LinkGuidesButton propertyId={id} />}
           />
+
 
           <CityRefsGroup
             cityLabel={form.property.city}
