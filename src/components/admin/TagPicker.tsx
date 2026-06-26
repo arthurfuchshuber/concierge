@@ -371,16 +371,18 @@ function CategoryRow({
           {!editing && (
             <button
               type="button"
-              aria-label="Renomear"
+              aria-label="Renomear categoria"
+              title="Renomear categoria"
               onClick={(e) => { e.stopPropagation(); setEditing(true); }}
-              className="p-1 text-[10px] text-muted-foreground hover:text-foreground"
+              className="p-1 text-muted-foreground hover:text-foreground"
             >
-              renomear
+              <Pencil className="size-3" />
             </button>
           )}
           <button
             type="button"
-            aria-label="Adicionar tag"
+            aria-label="Adicionar tag nesta categoria"
+            title="Adicionar tag nesta categoria"
             onClick={(e) => { e.stopPropagation(); onAddTag(); }}
             className="p-1 text-muted-foreground hover:text-foreground"
           >
@@ -486,12 +488,13 @@ function TagRow({
         <div className="flex items-center gap-0.5">
           <button
             type="button"
-            aria-label="Renomear"
+            aria-label="Renomear tag"
+            title={tag.is_protected ? "Tag padrão — não editável" : "Renomear tag"}
             onClick={(e) => { if (tag.is_protected) return; e.stopPropagation(); setEditing(true); }}
             disabled={tag.is_protected}
-            className="p-1 text-[10px] text-muted-foreground hover:text-foreground disabled:opacity-30"
+            className="p-1 text-muted-foreground hover:text-foreground disabled:opacity-30"
           >
-            renomear
+            <Pencil className="size-3" />
           </button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
