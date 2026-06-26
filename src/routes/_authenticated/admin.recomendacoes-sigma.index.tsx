@@ -110,7 +110,7 @@ function SigmaPacksIndex() {
                 </div>
                 <div className="grid grid-cols-4 gap-2 text-center">
                   <Metric label="Pontos" value={p.recs_count} />
-                  <Metric label="Reservas" value={p.marketplace_count} />
+                  <Metric label="Marketplace" value={p.marketplace_count} />
                   <Metric label="FAQs" value={p.faqs_count} />
                   <Metric label="Guias" value={p.adoption_count} highlight />
                 </div>
