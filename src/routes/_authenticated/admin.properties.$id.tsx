@@ -29,8 +29,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { TimePicker } from "@/components/ui/time-picker";
 import { DateTimePicker } from "@/components/ui/date-picker";
-import { TagPicker, useTaxonomy, TAXONOMY_QUERY_KEY } from "@/components/admin/TagPicker";
-import { updatePoiCategory } from "@/lib/poi-taxonomy.functions";
+import { TagPicker, useTaxonomy, TAXONOMY_QUERY_KEY, NewCategoryDialog, NewTagDialog } from "@/components/admin/TagPicker";
+import { updatePoiCategory, reorderPoiCategories } from "@/lib/poi-taxonomy.functions";
 import { Pencil, Check as CheckIcon, X as XIcon, Search } from "lucide-react";
 import { friendlyErrorMessage } from "@/lib/friendly-error";
 
