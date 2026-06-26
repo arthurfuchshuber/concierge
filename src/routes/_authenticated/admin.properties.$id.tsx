@@ -357,7 +357,7 @@ function PropertyEditor() {
     queryClient.invalidateQueries({ queryKey: cityRefsKey });
   }
 
-  useCityReferencesRealtime(form.property.city, invalidateCityRefs);
+  useCityReferencesRealtime({ propertyId: form.property.id }, invalidateCityRefs);
 
   async function handleEnrich() {
     if (!form.property.maps_url) {
