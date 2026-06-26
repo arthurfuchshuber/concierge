@@ -1151,7 +1151,9 @@ function RecCard({ rec }: { rec: Rec }) {
             </span>
           )}
           {walking && (
-            <span className="inline-flex items-center gap-1.5">
+            <span
+              className={`inline-flex items-center gap-1.5 ${isPertinhoRec(rec) ? "rounded-full bg-amber-400/15 text-amber-700 dark:text-amber-300 px-2 py-0.5 font-medium" : ""}`}
+            >
               <Footprints className="size-3.5" strokeWidth={1.75} />
               {walking}
             </span>
@@ -1234,7 +1236,9 @@ function RecRow({ rec }: { rec: Rec }) {
             </span>
           )}
           {walking && (
-            <span className="inline-flex items-center gap-1.5">
+            <span
+              className={`inline-flex items-center gap-1.5 ${isPertinhoRec(rec) ? "rounded-full bg-amber-400/15 text-amber-700 dark:text-amber-300 px-2 py-0.5 font-medium" : ""}`}
+            >
               <Footprints className="size-3.5" strokeWidth={1.75} />
               {walking}
             </span>
