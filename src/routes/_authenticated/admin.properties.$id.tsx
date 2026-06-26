@@ -1690,11 +1690,10 @@ function PropertyEditor() {
 
 
       <div className="fixed bottom-0 left-0 right-0 border-t border-border bg-background/95 backdrop-blur p-3 sm:p-4 z-50">
-        <div className="max-w-4xl mx-auto flex flex-wrap justify-center sm:justify-start items-center gap-2 sm:gap-3">
+        <div className="max-w-4xl mx-auto flex flex-wrap justify-center items-center gap-2 sm:gap-3">
           <Button
             variant="outline"
-            size="sm"
-            className="flex-1 sm:flex-none"
+            className="h-10 min-w-[120px]"
             onClick={() => {
               const order = ["basics", "access", "house", "recs", "extras"];
               const i = order.indexOf(step);
@@ -1702,14 +1701,12 @@ function PropertyEditor() {
             }}
             disabled={step === "basics"}
           >
-            <ArrowLeft className="size-3.5" />
-            <span className="ml-1 hidden sm:inline">Anterior</span>
-            <span className="ml-1 sm:hidden">Anterior</span>
+            <ArrowLeft className="size-3.5 mr-1" />
+            Anterior
           </Button>
           <Button
             variant="outline"
-            size="sm"
-            className="flex-1 sm:flex-none"
+            className="h-10 min-w-[120px]"
             onClick={() => {
               const order = ["basics", "access", "house", "recs", "extras"];
               const i = order.indexOf(step);
@@ -1717,21 +1714,19 @@ function PropertyEditor() {
             }}
             disabled={step === "extras"}
           >
-            <span className="mr-1">Próximo</span>
-            <ArrowLeft className="size-3.5 rotate-180" />
+            Próximo
+            <ArrowLeft className="size-3.5 ml-1 rotate-180" />
           </Button>
-          <div className="flex items-center gap-2 w-full sm:w-auto sm:ml-auto">
-            {step === "recs" && !isNew && (
-              <span className="text-[11px] text-muted-foreground hidden sm:inline-flex items-center gap-1.5">
-                {autoSaving ? (<><Loader2 className="size-3 animate-spin" /> Salvando…</>) : "Alterações salvas automaticamente"}
-              </span>
-            )}
-            <Button variant="ghost" size="sm" className="flex-1 sm:flex-none" onClick={() => navigate({ to: "/admin" })}>Cancelar</Button>
-            <Button size="sm" className="flex-1 sm:flex-none" onClick={handleSave} disabled={saving || !form.property.name}>
-              {saving ? <Loader2 className="size-4 animate-spin mr-1.5" /> : null}
-              Salvar
-            </Button>
-          </div>
+          <Button variant="ghost" className="h-10 min-w-[120px]" onClick={() => navigate({ to: "/admin" })}>Cancelar</Button>
+          <Button className="h-10 min-w-[120px]" onClick={handleSave} disabled={saving || !form.property.name}>
+            {saving ? <Loader2 className="size-4 animate-spin mr-1.5" /> : null}
+            Salvar
+          </Button>
+          {step === "recs" && !isNew && (
+            <span className="basis-full text-center text-[11px] text-muted-foreground inline-flex items-center justify-center gap-1.5">
+              {autoSaving ? (<><Loader2 className="size-3 animate-spin" /> Salvando…</>) : "Alterações salvas automaticamente"}
+            </span>
+          )}
         </div>
       </div>
 
