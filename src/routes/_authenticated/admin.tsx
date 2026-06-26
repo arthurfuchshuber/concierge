@@ -52,6 +52,7 @@ function AdminLayout() {
     pathname.startsWith("/admin/engajamento") ||
     pathname.startsWith("/admin/clientes") ||
     pathname.startsWith("/admin/taxonomia") ||
+    pathname.startsWith("/admin/recomendacoes-sigma") ||
     pathname.startsWith("/admin/admins");
   const needsPlan = !subLoading && !sub.plan && !allowedWithoutPlan && !isAdmin;
 
