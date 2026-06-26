@@ -448,6 +448,7 @@ function PropertyEditor() {
         city_label: city,
         state: form.property.state?.trim() || null,
         country: form.property.country?.trim() || "BR",
+        propertyId: id,
       };
       if (mode === "replace") {
         // Apaga as atuais (auto + manual) antes de regerar.
