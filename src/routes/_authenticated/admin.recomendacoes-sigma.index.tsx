@@ -137,7 +137,7 @@ function SigmaPacksIndex() {
         </div>
       )}
 
-      {newOpen && <NewCityDialog onClose={() => setNewOpen(false)} onCreated={() => { setNewOpen(false); qc.invalidateQueries({ queryKey: ["sigma-packs"] }); }} />}
+      {newOpen && <NewCityDialog existingPacks={packs} onClose={() => setNewOpen(false)} onCreated={() => { setNewOpen(false); qc.invalidateQueries({ queryKey: ["sigma-packs"] }); }} />}
       <AlertDialog open={!!confirmDel} onOpenChange={(o) => { if (!o) setConfirmDel(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
