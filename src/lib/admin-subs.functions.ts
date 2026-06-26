@@ -20,6 +20,22 @@ export const checkIsAdmin = createServerFn({ method: "GET" })
     return { isAdmin: !!data };
   });
 
+export const adminListUserProperties = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => z.object({ userId: z.string().uuid() }).parse(i))
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context.supabase, context.userId);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: props, error } = await supabaseAdmin
+      .from("properties")
+      .select("id, name, slug, city, published, updated_at, hero_image_url")
+      .eq("owner_id", data.userId)
+      .order("updated_at", { ascending: false });
+    if (error) throw new Error("Erro ao carregar guias");
+    return { properties: props ?? [] };
+  });
+
+
 export type AdminCustomerRow = {
   userId: string;
   email: string | null;
