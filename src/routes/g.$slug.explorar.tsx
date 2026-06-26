@@ -535,13 +535,27 @@ function ExplorePage() {
 
         {!active ? (
           <>
-            <div className="flex items-center gap-3 flex-wrap">
-              <MinReviewsFilter value={minReviews} onChange={setMinReviews} items={[...allRecs, ...cityRefs]} />
-              <div className="ml-auto">
+            <div className="sticky top-0 z-10 -mx-4 px-4 py-2 bg-background/85 backdrop-blur border-b border-border/40">
+              <div className="flex items-center gap-2">
+                <div className="flex-1 min-w-0">
+                  <SearchBar value={query} onChange={setQuery} />
+                </div>
+                <FilterSheetButton
+                  sortBy="distance"
+                  setSortBy={() => {}}
+                  minReviews={minReviews}
+                  setMinReviews={setMinReviews}
+                  showNear
+                  setShowNear={() => {}}
+                  showRefs
+                  setShowRefs={() => {}}
+                  showSort={false}
+                  showProximity={false}
+                  reviewOptions={computeReviewOptions([...allRecs, ...cityRefs])}
+                />
                 <ViewToggle viewMode={viewMode} setViewMode={setViewMode} />
               </div>
             </div>
-            <SearchBar value={query} onChange={setQuery} />
             <div className="mt-5">
               {viewMode === "grid" ? (
                 <CategoryGrid categories={categories} onPick={(k) => setActiveKey(k)} />
