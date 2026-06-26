@@ -2247,6 +2247,7 @@ function CityRefsGroup({
       if ((n.type ?? "") !== (before.type ?? "")) patch.type = n.type;
       if ((n.note ?? null) !== (before.note ?? null)) patch.note = n.note ?? null;
       if ((n.maps_url ?? null) !== (before.maps_url ?? null)) patch.maps_url = n.maps_url ?? null;
+      if ((n.category ?? null) !== (before.category ?? null)) patch.category = n.category ?? null;
       if (Object.keys(patch).length) scheduleUpdate(n._dbId, patch);
     }
   }
