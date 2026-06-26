@@ -2689,43 +2689,62 @@ function RecGroup({
                   </button>
                 </div>
                 {open && (
-                  <div className="border-t border-border/50 px-3.5 py-3 space-y-2.5">
-                    <CategoryDescriptionField
-                      categoryId={taxonomy?.categories.find((c) => c.label === cat)?.id ?? null}
-                      currentDescription={taxonomy?.categories.find((c) => c.label === cat)?.description ?? null}
-                      canEdit={!!taxonomy?.categories.find((c) => c.label === cat) && !taxonomy?.categories.find((c) => c.label === cat)?.is_protected}
-                    />
+                  <div className="border-t border-border/50 px-3.5 py-3 space-y-2">
                     {g.items.map((r, k) => {
                       if (filterActive && !matchesFilter(r)) return null;
                       const idx = g.indices[k];
                       const checked = selectedIdx.has(idx);
+                      const itemOpen = openItemIdx === idx;
+                      const tagLabel = (taxonomy?.tags ?? []).find((t) => t.slug === r.type)?.label ?? r.type ?? "";
                       return (
-                        <div key={idx} className="flex items-start gap-2">
-                          <input
-                            type="checkbox"
-                            checked={checked}
-                            onChange={() => toggleSelect(idx)}
-                            className="mt-3 size-4 accent-current shrink-0"
-                          />
-                          <div className="flex-1 min-w-0">
-                            <ItemCard onRemove={() => removeAt(idx)}>
+                        <div key={idx} className="rounded-lg border border-border/60 bg-background/60 overflow-hidden">
+                          <div className="flex items-center gap-2 px-3 py-2">
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={() => toggleSelect(idx)}
+                              className="size-4 accent-current shrink-0"
+                              onClick={(e) => e.stopPropagation()}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setOpenItemIdx(itemOpen ? null : idx)}
+                              className="flex-1 min-w-0 flex items-center gap-2 text-left"
+                              aria-expanded={itemOpen}
+                            >
+                              <span className="truncate text-sm font-medium">{r.name || "(sem nome)"}</span>
+                              {tagLabel && (
+                                <span className="shrink-0 text-[11px] px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
+                                  {tagLabel}
+                                </span>
+                              )}
+                              <span className="flex-1" />
+                              <ChevronDown className={`size-4 text-muted-foreground transition-transform shrink-0 ${itemOpen ? "rotate-180" : ""}`} />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => removeAt(idx)}
+                              className="shrink-0 inline-flex size-7 items-center justify-center rounded-md text-muted-foreground hover:text-rose-500 hover:bg-muted"
+                              aria-label="Remover"
+                              title="Remover"
+                            >
+                              <Trash2 className="size-3.5" />
+                            </button>
+                          </div>
+                          {itemOpen && (
+                            <div className="border-t border-border/50 px-3 py-3 space-y-2">
                               <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-2">
                                 <Input placeholder="Nome" value={r.name} maxLength={200}
                                   onChange={(e) => updateAt(idx, { name: e.target.value })} />
                                 <TagPicker
                                   value={r.type}
                                   onChange={(v) => {
-                                    // Sincroniza category com a tag selecionada,
-                                    // mas NÃO move o foco/visualização para a
-                                    // nova categoria — o usuário permanece onde
-                                    // estava editando.
                                     const tags = taxonomy?.tags ?? [];
                                     const tag = tags.find((t) => t.slug === v);
                                     const newCat = tag?.category_label ?? r.category ?? null;
                                     updateAt(idx, { type: v, category: newCat });
                                   }}
                                 />
-
                               </div>
                               <div className="grid grid-cols-2 gap-2">
                                 <Input placeholder="Distância (texto)" value={r.distance_text ?? ""} maxLength={80}
@@ -2741,8 +2760,8 @@ function RecGroup({
                                   {r.user_ratings_total ? ` (${r.user_ratings_total.toLocaleString("pt-BR")})` : ""}
                                 </div>
                               )}
-                            </ItemCard>
-                          </div>
+                            </div>
+                          )}
                         </div>
                       );
                     })}
