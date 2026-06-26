@@ -10,6 +10,7 @@ import { generateCityReferences, listCityReferences, addManualCityReference, upd
 import { importFromAirbnb } from "@/lib/airbnb.functions";
 import { useSubscription } from "@/hooks/useSubscription";
 import { useCityReferencesRealtime } from "@/hooks/useCityReferencesRealtime";
+import { LinkGuidesButton } from "@/components/admin/LinkGuidesDialog";
 
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
