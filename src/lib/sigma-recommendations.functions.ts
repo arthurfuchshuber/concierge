@@ -482,7 +482,7 @@ export const deactivateSigmaPackOnProperty = createServerFn({ method: "POST" })
       .select("sigma_pack_snapshot")
       .eq("id", data.property_id)
       .maybeSingle();
-    const snap = (prop as { sigma_pack_snapshot: { marketplace_links?: unknown[] } | null } | null)?.sigma_pack_snapshot;
+    const snap = (prop as { sigma_pack_snapshot: { marketplace_links?: unknown[]; property_faqs?: Record<string, unknown>[] } | null } | null)?.sigma_pack_snapshot;
     const patch: Record<string, unknown> = {
       sigma_pack_city_key: null,
       sigma_pack_activated_at: null,
@@ -496,5 +496,21 @@ export const deactivateSigmaPackOnProperty = createServerFn({ method: "POST" })
       .update(patch as never)
       .eq("id", data.property_id);
     if (error) throw new Error(error.message);
+
+    // Restore FAQs: remove sigma-sourced, re-insert snapshot
+    await context.supabase.from("property_faqs").delete().eq("property_id", data.property_id).eq("category", "sigma");
+    if (snap && Array.isArray(snap.property_faqs) && snap.property_faqs.length) {
+      const rows = snap.property_faqs.map((f) => ({
+        ...(f as Record<string, unknown>),
+        property_id: data.property_id,
+      }));
+      // Strip id/created_at to avoid PK collisions
+      const cleaned = rows.map((r) => {
+        const { id: _id, created_at: _c, updated_at: _u, ...rest } = r as Record<string, unknown>;
+        void _id; void _c; void _u;
+        return rest;
+      });
+      await context.supabase.from("property_faqs").insert(cleaned as never);
+    }
     return { ok: true };
   });
