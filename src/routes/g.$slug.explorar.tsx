@@ -269,15 +269,15 @@ function matchesQuery(rec: Rec, q: string): boolean {
   return hay.includes(needle);
 }
 
-function SearchBar({ value, onChange, placeholder }: { value: string; onChange: (s: string) => void; placeholder?: string }) {
+function SearchBar({ value, onChange, placeholder, compact }: { value: string; onChange: (s: string) => void; placeholder?: string; compact?: boolean }) {
   return (
-    <div className="relative w-full mt-3">
+    <div className={`relative w-full ${compact ? "" : "mt-3"}`}>
       <input
         type="search"
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder ?? "Buscar por nome, categoria ou descrição…"}
-        className="w-full rounded-full border border-border bg-card/60 backdrop-blur px-4 py-2.5 pr-10 text-[13px] placeholder:text-muted-foreground/70 focus:outline-none focus:border-accent/60 focus:bg-card transition-colors"
+        className={`w-full rounded-full border border-border bg-card/60 backdrop-blur px-4 ${compact ? "h-9 py-0 text-[12.5px]" : "py-2.5 text-[13px]"} pr-10 placeholder:text-muted-foreground/70 focus:outline-none focus:border-accent/60 focus:bg-card transition-colors`}
       />
       {value && (
         <button
