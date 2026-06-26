@@ -2304,6 +2304,14 @@ function RecGroup({
 }) {
   const [openCat, setOpenCat] = useState<string | null>(null);
   const [selectedIdx, setSelectedIdx] = useState<Set<number>>(new Set());
+  const [filterQuery, setFilterQuery] = useState("");
+  const norm = (s: string) =>
+    s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  const filterActive = filterQuery.trim().length > 0;
+  const matchesFilter = (it: RecItem) =>
+    !filterActive ||
+    norm(it.name ?? "").includes(norm(filterQuery)) ||
+    norm(it.category ?? "").includes(norm(filterQuery));
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const { data: taxonomy } = useTaxonomy();
 
