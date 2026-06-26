@@ -798,6 +798,7 @@ function CategoryDetail({
   // mostramos todos os itens da categoria.
   const [showNear, setShowNear] = useState(false);
   const [showRefs, setShowRefs] = useState(false);
+  const [query, setQuery] = useState("");
 
   // Combina pertinho + cidade num único pool e deduplica por nome.
   const allItems = useMemo(() => {
@@ -825,8 +826,11 @@ function CategoryDetail({
     if (minReviews > 0) {
       arr = arr.filter((r) => (r.user_ratings_total ?? 0) >= minReviews);
     }
+    if (query.trim()) {
+      arr = arr.filter((r) => matchesQuery(r, query));
+    }
     return arr;
-  }, [allItems, showNear, showRefs, minReviews]);
+  }, [allItems, showNear, showRefs, minReviews, query]);
 
   const sorted = useMemo(() => sortRecs(filtered, sortBy), [filtered, sortBy]);
   const nearCount = allItems.filter(isNear).length;
@@ -851,6 +855,8 @@ function CategoryDetail({
         <MinReviewsFilter value={minReviews} onChange={setMinReviews} items={allItems} />
         <ViewToggle viewMode={viewMode} setViewMode={setViewMode} />
       </div>
+      {/* Linha 3: busca livre */}
+      <SearchBar value={query} onChange={setQuery} />
 
       <div className="mt-5">
         {sorted.length === 0 ? (
