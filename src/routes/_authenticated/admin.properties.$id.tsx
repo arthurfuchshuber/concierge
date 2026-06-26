@@ -2395,6 +2395,7 @@ function RecGroup({
   hideSearch?: boolean;
 }) {
   const [openCat, setOpenCat] = useState<string | null>(null);
+  const [openItemIdx, setOpenItemIdx] = useState<number | null>(null);
   const [selectedIdx, setSelectedIdx] = useState<Set<number>>(new Set());
   const [filterQuery, setFilterQuery] = useState("");
   const [showNewCat, setShowNewCat] = useState(false);
