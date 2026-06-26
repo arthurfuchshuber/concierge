@@ -21,7 +21,7 @@ import {
   HelpCircle,
   Ticket,
   MapPin,
-  Map,
+  Map as MapIcon,
   X,
 } from "lucide-react";
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
