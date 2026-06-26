@@ -1428,7 +1428,7 @@ function EmbeddedMapModal({
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-border/50 shrink-0">
           <div className="flex items-center gap-2.5">
-            <Map className="size-4.5 text-accent" strokeWidth={1.75} />
+            <MapIcon className="size-4.5 text-accent" strokeWidth={1.75} />
             <div>
               <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground font-semibold">Mapa</p>
               <p className="text-[14px] font-medium leading-tight">Recomendações próximas</p>
