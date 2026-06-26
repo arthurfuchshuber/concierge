@@ -461,19 +461,28 @@ function TagRow({
           type="button"
           onClick={() => { if (selectMode) onToggleCheck(); else onPick(); }}
           onDoubleClick={(e) => {
-            if (tag.is_protected) return;
+            if (!manageMode || tag.is_protected) return;
             e.stopPropagation();
             setEditing(true);
           }}
-          title={tag.is_protected ? "Tag padrão do Google — não editável" : "Duplo-clique para renomear"}
+          title={manageMode ? (tag.is_protected ? "Tag padrão do Google — não editável" : "Duplo-clique para renomear") : "Clique para selecionar"}
           className={`flex-1 text-left text-sm py-1.5 px-1 truncate ${selected ? "font-medium" : ""}`}
         >
           {tag.label}
           {tag.is_protected && <Lock className="inline size-2.5 ml-1 opacity-40" />}
         </button>
       )}
-      {!editing && !selectMode && (
-        <div className="flex items-center gap-0.5 opacity-0 group-hover/tag:opacity-100 transition-opacity">
+      {manageMode && !editing && !selectMode && (
+        <div className="flex items-center gap-0.5">
+          <button
+            type="button"
+            aria-label="Renomear"
+            onClick={(e) => { if (tag.is_protected) return; e.stopPropagation(); setEditing(true); }}
+            disabled={tag.is_protected}
+            className="p-1 text-[10px] text-muted-foreground hover:text-foreground disabled:opacity-30"
+          >
+            renomear
+          </button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button type="button" aria-label="Mover" className="p-1 text-muted-foreground hover:text-foreground">
