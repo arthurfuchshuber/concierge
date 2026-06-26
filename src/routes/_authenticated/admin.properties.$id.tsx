@@ -2360,7 +2360,7 @@ function CityRefsGroup({
       lng={propertyLng}
       onGenerate={onGenerate}
       generating={generating || q.isFetching}
-      headerExtra={<LinkGuidesButton propertyId={propertyId} />}
+      headerExtra={<><SigmaImportButton propertyId={propertyId} /><LinkGuidesButton propertyId={propertyId} /></>}
       hideSearch
     />
   );
