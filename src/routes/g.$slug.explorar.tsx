@@ -859,14 +859,33 @@ function ProximityFilters({
   );
 }
 
-function MinReviewsFilter({ value, onChange }: { value: number; onChange: (n: number) => void }) {
-  const opts: { v: number; label: string }[] = [
+function MinReviewsFilter({ value, onChange, items }: { value: number; onChange: (n: number) => void; items?: Rec[] }) {
+  const all: { v: number; label: string }[] = [
     { v: 0, label: "Todas" },
     { v: 50, label: "50+" },
     { v: 200, label: "200+" },
     { v: 1000, label: "1k+" },
     { v: 5000, label: "5k+" },
   ];
+
+  // Limita as opções com base no min/max de avaliações dos itens disponíveis.
+  // Esconde "X+" se não houver item >= X (max < X) e esconde se nenhum item
+  // estiver na faixa < próximo threshold (min >= próximo threshold).
+  let opts = all;
+  if (items && items.length > 0) {
+    const counts = items.map((r) => r.user_ratings_total ?? 0);
+    const min = Math.min(...counts);
+    const max = Math.max(...counts);
+    opts = all.filter((o, i) => {
+      if (o.v === 0) return true;
+      if (max < o.v) return false;
+      const next = all[i + 1]?.v ?? Infinity;
+      if (min >= next) return false;
+      return true;
+    });
+  }
+
+  if (opts.length <= 1) return null;
   return (
     <div className="inline-flex items-center rounded-full border border-border bg-card/60 backdrop-blur p-1">
       <span className="px-2.5 text-[10px] uppercase tracking-[0.18em] font-semibold text-muted-foreground">
