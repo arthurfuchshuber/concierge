@@ -249,6 +249,16 @@ function Guide({ data }: { data: GuideOk }) {
     return now < opensAt || now > closesAt;
   })();
 
+  // Wi-Fi visível apenas até 10 dias após a data de check-in do hóspede.
+  // Sem data: não esconde (volta ao comportamento padrão).
+  const wifiExpired = (() => {
+    if (!accessRec?.checkinDate) return false;
+    const [y, mo, d] = accessRec.checkinDate.split("-").map(Number);
+    if (!y || !mo || !d) return false;
+    const start = new Date(y, mo - 1, d, 0, 0, 0, 0).getTime();
+    return Date.now() > start + 10 * 24 * 60 * 60 * 1000;
+  })();
+
   // Shared "access PIN unlock" state — once unlocked, all gated codes/Wi-Fi reveal
   const accessPin = ((p.access_codes_pin as string | null) ?? "").trim();
   const [unlocked, setUnlocked] = useState(false);
