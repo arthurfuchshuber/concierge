@@ -1,28 +1,37 @@
 import { useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { cityKey } from "@/lib/city-key";
 
-export function useCityReferencesRealtime(cityLabel: string | null | undefined, onChange: () => void) {
-  const key = cityKey(cityLabel);
+/**
+ * Realtime de `city_references` por escopo (property_id OU group_id).
+ * Não escuta mais por city_key — a lista NUNCA é compartilhada por cidade.
+ */
+export function useCityReferencesRealtime(
+  scope: { propertyId?: string | null; groupId?: string | null },
+  onChange: () => void,
+) {
   const onChangeRef = useRef(onChange);
-
   useEffect(() => {
     onChangeRef.current = onChange;
   }, [onChange]);
 
+  const groupId = scope.groupId ?? null;
+  const propertyId = scope.propertyId ?? null;
+
   useEffect(() => {
-    if (!key) return;
+    // Quando há grupo, escuta o grupo; senão, escuta a property.
+    const filter = groupId
+      ? `group_id=eq.${groupId}`
+      : propertyId
+        ? `property_id=eq.${propertyId}`
+        : null;
+    if (!filter) return;
+    const tag = groupId ?? propertyId;
 
     const channel = supabase
-      .channel(`city-references:${key}`)
+      .channel(`city-references:${tag}`)
       .on(
         "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "city_references",
-          filter: `city_key=eq.${key}`,
-        },
+        { event: "*", schema: "public", table: "city_references", filter },
         () => onChangeRef.current(),
       )
       .subscribe();
@@ -30,5 +39,5 @@ export function useCityReferencesRealtime(cityLabel: string | null | undefined, 
     return () => {
       void supabase.removeChannel(channel);
     };
-  }, [key]);
+  }, [groupId, propertyId]);
 }
