@@ -410,13 +410,14 @@ export const activateSigmaPackOnProperty = createServerFn({ method: "POST" })
     z.object({ property_id: z.string().uuid(), city_key: z.string() }).parse(i),
   )
   .handler(async ({ data, context }) => {
-    // Verify ownership via RLS by selecting the property
+    // Verify ownership via RLS
     const { data: prop, error: propErr } = await context.supabase
       .from("properties")
-      .select("id, marketplace_links")
+      .select("id, owner_id, marketplace_links")
       .eq("id", data.property_id)
       .maybeSingle();
     if (propErr || !prop) throw new Error("Imóvel não encontrado.");
+    const propRow = prop as { id: string; owner_id: string; marketplace_links: unknown };
 
     const sb = publicClient();
     const { data: pack } = await sb
@@ -427,19 +428,48 @@ export const activateSigmaPackOnProperty = createServerFn({ method: "POST" })
       .maybeSingle();
     if (!pack) throw new Error("Recomendação SigmaGuide indisponível para esta cidade.");
 
-    // Snapshot current marketplace links so we can restore on deactivate.
+    // Load source content
+    const [{ data: sigmaMkt }, { data: sigmaFaqs }, { data: ownFaqs }] = await Promise.all([
+      sb.from("sigma_city_marketplace").select("label, url, description").eq("city_key", data.city_key).order("position"),
+      sb.from("sigma_city_faqs").select("question, answer").eq("city_key", data.city_key).order("position"),
+      context.supabase.from("property_faqs").select("*").eq("property_id", data.property_id),
+    ]);
+
+    // Snapshot current marketplace + faqs so we can restore on deactivate.
     const snapshot = {
-      marketplace_links: (prop as { marketplace_links: unknown }).marketplace_links ?? [],
+      marketplace_links: propRow.marketplace_links ?? [],
+      property_faqs: ownFaqs ?? [],
     };
-    const { error } = await context.supabase
+
+    // Replace marketplace_links with sigma content
+    const newMkt = (sigmaMkt ?? []).map((m) => ({
+      label: m.label,
+      url: m.url,
+      description: m.description ?? null,
+    }));
+    const { error: upErr } = await context.supabase
       .from("properties")
       .update({
         sigma_pack_city_key: data.city_key,
         sigma_pack_activated_at: new Date().toISOString(),
         sigma_pack_snapshot: snapshot as never,
+        marketplace_links: newMkt as never,
       })
       .eq("id", data.property_id);
-    if (error) throw new Error(error.message);
+    if (upErr) throw new Error(upErr.message);
+
+    // Replace property_faqs with sigma faqs (tagged so we can find them later)
+    await context.supabase.from("property_faqs").delete().eq("property_id", data.property_id);
+    if ((sigmaFaqs ?? []).length) {
+      const rows = (sigmaFaqs ?? []).map((f, idx) => ({
+        property_id: data.property_id,
+        question: f.question,
+        answer: f.answer,
+        tags: ["sigma"],
+        position: idx,
+      }));
+      await context.supabase.from("property_faqs").insert(rows as never);
+    }
     return { ok: true };
   });
 
@@ -452,7 +482,7 @@ export const deactivateSigmaPackOnProperty = createServerFn({ method: "POST" })
       .select("sigma_pack_snapshot")
       .eq("id", data.property_id)
       .maybeSingle();
-    const snap = (prop as { sigma_pack_snapshot: { marketplace_links?: unknown[] } | null } | null)?.sigma_pack_snapshot;
+    const snap = (prop as { sigma_pack_snapshot: { marketplace_links?: unknown[]; property_faqs?: Record<string, unknown>[] } | null } | null)?.sigma_pack_snapshot;
     const patch: Record<string, unknown> = {
       sigma_pack_city_key: null,
       sigma_pack_activated_at: null,
@@ -466,5 +496,21 @@ export const deactivateSigmaPackOnProperty = createServerFn({ method: "POST" })
       .update(patch as never)
       .eq("id", data.property_id);
     if (error) throw new Error(error.message);
+
+    // Restore FAQs: remove sigma-sourced, re-insert snapshot
+    await context.supabase.from("property_faqs").delete().eq("property_id", data.property_id).contains("tags", ["sigma"]);
+    if (snap && Array.isArray(snap.property_faqs) && snap.property_faqs.length) {
+      const rows = snap.property_faqs.map((f) => ({
+        ...(f as Record<string, unknown>),
+        property_id: data.property_id,
+      }));
+      // Strip id/created_at to avoid PK collisions
+      const cleaned = rows.map((r) => {
+        const { id: _id, created_at: _c, updated_at: _u, ...rest } = r as Record<string, unknown>;
+        void _id; void _c; void _u;
+        return rest;
+      });
+      await context.supabase.from("property_faqs").insert(cleaned as never);
+    }
     return { ok: true };
   });
