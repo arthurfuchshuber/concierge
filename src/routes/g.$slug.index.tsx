@@ -2,7 +2,7 @@ import { createFileRoute, notFound, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { getPublicGuide, submitPin } from "@/lib/guide.functions";
+import { getPublicGuide, submitPin, submitAccessPin } from "@/lib/guide.functions";
 import { trackGuideEvent } from "@/lib/guide-analytics.functions";
 import { useI18n } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
