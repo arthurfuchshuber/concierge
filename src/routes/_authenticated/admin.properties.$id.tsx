@@ -31,7 +31,7 @@ import { TimePicker } from "@/components/ui/time-picker";
 import { DateTimePicker } from "@/components/ui/date-picker";
 import { TagPicker, useTaxonomy, TAXONOMY_QUERY_KEY } from "@/components/admin/TagPicker";
 import { updatePoiCategory } from "@/lib/poi-taxonomy.functions";
-import { Pencil, Check as CheckIcon, X as XIcon, Search } from "lucide-react";
+import { Pencil, Check as CheckIcon, X as XIcon, Search, Lock } from "lucide-react";
 import { friendlyErrorMessage } from "@/lib/friendly-error";
 
 export const Route = createFileRoute("/_authenticated/admin/properties/$id")({
