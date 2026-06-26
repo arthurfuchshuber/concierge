@@ -10,7 +10,13 @@ const CityIdent = z.object({
   country: z.string().min(1).max(60).default("BR"),
 });
 
-const ListInput = CityIdent.extend({ includeHidden: z.boolean().optional() });
+// `propertyId` é OPCIONAL nas APIs antigas para compat (admin.cidades),
+// mas é OBRIGATÓRIO no novo fluxo por imóvel/grupo. Sempre que vier,
+// determinamos o escopo (group_id se a property estiver em grupo, senão property_id).
+const ListInput = CityIdent.extend({
+  includeHidden: z.boolean().optional(),
+  propertyId: z.string().uuid().nullable().optional(),
+});
 const HideInput = z.object({ id: z.string().uuid(), hidden: z.boolean() });
 const DeleteInput = z.object({ id: z.string().uuid() });
 const ReorderInput = z.object({ id: z.string().uuid(), display_order: z.number().int() });
@@ -32,6 +38,7 @@ const ManualAddInput = CityIdent.extend({
   name: z.string().min(1).max(200),
   // place_id é OBRIGATÓRIO — só aceitamos pontos cadastrados no Google.
   place_id: z.string().min(1).max(200),
+  propertyId: z.string().uuid().nullable().optional(),
   note: z.string().max(800).nullable().optional(),
   address: z.string().max(400).nullable().optional(),
   rating: z.number().nullable().optional(),
@@ -43,6 +50,22 @@ const ManualAddInput = CityIdent.extend({
   maps_url: z.string().max(2048).nullable().optional(),
   opening_hours: z.array(z.string().max(200)).max(14).nullable().optional(),
 });
+
+// Resolve o escopo (group_id OU property_id) a partir do propertyId.
+// Quando a property está em um grupo, todas as refs vivem com group_id setado
+// (e property_id = null). Sem grupo, vivem com property_id setado.
+async function resolvePropertyScope(
+  supabaseAdmin: import("@supabase/supabase-js").SupabaseClient,
+  propertyId: string,
+): Promise<{ groupId: string | null; propertyId: string }> {
+  const { data: m } = await supabaseAdmin
+    .from("city_reference_group_members")
+    .select("group_id")
+    .eq("property_id", propertyId)
+    .maybeSingle();
+  return { groupId: (m?.group_id as string | null) ?? null, propertyId };
+}
+
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function isAdmin(ctx: any): Promise<boolean> {
