@@ -2214,6 +2214,7 @@ function CityRefsGroup({
       lng={propertyLng}
       onGenerate={onGenerate}
       generating={generating || q.isFetching}
+      headerExtra={<LinkGuidesButton propertyId={propertyId} />}
     />
   );
 }
