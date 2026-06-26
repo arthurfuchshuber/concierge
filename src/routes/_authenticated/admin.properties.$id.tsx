@@ -2587,12 +2587,22 @@ function RecGroup({
               Gerar com IA
             </Button>
           )}
-          <Button size="sm" variant="outline" onClick={() => setShowNewCat(true)} className="shrink-0 h-8 rounded-full text-xs">
-            <Plus className="size-3.5" /> Categoria
-          </Button>
-          <Button size="sm" variant="outline" onClick={() => setShowNewTag(true)} className="shrink-0 h-8 rounded-full text-xs">
-            <Plus className="size-3.5" /> Tag
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button size="sm" variant="outline" className="shrink-0 h-8 rounded-full text-xs">
+                <Settings2 className="size-3.5" /> Editar
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuLabel className="text-[10px] uppercase tracking-wider text-muted-foreground">Taxonomia</DropdownMenuLabel>
+              <DropdownMenuItem onSelect={() => setShowNewCat(true)}>
+                <Plus className="size-3.5" /> Nova categoria
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => setShowNewTag(true)}>
+                <Plus className="size-3.5" /> Nova tag
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 
