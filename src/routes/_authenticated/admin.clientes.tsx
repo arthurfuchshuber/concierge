@@ -176,14 +176,18 @@ function ClientesPage() {
                             <div className="font-medium truncate text-[15px] leading-tight">{c.fullName ?? "—"}</div>
                             <div className="text-[11px] text-muted-foreground truncate">{c.email ?? "—"}</div>
                           </div>
-                          <button
-                            type="button"
-                            onClick={() => setEditing(c)}
-                            className="shrink-0 size-8 grid place-items-center rounded-full border border-border hover:bg-secondary text-muted-foreground hover:text-foreground transition"
-                            aria-label="Editar cliente"
-                          >
-                            <Pencil className="size-3.5" />
-                          </button>
+                          <div className="shrink-0 flex items-center gap-1">
+                            <OpenGuidesButton userId={c.userId} email={c.email} />
+                            <button
+                              type="button"
+                              onClick={() => setEditing(c)}
+                              className="size-8 grid place-items-center rounded-full border border-border hover:bg-secondary text-muted-foreground hover:text-foreground transition"
+                              aria-label="Editar cliente"
+                            >
+                              <Pencil className="size-3.5" />
+                            </button>
+                          </div>
+
                         </div>
                         <div className="mt-2 flex flex-wrap items-center gap-1.5">
                           {planName ? (
