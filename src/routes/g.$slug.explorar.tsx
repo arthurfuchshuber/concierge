@@ -568,18 +568,13 @@ function ExplorePage() {
           </>
         ) : (
           <CategoryDetail
-            nearby={sortRecs(active!.nearby.filter((x) => matchesQuery(x, query)), sortBy)}
-            city={sortRecs(active!.city.filter((x) => matchesQuery(x, query)), sortBy)}
+            nearby={active!.nearby}
+            city={active!.city}
             sortBy={sortBy}
             setSortBy={setSortBy}
             viewMode={viewMode}
             setViewMode={setViewMode}
             isTouristCategory={active!.meta.key === "sights"}
-            query={query}
-            setQuery={setQuery}
-            minReviews={minReviews}
-            setMinReviews={setMinReviews}
-            allItemsForFilter={[...active!.nearby, ...active!.city]}
           />
         )}
 
