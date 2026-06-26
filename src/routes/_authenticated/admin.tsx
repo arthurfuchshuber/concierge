@@ -19,6 +19,7 @@ const baseNav = [
 const adminOnlyNav = [
   { to: "/admin/engajamento", label: "Engajamento", icon: Activity, exact: false },
   { to: "/admin/clientes", label: "Clientes", icon: Users, exact: false },
+  { to: "/admin/recomendacoes-sigma", label: "Recomendações SigmaGuide", icon: Star, exact: false },
   { to: "/admin/admins", label: "Administradores", icon: ShieldCheck, exact: false },
 ] as const;
 
