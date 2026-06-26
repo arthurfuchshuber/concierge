@@ -1544,37 +1544,45 @@ function RulesGrid({ text }: { text: string }) {
   }
 
   return (
-    <div className="space-y-6">
+    <Accordion type="single" collapsible className="space-y-2.5">
       {Array.from(groups.values()).map(({ cat, items }) => (
-        <section key={cat.key} className="space-y-3">
-          <header className="flex items-center gap-2.5">
-            <span className={`grid size-7 place-items-center rounded-lg ring-1 ${cat.tone}`}>
-              {cat.icon}
-            </span>
-            <h4 className="text-[11.5px] font-semibold uppercase tracking-[0.18em] text-foreground/85">
-              {cat.label}
-            </h4>
-            <span className="h-px flex-1 bg-border/60" />
-            <span className="text-[10.5px] font-medium tabular-nums text-muted-foreground">
-              {items.length}
-            </span>
-          </header>
-          <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            {items.map((item, i) => (
-              <li
-                key={i}
-                className="flex items-start gap-2.5 rounded-xl border border-border/60 bg-card/50 px-3 py-2.5"
-              >
-                <span className={`mt-0.5 grid size-5 shrink-0 place-items-center rounded-full ring-1 ${cat.tone}`}>
-                  <span className="size-1.5 rounded-full bg-current" />
-                </span>
-                <span className="text-[13.5px] leading-[1.45] text-foreground/85">{item}</span>
-              </li>
-            ))}
-          </ul>
-        </section>
+        <AccordionItem
+          key={cat.key}
+          value={cat.key}
+          className="border border-border/60 rounded-2xl overflow-hidden bg-card/50 data-[state=open]:border-accent/40 transition-colors"
+        >
+          <AccordionTrigger className="px-4 py-3 hover:no-underline [&>svg]:hidden">
+            <div className="flex items-center gap-3 flex-1 min-w-0">
+              <span className={`grid size-8 shrink-0 place-items-center rounded-xl ring-1 ${cat.tone}`}>
+                {cat.icon}
+              </span>
+              <h4 className="flex-1 min-w-0 truncate text-[12px] font-semibold uppercase tracking-[0.18em] text-foreground/85 text-left">
+                {cat.label}
+              </h4>
+              <span className="text-[11px] font-medium tabular-nums text-muted-foreground">
+                {items.length}
+              </span>
+              <ChevronDown className="size-4 shrink-0 text-muted-foreground transition-transform duration-200" />
+            </div>
+          </AccordionTrigger>
+          <AccordionContent className="px-4 pb-4 pt-0">
+            <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {items.map((item, i) => (
+                <li
+                  key={i}
+                  className="flex items-start gap-2.5 rounded-xl border border-border/60 bg-background/40 px-3 py-2.5"
+                >
+                  <span className={`mt-0.5 grid size-5 shrink-0 place-items-center rounded-full ring-1 ${cat.tone}`}>
+                    <span className="size-1.5 rounded-full bg-current" />
+                  </span>
+                  <span className="text-[13.5px] leading-[1.45] text-foreground/85">{item}</span>
+                </li>
+              ))}
+            </ul>
+          </AccordionContent>
+        </AccordionItem>
       ))}
-    </div>
+    </Accordion>
   );
 }
 
