@@ -285,9 +285,12 @@ export async function runCityGeneration(input: {
         if (!message) message = error.message;
       } else updated += 1;
     } else {
+      const insertPayload: Record<string, unknown> = { ...base, is_hidden: false };
+      if (scopeGroup) insertPayload.group_id = scopeGroup;
+      else if (scopeProperty) insertPayload.property_id = scopeProperty;
       const { error } = await supabaseAdmin
         .from("city_references")
-        .insert({ ...base, is_hidden: false });
+        .insert(insertPayload);
       if (error) {
         failed += 1;
         if (!message) message = error.message;
