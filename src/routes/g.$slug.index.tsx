@@ -2221,24 +2221,40 @@ function AccessCodesStrip({
 function PinDialog({
   open,
   onOpenChange,
-  accessPin,
+  slug,
   onSuccess,
 }: {
   open: boolean;
   onOpenChange: (o: boolean) => void;
-  accessPin: string;
-  onSuccess: () => void;
+  slug: string;
+  onSuccess: (codes?: { wifi_password?: string | null; lock_code?: string | null; gate_code?: string | null }) => void;
 }) {
   const [value, setValue] = useState("");
-  function submit(e: React.FormEvent) {
+  const [submitting, setSubmitting] = useState(false);
+  const submitFn = useServerFn(submitAccessPin);
+  async function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (value.trim() === accessPin) {
-      setValue("");
-      onSuccess();
-    } else {
-      toast.error("Senha incorreta. Confira com o anfitrião.");
+    if (!value.trim() || submitting) return;
+    setSubmitting(true);
+    try {
+      const res = await submitFn({ data: { slug, pin: value.trim() } });
+      if (res?.ok) {
+        setValue("");
+        onSuccess({
+          wifi_password: res.wifi_password,
+          lock_code: res.lock_code,
+          gate_code: res.gate_code,
+        });
+      } else {
+        toast.error("Senha incorreta. Confira com o anfitrião.");
+      }
+    } catch {
+      toast.error("Não foi possível validar a senha. Tente novamente.");
+    } finally {
+      setSubmitting(false);
     }
   }
+
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) setValue(""); onOpenChange(o); }}>
       <DialogContent className="max-w-sm">
