@@ -8,9 +8,11 @@ export type PoiCategory = {
   id: string;
   slug: string;
   label: string;
+  description: string | null;
   display_order: number;
   is_protected: boolean;
 };
+
 
 export type PoiTag = {
   id: string;
