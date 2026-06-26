@@ -113,6 +113,7 @@ export function TaxonomyTree({
 }) {
   const qc = useQueryClient();
   const [expanded, setExpanded] = useState<string | null>(null); // accordion: only one
+  const [manageMode, setManageMode] = useState(false);
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [newTagOpen, setNewTagOpen] = useState(false);
@@ -170,7 +171,7 @@ export function TaxonomyTree({
     <>
       {/* Header */}
       <div className="flex items-center justify-between gap-1 px-3 py-2 border-b bg-background z-10 shrink-0">
-        {selectMode ? (
+        {manageMode && selectMode ? (
           <>
             <span className="text-[11px] text-muted-foreground">{selectedIds.size} selecionada(s)</span>
             <div className="flex items-center gap-1">
@@ -202,9 +203,9 @@ export function TaxonomyTree({
               </Button>
             </div>
           </>
-        ) : (
+        ) : manageMode ? (
           <>
-            <span className="text-[11px] uppercase tracking-wide text-muted-foreground">Tags</span>
+            <span className="text-[11px] uppercase tracking-wide text-muted-foreground">Modo edição</span>
             <div className="flex items-center gap-1">
               <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={() => setSelectMode(true)}>
                 <CheckSquare className="size-3" /> selecionar
@@ -215,7 +216,17 @@ export function TaxonomyTree({
               <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={() => { setNewTagPresetCat(null); setNewTagOpen(true); }}>
                 <Plus className="size-3" /> tag
               </Button>
+              <Button size="sm" variant="secondary" className="h-7 px-2 text-xs" onClick={() => setManageMode(false)}>
+                concluir
+              </Button>
             </div>
+          </>
+        ) : (
+          <>
+            <span className="text-[11px] uppercase tracking-wide text-muted-foreground">Escolher tag</span>
+            <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={() => setManageMode(true)}>
+              Editar
+            </Button>
           </>
         )}
       </div>
@@ -229,6 +240,7 @@ export function TaxonomyTree({
                 cat={cat}
                 count={items.length}
                 isOpen={isOpen}
+                manageMode={manageMode}
                 onToggle={() => setExpanded(isOpen ? null : cat.id)}
                 onRequestDelete={() => setDeleteCat(cat)}
                 onAddTag={() => { setNewTagPresetCat(cat.id); setNewTagOpen(true); }}
@@ -237,7 +249,9 @@ export function TaxonomyTree({
               {isOpen && (
                 <div className="pb-1">
                   {items.length === 0 && (
-                    <p className="px-6 py-2 text-[11px] text-muted-foreground italic">Sem tags — use “+ tag” acima.</p>
+                    <p className="px-6 py-2 text-[11px] text-muted-foreground italic">
+                      {manageMode ? "Sem tags — use “+ tag” acima." : "Sem tags nesta categoria."}
+                    </p>
                   )}
                   {items.map((tag) => (
                     <TagRow
@@ -245,7 +259,8 @@ export function TaxonomyTree({
                       tag={tag}
                       categories={categories}
                       selected={selectedSlug === tag.slug}
-                      selectMode={selectMode}
+                      manageMode={manageMode}
+                      selectMode={manageMode && selectMode}
                       checked={selectedIds.has(tag.id)}
                       onToggleCheck={() => toggleId(tag.id)}
                       onPick={() => onPickTag?.(tag.slug)}
