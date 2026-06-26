@@ -20,7 +20,8 @@ import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Loader2, Sparkles, Plus, Trash2, MapPin, ArrowLeft, FileText, KeyRound, Home, Compass, LifeBuoy, Check, Eye, Image as ImageIcon, MapPinned, Clock, DoorOpen, Wifi, UserRound, BookOpen, ClipboardCheck, Shield, Globe, Power, Phone, HelpCircle, Sun, Moon, Palette, Lock, MessageSquare, LogOut, ChevronDown, Ticket, RefreshCw, Copy, Share2, X } from "lucide-react";
+import { Loader2, Sparkles, Plus, Trash2, MapPin, ArrowLeft, FileText, KeyRound, Home, Compass, LifeBuoy, Check, Eye, Image as ImageIcon, MapPinned, Clock, DoorOpen, Wifi, UserRound, BookOpen, ClipboardCheck, Shield, Globe, Power, Phone, HelpCircle, Sun, Moon, Palette, Lock, MessageSquare, LogOut, ChevronDown, Ticket, RefreshCw, Copy, Share2, X, MoveRight } from "lucide-react";
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { ImageUpload } from "@/components/ImageUpload";
 import { MediaUpload, type MediaItem } from "@/components/MediaUpload";
 import { EtiquetaSelect, ETIQUETA_OPTIONS } from "@/components/EtiquetaSelect";
@@ -1291,7 +1292,52 @@ function PropertyEditor() {
 
 
           {/* "Aqui pertinho" é por imóvel; "Pela cidade" mora em city_references
-              (compartilhado entre todos os guias da mesma cidade). */}
+              (compartilhado entre todos os guias da mesma cidade).
+              Busca unificada: o sistema decide o quadrante pela distância
+              (≤1,5 km ou ≤20 min a pé → Aqui pertinho; senão → Pela cidade). */}
+
+          <div className="rounded-xl border border-border/60 bg-background/40 p-3.5 space-y-2">
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Adicionar ponto/estabelecimento</p>
+              <span className="text-[10px] text-muted-foreground/70">Decidimos o quadrante pela distância</span>
+            </div>
+            <PlaceAutocomplete
+              scope="nearby"
+              lat={form.property.lat}
+              lng={form.property.lng}
+              existingPlaceIds={new Set(form.recommendations.map((r) => r.place_id).filter((x): x is string => !!x))}
+              onSelect={(rec) => {
+                const isNearby = (rec.distance_meters != null && rec.distance_meters <= 1500) || (rec.walk_minutes != null && rec.walk_minutes <= 20);
+                if (isNearby) {
+                  setForm((f) => ({ ...f, recommendations: [...f.recommendations, { ...rec, scope: "nearby" }] }));
+                } else {
+                  const city = (form.property.city || "").trim();
+                  if (!city) { toast.error("Defina a cidade do imóvel antes."); return; }
+                  addCityRefFn({
+                    data: {
+                      city_label: city,
+                      state: form.property.state || null,
+                      country: form.property.country || "BR",
+                      type: rec.type || "other",
+                      category: rec.category || "Outros",
+                      name: rec.name,
+                      place_id: rec.place_id!,
+                      note: rec.note ?? null,
+                      rating: rec.rating ?? null,
+                      user_ratings_total: rec.user_ratings_total ?? null,
+                      image_url: rec.image_url ?? null,
+                      maps_url: rec.maps_url ?? null,
+                      opening_hours: rec.opening_hours ?? null,
+                      lat: rec.lat ?? null,
+                      lng: rec.lng ?? null,
+                    },
+                  })
+                    .then(() => invalidateCityRefs())
+                    .catch((e) => toast.error(e instanceof Error ? e.message : "Erro ao adicionar"));
+                }
+              }}
+            />
+          </div>
 
           <RecGroup
             title="Aqui pertinho"
@@ -1301,6 +1347,7 @@ function PropertyEditor() {
             scope="nearby"
             lat={form.property.lat}
             lng={form.property.lng}
+            hideSearch
           />
 
           <CityRefsGroup
@@ -1639,7 +1686,7 @@ function PropertyEditor() {
 
 
       <div className="fixed bottom-0 left-0 right-0 border-t border-border bg-background/95 backdrop-blur p-3 sm:p-4 z-50">
-        <div className="max-w-4xl mx-auto flex flex-wrap items-center gap-2 sm:gap-3">
+        <div className="max-w-4xl mx-auto flex flex-wrap justify-center sm:justify-start items-center gap-2 sm:gap-3">
           <Button
             variant="outline"
             size="sm"
@@ -2200,6 +2247,7 @@ function CityRefsGroup({
       if ((n.type ?? "") !== (before.type ?? "")) patch.type = n.type;
       if ((n.note ?? null) !== (before.note ?? null)) patch.note = n.note ?? null;
       if ((n.maps_url ?? null) !== (before.maps_url ?? null)) patch.maps_url = n.maps_url ?? null;
+      if ((n.category ?? null) !== (before.category ?? null)) patch.category = n.category ?? null;
       if (Object.keys(patch).length) scheduleUpdate(n._dbId, patch);
     }
   }
@@ -2216,6 +2264,7 @@ function CityRefsGroup({
       onGenerate={onGenerate}
       generating={generating || q.isFetching}
       headerExtra={<LinkGuidesButton propertyId={propertyId} />}
+      hideSearch
     />
   );
 }
@@ -2233,6 +2282,7 @@ function RecGroup({
   onGenerate,
   generating,
   headerExtra,
+  hideSearch,
 }: {
   title: string;
   desc: string;
@@ -2245,6 +2295,7 @@ function RecGroup({
   onGenerate?: () => void;
   generating?: boolean;
   headerExtra?: React.ReactNode;
+  hideSearch?: boolean;
 }) {
   const [openCat, setOpenCat] = useState<string | null>(null);
   const [selectedIdx, setSelectedIdx] = useState<Set<number>>(new Set());
@@ -2264,7 +2315,8 @@ function RecGroup({
     // Resolve categoria do item dinamicamente pela tag atual; fallback ao
     // category salvo; por fim, "Outros". Isso garante que mudar a tag inline
     // move o item de grupo imediatamente, sem refresh.
-    const key = tagToCategoryLabel.get(it.type) || it.category || "Outros";
+    // Prioriza category override (permite mover sem mexer na tag oficial do Google).
+    const key = it.category || tagToCategoryLabel.get(it.type) || "Outros";
     const g = groups.get(key) ?? { items: [], indices: [] };
     g.items.push(it);
     g.indices.push(idx);
@@ -2322,9 +2374,35 @@ function RecGroup({
           </button>
         )}
         {selectedIdx.size > 0 && (
-          <Button size="sm" variant="destructive" onClick={() => setConfirmDeleteOpen(true)} className="h-8 rounded-full text-xs">
-            <Trash2 className="size-3.5" /> Excluir ({selectedIdx.size})
-          </Button>
+          <>
+            <Button size="sm" variant="destructive" onClick={() => setConfirmDeleteOpen(true)} className="h-8 rounded-full text-xs">
+              <Trash2 className="size-3.5" /> Excluir ({selectedIdx.size})
+            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button size="sm" variant="outline" className="h-8 rounded-full text-xs">
+                  <MoveRight className="size-3.5" /> Mover ({selectedIdx.size})
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="max-h-72 overflow-y-auto">
+                <DropdownMenuLabel className="text-[10px] uppercase">Mover para categoria</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {(taxonomy?.categories ?? []).map((c) => (
+                  <DropdownMenuItem
+                    key={c.id}
+                    onClick={() => {
+                      const next = items.map((it, i) => selectedIdx.has(i) ? { ...it, category: c.label } : it);
+                      onChange(next);
+                      setSelectedIdx(new Set());
+                      toast.success(`Movidos para "${c.label}"`);
+                    }}
+                  >
+                    {c.label}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </>
         )}
         <AlertDialog open={confirmDeleteOpen} onOpenChange={setConfirmDeleteOpen}>
           <AlertDialogContent>
@@ -2358,13 +2436,15 @@ function RecGroup({
         </div>
       </div>
 
-      <PlaceAutocomplete
-        scope={scope}
-        lat={lat}
-        lng={lng}
-        existingPlaceIds={existingPlaceIds}
-        onSelect={handlePlaceSelect}
-      />
+      {!hideSearch && (
+        <PlaceAutocomplete
+          scope={scope}
+          lat={lat}
+          lng={lng}
+          existingPlaceIds={existingPlaceIds}
+          onSelect={handlePlaceSelect}
+        />
+      )}
 
 
 
