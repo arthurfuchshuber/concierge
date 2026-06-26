@@ -419,15 +419,39 @@ export const updateCityReference = createServerFn({ method: "POST" })
 
 
 // ---- MANUAL ADD -------------------------------------------------------
+// Quando `propertyId` é informado, grava com escopo da property/grupo.
+// Sem propertyId mantém comportamento legado (city_key) só para a página admin.cidades.
 export const addManualCityReference = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((i: unknown) => ManualAddInput.parse(i))
   .handler(async ({ data, context }) => {
-    await assertCanManageCity(context, { city_label: data.city_label, state: normalizeState(data.state ?? null), country: data.country });
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    let scopeGroup: string | null = null;
+    let scopeProperty: string | null = null;
+    if (data.propertyId) {
+      const { data: prop } = await supabaseAdmin
+        .from("properties")
+        .select("owner_id")
+        .eq("id", data.propertyId)
+        .maybeSingle();
+      if (!prop) throw new Error("Imóvel não encontrado.");
+      const { data: isAdminRes } = await context.supabase.rpc("has_role", {
+        _user_id: context.userId, _role: "admin",
+      });
+      if ((prop as { owner_id: string }).owner_id !== context.userId && !isAdminRes) {
+        throw new Error("Sem permissão.");
+      }
+      const s = await resolvePropertyScope(supabaseAdmin, data.propertyId);
+      scopeGroup = s.groupId;
+      scopeProperty = s.groupId ? null : s.propertyId;
+    } else {
+      await assertCanManageCity(context, { city_label: data.city_label, state: normalizeState(data.state ?? null), country: data.country });
+    }
+
     const key = cityKey(data.city_label);
     const st = normalizeState(data.state ?? null);
-    const payload = {
+    const payload: Record<string, unknown> = {
       city_key: key,
       city_label: data.city_label,
       state: st,
@@ -450,38 +474,40 @@ export const addManualCityReference = createServerFn({ method: "POST" })
       is_hidden: false,
       last_synced_at: new Date().toISOString(),
     };
-    // Find-or-insert manualmente: nunca duplica o mesmo ponto. Procura por
-    // (a) place_id quando informado, OU (b) mesmo nome (case-insensitive)
-    // dentro da mesma cidade. Se já existir, faz UPDATE em vez
-    // de INSERT.
+    if (scopeGroup) payload.group_id = scopeGroup;
+    if (scopeProperty) payload.property_id = scopeProperty;
+
+    // Find-or-insert dedup no MESMO escopo (não cruza guias).
     let existingQ = supabaseAdmin
       .from("city_references")
-      .select("id, place_id, name")
-      .eq("city_key", key);
+      .select("id, place_id, name");
+    if (scopeGroup) existingQ = existingQ.eq("group_id", scopeGroup);
+    else if (scopeProperty) existingQ = existingQ.eq("property_id", scopeProperty).is("group_id", null);
+    else existingQ = existingQ.eq("city_key", key).is("property_id", null).is("group_id", null);
     const { data: existingList } = await existingQ;
-    const normalized = payload.name.trim().toLowerCase();
+    const normalized = data.name.trim().toLowerCase();
     const existing = (existingList ?? []).find((row) => {
       const r = row as { id: string; place_id: string | null; name: string };
-      if (payload.place_id && r.place_id && r.place_id === payload.place_id) return true;
+      if (data.place_id && r.place_id && r.place_id === data.place_id) return true;
       return (r.name ?? "").trim().toLowerCase() === normalized;
     }) as { id: string } | undefined;
     if (existing) {
       const { error } = await supabaseAdmin
         .from("city_references")
-        .update(payload)
+        .update(payload as never)
         .eq("id", existing.id);
       if (error) throw new Error(error.message);
       return { id: existing.id, duplicate: true };
     }
     const { error, data: row } = await supabaseAdmin
       .from("city_references")
-      .insert(payload)
+      .insert(payload as never)
       .select("id")
       .maybeSingle();
     if (error) throw new Error(error.message);
     return { id: (row as { id: string } | null)?.id ?? null };
-
   });
+
 
 // ---- LIST CITIES (admin index) ---------------------------------------
 export const listAdminCities = createServerFn({ method: "POST" })
