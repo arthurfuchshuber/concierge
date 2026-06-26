@@ -2435,13 +2435,15 @@ function RecGroup({
         </div>
       </div>
 
-      <PlaceAutocomplete
-        scope={scope}
-        lat={lat}
-        lng={lng}
-        existingPlaceIds={existingPlaceIds}
-        onSelect={handlePlaceSelect}
-      />
+      {!hideSearch && (
+        <PlaceAutocomplete
+          scope={scope}
+          lat={lat}
+          lng={lng}
+          existingPlaceIds={existingPlaceIds}
+          onSelect={handlePlaceSelect}
+        />
+      )}
 
 
 
