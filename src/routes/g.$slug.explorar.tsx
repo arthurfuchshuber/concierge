@@ -474,7 +474,7 @@ function ExplorePage() {
         {!active ? (
           <>
             <div className="flex items-center justify-between gap-3 flex-wrap mb-4">
-              <MinReviewsFilter value={minReviews} onChange={setMinReviews} />
+              <MinReviewsFilter value={minReviews} onChange={setMinReviews} items={[...allRecs, ...cityRefs]} />
               <ViewToggle viewMode={viewMode} setViewMode={setViewMode} />
             </div>
             {viewMode === "grid" ? (
