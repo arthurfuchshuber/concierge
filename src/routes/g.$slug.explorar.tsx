@@ -314,8 +314,8 @@ function ExplorePage() {
     const stored = window.localStorage.getItem(`guide-theme:${slug}`);
     return stored === "dark" || stored === "light" ? stored : adminTheme;
   });
-  const realtimeCityLabel = r.status === "ok" ? ((r.property as Record<string, unknown>).city as string | null) : null;
-  useCityReferencesRealtime(realtimeCityLabel, () => {
+  const realtimePropertyId = r.status === "ok" ? ((r.property as Record<string, unknown>).id as string | null) : null;
+  useCityReferencesRealtime({ propertyId: realtimePropertyId }, () => {
     void router.invalidate();
   });
 
