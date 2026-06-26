@@ -1308,6 +1308,7 @@ function PropertyEditor() {
             country={form.property.country || "BR"}
             propertyLat={form.property.lat}
             propertyLng={form.property.lng}
+            propertyId={id}
             queryKey={cityRefsKey}
             onGenerate={() => setGenCityModeOpen(true)}
             generating={generatingCityRecs}
