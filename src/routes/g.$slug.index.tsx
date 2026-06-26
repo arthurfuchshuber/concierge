@@ -199,10 +199,18 @@ function Lockable({ locked, children }: { locked: boolean; children: React.React
 
 function Guide({ data }: { data: GuideOk }) {
 
-  const p = data.property as Record<string, any>;
+  const baseProp = data.property as Record<string, any>;
+  const [revealedCodes, setRevealedCodes] = useState<{ wifi_password?: string | null; lock_code?: string | null; gate_code?: string | null }>({});
+  const p = useMemo(() => {
+    if (!revealedCodes || (revealedCodes.wifi_password == null && revealedCodes.lock_code == null && revealedCodes.gate_code == null)) {
+      return baseProp;
+    }
+    return { ...baseProp, ...revealedCodes };
+  }, [baseProp, revealedCodes]);
   const { slug } = Route.useParams();
   const [section, setSection] = useState<Section>("home");
   const trackEvent = useServerFn(trackGuideEvent);
+
 
   function gotoSection(s: Section) {
     setSection(s);
