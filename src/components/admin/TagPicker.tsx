@@ -656,7 +656,7 @@ export function NewTagDialog({ categories, presetCategoryId, onClose, onSaved }:
   );
 }
 
-function NewCategoryDialog({ onClose, onSaved }: {
+export function NewCategoryDialog({ onClose, onSaved }: {
   onClose: () => void;
   onSaved: () => void;
 }) {
