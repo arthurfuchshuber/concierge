@@ -509,51 +509,14 @@ function ExplorePage() {
 
         {/* "Ver Mapa" temporariamente desabilitado — componente EmbeddedMapModal preservado abaixo para reativação futura. */}
 
-        {!active ? (
-          <>
-            <div className="flex items-center justify-between gap-3 flex-wrap mb-4">
-              <MinReviewsFilter value={minReviews} onChange={setMinReviews} items={[...allRecs, ...cityRefs]} />
-              <ViewToggle viewMode={viewMode} setViewMode={setViewMode} />
-            </div>
-            {viewMode === "grid" ? (
-              <CategoryGrid categories={categories} onPick={(k) => setActiveKey(k)} />
-            ) : (
-              <CategoryList categories={categories} onPick={(k) => setActiveKey(k)} />
-            )}
-
-          </>
-        ) : (
-          <CategoryDetail
-            nearby={sortRecs(active!.nearby, sortBy)}
-            city={sortRecs(active!.city, sortBy)}
-            sortBy={sortBy}
-            setSortBy={setSortBy}
-            viewMode={viewMode}
-            setViewMode={setViewMode}
-            isTouristCategory={active!.meta.key === "sights"}
-          />
-        )}
-
-
-        {categories.length === 0 && cityRefs.length === 0 && (!Array.isArray(p.marketplace_links) || p.marketplace_links.length === 0) && (
-          <div className="flex flex-col items-center justify-center gap-3 py-16 text-center">
-            <div className="size-14 rounded-2xl bg-accent/10 grid place-items-center">
-              <Compass className="size-7 text-accent/60" strokeWidth={1.25} />
-            </div>
-            <p className="text-[15px] font-medium">Recomendações a caminho</p>
-            <p className="text-sm text-muted-foreground max-w-xs leading-relaxed">
-              O anfitrião ainda está preparando as dicas desta hospedagem. Volte em breve!
-            </p>
-          </div>
-        )}
-
-        {!active && (() => {
+        {(() => {
+          if (active) return null;
           const links = (Array.isArray(p.marketplace_links) ? p.marketplace_links : []).filter(
             (m: any) => m && typeof m.label === "string" && m.label.trim() && typeof m.url === "string" && m.url.trim(),
           );
           if (links.length === 0) return null;
           return (
-            <div className="mt-12">
+            <div className="mb-8">
               <div className="mb-3 flex items-center gap-2">
                 <Ticket className="size-4 text-muted-foreground" />
                 <h3 className="text-xs uppercase tracking-[0.18em] font-semibold text-muted-foreground">Reservas & experiências</h3>
@@ -587,6 +550,52 @@ function ExplorePage() {
             </div>
           );
         })()}
+
+        {!active ? (
+          <>
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <MinReviewsFilter value={minReviews} onChange={setMinReviews} items={[...allRecs, ...cityRefs]} />
+              <ViewToggle viewMode={viewMode} setViewMode={setViewMode} />
+            </div>
+            <SearchBar value={query} onChange={setQuery} />
+            <div className="mt-5">
+              {viewMode === "grid" ? (
+                <CategoryGrid categories={categories} onPick={(k) => setActiveKey(k)} />
+              ) : (
+                <CategoryList categories={categories} onPick={(k) => setActiveKey(k)} />
+              )}
+            </div>
+          </>
+        ) : (
+          <CategoryDetail
+            nearby={sortRecs(active!.nearby.filter((x) => matchesQuery(x, query)), sortBy)}
+            city={sortRecs(active!.city.filter((x) => matchesQuery(x, query)), sortBy)}
+            sortBy={sortBy}
+            setSortBy={setSortBy}
+            viewMode={viewMode}
+            setViewMode={setViewMode}
+            isTouristCategory={active!.meta.key === "sights"}
+            query={query}
+            setQuery={setQuery}
+            minReviews={minReviews}
+            setMinReviews={setMinReviews}
+            allItemsForFilter={[...active!.nearby, ...active!.city]}
+          />
+        )}
+
+
+        {categories.length === 0 && cityRefs.length === 0 && (!Array.isArray(p.marketplace_links) || p.marketplace_links.length === 0) && (
+          <div className="flex flex-col items-center justify-center gap-3 py-16 text-center">
+            <div className="size-14 rounded-2xl bg-accent/10 grid place-items-center">
+              <Compass className="size-7 text-accent/60" strokeWidth={1.25} />
+            </div>
+            <p className="text-[15px] font-medium">Recomendações a caminho</p>
+            <p className="text-sm text-muted-foreground max-w-xs leading-relaxed">
+              O anfitrião ainda está preparando as dicas desta hospedagem. Volte em breve!
+            </p>
+          </div>
+        )}
+
 
         {!active && (() => {
           const tagged = (r.faqs ?? []).filter((f: any) => Array.isArray(f?.tags) && f.tags.includes("explore"));
