@@ -207,20 +207,20 @@ export function TaxonomyTree({
           </>
         ) : manageMode ? (
           <>
-            <span className="inline-flex items-center gap-1.5 text-[11px] uppercase tracking-wide font-medium text-foreground">
+            <span className="inline-flex items-center gap-1.5 text-[11px] uppercase tracking-wide font-medium text-foreground shrink-0">
               <Pencil className="size-3" /> Editando
             </span>
-            <div className="flex items-center gap-0.5">
-              <Button size="icon" variant="ghost" className="size-7" title="Selecionar várias tags" onClick={() => setSelectMode(true)}>
+            <div className="flex items-center gap-0.5 overflow-x-auto -mr-1">
+              <Button size="icon" variant="ghost" className="size-7 shrink-0" title="Selecionar várias tags" onClick={() => setSelectMode(true)}>
                 <CheckSquare className="size-3.5" />
               </Button>
-              <Button size="sm" variant="ghost" className="h-7 px-2 text-[11px]" title="Nova categoria" onClick={() => setNewCatOpen(true)}>
-                <Plus className="size-3" /> categoria
+              <Button size="icon" variant="ghost" className="size-7 shrink-0" title="Nova categoria" onClick={() => setNewCatOpen(true)}>
+                <Plus className="size-3.5" />
               </Button>
-              <Button size="sm" variant="ghost" className="h-7 px-2 text-[11px]" title="Nova tag" onClick={() => { setNewTagPresetCat(null); setNewTagOpen(true); }}>
+              <Button size="sm" variant="ghost" className="h-7 px-2 text-[11px] shrink-0" title="Nova tag" onClick={() => { setNewTagPresetCat(null); setNewTagOpen(true); }}>
                 <Plus className="size-3" /> tag
               </Button>
-              <Button size="icon" variant="ghost" className="size-7" title="Concluir edição" onClick={() => setManageMode(false)}>
+              <Button size="icon" variant="ghost" className="size-7 shrink-0" title="Concluir edição" onClick={() => setManageMode(false)}>
                 <XIcon className="size-3.5" />
               </Button>
             </div>
