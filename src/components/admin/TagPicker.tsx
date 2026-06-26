@@ -305,11 +305,12 @@ export function TaxonomyTree({
    Category row (header) — inline rename + delete + add tag
    ============================================================ */
 function CategoryRow({
-  cat, count, isOpen, onToggle, onRequestDelete, onAddTag, onRenamed,
+  cat, count, isOpen, manageMode, onToggle, onRequestDelete, onAddTag, onRenamed,
 }: {
   cat: PoiCategory;
   count: number;
   isOpen: boolean;
+  manageMode: boolean;
   onToggle: () => void;
   onRequestDelete: () => void;
   onAddTag: () => void;
