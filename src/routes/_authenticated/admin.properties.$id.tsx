@@ -1292,7 +1292,52 @@ function PropertyEditor() {
 
 
           {/* "Aqui pertinho" é por imóvel; "Pela cidade" mora em city_references
-              (compartilhado entre todos os guias da mesma cidade). */}
+              (compartilhado entre todos os guias da mesma cidade).
+              Busca unificada: o sistema decide o quadrante pela distância
+              (≤1,5 km ou ≤20 min a pé → Aqui pertinho; senão → Pela cidade). */}
+
+          <div className="rounded-xl border border-border/60 bg-background/40 p-3.5 space-y-2">
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Adicionar ponto/estabelecimento</p>
+              <span className="text-[10px] text-muted-foreground/70">Decidimos o quadrante pela distância</span>
+            </div>
+            <PlaceAutocomplete
+              scope="nearby"
+              lat={form.property.lat}
+              lng={form.property.lng}
+              existingPlaceIds={new Set(form.recommendations.map((r) => r.place_id).filter((x): x is string => !!x))}
+              onSelect={(rec) => {
+                const isNearby = (rec.distance_meters != null && rec.distance_meters <= 1500) || (rec.walk_minutes != null && rec.walk_minutes <= 20);
+                if (isNearby) {
+                  setForm((f) => ({ ...f, recommendations: [...f.recommendations, { ...rec, scope: "nearby" }] }));
+                } else {
+                  const city = (form.property.city || "").trim();
+                  if (!city) { toast.error("Defina a cidade do imóvel antes."); return; }
+                  addCityRefFn({
+                    data: {
+                      city_label: city,
+                      state: form.property.state || null,
+                      country: form.property.country || "BR",
+                      type: rec.type || "other",
+                      category: rec.category || "Outros",
+                      name: rec.name,
+                      place_id: rec.place_id!,
+                      note: rec.note ?? null,
+                      rating: rec.rating ?? null,
+                      user_ratings_total: rec.user_ratings_total ?? null,
+                      image_url: rec.image_url ?? null,
+                      maps_url: rec.maps_url ?? null,
+                      opening_hours: rec.opening_hours ?? null,
+                      lat: rec.lat ?? null,
+                      lng: rec.lng ?? null,
+                    },
+                  })
+                    .then(() => invalidateCityRefs())
+                    .catch((e) => toast.error(e instanceof Error ? e.message : "Erro ao adicionar"));
+                }
+              }}
+            />
+          </div>
 
           <RecGroup
             title="Aqui pertinho"
@@ -1302,6 +1347,7 @@ function PropertyEditor() {
             scope="nearby"
             lat={form.property.lat}
             lng={form.property.lng}
+            hideSearch
           />
 
           <CityRefsGroup
