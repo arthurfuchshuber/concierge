@@ -137,7 +137,7 @@ function SigmaPacksIndex() {
         </div>
       )}
 
-      {newOpen && <NewCityDialog onClose={() => setNewOpen(false)} onCreated={() => { setNewOpen(false); qc.invalidateQueries({ queryKey: ["sigma-packs"] }); }} />}
+      {newOpen && <NewCityDialog existingPacks={packs} onClose={() => setNewOpen(false)} onCreated={() => { setNewOpen(false); qc.invalidateQueries({ queryKey: ["sigma-packs"] }); }} />}
       <AlertDialog open={!!confirmDel} onOpenChange={(o) => { if (!o) setConfirmDel(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -177,12 +177,26 @@ function Metric({ label, value, highlight }: { label: string; value: number; hig
   );
 }
 
-function NewCityDialog({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
+function NewCityDialog({ existingPacks, onClose, onCreated }: { existingPacks: PackRow[]; onClose: () => void; onCreated: () => void }) {
   const createFn = useServerFn(createSigmaPack);
   const [label, setLabel] = useState("");
   const [country, setCountry] = useState("Brasil");
   const [saving, setSaving] = useState(false);
+
+  // Normaliza igual ao server (cityKey) para detectar duplicidade antes de salvar
+  const normalizedKey = label
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  const duplicate = normalizedKey && existingPacks.find((p) => p.city_key === normalizedKey);
+
   async function save() {
+    if (duplicate) {
+      toast.error(`Já existe uma recomendação para ${duplicate.city_label}.`);
+      return;
+    }
     setSaving(true);
     try {
       await createFn({ data: { city_label: label.trim(), country: country.trim() || null } });
@@ -197,12 +211,17 @@ function NewCityDialog({ onClose, onCreated }: { onClose: () => void; onCreated:
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>Nova cidade SigmaGuide</DialogTitle>
-          <DialogDescription>Comece em rascunho — publique quando estiver pronta para uso.</DialogDescription>
+          <DialogDescription>Cada cidade tem apenas uma recomendação. Comece em rascunho e publique quando estiver pronta.</DialogDescription>
         </DialogHeader>
         <div className="space-y-3">
           <div>
             <Label className="text-xs">Cidade</Label>
             <Input value={label} onChange={(e) => setLabel(e.target.value)} placeholder="Ex: Foz do Iguaçu" autoFocus />
+            {duplicate && (
+              <p className="text-xs text-rose-400 mt-1.5">
+                Já existe uma recomendação para <strong>{duplicate.city_label}</strong>. Edite a cidade existente.
+              </p>
+            )}
           </div>
           <div>
             <Label className="text-xs">País</Label>
@@ -211,7 +230,7 @@ function NewCityDialog({ onClose, onCreated }: { onClose: () => void; onCreated:
         </div>
         <DialogFooter>
           <Button variant="ghost" onClick={onClose}>Cancelar</Button>
-          <Button onClick={save} disabled={saving || !label.trim()}>
+          <Button onClick={save} disabled={saving || !label.trim() || !!duplicate}>
             {saving && <Loader2 className="size-3.5 animate-spin" />} Criar
           </Button>
         </DialogFooter>
@@ -219,3 +238,4 @@ function NewCityDialog({ onClose, onCreated }: { onClose: () => void; onCreated:
     </Dialog>
   );
 }
+

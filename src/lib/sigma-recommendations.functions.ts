@@ -154,6 +154,15 @@ export const createSigmaPack = createServerFn({ method: "POST" })
     await assertAdmin(context);
     const key = makeCityKey(data.city_label);
     if (!key) throw new Error("Nome da cidade inválido.");
+    // Enforce one pack per city — friendly message before hitting the unique index
+    const { data: existing } = await context.supabase
+      .from("sigma_city_packs")
+      .select("city_label")
+      .eq("city_key", key)
+      .maybeSingle();
+    if (existing) {
+      throw new Error(`Já existe uma recomendação para ${(existing as { city_label: string }).city_label}. Edite a cidade existente em vez de criar outra.`);
+    }
     const { data: row, error } = await context.supabase
       .from("sigma_city_packs")
       .insert({
@@ -165,9 +174,15 @@ export const createSigmaPack = createServerFn({ method: "POST" })
       })
       .select("*")
       .single();
-    if (error) throw new Error(error.message);
+    if (error) {
+      if (error.code === "23505") {
+        throw new Error("Já existe uma recomendação para esta cidade. Edite a cidade existente em vez de criar outra.");
+      }
+      throw new Error(error.message);
+    }
     return row as SigmaPack;
   });
+
 
 export const updateSigmaPack = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
