@@ -2199,7 +2199,7 @@ function CityRefsGroup({
     if (deletedIds.length) {
       bulkDeleteFn({ data: { ids: deletedIds } })
         .then(() => invalidate())
-        .catch((e) => toast.error(e instanceof Error ? e.message : "Erro ao excluir"));
+        .catch((e) => toast.error(friendlyErrorMessage(e, "Não conseguimos excluir agora.")));
     }
 
     // Adições: itens em next sem _dbId E com nome preenchido.
