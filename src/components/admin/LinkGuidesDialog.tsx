@@ -32,9 +32,9 @@ export function LinkGuidesButton({ propertyId }: { propertyId: string }) {
 
   return (
     <>
-      <Button type="button" variant="outline" size="sm" onClick={() => setOpen(true)} className="gap-1.5">
+      <Button type="button" variant="outline" size="sm" onClick={() => setOpen(true)} className="gap-1.5 shrink-0 h-8 rounded-full text-xs" title="Vincular guias">
         <LinkIcon className="size-3.5" />
-        Vincular guias
+        <span className="hidden sm:inline">Vincular guias</span>
         {memberCount > 0 && <Badge variant="secondary" className="ml-1">{memberCount}</Badge>}
       </Button>
       {open && (

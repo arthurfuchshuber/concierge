@@ -2579,20 +2579,20 @@ function RecGroup({
           </div>
           {headerExtra}
           {onReplicate && (
-            <Button size="sm" variant="ghost" onClick={onReplicate} className="shrink-0 h-8 rounded-full text-xs text-muted-foreground hover:text-foreground">
-              <Share2 className="size-3.5" /> Replicar
+            <Button size="sm" variant="ghost" onClick={onReplicate} className="shrink-0 h-8 rounded-full text-xs text-muted-foreground hover:text-foreground" title="Replicar">
+              <Share2 className="size-3.5" /> <span className="hidden sm:inline">Replicar</span>
             </Button>
           )}
           {onGenerate && (
-            <Button size="sm" variant="secondary" onClick={onGenerate} disabled={generating} className="shrink-0 h-8 rounded-full text-xs">
+            <Button size="sm" variant="secondary" onClick={onGenerate} disabled={generating} className="shrink-0 h-8 rounded-full text-xs" title="Gerar com IA">
               {generating ? <Loader2 className="size-3.5 animate-spin" /> : <Sparkles className="size-3.5" />}
-              Gerar com IA
+              <span className="hidden sm:inline">Gerar com IA</span>
             </Button>
           )}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button size="sm" variant="outline" className="shrink-0 h-8 rounded-full text-xs">
-                <Settings2 className="size-3.5" /> Editar
+              <Button size="sm" variant="outline" className="shrink-0 h-8 rounded-full text-xs" title="Editar">
+                <Settings2 className="size-3.5" /> <span className="hidden sm:inline">Editar</span>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
