@@ -2409,6 +2409,11 @@ function RecGroup({
                 </div>
                 {open && (
                   <div className="border-t border-border/50 px-3.5 py-3 space-y-2.5">
+                    <CategoryDescriptionField
+                      categoryId={taxonomy?.categories.find((c) => c.label === cat)?.id ?? null}
+                      currentDescription={taxonomy?.categories.find((c) => c.label === cat)?.description ?? null}
+                      canEdit={!!taxonomy?.categories.find((c) => c.label === cat) && !taxonomy?.categories.find((c) => c.label === cat)?.is_protected}
+                    />
                     {g.items.map((r, k) => {
                       const idx = g.indices[k];
                       const checked = selectedIdx.has(idx);
