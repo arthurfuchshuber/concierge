@@ -801,7 +801,7 @@ async function refreshRecommendationsForProperty(
           const noteText = p.editorialSummary?.text ?? p.generativeSummary?.overview?.text ?? null;
           const noteTrimmed = noteText && noteText.length > 240 ? noteText.slice(0, 237).trimEnd() + "…" : noteText;
           const patch: Record<string, unknown> = {
-            name: p.displayName?.text ?? undefined,
+            // NOTE: nome NUNCA é atualizado automaticamente — pode estar personalizado pelo usuário.
             rating: typeof p.rating === "number" ? Number(p.rating.toFixed(1)) : null,
             user_ratings_total: typeof p.userRatingCount === "number" ? p.userRatingCount : null,
             opening_hours: p.regularOpeningHours?.weekdayDescriptions ?? null,
