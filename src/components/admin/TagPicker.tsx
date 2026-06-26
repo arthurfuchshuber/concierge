@@ -348,7 +348,7 @@ function CategoryRow({
         ) : (
           <span
             className="text-[11px] uppercase tracking-wider font-medium truncate"
-            onDoubleClick={(e) => { e.stopPropagation(); setEditing(true); }}
+            onDoubleClick={(e) => { if (manageMode) { e.stopPropagation(); setEditing(true); } }}
           >
             {cat.label}
           </span>
@@ -356,36 +356,38 @@ function CategoryRow({
         <span className="text-[10px] text-muted-foreground/60 shrink-0">({count})</span>
         {cat.is_protected && <Lock className="size-2.5 opacity-40 shrink-0" />}
       </button>
-      <div className="flex items-center gap-0.5 opacity-0 group-hover/cat:opacity-100 transition-opacity">
-        {!editing && (
+      {manageMode && (
+        <div className="flex items-center gap-0.5">
+          {!editing && (
+            <button
+              type="button"
+              aria-label="Renomear"
+              onClick={(e) => { e.stopPropagation(); setEditing(true); }}
+              className="p-1 text-[10px] text-muted-foreground hover:text-foreground"
+            >
+              renomear
+            </button>
+          )}
           <button
             type="button"
-            aria-label="Renomear"
-            onClick={(e) => { e.stopPropagation(); setEditing(true); }}
-            className="p-1 text-[10px] text-muted-foreground hover:text-foreground"
+            aria-label="Adicionar tag"
+            onClick={(e) => { e.stopPropagation(); onAddTag(); }}
+            className="p-1 text-muted-foreground hover:text-foreground"
           >
-            renomear
+            <Plus className="size-3" />
           </button>
-        )}
-        <button
-          type="button"
-          aria-label="Adicionar tag"
-          onClick={(e) => { e.stopPropagation(); onAddTag(); }}
-          className="p-1 text-muted-foreground hover:text-foreground"
-        >
-          <Plus className="size-3" />
-        </button>
-        {!cat.is_protected && (
-          <button
-            type="button"
-            aria-label="Excluir categoria"
-            onClick={(e) => { e.stopPropagation(); onRequestDelete(); }}
-            className="p-1 text-muted-foreground hover:text-destructive"
-          >
-            <Trash2 className="size-3" />
-          </button>
-        )}
-      </div>
+          {!cat.is_protected && (
+            <button
+              type="button"
+              aria-label="Excluir categoria"
+              onClick={(e) => { e.stopPropagation(); onRequestDelete(); }}
+              className="p-1 text-muted-foreground hover:text-destructive"
+            >
+              <Trash2 className="size-3" />
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 }
