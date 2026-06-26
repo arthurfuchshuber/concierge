@@ -1686,7 +1686,7 @@ function PropertyEditor() {
 
 
       <div className="fixed bottom-0 left-0 right-0 border-t border-border bg-background/95 backdrop-blur p-3 sm:p-4 z-50">
-        <div className="max-w-4xl mx-auto flex flex-wrap items-center gap-2 sm:gap-3">
+        <div className="max-w-4xl mx-auto flex flex-wrap justify-center sm:justify-start items-center gap-2 sm:gap-3">
           <Button
             variant="outline"
             size="sm"
