@@ -228,7 +228,57 @@ function TaxonomyPage() {
           }}
         />
       )}
+      {mergeOpen && (
+        <MergeCategoriesDialog
+          categories={(data?.categories ?? []).filter((c) => selectedCats.has(c.id))}
+          saving={merging}
+          onClose={() => setMergeOpen(false)}
+          onConfirm={async (newLabel) => {
+            setMerging(true);
+            try {
+              const res = await mergeFn({ data: { category_ids: Array.from(selectedCats), new_label: newLabel } });
+              toast.success(`Unificadas em "${res.label}"`);
+              setSelectedCats(new Set());
+              setMergeOpen(false);
+              invalidate();
+            } catch (e) {
+              toast.error(e instanceof Error ? e.message : "Erro ao unificar");
+            } finally {
+              setMerging(false);
+            }
+          }}
+        />
+      )}
     </div>
+  );
+}
+
+function MergeCategoriesDialog({ categories, saving, onClose, onConfirm }: {
+  categories: PoiCategory[];
+  saving: boolean;
+  onClose: () => void;
+  onConfirm: (newLabel: string) => Promise<void>;
+}) {
+  const suggested = categories.map((c) => c.label).join(", ");
+  const [label, setLabel] = useState(suggested);
+  return (
+    <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent className="max-w-sm">
+        <DialogHeader><DialogTitle>Unificar categorias</DialogTitle></DialogHeader>
+        <p className="text-xs text-muted-foreground">
+          As tags de todas as selecionadas serão movidas para uma única categoria.
+          As categorias absorvidas serão excluídas (categorias padrão não podem ser absorvidas).
+        </p>
+        <Label className="text-xs">Nome da categoria unificada</Label>
+        <Input value={label} onChange={(e) => setLabel(e.target.value)} maxLength={120} />
+        <DialogFooter>
+          <Button variant="ghost" onClick={onClose} disabled={saving}>Cancelar</Button>
+          <Button disabled={saving || !label.trim()} onClick={() => onConfirm(label.trim())}>
+            {saving && <Loader2 className="size-3.5 animate-spin" />} Unificar
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
