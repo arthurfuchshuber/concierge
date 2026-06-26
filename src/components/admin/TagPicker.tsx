@@ -396,11 +396,12 @@ function CategoryRow({
    Tag row — pick / rename / move / delete inline
    ============================================================ */
 function TagRow({
-  tag, categories, selected, selectMode, checked, onToggleCheck, onPick, onChanged,
+  tag, categories, selected, manageMode, selectMode, checked, onToggleCheck, onPick, onChanged,
 }: {
   tag: PoiTag;
   categories: PoiCategory[];
   selected: boolean;
+  manageMode: boolean;
   selectMode: boolean;
   checked: boolean;
   onToggleCheck: () => void;
