@@ -2566,7 +2566,7 @@ function InlineCategoryRename({
 }
 
 
-
+function Stepper({
   steps,
   current,
   onChange,
