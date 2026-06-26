@@ -1487,12 +1487,20 @@ function PropertyEditor() {
                   maxLength={2048}
                   onChange={(e) => setForm((f) => ({ ...f, property: { ...f.property, marketplace_links: f.property.marketplace_links.map((x, j) => j === i ? { ...x, url: e.target.value } : x) } }))}
                 />
-                <Textarea
-                  placeholder="Descrição curta (opcional)"
-                  value={m.description}
-                  maxLength={280}
-                  onChange={(e) => setForm((f) => ({ ...f, property: { ...f.property, marketplace_links: f.property.marketplace_links.map((x, j) => j === i ? { ...x, description: e.target.value } : x) } }))}
-                />
+                <div className="space-y-1">
+                  <Textarea
+                    placeholder="Descrição curta (obrigatória — entre 100 e 200 caracteres)"
+                    value={m.description}
+                    minLength={100}
+                    maxLength={200}
+                    required
+                    aria-invalid={m.description.trim().length > 0 && (m.description.trim().length < 100 || m.description.trim().length > 200)}
+                    onChange={(e) => setForm((f) => ({ ...f, property: { ...f.property, marketplace_links: f.property.marketplace_links.map((x, j) => j === i ? { ...x, description: e.target.value.slice(0, 200) } : x) } }))}
+                  />
+                  <div className={`text-[11px] tabular-nums text-right ${m.description.trim().length < 100 || m.description.trim().length > 200 ? "text-rose-500" : "text-muted-foreground"}`}>
+                    {m.description.trim().length}/200 {m.description.trim().length < 100 ? `· faltam ${100 - m.description.trim().length} para o mínimo` : ""}
+                  </div>
+                </div>
               </ItemCard>
             ))}
           </Section>
