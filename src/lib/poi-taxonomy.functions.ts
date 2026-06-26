@@ -8,9 +8,11 @@ export type PoiCategory = {
   id: string;
   slug: string;
   label: string;
+  description: string | null;
   display_order: number;
   is_protected: boolean;
 };
+
 
 export type PoiTag = {
   id: string;
@@ -44,7 +46,7 @@ function publicClient() {
 export const getPoiTaxonomy = createServerFn({ method: "GET" }).handler(async (): Promise<Taxonomy> => {
   const supabase = publicClient();
   const [catsRes, tagsRes] = await Promise.all([
-    supabase.from("poi_categories").select("id,slug,label,display_order,is_protected").order("display_order"),
+    supabase.from("poi_categories").select("id,slug,label,description,display_order,is_protected").order("display_order"),
     supabase
       .from("poi_tags")
       .select("id,slug,label,category_id,accepted_primary_types,places_types,query_variants,min_reviews,is_protected,display_order")
@@ -71,7 +73,7 @@ export async function loadTaxonomyCached(): Promise<Taxonomy> {
   if (_cache && Date.now() - _cache.at < CACHE_TTL_MS) return _cache.taxonomy;
   const supabase = publicClient();
   const [catsRes, tagsRes] = await Promise.all([
-    supabase.from("poi_categories").select("id,slug,label,display_order,is_protected").order("display_order"),
+    supabase.from("poi_categories").select("id,slug,label,description,display_order,is_protected").order("display_order"),
     supabase
       .from("poi_tags")
       .select("id,slug,label,category_id,accepted_primary_types,places_types,query_variants,min_reviews,is_protected,display_order")
@@ -122,15 +124,24 @@ export const createPoiCategory = createServerFn({ method: "POST" })
     return row;
   });
 
-const UpdateCategorySchema = z.object({ id: z.string().uuid(), label: z.string().min(1).max(60) });
+const UpdateCategorySchema = z.object({
+  id: z.string().uuid(),
+  label: z.string().min(1).max(60).optional(),
+  description: z.string().max(500).nullable().optional(),
+});
 export const updatePoiCategory = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((i: unknown) => UpdateCategorySchema.parse(i))
   .handler(async ({ data, context }) => {
     await assertAdmin(context);
+    type CatUpdate = Database["public"]["Tables"]["poi_categories"]["Update"];
+    const patch: CatUpdate = {};
+    if (data.label !== undefined) patch.label = data.label.trim();
+    if (data.description !== undefined) patch.description = data.description?.trim() ? data.description.trim() : null;
+    if (Object.keys(patch).length === 0) return { ok: true };
     const { error } = await context.supabase
       .from("poi_categories")
-      .update({ label: data.label.trim() })
+      .update(patch)
       .eq("id", data.id);
     if (error) throw new Error(error.message);
     invalidateTaxonomyCache();

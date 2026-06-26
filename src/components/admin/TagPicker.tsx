@@ -46,7 +46,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Trash2, Plus, Lock, ChevronDown, ChevronRight, Loader2, MoveRight, CheckSquare, Square } from "lucide-react";
+import { Trash2, Plus, Lock, ChevronDown, ChevronRight, Loader2, MoveRight, CheckSquare, Pencil, X as XIcon } from "lucide-react";
 import { toast } from "sonner";
 
 export const TAXONOMY_QUERY_KEY = ["poi-taxonomy"] as const;
@@ -169,11 +169,13 @@ export function TaxonomyTree({
 
   return (
     <>
-      {/* Header */}
+      {/* Header — limpo, com ações em ícones e tooltip */}
       <div className="flex items-center justify-between gap-1 px-3 py-2 border-b bg-background z-10 shrink-0">
         {manageMode && selectMode ? (
           <>
-            <span className="text-[11px] text-muted-foreground">{selectedIds.size} selecionada(s)</span>
+            <span className="text-[11px] text-muted-foreground">
+              {selectedIds.size} selecionada(s)
+            </span>
             <div className="flex items-center gap-1">
               {hasSelection && (
                 <>
@@ -205,19 +207,21 @@ export function TaxonomyTree({
           </>
         ) : manageMode ? (
           <>
-            <span className="text-[11px] uppercase tracking-wide text-muted-foreground">Modo edição</span>
-            <div className="flex items-center gap-1">
-              <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={() => setSelectMode(true)}>
-                <CheckSquare className="size-3" /> selecionar
+            <span className="inline-flex items-center gap-1.5 text-[11px] uppercase tracking-wide font-medium text-foreground">
+              <Pencil className="size-3" /> Editando
+            </span>
+            <div className="flex items-center gap-0.5">
+              <Button size="icon" variant="ghost" className="size-7" title="Selecionar várias tags" onClick={() => setSelectMode(true)}>
+                <CheckSquare className="size-3.5" />
               </Button>
-              <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={() => setNewCatOpen(true)}>
+              <Button size="sm" variant="ghost" className="h-7 px-2 text-[11px]" title="Nova categoria" onClick={() => setNewCatOpen(true)}>
                 <Plus className="size-3" /> categoria
               </Button>
-              <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={() => { setNewTagPresetCat(null); setNewTagOpen(true); }}>
+              <Button size="sm" variant="ghost" className="h-7 px-2 text-[11px]" title="Nova tag" onClick={() => { setNewTagPresetCat(null); setNewTagOpen(true); }}>
                 <Plus className="size-3" /> tag
               </Button>
-              <Button size="sm" variant="secondary" className="h-7 px-2 text-xs" onClick={() => setManageMode(false)}>
-                concluir
+              <Button size="icon" variant="ghost" className="size-7" title="Concluir edição" onClick={() => setManageMode(false)}>
+                <XIcon className="size-3.5" />
               </Button>
             </div>
           </>
@@ -225,15 +229,21 @@ export function TaxonomyTree({
           <>
             <span className="text-[11px] uppercase tracking-wide text-muted-foreground">Escolher tag</span>
             <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={() => setManageMode(true)}>
-              Editar
+              <Pencil className="size-3" /> Editar
             </Button>
           </>
         )}
       </div>
 
+      {manageMode && (
+        <p className="px-3 py-1.5 text-[10.5px] text-muted-foreground bg-muted/30 border-b">
+          Clique no ícone <Pencil className="inline size-2.5" /> para renomear · <MoveRight className="inline size-2.5" /> para mover · <Trash2 className="inline size-2.5" /> para excluir.
+        </p>
+      )}
+
       <div className="overflow-auto flex-1 py-1">
         {groups.map(({ cat, items }) => {
-          const isOpen = expanded === cat.id;
+          const isOpen = manageMode ? true : expanded === cat.id;
           return (
             <div key={cat.id} className="border-b border-border/40 last:border-0">
               <CategoryRow
@@ -361,16 +371,18 @@ function CategoryRow({
           {!editing && (
             <button
               type="button"
-              aria-label="Renomear"
+              aria-label="Renomear categoria"
+              title="Renomear categoria"
               onClick={(e) => { e.stopPropagation(); setEditing(true); }}
-              className="p-1 text-[10px] text-muted-foreground hover:text-foreground"
+              className="p-1 text-muted-foreground hover:text-foreground"
             >
-              renomear
+              <Pencil className="size-3" />
             </button>
           )}
           <button
             type="button"
-            aria-label="Adicionar tag"
+            aria-label="Adicionar tag nesta categoria"
+            title="Adicionar tag nesta categoria"
             onClick={(e) => { e.stopPropagation(); onAddTag(); }}
             className="p-1 text-muted-foreground hover:text-foreground"
           >
@@ -476,12 +488,13 @@ function TagRow({
         <div className="flex items-center gap-0.5">
           <button
             type="button"
-            aria-label="Renomear"
+            aria-label="Renomear tag"
+            title={tag.is_protected ? "Tag padrão — não editável" : "Renomear tag"}
             onClick={(e) => { if (tag.is_protected) return; e.stopPropagation(); setEditing(true); }}
             disabled={tag.is_protected}
-            className="p-1 text-[10px] text-muted-foreground hover:text-foreground disabled:opacity-30"
+            className="p-1 text-muted-foreground hover:text-foreground disabled:opacity-30"
           >
-            renomear
+            <Pencil className="size-3" />
           </button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

@@ -2409,6 +2409,11 @@ function RecGroup({
                 </div>
                 {open && (
                   <div className="border-t border-border/50 px-3.5 py-3 space-y-2.5">
+                    <CategoryDescriptionField
+                      categoryId={taxonomy?.categories.find((c) => c.label === cat)?.id ?? null}
+                      currentDescription={taxonomy?.categories.find((c) => c.label === cat)?.description ?? null}
+                      canEdit={!!taxonomy?.categories.find((c) => c.label === cat) && !taxonomy?.categories.find((c) => c.label === cat)?.is_protected}
+                    />
                     {g.items.map((r, k) => {
                       const idx = g.indices[k];
                       const checked = selectedIdx.has(idx);
@@ -2561,6 +2566,75 @@ function InlineCategoryRename({
           <Pencil className="size-3" />
         </button>
       )}
+    </div>
+  );
+}
+
+
+function CategoryDescriptionField({
+  categoryId,
+  currentDescription,
+  canEdit,
+}: {
+  categoryId: string | null;
+  currentDescription: string | null;
+  canEdit: boolean;
+}) {
+  const [value, setValue] = useState(currentDescription ?? "");
+  const [saving, setSaving] = useState(false);
+  const [savedAt, setSavedAt] = useState<number | null>(null);
+  const qc = useQueryClient();
+  const updateFn = useServerFn(updatePoiCategory);
+  const initialRef = React.useRef(currentDescription ?? "");
+
+  useEffect(() => {
+    setValue(currentDescription ?? "");
+    initialRef.current = currentDescription ?? "";
+  }, [currentDescription, categoryId]);
+
+  if (!categoryId) return null;
+
+  const save = async () => {
+    if (!canEdit || saving) return;
+    const next = value.trim();
+    if (next === (initialRef.current ?? "").trim()) return;
+    try {
+      setSaving(true);
+      await updateFn({ data: { id: categoryId, description: next || null } });
+      await qc.invalidateQueries({ queryKey: TAXONOMY_QUERY_KEY });
+      initialRef.current = next;
+      setSavedAt(Date.now());
+    } catch (err: any) {
+      toast.error(err?.message || "Erro ao salvar descrição");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="rounded-lg border border-dashed border-border/60 bg-muted/20 p-2.5">
+      <div className="flex items-center justify-between gap-2 mb-1.5">
+        <label className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">
+          Descrição da categoria <span className="opacity-60 normal-case tracking-normal">(opcional)</span>
+        </label>
+        {saving ? (
+          <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground">
+            <Loader2 className="size-3 animate-spin" /> salvando
+          </span>
+        ) : savedAt ? (
+          <span className="text-[10px] text-emerald-600">salvo</span>
+        ) : null}
+      </div>
+      <Textarea
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        onBlur={save}
+        disabled={!canEdit}
+        placeholder={canEdit ? "Ex: Os melhores restaurantes da região para uma boa refeição em família." : "Categoria padrão — descrição não editável."}
+        maxLength={500}
+        rows={2}
+        className="text-sm bg-background/60"
+      />
     </div>
   );
 }

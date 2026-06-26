@@ -122,6 +122,13 @@ function hasMeaningfulInfo(r: Rec): boolean {
   return !!(r.name && (r.image_url || r.rating || r.distance_text || r.distance_meters || r.note));
 }
 
+// "Pertinho" — top-level helper, usado nos cards para destaque visual.
+function isPertinhoRec(r: Rec): boolean {
+  if (typeof r.distance_meters === "number" && r.distance_meters > 0 && r.distance_meters <= 1500) return true;
+  if (typeof r.walk_minutes === "number" && r.walk_minutes > 0 && r.walk_minutes <= 20) return true;
+  return false;
+}
+
 function formatWalking(r: Rec): string | null {
   const mins =
     r.walk_minutes != null && r.walk_minutes > 0
@@ -509,6 +516,36 @@ function ExplorePage() {
 
         {/* "Ver Mapa" temporariamente desabilitado — componente EmbeddedMapModal preservado abaixo para reativação futura. */}
 
+        {!active ? (
+          <>
+            <div className="flex items-center gap-3 flex-wrap">
+              <MinReviewsFilter value={minReviews} onChange={setMinReviews} items={[...allRecs, ...cityRefs]} />
+              <div className="ml-auto">
+                <ViewToggle viewMode={viewMode} setViewMode={setViewMode} />
+              </div>
+            </div>
+            <SearchBar value={query} onChange={setQuery} />
+            <div className="mt-5">
+              {viewMode === "grid" ? (
+                <CategoryGrid categories={categories} onPick={(k) => setActiveKey(k)} />
+              ) : (
+                <CategoryList categories={categories} onPick={(k) => setActiveKey(k)} />
+              )}
+            </div>
+          </>
+        ) : (
+          <CategoryDetail
+            nearby={active!.nearby}
+            city={active!.city}
+            sortBy={sortBy}
+            setSortBy={setSortBy}
+            viewMode={viewMode}
+            setViewMode={setViewMode}
+            isTouristCategory={active!.meta.key === "sights"}
+          />
+        )}
+
+        {/* Reservas & marketplace — fica ao final da página (somente fora do detalhe). */}
         {(() => {
           if (active) return null;
           const links = (Array.isArray(p.marketplace_links) ? p.marketplace_links : []).filter(
@@ -516,7 +553,7 @@ function ExplorePage() {
           );
           if (links.length === 0) return null;
           return (
-            <div className="mb-8">
+            <div className="mt-10">
               <div className="mb-3 flex items-center gap-2">
                 <Ticket className="size-4 text-muted-foreground" />
                 <h3 className="text-xs uppercase tracking-[0.18em] font-semibold text-muted-foreground">Reservas & experiências</h3>
@@ -550,33 +587,6 @@ function ExplorePage() {
             </div>
           );
         })()}
-
-        {!active ? (
-          <>
-            <div className="flex items-center justify-between gap-3 flex-wrap">
-              <MinReviewsFilter value={minReviews} onChange={setMinReviews} items={[...allRecs, ...cityRefs]} />
-              <ViewToggle viewMode={viewMode} setViewMode={setViewMode} />
-            </div>
-            <SearchBar value={query} onChange={setQuery} />
-            <div className="mt-5">
-              {viewMode === "grid" ? (
-                <CategoryGrid categories={categories} onPick={(k) => setActiveKey(k)} />
-              ) : (
-                <CategoryList categories={categories} onPick={(k) => setActiveKey(k)} />
-              )}
-            </div>
-          </>
-        ) : (
-          <CategoryDetail
-            nearby={active!.nearby}
-            city={active!.city}
-            sortBy={sortBy}
-            setSortBy={setSortBy}
-            viewMode={viewMode}
-            setViewMode={setViewMode}
-            isTouristCategory={active!.meta.key === "sights"}
-          />
-        )}
 
 
         {categories.length === 0 && cityRefs.length === 0 && (!Array.isArray(p.marketplace_links) || p.marketplace_links.length === 0) && (
@@ -841,14 +851,16 @@ function CategoryDetail({
       {/* Linha 1: ordenação + filtros de proximidade */}
       <div className="flex items-center gap-3 flex-wrap">
         <SortBar sortBy={sortBy} setSortBy={setSortBy} />
-        <ProximityFilters
-          showNear={showNear}
-          setShowNear={setShowNear}
-          showRefs={showRefs}
-          setShowRefs={setShowRefs}
-          nearCount={nearCount}
-          refsCount={refsCount}
-        />
+        <div className="ml-auto">
+          <ProximityFilters
+            showNear={showNear}
+            setShowNear={setShowNear}
+            showRefs={showRefs}
+            setShowRefs={setShowRefs}
+            nearCount={nearCount}
+            refsCount={refsCount}
+          />
+        </div>
       </div>
       {/* Linha 2: avaliações + view toggle à direita */}
       <div className="flex items-center justify-between gap-3 flex-wrap mt-3">
@@ -1146,7 +1158,9 @@ function RecCard({ rec }: { rec: Rec }) {
             </span>
           )}
           {walking && (
-            <span className="inline-flex items-center gap-1.5">
+            <span
+              className={`inline-flex items-center gap-1.5 ${isPertinhoRec(rec) ? "rounded-full bg-amber-400/15 text-amber-700 dark:text-amber-300 px-2 py-0.5 font-medium" : ""}`}
+            >
               <Footprints className="size-3.5" strokeWidth={1.75} />
               {walking}
             </span>
@@ -1229,7 +1243,9 @@ function RecRow({ rec }: { rec: Rec }) {
             </span>
           )}
           {walking && (
-            <span className="inline-flex items-center gap-1.5">
+            <span
+              className={`inline-flex items-center gap-1.5 ${isPertinhoRec(rec) ? "rounded-full bg-amber-400/15 text-amber-700 dark:text-amber-300 px-2 py-0.5 font-medium" : ""}`}
+            >
               <Footprints className="size-3.5" strokeWidth={1.75} />
               {walking}
             </span>
