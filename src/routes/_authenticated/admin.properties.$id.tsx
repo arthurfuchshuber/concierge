@@ -2434,6 +2434,16 @@ function RecGroup({
           </AlertDialogContent>
         </AlertDialog>
         <div className="ml-auto flex items-center gap-1.5">
+          <div className="relative">
+            <Search className="size-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+            <Input
+              value={filterQuery}
+              onChange={(e) => setFilterQuery(e.target.value)}
+              placeholder="Buscar neste quadrante…"
+              className="h-8 pl-7 pr-2 text-xs rounded-full w-44 sm:w-56"
+              maxLength={120}
+            />
+          </div>
           {headerExtra}
           {onReplicate && (
             <Button size="sm" variant="ghost" onClick={onReplicate} className="shrink-0 h-8 rounded-full text-xs text-muted-foreground hover:text-foreground">
