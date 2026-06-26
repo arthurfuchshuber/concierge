@@ -206,6 +206,7 @@ export type Database = {
           opening_hours: string[] | null
           place_id: string | null
           primary_type: string | null
+          property_id: string | null
           rating: number | null
           source: string
           state: string | null
@@ -234,6 +235,7 @@ export type Database = {
           opening_hours?: string[] | null
           place_id?: string | null
           primary_type?: string | null
+          property_id?: string | null
           rating?: number | null
           source?: string
           state?: string | null
@@ -262,6 +264,7 @@ export type Database = {
           opening_hours?: string[] | null
           place_id?: string | null
           primary_type?: string | null
+          property_id?: string | null
           rating?: number | null
           source?: string
           state?: string | null
@@ -275,6 +278,13 @@ export type Database = {
             columns: ["group_id"]
             isOneToOne: false
             referencedRelation: "city_reference_groups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "city_references_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
             referencedColumns: ["id"]
           },
         ]

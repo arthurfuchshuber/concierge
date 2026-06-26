@@ -357,7 +357,7 @@ function PropertyEditor() {
     queryClient.invalidateQueries({ queryKey: cityRefsKey });
   }
 
-  useCityReferencesRealtime(form.property.city, invalidateCityRefs);
+  useCityReferencesRealtime({ propertyId: id }, invalidateCityRefs);
 
   async function handleEnrich() {
     if (!form.property.maps_url) {
@@ -378,6 +378,7 @@ function PropertyEditor() {
               city_label: cityForGeneration,
               state: (r.state || form.property.state || "").trim() || null,
               country: (r.country || form.property.country || "BR").trim() || "BR",
+              propertyId: id,
             },
           });
           cityGenCount = (result.inserted ?? 0) + (result.updated ?? 0);
@@ -447,6 +448,7 @@ function PropertyEditor() {
         city_label: city,
         state: form.property.state?.trim() || null,
         country: form.property.country?.trim() || "BR",
+        propertyId: id,
       };
       if (mode === "replace") {
         // Apaga as atuais (auto + manual) antes de regerar.
@@ -1330,6 +1332,7 @@ function PropertyEditor() {
                       opening_hours: rec.opening_hours ?? null,
                       lat: rec.lat ?? null,
                       lng: rec.lng ?? null,
+                      propertyId: id,
                     },
                   })
                     .then(() => invalidateCityRefs())
@@ -2139,7 +2142,7 @@ function CityRefsGroup({
   queryKey: readonly unknown[];
   onGenerate: () => void;
   generating: boolean;
-  listFn: (args: { data: { city_label: string; state: string | null; country: string; includeHidden?: boolean } }) => Promise<{ items: unknown[] }>;
+  listFn: (args: { data: { city_label: string; state: string | null; country: string; includeHidden?: boolean; propertyId?: string | null } }) => Promise<{ items: unknown[] }>;
   addFn: (args: { data: Record<string, unknown> }) => Promise<{ id: string | null; duplicate?: boolean }>;
   updateFn: (args: { data: { id: string; patch: Record<string, unknown> } }) => Promise<{ ok: boolean }>;
   bulkDeleteFn: (args: { data: { ids: string[] } }) => Promise<{ ok: boolean; deleted?: number }>;
@@ -2148,8 +2151,8 @@ function CityRefsGroup({
   const city = (cityLabel || "").trim();
   const q = useQuery({
     queryKey,
-    queryFn: () => listFn({ data: { city_label: city, state, country, includeHidden: false } }),
-    enabled: !!city,
+    queryFn: () => listFn({ data: { city_label: city, state, country, includeHidden: false, propertyId } }),
+    enabled: !!city && !!propertyId,
   });
 
   const serverItems: RecItem[] = React.useMemo(() => {
@@ -2222,6 +2225,7 @@ function CityRefsGroup({
           opening_hours: rec.opening_hours ?? null,
           lat: rec.lat ?? null,
           lng: rec.lng ?? null,
+          propertyId,
         },
       })
         .then(() => invalidate())

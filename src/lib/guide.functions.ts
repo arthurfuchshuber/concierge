@@ -66,25 +66,30 @@ export const getPublicGuide = createServerFn({ method: "POST" })
     const ownerPlan = await resolveOwnerPlanAdmin(supabaseAdmin as any, (prop as any).owner_id as string);
     const aiEnabled = !!ownerPlan.features.ai;
 
-    // Referências macro da cidade (compartilhadas entre todas as residências
-    // da mesma cidade). Só carrega o que NÃO está oculto pelo admin.
-    const { cityKey } = await import("@/lib/city-key");
-    const ck = cityKey((prop as any).city as string | null);
-    const country = ((prop as any).country as string | null) ?? "BR";
+    // Referências macro da cidade — escopo POR IMÓVEL OU POR GRUPO de guias
+    // vinculados. Nunca compartilhamos por city_key (causava vazamento entre
+    // guias da mesma cidade).
     let cityReferences: any[] = [];
-    if (ck) {
-      // Query by city_key only — city references are shared by every guide
-      // for the same city, regardless of state/country label inconsistencies.
-      const { data } = await supabaseAdmin
+    const { data: membership } = await supabaseAdmin
+      .from("city_reference_group_members")
+      .select("group_id")
+      .eq("property_id", prop.id)
+      .maybeSingle();
+    const groupId = (membership as { group_id: string } | null)?.group_id ?? null;
+    {
+      let q = supabaseAdmin
         .from("city_references")
         .select("id, category, type, name, note, address, rating, user_ratings_total, image_url, maps_url, opening_hours, lat, lng, place_id, display_order")
-        .eq("city_key", ck)
         .eq("is_hidden", false)
         .order("type")
         .order("display_order")
         .order("user_ratings_total", { ascending: false });
+      if (groupId) q = q.eq("group_id", groupId);
+      else q = q.eq("property_id", prop.id).is("group_id", null);
+      const { data } = await q;
       cityReferences = data ?? [];
     }
+
 
     return { status: "ok" as const, property: signedProp, ...children, aiEnabled, cityReferences };
   });

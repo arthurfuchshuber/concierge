@@ -99,24 +99,39 @@ export const listLinkableProperties = createServerFn({ method: "POST" })
   });
 
 // ============ MUTATIONS ============
-async function migrateExistingCityRefsToGroup(
+// Move TODAS as refs com escopo individual desta property (property_id=X, sem group)
+// para o group_id informado. Idempotente.
+async function promotePropertyRefsToGroup(
   supabaseAdmin: import("@supabase/supabase-js").SupabaseClient,
-  cityKeyVal: string,
+  propertyId: string,
   groupId: string,
 ) {
-  // Move TODOS os city_references existentes naquela city_key (sem group) para o novo grupo.
-  // Idempotente: se já estão no grupo, nada acontece.
-  if (!cityKeyVal) return;
   await supabaseAdmin
     .from("city_references")
-    .update({ group_id: groupId })
-    .eq("city_key", cityKeyVal)
+    .update({ group_id: groupId, property_id: null } as never)
+    .eq("property_id", propertyId)
+    .is("group_id", null);
+}
+
+// Reseta (apaga) refs individuais de uma property antes de ela receber as do grupo.
+async function wipePropertyOwnRefs(
+  supabaseAdmin: import("@supabase/supabase-js").SupabaseClient,
+  propertyId: string,
+) {
+  await supabaseAdmin
+    .from("city_references")
+    .delete()
+    .eq("property_id", propertyId)
     .is("group_id", null);
 }
 
 // Cria/garante um grupo e adiciona properties.
+// Fluxo: a property âncora é o "PAI" — suas refs viram as do grupo. Demais
+// properties são RESETADAS (refs individuais apagadas) e então passam a
+// enxergar as do grupo. A partir daí, qualquer alteração em qualquer guia
+// vinculado é bidirecional (todos leem/escrevem no mesmo group_id).
 const LinkSchema = z.object({
-  propertyId: z.string().uuid(), // âncora
+  propertyId: z.string().uuid(), // âncora (PAI)
   addPropertyIds: z.array(z.string().uuid()).default([]),
   groupName: z.string().max(120).optional(),
 });
@@ -137,7 +152,7 @@ export const linkPropertiesToGroup = createServerFn({ method: "POST" })
       .eq("property_id", data.propertyId)
       .maybeSingle();
 
-    let groupId = existing?.group_id ?? null;
+    let groupId = (existing?.group_id as string | null) ?? null;
     if (!groupId) {
       const { data: gRow, error: gErr } = await supabaseAdmin
         .from("city_reference_groups")
@@ -149,16 +164,17 @@ export const linkPropertiesToGroup = createServerFn({ method: "POST" })
         .select("id")
         .single();
       if (gErr) throw new Error(gErr.message);
-      groupId = gRow.id;
+      groupId = (gRow as { id: string }).id;
       await supabaseAdmin
         .from("city_reference_group_members")
         .insert({ group_id: groupId, property_id: data.propertyId } as never);
-      await migrateExistingCityRefsToGroup(supabaseAdmin, key, groupId);
+      // Promove as refs do PAI para o grupo.
+      await promotePropertyRefsToGroup(supabaseAdmin, data.propertyId, groupId);
     }
 
-    // Adiciona os demais
+    // Adiciona os demais (filhos): RESET das refs individuais antes de
+    // entrarem no grupo. Eles passam a ler exclusivamente do grupo (PAI).
     if (data.addPropertyIds.length > 0) {
-      // Valida que o usuário é dono de cada um (ou admin)
       const { data: isAdmin } = await context.supabase.rpc("has_role", { _user_id: context.userId, _role: "admin" });
       const { data: rows } = await supabaseAdmin
         .from("properties")
@@ -167,18 +183,19 @@ export const linkPropertiesToGroup = createServerFn({ method: "POST" })
       const allowed = (rows ?? []).filter((r) => (isAdmin || r.owner_id === context.userId) && cityKey(r.city ?? "") === key);
       if (allowed.length === 0) return { ok: true, group_id: groupId, added: 0 };
 
-      // Para cada um: se já estiver em outro grupo, ignora (uniqueness no DB também protege).
+      for (const r of allowed) {
+        await wipePropertyOwnRefs(supabaseAdmin, r.id);
+      }
       const inserts = allowed.map((r) => ({ group_id: groupId, property_id: r.id }));
       await supabaseAdmin
         .from("city_reference_group_members")
         .upsert(inserts as never, { onConflict: "property_id", ignoreDuplicates: true });
 
-      // Move as city_refs locais (sem group) que pertencem a essas properties pela city_key
-      await migrateExistingCityRefsToGroup(supabaseAdmin, key, groupId);
       return { ok: true, group_id: groupId, added: allowed.length };
     }
     return { ok: true, group_id: groupId, added: 0 };
   });
+
 
 const UnlinkSchema = z.object({ propertyId: z.string().uuid(), removeIds: z.array(z.string().uuid()).optional() });
 export const unlinkPropertyFromGroup = createServerFn({ method: "POST" })
