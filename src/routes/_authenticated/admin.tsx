@@ -1,5 +1,5 @@
 import { createFileRoute, Outlet, Link, useNavigate, useRouterState } from "@tanstack/react-router";
-import { Sparkles, LogOut, LayoutDashboard, CreditCard, Menu, Users, Shield, Library, ShieldCheck, Activity } from "lucide-react";
+import { Sparkles, LogOut, LayoutDashboard, CreditCard, Menu, Users, Shield, Library, ShieldCheck, Activity, Star } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
@@ -19,6 +19,7 @@ const baseNav = [
 const adminOnlyNav = [
   { to: "/admin/engajamento", label: "Engajamento", icon: Activity, exact: false },
   { to: "/admin/clientes", label: "Clientes", icon: Users, exact: false },
+  { to: "/admin/recomendacoes-sigma", label: "Recomendações SigmaGuide", icon: Star, exact: false },
   { to: "/admin/admins", label: "Administradores", icon: ShieldCheck, exact: false },
 ] as const;
 
@@ -51,6 +52,7 @@ function AdminLayout() {
     pathname.startsWith("/admin/engajamento") ||
     pathname.startsWith("/admin/clientes") ||
     pathname.startsWith("/admin/taxonomia") ||
+    pathname.startsWith("/admin/recomendacoes-sigma") ||
     pathname.startsWith("/admin/admins");
   const needsPlan = !subLoading && !sub.plan && !allowedWithoutPlan && !isAdmin;
 

@@ -31,8 +31,9 @@ import { TimePicker } from "@/components/ui/time-picker";
 import { DateTimePicker } from "@/components/ui/date-picker";
 import { TagPicker, useTaxonomy, TAXONOMY_QUERY_KEY, NewCategoryDialog, NewTagDialog } from "@/components/admin/TagPicker";
 import { updatePoiCategory, reorderPoiCategories } from "@/lib/poi-taxonomy.functions";
-import { Pencil, Check as CheckIcon, X as XIcon, Search } from "lucide-react";
+import { Pencil, Check as CheckIcon, X as XIcon, Search, Settings2 } from "lucide-react";
 import { friendlyErrorMessage } from "@/lib/friendly-error";
+import { SigmaImportButton, SigmaActiveBanner } from "@/components/admin/SigmaImportButton";
 
 export const Route = createFileRoute("/_authenticated/admin/properties/$id")({
   component: PropertyEditor,
@@ -1334,6 +1335,7 @@ function PropertyEditor() {
         </TabsContent>
 
         <TabsContent value="recs" className="space-y-5 mt-6">
+          {!isNew && <SigmaActiveBanner propertyId={id} />}
           <SectionGroup>
           <div className="flex items-center gap-3 rounded-xl border border-dashed border-border/70 bg-muted/30 px-3.5 py-2.5">
             <p className="flex-1 text-[11px] text-muted-foreground leading-snug">
@@ -2360,7 +2362,7 @@ function CityRefsGroup({
       lng={propertyLng}
       onGenerate={onGenerate}
       generating={generating || q.isFetching}
-      headerExtra={<LinkGuidesButton propertyId={propertyId} />}
+      headerExtra={<><SigmaImportButton propertyId={propertyId} /><LinkGuidesButton propertyId={propertyId} /></>}
       hideSearch
     />
   );
@@ -2587,12 +2589,22 @@ function RecGroup({
               Gerar com IA
             </Button>
           )}
-          <Button size="sm" variant="outline" onClick={() => setShowNewCat(true)} className="shrink-0 h-8 rounded-full text-xs">
-            <Plus className="size-3.5" /> Categoria
-          </Button>
-          <Button size="sm" variant="outline" onClick={() => setShowNewTag(true)} className="shrink-0 h-8 rounded-full text-xs">
-            <Plus className="size-3.5" /> Tag
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button size="sm" variant="outline" className="shrink-0 h-8 rounded-full text-xs">
+                <Settings2 className="size-3.5" /> Editar
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuLabel className="text-[10px] uppercase tracking-wider text-muted-foreground">Taxonomia</DropdownMenuLabel>
+              <DropdownMenuItem onSelect={() => setShowNewCat(true)}>
+                <Plus className="size-3.5" /> Nova categoria
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => setShowNewTag(true)}>
+                <Plus className="size-3.5" /> Nova tag
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 

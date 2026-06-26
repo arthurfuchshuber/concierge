@@ -539,6 +539,7 @@ export type Database = {
           etiqueta_options: string[]
           full_name: string | null
           id: string
+          onboarding_completed_at: string | null
         }
         Insert: {
           avatar_url?: string | null
@@ -546,6 +547,7 @@ export type Database = {
           etiqueta_options?: string[]
           full_name?: string | null
           id: string
+          onboarding_completed_at?: string | null
         }
         Update: {
           avatar_url?: string | null
@@ -553,6 +555,7 @@ export type Database = {
           etiqueta_options?: string[]
           full_name?: string | null
           id?: string
+          onboarding_completed_at?: string | null
         }
         Relationships: []
       }
@@ -605,6 +608,9 @@ export type Database = {
           pin_expires_at: string | null
           published: boolean
           require_access_gate: boolean
+          sigma_pack_activated_at: string | null
+          sigma_pack_city_key: string | null
+          sigma_pack_snapshot: Json | null
           slug: string
           state: string | null
           tagline: string | null
@@ -661,6 +667,9 @@ export type Database = {
           pin_expires_at?: string | null
           published?: boolean
           require_access_gate?: boolean
+          sigma_pack_activated_at?: string | null
+          sigma_pack_city_key?: string | null
+          sigma_pack_snapshot?: Json | null
           slug: string
           state?: string | null
           tagline?: string | null
@@ -717,6 +726,9 @@ export type Database = {
           pin_expires_at?: string | null
           published?: boolean
           require_access_gate?: boolean
+          sigma_pack_activated_at?: string | null
+          sigma_pack_city_key?: string | null
+          sigma_pack_snapshot?: Json | null
           slug?: string
           state?: string | null
           tagline?: string | null
@@ -1005,6 +1017,195 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "properties"
             referencedColumns: ["id"]
+          },
+        ]
+      }
+      sigma_city_faqs: {
+        Row: {
+          answer: string
+          city_key: string
+          created_at: string
+          id: string
+          position: number
+          question: string
+          tags: string[]
+          updated_at: string
+        }
+        Insert: {
+          answer: string
+          city_key: string
+          created_at?: string
+          id?: string
+          position?: number
+          question: string
+          tags?: string[]
+          updated_at?: string
+        }
+        Update: {
+          answer?: string
+          city_key?: string
+          created_at?: string
+          id?: string
+          position?: number
+          question?: string
+          tags?: string[]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sigma_city_faqs_city_key_fkey"
+            columns: ["city_key"]
+            isOneToOne: false
+            referencedRelation: "sigma_city_packs"
+            referencedColumns: ["city_key"]
+          },
+        ]
+      }
+      sigma_city_marketplace: {
+        Row: {
+          city_key: string
+          created_at: string
+          description: string | null
+          id: string
+          label: string
+          position: number
+          updated_at: string
+          url: string
+        }
+        Insert: {
+          city_key: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          label: string
+          position?: number
+          updated_at?: string
+          url: string
+        }
+        Update: {
+          city_key?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          label?: string
+          position?: number
+          updated_at?: string
+          url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sigma_city_marketplace_city_key_fkey"
+            columns: ["city_key"]
+            isOneToOne: false
+            referencedRelation: "sigma_city_packs"
+            referencedColumns: ["city_key"]
+          },
+        ]
+      }
+      sigma_city_packs: {
+        Row: {
+          city_key: string
+          city_label: string
+          country: string | null
+          cover_url: string | null
+          created_at: string
+          id: string
+          is_published: boolean
+          notes: string | null
+          updated_at: string
+        }
+        Insert: {
+          city_key: string
+          city_label: string
+          country?: string | null
+          cover_url?: string | null
+          created_at?: string
+          id?: string
+          is_published?: boolean
+          notes?: string | null
+          updated_at?: string
+        }
+        Update: {
+          city_key?: string
+          city_label?: string
+          country?: string | null
+          cover_url?: string | null
+          created_at?: string
+          id?: string
+          is_published?: boolean
+          notes?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      sigma_city_recommendations: {
+        Row: {
+          address: string | null
+          category: string | null
+          city_key: string
+          created_at: string
+          id: string
+          image_url: string | null
+          lat: number | null
+          lng: number | null
+          maps_url: string | null
+          name: string
+          note: string | null
+          opening_hours: string[] | null
+          place_id: string | null
+          position: number
+          rating: number | null
+          type: string
+          updated_at: string
+          user_ratings_total: number | null
+        }
+        Insert: {
+          address?: string | null
+          category?: string | null
+          city_key: string
+          created_at?: string
+          id?: string
+          image_url?: string | null
+          lat?: number | null
+          lng?: number | null
+          maps_url?: string | null
+          name: string
+          note?: string | null
+          opening_hours?: string[] | null
+          place_id?: string | null
+          position?: number
+          rating?: number | null
+          type: string
+          updated_at?: string
+          user_ratings_total?: number | null
+        }
+        Update: {
+          address?: string | null
+          category?: string | null
+          city_key?: string
+          created_at?: string
+          id?: string
+          image_url?: string | null
+          lat?: number | null
+          lng?: number | null
+          maps_url?: string | null
+          name?: string
+          note?: string | null
+          opening_hours?: string[] | null
+          place_id?: string | null
+          position?: number
+          rating?: number | null
+          type?: string
+          updated_at?: string
+          user_ratings_total?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sigma_city_recommendations_city_key_fkey"
+            columns: ["city_key"]
+            isOneToOne: false
+            referencedRelation: "sigma_city_packs"
+            referencedColumns: ["city_key"]
           },
         ]
       }
