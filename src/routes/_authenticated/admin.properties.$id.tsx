@@ -1335,6 +1335,7 @@ function PropertyEditor() {
         </TabsContent>
 
         <TabsContent value="recs" className="space-y-5 mt-6">
+          {!isNew && <SigmaActiveBanner propertyId={id} />}
           <SectionGroup>
           <div className="flex items-center gap-3 rounded-xl border border-dashed border-border/70 bg-muted/30 px-3.5 py-2.5">
             <p className="flex-1 text-[11px] text-muted-foreground leading-snug">
