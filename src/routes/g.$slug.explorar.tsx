@@ -21,7 +21,7 @@ import {
   HelpCircle,
   Ticket,
   MapPin,
-  Map,
+  Map as MapIcon,
   X,
 } from "lucide-react";
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
@@ -398,6 +398,35 @@ function ExplorePage() {
       })
       .filter((x) => x.name);
   }, [r, propLat, propLng]);
+  // Categorias agora vêm da taxonomia configurada pelo admin (DB).
+  const { data: taxonomy } = useTaxonomy();
+  const dynamicMetas: MetaCategory[] = useMemo(() => {
+    const cats = taxonomy?.categories ?? [];
+    const tags = taxonomy?.tags ?? [];
+    return cats.map((c) => {
+      const types = tags.filter((t) => t.category_id === c.id).map((t) => t.slug);
+      return {
+        key: c.slug,
+        title: c.label,
+        desc: "",
+        Icon: iconForCategorySlug(c.slug),
+        types,
+      };
+    });
+  }, [taxonomy]);
+
+  // Fonte da verdade para agrupar: prioriza `category` salvo no item (admin
+  // pode mover entre categorias sem alterar a tag oficial do Google). Cai
+  // para o mapeamento da taxonomia pela tag e por fim "Outros" — exatamente
+  // como o painel de edição agrupa.
+  const tagToCategoryLabel = useMemo(() => {
+    const m = new Map<string, string>();
+    (taxonomy?.tags ?? []).forEach((t) => m.set(t.slug, t.category_label));
+    return m;
+  }, [taxonomy]);
+  const labelForRec = (rec: Rec) =>
+    (rec.category && rec.category.trim()) || tagToCategoryLabel.get(rec.type) || "Outros";
+
   // Constrói nearby/city por meta-categoria a partir de:
   // - property_recommendations: apenas "Pertinho" do imóvel;
   // - city_references: apenas "Referências na Cidade", compartilhadas.
@@ -405,8 +434,14 @@ function ExplorePage() {
     const passesReviews = (x: Rec) =>
       !applyMinReviews || minReviews <= 0 || (x.user_ratings_total ?? 0) >= minReviews;
     const passesQuery = (x: Rec) => matchesQuery(x, query);
-    const recsInType = allRecs.filter((rec) => meta.types.includes(rec.type) && passesReviews(rec) && passesQuery(rec));
-    const cityInType = cityRefs.filter((rec) => meta.types.includes(rec.type) && passesReviews(rec) && passesQuery(rec));
+    const knownLabels = new Set(dynamicMetas.map((m) => m.title));
+    const inMeta = (rec: Rec) => {
+      const label = labelForRec(rec);
+      if (meta.key === "__outros__") return !knownLabels.has(label);
+      return label === meta.title;
+    };
+    const recsInType = allRecs.filter((rec) => inMeta(rec) && passesReviews(rec) && passesQuery(rec));
+    const cityInType = cityRefs.filter((rec) => inMeta(rec) && passesReviews(rec) && passesQuery(rec));
 
     const nearbyFromRecs = recsInType.filter(isPertinho);
 
@@ -432,38 +467,21 @@ function ExplorePage() {
     return { meta, items: [...nearby, ...city], nearby, city, count: total };
   };
 
-  // Categorias agora vêm da taxonomia configurada pelo admin (DB).
-  const { data: taxonomy } = useTaxonomy();
-  const dynamicMetas: MetaCategory[] = useMemo(() => {
-    const cats = taxonomy?.categories ?? [];
-    const tags = taxonomy?.tags ?? [];
-    return cats.map((c) => {
-      const types = tags.filter((t) => t.category_id === c.id).map((t) => t.slug);
-      return {
-        key: c.slug,
-        title: c.label,
-        desc: "",
-        Icon: iconForCategorySlug(c.slug),
-        types,
-      };
-    });
-  }, [taxonomy]);
-
-  // Tipos órfãos: aparecem em allRecs/cityRefs mas não constam de nenhuma categoria.
-  // Agrupamos sob "Outros" para não desaparecerem do guia.
+  // "Outros": agora também captura itens cujo `category` salvo não bate com
+  // nenhuma categoria conhecida (não só tipos órfãos da taxonomia).
   const orphanMeta: MetaCategory | null = useMemo(() => {
-    const known = new Set(dynamicMetas.flatMap((m) => m.types));
-    const orphanTypes = new Set<string>();
-    [...allRecs, ...cityRefs].forEach((r) => { if (r.type && !known.has(r.type)) orphanTypes.add(r.type); });
-    if (orphanTypes.size === 0) return null;
+    const knownLabels = new Set(dynamicMetas.map((m) => m.title));
+    const hasOrphan = [...allRecs, ...cityRefs].some((r) => !knownLabels.has(labelForRec(r)));
+    if (!hasOrphan) return null;
     return {
       key: "__outros__",
       title: "Outros",
       desc: "",
       Icon: Compass,
-      types: Array.from(orphanTypes),
+      types: [],
     };
-  }, [dynamicMetas, allRecs, cityRefs]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dynamicMetas, allRecs, cityRefs, tagToCategoryLabel]);
 
   const allMetas = useMemo(
     () => (orphanMeta ? [...dynamicMetas, orphanMeta] : dynamicMetas),
@@ -473,13 +491,13 @@ function ExplorePage() {
   const categories = useMemo(
     () => allMetas.map((m) => buildBuckets(m, true)).filter((c) => c.count > 0),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [allMetas, allRecs, cityRefs, minReviews],
+    [allMetas, allRecs, cityRefs, minReviews, query, tagToCategoryLabel],
   );
 
   const categoriesUnfiltered = useMemo(
     () => allMetas.map((m) => buildBuckets(m, false)).filter((c) => c.count > 0),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [allMetas, allRecs, cityRefs],
+    [allMetas, allRecs, cityRefs, tagToCategoryLabel],
   );
 
   // Mantém o mapa de label sincronizado com a taxonomia (mutação intencional
@@ -1410,7 +1428,7 @@ function EmbeddedMapModal({
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-border/50 shrink-0">
           <div className="flex items-center gap-2.5">
-            <Map className="size-4.5 text-accent" strokeWidth={1.75} />
+            <MapIcon className="size-4.5 text-accent" strokeWidth={1.75} />
             <div>
               <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground font-semibold">Mapa</p>
               <p className="text-[14px] font-medium leading-tight">Recomendações próximas</p>
