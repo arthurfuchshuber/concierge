@@ -233,6 +233,42 @@ function sortRecs(list: Rec[], by: SortKey): Rec[] {
   return arr;
 }
 
+function matchesQuery(rec: Rec, q: string): boolean {
+  const needle = q.trim().toLowerCase();
+  if (!needle) return true;
+  const hay = [
+    rec.name,
+    rec.category ?? "",
+    TYPE_LABEL[rec.type] ?? rec.type,
+    rec.note ?? "",
+  ].join(" \u0001 ").toLowerCase();
+  return hay.includes(needle);
+}
+
+function SearchBar({ value, onChange, placeholder }: { value: string; onChange: (s: string) => void; placeholder?: string }) {
+  return (
+    <div className="relative w-full mt-3">
+      <input
+        type="search"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder ?? "Buscar por nome, categoria ou descrição…"}
+        className="w-full rounded-full border border-border bg-card/60 backdrop-blur px-4 py-2.5 pr-10 text-[13px] placeholder:text-muted-foreground/70 focus:outline-none focus:border-accent/60 focus:bg-card transition-colors"
+      />
+      {value && (
+        <button
+          type="button"
+          aria-label="Limpar busca"
+          onClick={() => onChange("")}
+          className="absolute right-2.5 top-1/2 -translate-y-1/2 inline-flex size-6 items-center justify-center rounded-full text-muted-foreground hover:text-foreground hover:bg-muted/60"
+        >
+          <X className="size-3.5" />
+        </button>
+      )}
+    </div>
+  );
+}
+
 function ExplorePage() {
   const r = Route.useLoaderData();
   const router = useRouter();
@@ -241,6 +277,7 @@ function ExplorePage() {
   const [sortBy, setSortBy] = useState<SortKey>("distance");
   const [viewMode, setViewMode] = useState<"grid" | "list">("list");
   const [minReviews, setMinReviews] = useState<number>(0);
+  const [query, setQuery] = useState<string>("");
   // "Ver Mapa" temporariamente desabilitado — state preservado no histórico do arquivo.
 
   // Tema herdado da página inicial do guia (definido pelo visitante).
