@@ -59,7 +59,7 @@ function SigmaPacksIndex() {
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
           <h1 className="font-display text-2xl sm:text-3xl flex items-center gap-2">
-            <Star className="size-6 text-amber-400" /> Recomendações SigmaGuide
+            <Star className="size-6 text-amber-400" /> Recomendações
           </h1>
           <p className="text-sm text-muted-foreground mt-1.5 max-w-2xl">
             Curadoria por cidade que qualquer anfitrião pode importar em 1 clique para o guia dele.
