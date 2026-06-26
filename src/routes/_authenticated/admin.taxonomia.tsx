@@ -13,9 +13,11 @@ import {
   createPoiTag,
   updatePoiTag,
   deletePoiTag,
+  mergePoiCategories,
   type PoiTag,
   type PoiCategory,
 } from "@/lib/poi-taxonomy.functions";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -48,6 +50,9 @@ function TaxonomyPage() {
   const [newTagInCat, setNewTagInCat] = useState<PoiCategory | null>(null);
   const [editTag, setEditTag] = useState<PoiTag | null>(null);
   const [editCat, setEditCat] = useState<PoiCategory | null>(null);
+  const [selectedCats, setSelectedCats] = useState<Set<string>>(new Set());
+  const [mergeOpen, setMergeOpen] = useState(false);
+  const [merging, setMerging] = useState(false);
 
   const createCatFn = useServerFn(createPoiCategory);
   const updateCatFn = useServerFn(updatePoiCategory);
@@ -55,8 +60,17 @@ function TaxonomyPage() {
   const createTagFn = useServerFn(createPoiTag);
   const updateTagFn = useServerFn(updatePoiTag);
   const deleteTagFn = useServerFn(deletePoiTag);
+  const mergeFn = useServerFn(mergePoiCategories);
 
   const invalidate = () => qc.invalidateQueries({ queryKey: TAXONOMY_QUERY_KEY });
+
+  const toggleSel = (id: string) =>
+    setSelectedCats((s) => {
+      const n = new Set(s);
+      if (n.has(id)) n.delete(id);
+      else n.add(id);
+      return n;
+    });
 
   const groups = (data?.categories ?? []).map((c) => ({
     cat: c,
@@ -65,13 +79,20 @@ function TaxonomyPage() {
 
   return (
     <div className="container mx-auto max-w-3xl p-4 sm:p-6 space-y-4">
-      <div className="flex items-center justify-between gap-2">
+      <div className="flex items-center justify-between gap-2 flex-wrap">
         <Link to="/admin" className="text-xs text-muted-foreground hover:text-foreground inline-flex items-center gap-1">
           <ArrowLeft className="size-3.5" /> Painel
         </Link>
-        <Button size="sm" onClick={() => setNewCatOpen(true)}>
-          <Plus className="size-3.5" /> Nova categoria
-        </Button>
+        <div className="flex items-center gap-2">
+          {selectedCats.size >= 2 && (
+            <Button size="sm" variant="outline" onClick={() => setMergeOpen(true)}>
+              Unificar ({selectedCats.size})
+            </Button>
+          )}
+          <Button size="sm" onClick={() => setNewCatOpen(true)}>
+            <Plus className="size-3.5" /> Nova categoria
+          </Button>
+        </div>
       </div>
 
       <div>
@@ -90,15 +111,20 @@ function TaxonomyPage() {
             return (
               <div key={cat.id} className="rounded-xl border border-border/60 overflow-hidden">
                 <div className="flex items-center gap-2 px-3.5 py-2.5 bg-muted/20">
+                  <Checkbox
+                    checked={selectedCats.has(cat.id)}
+                    onCheckedChange={() => toggleSel(cat.id)}
+                    aria-label={`Selecionar ${cat.label}`}
+                  />
                   <button
                     type="button"
                     onClick={() => setOpenCats((s) => ({ ...s, [cat.id]: !open }))}
-                    className="flex-1 flex items-center gap-2 text-left"
+                    className="flex-1 flex items-center gap-2 text-left min-w-0"
                   >
                     <ChevronDown className={`size-4 text-muted-foreground transition-transform ${open ? "" : "-rotate-90"}`} />
-                    <span className="text-sm font-medium">{cat.label}</span>
-                    {cat.is_protected && <Lock className="size-3 text-muted-foreground/60" />}
-                    <span className="text-[11px] text-muted-foreground">({tags.length})</span>
+                    <span className="text-sm font-medium truncate">{cat.label}</span>
+                    {cat.is_protected && <Lock className="size-3 text-muted-foreground/60 shrink-0" />}
+                    <span className="text-[11px] text-muted-foreground shrink-0">({tags.length})</span>
                   </button>
                   <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={() => setEditCat(cat)}>
                     <Pencil className="size-3" />
@@ -202,7 +228,57 @@ function TaxonomyPage() {
           }}
         />
       )}
+      {mergeOpen && (
+        <MergeCategoriesDialog
+          categories={(data?.categories ?? []).filter((c) => selectedCats.has(c.id))}
+          saving={merging}
+          onClose={() => setMergeOpen(false)}
+          onConfirm={async (newLabel) => {
+            setMerging(true);
+            try {
+              const res = await mergeFn({ data: { category_ids: Array.from(selectedCats), new_label: newLabel } });
+              toast.success(`Unificadas em "${res.label}"`);
+              setSelectedCats(new Set());
+              setMergeOpen(false);
+              invalidate();
+            } catch (e) {
+              toast.error(e instanceof Error ? e.message : "Erro ao unificar");
+            } finally {
+              setMerging(false);
+            }
+          }}
+        />
+      )}
     </div>
+  );
+}
+
+function MergeCategoriesDialog({ categories, saving, onClose, onConfirm }: {
+  categories: PoiCategory[];
+  saving: boolean;
+  onClose: () => void;
+  onConfirm: (newLabel: string) => Promise<void>;
+}) {
+  const suggested = categories.map((c) => c.label).join(", ");
+  const [label, setLabel] = useState(suggested);
+  return (
+    <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent className="max-w-sm">
+        <DialogHeader><DialogTitle>Unificar categorias</DialogTitle></DialogHeader>
+        <p className="text-xs text-muted-foreground">
+          As tags de todas as selecionadas serão movidas para uma única categoria.
+          As categorias absorvidas serão excluídas (categorias padrão não podem ser absorvidas).
+        </p>
+        <Label className="text-xs">Nome da categoria unificada</Label>
+        <Input value={label} onChange={(e) => setLabel(e.target.value)} maxLength={120} />
+        <DialogFooter>
+          <Button variant="ghost" onClick={onClose} disabled={saving}>Cancelar</Button>
+          <Button disabled={saving || !label.trim()} onClick={() => onConfirm(label.trim())}>
+            {saving && <Loader2 className="size-3.5 animate-spin" />} Unificar
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 

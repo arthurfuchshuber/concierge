@@ -10,6 +10,7 @@ import { generateCityReferences, listCityReferences, addManualCityReference, upd
 import { importFromAirbnb } from "@/lib/airbnb.functions";
 import { useSubscription } from "@/hooks/useSubscription";
 import { useCityReferencesRealtime } from "@/hooks/useCityReferencesRealtime";
+import { LinkGuidesButton } from "@/components/admin/LinkGuidesDialog";
 
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -1308,6 +1309,7 @@ function PropertyEditor() {
             country={form.property.country || "BR"}
             propertyLat={form.property.lat}
             propertyLng={form.property.lng}
+            propertyId={id}
             queryKey={cityRefsKey}
             onGenerate={() => setGenCityModeOpen(true)}
             generating={generatingCityRecs}
@@ -2071,6 +2073,7 @@ function CityRefsGroup({
   country,
   propertyLat,
   propertyLng,
+  propertyId,
   queryKey,
   onGenerate,
   generating,
@@ -2085,6 +2088,7 @@ function CityRefsGroup({
   country: string;
   propertyLat: number | null;
   propertyLng: number | null;
+  propertyId: string;
   queryKey: readonly unknown[];
   onGenerate: () => void;
   generating: boolean;
@@ -2211,6 +2215,7 @@ function CityRefsGroup({
       lng={propertyLng}
       onGenerate={onGenerate}
       generating={generating || q.isFetching}
+      headerExtra={<LinkGuidesButton propertyId={propertyId} />}
     />
   );
 }
@@ -2227,6 +2232,7 @@ function RecGroup({
   onReplicate,
   onGenerate,
   generating,
+  headerExtra,
 }: {
   title: string;
   desc: string;
@@ -2238,6 +2244,7 @@ function RecGroup({
   onReplicate?: () => void;
   onGenerate?: () => void;
   generating?: boolean;
+  headerExtra?: React.ReactNode;
 }) {
   const [openCat, setOpenCat] = useState<string | null>(null);
   const [selectedIdx, setSelectedIdx] = useState<Set<number>>(new Set());
@@ -2336,6 +2343,7 @@ function RecGroup({
           </AlertDialogContent>
         </AlertDialog>
         <div className="ml-auto flex items-center gap-1.5">
+          {headerExtra}
           {onReplicate && (
             <Button size="sm" variant="ghost" onClick={onReplicate} className="shrink-0 h-8 rounded-full text-xs text-muted-foreground hover:text-foreground">
               <Share2 className="size-3.5" /> Replicar

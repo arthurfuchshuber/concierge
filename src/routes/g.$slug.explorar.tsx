@@ -29,6 +29,23 @@ import { GuideAiChat } from "@/components/GuideAiChat";
 import { toTitleCase } from "@/lib/text";
 import { useCityReferencesRealtime } from "@/hooks/useCityReferencesRealtime";
 import { useTaxonomy } from "@/components/admin/TagPicker";
+import { FilterSheetButton } from "@/components/guide/FilterSheet";
+
+const REVIEW_THRESHOLDS = [0, 50, 200, 1000, 5000];
+const REVIEW_LABELS: Record<number, string> = { 0: "Todas", 50: "50+", 200: "200+", 1000: "1k+", 5000: "5k+" };
+function computeReviewOptions(items: { user_ratings_total?: number | null }[]) {
+  if (!items.length) return REVIEW_THRESHOLDS.map((v) => ({ value: v, label: REVIEW_LABELS[v] }));
+  const counts = items.map((r) => r.user_ratings_total ?? 0);
+  const min = Math.min(...counts);
+  const max = Math.max(...counts);
+  return REVIEW_THRESHOLDS.filter((v, i) => {
+    if (v === 0) return true;
+    if (max < v) return false;
+    const next = REVIEW_THRESHOLDS[i + 1] ?? Infinity;
+    if (min >= next) return false;
+    return true;
+  }).map((v) => ({ value: v, label: REVIEW_LABELS[v] }));
+}
 
 
 
@@ -518,13 +535,27 @@ function ExplorePage() {
 
         {!active ? (
           <>
-            <div className="flex items-center gap-3 flex-wrap">
-              <MinReviewsFilter value={minReviews} onChange={setMinReviews} items={[...allRecs, ...cityRefs]} />
-              <div className="ml-auto">
+            <div className="sticky top-0 z-10 -mx-4 px-4 py-2 bg-background/85 backdrop-blur border-b border-border/40">
+              <div className="flex items-center gap-2">
+                <div className="flex-1 min-w-0">
+                  <SearchBar value={query} onChange={setQuery} />
+                </div>
+                <FilterSheetButton
+                  sortBy="distance"
+                  setSortBy={() => {}}
+                  minReviews={minReviews}
+                  setMinReviews={setMinReviews}
+                  showNear
+                  setShowNear={() => {}}
+                  showRefs
+                  setShowRefs={() => {}}
+                  showSort={false}
+                  showProximity={false}
+                  reviewOptions={computeReviewOptions([...allRecs, ...cityRefs])}
+                />
                 <ViewToggle viewMode={viewMode} setViewMode={setViewMode} />
               </div>
             </div>
-            <SearchBar value={query} onChange={setQuery} />
             <div className="mt-5">
               {viewMode === "grid" ? (
                 <CategoryGrid categories={categories} onPick={(k) => setActiveKey(k)} />
@@ -848,27 +879,29 @@ function CategoryDetail({
 
   return (
     <>
-      {/* Linha 1: ordenação + filtros de proximidade */}
-      <div className="flex items-center gap-3 flex-wrap">
-        <SortBar sortBy={sortBy} setSortBy={setSortBy} />
-        <div className="ml-auto">
-          <ProximityFilters
+      {/* Barra única sticky de busca + filtros + view toggle */}
+      <div className="sticky top-0 z-10 -mx-4 px-4 py-2 bg-background/85 backdrop-blur border-b border-border/40">
+        <div className="flex items-center gap-2">
+          <div className="flex-1 min-w-0">
+            <SearchBar value={query} onChange={setQuery} />
+          </div>
+          <FilterSheetButton
+            sortBy={sortBy}
+            setSortBy={setSortBy}
+            minReviews={minReviews}
+            setMinReviews={setMinReviews}
             showNear={showNear}
             setShowNear={setShowNear}
             showRefs={showRefs}
             setShowRefs={setShowRefs}
-            nearCount={nearCount}
-            refsCount={refsCount}
+            showSort
+            showProximity={nearCount > 0 || refsCount > 0}
+            proximityCounts={{ near: nearCount, refs: refsCount }}
+            reviewOptions={computeReviewOptions(allItems)}
           />
+          <ViewToggle viewMode={viewMode} setViewMode={setViewMode} />
         </div>
       </div>
-      {/* Linha 2: avaliações + view toggle à direita */}
-      <div className="flex items-center justify-between gap-3 flex-wrap mt-3">
-        <MinReviewsFilter value={minReviews} onChange={setMinReviews} items={allItems} />
-        <ViewToggle viewMode={viewMode} setViewMode={setViewMode} />
-      </div>
-      {/* Linha 3: busca livre */}
-      <SearchBar value={query} onChange={setQuery} />
 
       <div className="mt-5">
         {sorted.length === 0 ? (
