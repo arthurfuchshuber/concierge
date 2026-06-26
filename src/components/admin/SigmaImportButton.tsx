@@ -11,9 +11,12 @@ import {
 } from "@/components/ui/alert-dialog";
 import {
   getMyPropertySigmaState, activateSigmaPackOnProperty, deactivateSigmaPackOnProperty,
+  saveGuideAsSigmaPack,
 } from "@/lib/sigma-recommendations.functions";
-import { Star, Loader2, Lock, Check } from "lucide-react";
+import { Star, Loader2, Lock, Check, Save } from "lucide-react";
 import { toast } from "sonner";
+import { useIsAdmin } from "@/hooks/useIsAdmin";
+
 
 export function SigmaImportButton({ propertyId }: { propertyId: string }) {
   const qc = useQueryClient();
@@ -165,3 +168,59 @@ export function SigmaActiveBanner({ propertyId }: { propertyId: string }) {
     </div>
   );
 }
+
+// Admin-only: snapshot the current guide into a Sigma pack for its city.
+export function SaveAsSigmaPackButton({ propertyId }: { propertyId: string }) {
+  const { isAdmin } = useIsAdmin();
+  const qc = useQueryClient();
+  const saveFn = useServerFn(saveGuideAsSigmaPack);
+  const [confirm, setConfirm] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  if (!isAdmin) return null;
+
+  async function doSave() {
+    setBusy(true);
+    try {
+      const r = await saveFn({ data: { property_id: propertyId } });
+      toast.success(
+        `Salvo em "${r.city_label}": ${r.counts.recs} pontos, ${r.counts.marketplace} marketplace, ${r.counts.faqs} FAQs.`,
+      );
+      setConfirm(false);
+      qc.invalidateQueries({ queryKey: ["sigma-packs"] });
+      qc.invalidateQueries({ queryKey: ["sigma-pack"] });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erro ao salvar");
+    } finally { setBusy(false); }
+  }
+
+  return (
+    <>
+      <Button
+        size="sm" variant="outline"
+        onClick={() => setConfirm(true)}
+        className="shrink-0 h-8 rounded-full text-xs border-fuchsia-400/40 text-fuchsia-200 hover:bg-fuchsia-500/10"
+        title="Admin: salvar este guia como recomendação oficial SigmaGuide para a cidade"
+      >
+        <Save className="size-3.5" /> Salvar Recomendações
+      </Button>
+      <AlertDialog open={confirm} onOpenChange={(o) => { if (!o) setConfirm(false); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Salvar como recomendação SigmaGuide?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Os pontos da cidade, links de marketplace e FAQs deste guia serão copiados como a recomendação oficial SigmaGuide para a cidade. Se já existir uma recomendação para esta cidade, ela será <strong>substituída</strong>.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction disabled={busy} onClick={doSave}>
+              {busy && <Loader2 className="size-3.5 animate-spin" />} Salvar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
+  );
+}
+

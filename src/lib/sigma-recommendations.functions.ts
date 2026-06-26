@@ -529,3 +529,133 @@ export const deactivateSigmaPackOnProperty = createServerFn({ method: "POST" })
     }
     return { ok: true };
   });
+
+// ============== ADMIN — SAVE CURRENT GUIDE AS A SIGMA PACK ==============
+// Snapshots the property's city_references (city scope) + marketplace_links + property_faqs
+// into a Sigma pack for the property's city. Overwrites existing pack content for that city.
+export const saveGuideAsSigmaPack = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => z.object({ property_id: z.string().uuid() }).parse(i))
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context);
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    // Read source guide (bypass RLS — admin already verified)
+    const { data: prop } = await supabaseAdmin
+      .from("properties")
+      .select("id, city, country, marketplace_links")
+      .eq("id", data.property_id)
+      .maybeSingle();
+    if (!prop) throw new Error("Imóvel não encontrado.");
+    const propRow = prop as { id: string; city: string | null; country: string | null; marketplace_links: unknown };
+    if (!propRow.city) throw new Error("Este guia não tem cidade definida.");
+
+    const key = makeCityKey(propRow.city);
+    if (!key) throw new Error("Cidade inválida.");
+
+    const [cityRefsRes, faqsRes] = await Promise.all([
+      supabaseAdmin
+        .from("city_references")
+        .select("type, name, category, rating, user_ratings_total, note, image_url, maps_url, place_id, address, lat, lng, opening_hours")
+        .eq("property_id", data.property_id),
+      supabaseAdmin
+        .from("property_faqs")
+        .select("question, answer, tags, position")
+        .eq("property_id", data.property_id)
+        .order("position"),
+    ]);
+
+    const cityRefs = cityRefsRes.data ?? [];
+
+    const faqs = (faqsRes.data ?? []) as Array<{ question: string; answer: string; tags: string[] | null; position: number }>;
+    // Skip FAQs imported from sigma — avoid feedback loops
+    const userFaqs = faqs.filter((f) => !(Array.isArray(f.tags) && f.tags.includes("sigma")));
+
+    const mkt = Array.isArray(propRow.marketplace_links)
+      ? (propRow.marketplace_links as Array<{ label?: string; url?: string; description?: string | null }>)
+      : [];
+
+    // Upsert the pack
+    const { data: existing } = await supabaseAdmin
+      .from("sigma_city_packs")
+      .select("city_key")
+      .eq("city_key", key)
+      .maybeSingle();
+
+    if (!existing) {
+      const { error: insErr } = await supabaseAdmin.from("sigma_city_packs").insert({
+        city_key: key,
+        city_label: propRow.city,
+        country: propRow.country ?? null,
+        is_published: false,
+      });
+      if (insErr) throw new Error(insErr.message);
+    }
+
+    // Wipe + repopulate child tables for this city
+    await Promise.all([
+      supabaseAdmin.from("sigma_city_recommendations").delete().eq("city_key", key),
+      supabaseAdmin.from("sigma_city_marketplace").delete().eq("city_key", key),
+      supabaseAdmin.from("sigma_city_faqs").delete().eq("city_key", key),
+    ]);
+
+    const recRows = cityRefs.map((r, idx) => {
+      const rec = r as Record<string, unknown>;
+      return {
+        city_key: key,
+        type: (rec.type as string) ?? "other",
+        name: rec.name as string,
+        category: (rec.category as string | null) ?? null,
+        rating: (rec.rating as number | null) ?? null,
+        user_ratings_total: (rec.user_ratings_total as number | null) ?? null,
+        note: (rec.note as string | null) ?? null,
+        image_url: (rec.image_url as string | null) ?? null,
+        maps_url: (rec.maps_url as string | null) ?? null,
+        place_id: (rec.place_id as string | null) ?? null,
+        address: (rec.address as string | null) ?? null,
+        lat: (rec.lat as number | null) ?? null,
+        lng: (rec.lng as number | null) ?? null,
+        opening_hours: (rec.opening_hours as string[] | null) ?? null,
+        position: idx,
+      };
+    });
+    if (recRows.length) {
+      const { error } = await supabaseAdmin.from("sigma_city_recommendations").insert(recRows);
+      if (error) throw new Error(error.message);
+    }
+
+    const mktRows = mkt
+      .filter((m) => m && m.label && m.url)
+      .map((m, idx) => ({
+        city_key: key,
+        label: String(m.label),
+        url: String(m.url),
+        description: m.description ?? null,
+        position: idx,
+      }));
+    if (mktRows.length) {
+      const { error } = await supabaseAdmin.from("sigma_city_marketplace").insert(mktRows);
+      if (error) throw new Error(error.message);
+    }
+
+    const faqRows = userFaqs.map((f, idx) => ({
+      city_key: key,
+      question: f.question,
+      answer: f.answer,
+      tags: Array.isArray(f.tags) ? f.tags.filter((t) => t !== "sigma") : [],
+      position: idx,
+    }));
+    if (faqRows.length) {
+      const { error } = await supabaseAdmin.from("sigma_city_faqs").insert(faqRows);
+      if (error) throw new Error(error.message);
+    }
+
+    return {
+      ok: true,
+      city_key: key,
+      city_label: propRow.city,
+      counts: { recs: recRows.length, marketplace: mktRows.length, faqs: faqRows.length },
+    };
+  });
+
