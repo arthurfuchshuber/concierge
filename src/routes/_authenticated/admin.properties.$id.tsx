@@ -2263,6 +2263,7 @@ function CityRefsGroup({
       onGenerate={onGenerate}
       generating={generating || q.isFetching}
       headerExtra={<LinkGuidesButton propertyId={propertyId} />}
+      hideSearch
     />
   );
 }
