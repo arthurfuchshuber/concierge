@@ -113,6 +113,7 @@ export function TaxonomyTree({
 }) {
   const qc = useQueryClient();
   const [expanded, setExpanded] = useState<string | null>(null); // accordion: only one
+  const [manageMode, setManageMode] = useState(false);
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [newTagOpen, setNewTagOpen] = useState(false);
@@ -170,7 +171,7 @@ export function TaxonomyTree({
     <>
       {/* Header */}
       <div className="flex items-center justify-between gap-1 px-3 py-2 border-b bg-background z-10 shrink-0">
-        {selectMode ? (
+        {manageMode && selectMode ? (
           <>
             <span className="text-[11px] text-muted-foreground">{selectedIds.size} selecionada(s)</span>
             <div className="flex items-center gap-1">
@@ -202,9 +203,9 @@ export function TaxonomyTree({
               </Button>
             </div>
           </>
-        ) : (
+        ) : manageMode ? (
           <>
-            <span className="text-[11px] uppercase tracking-wide text-muted-foreground">Tags</span>
+            <span className="text-[11px] uppercase tracking-wide text-muted-foreground">Modo edição</span>
             <div className="flex items-center gap-1">
               <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={() => setSelectMode(true)}>
                 <CheckSquare className="size-3" /> selecionar
@@ -215,7 +216,17 @@ export function TaxonomyTree({
               <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={() => { setNewTagPresetCat(null); setNewTagOpen(true); }}>
                 <Plus className="size-3" /> tag
               </Button>
+              <Button size="sm" variant="secondary" className="h-7 px-2 text-xs" onClick={() => setManageMode(false)}>
+                concluir
+              </Button>
             </div>
+          </>
+        ) : (
+          <>
+            <span className="text-[11px] uppercase tracking-wide text-muted-foreground">Escolher tag</span>
+            <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={() => setManageMode(true)}>
+              Editar
+            </Button>
           </>
         )}
       </div>
@@ -229,6 +240,7 @@ export function TaxonomyTree({
                 cat={cat}
                 count={items.length}
                 isOpen={isOpen}
+                manageMode={manageMode}
                 onToggle={() => setExpanded(isOpen ? null : cat.id)}
                 onRequestDelete={() => setDeleteCat(cat)}
                 onAddTag={() => { setNewTagPresetCat(cat.id); setNewTagOpen(true); }}
@@ -237,7 +249,9 @@ export function TaxonomyTree({
               {isOpen && (
                 <div className="pb-1">
                   {items.length === 0 && (
-                    <p className="px-6 py-2 text-[11px] text-muted-foreground italic">Sem tags — use “+ tag” acima.</p>
+                    <p className="px-6 py-2 text-[11px] text-muted-foreground italic">
+                      {manageMode ? "Sem tags — use “+ tag” acima." : "Sem tags nesta categoria."}
+                    </p>
                   )}
                   {items.map((tag) => (
                     <TagRow
@@ -245,7 +259,8 @@ export function TaxonomyTree({
                       tag={tag}
                       categories={categories}
                       selected={selectedSlug === tag.slug}
-                      selectMode={selectMode}
+                      manageMode={manageMode}
+                      selectMode={manageMode && selectMode}
                       checked={selectedIds.has(tag.id)}
                       onToggleCheck={() => toggleId(tag.id)}
                       onPick={() => onPickTag?.(tag.slug)}
@@ -290,11 +305,12 @@ export function TaxonomyTree({
    Category row (header) — inline rename + delete + add tag
    ============================================================ */
 function CategoryRow({
-  cat, count, isOpen, onToggle, onRequestDelete, onAddTag, onRenamed,
+  cat, count, isOpen, manageMode, onToggle, onRequestDelete, onAddTag, onRenamed,
 }: {
   cat: PoiCategory;
   count: number;
   isOpen: boolean;
+  manageMode: boolean;
   onToggle: () => void;
   onRequestDelete: () => void;
   onAddTag: () => void;
@@ -332,7 +348,7 @@ function CategoryRow({
         ) : (
           <span
             className="text-[11px] uppercase tracking-wider font-medium truncate"
-            onDoubleClick={(e) => { e.stopPropagation(); setEditing(true); }}
+            onDoubleClick={(e) => { if (manageMode) { e.stopPropagation(); setEditing(true); } }}
           >
             {cat.label}
           </span>
@@ -340,36 +356,38 @@ function CategoryRow({
         <span className="text-[10px] text-muted-foreground/60 shrink-0">({count})</span>
         {cat.is_protected && <Lock className="size-2.5 opacity-40 shrink-0" />}
       </button>
-      <div className="flex items-center gap-0.5 opacity-0 group-hover/cat:opacity-100 transition-opacity">
-        {!editing && (
+      {manageMode && (
+        <div className="flex items-center gap-0.5">
+          {!editing && (
+            <button
+              type="button"
+              aria-label="Renomear"
+              onClick={(e) => { e.stopPropagation(); setEditing(true); }}
+              className="p-1 text-[10px] text-muted-foreground hover:text-foreground"
+            >
+              renomear
+            </button>
+          )}
           <button
             type="button"
-            aria-label="Renomear"
-            onClick={(e) => { e.stopPropagation(); setEditing(true); }}
-            className="p-1 text-[10px] text-muted-foreground hover:text-foreground"
+            aria-label="Adicionar tag"
+            onClick={(e) => { e.stopPropagation(); onAddTag(); }}
+            className="p-1 text-muted-foreground hover:text-foreground"
           >
-            renomear
+            <Plus className="size-3" />
           </button>
-        )}
-        <button
-          type="button"
-          aria-label="Adicionar tag"
-          onClick={(e) => { e.stopPropagation(); onAddTag(); }}
-          className="p-1 text-muted-foreground hover:text-foreground"
-        >
-          <Plus className="size-3" />
-        </button>
-        {!cat.is_protected && (
-          <button
-            type="button"
-            aria-label="Excluir categoria"
-            onClick={(e) => { e.stopPropagation(); onRequestDelete(); }}
-            className="p-1 text-muted-foreground hover:text-destructive"
-          >
-            <Trash2 className="size-3" />
-          </button>
-        )}
-      </div>
+          {!cat.is_protected && (
+            <button
+              type="button"
+              aria-label="Excluir categoria"
+              onClick={(e) => { e.stopPropagation(); onRequestDelete(); }}
+              className="p-1 text-muted-foreground hover:text-destructive"
+            >
+              <Trash2 className="size-3" />
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -378,11 +396,12 @@ function CategoryRow({
    Tag row — pick / rename / move / delete inline
    ============================================================ */
 function TagRow({
-  tag, categories, selected, selectMode, checked, onToggleCheck, onPick, onChanged,
+  tag, categories, selected, manageMode, selectMode, checked, onToggleCheck, onPick, onChanged,
 }: {
   tag: PoiTag;
   categories: PoiCategory[];
   selected: boolean;
+  manageMode: boolean;
   selectMode: boolean;
   checked: boolean;
   onToggleCheck: () => void;
@@ -442,19 +461,28 @@ function TagRow({
           type="button"
           onClick={() => { if (selectMode) onToggleCheck(); else onPick(); }}
           onDoubleClick={(e) => {
-            if (tag.is_protected) return;
+            if (!manageMode || tag.is_protected) return;
             e.stopPropagation();
             setEditing(true);
           }}
-          title={tag.is_protected ? "Tag padrão do Google — não editável" : "Duplo-clique para renomear"}
+          title={manageMode ? (tag.is_protected ? "Tag padrão do Google — não editável" : "Duplo-clique para renomear") : "Clique para selecionar"}
           className={`flex-1 text-left text-sm py-1.5 px-1 truncate ${selected ? "font-medium" : ""}`}
         >
           {tag.label}
           {tag.is_protected && <Lock className="inline size-2.5 ml-1 opacity-40" />}
         </button>
       )}
-      {!editing && !selectMode && (
-        <div className="flex items-center gap-0.5 opacity-0 group-hover/tag:opacity-100 transition-opacity">
+      {manageMode && !editing && !selectMode && (
+        <div className="flex items-center gap-0.5">
+          <button
+            type="button"
+            aria-label="Renomear"
+            onClick={(e) => { if (tag.is_protected) return; e.stopPropagation(); setEditing(true); }}
+            disabled={tag.is_protected}
+            className="p-1 text-[10px] text-muted-foreground hover:text-foreground disabled:opacity-30"
+          >
+            renomear
+          </button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button type="button" aria-label="Mover" className="p-1 text-muted-foreground hover:text-foreground">

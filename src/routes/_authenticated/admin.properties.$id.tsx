@@ -656,7 +656,7 @@ function PropertyEditor() {
       } finally {
         setAutoSaving(false);
       }
-    }, 1200);
+    }, 3000);
 
     return () => {
       if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current);
@@ -2423,13 +2423,14 @@ function RecGroup({
                                 <TagPicker
                                   value={r.type}
                                   onChange={(v) => {
-                                    // sincroniza category com base na nova tag
-                                    // e segue o item até a nova categoria
+                                    // Sincroniza category com a tag selecionada,
+                                    // mas NÃO move o foco/visualização para a
+                                    // nova categoria — o usuário permanece onde
+                                    // estava editando.
                                     const tags = taxonomy?.tags ?? [];
                                     const tag = tags.find((t) => t.slug === v);
                                     const newCat = tag?.category_label ?? r.category ?? null;
                                     updateAt(idx, { type: v, category: newCat });
-                                    if (newCat) setOpenCat(newCat);
                                   }}
                                 />
 
