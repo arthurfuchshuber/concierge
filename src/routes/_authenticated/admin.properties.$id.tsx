@@ -2578,8 +2578,30 @@ function RecGroup({
               Gerar com IA
             </Button>
           )}
+          <Button size="sm" variant="outline" onClick={() => setShowNewCat(true)} className="shrink-0 h-8 rounded-full text-xs">
+            <Plus className="size-3.5" /> Categoria
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => setShowNewTag(true)} className="shrink-0 h-8 rounded-full text-xs">
+            <Plus className="size-3.5" /> Tag
+          </Button>
         </div>
       </div>
+
+      {showNewCat && (
+        <NewCategoryDialog
+          onClose={() => setShowNewCat(false)}
+          onSaved={() => { setShowNewCat(false); qc.invalidateQueries({ queryKey: TAXONOMY_QUERY_KEY }); }}
+        />
+      )}
+      {showNewTag && (
+        <NewTagDialog
+          categories={taxonomy?.categories ?? []}
+          presetCategoryId={null}
+          onClose={() => setShowNewTag(false)}
+          onSaved={() => { setShowNewTag(false); qc.invalidateQueries({ queryKey: TAXONOMY_QUERY_KEY }); }}
+        />
+      )}
+
 
       {!hideSearch && (
         <PlaceAutocomplete
