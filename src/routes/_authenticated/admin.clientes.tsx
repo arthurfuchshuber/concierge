@@ -1,13 +1,15 @@
-import { createFileRoute, redirect } from "@tanstack/react-router";
+import { createFileRoute, redirect, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useMemo, useState } from "react";
 import {
   adminListCustomers,
   adminUpdateSubscription,
+  adminListUserProperties,
   checkIsAdmin,
   type AdminCustomerRow,
 } from "@/lib/admin-subs.functions";
+
 import {
   adminCreateEnterpriseSubscription,
   adminAnchorSubscriptionToDay1,
@@ -174,14 +176,18 @@ function ClientesPage() {
                             <div className="font-medium truncate text-[15px] leading-tight">{c.fullName ?? "—"}</div>
                             <div className="text-[11px] text-muted-foreground truncate">{c.email ?? "—"}</div>
                           </div>
-                          <button
-                            type="button"
-                            onClick={() => setEditing(c)}
-                            className="shrink-0 size-8 grid place-items-center rounded-full border border-border hover:bg-secondary text-muted-foreground hover:text-foreground transition"
-                            aria-label="Editar cliente"
-                          >
-                            <Pencil className="size-3.5" />
-                          </button>
+                          <div className="shrink-0 flex items-center gap-1">
+                            <OpenGuidesButton userId={c.userId} email={c.email} />
+                            <button
+                              type="button"
+                              onClick={() => setEditing(c)}
+                              className="size-8 grid place-items-center rounded-full border border-border hover:bg-secondary text-muted-foreground hover:text-foreground transition"
+                              aria-label="Editar cliente"
+                            >
+                              <Pencil className="size-3.5" />
+                            </button>
+                          </div>
+
                         </div>
                         <div className="mt-2 flex flex-wrap items-center gap-1.5">
                           {planName ? (
@@ -334,15 +340,19 @@ function ClientesPage() {
                           </div>
                         </td>
                         <td className="px-5 py-4 text-right">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="rounded-full"
-                            onClick={() => setEditing(c)}
-                          >
-                            <Pencil className="size-3 mr-1" /> Editar
-                          </Button>
+                          <div className="inline-flex items-center gap-1.5">
+                            <OpenGuidesButton userId={c.userId} email={c.email} />
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="rounded-full"
+                              onClick={() => setEditing(c)}
+                            >
+                              <Pencil className="size-3 mr-1" /> Editar
+                            </Button>
+                          </div>
                         </td>
+
                       </tr>
                     );
                   })}
@@ -789,5 +799,73 @@ function EnterpriseSection({
         </div>
       )}
     </div>
+  );
+}
+
+function OpenGuidesButton({ userId, email }: { userId: string; email: string | null }) {
+  const [open, setOpen] = useState(false);
+  const listFn = useServerFn(adminListUserProperties);
+  const q = useQuery({
+    queryKey: ["admin-user-properties", userId],
+    queryFn: () => listFn({ data: { userId } }),
+    enabled: open,
+  });
+  const props = q.data?.properties ?? [];
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="size-8 grid place-items-center rounded-full border border-border hover:bg-secondary text-muted-foreground hover:text-foreground transition"
+        aria-label="Acessar guias do cliente"
+        title="Acessar guias do cliente"
+      >
+        <Shield className="size-3.5" />
+      </button>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Acessar guias do cliente</DialogTitle>
+            <DialogDescription>
+              {email ?? "Cliente"} — você acessará o painel como admin (todas as alterações ficam vinculadas ao cliente).
+            </DialogDescription>
+          </DialogHeader>
+          {q.isLoading ? (
+            <div className="py-6 text-center text-xs text-muted-foreground">
+              <Loader2 className="size-4 animate-spin inline" /> Carregando…
+            </div>
+          ) : props.length === 0 ? (
+            <p className="py-6 text-center text-sm text-muted-foreground">Este cliente ainda não tem guias.</p>
+          ) : (
+            <ul className="space-y-2 max-h-96 overflow-y-auto">
+              {props.map((p) => (
+                <li key={p.id}>
+                  <Link
+                    to="/admin/properties/$id"
+                    params={{ id: p.id }}
+                    onClick={() => setOpen(false)}
+                    className="flex items-center gap-3 rounded-xl border border-border/60 bg-card p-3 hover:border-border hover:bg-secondary/30 transition"
+                  >
+                    {p.hero_image_url ? (
+                      <img src={p.hero_image_url} alt="" className="size-10 rounded-lg object-cover" />
+                    ) : (
+                      <div className="size-10 rounded-lg bg-secondary grid place-items-center text-muted-foreground">
+                        <Shield className="size-4" />
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-medium truncate">{p.name ?? "Guia sem nome"}</div>
+                      <div className="text-[11px] text-muted-foreground truncate">
+                        {p.city ?? "—"} · {p.published ? "Publicado" : "Rascunho"}
+                      </div>
+                    </div>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
