@@ -1,8 +1,8 @@
 import { createFileRoute, notFound, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { getPublicGuide, submitPin } from "@/lib/guide.functions";
+import { getPublicGuide, submitPin, submitAccessPin } from "@/lib/guide.functions";
 import { trackGuideEvent } from "@/lib/guide-analytics.functions";
 import { useI18n } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
@@ -199,10 +199,18 @@ function Lockable({ locked, children }: { locked: boolean; children: React.React
 
 function Guide({ data }: { data: GuideOk }) {
 
-  const p = data.property as Record<string, any>;
+  const baseProp = data.property as Record<string, any>;
+  const [revealedCodes, setRevealedCodes] = useState<{ wifi_password?: string | null; lock_code?: string | null; gate_code?: string | null }>({});
+  const p = useMemo(() => {
+    if (!revealedCodes || (revealedCodes.wifi_password == null && revealedCodes.lock_code == null && revealedCodes.gate_code == null)) {
+      return baseProp;
+    }
+    return { ...baseProp, ...revealedCodes };
+  }, [baseProp, revealedCodes]);
   const { slug } = Route.useParams();
   const [section, setSection] = useState<Section>("home");
   const trackEvent = useServerFn(trackGuideEvent);
+
 
   function gotoSection(s: Section) {
     setSection(s);
@@ -259,18 +267,23 @@ function Guide({ data }: { data: GuideOk }) {
     return Date.now() > start + 10 * 24 * 60 * 60 * 1000;
   })();
 
-  // Shared "access PIN unlock" state — once unlocked, all gated codes/Wi-Fi reveal
-  const accessPin = ((p.access_codes_pin as string | null) ?? "").trim();
-  const [unlocked, setUnlocked] = useState(false);
+  // Shared "access PIN unlock" state — once unlocked, all gated codes/Wi-Fi reveal.
+  // The actual PIN never reaches the browser; only the boolean flags do.
+  const hasAccessPin = !!(p as any).hasAccessPin;
+  const initialUnlocked = !!(p as any).accessUnlocked;
+  const [unlocked, setUnlocked] = useState(initialUnlocked);
+
+
   const [pinDialog, setPinDialog] = useState<{ open: boolean; cb: (() => void) | null }>({ open: false, cb: null });
   const requestUnlock = (cb?: () => void) => {
-    if (!accessPin || unlocked) {
+    if (!hasAccessPin || unlocked) {
       if (!unlocked) setUnlocked(true);
       cb?.();
       return;
     }
     setPinDialog({ open: true, cb: cb ?? null });
   };
+
 
   // Theme: admin default, override per-visitor via localStorage
   const adminTheme: "dark" | "light" = p.guide_theme === "light" ? "light" : "dark";
@@ -791,7 +804,7 @@ function Guide({ data }: { data: GuideOk }) {
                                 media={gateMedia}
                                 unlocked={unlocked}
                                 requestUnlock={requestUnlock}
-                                hasPin={!!accessPin}
+                                hasPin={hasAccessPin}
                               />
                             )}
                             {p.lock_code && (
@@ -804,7 +817,7 @@ function Guide({ data }: { data: GuideOk }) {
                                 media={lockMedia}
                                 unlocked={unlocked}
                                 requestUnlock={requestUnlock}
-                                hasPin={!!accessPin}
+                                hasPin={hasAccessPin}
                               />
                             )}
                           </div>
@@ -829,7 +842,7 @@ function Guide({ data }: { data: GuideOk }) {
                                 value={p.wifi_password}
                                 unlocked={unlocked}
                                 requestUnlock={requestUnlock}
-                                hasPin={!!accessPin}
+                                hasPin={hasAccessPin}
                               />
                             </Lockable>
                           )}
@@ -1107,15 +1120,17 @@ function Guide({ data }: { data: GuideOk }) {
       {data.aiEnabled ? <GuideAiChat slug={slug} propertyName={heroTitle} guestName={accessRec?.name ?? null} /> : null}
       <PinDialog
         open={pinDialog.open}
-        accessPin={accessPin}
+        slug={slug}
         onOpenChange={(o) => setPinDialog((s) => ({ ...s, open: o }))}
-        onSuccess={() => {
+        onSuccess={(codes) => {
           setUnlocked(true);
+          if (codes) setRevealedCodes(codes);
           const cb = pinDialog.cb;
           setPinDialog({ open: false, cb: null });
           cb?.();
         }}
       />
+
     </div>
   );
 }
@@ -2215,24 +2230,40 @@ function AccessCodesStrip({
 function PinDialog({
   open,
   onOpenChange,
-  accessPin,
+  slug,
   onSuccess,
 }: {
   open: boolean;
   onOpenChange: (o: boolean) => void;
-  accessPin: string;
-  onSuccess: () => void;
+  slug: string;
+  onSuccess: (codes?: { wifi_password?: string | null; lock_code?: string | null; gate_code?: string | null }) => void;
 }) {
   const [value, setValue] = useState("");
-  function submit(e: React.FormEvent) {
+  const [submitting, setSubmitting] = useState(false);
+  const submitFn = useServerFn(submitAccessPin);
+  async function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (value.trim() === accessPin) {
-      setValue("");
-      onSuccess();
-    } else {
-      toast.error("Senha incorreta. Confira com o anfitrião.");
+    if (!value.trim() || submitting) return;
+    setSubmitting(true);
+    try {
+      const res = await submitFn({ data: { slug, pin: value.trim() } });
+      if (res?.ok) {
+        setValue("");
+        onSuccess({
+          wifi_password: res.wifi_password,
+          lock_code: res.lock_code,
+          gate_code: res.gate_code,
+        });
+      } else {
+        toast.error("Senha incorreta. Confira com o anfitrião.");
+      }
+    } catch {
+      toast.error("Não foi possível validar a senha. Tente novamente.");
+    } finally {
+      setSubmitting(false);
     }
   }
+
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) setValue(""); onOpenChange(o); }}>
       <DialogContent className="max-w-sm">
