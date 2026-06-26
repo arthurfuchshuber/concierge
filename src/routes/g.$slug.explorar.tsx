@@ -848,27 +848,29 @@ function CategoryDetail({
 
   return (
     <>
-      {/* Linha 1: ordenação + filtros de proximidade */}
-      <div className="flex items-center gap-3 flex-wrap">
-        <SortBar sortBy={sortBy} setSortBy={setSortBy} />
-        <div className="ml-auto">
-          <ProximityFilters
+      {/* Barra única sticky de busca + filtros + view toggle */}
+      <div className="sticky top-0 z-10 -mx-4 px-4 py-2 bg-background/85 backdrop-blur border-b border-border/40">
+        <div className="flex items-center gap-2">
+          <div className="flex-1 min-w-0">
+            <SearchBar value={query} onChange={setQuery} />
+          </div>
+          <FilterSheetButton
+            sortBy={sortBy}
+            setSortBy={setSortBy}
+            minReviews={minReviews}
+            setMinReviews={setMinReviews}
             showNear={showNear}
             setShowNear={setShowNear}
             showRefs={showRefs}
             setShowRefs={setShowRefs}
-            nearCount={nearCount}
-            refsCount={refsCount}
+            showSort
+            showProximity={nearCount > 0 || refsCount > 0}
+            proximityCounts={{ near: nearCount, refs: refsCount }}
+            reviewOptions={computeReviewOptions(allItems)}
           />
+          <ViewToggle viewMode={viewMode} setViewMode={setViewMode} />
         </div>
       </div>
-      {/* Linha 2: avaliações + view toggle à direita */}
-      <div className="flex items-center justify-between gap-3 flex-wrap mt-3">
-        <MinReviewsFilter value={minReviews} onChange={setMinReviews} items={allItems} />
-        <ViewToggle viewMode={viewMode} setViewMode={setViewMode} />
-      </div>
-      {/* Linha 3: busca livre */}
-      <SearchBar value={query} onChange={setQuery} />
 
       <div className="mt-5">
         {sorted.length === 0 ? (
