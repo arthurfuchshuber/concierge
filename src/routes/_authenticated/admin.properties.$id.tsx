@@ -2389,6 +2389,12 @@ function RecGroup({
   const [openCat, setOpenCat] = useState<string | null>(null);
   const [selectedIdx, setSelectedIdx] = useState<Set<number>>(new Set());
   const [filterQuery, setFilterQuery] = useState("");
+  const [showNewCat, setShowNewCat] = useState(false);
+  const [showNewTag, setShowNewTag] = useState(false);
+  const [dragCat, setDragCat] = useState<string | null>(null);
+  const [dragOverCat, setDragOverCat] = useState<string | null>(null);
+  const qc = useQueryClient();
+  const reorderFn = useServerFn(reorderPoiCategories);
   const norm = (s: string) =>
     s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
   const filterActive = filterQuery.trim().length > 0;
@@ -2409,17 +2415,49 @@ function RecGroup({
   // Sem limite por subcategoria — usuário pode adicionar quantos pontos quiser.
   const groups = new Map<string, { items: RecItem[]; indices: number[] }>();
   items.forEach((it, idx) => {
-    // Resolve categoria do item dinamicamente pela tag atual; fallback ao
-    // category salvo; por fim, "Outros". Isso garante que mudar a tag inline
-    // move o item de grupo imediatamente, sem refresh.
-    // Prioriza category override (permite mover sem mexer na tag oficial do Google).
     const key = it.category || tagToCategoryLabel.get(it.type) || "Outros";
     const g = groups.get(key) ?? { items: [], indices: [] };
     g.items.push(it);
     g.indices.push(idx);
     groups.set(key, g);
   });
-  const groupEntries = Array.from(groups.entries()).sort((a, b) => a[0].localeCompare(b[0]));
+  // Ordena pelos display_order da taxonomia; categorias órfãs vão para o fim.
+  const orderByLabel = React.useMemo(() => {
+    const m = new Map<string, number>();
+    (taxonomy?.categories ?? []).forEach((c) => m.set(c.label, c.display_order ?? 9999));
+    return m;
+  }, [taxonomy]);
+  const groupEntries = Array.from(groups.entries()).sort((a, b) => {
+    const oa = orderByLabel.get(a[0]) ?? 99999;
+    const ob = orderByLabel.get(b[0]) ?? 99999;
+    if (oa !== ob) return oa - ob;
+    return a[0].localeCompare(b[0]);
+  });
+
+  async function handleDropOnCat(targetLabel: string) {
+    if (!dragCat || dragCat === targetLabel) {
+      setDragCat(null); setDragOverCat(null); return;
+    }
+    const labels = groupEntries.map(([l]) => l);
+    const from = labels.indexOf(dragCat);
+    const to = labels.indexOf(targetLabel);
+    if (from < 0 || to < 0) { setDragCat(null); setDragOverCat(null); return; }
+    const next = labels.slice();
+    next.splice(to, 0, next.splice(from, 1)[0]);
+    setDragCat(null); setDragOverCat(null);
+    // Converte labels → ids da taxonomia (ignora órfãs que não existem).
+    const ids = next
+      .map((lbl) => (taxonomy?.categories ?? []).find((c) => c.label === lbl)?.id)
+      .filter((x): x is string => !!x);
+    if (ids.length < 2) return;
+    try {
+      await reorderFn({ data: { ordered_ids: ids } });
+      qc.invalidateQueries({ queryKey: TAXONOMY_QUERY_KEY });
+    } catch (e) {
+      toast.error(friendlyErrorMessage(e));
+    }
+  }
+
 
   const existingPlaceIds = new Set(
     items.map((i) => i.place_id).filter((x): x is string => !!x),
