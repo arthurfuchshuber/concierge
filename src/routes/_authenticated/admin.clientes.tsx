@@ -336,15 +336,19 @@ function ClientesPage() {
                           </div>
                         </td>
                         <td className="px-5 py-4 text-right">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="rounded-full"
-                            onClick={() => setEditing(c)}
-                          >
-                            <Pencil className="size-3 mr-1" /> Editar
-                          </Button>
+                          <div className="inline-flex items-center gap-1.5">
+                            <OpenGuidesButton userId={c.userId} email={c.email} />
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="rounded-full"
+                              onClick={() => setEditing(c)}
+                            >
+                              <Pencil className="size-3 mr-1" /> Editar
+                            </Button>
+                          </div>
                         </td>
+
                       </tr>
                     );
                   })}
