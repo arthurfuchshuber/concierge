@@ -801,3 +801,71 @@ function EnterpriseSection({
     </div>
   );
 }
+
+function OpenGuidesButton({ userId, email }: { userId: string; email: string | null }) {
+  const [open, setOpen] = useState(false);
+  const listFn = useServerFn(adminListUserProperties);
+  const q = useQuery({
+    queryKey: ["admin-user-properties", userId],
+    queryFn: () => listFn({ data: { userId } }),
+    enabled: open,
+  });
+  const props = q.data?.properties ?? [];
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="size-8 grid place-items-center rounded-full border border-border hover:bg-secondary text-muted-foreground hover:text-foreground transition"
+        aria-label="Acessar guias do cliente"
+        title="Acessar guias do cliente"
+      >
+        <Shield className="size-3.5" />
+      </button>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Acessar guias do cliente</DialogTitle>
+            <DialogDescription>
+              {email ?? "Cliente"} — você acessará o painel como admin (todas as alterações ficam vinculadas ao cliente).
+            </DialogDescription>
+          </DialogHeader>
+          {q.isLoading ? (
+            <div className="py-6 text-center text-xs text-muted-foreground">
+              <Loader2 className="size-4 animate-spin inline" /> Carregando…
+            </div>
+          ) : props.length === 0 ? (
+            <p className="py-6 text-center text-sm text-muted-foreground">Este cliente ainda não tem guias.</p>
+          ) : (
+            <ul className="space-y-2 max-h-96 overflow-y-auto">
+              {props.map((p) => (
+                <li key={p.id}>
+                  <Link
+                    to="/admin/properties/$id"
+                    params={{ id: p.id }}
+                    onClick={() => setOpen(false)}
+                    className="flex items-center gap-3 rounded-xl border border-border/60 bg-card p-3 hover:border-border hover:bg-secondary/30 transition"
+                  >
+                    {p.hero_image_url ? (
+                      <img src={p.hero_image_url} alt="" className="size-10 rounded-lg object-cover" />
+                    ) : (
+                      <div className="size-10 rounded-lg bg-secondary grid place-items-center text-muted-foreground">
+                        <Shield className="size-4" />
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-medium truncate">{p.name ?? "Guia sem nome"}</div>
+                      <div className="text-[11px] text-muted-foreground truncate">
+                        {p.city ?? "—"} · {p.published ? "Publicado" : "Rascunho"}
+                      </div>
+                    </div>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
