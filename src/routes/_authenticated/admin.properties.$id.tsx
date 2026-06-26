@@ -2281,6 +2281,7 @@ function RecGroup({
   onGenerate,
   generating,
   headerExtra,
+  hideSearch,
 }: {
   title: string;
   desc: string;
@@ -2293,6 +2294,7 @@ function RecGroup({
   onGenerate?: () => void;
   generating?: boolean;
   headerExtra?: React.ReactNode;
+  hideSearch?: boolean;
 }) {
   const [openCat, setOpenCat] = useState<string | null>(null);
   const [selectedIdx, setSelectedIdx] = useState<Set<number>>(new Set());
