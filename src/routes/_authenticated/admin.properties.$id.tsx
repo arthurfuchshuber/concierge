@@ -2373,9 +2373,35 @@ function RecGroup({
           </button>
         )}
         {selectedIdx.size > 0 && (
-          <Button size="sm" variant="destructive" onClick={() => setConfirmDeleteOpen(true)} className="h-8 rounded-full text-xs">
-            <Trash2 className="size-3.5" /> Excluir ({selectedIdx.size})
-          </Button>
+          <>
+            <Button size="sm" variant="destructive" onClick={() => setConfirmDeleteOpen(true)} className="h-8 rounded-full text-xs">
+              <Trash2 className="size-3.5" /> Excluir ({selectedIdx.size})
+            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button size="sm" variant="outline" className="h-8 rounded-full text-xs">
+                  <MoveRight className="size-3.5" /> Mover ({selectedIdx.size})
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="max-h-72 overflow-y-auto">
+                <DropdownMenuLabel className="text-[10px] uppercase">Mover para categoria</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {(taxonomy?.categories ?? []).map((c) => (
+                  <DropdownMenuItem
+                    key={c.id}
+                    onClick={() => {
+                      const next = items.map((it, i) => selectedIdx.has(i) ? { ...it, category: c.label } : it);
+                      onChange(next);
+                      setSelectedIdx(new Set());
+                      toast.success(`Movidos para "${c.label}"`);
+                    }}
+                  >
+                    {c.label}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </>
         )}
         <AlertDialog open={confirmDeleteOpen} onOpenChange={setConfirmDeleteOpen}>
           <AlertDialogContent>
