@@ -122,6 +122,13 @@ function hasMeaningfulInfo(r: Rec): boolean {
   return !!(r.name && (r.image_url || r.rating || r.distance_text || r.distance_meters || r.note));
 }
 
+// "Pertinho" — top-level helper, usado nos cards para destaque visual.
+function isPertinhoRec(r: Rec): boolean {
+  if (typeof r.distance_meters === "number" && r.distance_meters > 0 && r.distance_meters <= 1500) return true;
+  if (typeof r.walk_minutes === "number" && r.walk_minutes > 0 && r.walk_minutes <= 20) return true;
+  return false;
+}
+
 function formatWalking(r: Rec): string | null {
   const mins =
     r.walk_minutes != null && r.walk_minutes > 0
