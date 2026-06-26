@@ -844,14 +844,16 @@ function CategoryDetail({
       {/* Linha 1: ordenação + filtros de proximidade */}
       <div className="flex items-center gap-3 flex-wrap">
         <SortBar sortBy={sortBy} setSortBy={setSortBy} />
-        <ProximityFilters
-          showNear={showNear}
-          setShowNear={setShowNear}
-          showRefs={showRefs}
-          setShowRefs={setShowRefs}
-          nearCount={nearCount}
-          refsCount={refsCount}
-        />
+        <div className="ml-auto">
+          <ProximityFilters
+            showNear={showNear}
+            setShowNear={setShowNear}
+            showRefs={showRefs}
+            setShowRefs={setShowRefs}
+            nearCount={nearCount}
+            refsCount={refsCount}
+          />
+        </div>
       </div>
       {/* Linha 2: avaliações + view toggle à direita */}
       <div className="flex items-center justify-between gap-3 flex-wrap mt-3">
