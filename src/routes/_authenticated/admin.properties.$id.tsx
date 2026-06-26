@@ -378,6 +378,7 @@ function PropertyEditor() {
               city_label: cityForGeneration,
               state: (r.state || form.property.state || "").trim() || null,
               country: (r.country || form.property.country || "BR").trim() || "BR",
+              propertyId: id,
             },
           });
           cityGenCount = (result.inserted ?? 0) + (result.updated ?? 0);
