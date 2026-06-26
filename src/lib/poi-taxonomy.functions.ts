@@ -309,3 +309,60 @@ export const deletePoiTag = createServerFn({ method: "POST" })
     invalidateTaxonomyCache();
     return { ok: true };
   });
+
+// ---- Merge categories ----
+const MergeSchema = z.object({
+  category_ids: z.array(z.string().uuid()).min(2),
+  new_label: z.string().min(1).max(120).optional(),
+});
+export const mergePoiCategories = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => MergeSchema.parse(i))
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context);
+    const { data: cats, error: catErr } = await context.supabase
+      .from("poi_categories")
+      .select("id, label, slug, is_protected, display_order")
+      .in("id", data.category_ids);
+    if (catErr) throw new Error(catErr.message);
+    if (!cats || cats.length < 2) throw new Error("Selecione ao menos 2 categorias.");
+
+    // Primária: a protegida (se houver) tem prioridade — caso contrário, a de menor display_order.
+    const sorted = [...cats].sort((a, b) => {
+      if (a.is_protected !== b.is_protected) return a.is_protected ? -1 : 1;
+      return (a.display_order ?? 0) - (b.display_order ?? 0);
+    });
+    const primary = sorted[0];
+    const absorbed = sorted.slice(1);
+
+    // Se houver alguma protegida entre as absorvidas, recusa — protegidas não podem desaparecer.
+    if (absorbed.some((c) => c.is_protected)) {
+      throw new Error("Categorias padrão não podem ser absorvidas. Use-as como categoria principal.");
+    }
+
+    const newLabel = (data.new_label?.trim()) || cats.map((c) => c.label).join(", ");
+
+    // 1. move tags absorvidas para a primária
+    const { error: tagErr } = await context.supabase
+      .from("poi_tags")
+      .update({ category_id: primary.id })
+      .in("category_id", absorbed.map((c) => c.id));
+    if (tagErr) throw new Error(tagErr.message);
+
+    // 2. atualiza label da primária
+    const { error: lblErr } = await context.supabase
+      .from("poi_categories")
+      .update({ label: newLabel })
+      .eq("id", primary.id);
+    if (lblErr) throw new Error(lblErr.message);
+
+    // 3. apaga as absorvidas
+    const { error: delErr } = await context.supabase
+      .from("poi_categories")
+      .delete()
+      .in("id", absorbed.map((c) => c.id));
+    if (delErr) throw new Error(delErr.message);
+
+    invalidateTaxonomyCache();
+    return { ok: true, primary_id: primary.id, absorbed: absorbed.length, label: newLabel };
+  });
