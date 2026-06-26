@@ -1563,8 +1563,8 @@ function PropertyEditor() {
               <EmptyHint text="Ex: posso fumar? tem estacionamento? aceita pets?" />
             ) : form.faqs.map((m, i) => {
               const FAQ_TAGS: { value: "chegada" | "saida" | "residencia" | "explore"; label: string }[] = [
-                { value: "chegada", label: "Chegada" },
-                { value: "saida", label: "Saída" },
+                { value: "chegada", label: "Chegada (Check-In)" },
+                { value: "saida", label: "Saída (Check-Out)" },
                 { value: "residencia", label: "Residência" },
                 { value: "explore", label: "Explore" },
               ];
