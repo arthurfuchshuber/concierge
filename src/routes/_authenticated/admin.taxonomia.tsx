@@ -111,15 +111,20 @@ function TaxonomyPage() {
             return (
               <div key={cat.id} className="rounded-xl border border-border/60 overflow-hidden">
                 <div className="flex items-center gap-2 px-3.5 py-2.5 bg-muted/20">
+                  <Checkbox
+                    checked={selectedCats.has(cat.id)}
+                    onCheckedChange={() => toggleSel(cat.id)}
+                    aria-label={`Selecionar ${cat.label}`}
+                  />
                   <button
                     type="button"
                     onClick={() => setOpenCats((s) => ({ ...s, [cat.id]: !open }))}
-                    className="flex-1 flex items-center gap-2 text-left"
+                    className="flex-1 flex items-center gap-2 text-left min-w-0"
                   >
                     <ChevronDown className={`size-4 text-muted-foreground transition-transform ${open ? "" : "-rotate-90"}`} />
-                    <span className="text-sm font-medium">{cat.label}</span>
-                    {cat.is_protected && <Lock className="size-3 text-muted-foreground/60" />}
-                    <span className="text-[11px] text-muted-foreground">({tags.length})</span>
+                    <span className="text-sm font-medium truncate">{cat.label}</span>
+                    {cat.is_protected && <Lock className="size-3 text-muted-foreground/60 shrink-0" />}
+                    <span className="text-[11px] text-muted-foreground shrink-0">({tags.length})</span>
                   </button>
                   <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={() => setEditCat(cat)}>
                     <Pencil className="size-3" />
