@@ -290,7 +290,7 @@ export async function runCityGeneration(input: {
       else if (scopeProperty) insertPayload.property_id = scopeProperty;
       const { error } = await supabaseAdmin
         .from("city_references")
-        .insert(insertPayload);
+        .insert(insertPayload as never);
       if (error) {
         failed += 1;
         if (!message) message = error.message;
