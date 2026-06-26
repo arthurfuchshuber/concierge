@@ -134,7 +134,7 @@ function Hero() {
     <section ref={ref} className="relative pt-28 md:pt-36 pb-16 md:pb-28 px-5">
       {/* Editorial corner marks */}
       <div className="pointer-events-none absolute inset-0 max-w-6xl mx-auto">
-        <div className="absolute top-24 left-5 right-5 flex justify-between text-[10px] uppercase tracking-[0.3em] text-muted-foreground/60 font-mono">
+        <div className="absolute top-24 left-5 right-5 flex justify-between text-[10px] uppercase tracking-[0.3em] text-muted-foreground font-mono">
           <span>№ 01</span>
           <span>2026 — Edição Beta</span>
         </div>
@@ -222,7 +222,7 @@ function Hero() {
               <ArrowUpRight className="size-3.5" />
             </a>
           </div>
-          <p className="text-[11px] text-muted-foreground/70 mt-5 uppercase tracking-[0.18em]">
+          <p className="text-[11px] text-muted-foreground mt-5 uppercase tracking-[0.18em]">
             Gratuito durante o beta · sem cartão
           </p>
         </motion.div>
@@ -351,7 +351,7 @@ function HowItWorks() {
         <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground font-semibold">
           Capítulo 01 — Como funciona
         </p>
-        <span className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground/60 font-mono">
+        <span className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground font-mono">
           Três passos
         </span>
       </div>
@@ -390,7 +390,7 @@ function DemoSection() {
           <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground font-semibold">
             Capítulo 02 — A mágica
           </p>
-          <span className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground/60 font-mono">
+          <span className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground font-mono">
             Demo
           </span>
         </div>
@@ -486,7 +486,7 @@ function ScopeCard({
     <div className="rounded-2xl border border-border bg-background p-6">
       <div className="flex items-baseline justify-between">
         <p className="text-[10px] uppercase tracking-[0.3em] text-accent font-semibold">{tag}</p>
-        <span className="text-[10px] font-mono text-muted-foreground/60">{items.length} itens</span>
+        <span className="text-[10px] font-mono text-muted-foreground">{items.length} itens</span>
       </div>
       <p className="font-display text-2xl mt-2">{subtitle}</p>
       <div className="mt-5 space-y-2">
@@ -544,7 +544,7 @@ function Pillars() {
         <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground font-semibold">
           Capítulo 03 — Pilares
         </p>
-        <span className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground/60 font-mono">
+        <span className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground font-mono">
           Seis decisões de design
         </span>
       </div>
@@ -568,7 +568,7 @@ function Pillars() {
                 <div className="size-10 rounded-xl bg-secondary grid place-items-center group-hover:bg-accent/10 transition-colors">
                   <Icon className="size-[18px] text-accent" strokeWidth={1.75} />
                 </div>
-                <span className="font-mono text-[10px] text-muted-foreground/60">
+                <span className="font-mono text-[10px] text-muted-foreground">
                   0{i + 1}
                 </span>
               </div>
@@ -686,7 +686,7 @@ function FinalCTA() {
             <ArrowUpRight className="size-3.5" />
           </Link>
         </div>
-        <p className="relative text-[11px] text-muted-foreground/70 mt-6 uppercase tracking-[0.18em]">
+        <p className="relative text-[11px] text-muted-foreground mt-6 uppercase tracking-[0.18em]">
           Gratuito durante o beta · sem cartão
         </p>
       </div>
@@ -726,7 +726,7 @@ function SocialProof() {
           <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground font-semibold">
             Capítulo 03b — Quem usa
           </p>
-          <span className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground/60 font-mono">
+          <span className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground font-mono">
             Anfitriões reais
           </span>
         </div>
@@ -787,7 +787,7 @@ function Footer() {
             </div>
             <span className="font-display text-sm">SigmaGuide</span>
           </div>
-          <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground/70">
+          <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground">
             Hospedagem com afeto · MMXXVI
           </p>
           <div className="flex items-center gap-4 text-xs text-muted-foreground">
