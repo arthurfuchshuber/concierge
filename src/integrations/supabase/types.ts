@@ -85,6 +85,66 @@ export type Database = {
           },
         ]
       }
+      city_reference_group_members: {
+        Row: {
+          group_id: string
+          joined_at: string
+          property_id: string
+        }
+        Insert: {
+          group_id: string
+          joined_at?: string
+          property_id: string
+        }
+        Update: {
+          group_id?: string
+          joined_at?: string
+          property_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "city_reference_group_members_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "city_reference_groups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "city_reference_group_members_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: true
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      city_reference_groups: {
+        Row: {
+          city_key: string
+          created_at: string
+          created_by: string
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          city_key: string
+          created_at?: string
+          created_by: string
+          id?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          city_key?: string
+          created_at?: string
+          created_by?: string
+          id?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       city_reference_jobs: {
         Row: {
           city_key: string
@@ -133,6 +193,7 @@ export type Database = {
           country: string
           created_at: string
           display_order: number
+          group_id: string | null
           id: string
           image_url: string | null
           is_hidden: boolean
@@ -160,6 +221,7 @@ export type Database = {
           country?: string
           created_at?: string
           display_order?: number
+          group_id?: string | null
           id?: string
           image_url?: string | null
           is_hidden?: boolean
@@ -187,6 +249,7 @@ export type Database = {
           country?: string
           created_at?: string
           display_order?: number
+          group_id?: string | null
           id?: string
           image_url?: string | null
           is_hidden?: boolean
@@ -206,7 +269,15 @@ export type Database = {
           updated_at?: string
           user_ratings_total?: number | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "city_references_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "city_reference_groups"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       guide_access_logs: {
         Row: {
@@ -1037,6 +1108,14 @@ export type Database = {
           _role: Database["public"]["Enums"]["app_role"]
           _user_id: string
         }
+        Returns: boolean
+      }
+      user_is_group_member: {
+        Args: { _group_id: string; _user_id: string }
+        Returns: boolean
+      }
+      user_owns_property_in_city: {
+        Args: { _city_key: string; _user_id: string }
         Returns: boolean
       }
     }

@@ -1,83 +1,133 @@
-# Categorias e Tags editáveis (globais)
+# Plano: Unificação de Recomendações, Vínculos entre Guias e Filtros Mobile
 
-## Conceito
+Mudanças amplas com dependências entre si. Implementação dividida em 4 frentes — backend (DB + lógica), painel admin, guia público e UX de filtros.
 
-Hoje existem dois níveis fixos hard-coded em `src/lib/maps.functions.ts` (`TYPE_MAP`):
+---
 
-- **Categoria-agrupadora** (rótulo do bloco no guia): `Atrações`, `Bares`, `Compras`, `Outros`, etc.
-- **Tag** (`type` do ponto): `attraction`, `bar`, `restaurant`, `park`, `shopping`, `other`...
+## 1. Painel admin: busca única + decisão automática + movimentação
 
-Cada tag conhece os `placesTypes` (busca) e `acceptedPrimaryTypes` (classificação) do Google — é o que faz a IA classificar corretamente.
+**Arquivo:** `src/routes/_authenticated/admin.properties.$id.tsx`
 
-O plano transforma esses dois níveis em dados editáveis no banco, **preservando** as tags-base do Google como protegidas (não excluíveis), e permitindo:
+- Remover os dois campos `PlacesSearch` separados dos quadrantes "Aqui Pertinho" e "Pela cidade".
+- Criar um **único campo de busca acima dos dois quadrantes**, fora deles.
+- Após seleção, o backend decide o destino usando as regras já existentes:
+  - **Aqui Pertinho** (`scope: 'nearby'`): ≤ 1,5 km do imóvel **ou** ≤ 20 min a pé.
+  - **Referências na Cidade** (`city_references`): demais casos, desde que rating ≥ 4.5 e ≥ 500 avaliações (regra atual).
+  - Se não atender nenhum critério → cair em Referências mesmo assim (decisão automática, sem prompt).
+- **Movimentação manual** (sobrepõe a decisão automática):
+  - Cada card ganha um botão de menu (⋯) com "Mover para [outro quadrante]".
+  - **Seleção múltipla**: checkbox em cada card + barra de ação flutuante ("Mover N itens para…", "Excluir").
+  - Mover entre quadrantes = mudar de tabela (`property_recommendations` ↔ `city_references`) preservando metadata.
 
-- Renomear categoria de qualquer tag (inclusive das tags-base).
-- Criar tags novas vinculadas a uma categoria + mapeamento Google (para a IA continuar classificando).
-- Criar/renomear/excluir categorias customizadas.
-- Excluir tags customizadas (tags-base ficam protegidas).
+**Novas server functions** em `src/lib/recommendations-move.functions.ts`:
+- `addPlaceAuto({ propertyId, placeId })` — busca dados no Google, calcula distância, decide destino, insere.
+- `moveRecommendations({ ids[], from, to })` — move itens em massa entre `property_recommendations` e `city_references`.
 
-## Estrutura de dados (2 tabelas novas globais)
+---
 
-`public.poi_categories`
-- `id`, `slug` (único), `label` (pt-BR), `display_order`, `is_protected` (boolean — categorias-base não podem ser excluídas), `created_at`, `updated_at`
+## 2. Vínculos entre guias (Referências na Cidade compartilhadas)
 
-`public.poi_tags`
-- `id`, `slug` (único — é o que vai em `recommendations.type`), `label` (pt-BR), `category_id` (FK obrigatória), `accepted_primary_types` (text[]), `places_types` (text[]), `query_variants` (text[]), `min_reviews` (int, default 150), `is_protected` (boolean), `display_order`, `created_at`, `updated_at`
+**Novo modelo de dados** (migração):
 
-Seed inicial replica o `TYPE_MAP` atual com `is_protected=true` para as 11 tags-base + categorias-base.
+```sql
+-- Grupo de guias que compartilham city_references
+CREATE TABLE public.city_reference_groups (
+  id uuid PK,
+  name text,           -- "Foz do Iguaçu — Grupo principal" (editável)
+  city_key text,       -- denormalizado p/ filtros
+  owner_id uuid,       -- criador
+  created_at, updated_at
+);
 
-RLS: leitura `TO anon, authenticated`; escrita só admin (`has_role(uid, 'admin')`).
+-- N:N entre properties e groups (uma property pertence a 0..1 grupo por enquanto)
+CREATE TABLE public.city_reference_group_members (
+  group_id uuid FK,
+  property_id uuid FK UNIQUE,  -- impede pertencer a 2 grupos
+  joined_at
+);
 
-## Mudanças no código
+-- city_references ganha group_id (nullable). Quando preenchido, a lista é do grupo.
+ALTER TABLE public.city_references ADD COLUMN group_id uuid REFERENCES city_reference_groups(id);
+```
 
-### Backend — `src/lib/maps.functions.ts` e `city-references.functions.ts`
-- Substituir `TYPE_MAP` constante por `loadTypeMap()` que lê de `poi_tags` + `poi_categories` (com cache em memória de 60s por execução, já que é serverless).
-- Funções `inferCategoryFromPrimaryType`, `classifyByPrimaryType`, geração via Gemini e ranking continuam idênticas — só passam a iterar sobre o array carregado do banco. Tags-base mantêm seu mapping → IA não muda comportamento.
-- Tags customizadas com `accepted_primary_types` preenchidos entram automaticamente na classificação. Sem mapping, ficam disponíveis só para classificação manual no dropdown.
+**Resolução de lista:**
+- Se a property pertence a um grupo → lê/escreve em `city_references WHERE group_id = X` (a coluna `city_key` deixa de ser usada para essa property).
+- Se não pertence → comportamento atual (lê por `city_key`).
+- Não há mais "lista local + compartilhada" misturada. Pertencer ao grupo = lista única do grupo.
 
-### Frontend — guia público (`g.$slug.explorar.tsx`)
-- `TYPE_LABEL` e cores deixam de ser objeto literal: server fn `getPoiTaxonomy()` (público, anon) devolve `{ tags: [{slug,label,categoryLabel,color}], categories: [...] }`.
-- Render usa `tag.label` (já capitalizado).
+**UI no quadrante "Referências na Cidade":**
+- Botão no topo: **"Linkar demais guias"**.
+- Modal com 3 abas:
+  1. **Guias vinculados** (atuais, com botão remover).
+  2. **Adicionar guias** (busca por nome/cidade, multi-select, "Adicionar todos da cidade X").
+  3. **Sair do grupo** (a property fica sem grupo, lista volta a ser por city_key).
+- Qualquer membro pode editar, adicionar, remover, reordenar — sem conceito de "dono".
+- Realtime: `useCityReferencesRealtime` passa a escutar por `group_id` quando aplicável.
 
-### Frontend — painel admin (card "Pela cidade" em `admin.properties.$id.tsx` + `admin.cidades.$cityKey.tsx`)
-- Dropdown de tag passa a listar tags do banco, agrupadas por categoria.
-- Cabeçalho de cada categoria-agrupadora (`Atrações (10/30)`) ganha um pequeno ícone de lápis ao lado do nome → abre popover inline para renomear (categorias-base só permitem renomear, não excluir).
-- Dentro do dropdown de tags, cada item ganha mini-ícone de lápis ao lado (hover); abre popover para renomear. Tags customizadas têm também ícone de lixeira.
-- Botão `+ Nova tag` no rodapé do dropdown → modal com: nome, categoria (select), mapping Google avançado (collapsible: primary types + places types + query variants + min reviews). Defaults sensatos para usuário leigo.
-- Botão `+ Nova categoria` no topo da lista do dropdown → input inline.
+**Migração de dados:** properties existentes ficam sem grupo (comportamento atual preservado por `city_key`).
 
-### Página dedicada de gestão (acessível, mas não obrigatória no fluxo)
-- Nova rota `_authenticated/admin.taxonomia.tsx` (item no sidebar "Admin SaaS" → "Categorias & Tags") com visão tabular completa: lista de categorias, expandindo para tags-filhas, com edição inline + drag-to-reorder. Para quem prefere editar fora do fluxo de ponto.
+---
 
-## Decisão visual (anti-poluição)
+## 3. Unificação de categorias
 
-- Ícone de edição: lápis 12px, `opacity-0 group-hover:opacity-60`, só aparece ao hover do item. Zero ruído no estado padrão.
-- Edição é sempre **inline** (popover ou input que substitui o label), nunca abre página/modal pesado para renomear.
-- Modal só para "criar tag nova" (precisa do mapping Google) e "criar categoria nova".
-- Categorias-base e tags-base têm um cadeado discreto no popover de edição explicando "Esta é uma tag padrão — você pode renomear ou mudar a categoria, mas não excluir, porque a IA usa para classificar pontos do Google."
+**Nova server fn** `mergePoiCategories({ categoryIds[] })` em `src/lib/poi-taxonomy.functions.ts`:
+- Cria uma nova categoria com nome `"Restaurantes, Bares"` (join dos nomes por `, `).
+- Move todas as tags das categorias originais para a nova.
+- Re-aponta `property_recommendations.type` e `city_references.type` para a nova categoria.
+- Deleta as categorias originais (não-protegidas).
+- Nome continua editável inline (`updatePoiCategory`).
 
-## Migração e compatibilidade
+**UI em `/admin/taxonomia`:**
+- Checkboxes nas categorias + botão "Unificar selecionadas" (≥ 2).
+- Confirmação com preview do nome resultante.
 
-- Dados existentes em `city_references.type` e `property_recommendations.type` continuam funcionando: os slugs são os mesmos do `TYPE_MAP` atual.
-- Renomear o `label` de uma tag-base afeta apenas exibição; o `slug` (`attraction`, `bar`...) é imutável para tags protegidas.
+---
 
-## Arquivos afetados
+## 4. Cron: atualizar TUDO, exceto nome
 
-- **Novo**: `supabase/migrations/<ts>_poi_taxonomy.sql` (2 tabelas + seed + RLS + grants)
-- **Novo**: `src/lib/poi-taxonomy.functions.ts` (CRUD + `getPoiTaxonomy` público)
-- **Novo**: `src/components/admin/TaxonomyManager.tsx` (página dedicada)
-- **Novo**: `src/components/admin/TagPicker.tsx` (dropdown com edição inline, substitui o `<select>` atual)
-- **Novo rota**: `src/routes/_authenticated/admin.taxonomia.tsx`
-- **Editado**: `src/lib/maps.functions.ts` (TYPE_MAP → loadTypeMap)
-- **Editado**: `src/lib/city-references.functions.ts`
-- **Editado**: `src/routes/g.$slug.explorar.tsx` (taxonomy via server fn)
-- **Editado**: `src/routes/_authenticated/admin.properties.$id.tsx` e `admin.cidades.$cityKey.tsx` (usar TagPicker)
-- **Editado**: `src/routes/_authenticated/admin.tsx` (item de menu)
+**Arquivo:** `src/lib/maps.functions.ts` (`refreshStaleRecommendations`, `refreshStaleCityReferencesByPlaceId`).
 
-## O que NÃO muda
+- Remover a janela de `last_synced_at` (passa a atualizar **todos** os registros com `place_id`).
+- O cron agenda em lotes (chunks de N por execução, paginação por `last_synced_at` asc) para caber no orçamento de 50 s.
+- **Nunca sobrescrever `name`** — remover esse campo do `UPDATE` payload em ambos os refreshers.
+- Demais campos (rating, reviews count, hours, image, address, coords) seguem atualizando.
 
-- Lógica de geração por IA (prompts, dedupe, ranking) — só a fonte do `TYPE_MAP` muda.
-- Estrutura de `city_references` e `property_recommendations`.
-- Real-time de sincronização entre guias.
+---
 
-Aprovado? Sigo com a migration primeiro, depois código.
+## 5. Filtros mobile — redesign completo
+
+**Problema atual:** 3 linhas de chips empilhados (ordenação, proximidade, avaliações + toggle de view) ocupam ~200 px verticais no mobile.
+
+**Nova proposta:**
+- **Barra única sticky** no topo da listagem com:
+  - Campo de busca (já existe) à esquerda.
+  - Botão **"Filtros"** à direita com badge de contagem ativa (ex: "Filtros · 2").
+  - Toggle grid/lista compacto ao lado.
+- Clicar em "Filtros" abre um **bottom sheet** (mobile) / **popover** (desktop) contendo:
+  - Ordenação (Distância / Avaliação / A-Z) — segmented control.
+  - Mínimo de avaliações (Todas, 50+, 200+, 1k+, 5k+) — chips em grid.
+  - Proximidade (Pertinho / Referências na Cidade) — toggles.
+  - Botão "Limpar filtros" + "Aplicar".
+- **Chip de filtros ativos** abaixo da barra (removível individualmente) quando há filtros aplicados — feedback rápido sem precisar reabrir o sheet.
+- Aplicado de forma idêntica em `/g/$slug/explorar` (categoria) e na home `Explore a Região`.
+
+**Componente novo:** `src/components/guide/FilterSheet.tsx` — reutilizado nas duas telas.
+
+---
+
+## Ordem de execução
+
+1. Migração DB (grupos + `group_id` em city_references).
+2. Server functions: `addPlaceAuto`, `moveRecommendations`, `mergePoiCategories`, grupos CRUD.
+3. Refactor cron (remover `name` do update, remover filtro de stale).
+4. Refactor admin properties: busca única + checkbox/mover + UI de grupos.
+5. Refactor public guide: leitura via grupo + componente `FilterSheet`.
+6. Refactor `/admin/taxonomia`: unificação.
+
+## Notas técnicas
+
+- `city_references` mantém `city_key` para fallback (guias sem grupo).
+- Realtime channel name muda quando há grupo: `city-references:group:{id}` vs `city-references:{cityKey}`.
+- Autosave (3 s debounce) continua aplicável às edições de itens — não interfere nos movimentos (que são ações explícitas e imediatas).
+- Seleção múltipla persiste no estado do componente; barra de ação aparece quando `selected.size > 0`.
+- Bottom sheet usa shadcn `Drawer` no mobile e `Popover` no desktop (detecção via `useIsMobile`).
