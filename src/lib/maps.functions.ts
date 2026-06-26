@@ -137,7 +137,7 @@ async function hydrateTypeMap(): Promise<void> {
 }
 
 
-function haversineMeters(a: { lat: number; lng: number }, b: { lat: number; lng: number }) {
+export function haversineMeters(a: { lat: number; lng: number }, b: { lat: number; lng: number }) {
   const R = 6371000;
   const toRad = (n: number) => (n * Math.PI) / 180;
   const dLat = toRad(b.lat - a.lat);
@@ -148,7 +148,7 @@ function haversineMeters(a: { lat: number; lng: number }, b: { lat: number; lng:
   return Math.round(2 * R * Math.asin(Math.sqrt(h)));
 }
 
-function formatDistance(meters: number): { text: string; driveMin: number | null; walkMin: number } {
+export function formatDistance(meters: number): { text: string; driveMin: number | null; walkMin: number } {
   // 80 m/min ≈ 4.8 km/h — caminhada conservadora.
   const walkMin = Math.max(1, Math.round(meters / 80));
   if (meters < 1000) return { text: `${meters} m · ${walkMin} min a pé`, driveMin: null, walkMin };
@@ -369,7 +369,7 @@ function buildPhotoUrl(photoName: string | undefined): string | null {
 // resolução (≥1600×900, proporção 1.2-2.5). Quando há várias boas, pega a
 // de maior área — fotos profissionais/institucionais quase sempre são as
 // maiores. Evita retratos, quadrados e thumbs pequenas (fotos "ruins").
-function pickBestPlacePhoto(photos: PlacePhoto[] | undefined): string | null {
+export function pickBestPlacePhoto(photos: PlacePhoto[] | undefined): string | null {
   if (!photos || photos.length === 0) return null;
   const area = (p: PlacePhoto) => (p.widthPx ?? 0) * (p.heightPx ?? 0);
   const isGood = (p: PlacePhoto) => {
@@ -761,7 +761,7 @@ type RecRow = {
 const PLACE_DETAILS_FIELD_MASK =
   "id,displayName,location,rating,userRatingCount,googleMapsUri,photos.name,photos.widthPx,photos.heightPx,regularOpeningHours,editorialSummary,generativeSummary,primaryType,formattedAddress";
 
-async function fetchPlaceDetails(placeId: string): Promise<PlaceRaw | null> {
+export async function fetchPlaceDetails(placeId: string): Promise<PlaceRaw | null> {
   if (!placeId) return null;
   const res = await gatewayFetch(
     `/places/v1/places/${encodeURIComponent(placeId)}?languageCode=${DEFAULT_LANGUAGE}&regionCode=${DEFAULT_REGION}`,
