@@ -2629,8 +2629,23 @@ function RecGroup({
             const groupSelected = g.indices.filter((i) => selectedIdx.has(i)).length;
             const allInGroup = groupSelected === g.indices.length && g.indices.length > 0;
             return (
-              <div key={cat} className="rounded-xl border border-border/60 bg-background/40 overflow-hidden">
-                <div className="flex items-center gap-2 px-3.5 py-2.5 hover:bg-muted/30 transition-colors">
+              <div
+                key={cat}
+                className={`rounded-xl border bg-background/40 overflow-hidden transition-colors ${
+                  dragOverCat === cat ? "border-primary/70 ring-2 ring-primary/30" : "border-border/60"
+                } ${dragCat === cat ? "opacity-60" : ""}`}
+                onDragOver={(e) => { e.preventDefault(); if (dragCat && dragCat !== cat) setDragOverCat(cat); }}
+                onDragLeave={() => { if (dragOverCat === cat) setDragOverCat(null); }}
+                onDrop={() => handleDropOnCat(cat)}
+              >
+                <div
+                  className="flex items-center gap-2 px-3.5 py-2.5 hover:bg-muted/30 transition-colors"
+                  draggable
+                  onDragStart={() => setDragCat(cat)}
+                  onDragEnd={() => { setDragCat(null); setDragOverCat(null); }}
+                  title="Arraste para reordenar"
+                  style={{ cursor: "grab" }}
+                >
                   <input
                     type="checkbox"
                     checked={allInGroup}
