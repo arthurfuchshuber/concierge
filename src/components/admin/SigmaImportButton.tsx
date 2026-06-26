@@ -11,9 +11,12 @@ import {
 } from "@/components/ui/alert-dialog";
 import {
   getMyPropertySigmaState, activateSigmaPackOnProperty, deactivateSigmaPackOnProperty,
+  saveGuideAsSigmaPack,
 } from "@/lib/sigma-recommendations.functions";
-import { Star, Loader2, Lock, Check } from "lucide-react";
+import { Star, Loader2, Lock, Check, Save } from "lucide-react";
 import { toast } from "sonner";
+import { useIsAdmin } from "@/hooks/useIsAdmin";
+
 
 export function SigmaImportButton({ propertyId }: { propertyId: string }) {
   const qc = useQueryClient();
