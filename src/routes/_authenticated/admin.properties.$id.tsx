@@ -2071,6 +2071,7 @@ function CityRefsGroup({
   country,
   propertyLat,
   propertyLng,
+  propertyId,
   queryKey,
   onGenerate,
   generating,
@@ -2085,6 +2086,7 @@ function CityRefsGroup({
   country: string;
   propertyLat: number | null;
   propertyLng: number | null;
+  propertyId: string;
   queryKey: readonly unknown[];
   onGenerate: () => void;
   generating: boolean;
