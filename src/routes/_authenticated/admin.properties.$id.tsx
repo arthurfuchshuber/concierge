@@ -2042,17 +2042,26 @@ function PlaceAutocomplete({
                 type="button"
                 onClick={() => pick(p)}
                 disabled={dup}
-                className="w-full flex items-start gap-3 px-3 py-2.5 hover:bg-muted/50 transition-colors text-left disabled:opacity-50 disabled:cursor-not-allowed border-b border-border/40 last:border-b-0"
+                aria-disabled={dup}
+                title={dup ? "Este ponto já foi adicionado ao guia." : undefined}
+                className={`w-full flex items-start gap-3 px-3 py-2.5 text-left border-b border-border/40 last:border-b-0 transition-colors ${
+                  dup
+                    ? "bg-muted/40 opacity-60 cursor-not-allowed grayscale"
+                    : "hover:bg-muted/50"
+                }`}
               >
                 {p.image_url ? (
-                  <img src={p.image_url} alt="" className="size-10 rounded-md object-cover shrink-0" />
+                  <img src={p.image_url} alt="" className={`size-10 rounded-md object-cover shrink-0 ${dup ? "opacity-60" : ""}`} />
                 ) : (
                   <span className="grid place-items-center size-10 rounded-md bg-muted shrink-0">
                     <MapPin className="size-4 text-muted-foreground" />
                   </span>
                 )}
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium truncate">{p.name}</p>
+                  <p className={`text-sm font-medium truncate flex items-center gap-1.5 ${dup ? "line-through text-muted-foreground" : ""}`}>
+                    {dup && <Lock className="size-3 shrink-0" />}
+                    {p.name}
+                  </p>
                   <p className="text-[11px] text-muted-foreground truncate">
                     {p.category}
                     {p.rating ? ` · ★ ${p.rating}` : ""}
@@ -2063,7 +2072,11 @@ function PlaceAutocomplete({
                     <p className="text-[11px] text-muted-foreground/70 truncate">{p.formatted_address}</p>
                   )}
                 </div>
-                {dup && <span className="text-[10px] text-muted-foreground self-center">já adicionado</span>}
+                {dup && (
+                  <span className="self-center shrink-0 inline-flex items-center gap-1 rounded-full border border-border bg-background/60 px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                    <Lock className="size-3" /> Já no guia
+                  </span>
+                )}
               </button>
             );
           })}
