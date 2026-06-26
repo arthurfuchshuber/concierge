@@ -458,14 +458,14 @@ export const activateSigmaPackOnProperty = createServerFn({ method: "POST" })
       .eq("id", data.property_id);
     if (upErr) throw new Error(upErr.message);
 
-    // Replace property_faqs with sigma faqs (mark them sigma-sourced via category prefix)
+    // Replace property_faqs with sigma faqs (tagged so we can find them later)
     await context.supabase.from("property_faqs").delete().eq("property_id", data.property_id);
     if ((sigmaFaqs ?? []).length) {
       const rows = (sigmaFaqs ?? []).map((f, idx) => ({
         property_id: data.property_id,
         question: f.question,
         answer: f.answer,
-        category: "sigma",
+        tags: ["sigma"],
         position: idx,
       }));
       await context.supabase.from("property_faqs").insert(rows as never);
