@@ -51,13 +51,33 @@ export const getPublicGuide = createServerFn({ method: "POST" })
     }
 
     // Access granted — now fetch credential fields in a separate query.
+    // access_codes_pin NEVER leaves the server; we only expose whether one is set
+    // and whether the current visitor has already unlocked it via cookie.
     const { data: creds } = await supabaseAdmin
       .from("properties")
       .select("wifi_ssid,wifi_password,lock_code,gate_code,host_phone,access_codes_pin")
       .eq("id", prop.id)
       .maybeSingle();
 
-    const safeProp = { ...prop, ...(creds ?? {}) };
+    const rawPin = (creds?.access_codes_pin ?? "").toString().trim();
+    const hasAccessPin = rawPin.length > 0;
+    const accessUnlocked = hasAccessPin
+      ? getCookie(`sg-accesscodes-${prop.id}`) === "ok"
+      : true;
+
+    // Strip the PIN out of the payload no matter what.
+    const { access_codes_pin: _omit, wifi_password, lock_code, gate_code, ...credsPublic } = (creds ?? {}) as Record<string, unknown> & {
+      access_codes_pin?: string | null;
+      wifi_password?: string | null;
+      lock_code?: string | null;
+      gate_code?: string | null;
+    };
+    // Only reveal protected codes when the visitor has unlocked them.
+    const protectedCodes = accessUnlocked
+      ? { wifi_password: wifi_password ?? null, lock_code: lock_code ?? null, gate_code: gate_code ?? null }
+      : { wifi_password: null, lock_code: null, gate_code: null };
+
+    const safeProp = { ...prop, ...credsPublic, ...protectedCodes, hasAccessPin, accessUnlocked };
     const children = await loadFullGuide(supabaseAdmin, prop.id);
     const { signPropertyImages } = await import("@/lib/storage.server");
     const signedProp = await signPropertyImages(supabaseAdmin, safeProp);
@@ -93,6 +113,42 @@ export const getPublicGuide = createServerFn({ method: "POST" })
 
     return { status: "ok" as const, property: signedProp, ...children, aiEnabled, cityReferences };
   });
+
+const AccessPinSubmit = z.object({
+  slug: z.string().regex(/^[a-z0-9-]{1,64}$/),
+  pin: z.string().min(1).max(32),
+});
+
+export const submitAccessPin = createServerFn({ method: "POST" })
+  .inputValidator((i: unknown) => AccessPinSubmit.parse(i))
+  .handler(async ({ data }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: prop, error } = await supabaseAdmin
+      .from("properties")
+      .select("id, access_codes_pin, wifi_password, lock_code, gate_code")
+      .eq("slug", data.slug)
+      .eq("published", true)
+      .maybeSingle();
+    if (error) throw (await import("@/lib/db-errors.server")).safeDbError("properties", error);
+    if (!prop) return { ok: false as const, reason: "not_found" };
+    const stored = ((prop as any).access_codes_pin ?? "").toString().trim();
+    if (!stored) return { ok: false as const, reason: "not_required" };
+    if (stored !== data.pin.trim()) return { ok: false as const, reason: "wrong" };
+    setCookie(`sg-accesscodes-${prop.id}`, "ok", {
+      httpOnly: true,
+      secure: true,
+      sameSite: "lax",
+      path: "/",
+      maxAge: 60 * 60 * 24,
+    });
+    return {
+      ok: true as const,
+      wifi_password: (prop as any).wifi_password ?? null,
+      lock_code: (prop as any).lock_code ?? null,
+      gate_code: (prop as any).gate_code ?? null,
+    };
+  });
+
 
 const PinSubmit = z.object({
   slug: z.string().regex(/^[a-z0-9-]{1,64}$/),
