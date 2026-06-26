@@ -2314,7 +2314,8 @@ function RecGroup({
     // Resolve categoria do item dinamicamente pela tag atual; fallback ao
     // category salvo; por fim, "Outros". Isso garante que mudar a tag inline
     // move o item de grupo imediatamente, sem refresh.
-    const key = tagToCategoryLabel.get(it.type) || it.category || "Outros";
+    // Prioriza category override (permite mover sem mexer na tag oficial do Google).
+    const key = it.category || tagToCategoryLabel.get(it.type) || "Outros";
     const g = groups.get(key) ?? { items: [], indices: [] };
     g.items.push(it);
     g.indices.push(idx);
