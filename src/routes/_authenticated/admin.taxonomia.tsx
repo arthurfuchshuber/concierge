@@ -50,6 +50,9 @@ function TaxonomyPage() {
   const [newTagInCat, setNewTagInCat] = useState<PoiCategory | null>(null);
   const [editTag, setEditTag] = useState<PoiTag | null>(null);
   const [editCat, setEditCat] = useState<PoiCategory | null>(null);
+  const [selectedCats, setSelectedCats] = useState<Set<string>>(new Set());
+  const [mergeOpen, setMergeOpen] = useState(false);
+  const [merging, setMerging] = useState(false);
 
   const createCatFn = useServerFn(createPoiCategory);
   const updateCatFn = useServerFn(updatePoiCategory);
@@ -57,8 +60,17 @@ function TaxonomyPage() {
   const createTagFn = useServerFn(createPoiTag);
   const updateTagFn = useServerFn(updatePoiTag);
   const deleteTagFn = useServerFn(deletePoiTag);
+  const mergeFn = useServerFn(mergePoiCategories);
 
   const invalidate = () => qc.invalidateQueries({ queryKey: TAXONOMY_QUERY_KEY });
+
+  const toggleSel = (id: string) =>
+    setSelectedCats((s) => {
+      const n = new Set(s);
+      if (n.has(id)) n.delete(id);
+      else n.add(id);
+      return n;
+    });
 
   const groups = (data?.categories ?? []).map((c) => ({
     cat: c,
