@@ -29,8 +29,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { TimePicker } from "@/components/ui/time-picker";
 import { DateTimePicker } from "@/components/ui/date-picker";
-import { TagPicker, useTaxonomy, TAXONOMY_QUERY_KEY } from "@/components/admin/TagPicker";
-import { updatePoiCategory } from "@/lib/poi-taxonomy.functions";
+import { TagPicker, useTaxonomy, TAXONOMY_QUERY_KEY, NewCategoryDialog, NewTagDialog } from "@/components/admin/TagPicker";
+import { updatePoiCategory, reorderPoiCategories } from "@/lib/poi-taxonomy.functions";
 import { Pencil, Check as CheckIcon, X as XIcon, Search } from "lucide-react";
 import { friendlyErrorMessage } from "@/lib/friendly-error";
 
@@ -2389,6 +2389,12 @@ function RecGroup({
   const [openCat, setOpenCat] = useState<string | null>(null);
   const [selectedIdx, setSelectedIdx] = useState<Set<number>>(new Set());
   const [filterQuery, setFilterQuery] = useState("");
+  const [showNewCat, setShowNewCat] = useState(false);
+  const [showNewTag, setShowNewTag] = useState(false);
+  const [dragCat, setDragCat] = useState<string | null>(null);
+  const [dragOverCat, setDragOverCat] = useState<string | null>(null);
+  const qc = useQueryClient();
+  const reorderFn = useServerFn(reorderPoiCategories);
   const norm = (s: string) =>
     s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
   const filterActive = filterQuery.trim().length > 0;
@@ -2409,17 +2415,49 @@ function RecGroup({
   // Sem limite por subcategoria — usuário pode adicionar quantos pontos quiser.
   const groups = new Map<string, { items: RecItem[]; indices: number[] }>();
   items.forEach((it, idx) => {
-    // Resolve categoria do item dinamicamente pela tag atual; fallback ao
-    // category salvo; por fim, "Outros". Isso garante que mudar a tag inline
-    // move o item de grupo imediatamente, sem refresh.
-    // Prioriza category override (permite mover sem mexer na tag oficial do Google).
     const key = it.category || tagToCategoryLabel.get(it.type) || "Outros";
     const g = groups.get(key) ?? { items: [], indices: [] };
     g.items.push(it);
     g.indices.push(idx);
     groups.set(key, g);
   });
-  const groupEntries = Array.from(groups.entries()).sort((a, b) => a[0].localeCompare(b[0]));
+  // Ordena pelos display_order da taxonomia; categorias órfãs vão para o fim.
+  const orderByLabel = React.useMemo(() => {
+    const m = new Map<string, number>();
+    (taxonomy?.categories ?? []).forEach((c) => m.set(c.label, c.display_order ?? 9999));
+    return m;
+  }, [taxonomy]);
+  const groupEntries = Array.from(groups.entries()).sort((a, b) => {
+    const oa = orderByLabel.get(a[0]) ?? 99999;
+    const ob = orderByLabel.get(b[0]) ?? 99999;
+    if (oa !== ob) return oa - ob;
+    return a[0].localeCompare(b[0]);
+  });
+
+  async function handleDropOnCat(targetLabel: string) {
+    if (!dragCat || dragCat === targetLabel) {
+      setDragCat(null); setDragOverCat(null); return;
+    }
+    const labels = groupEntries.map(([l]) => l);
+    const from = labels.indexOf(dragCat);
+    const to = labels.indexOf(targetLabel);
+    if (from < 0 || to < 0) { setDragCat(null); setDragOverCat(null); return; }
+    const next = labels.slice();
+    next.splice(to, 0, next.splice(from, 1)[0]);
+    setDragCat(null); setDragOverCat(null);
+    // Converte labels → ids da taxonomia (ignora órfãs que não existem).
+    const ids = next
+      .map((lbl) => (taxonomy?.categories ?? []).find((c) => c.label === lbl)?.id)
+      .filter((x): x is string => !!x);
+    if (ids.length < 2) return;
+    try {
+      await reorderFn({ data: { ordered_ids: ids } });
+      qc.invalidateQueries({ queryKey: TAXONOMY_QUERY_KEY });
+    } catch (e) {
+      toast.error(friendlyErrorMessage(e));
+    }
+  }
+
 
   const existingPlaceIds = new Set(
     items.map((i) => i.place_id).filter((x): x is string => !!x),
@@ -2540,8 +2578,30 @@ function RecGroup({
               Gerar com IA
             </Button>
           )}
+          <Button size="sm" variant="outline" onClick={() => setShowNewCat(true)} className="shrink-0 h-8 rounded-full text-xs">
+            <Plus className="size-3.5" /> Categoria
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => setShowNewTag(true)} className="shrink-0 h-8 rounded-full text-xs">
+            <Plus className="size-3.5" /> Tag
+          </Button>
         </div>
       </div>
+
+      {showNewCat && (
+        <NewCategoryDialog
+          onClose={() => setShowNewCat(false)}
+          onSaved={() => { setShowNewCat(false); qc.invalidateQueries({ queryKey: TAXONOMY_QUERY_KEY }); }}
+        />
+      )}
+      {showNewTag && (
+        <NewTagDialog
+          categories={taxonomy?.categories ?? []}
+          presetCategoryId={null}
+          onClose={() => setShowNewTag(false)}
+          onSaved={() => { setShowNewTag(false); qc.invalidateQueries({ queryKey: TAXONOMY_QUERY_KEY }); }}
+        />
+      )}
+
 
       {!hideSearch && (
         <PlaceAutocomplete
@@ -2569,8 +2629,23 @@ function RecGroup({
             const groupSelected = g.indices.filter((i) => selectedIdx.has(i)).length;
             const allInGroup = groupSelected === g.indices.length && g.indices.length > 0;
             return (
-              <div key={cat} className="rounded-xl border border-border/60 bg-background/40 overflow-hidden">
-                <div className="flex items-center gap-2 px-3.5 py-2.5 hover:bg-muted/30 transition-colors">
+              <div
+                key={cat}
+                className={`rounded-xl border bg-background/40 overflow-hidden transition-colors ${
+                  dragOverCat === cat ? "border-primary/70 ring-2 ring-primary/30" : "border-border/60"
+                } ${dragCat === cat ? "opacity-60" : ""}`}
+                onDragOver={(e) => { e.preventDefault(); if (dragCat && dragCat !== cat) setDragOverCat(cat); }}
+                onDragLeave={() => { if (dragOverCat === cat) setDragOverCat(null); }}
+                onDrop={() => handleDropOnCat(cat)}
+              >
+                <div
+                  className="flex items-center gap-2 px-3.5 py-2.5 hover:bg-muted/30 transition-colors"
+                  draggable
+                  onDragStart={() => setDragCat(cat)}
+                  onDragEnd={() => { setDragCat(null); setDragOverCat(null); }}
+                  title="Arraste para reordenar"
+                  style={{ cursor: "grab" }}
+                >
                   <input
                     type="checkbox"
                     checked={allInGroup}

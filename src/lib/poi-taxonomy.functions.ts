@@ -187,6 +187,25 @@ export const deletePoiCategory = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+// ---- Reorder categories ----
+const ReorderSchema = z.object({ ordered_ids: z.array(z.string().uuid()).min(1) });
+export const reorderPoiCategories = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => ReorderSchema.parse(i))
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context);
+    // Atribui display_order = índice * 10 (deixa espaço para inserts futuros)
+    for (let i = 0; i < data.ordered_ids.length; i++) {
+      const { error } = await context.supabase
+        .from("poi_categories")
+        .update({ display_order: (i + 1) * 10 })
+        .eq("id", data.ordered_ids[i]);
+      if (error) throw new Error(error.message);
+    }
+    invalidateTaxonomyCache();
+    return { ok: true };
+  });
+
 // ---- Bulk tag operations ----
 const BulkMoveSchema = z.object({
   tag_ids: z.array(z.string().uuid()).min(1),

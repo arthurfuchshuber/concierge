@@ -553,7 +553,7 @@ function InlineRename({ initial, onCommit, onCancel }: {
 /* ============================================================
    New tag — supports preset category + multiple labels at once
    ============================================================ */
-function NewTagDialog({ categories, presetCategoryId, onClose, onSaved }: {
+export function NewTagDialog({ categories, presetCategoryId, onClose, onSaved }: {
   categories: PoiCategory[];
   presetCategoryId: string | null;
   onClose: () => void;
@@ -656,7 +656,7 @@ function NewTagDialog({ categories, presetCategoryId, onClose, onSaved }: {
   );
 }
 
-function NewCategoryDialog({ onClose, onSaved }: {
+export function NewCategoryDialog({ onClose, onSaved }: {
   onClose: () => void;
   onSaved: () => void;
 }) {
