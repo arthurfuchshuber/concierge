@@ -380,8 +380,9 @@ function ExplorePage() {
   const buildBuckets = (meta: MetaCategory, applyMinReviews: boolean) => {
     const passesReviews = (x: Rec) =>
       !applyMinReviews || minReviews <= 0 || (x.user_ratings_total ?? 0) >= minReviews;
-    const recsInType = allRecs.filter((rec) => meta.types.includes(rec.type) && passesReviews(rec));
-    const cityInType = cityRefs.filter((rec) => meta.types.includes(rec.type) && passesReviews(rec));
+    const passesQuery = (x: Rec) => matchesQuery(x, query);
+    const recsInType = allRecs.filter((rec) => meta.types.includes(rec.type) && passesReviews(rec) && passesQuery(rec));
+    const cityInType = cityRefs.filter((rec) => meta.types.includes(rec.type) && passesReviews(rec) && passesQuery(rec));
 
     const nearbyFromRecs = recsInType.filter(isPertinho);
 
