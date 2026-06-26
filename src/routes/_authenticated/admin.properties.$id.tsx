@@ -33,7 +33,7 @@ import { TagPicker, useTaxonomy, TAXONOMY_QUERY_KEY, NewCategoryDialog, NewTagDi
 import { updatePoiCategory, reorderPoiCategories } from "@/lib/poi-taxonomy.functions";
 import { Pencil, Check as CheckIcon, X as XIcon, Search, Settings2 } from "lucide-react";
 import { friendlyErrorMessage } from "@/lib/friendly-error";
-import { SigmaImportButton, SigmaActiveBanner } from "@/components/admin/SigmaImportButton";
+import { SigmaImportButton, SigmaActiveBanner, SaveAsSigmaPackButton } from "@/components/admin/SigmaImportButton";
 
 export const Route = createFileRoute("/_authenticated/admin/properties/$id")({
   component: PropertyEditor,
