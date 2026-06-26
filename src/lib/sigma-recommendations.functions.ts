@@ -557,7 +557,7 @@ export const saveGuideAsSigmaPack = createServerFn({ method: "POST" })
     const [cityRefsRes, faqsRes] = await Promise.all([
       supabaseAdmin
         .from("city_references")
-        .select("type, name, category, rating, user_ratings_total, note, image_url, maps_url, place_id, address, lat, lng, opening_hours, scope")
+        .select("type, name, category, rating, user_ratings_total, note, image_url, maps_url, place_id, address, lat, lng, opening_hours")
         .eq("property_id", data.property_id),
       supabaseAdmin
         .from("property_faqs")
@@ -566,7 +566,8 @@ export const saveGuideAsSigmaPack = createServerFn({ method: "POST" })
         .order("position"),
     ]);
 
-    const cityRefs = (cityRefsRes.data ?? []).filter((r) => (r as { scope: string }).scope === "city");
+    const cityRefs = cityRefsRes.data ?? [];
+
     const faqs = (faqsRes.data ?? []) as Array<{ question: string; answer: string; tags: string[] | null; position: number }>;
     // Skip FAQs imported from sigma — avoid feedback loops
     const userFaqs = faqs.filter((f) => !(Array.isArray(f.tags) && f.tags.includes("sigma")));
