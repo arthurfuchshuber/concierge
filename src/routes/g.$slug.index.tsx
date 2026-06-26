@@ -1111,15 +1111,17 @@ function Guide({ data }: { data: GuideOk }) {
       {data.aiEnabled ? <GuideAiChat slug={slug} propertyName={heroTitle} guestName={accessRec?.name ?? null} /> : null}
       <PinDialog
         open={pinDialog.open}
-        accessPin={accessPin}
+        slug={slug}
         onOpenChange={(o) => setPinDialog((s) => ({ ...s, open: o }))}
-        onSuccess={() => {
+        onSuccess={(codes) => {
           setUnlocked(true);
+          if (codes) setRevealedCodes(codes);
           const cb = pinDialog.cb;
           setPinDialog({ open: false, cb: null });
           cb?.();
         }}
       />
+
     </div>
   );
 }
