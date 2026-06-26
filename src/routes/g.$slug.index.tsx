@@ -259,18 +259,22 @@ function Guide({ data }: { data: GuideOk }) {
     return Date.now() > start + 10 * 24 * 60 * 60 * 1000;
   })();
 
-  // Shared "access PIN unlock" state — once unlocked, all gated codes/Wi-Fi reveal
-  const accessPin = ((p.access_codes_pin as string | null) ?? "").trim();
-  const [unlocked, setUnlocked] = useState(false);
+  // Shared "access PIN unlock" state — once unlocked, all gated codes/Wi-Fi reveal.
+  // The actual PIN never reaches the browser; only the boolean flags do.
+  const hasAccessPin = !!(p as any).hasAccessPin;
+  const initialUnlocked = !!(p as any).accessUnlocked;
+  const [unlocked, setUnlocked] = useState(initialUnlocked);
+  const [revealedCodes, setRevealedCodes] = useState<{ wifi_password?: string | null; lock_code?: string | null; gate_code?: string | null }>({});
   const [pinDialog, setPinDialog] = useState<{ open: boolean; cb: (() => void) | null }>({ open: false, cb: null });
   const requestUnlock = (cb?: () => void) => {
-    if (!accessPin || unlocked) {
+    if (!hasAccessPin || unlocked) {
       if (!unlocked) setUnlocked(true);
       cb?.();
       return;
     }
     setPinDialog({ open: true, cb: cb ?? null });
   };
+
 
   // Theme: admin default, override per-visitor via localStorage
   const adminTheme: "dark" | "light" = p.guide_theme === "light" ? "light" : "dark";
