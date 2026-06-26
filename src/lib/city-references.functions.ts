@@ -193,28 +193,28 @@ export const generateCityReferences = createServerFn({ method: "POST" })
   });
 
 
-// ---- GENERATE ---------------------------------------------------------
-export const generateCityReferences = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((i: unknown) => GenerateInput.parse(i))
-  .handler(async ({ data, context }) => {
-    await assertCanManageCity(context, { city_label: data.city_label, state: normalizeState(data.state ?? null), country: data.country });
-    const { assertFeature } = await import("@/lib/plan-guard.server");
-    await assertFeature(context.supabase, context.userId, "autoImport");
-    return runCityGeneration({ ...data, type: data.type ?? null });
-  });
-
 // Função interna reaproveitável pelo cron (sem auth middleware).
+// Quando `propertyId` é informado, grava as refs com escopo da property/grupo;
+// senão grava como "órfãs" (city_key) — modo legado mantido para compat.
 export async function runCityGeneration(input: {
   city_label: string;
   state?: string | null;
   country: string;
   type?: string | null;
+  propertyId?: string | null;
 }) {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const key = cityKey(input.city_label);
   const st = normalizeState(input.state ?? null);
   const country = input.country || "BR";
+
+  let scopeGroup: string | null = null;
+  let scopeProperty: string | null = null;
+  if (input.propertyId) {
+    const s = await resolvePropertyScope(supabaseAdmin, input.propertyId);
+    scopeGroup = s.groupId;
+    scopeProperty = s.groupId ? null : s.propertyId;
+  }
 
   let rows: CityReferenceRow[] = [];
   let status = "ok";
@@ -231,12 +231,13 @@ export async function runCityGeneration(input: {
     message = e instanceof Error ? e.message : "Erro desconhecido";
   }
 
-  // Carrega existentes para decidir entre INSERT e UPDATE manualmente
-  // (evita problemas com onConflict em índice expressão COALESCE).
+  // Carrega existentes do MESMO escopo para decidir entre INSERT e UPDATE.
   let existingQ = supabaseAdmin
     .from("city_references")
-    .select("id, place_id, name, is_hidden, source")
-    .eq("city_key", key);
+    .select("id, place_id, name, is_hidden, source");
+  if (scopeGroup) existingQ = existingQ.eq("group_id", scopeGroup);
+  else if (scopeProperty) existingQ = existingQ.eq("property_id", scopeProperty).is("group_id", null);
+  else existingQ = existingQ.eq("city_key", key).is("property_id", null).is("group_id", null);
   const { data: existing } = await existingQ;
   const byPlace = new Map<string, { id: string; is_hidden: boolean }>();
   const byName = new Map<string, { id: string; is_hidden: boolean }>();
@@ -244,6 +245,7 @@ export async function runCityGeneration(input: {
     if (e.place_id) byPlace.set(e.place_id, { id: e.id, is_hidden: e.is_hidden });
     else byName.set(e.name.toLowerCase(), { id: e.id, is_hidden: e.is_hidden });
   }
+
 
   const nowIso = new Date().toISOString();
   let inserted = 0;
