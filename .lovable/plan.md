@@ -1,133 +1,77 @@
-# Plano: Unificação de Recomendações, Vínculos entre Guias e Filtros Mobile
+## 1. Botão "Editar" unificado nos quadrantes
 
-Mudanças amplas com dependências entre si. Implementação dividida em 4 frentes — backend (DB + lógica), painel admin, guia público e UX de filtros.
+Substituir os botões "+ Categoria" e "+ Tag" no cabeçalho de cada quadrante por um único botão **Editar** que abre um modal completo de gestão de taxonomia:
 
----
+- Aba **Categorias**: criar, renomear inline, excluir, reordenar (drag-and-drop) e ver contagem de pontos por categoria.
+- Aba **Tags**: criar, renomear, excluir, mover tag entre categorias.
+- Persistência via as funções já existentes (`upsertPoiCategory`, `upsertPoiTag`, `deletePoiCategory`, `reorderPoiCategories`, `mergePoiCategories`).
+- Mantém UX consistente entre admin do imóvel e o painel SaaS de recomendações.
 
-## 1. Painel admin: busca única + decisão automática + movimentação
+## 2. Recomendações SigmaGuide por cidade (Admin SaaS)
 
-**Arquivo:** `src/routes/_authenticated/admin.properties.$id.tsx`
+### Nova entrada no menu lateral (abaixo de "Clientes")
+**Recomendações SigmaGuide** → `/admin/recomendacoes-sigma` (visível apenas para admins SaaS via `has_role`).
 
-- Remover os dois campos `PlacesSearch` separados dos quadrantes "Aqui Pertinho" e "Pela cidade".
-- Criar um **único campo de busca acima dos dois quadrantes**, fora deles.
-- Após seleção, o backend decide o destino usando as regras já existentes:
-  - **Aqui Pertinho** (`scope: 'nearby'`): ≤ 1,5 km do imóvel **ou** ≤ 20 min a pé.
-  - **Referências na Cidade** (`city_references`): demais casos, desde que rating ≥ 4.5 e ≥ 500 avaliações (regra atual).
-  - Se não atender nenhum critério → cair em Referências mesmo assim (decisão automática, sem prompt).
-- **Movimentação manual** (sobrepõe a decisão automática):
-  - Cada card ganha um botão de menu (⋯) com "Mover para [outro quadrante]".
-  - **Seleção múltipla**: checkbox em cada card + barra de ação flutuante ("Mover N itens para…", "Excluir").
-  - Mover entre quadrantes = mudar de tabela (`property_recommendations` ↔ `city_references`) preservando metadata.
+### Modelo de dados (migration)
+- `sigma_city_recommendations` — pontos/estabelecimentos curados por cidade.
+- `sigma_city_marketplace` — links de reservas & marketplace por cidade.
+- `sigma_city_faqs` — perguntas frequentes por cidade.
+- `sigma_city_packs` — uma linha por cidade (`city_key`, `city_label`, `country`, `cover_url`, `is_published`, contagens agregadas, `updated_at`) que serve de "card" da listagem.
+- `properties.sigma_pack_city_key` (nullable) — quando preenchido, o guia está usando o pack SigmaGuide daquela cidade (toggle ligado).
 
-**Novas server functions** em `src/lib/recommendations-move.functions.ts`:
-- `addPlaceAuto({ propertyId, placeId })` — busca dados no Google, calcula distância, decide destino, insere.
-- `moveRecommendations({ ids[], from, to })` — move itens em massa entre `property_recommendations` e `city_references`.
+Todas com RLS: leitura pública somente do que está `is_published`; escrita restrita a `has_role(admin)`. GRANTs explícitos.
 
----
+### Painel SaaS (visual)
+Layout em duas camadas:
 
-## 2. Vínculos entre guias (Referências na Cidade compartilhadas)
+- **Dashboard topo** — cards com métricas (cidades publicadas, total de pontos curados, guias usando pack, top 5 cidades por adoção). Gráfico de barras simples (Recharts já está no projeto) por cidade.
+- **Tabela de cidades** — uma linha por cidade com: nome, país, #pontos, #marketplace, #FAQs, #guias adotando, status (rascunho/publicado), ações (Editar / Publicar / Despublicar).
+- **Editor da cidade** (`/admin/recomendacoes-sigma/$cityKey`) — três abas:
+  1. Pontos/estabelecimentos (mesmo componente `RecGroup` já existente, reaproveitado).
+  2. Reservas & Marketplace.
+  3. FAQs.
+- Botão **"Salvar como recomendação SigmaGuide"** dentro da edição de um guia normal (visível só para admins SaaS) — promove o conteúdo atual do guia para o pack daquela cidade.
 
-**Novo modelo de dados** (migração):
+### Importação no guia do usuário
+No quadrante **"Referências na Cidade"** adicionar botão **"Usar Recomendação do SigmaGuide"**:
 
-```sql
--- Grupo de guias que compartilham city_references
-CREATE TABLE public.city_reference_groups (
-  id uuid PK,
-  name text,           -- "Foz do Iguaçu — Grupo principal" (editável)
-  city_key text,       -- denormalizado p/ filtros
-  owner_id uuid,       -- criador
-  created_at, updated_at
-);
+- Se existir pack publicado para a cidade do imóvel: dialog mostra preview (contagens + amostra) e botão "Ativar".
+- Ao ativar: grava `properties.sigma_pack_city_key`, dispara import (cópia das referências da cidade + marketplace + FAQs marcadas como `source: 'sigma'`).
+- Enquanto ativo: badge no topo da página de edição "Usando Recomendação SigmaGuide · [Desativar]" e **todos os campos de**: referências da cidade, reservas & marketplace e FAQs marcadas como sigma ficam visualmente bloqueados (opacity + cursor not-allowed). Tentativas de editar/excluir disparam toast: *"Enquanto seu guia usar a Recomendação do SigmaGuide, este conteúdo não pode ser alterado. Desative a recomendação para personalizar."*
+- "Aqui pertinho" continua editável (é hiperlocal).
+- Ao desativar: snapshot do conteúdo anterior é restaurado (guardamos `properties.sigma_pack_snapshot` em jsonb antes de importar).
 
--- N:N entre properties e groups (uma property pertence a 0..1 grupo por enquanto)
-CREATE TABLE public.city_reference_group_members (
-  group_id uuid FK,
-  property_id uuid FK UNIQUE,  -- impede pertencer a 2 grupos
-  joined_at
-);
+## 3. Onboarding (primeiro guia do usuário)
 
--- city_references ganha group_id (nullable). Quando preenchido, a lista é do grupo.
-ALTER TABLE public.city_references ADD COLUMN group_id uuid REFERENCES city_reference_groups(id);
-```
+Sistema de tooltips elegantes usando o `Popover` do shadcn já presente, com posicionamento contextual:
 
-**Resolução de lista:**
-- Se a property pertence a um grupo → lê/escreve em `city_references WHERE group_id = X` (a coluna `city_key` deixa de ser usada para essa property).
-- Se não pertence → comportamento atual (lê por `city_key`).
-- Não há mais "lista local + compartilhada" misturada. Pertencer ao grupo = lista única do grupo.
+- Detecção: se `count(properties where owner_id = uid) == 0` ao abrir o wizard, ativa o tour.
+- Persistência: campo `profiles.onboarding_completed_at`.
+- Tooltips: 1–2 por etapa do wizard (Cliente, Imóvel, Acesso, Manual, Recomendações, FAQs, Revisão), foco no objetivo da etapa (não em cada campo).
+- **Etapa Recomendações** recebe tooltip especial persuasivo destacando o botão "Usar Recomendação do SigmaGuide" com copy do tipo: *"Nossa equipe curou os melhores pontos desta cidade. Importe com 1 clique e personalize depois se quiser."*
+- Cada tooltip tem: título curto, descrição (1–2 linhas), botões **Entendi** / **Pular tour** / contador (1 de 8).
 
-**UI no quadrante "Referências na Cidade":**
-- Botão no topo: **"Linkar demais guias"**.
-- Modal com 3 abas:
-  1. **Guias vinculados** (atuais, com botão remover).
-  2. **Adicionar guias** (busca por nome/cidade, multi-select, "Adicionar todos da cidade X").
-  3. **Sair do grupo** (a property fica sem grupo, lista volta a ser por city_key).
-- Qualquer membro pode editar, adicionar, remover, reordenar — sem conceito de "dono".
-- Realtime: `useCityReferencesRealtime` passa a escutar por `group_id` quando aplicável.
+## 4. Detalhes técnicos
 
-**Migração de dados:** properties existentes ficam sem grupo (comportamento atual preservado por `city_key`).
+- Migrations Supabase (com GRANTs e RLS) para as 4 tabelas + 2 colunas em `properties` + 1 coluna em `profiles`.
+- Server functions: `src/lib/sigma-recommendations.functions.ts` (CRUD admin + listagem pública + ativar/desativar pack no guia).
+- Componentes novos:
+  - `src/components/admin/TaxonomyEditDialog.tsx` (modal Editar do item 1).
+  - `src/components/admin/SigmaPackCard.tsx`, `SigmaPackImportDialog.tsx`.
+  - `src/components/onboarding/OnboardingTour.tsx` + `useOnboarding` hook.
+- Rotas novas:
+  - `src/routes/_authenticated/admin.recomendacoes-sigma.index.tsx`
+  - `src/routes/_authenticated/admin.recomendacoes-sigma.$cityKey.tsx`
+- Edição de `admin.properties.$id.tsx` para: trocar 2 botões por "Editar", adicionar bloqueio visual quando `sigma_pack_city_key` está ativo, adicionar dialog de importação, integrar onboarding.
+- Acesso restrito por `has_role(admin)` em todas as rotas/funções de escrita do pack.
 
----
+## 5. Ordem de implementação
 
-## 3. Unificação de categorias
+1. Migration (tabelas + colunas + RLS + GRANTs).
+2. Server functions de recomendações SigmaGuide.
+3. Painel admin SaaS (rotas + dashboard + editor).
+4. Botão "Editar" unificado (modal de taxonomia).
+5. Import/lock no guia do usuário.
+6. Sistema de onboarding com tooltips.
 
-**Nova server fn** `mergePoiCategories({ categoryIds[] })` em `src/lib/poi-taxonomy.functions.ts`:
-- Cria uma nova categoria com nome `"Restaurantes, Bares"` (join dos nomes por `, `).
-- Move todas as tags das categorias originais para a nova.
-- Re-aponta `property_recommendations.type` e `city_references.type` para a nova categoria.
-- Deleta as categorias originais (não-protegidas).
-- Nome continua editável inline (`updatePoiCategory`).
-
-**UI em `/admin/taxonomia`:**
-- Checkboxes nas categorias + botão "Unificar selecionadas" (≥ 2).
-- Confirmação com preview do nome resultante.
-
----
-
-## 4. Cron: atualizar TUDO, exceto nome
-
-**Arquivo:** `src/lib/maps.functions.ts` (`refreshStaleRecommendations`, `refreshStaleCityReferencesByPlaceId`).
-
-- Remover a janela de `last_synced_at` (passa a atualizar **todos** os registros com `place_id`).
-- O cron agenda em lotes (chunks de N por execução, paginação por `last_synced_at` asc) para caber no orçamento de 50 s.
-- **Nunca sobrescrever `name`** — remover esse campo do `UPDATE` payload em ambos os refreshers.
-- Demais campos (rating, reviews count, hours, image, address, coords) seguem atualizando.
-
----
-
-## 5. Filtros mobile — redesign completo
-
-**Problema atual:** 3 linhas de chips empilhados (ordenação, proximidade, avaliações + toggle de view) ocupam ~200 px verticais no mobile.
-
-**Nova proposta:**
-- **Barra única sticky** no topo da listagem com:
-  - Campo de busca (já existe) à esquerda.
-  - Botão **"Filtros"** à direita com badge de contagem ativa (ex: "Filtros · 2").
-  - Toggle grid/lista compacto ao lado.
-- Clicar em "Filtros" abre um **bottom sheet** (mobile) / **popover** (desktop) contendo:
-  - Ordenação (Distância / Avaliação / A-Z) — segmented control.
-  - Mínimo de avaliações (Todas, 50+, 200+, 1k+, 5k+) — chips em grid.
-  - Proximidade (Pertinho / Referências na Cidade) — toggles.
-  - Botão "Limpar filtros" + "Aplicar".
-- **Chip de filtros ativos** abaixo da barra (removível individualmente) quando há filtros aplicados — feedback rápido sem precisar reabrir o sheet.
-- Aplicado de forma idêntica em `/g/$slug/explorar` (categoria) e na home `Explore a Região`.
-
-**Componente novo:** `src/components/guide/FilterSheet.tsx` — reutilizado nas duas telas.
-
----
-
-## Ordem de execução
-
-1. Migração DB (grupos + `group_id` em city_references).
-2. Server functions: `addPlaceAuto`, `moveRecommendations`, `mergePoiCategories`, grupos CRUD.
-3. Refactor cron (remover `name` do update, remover filtro de stale).
-4. Refactor admin properties: busca única + checkbox/mover + UI de grupos.
-5. Refactor public guide: leitura via grupo + componente `FilterSheet`.
-6. Refactor `/admin/taxonomia`: unificação.
-
-## Notas técnicas
-
-- `city_references` mantém `city_key` para fallback (guias sem grupo).
-- Realtime channel name muda quando há grupo: `city-references:group:{id}` vs `city-references:{cityKey}`.
-- Autosave (3 s debounce) continua aplicável às edições de itens — não interfere nos movimentos (que são ações explícitas e imediatas).
-- Seleção múltipla persiste no estado do componente; barra de ação aparece quando `selected.size > 0`.
-- Bottom sheet usa shadcn `Drawer` no mobile e `Popover` no desktop (detecção via `useIsMobile`).
+Posso seguir?
