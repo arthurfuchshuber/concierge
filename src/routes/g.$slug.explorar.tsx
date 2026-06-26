@@ -29,6 +29,23 @@ import { GuideAiChat } from "@/components/GuideAiChat";
 import { toTitleCase } from "@/lib/text";
 import { useCityReferencesRealtime } from "@/hooks/useCityReferencesRealtime";
 import { useTaxonomy } from "@/components/admin/TagPicker";
+import { FilterSheetButton } from "@/components/guide/FilterSheet";
+
+const REVIEW_THRESHOLDS = [0, 50, 200, 1000, 5000];
+const REVIEW_LABELS: Record<number, string> = { 0: "Todas", 50: "50+", 200: "200+", 1000: "1k+", 5000: "5k+" };
+function computeReviewOptions(items: { user_ratings_total?: number | null }[]) {
+  if (!items.length) return REVIEW_THRESHOLDS.map((v) => ({ value: v, label: REVIEW_LABELS[v] }));
+  const counts = items.map((r) => r.user_ratings_total ?? 0);
+  const min = Math.min(...counts);
+  const max = Math.max(...counts);
+  return REVIEW_THRESHOLDS.filter((v, i) => {
+    if (v === 0) return true;
+    if (max < v) return false;
+    const next = REVIEW_THRESHOLDS[i + 1] ?? Infinity;
+    if (min >= next) return false;
+    return true;
+  }).map((v) => ({ value: v, label: REVIEW_LABELS[v] }));
+}
 
 
 
