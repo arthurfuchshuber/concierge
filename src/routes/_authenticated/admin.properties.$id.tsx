@@ -2230,7 +2230,7 @@ function CityRefsGroup({
         },
       })
         .then(() => invalidate())
-        .catch((e) => toast.error(e instanceof Error ? e.message : "Erro ao adicionar"))
+        .catch((e) => toast.error(friendlyErrorMessage(e, "Não conseguimos adicionar este ponto. Tente outro lugar.")))
         .finally(() => inflight.delete(key));
     };
     for (const rec of additions) {
