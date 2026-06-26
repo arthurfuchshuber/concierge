@@ -1,77 +1,55 @@
-## 1. Botão "Editar" unificado nos quadrantes
+# Plano — Recomendações SigmaGuide v2 + Impersonation
 
-Substituir os botões "+ Categoria" e "+ Tag" no cabeçalho de cada quadrante por um único botão **Editar** que abre um modal completo de gestão de taxonomia:
+Trabalho dividido em 4 blocos. Cada bloco é entregável independente.
 
-- Aba **Categorias**: criar, renomear inline, excluir, reordenar (drag-and-drop) e ver contagem de pontos por categoria.
-- Aba **Tags**: criar, renomear, excluir, mover tag entre categorias.
-- Persistência via as funções já existentes (`upsertPoiCategory`, `upsertPoiTag`, `deletePoiCategory`, `reorderPoiCategories`, `mergePoiCategories`).
-- Mantém UX consistente entre admin do imóvel e o painel SaaS de recomendações.
+## Bloco 1 — Renomear e reformular o painel "Recomendações"
 
-## 2. Recomendações SigmaGuide por cidade (Admin SaaS)
+**Menu lateral:** "Recomendações SigmaGuide" → **"Recomendações"**.
 
-### Nova entrada no menu lateral (abaixo de "Clientes")
-**Recomendações SigmaGuide** → `/admin/recomendacoes-sigma` (visível apenas para admins SaaS via `has_role`).
+**Criar pack por cidade (novo dialog):**
+- Input de cidade com **Google Places Autocomplete (New)** via `PlaceAutocompleteElement`.
+- Ao selecionar: capturamos `city_label`, `country`, `place_id`, `lat`, `lng` e geramos `city_key` normalizado.
+- Validação: bloqueia cidade fora do Google (mesmo racional do `PlaceAutocomplete` de POIs).
 
-### Modelo de dados (migration)
-- `sigma_city_recommendations` — pontos/estabelecimentos curados por cidade.
-- `sigma_city_marketplace` — links de reservas & marketplace por cidade.
-- `sigma_city_faqs` — perguntas frequentes por cidade.
-- `sigma_city_packs` — uma linha por cidade (`city_key`, `city_label`, `country`, `cover_url`, `is_published`, contagens agregadas, `updated_at`) que serve de "card" da listagem.
-- `properties.sigma_pack_city_key` (nullable) — quando preenchido, o guia está usando o pack SigmaGuide daquela cidade (toggle ligado).
+**Editor da cidade (`/admin/recomendacoes-sigma/$cityKey`):**
+- Aba **Pontos**: substitui o input livre atual pelo mesmo `PlaceAutocomplete` usado no guia — só permite POI vindo do Google, com lock visual de duplicidade. Cards e edição inline replicam `RecGroup`/POI list do editor do guia (categoria, tag, foto, descrição editável).
+- Aba **Reservas** → renomear para **"Marketplace"**. Mantém CRUD atual.
+- Aba **FAQ**: substituir UI atual por componente compartilhado com o guia (acordeon, 1 expandido por vez, drag-reorder, categoria/tags).
 
-Todas com RLS: leitura pública somente do que está `is_published`; escrita restrita a `has_role(admin)`. GRANTs explícitos.
+## Bloco 2 — Botão "Salvar Recomendações" no guia (admins)
 
-### Painel SaaS (visual)
-Layout em duas camadas:
+No editor do guia, dentro do quadrante **"Referências na cidade"**:
+- Renderizar botão **"Salvar Recomendações"** apenas para usuários com role `admin` (via `useIsAdmin`).
+- Ao clicar: dialog confirma cidade detectada → cria/atualiza pack SigmaGuide com os POIs daquele quadrante (snapshot copy: nome, place_id, categoria, tag, foto, descrição, rating, etc.). Idem para Marketplace e FAQs do guia.
+- Server fn nova: `saveGuideAsSigmaPack({ property_id })` — exige role admin.
 
-- **Dashboard topo** — cards com métricas (cidades publicadas, total de pontos curados, guias usando pack, top 5 cidades por adoção). Gráfico de barras simples (Recharts já está no projeto) por cidade.
-- **Tabela de cidades** — uma linha por cidade com: nome, país, #pontos, #marketplace, #FAQs, #guias adotando, status (rascunho/publicado), ações (Editar / Publicar / Despublicar).
-- **Editor da cidade** (`/admin/recomendacoes-sigma/$cityKey`) — três abas:
-  1. Pontos/estabelecimentos (mesmo componente `RecGroup` já existente, reaproveitado).
-  2. Reservas & Marketplace.
-  3. FAQs.
-- Botão **"Salvar como recomendação SigmaGuide"** dentro da edição de um guia normal (visível só para admins SaaS) — promove o conteúdo atual do guia para o pack daquela cidade.
+## Bloco 3 — Import com lock no editor do guia
 
-### Importação no guia do usuário
-No quadrante **"Referências na Cidade"** adicionar botão **"Usar Recomendação do SigmaGuide"**:
+No quadrante "Pela cidade" do editor de POIs:
+- Reduzir largura do campo de busca; ao lado, botão **"Importar do Sigma"** (substitui/complementa o `SigmaImportButton` atual).
+- Ao importar: ativa pack para aquela cidade → POIs city_references, Marketplace e FAQs são substituídos pelo snapshot Sigma e ficam **visualmente bloqueados** (inputs disabled + ícone de cadeado + tooltip "Conteúdo SigmaGuide — desative para editar").
+- **FAQs**: aparecem no quadrante "Perguntas Frequentes" da aba **Extras**, marcadas com `tags: ['sigma']`. Só essas ficam bloqueadas; as próprias do anfitrião permanecem editáveis.
+- **Desativar**: remove TODO conteúdo Sigma (POIs city_references com `source='sigma'`, marketplace_links importados, FAQs com tag `sigma`) e restaura o snapshot anterior do anfitrião — já implementado parcialmente, vou completar para POIs.
 
-- Se existir pack publicado para a cidade do imóvel: dialog mostra preview (contagens + amostra) e botão "Ativar".
-- Ao ativar: grava `properties.sigma_pack_city_key`, dispara import (cópia das referências da cidade + marketplace + FAQs marcadas como `source: 'sigma'`).
-- Enquanto ativo: badge no topo da página de edição "Usando Recomendação SigmaGuide · [Desativar]" e **todos os campos de**: referências da cidade, reservas & marketplace e FAQs marcadas como sigma ficam visualmente bloqueados (opacity + cursor not-allowed). Tentativas de editar/excluir disparam toast: *"Enquanto seu guia usar a Recomendação do SigmaGuide, este conteúdo não pode ser alterado. Desative a recomendação para personalizar."*
-- "Aqui pertinho" continua editável (é hiperlocal).
-- Ao desativar: snapshot do conteúdo anterior é restaurado (guardamos `properties.sigma_pack_snapshot` em jsonb antes de importar).
+**Schema:** adicionar coluna `source TEXT` em `city_references` (default `'user'`, `'sigma'` quando importado) para permitir remoção cirúrgica na desativação sem apagar pontos do próprio anfitrião.
 
-## 3. Onboarding (primeiro guia do usuário)
+## Bloco 4 — Impersonation de cliente (admin do SaaS)
 
-Sistema de tooltips elegantes usando o `Popover` do shadcn já presente, com posicionamento contextual:
+No topo da sidebar (apenas para admins):
+- Combobox com busca por e-mail (chama nova server fn `searchUsersByEmail`).
+- Ao selecionar: salva `impersonated_user_id` em `sessionStorage` + cookie HTTP-only via server fn.
+- Banner fixo no topo: "Visualizando como {email} — Sair da visualização".
+- Server fns sensíveis (properties, biblioteca, assinatura) passam a aceitar `?as=<user_id>` quando o caller é admin, retornando dados do user-alvo.
+- **Escopo**: somente leitura visual nesta primeira entrega (não permitir editar dados do cliente sob impersonation). Confirmar se ok ou se já quer edição também.
 
-- Detecção: se `count(properties where owner_id = uid) == 0` ao abrir o wizard, ativa o tour.
-- Persistência: campo `profiles.onboarding_completed_at`.
-- Tooltips: 1–2 por etapa do wizard (Cliente, Imóvel, Acesso, Manual, Recomendações, FAQs, Revisão), foco no objetivo da etapa (não em cada campo).
-- **Etapa Recomendações** recebe tooltip especial persuasivo destacando o botão "Usar Recomendação do SigmaGuide" com copy do tipo: *"Nossa equipe curou os melhores pontos desta cidade. Importe com 1 clique e personalize depois se quiser."*
-- Cada tooltip tem: título curto, descrição (1–2 linhas), botões **Entendi** / **Pular tour** / contador (1 de 8).
+## Pós-blocos (os 3 itens pendentes da rodada anterior)
+- Leitura pública do guia passa a ler do pack SigmaGuide quando ativo.
+- Lock visual completo dos inputs no admin enquanto pack ativo.
+- Tooltips de onboarding (primeira criação de guia).
 
-## 4. Detalhes técnicos
+---
 
-- Migrations Supabase (com GRANTs e RLS) para as 4 tabelas + 2 colunas em `properties` + 1 coluna em `profiles`.
-- Server functions: `src/lib/sigma-recommendations.functions.ts` (CRUD admin + listagem pública + ativar/desativar pack no guia).
-- Componentes novos:
-  - `src/components/admin/TaxonomyEditDialog.tsx` (modal Editar do item 1).
-  - `src/components/admin/SigmaPackCard.tsx`, `SigmaPackImportDialog.tsx`.
-  - `src/components/onboarding/OnboardingTour.tsx` + `useOnboarding` hook.
-- Rotas novas:
-  - `src/routes/_authenticated/admin.recomendacoes-sigma.index.tsx`
-  - `src/routes/_authenticated/admin.recomendacoes-sigma.$cityKey.tsx`
-- Edição de `admin.properties.$id.tsx` para: trocar 2 botões por "Editar", adicionar bloqueio visual quando `sigma_pack_city_key` está ativo, adicionar dialog de importação, integrar onboarding.
-- Acesso restrito por `has_role(admin)` em todas as rotas/funções de escrita do pack.
-
-## 5. Ordem de implementação
-
-1. Migration (tabelas + colunas + RLS + GRANTs).
-2. Server functions de recomendações SigmaGuide.
-3. Painel admin SaaS (rotas + dashboard + editor).
-4. Botão "Editar" unificado (modal de taxonomia).
-5. Import/lock no guia do usuário.
-6. Sistema de onboarding com tooltips.
-
-Posso seguir?
+### Dúvidas antes de começar
+1. **Impersonation — escopo**: somente leitura ou já permitir editar como o cliente? (recomendo somente leitura nesta entrega por segurança/auditoria)
+2. **Salvar guia como pack Sigma (Bloco 2)**: se já existir pack para a cidade, **sobrescrever** ou **mesclar** (adicionar só os POIs novos)?
+3. **Lock visual no admin**: enquanto o pack Sigma estiver ativo no guia, o anfitrião pode **adicionar POIs próprios** ao lado dos Sigma ou tudo bloqueado?

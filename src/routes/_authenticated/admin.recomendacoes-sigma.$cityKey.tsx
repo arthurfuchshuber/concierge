@@ -68,7 +68,7 @@ function SigmaPackEditor() {
       <Tabs defaultValue="recs">
         <TabsList className="rounded-full">
           <TabsTrigger value="recs" className="rounded-full"><MapPin className="size-3.5" /> Pontos ({recs.length})</TabsTrigger>
-          <TabsTrigger value="mkt" className="rounded-full"><Link2 className="size-3.5" /> Reservas ({marketplace.length})</TabsTrigger>
+          <TabsTrigger value="mkt" className="rounded-full"><Link2 className="size-3.5" /> Marketplace ({marketplace.length})</TabsTrigger>
           <TabsTrigger value="faqs" className="rounded-full"><HelpCircle className="size-3.5" /> FAQs ({faqs.length})</TabsTrigger>
         </TabsList>
 
@@ -185,7 +185,7 @@ function MarketplaceTab({ cityKey, items, refresh }: { cityKey: string; items: A
   return (
     <div className="space-y-3">
       <div className="rounded-2xl border border-border/60 bg-card p-4 space-y-3">
-        <h3 className="text-sm font-medium">Adicionar reserva/marketplace</h3>
+        <h3 className="text-sm font-medium">Adicionar link de marketplace</h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
           <Input value={label} onChange={(e) => setLabel(e.target.value)} placeholder="Nome (ex: Airbnb Experiences)" />
           <Input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://..." />
