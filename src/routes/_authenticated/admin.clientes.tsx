@@ -5,9 +5,11 @@ import { useMemo, useState } from "react";
 import {
   adminListCustomers,
   adminUpdateSubscription,
+  adminListUserProperties,
   checkIsAdmin,
   type AdminCustomerRow,
 } from "@/lib/admin-subs.functions";
+
 import {
   adminCreateEnterpriseSubscription,
   adminAnchorSubscriptionToDay1,
