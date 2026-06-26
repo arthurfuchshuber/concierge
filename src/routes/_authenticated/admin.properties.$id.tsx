@@ -2479,7 +2479,9 @@ function RecGroup({
       ) : (
         <div className="space-y-2">
           {groupEntries.map(([cat, g]) => {
-            const open = openCat === cat;
+            const visibleItems = filterActive ? g.items.filter((it) => matchesFilter(it)) : g.items;
+            if (visibleItems.length === 0) return null;
+            const open = openCat === cat || filterActive;
             const groupSelected = g.indices.filter((i) => selectedIdx.has(i)).length;
             const allInGroup = groupSelected === g.indices.length && g.indices.length > 0;
             return (
