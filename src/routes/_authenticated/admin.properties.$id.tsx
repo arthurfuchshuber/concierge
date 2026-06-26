@@ -2394,12 +2394,15 @@ function RecGroup({
                     className="flex-1 flex items-center justify-between gap-3 text-left"
                     aria-expanded={open}
                   >
-                    <div className="flex items-center gap-2 min-w-0">
-                      <span className="text-sm font-medium truncate">{cat}</span>
+                    <div className="flex items-center gap-2 min-w-0 flex-1">
+                      <InlineCategoryRename
+                        currentLabel={cat}
+                        categoryId={taxonomy?.categories.find((c) => c.label === cat)?.id ?? null}
+                        isProtected={!!taxonomy?.categories.find((c) => c.label === cat)?.is_protected}
+                      />
                       <span className="text-[11px] text-muted-foreground">
                         ({g.items.length}{groupSelected > 0 ? ` · ${groupSelected} sel.` : ""})
                       </span>
-
                     </div>
                     <ChevronDown className={`size-4 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`} />
                   </button>
