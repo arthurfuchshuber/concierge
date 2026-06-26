@@ -2142,7 +2142,7 @@ function CityRefsGroup({
   queryKey: readonly unknown[];
   onGenerate: () => void;
   generating: boolean;
-  listFn: (args: { data: { city_label: string; state: string | null; country: string; includeHidden?: boolean } }) => Promise<{ items: unknown[] }>;
+  listFn: (args: { data: { city_label: string; state: string | null; country: string; includeHidden?: boolean; propertyId?: string | null } }) => Promise<{ items: unknown[] }>;
   addFn: (args: { data: Record<string, unknown> }) => Promise<{ id: string | null; duplicate?: boolean }>;
   updateFn: (args: { data: { id: string; patch: Record<string, unknown> } }) => Promise<{ ok: boolean }>;
   bulkDeleteFn: (args: { data: { ids: string[] } }) => Promise<{ ok: boolean; deleted?: number }>;
@@ -2151,8 +2151,8 @@ function CityRefsGroup({
   const city = (cityLabel || "").trim();
   const q = useQuery({
     queryKey,
-    queryFn: () => listFn({ data: { city_label: city, state, country, includeHidden: false } }),
-    enabled: !!city,
+    queryFn: () => listFn({ data: { city_label: city, state, country, includeHidden: false, propertyId } }),
+    enabled: !!city && !!propertyId,
   });
 
   const serverItems: RecItem[] = React.useMemo(() => {
