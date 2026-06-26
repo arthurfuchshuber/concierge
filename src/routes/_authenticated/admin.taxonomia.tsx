@@ -79,13 +79,20 @@ function TaxonomyPage() {
 
   return (
     <div className="container mx-auto max-w-3xl p-4 sm:p-6 space-y-4">
-      <div className="flex items-center justify-between gap-2">
+      <div className="flex items-center justify-between gap-2 flex-wrap">
         <Link to="/admin" className="text-xs text-muted-foreground hover:text-foreground inline-flex items-center gap-1">
           <ArrowLeft className="size-3.5" /> Painel
         </Link>
-        <Button size="sm" onClick={() => setNewCatOpen(true)}>
-          <Plus className="size-3.5" /> Nova categoria
-        </Button>
+        <div className="flex items-center gap-2">
+          {selectedCats.size >= 2 && (
+            <Button size="sm" variant="outline" onClick={() => setMergeOpen(true)}>
+              Unificar ({selectedCats.size})
+            </Button>
+          )}
+          <Button size="sm" onClick={() => setNewCatOpen(true)}>
+            <Plus className="size-3.5" /> Nova categoria
+          </Button>
+        </div>
       </div>
 
       <div>
