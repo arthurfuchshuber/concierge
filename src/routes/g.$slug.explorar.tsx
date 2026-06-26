@@ -1016,7 +1016,7 @@ function ViewToggle({
     { key: "list", label: "Lista", Icon: ListIcon },
   ];
   return (
-    <div className="inline-flex items-center rounded-full border border-border bg-card/60 backdrop-blur p-1">
+    <div className="inline-flex items-center h-9 rounded-full border border-border bg-card/60 backdrop-blur p-1">
       {opts.map((o) => {
         const on = viewMode === o.key;
         const Icon = o.Icon;
