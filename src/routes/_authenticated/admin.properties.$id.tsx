@@ -2227,6 +2227,7 @@ function RecGroup({
   onReplicate,
   onGenerate,
   generating,
+  headerExtra,
 }: {
   title: string;
   desc: string;
@@ -2238,6 +2239,7 @@ function RecGroup({
   onReplicate?: () => void;
   onGenerate?: () => void;
   generating?: boolean;
+  headerExtra?: React.ReactNode;
 }) {
   const [openCat, setOpenCat] = useState<string | null>(null);
   const [selectedIdx, setSelectedIdx] = useState<Set<number>>(new Set());
