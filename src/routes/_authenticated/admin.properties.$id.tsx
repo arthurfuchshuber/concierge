@@ -27,7 +27,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { TimePicker } from "@/components/ui/time-picker";
 import { DateTimePicker } from "@/components/ui/date-picker";
-import { TagPicker, useTaxonomy } from "@/components/admin/TagPicker";
+import { TagPicker, useTaxonomy, TAXONOMY_QUERY_KEY } from "@/components/admin/TagPicker";
+import { updatePoiCategory } from "@/lib/poi-taxonomy.functions";
+import { useServerFn } from "@tanstack/react-start";
+import { useQueryClient } from "@tanstack/react-query";
+import { Pencil, Check as CheckIcon, X as XIcon } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/admin/properties/$id")({
   component: PropertyEditor,
