@@ -360,6 +360,78 @@ function PropertyEditor() {
 
   useCityReferencesRealtime({ propertyId: id }, invalidateCityRefs);
 
+  // Mirror city refs query (shared cache with CityRefsGroup) so we can use the
+  // place_ids in unified search to visually block duplicates across quadrants.
+  const cityRefsQuery = useQuery({
+    queryKey: cityRefsKey,
+    queryFn: () => listGeneratedCityRefs({
+      data: {
+        city_label: (form.property.city || "").trim(),
+        state: form.property.state || null,
+        country: form.property.country || "BR",
+        includeHidden: false,
+        propertyId: id,
+      },
+    }),
+    enabled: !!(form.property.city || "").trim() && !!id,
+  });
+
+  const allExistingPlaceIds = React.useMemo(() => {
+    const set = new Set<string>();
+    for (const r of form.recommendations) {
+      if (r.place_id) set.add(r.place_id);
+    }
+    const rows = (cityRefsQuery.data?.items ?? []) as Array<{ place_id?: string | null; is_hidden?: boolean }>;
+    for (const r of rows) {
+      if (r.place_id && !r.is_hidden) set.add(r.place_id);
+    }
+    return set;
+  }, [form.recommendations, cityRefsQuery.data]);
+
+  const [generatingNearbyRecs, setGeneratingNearbyRecs] = useState(false);
+  async function handleGenerateNearby() {
+    if (!form.property.maps_url) {
+      toast.error("Cole o link do Google Maps do imóvel antes de gerar.");
+      return;
+    }
+    setGeneratingNearbyRecs(true);
+    try {
+      const r = await enrich({ data: { mapsUrl: form.property.maps_url } });
+      const existing = new Set(form.recommendations.map((x) => x.place_id).filter((x): x is string => !!x));
+      const incoming = r.recommendations
+        .filter((rec) => rec.scope === "nearby")
+        .filter((rec) => !rec.place_id || !existing.has(rec.place_id))
+        .map((rec) => ({
+          scope: rec.scope,
+          type: rec.type,
+          name: rec.name,
+          category: rec.category,
+          rating: rec.rating,
+          user_ratings_total: rec.user_ratings_total,
+          distance_text: rec.distance_text,
+          distance_meters: rec.distance_meters,
+          drive_minutes: rec.drive_minutes,
+          walk_minutes: rec.walk_minutes,
+          opening_hours: rec.opening_hours,
+          image_url: rec.image_url,
+          maps_url: rec.maps_url,
+          place_id: rec.place_id,
+          note: rec.note,
+        }));
+      if (incoming.length === 0) {
+        toast.info("Nenhum lugar novo encontrado pertinho do imóvel.");
+      } else {
+        setForm((f) => ({ ...f, recommendations: [...f.recommendations, ...incoming] }));
+        toast.success(`Adicionamos ${incoming.length} ${incoming.length === 1 ? "lugar novo" : "lugares novos"} em "Aqui pertinho".`);
+      }
+    } catch (e) {
+      toast.error(friendlyErrorMessage(e, "Não conseguimos gerar lugares pertinho. Tente novamente."));
+    } finally {
+      setGeneratingNearbyRecs(false);
+    }
+  }
+
+
   async function handleEnrich() {
     if (!form.property.maps_url) {
       toast.error("Cole o link do Google Maps primeiro");
