@@ -795,7 +795,7 @@ function Guide({ data }: { data: GuideOk }) {
                                 media={gateMedia}
                                 unlocked={unlocked}
                                 requestUnlock={requestUnlock}
-                                hasPin={!!accessPin}
+                                hasPin={hasAccessPin}
                               />
                             )}
                             {p.lock_code && (
@@ -808,7 +808,7 @@ function Guide({ data }: { data: GuideOk }) {
                                 media={lockMedia}
                                 unlocked={unlocked}
                                 requestUnlock={requestUnlock}
-                                hasPin={!!accessPin}
+                                hasPin={hasAccessPin}
                               />
                             )}
                           </div>
@@ -833,7 +833,7 @@ function Guide({ data }: { data: GuideOk }) {
                                 value={p.wifi_password}
                                 unlocked={unlocked}
                                 requestUnlock={requestUnlock}
-                                hasPin={!!accessPin}
+                                hasPin={hasAccessPin}
                               />
                             </Lockable>
                           )}
