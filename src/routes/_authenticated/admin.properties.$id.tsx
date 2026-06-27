@@ -34,6 +34,7 @@ import { updatePoiCategory, reorderPoiCategories } from "@/lib/poi-taxonomy.func
 import { Pencil, Check as CheckIcon, X as XIcon, Search, Settings2 } from "lucide-react";
 import { friendlyErrorMessage } from "@/lib/friendly-error";
 import { SigmaImportButton, SigmaActiveBanner, SaveAsSigmaPackButton } from "@/components/admin/SigmaImportButton";
+import { getMyPropertySigmaState } from "@/lib/sigma-recommendations.functions";
 
 export const Route = createFileRoute("/_authenticated/admin/properties/$id")({
   component: PropertyEditor,
@@ -119,7 +120,7 @@ type FormState = {
   };
   manual: { title: string; description: string; body: string }[];
   emergency: { label: string; number: string }[];
-  faqs: { question: string; answer: string; tags: ("chegada" | "saida" | "residencia" | "explore")[] }[];
+  faqs: { question: string; answer: string; tags: string[] }[];
   checkout: { label: string }[];
   recommendations: RecItem[];
 };
@@ -175,6 +176,17 @@ function PropertyEditor() {
   const { info: sub } = useSubscription();
   const canAirbnb = sub.features.autoImport;
   const canBrand = sub.features.customBrand;
+
+  // Estado do pack SigmaGuide aplicado a este imóvel.
+  // Quando ativo, "Pela cidade", "Reservas & marketplace" e FAQs vindas do
+  // Sigma ficam bloqueadas para edição.
+  const sigmaStateFn = useServerFn(getMyPropertySigmaState);
+  const { data: sigmaState } = useQuery({
+    queryKey: ["sigma-pack-state", id],
+    queryFn: () => sigmaStateFn({ data: { property_id: id } }),
+    enabled: !isNew,
+  });
+  const sigmaLocked = !!sigmaState?.active_city_key;
 
 
 
@@ -301,7 +313,7 @@ function PropertyEditor() {
       faqs: (data.faqs ?? []).map((m: Record<string, unknown>) => ({
         question: (m.question as string) ?? "",
         answer: (m.answer as string) ?? "",
-        tags: (Array.isArray(m.tags) ? (m.tags as string[]).filter((t) => ["chegada", "saida", "residencia", "explore"].includes(t)) : []) as ("chegada" | "saida" | "residencia" | "explore")[],
+        tags: Array.isArray(m.tags) ? (m.tags as string[]).filter((t) => typeof t === "string") : [],
       })),
       checkout: (data.checkout ?? []).map((m: Record<string, unknown>) => ({
         label: (m.label as string) ?? "",
@@ -1447,6 +1459,7 @@ function PropertyEditor() {
             updateFn={updateCityRefFn}
             bulkDeleteFn={bulkDeleteCityRefsFn}
             invalidate={invalidateCityRefs}
+            locked={sigmaLocked}
           />
 
           {genCityModeOpen && (
@@ -1468,8 +1481,14 @@ function PropertyEditor() {
             icon={Ticket}
             title="Reservas & marketplace"
             desc="Links para venda de ingressos, passeios, transfers, produtos ou qualquer experiência que você queira oferecer ao hóspede."
-            action={<AddBtn onClick={() => setForm((f) => ({ ...f, property: { ...f.property, marketplace_links: [...f.property.marketplace_links, { label: "", url: "", description: "" }] } }))} />}
+            action={sigmaLocked ? null : <AddBtn onClick={() => setForm((f) => ({ ...f, property: { ...f.property, marketplace_links: [...f.property.marketplace_links, { label: "", url: "", description: "" }] } }))} />}
           >
+            {sigmaLocked && (
+              <div className="flex items-center gap-1.5 rounded-lg border border-amber-400/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
+                <Lock className="size-3.5" /> Links gerenciados pelo SigmaGuide — edição bloqueada.
+              </div>
+            )}
+            <fieldset disabled={sigmaLocked} className={sigmaLocked ? "min-w-0 m-0 p-0 border-0 opacity-60 pointer-events-none space-y-3" : "min-w-0 m-0 p-0 border-0 space-y-3"}>
             {form.property.marketplace_links.length === 0 ? (
               <EmptyHint text="Ex: tour de barco, transfer do aeroporto, kit de boas-vindas." />
             ) : form.property.marketplace_links.map((m, i) => (
@@ -1505,6 +1524,7 @@ function PropertyEditor() {
                 </div>
               </ItemCard>
             ))}
+            </fieldset>
           </Section>
           </SectionGroup>
         </TabsContent>
@@ -1585,8 +1605,9 @@ function PropertyEditor() {
                 }));
               };
               const isOpen = openFaqIdx === i;
+              const isSigma = m.tags.includes("sigma");
               return (
-                <div key={i} className="group bg-background border border-border/60 rounded-xl overflow-hidden hover:border-border transition-colors">
+                <div key={i} className={`group bg-background border rounded-xl overflow-hidden transition-colors ${isSigma ? "border-amber-400/40" : "border-border/60 hover:border-border"}`}>
                   <div className="flex items-center gap-2 px-3.5 py-3">
                     <button
                       type="button"
@@ -1594,24 +1615,32 @@ function PropertyEditor() {
                       className="flex-1 flex items-center gap-2 min-w-0 text-left"
                       aria-expanded={isOpen}
                     >
+                      {isSigma && <Lock className="size-3.5 text-amber-300 shrink-0" />}
                       <span className="text-sm font-medium truncate flex-1">
                         {m.question || <span className="text-muted-foreground italic">Sem pergunta</span>}
                       </span>
                       <ChevronDown className={`size-4 text-muted-foreground transition-transform shrink-0 ${isOpen ? "rotate-180" : ""}`} />
                     </button>
-                    <button
-                      onClick={() => {
-                        setForm((f) => ({ ...f, faqs: f.faqs.filter((_, j) => j !== i) }));
-                        if (openFaqIdx === i) setOpenFaqIdx(null);
-                      }}
-                      aria-label="Remover"
-                      className="p-1.5 rounded-md text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors opacity-60 group-hover:opacity-100"
-                    >
-                      <Trash2 className="size-3.5" />
-                    </button>
+                    {!isSigma && (
+                      <button
+                        onClick={() => {
+                          setForm((f) => ({ ...f, faqs: f.faqs.filter((_, j) => j !== i) }));
+                          if (openFaqIdx === i) setOpenFaqIdx(null);
+                        }}
+                        aria-label="Remover"
+                        className="p-1.5 rounded-md text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors opacity-60 group-hover:opacity-100"
+                      >
+                        <Trash2 className="size-3.5" />
+                      </button>
+                    )}
                   </div>
                   {isOpen && (
-                    <div className="px-3.5 pb-3.5 pt-1 space-y-2.5 border-t border-border/40">
+                    <fieldset disabled={isSigma} className={`px-3.5 pb-3.5 pt-1 space-y-2.5 border-t border-border/40 m-0 min-w-0 ${isSigma ? "opacity-70" : ""}`}>
+                      {isSigma && (
+                        <p className="text-[11px] text-amber-300/90 inline-flex items-center gap-1">
+                          <Lock className="size-3" /> Pergunta do SigmaGuide — leitura somente.
+                        </p>
+                      )}
                       <Input placeholder="Pergunta" value={m.question} maxLength={200} onChange={(e) => setForm((f) => ({ ...f, faqs: f.faqs.map((x, j) => j === i ? { ...x, question: e.target.value } : x) }))} />
                       <Textarea placeholder="Resposta" value={m.answer} maxLength={2000} onChange={(e) => setForm((f) => ({ ...f, faqs: f.faqs.map((x, j) => j === i ? { ...x, answer: e.target.value } : x) }))} />
                       <div className="space-y-1.5">
@@ -1632,7 +1661,7 @@ function PropertyEditor() {
                           })}
                         </div>
                       </div>
-                    </div>
+                    </fieldset>
                   )}
                 </div>
               );
@@ -2227,6 +2256,7 @@ function CityRefsGroup({
   updateFn,
   bulkDeleteFn,
   invalidate,
+  locked,
 }: {
   cityLabel: string;
   state: string | null;
@@ -2242,6 +2272,7 @@ function CityRefsGroup({
   updateFn: (args: { data: { id: string; patch: Record<string, unknown> } }) => Promise<{ ok: boolean }>;
   bulkDeleteFn: (args: { data: { ids: string[] } }) => Promise<{ ok: boolean; deleted?: number }>;
   invalidate: () => void;
+  locked?: boolean;
 }) {
   const city = (cityLabel || "").trim();
   const q = useQuery({
@@ -2364,6 +2395,7 @@ function CityRefsGroup({
       generating={generating || q.isFetching}
       headerExtra={<><SaveAsSigmaPackButton propertyId={propertyId} /><SigmaImportButton propertyId={propertyId} /><LinkGuidesButton propertyId={propertyId} /></>}
       hideSearch
+      locked={locked}
     />
   );
 }
@@ -2382,6 +2414,7 @@ export function RecGroup({
   generating,
   headerExtra,
   hideSearch,
+  locked,
 }: {
   title: string;
   desc: string;
@@ -2395,6 +2428,7 @@ export function RecGroup({
   generating?: boolean;
   headerExtra?: React.ReactNode;
   hideSearch?: boolean;
+  locked?: boolean;
 }) {
   const [openCat, setOpenCat] = useState<string | null>(null);
   const [openItemIdx, setOpenItemIdx] = useState<number | null>(null);
@@ -2509,6 +2543,15 @@ export function RecGroup({
       title={title}
       desc={desc}
     >
+      {locked && (
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-amber-400/30 bg-amber-500/10 px-3 py-2">
+          <span className="text-xs text-amber-200 inline-flex items-center gap-1.5">
+            <Lock className="size-3.5" /> Conteúdo gerenciado pelo SigmaGuide — edição bloqueada.
+          </span>
+          <div className="flex items-center gap-1.5">{headerExtra}</div>
+        </div>
+      )}
+      <fieldset disabled={!!locked} className={locked ? "min-w-0 m-0 p-0 border-0 opacity-60 pointer-events-none space-y-3" : "min-w-0 m-0 p-0 border-0 space-y-3"}>
       {/* Linha 1: ações de seleção (alinhadas à esquerda) */}
       {items.length > 0 && (
         <div className="flex flex-wrap items-center gap-1.5 -mt-1">
@@ -2789,6 +2832,7 @@ export function RecGroup({
           })}
         </div>
       )}
+      </fieldset>
     </Section>
   );
 }

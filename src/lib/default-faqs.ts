@@ -150,7 +150,7 @@ export function buildDefaultFaqs(p: DefaultFaqInput): DefaultFaqItem[] {
 }
 
 // Merge new defaults into an existing FAQ list, skipping duplicates by question.
-export function mergeDefaultFaqs<T extends { question: string; answer: string; tags: DefaultFaqTag[] }>(
+export function mergeDefaultFaqs<T extends { question: string; answer: string; tags: string[] }>(
   existing: T[],
   defaults: DefaultFaqItem[],
 ): { merged: T[]; added: number } {
