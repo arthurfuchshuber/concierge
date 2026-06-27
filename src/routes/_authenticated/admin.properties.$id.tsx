@@ -2239,6 +2239,7 @@ function CityRefsGroup({
   updateFn,
   bulkDeleteFn,
   invalidate,
+  locked,
 }: {
   cityLabel: string;
   state: string | null;
@@ -2254,6 +2255,7 @@ function CityRefsGroup({
   updateFn: (args: { data: { id: string; patch: Record<string, unknown> } }) => Promise<{ ok: boolean }>;
   bulkDeleteFn: (args: { data: { ids: string[] } }) => Promise<{ ok: boolean; deleted?: number }>;
   invalidate: () => void;
+  locked?: boolean;
 }) {
   const city = (cityLabel || "").trim();
   const q = useQuery({
