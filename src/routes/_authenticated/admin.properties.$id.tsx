@@ -2397,6 +2397,7 @@ export function RecGroup({
   generating,
   headerExtra,
   hideSearch,
+  locked,
 }: {
   title: string;
   desc: string;
@@ -2410,6 +2411,7 @@ export function RecGroup({
   generating?: boolean;
   headerExtra?: React.ReactNode;
   hideSearch?: boolean;
+  locked?: boolean;
 }) {
   const [openCat, setOpenCat] = useState<string | null>(null);
   const [openItemIdx, setOpenItemIdx] = useState<number | null>(null);
