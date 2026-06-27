@@ -2815,6 +2815,7 @@ export function RecGroup({
           })}
         </div>
       )}
+      </fieldset>
     </Section>
   );
 }
