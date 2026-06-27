@@ -588,9 +588,15 @@ export const saveGuideAsSigmaPack = createServerFn({ method: "POST" })
         city_key: key,
         city_label: propRow.city,
         country: propRow.country ?? null,
-        is_published: false,
+        is_published: true,
       });
       if (insErr) throw new Error(insErr.message);
+    } else {
+      // Salvar via guia republica automaticamente para liberar "Importar do SigmaGuide" nos demais guias.
+      await supabaseAdmin
+        .from("sigma_city_packs")
+        .update({ is_published: true })
+        .eq("city_key", key);
     }
 
     // Wipe + repopulate child tables for this city

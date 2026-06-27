@@ -1,7 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { useState } from "react";
+import React, { useState } from "react";
+import { RecGroup, PlaceAutocomplete, type RecItem } from "@/routes/_authenticated/admin.properties.$id";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -89,74 +90,126 @@ function SigmaPackEditor() {
 // ---- Tabs ----
 function RecsTab({ cityKey, items, refresh }: { cityKey: string; items: Awaited<ReturnType<typeof adminGetSigmaPack>>["recs"]; refresh: () => void }) {
   const addFn = useServerFn(addSigmaRec);
-  const delFn = useServerFn(deleteSigmaRecs);
   const updFn = useServerFn(updateSigmaRec);
-  const [name, setName] = useState("");
-  const [category, setCategory] = useState("");
-  const [mapsUrl, setMapsUrl] = useState("");
-  const [saving, setSaving] = useState(false);
+  const delFn = useServerFn(deleteSigmaRecs);
 
-  async function add() {
-    if (!name.trim()) return;
-    setSaving(true);
-    try {
-      await addFn({
+  // server rows -> RecItem (mesmo formato usado dentro do guia)
+  const serverItems: RecItem[] = React.useMemo(
+    () => items.map((r) => ({
+      scope: "city" as const,
+      type: r.type || "other",
+      name: r.name || "",
+      category: r.category ?? null,
+      rating: r.rating ?? null,
+      user_ratings_total: r.user_ratings_total ?? null,
+      distance_text: null,
+      distance_meters: null,
+      drive_minutes: null,
+      walk_minutes: null,
+      opening_hours: r.opening_hours ?? null,
+      note: r.note ?? null,
+      image_url: r.image_url ?? null,
+      maps_url: r.maps_url ?? null,
+      place_id: r.place_id ?? null,
+      lat: r.lat ?? null,
+      lng: r.lng ?? null,
+      _dbId: r.id,
+    })),
+    [items],
+  );
+
+  const [localItems, setLocalItems] = React.useState<RecItem[]>(serverItems);
+  React.useEffect(() => { setLocalItems(serverItems); }, [serverItems]);
+
+  const pendingUpdates = React.useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+  const inflightAdds = React.useRef<Set<string>>(new Set());
+
+  function scheduleUpdate(id: string, patch: Record<string, unknown>) {
+    const map = pendingUpdates.current;
+    const existing = map.get(id);
+    if (existing) clearTimeout(existing);
+    const t = setTimeout(() => {
+      map.delete(id);
+      updFn({ data: { id, patch } }).then(refresh).catch((e) => toast.error(e instanceof Error ? e.message : "Erro ao salvar"));
+    }, 700);
+    map.set(id, t);
+  }
+
+  function handleChange(next: RecItem[]) {
+    const prev = localItems;
+    setLocalItems(next);
+
+    // Exclusões
+    const prevIds = new Set(prev.map((p) => p._dbId).filter(Boolean) as string[]);
+    const nextIds = new Set(next.map((p) => p._dbId).filter(Boolean) as string[]);
+    const deletedIds = [...prevIds].filter((id) => !nextIds.has(id));
+    if (deletedIds.length) {
+      delFn({ data: { ids: deletedIds } }).then(refresh).catch((e) => toast.error(e instanceof Error ? e.message : "Erro ao excluir"));
+    }
+
+    // Adições — exige place_id (somente Google)
+    const additions = next.filter((n) => !n._dbId && n.place_id && n.name && n.name.trim().length > 0);
+    for (const rec of additions) {
+      const key = `pid:${rec.place_id}`;
+      if (inflightAdds.current.has(key)) continue;
+      inflightAdds.current.add(key);
+      addFn({
         data: {
-          city_key: cityKey, type: "other", name: name.trim(),
-          category: category.trim() || null, maps_url: mapsUrl.trim() || null,
+          city_key: cityKey,
+          type: rec.type || "other",
+          name: rec.name.trim(),
+          category: rec.category || rec.type || "Outros",
+          rating: rec.rating ?? null,
+          user_ratings_total: rec.user_ratings_total ?? null,
+          note: rec.note ?? null,
+          image_url: rec.image_url ?? null,
+          maps_url: rec.maps_url ?? null,
+          place_id: rec.place_id!,
+          lat: rec.lat ?? null,
+          lng: rec.lng ?? null,
+          opening_hours: rec.opening_hours ?? null,
         },
-      });
-      setName(""); setCategory(""); setMapsUrl("");
-      toast.success("Ponto adicionado");
-      refresh();
-    } catch (e) { toast.error(e instanceof Error ? e.message : "Erro"); }
-    finally { setSaving(false); }
+      })
+        .then(refresh)
+        .catch((e) => toast.error(e instanceof Error ? e.message : "Erro ao adicionar"))
+        .finally(() => inflightAdds.current.delete(key));
+    }
+
+    // Updates
+    for (const n of next) {
+      if (!n._dbId) continue;
+      const before = prev.find((p) => p._dbId === n._dbId);
+      if (!before) continue;
+      const patch: Record<string, unknown> = {};
+      if ((n.name ?? "") !== (before.name ?? "")) patch.name = n.name;
+      if ((n.note ?? null) !== (before.note ?? null)) patch.note = n.note ?? null;
+      if ((n.maps_url ?? null) !== (before.maps_url ?? null)) patch.maps_url = n.maps_url ?? null;
+      if ((n.category ?? null) !== (before.category ?? null)) patch.category = n.category ?? null;
+      if (Object.keys(patch).length) scheduleUpdate(n._dbId, patch);
+    }
   }
 
-  async function del(id: string) {
-    try { await delFn({ data: { ids: [id] } }); toast.success("Removido"); refresh(); }
-    catch (e) { toast.error(e instanceof Error ? e.message : "Erro"); }
-  }
+  const existingPlaceIds = new Set(localItems.map((i) => i.place_id).filter((x): x is string => !!x));
 
   return (
     <div className="space-y-3">
-      <div className="rounded-2xl border border-border/60 bg-card p-4 space-y-3">
-        <h3 className="text-sm font-medium">Adicionar ponto</h3>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-          <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nome (ex: Cataratas do Iguaçu)" />
-          <Input value={category} onChange={(e) => setCategory(e.target.value)} placeholder="Categoria (ex: Experiências)" />
-          <Input value={mapsUrl} onChange={(e) => setMapsUrl(e.target.value)} placeholder="Link Google Maps (opcional)" />
-        </div>
-        <div className="flex justify-end">
-          <Button onClick={add} disabled={saving || !name.trim()}>
-            {saving && <Loader2 className="size-3.5 animate-spin" />} Adicionar
-          </Button>
-        </div>
-      </div>
-      <div className="space-y-2">
-        {items.length === 0 ? (
-          <p className="text-sm text-muted-foreground text-center py-8">Nenhum ponto ainda.</p>
-        ) : items.map((r) => (
-          <div key={r.id} className="rounded-xl border border-border/60 bg-card p-3 flex items-center gap-3">
-            <div className="flex-1 min-w-0">
-              <input
-                defaultValue={r.name}
-                onBlur={(e) => { if (e.target.value !== r.name) updFn({ data: { id: r.id, patch: { name: e.target.value } } }).then(refresh).catch(() => {}); }}
-                className="w-full bg-transparent text-sm font-medium outline-none"
-              />
-              <input
-                defaultValue={r.category ?? ""}
-                placeholder="Sem categoria"
-                onBlur={(e) => { if (e.target.value !== (r.category ?? "")) updFn({ data: { id: r.id, patch: { category: e.target.value || null } } }).then(refresh).catch(() => {}); }}
-                className="w-full bg-transparent text-[11px] text-muted-foreground outline-none"
-              />
-            </div>
-            <Button size="sm" variant="ghost" className="text-rose-400 hover:text-rose-300" onClick={() => del(r.id)}>
-              <Trash2 className="size-3.5" />
-            </Button>
-          </div>
-        ))}
-      </div>
+      <PlaceAutocomplete
+        scope="city"
+        lat={null}
+        lng={null}
+        existingPlaceIds={existingPlaceIds}
+        onSelect={(rec) => handleChange([...localItems, rec])}
+      />
+      <RecGroup
+        title="Pontos da cidade"
+        desc="Curadoria oficial SigmaGuide para esta cidade. Mesmo racional do guia: categorias expansivas, busca via Google, bloqueio de duplicidade."
+        items={localItems}
+        onChange={handleChange}
+        scope="city"
+        lat={null}
+        lng={null}
+        hideSearch
+      />
     </div>
   );
 }

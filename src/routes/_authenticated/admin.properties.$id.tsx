@@ -39,7 +39,7 @@ export const Route = createFileRoute("/_authenticated/admin/properties/$id")({
   component: PropertyEditor,
 });
 
-type RecItem = {
+export type RecItem = {
   scope: "nearby" | "city";
   type: string;
   name: string;
@@ -2026,7 +2026,7 @@ function ItemCard({ children, onRemove }: { children: React.ReactNode; onRemove:
   );
 }
 
-function PlaceAutocomplete({
+export function PlaceAutocomplete({
   scope,
   lat,
   lng,
@@ -2369,7 +2369,7 @@ function CityRefsGroup({
 }
 
 
-function RecGroup({
+export function RecGroup({
   title,
   desc,
   items,
@@ -2509,8 +2509,9 @@ function RecGroup({
       title={title}
       desc={desc}
     >
-      <div className="flex flex-wrap items-center gap-1.5 -mt-1">
-        {items.length > 0 && (
+      {/* Linha 1: ações de seleção (alinhadas à esquerda) */}
+      {items.length > 0 && (
+        <div className="flex flex-wrap items-center gap-1.5 -mt-1">
           <button
             type="button"
             onClick={toggleSelectAll}
@@ -2518,65 +2519,69 @@ function RecGroup({
           >
             {selectedIdx.size === items.length ? "Limpar" : "Selecionar todos"}
           </button>
-        )}
-        {selectedIdx.size > 0 && (
-          <>
-            <Button size="sm" variant="destructive" onClick={() => setConfirmDeleteOpen(true)} className="h-8 rounded-full text-xs">
-              <Trash2 className="size-3.5" /> Excluir ({selectedIdx.size})
-            </Button>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button size="sm" variant="outline" className="h-8 rounded-full text-xs">
-                  <MoveRight className="size-3.5" /> Mover ({selectedIdx.size})
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="max-h-72 overflow-y-auto">
-                <DropdownMenuLabel className="text-[10px] uppercase">Mover para categoria</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                {(taxonomy?.categories ?? []).map((c) => (
-                  <DropdownMenuItem
-                    key={c.id}
-                    onClick={() => {
-                      const next = items.map((it, i) => selectedIdx.has(i) ? { ...it, category: c.label } : it);
-                      onChange(next);
-                      setSelectedIdx(new Set());
-                      toast.success(`Movidos para "${c.label}"`);
-                    }}
-                  >
-                    {c.label}
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </>
-        )}
-        <AlertDialog open={confirmDeleteOpen} onOpenChange={setConfirmDeleteOpen}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Excluir {selectedIdx.size} item(ns)?</AlertDialogTitle>
-              <AlertDialogDescription>
-                Esta ação remove <strong>{selectedIdx.size}</strong> recomendaç{selectedIdx.size === 1 ? "ão" : "ões"} selecionada{selectedIdx.size === 1 ? "" : "s"} da lista. Você poderá adicioná-las novamente depois, manualmente ou via "Gerar com IA".
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancelar</AlertDialogCancel>
-              <AlertDialogAction onClick={deleteSelected} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                Excluir
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-        <div className="ml-auto flex items-center gap-1.5">
-          <div className="relative">
-            <Search className="size-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
-            <Input
-              value={filterQuery}
-              onChange={(e) => setFilterQuery(e.target.value)}
-              placeholder="Buscar neste quadrante…"
-              className="h-8 pl-7 pr-2 text-xs rounded-full w-44 sm:w-56"
-              maxLength={120}
-            />
-          </div>
+          {selectedIdx.size > 0 && (
+            <>
+              <Button size="sm" variant="destructive" onClick={() => setConfirmDeleteOpen(true)} className="h-8 rounded-full text-xs">
+                <Trash2 className="size-3.5" /> Excluir ({selectedIdx.size})
+              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button size="sm" variant="outline" className="h-8 rounded-full text-xs">
+                    <MoveRight className="size-3.5" /> Mover ({selectedIdx.size})
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="max-h-72 overflow-y-auto">
+                  <DropdownMenuLabel className="text-[10px] uppercase">Mover para categoria</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  {(taxonomy?.categories ?? []).map((c) => (
+                    <DropdownMenuItem
+                      key={c.id}
+                      onClick={() => {
+                        const next = items.map((it, i) => selectedIdx.has(i) ? { ...it, category: c.label } : it);
+                        onChange(next);
+                        setSelectedIdx(new Set());
+                        toast.success(`Movidos para "${c.label}"`);
+                      }}
+                    >
+                      {c.label}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </>
+          )}
+        </div>
+      )}
+      <AlertDialog open={confirmDeleteOpen} onOpenChange={setConfirmDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir {selectedIdx.size} item(ns)?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação remove <strong>{selectedIdx.size}</strong> recomendaç{selectedIdx.size === 1 ? "ão" : "ões"} selecionada{selectedIdx.size === 1 ? "" : "s"} da lista. Você poderá adicioná-las novamente depois, manualmente ou via "Gerar com IA".
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={deleteSelected} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Linha 2: busca à esquerda (larga) + ações à direita */}
+      <div className="flex flex-wrap items-center gap-1.5">
+        <div className="relative flex-1 min-w-[180px] max-w-md">
+          <Search className="size-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+          <Input
+            value={filterQuery}
+            onChange={(e) => setFilterQuery(e.target.value)}
+            placeholder="Buscar neste quadrante…"
+            className="h-8 pl-7 pr-2 text-xs rounded-full w-full"
+            maxLength={120}
+          />
+        </div>
+        <div className="ml-auto flex items-center gap-1.5 flex-wrap justify-end">
           {headerExtra}
           {onReplicate && (
             <Button size="sm" variant="ghost" onClick={onReplicate} className="shrink-0 h-8 rounded-full text-xs text-muted-foreground hover:text-foreground" title="Replicar">
