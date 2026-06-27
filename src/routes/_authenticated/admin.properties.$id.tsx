@@ -177,6 +177,17 @@ function PropertyEditor() {
   const canAirbnb = sub.features.autoImport;
   const canBrand = sub.features.customBrand;
 
+  // Estado do pack SigmaGuide aplicado a este imóvel.
+  // Quando ativo, "Pela cidade", "Reservas & marketplace" e FAQs vindas do
+  // Sigma ficam bloqueadas para edição.
+  const sigmaStateFn = useServerFn(getMyPropertySigmaState);
+  const { data: sigmaState } = useQuery({
+    queryKey: ["sigma-pack-state", id],
+    queryFn: () => sigmaStateFn({ data: { property_id: id } }),
+    enabled: !isNew,
+  });
+  const sigmaLocked = !!sigmaState?.active_city_key;
+
 
 
   const [form, setForm] = useState<FormState>(() => emptyForm());
