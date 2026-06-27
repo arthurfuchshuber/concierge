@@ -1605,8 +1605,9 @@ function PropertyEditor() {
                 }));
               };
               const isOpen = openFaqIdx === i;
+              const isSigma = m.tags.includes("sigma");
               return (
-                <div key={i} className="group bg-background border border-border/60 rounded-xl overflow-hidden hover:border-border transition-colors">
+                <div key={i} className={`group bg-background border rounded-xl overflow-hidden transition-colors ${isSigma ? "border-amber-400/40" : "border-border/60 hover:border-border"}`}>
                   <div className="flex items-center gap-2 px-3.5 py-3">
                     <button
                       type="button"
@@ -1614,24 +1615,32 @@ function PropertyEditor() {
                       className="flex-1 flex items-center gap-2 min-w-0 text-left"
                       aria-expanded={isOpen}
                     >
+                      {isSigma && <Lock className="size-3.5 text-amber-300 shrink-0" />}
                       <span className="text-sm font-medium truncate flex-1">
                         {m.question || <span className="text-muted-foreground italic">Sem pergunta</span>}
                       </span>
                       <ChevronDown className={`size-4 text-muted-foreground transition-transform shrink-0 ${isOpen ? "rotate-180" : ""}`} />
                     </button>
-                    <button
-                      onClick={() => {
-                        setForm((f) => ({ ...f, faqs: f.faqs.filter((_, j) => j !== i) }));
-                        if (openFaqIdx === i) setOpenFaqIdx(null);
-                      }}
-                      aria-label="Remover"
-                      className="p-1.5 rounded-md text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors opacity-60 group-hover:opacity-100"
-                    >
-                      <Trash2 className="size-3.5" />
-                    </button>
+                    {!isSigma && (
+                      <button
+                        onClick={() => {
+                          setForm((f) => ({ ...f, faqs: f.faqs.filter((_, j) => j !== i) }));
+                          if (openFaqIdx === i) setOpenFaqIdx(null);
+                        }}
+                        aria-label="Remover"
+                        className="p-1.5 rounded-md text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors opacity-60 group-hover:opacity-100"
+                      >
+                        <Trash2 className="size-3.5" />
+                      </button>
+                    )}
                   </div>
                   {isOpen && (
-                    <div className="px-3.5 pb-3.5 pt-1 space-y-2.5 border-t border-border/40">
+                    <fieldset disabled={isSigma} className={`px-3.5 pb-3.5 pt-1 space-y-2.5 border-t border-border/40 m-0 min-w-0 ${isSigma ? "opacity-70" : ""}`}>
+                      {isSigma && (
+                        <p className="text-[11px] text-amber-300/90 inline-flex items-center gap-1">
+                          <Lock className="size-3" /> Pergunta do SigmaGuide — leitura somente.
+                        </p>
+                      )}
                       <Input placeholder="Pergunta" value={m.question} maxLength={200} onChange={(e) => setForm((f) => ({ ...f, faqs: f.faqs.map((x, j) => j === i ? { ...x, question: e.target.value } : x) }))} />
                       <Textarea placeholder="Resposta" value={m.answer} maxLength={2000} onChange={(e) => setForm((f) => ({ ...f, faqs: f.faqs.map((x, j) => j === i ? { ...x, answer: e.target.value } : x) }))} />
                       <div className="space-y-1.5">
@@ -1652,7 +1661,7 @@ function PropertyEditor() {
                           })}
                         </div>
                       </div>
-                    </div>
+                    </fieldset>
                   )}
                 </div>
               );
