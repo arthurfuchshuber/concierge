@@ -1481,8 +1481,14 @@ function PropertyEditor() {
             icon={Ticket}
             title="Reservas & marketplace"
             desc="Links para venda de ingressos, passeios, transfers, produtos ou qualquer experiência que você queira oferecer ao hóspede."
-            action={<AddBtn onClick={() => setForm((f) => ({ ...f, property: { ...f.property, marketplace_links: [...f.property.marketplace_links, { label: "", url: "", description: "" }] } }))} />}
+            action={sigmaLocked ? null : <AddBtn onClick={() => setForm((f) => ({ ...f, property: { ...f.property, marketplace_links: [...f.property.marketplace_links, { label: "", url: "", description: "" }] } }))} />}
           >
+            {sigmaLocked && (
+              <div className="flex items-center gap-1.5 rounded-lg border border-amber-400/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
+                <Lock className="size-3.5" /> Links gerenciados pelo SigmaGuide — edição bloqueada.
+              </div>
+            )}
+            <fieldset disabled={sigmaLocked} className={sigmaLocked ? "min-w-0 m-0 p-0 border-0 opacity-60 pointer-events-none space-y-3" : "min-w-0 m-0 p-0 border-0 space-y-3"}>
             {form.property.marketplace_links.length === 0 ? (
               <EmptyHint text="Ex: tour de barco, transfer do aeroporto, kit de boas-vindas." />
             ) : form.property.marketplace_links.map((m, i) => (
@@ -1518,6 +1524,7 @@ function PropertyEditor() {
                 </div>
               </ItemCard>
             ))}
+            </fieldset>
           </Section>
           </SectionGroup>
         </TabsContent>
