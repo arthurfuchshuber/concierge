@@ -34,6 +34,7 @@ import { updatePoiCategory, reorderPoiCategories } from "@/lib/poi-taxonomy.func
 import { Pencil, Check as CheckIcon, X as XIcon, Search, Settings2 } from "lucide-react";
 import { friendlyErrorMessage } from "@/lib/friendly-error";
 import { SigmaImportButton, SigmaActiveBanner, SaveAsSigmaPackButton } from "@/components/admin/SigmaImportButton";
+import { getMyPropertySigmaState } from "@/lib/sigma-recommendations.functions";
 
 export const Route = createFileRoute("/_authenticated/admin/properties/$id")({
   component: PropertyEditor,
@@ -119,7 +120,7 @@ type FormState = {
   };
   manual: { title: string; description: string; body: string }[];
   emergency: { label: string; number: string }[];
-  faqs: { question: string; answer: string; tags: ("chegada" | "saida" | "residencia" | "explore")[] }[];
+  faqs: { question: string; answer: string; tags: string[] }[];
   checkout: { label: string }[];
   recommendations: RecItem[];
 };
@@ -301,7 +302,7 @@ function PropertyEditor() {
       faqs: (data.faqs ?? []).map((m: Record<string, unknown>) => ({
         question: (m.question as string) ?? "",
         answer: (m.answer as string) ?? "",
-        tags: (Array.isArray(m.tags) ? (m.tags as string[]).filter((t) => ["chegada", "saida", "residencia", "explore"].includes(t)) : []) as ("chegada" | "saida" | "residencia" | "explore")[],
+        tags: Array.isArray(m.tags) ? (m.tags as string[]).filter((t) => typeof t === "string") : [],
       })),
       checkout: (data.checkout ?? []).map((m: Record<string, unknown>) => ({
         label: (m.label as string) ?? "",
