@@ -2526,6 +2526,15 @@ export function RecGroup({
       title={title}
       desc={desc}
     >
+      {locked && (
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-amber-400/30 bg-amber-500/10 px-3 py-2">
+          <span className="text-xs text-amber-200 inline-flex items-center gap-1.5">
+            <Lock className="size-3.5" /> Conteúdo gerenciado pelo SigmaGuide — edição bloqueada.
+          </span>
+          <div className="flex items-center gap-1.5">{headerExtra}</div>
+        </div>
+      )}
+      <fieldset disabled={!!locked} className={locked ? "min-w-0 m-0 p-0 border-0 opacity-60 pointer-events-none space-y-3" : "min-w-0 m-0 p-0 border-0 space-y-3"}>
       {/* Linha 1: ações de seleção (alinhadas à esquerda) */}
       {items.length > 0 && (
         <div className="flex flex-wrap items-center gap-1.5 -mt-1">
