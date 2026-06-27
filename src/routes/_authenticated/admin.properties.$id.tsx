@@ -1459,6 +1459,7 @@ function PropertyEditor() {
             updateFn={updateCityRefFn}
             bulkDeleteFn={bulkDeleteCityRefsFn}
             invalidate={invalidateCityRefs}
+            locked={sigmaLocked}
           />
 
           {genCityModeOpen && (
