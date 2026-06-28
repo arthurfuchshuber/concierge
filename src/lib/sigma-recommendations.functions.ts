@@ -844,6 +844,8 @@ export const saveGuideAsSigmaPack = createServerFn({ method: "POST" })
       if (error) throw new Error(error.message);
     }
 
+    await propagateSigmaPackToSubscribers(supabaseAdmin, key);
+
     return {
       ok: true,
       city_key: key,
