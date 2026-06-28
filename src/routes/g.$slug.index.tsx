@@ -469,8 +469,8 @@ function Guide({ data }: { data: GuideOk }) {
             />
 
 
-            <div className="px-5 md:px-10 lg:px-16 mt-2 md:mt-3 relative z-10 mb-4 md:mb-6 space-y-3">
-              {!wifiExpired && (
+            {!stripsHidden && (
+              <div className="px-5 md:px-10 lg:px-16 mt-2 md:mt-3 relative z-10 mb-4 md:mb-6 space-y-3">
                 <div className="md:max-w-md lg:max-w-lg">
                   <WifiStrip
                     ssid={p.wifi_ssid}
@@ -483,25 +483,26 @@ function Guide({ data }: { data: GuideOk }) {
                     gateEnabled={gateEnabled}
                   />
                 </div>
-              )}
-              {(p.gate_code || p.lock_code) && (
-                <div className="md:max-w-md lg:max-w-lg">
-                  <AccessCodesStrip
-                    gateCode={p.gate_code as string | null}
-                    lockCode={p.lock_code as string | null}
-                    gateLabel={(p.gate_label as string | null) || "Portão"}
-                    lockLabel={(p.lock_label as string | null) || "Fechadura"}
-                    unlocked={unlocked}
-                    requestUnlock={requestUnlock}
-                    checkinLocked={checkinLocked}
-                    hasAccessRec={!!accessRec}
-                    gateEnabled={gateEnabled}
-                    theme={theme}
-                    checkinInstructions={p.checkin_instructions as string | null}
-                  />
-                </div>
-              )}
-            </div>
+                {(p.gate_code || p.lock_code) && (
+                  <div className="md:max-w-md lg:max-w-lg">
+                    <AccessCodesStrip
+                      gateCode={p.gate_code as string | null}
+                      lockCode={p.lock_code as string | null}
+                      gateLabel={(p.gate_label as string | null) || "Portão"}
+                      lockLabel={(p.lock_label as string | null) || "Fechadura"}
+                      unlocked={unlocked}
+                      requestUnlock={requestUnlock}
+                      checkinLocked={checkinLocked}
+                      hasAccessRec={!!accessRec}
+                      gateEnabled={gateEnabled}
+                      theme={theme}
+                      checkinInstructions={p.checkin_instructions as string | null}
+                    />
+                  </div>
+                )}
+              </div>
+            )}
+
 
             <section id="guide-actions" className="px-5 md:px-10 lg:px-16 relative z-10">
               <div className="flex items-center gap-3 mb-3 md:mb-5">
