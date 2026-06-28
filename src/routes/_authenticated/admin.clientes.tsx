@@ -468,6 +468,7 @@ function EditDialog({
     }
     try {
       await onSave({
+        fullName: fullName.trim() || null,
         plan,
         status,
         environment,
