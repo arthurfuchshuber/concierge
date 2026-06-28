@@ -162,6 +162,13 @@ export const adminListCustomers = createServerFn({ method: "GET" })
       const guestAccesses30d = guestAccessByOwner.get(u.id) ?? 0;
       // Churn risk: active sub + no login in 14d + no guest accesses in 30d
       const lastLogin = (u as { last_sign_in_at?: string }).last_sign_in_at ?? null;
+      const bannedUntil = (u as { banned_until?: string | null }).banned_until ?? null;
+      const isBlocked = !!bannedUntil && new Date(bannedUntil).getTime() > Date.now();
+      const userStatus: "active" | "blocked" | "pending" = isBlocked
+        ? "blocked"
+        : lastLogin
+          ? "active"
+          : "pending";
       const daysSinceLogin = lastLogin
         ? Math.floor((Date.now() - new Date(lastLogin).getTime()) / 86400_000)
         : 999;
@@ -176,6 +183,7 @@ export const adminListCustomers = createServerFn({ method: "GET" })
         fullName: profileMap.get(u.id) ?? null,
         createdAt: u.created_at ?? null,
         lastSignInAt: lastLogin,
+        userStatus,
         totalGuides,
         publishedGuides,
         avgCompletenessScore: avgScore,
