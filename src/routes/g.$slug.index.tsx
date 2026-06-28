@@ -847,29 +847,29 @@ function Guide({ data }: { data: GuideOk }) {
                     {hasAcesso && (() => {
                       const gateLabel = ((p.gate_label as string | null) || "Portão").trim() || "Portão";
                       const lockLabel = ((p.lock_label as string | null) || "Fechadura").trim() || "Fechadura";
-                      const accessCount = (p.gate_code ? 1 : 0) + (p.lock_code ? 1 : 0);
+                      const accessCount = (gateCodeSet ? 1 : 0) + (lockCodeSet ? 1 : 0);
                       const accessLabel = accessCount > 1 ? "Senhas de Acessos" : "Senha de Acesso";
                       return (
                       <SubItem
                         icon={<KeyRound className="size-[18px]" strokeWidth={1.6} />}
                         label={accessLabel}
                         hint={
-                          p.gate_code && p.lock_code
+                          gateCodeSet && lockCodeSet
                             ? `${gateLabel} e ${lockLabel.toLowerCase()}`
-                            : p.gate_code
+                            : gateCodeSet
                             ? gateLabel
-                            : p.lock_code
+                            : lockCodeSet
                             ? lockLabel
                             : "Instruções de entrada"
                         }
                       >
                         <Lockable locked={checkinLocked}>
                           <div className="space-y-4">
-                            {p.gate_code && (
+                            {gateCodeSet && (
                               <AccessBlock
                                 kind="gate"
                                 label={gateLabel}
-                                code={p.gate_code}
+                                code={p.gate_code ?? ""}
                                 instructions={p.gate_instructions as string | null}
                                 videoUrl={p.gate_video_url as string | null}
                                 media={gateMedia}
@@ -878,11 +878,11 @@ function Guide({ data }: { data: GuideOk }) {
                                 hasPin={hasAccessPin}
                               />
                             )}
-                            {p.lock_code && (
+                            {lockCodeSet && (
                               <AccessBlock
                                 kind="lock"
                                 label={lockLabel}
-                                code={p.lock_code}
+                                code={p.lock_code ?? ""}
                                 instructions={p.lock_instructions as string | null}
                                 videoUrl={p.lock_video_url as string | null}
                                 media={lockMedia}
