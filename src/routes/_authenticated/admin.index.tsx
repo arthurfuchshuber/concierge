@@ -823,7 +823,7 @@ function Dashboard() {
                 </div>
               </div>
               <iframe
-                src={`/g/${viewSlug}`}
+                src={`/g/${viewSlug}?preview=1`}
                 title="Pré-visualização do guia"
                 className="w-full flex-1 border-0 bg-background"
               />
