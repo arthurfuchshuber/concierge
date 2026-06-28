@@ -2243,11 +2243,11 @@ function AccessCodesStrip({
           {!showing && (
             <button
               onClick={handleEyeClick}
-              aria-label="Visualizar códigos"
+              aria-label="Ver senhas de acesso"
               className="inline-flex items-center gap-1.5 rounded-full bg-foreground text-background px-3.5 py-2 text-[12px] font-semibold tracking-wide hover:opacity-90 active:scale-95 transition-all shadow-[0_6px_18px_-10px_oklch(from_var(--foreground)_l_c_h/0.35)]"
             >
               <Eye className="size-3.5" strokeWidth={2.4} />
-              <span>Mostrar</span>
+              <span>Ver Senha</span>
             </button>
           )}
           {checkinInstructions && checkinInstructions.trim() && (
