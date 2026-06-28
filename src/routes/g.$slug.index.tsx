@@ -498,23 +498,25 @@ function Guide({ data }: { data: GuideOk }) {
             />
 
 
-            {/* Wi-Fi e senhas de acesso ficam sempre visíveis até as 15h00
-                do dia do check-out (checkinLocked). O conteúdo continua
-                travado pelo PIN até o hóspede liberá-lo. */}
-            {!checkinLocked && (
+            {/* Faixas com Wi-Fi e códigos: aparecem de 8h antes do check-in
+                até 12h depois. O conteúdo continua travado pelo PIN até o
+                hóspede liberá-lo. */}
+            {homeStripsVisible && (
               <div className="px-5 md:px-10 lg:px-16 mt-2 md:mt-3 relative z-10 mb-4 md:mb-6 space-y-3">
-                <div className="md:max-w-md lg:max-w-lg">
-                  <WifiStrip
-                    ssid={p.wifi_ssid}
-                    password={p.wifi_password}
-                    theme={theme}
-                    unlocked={unlocked}
-                    requestUnlock={requestUnlock}
-                    checkinLocked={checkinLocked}
-                    hasAccessRec={!!accessRec}
-                    gateEnabled={gateEnabled}
-                  />
-                </div>
+                {p.wifi_ssid && (
+                  <div className="md:max-w-md lg:max-w-lg">
+                    <WifiStrip
+                      ssid={p.wifi_ssid}
+                      password={p.wifi_password}
+                      theme={theme}
+                      unlocked={unlocked}
+                      requestUnlock={requestUnlock}
+                      checkinLocked={checkinLocked}
+                      hasAccessRec={!!accessRec}
+                      gateEnabled={gateEnabled}
+                    />
+                  </div>
+                )}
                 {(p.gate_code || p.lock_code) && (
                   <div className="md:max-w-md lg:max-w-lg">
                     <AccessCodesStrip
@@ -532,6 +534,20 @@ function Guide({ data }: { data: GuideOk }) {
                     />
                   </div>
                 )}
+              </div>
+            )}
+
+            {/* Aviso de check-out: aparece a partir das 3h00 do dia do
+                check-out, levando o lembrete configurado pelo anfitrião. */}
+            {checkoutNoticeVisible && (
+              <div className="px-5 md:px-10 lg:px-16 mt-2 md:mt-3 relative z-10 mb-4 md:mb-6">
+                <div className="md:max-w-md lg:max-w-lg">
+                  <CheckoutNoticeStrip
+                    note={(p.checkout_note as string | null) || null}
+                    checkoutTime={(p.checkout_time as string | null) || null}
+                    theme={theme}
+                  />
+                </div>
               </div>
             )}
 
