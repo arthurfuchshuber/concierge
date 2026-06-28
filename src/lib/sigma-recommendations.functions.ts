@@ -470,6 +470,13 @@ async function propagateSigmaPackToSubscribers(supabaseAdmin: any, cityKey: stri
     // Propagação é best-effort; não derruba a edição.
   }
 }
+// Helper: descobre o city_key de uma linha filha do pack para propagar.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function getCityKeyByChildId(supabaseAdmin: any, table: string, id: string): Promise<string | null> {
+  const { data } = await supabaseAdmin.from(table).select("city_key").eq("id", id).maybeSingle();
+  return (data as { city_key: string } | null)?.city_key ?? null;
+}
+
 export const addSigmaRec = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((i: unknown) => RecPayload.parse(i))
@@ -490,6 +497,8 @@ export const addSigmaRec = createServerFn({ method: "POST" })
       .select("id")
       .single();
     if (error) throw new Error(error.message);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    await propagateSigmaPackToSubscribers(supabaseAdmin, data.city_key);
     return { id: row.id, duplicate: false };
   });
 
@@ -500,11 +509,14 @@ export const updateSigmaRec = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     await assertAdmin(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const cityKey = await getCityKeyByChildId(supabaseAdmin, "sigma_city_recommendations", data.id);
     const { error } = await context.supabase
       .from("sigma_city_recommendations")
       .update(data.patch as never)
       .eq("id", data.id);
     if (error) throw new Error(error.message);
+    if (cityKey) await propagateSigmaPackToSubscribers(supabaseAdmin, cityKey);
     return { ok: true };
   });
 
@@ -513,8 +525,15 @@ export const deleteSigmaRecs = createServerFn({ method: "POST" })
   .inputValidator((i: unknown) => z.object({ ids: z.array(z.string().uuid()).min(1) }).parse(i))
   .handler(async ({ data, context }) => {
     await assertAdmin(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: rows } = await supabaseAdmin
+      .from("sigma_city_recommendations")
+      .select("city_key")
+      .in("id", data.ids);
+    const keys = Array.from(new Set(((rows ?? []) as { city_key: string }[]).map((r) => r.city_key)));
     const { error } = await context.supabase.from("sigma_city_recommendations").delete().in("id", data.ids);
     if (error) throw new Error(error.message);
+    for (const k of keys) await propagateSigmaPackToSubscribers(supabaseAdmin, k);
     return { ok: true };
   });
 
@@ -532,6 +551,8 @@ export const addSigmaMarketplace = createServerFn({ method: "POST" })
     const { data: row, error } = await context.supabase
       .from("sigma_city_marketplace").insert(data).select("id").single();
     if (error) throw new Error(error.message);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    await propagateSigmaPackToSubscribers(supabaseAdmin, data.city_key);
     return { id: row.id };
   });
 export const updateSigmaMarketplace = createServerFn({ method: "POST" })
@@ -539,8 +560,11 @@ export const updateSigmaMarketplace = createServerFn({ method: "POST" })
   .inputValidator((i: unknown) => z.object({ id: z.string().uuid(), patch: z.record(z.string(), z.unknown()) }).parse(i))
   .handler(async ({ data, context }) => {
     await assertAdmin(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const cityKey = await getCityKeyByChildId(supabaseAdmin, "sigma_city_marketplace", data.id);
     const { error } = await context.supabase.from("sigma_city_marketplace").update(data.patch as never).eq("id", data.id);
     if (error) throw new Error(error.message);
+    if (cityKey) await propagateSigmaPackToSubscribers(supabaseAdmin, cityKey);
     return { ok: true };
   });
 export const deleteSigmaMarketplace = createServerFn({ method: "POST" })
@@ -548,8 +572,11 @@ export const deleteSigmaMarketplace = createServerFn({ method: "POST" })
   .inputValidator((i: unknown) => z.object({ id: z.string().uuid() }).parse(i))
   .handler(async ({ data, context }) => {
     await assertAdmin(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const cityKey = await getCityKeyByChildId(supabaseAdmin, "sigma_city_marketplace", data.id);
     const { error } = await context.supabase.from("sigma_city_marketplace").delete().eq("id", data.id);
     if (error) throw new Error(error.message);
+    if (cityKey) await propagateSigmaPackToSubscribers(supabaseAdmin, cityKey);
     return { ok: true };
   });
 
@@ -566,6 +593,8 @@ export const addSigmaFaq = createServerFn({ method: "POST" })
     await assertAdmin(context);
     const { data: row, error } = await context.supabase.from("sigma_city_faqs").insert(data).select("id").single();
     if (error) throw new Error(error.message);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    await propagateSigmaPackToSubscribers(supabaseAdmin, data.city_key);
     return { id: row.id };
   });
 export const updateSigmaFaq = createServerFn({ method: "POST" })
@@ -573,8 +602,11 @@ export const updateSigmaFaq = createServerFn({ method: "POST" })
   .inputValidator((i: unknown) => z.object({ id: z.string().uuid(), patch: z.record(z.string(), z.unknown()) }).parse(i))
   .handler(async ({ data, context }) => {
     await assertAdmin(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const cityKey = await getCityKeyByChildId(supabaseAdmin, "sigma_city_faqs", data.id);
     const { error } = await context.supabase.from("sigma_city_faqs").update(data.patch as never).eq("id", data.id);
     if (error) throw new Error(error.message);
+    if (cityKey) await propagateSigmaPackToSubscribers(supabaseAdmin, cityKey);
     return { ok: true };
   });
 export const deleteSigmaFaq = createServerFn({ method: "POST" })
@@ -582,8 +614,11 @@ export const deleteSigmaFaq = createServerFn({ method: "POST" })
   .inputValidator((i: unknown) => z.object({ id: z.string().uuid() }).parse(i))
   .handler(async ({ data, context }) => {
     await assertAdmin(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const cityKey = await getCityKeyByChildId(supabaseAdmin, "sigma_city_faqs", data.id);
     const { error } = await context.supabase.from("sigma_city_faqs").delete().eq("id", data.id);
     if (error) throw new Error(error.message);
+    if (cityKey) await propagateSigmaPackToSubscribers(supabaseAdmin, cityKey);
     return { ok: true };
   });
 
