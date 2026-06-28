@@ -315,6 +315,28 @@ export const adminUpdateSubscription = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+// Atualiza o nome do cliente (profiles.full_name) — usado dentro do diálogo
+// "Editar assinatura" para permitir corrigir o nome exibido.
+export const adminUpdateCustomerProfile = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { userId: string; fullName: string | null }) =>
+    z.object({
+      userId: z.string().uuid(),
+      fullName: z.string().trim().max(120).nullable(),
+    }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context.supabase, context.userId);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await supabaseAdmin
+      .from("profiles")
+      .upsert({ id: data.userId, full_name: data.fullName ?? null }, { onConflict: "id" });
+    if (error) throw new Error("Não foi possível atualizar o nome do cliente.");
+    return { ok: true };
+  });
+
+
+
 // ───────────────── SaaS Admins (user_roles management) ─────────────────
 
 export type SaasAdminRow = {
