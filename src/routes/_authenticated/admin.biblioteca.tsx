@@ -343,6 +343,7 @@ function BibliotecaPage() {
                 </div>
               )}
               {faqs.map((f, i) => {
+                if (!matchesScope(f.scope_property_id)) return null;
                 const isOpen = openFaq.has(i) || !f.id;
                 return (
                   <div key={i} className="rounded-2xl border border-border bg-card overflow-hidden">
@@ -379,6 +380,15 @@ function BibliotecaPage() {
                           )}
                         </span>
                       </button>
+                      <ScopeBadge
+                        value={f.scope_property_id}
+                        properties={properties}
+                        onChange={(v) =>
+                          setFaqs((arr) =>
+                            arr.map((x, j) => (j === i ? { ...x, scope_property_id: v } : x)),
+                          )
+                        }
+                      />
                       <button
                         type="button"
                         onClick={() => setFaqs((arr) => arr.filter((_, j) => j !== i))}
@@ -388,6 +398,7 @@ function BibliotecaPage() {
                         <Trash2 className="size-3.5" />
                       </button>
                     </div>
+
                     {isOpen && (
                       <div className="px-3 pb-3 pt-1 space-y-3 border-t border-border/60 bg-background/40">
                         <Input
