@@ -1246,7 +1246,8 @@ function RecCard({ rec }: { rec: Rec }) {
   const walking = formatWalking(rec);
   const driving = formatDriving(rec);
   const href = safeHttpsHref(rec.maps_url, rec.name);
-  const typeLabel = TYPE_LABEL[rec.type] || rec.category || rec.type;
+  // typeLabel removido do guia público — tag continua salva no back-end.
+
 
   const eng = useContext(EngagementCtx);
   const counts = eng?.counts[rec.id];
