@@ -275,13 +275,40 @@ function Guide({ data }: { data: GuideOk }) {
 
 
   // Informações sensíveis (Wi-Fi, senhas de acesso) permanecem disponíveis
-  // até o dia do check-out às 15h00 informado pelo hóspede.
+  // dentro da página "Chegada" até as 15h00 do dia do check-out.
   const checkinLocked = (() => {
     if (!accessRec?.checkoutDate) return false;
     const [y, mo, d] = accessRec.checkoutDate.split("-").map(Number);
     if (!y || !mo || !d) return false;
     const end = new Date(y, mo - 1, d, 15, 0, 0, 0).getTime();
     return Date.now() > end;
+  })();
+
+  // Faixas da home: visíveis somente de 8h antes do check-in até 12h após
+  // a data e hora do check-in informados pelo anfitrião.
+  const homeStripsVisible = (() => {
+    if (!accessRec?.checkinDate) return false;
+    const t = String(p.checkin_time ?? "15:00").match(/^(\d{1,2}):(\d{2})/);
+    const hh = t ? Number(t[1]) : 15;
+    const mm = t ? Number(t[2]) : 0;
+    const [y, mo, d] = accessRec.checkinDate.split("-").map(Number);
+    if (!y || !mo || !d) return false;
+    const ci = new Date(y, mo - 1, d, hh, mm, 0, 0).getTime();
+    const now = Date.now();
+    return now >= ci - 8 * 3600_000 && now <= ci + 12 * 3600_000;
+  })();
+
+  // Aviso de check-out: aparece como faixa na home a partir das 3h00 do
+  // dia do check-out e até as 15h00 do mesmo dia.
+  const checkoutNoticeVisible = (() => {
+    if (!accessRec?.checkoutDate) return false;
+    if (!p.checkout_note && !p.checkout_time) return false;
+    const [y, mo, d] = accessRec.checkoutDate.split("-").map(Number);
+    if (!y || !mo || !d) return false;
+    const start = new Date(y, mo - 1, d, 3, 0, 0, 0).getTime();
+    const end = new Date(y, mo - 1, d, 15, 0, 0, 0).getTime();
+    const now = Date.now();
+    return now >= start && now <= end;
   })();
 
 
@@ -471,23 +498,25 @@ function Guide({ data }: { data: GuideOk }) {
             />
 
 
-            {/* Wi-Fi e senhas de acesso ficam sempre visíveis até as 15h00
-                do dia do check-out (checkinLocked). O conteúdo continua
-                travado pelo PIN até o hóspede liberá-lo. */}
-            {!checkinLocked && (
+            {/* Faixas com Wi-Fi e códigos: aparecem de 8h antes do check-in
+                até 12h depois. O conteúdo continua travado pelo PIN até o
+                hóspede liberá-lo. */}
+            {homeStripsVisible && (
               <div className="px-5 md:px-10 lg:px-16 mt-2 md:mt-3 relative z-10 mb-4 md:mb-6 space-y-3">
-                <div className="md:max-w-md lg:max-w-lg">
-                  <WifiStrip
-                    ssid={p.wifi_ssid}
-                    password={p.wifi_password}
-                    theme={theme}
-                    unlocked={unlocked}
-                    requestUnlock={requestUnlock}
-                    checkinLocked={checkinLocked}
-                    hasAccessRec={!!accessRec}
-                    gateEnabled={gateEnabled}
-                  />
-                </div>
+                {p.wifi_ssid && (
+                  <div className="md:max-w-md lg:max-w-lg">
+                    <WifiStrip
+                      ssid={p.wifi_ssid}
+                      password={p.wifi_password}
+                      theme={theme}
+                      unlocked={unlocked}
+                      requestUnlock={requestUnlock}
+                      checkinLocked={checkinLocked}
+                      hasAccessRec={!!accessRec}
+                      gateEnabled={gateEnabled}
+                    />
+                  </div>
+                )}
                 {(p.gate_code || p.lock_code) && (
                   <div className="md:max-w-md lg:max-w-lg">
                     <AccessCodesStrip
@@ -505,6 +534,20 @@ function Guide({ data }: { data: GuideOk }) {
                     />
                   </div>
                 )}
+              </div>
+            )}
+
+            {/* Aviso de check-out: aparece a partir das 3h00 do dia do
+                check-out, levando o lembrete configurado pelo anfitrião. */}
+            {checkoutNoticeVisible && (
+              <div className="px-5 md:px-10 lg:px-16 mt-2 md:mt-3 relative z-10 mb-4 md:mb-6">
+                <div className="md:max-w-md lg:max-w-lg">
+                  <CheckoutNoticeStrip
+                    note={(p.checkout_note as string | null) || null}
+                    checkoutTime={(p.checkout_time as string | null) || null}
+                    theme={theme}
+                  />
+                </div>
               </div>
             )}
 
@@ -944,7 +987,7 @@ function Guide({ data }: { data: GuideOk }) {
                             </div>
                           )}
                           {p.checkout_note && (
-                            <div className="mt-3 rounded-2xl border border-accent/30 bg-accent/[0.06] px-4 py-3">
+                            <div className="mt-3 px-1">
                               <p className="text-[10px] uppercase tracking-[0.2em] text-accent/75 font-semibold mb-1.5">Observação</p>
                               <p className="text-[14px] text-foreground/85 leading-relaxed whitespace-pre-line">{String(p.checkout_note)}</p>
                             </div>
@@ -2062,22 +2105,23 @@ function WifiStrip({
         </div>
         {password && (
           <div className="flex flex-col items-center justify-center gap-2 shrink-0">
-            <button
-              onClick={copyPwd}
-              aria-label="Copiar senha do Wi-Fi"
-              className="inline-flex items-center gap-1.5 rounded-full bg-foreground text-background px-3.5 py-2 text-[12px] font-semibold tracking-wide hover:opacity-90 active:scale-95 transition-all shadow-[0_6px_18px_-10px_oklch(from_var(--foreground)_l_c_h/0.35)]"
-            >
-              {copied ? <Check className="size-3.5" strokeWidth={2.4} /> : <Copy className="size-3.5" strokeWidth={2.4} />}
-              <span>{copied ? "Copiado" : "Copiar"}</span>
-            </button>
-            {!showing && (
+            {!showing ? (
               <button
                 onClick={handleEyeClick}
-                aria-label="Visualizar senha do Wi-Fi"
-                className="inline-flex items-center gap-1.5 text-[11px] font-medium text-foreground/70 hover:text-foreground transition-colors"
+                aria-label="Ver senha do Wi-Fi"
+                className="inline-flex items-center gap-1.5 rounded-full bg-foreground text-background px-3.5 py-2 text-[12px] font-semibold tracking-wide hover:opacity-90 active:scale-95 transition-all shadow-[0_6px_18px_-10px_oklch(from_var(--foreground)_l_c_h/0.35)]"
               >
-                <Eye className="size-3" strokeWidth={2} />
-                <span>Mostrar</span>
+                <Eye className="size-3.5" strokeWidth={2.4} />
+                <span>Ver Senha</span>
+              </button>
+            ) : (
+              <button
+                onClick={copyPwd}
+                aria-label="Copiar senha do Wi-Fi"
+                className="inline-flex items-center gap-1.5 rounded-full bg-foreground text-background px-3.5 py-2 text-[12px] font-semibold tracking-wide hover:opacity-90 active:scale-95 transition-all shadow-[0_6px_18px_-10px_oklch(from_var(--foreground)_l_c_h/0.35)]"
+              >
+                {copied ? <Check className="size-3.5" strokeWidth={2.4} /> : <Copy className="size-3.5" strokeWidth={2.4} />}
+                <span>{copied ? "Copiado" : "Copiar"}</span>
               </button>
             )}
           </div>
@@ -2199,11 +2243,11 @@ function AccessCodesStrip({
           {!showing && (
             <button
               onClick={handleEyeClick}
-              aria-label="Visualizar códigos"
+              aria-label="Ver senhas de acesso"
               className="inline-flex items-center gap-1.5 rounded-full bg-foreground text-background px-3.5 py-2 text-[12px] font-semibold tracking-wide hover:opacity-90 active:scale-95 transition-all shadow-[0_6px_18px_-10px_oklch(from_var(--foreground)_l_c_h/0.35)]"
             >
               <Eye className="size-3.5" strokeWidth={2.4} />
-              <span>Mostrar</span>
+              <span>Ver Senha</span>
             </button>
           )}
           {checkinInstructions && checkinInstructions.trim() && (
@@ -2241,6 +2285,45 @@ function AccessCodesStrip({
 
   );
 }
+
+function CheckoutNoticeStrip({
+  note,
+  checkoutTime,
+  theme,
+}: {
+  note: string | null;
+  checkoutTime: string | null;
+  theme: "dark" | "light";
+}) {
+  const isLight = theme === "light";
+  const fmt = (s: string) => {
+    const m = s.match(/^(\d{1,2}):(\d{2})/);
+    return m ? `${m[1].padStart(2, "0")}h${m[2] !== "00" ? m[2] : ""}` : s;
+  };
+  const summary = checkoutTime ? `Check-out hoje até ${fmt(String(checkoutTime))}` : "Hoje é o seu dia de check-out";
+  return (
+    <div className={`relative overflow-hidden rounded-[22px] border ${isLight ? "border-border bg-card shadow-[0_4px_18px_-8px_rgba(0,0,0,0.10)]" : "border-amber-500/25 bg-[linear-gradient(135deg,oklch(0.22_0.05_55/0.95)_0%,oklch(0.16_0.04_50/0.92)_60%,oklch(0.12_0.03_45/0.95)_100%)] shadow-[0_14px_40px_-18px_oklch(from_var(--accent)_l_c_h/0.55)]"}`}>
+      <div className={`pointer-events-none absolute inset-0 ${isLight ? "opacity-[0.04]" : "opacity-[0.07]"} [background-image:radial-gradient(oklch(var(--accent))_1px,transparent_1px)] [background-size:14px_14px]`} />
+      <div className={`pointer-events-none absolute -top-12 -right-12 size-40 rounded-full ${isLight ? "bg-accent/15" : "bg-accent/25"} blur-3xl`} />
+      <div className="relative flex items-start gap-4 px-5 py-3.5 md:px-6 md:py-4">
+        <span className={`relative grid size-12 shrink-0 place-items-center rounded-2xl ring-1 ${isLight ? "bg-accent/15 text-accent/80 ring-accent/20" : "bg-accent/10 text-accent/75 ring-accent/15"}`}>
+          <LogOut className="relative size-[20px]" strokeWidth={2} />
+        </span>
+        <div className="flex-1 min-w-0">
+          <p className="text-[10px] uppercase tracking-[0.32em] text-accent/75 font-semibold">Aviso de check-out</p>
+          <p className="text-[14px] text-foreground/90 font-semibold mt-1 leading-snug">{summary}</p>
+          {note && (
+            <p className="text-[13px] text-foreground/80 leading-relaxed whitespace-pre-line mt-1.5">
+              {note}
+            </p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
 
 function PinDialog({
   open,
