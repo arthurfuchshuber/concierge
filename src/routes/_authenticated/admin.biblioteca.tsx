@@ -721,8 +721,9 @@ function BibliotecaPage() {
                   variant="outline"
                   disabled={aiLocked}
                   onClick={() =>
-                    setBehavior((arr) => [...arr, { title: "", body: "", enabled: true }])
+                    setBehavior((arr) => [...arr, { title: "", body: "", enabled: true, scope_property_id: defaultScope }])
                   }
+
                   className="rounded-full"
                 >
                   <Plus className="size-4 mr-1.5" /> Nova regra
