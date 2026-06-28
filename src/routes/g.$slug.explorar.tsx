@@ -30,6 +30,29 @@ import { toTitleCase } from "@/lib/text";
 import { useCityReferencesRealtime } from "@/hooks/useCityReferencesRealtime";
 import { useTaxonomy } from "@/components/admin/TagPicker";
 import { FilterSheetButton } from "@/components/guide/FilterSheet";
+import { POIEngagementBar, type EngagementCounts } from "@/components/POIEngagementBar";
+import { getPoiEngagementCounts, getMyPoiReactions, type PoiCounts } from "@/lib/poi-engagement.functions";
+import { useServerFn } from "@tanstack/react-start";
+import { createContext, useContext } from "react";
+
+type EngagementCtxValue = {
+  slug: string;
+  counts: PoiCounts;
+  reactions: Record<string, "like" | "dislike">;
+};
+const EngagementCtx = createContext<EngagementCtxValue | null>(null);
+
+function getAnonIdClient(): string {
+  if (typeof window === "undefined") return "";
+  const KEY = "sg-anon-id";
+  let id = window.localStorage.getItem(KEY);
+  if (!id) {
+    id = (crypto.randomUUID?.() ?? Math.random().toString(36).slice(2) + Date.now().toString(36));
+    window.localStorage.setItem(KEY, id);
+  }
+  return id;
+}
+
 
 const REVIEW_THRESHOLDS = [0, 50, 200, 1000, 5000];
 const REVIEW_LABELS: Record<number, string> = { 0: "Todas", 50: "50+", 200: "200+", 1000: "1k+", 5000: "5k+" };
