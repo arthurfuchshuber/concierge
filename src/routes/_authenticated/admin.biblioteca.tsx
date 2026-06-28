@@ -39,12 +39,14 @@ type FaqItem = {
   question: string;
   answer: string;
   tags: ("chegada" | "saida" | "residencia" | "explore")[];
+  scope_property_id?: string | null;
 };
 type KnowledgeItem = {
   id?: string | null;
   title: string;
   body: string;
   enabled: boolean;
+  scope_property_id?: string | null;
 };
 
 const FAQ_TAGS: { value: FaqItem["tags"][number]; label: string }[] = [
@@ -53,6 +55,39 @@ const FAQ_TAGS: { value: FaqItem["tags"][number]; label: string }[] = [
   { value: "residencia", label: "Residência" },
   { value: "explore", label: "Explore" },
 ];
+
+type ScopeView = "all" | "global" | string;
+
+function ScopeBadge({
+  value,
+  onChange,
+  properties,
+  disabled,
+}: {
+  value: string | null | undefined;
+  onChange: (v: string | null) => void;
+  properties: { id: string; name: string }[];
+  disabled?: boolean;
+}) {
+  return (
+    <select
+      disabled={disabled}
+      value={value ?? ""}
+      onChange={(e) => onChange(e.target.value ? e.target.value : null)}
+      className="text-[11px] rounded-full border border-border bg-background/60 px-2.5 py-1 text-muted-foreground hover:text-foreground focus:outline-none focus:ring-1 focus:ring-accent disabled:opacity-50"
+      title="Escopo: Global ou guia específico"
+      onClick={(e) => e.stopPropagation()}
+    >
+      <option value="">🌐 Global (todos os guias)</option>
+      {properties.map((p) => (
+        <option key={p.id} value={p.id}>
+          📍 {p.name}
+        </option>
+      ))}
+    </select>
+  );
+}
+
 
 function BibliotecaPage() {
   const { info: sub } = useSubscription();
