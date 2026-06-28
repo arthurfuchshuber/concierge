@@ -515,9 +515,10 @@ export type AuditLogRow = {
   action: string;
   entityType: string | null;
   entityId: string | null;
-  metadata: Record<string, string | number | boolean | null>;
+  metadataJson: string;
   createdAt: string;
 };
+
 
 export const adminListAuditLogs = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
