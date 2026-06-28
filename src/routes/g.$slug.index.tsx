@@ -1325,7 +1325,7 @@ function HeroCompact({
 
   return (
     <section
-      className="relative overflow-hidden px-5 md:px-10 lg:px-16 pb-32 md:pb-40 pt-4 md:pt-8 min-h-[60svh] md:min-h-[68svh] flex flex-col"
+      className="relative overflow-hidden px-5 md:px-10 lg:px-16 pb-24 md:pb-28 pt-4 md:pt-8 min-h-[52svh] md:min-h-[60svh] flex flex-col"
       onTouchStart={onTouchStart}
       onTouchEnd={onTouchEnd}
     >
@@ -1336,7 +1336,7 @@ function HeroCompact({
             key={`${src}-${i}`}
             src={src}
             alt=""
-            style={{ transform: `translateY(${scrollY * 0.28}px) scale(1.08)`, transformOrigin: "center top" }}
+            style={{ transform: `translateY(${scrollY * 0.18}px) scale(1.04)`, transformOrigin: "center bottom" }}
             className={`absolute inset-0 size-full object-cover object-[center_bottom] transition-opacity duration-500 will-change-transform ${i === idx ? "opacity-100" : "opacity-0"}`}
           />
         ))}
