@@ -197,7 +197,7 @@ function ClientesPage() {
                           ) : (
                             <span className="text-[11px] text-muted-foreground/60">Sem plano</span>
                           )}
-                          <StatusBadge status={s?.status} />
+                          <StatusBadge status={s?.status} userStatus={c.userStatus} />
                           {s?.billingPaused && (
                             <span className="text-[9px] uppercase tracking-wider font-semibold bg-amber-500/15 text-amber-700 dark:text-amber-400 px-1.5 py-0.5 rounded-full">
                               Sem cobrança
@@ -293,7 +293,7 @@ function ClientesPage() {
                           )}
                         </td>
                         <td className="px-4 py-4">
-                          <StatusBadge status={s?.status} />
+                          <StatusBadge status={s?.status} userStatus={c.userStatus} />
                         </td>
                         <td className="px-4 py-4 text-right">
                           {price ? (
