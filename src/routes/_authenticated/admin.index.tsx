@@ -16,7 +16,10 @@ import { useSubscription } from "@/hooks/useSubscription";
 import { PLANS } from "@/lib/payments.functions";
 import { BulkEditDialog } from "@/components/BulkEditDialog";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
-import { adminListCustomers, adminListUserProperties } from "@/lib/admin-subs.functions";
+import { adminListCustomers, adminListUserProperties, adminListUserPropertiesFull } from "@/lib/admin-subs.functions";
+import { useImpersonation } from "@/hooks/useImpersonation";
+import { Eye } from "lucide-react";
+
 
 export const Route = createFileRoute("/_authenticated/admin/")({
   component: Dashboard,
