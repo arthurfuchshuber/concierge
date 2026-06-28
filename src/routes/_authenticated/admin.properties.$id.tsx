@@ -2380,7 +2380,9 @@ function CityRefsGroup({
       headerExtra={<><SigmaImportButton propertyId={propertyId} /><SaveAsSigmaPackButton propertyId={propertyId} /><LinkGuidesButton propertyId={propertyId} /></>}
       hideSearch
       locked={locked}
+      metricsCounts={metricsCounts}
     />
+
   );
 }
 
