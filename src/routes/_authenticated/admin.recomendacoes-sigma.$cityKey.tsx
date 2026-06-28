@@ -20,6 +20,7 @@ import { Badge } from "@/components/ui/badge";
 import { cityKey as makeCityKey } from "@/lib/city-key";
 import { ArrowLeft, Plus, Trash2, Loader2, Eye, EyeOff, MapPin, Link2, HelpCircle, Send } from "lucide-react";
 import { toast } from "sonner";
+import { friendlyErrorMessage } from "@/lib/friendly-error";
 
 export const Route = createFileRoute("/_authenticated/admin/recomendacoes-sigma/$cityKey")({
   component: SigmaPackEditor,
