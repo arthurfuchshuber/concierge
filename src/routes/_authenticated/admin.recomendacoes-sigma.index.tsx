@@ -15,7 +15,7 @@ import {
 } from "@/lib/sigma-recommendations.functions";
 import { Star, Plus, Globe2, Users, MapPin, Eye, EyeOff, Trash2, Loader2, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
-import { friendlyErrorMessage } from "@/lib/friendly-error";
+
 
 export const Route = createFileRoute("/_authenticated/admin/recomendacoes-sigma/")({
   component: SigmaPacksIndex,
