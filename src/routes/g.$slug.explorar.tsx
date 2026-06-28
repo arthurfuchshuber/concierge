@@ -1382,6 +1382,17 @@ function RecRow({ rec }: { rec: Rec }) {
         <OpeningHours hours={rec.opening_hours} />
 
       </div>
+      {eng ? (
+        <POIEngagementBar
+          slug={eng.slug}
+          poiKey={rec.id}
+          poiType="recommendation"
+          shareUrl={href ?? undefined}
+          shareTitle={rec.name}
+          initialCounts={counts}
+          initialReaction={myReaction}
+        />
+      ) : null}
     </div>
   );
 
