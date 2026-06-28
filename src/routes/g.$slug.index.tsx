@@ -1373,7 +1373,7 @@ function HeroCompact({
       </header>
 
 
-      <div className="relative z-10 mt-14 md:mt-24">
+      <div className="relative z-10 mt-auto pt-24 md:pt-32">
         {city && (
           <span className="mb-4 inline-flex items-center gap-1.5 rounded-full border border-white/25 bg-black/30 backdrop-blur-md px-3 py-1.5 text-[10.5px] md:text-[11px] font-semibold uppercase tracking-[0.22em] text-white/95">
             <MapPin className="size-3 text-accent/80" strokeWidth={2} /> {city}
