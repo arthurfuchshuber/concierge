@@ -610,7 +610,7 @@ function Guide({ data }: { data: GuideOk }) {
               type="button"
               onClick={() => gotoSection("home")}
               aria-label="Voltar ao guia"
-              className="fixed left-3 md:left-6 top-1/2 -translate-y-1/2 z-30 grid place-items-center size-11 rounded-full bg-background/70 backdrop-blur-md border border-border/60 text-foreground/70 shadow-md hover:text-foreground hover:bg-background/90 hover:scale-105 transition-all"
+              className="fixed left-3 md:left-6 top-1/2 -translate-y-1/2 z-30 grid place-items-center size-11 rounded-full bg-accent/15 backdrop-blur-md border border-accent/35 text-accent/85 shadow-md hover:text-accent hover:bg-accent/25 hover:scale-105 transition-all"
             >
               <ArrowLeft className="size-5" strokeWidth={1.75} />
             </button>
