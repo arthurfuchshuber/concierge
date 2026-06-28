@@ -284,13 +284,28 @@ export const listAllSigmaPacks = createServerFn({ method: "GET" })
       arr.push(r);
       byCity.set(r.city_key, arr);
     }
-    // Mesmo racional do guia público: somente imagens de pontos com nota >= 4.8,
-    // ordenadas pelo MAIOR número de avaliações. Sem candidatos elegíveis,
-    // a capa fica sem imagem (preserva a curadoria).
+    // Capa em camadas (mesmo racional do guia público): 1) nota ≥ 4.8 ordenado
+    // por nº de avaliações; 2) nota ≥ 4.5 por score bayesiano; 3) qualquer
+    // item com imagem pelo mesmo score. m=150, C=4.3.
+    const bayes = (r: number | null, v: number | null) => {
+      const R = r ?? 0;
+      const V = v ?? 0;
+      const m = 150, C = 4.3;
+      return (V / (V + m)) * R + (m / (V + m)) * C;
+    };
     byCity.forEach((arr, key) => {
-      const sorted = arr
-        .filter((x) => x.image_url && (x.rating ?? 0) >= 4.8)
-        .sort((a, b) => (b.user_ratings_total ?? 0) - (a.user_ratings_total ?? 0));
+      const pool = arr.filter((x) => !!x.image_url);
+      if (pool.length === 0) return;
+      const t1 = pool.filter((x) => (x.rating ?? 0) >= 4.8);
+      if (t1.length > 0) {
+        const best = t1.sort((a, b) => (b.user_ratings_total ?? 0) - (a.user_ratings_total ?? 0))[0];
+        if (best?.image_url) autoCover.set(key, best.image_url);
+        return;
+      }
+      const t2 = pool.filter((x) => (x.rating ?? 0) >= 4.5);
+      const sorted = (t2.length > 0 ? t2 : pool).sort(
+        (a, b) => bayes(b.rating, b.user_ratings_total) - bayes(a.rating, a.user_ratings_total),
+      );
       if (sorted[0]?.image_url) autoCover.set(key, sorted[0].image_url);
     });
     const rc = count((recs.data ?? []).map((r) => ({ city_key: (r as { city_key: string }).city_key })));
