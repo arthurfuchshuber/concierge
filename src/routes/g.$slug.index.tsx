@@ -904,7 +904,15 @@ function Guide({ data }: { data: GuideOk }) {
                         hint={p.wifi_ssid || undefined}
                       >
                         <div className="rounded-xl bg-background/50 border border-border/50 overflow-hidden divide-y divide-border/40">
-                          <CopyCard flat icon={<Wifi className="size-[18px] " strokeWidth={1.75} />} eyebrow="Rede" label="Toque para copiar" value={p.wifi_ssid} />
+                          <div className="flex items-center gap-3 px-3.5 py-3">
+                            <div className="size-9 rounded-lg bg-accent/10 text-accent/75 grid place-items-center shrink-0">
+                              <Wifi className="size-[18px]" strokeWidth={1.75} />
+                            </div>
+                            <div className="min-w-0">
+                              <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground font-semibold">Rede</p>
+                              <p className="text-[15px] font-semibold tracking-tight mt-0.5 break-all leading-snug">{p.wifi_ssid}</p>
+                            </div>
+                          </div>
                           {((p as any).wifi_password_set || p.wifi_password) && (
                             <Lockable locked={checkinLocked}>
                               <GatedCopyCard
