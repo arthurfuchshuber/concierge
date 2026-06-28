@@ -268,18 +268,11 @@ function Guide({ data }: { data: GuideOk }) {
 
 
 
-  // Faixas da tela inicial somem 12h após a data/horário de check-in
-  // do hóspede (mantendo a página menos poluída durante a estadia).
-  const stripsHidden = (() => {
-    if (!accessRec) return false;
-    const time = String(p.checkin_time ?? "").match(/^(\d{1,2}):(\d{2})/);
-    const hh = time ? Number(time[1]) : 15;
-    const mm = time ? Number(time[2]) : 0;
-    const [y, mo, d] = accessRec.checkinDate.split("-").map(Number);
-    if (!y || !mo || !d) return false;
-    const start = new Date(y, mo - 1, d, hh, mm, 0, 0).getTime();
-    return Date.now() > start + 12 * 60 * 60 * 1000;
-  })();
+  // (Wi-Fi e senhas de acesso agora seguem apenas a regra de check-out às
+  // 15h00 — `checkinLocked` abaixo. A antiga regra "12h após check-in" foi
+  // removida porque o hóspede pode precisar consultar as senhas a qualquer
+  // momento durante a estadia.)
+
 
   // Informações sensíveis (Wi-Fi, senhas de acesso) permanecem disponíveis
   // até o dia do check-out às 15h00 informado pelo hóspede.
