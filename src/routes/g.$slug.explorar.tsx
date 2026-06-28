@@ -1214,8 +1214,13 @@ function RecCard({ rec }: { rec: Rec }) {
   const href = safeHttpsHref(rec.maps_url, rec.name);
   const typeLabel = TYPE_LABEL[rec.type] || rec.category || rec.type;
 
+  const eng = useContext(EngagementCtx);
+  const counts = eng?.counts[rec.id];
+  const myReaction = eng?.reactions[rec.id] ?? null;
+
   const inner = (
-    <div className="group bg-card border border-border rounded-2xl overflow-hidden flex flex-col hover:border-accent/40 hover:shadow-lg transition-all h-full">
+    <div className="relative group bg-card border border-border rounded-2xl overflow-hidden flex flex-col hover:border-accent/40 hover:shadow-lg transition-all h-full">
+
       <div className="relative aspect-square w-full overflow-hidden bg-secondary">
         {rec.image_url ? (
           <img
