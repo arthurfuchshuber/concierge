@@ -2377,6 +2377,7 @@ export function RecGroup({
   headerExtra,
   hideSearch,
   locked,
+  metricsCounts,
 }: {
   title: string;
   desc: string;
@@ -2391,6 +2392,7 @@ export function RecGroup({
   headerExtra?: React.ReactNode;
   hideSearch?: boolean;
   locked?: boolean;
+  metricsCounts?: Record<string, { views: number; likes: number; dislikes: number; shares: number }>;
 }) {
   const [openCat, setOpenCat] = useState<string | null>(null);
   const [openItemIdx, setOpenItemIdx] = useState<number | null>(null);
