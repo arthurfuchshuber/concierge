@@ -225,24 +225,17 @@ function OpeningHours({ hours }: { hours: string[] | null | undefined }) {
 }
 
 
-// Capa da categoria = foto do lugar com MAIOR número de avaliações
-// (entre os que têm imagem). Prioriza referências da cidade; cai para
-// "pertinho" só quando não houver nenhuma referência city com foto.
+// Capa da categoria = imagem do ponto/estabelecimento com nota >= 4.8 e
+// MAIOR número de avaliações (com imagem disponível). Quando nenhum item
+// atinge 4.8, a categoria fica sem capa para preservar a curadoria.
 function pickBestPhoto(nearby: Rec[], city: Rec[]): string | null {
-  // Capa = imagem do TOP 1 ordenado por avaliação (rating desc, depois
-  // user_ratings_total desc) — mesmo racional do sort "Avaliação" das
-  // subcategorias, garantindo coerência visual.
-  const pickByRating = (arr: Rec[]) =>
+  const pickByReviews = (arr: Rec[]) =>
     arr
-      .filter((x) => x.image_url)
-      .sort((a, b) => {
-        const ar = a.rating ?? 0;
-        const br = b.rating ?? 0;
-        if (br !== ar) return br - ar;
-        return (b.user_ratings_total ?? 0) - (a.user_ratings_total ?? 0);
-      })[0]?.image_url ?? null;
-  return pickByRating([...city, ...nearby]);
+      .filter((x) => x.image_url && (x.rating ?? 0) >= 4.8)
+      .sort((a, b) => (b.user_ratings_total ?? 0) - (a.user_ratings_total ?? 0))[0]?.image_url ?? null;
+  return pickByReviews([...city, ...nearby]);
 }
+
 
 type SortKey = "distance" | "rating" | "alpha";
 
