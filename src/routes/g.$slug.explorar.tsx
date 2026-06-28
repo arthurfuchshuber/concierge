@@ -662,6 +662,20 @@ function ExplorePage() {
                     href={m.url}
                     target="_blank"
                     rel="noopener noreferrer"
+                    onClick={() => {
+                      // Track click as a marketplace view (fire-and-forget).
+                      try {
+                        void recordEng({
+                          data: {
+                            slug,
+                            poi_key: m.url,
+                            poi_type: "marketplace_link",
+                            event_type: "view",
+                            anon_id: getAnonIdClient(),
+                          },
+                        });
+                      } catch { /* noop */ }
+                    }}
                     className="group flex items-start gap-3 rounded-2xl border border-border bg-card/40 hover:bg-card hover:border-accent/50 hover:shadow-md transition-all p-4"
                   >
                     <span className="shrink-0 inline-flex size-9 items-center justify-center rounded-full bg-accent/15 text-accent">
