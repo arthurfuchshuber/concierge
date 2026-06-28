@@ -602,8 +602,9 @@ function BibliotecaPage() {
                   variant="outline"
                   disabled={aiLocked}
                   onClick={() =>
-                    setKnowledge((arr) => [...arr, { title: "", body: "", enabled: true }])
+                    setKnowledge((arr) => [...arr, { title: "", body: "", enabled: true, scope_property_id: defaultScope }])
                   }
+
                   className="rounded-full"
                 >
                   <Plus className="size-4 mr-1.5" /> Novo bloco
