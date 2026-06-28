@@ -27,21 +27,22 @@ import PhoneInput, { isValidPhoneNumber, type Country } from "react-phone-number
 import "react-phone-number-input/style.css";
 
 const STORAGE_PREFIX = "sg-access-";
-const REASK_AFTER_CHECKIN_MS = 36 * 60 * 60 * 1000;
 
 export type AccessRecord = {
   name: string;
   code: string | null;
   checkinDate: string;
+  checkoutDate: string;
   phone: string | null;
   phoneCountry: string | null;
 };
 
-function isExpired(checkinDate: string): boolean {
-  const [y, m, d] = checkinDate.split("-").map(Number);
+function isExpired(checkoutDate: string): boolean {
+  // Acesso expira no dia do check-out às 15h00 (horário local).
+  const [y, m, d] = checkoutDate.split("-").map(Number);
   if (!y || !m || !d) return true;
-  const checkin = new Date(y, m - 1, d, 0, 0, 0, 0).getTime();
-  return Date.now() > checkin + REASK_AFTER_CHECKIN_MS;
+  const end = new Date(y, m - 1, d, 15, 0, 0, 0).getTime();
+  return Date.now() > end;
 }
 
 export function readAccessRecord(slug: string): AccessRecord | null {
@@ -50,8 +51,8 @@ export function readAccessRecord(slug: string): AccessRecord | null {
     const raw = window.localStorage.getItem(STORAGE_PREFIX + slug);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as Partial<AccessRecord>;
-    if (!parsed?.name || !parsed?.checkinDate) return null;
-    if (isExpired(parsed.checkinDate)) {
+    if (!parsed?.name || !parsed?.checkinDate || !parsed?.checkoutDate) return null;
+    if (isExpired(parsed.checkoutDate)) {
       window.localStorage.removeItem(STORAGE_PREFIX + slug);
       return null;
     }
@@ -59,6 +60,7 @@ export function readAccessRecord(slug: string): AccessRecord | null {
       name: parsed.name,
       code: parsed.code ?? null,
       checkinDate: parsed.checkinDate,
+      checkoutDate: parsed.checkoutDate,
       phone: parsed.phone ?? null,
       phoneCountry: parsed.phoneCountry ?? null,
     };
@@ -66,6 +68,7 @@ export function readAccessRecord(slug: string): AccessRecord | null {
     return null;
   }
 }
+
 
 type Props = {
   slug: string;
@@ -78,7 +81,7 @@ export function GuideAccessGate({ slug, propertyName, requireReservationCode, on
   const submit = useServerFn(recordGuideAccess);
   const [name, setName] = useState("");
   const [code, setCode] = useState("");
-  const [date, setDate] = useState<Date | undefined>();
+  const [range, setRange] = useState<{ from?: Date; to?: Date } | undefined>();
   const [phone, setPhone] = useState<string | undefined>();
   const [country, setCountry] = useState<Country>("BR");
   const [loading, setLoading] = useState(false);
@@ -94,8 +97,8 @@ export function GuideAccessGate({ slug, propertyName, requireReservationCode, on
       toast.error("Informe seu nome completo.");
       return;
     }
-    if (!date) {
-      toast.error("Selecione a data de check-in.");
+    if (!range?.from || !range?.to) {
+      toast.error("Selecione o período da viagem (check-in e check-out).");
       return;
     }
     if (!phone || !isValidPhoneNumber(phone)) {
@@ -106,7 +109,8 @@ export function GuideAccessGate({ slug, propertyName, requireReservationCode, on
       toast.error("Informe o código da reserva.");
       return;
     }
-    const checkinDate = format(date, "yyyy-MM-dd");
+    const checkinDate = format(range.from, "yyyy-MM-dd");
+    const checkoutDate = format(range.to, "yyyy-MM-dd");
     setLoading(true);
     try {
       const res = await submit({
@@ -127,6 +131,7 @@ export function GuideAccessGate({ slug, propertyName, requireReservationCode, on
         name: name.trim(),
         code: requireReservationCode ? code.trim() : null,
         checkinDate,
+        checkoutDate,
         phone,
         phoneCountry: country,
       };
@@ -138,6 +143,7 @@ export function GuideAccessGate({ slug, propertyName, requireReservationCode, on
       setLoading(false);
     }
   }
+
 
   return (
     <Dialog open modal>
@@ -192,9 +198,9 @@ export function GuideAccessGate({ slug, propertyName, requireReservationCode, on
               </div>
             </div>
 
-            {/* Check-in */}
+            {/* Período da viagem */}
             <div className="space-y-2">
-              <Label className="text-[13px] font-medium">Check-in</Label>
+              <Label className="text-[13px] font-medium">Período da viagem</Label>
               <Popover>
                 <PopoverTrigger asChild>
                   <button
@@ -203,21 +209,26 @@ export function GuideAccessGate({ slug, propertyName, requireReservationCode, on
                       "relative w-full h-[52px] rounded-[14px] border border-input/80 bg-background/40",
                       "flex items-center pl-11 pr-11 text-left text-[15px]",
                       "transition-all hover:bg-background/60 focus:outline-none focus-visible:ring-4 focus-visible:ring-ring/15 focus-visible:border-ring",
-                      !date && "text-muted-foreground",
+                      !range?.from && "text-muted-foreground",
                     )}
                   >
                     <CalendarIcon className="absolute left-3.5 top-1/2 size-[18px] -translate-y-1/2 text-primary/80" />
                     <span className="truncate">
-                      {date ? format(date, "dd 'de' MMM yyyy", { locale: ptBR }) : "Selecionar data"}
+                      {range?.from && range?.to
+                        ? `${format(range.from, "dd MMM", { locale: ptBR })} — ${format(range.to, "dd MMM yyyy", { locale: ptBR })}`
+                        : range?.from
+                          ? `${format(range.from, "dd MMM yyyy", { locale: ptBR })} — selecione o check-out`
+                          : "Selecionar check-in e check-out"}
                     </span>
                     <ChevronDown className="absolute right-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                   </button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0 rounded-2xl" align="start">
                   <Calendar
-                    mode="single"
-                    selected={date}
-                    onSelect={setDate}
+                    mode="range"
+                    selected={range as never}
+                    onSelect={(r) => setRange(r as { from?: Date; to?: Date } | undefined)}
+                    numberOfMonths={1}
                     initialFocus
                     locale={ptBR}
                     className="p-3 pointer-events-auto"
@@ -225,6 +236,7 @@ export function GuideAccessGate({ slug, propertyName, requireReservationCode, on
                 </PopoverContent>
               </Popover>
             </div>
+
 
             {/* Phone */}
             <div className="space-y-2">

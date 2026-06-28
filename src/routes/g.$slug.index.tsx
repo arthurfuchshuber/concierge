@@ -244,10 +244,12 @@ function Guide({ data }: { data: GuideOk }) {
   const [accessRec, setAccessRec] = useState<AccessRecord | null>(() => {
     if (typeof window === "undefined") return null;
     if (isPreview) {
+      const today = new Date().toISOString().slice(0, 10);
       return {
         name: "Pré-visualização",
         code: null,
-        checkinDate: new Date().toISOString().slice(0, 10),
+        checkinDate: today,
+        checkoutDate: today,
         phone: null,
         phoneCountry: null,
       };
@@ -257,9 +259,9 @@ function Guide({ data }: { data: GuideOk }) {
   const needsGate = !accessRec && !isPreview;
 
 
-  // Access window: credentials visible only between 24h BEFORE check-in start
-  // and 12h AFTER check-in start. Outside this window, sensitive fields blur.
-  const checkinLocked = (() => {
+  // Faixas da tela inicial somem 12h após a data/horário de check-in
+  // do hóspede (mantendo a página menos poluída durante a estadia).
+  const stripsHidden = (() => {
     if (!accessRec) return false;
     const time = String(p.checkin_time ?? "").match(/^(\d{1,2}):(\d{2})/);
     const hh = time ? Number(time[1]) : 15;
@@ -267,21 +269,19 @@ function Guide({ data }: { data: GuideOk }) {
     const [y, mo, d] = accessRec.checkinDate.split("-").map(Number);
     if (!y || !mo || !d) return false;
     const start = new Date(y, mo - 1, d, hh, mm, 0, 0).getTime();
-    const opensAt = start - 24 * 60 * 60 * 1000;
-    const closesAt = start + 12 * 60 * 60 * 1000;
-    const now = Date.now();
-    return now < opensAt || now > closesAt;
+    return Date.now() > start + 12 * 60 * 60 * 1000;
   })();
 
-  // Wi-Fi visível apenas até 10 dias após a data de check-in do hóspede.
-  // Sem data: não esconde (volta ao comportamento padrão).
-  const wifiExpired = (() => {
-    if (!accessRec?.checkinDate) return false;
-    const [y, mo, d] = accessRec.checkinDate.split("-").map(Number);
+  // Informações sensíveis (Wi-Fi, senhas de acesso) permanecem disponíveis
+  // até o dia do check-out às 15h00 informado pelo hóspede.
+  const checkinLocked = (() => {
+    if (!accessRec?.checkoutDate) return false;
+    const [y, mo, d] = accessRec.checkoutDate.split("-").map(Number);
     if (!y || !mo || !d) return false;
-    const start = new Date(y, mo - 1, d, 0, 0, 0, 0).getTime();
-    return Date.now() > start + 10 * 24 * 60 * 60 * 1000;
+    const end = new Date(y, mo - 1, d, 15, 0, 0, 0).getTime();
+    return Date.now() > end;
   })();
+
 
   // Shared "access PIN unlock" state — once unlocked, all gated codes/Wi-Fi reveal.
   // The actual PIN never reaches the browser; only the boolean flags do.
@@ -469,8 +469,8 @@ function Guide({ data }: { data: GuideOk }) {
             />
 
 
-            <div className="px-5 md:px-10 lg:px-16 mt-2 md:mt-3 relative z-10 mb-4 md:mb-6 space-y-3">
-              {!wifiExpired && (
+            {!stripsHidden && (
+              <div className="px-5 md:px-10 lg:px-16 mt-2 md:mt-3 relative z-10 mb-4 md:mb-6 space-y-3">
                 <div className="md:max-w-md lg:max-w-lg">
                   <WifiStrip
                     ssid={p.wifi_ssid}
@@ -483,25 +483,26 @@ function Guide({ data }: { data: GuideOk }) {
                     gateEnabled={gateEnabled}
                   />
                 </div>
-              )}
-              {(p.gate_code || p.lock_code) && (
-                <div className="md:max-w-md lg:max-w-lg">
-                  <AccessCodesStrip
-                    gateCode={p.gate_code as string | null}
-                    lockCode={p.lock_code as string | null}
-                    gateLabel={(p.gate_label as string | null) || "Portão"}
-                    lockLabel={(p.lock_label as string | null) || "Fechadura"}
-                    unlocked={unlocked}
-                    requestUnlock={requestUnlock}
-                    checkinLocked={checkinLocked}
-                    hasAccessRec={!!accessRec}
-                    gateEnabled={gateEnabled}
-                    theme={theme}
-                    checkinInstructions={p.checkin_instructions as string | null}
-                  />
-                </div>
-              )}
-            </div>
+                {(p.gate_code || p.lock_code) && (
+                  <div className="md:max-w-md lg:max-w-lg">
+                    <AccessCodesStrip
+                      gateCode={p.gate_code as string | null}
+                      lockCode={p.lock_code as string | null}
+                      gateLabel={(p.gate_label as string | null) || "Portão"}
+                      lockLabel={(p.lock_label as string | null) || "Fechadura"}
+                      unlocked={unlocked}
+                      requestUnlock={requestUnlock}
+                      checkinLocked={checkinLocked}
+                      hasAccessRec={!!accessRec}
+                      gateEnabled={gateEnabled}
+                      theme={theme}
+                      checkinInstructions={p.checkin_instructions as string | null}
+                    />
+                  </div>
+                )}
+              </div>
+            )}
+
 
             <section id="guide-actions" className="px-5 md:px-10 lg:px-16 relative z-10">
               <div className="flex items-center gap-3 mb-3 md:mb-5">
@@ -1438,16 +1439,8 @@ function ThemeCard({
             {desc}
           </p>
         </div>
-        <span
-          className={
-            "absolute right-3 top-3 sm:right-4 sm:top-4 grid size-7 sm:size-8 place-items-center rounded-full transition-all duration-300 group-hover:bg-accent/15 group-hover:text-accent/80 group-hover:border-accent/25 " +
-            (isLight
-              ? "bg-background/80 border border-border text-muted-foreground"
-              : "bg-white/10 backdrop-blur-md border border-white/15 text-white/85")
-          }
-        >
-          <ArrowRight className="size-3.5" strokeWidth={2} />
-        </span>
+
+
       </div>
     </div>
   );
