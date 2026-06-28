@@ -1325,7 +1325,7 @@ function HeroCompact({
 
   return (
     <section
-      className="relative overflow-hidden px-5 md:px-10 lg:px-16 pb-32 md:pb-40 pt-4 md:pt-8 min-h-[64svh] md:min-h-[72svh] flex flex-col"
+      className="relative overflow-hidden px-5 md:px-10 lg:px-16 pb-32 md:pb-40 pt-4 md:pt-8 min-h-[60svh] md:min-h-[68svh] flex flex-col"
       onTouchStart={onTouchStart}
       onTouchEnd={onTouchEnd}
     >
@@ -1356,15 +1356,6 @@ function HeroCompact({
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={onToggleLang}
-            aria-label="Mudar idioma"
-            title="Mudar idioma"
-            className="h-9 px-3 shrink-0 inline-flex items-center justify-center rounded-full border border-white/25 bg-black/30 text-white/95 backdrop-blur-md transition-colors hover:bg-accent/30 hover:text-white text-[11px] font-semibold tracking-wider uppercase"
-          >
-            {lang === "pt" ? "PT" : lang === "es" ? "ES" : lang === "fr" ? "FR" : "EN"}
-          </button>
           <button
             type="button"
             onClick={onToggleTheme}
