@@ -902,13 +902,13 @@ function Guide({ data }: { data: GuideOk }) {
                         hint={p.wifi_ssid || undefined}
                       >
                         <div className="rounded-xl bg-background/50 border border-border/50 overflow-hidden divide-y divide-border/40">
-                          <CopyCard flat icon={<Wifi className="size-[18px]" strokeWidth={1.75} />} eyebrow="Rede" label="Toque para copiar" value={p.wifi_ssid} />
-                          {p.wifi_password && (
+                          <CopyCard flat icon={<Wifi className="size-[18px] " strokeWidth={1.75} />} eyebrow="Rede" label="Toque para copiar" value={p.wifi_ssid} />
+                          {((p as any).wifi_password_set || p.wifi_password) && (
                             <Lockable locked={checkinLocked}>
                               <GatedCopyCard
                                 icon={<KeyRound className="size-[18px]" strokeWidth={1.75} />}
                                 eyebrow="Senha"
-                                value={p.wifi_password}
+                                value={p.wifi_password ?? ""}
                                 unlocked={unlocked}
                                 requestUnlock={requestUnlock}
                                 hasPin={hasAccessPin}
