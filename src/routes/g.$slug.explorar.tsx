@@ -229,11 +229,19 @@ function OpeningHours({ hours }: { hours: string[] | null | undefined }) {
 // (entre os que têm imagem). Prioriza referências da cidade; cai para
 // "pertinho" só quando não houver nenhuma referência city com foto.
 function pickBestPhoto(nearby: Rec[], city: Rec[]): string | null {
-  const pickByReviews = (arr: Rec[]) =>
+  // Capa = imagem do TOP 1 ordenado por avaliação (rating desc, depois
+  // user_ratings_total desc) — mesmo racional do sort "Avaliação" das
+  // subcategorias, garantindo coerência visual.
+  const pickByRating = (arr: Rec[]) =>
     arr
       .filter((x) => x.image_url)
-      .sort((a, b) => (b.user_ratings_total ?? 0) - (a.user_ratings_total ?? 0))[0]?.image_url ?? null;
-  return pickByReviews(city) ?? pickByReviews(nearby);
+      .sort((a, b) => {
+        const ar = a.rating ?? 0;
+        const br = b.rating ?? 0;
+        if (br !== ar) return br - ar;
+        return (b.user_ratings_total ?? 0) - (a.user_ratings_total ?? 0);
+      })[0]?.image_url ?? null;
+  return pickByRating([...city, ...nearby]);
 }
 
 type SortKey = "distance" | "rating" | "alpha";
@@ -298,7 +306,8 @@ function ExplorePage() {
   const router = useRouter();
   const { slug } = Route.useParams();
   const [activeKey, setActiveKey] = useState<string | null>(null);
-  const [sortBy, setSortBy] = useState<SortKey>("distance");
+  // Default = "Avaliação" dentro das subcategorias (pedido do anfitrião).
+  const [sortBy, setSortBy] = useState<SortKey>("rating");
   const [viewMode, setViewMode] = useState<"grid" | "list">("list");
   const [minReviews, setMinReviews] = useState<number>(0);
   const [query, setQuery] = useState<string>("");

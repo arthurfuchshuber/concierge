@@ -264,7 +264,9 @@ export const listAllSigmaPacks = createServerFn({ method: "GET" })
     // counts per city via aggregates
     const [packs, recs, mkt, faqs] = await Promise.all([
       context.supabase.from("sigma_city_packs").select("*").order("city_label"),
-      context.supabase.from("sigma_city_recommendations").select("city_key"),
+      context.supabase
+        .from("sigma_city_recommendations")
+        .select("city_key, image_url, rating, user_ratings_total"),
       context.supabase.from("sigma_city_marketplace").select("city_key"),
       context.supabase.from("sigma_city_faqs").select("city_key"),
     ]);
@@ -274,7 +276,26 @@ export const listAllSigmaPacks = createServerFn({ method: "GET" })
       (rows ?? []).forEach((r) => m.set(r.city_key, (m.get(r.city_key) ?? 0) + 1));
       return m;
     };
-    const rc = count(recs.data as { city_key: string }[]);
+    // Capa automática por cidade = imagem do ponto com melhor avaliação.
+    const autoCover = new Map<string, string>();
+    const byCity = new Map<string, { image_url: string | null; rating: number | null; user_ratings_total: number | null }[]>();
+    for (const r of (recs.data ?? []) as { city_key: string; image_url: string | null; rating: number | null; user_ratings_total: number | null }[]) {
+      const arr = byCity.get(r.city_key) ?? [];
+      arr.push(r);
+      byCity.set(r.city_key, arr);
+    }
+    byCity.forEach((arr, key) => {
+      const sorted = arr
+        .filter((x) => x.image_url)
+        .sort((a, b) => {
+          const ar = a.rating ?? 0;
+          const br = b.rating ?? 0;
+          if (br !== ar) return br - ar;
+          return (b.user_ratings_total ?? 0) - (a.user_ratings_total ?? 0);
+        });
+      if (sorted[0]?.image_url) autoCover.set(key, sorted[0].image_url);
+    });
+    const rc = count((recs.data ?? []).map((r) => ({ city_key: (r as { city_key: string }).city_key })));
     const mc = count(mkt.data as { city_key: string }[]);
     const fc = count(faqs.data as { city_key: string }[]);
     // adoption: properties using each city_key
@@ -290,6 +311,7 @@ export const listAllSigmaPacks = createServerFn({ method: "GET" })
     });
     return ((packs.data ?? []) as SigmaPack[]).map((p) => ({
       ...p,
+      cover_url: p.cover_url ?? autoCover.get(p.city_key) ?? null,
       recs_count: rc.get(p.city_key) ?? 0,
       marketplace_count: mc.get(p.city_key) ?? 0,
       faqs_count: fc.get(p.city_key) ?? 0,

@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import {
   adminListCustomers,
   adminUpdateSubscription,
+  adminUpdateCustomerProfile,
   adminListUserProperties,
   checkIsAdmin,
   type AdminCustomerRow,
@@ -59,6 +60,7 @@ const ENV_OPTIONS = ["sandbox", "live"];
 function ClientesPage() {
   const fetcher = useServerFn(adminListCustomers);
   const updater = useServerFn(adminUpdateSubscription);
+  const profileUpdater = useServerFn(adminUpdateCustomerProfile);
   const qc = useQueryClient();
   const [search, setSearch] = useState("");
   const [editing, setEditing] = useState<AdminCustomerRow | null>(null);
@@ -195,7 +197,7 @@ function ClientesPage() {
                           ) : (
                             <span className="text-[11px] text-muted-foreground/60">Sem plano</span>
                           )}
-                          <StatusBadge status={s?.status} />
+                          <StatusBadge status={s?.status} userStatus={c.userStatus} />
                           {s?.billingPaused && (
                             <span className="text-[9px] uppercase tracking-wider font-semibold bg-amber-500/15 text-amber-700 dark:text-amber-400 px-1.5 py-0.5 rounded-full">
                               Sem cobrança
@@ -287,11 +289,11 @@ function ClientesPage() {
                               )}
                             </div>
                           ) : (
-                            <span className="text-muted-foreground/60">—</span>
+                            <span className="text-muted-foreground/70 italic">Sem plano</span>
                           )}
                         </td>
                         <td className="px-4 py-4">
-                          <StatusBadge status={s?.status} />
+                          <StatusBadge status={s?.status} userStatus={c.userStatus} />
                         </td>
                         <td className="px-4 py-4 text-right">
                           {price ? (
@@ -369,8 +371,12 @@ function ClientesPage() {
           onClose={() => setEditing(null)}
           onSave={async (values) => {
             try {
-              await updater({ data: { userId: editing.userId, ...values } });
-              toast.success("Assinatura atualizada");
+              const { fullName, plan, ...rest } = values;
+              await profileUpdater({ data: { userId: editing.userId, fullName } });
+              if (plan) {
+                await updater({ data: { userId: editing.userId, plan, ...rest } });
+              }
+              toast.success("Cliente atualizado");
               qc.invalidateQueries({ queryKey: ["admin-customers"] });
               setEditing(null);
             } catch (e) {
@@ -384,7 +390,8 @@ function ClientesPage() {
 }
 
 type EditValues = {
-  plan: PlanKey;
+  fullName: string | null;
+  plan: PlanKey | null;
   status: string;
   environment: "sandbox" | "live";
   trialEndsAt: string | null;
@@ -419,10 +426,16 @@ function EditDialog({
   onSave: (v: EditValues) => Promise<void>;
 }) {
   const s = customer.subscription;
-  const [plan, setPlan] = useState<PlanKey>(s?.plan ?? "starter");
+  const [fullName, setFullName] = useState(customer.fullName ?? "");
+  // null = "Sem plano" (não cria/atualiza assinatura). Quando o usuário não
+  // tem assinatura, o padrão é "Sem plano" — coerente com o pedido do
+  // anfitrião de não forçar plano em quem ainda não contratou.
+  const [plan, setPlan] = useState<PlanKey | null>(s?.plan ?? null);
   const [status, setStatus] = useState<string>(s?.status ?? "active");
+  // Padrão de ambiente = "live" (produção) — cadastros novos já entram em
+  // produção; sandbox é apenas para testes pontuais.
   const [environment, setEnvironment] = useState<"sandbox" | "live">(
-    (s?.environment as "sandbox" | "live") ?? "sandbox",
+    (s?.environment as "sandbox" | "live") ?? "live",
   );
   const [trialEndsAt, setTrialEndsAt] = useState(toDateInput(s?.trialEndsAt));
   const [currentPeriodEnd, setCurrentPeriodEnd] = useState(toDateInput(s?.currentPeriodEnd));
@@ -455,6 +468,7 @@ function EditDialog({
     }
     try {
       await onSave({
+        fullName: fullName.trim() || null,
         plan,
         status,
         environment,
@@ -483,11 +497,24 @@ function EditDialog({
         </DialogHeader>
 
         <div className="grid sm:grid-cols-2 gap-4 mt-2">
+          <div className="space-y-1.5 sm:col-span-2">
+            <Label>Nome do cliente</Label>
+            <Input
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+              placeholder="Como o cliente deve ser identificado"
+            />
+          </div>
+
           <div className="space-y-1.5">
             <Label>Plano</Label>
-            <Select value={plan} onValueChange={(v) => setPlan(v as PlanKey)}>
+            <Select
+              value={plan ?? "__none__"}
+              onValueChange={(v) => setPlan(v === "__none__" ? null : (v as PlanKey))}
+            >
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
+                <SelectItem value="__none__">Sem plano</SelectItem>
                 {PLAN_OPTIONS.map((p) => (
                   <SelectItem key={p} value={p}>
                     {PLANS[p].name} — {PLANS[p].priceLabel}
@@ -544,7 +571,7 @@ function EditDialog({
               type="number"
               step="1"
               min="1"
-              placeholder={`Padrão do plano: ${PLANS[plan].maxGuides >= 9999 ? "ilimitado" : PLANS[plan].maxGuides}`}
+              placeholder={plan ? `Padrão do plano: ${PLANS[plan].maxGuides >= 9999 ? "ilimitado" : PLANS[plan].maxGuides}` : "Selecione um plano primeiro"}
               value={maxGuidesOverride}
               onChange={(e) => setMaxGuidesOverride(e.target.value)}
             />
@@ -609,7 +636,13 @@ function StatCard({ label, value, tone }: { label: string; value: number; tone?:
   );
 }
 
-function StatusBadge({ status }: { status?: string | null }) {
+function StatusBadge({
+  status,
+  userStatus,
+}: {
+  status?: string | null;
+  userStatus?: "active" | "blocked" | "pending";
+}) {
   const map: Record<string, { label: string; className: string; dot: string }> = {
     active: { label: "Ativo", className: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20", dot: "bg-emerald-500" },
     trialing: { label: "Trial", className: "bg-sky-500/10 text-sky-700 dark:text-sky-400 border-sky-500/20", dot: "bg-sky-500" },
@@ -619,7 +652,19 @@ function StatusBadge({ status }: { status?: string | null }) {
   };
   const info = status ? map[status] : null;
   if (!info) {
-    return <span className="text-xs text-muted-foreground/60">sem plano</span>;
+    // Sem assinatura → mostra status do próprio usuário.
+    const u =
+      userStatus === "blocked"
+        ? { label: "Bloqueado", className: "bg-red-500/10 text-red-700 dark:text-red-400 border-red-500/20", dot: "bg-red-500" }
+        : userStatus === "pending"
+          ? { label: "Aguardando 1º acesso", className: "bg-secondary text-muted-foreground border-border", dot: "bg-muted-foreground/60" }
+          : { label: "Ativo", className: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20", dot: "bg-emerald-500" };
+    return (
+      <span className={`inline-flex items-center gap-1.5 text-[10px] uppercase tracking-wider font-semibold px-2 py-1 rounded-full border ${u.className}`}>
+        <span className={`size-1.5 rounded-full ${u.dot}`} />
+        {u.label}
+      </span>
+    );
   }
   return (
     <span className={`inline-flex items-center gap-1.5 text-[10px] uppercase tracking-wider font-semibold px-2 py-1 rounded-full border ${info.className}`}>

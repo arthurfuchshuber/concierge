@@ -42,6 +42,9 @@ export type AdminCustomerRow = {
   fullName: string | null;
   createdAt: string | null;
   lastSignInAt: string | null;
+  // Status do próprio usuário (independente da assinatura).
+  // "active" = login confirmado e não banido; "blocked" = bloqueado; "pending" = nunca logou.
+  userStatus: "active" | "blocked" | "pending";
   totalGuides: number;
   publishedGuides: number;
   avgCompletenessScore: number;
@@ -159,6 +162,13 @@ export const adminListCustomers = createServerFn({ method: "GET" })
       const guestAccesses30d = guestAccessByOwner.get(u.id) ?? 0;
       // Churn risk: active sub + no login in 14d + no guest accesses in 30d
       const lastLogin = (u as { last_sign_in_at?: string }).last_sign_in_at ?? null;
+      const bannedUntil = (u as { banned_until?: string | null }).banned_until ?? null;
+      const isBlocked = !!bannedUntil && new Date(bannedUntil).getTime() > Date.now();
+      const userStatus: "active" | "blocked" | "pending" = isBlocked
+        ? "blocked"
+        : lastLogin
+          ? "active"
+          : "pending";
       const daysSinceLogin = lastLogin
         ? Math.floor((Date.now() - new Date(lastLogin).getTime()) / 86400_000)
         : 999;
@@ -173,6 +183,7 @@ export const adminListCustomers = createServerFn({ method: "GET" })
         fullName: profileMap.get(u.id) ?? null,
         createdAt: u.created_at ?? null,
         lastSignInAt: lastLogin,
+        userStatus,
         totalGuides,
         publishedGuides,
         avgCompletenessScore: avgScore,
@@ -303,6 +314,28 @@ export const adminUpdateSubscription = createServerFn({ method: "POST" })
 
     return { ok: true };
   });
+
+// Atualiza o nome do cliente (profiles.full_name) — usado dentro do diálogo
+// "Editar assinatura" para permitir corrigir o nome exibido.
+export const adminUpdateCustomerProfile = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { userId: string; fullName: string | null }) =>
+    z.object({
+      userId: z.string().uuid(),
+      fullName: z.string().trim().max(120).nullable(),
+    }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context.supabase, context.userId);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await supabaseAdmin
+      .from("profiles")
+      .upsert({ id: data.userId, full_name: data.fullName ?? null }, { onConflict: "id" });
+    if (error) throw new Error("Não foi possível atualizar o nome do cliente.");
+    return { ok: true };
+  });
+
+
 
 // ───────────────── SaaS Admins (user_roles management) ─────────────────
 
@@ -513,12 +546,49 @@ export type AuditLogRow = {
   userId: string | null;
   userEmail: string | null;
   action: string;
+  actionLabel: string;
   entityType: string | null;
   entityId: string | null;
+  itemLabel: string;
   metadataJson: string;
   createdAt: string;
 };
 
+// Dicionário de tabelas (PT-BR, sem termos técnicos).
+const ENTITY_LABELS: Record<string, string> = {
+  sigma_city_recommendations: "Ponto/estabelecimento do Guia Sigma",
+  sigma_city_marketplace: "Link de reservas do Guia Sigma",
+  sigma_city_faqs: "Pergunta do Guia Sigma",
+  sigma_city_packs: "Cidade do Guia Sigma",
+  properties: "Guia",
+  property_recommendations: "Ponto/estabelecimento do guia",
+  property_faqs: "Pergunta do guia",
+  property_house_rules: "Regra da casa",
+  city_references: "Referência da cidade",
+  poi_categories: "Categoria de pontos",
+  poi_tags: "Etiqueta de pontos",
+  admin_invites: "Convite de administrador",
+  admin: "Acesso de administrador",
+  user_roles: "Permissão de usuário",
+};
+const ACTION_VERBS: Record<string, string> = {
+  create: "adicionado",
+  insert: "adicionado",
+  update: "atualizado",
+  delete: "excluído",
+  granted: "concedido",
+  revoked: "removido",
+  invited: "convidado",
+};
+
+function humanizeAction(action: string, entityType: string | null, ctx: { cityLabel?: string | null; itemName?: string | null }): string {
+  // action vem como "<tabela>.<verbo>" ou "admin.granted" etc.
+  const [, verbRaw] = action.split(".");
+  const verb = ACTION_VERBS[verbRaw] ?? verbRaw ?? "alterado";
+  const entityLabel = (entityType && ENTITY_LABELS[entityType]) ?? ENTITY_LABELS[action.split(".")[0]] ?? "Item";
+  const where = ctx.cityLabel ? ` em ${ctx.cityLabel}` : "";
+  return `${entityLabel} ${verb}${where}`.trim();
+}
 
 export const adminListAuditLogs = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -545,6 +615,7 @@ export const adminListAuditLogs = createServerFn({ method: "POST" })
     const { data: rows, error } = await q;
     if (error) throw new Error("Erro ao carregar registros de atividade");
     const rowList = (rows ?? []) as Array<{ id: string; user_id: string | null; user_email: string | null; action: string; entity_type: string | null; entity_id: string | null; metadata: unknown; created_at: string }>;
+
     const missing = Array.from(new Set(rowList.filter((r) => r.user_id && !r.user_email).map((r) => r.user_id as string)));
     const emailMap = new Map<string, string>();
     if (missing.length) {
@@ -553,17 +624,50 @@ export const adminListAuditLogs = createServerFn({ method: "POST" })
         if (u.email) emailMap.set(u.id, u.email);
       }
     }
+
+    // Cache de rótulos de cidades Sigma (city_key → city_label).
+    const { data: cityRows } = await supabaseAdmin
+      .from("sigma_city_packs")
+      .select("city_key, city_label");
+    const cityLabelByKey = new Map<string, string>(
+      (cityRows ?? []).map((r) => [(r as { city_key: string }).city_key, (r as { city_label: string }).city_label]),
+    );
+
+    function deriveContext(r: typeof rowList[number]): { cityLabel: string | null; itemName: string | null } {
+      const meta = (r.metadata ?? {}) as Record<string, unknown>;
+      const newRow = (meta.new ?? null) as Record<string, unknown> | null;
+      const oldRow = (meta.old ?? null) as Record<string, unknown> | null;
+      const pick = (k: string) => (newRow?.[k] ?? oldRow?.[k] ?? meta[k]) as unknown;
+      const cityKey = pick("city_key") as string | undefined;
+      const cityLabel = cityKey ? cityLabelByKey.get(cityKey) ?? null : null;
+      const itemName =
+        (pick("name") as string | undefined) ??
+        (pick("city_label") as string | undefined) ??
+        (pick("question") as string | undefined) ??
+        (pick("label") as string | undefined) ??
+        (pick("email") as string | undefined) ??
+        null;
+      return { cityLabel, itemName };
+    }
+
     return {
-      logs: rowList.map((r) => ({
-        id: r.id,
-        userId: r.user_id,
-        userEmail: r.user_email ?? (r.user_id ? emailMap.get(r.user_id) ?? null : null),
-        action: r.action,
-        entityType: r.entity_type,
-        entityId: r.entity_id,
-        metadataJson: r.metadata ? JSON.stringify(r.metadata) : "{}",
-        createdAt: r.created_at,
-      })),
+      logs: rowList.map((r) => {
+        const ctx = deriveContext(r);
+        const actionLabel = humanizeAction(r.action, r.entity_type, ctx);
+        const itemLabel = ctx.itemName ?? (r.entity_id ? `#${r.entity_id.slice(0, 8)}` : "—");
+        return {
+          id: r.id,
+          userId: r.user_id,
+          userEmail: r.user_email ?? (r.user_id ? emailMap.get(r.user_id) ?? null : null),
+          action: r.action,
+          actionLabel,
+          entityType: r.entity_type,
+          entityId: r.entity_id,
+          itemLabel,
+          metadataJson: r.metadata ? JSON.stringify(r.metadata) : "{}",
+          createdAt: r.created_at,
+        };
+      }),
     };
   });
 
