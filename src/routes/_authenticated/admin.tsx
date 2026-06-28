@@ -27,7 +27,7 @@ function AdminLayout() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const { isAdmin } = useIsAdmin();
+  const { isAdmin, isLoading: adminLoading } = useIsAdmin();
   const [email, setEmail] = useState<string>("");
   const [open, setOpen] = useState(false);
   const nav = baseNav;
@@ -54,7 +54,7 @@ function AdminLayout() {
     pathname.startsWith("/admin/taxonomia") ||
     pathname.startsWith("/admin/recomendacoes-sigma") ||
     pathname.startsWith("/admin/admins");
-  const needsPlan = !subLoading && !sub.plan && !allowedWithoutPlan && !isAdmin;
+  const needsPlan = !subLoading && !adminLoading && !sub.plan && !allowedWithoutPlan && !isAdmin;
 
   return (
     <div className="min-h-screen bg-background text-foreground flex">

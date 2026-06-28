@@ -854,3 +854,22 @@ export const saveGuideAsSigmaPack = createServerFn({ method: "POST" })
     };
   });
 
+// Reaplica TODOS os packs Sigma em TODOS os guias inscritos.
+// Útil para um "refresh geral" após mudanças de regra ou correções de catálogo.
+export const adminRefreshAllSigmaSubscribers = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await assertAdmin(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: packs } = await supabaseAdmin
+      .from("sigma_city_packs")
+      .select("city_key");
+    const keys = Array.from(new Set(((packs ?? []) as { city_key: string }[]).map((p) => p.city_key)));
+    let refreshed = 0;
+    for (const k of keys) {
+      await propagateSigmaPackToSubscribers(supabaseAdmin, k);
+      refreshed++;
+    }
+    return { ok: true, packs: refreshed };
+  });
+
