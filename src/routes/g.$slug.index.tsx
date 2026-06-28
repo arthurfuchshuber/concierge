@@ -275,13 +275,40 @@ function Guide({ data }: { data: GuideOk }) {
 
 
   // Informações sensíveis (Wi-Fi, senhas de acesso) permanecem disponíveis
-  // até o dia do check-out às 15h00 informado pelo hóspede.
+  // dentro da página "Chegada" até as 15h00 do dia do check-out.
   const checkinLocked = (() => {
     if (!accessRec?.checkoutDate) return false;
     const [y, mo, d] = accessRec.checkoutDate.split("-").map(Number);
     if (!y || !mo || !d) return false;
     const end = new Date(y, mo - 1, d, 15, 0, 0, 0).getTime();
     return Date.now() > end;
+  })();
+
+  // Faixas da home: visíveis somente de 8h antes do check-in até 12h após
+  // a data e hora do check-in informados pelo anfitrião.
+  const homeStripsVisible = (() => {
+    if (!accessRec?.checkinDate) return false;
+    const t = String(p.checkin_time ?? "15:00").match(/^(\d{1,2}):(\d{2})/);
+    const hh = t ? Number(t[1]) : 15;
+    const mm = t ? Number(t[2]) : 0;
+    const [y, mo, d] = accessRec.checkinDate.split("-").map(Number);
+    if (!y || !mo || !d) return false;
+    const ci = new Date(y, mo - 1, d, hh, mm, 0, 0).getTime();
+    const now = Date.now();
+    return now >= ci - 8 * 3600_000 && now <= ci + 12 * 3600_000;
+  })();
+
+  // Aviso de check-out: aparece como faixa na home a partir das 3h00 do
+  // dia do check-out e até as 15h00 do mesmo dia.
+  const checkoutNoticeVisible = (() => {
+    if (!accessRec?.checkoutDate) return false;
+    if (!p.checkout_note && !p.checkout_time) return false;
+    const [y, mo, d] = accessRec.checkoutDate.split("-").map(Number);
+    if (!y || !mo || !d) return false;
+    const start = new Date(y, mo - 1, d, 3, 0, 0, 0).getTime();
+    const end = new Date(y, mo - 1, d, 15, 0, 0, 0).getTime();
+    const now = Date.now();
+    return now >= start && now <= end;
   })();
 
 
