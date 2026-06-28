@@ -47,7 +47,7 @@ function SigmaPackEditor() {
       await updatePackFn({ data: { city_key: cityKey, patch: { is_published: !pack.is_published } } });
       toast.success(pack.is_published ? "Despublicado" : "Publicado");
       refresh();
-    } catch (e) { toast.error(e instanceof Error ? e.message : "Erro"); }
+    } catch (e) { toast.error(friendlyErrorMessage(e)); }
   }
 
   return (
@@ -112,7 +112,7 @@ function ApplySigmaToGuideButton({ cityKey, disabled }: { cityKey: string; disab
       toast.success("Recomendação SigmaGuide aplicada ao guia.");
       void q.refetch();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Erro ao aplicar");
+      toast.error(friendlyErrorMessage(e, "Não foi possível aplicar agora."));
     } finally {
       setApplyingId(null);
     }
@@ -205,7 +205,7 @@ function RecsTab({ cityKey, items, refresh }: { cityKey: string; items: Awaited<
     if (existing) clearTimeout(existing);
     const t = setTimeout(() => {
       map.delete(id);
-      updFn({ data: { id, patch } }).then(refresh).catch((e) => toast.error(e instanceof Error ? e.message : "Erro ao salvar"));
+      updFn({ data: { id, patch } }).then(refresh).catch((e) => toast.error(friendlyErrorMessage(e, "Não foi possível salvar agora.")));
     }, 700);
     map.set(id, t);
   }
@@ -219,7 +219,7 @@ function RecsTab({ cityKey, items, refresh }: { cityKey: string; items: Awaited<
     const nextIds = new Set(next.map((p) => p._dbId).filter(Boolean) as string[]);
     const deletedIds = [...prevIds].filter((id) => !nextIds.has(id));
     if (deletedIds.length) {
-      delFn({ data: { ids: deletedIds } }).then(refresh).catch((e) => toast.error(e instanceof Error ? e.message : "Erro ao excluir"));
+      delFn({ data: { ids: deletedIds } }).then(refresh).catch((e) => toast.error(friendlyErrorMessage(e, "Não foi possível excluir agora.")));
     }
 
     // Adições — exige place_id (somente Google)
@@ -246,7 +246,7 @@ function RecsTab({ cityKey, items, refresh }: { cityKey: string; items: Awaited<
         },
       })
         .then(refresh)
-        .catch((e) => toast.error(e instanceof Error ? e.message : "Erro ao adicionar"))
+        .catch((e) => toast.error(friendlyErrorMessage(e, "Não foi possível adicionar agora.")))
         .finally(() => inflightAdds.current.delete(key));
     }
 
@@ -306,7 +306,7 @@ function MarketplaceTab({ cityKey, items, refresh }: { cityKey: string; items: A
       setLabel(""); setUrl(""); setDesc("");
       toast.success("Link adicionado");
       refresh();
-    } catch (e) { toast.error(e instanceof Error ? e.message : "Erro"); }
+    } catch (e) { toast.error(friendlyErrorMessage(e)); }
     finally { setSaving(false); }
   }
 
@@ -375,7 +375,7 @@ function FaqsTab({ cityKey, items, refresh }: { cityKey: string; items: Awaited<
       setQuestion(""); setAnswer("");
       toast.success("Pergunta adicionada");
       refresh();
-    } catch (e) { toast.error(e instanceof Error ? e.message : "Erro"); }
+    } catch (e) { toast.error(friendlyErrorMessage(e)); }
     finally { setSaving(false); }
   }
 
