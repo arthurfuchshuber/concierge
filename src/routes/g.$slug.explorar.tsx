@@ -1268,9 +1268,8 @@ function RecCard({ rec }: { rec: Rec }) {
             <Compass className="size-10 text-accent/60" strokeWidth={1.25} />
           </div>
         )}
-        <div className="absolute top-2.5 left-2.5 inline-flex items-center gap-1 px-2 py-1 rounded-full bg-background/90 backdrop-blur text-[10px] uppercase tracking-[0.18em] font-semibold text-foreground/80">
-          {typeLabel}
-        </div>
+        {/* tag/categoria oculta no guia público — mantida apenas no admin */}
+
       </div>
 
       <div className="p-4 flex-1 flex flex-col gap-2">
