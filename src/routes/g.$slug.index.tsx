@@ -2105,22 +2105,23 @@ function WifiStrip({
         </div>
         {password && (
           <div className="flex flex-col items-center justify-center gap-2 shrink-0">
-            <button
-              onClick={copyPwd}
-              aria-label="Copiar senha do Wi-Fi"
-              className="inline-flex items-center gap-1.5 rounded-full bg-foreground text-background px-3.5 py-2 text-[12px] font-semibold tracking-wide hover:opacity-90 active:scale-95 transition-all shadow-[0_6px_18px_-10px_oklch(from_var(--foreground)_l_c_h/0.35)]"
-            >
-              {copied ? <Check className="size-3.5" strokeWidth={2.4} /> : <Copy className="size-3.5" strokeWidth={2.4} />}
-              <span>{copied ? "Copiado" : "Copiar"}</span>
-            </button>
-            {!showing && (
+            {!showing ? (
               <button
                 onClick={handleEyeClick}
-                aria-label="Visualizar senha do Wi-Fi"
-                className="inline-flex items-center gap-1.5 text-[11px] font-medium text-foreground/70 hover:text-foreground transition-colors"
+                aria-label="Ver senha do Wi-Fi"
+                className="inline-flex items-center gap-1.5 rounded-full bg-foreground text-background px-3.5 py-2 text-[12px] font-semibold tracking-wide hover:opacity-90 active:scale-95 transition-all shadow-[0_6px_18px_-10px_oklch(from_var(--foreground)_l_c_h/0.35)]"
               >
-                <Eye className="size-3" strokeWidth={2} />
-                <span>Mostrar</span>
+                <Eye className="size-3.5" strokeWidth={2.4} />
+                <span>Ver Senha</span>
+              </button>
+            ) : (
+              <button
+                onClick={copyPwd}
+                aria-label="Copiar senha do Wi-Fi"
+                className="inline-flex items-center gap-1.5 rounded-full bg-foreground text-background px-3.5 py-2 text-[12px] font-semibold tracking-wide hover:opacity-90 active:scale-95 transition-all shadow-[0_6px_18px_-10px_oklch(from_var(--foreground)_l_c_h/0.35)]"
+              >
+                {copied ? <Check className="size-3.5" strokeWidth={2.4} /> : <Copy className="size-3.5" strokeWidth={2.4} />}
+                <span>{copied ? "Copiado" : "Copiar"}</span>
               </button>
             )}
           </div>
