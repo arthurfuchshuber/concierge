@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { useSubscription } from "@/hooks/useSubscription";
 import { OnboardingCheckout } from "@/components/OnboardingCheckout";
+import { ClientSwitcher } from "@/components/admin/ClientSwitcher";
 
 export const Route = createFileRoute("/_authenticated/admin")({
   component: AdminLayout,
@@ -75,6 +76,11 @@ function AdminLayout() {
         </div>
 
         <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
+          {isAdmin && (
+            <div className="px-1 pb-3 mb-2 border-b border-border/60">
+              <ClientSwitcher />
+            </div>
+          )}
           {nav.map((item) => {
             const active = item.exact ? pathname === item.to : pathname.startsWith(item.to);
             const Icon = item.icon;

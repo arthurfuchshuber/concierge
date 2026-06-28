@@ -11,11 +11,11 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import {
-  listAllSigmaPacks, createSigmaPack, deleteSigmaPack, updateSigmaPack, adminRefreshAllSigmaSubscribers,
+  listAllSigmaPacks, createSigmaPack, deleteSigmaPack, updateSigmaPack,
 } from "@/lib/sigma-recommendations.functions";
-import { Star, Plus, Globe2, Users, MapPin, Eye, EyeOff, Trash2, Loader2, ArrowRight, RefreshCw } from "lucide-react";
+import { Star, Plus, Globe2, Users, MapPin, Eye, EyeOff, Trash2, Loader2, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
-import { friendlyErrorMessage } from "@/lib/friendly-error";
+
 
 export const Route = createFileRoute("/_authenticated/admin/recomendacoes-sigma/")({
   component: SigmaPacksIndex,
@@ -28,12 +28,10 @@ function SigmaPacksIndex() {
   const listFn = useServerFn(listAllSigmaPacks);
   const updateFn = useServerFn(updateSigmaPack);
   const deleteFn = useServerFn(deleteSigmaPack);
-  const refreshAllFn = useServerFn(adminRefreshAllSigmaSubscribers);
 
   const q = useQuery({ queryKey: ["sigma-packs"], queryFn: () => listFn() });
   const [newOpen, setNewOpen] = useState(false);
   const [confirmDel, setConfirmDel] = useState<PackRow | null>(null);
-  const [refreshing, setRefreshing] = useState(false);
 
   const packs = q.data ?? [];
   const publishedCount = packs.filter((p) => p.is_published).length;
@@ -69,30 +67,12 @@ function SigmaPacksIndex() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            className="rounded-full"
-            disabled={refreshing}
-            onClick={async () => {
-              setRefreshing(true);
-              try {
-                const res = await refreshAllFn();
-                toast.success(`Atualizamos os guias inscritos em ${res.packs} cidade(s).`);
-              } catch (e) {
-                toast.error(friendlyErrorMessage(e));
-              } finally {
-                setRefreshing(false);
-              }
-            }}
-          >
-            {refreshing ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}
-            Atualizar todos os guias
-          </Button>
           <Button onClick={() => setNewOpen(true)} className="rounded-full">
             <Plus className="size-4" /> Nova cidade
           </Button>
         </div>
       </div>
+
 
       {/* Dashboard cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
