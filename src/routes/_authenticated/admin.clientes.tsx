@@ -289,7 +289,7 @@ function ClientesPage() {
                               )}
                             </div>
                           ) : (
-                            <span className="text-muted-foreground/60">—</span>
+                            <span className="text-muted-foreground/70 italic">Sem plano</span>
                           )}
                         </td>
                         <td className="px-4 py-4">
