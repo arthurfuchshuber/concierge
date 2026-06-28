@@ -1751,14 +1751,6 @@ function AccessBlock({
           </p>
         </div>
         <div className="flex items-center gap-1.5 shrink-0">
-          <button
-            type="button"
-            onClick={copyCode}
-            aria-label={`Copiar ${resolvedLabel}`}
-            className="grid size-8 place-items-center rounded-full bg-secondary text-foreground hover:bg-secondary/80 transition-all"
-          >
-            {copied ? <Check className="size-3.5 text-accent" /> : <Copy className="size-3.5" />}
-          </button>
           {hasPin && (
             <button
               type="button"
