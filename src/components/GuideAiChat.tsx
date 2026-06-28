@@ -68,10 +68,11 @@ export function GuideAiChat({ slug, propertyName, guestName }: { slug: string; p
     const cached = loadCachedMessages(slug);
     setConversationId(cached.conversationId);
     setMessages(cached.messages);
-    // Respect a per-session dismissal of the nudge bubble.
+    // Manifestação persiste até o hóspede fechar (X) OU abrir o chat pela primeira vez.
+    // Uma vez dispensada, não volta a aparecer (persistente entre sessões).
     let dismissed = false;
     try {
-      dismissed = window.sessionStorage.getItem(`guide-chat-nudge-dismissed:${slug}`) === "1";
+      dismissed = window.localStorage.getItem(`guide-chat-nudge-dismissed:${slug}`) === "1";
     } catch {
       // ignore
     }
@@ -80,13 +81,17 @@ export function GuideAiChat({ slug, propertyName, guestName }: { slug: string; p
     return () => clearTimeout(t);
   }, [slug]);
 
-  function dismissNudge() {
-    setShowNudge(false);
+  function persistDismissed() {
     try {
-      window.sessionStorage.setItem(`guide-chat-nudge-dismissed:${slug}`, "1");
+      window.localStorage.setItem(`guide-chat-nudge-dismissed:${slug}`, "1");
     } catch {
       // ignore
     }
+  }
+
+  function dismissNudge() {
+    setShowNudge(false);
+    persistDismissed();
   }
 
 
@@ -100,8 +105,10 @@ export function GuideAiChat({ slug, propertyName, guestName }: { slug: string; p
     if (open) {
       setHasOpened(true);
       setShowNudge(false);
+      persistDismissed();
       setTimeout(() => inputRef.current?.focus(), 80);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
   async function send() {

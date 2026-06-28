@@ -904,7 +904,15 @@ function Guide({ data }: { data: GuideOk }) {
                         hint={p.wifi_ssid || undefined}
                       >
                         <div className="rounded-xl bg-background/50 border border-border/50 overflow-hidden divide-y divide-border/40">
-                          <CopyCard flat icon={<Wifi className="size-[18px] " strokeWidth={1.75} />} eyebrow="Rede" label="Toque para copiar" value={p.wifi_ssid} />
+                          <div className="flex items-center gap-3 px-3.5 py-3">
+                            <div className="size-9 rounded-lg bg-accent/10 text-accent/75 grid place-items-center shrink-0">
+                              <Wifi className="size-[18px]" strokeWidth={1.75} />
+                            </div>
+                            <div className="min-w-0">
+                              <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground font-semibold">Rede</p>
+                              <p className="text-[15px] font-semibold tracking-tight mt-0.5 break-all leading-snug">{p.wifi_ssid}</p>
+                            </div>
+                          </div>
                           {((p as any).wifi_password_set || p.wifi_password) && (
                             <Lockable locked={checkinLocked}>
                               <GatedCopyCard
@@ -1325,7 +1333,7 @@ function HeroCompact({
 
   return (
     <section
-      className="relative overflow-hidden px-5 md:px-10 lg:px-16 pb-24 md:pb-28 pt-4 md:pt-8 min-h-[52svh] md:min-h-[60svh] flex flex-col"
+      className="relative overflow-hidden px-5 md:px-10 lg:px-16 pb-24 md:pb-28 pt-4 md:pt-8 min-h-[56svh] md:min-h-[64svh] flex flex-col"
       onTouchStart={onTouchStart}
       onTouchEnd={onTouchEnd}
     >
@@ -1743,14 +1751,6 @@ function AccessBlock({
           </p>
         </div>
         <div className="flex items-center gap-1.5 shrink-0">
-          <button
-            type="button"
-            onClick={copyCode}
-            aria-label={`Copiar ${resolvedLabel}`}
-            className="grid size-8 place-items-center rounded-full bg-secondary text-foreground hover:bg-secondary/80 transition-all"
-          >
-            {copied ? <Check className="size-3.5 text-accent" /> : <Copy className="size-3.5" />}
-          </button>
           {hasPin && (
             <button
               type="button"
