@@ -1,0 +1,216 @@
+import { useEffect, useRef, useState } from "react";
+import { Eye, Share2, Heart, ThumbsDown } from "lucide-react";
+import { useServerFn } from "@tanstack/react-start";
+import { toast } from "sonner";
+import { recordPoiEngagement } from "@/lib/poi-engagement.functions";
+
+type PoiType = "city_reference" | "recommendation" | "sigma_city_reference" | "marketplace_link";
+
+function getAnonId(): string {
+  if (typeof window === "undefined") return "";
+  const KEY = "sg-anon-id";
+  let id = window.localStorage.getItem(KEY);
+  if (!id) {
+    id = (crypto.randomUUID?.() ?? Math.random().toString(36).slice(2) + Date.now().toString(36));
+    window.localStorage.setItem(KEY, id);
+  }
+  return id;
+}
+
+export type EngagementCounts = {
+  views: number;
+  likes: number;
+  dislikes: number;
+  shares: number;
+};
+
+type Props = {
+  slug: string;
+  poiKey: string;
+  poiType: PoiType;
+  shareUrl?: string | null;
+  shareTitle?: string;
+  initialCounts?: EngagementCounts;
+  initialReaction?: "like" | "dislike" | null;
+  /** Hide everything except the eye (used for marketplace items in admin view). */
+  viewsOnly?: boolean;
+  /** Render in light pill instead of glassy dark — use over photos. */
+  variant?: "glass" | "solid";
+  /** Force the bar to track view-on-click only (no IntersectionObserver). */
+  noAutoView?: boolean;
+};
+
+export function POIEngagementBar({
+  slug,
+  poiKey,
+  poiType,
+  shareUrl,
+  shareTitle,
+  initialCounts,
+  initialReaction = null,
+  viewsOnly = false,
+  variant = "glass",
+  noAutoView = false,
+}: Props) {
+  const record = useServerFn(recordPoiEngagement);
+  const [counts, setCounts] = useState<EngagementCounts>(
+    initialCounts ?? { views: 0, likes: 0, dislikes: 0, shares: 0 },
+  );
+  const [reaction, setReaction] = useState<"like" | "dislike" | null>(initialReaction);
+  const ref = useRef<HTMLDivElement>(null);
+  const viewedRef = useRef(false);
+
+  useEffect(() => {
+    setCounts(initialCounts ?? { views: 0, likes: 0, dislikes: 0, shares: 0 });
+  }, [initialCounts]);
+  useEffect(() => {
+    setReaction(initialReaction);
+  }, [initialReaction]);
+
+  // Auto-view after 5 seconds in viewport
+  useEffect(() => {
+    if (viewsOnly || noAutoView) return;
+    const el = ref.current;
+    if (!el || typeof IntersectionObserver === "undefined") return;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const obs = new IntersectionObserver(
+      (entries) => {
+        for (const e of entries) {
+          if (e.isIntersecting && e.intersectionRatio > 0.5) {
+            if (!timer && !viewedRef.current) {
+              timer = setTimeout(() => fireView(), 5000);
+            }
+          } else if (timer) {
+            clearTimeout(timer);
+            timer = null;
+          }
+        }
+      },
+      { threshold: [0, 0.5, 1] },
+    );
+    obs.observe(el);
+    return () => {
+      if (timer) clearTimeout(timer);
+      obs.disconnect();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [poiKey, slug]);
+
+  async function fireView() {
+    if (viewedRef.current) return;
+    viewedRef.current = true;
+    setCounts((c) => ({ ...c, views: c.views + 1 }));
+    try {
+      await record({
+        data: { slug, poi_key: poiKey, poi_type: poiType, event_type: "view", anon_id: getAnonId() },
+      });
+    } catch {
+      // silencioso — não atrapalha o hóspede
+    }
+  }
+
+  async function fireReaction(kind: "like" | "dislike") {
+    const prev = reaction;
+    const next = prev === kind ? null : kind;
+    // Optimistic counters
+    setCounts((c) => {
+      const nc = { ...c };
+      if (prev === "like") nc.likes = Math.max(0, nc.likes - 1);
+      if (prev === "dislike") nc.dislikes = Math.max(0, nc.dislikes - 1);
+      if (next === "like") nc.likes += 1;
+      if (next === "dislike") nc.dislikes += 1;
+      return nc;
+    });
+    setReaction(next);
+    try {
+      await record({
+        data: { slug, poi_key: poiKey, poi_type: poiType, event_type: kind, anon_id: getAnonId() },
+      });
+    } catch {
+      toast.error("Não foi possível registrar sua reação agora.");
+    }
+  }
+
+  async function fireShare(e: React.MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    const url = shareUrl || (typeof window !== "undefined" ? window.location.href : "");
+    const title = shareTitle || "Confira este lugar";
+    setCounts((c) => ({ ...c, shares: c.shares + 1 }));
+    try {
+      if (typeof navigator !== "undefined" && (navigator as Navigator & { share?: (data: ShareData) => Promise<void> }).share) {
+        await (navigator as Navigator & { share: (data: ShareData) => Promise<void> }).share({ title, url });
+      } else if (navigator?.clipboard) {
+        await navigator.clipboard.writeText(url);
+        toast.success("Link copiado!");
+      }
+      await record({
+        data: { slug, poi_key: poiKey, poi_type: poiType, event_type: "share", anon_id: getAnonId() },
+      });
+    } catch {
+      // user canceled share — undo optimistic share count
+      setCounts((c) => ({ ...c, shares: Math.max(0, c.shares - 1) }));
+    }
+  }
+
+  function onClickView(e: React.MouseEvent) {
+    // Card-level click counts as a view too (when used with a parent link).
+    e.stopPropagation();
+    fireView();
+  }
+
+  const wrapBase =
+    variant === "glass"
+      ? "bg-black/55 backdrop-blur-md text-white border border-white/15"
+      : "bg-background/95 backdrop-blur text-foreground border border-border";
+  const btnBase =
+    "inline-flex items-center gap-1 px-1.5 py-1 rounded-full text-[10.5px] font-medium tabular-nums transition-colors";
+
+  return (
+    <div
+      ref={ref}
+      onClick={(e) => e.stopPropagation()}
+      className={`pointer-events-auto absolute bottom-2 right-2 z-10 inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 shadow-sm ${wrapBase}`}
+    >
+      <button
+        type="button"
+        aria-label="Visualizações"
+        onClick={onClickView}
+        className={`${btnBase} hover:opacity-80`}
+      >
+        <Eye className="size-3.5" strokeWidth={2} />
+        <span>{counts.views}</span>
+      </button>
+      {!viewsOnly && (
+        <>
+          <button
+            type="button"
+            aria-label="Compartilhar"
+            onClick={fireShare}
+            className={`${btnBase} hover:opacity-80`}
+          >
+            <Share2 className="size-3.5" strokeWidth={2} />
+          </button>
+          <button
+            type="button"
+            aria-label="Curtir"
+            onClick={(e) => { e.stopPropagation(); fireReaction("like"); }}
+            className={`${btnBase} ${reaction === "like" ? "text-rose-400" : "hover:opacity-80"}`}
+          >
+            <Heart className={`size-3.5 ${reaction === "like" ? "fill-current" : ""}`} strokeWidth={2} />
+            <span>{counts.likes}</span>
+          </button>
+          <button
+            type="button"
+            aria-label="Descurtir"
+            onClick={(e) => { e.stopPropagation(); fireReaction("dislike"); }}
+            className={`${btnBase} ${reaction === "dislike" ? "text-sky-400" : "hover:opacity-80"}`}
+          >
+            <ThumbsDown className={`size-3.5 ${reaction === "dislike" ? "fill-current" : ""}`} strokeWidth={2} />
+            <span>{counts.dislikes}</span>
+          </button>
+        </>
+      )}
+    </div>
+  );
+}

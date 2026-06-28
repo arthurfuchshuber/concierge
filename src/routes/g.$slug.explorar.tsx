@@ -30,6 +30,29 @@ import { toTitleCase } from "@/lib/text";
 import { useCityReferencesRealtime } from "@/hooks/useCityReferencesRealtime";
 import { useTaxonomy } from "@/components/admin/TagPicker";
 import { FilterSheetButton } from "@/components/guide/FilterSheet";
+import { POIEngagementBar } from "@/components/POIEngagementBar";
+import { getPoiEngagementCounts, getMyPoiReactions, recordPoiEngagement, type PoiCounts } from "@/lib/poi-engagement.functions";
+import { useServerFn } from "@tanstack/react-start";
+import { createContext, useContext } from "react";
+
+type EngagementCtxValue = {
+  slug: string;
+  counts: PoiCounts;
+  reactions: Record<string, "like" | "dislike">;
+};
+const EngagementCtx = createContext<EngagementCtxValue | null>(null);
+
+function getAnonIdClient(): string {
+  if (typeof window === "undefined") return "";
+  const KEY = "sg-anon-id";
+  let id = window.localStorage.getItem(KEY);
+  if (!id) {
+    id = (crypto.randomUUID?.() ?? Math.random().toString(36).slice(2) + Date.now().toString(36));
+    window.localStorage.setItem(KEY, id);
+  }
+  return id;
+}
+
 
 const REVIEW_THRESHOLDS = [0, 50, 200, 1000, 5000];
 const REVIEW_LABELS: Record<number, string> = { 0: "Todas", 50: "50+", 200: "200+", 1000: "1k+", 5000: "5k+" };
@@ -321,6 +344,28 @@ function ExplorePage() {
     void router.invalidate();
   });
 
+  // Engagement counters + my reactions (anon hóspede).
+  const fetchCounts = useServerFn(getPoiEngagementCounts);
+  const fetchReactions = useServerFn(getMyPoiReactions);
+  const recordEng = useServerFn(recordPoiEngagement);
+  const [engCounts, setEngCounts] = useState<PoiCounts>({});
+  const [engReactions, setEngReactions] = useState<Record<string, "like" | "dislike">>({});
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const c = await fetchCounts({ data: { slug } });
+        if (alive) setEngCounts(c.counts);
+      } catch { /* silencioso */ }
+      try {
+        const rx = await fetchReactions({ data: { slug, anon_id: getAnonIdClient() } });
+        if (alive) setEngReactions(rx.reactions);
+      } catch { /* silencioso */ }
+    })();
+    return () => { alive = false; };
+  }, [slug, fetchCounts, fetchReactions]);
+
+
   if (r.status !== "ok") {
     return (
       <div className="min-h-screen grid place-items-center bg-background px-6 text-center">
@@ -513,11 +558,13 @@ function ExplorePage() {
     : null) ?? null;
 
   return (
+    <EngagementCtx.Provider value={{ slug, counts: engCounts, reactions: engReactions }}>
     <div
       className={`sigma-public-guide guide-ambient min-h-screen bg-background text-foreground pb-24 ${
         theme === "light" ? "theme-light" : ""
       }`}
     >
+
       <div className="mx-auto w-full max-w-md md:max-w-3xl lg:max-w-5xl px-5 md:px-10 pt-5 md:pt-10">
         {active ? (
           <button
@@ -616,6 +663,20 @@ function ExplorePage() {
                     href={m.url}
                     target="_blank"
                     rel="noopener noreferrer"
+                    onClick={() => {
+                      // Track click as a marketplace view (fire-and-forget).
+                      try {
+                        void recordEng({
+                          data: {
+                            slug,
+                            poi_key: m.url,
+                            poi_type: "marketplace_link",
+                            event_type: "view",
+                            anon_id: getAnonIdClient(),
+                          },
+                        });
+                      } catch { /* noop */ }
+                    }}
                     className="group flex items-start gap-3 rounded-2xl border border-border bg-card/40 hover:bg-card hover:border-accent/50 hover:shadow-md transition-all p-4"
                   >
                     <span className="shrink-0 inline-flex size-9 items-center justify-center rounded-full bg-accent/15 text-accent">
@@ -689,7 +750,9 @@ function ExplorePage() {
         <GuideAiChat slug={slug} propertyName={(p.name as string) ?? "Guia"} guestName={null} />
       ) : null}
     </div>
+    </EngagementCtx.Provider>
   );
+
 }
 
 function SkeletonCard() {
@@ -1166,8 +1229,13 @@ function RecCard({ rec }: { rec: Rec }) {
   const href = safeHttpsHref(rec.maps_url, rec.name);
   const typeLabel = TYPE_LABEL[rec.type] || rec.category || rec.type;
 
+  const eng = useContext(EngagementCtx);
+  const counts = eng?.counts[rec.id];
+  const myReaction = eng?.reactions[rec.id] ?? null;
+
   const inner = (
-    <div className="group bg-card border border-border rounded-2xl overflow-hidden flex flex-col hover:border-accent/40 hover:shadow-lg transition-all h-full">
+    <div className="relative group bg-card border border-border rounded-2xl overflow-hidden flex flex-col hover:border-accent/40 hover:shadow-lg transition-all h-full">
+
       <div className="relative aspect-square w-full overflow-hidden bg-secondary">
         {rec.image_url ? (
           <img
@@ -1231,6 +1299,17 @@ function RecCard({ rec }: { rec: Rec }) {
         </div>
       </div>
 
+      {eng ? (
+        <POIEngagementBar
+          slug={eng.slug}
+          poiKey={rec.id}
+          poiType="recommendation"
+          shareUrl={href ?? undefined}
+          shareTitle={rec.name}
+          initialCounts={counts}
+          initialReaction={myReaction}
+        />
+      ) : null}
     </div>
   );
 
@@ -1250,8 +1329,13 @@ function RecRow({ rec }: { rec: Rec }) {
   const href = safeHttpsHref(rec.maps_url, rec.name);
   const typeLabel = TYPE_LABEL[rec.type] || rec.category || rec.type;
 
+  const eng = useContext(EngagementCtx);
+  const counts = eng?.counts[rec.id];
+  const myReaction = eng?.reactions[rec.id] ?? null;
+
   const inner = (
-    <div className="group flex gap-4 bg-card border border-border rounded-2xl p-3 hover:border-accent/40 hover:shadow-lg transition-all">
+    <div className="relative group flex gap-4 bg-card border border-border rounded-2xl p-3 hover:border-accent/40 hover:shadow-lg transition-all">
+
       <div className="relative size-24 sm:size-28 shrink-0 overflow-hidden rounded-xl bg-secondary">
         {rec.image_url ? (
           <img
@@ -1313,6 +1397,17 @@ function RecRow({ rec }: { rec: Rec }) {
         <OpeningHours hours={rec.opening_hours} />
 
       </div>
+      {eng ? (
+        <POIEngagementBar
+          slug={eng.slug}
+          poiKey={rec.id}
+          poiType="recommendation"
+          shareUrl={href ?? undefined}
+          shareTitle={rec.name}
+          initialCounts={counts}
+          initialReaction={myReaction}
+        />
+      ) : null}
     </div>
   );
 

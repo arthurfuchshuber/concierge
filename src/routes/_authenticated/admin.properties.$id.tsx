@@ -11,6 +11,8 @@ import { importFromAirbnb } from "@/lib/airbnb.functions";
 import { useSubscription } from "@/hooks/useSubscription";
 import { useCityReferencesRealtime } from "@/hooks/useCityReferencesRealtime";
 import { LinkGuidesButton } from "@/components/admin/LinkGuidesDialog";
+import { POIMetricsBadge } from "@/components/POIMetricsBadge";
+import { getPropertyPoiCounts, getMarketplaceClicks } from "@/lib/poi-engagement.functions";
 
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -166,6 +168,22 @@ function PropertyEditor() {
   const addCityRefFn = useServerFn(addManualCityReference);
   const updateCityRefFn = useServerFn(updateCityReference);
   const bulkDeleteCityRefsFn = useServerFn(bulkDeleteCityReferences);
+  const fetchPoiCounts = useServerFn(getPropertyPoiCounts);
+  const fetchMarketplaceClicks = useServerFn(getMarketplaceClicks);
+  const { data: poiCountsData } = useQuery({
+    queryKey: ["admin", "poi-counts", id],
+    queryFn: () => fetchPoiCounts({ data: { property_id: id } }),
+    enabled: !isNew,
+    staleTime: 30_000,
+  });
+  const poiCounts = poiCountsData?.counts;
+  const { data: marketplaceClicksData } = useQuery({
+    queryKey: ["admin", "marketplace-clicks", id],
+    queryFn: () => fetchMarketplaceClicks({ data: { property_id: id } }),
+    enabled: !isNew,
+    staleTime: 30_000,
+  });
+  const marketplaceClicks = marketplaceClicksData?.counts ?? {};
   const queryClient = useQueryClient();
   const [openFaqIdx, setOpenFaqIdx] = useState<number | null>(null);
 
@@ -1406,7 +1424,9 @@ function PropertyEditor() {
             lng={form.property.lng}
             hideSearch
             headerExtra={<LinkGuidesButton propertyId={id} />}
+            metricsCounts={poiCounts}
           />
+
 
 
           <CityRefsGroup
@@ -1423,6 +1443,7 @@ function PropertyEditor() {
             bulkDeleteFn={bulkDeleteCityRefsFn}
             invalidate={invalidateCityRefs}
             locked={sigmaLocked}
+            metricsCounts={poiCounts}
           />
 
           {genCityModeOpen && (
@@ -1485,6 +1506,11 @@ function PropertyEditor() {
                     {m.description.trim().length}/200 {m.description.trim().length < 100 ? `· faltam ${100 - m.description.trim().length} para o mínimo` : ""}
                   </div>
                 </div>
+                {m.url ? (
+                  <div className="flex justify-end">
+                    <POIMetricsBadge counts={{ views: marketplaceClicks[m.url] ?? 0, likes: 0, dislikes: 0, shares: 0 }} viewsOnly position="inline" />
+                  </div>
+                ) : null}
               </ItemCard>
             ))}
             </fieldset>
@@ -2220,6 +2246,7 @@ function CityRefsGroup({
   bulkDeleteFn,
   invalidate,
   locked,
+  metricsCounts,
 }: {
   cityLabel: string;
   state: string | null;
@@ -2236,6 +2263,7 @@ function CityRefsGroup({
   bulkDeleteFn: (args: { data: { ids: string[] } }) => Promise<{ ok: boolean; deleted?: number }>;
   invalidate: () => void;
   locked?: boolean;
+  metricsCounts?: Record<string, { views: number; likes: number; dislikes: number; shares: number }>;
 }) {
   const city = (cityLabel || "").trim();
   const q = useQuery({
@@ -2358,7 +2386,9 @@ function CityRefsGroup({
       headerExtra={<><SigmaImportButton propertyId={propertyId} /><SaveAsSigmaPackButton propertyId={propertyId} /><LinkGuidesButton propertyId={propertyId} /></>}
       hideSearch
       locked={locked}
+      metricsCounts={metricsCounts}
     />
+
   );
 }
 
@@ -2377,6 +2407,7 @@ export function RecGroup({
   headerExtra,
   hideSearch,
   locked,
+  metricsCounts,
 }: {
   title: string;
   desc: string;
@@ -2391,6 +2422,7 @@ export function RecGroup({
   headerExtra?: React.ReactNode;
   hideSearch?: boolean;
   locked?: boolean;
+  metricsCounts?: Record<string, { views: number; likes: number; dislikes: number; shares: number }>;
 }) {
   const [openCat, setOpenCat] = useState<string | null>(null);
   const [openItemIdx, setOpenItemIdx] = useState<number | null>(null);
@@ -2743,6 +2775,9 @@ export function RecGroup({
                               <span className="flex-1" />
                               <ChevronDown className={`size-4 text-muted-foreground transition-transform shrink-0 ${itemOpen ? "rotate-180" : ""}`} />
                             </button>
+                            {metricsCounts && r._dbId ? (
+                              <POIMetricsBadge counts={metricsCounts[r._dbId]} position="inline" />
+                            ) : null}
                             <button
                               type="button"
                               onClick={() => removeAt(idx)}
