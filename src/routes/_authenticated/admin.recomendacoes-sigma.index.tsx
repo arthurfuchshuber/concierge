@@ -13,7 +13,7 @@ import {
 import {
   listAllSigmaPacks, createSigmaPack, deleteSigmaPack, updateSigmaPack,
 } from "@/lib/sigma-recommendations.functions";
-import { Star, Plus, Globe2, Users, MapPin, Eye, EyeOff, Trash2, Loader2, ArrowRight } from "lucide-react";
+import { Star, Plus, Globe2, Users, MapPin, Eye, EyeOff, Trash2, Loader2, ArrowRight, LayoutGrid, List } from "lucide-react";
 import { toast } from "sonner";
 
 
@@ -32,6 +32,8 @@ function SigmaPacksIndex() {
   const q = useQuery({ queryKey: ["sigma-packs"], queryFn: () => listFn() });
   const [newOpen, setNewOpen] = useState(false);
   const [confirmDel, setConfirmDel] = useState<PackRow | null>(null);
+  // Padrão = lista (pedido do anfitrião).
+  const [viewMode, setViewMode] = useState<"grid" | "list">("list");
 
   const packs = q.data ?? [];
   const publishedCount = packs.filter((p) => p.is_published).length;
@@ -67,11 +69,30 @@ function SigmaPacksIndex() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <div className="inline-flex items-center rounded-full border border-border/60 p-0.5 bg-card">
+            <button
+              type="button"
+              onClick={() => setViewMode("list")}
+              className={`inline-flex items-center gap-1.5 h-8 px-3 rounded-full text-xs font-medium ${viewMode === "list" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
+              aria-label="Visualizar em lista"
+            >
+              <List className="size-3.5" /> Lista
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode("grid")}
+              className={`inline-flex items-center gap-1.5 h-8 px-3 rounded-full text-xs font-medium ${viewMode === "grid" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
+              aria-label="Visualizar em quadrantes"
+            >
+              <LayoutGrid className="size-3.5" /> Quadrantes
+            </button>
+          </div>
           <Button onClick={() => setNewOpen(true)} className="rounded-full">
             <Plus className="size-4" /> Nova cidade
           </Button>
         </div>
       </div>
+
 
 
       {/* Dashboard cards */}
