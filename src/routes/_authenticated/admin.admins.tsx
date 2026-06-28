@@ -285,12 +285,11 @@ function AdminsPage() {
                         </td>
                         <td className="px-4 py-2.5">
                           <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-accent/10 text-accent text-[11px] font-medium">
-                            {l.action}
+                            {l.actionLabel}
                           </span>
                         </td>
                         <td className="px-4 py-2.5 text-xs">
-                          {l.entityType && <span className="text-muted-foreground">{l.entityType}</span>}
-                          {l.entityId && <span className="text-muted-foreground/70"> · {l.entityId.slice(0, 8)}</span>}
+                          <span className="font-medium">{l.itemLabel}</span>
                         </td>
                       </tr>
                     ))}
