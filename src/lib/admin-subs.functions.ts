@@ -567,3 +567,51 @@ export const adminListAuditLogs = createServerFn({ method: "POST" })
     };
   });
 
+// ───────── Impersonação somente-leitura: dados completos de um cliente ─────────
+
+export const adminListUserPropertiesFull = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => z.object({ userId: z.string().uuid() }).parse(i))
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context.supabase, context.userId);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: rows, error } = await supabaseAdmin
+      .from("properties")
+      .select(
+        "id, slug, name, tagline, hero_image_url, gallery_images, access_mode, pin_expires_at, published, city, country, address, lat, lng, updated_at, wifi_ssid, checkin_time, checkout_time",
+      )
+      .eq("owner_id", data.userId)
+      .order("updated_at", { ascending: false });
+    if (error) throw new Error("Não foi possível carregar os guias deste cliente.");
+    const { signPropertyImages } = await import("@/lib/storage.server");
+    return await signPropertyImages(supabaseAdmin, rows ?? []);
+  });
+
+export const adminGetUserSubscription = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) =>
+    z.object({
+      userId: z.string().uuid(),
+      environment: z.enum(["sandbox", "live"]),
+    }).parse(i),
+  )
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context.supabase, context.userId);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: rows, error } = await supabaseAdmin
+      .from("subscriptions")
+      .select(
+        "id, paddle_subscription_id, paddle_customer_id, product_id, price_id, status, current_period_start, current_period_end, cancel_at_period_end, environment, is_manual, custom_price_cents, custom_currency, trial_ends_at, max_guides_override, admin_notes, created_at",
+      )
+      .eq("user_id", data.userId)
+      .order("created_at", { ascending: false });
+    if (error) throw new Error("Não foi possível carregar a assinatura deste cliente.");
+    const list = rows ?? [];
+    const match =
+      list.find((r) => r.environment === data.environment) ??
+      list.find((r) => r.is_manual) ??
+      null;
+    if (!match) return { subscription: null, plan: null as PlanKey | null };
+    return { subscription: match, plan: planFromProductId(match.product_id) };
+  });
+

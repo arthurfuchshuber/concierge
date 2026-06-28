@@ -4,6 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { getPaddleEnvironment } from "@/lib/paddle";
 import { getMySubscription, PLANS, type PlanKey } from "@/lib/payments.functions";
+import { adminGetUserSubscription } from "@/lib/admin-subs.functions";
 
 export type SubscriptionInfo = {
   plan: PlanKey | null;
@@ -29,12 +30,14 @@ const FREE_FEATURES = {
   customBrand: false,
 } as const;
 
-export function useSubscription() {
+export function useSubscription(opts?: { impersonateUserId?: string | null }) {
   const fetchSub = useServerFn(getMySubscription);
+  const fetchAsUser = useServerFn(adminGetUserSubscription);
   const qc = useQueryClient();
   const env = getPaddleEnvironment();
   const channelId = useId().replace(/[^a-zA-Z0-9_-]/g, "");
   const [userId, setUserId] = useState<string | null>(null);
+  const impersonateId = opts?.impersonateUserId ?? null;
 
   useEffect(() => {
     let mounted = true;
@@ -54,27 +57,33 @@ export function useSubscription() {
   }, []);
 
   const query = useQuery({
-    queryKey: ["my-subscription", env, userId],
+    queryKey: ["my-subscription", env, userId, impersonateId],
     enabled: !!userId,
-    queryFn: () => fetchSub({ data: { environment: env } }),
+    queryFn: () =>
+      impersonateId
+        ? fetchAsUser({ data: { userId: impersonateId, environment: env } })
+        : fetchSub({ data: { environment: env } }),
   });
 
+
   useEffect(() => {
-    if (!userId) return;
+    const target = impersonateId ?? userId;
+    if (!target) return;
     const channel = supabase
-      .channel(`subscriptions:${userId}:${channelId}`)
+      .channel(`subscriptions:${target}:${channelId}`)
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "subscriptions", filter: `user_id=eq.${userId}` },
+        { event: "*", schema: "public", table: "subscriptions", filter: `user_id=eq.${target}` },
         () => {
-          qc.invalidateQueries({ queryKey: ["my-subscription", env, userId] });
+          qc.invalidateQueries({ queryKey: ["my-subscription", env, userId, impersonateId] });
         },
       )
       .subscribe();
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [userId, env, qc, channelId]);
+  }, [userId, env, qc, channelId, impersonateId]);
+
 
   const data = query.data;
   const sub = data?.subscription ?? null;

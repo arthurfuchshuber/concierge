@@ -9,14 +9,18 @@ import { Input } from "@/components/ui/input";
 import { Plus, ExternalLink, Pencil, Trash2, Lock, Globe, BookOpen, PlayCircle, CreditCard, LayoutGrid, List, Link2, Check, AlertTriangle, MapPin, ChevronDown, ChevronRight, PenSquare, Search, X } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
 type StatusFilter = "all" | "published" | "draft";
 type AccessFilter = "all" | "public" | "pin";
 import { useSubscription } from "@/hooks/useSubscription";
 import { PLANS } from "@/lib/payments.functions";
 import { BulkEditDialog } from "@/components/BulkEditDialog";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
-import { adminListCustomers, adminListUserProperties } from "@/lib/admin-subs.functions";
+import { adminListUserPropertiesFull } from "@/lib/admin-subs.functions";
+import { useImpersonation } from "@/hooks/useImpersonation";
+import { Eye } from "lucide-react";
+
+
 
 export const Route = createFileRoute("/_authenticated/admin/")({
   component: Dashboard,
@@ -50,8 +54,11 @@ function guideCompleteness(p: {
 
 function Dashboard() {
   const list = useServerFn(listMyProperties);
+  const listAsUser = useServerFn(adminListUserPropertiesFull);
   const del = useServerFn(deleteProperty);
   const navigate = useNavigate();
+  const { impersonation, clear: clearImpersonation } = useImpersonation();
+  const readOnly = !!impersonation;
   const [view, setView] = useState<"grid" | "list">("grid");
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [viewSlug, setViewSlug] = useState<string | null>(null);
@@ -71,7 +78,6 @@ function Dashboard() {
   function getPublicBaseUrl() {
     if (typeof window === "undefined") return "";
     const { origin, hostname } = window.location;
-    // Sandbox/preview hosts -> use stable published URL
     if (
       hostname.endsWith(".lovableproject.com") ||
       hostname.includes("id-preview--") ||
@@ -94,41 +100,20 @@ function Dashboard() {
     }
   }
   const { data, isLoading, refetch } = useQuery({
-    queryKey: ["my-properties"],
-    queryFn: () => list(),
+    queryKey: ["my-properties", impersonation?.userId ?? "self"],
+    queryFn: () =>
+      impersonation
+        ? listAsUser({ data: { userId: impersonation.userId } })
+        : list(),
   });
-  const { info: sub } = useSubscription();
+  const { info: sub } = useSubscription({ impersonateUserId: impersonation?.userId ?? null });
 
-  // Admins sem guias próprios caem direto no painel do primeiro cliente (alfabético).
+  // Admin sem guias próprios e SEM impersonação: nada de auto-redirect agora —
+  // ele pode escolher manualmente um cliente pelo dropdown da sidebar.
   const { isAdmin } = useIsAdmin();
-  const customersFn = useServerFn(adminListCustomers);
-  const propsFn = useServerFn(adminListUserProperties);
-  useEffect(() => {
-    if (!isAdmin || isLoading) return;
-    if ((data?.length ?? 0) > 0) return;
-    let cancelled = false;
-    (async () => {
-      try {
-        const r = await customersFn();
-        const sorted = [...(r.customers ?? [])].sort((a, b) => {
-          const na = (a.fullName ?? a.email ?? "").toLowerCase();
-          const nb = (b.fullName ?? b.email ?? "").toLowerCase();
-          return na.localeCompare(nb, "pt-BR");
-        });
-        for (const c of sorted) {
-          const pr = await propsFn({ data: { userId: c.userId } });
-          const first = pr.properties?.[0];
-          if (first && !cancelled) {
-            navigate({ to: "/admin/properties/$id", params: { id: first.id }, replace: true });
-            return;
-          }
-        }
-      } catch {
-        // silencioso: usuário fica na tela de painel vazio
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [isAdmin, isLoading, data, customersFn, propsFn, navigate]);
+  void isAdmin;
+
+
 
 
 
@@ -184,12 +169,33 @@ function Dashboard() {
 
   return (
     <div className="px-6 lg:px-10 py-8 lg:py-10 max-w-7xl mx-auto w-full">
+      {readOnly && (
+        <div className="mb-6 rounded-md border border-accent/30 bg-accent/10 px-4 py-3 flex items-center gap-3">
+          <Eye className="size-4 text-accent shrink-0" />
+          <div className="flex-1 text-sm">
+            Visualizando o painel de{" "}
+            <span className="font-semibold">{impersonation?.name ?? "—"}</span>
+            <span className="text-muted-foreground"> · somente leitura</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => { clearImpersonation(); navigate({ to: "/admin" }); }}
+            className="text-xs px-3 py-1.5 rounded-md border border-border bg-background/60 hover:bg-secondary"
+          >
+            Sair da visualização
+          </button>
+        </div>
+      )}
       {/* Welcome */}
       <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-8">
         <div>
-          <h1 className="font-display text-3xl md:text-4xl leading-tight">Bem-vindo de volta</h1>
+          <h1 className="font-display text-3xl md:text-4xl leading-tight">
+            {readOnly ? `Painel de ${impersonation?.name ?? ""}` : "Bem-vindo de volta"}
+          </h1>
           <p className="text-sm text-muted-foreground mt-1.5">
-            Aqui está o resumo do seu painel hoje.
+            {readOnly
+              ? "Visualização apenas de leitura. Nenhuma alteração será salva."
+              : "Aqui está o resumo do seu painel hoje."}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -201,23 +207,25 @@ function Dashboard() {
           >
             <PlayCircle className="size-4" /> Ver demo ao vivo
           </a>
-          <Button
-            onClick={() => navigate({ to: "/admin/properties/$id", params: { id: "new" } })}
-            className="rounded-full"
-            disabled={reachedLimit || !sub.plan}
-            title={
-              !sub.plan
-                ? "Assine um plano para criar guias"
-                : reachedLimit
-                ? "Limite do seu plano atingido. Faça upgrade."
-                : undefined
-            }
-          >
-            <Plus className="size-4 mr-1.5" /> Novo guia
-          </Button>
-
+          {!readOnly && (
+            <Button
+              onClick={() => navigate({ to: "/admin/properties/$id", params: { id: "new" } })}
+              className="rounded-full"
+              disabled={reachedLimit || !sub.plan}
+              title={
+                !sub.plan
+                  ? "Assine um plano para criar guias"
+                  : reachedLimit
+                  ? "Limite do seu plano atingido. Faça upgrade."
+                  : undefined
+              }
+            >
+              <Plus className="size-4 mr-1.5" /> Novo guia
+            </Button>
+          )}
         </div>
       </div>
+
 
       {/* Stat cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-10">
@@ -815,7 +823,7 @@ function Dashboard() {
                 </div>
               </div>
               <iframe
-                src={`/g/${viewSlug}`}
+                src={`/g/${viewSlug}?preview=1`}
                 title="Pré-visualização do guia"
                 className="w-full flex-1 border-0 bg-background"
               />
