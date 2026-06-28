@@ -394,7 +394,7 @@ function ClientesPage() {
 
 type EditValues = {
   fullName: string | null;
-  plan: PlanKey;
+  plan: PlanKey | null;
   status: string;
   environment: "sandbox" | "live";
   trialEndsAt: string | null;
@@ -430,7 +430,10 @@ function EditDialog({
 }) {
   const s = customer.subscription;
   const [fullName, setFullName] = useState(customer.fullName ?? "");
-  const [plan, setPlan] = useState<PlanKey>(s?.plan ?? "starter");
+  // null = "Sem plano" (não cria/atualiza assinatura). Quando o usuário não
+  // tem assinatura, o padrão é "Sem plano" — coerente com o pedido do
+  // anfitrião de não forçar plano em quem ainda não contratou.
+  const [plan, setPlan] = useState<PlanKey | null>(s?.plan ?? null);
   const [status, setStatus] = useState<string>(s?.status ?? "active");
   // Padrão de ambiente = "live" (produção) — cadastros novos já entram em
   // produção; sandbox é apenas para testes pontuais.
