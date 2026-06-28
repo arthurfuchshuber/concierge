@@ -1320,7 +1320,7 @@ function HeroCompact({
 
   return (
     <section
-      className="relative overflow-hidden px-5 md:px-10 lg:px-16 pb-6 md:pb-8 pt-4 md:pt-8"
+      className="relative overflow-hidden px-5 md:px-10 lg:px-16 pb-40 md:pb-48 pt-4 md:pt-8 min-h-[78svh] md:min-h-[88svh] flex flex-col"
       onTouchStart={onTouchStart}
       onTouchEnd={onTouchEnd}
     >
@@ -1331,16 +1331,17 @@ function HeroCompact({
             key={`${src}-${i}`}
             src={src}
             alt=""
-            style={{ transform: `translateY(${scrollY * 0.28}px) scale(1.12)`, transformOrigin: "center top" }}
-            className={`absolute inset-0 size-full object-cover object-[62%_50%] transition-opacity duration-500 will-change-transform ${i === idx ? "opacity-100" : "opacity-0"}`}
+            style={{ transform: `translateY(${scrollY * 0.28}px) scale(1.08)`, transformOrigin: "center top" }}
+            className={`absolute inset-0 size-full object-cover object-[62%_45%] transition-opacity duration-500 will-change-transform ${i === idx ? "opacity-100" : "opacity-0"}`}
           />
         ))}
       </div>
       {/* Elegant cinematic gradient — keeps photo vivid, deepens at bottom for legibility */}
-      <div className="absolute inset-0 bg-[linear-gradient(115deg,rgba(0,0,0,0.65)_0%,rgba(0,0,0,0.35)_38%,rgba(0,0,0,0.05)_70%,rgba(0,0,0,0.25)_100%)]" />
-      <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,0.25)_0%,transparent_28%,rgba(0,0,0,0.45)_78%,rgba(0,0,0,0.92)_100%)]" />
+      <div className="absolute inset-0 bg-[linear-gradient(115deg,rgba(0,0,0,0.55)_0%,rgba(0,0,0,0.25)_38%,rgba(0,0,0,0.02)_68%,rgba(0,0,0,0.18)_100%)]" />
+      <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,0.20)_0%,transparent_22%,transparent_55%,rgba(0,0,0,0.35)_82%,rgba(0,0,0,0.85)_100%)]" />
       {/* bottom fade INTO the page background so the transition is seamless in any theme */}
-      <div className="absolute inset-x-0 bottom-0 h-32 md:h-40 bg-[linear-gradient(180deg,transparent_0%,var(--background)_100%)]" />
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-56 md:h-72 bg-[linear-gradient(180deg,transparent_0%,color-mix(in_oklab,var(--background)_55%,transparent)_45%,var(--background)_100%)]" />
+
 
       <header className="relative z-10 flex items-center justify-between">
         <div className="flex items-center gap-2">
@@ -1372,7 +1373,7 @@ function HeroCompact({
       </header>
 
 
-      <div className="relative z-10 mt-14 md:mt-24">
+      <div className="relative z-10 mt-auto pt-24 md:pt-32">
         {city && (
           <span className="mb-4 inline-flex items-center gap-1.5 rounded-full border border-white/25 bg-black/30 backdrop-blur-md px-3 py-1.5 text-[10.5px] md:text-[11px] font-semibold uppercase tracking-[0.22em] text-white/95">
             <MapPin className="size-3 text-accent/80" strokeWidth={2} /> {city}
