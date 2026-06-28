@@ -11,6 +11,9 @@ import { importFromAirbnb } from "@/lib/airbnb.functions";
 import { useSubscription } from "@/hooks/useSubscription";
 import { useCityReferencesRealtime } from "@/hooks/useCityReferencesRealtime";
 import { LinkGuidesButton } from "@/components/admin/LinkGuidesDialog";
+import { POIMetricsBadge } from "@/components/POIMetricsBadge";
+import { getPropertyPoiCounts, getMarketplaceClicks } from "@/lib/poi-engagement.functions";
+import { Eye } from "lucide-react";
 
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
