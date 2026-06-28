@@ -81,7 +81,7 @@ export function GuideAccessGate({ slug, propertyName, requireReservationCode, on
   const submit = useServerFn(recordGuideAccess);
   const [name, setName] = useState("");
   const [code, setCode] = useState("");
-  const [date, setDate] = useState<Date | undefined>();
+  const [range, setRange] = useState<{ from?: Date; to?: Date } | undefined>();
   const [phone, setPhone] = useState<string | undefined>();
   const [country, setCountry] = useState<Country>("BR");
   const [loading, setLoading] = useState(false);
@@ -97,8 +97,8 @@ export function GuideAccessGate({ slug, propertyName, requireReservationCode, on
       toast.error("Informe seu nome completo.");
       return;
     }
-    if (!date) {
-      toast.error("Selecione a data de check-in.");
+    if (!range?.from || !range?.to) {
+      toast.error("Selecione o período da viagem (check-in e check-out).");
       return;
     }
     if (!phone || !isValidPhoneNumber(phone)) {
@@ -109,7 +109,8 @@ export function GuideAccessGate({ slug, propertyName, requireReservationCode, on
       toast.error("Informe o código da reserva.");
       return;
     }
-    const checkinDate = format(date, "yyyy-MM-dd");
+    const checkinDate = format(range.from, "yyyy-MM-dd");
+    const checkoutDate = format(range.to, "yyyy-MM-dd");
     setLoading(true);
     try {
       const res = await submit({
@@ -130,6 +131,7 @@ export function GuideAccessGate({ slug, propertyName, requireReservationCode, on
         name: name.trim(),
         code: requireReservationCode ? code.trim() : null,
         checkinDate,
+        checkoutDate,
         phone,
         phoneCountry: country,
       };
@@ -141,6 +143,7 @@ export function GuideAccessGate({ slug, propertyName, requireReservationCode, on
       setLoading(false);
     }
   }
+
 
   return (
     <Dialog open modal>
