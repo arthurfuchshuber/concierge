@@ -28,12 +28,10 @@ function SigmaPacksIndex() {
   const listFn = useServerFn(listAllSigmaPacks);
   const updateFn = useServerFn(updateSigmaPack);
   const deleteFn = useServerFn(deleteSigmaPack);
-  const refreshAllFn = useServerFn(adminRefreshAllSigmaSubscribers);
 
   const q = useQuery({ queryKey: ["sigma-packs"], queryFn: () => listFn() });
   const [newOpen, setNewOpen] = useState(false);
   const [confirmDel, setConfirmDel] = useState<PackRow | null>(null);
-  const [refreshing, setRefreshing] = useState(false);
 
   const packs = q.data ?? [];
   const publishedCount = packs.filter((p) => p.is_published).length;
