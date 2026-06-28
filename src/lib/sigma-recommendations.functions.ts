@@ -69,6 +69,162 @@ export type SigmaFaq = {
   position: number;
 };
 
+export type AdminSigmaGuideRow = {
+  id: string;
+  name: string;
+  slug: string | null;
+  city: string | null;
+  state: string | null;
+  country: string | null;
+  owner_id: string;
+  owner_email: string | null;
+  updated_at: string | null;
+  hero_image_url: string | null;
+  sigma_pack_city_key: string | null;
+};
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function resolvePropertySigmaScope(supabaseAdmin: any, propertyId: string) {
+  const { data: membership } = await supabaseAdmin
+    .from("city_reference_group_members")
+    .select("group_id")
+    .eq("property_id", propertyId)
+    .maybeSingle();
+  return { groupId: (membership?.group_id as string | null) ?? null };
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function readScopedCityReferences(supabaseAdmin: any, propertyId: string) {
+  const scope = await resolvePropertySigmaScope(supabaseAdmin, propertyId);
+  let q = supabaseAdmin.from("city_references").select("*");
+  if (scope.groupId) q = q.eq("group_id", scope.groupId);
+  else q = q.eq("property_id", propertyId).is("group_id", null);
+  const { data, error } = await q.order("display_order");
+  if (error) throw new Error(error.message);
+  return { scope, rows: data ?? [] };
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function replaceScopedCityReferences(supabaseAdmin: any, propertyId: string, rows: Array<Record<string, unknown>>) {
+  const scope = await resolvePropertySigmaScope(supabaseAdmin, propertyId);
+  let del = supabaseAdmin.from("city_references").delete();
+  if (scope.groupId) del = del.eq("group_id", scope.groupId);
+  else del = del.eq("property_id", propertyId).is("group_id", null);
+  const { error: delErr } = await del;
+  if (delErr) throw new Error(delErr.message);
+
+  if (!rows.length) return;
+  const cleaned = rows.map((r, idx) => {
+    const {
+      id: _id,
+      created_at: _created,
+      updated_at: _updated,
+      property_id: _propertyId,
+      group_id: _groupId,
+      ...rest
+    } = r;
+    void _id; void _created; void _updated; void _propertyId; void _groupId;
+    return {
+      ...rest,
+      property_id: scope.groupId ? null : propertyId,
+      group_id: scope.groupId,
+      display_order: typeof rest.display_order === "number" ? rest.display_order : idx,
+    };
+  });
+  const { error: insErr } = await supabaseAdmin.from("city_references").insert(cleaned as never);
+  if (insErr) throw new Error(insErr.message);
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function applySigmaPackToPropertyInternal(supabaseAdmin: any, propertyId: string, cityKey: string) {
+  const { data: prop } = await supabaseAdmin
+    .from("properties")
+    .select("id, owner_id, city, state, country, marketplace_links")
+    .eq("id", propertyId)
+    .maybeSingle();
+  if (!prop) throw new Error("Imóvel não encontrado.");
+  const propRow = prop as { id: string; owner_id: string; city: string | null; state: string | null; country: string | null; marketplace_links: unknown };
+  if (makeCityKey(propRow.city ?? "") !== cityKey) {
+    throw new Error("Este guia não pertence à mesma cidade desta recomendação SigmaGuide.");
+  }
+
+  const { data: pack } = await supabaseAdmin
+    .from("sigma_city_packs")
+    .select("city_key, city_label, country")
+    .eq("city_key", cityKey)
+    .eq("is_published", true)
+    .maybeSingle();
+  if (!pack) throw new Error("Recomendação SigmaGuide indisponível para esta cidade.");
+  const packRow = pack as { city_key: string; city_label: string; country: string | null };
+
+  const scopedRefs = await readScopedCityReferences(supabaseAdmin, propertyId);
+  const [{ data: sigmaRecs }, { data: sigmaMkt }, { data: sigmaFaqs }, { data: ownFaqs }] = await Promise.all([
+    supabaseAdmin.from("sigma_city_recommendations").select("*").eq("city_key", cityKey).order("position"),
+    supabaseAdmin.from("sigma_city_marketplace").select("label, url, description").eq("city_key", cityKey).order("position"),
+    supabaseAdmin.from("sigma_city_faqs").select("question, answer").eq("city_key", cityKey).order("position"),
+    supabaseAdmin.from("property_faqs").select("*").eq("property_id", propertyId),
+  ]);
+
+  const snapshot = {
+    marketplace_links: propRow.marketplace_links ?? [],
+    property_faqs: ownFaqs ?? [],
+    city_references: scopedRefs.rows ?? [],
+  };
+
+  const newMkt = (sigmaMkt ?? []).map((m: Record<string, unknown>) => ({
+    label: m.label,
+    url: m.url,
+    description: m.description ?? null,
+  }));
+  const { error: upErr } = await supabaseAdmin
+    .from("properties")
+    .update({
+      sigma_pack_city_key: cityKey,
+      sigma_pack_activated_at: new Date().toISOString(),
+      sigma_pack_snapshot: snapshot,
+      marketplace_links: newMkt,
+    })
+    .eq("id", propertyId);
+  if (upErr) throw new Error(upErr.message);
+
+  const cityRefRows = (sigmaRecs ?? []).map((r: Record<string, unknown>, idx: number) => ({
+    city_key: cityKey,
+    city_label: packRow.city_label,
+    state: propRow.state ?? null,
+    country: propRow.country ?? packRow.country ?? "BR",
+    type: (r.type as string) ?? "other",
+    category: (r.category as string | null) ?? "Outros",
+    name: r.name as string,
+    rating: (r.rating as number | null) ?? null,
+    user_ratings_total: (r.user_ratings_total as number | null) ?? null,
+    note: (r.note as string | null) ?? null,
+    image_url: (r.image_url as string | null) ?? null,
+    maps_url: (r.maps_url as string | null) ?? null,
+    place_id: (r.place_id as string | null) ?? null,
+    address: (r.address as string | null) ?? null,
+    lat: (r.lat as number | null) ?? null,
+    lng: (r.lng as number | null) ?? null,
+    opening_hours: (r.opening_hours as string[] | null) ?? null,
+    source: "manual",
+    display_order: idx,
+  }));
+  await replaceScopedCityReferences(supabaseAdmin, propertyId, cityRefRows);
+
+  await supabaseAdmin.from("property_faqs").delete().eq("property_id", propertyId).contains("tags", ["sigma"]);
+  if ((sigmaFaqs ?? []).length) {
+    const rows = (sigmaFaqs ?? []).map((f: Record<string, unknown>, idx: number) => ({
+      property_id: propertyId,
+      question: f.question,
+      answer: f.answer,
+      tags: ["sigma"],
+      position: idx,
+    }));
+    await supabaseAdmin.from("property_faqs").insert(rows as never);
+  }
+
+  return { ok: true };
+}
+
 // ============== PUBLIC READERS ==============
 export const listPublishedSigmaPacks = createServerFn({ method: "GET" }).handler(async () => {
   const sb = publicClient();
@@ -245,6 +401,36 @@ export const adminGetSigmaPack = createServerFn({ method: "POST" })
     };
   });
 
+export const adminListPublishedGuidesForSigma = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => z.object({ city_key: z.string() }).parse(i))
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const [{ data: props, error }, usersData] = await Promise.all([
+      supabaseAdmin
+        .from("properties")
+        .select("id, name, slug, city, state, country, owner_id, updated_at, hero_image_url, sigma_pack_city_key")
+        .eq("published", true)
+        .order("updated_at", { ascending: false }),
+      supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 1000 }),
+    ]);
+    if (error) throw new Error("Erro ao carregar guias publicados.");
+    const emailByUser = new Map((usersData.data?.users ?? []).map((u) => [u.id, u.email ?? null]));
+    return ((props ?? []) as Array<Omit<AdminSigmaGuideRow, "owner_email">>)
+      .map((p) => ({ ...p, owner_email: emailByUser.get(p.owner_id) ?? null }))
+      .sort((a, b) => Number(makeCityKey(b.city ?? "") === data.city_key) - Number(makeCityKey(a.city ?? "") === data.city_key)) as AdminSigmaGuideRow[];
+  });
+
+export const adminApplySigmaPackToProperty = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => z.object({ city_key: z.string(), property_id: z.string().uuid() }).parse(i))
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    return applySigmaPackToPropertyInternal(supabaseAdmin, data.property_id, data.city_key);
+  });
+
 // ============== ADMIN — child CRUD ==============
 const RecPayload = z.object({
   city_key: z.string(),
@@ -392,9 +578,10 @@ export const getMyPropertySigmaState = createServerFn({ method: "POST" })
     if (!prop) throw new Error("Imóvel não encontrado.");
     const propRow = prop as { id: string; city: string | null; sigma_pack_city_key: string | null; sigma_pack_activated_at: string | null };
     const expectedKey = makeCityKey(propRow.city ?? "");
-    // Look up available pack for the property city (only published)
-    const sb = publicClient();
-    const { data: pack } = await sb
+    // Look up available pack for the property city (only published). Use the
+    // backend client so the editor button appears reliably for matching cities.
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: pack } = await supabaseAdmin
       .from("sigma_city_packs")
       .select("city_key, city_label, country, cover_url")
       .eq("city_key", expectedKey)
@@ -403,9 +590,9 @@ export const getMyPropertySigmaState = createServerFn({ method: "POST" })
     let counts: { recs: number; marketplace: number; faqs: number } | null = null;
     if (pack) {
       const [r, m, f] = await Promise.all([
-        sb.from("sigma_city_recommendations").select("id", { count: "exact", head: true }).eq("city_key", pack.city_key),
-        sb.from("sigma_city_marketplace").select("id", { count: "exact", head: true }).eq("city_key", pack.city_key),
-        sb.from("sigma_city_faqs").select("id", { count: "exact", head: true }).eq("city_key", pack.city_key),
+        supabaseAdmin.from("sigma_city_recommendations").select("id", { count: "exact", head: true }).eq("city_key", pack.city_key),
+        supabaseAdmin.from("sigma_city_marketplace").select("id", { count: "exact", head: true }).eq("city_key", pack.city_key),
+        supabaseAdmin.from("sigma_city_faqs").select("id", { count: "exact", head: true }).eq("city_key", pack.city_key),
       ]);
       counts = { recs: r.count ?? 0, marketplace: m.count ?? 0, faqs: f.count ?? 0 };
     }
@@ -428,64 +615,12 @@ export const activateSigmaPackOnProperty = createServerFn({ method: "POST" })
     // Verify ownership via RLS
     const { data: prop, error: propErr } = await context.supabase
       .from("properties")
-      .select("id, owner_id, marketplace_links")
+      .select("id")
       .eq("id", data.property_id)
       .maybeSingle();
     if (propErr || !prop) throw new Error("Imóvel não encontrado.");
-    const propRow = prop as { id: string; owner_id: string; marketplace_links: unknown };
-
-    const sb = publicClient();
-    const { data: pack } = await sb
-      .from("sigma_city_packs")
-      .select("city_key")
-      .eq("city_key", data.city_key)
-      .eq("is_published", true)
-      .maybeSingle();
-    if (!pack) throw new Error("Recomendação SigmaGuide indisponível para esta cidade.");
-
-    // Load source content
-    const [{ data: sigmaMkt }, { data: sigmaFaqs }, { data: ownFaqs }] = await Promise.all([
-      sb.from("sigma_city_marketplace").select("label, url, description").eq("city_key", data.city_key).order("position"),
-      sb.from("sigma_city_faqs").select("question, answer").eq("city_key", data.city_key).order("position"),
-      context.supabase.from("property_faqs").select("*").eq("property_id", data.property_id),
-    ]);
-
-    // Snapshot current marketplace + faqs so we can restore on deactivate.
-    const snapshot = {
-      marketplace_links: propRow.marketplace_links ?? [],
-      property_faqs: ownFaqs ?? [],
-    };
-
-    // Replace marketplace_links with sigma content
-    const newMkt = (sigmaMkt ?? []).map((m) => ({
-      label: m.label,
-      url: m.url,
-      description: m.description ?? null,
-    }));
-    const { error: upErr } = await context.supabase
-      .from("properties")
-      .update({
-        sigma_pack_city_key: data.city_key,
-        sigma_pack_activated_at: new Date().toISOString(),
-        sigma_pack_snapshot: snapshot as never,
-        marketplace_links: newMkt as never,
-      })
-      .eq("id", data.property_id);
-    if (upErr) throw new Error(upErr.message);
-
-    // Replace property_faqs with sigma faqs (tagged so we can find them later)
-    await context.supabase.from("property_faqs").delete().eq("property_id", data.property_id);
-    if ((sigmaFaqs ?? []).length) {
-      const rows = (sigmaFaqs ?? []).map((f, idx) => ({
-        property_id: data.property_id,
-        question: f.question,
-        answer: f.answer,
-        tags: ["sigma"],
-        position: idx,
-      }));
-      await context.supabase.from("property_faqs").insert(rows as never);
-    }
-    return { ok: true };
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    return applySigmaPackToPropertyInternal(supabaseAdmin, data.property_id, data.city_key);
   });
 
 export const deactivateSigmaPackOnProperty = createServerFn({ method: "POST" })
@@ -497,7 +632,7 @@ export const deactivateSigmaPackOnProperty = createServerFn({ method: "POST" })
       .select("sigma_pack_snapshot")
       .eq("id", data.property_id)
       .maybeSingle();
-    const snap = (prop as { sigma_pack_snapshot: { marketplace_links?: unknown[]; property_faqs?: Record<string, unknown>[] } | null } | null)?.sigma_pack_snapshot;
+    const snap = (prop as { sigma_pack_snapshot: { marketplace_links?: unknown[]; property_faqs?: Record<string, unknown>[]; city_references?: Record<string, unknown>[] } | null } | null)?.sigma_pack_snapshot;
     const patch: Record<string, unknown> = {
       sigma_pack_city_key: null,
       sigma_pack_activated_at: null,
@@ -512,21 +647,16 @@ export const deactivateSigmaPackOnProperty = createServerFn({ method: "POST" })
       .eq("id", data.property_id);
     if (error) throw new Error(error.message);
 
-    // Restore FAQs: remove sigma-sourced, re-insert snapshot
-    await context.supabase.from("property_faqs").delete().eq("property_id", data.property_id).contains("tags", ["sigma"]);
-    if (snap && Array.isArray(snap.property_faqs) && snap.property_faqs.length) {
-      const rows = snap.property_faqs.map((f) => ({
-        ...(f as Record<string, unknown>),
-        property_id: data.property_id,
-      }));
-      // Strip id/created_at to avoid PK collisions
-      const cleaned = rows.map((r) => {
-        const { id: _id, created_at: _c, updated_at: _u, ...rest } = r as Record<string, unknown>;
-        void _id; void _c; void _u;
-        return rest;
-      });
-      await context.supabase.from("property_faqs").insert(cleaned as never);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    if (snap && Array.isArray(snap.city_references)) {
+      await replaceScopedCityReferences(supabaseAdmin, data.property_id, snap.city_references);
+    } else {
+      await replaceScopedCityReferences(supabaseAdmin, data.property_id, []);
     }
+
+    // FAQs manuais continuam editáveis enquanto o SigmaGuide está ativo;
+    // ao desativar, removemos apenas as FAQs adicionadas pelo SigmaGuide.
+    await context.supabase.from("property_faqs").delete().eq("property_id", data.property_id).contains("tags", ["sigma"]);
     return { ok: true };
   });
 
