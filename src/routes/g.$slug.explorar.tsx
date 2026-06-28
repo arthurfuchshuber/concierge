@@ -557,11 +557,13 @@ function ExplorePage() {
     : null) ?? null;
 
   return (
+    <EngagementCtx.Provider value={{ slug, counts: engCounts, reactions: engReactions }}>
     <div
       className={`sigma-public-guide guide-ambient min-h-screen bg-background text-foreground pb-24 ${
         theme === "light" ? "theme-light" : ""
       }`}
     >
+
       <div className="mx-auto w-full max-w-md md:max-w-3xl lg:max-w-5xl px-5 md:px-10 pt-5 md:pt-10">
         {active ? (
           <button
