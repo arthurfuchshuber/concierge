@@ -76,8 +76,14 @@ export const getPublicGuide = createServerFn({ method: "POST" })
     const protectedCodes = accessUnlocked
       ? { wifi_password: wifi_password ?? null, lock_code: lock_code ?? null, gate_code: gate_code ?? null }
       : { wifi_password: null, lock_code: null, gate_code: null };
+    // Booleans so the UI can render gated/masked slots even before unlock.
+    const setFlags = {
+      wifi_password_set: !!(wifi_password && String(wifi_password).trim()),
+      lock_code_set: !!(lock_code && String(lock_code).trim()),
+      gate_code_set: !!(gate_code && String(gate_code).trim()),
+    };
 
-    const safeProp = { ...prop, ...credsPublic, ...protectedCodes, hasAccessPin, accessUnlocked };
+    const safeProp = { ...prop, ...credsPublic, ...protectedCodes, ...setFlags, hasAccessPin, accessUnlocked };
     const children = await loadFullGuide(supabaseAdmin, prop.id);
     const { signPropertyImages } = await import("@/lib/storage.server");
     const signedProp = await signPropertyImages(supabaseAdmin, safeProp);

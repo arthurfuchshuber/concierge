@@ -610,7 +610,7 @@ function Guide({ data }: { data: GuideOk }) {
               type="button"
               onClick={() => gotoSection("home")}
               aria-label="Voltar ao guia"
-              className="fixed left-3 md:left-6 top-1/2 -translate-y-1/2 z-30 grid place-items-center size-11 rounded-full bg-background/70 backdrop-blur-md border border-border/60 text-foreground/70 shadow-md hover:text-foreground hover:bg-background/90 hover:scale-105 transition-all"
+              className="fixed left-3 md:left-6 top-1/2 -translate-y-1/2 z-30 grid place-items-center size-11 rounded-full bg-accent/15 backdrop-blur-md border border-accent/35 text-accent/85 shadow-md hover:text-accent hover:bg-accent/25 hover:scale-105 transition-all"
             >
               <ArrowLeft className="size-5" strokeWidth={1.75} />
             </button>
@@ -624,9 +624,11 @@ function Guide({ data }: { data: GuideOk }) {
                 const hasChegada = !!(p.address || p.maps_url || p.address_note || p.checkin_instructions || (Array.isArray(p.checkin_media) && p.checkin_media.length > 0));
                 const gateMedia = Array.isArray(p.gate_media) ? (p.gate_media as Array<{ url: string; type: "image" | "video" }>) : [];
                 const lockMedia = Array.isArray(p.lock_media) ? (p.lock_media as Array<{ url: string; type: "image" | "video" }>) : [];
-                const hasGateExtras = !!(p.gate_code && (p.gate_instructions || p.gate_video_url || gateMedia.length > 0));
-                const hasLockExtras = !!(p.lock_code && (p.lock_instructions || p.lock_video_url || lockMedia.length > 0));
-                const hasAcesso = !!(p.gate_code || p.lock_code || hasGateExtras || hasLockExtras);
+                const gateCodeSet = !!((p as any).gate_code_set || p.gate_code);
+                const lockCodeSet = !!((p as any).lock_code_set || p.lock_code);
+                const hasGateExtras = !!(gateCodeSet && (p.gate_instructions || p.gate_video_url || gateMedia.length > 0));
+                const hasLockExtras = !!(lockCodeSet && (p.lock_instructions || p.lock_video_url || lockMedia.length > 0));
+                const hasAcesso = !!(gateCodeSet || lockCodeSet || hasGateExtras || hasLockExtras);
                 const hasWifi = !!p.wifi_ssid;
                 const hasRules = !!(p as Record<string, unknown>).house_rules;
                 if (!hasHorario && !hasChegada && !hasAcesso && !hasWifi && !hasRules) {
@@ -845,29 +847,29 @@ function Guide({ data }: { data: GuideOk }) {
                     {hasAcesso && (() => {
                       const gateLabel = ((p.gate_label as string | null) || "Portão").trim() || "Portão";
                       const lockLabel = ((p.lock_label as string | null) || "Fechadura").trim() || "Fechadura";
-                      const accessCount = (p.gate_code ? 1 : 0) + (p.lock_code ? 1 : 0);
+                      const accessCount = (gateCodeSet ? 1 : 0) + (lockCodeSet ? 1 : 0);
                       const accessLabel = accessCount > 1 ? "Senhas de Acessos" : "Senha de Acesso";
                       return (
                       <SubItem
                         icon={<KeyRound className="size-[18px]" strokeWidth={1.6} />}
                         label={accessLabel}
                         hint={
-                          p.gate_code && p.lock_code
+                          gateCodeSet && lockCodeSet
                             ? `${gateLabel} e ${lockLabel.toLowerCase()}`
-                            : p.gate_code
+                            : gateCodeSet
                             ? gateLabel
-                            : p.lock_code
+                            : lockCodeSet
                             ? lockLabel
                             : "Instruções de entrada"
                         }
                       >
                         <Lockable locked={checkinLocked}>
                           <div className="space-y-4">
-                            {p.gate_code && (
+                            {gateCodeSet && (
                               <AccessBlock
                                 kind="gate"
                                 label={gateLabel}
-                                code={p.gate_code}
+                                code={p.gate_code ?? ""}
                                 instructions={p.gate_instructions as string | null}
                                 videoUrl={p.gate_video_url as string | null}
                                 media={gateMedia}
@@ -876,11 +878,11 @@ function Guide({ data }: { data: GuideOk }) {
                                 hasPin={hasAccessPin}
                               />
                             )}
-                            {p.lock_code && (
+                            {lockCodeSet && (
                               <AccessBlock
                                 kind="lock"
                                 label={lockLabel}
-                                code={p.lock_code}
+                                code={p.lock_code ?? ""}
                                 instructions={p.lock_instructions as string | null}
                                 videoUrl={p.lock_video_url as string | null}
                                 media={lockMedia}
@@ -902,13 +904,13 @@ function Guide({ data }: { data: GuideOk }) {
                         hint={p.wifi_ssid || undefined}
                       >
                         <div className="rounded-xl bg-background/50 border border-border/50 overflow-hidden divide-y divide-border/40">
-                          <CopyCard flat icon={<Wifi className="size-[18px]" strokeWidth={1.75} />} eyebrow="Rede" label="Toque para copiar" value={p.wifi_ssid} />
-                          {p.wifi_password && (
+                          <CopyCard flat icon={<Wifi className="size-[18px] " strokeWidth={1.75} />} eyebrow="Rede" label="Toque para copiar" value={p.wifi_ssid} />
+                          {((p as any).wifi_password_set || p.wifi_password) && (
                             <Lockable locked={checkinLocked}>
                               <GatedCopyCard
                                 icon={<KeyRound className="size-[18px]" strokeWidth={1.75} />}
                                 eyebrow="Senha"
-                                value={p.wifi_password}
+                                value={p.wifi_password ?? ""}
                                 unlocked={unlocked}
                                 requestUnlock={requestUnlock}
                                 hasPin={hasAccessPin}
@@ -1323,7 +1325,7 @@ function HeroCompact({
 
   return (
     <section
-      className="relative overflow-hidden px-5 md:px-10 lg:px-16 pb-40 md:pb-48 pt-4 md:pt-8 min-h-[78svh] md:min-h-[88svh] flex flex-col"
+      className="relative overflow-hidden px-5 md:px-10 lg:px-16 pb-32 md:pb-40 pt-4 md:pt-8 min-h-[64svh] md:min-h-[72svh] flex flex-col"
       onTouchStart={onTouchStart}
       onTouchEnd={onTouchEnd}
     >
@@ -1335,7 +1337,7 @@ function HeroCompact({
             src={src}
             alt=""
             style={{ transform: `translateY(${scrollY * 0.28}px) scale(1.08)`, transformOrigin: "center top" }}
-            className={`absolute inset-0 size-full object-cover object-[62%_45%] transition-opacity duration-500 will-change-transform ${i === idx ? "opacity-100" : "opacity-0"}`}
+            className={`absolute inset-0 size-full object-cover object-[center_bottom] transition-opacity duration-500 will-change-transform ${i === idx ? "opacity-100" : "opacity-0"}`}
           />
         ))}
       </div>
