@@ -2727,6 +2727,17 @@ export function RecGroup({
                         currentLabel={cat}
                         categoryId={taxonomy?.categories.find((c) => c.label === cat)?.id ?? null}
                         isProtected={!!taxonomy?.categories.find((c) => c.label === cat)?.is_protected}
+                        items={items}
+                        onChange={onChange}
+                      />
+                      <CategoryDeleteButton
+                        currentLabel={cat}
+                        categoryId={taxonomy?.categories.find((c) => c.label === cat)?.id ?? null}
+                        isProtected={!!taxonomy?.categories.find((c) => c.label === cat)?.is_protected}
+                        allCategories={(taxonomy?.categories ?? []).map((c) => ({ id: c.id, label: c.label }))}
+                        itemsInCategory={g.items.length}
+                        items={items}
+                        onChange={onChange}
                       />
                       <span className="text-[11px] text-muted-foreground">
                         ({g.items.length}{groupSelected > 0 ? ` · ${groupSelected} sel.` : ""})
