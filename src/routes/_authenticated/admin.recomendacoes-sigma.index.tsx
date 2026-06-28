@@ -68,9 +68,30 @@ function SigmaPacksIndex() {
             Curadoria por cidade que qualquer anfitrião pode importar em 1 clique para o guia dele.
           </p>
         </div>
-        <Button onClick={() => setNewOpen(true)} className="rounded-full">
-          <Plus className="size-4" /> Nova cidade
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            className="rounded-full"
+            disabled={refreshing}
+            onClick={async () => {
+              setRefreshing(true);
+              try {
+                const res = await refreshAllFn();
+                toast.success(`Atualizamos os guias inscritos em ${res.packs} cidade(s).`);
+              } catch (e) {
+                toast.error(friendlyErrorMessage(e));
+              } finally {
+                setRefreshing(false);
+              }
+            }}
+          >
+            {refreshing ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}
+            Atualizar todos os guias
+          </Button>
+          <Button onClick={() => setNewOpen(true)} className="rounded-full">
+            <Plus className="size-4" /> Nova cidade
+          </Button>
+        </div>
       </div>
 
       {/* Dashboard cards */}
