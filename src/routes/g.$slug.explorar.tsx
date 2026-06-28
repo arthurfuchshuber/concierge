@@ -1273,7 +1273,7 @@ function RecCard({ rec }: { rec: Rec }) {
 
       </div>
 
-      <div className="p-4 flex-1 flex flex-col gap-2">
+      <div className="p-4 pr-12 flex-1 flex flex-col gap-2">
         <div className="flex items-start justify-between gap-2">
           <h4 className="text-[15px] font-medium leading-snug line-clamp-2 flex-1">{rec.name}</h4>
         </div>
@@ -1351,9 +1351,10 @@ function RecRow({ rec }: { rec: Rec }) {
   const myReaction = eng?.reactions[rec.id] ?? null;
 
   const inner = (
-    <div className="relative group flex gap-4 bg-card border border-border rounded-2xl p-3 hover:border-accent/40 hover:shadow-lg transition-all">
+    <div className="relative group flex gap-4 bg-card border border-border rounded-2xl p-3 pr-12 hover:border-accent/40 hover:shadow-lg transition-all min-h-[160px]">
 
-      <div className="relative size-24 sm:size-28 shrink-0 overflow-hidden rounded-xl bg-secondary">
+      <div className="relative size-28 sm:size-32 shrink-0 overflow-hidden rounded-xl bg-secondary">
+
         {rec.image_url ? (
           <img
             src={rec.image_url}
