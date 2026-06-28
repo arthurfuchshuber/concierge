@@ -344,6 +344,27 @@ function ExplorePage() {
     void router.invalidate();
   });
 
+  // Engagement counters + my reactions (anon hóspede).
+  const fetchCounts = useServerFn(getPoiEngagementCounts);
+  const fetchReactions = useServerFn(getMyPoiReactions);
+  const [engCounts, setEngCounts] = useState<PoiCounts>({});
+  const [engReactions, setEngReactions] = useState<Record<string, "like" | "dislike">>({});
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const c = await fetchCounts({ data: { slug } });
+        if (alive) setEngCounts(c.counts);
+      } catch { /* silencioso */ }
+      try {
+        const rx = await fetchReactions({ data: { slug, anon_id: getAnonIdClient() } });
+        if (alive) setEngReactions(rx.reactions);
+      } catch { /* silencioso */ }
+    })();
+    return () => { alive = false; };
+  }, [slug, fetchCounts, fetchReactions]);
+
+
   if (r.status !== "ok") {
     return (
       <div className="min-h-screen grid place-items-center bg-background px-6 text-center">
