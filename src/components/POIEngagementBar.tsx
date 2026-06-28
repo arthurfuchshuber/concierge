@@ -161,25 +161,25 @@ export function POIEngagementBar({
 
   const wrapBase =
     variant === "glass"
-      ? "bg-black/55 backdrop-blur-md text-white border border-white/15"
-      : "bg-background/95 backdrop-blur text-foreground border border-border";
+      ? "bg-black/35 backdrop-blur-md text-white/90 border border-white/10"
+      : "bg-background/80 backdrop-blur text-foreground/80 border border-border";
   const btnBase =
-    "inline-flex items-center gap-1 px-1.5 py-1 rounded-full text-[10.5px] font-medium tabular-nums transition-colors";
+    "inline-flex flex-col items-center justify-center gap-0.5 px-1 py-1 rounded-full text-[9.5px] font-medium tabular-nums transition-opacity opacity-80 hover:opacity-100";
 
   return (
     <div
       ref={ref}
       onClick={(e) => e.stopPropagation()}
-      className={`pointer-events-auto absolute bottom-2 right-2 z-10 inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 shadow-sm ${wrapBase}`}
+      className={`pointer-events-auto absolute top-1/2 -translate-y-1/2 right-1.5 z-10 flex flex-col items-center gap-0.5 rounded-full px-1 py-1.5 shadow-sm ${wrapBase}`}
     >
       <button
         type="button"
         aria-label="Visualizações"
         onClick={onClickView}
-        className={`${btnBase} hover:opacity-80`}
+        className={btnBase}
       >
         <Eye className="size-3.5" strokeWidth={2} />
-        <span>{counts.views}</span>
+        <span className="leading-none">{counts.views}</span>
       </button>
       {!viewsOnly && (
         <>
@@ -187,7 +187,7 @@ export function POIEngagementBar({
             type="button"
             aria-label="Compartilhar"
             onClick={fireShare}
-            className={`${btnBase} hover:opacity-80`}
+            className={btnBase}
           >
             <Share2 className="size-3.5" strokeWidth={2} />
           </button>
@@ -195,22 +195,23 @@ export function POIEngagementBar({
             type="button"
             aria-label="Curtir"
             onClick={(e) => { e.stopPropagation(); fireReaction("like"); }}
-            className={`${btnBase} ${reaction === "like" ? "text-rose-400" : "hover:opacity-80"}`}
+            className={`${btnBase} ${reaction === "like" ? "text-rose-400 opacity-100" : ""}`}
           >
             <Heart className={`size-3.5 ${reaction === "like" ? "fill-current" : ""}`} strokeWidth={2} />
-            <span>{counts.likes}</span>
+            <span className="leading-none">{counts.likes}</span>
           </button>
           <button
             type="button"
             aria-label="Descurtir"
             onClick={(e) => { e.stopPropagation(); fireReaction("dislike"); }}
-            className={`${btnBase} ${reaction === "dislike" ? "text-sky-400" : "hover:opacity-80"}`}
+            className={`${btnBase} ${reaction === "dislike" ? "text-sky-400 opacity-100" : ""}`}
           >
             <ThumbsDown className={`size-3.5 ${reaction === "dislike" ? "fill-current" : ""}`} strokeWidth={2} />
-            <span>{counts.dislikes}</span>
+            <span className="leading-none">{counts.dislikes}</span>
           </button>
         </>
       )}
     </div>
   );
 }
+
