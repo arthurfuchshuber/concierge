@@ -429,10 +429,13 @@ function EditDialog({
   onSave: (v: EditValues) => Promise<void>;
 }) {
   const s = customer.subscription;
+  const [fullName, setFullName] = useState(customer.fullName ?? "");
   const [plan, setPlan] = useState<PlanKey>(s?.plan ?? "starter");
   const [status, setStatus] = useState<string>(s?.status ?? "active");
+  // Padrão de ambiente = "live" (produção) — cadastros novos já entram em
+  // produção; sandbox é apenas para testes pontuais.
   const [environment, setEnvironment] = useState<"sandbox" | "live">(
-    (s?.environment as "sandbox" | "live") ?? "sandbox",
+    (s?.environment as "sandbox" | "live") ?? "live",
   );
   const [trialEndsAt, setTrialEndsAt] = useState(toDateInput(s?.trialEndsAt));
   const [currentPeriodEnd, setCurrentPeriodEnd] = useState(toDateInput(s?.currentPeriodEnd));
