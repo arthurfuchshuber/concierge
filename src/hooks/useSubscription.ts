@@ -67,21 +67,23 @@ export function useSubscription(opts?: { impersonateUserId?: string | null }) {
 
 
   useEffect(() => {
-    if (!userId) return;
+    const target = impersonateId ?? userId;
+    if (!target) return;
     const channel = supabase
-      .channel(`subscriptions:${userId}:${channelId}`)
+      .channel(`subscriptions:${target}:${channelId}`)
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "subscriptions", filter: `user_id=eq.${userId}` },
+        { event: "*", schema: "public", table: "subscriptions", filter: `user_id=eq.${target}` },
         () => {
-          qc.invalidateQueries({ queryKey: ["my-subscription", env, userId] });
+          qc.invalidateQueries({ queryKey: ["my-subscription", env, userId, impersonateId] });
         },
       )
       .subscribe();
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [userId, env, qc, channelId]);
+  }, [userId, env, qc, channelId, impersonateId]);
+
 
   const data = query.data;
   const sub = data?.subscription ?? null;
