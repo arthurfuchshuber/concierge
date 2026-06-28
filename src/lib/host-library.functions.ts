@@ -9,6 +9,7 @@ const HostFaqInput = z.object({
   question: z.string().trim().min(1).max(300),
   answer: z.string().trim().min(1).max(3000),
   tags: z.array(FaqTag).max(4).default([]),
+  scope_property_id: z.string().uuid().nullable().optional(),
 });
 
 const HostKnowledgeInput = z.object({
@@ -16,6 +17,7 @@ const HostKnowledgeInput = z.object({
   title: z.string().trim().min(1).max(200),
   body: z.string().trim().min(1).max(5000),
   enabled: z.boolean().default(true),
+  scope_property_id: z.string().uuid().nullable().optional(),
 });
 
 export const listHostFaqs = createServerFn({ method: "GET" })
@@ -23,7 +25,7 @@ export const listHostFaqs = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     const { data, error } = await context.supabase
       .from("host_faqs")
-      .select("id, question, answer, tags, position, created_at, updated_at")
+      .select("id, question, answer, tags, position, scope_property_id, created_at, updated_at")
       .order("position", { ascending: true });
     if (error) throw new Error(error.message);
     return data ?? [];
@@ -46,6 +48,7 @@ export const saveHostFaqs = createServerFn({ method: "POST" })
       answer: it.answer,
       tags: it.tags,
       position: i,
+      scope_property_id: it.scope_property_id ?? null,
     }));
     const { error, data: inserted } = await supabase.from("host_faqs").insert(rows).select("id");
     if (error) throw new Error(error.message);
@@ -57,7 +60,7 @@ export const listHostKnowledge = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     const { data, error } = await context.supabase
       .from("host_knowledge")
-      .select("id, title, body, enabled, position, created_at, updated_at")
+      .select("id, title, body, enabled, position, scope_property_id, created_at, updated_at")
       .order("position", { ascending: true });
     if (error) throw new Error(error.message);
     return data ?? [];
@@ -79,6 +82,7 @@ export const saveHostKnowledge = createServerFn({ method: "POST" })
       body: it.body,
       enabled: it.enabled,
       position: i,
+      scope_property_id: it.scope_property_id ?? null,
     }));
     const { error, data: inserted } = await supabase.from("host_knowledge").insert(rows).select("id");
     if (error) throw new Error(error.message);

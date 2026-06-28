@@ -39,12 +39,14 @@ type FaqItem = {
   question: string;
   answer: string;
   tags: ("chegada" | "saida" | "residencia" | "explore")[];
+  scope_property_id?: string | null;
 };
 type KnowledgeItem = {
   id?: string | null;
   title: string;
   body: string;
   enabled: boolean;
+  scope_property_id?: string | null;
 };
 
 const FAQ_TAGS: { value: FaqItem["tags"][number]; label: string }[] = [
@@ -53,6 +55,39 @@ const FAQ_TAGS: { value: FaqItem["tags"][number]; label: string }[] = [
   { value: "residencia", label: "Residência" },
   { value: "explore", label: "Explore" },
 ];
+
+type ScopeView = "all" | "global" | string;
+
+function ScopeBadge({
+  value,
+  onChange,
+  properties,
+  disabled,
+}: {
+  value: string | null | undefined;
+  onChange: (v: string | null) => void;
+  properties: { id: string; name: string }[];
+  disabled?: boolean;
+}) {
+  return (
+    <select
+      disabled={disabled}
+      value={value ?? ""}
+      onChange={(e) => onChange(e.target.value ? e.target.value : null)}
+      className="text-[11px] rounded-full border border-border bg-background/60 px-2.5 py-1 text-muted-foreground hover:text-foreground focus:outline-none focus:ring-1 focus:ring-accent disabled:opacity-50"
+      title="Escopo: Global ou guia específico"
+      onClick={(e) => e.stopPropagation()}
+    >
+      <option value="">🌐 Global (todos os guias)</option>
+      {properties.map((p) => (
+        <option key={p.id} value={p.id}>
+          📍 {p.name}
+        </option>
+      ))}
+    </select>
+  );
+}
+
 
 function BibliotecaPage() {
   const { info: sub } = useSubscription();
@@ -85,6 +120,14 @@ function BibliotecaPage() {
   const [applying, setApplying] = useState(false);
   const [openFaq, setOpenFaq] = useState<Set<number>>(new Set());
   const [openKnow, setOpenKnow] = useState<Set<number>>(new Set());
+  const [scopeView, setScopeView] = useState<ScopeView>("all");
+  const properties = (propsQuery.data ?? []).map((p) => ({ id: p.id, name: p.name }));
+  const matchesScope = (s: string | null | undefined) => {
+    if (scopeView === "all") return true;
+    if (scopeView === "global") return !s;
+    return s === scopeView;
+  };
+  const defaultScope = scopeView === "all" || scopeView === "global" ? null : scopeView;
   const toggleFaq = (i: number) =>
     setOpenFaq((s) => {
       const ns = new Set(s);
@@ -108,6 +151,7 @@ function BibliotecaPage() {
           tags: (f.tags ?? []).filter((t) =>
             ["chegada", "saida", "residencia", "explore"].includes(t),
           ) as FaqItem["tags"],
+          scope_property_id: (f as { scope_property_id?: string | null }).scope_property_id ?? null,
         })),
       );
     }
@@ -121,6 +165,7 @@ function BibliotecaPage() {
           title: k.title,
           body: k.body,
           enabled: k.enabled,
+          scope_property_id: (k as { scope_property_id?: string | null }).scope_property_id ?? null,
         })),
       );
     }
@@ -129,10 +174,17 @@ function BibliotecaPage() {
   useEffect(() => {
     if (behQuery.data) {
       setBehavior(
-        behQuery.data.map((b) => ({ id: b.id, title: b.title, body: b.body, enabled: b.enabled })),
+        behQuery.data.map((b) => ({
+          id: b.id,
+          title: b.title,
+          body: b.body,
+          enabled: b.enabled,
+          scope_property_id: (b as { scope_property_id?: string | null }).scope_property_id ?? null,
+        })),
       );
     }
   }, [behQuery.data]);
+
 
   async function handleSaveBeh() {
     const items = behavior.filter((b) => b.title.trim() && b.body.trim());
@@ -207,10 +259,42 @@ function BibliotecaPage() {
         </p>
       </div>
 
+      <div className="mb-5 flex flex-wrap items-center gap-2">
+        <span className="text-xs uppercase tracking-wider text-muted-foreground font-medium mr-1">
+          Mostrar:
+        </span>
+        <button
+          type="button"
+          onClick={() => setScopeView("all")}
+          className={`text-xs rounded-full px-3 py-1 border transition-colors ${scopeView === "all" ? "bg-accent text-accent-foreground border-accent" : "bg-background border-border text-muted-foreground hover:border-accent/50"}`}
+        >
+          Todos
+        </button>
+        <button
+          type="button"
+          onClick={() => setScopeView("global")}
+          className={`text-xs rounded-full px-3 py-1 border transition-colors ${scopeView === "global" ? "bg-accent text-accent-foreground border-accent" : "bg-background border-border text-muted-foreground hover:border-accent/50"}`}
+        >
+          🌐 Global
+        </button>
+        <select
+          value={scopeView !== "all" && scopeView !== "global" ? scopeView : ""}
+          onChange={(e) => setScopeView(e.target.value || "all")}
+          className="text-xs rounded-full border border-border bg-background/60 px-3 py-1 text-muted-foreground hover:text-foreground focus:outline-none focus:ring-1 focus:ring-accent"
+        >
+          <option value="">📍 Por guia…</option>
+          {properties.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.name}
+            </option>
+          ))}
+        </select>
+      </div>
+
       <Tabs defaultValue="faqs" className="w-full">
         <TabsList className="mb-6">
           <TabsTrigger value="faqs" className="gap-2">
-            <HelpCircle className="size-4" /> FAQ global
+            <HelpCircle className="size-4" /> FAQ
           </TabsTrigger>
           <TabsTrigger value="knowledge" className="gap-2">
             <BrainCircuit className="size-4" /> Conhecimento da IA
@@ -221,6 +305,7 @@ function BibliotecaPage() {
             {aiLocked ? <AiPlanLock locked badgeOnly>x</AiPlanLock> : null}
           </TabsTrigger>
         </TabsList>
+
 
         <TabsContent value="faqs" className="space-y-4">
           <div className="rounded-2xl border border-border bg-card/40 p-4">
@@ -258,6 +343,7 @@ function BibliotecaPage() {
                 </div>
               )}
               {faqs.map((f, i) => {
+                if (!matchesScope(f.scope_property_id)) return null;
                 const isOpen = openFaq.has(i) || !f.id;
                 return (
                   <div key={i} className="rounded-2xl border border-border bg-card overflow-hidden">
@@ -294,6 +380,15 @@ function BibliotecaPage() {
                           )}
                         </span>
                       </button>
+                      <ScopeBadge
+                        value={f.scope_property_id}
+                        properties={properties}
+                        onChange={(v) =>
+                          setFaqs((arr) =>
+                            arr.map((x, j) => (j === i ? { ...x, scope_property_id: v } : x)),
+                          )
+                        }
+                      />
                       <button
                         type="button"
                         onClick={() => setFaqs((arr) => arr.filter((_, j) => j !== i))}
@@ -303,6 +398,7 @@ function BibliotecaPage() {
                         <Trash2 className="size-3.5" />
                       </button>
                     </div>
+
                     {isOpen && (
                       <div className="px-3 pb-3 pt-1 space-y-3 border-t border-border/60 bg-background/40">
                         <Input
@@ -371,8 +467,9 @@ function BibliotecaPage() {
             <Button
               variant="outline"
               onClick={() =>
-                setFaqs((arr) => [...arr, { question: "", answer: "", tags: [] }])
+                setFaqs((arr) => [...arr, { question: "", answer: "", tags: [], scope_property_id: defaultScope }])
               }
+
               className="rounded-full"
             >
               <Plus className="size-4 mr-1.5" /> Nova pergunta
@@ -407,6 +504,7 @@ function BibliotecaPage() {
               ) : (
                 <div className="space-y-3">
                   {knowledge.map((k, i) => {
+                    if (!matchesScope(k.scope_property_id)) return null;
                     const isOpen = openKnow.has(i) || !k.id;
                     return (
                       <div key={i} className="rounded-2xl border border-border bg-card overflow-hidden">
@@ -431,6 +529,16 @@ function BibliotecaPage() {
                               </span>
                             )}
                           </button>
+                          <ScopeBadge
+                            value={k.scope_property_id}
+                            properties={properties}
+                            disabled={aiLocked}
+                            onChange={(v) =>
+                              setKnowledge((arr) =>
+                                arr.map((x, j) => (j === i ? { ...x, scope_property_id: v } : x)),
+                              )
+                            }
+                          />
                           <button
                             type="button"
                             disabled={aiLocked}
@@ -441,6 +549,7 @@ function BibliotecaPage() {
                             <Trash2 className="size-3.5" />
                           </button>
                         </div>
+
                         {isOpen && (
                           <div className="px-3 pb-3 pt-1 space-y-3 border-t border-border/60 bg-background/40">
                             <Input
@@ -493,8 +602,9 @@ function BibliotecaPage() {
                   variant="outline"
                   disabled={aiLocked}
                   onClick={() =>
-                    setKnowledge((arr) => [...arr, { title: "", body: "", enabled: true }])
+                    setKnowledge((arr) => [...arr, { title: "", body: "", enabled: true, scope_property_id: defaultScope }])
                   }
+
                   className="rounded-full"
                 >
                   <Plus className="size-4 mr-1.5" /> Novo bloco
@@ -533,7 +643,9 @@ function BibliotecaPage() {
                 </p>
               ) : (
                 <div className="space-y-3">
-                  {behavior.map((b, i) => (
+                  {behavior.map((b, i) => {
+                    if (!matchesScope(b.scope_property_id)) return null;
+                    return (
                     <div key={i} className="rounded-2xl border border-border bg-card p-4 space-y-3">
                       <div className="flex items-start gap-2">
                         <div className="flex-1 space-y-3">
@@ -560,19 +672,31 @@ function BibliotecaPage() {
                               )
                             }
                           />
-                          <div className="flex items-center gap-2">
-                            <Switch
-                              checked={b.enabled}
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-2">
+                              <Switch
+                                checked={b.enabled}
+                                disabled={aiLocked}
+                                onCheckedChange={(v) =>
+                                  setBehavior((arr) =>
+                                    arr.map((x, j) => (j === i ? { ...x, enabled: v } : x)),
+                                  )
+                                }
+                              />
+                              <span className="text-xs text-muted-foreground">
+                                {b.enabled ? "Ativa" : "Desativada"}
+                              </span>
+                            </div>
+                            <ScopeBadge
+                              value={b.scope_property_id}
+                              properties={properties}
                               disabled={aiLocked}
-                              onCheckedChange={(v) =>
+                              onChange={(v) =>
                                 setBehavior((arr) =>
-                                  arr.map((x, j) => (j === i ? { ...x, enabled: v } : x)),
+                                  arr.map((x, j) => (j === i ? { ...x, scope_property_id: v } : x)),
                                 )
                               }
                             />
-                            <span className="text-xs text-muted-foreground">
-                              {b.enabled ? "Ativa" : "Desativada"}
-                            </span>
                           </div>
                         </div>
                         <button
@@ -586,7 +710,9 @@ function BibliotecaPage() {
                         </button>
                       </div>
                     </div>
-                  ))}
+                    );
+                  })}
+
                 </div>
               )}
 
@@ -595,8 +721,9 @@ function BibliotecaPage() {
                   variant="outline"
                   disabled={aiLocked}
                   onClick={() =>
-                    setBehavior((arr) => [...arr, { title: "", body: "", enabled: true }])
+                    setBehavior((arr) => [...arr, { title: "", body: "", enabled: true, scope_property_id: defaultScope }])
                   }
+
                   className="rounded-full"
                 >
                   <Plus className="size-4 mr-1.5" /> Nova regra

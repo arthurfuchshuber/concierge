@@ -7,6 +7,7 @@ const BehaviorInput = z.object({
   title: z.string().trim().min(1).max(200),
   body: z.string().trim().min(1).max(5000),
   enabled: z.boolean().default(true),
+  scope_property_id: z.string().uuid().nullable().optional(),
 });
 
 export const listHostBehavior = createServerFn({ method: "GET" })
@@ -14,7 +15,7 @@ export const listHostBehavior = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     const { data, error } = await context.supabase
       .from("host_behavior")
-      .select("id, title, body, enabled, source, source_property_id, position, created_at, updated_at")
+      .select("id, title, body, enabled, source, source_property_id, scope_property_id, position, created_at, updated_at")
       .order("position", { ascending: true });
     if (error) throw new Error(error.message);
     return data ?? [];
@@ -38,6 +39,7 @@ export const saveHostBehavior = createServerFn({ method: "POST" })
       enabled: it.enabled,
       source: "manual",
       position: i,
+      scope_property_id: it.scope_property_id ?? null,
     }));
     const { error, data: inserted } = await supabase.from("host_behavior").insert(rows).select("id");
     if (error) throw new Error(error.message);

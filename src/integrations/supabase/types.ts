@@ -413,6 +413,7 @@ export type Database = {
           id: string
           owner_id: string
           position: number
+          scope_property_id: string | null
           source: string
           source_property_id: string | null
           title: string
@@ -425,6 +426,7 @@ export type Database = {
           id?: string
           owner_id: string
           position?: number
+          scope_property_id?: string | null
           source?: string
           source_property_id?: string | null
           title: string
@@ -437,12 +439,20 @@ export type Database = {
           id?: string
           owner_id?: string
           position?: number
+          scope_property_id?: string | null
           source?: string
           source_property_id?: string | null
           title?: string
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "host_behavior_scope_property_id_fkey"
+            columns: ["scope_property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "host_behavior_source_property_id_fkey"
             columns: ["source_property_id"]
@@ -460,6 +470,7 @@ export type Database = {
           owner_id: string
           position: number
           question: string
+          scope_property_id: string | null
           tags: string[]
           updated_at: string
         }
@@ -470,6 +481,7 @@ export type Database = {
           owner_id: string
           position?: number
           question: string
+          scope_property_id?: string | null
           tags?: string[]
           updated_at?: string
         }
@@ -480,10 +492,19 @@ export type Database = {
           owner_id?: string
           position?: number
           question?: string
+          scope_property_id?: string | null
           tags?: string[]
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "host_faqs_scope_property_id_fkey"
+            columns: ["scope_property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       host_knowledge: {
         Row: {
@@ -493,6 +514,7 @@ export type Database = {
           id: string
           owner_id: string
           position: number
+          scope_property_id: string | null
           title: string
           updated_at: string
         }
@@ -503,6 +525,7 @@ export type Database = {
           id?: string
           owner_id: string
           position?: number
+          scope_property_id?: string | null
           title: string
           updated_at?: string
         }
@@ -513,10 +536,19 @@ export type Database = {
           id?: string
           owner_id?: string
           position?: number
+          scope_property_id?: string | null
           title?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "host_knowledge_scope_property_id_fkey"
+            columns: ["scope_property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       poi_categories: {
         Row: {
