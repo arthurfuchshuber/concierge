@@ -1,40 +1,48 @@
-Antes de gastar créditos, quero alinhar o plano. Tudo será feito em **1 rodada de edições** para caber no orçamento.
+## O que será implementado
 
-## 1. Editor de Recomendações Sigma — replicar UX do guia
+Cada card de ponto/estabelecimento (no guia público e na curadoria do Sigma) recebe uma barra discreta no canto inferior direito com 4 ações:
 
-Substituir a aba **Pontos** em `admin.recomendacoes-sigma.$cityKey.tsx` por uma versão idêntica ao `RecGroup` do guia:
+- 👁  visualizações — somadas quando o card recebe clique OU permanece visível no viewport por 5s ou mais
+- ↗  compartilhar — abre o share nativo do dispositivo (WhatsApp, Instagram, etc.) com o link do Maps do estabelecimento; fallback para copiar link
+- ♥  curtir — toggle do hóspede; conta agregada
+- 👎  descurtir — toggle do hóspede; conta agregada
 
-- **Reutilizar** `PlaceAutocomplete` e `RecGroup` (vou exportá-los de `admin.properties.$id.tsx` e movê-los — sem duplicar código).
-- Agrupamento por categorias da taxonomia, recolhidas por padrão, expansão única por vez.
-- Campo de busca do Google Maps com bloqueio de duplicidade (via `existingPlaceIds`).
-- Drag-and-drop, "Selecionar todos", mover em massa, gerar com IA — tudo herdado.
-- Para cidades Sigma sem `lat/lng`, faço lookup do centro da cidade via Google Places no momento de salvar a cidade. Migration adiciona `lat`/`lng` em `sigma_city_packs`. Scope sempre `"city"`.
-- Persistência: novo adaptador server-fn `sigmaSetRecs(city_key, items[])` que substitui o conjunto inteiro (mesmo padrão do guide save).
+Os links da seção "Reservas & marketplace", dentro da edição do guia (admin), recebem APENAS o ícone 👁 mostrando a quantidade de cliques recebidos.
 
-As abas **Marketplace** e **FAQ** ficam como estão (já seguem o racional do guia, segundo conferi).
+## Estrutura técnica
 
-## 2. Quadrante do guia — layout do header
+**Backend (1 migration)**
+- Tabela `poi_engagement_events` com `(property_id, poi_key, poi_type, event_type, anon_id, created_at)`.
+- `poi_type` cobre `city_reference`, `recommendation`, `sigma_city_reference`, `marketplace_link`.
+- RLS: `INSERT` aberto a `anon` + `authenticated` (sem PII); `SELECT` autenticado restrito ao dono do guia (ou admin via `has_role`).
+- Índices em `(property_id, poi_key)` e `(property_id, event_type)`.
+- GRANTs para `anon`, `authenticated`, `service_role`.
 
-Em `RecGroup` (`admin.properties.$id.tsx`):
-- "Selecionar todos" sai da linha dos botões, vira **linha própria acima do campo de busca**, alinhado à esquerda.
-- Campo de busca **vai para a esquerda** e ganha mais largura (`w-full sm:w-72`).
-- Botões (Gerar IA, Editar, Replicar, etc.) continuam à direita.
+**Server functions (`src/lib/poi-engagement.functions.ts`)**
+- `recordPoiEngagement` (público, sem auth): valida slug + tipo + evento via Zod, insere com `anon_id` enviado pelo cliente (gerado/persistido em `localStorage`). De-duplica `view` por `(anon_id, poi_key, dia)` no servidor.
+- `getPoiEngagementCounts` (público, leitura agregada): retorna `{ poi_key → { views, likes, dislikes, shares } }` para o `property_id` derivado do slug.
+- `getMyPoiReactions` (público, por `anon_id`): retorna quais POIs o hóspede já curtiu/descurtiu para hidratar o estado dos botões.
+- `getMarketplaceClicks` (autenticado, dono do guia): retorna `{ index → clicks }` para a aba admin.
 
-## 3. Botão "Importar do SigmaGuide" sempre que houver pack
+**UI**
 
-Hoje `SigmaImportButton` só aparece se o pack está `is_published=true`. Vou:
-- Em `saveGuideAsSigmaPack`, **publicar automaticamente** o pack ao salvar (já que o ato de salvar via guia significa "está pronto para usar").
-- Confirmar que `getMyPropertySigmaState` continua filtrando por `is_published` — assim qualquer pack salvo (admin ou via editor) faz o botão aparecer.
-- Importação continua sendo **substituição total** (lock), unidirecional a partir do pack — comportamento já existente.
+`src/components/POIEngagementBar.tsx`
+- Barra horizontal no canto inferior direito do card (absolute) com os 4 ícones em pílula translúcida.
+- `useEffect` com `IntersectionObserver` dispara `view` após 5s contínuos visíveis OU no clique.
+- Curtir/descurtir são mutuamente excludentes (clicar em um desliga o outro), atualização otimista, sincroniza via server fn.
+- Compartilhar usa `navigator.share` quando disponível; fallback `navigator.clipboard.writeText` + toast.
 
-## Fora deste plano (5 créditos)
+`src/routes/g.$slug.explorar.tsx`
+- Monta `<POIEngagementBar />` dentro de `RecCard` e `RecRow`, posicionada absoluta no canto inferior direito da área da imagem.
+- Carrega `getPoiEngagementCounts` + `getMyPoiReactions` uma vez por página (TanStack Query) e passa contadores por id.
 
-- Onboarding popups (já desativado por você).
-- Autocomplete Google na criação da cidade Sigma (vou aproveitar a busca da própria aba Pontos para já criar o vínculo de cidade real; criação de cidade pode continuar manual por enquanto).
+`src/routes/_authenticated/admin.recomendacoes-sigma.$id.tsx` (editor do pack Sigma)
+- Mesma barra nos cards de POI da curadoria (somente leitura para visualização do admin; ações ainda funcionam mas com `poi_type = sigma_city_reference`).
 
-## Riscos / cuidados
+`src/routes/_authenticated/admin.properties.$id.tsx`
+- Em cada item de `marketplace_links`, adiciona um pequeno `👁 N` no canto inferior direito (somente leitura), alimentado por `getMarketplaceClicks`.
 
-- Exportar `RecGroup`/`PlaceAutocomplete` exige cuidado com imports — vou conferir que nenhuma dependência fica órfã.
-- Migration adiciona apenas colunas opcionais — sem GRANT extra necessário.
+## Notas de privacidade
 
-Posso seguir?
+- Nenhum dado pessoal é coletado nas curtidas/views — apenas um `anon_id` UUID gerado no cliente.
+- Eventos não são exibidos para outros hóspedes; apenas o agregado.

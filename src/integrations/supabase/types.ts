@@ -551,6 +551,44 @@ export type Database = {
         }
         Relationships: []
       }
+      poi_engagement_events: {
+        Row: {
+          anon_id: string
+          created_at: string
+          event_type: string
+          id: string
+          poi_key: string
+          poi_type: string
+          property_id: string
+        }
+        Insert: {
+          anon_id: string
+          created_at?: string
+          event_type: string
+          id?: string
+          poi_key: string
+          poi_type: string
+          property_id: string
+        }
+        Update: {
+          anon_id?: string
+          created_at?: string
+          event_type?: string
+          id?: string
+          poi_key?: string
+          poi_type?: string
+          property_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "poi_engagement_events_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       poi_tags: {
         Row: {
           accepted_primary_types: string[]
