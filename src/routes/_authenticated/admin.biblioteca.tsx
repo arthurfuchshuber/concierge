@@ -120,6 +120,14 @@ function BibliotecaPage() {
   const [applying, setApplying] = useState(false);
   const [openFaq, setOpenFaq] = useState<Set<number>>(new Set());
   const [openKnow, setOpenKnow] = useState<Set<number>>(new Set());
+  const [scopeView, setScopeView] = useState<ScopeView>("all");
+  const properties = (propsQuery.data ?? []).map((p) => ({ id: p.id, name: p.name }));
+  const matchesScope = (s: string | null | undefined) => {
+    if (scopeView === "all") return true;
+    if (scopeView === "global") return !s;
+    return s === scopeView;
+  };
+  const defaultScope = scopeView === "all" || scopeView === "global" ? null : scopeView;
   const toggleFaq = (i: number) =>
     setOpenFaq((s) => {
       const ns = new Set(s);
@@ -143,6 +151,7 @@ function BibliotecaPage() {
           tags: (f.tags ?? []).filter((t) =>
             ["chegada", "saida", "residencia", "explore"].includes(t),
           ) as FaqItem["tags"],
+          scope_property_id: (f as { scope_property_id?: string | null }).scope_property_id ?? null,
         })),
       );
     }
@@ -156,6 +165,7 @@ function BibliotecaPage() {
           title: k.title,
           body: k.body,
           enabled: k.enabled,
+          scope_property_id: (k as { scope_property_id?: string | null }).scope_property_id ?? null,
         })),
       );
     }
@@ -164,10 +174,17 @@ function BibliotecaPage() {
   useEffect(() => {
     if (behQuery.data) {
       setBehavior(
-        behQuery.data.map((b) => ({ id: b.id, title: b.title, body: b.body, enabled: b.enabled })),
+        behQuery.data.map((b) => ({
+          id: b.id,
+          title: b.title,
+          body: b.body,
+          enabled: b.enabled,
+          scope_property_id: (b as { scope_property_id?: string | null }).scope_property_id ?? null,
+        })),
       );
     }
   }, [behQuery.data]);
+
 
   async function handleSaveBeh() {
     const items = behavior.filter((b) => b.title.trim() && b.body.trim());
