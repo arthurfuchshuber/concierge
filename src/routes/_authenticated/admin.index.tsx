@@ -9,16 +9,17 @@ import { Input } from "@/components/ui/input";
 import { Plus, ExternalLink, Pencil, Trash2, Lock, Globe, BookOpen, PlayCircle, CreditCard, LayoutGrid, List, Link2, Check, AlertTriangle, MapPin, ChevronDown, ChevronRight, PenSquare, Search, X } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
 type StatusFilter = "all" | "published" | "draft";
 type AccessFilter = "all" | "public" | "pin";
 import { useSubscription } from "@/hooks/useSubscription";
 import { PLANS } from "@/lib/payments.functions";
 import { BulkEditDialog } from "@/components/BulkEditDialog";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
-import { adminListCustomers, adminListUserProperties, adminListUserPropertiesFull } from "@/lib/admin-subs.functions";
+import { adminListUserPropertiesFull } from "@/lib/admin-subs.functions";
 import { useImpersonation } from "@/hooks/useImpersonation";
 import { Eye } from "lucide-react";
+
 
 
 export const Route = createFileRoute("/_authenticated/admin/")({
