@@ -53,8 +53,11 @@ function guideCompleteness(p: {
 
 function Dashboard() {
   const list = useServerFn(listMyProperties);
+  const listAsUser = useServerFn(adminListUserPropertiesFull);
   const del = useServerFn(deleteProperty);
   const navigate = useNavigate();
+  const { impersonation, clear: clearImpersonation } = useImpersonation();
+  const readOnly = !!impersonation;
   const [view, setView] = useState<"grid" | "list">("grid");
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [viewSlug, setViewSlug] = useState<string | null>(null);
@@ -74,7 +77,6 @@ function Dashboard() {
   function getPublicBaseUrl() {
     if (typeof window === "undefined") return "";
     const { origin, hostname } = window.location;
-    // Sandbox/preview hosts -> use stable published URL
     if (
       hostname.endsWith(".lovableproject.com") ||
       hostname.includes("id-preview--") ||
@@ -97,41 +99,20 @@ function Dashboard() {
     }
   }
   const { data, isLoading, refetch } = useQuery({
-    queryKey: ["my-properties"],
-    queryFn: () => list(),
+    queryKey: ["my-properties", impersonation?.userId ?? "self"],
+    queryFn: () =>
+      impersonation
+        ? listAsUser({ data: { userId: impersonation.userId } })
+        : list(),
   });
-  const { info: sub } = useSubscription();
+  const { info: sub } = useSubscription({ impersonateUserId: impersonation?.userId ?? null });
 
-  // Admins sem guias próprios caem direto no painel do primeiro cliente (alfabético).
+  // Admin sem guias próprios e SEM impersonação: nada de auto-redirect agora —
+  // ele pode escolher manualmente um cliente pelo dropdown da sidebar.
   const { isAdmin } = useIsAdmin();
-  const customersFn = useServerFn(adminListCustomers);
-  const propsFn = useServerFn(adminListUserProperties);
-  useEffect(() => {
-    if (!isAdmin || isLoading) return;
-    if ((data?.length ?? 0) > 0) return;
-    let cancelled = false;
-    (async () => {
-      try {
-        const r = await customersFn();
-        const sorted = [...(r.customers ?? [])].sort((a, b) => {
-          const na = (a.fullName ?? a.email ?? "").toLowerCase();
-          const nb = (b.fullName ?? b.email ?? "").toLowerCase();
-          return na.localeCompare(nb, "pt-BR");
-        });
-        for (const c of sorted) {
-          const pr = await propsFn({ data: { userId: c.userId } });
-          const first = pr.properties?.[0];
-          if (first && !cancelled) {
-            navigate({ to: "/admin/properties/$id", params: { id: first.id }, replace: true });
-            return;
-          }
-        }
-      } catch {
-        // silencioso: usuário fica na tela de painel vazio
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [isAdmin, isLoading, data, customersFn, propsFn, navigate]);
+  void isAdmin;
+
+
 
 
 
