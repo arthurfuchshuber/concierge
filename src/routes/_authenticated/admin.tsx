@@ -54,7 +54,7 @@ function AdminLayout() {
     pathname.startsWith("/admin/taxonomia") ||
     pathname.startsWith("/admin/recomendacoes-sigma") ||
     pathname.startsWith("/admin/admins");
-  const needsPlan = !subLoading && !sub.plan && !allowedWithoutPlan && !isAdmin;
+  const needsPlan = !subLoading && !adminLoading && !sub.plan && !allowedWithoutPlan && !isAdmin;
 
   return (
     <div className="min-h-screen bg-background text-foreground flex">
