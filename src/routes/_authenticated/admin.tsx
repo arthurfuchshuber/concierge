@@ -27,7 +27,7 @@ function AdminLayout() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const { isAdmin } = useIsAdmin();
+  const { isAdmin, isLoading: adminLoading } = useIsAdmin();
   const [email, setEmail] = useState<string>("");
   const [open, setOpen] = useState(false);
   const nav = baseNav;
