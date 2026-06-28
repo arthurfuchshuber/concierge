@@ -198,9 +198,9 @@ export function GuideAccessGate({ slug, propertyName, requireReservationCode, on
               </div>
             </div>
 
-            {/* Check-in */}
+            {/* Período da viagem */}
             <div className="space-y-2">
-              <Label className="text-[13px] font-medium">Check-in</Label>
+              <Label className="text-[13px] font-medium">Período da viagem</Label>
               <Popover>
                 <PopoverTrigger asChild>
                   <button
@@ -209,21 +209,26 @@ export function GuideAccessGate({ slug, propertyName, requireReservationCode, on
                       "relative w-full h-[52px] rounded-[14px] border border-input/80 bg-background/40",
                       "flex items-center pl-11 pr-11 text-left text-[15px]",
                       "transition-all hover:bg-background/60 focus:outline-none focus-visible:ring-4 focus-visible:ring-ring/15 focus-visible:border-ring",
-                      !date && "text-muted-foreground",
+                      !range?.from && "text-muted-foreground",
                     )}
                   >
                     <CalendarIcon className="absolute left-3.5 top-1/2 size-[18px] -translate-y-1/2 text-primary/80" />
                     <span className="truncate">
-                      {date ? format(date, "dd 'de' MMM yyyy", { locale: ptBR }) : "Selecionar data"}
+                      {range?.from && range?.to
+                        ? `${format(range.from, "dd MMM", { locale: ptBR })} — ${format(range.to, "dd MMM yyyy", { locale: ptBR })}`
+                        : range?.from
+                          ? `${format(range.from, "dd MMM yyyy", { locale: ptBR })} — selecione o check-out`
+                          : "Selecionar check-in e check-out"}
                     </span>
                     <ChevronDown className="absolute right-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                   </button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0 rounded-2xl" align="start">
                   <Calendar
-                    mode="single"
-                    selected={date}
-                    onSelect={setDate}
+                    mode="range"
+                    selected={range as never}
+                    onSelect={(r) => setRange(r as { from?: Date; to?: Date } | undefined)}
+                    numberOfMonths={1}
                     initialFocus
                     locale={ptBR}
                     className="p-3 pointer-events-auto"
@@ -231,6 +236,7 @@ export function GuideAccessGate({ slug, propertyName, requireReservationCode, on
                 </PopoverContent>
               </Popover>
             </div>
+
 
             {/* Phone */}
             <div className="space-y-2">
