@@ -248,15 +248,31 @@ function OpeningHours({ hours }: { hours: string[] | null | undefined }) {
 }
 
 
-// Capa da categoria = imagem do ponto/estabelecimento com nota >= 4.8 e
-// MAIOR número de avaliações (com imagem disponível). Quando nenhum item
-// atinge 4.8, a categoria fica sem capa para preservar a curadoria.
+// Capa da categoria — escolha em camadas, sempre privilegiando qualidade,
+// mas com fallback para garantir que toda categoria tenha capa:
+//   1) nota ≥ 4.8 → maior nº de avaliações vence;
+//   2) nota ≥ 4.5 → maior score bayesiano (equilibra nota e popularidade);
+//   3) qualquer item com imagem → mesmo score bayesiano.
+// Score: (v/(v+m))·R + (m/(v+m))·C, com m=150 (peso mínimo) e C=4.3 (média global).
+function bayesianScore(rating: number | null | undefined, reviews: number | null | undefined): number {
+  const R = rating ?? 0;
+  const v = reviews ?? 0;
+  const m = 150;
+  const C = 4.3;
+  return (v / (v + m)) * R + (m / (v + m)) * C;
+}
 function pickBestPhoto(nearby: Rec[], city: Rec[]): string | null {
-  const pickByReviews = (arr: Rec[]) =>
-    arr
-      .filter((x) => x.image_url && (x.rating ?? 0) >= 4.8)
-      .sort((a, b) => (b.user_ratings_total ?? 0) - (a.user_ratings_total ?? 0))[0]?.image_url ?? null;
-  return pickByReviews([...city, ...nearby]);
+  const pool = [...city, ...nearby].filter((x) => !!x.image_url);
+  if (pool.length === 0) return null;
+  const tier1 = pool.filter((x) => (x.rating ?? 0) >= 4.8);
+  if (tier1.length > 0) {
+    return tier1.sort((a, b) => (b.user_ratings_total ?? 0) - (a.user_ratings_total ?? 0))[0].image_url ?? null;
+  }
+  const tier2 = pool.filter((x) => (x.rating ?? 0) >= 4.5);
+  const fallback = (tier2.length > 0 ? tier2 : pool).sort(
+    (a, b) => bayesianScore(b.rating, b.user_ratings_total) - bayesianScore(a.rating, a.user_ratings_total),
+  );
+  return fallback[0]?.image_url ?? null;
 }
 
 
@@ -1257,10 +1273,8 @@ function RecCard({ rec }: { rec: Rec }) {
       <div className="p-4 flex-1 flex flex-col gap-2">
         <div className="flex items-start justify-between gap-2">
           <h4 className="text-[15px] font-medium leading-snug line-clamp-2 flex-1">{rec.name}</h4>
-          {href && (
-            <ExternalLink className="size-3.5 text-muted-foreground/70 shrink-0 mt-1 group-hover:text-accent transition-colors" />
-          )}
         </div>
+
 
         {rec.note && (
           <p className="text-[12.5px] text-muted-foreground leading-relaxed line-clamp-3">{rec.note}</p>
@@ -1358,9 +1372,6 @@ function RecRow({ rec }: { rec: Rec }) {
               {typeLabel}
             </p>
           </div>
-          {href && (
-            <ExternalLink className="size-3.5 text-muted-foreground/70 shrink-0 mt-1 group-hover:text-accent transition-colors" />
-          )}
         </div>
 
         {rec.note && (
