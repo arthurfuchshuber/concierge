@@ -467,8 +467,9 @@ function BibliotecaPage() {
             <Button
               variant="outline"
               onClick={() =>
-                setFaqs((arr) => [...arr, { question: "", answer: "", tags: [] }])
+                setFaqs((arr) => [...arr, { question: "", answer: "", tags: [], scope_property_id: defaultScope }])
               }
+
               className="rounded-full"
             >
               <Plus className="size-4 mr-1.5" /> Nova pergunta
