@@ -14,6 +14,78 @@ export type Database = {
   }
   public: {
     Tables: {
+      admin_invites: {
+        Row: {
+          accepted_at: string | null
+          accepted_user_id: string | null
+          created_at: string
+          email: string
+          id: string
+          invited_by: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          accepted_at?: string | null
+          accepted_user_id?: string | null
+          created_at?: string
+          email: string
+          id?: string
+          invited_by?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          accepted_at?: string | null
+          accepted_user_id?: string | null
+          created_at?: string
+          email?: string
+          id?: string
+          invited_by?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      audit_logs: {
+        Row: {
+          action: string
+          created_at: string
+          entity_id: string | null
+          entity_type: string | null
+          id: string
+          ip: string | null
+          metadata: Json
+          user_agent: string | null
+          user_email: string | null
+          user_id: string | null
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          entity_id?: string | null
+          entity_type?: string | null
+          id?: string
+          ip?: string | null
+          metadata?: Json
+          user_agent?: string | null
+          user_email?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          entity_id?: string | null
+          entity_type?: string | null
+          id?: string
+          ip?: string | null
+          metadata?: Json
+          user_agent?: string | null
+          user_email?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       chat_message_feedback: {
         Row: {
           behavior_id: string | null

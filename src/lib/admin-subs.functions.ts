@@ -368,15 +368,49 @@ export const adminGrantSaasAdmin = createServerFn({ method: "POST" })
       if (match) { found = match; break; }
       if (list.users.length < 1000) break;
     }
-    if (!found) throw new Error("Usuário não encontrado. Ele precisa criar conta primeiro.");
 
-    const { error } = await supabaseAdmin
-      .from("user_roles")
-      .insert({ user_id: found.id, role: "admin" });
-    if (error && !String(error.message).toLowerCase().includes("duplicate")) {
-      throw new Error("Erro ao conceder admin");
+    async function audit(action: string, entity_id: string | null, metadata: Record<string, unknown>) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await (supabaseAdmin.from("audit_logs" as never) as any).insert({
+        user_id: context.userId,
+        user_email: (context as { claims?: { email?: string } }).claims?.email ?? null,
+        action,
+        entity_type: "admin",
+        entity_id,
+        metadata,
+      });
     }
-    return { ok: true, userId: found.id };
+
+    if (found) {
+      const { error } = await supabaseAdmin
+        .from("user_roles")
+        .insert({ user_id: found.id, role: "admin" });
+      if (error && !String(error.message).toLowerCase().includes("duplicate")) {
+        throw new Error("Erro ao conceder admin");
+      }
+      await audit("admin.granted", found.id, { email: target });
+      return { ok: true, userId: found.id, invited: false };
+    }
+
+    try {
+      await supabaseAdmin.auth.admin.inviteUserByEmail(target);
+    } catch (e) {
+      console.warn("[admin-invite] inviteUserByEmail failed:", e);
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const inviteTable = supabaseAdmin.from("admin_invites" as never) as any;
+    const { data: inv, error: invErr } = await inviteTable
+      .upsert(
+        { email: target, invited_by: context.userId, status: "pending" },
+        { onConflict: "email" },
+      )
+      .select("id")
+      .maybeSingle();
+    if (invErr) throw new Error("Não foi possível registrar o convite. Tente novamente.");
+
+    await audit("admin.invited", inv?.id ?? null, { email: target });
+    return { ok: true, userId: null, invited: true };
   });
 
 export const adminRevokeSaasAdmin = createServerFn({ method: "POST" })
@@ -396,5 +430,140 @@ export const adminRevokeSaasAdmin = createServerFn({ method: "POST" })
       .eq("user_id", data.userId)
       .eq("role", "admin");
     if (error) throw new Error("Erro ao revogar admin");
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (supabaseAdmin.from("audit_logs" as never) as any).insert({
+      user_id: context.userId,
+      user_email: (context as { claims?: { email?: string } }).claims?.email ?? null,
+      action: "admin.revoked",
+      entity_type: "admin",
+      entity_id: data.userId,
+      metadata: {},
+    });
     return { ok: true };
   });
+
+// ───────────────── Pending invites & audit logs ─────────────────
+
+export type AdminInviteRow = {
+  id: string;
+  email: string;
+  status: string;
+  createdAt: string | null;
+  invitedByEmail: string | null;
+};
+
+export const adminListInvites = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<{ invites: AdminInviteRow[] }> => {
+    await assertAdmin(context.supabase, context.userId);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data, error } = await (supabaseAdmin.from("admin_invites" as never) as any)
+      .select("id, email, status, created_at, invited_by")
+      .eq("status", "pending")
+      .order("created_at", { ascending: false });
+    if (error) throw new Error("Erro ao listar convites");
+
+    const rows = (data ?? []) as Array<{ id: string; email: string; status: string; created_at: string | null; invited_by: string | null }>;
+    const inviterIds = Array.from(new Set(rows.map((r) => r.invited_by).filter(Boolean) as string[]));
+    const emailMap = new Map<string, string>();
+    if (inviterIds.length) {
+      const { data: usersData } = await supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 1000 });
+      for (const u of usersData?.users ?? []) {
+        if (u.email) emailMap.set(u.id, u.email);
+      }
+    }
+
+    return {
+      invites: rows.map((r) => ({
+        id: r.id,
+        email: r.email,
+        status: r.status,
+        createdAt: r.created_at,
+        invitedByEmail: r.invited_by ? emailMap.get(r.invited_by) ?? null : null,
+      })),
+    };
+  });
+
+export const adminRevokeInvite = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { inviteId: string }) => z.object({ inviteId: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context.supabase, context.userId);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error } = await (supabaseAdmin.from("admin_invites" as never) as any)
+      .update({ status: "revoked", updated_at: new Date().toISOString() })
+      .eq("id", data.inviteId);
+    if (error) throw new Error("Não foi possível cancelar o convite.");
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (supabaseAdmin.from("audit_logs" as never) as any).insert({
+      user_id: context.userId,
+      user_email: (context as { claims?: { email?: string } }).claims?.email ?? null,
+      action: "admin_invite.revoked",
+      entity_type: "admin_invites",
+      entity_id: data.inviteId,
+      metadata: {},
+    });
+    return { ok: true };
+  });
+
+export type AuditLogRow = {
+  id: string;
+  userId: string | null;
+  userEmail: string | null;
+  action: string;
+  entityType: string | null;
+  entityId: string | null;
+  metadataJson: string;
+  createdAt: string;
+};
+
+
+export const adminListAuditLogs = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { search?: string; limit?: number } | undefined) =>
+    z
+      .object({
+        search: z.string().max(200).optional(),
+        limit: z.number().int().min(1).max(2000).optional(),
+      })
+      .parse(d ?? {}),
+  )
+  .handler(async ({ data, context }): Promise<{ logs: AuditLogRow[] }> => {
+    await assertAdmin(context.supabase, context.userId);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let q: any = (supabaseAdmin.from("audit_logs" as never) as any)
+      .select("id, user_id, user_email, action, entity_type, entity_id, metadata, created_at")
+      .order("created_at", { ascending: false })
+      .limit(data.limit ?? 500);
+    const s = data.search?.trim();
+    if (s) {
+      q = q.or(`user_email.ilike.%${s}%,action.ilike.%${s}%,entity_type.ilike.%${s}%,entity_id.ilike.%${s}%`);
+    }
+    const { data: rows, error } = await q;
+    if (error) throw new Error("Erro ao carregar registros de atividade");
+    const rowList = (rows ?? []) as Array<{ id: string; user_id: string | null; user_email: string | null; action: string; entity_type: string | null; entity_id: string | null; metadata: unknown; created_at: string }>;
+    const missing = Array.from(new Set(rowList.filter((r) => r.user_id && !r.user_email).map((r) => r.user_id as string)));
+    const emailMap = new Map<string, string>();
+    if (missing.length) {
+      const { data: usersData } = await supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 1000 });
+      for (const u of usersData?.users ?? []) {
+        if (u.email) emailMap.set(u.id, u.email);
+      }
+    }
+    return {
+      logs: rowList.map((r) => ({
+        id: r.id,
+        userId: r.user_id,
+        userEmail: r.user_email ?? (r.user_id ? emailMap.get(r.user_id) ?? null : null),
+        action: r.action,
+        entityType: r.entity_type,
+        entityId: r.entity_id,
+        metadataJson: r.metadata ? JSON.stringify(r.metadata) : "{}",
+        createdAt: r.created_at,
+      })),
+    };
+  });
+
