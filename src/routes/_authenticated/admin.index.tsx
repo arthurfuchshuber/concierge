@@ -15,6 +15,8 @@ type AccessFilter = "all" | "public" | "pin";
 import { useSubscription } from "@/hooks/useSubscription";
 import { PLANS } from "@/lib/payments.functions";
 import { BulkEditDialog } from "@/components/BulkEditDialog";
+import { useIsAdmin } from "@/hooks/useIsAdmin";
+import { adminListCustomers, adminListUserProperties } from "@/lib/admin-subs.functions";
 
 export const Route = createFileRoute("/_authenticated/admin/")({
   component: Dashboard,
@@ -96,6 +98,38 @@ function Dashboard() {
     queryFn: () => list(),
   });
   const { info: sub } = useSubscription();
+
+  // Admins sem guias próprios caem direto no painel do primeiro cliente (alfabético).
+  const { isAdmin } = useIsAdmin();
+  const customersFn = useServerFn(adminListCustomers);
+  const propsFn = useServerFn(adminListUserProperties);
+  useEffect(() => {
+    if (!isAdmin || isLoading) return;
+    if ((data?.length ?? 0) > 0) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const r = await customersFn();
+        const sorted = [...(r.customers ?? [])].sort((a, b) => {
+          const na = (a.fullName ?? a.email ?? "").toLowerCase();
+          const nb = (b.fullName ?? b.email ?? "").toLowerCase();
+          return na.localeCompare(nb, "pt-BR");
+        });
+        for (const c of sorted) {
+          const pr = await propsFn({ data: { userId: c.userId } });
+          const first = pr.properties?.[0];
+          if (first && !cancelled) {
+            navigate({ to: "/admin/properties/$id", params: { id: first.id }, replace: true });
+            return;
+          }
+        }
+      } catch {
+        // silencioso: usuário fica na tela de painel vazio
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [isAdmin, isLoading, data, customersFn, propsFn, navigate]);
+
 
 
   async function handleDelete(id: string, name: string) {
