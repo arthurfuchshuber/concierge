@@ -1370,10 +1370,8 @@ function RecRow({ rec }: { rec: Rec }) {
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
             <h4 className="text-[15px] font-medium leading-snug line-clamp-2">{rec.name}</h4>
-            <p className="mt-0.5 text-[10.5px] uppercase tracking-[0.18em] text-muted-foreground/80 font-semibold">
-              {typeLabel}
-            </p>
           </div>
+
         </div>
 
         {rec.note && (
