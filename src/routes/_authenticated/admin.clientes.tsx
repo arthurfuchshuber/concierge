@@ -497,6 +497,15 @@ function EditDialog({
         </DialogHeader>
 
         <div className="grid sm:grid-cols-2 gap-4 mt-2">
+          <div className="space-y-1.5 sm:col-span-2">
+            <Label>Nome do cliente</Label>
+            <Input
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+              placeholder="Como o cliente deve ser identificado"
+            />
+          </div>
+
           <div className="space-y-1.5">
             <Label>Plano</Label>
             <Select value={plan} onValueChange={(v) => setPlan(v as PlanKey)}>
