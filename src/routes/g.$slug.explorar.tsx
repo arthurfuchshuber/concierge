@@ -735,7 +735,9 @@ function ExplorePage() {
         <GuideAiChat slug={slug} propertyName={(p.name as string) ?? "Guia"} guestName={null} />
       ) : null}
     </div>
+    </EngagementCtx.Provider>
   );
+
 }
 
 function SkeletonCard() {
