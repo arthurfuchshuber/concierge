@@ -586,19 +586,22 @@ function ExplorePage() {
           <button
             type="button"
             onClick={() => setActiveKey(null)}
-            className="inline-flex items-center gap-1.5 text-[10px] uppercase tracking-[0.24em] font-semibold text-muted-foreground hover:text-foreground transition-colors"
+            aria-label="Voltar para todas as categorias"
+            className="fixed left-3 md:left-6 top-1/2 -translate-y-1/2 z-30 grid place-items-center size-11 rounded-full bg-background/70 backdrop-blur-md border border-border/60 text-foreground/70 shadow-md hover:text-foreground hover:bg-background/90 hover:scale-105 transition-all"
           >
-            <ArrowLeft className="size-3" /> Todas as categorias
+            <ArrowLeft className="size-5" strokeWidth={1.75} />
           </button>
         ) : (
           <Link
             to="/g/$slug"
             params={{ slug }}
-            className="inline-flex items-center gap-1.5 text-[10px] uppercase tracking-[0.24em] font-semibold text-muted-foreground hover:text-foreground transition-colors"
+            aria-label="Voltar ao guia"
+            className="fixed left-3 md:left-6 top-1/2 -translate-y-1/2 z-30 grid place-items-center size-11 rounded-full bg-background/70 backdrop-blur-md border border-border/60 text-foreground/70 shadow-md hover:text-foreground hover:bg-background/90 hover:scale-105 transition-all"
           >
-            <ArrowLeft className="size-3" /> Voltar ao guia
+            <ArrowLeft className="size-5" strokeWidth={1.75} />
           </Link>
         )}
+
 
         <header className="mt-6 mb-8">
           <p className="text-[10px] uppercase tracking-[0.32em] text-accent font-semibold mb-3">Concierge</p>
@@ -1243,7 +1246,8 @@ function RecCard({ rec }: { rec: Rec }) {
   const walking = formatWalking(rec);
   const driving = formatDriving(rec);
   const href = safeHttpsHref(rec.maps_url, rec.name);
-  const typeLabel = TYPE_LABEL[rec.type] || rec.category || rec.type;
+  // typeLabel removido do guia público — tag continua salva no back-end.
+
 
   const eng = useContext(EngagementCtx);
   const counts = eng?.counts[rec.id];
@@ -1265,9 +1269,8 @@ function RecCard({ rec }: { rec: Rec }) {
             <Compass className="size-10 text-accent/60" strokeWidth={1.25} />
           </div>
         )}
-        <div className="absolute top-2.5 left-2.5 inline-flex items-center gap-1 px-2 py-1 rounded-full bg-background/90 backdrop-blur text-[10px] uppercase tracking-[0.18em] font-semibold text-foreground/80">
-          {typeLabel}
-        </div>
+        {/* tag/categoria oculta no guia público — mantida apenas no admin */}
+
       </div>
 
       <div className="p-4 flex-1 flex flex-col gap-2">
@@ -1341,7 +1344,7 @@ function RecRow({ rec }: { rec: Rec }) {
   const walking = formatWalking(rec);
   const driving = formatDriving(rec);
   const href = safeHttpsHref(rec.maps_url, rec.name);
-  const typeLabel = TYPE_LABEL[rec.type] || rec.category || rec.type;
+  // typeLabel removido do guia público.
 
   const eng = useContext(EngagementCtx);
   const counts = eng?.counts[rec.id];
@@ -1368,10 +1371,8 @@ function RecRow({ rec }: { rec: Rec }) {
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
             <h4 className="text-[15px] font-medium leading-snug line-clamp-2">{rec.name}</h4>
-            <p className="mt-0.5 text-[10.5px] uppercase tracking-[0.18em] text-muted-foreground/80 font-semibold">
-              {typeLabel}
-            </p>
           </div>
+
         </div>
 
         {rec.note && (

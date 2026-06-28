@@ -242,7 +242,6 @@ function Guide({ data }: { data: GuideOk }) {
     typeof window !== "undefined" &&
     new URLSearchParams(window.location.search).get("preview") === "1";
   const [accessRec, setAccessRec] = useState<AccessRecord | null>(() => {
-    if (typeof window === "undefined") return null;
     if (isPreview) {
       const today = new Date().toISOString().slice(0, 10);
       return {
@@ -254,23 +253,26 @@ function Guide({ data }: { data: GuideOk }) {
         phoneCountry: null,
       };
     }
-    return readAccessRecord(slug);
+    return null;
   });
-  const needsGate = !accessRec && !isPreview;
+  // Hidrata o registro do localStorage somente após mount (evita mismatch SSR
+  // que descartava o registro e fazia o popup reaparecer a cada acesso).
+  const [gateReady, setGateReady] = useState(isPreview);
+  useEffect(() => {
+    if (isPreview) return;
+    const rec = readAccessRecord(slug);
+    if (rec) setAccessRec(rec);
+    setGateReady(true);
+  }, [slug, isPreview]);
+  const needsGate = gateReady && !accessRec && !isPreview;
 
 
-  // Faixas da tela inicial somem 12h após a data/horário de check-in
-  // do hóspede (mantendo a página menos poluída durante a estadia).
-  const stripsHidden = (() => {
-    if (!accessRec) return false;
-    const time = String(p.checkin_time ?? "").match(/^(\d{1,2}):(\d{2})/);
-    const hh = time ? Number(time[1]) : 15;
-    const mm = time ? Number(time[2]) : 0;
-    const [y, mo, d] = accessRec.checkinDate.split("-").map(Number);
-    if (!y || !mo || !d) return false;
-    const start = new Date(y, mo - 1, d, hh, mm, 0, 0).getTime();
-    return Date.now() > start + 12 * 60 * 60 * 1000;
-  })();
+
+  // (Wi-Fi e senhas de acesso agora seguem apenas a regra de check-out às
+  // 15h00 — `checkinLocked` abaixo. A antiga regra "12h após check-in" foi
+  // removida porque o hóspede pode precisar consultar as senhas a qualquer
+  // momento durante a estadia.)
+
 
   // Informações sensíveis (Wi-Fi, senhas de acesso) permanecem disponíveis
   // até o dia do check-out às 15h00 informado pelo hóspede.
@@ -469,7 +471,10 @@ function Guide({ data }: { data: GuideOk }) {
             />
 
 
-            {!stripsHidden && (
+            {/* Wi-Fi e senhas de acesso ficam sempre visíveis até as 15h00
+                do dia do check-out (checkinLocked). O conteúdo continua
+                travado pelo PIN até o hóspede liberá-lo. */}
+            {!checkinLocked && (
               <div className="px-5 md:px-10 lg:px-16 mt-2 md:mt-3 relative z-10 mb-4 md:mb-6 space-y-3">
                 <div className="md:max-w-md lg:max-w-lg">
                   <WifiStrip
@@ -502,6 +507,7 @@ function Guide({ data }: { data: GuideOk }) {
                 )}
               </div>
             )}
+
 
 
             <section id="guide-actions" className="px-5 md:px-10 lg:px-16 relative z-10">

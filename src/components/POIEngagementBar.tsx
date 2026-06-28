@@ -161,27 +161,30 @@ export function POIEngagementBar({
 
   const wrapBase =
     variant === "glass"
-      ? "bg-black/35 backdrop-blur-md text-white/90 border border-white/10"
-      : "bg-background/80 backdrop-blur text-foreground/80 border border-border";
+      ? "bg-black/25 backdrop-blur-md text-white/70 border border-white/5"
+      : "bg-background/60 backdrop-blur text-foreground/60 border border-border/60";
   const btnBase =
-    "inline-flex flex-col items-center justify-center gap-0.5 px-1 py-1 rounded-full text-[9.5px] font-medium tabular-nums transition-opacity opacity-80 hover:opacity-100";
+    "inline-flex flex-col items-center justify-center gap-1 px-1.5 py-1.5 rounded-full text-[10px] font-medium tabular-nums transition-all opacity-60 hover:opacity-100 hover:scale-105";
 
+  // viewsOnly = admin marketplace badge: ainda mostra olhinho.
+  // No guia público: nunca exibimos olhinho — métrica fica só no admin.
   return (
     <div
       ref={ref}
       onClick={(e) => e.stopPropagation()}
-      className={`pointer-events-auto absolute top-1/2 -translate-y-1/2 right-1.5 z-10 flex flex-col items-center gap-0.5 rounded-full px-1 py-1.5 shadow-sm ${wrapBase}`}
+      className={`pointer-events-auto absolute top-1/2 -translate-y-1/2 right-2 z-10 flex flex-col items-center gap-2 rounded-full px-1.5 py-2.5 shadow-sm ${wrapBase}`}
     >
-      <button
-        type="button"
-        aria-label="Visualizações"
-        onClick={onClickView}
-        className={btnBase}
-      >
-        <Eye className="size-3.5" strokeWidth={2} />
-        <span className="leading-none">{counts.views}</span>
-      </button>
-      {!viewsOnly && (
+      {viewsOnly ? (
+        <button
+          type="button"
+          aria-label="Visualizações"
+          onClick={onClickView}
+          className={btnBase}
+        >
+          <Eye className="size-3.5" strokeWidth={1.75} />
+          <span className="leading-none">{counts.views}</span>
+        </button>
+      ) : (
         <>
           <button
             type="button"
@@ -189,24 +192,24 @@ export function POIEngagementBar({
             onClick={fireShare}
             className={btnBase}
           >
-            <Share2 className="size-3.5" strokeWidth={2} />
+            <Share2 className="size-3.5" strokeWidth={1.75} />
           </button>
           <button
             type="button"
             aria-label="Curtir"
             onClick={(e) => { e.stopPropagation(); fireReaction("like"); }}
-            className={`${btnBase} ${reaction === "like" ? "text-rose-400 opacity-100" : ""}`}
+            className={`${btnBase} ${reaction === "like" ? "text-rose-300 opacity-100" : ""}`}
           >
-            <Heart className={`size-3.5 ${reaction === "like" ? "fill-current" : ""}`} strokeWidth={2} />
+            <Heart className={`size-3.5 ${reaction === "like" ? "fill-current" : ""}`} strokeWidth={1.75} />
             <span className="leading-none">{counts.likes}</span>
           </button>
           <button
             type="button"
             aria-label="Descurtir"
             onClick={(e) => { e.stopPropagation(); fireReaction("dislike"); }}
-            className={`${btnBase} ${reaction === "dislike" ? "text-sky-400 opacity-100" : ""}`}
+            className={`${btnBase} ${reaction === "dislike" ? "text-sky-300 opacity-100" : ""}`}
           >
-            <ThumbsDown className={`size-3.5 ${reaction === "dislike" ? "fill-current" : ""}`} strokeWidth={2} />
+            <ThumbsDown className={`size-3.5 ${reaction === "dislike" ? "fill-current" : ""}`} strokeWidth={1.75} />
             <span className="leading-none">{counts.dislikes}</span>
           </button>
         </>
@@ -214,4 +217,5 @@ export function POIEngagementBar({
     </div>
   );
 }
+
 
