@@ -166,9 +166,7 @@ function PropertyEditor() {
   const addCityRefFn = useServerFn(addManualCityReference);
   const updateCityRefFn = useServerFn(updateCityReference);
   const bulkDeleteCityRefsFn = useServerFn(bulkDeleteCityReferences);
-  const refreshGoogle = useServerFn(refreshRecommendationsFromGoogle);
   const queryClient = useQueryClient();
-  const [refreshingGoogle, setRefreshingGoogle] = useState(false);
   const [openFaqIdx, setOpenFaqIdx] = useState<number | null>(null);
 
 
@@ -1349,37 +1347,6 @@ function PropertyEditor() {
         <TabsContent value="recs" className="space-y-5 mt-6">
           {!isNew && <SigmaActiveBanner propertyId={id} />}
           <SectionGroup>
-          <div className="flex items-center gap-3 rounded-xl border border-dashed border-border/70 bg-muted/30 px-3.5 py-2.5">
-            <p className="flex-1 text-[11px] text-muted-foreground leading-snug">
-              Recomendações vêm do Google Maps. <span className="text-foreground/80">Sincronizamos 1×/dia.</span>
-            </p>
-            <Button
-              type="button"
-              variant="secondary"
-              size="sm"
-              className="h-8 rounded-full text-xs shrink-0"
-              disabled={refreshingGoogle || isNew}
-              onClick={async () => {
-                if (isNew) return;
-                setRefreshingGoogle(true);
-                try {
-                  const r = await refreshGoogle({ data: { propertyId: id } });
-                  toast.success(`Atualizado ${r.updated}/${r.total} do Google${r.failed ? ` · ${r.failed} sem retorno` : ""}`);
-                } catch (e) {
-                  toast.error(e instanceof Error ? e.message : "Falha ao sincronizar");
-                } finally {
-                  setRefreshingGoogle(false);
-                }
-              }}
-            >
-              {refreshingGoogle ? <Loader2 className="size-3.5 animate-spin" /> : <RefreshCw className="size-3.5" />}
-              <span className="ml-1.5 hidden sm:inline">{refreshingGoogle ? "Sincronizando…" : "Atualizar"}</span>
-              <span className="ml-1.5 sm:hidden">Sync</span>
-            </Button>
-          </div>
-
-
-
           {/* "Aqui pertinho" é por imóvel; "Pela cidade" mora em city_references
               (compartilhado entre todos os guias da mesma cidade).
               Busca unificada: o sistema decide o quadrante pela distância
@@ -1438,8 +1405,6 @@ function PropertyEditor() {
             lat={form.property.lat}
             lng={form.property.lng}
             hideSearch
-            onGenerate={handleGenerateNearby}
-            generating={generatingNearbyRecs}
             headerExtra={<LinkGuidesButton propertyId={id} />}
           />
 
@@ -1452,8 +1417,6 @@ function PropertyEditor() {
             propertyLng={form.property.lng}
             propertyId={id}
             queryKey={cityRefsKey}
-            onGenerate={() => setGenCityModeOpen(true)}
-            generating={generatingCityRecs}
             listFn={listGeneratedCityRefs}
             addFn={addCityRefFn}
             updateFn={updateCityRefFn}
@@ -2265,8 +2228,8 @@ function CityRefsGroup({
   propertyLng: number | null;
   propertyId: string;
   queryKey: readonly unknown[];
-  onGenerate: () => void;
-  generating: boolean;
+  onGenerate?: () => void;
+  generating?: boolean;
   listFn: (args: { data: { city_label: string; state: string | null; country: string; includeHidden?: boolean; propertyId?: string | null } }) => Promise<{ items: unknown[] }>;
   addFn: (args: { data: Record<string, unknown> }) => Promise<{ id: string | null; duplicate?: boolean }>;
   updateFn: (args: { data: { id: string; patch: Record<string, unknown> } }) => Promise<{ ok: boolean }>;
@@ -2391,9 +2354,8 @@ function CityRefsGroup({
       scope="city"
       lat={propertyLat}
       lng={propertyLng}
-      onGenerate={onGenerate}
       generating={generating || q.isFetching}
-      headerExtra={<><SaveAsSigmaPackButton propertyId={propertyId} /><SigmaImportButton propertyId={propertyId} /><LinkGuidesButton propertyId={propertyId} /></>}
+      headerExtra={<><SigmaImportButton propertyId={propertyId} /><SaveAsSigmaPackButton propertyId={propertyId} /><LinkGuidesButton propertyId={propertyId} /></>}
       hideSearch
       locked={locked}
     />
@@ -2640,7 +2602,7 @@ export function RecGroup({
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button size="sm" variant="outline" className="shrink-0 h-8 rounded-full text-xs" title="Editar">
-                <Settings2 className="size-3.5" /> <span className="hidden sm:inline">Editar</span>
+                <Settings2 className="size-3.5" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">

@@ -49,6 +49,7 @@ export function SigmaImportButton({ propertyId }: { propertyId: string }) {
       qc.invalidateQueries({ queryKey: ["sigma-pack-state", propertyId] });
       qc.invalidateQueries({ queryKey: ["property"] });
       qc.invalidateQueries({ queryKey: ["recs"] });
+      qc.invalidateQueries({ queryKey: ["cityRefs"] });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Erro ao ativar");
     } finally { setBusy(false); }
@@ -62,6 +63,7 @@ export function SigmaImportButton({ propertyId }: { propertyId: string }) {
       setConfirmOff(false);
       qc.invalidateQueries({ queryKey: ["sigma-pack-state", propertyId] });
       qc.invalidateQueries({ queryKey: ["property"] });
+      qc.invalidateQueries({ queryKey: ["cityRefs"] });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Erro ao desativar");
     } finally { setBusy(false); }
@@ -75,7 +77,7 @@ export function SigmaImportButton({ propertyId }: { propertyId: string }) {
         <Button
           size="sm" variant="outline"
           onClick={() => setConfirmOff(true)}
-          className="shrink-0 h-8 rounded-full text-xs bg-amber-500/10 border-amber-400/40 text-amber-200 hover:bg-amber-500/20"
+          className="shrink-0 h-8 w-8 sm:w-auto rounded-full text-xs bg-amber-500/10 border-amber-400/40 text-amber-200 hover:bg-amber-500/20 px-2 sm:px-3"
           title="SigmaGuide ativo — clique para desativar"
         >
           <Lock className="size-3.5" /> <span className="hidden sm:inline">SigmaGuide ativo</span>
@@ -105,10 +107,10 @@ export function SigmaImportButton({ propertyId }: { propertyId: string }) {
       <Button
         size="sm" variant="outline"
         onClick={() => setOpen(true)}
-        className="shrink-0 h-8 rounded-full text-xs border-amber-400/40 text-amber-200 hover:bg-amber-500/10"
-        title="Importar do SigmaGuide"
+          className="shrink-0 h-8 w-8 sm:w-auto rounded-full text-xs border-amber-400/40 text-amber-200 hover:bg-amber-500/10 px-2 sm:px-3"
+        title="Usar Recomendações do Sigma"
       >
-        <Star className="size-3.5" /> <span className="hidden sm:inline">Importar do SigmaGuide</span>
+        <Star className="size-3.5" /> <span className="hidden sm:inline">Usar Recomendações do Sigma</span>
       </Button>
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-md">
@@ -190,6 +192,7 @@ export function SaveAsSigmaPackButton({ propertyId }: { propertyId: string }) {
       setConfirm(false);
       qc.invalidateQueries({ queryKey: ["sigma-packs"] });
       qc.invalidateQueries({ queryKey: ["sigma-pack"] });
+      qc.invalidateQueries({ queryKey: ["sigma-pack-state", propertyId] });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Erro ao salvar");
     } finally { setBusy(false); }

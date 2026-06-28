@@ -13,8 +13,12 @@ import {
   addSigmaRec, updateSigmaRec, deleteSigmaRecs,
   addSigmaMarketplace, updateSigmaMarketplace, deleteSigmaMarketplace,
   addSigmaFaq, updateSigmaFaq, deleteSigmaFaq,
+  adminListPublishedGuidesForSigma, adminApplySigmaPackToProperty,
 } from "@/lib/sigma-recommendations.functions";
-import { ArrowLeft, Plus, Trash2, Loader2, Eye, EyeOff, MapPin, Link2, HelpCircle } from "lucide-react";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Badge } from "@/components/ui/badge";
+import { cityKey as makeCityKey } from "@/lib/city-key";
+import { ArrowLeft, Plus, Trash2, Loader2, Eye, EyeOff, MapPin, Link2, HelpCircle, Send } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/admin/recomendacoes-sigma/$cityKey")({
@@ -52,9 +56,12 @@ function SigmaPackEditor() {
         <Link to="/admin/recomendacoes-sigma" className="text-xs text-muted-foreground hover:text-foreground inline-flex items-center gap-1">
           <ArrowLeft className="size-3.5" /> Voltar
         </Link>
-        <Button variant="outline" onClick={togglePublish} className="rounded-full">
-          {pack.is_published ? <><EyeOff className="size-3.5" /> Despublicar</> : <><Eye className="size-3.5" /> Publicar</>}
-        </Button>
+        <div className="flex items-center gap-2">
+          <ApplySigmaToGuideButton cityKey={cityKey} disabled={!pack.is_published} />
+          <Button variant="outline" onClick={togglePublish} className="rounded-full">
+            {pack.is_published ? <><EyeOff className="size-3.5" /> Despublicar</> : <><Eye className="size-3.5" /> Publicar</>}
+          </Button>
+        </div>
       </div>
 
       <header className="flex items-end gap-4">
@@ -84,6 +91,74 @@ function SigmaPackEditor() {
         </TabsContent>
       </Tabs>
     </div>
+  );
+}
+
+function ApplySigmaToGuideButton({ cityKey, disabled }: { cityKey: string; disabled?: boolean }) {
+  const [open, setOpen] = useState(false);
+  const [applyingId, setApplyingId] = useState<string | null>(null);
+  const listFn = useServerFn(adminListPublishedGuidesForSigma);
+  const applyFn = useServerFn(adminApplySigmaPackToProperty);
+  const q = useQuery({
+    queryKey: ["sigma-published-guides", cityKey],
+    queryFn: () => listFn({ data: { city_key: cityKey } }),
+    enabled: open,
+  });
+
+  async function apply(propertyId: string) {
+    setApplyingId(propertyId);
+    try {
+      await applyFn({ data: { city_key: cityKey, property_id: propertyId } });
+      toast.success("Recomendação SigmaGuide aplicada ao guia.");
+      void q.refetch();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erro ao aplicar");
+    } finally {
+      setApplyingId(null);
+    }
+  }
+
+  return (
+    <>
+      <Button variant="secondary" onClick={() => setOpen(true)} disabled={disabled} className="rounded-full" title={disabled ? "Publique antes de aplicar" : "Aplicar em um Guia"}>
+        <Send className="size-3.5" /> Aplicar em um Guia
+      </Button>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Aplicar em um Guia</DialogTitle>
+            <DialogDescription>
+              Escolha um guia publicado/ativo desta cidade. O conteúdo SigmaGuide substituirá pontos da cidade e marketplace, mantendo FAQs manuais editáveis.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="max-h-[55vh] overflow-y-auto space-y-2 pr-1">
+            {q.isLoading && <div className="text-sm text-muted-foreground py-6">Carregando guias…</div>}
+            {!q.isLoading && (q.data ?? []).length === 0 && (
+              <div className="text-sm text-muted-foreground py-6">Nenhum guia publicado/ativo encontrado para esta cidade.</div>
+            )}
+            {(q.data ?? []).map((g) => {
+              const sameCity = makeCityKey(g.city ?? "") === cityKey;
+              return (
+                <div key={g.id} className="rounded-xl border border-border/60 bg-card/60 p-3 flex items-center gap-3">
+                  {g.hero_image_url ? <img src={g.hero_image_url} alt="" className="size-11 rounded-lg object-cover" /> : <div className="size-11 rounded-lg bg-muted grid place-items-center"><MapPin className="size-4 text-muted-foreground" /></div>}
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <p className="text-sm font-medium truncate">{g.name}</p>
+                      {g.sigma_pack_city_key === cityKey && <Badge variant="secondary" className="shrink-0">Já aplicado</Badge>}
+                      {!sameCity && <Badge variant="outline" className="shrink-0">Outra cidade</Badge>}
+                    </div>
+                    <p className="text-xs text-muted-foreground truncate">{g.city}{g.state ? `/${g.state}` : ""} · {g.owner_email ?? "sem e-mail"}</p>
+                  </div>
+                  <Button size="sm" className="rounded-full" onClick={() => apply(g.id)} disabled={!sameCity || applyingId === g.id}>
+                    {applyingId === g.id && <Loader2 className="size-3.5 animate-spin" />} Aplicar
+                  </Button>
+                </div>
+              );
+            })}
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 
