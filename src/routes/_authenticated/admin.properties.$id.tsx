@@ -2630,7 +2630,7 @@ export function RecGroup({
                 <Settings2 className="size-3.5" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
+            <DropdownMenuContent align="end" className="max-h-[420px] overflow-y-auto w-64">
               <DropdownMenuLabel className="text-[10px] uppercase tracking-wider text-muted-foreground">Taxonomia</DropdownMenuLabel>
               <DropdownMenuItem onSelect={() => setShowNewCat(true)}>
                 <Plus className="size-3.5" /> Nova categoria
@@ -2638,6 +2638,41 @@ export function RecGroup({
               <DropdownMenuItem onSelect={() => setShowNewTag(true)}>
                 <Plus className="size-3.5" /> Nova tag
               </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuLabel className="text-[10px] uppercase tracking-wider text-muted-foreground">Editar categorias</DropdownMenuLabel>
+              <div className="px-1.5 pb-1.5 space-y-0.5">
+                {(taxonomy?.categories ?? []).map((c) => {
+                  const count = groups.get(c.label)?.items.length ?? 0;
+                  return (
+                    <div
+                      key={c.id}
+                      className="flex items-center gap-1 rounded px-1.5 py-1 hover:bg-muted/60"
+                      onClick={(e) => e.stopPropagation()}
+                      onKeyDown={(e) => e.stopPropagation()}
+                    >
+                      <span className="flex-1 truncate text-xs">
+                        {c.label} <span className="text-muted-foreground">({count})</span>
+                      </span>
+                      <InlineCategoryRename
+                        currentLabel={c.label}
+                        categoryId={c.id}
+                        isProtected={c.is_protected}
+                        items={items}
+                        onChange={onChange}
+                      />
+                      <CategoryDeleteButton
+                        currentLabel={c.label}
+                        categoryId={c.id}
+                        isProtected={c.is_protected}
+                        allCategories={(taxonomy?.categories ?? []).map((x) => ({ id: x.id, label: x.label }))}
+                        itemsInCategory={count}
+                        items={items}
+                        onChange={onChange}
+                      />
+                    </div>
+                  );
+                })}
+              </div>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
