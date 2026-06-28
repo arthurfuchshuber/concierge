@@ -544,7 +544,7 @@ export const adminListAuditLogs = createServerFn({ method: "POST" })
     }
     const { data: rows, error } = await q;
     if (error) throw new Error("Erro ao carregar registros de atividade");
-    const rowList = (rows ?? []) as Array<{ id: string; user_id: string | null; user_email: string | null; action: string; entity_type: string | null; entity_id: string | null; metadata: Record<string, string | number | boolean | null>; created_at: string }>;
+    const rowList = (rows ?? []) as Array<{ id: string; user_id: string | null; user_email: string | null; action: string; entity_type: string | null; entity_id: string | null; metadata: unknown; created_at: string }>;
     const missing = Array.from(new Set(rowList.filter((r) => r.user_id && !r.user_email).map((r) => r.user_id as string)));
     const emailMap = new Map<string, string>();
     if (missing.length) {
@@ -561,8 +561,9 @@ export const adminListAuditLogs = createServerFn({ method: "POST" })
         action: r.action,
         entityType: r.entity_type,
         entityId: r.entity_id,
-        metadata: r.metadata ?? {},
+        metadataJson: r.metadata ? JSON.stringify(r.metadata) : "{}",
         createdAt: r.created_at,
       })),
     };
   });
+
