@@ -242,8 +242,9 @@ export const Route = createFileRoute("/api/public/guide-chat")({
           supabaseAdmin.from("property_emergency_contacts").select("label, number").eq("property_id", prop.id).order("position"),
           supabaseAdmin.from("property_checkout_items").select("label").eq("property_id", prop.id).order("position"),
           supabaseAdmin.from("property_recommendations").select("name, category, type, scope, distance_text, note").eq("property_id", prop.id).order("position"),
-          supabaseAdmin.from("host_knowledge").select("title, body").eq("owner_id", prop.owner_id).eq("enabled", true).order("position"),
-          supabaseAdmin.from("host_behavior").select("title, body").eq("owner_id", prop.owner_id).eq("enabled", true).order("position"),
+          supabaseAdmin.from("host_knowledge").select("title, body").eq("owner_id", prop.owner_id).eq("enabled", true).or(`scope_property_id.is.null,scope_property_id.eq.${prop.id}`).order("position"),
+          supabaseAdmin.from("host_behavior").select("title, body").eq("owner_id", prop.owner_id).eq("enabled", true).or(`scope_property_id.is.null,scope_property_id.eq.${prop.id}`).order("position"),
+
           ck
             ? supabaseAdmin
                 .from("city_references")
