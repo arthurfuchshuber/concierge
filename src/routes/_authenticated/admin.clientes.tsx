@@ -371,14 +371,11 @@ function ClientesPage() {
           onClose={() => setEditing(null)}
           onSave={async (values) => {
             try {
-              const { fullName, ...subValues } = values;
-              // Atualiza nome do cliente em paralelo (independente da assinatura).
-              await Promise.all([
-                profileUpdater({ data: { userId: editing.userId, fullName } }),
-                subValues.plan
-                  ? updater({ data: { userId: editing.userId, ...(subValues as Omit<EditValues, "fullName" | "plan"> & { plan: PlanKey }) } })
-                  : Promise.resolve(),
-              ]);
+              const { fullName, plan, ...rest } = values;
+              await profileUpdater({ data: { userId: editing.userId, fullName } });
+              if (plan) {
+                await updater({ data: { userId: editing.userId, plan, ...rest } });
+              }
               toast.success("Cliente atualizado");
               qc.invalidateQueries({ queryKey: ["admin-customers"] });
               setEditing(null);
