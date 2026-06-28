@@ -169,12 +169,33 @@ function Dashboard() {
 
   return (
     <div className="px-6 lg:px-10 py-8 lg:py-10 max-w-7xl mx-auto w-full">
+      {readOnly && (
+        <div className="mb-6 rounded-md border border-accent/30 bg-accent/10 px-4 py-3 flex items-center gap-3">
+          <Eye className="size-4 text-accent shrink-0" />
+          <div className="flex-1 text-sm">
+            Visualizando o painel de{" "}
+            <span className="font-semibold">{impersonation?.name ?? "—"}</span>
+            <span className="text-muted-foreground"> · somente leitura</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => { clearImpersonation(); navigate({ to: "/admin" }); }}
+            className="text-xs px-3 py-1.5 rounded-md border border-border bg-background/60 hover:bg-secondary"
+          >
+            Sair da visualização
+          </button>
+        </div>
+      )}
       {/* Welcome */}
       <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-8">
         <div>
-          <h1 className="font-display text-3xl md:text-4xl leading-tight">Bem-vindo de volta</h1>
+          <h1 className="font-display text-3xl md:text-4xl leading-tight">
+            {readOnly ? `Painel de ${impersonation?.name ?? ""}` : "Bem-vindo de volta"}
+          </h1>
           <p className="text-sm text-muted-foreground mt-1.5">
-            Aqui está o resumo do seu painel hoje.
+            {readOnly
+              ? "Visualização apenas de leitura. Nenhuma alteração será salva."
+              : "Aqui está o resumo do seu painel hoje."}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -186,23 +207,25 @@ function Dashboard() {
           >
             <PlayCircle className="size-4" /> Ver demo ao vivo
           </a>
-          <Button
-            onClick={() => navigate({ to: "/admin/properties/$id", params: { id: "new" } })}
-            className="rounded-full"
-            disabled={reachedLimit || !sub.plan}
-            title={
-              !sub.plan
-                ? "Assine um plano para criar guias"
-                : reachedLimit
-                ? "Limite do seu plano atingido. Faça upgrade."
-                : undefined
-            }
-          >
-            <Plus className="size-4 mr-1.5" /> Novo guia
-          </Button>
-
+          {!readOnly && (
+            <Button
+              onClick={() => navigate({ to: "/admin/properties/$id", params: { id: "new" } })}
+              className="rounded-full"
+              disabled={reachedLimit || !sub.plan}
+              title={
+                !sub.plan
+                  ? "Assine um plano para criar guias"
+                  : reachedLimit
+                  ? "Limite do seu plano atingido. Faça upgrade."
+                  : undefined
+              }
+            >
+              <Plus className="size-4 mr-1.5" /> Novo guia
+            </Button>
+          )}
         </div>
       </div>
+
 
       {/* Stat cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-10">
