@@ -259,10 +259,42 @@ function BibliotecaPage() {
         </p>
       </div>
 
+      <div className="mb-5 flex flex-wrap items-center gap-2">
+        <span className="text-xs uppercase tracking-wider text-muted-foreground font-medium mr-1">
+          Mostrar:
+        </span>
+        <button
+          type="button"
+          onClick={() => setScopeView("all")}
+          className={`text-xs rounded-full px-3 py-1 border transition-colors ${scopeView === "all" ? "bg-accent text-accent-foreground border-accent" : "bg-background border-border text-muted-foreground hover:border-accent/50"}`}
+        >
+          Todos
+        </button>
+        <button
+          type="button"
+          onClick={() => setScopeView("global")}
+          className={`text-xs rounded-full px-3 py-1 border transition-colors ${scopeView === "global" ? "bg-accent text-accent-foreground border-accent" : "bg-background border-border text-muted-foreground hover:border-accent/50"}`}
+        >
+          🌐 Global
+        </button>
+        <select
+          value={scopeView !== "all" && scopeView !== "global" ? scopeView : ""}
+          onChange={(e) => setScopeView(e.target.value || "all")}
+          className="text-xs rounded-full border border-border bg-background/60 px-3 py-1 text-muted-foreground hover:text-foreground focus:outline-none focus:ring-1 focus:ring-accent"
+        >
+          <option value="">📍 Por guia…</option>
+          {properties.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.name}
+            </option>
+          ))}
+        </select>
+      </div>
+
       <Tabs defaultValue="faqs" className="w-full">
         <TabsList className="mb-6">
           <TabsTrigger value="faqs" className="gap-2">
-            <HelpCircle className="size-4" /> FAQ global
+            <HelpCircle className="size-4" /> FAQ
           </TabsTrigger>
           <TabsTrigger value="knowledge" className="gap-2">
             <BrainCircuit className="size-4" /> Conhecimento da IA
@@ -273,6 +305,7 @@ function BibliotecaPage() {
             {aiLocked ? <AiPlanLock locked badgeOnly>x</AiPlanLock> : null}
           </TabsTrigger>
         </TabsList>
+
 
         <TabsContent value="faqs" className="space-y-4">
           <div className="rounded-2xl border border-border bg-card/40 p-4">
