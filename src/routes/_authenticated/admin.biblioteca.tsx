@@ -643,7 +643,9 @@ function BibliotecaPage() {
                 </p>
               ) : (
                 <div className="space-y-3">
-                  {behavior.map((b, i) => (
+                  {behavior.map((b, i) => {
+                    if (!matchesScope(b.scope_property_id)) return null;
+                    return (
                     <div key={i} className="rounded-2xl border border-border bg-card p-4 space-y-3">
                       <div className="flex items-start gap-2">
                         <div className="flex-1 space-y-3">
@@ -670,19 +672,31 @@ function BibliotecaPage() {
                               )
                             }
                           />
-                          <div className="flex items-center gap-2">
-                            <Switch
-                              checked={b.enabled}
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-2">
+                              <Switch
+                                checked={b.enabled}
+                                disabled={aiLocked}
+                                onCheckedChange={(v) =>
+                                  setBehavior((arr) =>
+                                    arr.map((x, j) => (j === i ? { ...x, enabled: v } : x)),
+                                  )
+                                }
+                              />
+                              <span className="text-xs text-muted-foreground">
+                                {b.enabled ? "Ativa" : "Desativada"}
+                              </span>
+                            </div>
+                            <ScopeBadge
+                              value={b.scope_property_id}
+                              properties={properties}
                               disabled={aiLocked}
-                              onCheckedChange={(v) =>
+                              onChange={(v) =>
                                 setBehavior((arr) =>
-                                  arr.map((x, j) => (j === i ? { ...x, enabled: v } : x)),
+                                  arr.map((x, j) => (j === i ? { ...x, scope_property_id: v } : x)),
                                 )
                               }
                             />
-                            <span className="text-xs text-muted-foreground">
-                              {b.enabled ? "Ativa" : "Desativada"}
-                            </span>
                           </div>
                         </div>
                         <button
@@ -696,7 +710,9 @@ function BibliotecaPage() {
                         </button>
                       </div>
                     </div>
-                  ))}
+                    );
+                  })}
+
                 </div>
               )}
 
