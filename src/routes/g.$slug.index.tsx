@@ -242,7 +242,6 @@ function Guide({ data }: { data: GuideOk }) {
     typeof window !== "undefined" &&
     new URLSearchParams(window.location.search).get("preview") === "1";
   const [accessRec, setAccessRec] = useState<AccessRecord | null>(() => {
-    if (typeof window === "undefined") return null;
     if (isPreview) {
       const today = new Date().toISOString().slice(0, 10);
       return {
@@ -254,9 +253,19 @@ function Guide({ data }: { data: GuideOk }) {
         phoneCountry: null,
       };
     }
-    return readAccessRecord(slug);
+    return null;
   });
-  const needsGate = !accessRec && !isPreview;
+  // Hidrata o registro do localStorage somente após mount (evita mismatch SSR
+  // que descartava o registro e fazia o popup reaparecer a cada acesso).
+  const [gateReady, setGateReady] = useState(isPreview);
+  useEffect(() => {
+    if (isPreview) return;
+    const rec = readAccessRecord(slug);
+    if (rec) setAccessRec(rec);
+    setGateReady(true);
+  }, [slug, isPreview]);
+  const needsGate = gateReady && !accessRec && !isPreview;
+
 
 
   // Faixas da tela inicial somem 12h após a data/horário de check-in
