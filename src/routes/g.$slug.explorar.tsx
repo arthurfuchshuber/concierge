@@ -347,6 +347,7 @@ function ExplorePage() {
   // Engagement counters + my reactions (anon hóspede).
   const fetchCounts = useServerFn(getPoiEngagementCounts);
   const fetchReactions = useServerFn(getMyPoiReactions);
+  const recordEng = useServerFn(recordPoiEngagement);
   const [engCounts, setEngCounts] = useState<PoiCounts>({});
   const [engReactions, setEngReactions] = useState<Record<string, "like" | "dislike">>({});
   useEffect(() => {
