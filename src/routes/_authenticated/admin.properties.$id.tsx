@@ -1506,6 +1506,11 @@ function PropertyEditor() {
                     {m.description.trim().length}/200 {m.description.trim().length < 100 ? `· faltam ${100 - m.description.trim().length} para o mínimo` : ""}
                   </div>
                 </div>
+                {m.url ? (
+                  <div className="flex justify-end">
+                    <POIMetricsBadge counts={{ views: marketplaceClicks[m.url] ?? 0, likes: 0, dislikes: 0, shares: 0 }} viewsOnly position="inline" />
+                  </div>
+                ) : null}
               </ItemCard>
             ))}
             </fieldset>
