@@ -586,19 +586,22 @@ function ExplorePage() {
           <button
             type="button"
             onClick={() => setActiveKey(null)}
-            className="inline-flex items-center gap-1.5 text-[10px] uppercase tracking-[0.24em] font-semibold text-muted-foreground hover:text-foreground transition-colors"
+            aria-label="Voltar para todas as categorias"
+            className="fixed left-3 md:left-6 top-1/2 -translate-y-1/2 z-30 grid place-items-center size-11 rounded-full bg-background/70 backdrop-blur-md border border-border/60 text-foreground/70 shadow-md hover:text-foreground hover:bg-background/90 hover:scale-105 transition-all"
           >
-            <ArrowLeft className="size-3" /> Todas as categorias
+            <ArrowLeft className="size-5" strokeWidth={1.75} />
           </button>
         ) : (
           <Link
             to="/g/$slug"
             params={{ slug }}
-            className="inline-flex items-center gap-1.5 text-[10px] uppercase tracking-[0.24em] font-semibold text-muted-foreground hover:text-foreground transition-colors"
+            aria-label="Voltar ao guia"
+            className="fixed left-3 md:left-6 top-1/2 -translate-y-1/2 z-30 grid place-items-center size-11 rounded-full bg-background/70 backdrop-blur-md border border-border/60 text-foreground/70 shadow-md hover:text-foreground hover:bg-background/90 hover:scale-105 transition-all"
           >
-            <ArrowLeft className="size-3" /> Voltar ao guia
+            <ArrowLeft className="size-5" strokeWidth={1.75} />
           </Link>
         )}
+
 
         <header className="mt-6 mb-8">
           <p className="text-[10px] uppercase tracking-[0.32em] text-accent font-semibold mb-3">Concierge</p>
