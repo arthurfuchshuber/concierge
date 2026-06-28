@@ -31,7 +31,7 @@ import { useCityReferencesRealtime } from "@/hooks/useCityReferencesRealtime";
 import { useTaxonomy } from "@/components/admin/TagPicker";
 import { FilterSheetButton } from "@/components/guide/FilterSheet";
 import { POIEngagementBar } from "@/components/POIEngagementBar";
-import { getPoiEngagementCounts, getMyPoiReactions, type PoiCounts } from "@/lib/poi-engagement.functions";
+import { getPoiEngagementCounts, getMyPoiReactions, recordPoiEngagement, type PoiCounts } from "@/lib/poi-engagement.functions";
 import { useServerFn } from "@tanstack/react-start";
 import { createContext, useContext } from "react";
 
