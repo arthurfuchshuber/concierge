@@ -478,7 +478,10 @@ function Guide({ data }: { data: GuideOk }) {
             />
 
 
-            {!stripsHidden && (
+            {/* Wi-Fi e senhas de acesso ficam sempre visíveis até as 15h00
+                do dia do check-out (checkinLocked). O conteúdo continua
+                travado pelo PIN até o hóspede liberá-lo. */}
+            {!checkinLocked && (
               <div className="px-5 md:px-10 lg:px-16 mt-2 md:mt-3 relative z-10 mb-4 md:mb-6 space-y-3">
                 <div className="md:max-w-md lg:max-w-lg">
                   <WifiStrip
@@ -511,6 +514,7 @@ function Guide({ data }: { data: GuideOk }) {
                 )}
               </div>
             )}
+
 
 
             <section id="guide-actions" className="px-5 md:px-10 lg:px-16 relative z-10">
