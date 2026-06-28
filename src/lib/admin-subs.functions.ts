@@ -42,6 +42,9 @@ export type AdminCustomerRow = {
   fullName: string | null;
   createdAt: string | null;
   lastSignInAt: string | null;
+  // Status do próprio usuário (independente da assinatura).
+  // "active" = login confirmado e não banido; "blocked" = bloqueado; "pending" = nunca logou.
+  userStatus: "active" | "blocked" | "pending";
   totalGuides: number;
   publishedGuides: number;
   avgCompletenessScore: number;
