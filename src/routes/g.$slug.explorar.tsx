@@ -1314,8 +1314,13 @@ function RecRow({ rec }: { rec: Rec }) {
   const href = safeHttpsHref(rec.maps_url, rec.name);
   const typeLabel = TYPE_LABEL[rec.type] || rec.category || rec.type;
 
+  const eng = useContext(EngagementCtx);
+  const counts = eng?.counts[rec.id];
+  const myReaction = eng?.reactions[rec.id] ?? null;
+
   const inner = (
-    <div className="group flex gap-4 bg-card border border-border rounded-2xl p-3 hover:border-accent/40 hover:shadow-lg transition-all">
+    <div className="relative group flex gap-4 bg-card border border-border rounded-2xl p-3 hover:border-accent/40 hover:shadow-lg transition-all">
+
       <div className="relative size-24 sm:size-28 shrink-0 overflow-hidden rounded-xl bg-secondary">
         {rec.image_url ? (
           <img
