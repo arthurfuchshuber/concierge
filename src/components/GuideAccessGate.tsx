@@ -27,21 +27,22 @@ import PhoneInput, { isValidPhoneNumber, type Country } from "react-phone-number
 import "react-phone-number-input/style.css";
 
 const STORAGE_PREFIX = "sg-access-";
-const REASK_AFTER_CHECKIN_MS = 36 * 60 * 60 * 1000;
 
 export type AccessRecord = {
   name: string;
   code: string | null;
   checkinDate: string;
+  checkoutDate: string;
   phone: string | null;
   phoneCountry: string | null;
 };
 
-function isExpired(checkinDate: string): boolean {
-  const [y, m, d] = checkinDate.split("-").map(Number);
+function isExpired(checkoutDate: string): boolean {
+  // Acesso expira no dia do check-out às 15h00 (horário local).
+  const [y, m, d] = checkoutDate.split("-").map(Number);
   if (!y || !m || !d) return true;
-  const checkin = new Date(y, m - 1, d, 0, 0, 0, 0).getTime();
-  return Date.now() > checkin + REASK_AFTER_CHECKIN_MS;
+  const end = new Date(y, m - 1, d, 15, 0, 0, 0).getTime();
+  return Date.now() > end;
 }
 
 export function readAccessRecord(slug: string): AccessRecord | null {
@@ -50,8 +51,8 @@ export function readAccessRecord(slug: string): AccessRecord | null {
     const raw = window.localStorage.getItem(STORAGE_PREFIX + slug);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as Partial<AccessRecord>;
-    if (!parsed?.name || !parsed?.checkinDate) return null;
-    if (isExpired(parsed.checkinDate)) {
+    if (!parsed?.name || !parsed?.checkinDate || !parsed?.checkoutDate) return null;
+    if (isExpired(parsed.checkoutDate)) {
       window.localStorage.removeItem(STORAGE_PREFIX + slug);
       return null;
     }
@@ -59,6 +60,7 @@ export function readAccessRecord(slug: string): AccessRecord | null {
       name: parsed.name,
       code: parsed.code ?? null,
       checkinDate: parsed.checkinDate,
+      checkoutDate: parsed.checkoutDate,
       phone: parsed.phone ?? null,
       phoneCountry: parsed.phoneCountry ?? null,
     };
@@ -66,6 +68,7 @@ export function readAccessRecord(slug: string): AccessRecord | null {
     return null;
   }
 }
+
 
 type Props = {
   slug: string;
