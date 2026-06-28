@@ -440,14 +440,36 @@ const RecPayload = z.object({
   rating: z.number().nullable().optional(),
   user_ratings_total: z.number().int().nullable().optional(),
   note: z.string().max(1000).nullable().optional(),
-  image_url: z.string().url().nullable().optional(),
-  maps_url: z.string().url().nullable().optional(),
+  image_url: z.string().nullable().optional(),
+  maps_url: z.string().nullable().optional(),
   place_id: z.string().nullable().optional(),
   address: z.string().nullable().optional(),
   lat: z.number().nullable().optional(),
   lng: z.number().nullable().optional(),
   opening_hours: z.array(z.string()).nullable().optional(),
 });
+
+// Re-aplica o pack Sigma em todos os guias inscritos (sigma_pack_city_key = cityKey),
+// para que qualquer alteração feita no painel do Sigma propague instantaneamente.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function propagateSigmaPackToSubscribers(supabaseAdmin: any, cityKey: string) {
+  try {
+    const { data: subs } = await supabaseAdmin
+      .from("properties")
+      .select("id")
+      .eq("sigma_pack_city_key", cityKey);
+    const ids = ((subs ?? []) as { id: string }[]).map((p) => p.id);
+    for (const id of ids) {
+      try {
+        await applySigmaPackToPropertyInternal(supabaseAdmin, id, cityKey);
+      } catch {
+        // ignora falha individual para não bloquear o restante
+      }
+    }
+  } catch {
+    // Propagação é best-effort; não derruba a edição.
+  }
+}
 export const addSigmaRec = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((i: unknown) => RecPayload.parse(i))
