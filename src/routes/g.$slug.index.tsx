@@ -2286,6 +2286,45 @@ function AccessCodesStrip({
   );
 }
 
+function CheckoutNoticeStrip({
+  note,
+  checkoutTime,
+  theme,
+}: {
+  note: string | null;
+  checkoutTime: string | null;
+  theme: "dark" | "light";
+}) {
+  const isLight = theme === "light";
+  const fmt = (s: string) => {
+    const m = s.match(/^(\d{1,2}):(\d{2})/);
+    return m ? `${m[1].padStart(2, "0")}h${m[2] !== "00" ? m[2] : ""}` : s;
+  };
+  const summary = checkoutTime ? `Check-out hoje até ${fmt(String(checkoutTime))}` : "Hoje é o seu dia de check-out";
+  return (
+    <div className={`relative overflow-hidden rounded-[22px] border ${isLight ? "border-border bg-card shadow-[0_4px_18px_-8px_rgba(0,0,0,0.10)]" : "border-amber-500/25 bg-[linear-gradient(135deg,oklch(0.22_0.05_55/0.95)_0%,oklch(0.16_0.04_50/0.92)_60%,oklch(0.12_0.03_45/0.95)_100%)] shadow-[0_14px_40px_-18px_oklch(from_var(--accent)_l_c_h/0.55)]"}`}>
+      <div className={`pointer-events-none absolute inset-0 ${isLight ? "opacity-[0.04]" : "opacity-[0.07]"} [background-image:radial-gradient(oklch(var(--accent))_1px,transparent_1px)] [background-size:14px_14px]`} />
+      <div className={`pointer-events-none absolute -top-12 -right-12 size-40 rounded-full ${isLight ? "bg-accent/15" : "bg-accent/25"} blur-3xl`} />
+      <div className="relative flex items-start gap-4 px-5 py-3.5 md:px-6 md:py-4">
+        <span className={`relative grid size-12 shrink-0 place-items-center rounded-2xl ring-1 ${isLight ? "bg-accent/15 text-accent/80 ring-accent/20" : "bg-accent/10 text-accent/75 ring-accent/15"}`}>
+          <LogOut className="relative size-[20px]" strokeWidth={2} />
+        </span>
+        <div className="flex-1 min-w-0">
+          <p className="text-[10px] uppercase tracking-[0.32em] text-accent/75 font-semibold">Aviso de check-out</p>
+          <p className="text-[14px] text-foreground/90 font-semibold mt-1 leading-snug">{summary}</p>
+          {note && (
+            <p className="text-[13px] text-foreground/80 leading-relaxed whitespace-pre-line mt-1.5">
+              {note}
+            </p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+
 function PinDialog({
   open,
   onOpenChange,
