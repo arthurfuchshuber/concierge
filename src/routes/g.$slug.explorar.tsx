@@ -30,7 +30,7 @@ import { toTitleCase } from "@/lib/text";
 import { useCityReferencesRealtime } from "@/hooks/useCityReferencesRealtime";
 import { useTaxonomy } from "@/components/admin/TagPicker";
 import { FilterSheetButton } from "@/components/guide/FilterSheet";
-import { POIEngagementBar, type EngagementCounts } from "@/components/POIEngagementBar";
+import { POIEngagementBar } from "@/components/POIEngagementBar";
 import { getPoiEngagementCounts, getMyPoiReactions, type PoiCounts } from "@/lib/poi-engagement.functions";
 import { useServerFn } from "@tanstack/react-start";
 import { createContext, useContext } from "react";
