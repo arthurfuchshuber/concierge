@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { useSubscription } from "@/hooks/useSubscription";
 import { OnboardingCheckout } from "@/components/OnboardingCheckout";
+import { ClientSwitcher } from "@/components/admin/ClientSwitcher";
 
 export const Route = createFileRoute("/_authenticated/admin")({
   component: AdminLayout,
