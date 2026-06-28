@@ -11,10 +11,11 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import {
-  listAllSigmaPacks, createSigmaPack, deleteSigmaPack, updateSigmaPack,
+  listAllSigmaPacks, createSigmaPack, deleteSigmaPack, updateSigmaPack, adminRefreshAllSigmaSubscribers,
 } from "@/lib/sigma-recommendations.functions";
-import { Star, Plus, Globe2, Users, MapPin, Eye, EyeOff, Trash2, Loader2, ArrowRight } from "lucide-react";
+import { Star, Plus, Globe2, Users, MapPin, Eye, EyeOff, Trash2, Loader2, ArrowRight, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
+import { friendlyErrorMessage } from "@/lib/friendly-error";
 
 export const Route = createFileRoute("/_authenticated/admin/recomendacoes-sigma/")({
   component: SigmaPacksIndex,
