@@ -1344,7 +1344,7 @@ function RecRow({ rec }: { rec: Rec }) {
   const walking = formatWalking(rec);
   const driving = formatDriving(rec);
   const href = safeHttpsHref(rec.maps_url, rec.name);
-  const typeLabel = TYPE_LABEL[rec.type] || rec.category || rec.type;
+  // typeLabel removido do guia público.
 
   const eng = useContext(EngagementCtx);
   const counts = eng?.counts[rec.id];
