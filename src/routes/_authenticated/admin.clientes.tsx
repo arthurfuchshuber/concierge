@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import {
   adminListCustomers,
   adminUpdateSubscription,
+  adminUpdateCustomerProfile,
   adminListUserProperties,
   checkIsAdmin,
   type AdminCustomerRow,
