@@ -284,15 +284,13 @@ export const listAllSigmaPacks = createServerFn({ method: "GET" })
       arr.push(r);
       byCity.set(r.city_key, arr);
     }
+    // Mesmo racional do guia público: somente imagens de pontos com nota >= 4.8,
+    // ordenadas pelo MAIOR número de avaliações. Sem candidatos elegíveis,
+    // a capa fica sem imagem (preserva a curadoria).
     byCity.forEach((arr, key) => {
       const sorted = arr
-        .filter((x) => x.image_url)
-        .sort((a, b) => {
-          const ar = a.rating ?? 0;
-          const br = b.rating ?? 0;
-          if (br !== ar) return br - ar;
-          return (b.user_ratings_total ?? 0) - (a.user_ratings_total ?? 0);
-        });
+        .filter((x) => x.image_url && (x.rating ?? 0) >= 4.8)
+        .sort((a, b) => (b.user_ratings_total ?? 0) - (a.user_ratings_total ?? 0));
       if (sorted[0]?.image_url) autoCover.set(key, sorted[0].image_url);
     });
     const rc = count((recs.data ?? []).map((r) => ({ city_key: (r as { city_key: string }).city_key })));
