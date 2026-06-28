@@ -1424,7 +1424,9 @@ function PropertyEditor() {
             lng={form.property.lng}
             hideSearch
             headerExtra={<LinkGuidesButton propertyId={id} />}
+            metricsCounts={poiCounts}
           />
+
 
 
           <CityRefsGroup
