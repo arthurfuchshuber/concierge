@@ -632,7 +632,13 @@ function StatCard({ label, value, tone }: { label: string; value: number; tone?:
   );
 }
 
-function StatusBadge({ status }: { status?: string | null }) {
+function StatusBadge({
+  status,
+  userStatus,
+}: {
+  status?: string | null;
+  userStatus?: "active" | "blocked" | "pending";
+}) {
   const map: Record<string, { label: string; className: string; dot: string }> = {
     active: { label: "Ativo", className: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20", dot: "bg-emerald-500" },
     trialing: { label: "Trial", className: "bg-sky-500/10 text-sky-700 dark:text-sky-400 border-sky-500/20", dot: "bg-sky-500" },
@@ -642,7 +648,19 @@ function StatusBadge({ status }: { status?: string | null }) {
   };
   const info = status ? map[status] : null;
   if (!info) {
-    return <span className="text-xs text-muted-foreground/60">sem plano</span>;
+    // Sem assinatura → mostra status do próprio usuário.
+    const u =
+      userStatus === "blocked"
+        ? { label: "Bloqueado", className: "bg-red-500/10 text-red-700 dark:text-red-400 border-red-500/20", dot: "bg-red-500" }
+        : userStatus === "pending"
+          ? { label: "Aguardando 1º acesso", className: "bg-secondary text-muted-foreground border-border", dot: "bg-muted-foreground/60" }
+          : { label: "Ativo", className: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20", dot: "bg-emerald-500" };
+    return (
+      <span className={`inline-flex items-center gap-1.5 text-[10px] uppercase tracking-wider font-semibold px-2 py-1 rounded-full border ${u.className}`}>
+        <span className={`size-1.5 rounded-full ${u.dot}`} />
+        {u.label}
+      </span>
+    );
   }
   return (
     <span className={`inline-flex items-center gap-1.5 text-[10px] uppercase tracking-wider font-semibold px-2 py-1 rounded-full border ${info.className}`}>
