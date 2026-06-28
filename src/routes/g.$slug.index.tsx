@@ -1335,7 +1335,7 @@ function HeroCompact({
             src={src}
             alt=""
             style={{ transform: `translateY(${scrollY * 0.28}px) scale(1.08)`, transformOrigin: "center top" }}
-            className={`absolute inset-0 size-full object-cover object-[62%_45%] transition-opacity duration-500 will-change-transform ${i === idx ? "opacity-100" : "opacity-0"}`}
+            className={`absolute inset-0 size-full object-cover object-[center_bottom] transition-opacity duration-500 will-change-transform ${i === idx ? "opacity-100" : "opacity-0"}`}
           />
         ))}
       </div>
