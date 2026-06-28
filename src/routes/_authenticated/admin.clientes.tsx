@@ -371,8 +371,15 @@ function ClientesPage() {
           onClose={() => setEditing(null)}
           onSave={async (values) => {
             try {
-              await updater({ data: { userId: editing.userId, ...values } });
-              toast.success("Assinatura atualizada");
+              const { fullName, ...subValues } = values;
+              // Atualiza nome do cliente em paralelo (independente da assinatura).
+              await Promise.all([
+                profileUpdater({ data: { userId: editing.userId, fullName } }),
+                subValues.plan
+                  ? updater({ data: { userId: editing.userId, ...(subValues as Omit<EditValues, "fullName" | "plan"> & { plan: PlanKey }) } })
+                  : Promise.resolve(),
+              ]);
+              toast.success("Cliente atualizado");
               qc.invalidateQueries({ queryKey: ["admin-customers"] });
               setEditing(null);
             } catch (e) {
@@ -386,6 +393,7 @@ function ClientesPage() {
 }
 
 type EditValues = {
+  fullName: string | null;
   plan: PlanKey;
   status: string;
   environment: "sandbox" | "live";
