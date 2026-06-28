@@ -607,11 +607,14 @@ function Guide({ data }: { data: GuideOk }) {
           >
           <Tabs value={section} onValueChange={(v) => setSection(v as Section)} className="px-5 md:px-10 lg:px-16 pt-6 md:pt-10 lg:max-w-3xl lg:mx-auto">
             <button
+              type="button"
               onClick={() => gotoSection("home")}
-              className="inline-flex items-center gap-1.5 text-[10px] uppercase tracking-[0.24em] font-semibold text-muted-foreground hover:text-foreground transition-colors mb-6 md:mb-8"
+              aria-label="Voltar ao guia"
+              className="fixed left-3 md:left-6 top-1/2 -translate-y-1/2 z-30 grid place-items-center size-11 rounded-full bg-background/70 backdrop-blur-md border border-border/60 text-foreground/70 shadow-md hover:text-foreground hover:bg-background/90 hover:scale-105 transition-all"
             >
-              <ArrowLeft className="size-3" /> Voltar ao guia
+              <ArrowLeft className="size-5" strokeWidth={1.75} />
             </button>
+
 
             <TabsContent value="checkin" className="space-y-5">
               <SectionTitle eyebrow="Estadia" title="Chegada" intro="Tudo o que você precisa para chegar e se acomodar." />
