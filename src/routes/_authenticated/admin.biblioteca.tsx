@@ -504,6 +504,7 @@ function BibliotecaPage() {
               ) : (
                 <div className="space-y-3">
                   {knowledge.map((k, i) => {
+                    if (!matchesScope(k.scope_property_id)) return null;
                     const isOpen = openKnow.has(i) || !k.id;
                     return (
                       <div key={i} className="rounded-2xl border border-border bg-card overflow-hidden">
@@ -528,6 +529,16 @@ function BibliotecaPage() {
                               </span>
                             )}
                           </button>
+                          <ScopeBadge
+                            value={k.scope_property_id}
+                            properties={properties}
+                            disabled={aiLocked}
+                            onChange={(v) =>
+                              setKnowledge((arr) =>
+                                arr.map((x, j) => (j === i ? { ...x, scope_property_id: v } : x)),
+                              )
+                            }
+                          />
                           <button
                             type="button"
                             disabled={aiLocked}
@@ -538,6 +549,7 @@ function BibliotecaPage() {
                             <Trash2 className="size-3.5" />
                           </button>
                         </div>
+
                         {isOpen && (
                           <div className="px-3 pb-3 pt-1 space-y-3 border-t border-border/60 bg-background/40">
                             <Input
