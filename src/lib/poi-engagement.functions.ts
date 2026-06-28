@@ -170,3 +170,28 @@ export const getMarketplaceClicks = createServerFn({ method: "GET" })
     }
     return { counts };
   });
+
+/** Admin readout: aggregated counts per poi_key for a property. */
+export const getPropertyPoiCounts = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => z.object({ property_id: z.string().uuid() }).parse(i))
+  .handler(async ({ data, context }): Promise<{ counts: PoiCounts }> => {
+    const { supabase } = context;
+    const { data: rows } = await supabase
+      .from("poi_engagement_events")
+      .select("poi_key,event_type")
+      .eq("property_id", data.property_id)
+      .limit(50000);
+    const counts: PoiCounts = {};
+    for (const r of rows ?? []) {
+      const k = r.poi_key as string;
+      if (!counts[k]) counts[k] = { views: 0, likes: 0, dislikes: 0, shares: 0 };
+      const et = r.event_type as string;
+      if (et === "view") counts[k].views++;
+      else if (et === "like") counts[k].likes++;
+      else if (et === "dislike") counts[k].dislikes++;
+      else if (et === "share") counts[k].shares++;
+    }
+    return { counts };
+  });
+
