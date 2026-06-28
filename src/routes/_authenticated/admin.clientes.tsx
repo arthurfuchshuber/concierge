@@ -511,9 +511,13 @@ function EditDialog({
 
           <div className="space-y-1.5">
             <Label>Plano</Label>
-            <Select value={plan} onValueChange={(v) => setPlan(v as PlanKey)}>
+            <Select
+              value={plan ?? "__none__"}
+              onValueChange={(v) => setPlan(v === "__none__" ? null : (v as PlanKey))}
+            >
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
+                <SelectItem value="__none__">Sem plano</SelectItem>
                 {PLAN_OPTIONS.map((p) => (
                   <SelectItem key={p} value={p}>
                     {PLANS[p].name} — {PLANS[p].priceLabel}
@@ -570,7 +574,7 @@ function EditDialog({
               type="number"
               step="1"
               min="1"
-              placeholder={`Padrão do plano: ${PLANS[plan].maxGuides >= 9999 ? "ilimitado" : PLANS[plan].maxGuides}`}
+              placeholder={plan ? `Padrão do plano: ${PLANS[plan].maxGuides >= 9999 ? "ilimitado" : PLANS[plan].maxGuides}` : "Selecione um plano primeiro"}
               value={maxGuidesOverride}
               onChange={(e) => setMaxGuidesOverride(e.target.value)}
             />
