@@ -2745,6 +2745,9 @@ export function RecGroup({
                               <span className="flex-1" />
                               <ChevronDown className={`size-4 text-muted-foreground transition-transform shrink-0 ${itemOpen ? "rotate-180" : ""}`} />
                             </button>
+                            {metricsCounts && r._dbId ? (
+                              <POIMetricsBadge counts={metricsCounts[r._dbId]} position="inline" />
+                            ) : null}
                             <button
                               type="button"
                               onClick={() => removeAt(idx)}
