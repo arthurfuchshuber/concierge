@@ -60,6 +60,7 @@ const ENV_OPTIONS = ["sandbox", "live"];
 function ClientesPage() {
   const fetcher = useServerFn(adminListCustomers);
   const updater = useServerFn(adminUpdateSubscription);
+  const profileUpdater = useServerFn(adminUpdateCustomerProfile);
   const qc = useQueryClient();
   const [search, setSearch] = useState("");
   const [editing, setEditing] = useState<AdminCustomerRow | null>(null);
