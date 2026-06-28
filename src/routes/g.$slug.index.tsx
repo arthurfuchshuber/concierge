@@ -987,7 +987,7 @@ function Guide({ data }: { data: GuideOk }) {
                             </div>
                           )}
                           {p.checkout_note && (
-                            <div className="mt-3 rounded-2xl border border-accent/30 bg-accent/[0.06] px-4 py-3">
+                            <div className="mt-3 px-1">
                               <p className="text-[10px] uppercase tracking-[0.2em] text-accent/75 font-semibold mb-1.5">Observação</p>
                               <p className="text-[14px] text-foreground/85 leading-relaxed whitespace-pre-line">{String(p.checkout_note)}</p>
                             </div>
