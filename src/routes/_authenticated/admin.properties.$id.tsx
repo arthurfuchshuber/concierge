@@ -32,7 +32,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { TimePicker } from "@/components/ui/time-picker";
 import { DateTimePicker } from "@/components/ui/date-picker";
 import { TagPicker, useTaxonomy, TAXONOMY_QUERY_KEY, NewCategoryDialog, NewTagDialog } from "@/components/admin/TagPicker";
-import { updatePoiCategory, reorderPoiCategories } from "@/lib/poi-taxonomy.functions";
+import { updatePoiCategory, reorderPoiCategories, deletePoiCategory } from "@/lib/poi-taxonomy.functions";
 import { Pencil, Check as CheckIcon, X as XIcon, Search, Settings2 } from "lucide-react";
 import { friendlyErrorMessage } from "@/lib/friendly-error";
 import { SigmaImportButton, SigmaActiveBanner, SaveAsSigmaPackButton } from "@/components/admin/SigmaImportButton";
@@ -2630,7 +2630,7 @@ export function RecGroup({
                 <Settings2 className="size-3.5" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
+            <DropdownMenuContent align="end" className="max-h-[420px] overflow-y-auto w-64">
               <DropdownMenuLabel className="text-[10px] uppercase tracking-wider text-muted-foreground">Taxonomia</DropdownMenuLabel>
               <DropdownMenuItem onSelect={() => setShowNewCat(true)}>
                 <Plus className="size-3.5" /> Nova categoria
@@ -2638,6 +2638,41 @@ export function RecGroup({
               <DropdownMenuItem onSelect={() => setShowNewTag(true)}>
                 <Plus className="size-3.5" /> Nova tag
               </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuLabel className="text-[10px] uppercase tracking-wider text-muted-foreground">Editar categorias</DropdownMenuLabel>
+              <div className="px-1.5 pb-1.5 space-y-0.5">
+                {(taxonomy?.categories ?? []).map((c) => {
+                  const count = groups.get(c.label)?.items.length ?? 0;
+                  return (
+                    <div
+                      key={c.id}
+                      className="flex items-center gap-1 rounded px-1.5 py-1 hover:bg-muted/60"
+                      onClick={(e) => e.stopPropagation()}
+                      onKeyDown={(e) => e.stopPropagation()}
+                    >
+                      <span className="flex-1 truncate text-xs">
+                        {c.label} <span className="text-muted-foreground">({count})</span>
+                      </span>
+                      <InlineCategoryRename
+                        currentLabel={c.label}
+                        categoryId={c.id}
+                        isProtected={c.is_protected}
+                        items={items}
+                        onChange={onChange}
+                      />
+                      <CategoryDeleteButton
+                        currentLabel={c.label}
+                        categoryId={c.id}
+                        isProtected={c.is_protected}
+                        allCategories={(taxonomy?.categories ?? []).map((x) => ({ id: x.id, label: x.label }))}
+                        itemsInCategory={count}
+                        items={items}
+                        onChange={onChange}
+                      />
+                    </div>
+                  );
+                })}
+              </div>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
@@ -2727,6 +2762,17 @@ export function RecGroup({
                         currentLabel={cat}
                         categoryId={taxonomy?.categories.find((c) => c.label === cat)?.id ?? null}
                         isProtected={!!taxonomy?.categories.find((c) => c.label === cat)?.is_protected}
+                        items={items}
+                        onChange={onChange}
+                      />
+                      <CategoryDeleteButton
+                        currentLabel={cat}
+                        categoryId={taxonomy?.categories.find((c) => c.label === cat)?.id ?? null}
+                        isProtected={!!taxonomy?.categories.find((c) => c.label === cat)?.is_protected}
+                        allCategories={(taxonomy?.categories ?? []).map((c) => ({ id: c.id, label: c.label }))}
+                        itemsInCategory={g.items.length}
+                        items={items}
+                        onChange={onChange}
                       />
                       <span className="text-[11px] text-muted-foreground">
                         ({g.items.length}{groupSelected > 0 ? ` · ${groupSelected} sel.` : ""})
@@ -2831,11 +2877,15 @@ export function RecGroup({
 function InlineCategoryRename({
   currentLabel,
   categoryId,
-  isProtected,
+  isProtected: _isProtected,
+  items,
+  onChange,
 }: {
   currentLabel: string;
   categoryId: string | null;
   isProtected: boolean;
+  items: RecItem[];
+  onChange: (i: RecItem[]) => void;
 }) {
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState(currentLabel);
@@ -2845,7 +2895,8 @@ function InlineCategoryRename({
 
   useEffect(() => { setValue(currentLabel); }, [currentLabel]);
 
-  const canEdit = !!categoryId && !isProtected;
+  // Toda categoria pode ser renomeada (mantém a mesma, só ajusta o nome).
+  const canEdit = !!categoryId;
 
   const commit = async (e?: React.SyntheticEvent) => {
     e?.stopPropagation?.();
@@ -2858,6 +2909,8 @@ function InlineCategoryRename({
     try {
       setSaving(true);
       await updateFn({ data: { id: categoryId, label: next } });
+      // Atualiza referência local dos pontos para o novo rótulo (mesma categoria, novo nome)
+      onChange(items.map((it) => (it.category === currentLabel ? { ...it, category: next } : it)));
       await qc.invalidateQueries({ queryKey: TAXONOMY_QUERY_KEY });
       toast.success("Categoria renomeada");
       setEditing(false);
@@ -2919,6 +2972,130 @@ function InlineCategoryRename({
         </button>
       )}
     </div>
+  );
+}
+
+function CategoryDeleteButton({
+  currentLabel,
+  categoryId,
+  isProtected,
+  allCategories,
+  itemsInCategory,
+  items,
+  onChange,
+}: {
+  currentLabel: string;
+  categoryId: string | null;
+  isProtected: boolean;
+  allCategories: { id: string; label: string }[];
+  itemsInCategory: number;
+  items: RecItem[];
+  onChange: (i: RecItem[]) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [mode, setMode] = useState<"move" | "delete">("move");
+  const [targetLabel, setTargetLabel] = useState<string>("");
+  const [saving, setSaving] = useState(false);
+  const qc = useQueryClient();
+  const deleteFn = useServerFn(deletePoiCategory);
+
+  const otherCats = allCategories.filter((c) => c.label !== currentLabel);
+  useEffect(() => {
+    if (open && !targetLabel && otherCats[0]) setTargetLabel(otherCats[0].label);
+  }, [open, targetLabel, otherCats]);
+
+  if (!categoryId || isProtected) return null;
+
+  const confirm = async () => {
+    try {
+      setSaving(true);
+      const targetId = mode === "move"
+        ? allCategories.find((c) => c.label === targetLabel)?.id
+        : undefined;
+      if (mode === "move" && !targetId) {
+        toast.error("Escolha uma categoria de destino.");
+        setSaving(false);
+        return;
+      }
+      await deleteFn({ data: { id: categoryId, reassign_to_category_id: targetId } });
+      // Atualiza os itens locais
+      if (mode === "move" && targetLabel) {
+        onChange(items.map((it) => (it.category === currentLabel ? { ...it, category: targetLabel } : it)));
+        toast.success(`Categoria excluída — pontos movidos para "${targetLabel}"`);
+      } else {
+        onChange(items.filter((it) => it.category !== currentLabel));
+        toast.success("Categoria e pontos excluídos");
+      }
+      await qc.invalidateQueries({ queryKey: TAXONOMY_QUERY_KEY });
+      setOpen(false);
+    } catch (err: any) {
+      toast.error(err?.message || "Erro ao excluir categoria");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={(e) => { e.stopPropagation(); setOpen(true); }}
+        className="inline-flex size-6 items-center justify-center rounded-md text-muted-foreground hover:text-rose-500 hover:bg-muted opacity-60 hover:opacity-100"
+        aria-label="Excluir categoria"
+        title="Excluir categoria"
+      >
+        <Trash2 className="size-3" />
+      </button>
+      <AlertDialog open={open} onOpenChange={setOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir categoria "{currentLabel}"?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {itemsInCategory > 0
+                ? `Existem ${itemsInCategory} ponto(s) vinculado(s) a esta categoria. Escolha o que fazer com eles antes de confirmar.`
+                : "Esta categoria não possui pontos vinculados."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          {itemsInCategory > 0 && (
+            <div className="space-y-3 py-2">
+              <label className="flex items-start gap-2 cursor-pointer">
+                <input type="radio" checked={mode === "move"} onChange={() => setMode("move")} className="mt-1" />
+                <div className="flex-1 space-y-1.5">
+                  <div className="text-sm font-medium">Mover os pontos para outra categoria</div>
+                  <Select value={targetLabel} onValueChange={setTargetLabel} disabled={mode !== "move"}>
+                    <SelectTrigger className="h-8 text-xs">
+                      <SelectValue placeholder="Escolha a categoria de destino" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {otherCats.map((c) => (
+                        <SelectItem key={c.id} value={c.label}>{c.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </label>
+              <label className="flex items-start gap-2 cursor-pointer">
+                <input type="radio" checked={mode === "delete"} onChange={() => setMode("delete")} className="mt-1" />
+                <div className="flex-1">
+                  <div className="text-sm font-medium text-rose-500">Excluir os pontos junto com a categoria</div>
+                  <div className="text-[11px] text-muted-foreground">Esta ação não pode ser desfeita.</div>
+                </div>
+              </label>
+            </div>
+          )}
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={saving}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => { e.preventDefault(); confirm(); }}
+              disabled={saving || (itemsInCategory > 0 && mode === "move" && !targetLabel)}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {saving ? <Loader2 className="size-3.5 animate-spin" /> : "Confirmar exclusão"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }
 
