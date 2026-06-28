@@ -1333,7 +1333,7 @@ function HeroCompact({
 
   return (
     <section
-      className="relative overflow-hidden px-5 md:px-10 lg:px-16 pb-24 md:pb-28 pt-4 md:pt-8 min-h-[56svh] md:min-h-[64svh] flex flex-col"
+      className="relative overflow-hidden px-5 md:px-10 lg:px-16 pb-24 md:pb-28 pt-4 md:pt-8 min-h-[44svh] md:min-h-[52svh] flex flex-col"
       onTouchStart={onTouchStart}
       onTouchEnd={onTouchEnd}
     >
