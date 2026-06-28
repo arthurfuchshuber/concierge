@@ -236,10 +236,26 @@ function Guide({ data }: { data: GuideOk }) {
   // Identification gate is ALWAYS shown on first access (per host requirement).
   // The reservation code is only required when "exigir identificação do hóspede" is enabled.
   const gateEnabled = !!p.require_access_gate;
-  const [accessRec, setAccessRec] = useState<AccessRecord | null>(() =>
-    typeof window === "undefined" ? null : readAccessRecord(slug),
-  );
-  const needsGate = !accessRec;
+  // Modo "preview" para admin do SaaS dentro do iframe (?preview=1): pula o gate
+  // e mostra o conteúdo do guia diretamente, sem exigir preenchimento.
+  const isPreview =
+    typeof window !== "undefined" &&
+    new URLSearchParams(window.location.search).get("preview") === "1";
+  const [accessRec, setAccessRec] = useState<AccessRecord | null>(() => {
+    if (typeof window === "undefined") return null;
+    if (isPreview) {
+      return {
+        name: "Pré-visualização",
+        code: null,
+        checkinDate: new Date().toISOString().slice(0, 10),
+        phone: null,
+        phoneCountry: null,
+      };
+    }
+    return readAccessRecord(slug);
+  });
+  const needsGate = !accessRec && !isPreview;
+
 
   // Access window: credentials visible only between 24h BEFORE check-in start
   // and 12h AFTER check-in start. Outside this window, sensitive fields blur.
