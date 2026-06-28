@@ -1358,15 +1358,6 @@ function HeroCompact({
         <div className="flex items-center gap-2">
           <button
             type="button"
-            onClick={onToggleLang}
-            aria-label="Mudar idioma"
-            title="Mudar idioma"
-            className="h-9 px-3 shrink-0 inline-flex items-center justify-center rounded-full border border-white/25 bg-black/30 text-white/95 backdrop-blur-md transition-colors hover:bg-accent/30 hover:text-white text-[11px] font-semibold tracking-wider uppercase"
-          >
-            {lang === "pt" ? "PT" : lang === "es" ? "ES" : lang === "fr" ? "FR" : "EN"}
-          </button>
-          <button
-            type="button"
             onClick={onToggleTheme}
             aria-label={theme === "dark" ? "Mudar para tema claro" : "Mudar para tema escuro"}
             title={theme === "dark" ? "Tema claro" : "Tema escuro"}
