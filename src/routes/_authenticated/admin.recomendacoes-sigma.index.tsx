@@ -114,7 +114,7 @@ function SigmaPacksIndex() {
           <p className="text-sm text-muted-foreground">Nenhuma cidade ainda. Comece adicionando a primeira.</p>
           <Button onClick={() => setNewOpen(true)}>Criar cidade</Button>
         </div>
-      ) : (
+      ) : viewMode === "grid" ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {packs.map((p) => (
             <article key={p.id} className="group rounded-2xl border border-border/60 bg-card overflow-hidden hover:border-border transition">
@@ -156,6 +156,47 @@ function SigmaPacksIndex() {
                     <Trash2 className="size-4" />
                   </Button>
                 </div>
+              </div>
+            </article>
+          ))}
+        </div>
+      ) : (
+        <div className="flex flex-col gap-3">
+          {packs.map((p) => (
+            <article key={p.id} className="group flex gap-4 rounded-2xl border border-border/60 bg-card p-3 hover:border-border transition">
+              <div className="relative size-24 sm:size-28 shrink-0 rounded-xl overflow-hidden bg-gradient-to-br from-amber-500/20 via-rose-500/10 to-fuchsia-500/20">
+                {p.cover_url && <img src={p.cover_url} alt={p.city_label} className="absolute inset-0 size-full object-cover" />}
+              </div>
+              <div className="flex-1 min-w-0 flex flex-col justify-center gap-1.5">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h3 className="font-display text-lg leading-tight truncate">{p.city_label}</h3>
+                  <span className={`text-[9px] uppercase tracking-wider font-medium px-1.5 py-0.5 rounded-full ${
+                    p.is_published ? "bg-emerald-500/20 text-emerald-700 dark:text-emerald-300" : "bg-amber-500/20 text-amber-700 dark:text-amber-300"
+                  }`}>
+                    {p.is_published ? "Publicado" : "Rascunho"}
+                  </span>
+                </div>
+                <div className="text-[11px] text-muted-foreground">
+                  {p.country ? `${p.country} · ` : ""}
+                  {p.recs_count} pontos · {p.marketplace_count} marketplace · {p.faqs_count} FAQs · {p.adoption_count} guias usando
+                </div>
+              </div>
+              <div className="flex items-center gap-1.5 shrink-0">
+                <Link
+                  to="/admin/recomendacoes-sigma/$cityKey"
+                  params={{ cityKey: p.city_key }}
+                  className="inline-flex items-center justify-center gap-1 h-9 px-3 rounded-full text-xs font-medium bg-primary text-primary-foreground hover:bg-primary/90"
+                >
+                  Editar <ArrowRight className="size-3.5" />
+                </Link>
+                <Button size="sm" variant="ghost" className="h-9 w-9 p-0 rounded-full"
+                  onClick={() => togglePublish(p)} title={p.is_published ? "Despublicar" : "Publicar"}>
+                  {p.is_published ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                </Button>
+                <Button size="sm" variant="ghost" className="h-9 w-9 p-0 rounded-full text-rose-400 hover:text-rose-300"
+                  onClick={() => setConfirmDel(p)} title="Excluir">
+                  <Trash2 className="size-4" />
+                </Button>
               </div>
             </article>
           ))}
