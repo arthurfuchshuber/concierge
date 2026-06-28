@@ -1439,16 +1439,8 @@ function ThemeCard({
             {desc}
           </p>
         </div>
-        <span
-          className={
-            "absolute right-3 top-3 sm:right-4 sm:top-4 grid size-7 sm:size-8 place-items-center rounded-full transition-all duration-300 group-hover:bg-accent/15 group-hover:text-accent/80 group-hover:border-accent/25 " +
-            (isLight
-              ? "bg-background/80 border border-border text-muted-foreground"
-              : "bg-white/10 backdrop-blur-md border border-white/15 text-white/85")
-          }
-        >
-          <ArrowRight className="size-3.5" strokeWidth={2} />
-        </span>
+
+
       </div>
     </div>
   );
