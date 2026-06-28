@@ -1372,9 +1372,6 @@ function RecRow({ rec }: { rec: Rec }) {
               {typeLabel}
             </p>
           </div>
-          {href && (
-            <ExternalLink className="size-3.5 text-muted-foreground/70 shrink-0 mt-1 group-hover:text-accent transition-colors" />
-          )}
         </div>
 
         {rec.note && (
