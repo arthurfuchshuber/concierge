@@ -168,6 +168,22 @@ function PropertyEditor() {
   const addCityRefFn = useServerFn(addManualCityReference);
   const updateCityRefFn = useServerFn(updateCityReference);
   const bulkDeleteCityRefsFn = useServerFn(bulkDeleteCityReferences);
+  const fetchPoiCounts = useServerFn(getPropertyPoiCounts);
+  const fetchMarketplaceClicks = useServerFn(getMarketplaceClicks);
+  const { data: poiCountsData } = useQuery({
+    queryKey: ["admin", "poi-counts", id],
+    queryFn: () => fetchPoiCounts({ data: { property_id: id } }),
+    enabled: !isNew,
+    staleTime: 30_000,
+  });
+  const poiCounts = poiCountsData?.counts;
+  const { data: marketplaceClicksData } = useQuery({
+    queryKey: ["admin", "marketplace-clicks", id],
+    queryFn: () => fetchMarketplaceClicks({ data: { property_id: id } }),
+    enabled: !isNew,
+    staleTime: 30_000,
+  });
+  const marketplaceClicks = marketplaceClicksData?.counts ?? {};
   const queryClient = useQueryClient();
   const [openFaqIdx, setOpenFaqIdx] = useState<number | null>(null);
 
