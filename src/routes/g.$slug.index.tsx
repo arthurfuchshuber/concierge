@@ -67,21 +67,21 @@ export const Route = createFileRoute("/g/$slug/")({
   },
   head: ({ loaderData, params }) => {
     if (!loaderData || loaderData.status !== "ok") {
-      return { meta: [{ title: "Guia — SigmaGuide" }, { name: "robots", content: "noindex" }] };
+      return { meta: [{ title: "Concierge — SigmaGuide" }, { name: "robots", content: "noindex" }] };
     }
     const p = loaderData.property as Record<string, unknown>;
     const name = p.name as string;
     const city = (p.city as string | null) ?? null;
     const tagline = (p.tagline as string | null) ?? null;
-    const title = `${name} — Guia do Hóspede`;
+    const title = `${name} — Concierge do Hóspede`;
     const baseDesc =
       tagline ||
-      `Guia digital de ${name}${city ? ` em ${city}` : ""}: instruções de chegada, Wi-Fi, manual da casa e recomendações selecionadas pelo anfitrião.`;
+      `Concierge digital de ${name}${city ? ` em ${city}` : ""}: instruções de chegada, Wi-Fi, manual da casa e recomendações selecionadas pelo anfitrião.`;
     const desc =
       baseDesc.length < 60
         ? `${baseDesc} Tudo o que você precisa para uma estadia tranquila${city ? ` em ${city}` : ""}.`
         : baseDesc;
-    const url = `https://guiadigital.anfitriaosigma.com.br/g/${params.slug}`;
+    const url = `https://guia.anfitriaosigma.com.br/g/${params.slug}`;
     const address = (p.address as string | null) ?? null;
     const ldAccommodation: Record<string, unknown> = {
       "@context": "https://schema.org",
