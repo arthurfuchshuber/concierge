@@ -502,12 +502,13 @@ function Guide({ data }: { data: GuideOk }) {
                 até 12h depois. O conteúdo continua travado pelo PIN até o
                 hóspede liberá-lo. */}
             {homeStripsVisible && (
-              <div className="px-5 md:px-10 lg:px-16 mt-2 md:mt-3 relative z-10 mb-4 md:mb-6 space-y-3">
+              <div className="px-5 md:px-10 lg:px-16 -mt-2 md:-mt-3 relative z-10 mb-3 md:mb-4 space-y-2.5">
                 {p.wifi_ssid && (
                   <div className="md:max-w-md lg:max-w-lg">
                     <WifiStrip
                       ssid={p.wifi_ssid}
                       password={p.wifi_password}
+                      passwordSet={!!((p as any).wifi_password_set || p.wifi_password)}
                       theme={theme}
                       unlocked={unlocked}
                       requestUnlock={requestUnlock}
@@ -517,11 +518,13 @@ function Guide({ data }: { data: GuideOk }) {
                     />
                   </div>
                 )}
-                {(p.gate_code || p.lock_code) && (
+                {((p as any).gate_code_set || (p as any).lock_code_set || p.gate_code || p.lock_code) && (
                   <div className="md:max-w-md lg:max-w-lg">
                     <AccessCodesStrip
                       gateCode={p.gate_code as string | null}
                       lockCode={p.lock_code as string | null}
+                      gateCodeSet={!!((p as any).gate_code_set || p.gate_code)}
+                      lockCodeSet={!!((p as any).lock_code_set || p.lock_code)}
                       gateLabel={(p.gate_label as string | null) || "Portão"}
                       lockLabel={(p.lock_label as string | null) || "Fechadura"}
                       unlocked={unlocked}
@@ -540,7 +543,7 @@ function Guide({ data }: { data: GuideOk }) {
             {/* Aviso de check-out: aparece a partir das 3h00 do dia do
                 check-out, levando o lembrete configurado pelo anfitrião. */}
             {checkoutNoticeVisible && (
-              <div className="px-5 md:px-10 lg:px-16 mt-2 md:mt-3 relative z-10 mb-4 md:mb-6">
+              <div className="px-5 md:px-10 lg:px-16 -mt-2 md:-mt-3 relative z-10 mb-3 md:mb-4">
                 <div className="md:max-w-md lg:max-w-lg">
                   <CheckoutNoticeStrip
                     note={(p.checkout_note as string | null) || null}
