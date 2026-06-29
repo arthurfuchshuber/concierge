@@ -1,0 +1,1 @@
+DROP POLICY IF EXISTS "Anon can delete own reactions" ON public.poi_engagement_events;
