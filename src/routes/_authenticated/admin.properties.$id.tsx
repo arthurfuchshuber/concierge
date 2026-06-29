@@ -1119,10 +1119,10 @@ function PropertyEditor() {
                 </button>
                 {gateOpen ? (
                   <div className="px-4 pb-4 pt-1 space-y-4 border-t border-border/40">
-                    <Field label="Código do portão" hint="Digite a senha que o hóspede vai usar.">
+                    <Field label="Código do portão" required hint="Digite a senha que o hóspede vai usar.">
                       <Input value={form.property.gate_code} maxLength={40} onChange={(e) => update("gate_code", e.target.value)} placeholder="Ex.: 1212" />
                     </Field>
-                    <Field label="Defina um nome" hint="Como esse acesso aparece no guia. Ex.: Portão, Garagem, Cancela.">
+                    <Field label="Defina um nome" required hint="Como esse acesso aparece no guia. Ex.: Portão, Garagem, Cancela.">
                       <Input value={form.property.gate_label} maxLength={40} onChange={(e) => update("gate_label", e.target.value)} placeholder="Portão" />
                     </Field>
                     <Field label="Passo a passo (opcional)" hint="Cada linha vira uma etapa numerada no guia.">
