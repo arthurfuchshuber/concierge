@@ -21,13 +21,13 @@ import {
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "SigmaConcierge — O guia digital da sua casa, pronto em minutos" },
+      { title: "SigmaGuide — Guia digital da sua casa em minutos" },
       {
         name: "description",
         content:
           "Crie guias editoriais para seus hóspedes em minutos. Cole o link do Maps e nós preenchemos endereço, vizinhança e cidade. Sem dados de reserva.",
       },
-      { property: "og:title", content: "SigmaConcierge — O guia digital da sua casa" },
+      { property: "og:title", content: "SigmaGuide — Guia digital da sua casa" },
       {
         property: "og:description",
         content:
