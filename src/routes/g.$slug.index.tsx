@@ -2139,6 +2139,8 @@ function WifiStrip({
 function AccessCodesStrip({
   gateCode,
   lockCode,
+  gateCodeSet,
+  lockCodeSet,
   gateLabel,
   lockLabel,
   unlocked,
@@ -2151,6 +2153,8 @@ function AccessCodesStrip({
 }: {
   gateCode: string | null;
   lockCode: string | null;
+  gateCodeSet?: boolean;
+  lockCodeSet?: boolean;
   gateLabel: string;
   lockLabel: string;
   unlocked: boolean;
@@ -2166,7 +2170,9 @@ function AccessCodesStrip({
   const isLight = theme === "light";
   const gLabel = (gateLabel || "").trim() || "Portão";
   const lLabel = (lockLabel || "").trim() || "Fechadura";
-  const showing = unlocked && revealed;
+  const hasGate = !!gateCode || !!gateCodeSet;
+  const hasLock = !!lockCode || !!lockCodeSet;
+  const showing = unlocked && revealed && (!!gateCode || !!lockCode);
 
   function gateOk() {
     if (gateEnabled && !hasAccessRec) {
@@ -2194,18 +2200,18 @@ function AccessCodesStrip({
     toast.success(`${label} copiado`);
   }
 
-  const hint = gateCode && lockCode ? `${gLabel} e ${lLabel.toLowerCase()}` : gateCode ? gLabel : lLabel;
+  const hint = hasGate && hasLock ? `${gLabel} e ${lLabel.toLowerCase()}` : hasGate ? gLabel : lLabel;
 
   return (
-    <div className={`wifi-shimmer relative overflow-hidden rounded-[22px] border ${isLight ? "border-border bg-card shadow-[0_4px_18px_-8px_rgba(0,0,0,0.10)]" : "border-amber-500/25 bg-[linear-gradient(135deg,oklch(0.22_0.05_55/0.95)_0%,oklch(0.16_0.04_50/0.92)_60%,oklch(0.12_0.03_45/0.95)_100%)] shadow-[0_14px_40px_-18px_oklch(from_var(--accent)_l_c_h/0.55)]"}`}>
+    <div className={`wifi-shimmer relative overflow-hidden rounded-[18px] border ${isLight ? "border-border bg-card shadow-[0_4px_18px_-8px_rgba(0,0,0,0.10)]" : "border-amber-500/25 bg-[linear-gradient(135deg,oklch(0.22_0.05_55/0.95)_0%,oklch(0.16_0.04_50/0.92)_60%,oklch(0.12_0.03_45/0.95)_100%)] shadow-[0_14px_40px_-18px_oklch(from_var(--accent)_l_c_h/0.55)]"}`}>
       <div className={`pointer-events-none absolute inset-0 ${isLight ? "opacity-[0.04]" : "opacity-[0.07]"} [background-image:radial-gradient(oklch(var(--accent))_1px,transparent_1px)] [background-size:14px_14px]`} />
       <div className={`pointer-events-none absolute -top-12 -right-12 size-40 rounded-full ${isLight ? "bg-accent/15" : "bg-accent/25"} blur-3xl`} />
-      <div className="relative flex items-center gap-4 px-5 py-3 md:px-6 md:py-3.5">
-        <span className={`relative grid size-14 shrink-0 place-items-center rounded-2xl ring-1 ${isLight ? "bg-accent/15 text-accent/80 ring-accent/20 shadow-[0_6px_18px_-12px_oklch(from_var(--accent)_l_c_h/0.32)]" : "bg-accent/10 text-accent/75 ring-accent/15 shadow-[0_6px_18px_-12px_oklch(from_var(--accent)_l_c_h/0.24)]"}`}>
-          <KeyRound className="relative size-[22px]" strokeWidth={2} />
+      <div className="relative flex items-center gap-3.5 px-4 py-2.5 md:px-5 md:py-3">
+        <span className={`relative grid size-11 shrink-0 place-items-center rounded-2xl ring-1 ${isLight ? "bg-accent/15 text-accent/80 ring-accent/20" : "bg-accent/10 text-accent/75 ring-accent/15"}`}>
+          <KeyRound className="relative size-[20px]" strokeWidth={2} />
         </span>
         <div className="flex-1 min-w-0">
-          <p className="text-[10px] uppercase tracking-[0.32em] text-accent/75 font-semibold">Códigos de acesso</p>
+          <p className="text-[9.5px] uppercase tracking-[0.3em] text-accent/75 font-semibold">Códigos de acesso</p>
           {showing ? (
             <div className="mt-1 space-y-0.5">
               {gateCode && (
@@ -2215,7 +2221,7 @@ function AccessCodesStrip({
                   className="w-full flex items-center justify-between gap-3 text-left group"
                 >
                   <span className="text-[12px] text-foreground/75 font-medium shrink-0">{gLabel}</span>
-                  <span className="font-mono text-[15px] md:text-[16px] font-semibold tracking-[0.22em] text-foreground flex items-center gap-1.5">
+                  <span className="font-mono text-[14.5px] md:text-[15px] font-semibold tracking-[0.22em] text-foreground flex items-center gap-1.5">
                     {gateCode}
                     <Copy className="size-3 text-foreground/50 group-hover:text-foreground/80 transition-colors" strokeWidth={2.2} />
                   </span>
@@ -2228,7 +2234,7 @@ function AccessCodesStrip({
                   className="w-full flex items-center justify-between gap-3 text-left group"
                 >
                   <span className="text-[12px] text-foreground/75 font-medium shrink-0">{lLabel}</span>
-                  <span className="font-mono text-[15px] md:text-[16px] font-semibold tracking-[0.22em] text-foreground flex items-center gap-1.5">
+                  <span className="font-mono text-[14.5px] md:text-[15px] font-semibold tracking-[0.22em] text-foreground flex items-center gap-1.5">
                     {lockCode}
                     <Copy className="size-3 text-foreground/50 group-hover:text-foreground/80 transition-colors" strokeWidth={2.2} />
                   </span>
@@ -2237,13 +2243,14 @@ function AccessCodesStrip({
             </div>
           ) : (
             <>
-              <p className="text-[13px] text-foreground/85 truncate font-medium mt-0.5">{hint}</p>
-              <p className="font-mono text-[16px] md:text-[18px] font-semibold tracking-[0.22em] text-foreground/75 mt-1 truncate">
+              <p className="text-[12.5px] text-foreground/85 truncate font-medium mt-0.5">{hint}</p>
+              <p className="font-mono text-[15px] md:text-[16px] font-semibold tracking-[0.22em] text-foreground/75 mt-0.5 truncate">
                 {"•".repeat(10)}
               </p>
             </>
           )}
         </div>
+
         <div className="flex flex-col items-center justify-center gap-2 shrink-0">
           {!showing && (
             <button
