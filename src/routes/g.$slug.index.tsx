@@ -1652,20 +1652,16 @@ function RulesGrid({ text }: { text: string }) {
             </div>
           </AccordionTrigger>
           <AccordionContent className="px-4 pb-4 pt-0">
-            <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <ul className="space-y-2.5">
               {items.map((item, i) => (
-                <li
-                  key={i}
-                  className="flex items-start gap-2.5 rounded-xl border border-border/60 bg-background/40 px-3 py-2.5"
-                >
-                  <span className={`mt-0.5 grid size-5 shrink-0 place-items-center rounded-full ring-1 ${cat.tone}`}>
-                    <span className="size-1.5 rounded-full bg-current" />
-                  </span>
-                  <span className="text-[13.5px] leading-[1.45] text-foreground/85">{item}</span>
+                <li key={i} className="flex items-start gap-3">
+                  <span className={`mt-2 grid size-1.5 shrink-0 rounded-full ${cat.tone.split(" ").find((c) => c.startsWith("text-")) ?? "text-accent"} bg-current`} />
+                  <span className="text-[14.5px] leading-[1.6] text-foreground/90">{item}</span>
                 </li>
               ))}
             </ul>
           </AccordionContent>
+
         </AccordionItem>
       ))}
     </Accordion>
