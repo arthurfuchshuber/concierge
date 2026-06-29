@@ -1516,7 +1516,7 @@ function SubList({ children }: { children: React.ReactNode }) {
   );
 }
 
-function StepList({ text, dense = false }: { text: string; dense?: boolean }) {
+function StepList({ text, dense = false, compact = false }: { text: string; dense?: boolean; compact?: boolean }) {
   const steps = text
     .split(/\r?\n/)
     .map((s) => s.trim())
@@ -1524,27 +1524,32 @@ function StepList({ text, dense = false }: { text: string; dense?: boolean }) {
     .map((s) => s.replace(/^\s*(?:\d+[.)\-º°]\s*|[-•·*]\s*)/, "").trim())
     .filter((s) => s.length > 0);
   if (steps.length === 0) return null;
+  const badge = compact ? "size-6 text-[11px]" : "size-9 text-[13px]";
+  const lineLeft = compact ? "left-[12px]" : "left-[18px]";
+  const gap = compact ? "gap-3" : "gap-4";
+  const labelCls = compact ? "text-[9px] tracking-[0.2em] mb-0.5" : "text-[10px] tracking-[0.22em] mb-1";
+  const textCls = compact ? "text-[13px] leading-[1.55]" : "text-[14.5px] leading-[1.6]";
   return (
-    <ol className={`relative ${dense ? "space-y-5" : "space-y-6"} pl-2`}>
-      {/* Vertical connector line */}
-      <span aria-hidden className="pointer-events-none absolute left-[18px] top-3 bottom-3 w-px bg-gradient-to-b from-accent/50 via-accent/25 to-transparent" />
+    <ol className={`relative ${dense ? "space-y-5" : "space-y-6"} ${compact ? "space-y-3.5" : ""} pl-2`}>
+      <span aria-hidden className={`pointer-events-none absolute ${lineLeft} top-3 bottom-3 w-px bg-gradient-to-b from-accent/50 via-accent/25 to-transparent`} />
       {steps.map((step, i) => (
-        <li key={i} className="relative flex items-start gap-4">
+        <li key={i} className={`relative flex items-start ${gap}`}>
           <span
             aria-hidden
-            className="relative z-10 mt-0.5 shrink-0 grid place-items-center size-9 rounded-full bg-accent/15 text-accent/85 text-[13px] font-semibold tabular-nums leading-none shadow-[0_4px_14px_-8px_oklch(from_var(--accent)_l_c_h/0.3)] ring-4 ring-background"
+            className={`relative z-10 mt-0.5 shrink-0 grid place-items-center ${badge} rounded-full bg-accent/15 text-accent/85 font-semibold tabular-nums leading-none shadow-[0_4px_14px_-8px_oklch(from_var(--accent)_l_c_h/0.3)] ring-4 ring-background`}
           >
             {i + 1}
           </span>
-          <div className="flex-1 min-w-0 pt-1.5">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-accent/80 mb-1">Passo {i + 1}</p>
-            <p className="text-[14.5px] leading-[1.6] text-foreground/90">{step}</p>
+          <div className="flex-1 min-w-0 pt-1">
+            <p className={`${labelCls} font-semibold uppercase text-accent/80`}>Passo {i + 1}</p>
+            <p className={`${textCls} text-foreground/90`}>{step}</p>
           </div>
         </li>
       ))}
     </ol>
   );
 }
+
 
 type RuleCategory = {
   key: string;
@@ -1652,20 +1657,16 @@ function RulesGrid({ text }: { text: string }) {
             </div>
           </AccordionTrigger>
           <AccordionContent className="px-4 pb-4 pt-0">
-            <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <ul className="space-y-2.5">
               {items.map((item, i) => (
-                <li
-                  key={i}
-                  className="flex items-start gap-2.5 rounded-xl border border-border/60 bg-background/40 px-3 py-2.5"
-                >
-                  <span className={`mt-0.5 grid size-5 shrink-0 place-items-center rounded-full ring-1 ${cat.tone}`}>
-                    <span className="size-1.5 rounded-full bg-current" />
-                  </span>
-                  <span className="text-[13.5px] leading-[1.45] text-foreground/85">{item}</span>
+                <li key={i} className="flex items-start gap-3">
+                  <span className={`mt-2 grid size-1.5 shrink-0 rounded-full ${cat.tone.split(" ").find((c) => c.startsWith("text-")) ?? "text-accent"} bg-current`} />
+                  <span className="text-[14.5px] leading-[1.6] text-foreground/90">{item}</span>
                 </li>
               ))}
             </ul>
           </AccordionContent>
+
         </AccordionItem>
       ))}
     </Accordion>
@@ -2457,7 +2458,7 @@ function AccessInstructionsSection({
         </span>
         <h3 className="text-[13.5px] font-semibold tracking-tight">{label}</h3>
       </div>
-      {instr && <StepList text={instr} dense />}
+      {instr && <StepList text={instr} dense compact />}
       {videoUrl && (
         <div className="mt-3 overflow-hidden rounded-xl border border-border/40 bg-muted/30 aspect-video">
           {embed ? (
