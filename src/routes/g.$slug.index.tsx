@@ -2292,31 +2292,23 @@ function AccessCodesStrip({
                 Passo a passo para utilizar cada acesso.
               </p>
             </div>
-            <div className="px-5 py-4 max-h-[55vh] overflow-y-auto sg-elegant-scroll space-y-5">
-              {gateInstr && (
-                <section>
-                  <div className="flex items-center gap-2 mb-2.5">
-                    <span className="grid place-items-center size-7 rounded-full bg-accent/12 ring-1 ring-accent/20 text-accent">
-                      <KeyRound className="size-3.5" strokeWidth={2} />
-                    </span>
-                    <h3 className="text-[13.5px] font-semibold tracking-tight">{gLabel}</h3>
-                  </div>
-                  <StepList text={gateInstr} dense />
-                </section>
+            <div className="px-5 py-4 max-h-[60vh] overflow-y-auto sg-elegant-scroll space-y-5">
+              {hasGateBlock && (
+                <AccessBlock
+                  label={gLabel}
+                  instr={gateInstr}
+                  videoUrl={gateVid}
+                  media={gateMed}
+                />
               )}
-              {gateInstr && lockInstr && (
-                <div className="h-px bg-border/50" />
-              )}
-              {lockInstr && (
-                <section>
-                  <div className="flex items-center gap-2 mb-2.5">
-                    <span className="grid place-items-center size-7 rounded-full bg-accent/12 ring-1 ring-accent/20 text-accent">
-                      <KeyRound className="size-3.5" strokeWidth={2} />
-                    </span>
-                    <h3 className="text-[13.5px] font-semibold tracking-tight">{lLabel}</h3>
-                  </div>
-                  <StepList text={lockInstr} dense />
-                </section>
+              {hasGateBlock && hasLockBlock && <div className="h-px bg-border/50" />}
+              {hasLockBlock && (
+                <AccessBlock
+                  label={lLabel}
+                  instr={lockInstr}
+                  videoUrl={lockVid}
+                  media={lockMed}
+                />
               )}
             </div>
           </DialogContent>
