@@ -535,6 +535,10 @@ function Guide({ data }: { data: GuideOk }) {
                       theme={theme}
                       gateInstructions={p.gate_instructions as string | null}
                       lockInstructions={p.lock_instructions as string | null}
+                      gateVideoUrl={p.gate_video_url as string | null}
+                      lockVideoUrl={p.lock_video_url as string | null}
+                      gateMedia={Array.isArray(p.gate_media) ? (p.gate_media as Array<{ url: string; type: "image" | "video" }>) : []}
+                      lockMedia={Array.isArray(p.lock_media) ? (p.lock_media as Array<{ url: string; type: "image" | "video" }>) : []}
                     />
                   </div>
                 )}
