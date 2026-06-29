@@ -2156,6 +2156,10 @@ function AccessCodesStrip({
   theme,
   gateInstructions,
   lockInstructions,
+  gateVideoUrl,
+  lockVideoUrl,
+  gateMedia,
+  lockMedia,
 }: {
   gateCode: string | null;
   lockCode: string | null;
@@ -2171,6 +2175,10 @@ function AccessCodesStrip({
   theme: "dark" | "light";
   gateInstructions?: string | null;
   lockInstructions?: string | null;
+  gateVideoUrl?: string | null;
+  lockVideoUrl?: string | null;
+  gateMedia?: Array<{ url: string; type: "image" | "video" }>;
+  lockMedia?: Array<{ url: string; type: "image" | "video" }>;
 }) {
   const [revealed, setRevealed] = useState(false);
   const [instrOpen, setInstrOpen] = useState(false);
@@ -2182,7 +2190,13 @@ function AccessCodesStrip({
   const showing = unlocked && revealed && (!!gateCode || !!lockCode);
   const gateInstr = (gateInstructions || "").trim();
   const lockInstr = (lockInstructions || "").trim();
-  const hasInstructions = !!(gateInstr || lockInstr);
+  const gateVid = (gateVideoUrl || "").trim();
+  const lockVid = (lockVideoUrl || "").trim();
+  const gateMed = (gateMedia || []).filter((m) => m && m.url);
+  const lockMed = (lockMedia || []).filter((m) => m && m.url);
+  const hasGateBlock = !!(gateInstr || gateVid || gateMed.length);
+  const hasLockBlock = !!(lockInstr || lockVid || lockMed.length);
+  const hasInstructions = hasGateBlock || hasLockBlock;
 
   function gateOk() {
     if (gateEnabled && !hasAccessRec) {
