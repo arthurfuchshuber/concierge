@@ -2438,6 +2438,7 @@ function AccessInstructionsSection({
   videoUrl: string;
   media: Array<{ url: string; type: "image" | "video" }>;
 }) {
+  const [preview, setPreview] = useState<{ url: string; type: "image" | "video" } | null>(null);
   function ytEmbed(u: string): string | null {
     const m = u.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/))([\w-]{6,})/);
     return m ? `https://www.youtube.com/embed/${m[1]}` : null;
@@ -2462,33 +2463,69 @@ function AccessInstructionsSection({
           {embed ? (
             <iframe src={embed} className="size-full" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen />
           ) : isDirectVideo ? (
-            <video src={videoUrl} controls className="size-full object-cover" />
+            <video src={videoUrl} controls controlsList="nodownload" disablePictureInPicture onContextMenu={(e) => e.preventDefault()} className="size-full object-cover" />
           ) : (
-            <a href={videoUrl} target="_blank" rel="noreferrer" className="grid size-full place-items-center text-[12px] text-accent underline">
+            <button
+              type="button"
+              onClick={() => window.open(videoUrl, "_blank", "noopener,noreferrer")}
+              className="grid size-full place-items-center text-[12px] text-accent underline"
+            >
               Abrir vídeo tutorial
-            </a>
+            </button>
           )}
         </div>
       )}
       {media.length > 0 && (
         <div className="mt-3 grid grid-cols-3 gap-1.5">
           {media.map((m, i) => (
-            <a
+            <button
               key={i}
-              href={m.url}
-              target="_blank"
-              rel="noreferrer"
-              className="block overflow-hidden rounded-lg border border-border/40 bg-muted/30 aspect-square"
+              type="button"
+              onClick={() => setPreview(m)}
+              onContextMenu={(e) => e.preventDefault()}
+              className="block overflow-hidden rounded-lg border border-border/40 bg-muted/30 aspect-square cursor-zoom-in focus:outline-none focus:ring-2 focus:ring-accent/40"
+              aria-label="Ampliar mídia"
             >
               {m.type === "video" ? (
-                <video src={m.url} className="size-full object-cover" muted playsInline />
+                <video src={m.url} className="size-full object-cover pointer-events-none" muted playsInline />
               ) : (
-                <img src={m.url} alt="" className="size-full object-cover" loading="lazy" />
+                <img src={m.url} alt="" className="size-full object-cover pointer-events-none select-none" loading="lazy" draggable={false} />
               )}
-            </a>
+            </button>
           ))}
         </div>
       )}
+      <Dialog open={!!preview} onOpenChange={(o) => { if (!o) setPreview(null); }}>
+        <DialogContent
+          className="max-w-[92vw] sm:max-w-[640px] p-0 overflow-hidden rounded-[20px] bg-black/95 border-white/10"
+          onContextMenu={(e) => e.preventDefault()}
+        >
+          <DialogTitle className="sr-only">Visualização da mídia</DialogTitle>
+          {preview && (
+            <div className="relative w-full max-h-[80vh] grid place-items-center select-none">
+              {preview.type === "video" ? (
+                <video
+                  src={preview.url}
+                  controls
+                  controlsList="nodownload noremoteplayback"
+                  disablePictureInPicture
+                  onContextMenu={(e) => e.preventDefault()}
+                  className="max-h-[80vh] w-auto max-w-full"
+                />
+              ) : (
+                <img
+                  src={preview.url}
+                  alt=""
+                  draggable={false}
+                  onDragStart={(e) => e.preventDefault()}
+                  onContextMenu={(e) => e.preventDefault()}
+                  className="max-h-[80vh] w-auto max-w-full object-contain select-none pointer-events-none"
+                />
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </section>
   );
 }
