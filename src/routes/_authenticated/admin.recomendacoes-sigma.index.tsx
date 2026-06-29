@@ -276,7 +276,7 @@ function NewCityDialog({ existingPacks, onClose, onCreated }: { existingPacks: P
     <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Nova cidade SigmaGuide</DialogTitle>
+          <DialogTitle>Nova cidade SigmaConcierge</DialogTitle>
           <DialogDescription>Cada cidade tem apenas uma recomendação. Comece em rascunho e publique quando estiver pronta.</DialogDescription>
         </DialogHeader>
         <div className="space-y-3">

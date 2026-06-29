@@ -11,10 +11,10 @@ import { Sparkles } from "lucide-react";
 export const Route = createFileRoute("/auth")({
   head: () => ({
     meta: [
-      { title: "Entrar — SigmaGuide" },
-      { name: "description", content: "Acesse sua conta SigmaGuide para criar e gerenciar guias digitais editoriais para hóspedes." },
-      { property: "og:title", content: "Entrar — SigmaGuide" },
-      { property: "og:description", content: "Login do SigmaGuide para anfitriões." },
+      { title: "Entrar — SigmaConcierge" },
+      { name: "description", content: "Acesse sua conta SigmaConcierge para criar e gerenciar guias digitais editoriais para hóspedes." },
+      { property: "og:title", content: "Entrar — SigmaConcierge" },
+      { property: "og:description", content: "Login do SigmaConcierge para anfitriões." },
       { property: "og:url", content: "/auth" },
       { name: "robots", content: "noindex" },
     ],
@@ -106,7 +106,7 @@ function AuthPage() {
           <div className="size-8 rounded-xl bg-primary grid place-items-center">
             <Sparkles className="size-4 text-primary-foreground" strokeWidth={2} />
           </div>
-          <span className="font-display text-xl">SigmaGuide</span>
+          <span className="font-display text-xl">SigmaConcierge</span>
         </Link>
       </header>
 

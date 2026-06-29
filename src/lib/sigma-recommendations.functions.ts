@@ -69,7 +69,7 @@ export type SigmaFaq = {
   position: number;
 };
 
-export type AdminSigmaGuideRow = {
+export type AdminSigmaConciergeRow = {
   id: string;
   name: string;
   slug: string | null;
@@ -145,7 +145,7 @@ async function applySigmaPackToPropertyInternal(supabaseAdmin: any, propertyId: 
   if (!prop) throw new Error("Imóvel não encontrado.");
   const propRow = prop as { id: string; owner_id: string; city: string | null; state: string | null; country: string | null; marketplace_links: unknown };
   if (makeCityKey(propRow.city ?? "") !== cityKey) {
-    throw new Error("Este guia não pertence à mesma cidade desta recomendação SigmaGuide.");
+    throw new Error("Este guia não pertence à mesma cidade desta recomendação SigmaConcierge.");
   }
 
   const { data: pack } = await supabaseAdmin
@@ -154,7 +154,7 @@ async function applySigmaPackToPropertyInternal(supabaseAdmin: any, propertyId: 
     .eq("city_key", cityKey)
     .eq("is_published", true)
     .maybeSingle();
-  if (!pack) throw new Error("Recomendação SigmaGuide indisponível para esta cidade.");
+  if (!pack) throw new Error("Recomendação SigmaConcierge indisponível para esta cidade.");
   const packRow = pack as { city_key: string; city_label: string; country: string | null };
 
   const scopedRefs = await readScopedCityReferences(supabaseAdmin, propertyId);
@@ -452,9 +452,9 @@ export const adminListPublishedGuidesForSigma = createServerFn({ method: "POST" 
     ]);
     if (error) throw new Error("Erro ao carregar guias publicados.");
     const emailByUser = new Map((usersData.data?.users ?? []).map((u) => [u.id, u.email ?? null]));
-    return ((props ?? []) as Array<Omit<AdminSigmaGuideRow, "owner_email">>)
+    return ((props ?? []) as Array<Omit<AdminSigmaConciergeRow, "owner_email">>)
       .map((p) => ({ ...p, owner_email: emailByUser.get(p.owner_id) ?? null }))
-      .sort((a, b) => Number(makeCityKey(b.city ?? "") === data.city_key) - Number(makeCityKey(a.city ?? "") === data.city_key)) as AdminSigmaGuideRow[];
+      .sort((a, b) => Number(makeCityKey(b.city ?? "") === data.city_key) - Number(makeCityKey(a.city ?? "") === data.city_key)) as AdminSigmaConciergeRow[];
   });
 
 export const adminApplySigmaPackToProperty = createServerFn({ method: "POST" })
@@ -746,8 +746,8 @@ export const deactivateSigmaPackOnProperty = createServerFn({ method: "POST" })
       await replaceScopedCityReferences(supabaseAdmin, data.property_id, []);
     }
 
-    // FAQs manuais continuam editáveis enquanto o SigmaGuide está ativo;
-    // ao desativar, removemos apenas as FAQs adicionadas pelo SigmaGuide.
+    // FAQs manuais continuam editáveis enquanto o SigmaConcierge está ativo;
+    // ao desativar, removemos apenas as FAQs adicionadas pelo SigmaConcierge.
     await context.supabase.from("property_faqs").delete().eq("property_id", data.property_id).contains("tags", ["sigma"]);
     return { ok: true };
   });
@@ -814,7 +814,7 @@ export const saveGuideAsSigmaPack = createServerFn({ method: "POST" })
       });
       if (insErr) throw new Error(insErr.message);
     } else {
-      // Salvar via guia republica automaticamente para liberar "Importar do SigmaGuide" nos demais guias.
+      // Salvar via guia republica automaticamente para liberar "Importar do SigmaConcierge" nos demais guias.
       await supabaseAdmin
         .from("sigma_city_packs")
         .update({ is_published: true })

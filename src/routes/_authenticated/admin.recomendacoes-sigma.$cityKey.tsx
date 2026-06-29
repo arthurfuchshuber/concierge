@@ -110,7 +110,7 @@ function ApplySigmaToGuideButton({ cityKey, disabled }: { cityKey: string; disab
     setApplyingId(propertyId);
     try {
       await applyFn({ data: { city_key: cityKey, property_id: propertyId } });
-      toast.success("Recomendação SigmaGuide aplicada ao guia.");
+      toast.success("Recomendação SigmaConcierge aplicada ao guia.");
       void q.refetch();
     } catch (e) {
       toast.error(friendlyErrorMessage(e, "Não foi possível aplicar agora."));
@@ -129,7 +129,7 @@ function ApplySigmaToGuideButton({ cityKey, disabled }: { cityKey: string; disab
           <DialogHeader>
             <DialogTitle>Aplicar em um Guia</DialogTitle>
             <DialogDescription>
-              Escolha um guia publicado/ativo desta cidade. O conteúdo SigmaGuide substituirá pontos da cidade e marketplace, mantendo FAQs manuais editáveis.
+              Escolha um guia publicado/ativo desta cidade. O conteúdo SigmaConcierge substituirá pontos da cidade e marketplace, mantendo FAQs manuais editáveis.
             </DialogDescription>
           </DialogHeader>
           <div className="max-h-[55vh] overflow-y-auto space-y-2 pr-1">
@@ -278,7 +278,7 @@ function RecsTab({ cityKey, items, refresh }: { cityKey: string; items: Awaited<
       />
       <RecGroup
         title="Pontos da cidade"
-        desc="Curadoria oficial SigmaGuide para esta cidade. Mesmo racional do guia: categorias expansivas, busca via Google, bloqueio de duplicidade."
+        desc="Curadoria oficial SigmaConcierge para esta cidade. Mesmo racional do guia: categorias expansivas, busca via Google, bloqueio de duplicidade."
         items={localItems}
         onChange={handleChange}
         scope="city"

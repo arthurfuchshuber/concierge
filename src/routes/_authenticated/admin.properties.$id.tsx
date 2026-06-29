@@ -193,7 +193,7 @@ function PropertyEditor() {
   const canAirbnb = sub.features.autoImport;
   const canBrand = sub.features.customBrand;
 
-  // Estado do pack SigmaGuide aplicado a este imóvel.
+  // Estado do pack SigmaConcierge aplicado a este imóvel.
   // Quando ativo, "Pela cidade", "Reservas & marketplace" e FAQs vindas do
   // Sigma ficam bloqueadas para edição.
   const sigmaStateFn = useServerFn(getMyPropertySigmaState);
@@ -1470,7 +1470,7 @@ function PropertyEditor() {
           >
             {sigmaLocked && (
               <div className="flex items-center gap-1.5 rounded-lg border border-amber-400/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
-                <Lock className="size-3.5" /> Links gerenciados pelo SigmaGuide — edição bloqueada.
+                <Lock className="size-3.5" /> Links gerenciados pelo SigmaConcierge — edição bloqueada.
               </div>
             )}
             <fieldset disabled={sigmaLocked} className={sigmaLocked ? "min-w-0 m-0 p-0 border-0 opacity-60 pointer-events-none space-y-3" : "min-w-0 m-0 p-0 border-0 space-y-3"}>
@@ -1628,7 +1628,7 @@ function PropertyEditor() {
                     <fieldset disabled={isSigma} className={`px-3.5 pb-3.5 pt-1 space-y-2.5 border-t border-border/40 m-0 min-w-0 ${isSigma ? "opacity-70" : ""}`}>
                       {isSigma && (
                         <p className="text-[11px] text-amber-300/90 inline-flex items-center gap-1">
-                          <Lock className="size-3" /> Pergunta do SigmaGuide — leitura somente.
+                          <Lock className="size-3" /> Pergunta do SigmaConcierge — leitura somente.
                         </p>
                       )}
                       <Input placeholder="Pergunta" value={m.question} maxLength={200} onChange={(e) => setForm((f) => ({ ...f, faqs: f.faqs.map((x, j) => j === i ? { ...x, question: e.target.value } : x) }))} />
@@ -2541,7 +2541,7 @@ export function RecGroup({
       {locked && (
         <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-amber-400/30 bg-amber-500/10 px-3 py-2">
           <span className="text-xs text-amber-200 inline-flex items-center gap-1.5">
-            <Lock className="size-3.5" /> Conteúdo gerenciado pelo SigmaGuide — edição bloqueada.
+            <Lock className="size-3.5" /> Conteúdo gerenciado pelo SigmaConcierge — edição bloqueada.
           </span>
           <div className="flex items-center gap-1.5">{headerExtra}</div>
         </div>

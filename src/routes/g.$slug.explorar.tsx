@@ -89,7 +89,7 @@ export const Route = createFileRoute("/g/$slug/explorar")({
     const city = (p.city as string | null) ?? null;
     const title = `Explore a região de ${name} — Guia do Hóspede`;
     const desc = `Restaurantes, atrações, cafés e experiências selecionadas pelo anfitrião perto de ${name}${city ? ` em ${city}` : ""}. Recomendações com distância, horários e mapa.`;
-    const url = `https://guiadigital.anfitriaosigma.com.br/g/${params.slug}/explorar`;
+    const url = `https://guia.anfitriaosigma.com.br/g/${params.slug}/explorar`;
     return {
       meta: [
         { title },

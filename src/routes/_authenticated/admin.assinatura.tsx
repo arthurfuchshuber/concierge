@@ -582,7 +582,7 @@ function CardTab({
                 </p>
               )}
               <div className="mt-3 text-[11px] text-muted-foreground flex items-center gap-1.5">
-                <ShieldCheck className="size-3.5" /> Dados do cartão ficam no provedor de pagamento — nunca passam pelos servidores da SigmaGuide.
+                <ShieldCheck className="size-3.5" /> Dados do cartão ficam no provedor de pagamento — nunca passam pelos servidores da SigmaConcierge.
               </div>
             </div>
           </div>
@@ -614,7 +614,7 @@ function CardTab({
           </div>
           <div className="mt-3 text-[11px] text-muted-foreground flex items-center gap-1.5">
             <ShieldCheck className="size-3.5" /> Os dados do cartão ficam armazenados com segurança no
-            provedor de pagamento — nunca passam pelos servidores da SigmaGuide.
+            provedor de pagamento — nunca passam pelos servidores da SigmaConcierge.
           </div>
         </div>
       </div>
