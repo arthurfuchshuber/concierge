@@ -2458,7 +2458,7 @@ function AccessInstructionsSection({
         </span>
         <h3 className="text-[13.5px] font-semibold tracking-tight">{label}</h3>
       </div>
-      {instr && <StepList text={instr} dense />}
+      {instr && <StepList text={instr} dense compact />}
       {videoUrl && (
         <div className="mt-3 overflow-hidden rounded-xl border border-border/40 bg-muted/30 aspect-video">
           {embed ? (
