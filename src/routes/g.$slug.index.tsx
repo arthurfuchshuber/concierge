@@ -2150,7 +2150,8 @@ function AccessCodesStrip({
   hasAccessRec,
   gateEnabled,
   theme,
-  checkinInstructions,
+  gateInstructions,
+  lockInstructions,
 }: {
   gateCode: string | null;
   lockCode: string | null;
@@ -2164,7 +2165,8 @@ function AccessCodesStrip({
   hasAccessRec: boolean;
   gateEnabled: boolean;
   theme: "dark" | "light";
-  checkinInstructions?: string | null;
+  gateInstructions?: string | null;
+  lockInstructions?: string | null;
 }) {
   const [revealed, setRevealed] = useState(false);
   const [instrOpen, setInstrOpen] = useState(false);
@@ -2174,6 +2176,9 @@ function AccessCodesStrip({
   const hasGate = !!gateCode || !!gateCodeSet;
   const hasLock = !!lockCode || !!lockCodeSet;
   const showing = unlocked && revealed && (!!gateCode || !!lockCode);
+  const gateInstr = (gateInstructions || "").trim();
+  const lockInstr = (lockInstructions || "").trim();
+  const hasInstructions = !!(gateInstr || lockInstr);
 
   function gateOk() {
     if (gateEnabled && !hasAccessRec) {
@@ -2196,11 +2201,6 @@ function AccessCodesStrip({
     requestUnlock(() => setRevealed(true));
   }
 
-  function copyCode(code: string, label: string) {
-    navigator.clipboard.writeText(code);
-    toast.success(`${label} copiado`);
-  }
-
   const hint = hasGate && hasLock ? `${gLabel} e ${lLabel.toLowerCase()}` : hasGate ? gLabel : lLabel;
 
   return (
@@ -2216,30 +2216,16 @@ function AccessCodesStrip({
           {showing ? (
             <div className="mt-1 space-y-0.5">
               {gateCode && (
-                <button
-                  type="button"
-                  onClick={() => copyCode(gateCode, gLabel)}
-                  className="w-full flex items-center justify-between gap-3 text-left group"
-                >
+                <div className="flex items-center justify-between gap-3">
                   <span className="text-[12px] text-foreground/75 font-medium shrink-0">{gLabel}</span>
-                  <span className="font-mono text-[14.5px] md:text-[15px] font-semibold tracking-[0.22em] text-foreground flex items-center gap-1.5">
-                    {gateCode}
-                    <Copy className="size-3 text-foreground/50 group-hover:text-foreground/80 transition-colors" strokeWidth={2.2} />
-                  </span>
-                </button>
+                  <span className="font-mono text-[14.5px] md:text-[15px] font-semibold tracking-[0.22em] text-foreground">{gateCode}</span>
+                </div>
               )}
               {lockCode && (
-                <button
-                  type="button"
-                  onClick={() => copyCode(lockCode, lLabel)}
-                  className="w-full flex items-center justify-between gap-3 text-left group"
-                >
+                <div className="flex items-center justify-between gap-3">
                   <span className="text-[12px] text-foreground/75 font-medium shrink-0">{lLabel}</span>
-                  <span className="font-mono text-[14.5px] md:text-[15px] font-semibold tracking-[0.22em] text-foreground flex items-center gap-1.5">
-                    {lockCode}
-                    <Copy className="size-3 text-foreground/50 group-hover:text-foreground/80 transition-colors" strokeWidth={2.2} />
-                  </span>
-                </button>
+                  <span className="font-mono text-[14.5px] md:text-[15px] font-semibold tracking-[0.22em] text-foreground">{lockCode}</span>
+                </div>
               )}
             </div>
           ) : (
@@ -2263,33 +2249,57 @@ function AccessCodesStrip({
               <span>Ver Senha</span>
             </button>
           )}
-          {checkinInstructions && checkinInstructions.trim() && (
+          {hasInstructions && (
             <button
               type="button"
               onClick={() => setInstrOpen(true)}
-              aria-label="Ver instruções de check-in"
+              aria-label="Ver instruções de acesso"
               className="inline-flex items-center gap-1.5 text-[11px] font-medium text-foreground/70 hover:text-foreground transition-colors"
             >
               <HelpCircle className="size-3" strokeWidth={2} />
-              <span>Ver instruções</span>
+              <span>Instruções</span>
             </button>
           )}
         </div>
       </div>
-      {checkinInstructions && checkinInstructions.trim() && (
+      {hasInstructions && (
         <Dialog open={instrOpen} onOpenChange={setInstrOpen}>
-          <DialogContent className="max-w-md p-0 overflow-hidden">
-            <div className="px-6 pt-6 pb-4 text-center border-b border-border/40">
-              <div className="mx-auto mb-3 grid place-items-center size-12 rounded-full bg-accent/12 ring-1 ring-accent/25 text-accent">
-                <KeyRound className="size-5" strokeWidth={1.75} />
+          <DialogContent className="max-w-[380px] p-0 overflow-hidden rounded-[22px]">
+            <div className="px-5 pt-5 pb-3 text-center border-b border-border/40">
+              <div className="mx-auto mb-2.5 grid place-items-center size-11 rounded-full bg-accent/12 ring-1 ring-accent/25 text-accent">
+                <KeyRound className="size-[18px]" strokeWidth={1.75} />
               </div>
-              <DialogTitle className="font-display text-xl tracking-tight">Instruções de acesso</DialogTitle>
-              <p className="text-[12.5px] text-muted-foreground mt-1.5 leading-relaxed max-w-xs mx-auto">
-                Passo a passo para sua chegada à residência.
+              <DialogTitle className="font-display text-[18px] tracking-tight">Instruções de acesso</DialogTitle>
+              <p className="text-[12px] text-muted-foreground mt-1 leading-relaxed">
+                Passo a passo para utilizar cada acesso.
               </p>
             </div>
-            <div className="px-6 py-5 max-h-[60vh] overflow-y-auto">
-              <StepList text={String(checkinInstructions)} dense />
+            <div className="px-5 py-4 max-h-[55vh] overflow-y-auto sg-elegant-scroll space-y-5">
+              {gateInstr && (
+                <section>
+                  <div className="flex items-center gap-2 mb-2.5">
+                    <span className="grid place-items-center size-7 rounded-full bg-accent/12 ring-1 ring-accent/20 text-accent">
+                      <KeyRound className="size-3.5" strokeWidth={2} />
+                    </span>
+                    <h3 className="text-[13.5px] font-semibold tracking-tight">{gLabel}</h3>
+                  </div>
+                  <StepList text={gateInstr} dense />
+                </section>
+              )}
+              {gateInstr && lockInstr && (
+                <div className="h-px bg-border/50" />
+              )}
+              {lockInstr && (
+                <section>
+                  <div className="flex items-center gap-2 mb-2.5">
+                    <span className="grid place-items-center size-7 rounded-full bg-accent/12 ring-1 ring-accent/20 text-accent">
+                      <KeyRound className="size-3.5" strokeWidth={2} />
+                    </span>
+                    <h3 className="text-[13.5px] font-semibold tracking-tight">{lLabel}</h3>
+                  </div>
+                  <StepList text={lockInstr} dense />
+                </section>
+              )}
             </div>
           </DialogContent>
         </Dialog>
