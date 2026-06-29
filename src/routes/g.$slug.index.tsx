@@ -2294,7 +2294,7 @@ function AccessCodesStrip({
             </div>
             <div className="px-5 py-4 max-h-[60vh] overflow-y-auto sg-elegant-scroll space-y-5">
               {hasGateBlock && (
-                <AccessBlock
+                <AccessInstructionsSection
                   label={gLabel}
                   instr={gateInstr}
                   videoUrl={gateVid}
@@ -2303,7 +2303,7 @@ function AccessCodesStrip({
               )}
               {hasGateBlock && hasLockBlock && <div className="h-px bg-border/50" />}
               {hasLockBlock && (
-                <AccessBlock
+                <AccessInstructionsSection
                   label={lLabel}
                   instr={lockInstr}
                   videoUrl={lockVid}
