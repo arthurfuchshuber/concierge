@@ -127,9 +127,20 @@ function Hero() {
     <section ref={ref} className="relative pt-28 md:pt-36 pb-16 md:pb-28 px-5">
       {/* Editorial corner marks */}
       <div className="pointer-events-none absolute inset-0 max-w-6xl mx-auto">
-        <div className="absolute top-24 left-5 right-5 flex justify-between text-[10px] uppercase tracking-[0.3em] text-muted-foreground font-mono">
+        <div
+          className="
+      absolute top-24 left-5 right-5
+      flex items-center justify-center md:justify-between
+      gap-8 md:gap-0
+      text-[9px] md:text-[10px]
+      uppercase
+      tracking-[0.12em] md:tracking-[0.3em]
+      text-muted-foreground
+      font-mono
+    "
+        >
           <span>№ 01</span>
-          <span>2026 — Edição Beta</span>
+          <span>2026 — EDIÇÃO BETA</span>
         </div>
       </div>
 
