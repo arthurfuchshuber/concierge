@@ -2427,4 +2427,71 @@ function PinDialog({
   );
 }
 
+function AccessInstructionsSection({
+  label,
+  instr,
+  videoUrl,
+  media,
+}: {
+  label: string;
+  instr: string;
+  videoUrl: string;
+  media: Array<{ url: string; type: "image" | "video" }>;
+}) {
+  function ytEmbed(u: string): string | null {
+    const m = u.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/))([\w-]{6,})/);
+    return m ? `https://www.youtube.com/embed/${m[1]}` : null;
+  }
+  function vimeoEmbed(u: string): string | null {
+    const m = u.match(/vimeo\.com\/(?:video\/)?(\d+)/);
+    return m ? `https://player.vimeo.com/video/${m[1]}` : null;
+  }
+  const embed = videoUrl ? (ytEmbed(videoUrl) || vimeoEmbed(videoUrl)) : null;
+  const isDirectVideo = videoUrl && /\.(mp4|webm|mov)(\?|$)/i.test(videoUrl);
+  return (
+    <section>
+      <div className="flex items-center gap-2 mb-2.5">
+        <span className="grid place-items-center size-7 rounded-full bg-accent/12 ring-1 ring-accent/20 text-accent">
+          <KeyRound className="size-3.5" strokeWidth={2} />
+        </span>
+        <h3 className="text-[13.5px] font-semibold tracking-tight">{label}</h3>
+      </div>
+      {instr && <StepList text={instr} dense />}
+      {videoUrl && (
+        <div className="mt-3 overflow-hidden rounded-xl border border-border/40 bg-muted/30 aspect-video">
+          {embed ? (
+            <iframe src={embed} className="size-full" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen />
+          ) : isDirectVideo ? (
+            <video src={videoUrl} controls className="size-full object-cover" />
+          ) : (
+            <a href={videoUrl} target="_blank" rel="noreferrer" className="grid size-full place-items-center text-[12px] text-accent underline">
+              Abrir vídeo tutorial
+            </a>
+          )}
+        </div>
+      )}
+      {media.length > 0 && (
+        <div className="mt-3 grid grid-cols-3 gap-1.5">
+          {media.map((m, i) => (
+            <a
+              key={i}
+              href={m.url}
+              target="_blank"
+              rel="noreferrer"
+              className="block overflow-hidden rounded-lg border border-border/40 bg-muted/30 aspect-square"
+            >
+              {m.type === "video" ? (
+                <video src={m.url} className="size-full object-cover" muted playsInline />
+              ) : (
+                <img src={m.url} alt="" className="size-full object-cover" loading="lazy" />
+              )}
+            </a>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
+
 
