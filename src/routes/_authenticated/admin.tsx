@@ -69,7 +69,7 @@ function AdminLayout() {
               <Sparkles className="size-4 text-primary-foreground" strokeWidth={2} />
             </div>
             <div className="leading-tight">
-              <div className="font-display text-xl">SigmaGuide</div>
+              <div className="font-display text-xl">SigmaConcierge</div>
               <div className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground font-semibold mt-0.5">Painel</div>
             </div>
           </Link>
@@ -167,7 +167,7 @@ function AdminLayout() {
             <div className="size-7 rounded-lg bg-primary grid place-items-center">
               <Sparkles className="size-3.5 text-primary-foreground" />
             </div>
-            <span className="font-display text-lg">SigmaGuide</span>
+            <span className="font-display text-lg">SigmaConcierge</span>
           </Link>
           <div className="size-9" />
         </header>

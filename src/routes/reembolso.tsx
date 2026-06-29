@@ -3,16 +3,16 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 export const Route = createFileRoute("/reembolso")({
   head: () => ({
     meta: [
-      { title: "Política de Reembolso — SigmaGuide" },
+      { title: "Política de Reembolso — SigmaConcierge" },
       {
         name: "description",
         content:
-          "Garantia de devolução de 30 dias do SigmaGuide. Veja como solicitar reembolso e cancelar sua assinatura pelo portal do cliente.",
+          "Garantia de devolução de 30 dias do SigmaConcierge. Veja como solicitar reembolso e cancelar sua assinatura pelo portal do cliente.",
       },
-      { property: "og:title", content: "Política de Reembolso — SigmaGuide" },
+      { property: "og:title", content: "Política de Reembolso — SigmaConcierge" },
       {
         property: "og:description",
-        content: "Garantia de 30 dias e instruções para solicitar reembolso ou cancelar a assinatura SigmaGuide.",
+        content: "Garantia de 30 dias e instruções para solicitar reembolso ou cancelar a assinatura SigmaConcierge.",
       },
       { property: "og:url", content: "/reembolso" },
     ],

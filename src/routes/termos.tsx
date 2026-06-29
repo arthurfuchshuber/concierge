@@ -3,16 +3,16 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 export const Route = createFileRoute("/termos")({
   head: () => ({
     meta: [
-      { title: "Termos e Condições — SigmaGuide" },
+      { title: "Termos e Condições — SigmaConcierge" },
       {
         name: "description",
         content:
-          "Leia os termos e condições de uso do SigmaGuide: contas, pagamentos via Paddle, limites de responsabilidade e suporte.",
+          "Leia os termos e condições de uso do SigmaConcierge: contas, pagamentos via Paddle, limites de responsabilidade e suporte.",
       },
-      { property: "og:title", content: "Termos e Condições — SigmaGuide" },
+      { property: "og:title", content: "Termos e Condições — SigmaConcierge" },
       {
         property: "og:description",
-        content: "Termos de uso do SigmaGuide, incluindo assinatura, pagamentos via Paddle e suporte.",
+        content: "Termos de uso do SigmaConcierge, incluindo assinatura, pagamentos via Paddle e suporte.",
       },
       { property: "og:url", content: "/termos" },
     ],

@@ -54,7 +54,7 @@ export const recordGuideAccess = createServerFn({ method: "POST" })
           const checkinLabel = data.checkin_date
             ? new Date(data.checkin_date + "T12:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })
             : "data não informada";
-          const guideUrl = `https://guiadigital.anfitriaosigma.com.br/g/${fullProp.slug}`;
+          const guideUrl = `https://guia.anfitriaosigma.com.br/g/${fullProp.slug}`;
           // Use Supabase transactional email via admin invite (repurposed as notification)
           // We use a simple fetch to the Supabase edge function if configured,
           // otherwise log for visibility.
