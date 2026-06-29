@@ -129,9 +129,8 @@ function Hero() {
       <div className="pointer-events-none absolute inset-0 max-w-6xl mx-auto">
         <div
           className="
-      absolute top-24 left-5 right-5
-      flex items-center justify-center md:justify-between
-      gap-8 md:gap-0
+      absolute top-24 left-0 right-0
+      flex items-center justify-center
       text-[9px] md:text-[10px]
       uppercase
       tracking-[0.12em] md:tracking-[0.3em]
@@ -139,7 +138,7 @@ function Hero() {
       font-mono
     "
         >
-          <span>№ 01</span>
+          <span className="mr-8">№ 01</span>
           <span>2026 — EDIÇÃO BETA</span>
         </div>
       </div>
