@@ -636,6 +636,14 @@ function PropertyEditor() {
 
 
   async function handleSave() {
+    if (gateOpen) {
+      if (!form.property.gate_code.trim()) { toast.error("Informe o código do portão ou desative essa opção."); return; }
+      if (!form.property.gate_label.trim()) { toast.error("Defina um nome para o acesso do portão."); return; }
+    }
+    if (lockOpen) {
+      if (!form.property.lock_code.trim()) { toast.error("Informe o código da fechadura ou desative essa opção."); return; }
+      if (!form.property.lock_label.trim()) { toast.error("Defina um nome para o acesso da fechadura."); return; }
+    }
     setSaving(true);
     try {
       const galleryImages = form.property.gallery_images.filter((u) => u.trim()).slice(0, 4);
