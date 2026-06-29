@@ -9,9 +9,13 @@ import { toast } from "sonner";
 export const Route = createFileRoute("/precos")({
   head: () => ({
     meta: [
-      { title: "Planos e preços — SigmaGuide" },
-      { name: "description", content: "Escolha o plano ideal para criar guias digitais para seus hóspedes. 7 dias grátis em todos os planos." },
-      { property: "og:title", content: "Planos SigmaGuide" },
+      { title: "Planos e preços — SigmaConcierge" },
+      {
+        name: "description",
+        content:
+          "Escolha o plano ideal para criar guias digitais para seus hóspedes. 7 dias grátis em todos os planos.",
+      },
+      { property: "og:title", content: "Planos SigmaConcierge" },
       { property: "og:description", content: "Starter, Pro, Business e Enterprise. 7 dias grátis." },
       { property: "og:url", content: "/precos" },
     ],
@@ -40,12 +44,7 @@ const PLANS: Plan[] = [
     priceSuffix: "/mês",
     priceId: "starter_monthly",
     description: "Para começar a criar guias manualmente.",
-    features: [
-      "Até 3 guias",
-      "Edição manual completa",
-      "Acesso público ou por PIN",
-      "Bilíngue (PT / EN)",
-    ],
+    features: ["Até 3 guias", "Edição manual completa", "Acesso público ou por PIN", "Bilíngue (PT / EN)"],
     cta: "Começar grátis",
   },
   {
@@ -110,7 +109,7 @@ function PricingPage() {
 
   async function handleSubscribe(plan: Plan) {
     if (plan.key === "enterprise") {
-      window.location.href = "mailto:contato@sigmaguide.com?subject=Plano Enterprise";
+      window.location.href = "mailto:sigma@anfitriaosigma.com.br?subject=Plano Enterprise";
       return;
     }
     if (!plan.priceId) return;
@@ -139,7 +138,7 @@ function PricingPage() {
             <div className="size-7 rounded-lg bg-foreground grid place-items-center">
               <Sparkles className="size-3.5 text-background" strokeWidth={2} />
             </div>
-            <span className="font-display text-lg">SigmaGuide</span>
+            <span className="font-display text-lg">SigmaConcierge</span>
           </Link>
           <Link to="/auth" className="text-sm px-4 py-2 rounded-full hover:bg-secondary">
             Entrar
@@ -173,9 +172,7 @@ function PricingPage() {
               <p className="text-sm text-muted-foreground mt-1 min-h-[40px]">{plan.description}</p>
               <div className="mt-5 flex items-baseline gap-1">
                 <span className="text-3xl font-semibold">{plan.price}</span>
-                {plan.priceSuffix && (
-                  <span className="text-sm text-muted-foreground">{plan.priceSuffix}</span>
-                )}
+                {plan.priceSuffix && <span className="text-sm text-muted-foreground">{plan.priceSuffix}</span>}
               </div>
               <ul className="mt-5 space-y-2 flex-1">
                 {plan.features.map((f) => (
@@ -203,9 +200,18 @@ function PricingPage() {
 
         <p className="text-center text-xs text-muted-foreground mt-10">
           Ao assinar, você concorda com nossos{" "}
-          <Link to="/termos" className="underline">Termos</Link>,{" "}
-          <Link to="/privacidade" className="underline">Privacidade</Link> e{" "}
-          <Link to="/reembolso" className="underline">Política de Reembolso</Link>.
+          <Link to="/termos" className="underline">
+            Termos
+          </Link>
+          ,{" "}
+          <Link to="/privacidade" className="underline">
+            Privacidade
+          </Link>{" "}
+          e{" "}
+          <Link to="/reembolso" className="underline">
+            Política de Reembolso
+          </Link>
+          .
         </p>
       </main>
     </div>

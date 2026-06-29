@@ -21,13 +21,13 @@ import {
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "SigmaGuide — O guia digital da sua casa, pronto em minutos" },
+      { title: "SigmaConcierge — O guia digital da sua casa, pronto em minutos" },
       {
         name: "description",
         content:
           "Crie guias editoriais para seus hóspedes em minutos. Cole o link do Maps e nós preenchemos endereço, vizinhança e cidade. Sem dados de reserva.",
       },
-      { property: "og:title", content: "SigmaGuide — O guia digital da sua casa" },
+      { property: "og:title", content: "SigmaConcierge — O guia digital da sua casa" },
       {
         property: "og:description",
         content:
@@ -72,23 +72,17 @@ function Nav() {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
   return (
-    <header
-      className={`fixed top-0 inset-x-0 z-50 transition-all duration-500 ${
-        scrolled ? "py-3" : "py-5"
-      }`}
-    >
+    <header className={`fixed top-0 inset-x-0 z-50 transition-all duration-500 ${scrolled ? "py-3" : "py-5"}`}>
       <div
         className={`mx-auto max-w-6xl px-5 flex items-center justify-between transition-all ${
-          scrolled
-            ? "glass border border-border rounded-full mx-4 md:mx-auto md:max-w-3xl shadow-soft px-4 py-2"
-            : ""
+          scrolled ? "glass border border-border rounded-full mx-4 md:mx-auto md:max-w-3xl shadow-soft px-4 py-2" : ""
         }`}
       >
         <Link to="/" className="flex items-center gap-2">
           <div className="size-7 rounded-lg bg-foreground grid place-items-center">
             <Sparkles className="size-3.5 text-background" strokeWidth={2} />
           </div>
-          <span className="font-display text-lg tracking-tight">SigmaGuide</span>
+          <span className="font-display text-lg tracking-tight">SigmaConcierge</span>
         </Link>
         <div className="flex items-center gap-1">
           <Link
@@ -111,7 +105,6 @@ function Nav() {
             <ArrowRight className="size-3.5" strokeWidth={2} />
           </Link>
         </div>
-
       </div>
     </header>
   );
@@ -180,7 +173,8 @@ function Hero() {
                   className="absolute inset-0 text-accent italic whitespace-nowrap"
                   initial={{ y: "100%", opacity: 0 }}
                   animate={{
-                    y: i === wordIdx ? "0%" : i === (wordIdx - 1 + ROTATING.length) % ROTATING.length ? "-110%" : "100%",
+                    y:
+                      i === wordIdx ? "0%" : i === (wordIdx - 1 + ROTATING.length) % ROTATING.length ? "-110%" : "100%",
                     opacity: i === wordIdx ? 1 : 0,
                   }}
                   transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
@@ -201,8 +195,8 @@ function Hero() {
           className="mt-10 md:mt-14 max-w-xl mx-auto text-center"
         >
           <p className="text-base md:text-lg text-muted-foreground leading-relaxed text-pretty">
-            Cole o link do Google Maps. Em segundos, um guia editorial bilíngue com endereço,
-            vizinhança e cidade — sem nenhum dado de reserva.
+            Cole o link do Google Maps. Em segundos, um guia editorial bilíngue com endereço, vizinhança e cidade — sem
+            nenhum dado de reserva.
           </p>
           <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3">
             <Link
@@ -254,7 +248,7 @@ function PhoneMock() {
             <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent" />
             <div className="absolute top-9 left-4 right-4 flex justify-between items-center">
               <span className="glass rounded-full px-2.5 py-1 text-[8px] uppercase tracking-[0.2em] font-semibold text-white/95 border border-white/15">
-                SigmaGuide
+                SigmaConcierge
               </span>
               <span className="glass rounded-full px-2.5 py-1 text-[8px] uppercase tracking-wider font-medium text-white/95 border border-white/15">
                 EN
@@ -351,9 +345,7 @@ function HowItWorks() {
         <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground font-semibold">
           Capítulo 01 — Como funciona
         </p>
-        <span className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground font-mono">
-          Três passos
-        </span>
+        <span className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground font-mono">Três passos</span>
       </div>
       <h2 className="font-display text-5xl md:text-7xl leading-[0.95] tracking-tight max-w-3xl text-balance">
         Do <span className="italic text-accent">link</span> ao guia em menos de um café.
@@ -390,9 +382,7 @@ function DemoSection() {
           <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground font-semibold">
             Capítulo 02 — A mágica
           </p>
-          <span className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground font-mono">
-            Demo
-          </span>
+          <span className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground font-mono">Demo</span>
         </div>
         <h2 className="font-display text-5xl md:text-7xl leading-[0.95] tracking-tight max-w-3xl text-balance">
           Um <span className="italic">link</span>. Dezenas de campos.
@@ -404,9 +394,7 @@ function DemoSection() {
         <div className="mt-16 grid md:grid-cols-[1fr_auto_1fr] gap-6 md:gap-10 items-center">
           {/* Input side */}
           <div className="rounded-2xl border border-border bg-background p-6 shadow-soft">
-            <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground font-semibold mb-4">
-              Input
-            </p>
+            <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground font-semibold mb-4">Input</p>
             <div className="flex items-center gap-2 rounded-xl bg-secondary px-3 py-3">
               <MapPin className="size-4 text-accent shrink-0" />
               <span className="font-mono text-xs truncate">maps.app.goo.gl/aXk2…</span>
@@ -418,17 +406,13 @@ function DemoSection() {
 
           <div className="flex md:flex-col items-center justify-center gap-2 text-accent">
             <ArrowRight className="size-5 md:rotate-0 rotate-90" />
-            <span className="text-[10px] uppercase tracking-[0.2em] font-semibold font-mono">
-              Auto-fill
-            </span>
+            <span className="text-[10px] uppercase tracking-[0.2em] font-semibold font-mono">Auto-fill</span>
             <ArrowRight className="size-5 md:rotate-0 rotate-90" />
           </div>
 
           {/* Output side */}
           <div className="rounded-2xl border border-border bg-background p-6 shadow-soft">
-            <p className="text-[10px] uppercase tracking-[0.3em] text-accent font-semibold mb-4">
-              Output
-            </p>
+            <p className="text-[10px] uppercase tracking-[0.3em] text-accent font-semibold mb-4">Output</p>
             <ul className="space-y-2.5 text-sm">
               {[
                 "Endereço completo + coordenadas",
@@ -491,7 +475,10 @@ function ScopeCard({
       <p className="font-display text-2xl mt-2">{subtitle}</p>
       <div className="mt-5 space-y-2">
         {items.map((i) => (
-          <div key={i.name} className="flex items-start justify-between gap-4 py-2 border-t border-border first:border-t-0">
+          <div
+            key={i.name}
+            className="flex items-start justify-between gap-4 py-2 border-t border-border first:border-t-0"
+          >
             <div>
               <p className="text-sm font-medium">{i.name}</p>
               <p className="text-xs text-muted-foreground mt-0.5">{i.meta}</p>
@@ -568,9 +555,7 @@ function Pillars() {
                 <div className="size-10 rounded-xl bg-secondary grid place-items-center group-hover:bg-accent/10 transition-colors">
                   <Icon className="size-[18px] text-accent" strokeWidth={1.75} />
                 </div>
-                <span className="font-mono text-[10px] text-muted-foreground">
-                  0{i + 1}
-                </span>
+                <span className="font-mono text-[10px] text-muted-foreground">0{i + 1}</span>
               </div>
               <h3 className="font-display text-2xl leading-tight">{p.title}</h3>
               <p className="text-sm text-muted-foreground mt-2 leading-relaxed">{p.desc}</p>
@@ -596,8 +581,8 @@ function NoReservation() {
           Por princípio.
         </h2>
         <p className="mt-8 text-base md:text-lg text-background/70 max-w-2xl leading-relaxed">
-          Nada de nome de hóspede, datas de check-in, ou integração com plataformas. O guia é da
-          casa — não da estadia. Atemporal, reutilizável, simples.
+          Nada de nome de hóspede, datas de check-in, ou integração com plataformas. O guia é da casa — não da estadia.
+          Atemporal, reutilizável, simples.
         </p>
 
         <div className="mt-14 grid md:grid-cols-2 gap-3">
@@ -638,17 +623,12 @@ function Manifesto() {
   return (
     <section className="px-5 py-32 md:py-44">
       <div className="max-w-4xl mx-auto text-center">
-        <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground font-semibold mb-10">
-          Manifesto
-        </p>
+        <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground font-semibold mb-10">Manifesto</p>
         <blockquote className="font-display text-3xl md:text-5xl leading-[1.15] tracking-tight text-balance">
-          “Um bom guia não substitui o anfitrião —
-          <span className="italic text-accent"> conta a história </span>
+          “Um bom guia não substitui o anfitrião —<span className="italic text-accent"> conta a história </span>
           da casa quando ele não está por perto.”
         </blockquote>
-        <p className="mt-10 text-xs uppercase tracking-[0.3em] text-muted-foreground">
-          SigmaGuide · Edição 2026
-        </p>
+        <p className="mt-10 text-xs uppercase tracking-[0.3em] text-muted-foreground">SigmaConcierge · Edição 2026</p>
       </div>
     </section>
   );
@@ -660,9 +640,7 @@ function FinalCTA() {
     <section className="px-5 pb-24">
       <div className="max-w-5xl mx-auto rounded-3xl border border-border bg-surface p-10 md:p-20 text-center relative overflow-hidden">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,oklch(0.62_0.14_38_/_0.12),transparent_60%)] pointer-events-none" />
-        <p className="relative text-[10px] uppercase tracking-[0.3em] text-accent font-semibold mb-6">
-          Comece agora
-        </p>
+        <p className="relative text-[10px] uppercase tracking-[0.3em] text-accent font-semibold mb-6">Comece agora</p>
         <h2 className="relative font-display text-5xl md:text-7xl leading-[0.95] tracking-tight text-balance">
           Seu primeiro guia,
           <br />
@@ -747,9 +725,7 @@ function SocialProof() {
                 <span className="font-display text-5xl leading-none text-accent">{t.stat}</span>
                 <span className="text-xs text-muted-foreground leading-tight max-w-[12ch]">{t.statLabel}</span>
               </div>
-              <p className="text-[14.5px] leading-relaxed text-foreground/85 flex-1">
-                "{t.quote}"
-              </p>
+              <p className="text-[14.5px] leading-relaxed text-foreground/85 flex-1">"{t.quote}"</p>
               <div className="border-t border-border/60 pt-4">
                 <p className="text-sm font-medium">{t.name}</p>
                 <p className="text-[11px] text-muted-foreground mt-0.5">{t.role}</p>
@@ -774,7 +750,6 @@ function SocialProof() {
   );
 }
 
-
 /* ---------------- Footer ---------------- */
 function Footer() {
   return (
@@ -785,11 +760,9 @@ function Footer() {
             <div className="size-6 rounded-md bg-foreground grid place-items-center">
               <Sparkles className="size-3 text-background" strokeWidth={2} />
             </div>
-            <span className="font-display text-sm">SigmaGuide</span>
+            <span className="font-display text-sm">SigmaConcierge</span>
           </div>
-          <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground">
-            Hospedagem com afeto · MMXXVI
-          </p>
+          <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground">Hospedagem com afeto · MMXXVI</p>
           <div className="flex items-center gap-4 text-xs text-muted-foreground">
             <Link to="/auth" className="hover:text-foreground transition-colors">
               Entrar
@@ -800,12 +773,20 @@ function Footer() {
           </div>
         </div>
         <div className="border-t border-border/60 pt-6 flex flex-col md:flex-row items-center justify-between gap-3 text-xs text-muted-foreground">
-          <p>© MMXXVI SigmaGuide — Todos os direitos reservados.</p>
+          <p>© MMXXVI SigmaConcierge — Todos os direitos reservados.</p>
           <nav className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2">
-            <Link to="/precos" className="hover:text-foreground transition-colors">Preços</Link>
-            <Link to="/termos" className="hover:text-foreground transition-colors">Termos de Uso</Link>
-            <Link to="/privacidade" className="hover:text-foreground transition-colors">Privacidade</Link>
-            <Link to="/reembolso" className="hover:text-foreground transition-colors">Reembolso</Link>
+            <Link to="/precos" className="hover:text-foreground transition-colors">
+              Preços
+            </Link>
+            <Link to="/termos" className="hover:text-foreground transition-colors">
+              Termos de Uso
+            </Link>
+            <Link to="/privacidade" className="hover:text-foreground transition-colors">
+              Privacidade
+            </Link>
+            <Link to="/reembolso" className="hover:text-foreground transition-colors">
+              Reembolso
+            </Link>
           </nav>
         </div>
       </div>

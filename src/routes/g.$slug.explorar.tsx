@@ -31,7 +31,12 @@ import { useCityReferencesRealtime } from "@/hooks/useCityReferencesRealtime";
 import { useTaxonomy } from "@/components/admin/TagPicker";
 import { FilterSheetButton } from "@/components/guide/FilterSheet";
 import { POIEngagementBar } from "@/components/POIEngagementBar";
-import { getPoiEngagementCounts, getMyPoiReactions, recordPoiEngagement, type PoiCounts } from "@/lib/poi-engagement.functions";
+import {
+  getPoiEngagementCounts,
+  getMyPoiReactions,
+  recordPoiEngagement,
+  type PoiCounts,
+} from "@/lib/poi-engagement.functions";
 import { useServerFn } from "@tanstack/react-start";
 import { createContext, useContext } from "react";
 
@@ -47,12 +52,11 @@ function getAnonIdClient(): string {
   const KEY = "sg-anon-id";
   let id = window.localStorage.getItem(KEY);
   if (!id) {
-    id = (crypto.randomUUID?.() ?? Math.random().toString(36).slice(2) + Date.now().toString(36));
+    id = crypto.randomUUID?.() ?? Math.random().toString(36).slice(2) + Date.now().toString(36);
     window.localStorage.setItem(KEY, id);
   }
   return id;
 }
-
 
 const REVIEW_THRESHOLDS = [0, 50, 200, 1000, 5000];
 const REVIEW_LABELS: Record<number, string> = { 0: "Todas", 50: "50+", 200: "200+", 1000: "1k+", 5000: "5k+" };
@@ -70,8 +74,6 @@ function computeReviewOptions(items: { user_ratings_total?: number | null }[]) {
   }).map((v) => ({ value: v, label: REVIEW_LABELS[v] }));
 }
 
-
-
 export const Route = createFileRoute("/g/$slug/explorar")({
   loader: async ({ params }) => {
     const r = await getPublicGuide({ data: { slug: params.slug } });
@@ -80,7 +82,7 @@ export const Route = createFileRoute("/g/$slug/explorar")({
   },
   head: ({ loaderData, params }) => {
     if (!loaderData || loaderData.status !== "ok") {
-      return { meta: [{ title: "Explorar — SigmaGuide" }, { name: "robots", content: "noindex" }] };
+      return { meta: [{ title: "Explorar — SigmaConcierge" }, { name: "robots", content: "noindex" }] };
     }
     const p = loaderData.property as Record<string, unknown>;
     const name = p.name as string;
@@ -121,7 +123,6 @@ type Rec = {
   image_url?: string | null;
   maps_url?: string | null;
 };
-
 
 // Fallback labels — usados pelos componentes-filhos enquanto a taxonomia carrega.
 // O componente principal hidrata `TYPE_LABEL` em runtime com os dados do DB.
@@ -186,7 +187,6 @@ function formatWalking(r: Rec): string | null {
   return null;
 }
 
-
 function formatDriving(r: Rec): string | null {
   if (r.drive_minutes != null && r.drive_minutes > 0) return `${r.drive_minutes} min de carro`;
   if (r.distance_meters && r.distance_meters > 1500) {
@@ -226,10 +226,7 @@ function OpeningHours({ hours }: { hours: string[] | null | undefined }) {
   const today = todayOpening(hours);
   if (!today) return null;
   return (
-    <details
-      className="group/oh text-[11.5px] text-muted-foreground"
-      onClick={(e) => e.stopPropagation()}
-    >
+    <details className="group/oh text-[11.5px] text-muted-foreground" onClick={(e) => e.stopPropagation()}>
       <summary
         className="inline-flex items-center gap-1.5 cursor-pointer list-none hover:text-foreground transition-colors"
         onClick={(e) => e.stopPropagation()}
@@ -239,14 +236,14 @@ function OpeningHours({ hours }: { hours: string[] | null | undefined }) {
       </summary>
       <ul className="mt-1.5 ml-5 space-y-0.5 text-[11px] leading-relaxed">
         {(hours ?? []).map((h, i) => (
-          <li key={i} className="text-muted-foreground/85">{h}</li>
+          <li key={i} className="text-muted-foreground/85">
+            {h}
+          </li>
         ))}
       </ul>
     </details>
   );
-
 }
-
 
 // Capa da categoria — escolha em camadas, sempre privilegiando qualidade,
 // mas com fallback para garantir que toda categoria tenha capa:
@@ -275,7 +272,6 @@ function pickBestPhoto(nearby: Rec[], city: Rec[]): string | null {
   return fallback[0]?.image_url ?? null;
 }
 
-
 type SortKey = "distance" | "rating" | "alpha";
 
 function sortRecs(list: Rec[], by: SortKey): Rec[] {
@@ -300,16 +296,23 @@ function sortRecs(list: Rec[], by: SortKey): Rec[] {
 function matchesQuery(rec: Rec, q: string): boolean {
   const needle = q.trim().toLowerCase();
   if (!needle) return true;
-  const hay = [
-    rec.name,
-    rec.category ?? "",
-    TYPE_LABEL[rec.type] ?? rec.type,
-    rec.note ?? "",
-  ].join(" \u0001 ").toLowerCase();
+  const hay = [rec.name, rec.category ?? "", TYPE_LABEL[rec.type] ?? rec.type, rec.note ?? ""]
+    .join(" \u0001 ")
+    .toLowerCase();
   return hay.includes(needle);
 }
 
-function SearchBar({ value, onChange, placeholder, compact }: { value: string; onChange: (s: string) => void; placeholder?: string; compact?: boolean }) {
+function SearchBar({
+  value,
+  onChange,
+  placeholder,
+  compact,
+}: {
+  value: string;
+  onChange: (s: string) => void;
+  placeholder?: string;
+  compact?: boolean;
+}) {
   return (
     <div className={`relative w-full ${compact ? "" : "mt-3"}`}>
       <input
@@ -347,9 +350,7 @@ function ExplorePage() {
 
   // Tema herdado da página inicial do guia (definido pelo visitante).
   const adminTheme: "dark" | "light" =
-    r.status === "ok" && (r.property as Record<string, unknown>).guide_theme === "light"
-      ? "light"
-      : "dark";
+    r.status === "ok" && (r.property as Record<string, unknown>).guide_theme === "light" ? "light" : "dark";
   const [theme] = useState<"dark" | "light">(() => {
     if (typeof window === "undefined") return adminTheme;
     const stored = window.localStorage.getItem(`guide-theme:${slug}`);
@@ -372,15 +373,20 @@ function ExplorePage() {
       try {
         const c = await fetchCounts({ data: { slug } });
         if (alive) setEngCounts(c.counts);
-      } catch { /* silencioso */ }
+      } catch {
+        /* silencioso */
+      }
       try {
         const rx = await fetchReactions({ data: { slug, anon_id: getAnonIdClient() } });
         if (alive) setEngReactions(rx.reactions);
-      } catch { /* silencioso */ }
+      } catch {
+        /* silencioso */
+      }
     })();
-    return () => { alive = false; };
+    return () => {
+      alive = false;
+    };
   }, [slug, fetchCounts, fetchReactions]);
-
 
   if (r.status !== "ok") {
     return (
@@ -494,8 +500,7 @@ function ExplorePage() {
   // - property_recommendations: apenas "Pertinho" do imóvel;
   // - city_references: apenas "Referências na Cidade", compartilhadas.
   const buildBuckets = (meta: MetaCategory, applyMinReviews: boolean) => {
-    const passesReviews = (x: Rec) =>
-      !applyMinReviews || minReviews <= 0 || (x.user_ratings_total ?? 0) >= minReviews;
+    const passesReviews = (x: Rec) => !applyMinReviews || minReviews <= 0 || (x.user_ratings_total ?? 0) >= minReviews;
     const passesQuery = (x: Rec) => matchesQuery(x, query);
     const knownLabels = new Set(dynamicMetas.map((m) => m.title));
     const inMeta = (rec: Rec) => {
@@ -566,212 +571,217 @@ function ExplorePage() {
   // Mantém o mapa de label sincronizado com a taxonomia (mutação intencional
   // do objeto module-level para que componentes-filhos enxerguem labels reais).
   useEffect(() => {
-    (taxonomy?.tags ?? []).forEach((t) => { TYPE_LABEL[t.slug] = t.label; });
+    (taxonomy?.tags ?? []).forEach((t) => {
+      TYPE_LABEL[t.slug] = t.label;
+    });
   }, [taxonomy]);
 
-  const active = (activeKey
-    ? categoriesUnfiltered.find((c) => c.meta.key === activeKey)
-    : null) ?? null;
+  const active = (activeKey ? categoriesUnfiltered.find((c) => c.meta.key === activeKey) : null) ?? null;
 
   return (
     <EngagementCtx.Provider value={{ slug, counts: engCounts, reactions: engReactions }}>
-    <div
-      className={`sigma-public-guide guide-ambient min-h-screen bg-background text-foreground pb-24 ${
-        theme === "light" ? "theme-light" : ""
-      }`}
-    >
+      <div
+        className={`sigma-public-guide guide-ambient min-h-screen bg-background text-foreground pb-24 ${
+          theme === "light" ? "theme-light" : ""
+        }`}
+      >
+        <div className="mx-auto w-full max-w-md md:max-w-3xl lg:max-w-5xl px-5 md:px-10 pt-5 md:pt-10">
+          {active ? (
+            <button
+              type="button"
+              onClick={() => setActiveKey(null)}
+              aria-label="Voltar para todas as categorias"
+              className="fixed left-3 md:left-6 top-1/2 -translate-y-1/2 z-30 grid place-items-center size-11 rounded-full bg-accent/15 backdrop-blur-md border border-accent/35 text-accent/85 shadow-md hover:text-accent hover:bg-accent/25 hover:scale-105 transition-all"
+            >
+              <ArrowLeft className="size-5" strokeWidth={1.75} />
+            </button>
+          ) : (
+            <Link
+              to="/g/$slug"
+              params={{ slug }}
+              aria-label="Voltar ao guia"
+              className="fixed left-3 md:left-6 top-1/2 -translate-y-1/2 z-30 grid place-items-center size-11 rounded-full bg-accent/15 backdrop-blur-md border border-accent/35 text-accent/85 shadow-md hover:text-accent hover:bg-accent/25 hover:scale-105 transition-all"
+            >
+              <ArrowLeft className="size-5" strokeWidth={1.75} />
+            </Link>
+          )}
 
-      <div className="mx-auto w-full max-w-md md:max-w-3xl lg:max-w-5xl px-5 md:px-10 pt-5 md:pt-10">
-        {active ? (
-          <button
-            type="button"
-            onClick={() => setActiveKey(null)}
-            aria-label="Voltar para todas as categorias"
-            className="fixed left-3 md:left-6 top-1/2 -translate-y-1/2 z-30 grid place-items-center size-11 rounded-full bg-accent/15 backdrop-blur-md border border-accent/35 text-accent/85 shadow-md hover:text-accent hover:bg-accent/25 hover:scale-105 transition-all"
-          >
-            <ArrowLeft className="size-5" strokeWidth={1.75} />
-          </button>
-        ) : (
-          <Link
-            to="/g/$slug"
-            params={{ slug }}
-            aria-label="Voltar ao guia"
-            className="fixed left-3 md:left-6 top-1/2 -translate-y-1/2 z-30 grid place-items-center size-11 rounded-full bg-accent/15 backdrop-blur-md border border-accent/35 text-accent/85 shadow-md hover:text-accent hover:bg-accent/25 hover:scale-105 transition-all"
-          >
-            <ArrowLeft className="size-5" strokeWidth={1.75} />
-          </Link>
-        )}
-
-
-        <header className="mt-6 mb-8">
-          <p className="text-[10px] uppercase tracking-[0.32em] text-accent font-semibold mb-3">Concierge</p>
-          <div className="flex items-start justify-between gap-4">
-            <h1 className="font-serif text-[2.1rem] md:text-[2.8rem] leading-[1.02] tracking-tight">
-              {active ? active.meta.title : "Explore a Região"}
-            </h1>
-          </div>
-          <p className="text-[13px] md:text-[14px] text-muted-foreground mt-3 leading-relaxed max-w-[52ch]">
-            {active
-              ? active.meta.desc
-              : `Uma curadoria de lugares e experiências próximas a ${p.name}.`}
-          </p>
-        </header>
-
-        {/* "Ver Mapa" temporariamente desabilitado — componente EmbeddedMapModal preservado abaixo para reativação futura. */}
-
-        {!active ? (
-          <>
-            <div className="sticky top-0 z-10 -mx-4 px-4 py-2 bg-background/85 backdrop-blur border-b border-border/40">
-              <div className="flex items-center justify-center gap-2 mx-auto max-w-3xl">
-                <div className="flex-1 min-w-0 max-w-md">
-                  <SearchBar value={query} onChange={setQuery} compact />
-                </div>
-                <FilterSheetButton
-                  sortBy="distance"
-                  setSortBy={() => {}}
-                  minReviews={minReviews}
-                  setMinReviews={setMinReviews}
-                  showNear
-                  setShowNear={() => {}}
-                  showRefs
-                  setShowRefs={() => {}}
-                  showSort={false}
-                  showProximity={false}
-                  reviewOptions={computeReviewOptions([...allRecs, ...cityRefs])}
-                />
-                <ViewToggle viewMode={viewMode} setViewMode={setViewMode} />
-              </div>
+          <header className="mt-6 mb-8">
+            <p className="text-[10px] uppercase tracking-[0.32em] text-accent font-semibold mb-3">Concierge</p>
+            <div className="flex items-start justify-between gap-4">
+              <h1 className="font-serif text-[2.1rem] md:text-[2.8rem] leading-[1.02] tracking-tight">
+                {active ? active.meta.title : "Explore a Região"}
+              </h1>
             </div>
-            <div className="mt-5">
-              {viewMode === "grid" ? (
-                <CategoryGrid categories={categories} onPick={(k) => setActiveKey(k)} />
-              ) : (
-                <CategoryList categories={categories} onPick={(k) => setActiveKey(k)} />
-              )}
-            </div>
-          </>
-        ) : (
-          <CategoryDetail
-            nearby={active!.nearby}
-            city={active!.city}
-            sortBy={sortBy}
-            setSortBy={setSortBy}
-            viewMode={viewMode}
-            setViewMode={setViewMode}
-            isTouristCategory={active!.meta.key === "sights"}
-          />
-        )}
-
-        {/* Reservas & marketplace — fica ao final da página (somente fora do detalhe). */}
-        {(() => {
-          if (active) return null;
-          const links = (Array.isArray(p.marketplace_links) ? p.marketplace_links : []).filter(
-            (m: any) => m && typeof m.label === "string" && m.label.trim() && typeof m.url === "string" && m.url.trim(),
-          );
-          if (links.length === 0) return null;
-          return (
-            <div className="mt-10">
-              <div className="mb-3 flex items-center gap-2">
-                <Ticket className="size-4 text-muted-foreground" />
-                <h3 className="text-xs uppercase tracking-[0.18em] font-semibold text-muted-foreground">Reservas & experiências</h3>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {links.map((m: any, i: number) => (
-                  <a
-                    key={i}
-                    href={m.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={() => {
-                      // Track click as a marketplace view (fire-and-forget).
-                      try {
-                        void recordEng({
-                          data: {
-                            slug,
-                            poi_key: m.url,
-                            poi_type: "marketplace_link",
-                            event_type: "view",
-                            anon_id: getAnonIdClient(),
-                          },
-                        });
-                      } catch { /* noop */ }
-                    }}
-                    className="group flex items-start gap-3 rounded-2xl border border-border bg-card/40 hover:bg-card hover:border-accent/50 hover:shadow-md transition-all p-4"
-                  >
-                    <span className="shrink-0 inline-flex size-9 items-center justify-center rounded-full bg-accent/15 text-accent">
-                      <Ticket className="size-4" strokeWidth={1.75} />
-                    </span>
-                    <span className="min-w-0 flex-1">
-                      <span className="flex items-center gap-1.5">
-                        <span className="font-medium text-[14px] leading-tight truncate">{m.label}</span>
-                        <ExternalLink className="size-3 text-muted-foreground shrink-0 group-hover:text-accent transition-colors" />
-                      </span>
-                      {typeof m.description === "string" && m.description.trim() && (
-                        <span className="block text-[12.5px] text-muted-foreground mt-1 leading-relaxed">
-                          {m.description}
-                        </span>
-                      )}
-                    </span>
-                  </a>
-                ))}
-              </div>
-            </div>
-          );
-        })()}
-
-
-        {categories.length === 0 && cityRefs.length === 0 && (!Array.isArray(p.marketplace_links) || p.marketplace_links.length === 0) && (
-          <div className="flex flex-col items-center justify-center gap-3 py-16 text-center">
-            <div className="size-14 rounded-2xl bg-accent/10 grid place-items-center">
-              <Compass className="size-7 text-accent/60" strokeWidth={1.25} />
-            </div>
-            <p className="text-[15px] font-medium">Recomendações a caminho</p>
-            <p className="text-sm text-muted-foreground max-w-xs leading-relaxed">
-              O anfitrião ainda está preparando as dicas desta hospedagem. Volte em breve!
+            <p className="text-[13px] md:text-[14px] text-muted-foreground mt-3 leading-relaxed max-w-[52ch]">
+              {active ? active.meta.desc : `Uma curadoria de lugares e experiências próximas a ${p.name}.`}
             </p>
-          </div>
-        )}
+          </header>
 
+          {/* "Ver Mapa" temporariamente desabilitado — componente EmbeddedMapModal preservado abaixo para reativação futura. */}
 
-        {!active && (() => {
-          const tagged = (r.faqs ?? []).filter((f: any) => Array.isArray(f?.tags) && f.tags.includes("explore"));
-          if (tagged.length === 0) return null;
-          return (
-            <div className="mt-10">
-              <div className="mb-3 flex items-center gap-2">
-                <HelpCircle className="size-4 text-muted-foreground" />
-                <h3 className="text-xs uppercase tracking-[0.18em] font-semibold text-muted-foreground">Perguntas frequentes</h3>
+          {!active ? (
+            <>
+              <div className="sticky top-0 z-10 -mx-4 px-4 py-2 bg-background/85 backdrop-blur border-b border-border/40">
+                <div className="flex items-center justify-center gap-2 mx-auto max-w-3xl">
+                  <div className="flex-1 min-w-0 max-w-md">
+                    <SearchBar value={query} onChange={setQuery} compact />
+                  </div>
+                  <FilterSheetButton
+                    sortBy="distance"
+                    setSortBy={() => {}}
+                    minReviews={minReviews}
+                    setMinReviews={setMinReviews}
+                    showNear
+                    setShowNear={() => {}}
+                    showRefs
+                    setShowRefs={() => {}}
+                    showSort={false}
+                    showProximity={false}
+                    reviewOptions={computeReviewOptions([...allRecs, ...cityRefs])}
+                  />
+                  <ViewToggle viewMode={viewMode} setViewMode={setViewMode} />
+                </div>
               </div>
-              <Accordion type="single" collapsible className="space-y-1.5">
-                {tagged.map((f: any, idx: number) => (
-                  <AccordionItem
-                    key={f.id}
-                    value={f.id}
-                    className="border border-border/70 rounded-xl px-3.5 bg-card/30 hover:bg-card/60 transition-colors data-[state=open]:bg-card data-[state=open]:border-accent/40"
-                  >
-                    <AccordionTrigger className="text-left hover:no-underline py-2.5 gap-3">
-                      <span className="flex items-center gap-2.5 min-w-0">
-                        <span className="text-[10px] font-mono text-accent/70 tabular-nums tracking-wider shrink-0">{String(idx + 1).padStart(2, "0")}</span>
-                        <span className="text-[13.5px] font-medium leading-snug truncate">{f.question}</span>
+              <div className="mt-5">
+                {viewMode === "grid" ? (
+                  <CategoryGrid categories={categories} onPick={(k) => setActiveKey(k)} />
+                ) : (
+                  <CategoryList categories={categories} onPick={(k) => setActiveKey(k)} />
+                )}
+              </div>
+            </>
+          ) : (
+            <CategoryDetail
+              nearby={active!.nearby}
+              city={active!.city}
+              sortBy={sortBy}
+              setSortBy={setSortBy}
+              viewMode={viewMode}
+              setViewMode={setViewMode}
+              isTouristCategory={active!.meta.key === "sights"}
+            />
+          )}
+
+          {/* Reservas & marketplace — fica ao final da página (somente fora do detalhe). */}
+          {(() => {
+            if (active) return null;
+            const links = (Array.isArray(p.marketplace_links) ? p.marketplace_links : []).filter(
+              (m: any) =>
+                m && typeof m.label === "string" && m.label.trim() && typeof m.url === "string" && m.url.trim(),
+            );
+            if (links.length === 0) return null;
+            return (
+              <div className="mt-10">
+                <div className="mb-3 flex items-center gap-2">
+                  <Ticket className="size-4 text-muted-foreground" />
+                  <h3 className="text-xs uppercase tracking-[0.18em] font-semibold text-muted-foreground">
+                    Reservas & experiências
+                  </h3>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {links.map((m: any, i: number) => (
+                    <a
+                      key={i}
+                      href={m.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={() => {
+                        // Track click as a marketplace view (fire-and-forget).
+                        try {
+                          void recordEng({
+                            data: {
+                              slug,
+                              poi_key: m.url,
+                              poi_type: "marketplace_link",
+                              event_type: "view",
+                              anon_id: getAnonIdClient(),
+                            },
+                          });
+                        } catch {
+                          /* noop */
+                        }
+                      }}
+                      className="group flex items-start gap-3 rounded-2xl border border-border bg-card/40 hover:bg-card hover:border-accent/50 hover:shadow-md transition-all p-4"
+                    >
+                      <span className="shrink-0 inline-flex size-9 items-center justify-center rounded-full bg-accent/15 text-accent">
+                        <Ticket className="size-4" strokeWidth={1.75} />
                       </span>
-                    </AccordionTrigger>
-                    <AccordionContent className="text-[13.5px] leading-relaxed whitespace-pre-line text-foreground/80 pl-6 pr-1 pb-3.5 max-w-prose">
-                      {f.answer}
-                    </AccordionContent>
-                  </AccordionItem>
-                ))}
-              </Accordion>
-            </div>
-          );
-        })()}
+                      <span className="min-w-0 flex-1">
+                        <span className="flex items-center gap-1.5">
+                          <span className="font-medium text-[14px] leading-tight truncate">{m.label}</span>
+                          <ExternalLink className="size-3 text-muted-foreground shrink-0 group-hover:text-accent transition-colors" />
+                        </span>
+                        {typeof m.description === "string" && m.description.trim() && (
+                          <span className="block text-[12.5px] text-muted-foreground mt-1 leading-relaxed">
+                            {m.description}
+                          </span>
+                        )}
+                      </span>
+                    </a>
+                  ))}
+                </div>
+              </div>
+            );
+          })()}
+
+          {categories.length === 0 &&
+            cityRefs.length === 0 &&
+            (!Array.isArray(p.marketplace_links) || p.marketplace_links.length === 0) && (
+              <div className="flex flex-col items-center justify-center gap-3 py-16 text-center">
+                <div className="size-14 rounded-2xl bg-accent/10 grid place-items-center">
+                  <Compass className="size-7 text-accent/60" strokeWidth={1.25} />
+                </div>
+                <p className="text-[15px] font-medium">Recomendações a caminho</p>
+                <p className="text-sm text-muted-foreground max-w-xs leading-relaxed">
+                  O anfitrião ainda está preparando as dicas desta hospedagem. Volte em breve!
+                </p>
+              </div>
+            )}
+
+          {!active &&
+            (() => {
+              const tagged = (r.faqs ?? []).filter((f: any) => Array.isArray(f?.tags) && f.tags.includes("explore"));
+              if (tagged.length === 0) return null;
+              return (
+                <div className="mt-10">
+                  <div className="mb-3 flex items-center gap-2">
+                    <HelpCircle className="size-4 text-muted-foreground" />
+                    <h3 className="text-xs uppercase tracking-[0.18em] font-semibold text-muted-foreground">
+                      Perguntas frequentes
+                    </h3>
+                  </div>
+                  <Accordion type="single" collapsible className="space-y-1.5">
+                    {tagged.map((f: any, idx: number) => (
+                      <AccordionItem
+                        key={f.id}
+                        value={f.id}
+                        className="border border-border/70 rounded-xl px-3.5 bg-card/30 hover:bg-card/60 transition-colors data-[state=open]:bg-card data-[state=open]:border-accent/40"
+                      >
+                        <AccordionTrigger className="text-left hover:no-underline py-2.5 gap-3">
+                          <span className="flex items-center gap-2.5 min-w-0">
+                            <span className="text-[10px] font-mono text-accent/70 tabular-nums tracking-wider shrink-0">
+                              {String(idx + 1).padStart(2, "0")}
+                            </span>
+                            <span className="text-[13.5px] font-medium leading-snug truncate">{f.question}</span>
+                          </span>
+                        </AccordionTrigger>
+                        <AccordionContent className="text-[13.5px] leading-relaxed whitespace-pre-line text-foreground/80 pl-6 pr-1 pb-3.5 max-w-prose">
+                          {f.answer}
+                        </AccordionContent>
+                      </AccordionItem>
+                    ))}
+                  </Accordion>
+                </div>
+              );
+            })()}
+        </div>
+        {(r as { aiEnabled?: boolean }).aiEnabled ? (
+          <GuideAiChat slug={slug} propertyName={(p.name as string) ?? "Guia"} guestName={null} />
+        ) : null}
       </div>
-      {(r as { aiEnabled?: boolean }).aiEnabled ? (
-        <GuideAiChat slug={slug} propertyName={(p.name as string) ?? "Guia"} guestName={null} />
-      ) : null}
-    </div>
     </EngagementCtx.Provider>
   );
-
 }
 
 function SkeletonCard() {
@@ -800,7 +810,6 @@ function SkeletonRow() {
   );
 }
 
-
 function CategoryGrid({
   categories,
   onPick,
@@ -816,7 +825,9 @@ function CategoryGrid({
   if (categories.length === 0) {
     return (
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        {[1,2,3,4].map((k) => <SkeletonCard key={k} />)}
+        {[1, 2, 3, 4].map((k) => (
+          <SkeletonCard key={k} />
+        ))}
       </div>
     );
   }
@@ -856,7 +867,9 @@ function CategoryGrid({
               <p className="text-[12.5px] text-muted-foreground mt-1.5 leading-relaxed">{meta.desc}</p>
               <div className="mt-3 inline-flex items-center gap-1.5 text-[10.5px] uppercase tracking-[0.24em] font-semibold text-accent">
                 Explorar
-                <span aria-hidden className="transition-transform group-hover:translate-x-0.5">→</span>
+                <span aria-hidden className="transition-transform group-hover:translate-x-0.5">
+                  →
+                </span>
               </div>
             </div>
           </button>
@@ -957,9 +970,8 @@ function CategoryDetail({
   }, [nearby, city]);
 
   const isNear = (r: Rec) =>
-    (typeof r.distance_meters === "number" && r.distance_meters > 0 && r.distance_meters <= 1600);
-  const isRef = (r: Rec) =>
-    (r.rating ?? 0) >= 4.5 && (r.user_ratings_total ?? 0) >= 500;
+    typeof r.distance_meters === "number" && r.distance_meters > 0 && r.distance_meters <= 1600;
+  const isRef = (r: Rec) => (r.rating ?? 0) >= 4.5 && (r.user_ratings_total ?? 0) >= 500;
 
   const filtered = useMemo(() => {
     let arr = allItems;
@@ -1007,16 +1019,18 @@ function CategoryDetail({
 
       <div className="mt-5">
         {sorted.length === 0 ? (
-          <p className="text-sm text-muted-foreground py-8 text-center">
-            Nenhum lugar com esses filtros.
-          </p>
+          <p className="text-sm text-muted-foreground py-8 text-center">Nenhum lugar com esses filtros.</p>
         ) : viewMode === "grid" ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {sorted.map((rec) => <RecCard key={rec.id} rec={rec} />)}
+            {sorted.map((rec) => (
+              <RecCard key={rec.id} rec={rec} />
+            ))}
           </div>
         ) : (
           <div className="flex flex-col gap-3">
-            {sorted.map((rec) => <RecRow key={rec.id} rec={rec} />)}
+            {sorted.map((rec) => (
+              <RecRow key={rec.id} rec={rec} />
+            ))}
           </div>
         )}
       </div>
@@ -1025,15 +1039,29 @@ function CategoryDetail({
 }
 
 function ProximityFilters({
-  showNear, setShowNear, showRefs, setShowRefs, nearCount, refsCount,
+  showNear,
+  setShowNear,
+  showRefs,
+  setShowRefs,
+  nearCount,
+  refsCount,
 }: {
-  showNear: boolean; setShowNear: (b: boolean) => void;
-  showRefs: boolean; setShowRefs: (b: boolean) => void;
-  nearCount: number; refsCount: number;
+  showNear: boolean;
+  setShowNear: (b: boolean) => void;
+  showRefs: boolean;
+  setShowRefs: (b: boolean) => void;
+  nearCount: number;
+  refsCount: number;
 }) {
   const opts = [
     { key: "near", label: "Pertinho", on: showNear, toggle: () => setShowNear(!showNear), count: nearCount },
-    { key: "refs", label: "Referências na Cidade", on: showRefs, toggle: () => setShowRefs(!showRefs), count: refsCount },
+    {
+      key: "refs",
+      label: "Referências na Cidade",
+      on: showRefs,
+      toggle: () => setShowRefs(!showRefs),
+      count: refsCount,
+    },
   ].filter((o) => o.count > 0);
   if (opts.length === 0) return null;
   return (
@@ -1105,7 +1133,6 @@ function MinReviewsFilter({ value, onChange, items }: { value: number; onChange:
   );
 }
 
-
 function ViewToggle({
   viewMode,
   setViewMode,
@@ -1129,9 +1156,7 @@ function ViewToggle({
             onClick={() => setViewMode(o.key)}
             aria-label={o.label}
             className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11.5px] font-medium transition-colors ${
-              on
-                ? "bg-accent text-accent-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground"
+              on ? "bg-accent text-accent-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
             }`}
           >
             <Icon className="size-3.5" />
@@ -1159,9 +1184,7 @@ function SortBar({ sortBy, setSortBy }: { sortBy: SortKey; setSortBy: (s: SortKe
             type="button"
             onClick={() => setSortBy(o.key)}
             className={`px-3 py-1.5 rounded-full text-[11.5px] font-medium transition-colors ${
-              on
-                ? "bg-accent text-accent-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground"
+              on ? "bg-accent text-accent-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
             }`}
           >
             {o.label}
@@ -1207,7 +1230,8 @@ function CollapsibleSection({
           <h3 className="font-serif text-[1.35rem] md:text-[1.55rem] leading-tight mt-0.5">
             {title}
             <span className="ml-2 text-[12px] text-muted-foreground font-sans font-normal">
-              ({items.length}{isFiltered ? ` de ${totalCount}` : ""})
+              ({items.length}
+              {isFiltered ? ` de ${totalCount}` : ""})
             </span>
           </h3>
         </div>
@@ -1241,13 +1265,11 @@ function CollapsibleSection({
   );
 }
 
-
 function RecCard({ rec }: { rec: Rec }) {
   const walking = formatWalking(rec);
   const driving = formatDriving(rec);
   const href = safeHttpsHref(rec.maps_url, rec.name);
   // typeLabel removido do guia público — tag continua salva no back-end.
-
 
   const eng = useContext(EngagementCtx);
   const counts = eng?.counts[rec.id];
@@ -1255,7 +1277,6 @@ function RecCard({ rec }: { rec: Rec }) {
 
   const inner = (
     <div className="relative group bg-card border border-border rounded-2xl overflow-hidden flex flex-col hover:border-accent/40 hover:shadow-lg transition-all h-full">
-
       <div className="relative aspect-square w-full overflow-hidden bg-secondary">
         {rec.image_url ? (
           <img
@@ -1270,7 +1291,6 @@ function RecCard({ rec }: { rec: Rec }) {
           </div>
         )}
         {/* tag/categoria oculta no guia público — mantida apenas no admin */}
-
       </div>
 
       <div className="p-4 pr-12 flex-1 flex flex-col gap-2">
@@ -1278,10 +1298,7 @@ function RecCard({ rec }: { rec: Rec }) {
           <h4 className="text-[15px] font-medium leading-snug line-clamp-2 flex-1">{rec.name}</h4>
         </div>
 
-
-        {rec.note && (
-          <p className="text-[12.5px] text-muted-foreground leading-relaxed line-clamp-3">{rec.note}</p>
-        )}
+        {rec.note && <p className="text-[12.5px] text-muted-foreground leading-relaxed line-clamp-3">{rec.note}</p>}
 
         <div className="pt-2 flex flex-col gap-1.5 text-[11.5px] text-muted-foreground">
           {rec.rating != null && (
@@ -1352,9 +1369,7 @@ function RecRow({ rec }: { rec: Rec }) {
 
   const inner = (
     <div className="relative group flex gap-4 bg-card border border-border rounded-2xl p-3 pr-12 hover:border-accent/40 hover:shadow-lg transition-all min-h-[160px]">
-
       <div className="relative size-28 sm:size-32 shrink-0 overflow-hidden rounded-xl bg-secondary">
-
         {rec.image_url ? (
           <img
             src={rec.image_url}
@@ -1373,12 +1388,9 @@ function RecRow({ rec }: { rec: Rec }) {
           <div className="min-w-0">
             <h4 className="text-[15px] font-medium leading-snug line-clamp-2">{rec.name}</h4>
           </div>
-
         </div>
 
-        {rec.note && (
-          <p className="text-[12.5px] text-muted-foreground leading-relaxed line-clamp-2">{rec.note}</p>
-        )}
+        {rec.note && <p className="text-[12.5px] text-muted-foreground leading-relaxed line-clamp-2">{rec.note}</p>}
 
         <div className="mt-auto flex flex-col gap-1 text-[11.5px] text-muted-foreground">
           {rec.rating != null && (
@@ -1408,7 +1420,6 @@ function RecRow({ rec }: { rec: Rec }) {
           )}
         </div>
         <OpeningHours hours={rec.opening_hours} />
-
       </div>
       {eng ? (
         <POIEngagementBar
@@ -1434,16 +1445,21 @@ function RecRow({ rec }: { rec: Rec }) {
   return inner;
 }
 
-
 // ─── CityMap: visual grid of pinned places linking to Google Maps ─────────────
 function CityMap({ items }: { items: Rec[] }) {
   const withImg = items.filter((it) => it.image_url).slice(0, 6);
   if (withImg.length < 2) return null;
 
   const categoryColors: Record<string, string> = {
-    attraction: "bg-amber-500", restaurant: "bg-red-500", bar: "bg-purple-500",
-    cafe: "bg-yellow-600", beach: "bg-blue-500", park: "bg-green-500",
-    market: "bg-orange-500", pharmacy: "bg-pink-500", shopping: "bg-indigo-500",
+    attraction: "bg-amber-500",
+    restaurant: "bg-red-500",
+    bar: "bg-purple-500",
+    cafe: "bg-yellow-600",
+    beach: "bg-blue-500",
+    park: "bg-green-500",
+    market: "bg-orange-500",
+    pharmacy: "bg-pink-500",
+    shopping: "bg-indigo-500",
     nightlife: "bg-violet-500",
   };
 
@@ -1462,16 +1478,27 @@ function CityMap({ items }: { items: Rec[] }) {
           const color = categoryColors[it.type] ?? "bg-accent";
           const inner = (
             <div className="group relative overflow-hidden rounded-xl aspect-square cursor-pointer hover:scale-[1.03] transition-transform">
-              <img src={it.image_url!} alt={it.name} className="absolute inset-0 size-full object-cover" loading="lazy" />
+              <img
+                src={it.image_url!}
+                alt={it.name}
+                className="absolute inset-0 size-full object-cover"
+                loading="lazy"
+              />
               <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
               <div className={`absolute top-1.5 left-1.5 size-2 rounded-full ${color} ring-1 ring-white/50`} />
-              <p className="absolute bottom-1.5 left-1.5 right-1.5 text-[10px] font-medium text-white leading-tight line-clamp-2">{it.name}</p>
+              <p className="absolute bottom-1.5 left-1.5 right-1.5 text-[10px] font-medium text-white leading-tight line-clamp-2">
+                {it.name}
+              </p>
               <ExternalLink className="absolute top-1.5 right-1.5 size-2.5 text-white/70 opacity-0 group-hover:opacity-100 transition-opacity" />
             </div>
           );
           return href ? (
-            <a key={it.id} href={href} target="_blank" rel="noopener noreferrer">{inner}</a>
-          ) : <div key={it.id}>{inner}</div>;
+            <a key={it.id} href={href} target="_blank" rel="noopener noreferrer">
+              {inner}
+            </a>
+          ) : (
+            <div key={it.id}>{inner}</div>
+          );
         })}
       </div>
     </div>
@@ -1499,9 +1526,11 @@ function EmbeddedMapModal({
   // The Embed API supports "q" for a single search OR we use the place-search
   // mode. For multiple custom pins we use the "search" mode with the property
   // location as center + all maps_url links listed below the map.
-  const GOOGLE_MAPS_KEY = (typeof window !== "undefined"
-    ? ((window as unknown as { __ENV__?: { VITE_GOOGLE_MAPS_KEY?: string } }).__ENV__?.VITE_GOOGLE_MAPS_KEY ?? null)
-    : null) as string | null;
+  const GOOGLE_MAPS_KEY = (
+    typeof window !== "undefined"
+      ? ((window as unknown as { __ENV__?: { VITE_GOOGLE_MAPS_KEY?: string } }).__ENV__?.VITE_GOOGLE_MAPS_KEY ?? null)
+      : null
+  ) as string | null;
 
   // Build comma-separated waypoints from recs that have maps_url or a name.
   // The Embed API doesn't support multiple custom pins natively, so we use

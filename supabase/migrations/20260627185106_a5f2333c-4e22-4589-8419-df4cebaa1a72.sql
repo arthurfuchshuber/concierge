@@ -1,5 +1,5 @@
 -- Sigma city packs/recs/marketplace/faqs: grants ausentes faziam a leitura via PostgREST falhar,
--- escondendo o botão "Importar do SigmaGuide" mesmo com pack publicado para a cidade.
+-- escondendo o botão "Importar do SigmaConcierge" mesmo com pack publicado para a cidade.
 GRANT SELECT ON public.sigma_city_packs TO anon, authenticated;
 GRANT ALL ON public.sigma_city_packs TO service_role;
 

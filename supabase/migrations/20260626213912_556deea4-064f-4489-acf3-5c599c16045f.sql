@@ -1,6 +1,6 @@
 
 -- ============================================================
--- SIGMAGUIDE RECOMMENDATIONS PACKS (admin-curated by city)
+-- SIGMACONCIERGE RECOMMENDATIONS PACKS (admin-curated by city)
 -- ============================================================
 
 -- 1) Cidade-pack (1 linha por cidade)
