@@ -535,6 +535,10 @@ function Guide({ data }: { data: GuideOk }) {
                       theme={theme}
                       gateInstructions={p.gate_instructions as string | null}
                       lockInstructions={p.lock_instructions as string | null}
+                      gateVideoUrl={p.gate_video_url as string | null}
+                      lockVideoUrl={p.lock_video_url as string | null}
+                      gateMedia={Array.isArray(p.gate_media) ? (p.gate_media as Array<{ url: string; type: "image" | "video" }>) : []}
+                      lockMedia={Array.isArray(p.lock_media) ? (p.lock_media as Array<{ url: string; type: "image" | "video" }>) : []}
                     />
                   </div>
                 )}
@@ -2152,6 +2156,10 @@ function AccessCodesStrip({
   theme,
   gateInstructions,
   lockInstructions,
+  gateVideoUrl,
+  lockVideoUrl,
+  gateMedia,
+  lockMedia,
 }: {
   gateCode: string | null;
   lockCode: string | null;
@@ -2167,6 +2175,10 @@ function AccessCodesStrip({
   theme: "dark" | "light";
   gateInstructions?: string | null;
   lockInstructions?: string | null;
+  gateVideoUrl?: string | null;
+  lockVideoUrl?: string | null;
+  gateMedia?: Array<{ url: string; type: "image" | "video" }>;
+  lockMedia?: Array<{ url: string; type: "image" | "video" }>;
 }) {
   const [revealed, setRevealed] = useState(false);
   const [instrOpen, setInstrOpen] = useState(false);
@@ -2178,7 +2190,13 @@ function AccessCodesStrip({
   const showing = unlocked && revealed && (!!gateCode || !!lockCode);
   const gateInstr = (gateInstructions || "").trim();
   const lockInstr = (lockInstructions || "").trim();
-  const hasInstructions = !!(gateInstr || lockInstr);
+  const gateVid = (gateVideoUrl || "").trim();
+  const lockVid = (lockVideoUrl || "").trim();
+  const gateMed = (gateMedia || []).filter((m) => m && m.url);
+  const lockMed = (lockMedia || []).filter((m) => m && m.url);
+  const hasGateBlock = !!(gateInstr || gateVid || gateMed.length);
+  const hasLockBlock = !!(lockInstr || lockVid || lockMed.length);
+  const hasInstructions = hasGateBlock || hasLockBlock;
 
   function gateOk() {
     if (gateEnabled && !hasAccessRec) {
@@ -2274,31 +2292,23 @@ function AccessCodesStrip({
                 Passo a passo para utilizar cada acesso.
               </p>
             </div>
-            <div className="px-5 py-4 max-h-[55vh] overflow-y-auto sg-elegant-scroll space-y-5">
-              {gateInstr && (
-                <section>
-                  <div className="flex items-center gap-2 mb-2.5">
-                    <span className="grid place-items-center size-7 rounded-full bg-accent/12 ring-1 ring-accent/20 text-accent">
-                      <KeyRound className="size-3.5" strokeWidth={2} />
-                    </span>
-                    <h3 className="text-[13.5px] font-semibold tracking-tight">{gLabel}</h3>
-                  </div>
-                  <StepList text={gateInstr} dense />
-                </section>
+            <div className="px-5 py-4 max-h-[60vh] overflow-y-auto sg-elegant-scroll space-y-5">
+              {hasGateBlock && (
+                <AccessInstructionsSection
+                  label={gLabel}
+                  instr={gateInstr}
+                  videoUrl={gateVid}
+                  media={gateMed}
+                />
               )}
-              {gateInstr && lockInstr && (
-                <div className="h-px bg-border/50" />
-              )}
-              {lockInstr && (
-                <section>
-                  <div className="flex items-center gap-2 mb-2.5">
-                    <span className="grid place-items-center size-7 rounded-full bg-accent/12 ring-1 ring-accent/20 text-accent">
-                      <KeyRound className="size-3.5" strokeWidth={2} />
-                    </span>
-                    <h3 className="text-[13.5px] font-semibold tracking-tight">{lLabel}</h3>
-                  </div>
-                  <StepList text={lockInstr} dense />
-                </section>
+              {hasGateBlock && hasLockBlock && <div className="h-px bg-border/50" />}
+              {hasLockBlock && (
+                <AccessInstructionsSection
+                  label={lLabel}
+                  instr={lockInstr}
+                  videoUrl={lockVid}
+                  media={lockMed}
+                />
               )}
             </div>
           </DialogContent>
@@ -2416,5 +2426,72 @@ function PinDialog({
     </Dialog>
   );
 }
+
+function AccessInstructionsSection({
+  label,
+  instr,
+  videoUrl,
+  media,
+}: {
+  label: string;
+  instr: string;
+  videoUrl: string;
+  media: Array<{ url: string; type: "image" | "video" }>;
+}) {
+  function ytEmbed(u: string): string | null {
+    const m = u.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/))([\w-]{6,})/);
+    return m ? `https://www.youtube.com/embed/${m[1]}` : null;
+  }
+  function vimeoEmbed(u: string): string | null {
+    const m = u.match(/vimeo\.com\/(?:video\/)?(\d+)/);
+    return m ? `https://player.vimeo.com/video/${m[1]}` : null;
+  }
+  const embed = videoUrl ? (ytEmbed(videoUrl) || vimeoEmbed(videoUrl)) : null;
+  const isDirectVideo = videoUrl && /\.(mp4|webm|mov)(\?|$)/i.test(videoUrl);
+  return (
+    <section>
+      <div className="flex items-center gap-2 mb-2.5">
+        <span className="grid place-items-center size-7 rounded-full bg-accent/12 ring-1 ring-accent/20 text-accent">
+          <KeyRound className="size-3.5" strokeWidth={2} />
+        </span>
+        <h3 className="text-[13.5px] font-semibold tracking-tight">{label}</h3>
+      </div>
+      {instr && <StepList text={instr} dense />}
+      {videoUrl && (
+        <div className="mt-3 overflow-hidden rounded-xl border border-border/40 bg-muted/30 aspect-video">
+          {embed ? (
+            <iframe src={embed} className="size-full" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen />
+          ) : isDirectVideo ? (
+            <video src={videoUrl} controls className="size-full object-cover" />
+          ) : (
+            <a href={videoUrl} target="_blank" rel="noreferrer" className="grid size-full place-items-center text-[12px] text-accent underline">
+              Abrir vídeo tutorial
+            </a>
+          )}
+        </div>
+      )}
+      {media.length > 0 && (
+        <div className="mt-3 grid grid-cols-3 gap-1.5">
+          {media.map((m, i) => (
+            <a
+              key={i}
+              href={m.url}
+              target="_blank"
+              rel="noreferrer"
+              className="block overflow-hidden rounded-lg border border-border/40 bg-muted/30 aspect-square"
+            >
+              {m.type === "video" ? (
+                <video src={m.url} className="size-full object-cover" muted playsInline />
+              ) : (
+                <img src={m.url} alt="" className="size-full object-cover" loading="lazy" />
+              )}
+            </a>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
 
 

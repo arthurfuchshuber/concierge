@@ -636,6 +636,14 @@ function PropertyEditor() {
 
 
   async function handleSave() {
+    if (gateOpen) {
+      if (!form.property.gate_code.trim()) { toast.error("Informe o código do portão ou desative essa opção."); return; }
+      if (!form.property.gate_label.trim()) { toast.error("Defina um nome para o acesso do portão."); return; }
+    }
+    if (lockOpen) {
+      if (!form.property.lock_code.trim()) { toast.error("Informe o código da fechadura ou desative essa opção."); return; }
+      if (!form.property.lock_label.trim()) { toast.error("Defina um nome para o acesso da fechadura."); return; }
+    }
     setSaving(true);
     try {
       const galleryImages = form.property.gallery_images.filter((u) => u.trim()).slice(0, 4);
@@ -1119,10 +1127,10 @@ function PropertyEditor() {
                 </button>
                 {gateOpen ? (
                   <div className="px-4 pb-4 pt-1 space-y-4 border-t border-border/40">
-                    <Field label="Código do portão" hint="Digite a senha que o hóspede vai usar.">
+                    <Field label="Código do portão" required hint="Digite a senha que o hóspede vai usar.">
                       <Input value={form.property.gate_code} maxLength={40} onChange={(e) => update("gate_code", e.target.value)} placeholder="Ex.: 1212" />
                     </Field>
-                    <Field label="Defina um nome" hint="Como esse acesso aparece no guia. Ex.: Portão, Garagem, Cancela.">
+                    <Field label="Defina um nome" required hint="Como esse acesso aparece no guia. Ex.: Portão, Garagem, Cancela.">
                       <Input value={form.property.gate_label} maxLength={40} onChange={(e) => update("gate_label", e.target.value)} placeholder="Portão" />
                     </Field>
                     <Field label="Passo a passo (opcional)" hint="Cada linha vira uma etapa numerada no guia.">
@@ -1196,10 +1204,10 @@ function PropertyEditor() {
                 </button>
                 {lockOpen ? (
                   <div className="px-4 pb-4 pt-1 space-y-4 border-t border-border/40">
-                    <Field label="Código da fechadura" hint="Digite a senha que o hóspede vai usar.">
+                    <Field label="Código da fechadura" required hint="Digite a senha que o hóspede vai usar.">
                       <Input value={form.property.lock_code} maxLength={40} onChange={(e) => update("lock_code", e.target.value)} placeholder="Ex.: 3333" />
                     </Field>
-                    <Field label="Defina um nome" hint="Como esse acesso aparece no guia. Ex.: Fechadura, Porta principal, Smart lock.">
+                    <Field label="Defina um nome" required hint="Como esse acesso aparece no guia. Ex.: Fechadura, Porta principal, Smart lock.">
                       <Input value={form.property.lock_label} maxLength={40} onChange={(e) => update("lock_label", e.target.value)} placeholder="Fechadura" />
                     </Field>
                     <Field label="Passo a passo (opcional)" hint="Cada linha vira uma etapa numerada no guia.">
