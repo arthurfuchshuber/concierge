@@ -9,13 +9,13 @@ import { toast } from "sonner";
 export const Route = createFileRoute("/precos")({
   head: () => ({
     meta: [
-      { title: "Planos e preços — SigmaConcierge" },
+      { title: "Planos e preços — SigmaGuide" },
       {
         name: "description",
         content:
           "Escolha o plano ideal para criar guias digitais para seus hóspedes. 7 dias grátis em todos os planos.",
       },
-      { property: "og:title", content: "Planos SigmaConcierge" },
+      { property: "og:title", content: "Planos SigmaGuide" },
       { property: "og:description", content: "Starter, Pro, Business e Enterprise. 7 dias grátis." },
       { property: "og:url", content: "/precos" },
     ],

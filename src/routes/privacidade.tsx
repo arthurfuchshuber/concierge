@@ -3,16 +3,16 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 export const Route = createFileRoute("/privacidade")({
   head: () => ({
     meta: [
-      { title: "Política de Privacidade — SigmaConcierge" },
+      { title: "Política de Privacidade — SigmaGuide" },
       {
         name: "description",
-        content: "Como o SigmaConcierge coleta, usa e protege seus dados pessoais em conformidade com a LGPD.",
+        content: "Como o SigmaGuide coleta, usa e protege seus dados pessoais em conformidade com a LGPD.",
       },
-      { property: "og:title", content: "Política de Privacidade — SigmaConcierge" },
+      { property: "og:title", content: "Política de Privacidade — SigmaGuide" },
       {
         property: "og:description",
         content:
-          "Práticas de coleta, uso, compartilhamento, retenção e direitos sobre dados pessoais no SigmaConcierge (LGPD).",
+          "Práticas de coleta, uso, compartilhamento, retenção e direitos sobre dados pessoais no SigmaGuide (LGPD).",
       },
       { property: "og:url", content: "/privacidade" },
     ],
