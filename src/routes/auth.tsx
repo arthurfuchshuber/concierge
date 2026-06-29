@@ -82,6 +82,23 @@ function AuthPage() {
     }
   }
 
+  async function handleApple() {
+    setLoading(true);
+    try {
+      const result = await lovable.auth.signInWithOAuth("apple", {
+        redirect_uri: `${window.location.origin}/admin`,
+      });
+      if (result.error) {
+        toast.error("Erro com Apple. Tente novamente.");
+        return;
+      }
+      if (result.redirected) return;
+      navigate({ to: "/admin" });
+    } finally {
+      setLoading(false);
+    }
+  }
+
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <header className="px-6 py-5 max-w-6xl mx-auto w-full">
