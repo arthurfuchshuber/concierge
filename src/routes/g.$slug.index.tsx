@@ -502,12 +502,13 @@ function Guide({ data }: { data: GuideOk }) {
                 até 12h depois. O conteúdo continua travado pelo PIN até o
                 hóspede liberá-lo. */}
             {homeStripsVisible && (
-              <div className="px-5 md:px-10 lg:px-16 mt-2 md:mt-3 relative z-10 mb-4 md:mb-6 space-y-3">
+              <div className="px-5 md:px-10 lg:px-16 -mt-2 md:-mt-3 relative z-10 mb-3 md:mb-4 space-y-2.5">
                 {p.wifi_ssid && (
                   <div className="md:max-w-md lg:max-w-lg">
                     <WifiStrip
                       ssid={p.wifi_ssid}
                       password={p.wifi_password}
+                      passwordSet={!!((p as any).wifi_password_set || p.wifi_password)}
                       theme={theme}
                       unlocked={unlocked}
                       requestUnlock={requestUnlock}
@@ -517,11 +518,13 @@ function Guide({ data }: { data: GuideOk }) {
                     />
                   </div>
                 )}
-                {(p.gate_code || p.lock_code) && (
+                {((p as any).gate_code_set || (p as any).lock_code_set || p.gate_code || p.lock_code) && (
                   <div className="md:max-w-md lg:max-w-lg">
                     <AccessCodesStrip
                       gateCode={p.gate_code as string | null}
                       lockCode={p.lock_code as string | null}
+                      gateCodeSet={!!((p as any).gate_code_set || p.gate_code)}
+                      lockCodeSet={!!((p as any).lock_code_set || p.lock_code)}
                       gateLabel={(p.gate_label as string | null) || "Portão"}
                       lockLabel={(p.lock_label as string | null) || "Fechadura"}
                       unlocked={unlocked}
@@ -540,7 +543,7 @@ function Guide({ data }: { data: GuideOk }) {
             {/* Aviso de check-out: aparece a partir das 3h00 do dia do
                 check-out, levando o lembrete configurado pelo anfitrião. */}
             {checkoutNoticeVisible && (
-              <div className="px-5 md:px-10 lg:px-16 mt-2 md:mt-3 relative z-10 mb-4 md:mb-6">
+              <div className="px-5 md:px-10 lg:px-16 -mt-2 md:-mt-3 relative z-10 mb-3 md:mb-4">
                 <div className="md:max-w-md lg:max-w-lg">
                   <CheckoutNoticeStrip
                     note={(p.checkout_note as string | null) || null}
@@ -1333,7 +1336,7 @@ function HeroCompact({
 
   return (
     <section
-      className="relative overflow-hidden px-5 md:px-10 lg:px-16 pb-24 md:pb-28 pt-4 md:pt-8 min-h-[44svh] md:min-h-[52svh] flex flex-col"
+      className="relative overflow-hidden px-5 md:px-10 lg:px-16 pb-12 md:pb-16 pt-3 md:pt-5 min-h-[36svh] md:min-h-[44svh] flex flex-col"
       onTouchStart={onTouchStart}
       onTouchEnd={onTouchEnd}
     >
@@ -1377,7 +1380,7 @@ function HeroCompact({
       </header>
 
 
-      <div className="relative z-10 mt-auto pt-24 md:pt-32">
+      <div className="relative z-10 mt-auto pt-10 md:pt-14">
         {city && (
           <span className="mb-4 inline-flex items-center gap-1.5 rounded-full border border-white/25 bg-black/30 backdrop-blur-md px-3 py-1.5 text-[10.5px] md:text-[11px] font-semibold uppercase tracking-[0.22em] text-white/95">
             <MapPin className="size-3 text-accent/80" strokeWidth={2} /> {city}
@@ -2027,6 +2030,7 @@ function GatedCopyCard({ icon, eyebrow, value, unlocked, requestUnlock, hasPin }
 function WifiStrip({
   ssid,
   password,
+  passwordSet,
   theme,
   unlocked,
   requestUnlock,
@@ -2036,6 +2040,7 @@ function WifiStrip({
 }: {
   ssid?: string | null;
   password?: string | null;
+  passwordSet?: boolean;
   theme: "dark" | "light";
   unlocked: boolean;
   requestUnlock: (cb?: () => void) => void;
@@ -2047,11 +2052,12 @@ function WifiStrip({
   const [copied, setCopied] = useState(false);
   const isLight = theme === "light";
 
-  const showing = unlocked && revealed;
-  const masked = password ? "•".repeat(Math.min(password.length, 12)) : "—";
+  const hasPwd = !!password || !!passwordSet;
+  const showing = unlocked && revealed && !!password;
+  const masked = "•".repeat(12);
 
   function gateOk() {
-    if (!password) return false;
+    if (!hasPwd) return false;
     if (gateEnabled && !hasAccessRec) {
       toast.error("Informe seus dados de check-in para liberar a senha do Wi-Fi.");
       return false;
@@ -2073,40 +2079,41 @@ function WifiStrip({
   }
 
   function copyPwd() {
-    if (!password) return;
     if (!gateOk()) return;
     requestUnlock(() => {
       setRevealed(true);
-      navigator.clipboard.writeText(password);
-      setCopied(true);
-      toast.success("Senha copiada");
-      setTimeout(() => setCopied(false), 1500);
+      if (password) {
+        navigator.clipboard.writeText(password);
+        setCopied(true);
+        toast.success("Senha copiada");
+        setTimeout(() => setCopied(false), 1500);
+      }
     });
   }
 
   return (
-    <div className={`wifi-shimmer relative overflow-hidden rounded-[22px] border ${isLight ? "border-border bg-card shadow-[0_4px_18px_-8px_rgba(0,0,0,0.10)]" : "border-amber-500/25 bg-[linear-gradient(135deg,oklch(0.22_0.05_55/0.95)_0%,oklch(0.16_0.04_50/0.92)_60%,oklch(0.12_0.03_45/0.95)_100%)] shadow-[0_14px_40px_-18px_oklch(from_var(--accent)_l_c_h/0.55)]"}`}>
+    <div className={`wifi-shimmer relative overflow-hidden rounded-[18px] border ${isLight ? "border-border bg-card shadow-[0_4px_18px_-8px_rgba(0,0,0,0.10)]" : "border-amber-500/25 bg-[linear-gradient(135deg,oklch(0.22_0.05_55/0.95)_0%,oklch(0.16_0.04_50/0.92)_60%,oklch(0.12_0.03_45/0.95)_100%)] shadow-[0_14px_40px_-18px_oklch(from_var(--accent)_l_c_h/0.55)]"}`}>
       <div className={`pointer-events-none absolute inset-0 ${isLight ? "opacity-[0.04]" : "opacity-[0.07]"} [background-image:radial-gradient(oklch(var(--accent))_1px,transparent_1px)] [background-size:14px_14px]`} />
       <div className={`pointer-events-none absolute -top-12 -right-12 size-40 rounded-full ${isLight ? "bg-accent/15" : "bg-accent/25"} blur-3xl`} />
-      <div className="relative flex items-center gap-4 px-5 py-3 md:px-6 md:py-3.5">
-        <span className={`relative grid size-14 shrink-0 place-items-center rounded-2xl ring-1 ${isLight ? "bg-accent/15 text-accent/80 ring-accent/20 shadow-[0_6px_18px_-12px_oklch(from_var(--accent)_l_c_h/0.32)]" : "bg-accent/10 text-accent/75 ring-accent/15 shadow-[0_6px_18px_-12px_oklch(from_var(--accent)_l_c_h/0.24)]"}`}>
+      <div className="relative flex items-center gap-3.5 px-4 py-2.5 md:px-5 md:py-3">
+        <span className={`relative grid size-11 shrink-0 place-items-center rounded-2xl ring-1 ${isLight ? "bg-accent/15 text-accent/80 ring-accent/20" : "bg-accent/10 text-accent/75 ring-accent/15"}`}>
           <span className="wifi-pulse pointer-events-none absolute -inset-1 rounded-2xl bg-accent/15 blur-md -z-10" />
-          <Wifi className="relative size-[24px]" strokeWidth={2} />
+          <Wifi className="relative size-[20px]" strokeWidth={2} />
         </span>
         <div className="flex-1 min-w-0">
-          <p className="text-[10px] uppercase tracking-[0.32em] text-accent/75 font-semibold">Senha do Wi-Fi</p>
-          <p className="text-[13px] text-foreground/85 truncate font-medium mt-0.5">{ssid || "Rede da casa"}</p>
-          <p className={`font-mono text-[16px] md:text-[18px] font-semibold tracking-[0.22em] mt-1 truncate ${showing ? "text-foreground" : "text-foreground/75"}`}>
-            {password ? (showing ? password : masked) : "—"}
+          <p className="text-[9.5px] uppercase tracking-[0.3em] text-accent/75 font-semibold">Senha do Wi-Fi</p>
+          <p className="text-[12.5px] text-foreground/85 truncate font-medium mt-0.5">{ssid || "Rede da casa"}</p>
+          <p className={`font-mono text-[15px] md:text-[16px] font-semibold tracking-[0.22em] mt-0.5 truncate ${showing ? "text-foreground" : "text-foreground/75"}`}>
+            {hasPwd ? (showing ? password : masked) : "—"}
           </p>
         </div>
-        {password && (
+        {hasPwd && (
           <div className="flex flex-col items-center justify-center gap-2 shrink-0">
             {!showing ? (
               <button
                 onClick={handleEyeClick}
                 aria-label="Ver senha do Wi-Fi"
-                className="inline-flex items-center gap-1.5 rounded-full bg-foreground text-background px-3.5 py-2 text-[12px] font-semibold tracking-wide hover:opacity-90 active:scale-95 transition-all shadow-[0_6px_18px_-10px_oklch(from_var(--foreground)_l_c_h/0.35)]"
+                className="inline-flex items-center gap-1.5 rounded-full bg-foreground text-background px-3 py-1.5 text-[11.5px] font-semibold tracking-wide hover:opacity-90 active:scale-95 transition-all"
               >
                 <Eye className="size-3.5" strokeWidth={2.4} />
                 <span>Ver Senha</span>
@@ -2115,7 +2122,7 @@ function WifiStrip({
               <button
                 onClick={copyPwd}
                 aria-label="Copiar senha do Wi-Fi"
-                className="inline-flex items-center gap-1.5 rounded-full bg-foreground text-background px-3.5 py-2 text-[12px] font-semibold tracking-wide hover:opacity-90 active:scale-95 transition-all shadow-[0_6px_18px_-10px_oklch(from_var(--foreground)_l_c_h/0.35)]"
+                className="inline-flex items-center gap-1.5 rounded-full bg-foreground text-background px-3 py-1.5 text-[11.5px] font-semibold tracking-wide hover:opacity-90 active:scale-95 transition-all"
               >
                 {copied ? <Check className="size-3.5" strokeWidth={2.4} /> : <Copy className="size-3.5" strokeWidth={2.4} />}
                 <span>{copied ? "Copiado" : "Copiar"}</span>
@@ -2128,9 +2135,12 @@ function WifiStrip({
   );
 }
 
+
 function AccessCodesStrip({
   gateCode,
   lockCode,
+  gateCodeSet,
+  lockCodeSet,
   gateLabel,
   lockLabel,
   unlocked,
@@ -2143,6 +2153,8 @@ function AccessCodesStrip({
 }: {
   gateCode: string | null;
   lockCode: string | null;
+  gateCodeSet?: boolean;
+  lockCodeSet?: boolean;
   gateLabel: string;
   lockLabel: string;
   unlocked: boolean;
@@ -2158,7 +2170,9 @@ function AccessCodesStrip({
   const isLight = theme === "light";
   const gLabel = (gateLabel || "").trim() || "Portão";
   const lLabel = (lockLabel || "").trim() || "Fechadura";
-  const showing = unlocked && revealed;
+  const hasGate = !!gateCode || !!gateCodeSet;
+  const hasLock = !!lockCode || !!lockCodeSet;
+  const showing = unlocked && revealed && (!!gateCode || !!lockCode);
 
   function gateOk() {
     if (gateEnabled && !hasAccessRec) {
@@ -2186,18 +2200,18 @@ function AccessCodesStrip({
     toast.success(`${label} copiado`);
   }
 
-  const hint = gateCode && lockCode ? `${gLabel} e ${lLabel.toLowerCase()}` : gateCode ? gLabel : lLabel;
+  const hint = hasGate && hasLock ? `${gLabel} e ${lLabel.toLowerCase()}` : hasGate ? gLabel : lLabel;
 
   return (
-    <div className={`wifi-shimmer relative overflow-hidden rounded-[22px] border ${isLight ? "border-border bg-card shadow-[0_4px_18px_-8px_rgba(0,0,0,0.10)]" : "border-amber-500/25 bg-[linear-gradient(135deg,oklch(0.22_0.05_55/0.95)_0%,oklch(0.16_0.04_50/0.92)_60%,oklch(0.12_0.03_45/0.95)_100%)] shadow-[0_14px_40px_-18px_oklch(from_var(--accent)_l_c_h/0.55)]"}`}>
+    <div className={`wifi-shimmer relative overflow-hidden rounded-[18px] border ${isLight ? "border-border bg-card shadow-[0_4px_18px_-8px_rgba(0,0,0,0.10)]" : "border-amber-500/25 bg-[linear-gradient(135deg,oklch(0.22_0.05_55/0.95)_0%,oklch(0.16_0.04_50/0.92)_60%,oklch(0.12_0.03_45/0.95)_100%)] shadow-[0_14px_40px_-18px_oklch(from_var(--accent)_l_c_h/0.55)]"}`}>
       <div className={`pointer-events-none absolute inset-0 ${isLight ? "opacity-[0.04]" : "opacity-[0.07]"} [background-image:radial-gradient(oklch(var(--accent))_1px,transparent_1px)] [background-size:14px_14px]`} />
       <div className={`pointer-events-none absolute -top-12 -right-12 size-40 rounded-full ${isLight ? "bg-accent/15" : "bg-accent/25"} blur-3xl`} />
-      <div className="relative flex items-center gap-4 px-5 py-3 md:px-6 md:py-3.5">
-        <span className={`relative grid size-14 shrink-0 place-items-center rounded-2xl ring-1 ${isLight ? "bg-accent/15 text-accent/80 ring-accent/20 shadow-[0_6px_18px_-12px_oklch(from_var(--accent)_l_c_h/0.32)]" : "bg-accent/10 text-accent/75 ring-accent/15 shadow-[0_6px_18px_-12px_oklch(from_var(--accent)_l_c_h/0.24)]"}`}>
-          <KeyRound className="relative size-[22px]" strokeWidth={2} />
+      <div className="relative flex items-center gap-3.5 px-4 py-2.5 md:px-5 md:py-3">
+        <span className={`relative grid size-11 shrink-0 place-items-center rounded-2xl ring-1 ${isLight ? "bg-accent/15 text-accent/80 ring-accent/20" : "bg-accent/10 text-accent/75 ring-accent/15"}`}>
+          <KeyRound className="relative size-[20px]" strokeWidth={2} />
         </span>
         <div className="flex-1 min-w-0">
-          <p className="text-[10px] uppercase tracking-[0.32em] text-accent/75 font-semibold">Códigos de acesso</p>
+          <p className="text-[9.5px] uppercase tracking-[0.3em] text-accent/75 font-semibold">Códigos de acesso</p>
           {showing ? (
             <div className="mt-1 space-y-0.5">
               {gateCode && (
@@ -2207,7 +2221,7 @@ function AccessCodesStrip({
                   className="w-full flex items-center justify-between gap-3 text-left group"
                 >
                   <span className="text-[12px] text-foreground/75 font-medium shrink-0">{gLabel}</span>
-                  <span className="font-mono text-[15px] md:text-[16px] font-semibold tracking-[0.22em] text-foreground flex items-center gap-1.5">
+                  <span className="font-mono text-[14.5px] md:text-[15px] font-semibold tracking-[0.22em] text-foreground flex items-center gap-1.5">
                     {gateCode}
                     <Copy className="size-3 text-foreground/50 group-hover:text-foreground/80 transition-colors" strokeWidth={2.2} />
                   </span>
@@ -2220,7 +2234,7 @@ function AccessCodesStrip({
                   className="w-full flex items-center justify-between gap-3 text-left group"
                 >
                   <span className="text-[12px] text-foreground/75 font-medium shrink-0">{lLabel}</span>
-                  <span className="font-mono text-[15px] md:text-[16px] font-semibold tracking-[0.22em] text-foreground flex items-center gap-1.5">
+                  <span className="font-mono text-[14.5px] md:text-[15px] font-semibold tracking-[0.22em] text-foreground flex items-center gap-1.5">
                     {lockCode}
                     <Copy className="size-3 text-foreground/50 group-hover:text-foreground/80 transition-colors" strokeWidth={2.2} />
                   </span>
@@ -2229,19 +2243,20 @@ function AccessCodesStrip({
             </div>
           ) : (
             <>
-              <p className="text-[13px] text-foreground/85 truncate font-medium mt-0.5">{hint}</p>
-              <p className="font-mono text-[16px] md:text-[18px] font-semibold tracking-[0.22em] text-foreground/75 mt-1 truncate">
+              <p className="text-[12.5px] text-foreground/85 truncate font-medium mt-0.5">{hint}</p>
+              <p className="font-mono text-[15px] md:text-[16px] font-semibold tracking-[0.22em] text-foreground/75 mt-0.5 truncate">
                 {"•".repeat(10)}
               </p>
             </>
           )}
         </div>
+
         <div className="flex flex-col items-center justify-center gap-2 shrink-0">
           {!showing && (
             <button
               onClick={handleEyeClick}
               aria-label="Ver senhas de acesso"
-              className="inline-flex items-center gap-1.5 rounded-full bg-foreground text-background px-3.5 py-2 text-[12px] font-semibold tracking-wide hover:opacity-90 active:scale-95 transition-all shadow-[0_6px_18px_-10px_oklch(from_var(--foreground)_l_c_h/0.35)]"
+              className="inline-flex items-center gap-1.5 rounded-full bg-foreground text-background px-3 py-1.5 text-[11.5px] font-semibold tracking-wide hover:opacity-90 active:scale-95 transition-all"
             >
               <Eye className="size-3.5" strokeWidth={2.4} />
               <span>Ver Senha</span>
