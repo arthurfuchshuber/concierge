@@ -124,6 +124,11 @@ function AuthPage() {
             Continuar com Google
           </Button>
 
+          <Button onClick={handleApple} disabled={loading} variant="outline" className="w-full rounded-full h-11 mt-3">
+            <svg className="size-4 mr-2" viewBox="0 0 24 24" fill="currentColor"><path d="M17.05 12.04c-.03-2.92 2.39-4.33 2.5-4.4-1.36-1.99-3.48-2.26-4.24-2.29-1.81-.18-3.53 1.06-4.45 1.06-.92 0-2.34-1.04-3.85-1.01-1.98.03-3.81 1.15-4.83 2.92-2.06 3.57-.53 8.85 1.48 11.75.98 1.42 2.15 3.02 3.69 2.96 1.48-.06 2.04-.96 3.83-.96 1.79 0 2.29.96 3.86.93 1.59-.03 2.6-1.45 3.57-2.88 1.13-1.65 1.59-3.25 1.62-3.33-.04-.02-3.11-1.19-3.14-4.75zM14.13 3.5c.82-.99 1.37-2.37 1.22-3.74-1.18.05-2.6.78-3.45 1.77-.76.87-1.42 2.27-1.24 3.62 1.31.1 2.65-.66 3.47-1.65z"/></svg>
+            Continuar com Apple
+          </Button>
+
           <div className="flex items-center gap-3 my-6">
             <div className="flex-1 h-px bg-border" />
             <span className="text-[10px] uppercase tracking-widest text-muted-foreground">ou</span>
