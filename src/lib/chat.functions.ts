@@ -3,7 +3,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
 
 const MessageSchema = z.object({
-  role: z.enum(["user", "assistant", "system"]),
+  role: z.enum(["user", "assistant"]),
   content: z.string().min(1).max(4000),
 });
 

@@ -1606,7 +1606,7 @@ function EmbeddedMapModal({
               {withMapsUrl.map((rec) => (
                 <a
                   key={rec.id}
-                  href={rec.maps_url!}
+                  href={safeHttpsHref(rec.maps_url, rec.name) ?? "#"}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="group flex items-center gap-3 rounded-xl border border-border bg-background/50 hover:bg-card hover:border-accent/40 hover:shadow-md transition-all p-3"
