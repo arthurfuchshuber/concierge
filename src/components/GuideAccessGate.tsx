@@ -156,8 +156,8 @@ export function GuideAccessGate({ slug, propertyName, requireReservationCode, on
           className={cn(
             "fixed left-1/2 top-1/2 z-50 w-[calc(100%-1.5rem)] max-w-[440px]",
             "-translate-x-1/2 -translate-y-1/2",
-            "rounded-[28px] border border-white/[0.06]",
-            "bg-[hsl(var(--background))]/95 backdrop-blur-xl",
+            "rounded-[28px] border border-white/[0.08]",
+            "bg-background text-foreground",
             "shadow-[0_24px_60px_-12px_rgba(0,0,0,0.55),0_0_0_1px_rgba(255,255,255,0.04)_inset]",
             "p-7 sm:p-8",
             "data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:slide-in-from-bottom-4 data-[state=open]:zoom-in-[0.98] data-[state=open]:duration-300",
