@@ -20,6 +20,21 @@ const ListInput = CityIdent.extend({
 const HideInput = z.object({ id: z.string().uuid(), hidden: z.boolean() });
 const DeleteInput = z.object({ id: z.string().uuid() });
 const ReorderInput = z.object({ id: z.string().uuid(), display_order: z.number().int() });
+const httpsUrl = z
+  .string()
+  .max(2048)
+  .refine(
+    (v) => {
+      if (!v) return true;
+      try {
+        return new URL(v).protocol === "https:";
+      } catch {
+        return false;
+      }
+    },
+    { message: "URL deve usar HTTPS." },
+  );
+
 const UpdateInput = z.object({
   id: z.string().uuid(),
   patch: z.object({
@@ -27,8 +42,8 @@ const UpdateInput = z.object({
     type: z.string().min(1).max(40).optional(),
     category: z.string().min(1).max(60).optional(),
     note: z.string().max(1000).nullable().optional(),
-    maps_url: z.string().max(2048).nullable().optional(),
-    image_url: z.string().max(2048).nullable().optional(),
+    maps_url: httpsUrl.nullable().optional(),
+    image_url: httpsUrl.nullable().optional(),
   }),
 });
 
@@ -46,8 +61,8 @@ const ManualAddInput = CityIdent.extend({
   primary_type: z.string().max(80).nullable().optional(),
   lat: z.number().nullable().optional(),
   lng: z.number().nullable().optional(),
-  image_url: z.string().max(2048).nullable().optional(),
-  maps_url: z.string().max(2048).nullable().optional(),
+  image_url: httpsUrl.nullable().optional(),
+  maps_url: httpsUrl.nullable().optional(),
   opening_hours: z.array(z.string().max(200)).max(14).nullable().optional(),
 });
 
