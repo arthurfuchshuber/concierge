@@ -1711,7 +1711,7 @@ function ThemeCard({
           <p
             className={
               "mt-1 text-[11px] sm:text-[12px] md:text-[12.5px] leading-[1.45] truncate " +
-              (isLight ? "text-muted-foreground" : "text-white/65")
+              (isLight ? "text-muted-foreground" : "text-white/90")
             }
           >
             {desc}
