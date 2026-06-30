@@ -303,6 +303,7 @@ export function GuideAiChat({ slug, propertyName, guestName }: { slug: string; p
                 rows={1}
                 maxLength={2000}
                 placeholder="Pergunte alguma coisa…"
+                aria-label="Mensagem para o concierge"
                 className="flex-1 resize-none bg-transparent text-[16px] leading-relaxed outline-none placeholder:text-muted-foreground/70 max-h-32"
               />
               <button
