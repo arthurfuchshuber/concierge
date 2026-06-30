@@ -143,7 +143,7 @@ export function OnboardingCheckout({ onSignOut }: { onSignOut?: () => void }) {
 
             <div
               id="sigma-onboarding-checkout"
-              className={`mt-3 rounded-xl ${opened ? "min-h-[500px]" : "hidden"}`}
+              className={`sigma-onboarding-checkout mt-3 rounded-xl ${opened ? "min-h-[500px]" : "hidden"}`}
             />
           </div>
         </div>
