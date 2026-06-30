@@ -181,6 +181,7 @@ function PinGate({ slug, status, name }: { slug: string; status: "locked" | "exp
           placeholder={t("pin.placeholder")}
           maxLength={20}
           autoFocus
+          aria-label={t("pin.desc")}
           className="text-center text-lg tracking-widest h-12"
         />
         <Button type="submit" disabled={loading || !pin} className="w-full mt-4 rounded-full h-11">
