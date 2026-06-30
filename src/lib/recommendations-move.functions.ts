@@ -244,7 +244,11 @@ export const moveRecommendations = createServerFn({ method: "POST" })
         });
       }
 
-      await supabaseAdmin.from("property_recommendations").delete().in("id", data.ids);
+      await supabaseAdmin
+        .from("property_recommendations")
+        .delete()
+        .in("id", rows.map((r) => r.id))
+        .eq("property_id", data.propertyId);
       return { ok: true, moved: rows.length };
     }
 
