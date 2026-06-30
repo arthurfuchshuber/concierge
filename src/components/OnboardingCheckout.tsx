@@ -25,6 +25,7 @@ export function OnboardingCheckout({ onSignOut }: { onSignOut?: () => void }) {
     if (!user) return;
     setSelected(target);
     setOpening(true);
+    setOpened(true);
     try {
       await openCheckout({
         priceId: PLANS[target].priceId,
@@ -33,7 +34,10 @@ export function OnboardingCheckout({ onSignOut }: { onSignOut?: () => void }) {
         successUrl: `${window.location.origin}/admin?checkout=success`,
         frameTarget: "sigma-onboarding-checkout",
       });
-      setOpened(true);
+    } catch (e) {
+      setOpened(false);
+      const { toast } = await import("sonner");
+      toast.error(e instanceof Error ? e.message : "Não foi possível abrir o checkout");
     } finally {
       setOpening(false);
     }
