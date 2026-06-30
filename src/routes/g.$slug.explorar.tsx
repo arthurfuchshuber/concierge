@@ -320,7 +320,7 @@ function SearchBar({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder ?? "Buscar por nome, categoria ou descrição…"}
-        className={`w-full rounded-full border border-border bg-card/60 backdrop-blur px-4 ${compact ? "h-9 py-0 text-[12.5px]" : "py-2.5 text-[13px]"} pr-10 placeholder:text-muted-foreground/70 focus:outline-none focus:border-accent/60 focus:bg-card transition-colors`}
+        className={`w-full rounded-full border border-border bg-card/60 backdrop-blur px-4 ${compact ? "h-9 py-0 text-[12.5px]" : "py-2.5 text-[13px]"} pr-10 placeholder:text-muted-foreground focus:outline-none focus:border-accent/60 focus:bg-card transition-colors`}
       />
       {value && (
         <button
