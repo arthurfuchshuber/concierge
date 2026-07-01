@@ -344,6 +344,97 @@ export const adminUpdateSubscription = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+/**
+ * Aplica um trial personalizado no Paddle para uma assinatura existente:
+ * pausa a cobrança agora e agenda o retorno automático em `trialEndsAt`.
+ * Enquanto pausada, o Paddle não gera nenhuma cobrança. Na data definida,
+ * retoma sozinho e cobra o proporcional até o próximo ciclo.
+ *
+ * Se `trialEndsAt` for nulo/passado e a assinatura estiver pausada,
+ * despausa imediatamente (encerra o trial customizado).
+ */
+export const adminApplyCustomTrial = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { userId: string; trialEndsAt: string | null }) =>
+    z.object({
+      userId: z.string().uuid(),
+      trialEndsAt: z.string().datetime().nullable(),
+    }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context.supabase, context.userId);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    const { data: sub } = await supabaseAdmin
+      .from("subscriptions")
+      .select("id, paddle_subscription_id, environment, status, is_manual")
+      .eq("user_id", data.userId)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (!sub) throw new Error("Cliente não tem assinatura para aplicar trial.");
+
+    const paddleId = sub.paddle_subscription_id;
+    const isRealPaddleSub =
+      paddleId && !paddleId.startsWith("manual_") && !sub.is_manual;
+
+    const resumeAt = data.trialEndsAt ? new Date(data.trialEndsAt) : null;
+    const isFuture = resumeAt && resumeAt.getTime() > Date.now();
+
+    if (isRealPaddleSub) {
+      const { gatewayFetch } = await import("@/lib/paddle.server");
+      const env = sub.environment as "sandbox" | "live";
+
+      if (isFuture) {
+        // Pausa agora + retoma automaticamente em resume_at.
+        const res = await gatewayFetch(env, `/subscriptions/${paddleId}/pause`, {
+          method: "POST",
+          body: JSON.stringify({
+            effective_from: "immediately",
+            resume_at: resumeAt!.toISOString(),
+          }),
+        });
+        if (!res.ok) {
+          const j = await res.json().catch(() => ({}));
+          throw new Error(
+            `Não foi possível aplicar o trial no provedor de pagamento: ${
+              j.error?.detail ?? "erro desconhecido"
+            }`,
+          );
+        }
+      } else {
+        // Sem data futura → despausa (se estava pausada) para encerrar trial custom.
+        if (sub.status === "paused") {
+          const res = await gatewayFetch(env, `/subscriptions/${paddleId}/resume`, {
+            method: "POST",
+            body: JSON.stringify({ effective_from: "immediately" }),
+          });
+          if (!res.ok) {
+            const j = await res.json().catch(() => ({}));
+            throw new Error(
+              `Não foi possível retomar a assinatura: ${j.error?.detail ?? "erro desconhecido"}`,
+            );
+          }
+        }
+      }
+    }
+
+    // Reflete no banco. billing_paused acompanha o estado real; status vira
+    // 'trialing' enquanto durar o trial customizado (webhook do Paddle
+    // sobrescreve depois com a verdade final).
+    await supabaseAdmin
+      .from("subscriptions")
+      .update({
+        trial_ends_at: data.trialEndsAt,
+        billing_paused: !!isFuture,
+        status: isFuture ? "trialing" : sub.status === "paused" ? "active" : sub.status,
+      })
+      .eq("id", sub.id);
+
+    return { ok: true, paused: !!isFuture, resumeAt: resumeAt?.toISOString() ?? null };
+  });
+
 // Atualiza o nome do cliente (profiles.full_name) — usado dentro do diálogo
 // "Editar assinatura" para permitir corrigir o nome exibido.
 export const adminUpdateCustomerProfile = createServerFn({ method: "POST" })
