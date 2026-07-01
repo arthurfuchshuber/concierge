@@ -7,6 +7,7 @@ import {
   adminUpdateSubscription,
   adminUpdateCustomerProfile,
   adminListUserProperties,
+  adminApplyCustomTrial,
   checkIsAdmin,
   type AdminCustomerRow,
 } from "@/lib/admin-subs.functions";
