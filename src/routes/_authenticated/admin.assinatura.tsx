@@ -532,32 +532,51 @@ function CardTab({
   }
   if (isManual) {
     return (
-      <div className="space-y-4">
-        <div className="rounded-2xl border border-yellow-500/30 bg-yellow-500/5 p-5 sm:p-6">
-          <div className="flex items-start gap-4">
-            <div className="size-11 rounded-xl bg-yellow-500/10 grid place-items-center shrink-0">
-              <AlertTriangle className="size-5 text-yellow-600 dark:text-yellow-400" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <h3 className="font-medium text-base">Validação de cartão obrigatória</h3>
-              <p className="text-xs text-muted-foreground mt-1">
-                Exigimos um cartão válido em todas as contas para fins de validação e segurança. <strong className="text-foreground">Você tem 7 dias para usar sem ser cobrado. Após esse período, será cobrado normalmente.</strong>
-              </p>
-              <div className="mt-3 rounded-xl bg-background/60 border border-border p-3 text-xs">
-                <p className="font-medium mb-1">Como funciona:</p>
-                <ol className="space-y-0.5 list-decimal list-inside text-muted-foreground">
-                  <li>O formulário do provedor de pagamento abre aqui mesmo, sem sair do sistema.</li>
-                  <li>O cartão é autenticado com segurança e ativa seus 7 dias grátis.</li>
-                  <li>Após os 7 dias, a cobrança recorrente começa normalmente — cancele a qualquer momento antes disso.</li>
-                </ol>
+      <div className="mx-auto w-full max-w-[640px]">
+        <div className="rounded-3xl border border-border bg-card overflow-hidden shadow-[0_32px_64px_-16px_rgba(0,0,0,0.35)]">
+          {/* Header */}
+          <div className="p-6 sm:p-8 pb-6 border-b border-border bg-gradient-to-b from-secondary/30 to-transparent">
+            <div className="flex items-start gap-4">
+              <div className="flex-shrink-0 size-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 grid place-items-center text-emerald-500">
+                <ShieldCheck className="size-6" strokeWidth={2} />
               </div>
+              <div className="min-w-0">
+                <h3 className="font-display text-xl tracking-tight text-foreground mb-2">
+                  Validação de cartão obrigatória
+                </h3>
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  Exigimos um cartão válido para fins de validação e segurança.{" "}
+                  <span className="text-emerald-500 font-medium">Você tem 7 dias para usar sem ser cobrado.</span>{" "}
+                  Após esse período, a assinatura será iniciada normalmente.
+                </p>
+              </div>
+            </div>
+          </div>
 
-              {!openedInline && (
-                <div className="mt-4 flex flex-wrap gap-2">
+          {/* Process Steps */}
+          <div className="px-6 sm:px-8 py-6 bg-secondary/10 border-b border-border">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+              <ProcessStep n="01" title="Formulário seguro" desc="Abre nesta mesma tela" />
+              <ProcessStep n="02" title="7 dias grátis" desc="Acesso premium total" highlight />
+              <ProcessStep n="03" title="Flexibilidade" desc="Cancele quando quiser" last />
+            </div>
+          </div>
+
+          {/* Paddle Container */}
+          <div className="p-4 sm:p-6">
+            {!openedInline ? (
+              <div className="min-h-[420px] w-full rounded-2xl bg-secondary/20 border border-dashed border-border grid place-items-center p-6 text-center">
+                <div className="max-w-xs space-y-4">
+                  <div className="mx-auto size-12 rounded-2xl bg-secondary grid place-items-center">
+                    <CreditCard className="size-5 text-muted-foreground" />
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    Clique abaixo para abrir o formulário seguro de validação de cartão.
+                  </p>
                   <Button
                     onClick={() => startCardValidation()}
                     disabled={!user || openingInline}
-                    className="rounded-full"
+                    className="rounded-full bg-emerald-500 hover:bg-emerald-500/90 text-white shadow-lg shadow-emerald-500/20"
                   >
                     {openingInline ? (
                       <Loader2 className="size-4 mr-1.5 animate-spin" />
@@ -567,23 +586,33 @@ function CardTab({
                     Validar cartão agora
                   </Button>
                 </div>
-              )}
-              <div
-                id="sigma-card-validation-checkout"
-                className={
-                  openedInline
-                    ? "sigma-card-validation-checkout mt-4 rounded-xl min-h-[520px] bg-background/40 overflow-hidden"
-                    : "sigma-card-validation-checkout hidden"
-                }
-              />
-              {openedInline && (
-                <p className="mt-2 text-[11px] text-muted-foreground">
-                  Caso o formulário não carregue em alguns segundos, recarregue a página e tente novamente.
-                </p>
-              )}
-              <div className="mt-3 text-[11px] text-muted-foreground flex items-center gap-1.5">
-                <ShieldCheck className="size-3.5" /> Dados do cartão ficam no provedor de pagamento — nunca passam pelos servidores da SigmaConcierge.
               </div>
+            ) : (
+              <>
+                <div
+                  id="sigma-card-validation-checkout"
+                  className="sigma-card-validation-checkout min-h-[520px] w-full rounded-2xl bg-secondary/10 border border-border overflow-hidden"
+                />
+                <p className="mt-3 text-[11px] text-muted-foreground text-center">
+                  Se o formulário não carregar em alguns segundos, recarregue a página e tente novamente.
+                </p>
+              </>
+            )}
+          </div>
+
+          {/* Security Footer */}
+          <div className="px-6 sm:px-8 py-4 bg-background/40 flex items-center justify-between gap-3 border-t border-border flex-wrap">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="inline-flex items-center gap-1.5 px-2 py-1 rounded bg-secondary border border-border">
+                <ShieldCheck className="size-3 text-emerald-500" strokeWidth={2.5} />
+                <span className="text-[10px] font-bold tracking-widest uppercase text-muted-foreground">SSL Secure</span>
+              </div>
+              <span className="text-[10px] text-muted-foreground truncate">
+                Processamento via Paddle · dados nunca passam pelos nossos servidores
+              </span>
+            </div>
+            <div className="flex items-center gap-1 text-[10px] text-muted-foreground uppercase tracking-wider font-medium">
+              Visa · Mastercard · Amex
             </div>
           </div>
         </div>
