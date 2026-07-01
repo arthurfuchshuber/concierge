@@ -654,6 +654,58 @@ function StatCard({ label, value, tone }: { label: string; value: number; tone?:
   );
 }
 
+function ApplyCustomTrialButton({
+  userId,
+  trialEndsAt,
+  hasRealPaddleSub,
+}: {
+  userId: string;
+  trialEndsAt: string;
+  hasRealPaddleSub: boolean;
+}) {
+  const applyTrial = useServerFn(adminApplyCustomTrial);
+  const qc = useQueryClient();
+  const [busy, setBusy] = useState(false);
+
+  const iso = trialEndsAt ? fromDateInput(trialEndsAt) : null;
+  const isFuture = iso ? new Date(iso).getTime() > Date.now() : false;
+
+  return (
+    <Button
+      type="button"
+      variant="outline"
+      size="sm"
+      disabled={busy || !hasRealPaddleSub}
+      title={
+        !hasRealPaddleSub
+          ? "Disponível apenas para assinaturas ativas do Paddle (não manuais)"
+          : isFuture
+            ? "Pausa a cobrança no Paddle e retoma nesta data"
+            : "Encerra o trial custom (retoma cobrança imediatamente)"
+      }
+      onClick={async () => {
+        setBusy(true);
+        try {
+          const res = await applyTrial({ data: { userId, trialEndsAt: iso } });
+          toast.success(
+            res.paused
+              ? "Trial aplicado no Paddle — cobrança pausada até a data escolhida."
+              : "Trial customizado encerrado — cobrança normal retomada.",
+          );
+          qc.invalidateQueries({ queryKey: ["admin-customers"] });
+        } catch (e) {
+          toast.error(e instanceof Error ? e.message : "Erro ao aplicar trial");
+        } finally {
+          setBusy(false);
+        }
+      }}
+    >
+      {busy ? <Loader2 className="size-3.5 animate-spin" /> : <Calendar className="size-3.5" />}
+      Aplicar ao Paddle
+    </Button>
+  );
+}
+
 function StatusBadge({
   status,
   userStatus,
