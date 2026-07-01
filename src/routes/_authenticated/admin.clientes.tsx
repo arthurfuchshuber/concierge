@@ -7,6 +7,7 @@ import {
   adminUpdateSubscription,
   adminUpdateCustomerProfile,
   adminListUserProperties,
+  adminApplyCustomTrial,
   checkIsAdmin,
   type AdminCustomerRow,
 } from "@/lib/admin-subs.functions";
@@ -550,12 +551,29 @@ function EditDialog({
 
           <div className="space-y-1.5">
             <Label>Trial gratuito até</Label>
-            <DatePicker
-              value={trialEndsAt}
-              onChange={setTrialEndsAt}
-              placeholder="Sem trial"
-            />
+            <div className="flex gap-2">
+              <div className="flex-1">
+                <DatePicker
+                  value={trialEndsAt}
+                  onChange={setTrialEndsAt}
+                  placeholder="Sem trial"
+                />
+              </div>
+              <ApplyCustomTrialButton
+                userId={customer.userId}
+                trialEndsAt={trialEndsAt}
+                hasRealPaddleSub={
+                  !!s?.paddleSubscriptionId &&
+                  !s.paddleSubscriptionId.startsWith("manual_")
+                }
+              />
+            </div>
+            <p className="text-xs text-muted-foreground">
+              "Aplicar ao Paddle" pausa a cobrança agora e retoma automaticamente na data escolhida —
+              enquanto isso, o cliente não é cobrado.
+            </p>
           </div>
+
 
           {plan === "enterprise" && (
             <EnterpriseSection
@@ -633,6 +651,58 @@ function StatCard({ label, value, tone }: { label: string; value: number; tone?:
       <div className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground font-semibold">{label}</div>
       <div className={`text-2xl font-display mt-1 tabular-nums ${toneClass}`}>{value}</div>
     </div>
+  );
+}
+
+function ApplyCustomTrialButton({
+  userId,
+  trialEndsAt,
+  hasRealPaddleSub,
+}: {
+  userId: string;
+  trialEndsAt: string;
+  hasRealPaddleSub: boolean;
+}) {
+  const applyTrial = useServerFn(adminApplyCustomTrial);
+  const qc = useQueryClient();
+  const [busy, setBusy] = useState(false);
+
+  const iso = trialEndsAt ? fromDateInput(trialEndsAt) : null;
+  const isFuture = iso ? new Date(iso).getTime() > Date.now() : false;
+
+  return (
+    <Button
+      type="button"
+      variant="outline"
+      size="sm"
+      disabled={busy || !hasRealPaddleSub}
+      title={
+        !hasRealPaddleSub
+          ? "Disponível apenas para assinaturas ativas do Paddle (não manuais)"
+          : isFuture
+            ? "Pausa a cobrança no Paddle e retoma nesta data"
+            : "Encerra o trial custom (retoma cobrança imediatamente)"
+      }
+      onClick={async () => {
+        setBusy(true);
+        try {
+          const res = await applyTrial({ data: { userId, trialEndsAt: iso } });
+          toast.success(
+            res.paused
+              ? "Trial aplicado no Paddle — cobrança pausada até a data escolhida."
+              : "Trial customizado encerrado — cobrança normal retomada.",
+          );
+          qc.invalidateQueries({ queryKey: ["admin-customers"] });
+        } catch (e) {
+          toast.error(e instanceof Error ? e.message : "Erro ao aplicar trial");
+        } finally {
+          setBusy(false);
+        }
+      }}
+    >
+      {busy ? <Loader2 className="size-3.5 animate-spin" /> : <Calendar className="size-3.5" />}
+      Aplicar ao Paddle
+    </Button>
   );
 }
 
