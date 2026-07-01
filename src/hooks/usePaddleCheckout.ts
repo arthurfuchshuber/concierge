@@ -33,6 +33,7 @@ export function usePaddleCheckout() {
 
       const settings: Record<string, unknown> = {
         allowLogout: false,
+        theme: "dark",
       };
       if (options.successUrl) settings.successUrl = options.successUrl;
 
