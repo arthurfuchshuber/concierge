@@ -665,3 +665,36 @@ function FeatureRow({ on, label }: { on: boolean; label: string }) {
     </li>
   );
 }
+
+function ProcessStep({
+  n,
+  title,
+  desc,
+  highlight,
+  last,
+}: {
+  n: string;
+  title: string;
+  desc: string;
+  highlight?: boolean;
+  last?: boolean;
+}) {
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center gap-2">
+        <div
+          className={`text-[10px] font-bold rounded px-1.5 py-0.5 border ${
+            highlight
+              ? "text-emerald-500 border-emerald-500/30"
+              : "text-muted-foreground border-border"
+          }`}
+        >
+          {n}
+        </div>
+        <div className={`h-px flex-1 bg-border ${last ? "opacity-0" : ""}`} />
+      </div>
+      <p className="text-[11px] font-medium text-foreground">{title}</p>
+      <p className="text-[10px] text-muted-foreground">{desc}</p>
+    </div>
+  );
+}
