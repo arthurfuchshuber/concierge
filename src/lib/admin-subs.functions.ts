@@ -271,7 +271,7 @@ export const adminUpdateSubscription = createServerFn({ method: "POST" })
     // Find latest existing sub in this environment for the user
     const { data: existing } = await supabaseAdmin
       .from("subscriptions")
-      .select("id, paddle_subscription_id, paddle_customer_id")
+      .select("id, paddle_subscription_id, paddle_customer_id, billing_paused")
       .eq("user_id", data.userId)
       .eq("environment", data.environment)
       .order("created_at", { ascending: false })
@@ -299,6 +299,35 @@ export const adminUpdateSubscription = createServerFn({ method: "POST" })
         .update(patch)
         .eq("id", existing.id);
       if (error) throw new Error("Erro ao atualizar assinatura");
+
+      // Se "Pausar cobranças" mudou e é uma assinatura real do Paddle
+      // (não manual/enterprise), sincroniza pause/resume com o Paddle. Sem
+      // isso, o toggle era apenas cosmético — o Paddle continuava cobrando.
+      const prevPaused = !!(existing as { billing_paused?: boolean }).billing_paused;
+      const nextPaused = data.billingPaused;
+      const paddleId = existing.paddle_subscription_id;
+      const isRealPaddleSub = paddleId && !paddleId.startsWith("manual_");
+      if (isRealPaddleSub && prevPaused !== nextPaused) {
+        try {
+          const { getPaddleClient } = await import("@/lib/paddle.server");
+          const paddle = getPaddleClient(data.environment as "sandbox" | "live");
+          if (nextPaused) {
+            // Pausa imediata — nenhuma nova cobrança até o resume.
+            await paddle.subscriptions.pause(paddleId, { effectiveFrom: "immediately" });
+          } else {
+            // Retoma imediatamente e cobra o proporcional dos dias restantes
+            // do ciclo atual (Paddle processa em até ~3 dias).
+            await paddle.subscriptions.resume(paddleId, { effectiveFrom: "immediately" });
+          }
+        } catch (e) {
+          console.error("Paddle pause/resume falhou:", e);
+          throw new Error(
+            nextPaused
+              ? "Não foi possível pausar a assinatura no provedor de pagamento. Tente novamente."
+              : "Não foi possível retomar a assinatura no provedor de pagamento. Tente novamente.",
+          );
+        }
+      }
     } else {
       const suffix = data.userId.slice(0, 8);
       const { error } = await supabaseAdmin.from("subscriptions").insert({
