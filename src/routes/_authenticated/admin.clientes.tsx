@@ -527,13 +527,62 @@ function EditDialog({
 
         <div className="grid sm:grid-cols-2 gap-4 mt-2">
           <div className="space-y-1.5 sm:col-span-2">
-            <Label>Nome do cliente</Label>
+            <Label>Nome completo <span className="text-destructive">*</span></Label>
             <Input
               value={fullName}
               onChange={(e) => setFullName(e.target.value)}
-              placeholder="Como o cliente deve ser identificado"
+              onBlur={(e) => setFullName(titleCaseName(e.target.value))}
+              placeholder="Ex.: Igor Fuchshuber"
+              required
+              autoComplete="name"
+            />
+            <p className="text-[11px] text-muted-foreground">
+              Salvamos com a primeira letra maiúscula (padronização visual).
+            </p>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label>CPF <span className="text-destructive">*</span></Label>
+            <Input
+              inputMode="numeric"
+              value={cpf}
+              onChange={(e) => setCpf(formatCPF(e.target.value))}
+              placeholder="000.000.000-00"
+              required
+              maxLength={14}
             />
           </div>
+
+          <div className="space-y-1.5">
+            <Label>Telefone celular <span className="text-destructive">*</span></Label>
+            <Input
+              type="tel"
+              inputMode="tel"
+              value={phone}
+              onChange={(e) => setPhone(formatBRPhone(e.target.value))}
+              placeholder="(11) 91234-5678"
+              required
+              maxLength={16}
+              autoComplete="tel"
+            />
+          </div>
+
+          <div className="space-y-1.5 sm:col-span-2">
+            <Label>Email</Label>
+            <Input
+              type="email"
+              value={customer.email ?? ""}
+              readOnly
+              disabled
+              placeholder="email@exemplo.com"
+              autoComplete="email"
+            />
+            <p className="text-[11px] text-muted-foreground">
+              Alterado apenas pelo próprio cliente (segurança da conta).
+            </p>
+          </div>
+
+
 
           <div className="space-y-1.5">
             <Label>Plano</Label>
