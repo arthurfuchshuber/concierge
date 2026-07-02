@@ -374,8 +374,9 @@ function ClientesPage() {
           onClose={() => setEditing(null)}
           onSave={async (values) => {
             try {
-              const { fullName, plan, ...rest } = values;
-              await profileUpdater({ data: { userId: editing.userId, fullName } });
+              const { fullName, cpf, phone, plan, ...rest } = values;
+              await profileUpdater({ data: { userId: editing.userId, fullName, cpf, phone, phoneCountry: "55" } });
+
               if (plan) {
                 await updater({ data: { userId: editing.userId, plan, ...rest } });
               }
