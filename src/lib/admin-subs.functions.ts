@@ -468,7 +468,13 @@ export const adminUpdateCustomerProfile = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     await assertAdmin(context.supabase, context.userId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const patch: Record<string, unknown> = {
+    const patch: {
+      id: string;
+      full_name: string | null;
+      cpf?: string | null;
+      phone?: string | null;
+      phone_country?: string | null;
+    } = {
       id: data.userId,
       full_name: data.fullName ?? null,
     };
@@ -478,6 +484,7 @@ export const adminUpdateCustomerProfile = createServerFn({ method: "POST" })
     const { error } = await supabaseAdmin
       .from("profiles")
       .upsert(patch, { onConflict: "id" });
+
     if (error) throw new Error("Não foi possível atualizar os dados do cliente.");
     return { ok: true };
   });
