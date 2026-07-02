@@ -566,6 +566,11 @@ function EditDialog({
                   !!s?.paddleSubscriptionId &&
                   !s.paddleSubscriptionId.startsWith("manual_")
                 }
+                onApplied={(paused) => {
+                  // Sincroniza o estado local para o "Salvar" não desfazer
+                  // a pausa (ou retomada) que acabou de ser aplicada no Paddle.
+                  setBillingPaused(paused);
+                }}
               />
             </div>
             <p className="text-xs text-muted-foreground">
