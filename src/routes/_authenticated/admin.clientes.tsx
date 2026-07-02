@@ -394,6 +394,8 @@ function ClientesPage() {
 
 type EditValues = {
   fullName: string | null;
+  cpf: string | null;
+  phone: string | null;
   plan: PlanKey | null;
   status: string;
   environment: "sandbox" | "live";
@@ -406,6 +408,7 @@ type EditValues = {
   maxGuidesOverride: number | null;
   billingPaused: boolean;
 };
+
 
 function toDateInput(iso: string | null | undefined) {
   if (!iso) return "";
