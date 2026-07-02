@@ -23,6 +23,8 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { titleCaseName } from "@/lib/masks";
+
 import PhoneInput, { isValidPhoneNumber, type Country } from "react-phone-number-input";
 import "react-phone-number-input/style.css";
 
@@ -116,7 +118,7 @@ export function GuideAccessGate({ slug, propertyName, requireReservationCode, on
       const res = await submit({
         data: {
           slug,
-          guest_name: name.trim(),
+          guest_name: titleCaseName(name),
           reservation_code: requireReservationCode ? code.trim() : null,
           checkin_date: checkinDate,
           guest_phone: phone,

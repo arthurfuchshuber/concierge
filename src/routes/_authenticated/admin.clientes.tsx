@@ -41,6 +41,8 @@ import {
 import { Search, Users, Pencil, Loader2, Shield, Crown, Anchor, Ban, Calendar } from "lucide-react";
 import { DatePicker } from "@/components/ui/date-picker";
 import { toast } from "sonner";
+import { formatCPF, onlyDigits, isValidCPF, formatBRPhone, isValidBRMobile, isValidEmail, titleCaseName } from "@/lib/masks";
+
 
 export const Route = createFileRoute("/_authenticated/admin/clientes")({
   beforeLoad: async () => {
@@ -372,8 +374,9 @@ function ClientesPage() {
           onClose={() => setEditing(null)}
           onSave={async (values) => {
             try {
-              const { fullName, plan, ...rest } = values;
-              await profileUpdater({ data: { userId: editing.userId, fullName } });
+              const { fullName, cpf, phone, plan, ...rest } = values;
+              await profileUpdater({ data: { userId: editing.userId, fullName, cpf, phone, phoneCountry: "55" } });
+
               if (plan) {
                 await updater({ data: { userId: editing.userId, plan, ...rest } });
               }
@@ -392,6 +395,8 @@ function ClientesPage() {
 
 type EditValues = {
   fullName: string | null;
+  cpf: string | null;
+  phone: string | null;
   plan: PlanKey | null;
   status: string;
   environment: "sandbox" | "live";
@@ -404,6 +409,7 @@ type EditValues = {
   maxGuidesOverride: number | null;
   billingPaused: boolean;
 };
+
 
 function toDateInput(iso: string | null | undefined) {
   if (!iso) return "";
@@ -428,13 +434,13 @@ function EditDialog({
 }) {
   const s = customer.subscription;
   const [fullName, setFullName] = useState(customer.fullName ?? "");
+  const [cpf, setCpf] = useState(formatCPF(customer.cpf ?? ""));
+  const [phone, setPhone] = useState(formatBRPhone(customer.phone ?? ""));
   // null = "Sem plano" (não cria/atualiza assinatura). Quando o usuário não
   // tem assinatura, o padrão é "Sem plano" — coerente com o pedido do
   // anfitrião de não forçar plano em quem ainda não contratou.
   const [plan, setPlan] = useState<PlanKey | null>(s?.plan ?? null);
   const [status, setStatus] = useState<string>(s?.status ?? "active");
-  // Padrão de ambiente = "live" (produção) — cadastros novos já entram em
-  // produção; sandbox é apenas para testes pontuais.
   const [environment, setEnvironment] = useState<"sandbox" | "live">(
     (s?.environment as "sandbox" | "live") ?? "live",
   );
@@ -454,6 +460,26 @@ function EditDialog({
   const [saving, setSaving] = useState(false);
 
   async function handleSave() {
+    // Validação obrigatória: nome, CPF e telefone celular.
+    const cleanedName = titleCaseName(fullName);
+    if (!cleanedName || cleanedName.trim().split(/\s+/).length < 2) {
+      toast.error("Informe o nome completo do cliente (nome e sobrenome).");
+      return;
+    }
+    const cpfDigits = onlyDigits(cpf);
+    if (!isValidCPF(cpfDigits)) {
+      toast.error("CPF inválido. Use o formato 000.000.000-00.");
+      return;
+    }
+    const phoneDigits = onlyDigits(phone);
+    if (!isValidBRMobile(phoneDigits)) {
+      toast.error("Telefone celular inválido. Use DDD + número (ex.: (11) 91234-5678).");
+      return;
+    }
+    if (customer.email && !isValidEmail(customer.email)) {
+      toast.error("O email do cliente é inválido.");
+      return;
+    }
     setSaving(true);
     const price = customPrice.trim() ? Math.round(Number(customPrice) * 100) : null;
     if (price != null && (Number.isNaN(price) || price < 0)) {
@@ -469,7 +495,9 @@ function EditDialog({
     }
     try {
       await onSave({
-        fullName: fullName.trim() || null,
+        fullName: cleanedName,
+        cpf: cpfDigits,
+        phone: phoneDigits,
         plan,
         status,
         environment,
@@ -487,6 +515,7 @@ function EditDialog({
     }
   }
 
+
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -499,13 +528,62 @@ function EditDialog({
 
         <div className="grid sm:grid-cols-2 gap-4 mt-2">
           <div className="space-y-1.5 sm:col-span-2">
-            <Label>Nome do cliente</Label>
+            <Label>Nome completo <span className="text-destructive">*</span></Label>
             <Input
               value={fullName}
               onChange={(e) => setFullName(e.target.value)}
-              placeholder="Como o cliente deve ser identificado"
+              onBlur={(e) => setFullName(titleCaseName(e.target.value))}
+              placeholder="Ex.: Igor Fuchshuber"
+              required
+              autoComplete="name"
+            />
+            <p className="text-[11px] text-muted-foreground">
+              Salvamos com a primeira letra maiúscula (padronização visual).
+            </p>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label>CPF <span className="text-destructive">*</span></Label>
+            <Input
+              inputMode="numeric"
+              value={cpf}
+              onChange={(e) => setCpf(formatCPF(e.target.value))}
+              placeholder="000.000.000-00"
+              required
+              maxLength={14}
             />
           </div>
+
+          <div className="space-y-1.5">
+            <Label>Telefone celular <span className="text-destructive">*</span></Label>
+            <Input
+              type="tel"
+              inputMode="tel"
+              value={phone}
+              onChange={(e) => setPhone(formatBRPhone(e.target.value))}
+              placeholder="(11) 91234-5678"
+              required
+              maxLength={16}
+              autoComplete="tel"
+            />
+          </div>
+
+          <div className="space-y-1.5 sm:col-span-2">
+            <Label>Email</Label>
+            <Input
+              type="email"
+              value={customer.email ?? ""}
+              readOnly
+              disabled
+              placeholder="email@exemplo.com"
+              autoComplete="email"
+            />
+            <p className="text-[11px] text-muted-foreground">
+              Alterado apenas pelo próprio cliente (segurança da conta).
+            </p>
+          </div>
+
+
 
           <div className="space-y-1.5">
             <Label>Plano</Label>
