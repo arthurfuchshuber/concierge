@@ -85,15 +85,33 @@ function MetricCell({ label, value, tone }: { label: string; value: number | str
 function EngagementPage() {
   const fn = useServerFn(getEngagementOverview);
   const fbFn = useServerFn(listMyFeedback);
+  const presenceFn = useServerFn(getLivePresence);
   const { info: sub } = useSubscription();
   const aiLocked = !sub.features.ai;
+  const qc = useQueryClient();
 
   const { data, isLoading, refetch } = useQuery({ queryKey: ["admin-engagement"], queryFn: () => fn() });
   const fbQuery = useQuery({ queryKey: ["admin-feedback"], queryFn: () => fbFn() });
+  const presenceQuery = useQuery({
+    queryKey: ["admin-live-presence"],
+    queryFn: () => presenceFn(),
+    refetchInterval: 15000,
+  });
 
   const [filterProp, setFilterProp] = useState<string>("all");
   const [search, setSearch] = useState("");
   const [onlyIneffective, setOnlyIneffective] = useState(false);
+
+  // Realtime — invalida presença ao chegar novo evento de seção
+  useEffect(() => {
+    const ch = supabase
+      .channel("admin-live-presence")
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "guide_section_events" }, () => {
+        qc.invalidateQueries({ queryKey: ["admin-live-presence"] });
+      })
+      .subscribe();
+    return () => { void supabase.removeChannel(ch); };
+  }, [qc]);
 
   const feedbackByMsg = useMemo(() => {
     const m = new Map<string, { resolved: boolean; reason: string | null }>();
