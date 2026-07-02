@@ -99,18 +99,32 @@ export const getEngagementOverview = createServerFn({ method: "GET" })
 
     // Section aggregation: count by section across all properties
     const sectionCount = new Map<string, number>();
+    const sectionByProp = new Map<string, Map<string, number>>();
     for (const e of sectionEventsRaw) {
       sectionCount.set(e.section, (sectionCount.get(e.section) ?? 0) + 1);
+      let m = sectionByProp.get(e.property_id);
+      if (!m) { m = new Map(); sectionByProp.set(e.property_id, m); }
+      m.set(e.section, (m.get(e.section) ?? 0) + 1);
     }
     const sectionEvents = Array.from(sectionCount.entries())
       .map(([section, count]) => ({ section, count }))
       .sort((a, b) => b.count - a.count);
+    const sectionEventsByProperty: Record<string, Array<{ section: string; count: number }>> = {};
+    for (const [pid, m] of sectionByProp.entries()) {
+      sectionEventsByProperty[pid] = Array.from(m.entries())
+        .map(([section, count]) => ({ section, count }))
+        .sort((a, b) => b.count - a.count);
+    }
 
-    // Device breakdown from user_agent
+    // Device breakdown from user_agent (global + per property)
     const deviceBreakdown = { mobile: 0, tablet: 0, desktop: 0 };
+    const deviceByProp: Record<string, { mobile: number; tablet: number; desktop: number }> = {};
     for (const l of logs ?? []) {
       const d = detectDevice(l.user_agent);
       deviceBreakdown[d]++;
+      const cur = deviceByProp[l.property_id] ?? { mobile: 0, tablet: 0, desktop: 0 };
+      cur[d]++;
+      deviceByProp[l.property_id] = cur;
     }
 
     type PropMetric = {
