@@ -424,6 +424,53 @@ function EngagementPage() {
 
             {/* OVERVIEW */}
             <TabsContent value="overview" className="space-y-6">
+              {/* LIVE PRESENCE — hóspedes ativos agora (últimos 5 min) */}
+              <section className="rounded-2xl border border-emerald-500/30 bg-emerald-500/5 p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-sm font-medium flex items-center gap-2">
+                    <span className="relative inline-flex items-center justify-center">
+                      <Radio className="size-4 text-emerald-500" />
+                      <span className="absolute -right-0.5 -top-0.5 size-2 rounded-full bg-emerald-500 animate-pulse" />
+                    </span>
+                    Ao vivo agora
+                    <span className="text-xs text-muted-foreground font-normal">
+                      ({liveSessions.length} {liveSessions.length === 1 ? "hóspede" : "hóspedes"} nos últimos 5 min)
+                    </span>
+                  </h3>
+                  <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Realtime</span>
+                </div>
+                {liveSessions.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">Ninguém navegando neste momento.</p>
+                ) : (
+                  <ul className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                    {liveSessions.slice(0, 20).map((s) => {
+                      const durMin = Math.max(1, Math.round((new Date(s.last_seen).getTime() - new Date(s.first_seen).getTime()) / 60000));
+                      return (
+                        <li key={`${s.property_id}:${s.session_id}`} className="rounded-xl bg-card border border-border/60 px-3 py-2 flex items-center gap-3">
+                          <span className="size-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+                          <div className="flex-1 min-w-0">
+                            <div className="text-sm font-medium truncate">
+                              {s.guest_name ?? "Visitante"}
+                              {s.guest_phone ? <span className="ml-1 text-[11px] text-muted-foreground">· {s.guest_phone}</span> : null}
+                            </div>
+                            <div className="text-[11px] text-muted-foreground truncate">
+                              <Link to="/g/$slug" params={{ slug: s.property_slug }} target="_blank" className="hover:underline">
+                                {s.property_name}
+                              </Link>
+                              {" · "}<span className="capitalize">{s.section}</span>
+                              {s.page_path ? <span className="ml-1 opacity-70">({s.page_path})</span> : null}
+                            </div>
+                          </div>
+                          <div className="text-[10px] text-muted-foreground tabular-nums whitespace-nowrap">
+                            {durMin}min · {s.events_count} evts
+                          </div>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </section>
+
               {/* User-side big numbers */}
               <section>
                 <h2 className="text-xs uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-2">
