@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   Activity, MessageSquare, Users, BarChart3, Loader2, Bot, User as UserIcon,
   ExternalLink, Phone, Sparkles, AlertTriangle, BookOpen, Library, Home as HomeIcon,
-  ThumbsDown, RotateCcw, TrendingUp, Smartphone, Monitor, Tablet, Layers, CheckCircle2,
+  ThumbsDown, RotateCcw, TrendingUp, Smartphone, Monitor, Tablet, Layers,
   Radio,
 } from "lucide-react";
 import {
