@@ -492,6 +492,47 @@ export type Database = {
           },
         ]
       }
+      guide_section_events: {
+        Row: {
+          created_at: string
+          guest_name: string | null
+          guest_phone: string | null
+          guest_session_id: string | null
+          id: string
+          page_path: string | null
+          property_id: string
+          section: string
+        }
+        Insert: {
+          created_at?: string
+          guest_name?: string | null
+          guest_phone?: string | null
+          guest_session_id?: string | null
+          id?: string
+          page_path?: string | null
+          property_id: string
+          section: string
+        }
+        Update: {
+          created_at?: string
+          guest_name?: string | null
+          guest_phone?: string | null
+          guest_session_id?: string | null
+          id?: string
+          page_path?: string | null
+          property_id?: string
+          section?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "guide_section_events_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       host_behavior: {
         Row: {
           body: string
@@ -764,27 +805,36 @@ export type Database = {
       profiles: {
         Row: {
           avatar_url: string | null
+          cpf: string | null
           created_at: string
           etiqueta_options: string[]
           full_name: string | null
           id: string
           onboarding_completed_at: string | null
+          phone: string | null
+          phone_country: string | null
         }
         Insert: {
           avatar_url?: string | null
+          cpf?: string | null
           created_at?: string
           etiqueta_options?: string[]
           full_name?: string | null
           id: string
           onboarding_completed_at?: string | null
+          phone?: string | null
+          phone_country?: string | null
         }
         Update: {
           avatar_url?: string | null
+          cpf?: string | null
           created_at?: string
           etiqueta_options?: string[]
           full_name?: string | null
           id?: string
           onboarding_completed_at?: string | null
+          phone?: string | null
+          phone_country?: string | null
         }
         Relationships: []
       }
