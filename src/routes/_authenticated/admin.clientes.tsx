@@ -433,13 +433,13 @@ function EditDialog({
 }) {
   const s = customer.subscription;
   const [fullName, setFullName] = useState(customer.fullName ?? "");
+  const [cpf, setCpf] = useState(formatCPF(customer.cpf ?? ""));
+  const [phone, setPhone] = useState(formatBRPhone(customer.phone ?? ""));
   // null = "Sem plano" (não cria/atualiza assinatura). Quando o usuário não
   // tem assinatura, o padrão é "Sem plano" — coerente com o pedido do
   // anfitrião de não forçar plano em quem ainda não contratou.
   const [plan, setPlan] = useState<PlanKey | null>(s?.plan ?? null);
   const [status, setStatus] = useState<string>(s?.status ?? "active");
-  // Padrão de ambiente = "live" (produção) — cadastros novos já entram em
-  // produção; sandbox é apenas para testes pontuais.
   const [environment, setEnvironment] = useState<"sandbox" | "live">(
     (s?.environment as "sandbox" | "live") ?? "live",
   );
@@ -459,6 +459,26 @@ function EditDialog({
   const [saving, setSaving] = useState(false);
 
   async function handleSave() {
+    // Validação obrigatória: nome, CPF e telefone celular.
+    const cleanedName = titleCaseName(fullName);
+    if (!cleanedName || cleanedName.trim().split(/\s+/).length < 2) {
+      toast.error("Informe o nome completo do cliente (nome e sobrenome).");
+      return;
+    }
+    const cpfDigits = onlyDigits(cpf);
+    if (!isValidCPF(cpfDigits)) {
+      toast.error("CPF inválido. Use o formato 000.000.000-00.");
+      return;
+    }
+    const phoneDigits = onlyDigits(phone);
+    if (!isValidBRMobile(phoneDigits)) {
+      toast.error("Telefone celular inválido. Use DDD + número (ex.: (11) 91234-5678).");
+      return;
+    }
+    if (customer.email && !isValidEmail(customer.email)) {
+      toast.error("O email do cliente é inválido.");
+      return;
+    }
     setSaving(true);
     const price = customPrice.trim() ? Math.round(Number(customPrice) * 100) : null;
     if (price != null && (Number.isNaN(price) || price < 0)) {
@@ -474,7 +494,9 @@ function EditDialog({
     }
     try {
       await onSave({
-        fullName: fullName.trim() || null,
+        fullName: cleanedName,
+        cpf: cpfDigits,
+        phone: phoneDigits,
         plan,
         status,
         environment,
@@ -491,6 +513,7 @@ function EditDialog({
       setSaving(false);
     }
   }
+
 
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
