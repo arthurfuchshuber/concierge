@@ -740,7 +740,7 @@ function EngagementPage() {
                   <div className="col-span-1 text-right">Ineficaz</div>
                   <div className="col-span-3">Último acesso</div>
                 </div>
-                {data!.metrics.map((m) => (
+                {scopedMetrics.map((m) => (
                   <div key={m.property_id} className="grid grid-cols-12 gap-2 px-4 py-3 text-sm border-b border-border/60 last:border-b-0 items-center">
                     <div className="col-span-3 font-medium truncate flex items-center gap-2">
                       <Link to="/g/$slug" params={{ slug: m.property_slug }} target="_blank" className="hover:underline truncate inline-flex items-center gap-1">
