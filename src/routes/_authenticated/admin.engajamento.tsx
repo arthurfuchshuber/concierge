@@ -699,7 +699,8 @@ function EngagementPage() {
                   <div className="col-span-4">Completude</div>
                   <div className="col-span-2 text-right">Score</div>
                 </div>
-                {(data?.hostUsability?.guideCompleteness ?? [])
+                {scopedCompleteness
+                  .slice()
                   .sort((a, b) => a.score - b.score)
                   .map((g) => (
                     <div key={g.id} className="grid md:grid-cols-12 gap-2 px-4 py-3 border-b border-border/60 last:border-b-0 items-center">
