@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   Activity, MessageSquare, Users, BarChart3, Loader2, Bot, User as UserIcon,
   ExternalLink, Phone, Sparkles, AlertTriangle, BookOpen, Library, Home as HomeIcon,
-  ThumbsDown, RotateCcw, TrendingUp, Smartphone, Monitor, Tablet, Layers, CheckCircle2,
+  ThumbsDown, RotateCcw, TrendingUp, Smartphone, Monitor, Tablet, Layers,
   Radio,
 } from "lucide-react";
 import {
@@ -13,6 +13,7 @@ import {
   ResponsiveContainer, CartesianGrid, Legend, PieChart, Pie, Cell,
 } from "recharts";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
@@ -418,58 +419,67 @@ function EngagementPage() {
                 ) : null}
               </TabsTrigger>
               <TabsTrigger value="comportamento" className="gap-2"><Layers className="size-4" /> Comportamento</TabsTrigger>
-              <TabsTrigger value="guias" className="gap-2"><CheckCircle2 className="size-4" /> Guias</TabsTrigger>
-              <TabsTrigger value="metrics" className="gap-2"><BarChart3 className="size-4" /> Métricas</TabsTrigger>
+              <TabsTrigger value="guias" className="gap-2"><BarChart3 className="size-4" /> Guias & Métricas</TabsTrigger>
             </TabsList>
 
             {/* OVERVIEW */}
             <TabsContent value="overview" className="space-y-6">
-              {/* LIVE PRESENCE — hóspedes ativos agora (últimos 5 min) */}
-              <section className="rounded-2xl border border-emerald-500/30 bg-emerald-500/5 p-4">
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-sm font-medium flex items-center gap-2">
-                    <span className="relative inline-flex items-center justify-center">
-                      <Radio className="size-4 text-emerald-500" />
-                      <span className="absolute -right-0.5 -top-0.5 size-2 rounded-full bg-emerald-500 animate-pulse" />
+              {/* LIVE PRESENCE — resumo compacto; detalhes em popover */}
+              <Popover>
+                <PopoverTrigger asChild>
+                  <button
+                    type="button"
+                    className="w-full text-left rounded-2xl border border-emerald-500/30 bg-emerald-500/5 px-4 py-3 flex items-center justify-between gap-3 hover:bg-emerald-500/10 transition"
+                  >
+                    <div className="flex items-center gap-2 text-sm font-medium">
+                      <span className="relative inline-flex items-center justify-center">
+                        <Radio className="size-4 text-emerald-500" />
+                        <span className="absolute -right-0.5 -top-0.5 size-2 rounded-full bg-emerald-500 animate-pulse" />
+                      </span>
+                      Ao vivo agora
+                      <span className="text-xs text-muted-foreground font-normal">
+                        · {liveSessions.length} {liveSessions.length === 1 ? "hóspede ativo" : "hóspedes ativos"} (últimos 5 min)
+                      </span>
+                    </div>
+                    <span className="text-[10px] text-muted-foreground uppercase tracking-wider">
+                      {liveSessions.length > 0 ? "Ver detalhes" : "Realtime"}
                     </span>
-                    Ao vivo agora
-                    <span className="text-xs text-muted-foreground font-normal">
-                      ({liveSessions.length} {liveSessions.length === 1 ? "hóspede" : "hóspedes"} nos últimos 5 min)
-                    </span>
-                  </h3>
-                  <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Realtime</span>
-                </div>
-                {liveSessions.length === 0 ? (
-                  <p className="text-xs text-muted-foreground">Ninguém navegando neste momento.</p>
-                ) : (
-                  <ul className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                    {liveSessions.slice(0, 20).map((s) => {
-                      const durMin = Math.max(1, Math.round((new Date(s.last_seen).getTime() - new Date(s.first_seen).getTime()) / 60000));
-                      return (
-                        <li key={`${s.property_id}:${s.session_id}`} className="rounded-xl bg-card border border-border/60 px-3 py-2 flex items-center gap-3">
-                          <span className="size-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
-                          <div className="flex-1 min-w-0">
-                            <div className="text-sm font-medium truncate">
-                              {s.guest_name ?? "Visitante"}
-                              {s.guest_phone ? <span className="ml-1 text-[11px] text-muted-foreground">· {s.guest_phone}</span> : null}
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent align="start" className="w-[420px] max-w-[92vw] p-0">
+                  <div className="px-3 py-2 border-b border-border text-xs font-medium flex items-center gap-2">
+                    <Radio className="size-3.5 text-emerald-500" />
+                    Hóspedes ativos agora
+                  </div>
+                  {liveSessions.length === 0 ? (
+                    <p className="p-4 text-xs text-muted-foreground">Ninguém navegando neste momento.</p>
+                  ) : (
+                    <ul className="max-h-[360px] overflow-y-auto divide-y divide-border/60">
+                      {liveSessions.slice(0, 40).map((s) => {
+                        const durMin = Math.max(1, Math.round((new Date(s.last_seen).getTime() - new Date(s.first_seen).getTime()) / 60000));
+                        return (
+                          <li key={`${s.property_id}:${s.session_id}`} className="px-3 py-2 text-sm">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+                              <span className="font-medium truncate">{s.guest_name ?? "Visitante"}</span>
+                              {s.guest_phone ? <span className="text-[11px] text-muted-foreground shrink-0">· {s.guest_phone}</span> : null}
                             </div>
-                            <div className="text-[11px] text-muted-foreground truncate">
+                            <div className="text-[11px] text-muted-foreground truncate mt-0.5 pl-3.5">
                               <Link to="/g/$slug" params={{ slug: s.property_slug }} target="_blank" className="hover:underline">
                                 {s.property_name}
                               </Link>
                               {" · "}<span className="capitalize">{s.section}</span>
                               {s.page_path ? <span className="ml-1 opacity-70">({s.page_path})</span> : null}
+                              {" · "}<span className="tabular-nums">{durMin}min · {s.events_count} evts</span>
                             </div>
-                          </div>
-                          <div className="text-[10px] text-muted-foreground tabular-nums whitespace-nowrap">
-                            {durMin}min · {s.events_count} evts
-                          </div>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                )}
-              </section>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
+                </PopoverContent>
+              </Popover>
+
 
               {/* User-side big numbers */}
               <section>
@@ -771,73 +781,77 @@ function EngagementPage() {
                     </div>
                   ))}
               </div>
-            </TabsContent>
 
-            {/* METRICS */}
-            <TabsContent value="metrics" className="space-y-3">
-              {/* Desktop table */}
-              <div className="hidden md:block rounded-2xl border border-border overflow-hidden">
-                <div className="grid grid-cols-12 gap-2 px-4 py-2.5 text-[11px] uppercase tracking-wide text-muted-foreground bg-muted/40 border-b border-border">
-                  <div className="col-span-3">Hospedagem</div>
-                  <div className="col-span-1 text-right">Acessos</div>
-                  <div className="col-span-1 text-right">Conversas</div>
-                  <div className="col-span-1 text-right">Mensagens</div>
-                  <div className="col-span-1 text-right">Hóspedes</div>
-                  <div className="col-span-1 text-right">IA %</div>
-                  <div className="col-span-1 text-right">Ineficaz</div>
-                  <div className="col-span-3">Último acesso</div>
-                </div>
-                {scopedMetrics.map((m) => (
-                  <div key={m.property_id} className="grid grid-cols-12 gap-2 px-4 py-3 text-sm border-b border-border/60 last:border-b-0 items-center">
-                    <div className="col-span-3 font-medium truncate flex items-center gap-2">
-                      <Link to="/g/$slug" params={{ slug: m.property_slug }} target="_blank" className="hover:underline truncate inline-flex items-center gap-1">
-                        {m.property_name} <ExternalLink className="size-3 opacity-60" />
-                      </Link>
-                    </div>
-                    <div className="col-span-1 text-right tabular-nums">{m.total_accesses}</div>
-                    <div className="col-span-1 text-right tabular-nums">{m.total_conversations}</div>
-                    <div className="col-span-1 text-right tabular-nums">{m.total_messages ?? 0}</div>
-                    <div className="col-span-1 text-right tabular-nums">{m.unique_guests}</div>
-                    <div className={`col-span-1 text-right tabular-nums font-medium ${(m.ai_adoption_rate ?? 0) >= 30 ? "text-emerald-600 dark:text-emerald-400" : (m.ai_adoption_rate ?? 0) >= 10 ? "text-amber-600 dark:text-amber-400" : "text-muted-foreground"}`}>
-                      {m.ai_adoption_rate ?? 0}%
-                    </div>
-                    <div className="col-span-1 text-right tabular-nums">{m.feedback_count ?? 0}</div>
-                    <div className="col-span-3 text-muted-foreground text-xs">{fmt(m.last_access)}</div>
+              {/* MÉTRICAS por hospedagem */}
+              <div className="pt-4">
+                <h3 className="text-sm font-medium mb-3 flex items-center gap-2">
+                  <BarChart3 className="size-4 text-muted-foreground" /> Métricas por hospedagem
+                </h3>
+                {/* Desktop table */}
+                <div className="hidden md:block rounded-2xl border border-border overflow-hidden">
+                  <div className="grid grid-cols-12 gap-2 px-4 py-2.5 text-[11px] uppercase tracking-wide text-muted-foreground bg-muted/40 border-b border-border">
+                    <div className="col-span-3">Hospedagem</div>
+                    <div className="col-span-1 text-right">Acessos</div>
+                    <div className="col-span-1 text-right">Conversas</div>
+                    <div className="col-span-1 text-right">Mensagens</div>
+                    <div className="col-span-1 text-right">Hóspedes</div>
+                    <div className="col-span-1 text-right">IA %</div>
+                    <div className="col-span-1 text-right">Ineficaz</div>
+                    <div className="col-span-3">Último acesso</div>
                   </div>
-                ))}
-              </div>
+                  {scopedMetrics.map((m) => (
+                    <div key={m.property_id} className="grid grid-cols-12 gap-2 px-4 py-3 text-sm border-b border-border/60 last:border-b-0 items-center">
+                      <div className="col-span-3 font-medium truncate flex items-center gap-2">
+                        <Link to="/g/$slug" params={{ slug: m.property_slug }} target="_blank" className="hover:underline truncate inline-flex items-center gap-1">
+                          {m.property_name} <ExternalLink className="size-3 opacity-60" />
+                        </Link>
+                      </div>
+                      <div className="col-span-1 text-right tabular-nums">{m.total_accesses}</div>
+                      <div className="col-span-1 text-right tabular-nums">{m.total_conversations}</div>
+                      <div className="col-span-1 text-right tabular-nums">{m.total_messages ?? 0}</div>
+                      <div className="col-span-1 text-right tabular-nums">{m.unique_guests}</div>
+                      <div className={`col-span-1 text-right tabular-nums font-medium ${(m.ai_adoption_rate ?? 0) >= 30 ? "text-emerald-600 dark:text-emerald-400" : (m.ai_adoption_rate ?? 0) >= 10 ? "text-amber-600 dark:text-amber-400" : "text-muted-foreground"}`}>
+                        {m.ai_adoption_rate ?? 0}%
+                      </div>
+                      <div className="col-span-1 text-right tabular-nums">{m.feedback_count ?? 0}</div>
+                      <div className="col-span-3 text-muted-foreground text-xs">{fmt(m.last_access)}</div>
+                    </div>
+                  ))}
+                </div>
 
-              {/* Mobile cards */}
-              <div className="md:hidden space-y-3">
-                {scopedMetrics.map((m) => (
-                  <div key={m.property_id} className="rounded-2xl border border-border bg-card p-4">
-                    <Link
-                      to="/g/$slug"
-                      params={{ slug: m.property_slug }}
-                      target="_blank"
-                      className="font-medium text-sm hover:underline inline-flex items-center gap-1 leading-tight"
-                    >
-                      <span className="truncate">{m.property_name}</span>
-                      <ExternalLink className="size-3 opacity-60 shrink-0" />
-                    </Link>
-                    <div className="mt-3 grid grid-cols-3 gap-2">
-                      <MetricCell label="Acessos" value={m.total_accesses} />
-                      <MetricCell label="Conversas" value={m.total_conversations} />
-                      <MetricCell label="Mensagens" value={m.total_messages ?? 0} />
-                      <MetricCell label="Hóspedes" value={m.unique_guests} />
-                      <MetricCell label="Ineficaz" value={m.feedback_count ?? 0} tone={(m.feedback_count ?? 0) > 0 ? "amber" : undefined} />
-                      <div className="col-span-1 rounded-lg bg-secondary/40 px-2 py-1.5">
-                        <div className="text-[9px] uppercase tracking-wider text-muted-foreground font-semibold">Último</div>
-                        <div className="text-[11px] mt-0.5 text-muted-foreground leading-tight">
-                          {m.last_access ? new Date(m.last_access).toLocaleDateString("pt-BR") : "—"}
+                {/* Mobile cards */}
+                <div className="md:hidden space-y-3">
+                  {scopedMetrics.map((m) => (
+                    <div key={m.property_id} className="rounded-2xl border border-border bg-card p-4">
+                      <Link
+                        to="/g/$slug"
+                        params={{ slug: m.property_slug }}
+                        target="_blank"
+                        className="font-medium text-sm hover:underline inline-flex items-center gap-1 leading-tight"
+                      >
+                        <span className="truncate">{m.property_name}</span>
+                        <ExternalLink className="size-3 opacity-60 shrink-0" />
+                      </Link>
+                      <div className="mt-3 grid grid-cols-3 gap-2">
+                        <MetricCell label="Acessos" value={m.total_accesses} />
+                        <MetricCell label="Conversas" value={m.total_conversations} />
+                        <MetricCell label="Mensagens" value={m.total_messages ?? 0} />
+                        <MetricCell label="Hóspedes" value={m.unique_guests} />
+                        <MetricCell label="Ineficaz" value={m.feedback_count ?? 0} tone={(m.feedback_count ?? 0) > 0 ? "amber" : undefined} />
+                        <div className="col-span-1 rounded-lg bg-secondary/40 px-2 py-1.5">
+                          <div className="text-[9px] uppercase tracking-wider text-muted-foreground font-semibold">Último</div>
+                          <div className="text-[11px] mt-0.5 text-muted-foreground leading-tight">
+                            {m.last_access ? new Date(m.last_access).toLocaleDateString("pt-BR") : "—"}
+                          </div>
                         </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
             </TabsContent>
           </Tabs>
+
         </>
       )}
     </div>

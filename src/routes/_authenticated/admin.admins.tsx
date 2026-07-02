@@ -264,32 +264,32 @@ function AdminsPage() {
               <div className="p-8 text-center text-sm text-muted-foreground">Nenhum registro encontrado.</div>
             ) : (
               <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
-                <table className="w-full text-sm table-auto">
+                <table className="w-full text-sm">
                   <thead className="bg-muted/30 text-xs uppercase tracking-wider text-muted-foreground">
                     <tr>
-                      <th className="text-left px-4 py-2.5 font-medium whitespace-nowrap">Quando</th>
-                      <th className="text-left px-4 py-2.5 font-medium">Usuário</th>
-                      <th className="text-left px-4 py-2.5 font-medium whitespace-nowrap">Ação</th>
+                      <th className="text-left px-4 py-2.5 font-medium whitespace-nowrap w-[150px]">Quando</th>
+                      <th className="text-left px-4 py-2.5 font-medium w-[280px]">Usuário</th>
+                      <th className="text-left px-4 py-2.5 font-medium whitespace-nowrap w-[240px]">Ação</th>
                       <th className="text-left px-4 py-2.5 font-medium">Item</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
                     {logs.map((l) => (
-                      <tr key={l.id} className="hover:bg-muted/20 align-top">
-                        <td className="px-4 py-2.5 whitespace-nowrap text-xs text-muted-foreground">
+                      <tr key={l.id} className="hover:bg-muted/20 align-middle">
+                        <td className="px-4 py-3 whitespace-nowrap text-xs text-muted-foreground">
                           {new Date(l.createdAt).toLocaleString("pt-BR")}
                         </td>
-                        <td className="px-4 py-2.5">
-                          <div className="text-xs font-medium break-all">{l.userEmail ?? "—"}</div>
-                          {l.userId && <div className="text-[10px] text-muted-foreground break-all">{l.userId}</div>}
+                        <td className="px-4 py-3">
+                          <div className="text-xs font-medium truncate" title={l.userEmail ?? ""}>{l.userEmail ?? "—"}</div>
+                          {l.userId && <div className="text-[10px] text-muted-foreground font-mono truncate" title={l.userId}>{l.userId.slice(0, 8)}…</div>}
                         </td>
-                        <td className="px-4 py-2.5 whitespace-nowrap">
-                          <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-accent/10 text-accent text-[11px] font-medium">
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-accent/10 text-accent text-[11px] font-medium whitespace-nowrap">
                             {l.actionLabel}
                           </span>
                         </td>
-                        <td className="px-4 py-2.5 text-xs">
-                          <span className="font-medium break-words">{l.itemLabel}</span>
+                        <td className="px-4 py-3 text-xs">
+                          <span className="font-medium">{l.itemLabel}</span>
                         </td>
                       </tr>
                     ))}
