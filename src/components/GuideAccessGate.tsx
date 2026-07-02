@@ -23,6 +23,8 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { titleCaseName } from "@/lib/masks";
+
 import PhoneInput, { isValidPhoneNumber, type Country } from "react-phone-number-input";
 import "react-phone-number-input/style.css";
 
