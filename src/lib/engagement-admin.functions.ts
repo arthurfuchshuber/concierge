@@ -278,8 +278,11 @@ export const getEngagementOverview = createServerFn({ method: "GET" })
       metrics,
       feedback: feedback ?? [],
       timeseries,
+      timeseriesByProperty: timeseriesByProp,
       sectionEvents,
+      sectionEventsByProperty,
       deviceBreakdown,
+      deviceByProperty: deviceByProp,
       hostUsability: {
         totalGuides: (props ?? []).length,
         publishedGuides: (props ?? []).filter((p) => !!(p as { published?: boolean }).published).length,
