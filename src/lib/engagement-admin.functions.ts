@@ -31,8 +31,11 @@ export const getEngagementOverview = createServerFn({ method: "GET" })
         metrics: [],
         feedback: [],
         timeseries: [],
+        timeseriesByProperty: {} as Record<string, Array<{ date: string; accesses: number; conversations: number }>>,
         sectionEvents: [],
+        sectionEventsByProperty: {} as Record<string, Array<{ section: string; count: number }>>,
         deviceBreakdown: { mobile: 0, tablet: 0, desktop: 0 },
+        deviceByProperty: {} as Record<string, { mobile: number; tablet: number; desktop: number }>,
         hostUsability: {
           totalGuides: 0,
           publishedGuides: 0,
@@ -99,18 +102,32 @@ export const getEngagementOverview = createServerFn({ method: "GET" })
 
     // Section aggregation: count by section across all properties
     const sectionCount = new Map<string, number>();
+    const sectionByProp = new Map<string, Map<string, number>>();
     for (const e of sectionEventsRaw) {
       sectionCount.set(e.section, (sectionCount.get(e.section) ?? 0) + 1);
+      let m = sectionByProp.get(e.property_id);
+      if (!m) { m = new Map(); sectionByProp.set(e.property_id, m); }
+      m.set(e.section, (m.get(e.section) ?? 0) + 1);
     }
     const sectionEvents = Array.from(sectionCount.entries())
       .map(([section, count]) => ({ section, count }))
       .sort((a, b) => b.count - a.count);
+    const sectionEventsByProperty: Record<string, Array<{ section: string; count: number }>> = {};
+    for (const [pid, m] of sectionByProp.entries()) {
+      sectionEventsByProperty[pid] = Array.from(m.entries())
+        .map(([section, count]) => ({ section, count }))
+        .sort((a, b) => b.count - a.count);
+    }
 
-    // Device breakdown from user_agent
+    // Device breakdown from user_agent (global + per property)
     const deviceBreakdown = { mobile: 0, tablet: 0, desktop: 0 };
+    const deviceByProp: Record<string, { mobile: number; tablet: number; desktop: number }> = {};
     for (const l of logs ?? []) {
       const d = detectDevice(l.user_agent);
       deviceBreakdown[d]++;
+      const cur = deviceByProp[l.property_id] ?? { mobile: 0, tablet: 0, desktop: 0 };
+      cur[d]++;
+      deviceByProp[l.property_id] = cur;
     }
 
     type PropMetric = {
@@ -190,15 +207,28 @@ export const getEngagementOverview = createServerFn({ method: "GET" })
     }
     const dayMap = new Map<string, { date: string; accesses: number; conversations: number }>();
     for (const d of days) dayMap.set(d, { date: d, accesses: 0, conversations: 0 });
+    const timeseriesByProp: Record<string, Array<{ date: string; accesses: number; conversations: number }>> = {};
+    function ensureProp(pid: string) {
+      if (!timeseriesByProp[pid]) {
+        timeseriesByProp[pid] = days.map((d) => ({ date: d, accesses: 0, conversations: 0 }));
+      }
+      return timeseriesByProp[pid];
+    }
     for (const l of logs ?? []) {
       const d = String(l.created_at).slice(0, 10);
       const e = dayMap.get(d);
       if (e) e.accesses++;
+      const arr = ensureProp(l.property_id);
+      const idx = days.indexOf(d);
+      if (idx >= 0) arr[idx].accesses++;
     }
     for (const c of convs ?? []) {
       const d = String(c.created_at).slice(0, 10);
       const e = dayMap.get(d);
       if (e) e.conversations++;
+      const arr = ensureProp(c.property_id);
+      const idx = days.indexOf(d);
+      if (idx >= 0) arr[idx].conversations++;
     }
     const timeseries = Array.from(dayMap.values());
 
@@ -251,8 +281,11 @@ export const getEngagementOverview = createServerFn({ method: "GET" })
       metrics,
       feedback: feedback ?? [],
       timeseries,
+      timeseriesByProperty: timeseriesByProp,
       sectionEvents,
+      sectionEventsByProperty,
       deviceBreakdown,
+      deviceByProperty: deviceByProp,
       hostUsability: {
         totalGuides: (props ?? []).length,
         publishedGuides: (props ?? []).filter((p) => !!(p as { published?: boolean }).published).length,

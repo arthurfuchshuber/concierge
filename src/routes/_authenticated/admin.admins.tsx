@@ -263,33 +263,33 @@ function AdminsPage() {
             ) : logs.length === 0 ? (
               <div className="p-8 text-center text-sm text-muted-foreground">Nenhum registro encontrado.</div>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
+              <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
+                <table className="w-full text-sm table-auto">
                   <thead className="bg-muted/30 text-xs uppercase tracking-wider text-muted-foreground">
                     <tr>
-                      <th className="text-left px-4 py-2.5 font-medium">Quando</th>
+                      <th className="text-left px-4 py-2.5 font-medium whitespace-nowrap">Quando</th>
                       <th className="text-left px-4 py-2.5 font-medium">Usuário</th>
-                      <th className="text-left px-4 py-2.5 font-medium">Ação</th>
+                      <th className="text-left px-4 py-2.5 font-medium whitespace-nowrap">Ação</th>
                       <th className="text-left px-4 py-2.5 font-medium">Item</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
                     {logs.map((l) => (
-                      <tr key={l.id} className="hover:bg-muted/20">
+                      <tr key={l.id} className="hover:bg-muted/20 align-top">
                         <td className="px-4 py-2.5 whitespace-nowrap text-xs text-muted-foreground">
                           {new Date(l.createdAt).toLocaleString("pt-BR")}
                         </td>
                         <td className="px-4 py-2.5">
-                          <div className="text-xs font-medium truncate max-w-[220px]">{l.userEmail ?? "—"}</div>
-                          {l.userId && <div className="text-[10px] text-muted-foreground truncate max-w-[220px]">{l.userId}</div>}
+                          <div className="text-xs font-medium break-all">{l.userEmail ?? "—"}</div>
+                          {l.userId && <div className="text-[10px] text-muted-foreground break-all">{l.userId}</div>}
                         </td>
-                        <td className="px-4 py-2.5">
+                        <td className="px-4 py-2.5 whitespace-nowrap">
                           <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-accent/10 text-accent text-[11px] font-medium">
                             {l.actionLabel}
                           </span>
                         </td>
                         <td className="px-4 py-2.5 text-xs">
-                          <span className="font-medium">{l.itemLabel}</span>
+                          <span className="font-medium break-words">{l.itemLabel}</span>
                         </td>
                       </tr>
                     ))}

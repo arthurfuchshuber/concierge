@@ -1,11 +1,12 @@
 import { createFileRoute, Link, redirect } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Activity, MessageSquare, Users, BarChart3, Loader2, Bot, User as UserIcon,
   ExternalLink, Phone, Sparkles, AlertTriangle, BookOpen, Library, Home as HomeIcon,
   ThumbsDown, RotateCcw, TrendingUp, Smartphone, Monitor, Tablet, Layers, CheckCircle2,
+  Radio,
 } from "lucide-react";
 import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, Tooltip as RTooltip,
@@ -16,6 +17,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { getEngagementOverview } from "@/lib/engagement-admin.functions";
+import { getLivePresence } from "@/lib/guide-analytics.functions";
 import { checkIsAdmin } from "@/lib/admin-subs.functions";
 import { getConversationMessages } from "@/lib/chat-admin.functions";
 import {
@@ -24,6 +26,7 @@ import {
 import { useSubscription } from "@/hooks/useSubscription";
 import { AiPlanLock } from "@/components/admin/AiPlanLock";
 import { TeachAiDialog } from "@/components/admin/TeachAiDialog";
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/admin/engajamento")({
@@ -82,15 +85,33 @@ function MetricCell({ label, value, tone }: { label: string; value: number | str
 function EngagementPage() {
   const fn = useServerFn(getEngagementOverview);
   const fbFn = useServerFn(listMyFeedback);
+  const presenceFn = useServerFn(getLivePresence);
   const { info: sub } = useSubscription();
   const aiLocked = !sub.features.ai;
+  const qc = useQueryClient();
 
   const { data, isLoading, refetch } = useQuery({ queryKey: ["admin-engagement"], queryFn: () => fn() });
   const fbQuery = useQuery({ queryKey: ["admin-feedback"], queryFn: () => fbFn() });
+  const presenceQuery = useQuery({
+    queryKey: ["admin-live-presence"],
+    queryFn: () => presenceFn(),
+    refetchInterval: 15000,
+  });
 
   const [filterProp, setFilterProp] = useState<string>("all");
   const [search, setSearch] = useState("");
   const [onlyIneffective, setOnlyIneffective] = useState(false);
+
+  // Realtime — invalida presença ao chegar novo evento de seção
+  useEffect(() => {
+    const ch = supabase
+      .channel("admin-live-presence")
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "guide_section_events" }, () => {
+        qc.invalidateQueries({ queryKey: ["admin-live-presence"] });
+      })
+      .subscribe();
+    return () => { void supabase.removeChannel(ch); };
+  }, [qc]);
 
   const feedbackByMsg = useMemo(() => {
     const m = new Map<string, { resolved: boolean; reason: string | null }>();
@@ -312,26 +333,47 @@ function EngagementPage() {
     );
   }
 
-  const totalAcc = data?.metrics.reduce((a, m) => a + m.total_accesses, 0) ?? 0;
-  const totalConv = data?.metrics.reduce((a, m) => a + m.total_conversations, 0) ?? 0;
-  const totalMsgs = data?.metrics.reduce((a, m) => a + (m.total_messages ?? 0), 0) ?? 0;
-  const totalGuests = data?.metrics.reduce((a, m) => a + m.unique_guests, 0) ?? 0;
-  const totalFeedback = (fbQuery.data ?? []).length;
-  const unresolvedFeedback = (fbQuery.data ?? []).filter((f) => !f.resolved).length;
+  // Filtro por hospedagem (dropdown) aplicado a todas as métricas/gráficos
+  const scopedMetrics = (data?.metrics ?? []).filter((m) => filterProp === "all" || m.property_id === filterProp);
+  const totalAcc = scopedMetrics.reduce((a, m) => a + m.total_accesses, 0);
+  const totalConv = scopedMetrics.reduce((a, m) => a + m.total_conversations, 0);
+  const totalMsgs = scopedMetrics.reduce((a, m) => a + (m.total_messages ?? 0), 0);
+  const totalGuests = scopedMetrics.reduce((a, m) => a + m.unique_guests, 0);
+  const scopedFeedback = (fbQuery.data ?? []).filter((f) => filterProp === "all" || f.property_id === filterProp);
+  const totalFeedback = scopedFeedback.length;
+  const unresolvedFeedback = scopedFeedback.filter((f) => !f.resolved).length;
   const usageRate = totalAcc > 0 ? Math.round((totalConv / totalAcc) * 100) : 0;
   const hasProps = (data?.properties.length ?? 0) > 0;
   const usability = data?.hostUsability;
 
-  const topProps = [...(data?.metrics ?? [])]
+  const topProps = [...scopedMetrics]
     .sort((a, b) => (b.total_accesses + b.total_conversations) - (a.total_accesses + a.total_conversations))
     .slice(0, 5)
     .map((m) => ({ name: m.property_name.length > 14 ? m.property_name.slice(0, 12) + "…" : m.property_name, acessos: m.total_accesses, conversas: m.total_conversations }));
 
-  const timeseries = (data?.timeseries ?? []).map((d) => ({
+  // Timeseries: soma dos dias por propriedade filtrada
+  const rawTs = filterProp === "all"
+    ? (data?.timeseries ?? [])
+    : ((data as { timeseriesByProperty?: Record<string, Array<{ date: string; accesses: number; conversations: number }>> } | undefined)?.timeseriesByProperty?.[filterProp] ?? []);
+  const timeseries = rawTs.map((d) => ({
     date: d.date.slice(5),
     acessos: d.accesses,
     conversas: d.conversations,
   }));
+
+  // Device breakdown e section events por escopo
+  const scopedDevice = filterProp === "all"
+    ? (data?.deviceBreakdown ?? { mobile: 0, tablet: 0, desktop: 0 })
+    : ((data as { deviceByProperty?: Record<string, { mobile: number; tablet: number; desktop: number }> } | undefined)?.deviceByProperty?.[filterProp] ?? { mobile: 0, tablet: 0, desktop: 0 });
+  const scopedSectionEvents = filterProp === "all"
+    ? (data?.sectionEvents ?? [])
+    : ((data as { sectionEventsByProperty?: Record<string, Array<{ section: string; count: number }>> } | undefined)?.sectionEventsByProperty?.[filterProp] ?? []);
+  const scopedCompleteness = (usability?.guideCompleteness ?? []).filter((g) => filterProp === "all" || g.id === filterProp);
+
+  // Presença ao vivo (aplicando filtro)
+  const liveSessions = (presenceQuery.data?.sessions ?? []).filter(
+    (s) => filterProp === "all" || s.property_id === filterProp,
+  );
 
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
@@ -382,6 +424,53 @@ function EngagementPage() {
 
             {/* OVERVIEW */}
             <TabsContent value="overview" className="space-y-6">
+              {/* LIVE PRESENCE — hóspedes ativos agora (últimos 5 min) */}
+              <section className="rounded-2xl border border-emerald-500/30 bg-emerald-500/5 p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-sm font-medium flex items-center gap-2">
+                    <span className="relative inline-flex items-center justify-center">
+                      <Radio className="size-4 text-emerald-500" />
+                      <span className="absolute -right-0.5 -top-0.5 size-2 rounded-full bg-emerald-500 animate-pulse" />
+                    </span>
+                    Ao vivo agora
+                    <span className="text-xs text-muted-foreground font-normal">
+                      ({liveSessions.length} {liveSessions.length === 1 ? "hóspede" : "hóspedes"} nos últimos 5 min)
+                    </span>
+                  </h3>
+                  <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Realtime</span>
+                </div>
+                {liveSessions.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">Ninguém navegando neste momento.</p>
+                ) : (
+                  <ul className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                    {liveSessions.slice(0, 20).map((s) => {
+                      const durMin = Math.max(1, Math.round((new Date(s.last_seen).getTime() - new Date(s.first_seen).getTime()) / 60000));
+                      return (
+                        <li key={`${s.property_id}:${s.session_id}`} className="rounded-xl bg-card border border-border/60 px-3 py-2 flex items-center gap-3">
+                          <span className="size-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+                          <div className="flex-1 min-w-0">
+                            <div className="text-sm font-medium truncate">
+                              {s.guest_name ?? "Visitante"}
+                              {s.guest_phone ? <span className="ml-1 text-[11px] text-muted-foreground">· {s.guest_phone}</span> : null}
+                            </div>
+                            <div className="text-[11px] text-muted-foreground truncate">
+                              <Link to="/g/$slug" params={{ slug: s.property_slug }} target="_blank" className="hover:underline">
+                                {s.property_name}
+                              </Link>
+                              {" · "}<span className="capitalize">{s.section}</span>
+                              {s.page_path ? <span className="ml-1 opacity-70">({s.page_path})</span> : null}
+                            </div>
+                          </div>
+                          <div className="text-[10px] text-muted-foreground tabular-nums whitespace-nowrap">
+                            {durMin}min · {s.events_count} evts
+                          </div>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </section>
+
               {/* User-side big numbers */}
               <section>
                 <h2 className="text-xs uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-2">
@@ -552,7 +641,7 @@ function EngagementPage() {
                     <Smartphone className="size-4 text-muted-foreground" /> Dispositivos dos hóspedes
                   </h3>
                   {(() => {
-                    const dev = data?.deviceBreakdown ?? { mobile: 0, tablet: 0, desktop: 0 };
+                    const dev = scopedDevice;
                     const total = dev.mobile + dev.tablet + dev.desktop || 1;
                     const items = [
                       { label: "Mobile", value: dev.mobile, icon: Smartphone, color: "#22d3ee" },
@@ -616,14 +705,14 @@ function EngagementPage() {
               </section>
 
               {/* Sections accessed */}
-              {(data?.sectionEvents?.length ?? 0) > 0 && (
+              {scopedSectionEvents.length > 0 && (
                 <section className="rounded-2xl border border-border bg-card p-4">
                   <h3 className="text-sm font-medium mb-4 flex items-center gap-2">
                     <Layers className="size-4 text-muted-foreground" /> Seções mais acessadas do guia
                   </h3>
                   <div className="space-y-2">
-                    {(data?.sectionEvents ?? []).slice(0, 10).map((s, i) => {
-                      const max = data!.sectionEvents[0]?.count ?? 1;
+                    {scopedSectionEvents.slice(0, 10).map((s, i) => {
+                      const max = scopedSectionEvents[0]?.count ?? 1;
                       const pct = Math.round((s.count / max) * 100);
                       return (
                         <div key={s.section} className="flex items-center gap-3">
@@ -657,7 +746,8 @@ function EngagementPage() {
                   <div className="col-span-4">Completude</div>
                   <div className="col-span-2 text-right">Score</div>
                 </div>
-                {(data?.hostUsability?.guideCompleteness ?? [])
+                {scopedCompleteness
+                  .slice()
                   .sort((a, b) => a.score - b.score)
                   .map((g) => (
                     <div key={g.id} className="grid md:grid-cols-12 gap-2 px-4 py-3 border-b border-border/60 last:border-b-0 items-center">
@@ -697,7 +787,7 @@ function EngagementPage() {
                   <div className="col-span-1 text-right">Ineficaz</div>
                   <div className="col-span-3">Último acesso</div>
                 </div>
-                {data!.metrics.map((m) => (
+                {scopedMetrics.map((m) => (
                   <div key={m.property_id} className="grid grid-cols-12 gap-2 px-4 py-3 text-sm border-b border-border/60 last:border-b-0 items-center">
                     <div className="col-span-3 font-medium truncate flex items-center gap-2">
                       <Link to="/g/$slug" params={{ slug: m.property_slug }} target="_blank" className="hover:underline truncate inline-flex items-center gap-1">
@@ -719,7 +809,7 @@ function EngagementPage() {
 
               {/* Mobile cards */}
               <div className="md:hidden space-y-3">
-                {data!.metrics.map((m) => (
+                {scopedMetrics.map((m) => (
                   <div key={m.property_id} className="rounded-2xl border border-border bg-card p-4">
                     <Link
                       to="/g/$slug"
