@@ -419,8 +419,7 @@ function EngagementPage() {
                 ) : null}
               </TabsTrigger>
               <TabsTrigger value="comportamento" className="gap-2"><Layers className="size-4" /> Comportamento</TabsTrigger>
-              <TabsTrigger value="guias" className="gap-2"><CheckCircle2 className="size-4" /> Guias</TabsTrigger>
-              <TabsTrigger value="metrics" className="gap-2"><BarChart3 className="size-4" /> Métricas</TabsTrigger>
+              <TabsTrigger value="guias" className="gap-2"><BarChart3 className="size-4" /> Guias & Métricas</TabsTrigger>
             </TabsList>
 
             {/* OVERVIEW */}
