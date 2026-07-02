@@ -594,7 +594,7 @@ function EngagementPage() {
                     <Smartphone className="size-4 text-muted-foreground" /> Dispositivos dos hóspedes
                   </h3>
                   {(() => {
-                    const dev = data?.deviceBreakdown ?? { mobile: 0, tablet: 0, desktop: 0 };
+                    const dev = scopedDevice;
                     const total = dev.mobile + dev.tablet + dev.desktop || 1;
                     const items = [
                       { label: "Mobile", value: dev.mobile, icon: Smartphone, color: "#22d3ee" },
