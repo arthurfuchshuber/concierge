@@ -31,8 +31,11 @@ export const getEngagementOverview = createServerFn({ method: "GET" })
         metrics: [],
         feedback: [],
         timeseries: [],
+        timeseriesByProperty: {} as Record<string, Array<{ date: string; accesses: number; conversations: number }>>,
         sectionEvents: [],
+        sectionEventsByProperty: {} as Record<string, Array<{ section: string; count: number }>>,
         deviceBreakdown: { mobile: 0, tablet: 0, desktop: 0 },
+        deviceByProperty: {} as Record<string, { mobile: number; tablet: number; desktop: number }>,
         hostUsability: {
           totalGuides: 0,
           publishedGuides: 0,
