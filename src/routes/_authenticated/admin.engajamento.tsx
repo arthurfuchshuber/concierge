@@ -762,7 +762,7 @@ function EngagementPage() {
 
               {/* Mobile cards */}
               <div className="md:hidden space-y-3">
-                {data!.metrics.map((m) => (
+                {scopedMetrics.map((m) => (
                   <div key={m.property_id} className="rounded-2xl border border-border bg-card p-4">
                     <Link
                       to="/g/$slug"
