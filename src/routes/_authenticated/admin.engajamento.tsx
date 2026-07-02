@@ -1,11 +1,12 @@
 import { createFileRoute, Link, redirect } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Activity, MessageSquare, Users, BarChart3, Loader2, Bot, User as UserIcon,
   ExternalLink, Phone, Sparkles, AlertTriangle, BookOpen, Library, Home as HomeIcon,
   ThumbsDown, RotateCcw, TrendingUp, Smartphone, Monitor, Tablet, Layers, CheckCircle2,
+  Radio,
 } from "lucide-react";
 import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, Tooltip as RTooltip,
@@ -16,6 +17,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { getEngagementOverview } from "@/lib/engagement-admin.functions";
+import { getLivePresence } from "@/lib/guide-analytics.functions";
 import { checkIsAdmin } from "@/lib/admin-subs.functions";
 import { getConversationMessages } from "@/lib/chat-admin.functions";
 import {
@@ -24,6 +26,7 @@ import {
 import { useSubscription } from "@/hooks/useSubscription";
 import { AiPlanLock } from "@/components/admin/AiPlanLock";
 import { TeachAiDialog } from "@/components/admin/TeachAiDialog";
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/admin/engajamento")({
