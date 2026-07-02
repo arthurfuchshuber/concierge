@@ -204,15 +204,28 @@ export const getEngagementOverview = createServerFn({ method: "GET" })
     }
     const dayMap = new Map<string, { date: string; accesses: number; conversations: number }>();
     for (const d of days) dayMap.set(d, { date: d, accesses: 0, conversations: 0 });
+    const timeseriesByProp: Record<string, Array<{ date: string; accesses: number; conversations: number }>> = {};
+    function ensureProp(pid: string) {
+      if (!timeseriesByProp[pid]) {
+        timeseriesByProp[pid] = days.map((d) => ({ date: d, accesses: 0, conversations: 0 }));
+      }
+      return timeseriesByProp[pid];
+    }
     for (const l of logs ?? []) {
       const d = String(l.created_at).slice(0, 10);
       const e = dayMap.get(d);
       if (e) e.accesses++;
+      const arr = ensureProp(l.property_id);
+      const idx = days.indexOf(d);
+      if (idx >= 0) arr[idx].accesses++;
     }
     for (const c of convs ?? []) {
       const d = String(c.created_at).slice(0, 10);
       const e = dayMap.get(d);
       if (e) e.conversations++;
+      const arr = ensureProp(c.property_id);
+      const idx = days.indexOf(d);
+      if (idx >= 0) arr[idx].conversations++;
     }
     const timeseries = Array.from(dayMap.values());
 
