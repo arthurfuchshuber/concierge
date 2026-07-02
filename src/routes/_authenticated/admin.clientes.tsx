@@ -566,6 +566,11 @@ function EditDialog({
                   !!s?.paddleSubscriptionId &&
                   !s.paddleSubscriptionId.startsWith("manual_")
                 }
+                onApplied={(paused) => {
+                  // Sincroniza o estado local para o "Salvar" não desfazer
+                  // a pausa (ou retomada) que acabou de ser aplicada no Paddle.
+                  setBillingPaused(paused);
+                }}
               />
             </div>
             <p className="text-xs text-muted-foreground">
@@ -658,10 +663,12 @@ function ApplyCustomTrialButton({
   userId,
   trialEndsAt,
   hasRealPaddleSub,
+  onApplied,
 }: {
   userId: string;
   trialEndsAt: string;
   hasRealPaddleSub: boolean;
+  onApplied?: (paused: boolean) => void;
 }) {
   const applyTrial = useServerFn(adminApplyCustomTrial);
   const qc = useQueryClient();
@@ -692,6 +699,7 @@ function ApplyCustomTrialButton({
               ? "Trial aplicado no Paddle — cobrança pausada até a data escolhida."
               : "Trial customizado encerrado — cobrança normal retomada.",
           );
+          onApplied?.(!!res.paused);
           qc.invalidateQueries({ queryKey: ["admin-customers"] });
         } catch (e) {
           toast.error(e instanceof Error ? e.message : "Erro ao aplicar trial");
