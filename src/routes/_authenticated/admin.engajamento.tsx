@@ -333,26 +333,47 @@ function EngagementPage() {
     );
   }
 
-  const totalAcc = data?.metrics.reduce((a, m) => a + m.total_accesses, 0) ?? 0;
-  const totalConv = data?.metrics.reduce((a, m) => a + m.total_conversations, 0) ?? 0;
-  const totalMsgs = data?.metrics.reduce((a, m) => a + (m.total_messages ?? 0), 0) ?? 0;
-  const totalGuests = data?.metrics.reduce((a, m) => a + m.unique_guests, 0) ?? 0;
-  const totalFeedback = (fbQuery.data ?? []).length;
-  const unresolvedFeedback = (fbQuery.data ?? []).filter((f) => !f.resolved).length;
+  // Filtro por hospedagem (dropdown) aplicado a todas as métricas/gráficos
+  const scopedMetrics = (data?.metrics ?? []).filter((m) => filterProp === "all" || m.property_id === filterProp);
+  const totalAcc = scopedMetrics.reduce((a, m) => a + m.total_accesses, 0);
+  const totalConv = scopedMetrics.reduce((a, m) => a + m.total_conversations, 0);
+  const totalMsgs = scopedMetrics.reduce((a, m) => a + (m.total_messages ?? 0), 0);
+  const totalGuests = scopedMetrics.reduce((a, m) => a + m.unique_guests, 0);
+  const scopedFeedback = (fbQuery.data ?? []).filter((f) => filterProp === "all" || f.property_id === filterProp);
+  const totalFeedback = scopedFeedback.length;
+  const unresolvedFeedback = scopedFeedback.filter((f) => !f.resolved).length;
   const usageRate = totalAcc > 0 ? Math.round((totalConv / totalAcc) * 100) : 0;
   const hasProps = (data?.properties.length ?? 0) > 0;
   const usability = data?.hostUsability;
 
-  const topProps = [...(data?.metrics ?? [])]
+  const topProps = [...scopedMetrics]
     .sort((a, b) => (b.total_accesses + b.total_conversations) - (a.total_accesses + a.total_conversations))
     .slice(0, 5)
     .map((m) => ({ name: m.property_name.length > 14 ? m.property_name.slice(0, 12) + "…" : m.property_name, acessos: m.total_accesses, conversas: m.total_conversations }));
 
-  const timeseries = (data?.timeseries ?? []).map((d) => ({
+  // Timeseries: soma dos dias por propriedade filtrada
+  const rawTs = filterProp === "all"
+    ? (data?.timeseries ?? [])
+    : ((data as { timeseriesByProperty?: Record<string, Array<{ date: string; accesses: number; conversations: number }>> } | undefined)?.timeseriesByProperty?.[filterProp] ?? []);
+  const timeseries = rawTs.map((d) => ({
     date: d.date.slice(5),
     acessos: d.accesses,
     conversas: d.conversations,
   }));
+
+  // Device breakdown e section events por escopo
+  const scopedDevice = filterProp === "all"
+    ? (data?.deviceBreakdown ?? { mobile: 0, tablet: 0, desktop: 0 })
+    : ((data as { deviceByProperty?: Record<string, { mobile: number; tablet: number; desktop: number }> } | undefined)?.deviceByProperty?.[filterProp] ?? { mobile: 0, tablet: 0, desktop: 0 });
+  const scopedSectionEvents = filterProp === "all"
+    ? (data?.sectionEvents ?? [])
+    : ((data as { sectionEventsByProperty?: Record<string, Array<{ section: string; count: number }>> } | undefined)?.sectionEventsByProperty?.[filterProp] ?? []);
+  const scopedCompleteness = (usability?.guideCompleteness ?? []).filter((g) => filterProp === "all" || g.id === filterProp);
+
+  // Presença ao vivo (aplicando filtro)
+  const liveSessions = (presenceQuery.data?.sessions ?? []).filter(
+    (s) => filterProp === "all" || s.property_id === filterProp,
+  );
 
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
