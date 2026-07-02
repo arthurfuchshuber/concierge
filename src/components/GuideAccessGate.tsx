@@ -118,7 +118,7 @@ export function GuideAccessGate({ slug, propertyName, requireReservationCode, on
       const res = await submit({
         data: {
           slug,
-          guest_name: (await import("@/lib/masks")).titleCaseName(name),
+          guest_name: titleCaseName(name),
           reservation_code: requireReservationCode ? code.trim() : null,
           checkin_date: checkinDate,
           guest_phone: phone,
