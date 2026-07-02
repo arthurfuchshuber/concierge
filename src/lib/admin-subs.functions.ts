@@ -40,6 +40,9 @@ export type AdminCustomerRow = {
   userId: string;
   email: string | null;
   fullName: string | null;
+  cpf: string | null;
+  phone: string | null;
+  phoneCountry: string | null;
   createdAt: string | null;
   lastSignInAt: string | null;
   // Status do próprio usuário (independente da assinatura).
@@ -72,6 +75,7 @@ export type AdminCustomerRow = {
   } | null;
 };
 
+
 export const adminListCustomers = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<{ customers: AdminCustomerRow[] }> => {
@@ -88,7 +92,8 @@ export const adminListCustomers = createServerFn({ method: "GET" })
 
     const { data: profiles } = await supabaseAdmin
       .from("profiles")
-      .select("id, full_name");
+      .select("id, full_name, cpf, phone, phone_country");
+
 
     const { data: subs } = await supabaseAdmin
       .from("subscriptions")
@@ -139,7 +144,8 @@ export const adminListCustomers = createServerFn({ method: "GET" })
       return Math.min(score, 100);
     }
 
-    const profileMap = new Map((profiles ?? []).map((p) => [p.id, p.full_name]));
+    const profileMap = new Map((profiles ?? []).map((p) => [p.id, p]));
+
     // Latest sub per user
     const subMap = new Map<string, NonNullable<typeof subs>[number]>();
     for (const s of subs ?? []) {
@@ -177,13 +183,18 @@ export const adminListCustomers = createServerFn({ method: "GET" })
         daysSinceLogin > 14 &&
         guestAccesses30d === 0;
 
+      const prof = profileMap.get(u.id);
       return {
         userId: u.id,
         email: u.email ?? null,
-        fullName: profileMap.get(u.id) ?? null,
+        fullName: (prof as { full_name?: string | null } | undefined)?.full_name ?? null,
+        cpf: (prof as { cpf?: string | null } | undefined)?.cpf ?? null,
+        phone: (prof as { phone?: string | null } | undefined)?.phone ?? null,
+        phoneCountry: (prof as { phone_country?: string | null } | undefined)?.phone_country ?? null,
         createdAt: u.created_at ?? null,
         lastSignInAt: lastLogin,
         userStatus,
+
         totalGuides,
         publishedGuides,
         avgCompletenessScore: avgScore,
@@ -439,21 +450,38 @@ export const adminApplyCustomTrial = createServerFn({ method: "POST" })
 // "Editar assinatura" para permitir corrigir o nome exibido.
 export const adminUpdateCustomerProfile = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { userId: string; fullName: string | null }) =>
+  .inputValidator((d: {
+    userId: string;
+    fullName: string | null;
+    cpf?: string | null;
+    phone?: string | null;
+    phoneCountry?: string | null;
+  }) =>
     z.object({
       userId: z.string().uuid(),
       fullName: z.string().trim().max(120).nullable(),
+      cpf: z.string().trim().regex(/^[0-9]{11}$/, "CPF inválido").nullable().optional(),
+      phone: z.string().trim().max(40).nullable().optional(),
+      phoneCountry: z.string().trim().max(4).nullable().optional(),
     }).parse(d),
   )
   .handler(async ({ data, context }) => {
     await assertAdmin(context.supabase, context.userId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const patch: Record<string, unknown> = {
+      id: data.userId,
+      full_name: data.fullName ?? null,
+    };
+    if (data.cpf !== undefined) patch.cpf = data.cpf ?? null;
+    if (data.phone !== undefined) patch.phone = data.phone ?? null;
+    if (data.phoneCountry !== undefined) patch.phone_country = data.phoneCountry ?? null;
     const { error } = await supabaseAdmin
       .from("profiles")
-      .upsert({ id: data.userId, full_name: data.fullName ?? null }, { onConflict: "id" });
-    if (error) throw new Error("Não foi possível atualizar o nome do cliente.");
+      .upsert(patch, { onConflict: "id" });
+    if (error) throw new Error("Não foi possível atualizar os dados do cliente.");
     return { ok: true };
   });
+
 
 
 
