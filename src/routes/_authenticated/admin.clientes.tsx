@@ -41,6 +41,8 @@ import {
 import { Search, Users, Pencil, Loader2, Shield, Crown, Anchor, Ban, Calendar } from "lucide-react";
 import { DatePicker } from "@/components/ui/date-picker";
 import { toast } from "sonner";
+import { formatCPF, onlyDigits, isValidCPF, formatBRPhone, isValidBRMobile, isValidEmail, titleCaseName } from "@/lib/masks";
+
 
 export const Route = createFileRoute("/_authenticated/admin/clientes")({
   beforeLoad: async () => {
