@@ -658,14 +658,14 @@ function EngagementPage() {
               </section>
 
               {/* Sections accessed */}
-              {(data?.sectionEvents?.length ?? 0) > 0 && (
+              {scopedSectionEvents.length > 0 && (
                 <section className="rounded-2xl border border-border bg-card p-4">
                   <h3 className="text-sm font-medium mb-4 flex items-center gap-2">
                     <Layers className="size-4 text-muted-foreground" /> Seções mais acessadas do guia
                   </h3>
                   <div className="space-y-2">
-                    {(data?.sectionEvents ?? []).slice(0, 10).map((s, i) => {
-                      const max = data!.sectionEvents[0]?.count ?? 1;
+                    {scopedSectionEvents.slice(0, 10).map((s, i) => {
+                      const max = scopedSectionEvents[0]?.count ?? 1;
                       const pct = Math.round((s.count / max) * 100);
                       return (
                         <div key={s.section} className="flex items-center gap-3">
