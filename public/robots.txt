@@ -4,5 +4,8 @@ Disallow: /admin
 Disallow: /auth
 Disallow: /painel
 Disallow: /api/
+Disallow: /mcp
+Disallow: /.mcp/
+Disallow: /.well-known/
 
 Sitemap: https://guia.anfitriaosigma.com.br/sitemap.xml
