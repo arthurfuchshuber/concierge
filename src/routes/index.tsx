@@ -33,9 +33,25 @@ export const Route = createFileRoute("/")({
         content:
           "Guias editoriais bilíngues para anfitriões. Auto-preenchimento com Google Maps. Acesso público ou por PIN.",
       },
-      { property: "og:url", content: "/" },
+      { property: "og:url", content: "https://guia.anfitriaosigma.com.br/" },
+      {
+        property: "og:image",
+        content:
+          "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/a6da8312-c098-41d0-a17c-294028fab533/id-preview-b6aead29--c6a061b9-4ae8-4241-9a99-3375bda32242.lovable.app-1781215917655.png",
+      },
+      {
+        name: "twitter:image",
+        content:
+          "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/a6da8312-c098-41d0-a17c-294028fab533/id-preview-b6aead29--c6a061b9-4ae8-4241-9a99-3375bda32242.lovable.app-1781215917655.png",
+      },
+      { name: "twitter:title", content: "SigmaConcierge — Guia digital da sua casa" },
+      {
+        name: "twitter:description",
+        content:
+          "Guias editoriais bilíngues para anfitriões. Auto-preenchimento com Google Maps.",
+      },
     ],
-    links: [{ rel: "canonical", href: "/" }],
+    links: [{ rel: "canonical", href: "https://guia.anfitriaosigma.com.br/" }],
   }),
   component: LandingPage,
 });
