@@ -28,6 +28,14 @@ export const Route = createFileRoute("/auth")({
 
 function AuthPage() {
   const navigate = useNavigate();
+  const { next } = Route.useSearch();
+  const postAuthTo = next ?? "/admin";
+  const postAuthAbsolute = () =>
+    typeof window !== "undefined" ? `${window.location.origin}${postAuthTo}` : postAuthTo;
+  const goPostAuth = () => {
+    if (next) window.location.href = postAuthTo;
+    else navigate({ to: "/admin" });
+  };
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -36,9 +44,10 @@ function AuthPage() {
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
-      if (data.user) navigate({ to: "/admin" });
+      if (data.user) goPostAuth();
     });
-  }, [navigate]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function handleEmail(e: React.FormEvent) {
     e.preventDefault();
@@ -50,7 +59,7 @@ function AuthPage() {
           password,
           options: {
             data: { full_name: name },
-            emailRedirectTo: `${window.location.origin}/admin`,
+            emailRedirectTo: postAuthAbsolute(),
           },
         });
         if (error) throw error;
@@ -58,7 +67,7 @@ function AuthPage() {
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
-        navigate({ to: "/admin" });
+        goPostAuth();
       }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Erro ao autenticar");
@@ -71,7 +80,7 @@ function AuthPage() {
     setLoading(true);
     try {
       const result = await lovable.auth.signInWithOAuth("google", {
-        redirect_uri: `${window.location.origin}/admin`,
+        redirect_uri: postAuthAbsolute(),
         extraParams: { prompt: "select_account" },
       });
       if (result.error) {
@@ -79,7 +88,7 @@ function AuthPage() {
         return;
       }
       if (result.redirected) return;
-      navigate({ to: "/admin" });
+      goPostAuth();
     } finally {
       setLoading(false);
     }
@@ -89,14 +98,14 @@ function AuthPage() {
     setLoading(true);
     try {
       const result = await lovable.auth.signInWithOAuth("apple", {
-        redirect_uri: `${window.location.origin}/admin`,
+        redirect_uri: postAuthAbsolute(),
       });
       if (result.error) {
         toast.error("Erro com Apple. Tente novamente.");
         return;
       }
       if (result.redirected) return;
-      navigate({ to: "/admin" });
+      goPostAuth();
     } finally {
       setLoading(false);
     }
