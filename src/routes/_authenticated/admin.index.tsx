@@ -570,6 +570,15 @@ function Dashboard() {
                   >
                     {copiedId === p.id ? <Check className="size-3.5 text-accent" /> : <Link2 className="size-3.5" />}
                   </button>
+                  <button
+                    type="button"
+                    onClick={() => { setDupTarget({ id: p.id, name: p.name }); setDupCopies(1); }}
+                    title="Duplicar guia"
+                    aria-label="Duplicar guia"
+                    className="p-2 rounded-full hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    <Copy className="size-3.5" />
+                  </button>
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
                       <button title="Excluir" className="p-2 rounded-full hover:bg-destructive/10 text-muted-foreground hover:text-destructive" aria-label="Excluir">
