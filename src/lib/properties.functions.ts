@@ -437,3 +437,140 @@ export const copyCityRecsToProperties = createServerFn({ method: "POST" })
 
     return { copied, total: targets.length };
   });
+
+// ---- DUPLICATE PROPERTY -------------------------------------------------
+// Duplicates a property (and all its child tables) N times for the same owner.
+// Enforces the plan's max-guides quota — refuses to create more copies than
+// the remaining allowance and reports how many were created vs. skipped.
+export const duplicateProperty = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) =>
+    z.object({
+      id: z.string().uuid(),
+      copies: z.number().int().min(1).max(20),
+    }).parse(i),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { resolveUserPlan } = await import("@/lib/plan-guard.server");
+
+    // Plan gate.
+    const plan = await resolveUserPlan(supabase, userId);
+    if (!plan.plan) {
+      throw new Error("Você precisa de um plano ativo para duplicar guias.");
+    }
+    const { count: currentCount, error: countErr } = await supabase
+      .from("properties")
+      .select("id", { count: "exact", head: true })
+      .eq("owner_id", userId);
+    if (countErr) throw new Error("Não foi possível verificar seu limite de guias.");
+    const used = currentCount ?? 0;
+    const remaining = Math.max(0, plan.maxGuides - used);
+    if (remaining <= 0) {
+      throw new Error(
+        `Limite do plano ${plan.plan} atingido (${plan.maxGuides}). Faça upgrade em /precos.`,
+      );
+    }
+    const toCreate = Math.min(data.copies, remaining);
+    const skipped = data.copies - toCreate;
+
+    // Load source (owned by caller).
+    const { data: src, error: srcErr } = await supabase
+      .from("properties")
+      .select("*")
+      .eq("id", data.id)
+      .maybeSingle();
+    if (srcErr) throw (await import("@/lib/db-errors.server")).safeDbError("properties", srcErr);
+    if (!src) throw new Error("Guia de origem não encontrado.");
+
+    const [manual, recs, emerg, faqs, checkout] = await Promise.all([
+      supabaseAdmin.from("property_manual_items").select("*").eq("property_id", data.id).order("position"),
+      supabaseAdmin.from("property_recommendations").select("*").eq("property_id", data.id).order("position"),
+      supabaseAdmin.from("property_emergency_contacts").select("*").eq("property_id", data.id).order("position"),
+      supabaseAdmin.from("property_faqs").select("*").eq("property_id", data.id).order("position"),
+      supabaseAdmin.from("property_checkout_items").select("*").eq("property_id", data.id).order("position"),
+    ]);
+
+    // Strip fields that must NOT be copied verbatim.
+    const stripped = { ...(src as Record<string, unknown>) };
+    delete stripped.id;
+    delete stripped.created_at;
+    delete stripped.updated_at;
+    delete stripped.slug;
+    delete stripped.name;
+    delete stripped.owner_id;
+
+    const baseSlug = (src as { slug: string }).slug;
+    const baseName = (src as { name: string }).name;
+    const createdIds: string[] = [];
+
+    // Fetch existing slugs starting with baseSlug once, to find free suffixes.
+    const { data: existing } = await supabase
+      .from("properties")
+      .select("slug")
+      .like("slug", `${baseSlug}-copia%`);
+    const taken = new Set<string>(((existing ?? []) as Array<{ slug: string }>).map((r) => r.slug));
+
+    function nextSlug(): string {
+      let n = 1;
+      while (true) {
+        const candidate = n === 1 ? `${baseSlug}-copia` : `${baseSlug}-copia-${n}`;
+        if (!taken.has(candidate)) {
+          taken.add(candidate);
+          return candidate;
+        }
+        n += 1;
+      }
+    }
+
+    for (let i = 0; i < toCreate; i++) {
+      const newSlug = nextSlug();
+      const suffix = createdIds.length === 0 ? " (cópia)" : ` (cópia ${createdIds.length + 1})`;
+      const newName = `${baseName}${suffix}`;
+
+      const { data: inserted, error: insErr } = await supabase
+        .from("properties")
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        .insert({ ...(stripped as any), owner_id: userId, slug: newSlug, name: newName, published: false })
+        .select("id")
+        .single();
+      if (insErr) throw (await import("@/lib/db-errors.server")).safeDbError("properties", insErr);
+      const newId = (inserted as { id: string }).id;
+      createdIds.push(newId);
+
+      // Copy child tables via admin (owner_id is inherited via property_id + RLS).
+      const cloneRows = (
+        rows: unknown[] | null | undefined,
+      ): Array<Record<string, unknown>> =>
+        (rows ?? []).map((r) => {
+          const row = { ...(r as Record<string, unknown>) };
+          delete row.id;
+          delete row.created_at;
+          delete row.updated_at;
+          row.property_id = newId;
+          return row;
+        });
+
+      const manualRows = cloneRows(manual.data);
+      const recsRows = cloneRows(recs.data);
+      const emergRows = cloneRows(emerg.data);
+      const faqsRows = cloneRows(faqs.data);
+      const checkoutRows = cloneRows(checkout.data);
+
+      await Promise.all([
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        manualRows.length ? supabaseAdmin.from("property_manual_items").insert(manualRows as any) : Promise.resolve(),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        recsRows.length ? supabaseAdmin.from("property_recommendations").insert(recsRows as any) : Promise.resolve(),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        emergRows.length ? supabaseAdmin.from("property_emergency_contacts").insert(emergRows as any) : Promise.resolve(),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        faqsRows.length ? supabaseAdmin.from("property_faqs").insert(faqsRows as any) : Promise.resolve(),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        checkoutRows.length ? supabaseAdmin.from("property_checkout_items").insert(checkoutRows as any) : Promise.resolve(),
+      ]);
+    }
+
+    return { created: createdIds.length, skipped, requested: data.copies, remainingBefore: remaining };
+  });
