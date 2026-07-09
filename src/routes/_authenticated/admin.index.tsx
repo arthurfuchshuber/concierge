@@ -750,6 +750,9 @@ function Dashboard() {
                                 <button type="button" onClick={() => setViewSlug(p.slug)} className="size-8 grid place-items-center rounded-full hover:bg-secondary" aria-label="Ver">
                                   <ExternalLink className="size-3.5" />
                                 </button>
+                                <button type="button" onClick={() => { setDupTarget({ id: p.id, name: p.name }); setDupCopies(1); }} className="size-8 grid place-items-center rounded-full hover:bg-secondary" aria-label="Duplicar">
+                                  <Copy className="size-3.5" />
+                                </button>
                                 <button onClick={() => handleDelete(p.id, p.name)} className="size-8 grid place-items-center rounded-full hover:bg-destructive/10 text-muted-foreground hover:text-destructive" aria-label="Excluir">
                                   <Trash2 className="size-3.5" />
                                 </button>
