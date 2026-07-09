@@ -770,6 +770,50 @@ function Dashboard() {
         })()
       )}
 
+      <Dialog open={dupTarget !== null} onOpenChange={(o) => { if (!o && !dupBusy) { setDupTarget(null); setDupCopies(1); } }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Duplicar guia</DialogTitle>
+            <DialogDescription>
+              Vamos criar cópias de <span className="font-medium text-foreground">{dupTarget?.name}</span> com todas as configurações, mídias, recomendações, FAQs e contatos. As cópias são criadas como <span className="font-medium">rascunhos</span> para você revisar antes de publicar.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Quantas cópias?</label>
+            <Input
+              type="number"
+              min={1}
+              max={Math.max(1, remaining)}
+              value={dupCopies}
+              onChange={(e) => {
+                const n = parseInt(e.target.value, 10);
+                if (Number.isNaN(n)) setDupCopies(1);
+                else setDupCopies(Math.max(1, Math.min(20, n)));
+              }}
+              disabled={dupBusy}
+            />
+            <p className="text-xs text-muted-foreground">
+              {planLimit >= 9999
+                ? "Seu plano não tem limite de guias."
+                : `Você tem ${remaining} guia(s) disponíveis no plano ${planName}.`}
+            </p>
+            {planLimit < 9999 && dupCopies > remaining && (
+              <p className="text-xs text-amber-500">
+                Apenas {remaining} cópia(s) serão criadas — o restante excede o limite do plano.
+              </p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setDupTarget(null); setDupCopies(1); }} disabled={dupBusy}>
+              Cancelar
+            </Button>
+            <Button onClick={handleConfirmDuplicate} disabled={dupBusy || remaining <= 0}>
+              {dupBusy ? "Duplicando…" : "Duplicar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <BulkEditDialog
         open={bulkOpen}
         onOpenChange={setBulkOpen}
