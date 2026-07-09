@@ -1,12 +1,12 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
-import { listMyProperties, deleteProperty } from "@/lib/properties.functions";
+import { listMyProperties, deleteProperty, duplicateProperty } from "@/lib/properties.functions";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle, DialogDescription, DialogFooter, DialogHeader } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
-import { Plus, ExternalLink, Pencil, Trash2, Lock, Globe, BookOpen, PlayCircle, CreditCard, LayoutGrid, List, Link2, Check, AlertTriangle, MapPin, ChevronDown, ChevronRight, PenSquare, Search, X } from "lucide-react";
+import { Plus, ExternalLink, Pencil, Trash2, Lock, Globe, BookOpen, PlayCircle, CreditCard, LayoutGrid, List, Link2, Check, AlertTriangle, MapPin, ChevronDown, ChevronRight, PenSquare, Search, X, Copy } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { useState, useMemo } from "react";
@@ -56,6 +56,10 @@ function Dashboard() {
   const list = useServerFn(listMyProperties);
   const listAsUser = useServerFn(adminListUserPropertiesFull);
   const del = useServerFn(deleteProperty);
+  const dup = useServerFn(duplicateProperty);
+  const [dupTarget, setDupTarget] = useState<{ id: string; name: string } | null>(null);
+  const [dupCopies, setDupCopies] = useState<number>(1);
+  const [dupBusy, setDupBusy] = useState(false);
   const navigate = useNavigate();
   const { impersonation, clear: clearImpersonation } = useImpersonation();
   const readOnly = !!impersonation;
@@ -126,6 +130,31 @@ function Dashboard() {
       toast.error(e instanceof Error ? e.message : "Erro ao excluir");
     }
   }
+
+  async function handleConfirmDuplicate() {
+    if (!dupTarget) return;
+    setDupBusy(true);
+    try {
+      const res = await dup({ data: { id: dupTarget.id, copies: dupCopies } });
+      if (res.created > 0) {
+        toast.success(
+          res.skipped > 0
+            ? `${res.created} cópia(s) criada(s). ${res.skipped} não coube(ram) no seu plano.`
+            : `${res.created} cópia(s) criada(s) como rascunho.`,
+        );
+      } else {
+        toast.error("Nenhuma cópia criada — limite do plano atingido.");
+      }
+      setDupTarget(null);
+      setDupCopies(1);
+      refetch();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erro ao duplicar");
+    } finally {
+      setDupBusy(false);
+    }
+  }
+
 
   const count = data?.length ?? 0;
   const planConfig = sub.plan ? PLANS[sub.plan] : null;
@@ -541,6 +570,15 @@ function Dashboard() {
                   >
                     {copiedId === p.id ? <Check className="size-3.5 text-accent" /> : <Link2 className="size-3.5" />}
                   </button>
+                  <button
+                    type="button"
+                    onClick={() => { setDupTarget({ id: p.id, name: p.name }); setDupCopies(1); }}
+                    title="Duplicar guia"
+                    aria-label="Duplicar guia"
+                    className="p-2 rounded-full hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    <Copy className="size-3.5" />
+                  </button>
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
                       <button title="Excluir" className="p-2 rounded-full hover:bg-destructive/10 text-muted-foreground hover:text-destructive" aria-label="Excluir">
@@ -712,6 +750,9 @@ function Dashboard() {
                                 <button type="button" onClick={() => setViewSlug(p.slug)} className="size-8 grid place-items-center rounded-full hover:bg-secondary" aria-label="Ver">
                                   <ExternalLink className="size-3.5" />
                                 </button>
+                                <button type="button" onClick={() => { setDupTarget({ id: p.id, name: p.name }); setDupCopies(1); }} className="size-8 grid place-items-center rounded-full hover:bg-secondary" aria-label="Duplicar">
+                                  <Copy className="size-3.5" />
+                                </button>
                                 <button onClick={() => handleDelete(p.id, p.name)} className="size-8 grid place-items-center rounded-full hover:bg-destructive/10 text-muted-foreground hover:text-destructive" aria-label="Excluir">
                                   <Trash2 className="size-3.5" />
                                 </button>
@@ -728,6 +769,50 @@ function Dashboard() {
           );
         })()
       )}
+
+      <Dialog open={dupTarget !== null} onOpenChange={(o) => { if (!o && !dupBusy) { setDupTarget(null); setDupCopies(1); } }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Duplicar guia</DialogTitle>
+            <DialogDescription>
+              Vamos criar cópias de <span className="font-medium text-foreground">{dupTarget?.name}</span> com todas as configurações, mídias, recomendações, FAQs e contatos. As cópias são criadas como <span className="font-medium">rascunhos</span> para você revisar antes de publicar.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Quantas cópias?</label>
+            <Input
+              type="number"
+              min={1}
+              max={Math.max(1, remaining)}
+              value={dupCopies}
+              onChange={(e) => {
+                const n = parseInt(e.target.value, 10);
+                if (Number.isNaN(n)) setDupCopies(1);
+                else setDupCopies(Math.max(1, Math.min(20, n)));
+              }}
+              disabled={dupBusy}
+            />
+            <p className="text-xs text-muted-foreground">
+              {planLimit >= 9999
+                ? "Seu plano não tem limite de guias."
+                : `Você tem ${remaining} guia(s) disponíveis no plano ${planName}.`}
+            </p>
+            {planLimit < 9999 && dupCopies > remaining && (
+              <p className="text-xs text-amber-500">
+                Apenas {remaining} cópia(s) serão criadas — o restante excede o limite do plano.
+              </p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setDupTarget(null); setDupCopies(1); }} disabled={dupBusy}>
+              Cancelar
+            </Button>
+            <Button onClick={handleConfirmDuplicate} disabled={dupBusy || remaining <= 0}>
+              {dupBusy ? "Duplicando…" : "Duplicar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <BulkEditDialog
         open={bulkOpen}
