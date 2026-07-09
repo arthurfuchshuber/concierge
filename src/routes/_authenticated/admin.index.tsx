@@ -56,6 +56,10 @@ function Dashboard() {
   const list = useServerFn(listMyProperties);
   const listAsUser = useServerFn(adminListUserPropertiesFull);
   const del = useServerFn(deleteProperty);
+  const dup = useServerFn(duplicateProperty);
+  const [dupTarget, setDupTarget] = useState<{ id: string; name: string } | null>(null);
+  const [dupCopies, setDupCopies] = useState<number>(1);
+  const [dupBusy, setDupBusy] = useState(false);
   const navigate = useNavigate();
   const { impersonation, clear: clearImpersonation } = useImpersonation();
   const readOnly = !!impersonation;
