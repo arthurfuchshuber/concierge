@@ -566,73 +566,65 @@ function Guide({ data }: { data: GuideOk }) {
               />
 
               {/* Faixas com Wi-Fi e códigos: aparecem de 8h antes do check-in
-                até 12h depois. O conteúdo continua travado pelo PIN até o
-                hóspede liberá-lo. */}
-              {homeStripsVisible && (
-                <div className="px-5 md:px-10 lg:px-16 -mt-2 md:-mt-3 relative z-10 mb-3 md:mb-4 space-y-2.5">
-                  {p.wifi_ssid && (
-                    <div className="md:max-w-md lg:max-w-lg">
-                      <WifiStrip
-                        ssid={p.wifi_ssid}
-                        password={p.wifi_password}
-                        passwordSet={!!((p as any).wifi_password_set || p.wifi_password)}
-                        theme={theme}
-                        unlocked={unlocked}
-                        requestUnlock={requestUnlock}
-                        checkinLocked={checkinLocked}
-                        hasAccessRec={!!accessRec}
-                        gateEnabled={gateEnabled}
-                      />
-                    </div>
-                  )}
-                  {((p as any).gate_code_set || (p as any).lock_code_set || p.gate_code || p.lock_code) && (
-                    <div className="md:max-w-md lg:max-w-lg">
-                      <AccessCodesStrip
-                        gateCode={p.gate_code as string | null}
-                        lockCode={p.lock_code as string | null}
-                        gateCodeSet={!!((p as any).gate_code_set || p.gate_code)}
-                        lockCodeSet={!!((p as any).lock_code_set || p.lock_code)}
-                        gateLabel={(p.gate_label as string | null) || "Portão"}
-                        lockLabel={(p.lock_label as string | null) || "Fechadura"}
-                        unlocked={unlocked}
-                        requestUnlock={requestUnlock}
-                        checkinLocked={checkinLocked}
-                        hasAccessRec={!!accessRec}
-                        gateEnabled={gateEnabled}
-                        theme={theme}
-                        gateInstructions={p.gate_instructions as string | null}
-                        lockInstructions={p.lock_instructions as string | null}
-                        gateVideoUrl={p.gate_video_url as string | null}
-                        lockVideoUrl={p.lock_video_url as string | null}
-                        gateMedia={
-                          Array.isArray(p.gate_media)
-                            ? (p.gate_media as Array<{ url: string; type: "image" | "video" }>)
-                            : []
-                        }
-                        lockMedia={
-                          Array.isArray(p.lock_media)
-                            ? (p.lock_media as Array<{ url: string; type: "image" | "video" }>)
-                            : []
-                        }
-                      />
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Aviso de check-out: aparece a partir das 3h00 do dia do
-                check-out, levando o lembrete configurado pelo anfitrião. */}
-              {checkoutNoticeVisible && (
-                <div className="px-5 md:px-10 lg:px-16 -mt-2 md:-mt-3 relative z-10 mb-3 md:mb-4">
-                  <div className="md:max-w-md lg:max-w-lg">
-                    <CheckoutNoticeStrip
-                      note={(p.checkout_note as string | null) || null}
-                      checkoutTime={(p.checkout_time as string | null) || null}
-                      theme={theme}
-                    />
+                até 12h depois. No desktop ficam lado a lado para economizar
+                altura da página. */}
+              {homeStripsVisible &&
+                (p.wifi_ssid ||
+                  (p as any).gate_code_set ||
+                  (p as any).lock_code_set ||
+                  p.gate_code ||
+                  p.lock_code) && (
+                  <div className="px-5 md:px-10 lg:px-16 -mt-2 md:-mt-3 relative z-10 mb-3 md:mb-4 flex flex-col md:flex-row md:items-stretch gap-2.5 md:gap-3">
+                    {p.wifi_ssid && (
+                      <div className="md:flex-1 md:min-w-0">
+                        <WifiStrip
+                          ssid={p.wifi_ssid}
+                          password={p.wifi_password}
+                          passwordSet={!!((p as any).wifi_password_set || p.wifi_password)}
+                          theme={theme}
+                          unlocked={unlocked}
+                          requestUnlock={requestUnlock}
+                          checkinLocked={checkinLocked}
+                          hasAccessRec={!!accessRec}
+                          gateEnabled={gateEnabled}
+                        />
+                      </div>
+                    )}
+                    {((p as any).gate_code_set || (p as any).lock_code_set || p.gate_code || p.lock_code) && (
+                      <div className="md:flex-1 md:min-w-0">
+                        <AccessCodesStrip
+                          gateCode={p.gate_code as string | null}
+                          lockCode={p.lock_code as string | null}
+                          gateCodeSet={!!((p as any).gate_code_set || p.gate_code)}
+                          lockCodeSet={!!((p as any).lock_code_set || p.lock_code)}
+                          gateLabel={(p.gate_label as string | null) || "Portão"}
+                          lockLabel={(p.lock_label as string | null) || "Fechadura"}
+                          unlocked={unlocked}
+                          requestUnlock={requestUnlock}
+                          checkinLocked={checkinLocked}
+                          hasAccessRec={!!accessRec}
+                          gateEnabled={gateEnabled}
+                          theme={theme}
+                          gateInstructions={p.gate_instructions as string | null}
+                          lockInstructions={p.lock_instructions as string | null}
+                          gateVideoUrl={p.gate_video_url as string | null}
+                          lockVideoUrl={p.lock_video_url as string | null}
+                          gateMedia={
+                            Array.isArray(p.gate_media)
+                              ? (p.gate_media as Array<{ url: string; type: "image" | "video" }>)
+                              : []
+                          }
+                          lockMedia={
+                            Array.isArray(p.lock_media)
+                              ? (p.lock_media as Array<{ url: string; type: "image" | "video" }>)
+                              : []
+                          }
+                        />
+                      </div>
+                    )}
                   </div>
-                </div>
-              )}
+                )}
+
 
               <section id="guide-actions" className="px-5 md:px-10 lg:px-16 relative z-10">
                 <div className="flex items-center gap-3 mb-3 md:mb-5">
@@ -660,6 +652,57 @@ function Guide({ data }: { data: GuideOk }) {
                   )}
                 </div>
               </section>
+
+              {/* Faixa amarela full-bleed com "informações importantes"
+                (observações de check-in / check-out). Mantém as janelas de
+                visibilidade já configuradas: check-in de 8h antes até 12h
+                depois; check-out das 3h até as 15h do dia do check-out. */}
+              {((homeStripsVisible && p.checkin_note) ||
+                (checkoutNoticeVisible && (p.checkout_note || p.checkout_time))) && (
+                <div className="relative left-1/2 right-1/2 -mx-[50vw] w-screen mt-6 md:mt-8 bg-amber-300 text-amber-950 border-y border-amber-500/60 shadow-[0_2px_18px_-8px_rgba(180,120,0,0.35)]">
+                  <div className="mx-auto max-w-6xl px-5 md:px-10 lg:px-16 py-4 md:py-5 flex flex-col md:flex-row md:items-start gap-4 md:gap-8">
+                    {homeStripsVisible && p.checkin_note && (
+                      <div className="flex items-start gap-3 md:flex-1 md:min-w-0">
+                        <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-amber-950/10 text-amber-950">
+                          <LogIn className="size-[18px]" strokeWidth={2} />
+                        </span>
+                        <div className="min-w-0">
+                          <p className="text-[10px] uppercase tracking-[0.28em] font-semibold text-amber-950/75">
+                            Informação importante · Check-in
+                          </p>
+                          <p className="text-[13.5px] leading-relaxed font-medium mt-1 whitespace-pre-line">
+                            {String(p.checkin_note)}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                    {checkoutNoticeVisible && (p.checkout_note || p.checkout_time) && (
+                      <div className="flex items-start gap-3 md:flex-1 md:min-w-0">
+                        <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-amber-950/10 text-amber-950">
+                          <LogOut className="size-[18px]" strokeWidth={2} />
+                        </span>
+                        <div className="min-w-0">
+                          <p className="text-[10px] uppercase tracking-[0.28em] font-semibold text-amber-950/75">
+                            {(() => {
+                              const t = p.checkout_time
+                                ? String(p.checkout_time).match(/^(\d{1,2}):(\d{2})/)
+                                : null;
+                              const time = t ? `${t[1].padStart(2, "0")}h${t[2] !== "00" ? t[2] : ""}` : null;
+                              return `Informação importante · Check-out${time ? ` até ${time}` : ""}`;
+                            })()}
+                          </p>
+                          {p.checkout_note && (
+                            <p className="text-[13.5px] leading-relaxed font-medium mt-1 whitespace-pre-line">
+                              {String(p.checkout_note)}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
 
               <footer className="mt-10 px-6 text-center flex items-center justify-center gap-2.5">
                 {p.brand_logo_url ? (
