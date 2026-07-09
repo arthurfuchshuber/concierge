@@ -131,6 +131,31 @@ function Dashboard() {
     }
   }
 
+  async function handleConfirmDuplicate() {
+    if (!dupTarget) return;
+    setDupBusy(true);
+    try {
+      const res = await dup({ data: { id: dupTarget.id, copies: dupCopies } });
+      if (res.created > 0) {
+        toast.success(
+          res.skipped > 0
+            ? `${res.created} cópia(s) criada(s). ${res.skipped} não coube(ram) no seu plano.`
+            : `${res.created} cópia(s) criada(s) como rascunho.`,
+        );
+      } else {
+        toast.error("Nenhuma cópia criada — limite do plano atingido.");
+      }
+      setDupTarget(null);
+      setDupCopies(1);
+      refetch();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erro ao duplicar");
+    } finally {
+      setDupBusy(false);
+    }
+  }
+
+
   const count = data?.length ?? 0;
   const planConfig = sub.plan ? PLANS[sub.plan] : null;
   const planName = planConfig?.name ?? "Sem plano";
