@@ -35,7 +35,7 @@ export default defineTool({
 
     const { data, error } = await supabase
       .from("guide_section_events")
-      .select("created_at, session_id, guest_name, guest_phone, page_path, section, dwell_ms")
+      .select("created_at, guest_session_id, guest_name, guest_phone, page_path, section")
       .eq("property_id", propertyId)
       .order("created_at", { ascending: false })
       .limit(limit ?? 50);
