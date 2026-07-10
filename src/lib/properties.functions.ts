@@ -506,11 +506,14 @@ export const duplicateProperty = createServerFn({ method: "POST" })
     const createdIds: string[] = [];
 
     // Fetch existing slugs starting with baseSlug once, to find free suffixes.
-    const { data: existing } = await supabase
+    // Use admin client to bypass RLS — the `slug` uniqueness constraint is
+    // global across all owners, so we must see slugs owned by other users too.
+    const { data: existing } = await supabaseAdmin
       .from("properties")
       .select("slug")
       .like("slug", `${baseSlug}-copia%`);
     const taken = new Set<string>(((existing ?? []) as Array<{ slug: string }>).map((r) => r.slug));
+
 
     function nextSlug(): string {
       let n = 1;
