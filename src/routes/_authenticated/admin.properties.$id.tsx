@@ -37,6 +37,7 @@ import { Pencil, Check as CheckIcon, X as XIcon, Search, Settings2 } from "lucid
 import { friendlyErrorMessage } from "@/lib/friendly-error";
 import { SigmaImportButton, SigmaActiveBanner, SaveAsSigmaPackButton } from "@/components/admin/SigmaImportButton";
 import { getMyPropertySigmaState } from "@/lib/sigma-recommendations.functions";
+import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/_authenticated/admin/properties/$id")({
   component: PropertyEditor,
@@ -236,6 +237,30 @@ function PropertyEditor() {
     queryFn: () => fetchProp({ data: { id } }),
     enabled: !isNew,
   });
+
+  // Realtime: quando outro guia vinculado altera o "Aqui pertinho", o trigger
+  // no banco espelha as mudanças aqui. Escutamos e recarregamos o formulário.
+  useEffect(() => {
+    if (isNew || !id) return;
+    let debounce: ReturnType<typeof setTimeout> | null = null;
+    const channel = supabase
+      .channel(`prop-recs:${id}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "property_recommendations", filter: `property_id=eq.${id}` },
+        () => {
+          if (debounce) clearTimeout(debounce);
+          debounce = setTimeout(() => {
+            queryClient.invalidateQueries({ queryKey: ["property", id] });
+          }, 1500);
+        },
+      )
+      .subscribe();
+    return () => {
+      if (debounce) clearTimeout(debounce);
+      void supabase.removeChannel(channel);
+    };
+  }, [id, isNew, queryClient]);
 
   useEffect(() => {
     if (!data || isNew) return;
