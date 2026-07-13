@@ -239,10 +239,48 @@ function PropertyEditor() {
   });
 
   // Realtime: quando outro guia vinculado altera o "Aqui pertinho", o trigger
-  // no banco espelha as mudanças aqui. Escutamos e recarregamos o formulário.
+  // no banco espelha as mudanças aqui. Escutamos e atualizamos SOMENTE o slice
+  // `recommendations` do form — jamais reidratamos o form inteiro, para não
+  // sobrescrever edições não salvas em outras abas (nome, wifi, host, faqs...).
   useEffect(() => {
     if (isNew || !id) return;
     let debounce: ReturnType<typeof setTimeout> | null = null;
+    let cancelled = false;
+    async function refreshRecsOnly() {
+      const { data: recs, error } = await supabase
+        .from("property_recommendations")
+        .select("scope, type, name, category, rating, user_ratings_total, distance_text, distance_meters, drive_minutes, walk_minutes, opening_hours, note, image_url, maps_url, place_id, position")
+        .eq("property_id", id)
+        .order("position", { ascending: true });
+      if (cancelled || error || !recs) return;
+      const mapped = (recs as Array<Record<string, unknown>>).map((r) => ({
+        scope: r.scope as "nearby" | "city",
+        type: r.type as string,
+        name: (r.name as string) ?? "",
+        category: (r.category as string) ?? null,
+        rating: (r.rating as number) ?? null,
+        user_ratings_total: (r.user_ratings_total as number) ?? null,
+        distance_text: (r.distance_text as string) ?? null,
+        distance_meters: (r.distance_meters as number) ?? null,
+        drive_minutes: (r.drive_minutes as number) ?? null,
+        walk_minutes: (r.walk_minutes as number) ?? null,
+        opening_hours: (r.opening_hours as string[]) ?? null,
+        note: (r.note as string) ?? null,
+        image_url: (r.image_url as string) ?? null,
+        maps_url: (r.maps_url as string) ?? null,
+        place_id: (r.place_id as string) ?? null,
+      }));
+      // Atualiza apenas as "nearby" (as únicas espelhadas pelo trigger);
+      // mantém "city" locais intactas para não perder edições em progresso.
+      setForm((f) => ({
+        ...f,
+        recommendations: [
+          ...mapped.filter((r) => r.scope === "nearby"),
+          ...f.recommendations.filter((r) => r.scope !== "nearby"),
+        ],
+      }));
+      lastSavedRecsRef.current = JSON.stringify(mapped.filter((r) => r.scope === "nearby"));
+    }
     const channel = supabase
       .channel(`prop-recs:${id}`)
       .on(
@@ -251,16 +289,17 @@ function PropertyEditor() {
         () => {
           if (debounce) clearTimeout(debounce);
           debounce = setTimeout(() => {
-            queryClient.invalidateQueries({ queryKey: ["property", id] });
+            void refreshRecsOnly();
           }, 1500);
         },
       )
       .subscribe();
     return () => {
+      cancelled = true;
       if (debounce) clearTimeout(debounce);
       void supabase.removeChannel(channel);
     };
-  }, [id, isNew, queryClient]);
+  }, [id, isNew]);
 
   useEffect(() => {
     if (!data || isNew) return;
