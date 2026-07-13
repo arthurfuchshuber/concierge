@@ -206,16 +206,9 @@ export const unlinkPropertyFromGroup = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const requested = data.removeIds && data.removeIds.length > 0 ? data.removeIds : [data.propertyId];
 
-    // Descobre grupo da property âncora (autorizada acima).
-    const { data: anchorMembership } = await supabaseAdmin
-      .from("city_reference_group_members")
-      .select("group_id")
-      .eq("property_id", data.propertyId)
-      .maybeSingle();
-    const anchorGroupId = (anchorMembership?.group_id as string | null) ?? null;
-
-    // Admin pode remover qualquer id. Caso contrário, só ids que o caller possui
-    // OU que pertencem ao mesmo grupo da âncora (co-membros).
+    // Only allow removing properties the caller owns (or admin). Being a
+    // co-member of the same group does NOT grant permission to detach
+    // someone else's property.
     const { data: isAdmin } = await context.supabase.rpc("has_role", {
       _user_id: context.userId,
       _role: "admin",
@@ -229,23 +222,17 @@ export const unlinkPropertyFromGroup = createServerFn({ method: "POST" })
         .in("id", requested)
         .eq("owner_id", context.userId);
       const ownedIds = new Set((ownRows ?? []).map((r) => r.id as string));
-
-      let coMemberIds = new Set<string>();
-      if (anchorGroupId) {
-        const { data: coRows } = await supabaseAdmin
-          .from("city_reference_group_members")
-          .select("property_id")
-          .eq("group_id", anchorGroupId)
-          .in("property_id", requested);
-        coMemberIds = new Set((coRows ?? []).map((r) => r.property_id as string));
+      allowedTargets = requested.filter((id) => ownedIds.has(id));
+      if (allowedTargets.length !== requested.length) {
+        throw new Error("Sem permissão para desvincular um ou mais imóveis");
       }
-      allowedTargets = requested.filter((id) => ownedIds.has(id) || coMemberIds.has(id));
     }
 
     if (allowedTargets.length === 0) return { ok: true, removed: 0 };
     await supabaseAdmin.from("city_reference_group_members").delete().in("property_id", allowedTargets);
     return { ok: true, removed: allowedTargets.length };
   });
+
 
 const RenameSchema = z.object({ groupId: z.string().uuid(), name: z.string().min(1).max(120) });
 export const renameCityGroup = createServerFn({ method: "POST" })
