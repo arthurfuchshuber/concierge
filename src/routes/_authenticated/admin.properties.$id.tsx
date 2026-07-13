@@ -37,6 +37,7 @@ import { Pencil, Check as CheckIcon, X as XIcon, Search, Settings2 } from "lucid
 import { friendlyErrorMessage } from "@/lib/friendly-error";
 import { SigmaImportButton, SigmaActiveBanner, SaveAsSigmaPackButton } from "@/components/admin/SigmaImportButton";
 import { getMyPropertySigmaState } from "@/lib/sigma-recommendations.functions";
+import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/_authenticated/admin/properties/$id")({
   component: PropertyEditor,
