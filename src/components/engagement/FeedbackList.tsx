@@ -45,15 +45,16 @@ export function FeedbackList({ items, properties }: { items: Item[]; properties:
 
   return (
     <div className="rounded-2xl border border-border bg-card p-4">
-      <header className="mb-3 flex items-center justify-between pr-14">
+      <header className="mb-3">
         <div>
-          <h3 className="text-sm font-semibold flex items-center gap-1.5">
-            <AlertCircle className="size-4 text-amber-500" />
-            Respostas da IA marcadas como não úteis
+          <h3 className="text-sm font-semibold flex items-center gap-1.5 whitespace-nowrap truncate">
+            <AlertCircle className="size-4 text-amber-500 shrink-0" />
+            <span className="truncate">Respostas da IA marcadas como não úteis</span>
           </h3>
           <p className="text-xs text-muted-foreground">Ensine a IA a partir delas para não repetir o erro</p>
         </div>
       </header>
+
       {items.length === 0 ? (
         <div className="text-xs text-muted-foreground py-8 text-center">Nada pendente. Ótimo sinal.</div>
       ) : (
