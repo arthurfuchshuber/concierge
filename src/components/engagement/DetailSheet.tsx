@@ -111,11 +111,11 @@ function SectionDetail({ data, section }: { data: EngagementAnalytics; section: 
   );
 }
 
-function GuestDetail({ guestKey }: { guestKey: string }) {
+function GuestDetail({ guestKey, accountId }: { guestKey: string; accountId: string | null }) {
   const fn = useServerFn(getGuestDetail);
   const { data, isLoading, isError } = useQuery({
-    queryKey: ["guest-detail", guestKey],
-    queryFn: () => fn({ data: { guestKey } }),
+    queryKey: ["guest-detail", guestKey, accountId ?? "self"],
+    queryFn: () => fn({ data: { guestKey, asUserId: accountId } }),
   });
   if (isLoading) return <p className="text-sm text-muted-foreground mt-6">Carregando…</p>;
   if (isError || !data) return <p className="text-sm text-muted-foreground mt-6">Não foi possível carregar.</p>;
