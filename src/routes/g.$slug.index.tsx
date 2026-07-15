@@ -67,16 +67,16 @@ export const Route = createFileRoute("/g/$slug/")({
   },
   head: ({ loaderData, params }) => {
     if (!loaderData || loaderData.status !== "ok") {
-      return { meta: [{ title: "Concierge — Concierge" }, { name: "robots", content: "noindex" }] };
+      return { meta: [{ title: "ConciergeIA — ConciergeIA" }, { name: "robots", content: "noindex" }] };
     }
     const p = loaderData.property as Record<string, unknown>;
     const name = p.name as string;
     const city = (p.city as string | null) ?? null;
     const tagline = (p.tagline as string | null) ?? null;
-    const title = `${name} — Concierge do Hóspede`;
+    const title = `${name} — ConciergeIA do Hóspede`;
     const baseDesc =
       tagline ||
-      `Concierge digital de ${name}${city ? ` em ${city}` : ""}: instruções de chegada, Wi-Fi, manual da casa e recomendações selecionadas pelo anfitrião.`;
+      `ConciergeIA digital de ${name}${city ? ` em ${city}` : ""}: instruções de chegada, Wi-Fi, manual da casa e recomendações selecionadas pelo anfitrião.`;
     const desc =
       baseDesc.length < 60
         ? `${baseDesc} Tudo o que você precisa para uma estadia tranquila${city ? ` em ${city}` : ""}.`
@@ -511,7 +511,7 @@ function Guide({ data }: { data: GuideOk }) {
     },
     {
       key: "explore",
-      eyebrow: "Concierge",
+      eyebrow: "ConciergeIA",
       title: "Explore a Região",
       desc: exploreDesc,
       icon: <Compass className="size-5" strokeWidth={1.5} />,
