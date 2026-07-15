@@ -35,8 +35,60 @@ export const listHandoffConversations = createServerFn({ method: "POST" })
 
     const { data: rows, error } = await q;
     if (error) throw new Error(error.message);
-    return { conversations: rows ?? [] };
+    const list = rows ?? [];
+
+    // Enriquece cada conversa com nome do hóspede, telefone e check-in vindos
+    // do último guide_access_logs correspondente (mesma propriedade). RLS de
+    // guide_access_logs só permite owner — usamos admin porque a RLS de
+    // conversations já garantiu que o usuário pode ver estas linhas.
+    const details: Record<
+      string,
+      { name: string | null; phone: string | null; phoneCountry: string | null; checkinDate: string | null; reservationCode: string | null }
+    > = {};
+    if (list.length > 0) {
+      try {
+        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+        const propIds = Array.from(new Set(list.map((c) => c.property_id as string)));
+        const { data: logs } = await supabaseAdmin
+          .from("guide_access_logs")
+          .select("property_id, guest_name, guest_phone, guest_phone_country, checkin_date, reservation_code, created_at")
+          .in("property_id", propIds)
+          .order("created_at", { ascending: false })
+          .limit(500);
+        const logsByProp = new Map<string, typeof logs>();
+        for (const l of logs ?? []) {
+          const pid = l.property_id as string;
+          const arr = logsByProp.get(pid) ?? [];
+          arr.push(l);
+          logsByProp.set(pid, arr);
+        }
+        for (const conv of list) {
+          const arr = logsByProp.get(conv.property_id as string) ?? [];
+          // Tenta casar pelo nome (case-insensitive); senão pega o mais recente da propriedade.
+          const gn = (conv.guest_name ?? "").trim().toLowerCase();
+          const match =
+            (gn && arr.find((l) => ((l?.guest_name as string) ?? "").trim().toLowerCase() === gn)) ||
+            arr[0] ||
+            null;
+          if (match) {
+            details[conv.id as string] = {
+              name: (match.guest_name as string) ?? conv.guest_name,
+              phone: (match.guest_phone as string) ?? null,
+              phoneCountry: (match.guest_phone_country as string) ?? null,
+              checkinDate: (match.checkin_date as string) ?? null,
+              reservationCode: (match.reservation_code as string) ?? null,
+            };
+          }
+        }
+      } catch {
+        // silencioso — se falhar, seguimos apenas com o que temos na conversa
+      }
+    }
+
+    return { conversations: list, details };
   });
+
+
 
 // -------- Get one conversation with messages --------
 

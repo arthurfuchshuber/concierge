@@ -335,8 +335,17 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
 }
 
 
+type GuestDetail = {
+  name: string | null;
+  phone: string | null;
+  phoneCountry: string | null;
+  checkinDate: string | null;
+  reservationCode: string | null;
+};
+
 export function ConversationList({
   conversations,
+  details,
   activeId,
   onSelect,
 }: {
@@ -344,6 +353,7 @@ export function ConversationList({
     id: string; guest_name: string | null; status: string; handoff_at: string | null; last_message_at: string; handoff_urgency: string | null; handoff_reason: string | null;
     properties: { name: string | null } | { name: string | null }[] | null;
   }>;
+  details?: Record<string, GuestDetail>;
   activeId: string | null;
   onSelect: (id: string) => void;
 }) {
@@ -356,27 +366,57 @@ export function ConversationList({
         const prop = Array.isArray(c.properties) ? c.properties[0] : c.properties;
         const isActive = c.id === activeId;
         const urgent = c.handoff_urgency === "high";
+        const d = details?.[c.id];
+        const displayName = d?.name || c.guest_name || "Hóspede anônimo";
+        const wa = d?.phone ? whatsappHref(d.phone, d.phoneCountry) : null;
+        const checkin = fmtCheckin(d?.checkinDate ?? null);
         return (
-          <button
+          <div
             key={c.id}
+            className={`px-3 py-2.5 hover:bg-secondary transition-colors cursor-pointer ${isActive ? "bg-secondary" : ""}`}
             onClick={() => onSelect(c.id)}
-            className={`text-left px-3 py-2.5 hover:bg-secondary transition-colors ${isActive ? "bg-secondary" : ""}`}
           >
             <div className="flex items-center gap-2">
               {urgent && <span className="size-2 rounded-full bg-red-500 shrink-0" />}
-              <div className="text-sm font-medium truncate flex-1">{c.guest_name || "Hóspede anônimo"}</div>
-              <span className="text-[10px] text-muted-foreground">
+              <div className="text-sm font-medium truncate flex-1">{displayName}</div>
+              <span className="text-[10px] text-muted-foreground shrink-0">
                 {formatDistanceToNow(new Date(c.handoff_at ?? c.last_message_at), { locale: ptBR, addSuffix: false })}
               </span>
             </div>
             <div className="text-[11px] text-muted-foreground truncate">{prop?.name ?? "—"}</div>
+            {(wa || checkin || d?.reservationCode) && (
+              <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-muted-foreground">
+                {wa && (
+                  <a
+                    href={wa}
+                    target="_blank"
+                    rel="noreferrer"
+                    onClick={(e) => e.stopPropagation()}
+                    className="inline-flex items-center gap-1 text-emerald-600 hover:underline"
+                  >
+                    <Phone className="size-3" /> {d?.phoneCountry ?? ""} {d?.phone}
+                  </a>
+                )}
+                {checkin && (
+                  <span className="inline-flex items-center gap-1">
+                    <Calendar className="size-3" /> {checkin}
+                  </span>
+                )}
+                {d?.reservationCode && (
+                  <span className="inline-flex items-center gap-1">
+                    <Hash className="size-3" /> {d.reservationCode}
+                  </span>
+                )}
+              </div>
+            )}
             {c.handoff_reason && <div className="text-[11px] text-foreground/70 truncate mt-0.5">{c.handoff_reason}</div>}
-          </button>
+          </div>
         );
       })}
     </div>
   );
 }
+
 
 export function useMyUserId() {
   const [id, setId] = useState<string | null>(null);

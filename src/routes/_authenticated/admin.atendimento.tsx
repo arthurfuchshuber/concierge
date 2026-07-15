@@ -72,6 +72,7 @@ function AtendimentoPage() {
   }
 
   const conversations = list.data?.conversations ?? [];
+  const details = list.data?.details ?? {};
 
   return (
     <div className="h-[calc(100vh-0px)] lg:h-screen flex flex-col">
@@ -115,6 +116,7 @@ function AtendimentoPage() {
           </div>
           <ConversationList
             conversations={conversations as any}
+            details={details}
             activeId={activeId}
             onSelect={setActiveId}
           />

@@ -124,6 +124,7 @@ export function FloatingHandoffDock() {
 
   const count = pendingQ.data?.count ?? 0;
   const convs = list.data?.conversations ?? [];
+  const details = list.data?.details ?? {};
 
   return (
     <>
@@ -185,6 +186,7 @@ export function FloatingHandoffDock() {
               <div className="w-[180px] border-r border-border overflow-y-auto shrink-0">
                 <ConversationList
                   conversations={convs as any}
+                  details={details}
                   activeId={activeId}
                   onSelect={setActiveId}
                 />
