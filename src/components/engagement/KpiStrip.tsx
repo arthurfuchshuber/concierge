@@ -52,9 +52,10 @@ export function KpiStrip({ kpis, timeseries }: {
   return (
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
       {cards.map((k) => (
-        <div key={k.label} className="rounded-2xl border border-border bg-card p-4 flex flex-col gap-2">
-          <div className="flex items-center gap-1.5 text-[11px] uppercase tracking-wider text-muted-foreground font-medium">
-            <k.icon className="size-3.5" /> {k.label}
+        <div key={k.label} className="rounded-2xl border border-border bg-card p-4 flex flex-col gap-2 min-w-0">
+          <div className="flex items-center gap-1.5 text-[11px] uppercase tracking-wider text-muted-foreground font-medium min-w-0">
+            <k.icon className="size-3.5 shrink-0" />
+            <span className="truncate" title={k.label}>{k.label}</span>
           </div>
           <div className="flex items-baseline gap-1">
             <span className="text-2xl sm:text-3xl font-display tabular-nums">{k.value}</span>
