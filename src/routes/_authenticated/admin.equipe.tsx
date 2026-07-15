@@ -168,6 +168,7 @@ function EquipePage() {
           </button>
         </form>
         {invite.isError && <p className="text-xs text-red-500 mt-2">{(invite.error as Error).message}</p>}
+        {feedback && <p className="text-xs text-primary mt-2">{feedback}</p>}
         <p className="text-[11px] text-muted-foreground mt-2">
           Business: até 2 atendentes além do titular. Enterprise: ilimitado. O convidado precisa se cadastrar com o mesmo e-mail para ativar.
         </p>
@@ -179,28 +180,35 @@ function EquipePage() {
           {team.data?.members?.length === 0 && <div className="text-sm text-muted-foreground py-2">Nenhum membro ainda.</div>}
           {(team.data?.members ?? []).map((m) => {
             const prof = team.data?.profiles[m.member_user_id as string];
+            const isSelf = !!(myUserId && m.member_user_id === myUserId);
             return (
               <div key={m.id} className="py-3 flex items-center gap-3 flex-wrap">
                 <div className="flex-1 min-w-0">
-                  <div className="text-sm font-medium truncate">{prof?.full_name || prof?.email || m.member_user_id}</div>
+                  <div className="text-sm font-medium truncate">
+                    {prof?.full_name || prof?.email || m.member_user_id}
+                    {isSelf && <span className="ml-2 text-[10px] uppercase tracking-wide text-muted-foreground">(você · criador)</span>}
+                  </div>
                   {prof?.email && <div className="text-[11px] text-muted-foreground truncate">{prof.email}</div>}
                 </div>
                 <select
                   value={m.role as string}
                   onChange={(e) => changeRole.mutate({ id: m.id as string, r: e.target.value as any })}
-                  className="text-xs rounded-md border border-border bg-background px-2 py-1"
+                  disabled={isSelf}
+                  className="text-xs rounded-md border border-border bg-background px-2 py-1 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <option value="agent">Atendente</option>
                   <option value="viewer">Somente leitura</option>
                   <option value="owner">Co-titular</option>
                 </select>
-                <button
-                  onClick={() => { if (confirm("Remover este atendente?")) remove.mutate(m.id as string); }}
-                  className="size-8 grid place-items-center rounded-md text-red-500 hover:bg-red-500/10"
-                  aria-label="Remover"
-                >
-                  <Trash2 className="size-4" />
-                </button>
+                {!isSelf && (
+                  <button
+                    onClick={() => { if (confirm("Remover este atendente?")) remove.mutate(m.id as string); }}
+                    className="size-8 grid place-items-center rounded-md text-red-500 hover:bg-red-500/10"
+                    aria-label="Remover"
+                  >
+                    <Trash2 className="size-4" />
+                  </button>
+                )}
               </div>
             );
           })}
@@ -211,16 +219,27 @@ function EquipePage() {
         <h2 className="font-display text-lg mb-3">Convites pendentes</h2>
         <div className="divide-y divide-border">
           {team.data?.invites?.length === 0 && <div className="text-sm text-muted-foreground py-2">Nenhum convite pendente.</div>}
-          {(team.data?.invites ?? []).map((i) => (
-            <div key={i.id} className="py-3 flex items-center gap-3 flex-wrap">
-              <div className="flex-1 min-w-0">
-                <div className="text-sm font-medium truncate">{i.email as string}</div>
-                <div className="text-[11px] text-muted-foreground">Expira {new Date(i.expires_at as string).toLocaleDateString("pt-BR")}</div>
+          {(team.data?.invites ?? []).map((i) => {
+            const isResending = resend.isPending && resend.variables === (i.id as string);
+            return (
+              <div key={i.id} className="py-3 flex items-center gap-3 flex-wrap">
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-medium truncate">{i.email as string}</div>
+                  <div className="text-[11px] text-muted-foreground">Expira {new Date(i.expires_at as string).toLocaleDateString("pt-BR")}</div>
+                </div>
+                <span className="text-[11px] px-2 py-0.5 rounded-full bg-secondary">{i.role as string}</span>
+                <button
+                  onClick={() => resend.mutate(i.id as string)}
+                  disabled={isResending}
+                  className="text-xs px-2 py-1 rounded-md border border-border hover:bg-secondary inline-flex items-center gap-1 disabled:opacity-60"
+                >
+                  {isResending ? <Loader2 className="size-3 animate-spin" /> : <SendIcon className="size-3" />}
+                  Reenviar
+                </button>
+                <button onClick={() => revoke.mutate(i.id as string)} className="text-xs px-2 py-1 rounded-md border border-border hover:bg-secondary">Revogar</button>
               </div>
-              <span className="text-[11px] px-2 py-0.5 rounded-full bg-secondary">{i.role as string}</span>
-              <button onClick={() => revoke.mutate(i.id as string)} className="text-xs px-2 py-1 rounded-md border border-border hover:bg-secondary">Revogar</button>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </section>
     </div>
