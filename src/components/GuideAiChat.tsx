@@ -293,6 +293,13 @@ export function GuideAiChat({ slug, propertyName, guestName }: { slug: string; p
             )}
           </div>
 
+          <GuestNotificationsPrompt
+            slug={slug}
+            sessionId={sessionId}
+            conversationId={conversationId}
+            visible={messages.some((m) => m.role === "user")}
+          />
+
           {/* Composer */}
           <div className="px-3 pb-3 pt-2 border-t border-border bg-background">
             <div className="flex items-end gap-2 bg-card border border-border rounded-2xl px-3 py-2 focus-within:border-accent/35 transition-colors">
