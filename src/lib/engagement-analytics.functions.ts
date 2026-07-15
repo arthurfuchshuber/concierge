@@ -14,6 +14,7 @@ const InputSchema = z.object({
   period: z.enum(["7d", "30d", "90d", "all"]).default("30d"),
   propertyIds: z.array(z.string()).nullable().optional(),
   device: z.enum(["all", "mobile", "tablet", "desktop"]).default("all"),
+  asUserId: z.string().uuid().nullable().optional(),
 });
 
 function detectDevice(ua: string | null): "mobile" | "tablet" | "desktop" {
