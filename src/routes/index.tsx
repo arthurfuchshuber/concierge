@@ -167,11 +167,12 @@ function Hero() {
           <div className="mt-8 flex flex-col sm:flex-row gap-3">
             <Link
               to="/auth"
-              className="inline-flex items-center justify-center gap-2 rounded-full h-12 px-7 text-white text-sm font-semibold shadow-xl hover:opacity-95 transition"
+              className="btn-shine inline-flex items-center justify-center gap-2 rounded-full h-12 px-7 text-white text-sm font-semibold shadow-xl hover:opacity-95 transition"
               style={{ background: BRAND_GRADIENT }}
             >
-              Testar 7 dias grátis <ArrowRight className="size-4" />
+              <span className="inline-flex items-center gap-2">Testar 7 dias grátis <ArrowRight className="size-4" /></span>
             </Link>
+
             <a
               href="#recursos"
               className="inline-flex items-center justify-center gap-2 rounded-full h-12 px-7 border border-black/15 bg-white text-sm font-semibold hover:bg-black/5 transition"
