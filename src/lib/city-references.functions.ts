@@ -115,15 +115,54 @@ async function assertCanManageRefById(ctx: any, id: string) {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const { data: row, error } = await supabaseAdmin
     .from("city_references")
-    .select("city_label, state, country")
+    .select("city_label, state, country, group_id, property_id")
     .eq("id", id)
     .maybeSingle();
   if (error) throw new Error(error.message);
   if (!row) throw new Error("Referência não encontrada.");
+  const r = row as {
+    city_label: string;
+    state: string | null;
+    country: string | null;
+    group_id: string | null;
+    property_id: string | null;
+  };
+
+  // Admin bypasses all checks.
+  if (await isAdmin(ctx)) return;
+
+  // Group-scoped ref: caller must be a member of that specific group
+  // (i.e., own a property inside it). City-level ownership is NOT enough —
+  // that would let any host in the same city tamper with another host's
+  // private shared group content.
+  if (r.group_id) {
+    const { data: ok } = await ctx.supabase.rpc("user_is_group_member", {
+      _user_id: ctx.userId,
+      _group_id: r.group_id,
+    });
+    if (!ok) throw new Error("Sem permissão para editar este item do grupo.");
+    return;
+  }
+
+  // Property-scoped ref: caller must own that property.
+  if (r.property_id) {
+    const { data: prop } = await supabaseAdmin
+      .from("properties")
+      .select("owner_id")
+      .eq("id", r.property_id)
+      .maybeSingle();
+    if (!prop || (prop as { owner_id: string }).owner_id !== ctx.userId) {
+      throw new Error("Sem permissão para editar este item.");
+    }
+    return;
+  }
+
+  // Legacy city-key-scoped ref (no group, no property): fall back to
+  // city-level ownership (used by the admin.cidades view).
   await assertCanManageCity(ctx, {
-    city_label: (row as { city_label: string }).city_label,
-    state: ((row as { state: string | null }).state) ?? null,
-    country: ((row as { country: string | null }).country) ?? "BR",
+    city_label: r.city_label,
+    state: r.state ?? null,
+    country: r.country ?? "BR",
   });
 }
 

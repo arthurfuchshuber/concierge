@@ -253,12 +253,28 @@ export const moveRecommendations = createServerFn({ method: "POST" })
     }
 
     // city → nearby
-    const { data: rows, error } = await supabaseAdmin
-      .from("city_references")
-      .select("*")
-      .in("id", data.ids);
+    // Restrict source rows to the caller's own scope (group_id or city_key).
+    // Trusting client-supplied IDs would let a host copy city_references rows
+    // from groups/cities they don't belong to (including hidden entries).
+    const { data: membership } = await supabaseAdmin
+      .from("city_reference_group_members")
+      .select("group_id")
+      .eq("property_id", data.propertyId)
+      .maybeSingle();
+    const groupId = membership?.group_id ?? null;
+    const key = cityKey(prop.city ?? "");
+    if (!groupId && !key) throw new Error("Defina a cidade do imóvel antes.");
+
+    let srcQ = supabaseAdmin.from("city_references").select("*").in("id", data.ids);
+    srcQ = groupId
+      ? srcQ.eq("group_id", groupId)
+      : srcQ.eq("city_key", key).is("group_id", null);
+    const { data: rows, error } = await srcQ;
     if (error) throw new Error(error.message);
     if (!rows || rows.length === 0) return { ok: true, moved: 0 };
+    if (rows.length !== data.ids.length) {
+      throw new Error("Um ou mais itens não pertencem a este guia.");
+    }
 
     const { fetchPlaceDetails, haversineMeters, formatDistance } = await import("@/lib/maps.functions");
     const hasCoords = prop.lat != null && prop.lng != null;
