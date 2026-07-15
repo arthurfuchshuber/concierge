@@ -13,13 +13,13 @@
     "server": {
       "name": "sigmaconcierge-mcp",
       "version": "0.1.0",
-      "title": "SigmaConcierge"
+      "title": "Concierge"
     },
     "tools": [
       {
         "name": "list_properties",
         "title": "List my properties",
-        "description": "List the SigmaConcierge properties (guides) owned by the signed-in user.",
+        "description": "List the Concierge properties (guides) owned by the signed-in user.",
         "annotations": {
           "readOnlyHint": true,
           "idempotentHint": true,

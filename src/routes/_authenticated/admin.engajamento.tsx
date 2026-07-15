@@ -178,15 +178,16 @@ function EngagementPage() {
             <EmptyState />
           ) : (
             <Tabs value={tab} onValueChange={(v) => patch({ tab: v })} className="w-full">
-              <div className="flex items-center gap-2">
-                <TabsList className="flex-1 h-auto p-1 bg-muted/40 flex-wrap">
-                  <TabsTrigger value="panorama" className="text-xs flex-1">Panorama</TabsTrigger>
-                  <TabsTrigger value="jornada" className="text-xs flex-1">Jornada</TabsTrigger>
-                  <TabsTrigger value="conteudo" className="text-xs flex-1">Conteúdo</TabsTrigger>
-                  <TabsTrigger value="hospedes" className="text-xs flex-1">Hóspedes</TabsTrigger>
-                </TabsList>
-                {filtersBtn}
-              </div>
+              <TabsList className="w-full h-auto p-1 bg-muted/40 flex-wrap">
+                <TabsTrigger value="panorama" className="text-xs flex-1">Panorama</TabsTrigger>
+                <TabsTrigger value="jornada" className="text-xs flex-1">Jornada</TabsTrigger>
+                <TabsTrigger value="conteudo" className="text-xs flex-1">Conteúdo</TabsTrigger>
+                <TabsTrigger value="hospedes" className="text-xs flex-1">Hóspedes</TabsTrigger>
+              </TabsList>
+
+              <div className="relative">
+                <div className="absolute right-3 top-3 z-20">{filtersBtn}</div>
+
 
               <TabsContent value="panorama" className="space-y-5 mt-5">
                 <InsightsRibbon insights={insights} />
@@ -238,6 +239,7 @@ function EngagementPage() {
                   </>
                 ) : null}
               </TabsContent>
+              </div>
             </Tabs>
           )}
         </>

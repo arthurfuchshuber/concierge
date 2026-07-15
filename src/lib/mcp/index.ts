@@ -10,10 +10,10 @@ const projectRef = import.meta.env.VITE_SUPABASE_PROJECT_ID ?? "project-ref-unse
 
 export default defineMcp({
   name: "sigmaconcierge-mcp",
-  title: "SigmaConcierge",
+  title: "Concierge",
   version: "0.1.0",
   instructions:
-    "Tools to inspect your SigmaConcierge properties (guest guides) and recent guest activity. Use list_properties to discover guides, get_property for full details, and recent_guide_events to see live guest navigation.",
+    "Tools to inspect your Concierge properties (guest guides) and recent guest activity. Use list_properties to discover guides, get_property for full details, and recent_guide_events to see live guest navigation.",
   auth: auth.oauth.issuer({
     issuer: `https://${projectRef}.supabase.co/auth/v1`,
     acceptedAudiences: "authenticated",

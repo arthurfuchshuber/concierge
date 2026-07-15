@@ -12,7 +12,7 @@ function supabaseForUser(ctx: ToolContext) {
 export default defineTool({
   name: "list_properties",
   title: "List my properties",
-  description: "List the SigmaConcierge properties (guides) owned by the signed-in user.",
+  description: "List the Concierge properties (guides) owned by the signed-in user.",
   inputSchema: {
     limit: z.number().int().min(1).max(100).optional().describe("Max rows (default 50)."),
   },

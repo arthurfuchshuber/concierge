@@ -21,13 +21,13 @@ import {
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "SigmaConcierge — Guia digital da sua casa em minutos" },
+      { title: "Concierge — Guia digital da sua casa em minutos" },
       {
         name: "description",
         content:
           "Crie guias editoriais para seus hóspedes em minutos. Cole o link do Maps e nós preenchemos endereço, vizinhança e cidade. Sem dados de reserva.",
       },
-      { property: "og:title", content: "SigmaConcierge — Guia digital da sua casa" },
+      { property: "og:title", content: "Concierge — Guia digital da sua casa" },
       {
         property: "og:description",
         content:
@@ -44,7 +44,7 @@ export const Route = createFileRoute("/")({
         content:
           "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/a6da8312-c098-41d0-a17c-294028fab533/id-preview-b6aead29--c6a061b9-4ae8-4241-9a99-3375bda32242.lovable.app-1781215917655.png",
       },
-      { name: "twitter:title", content: "SigmaConcierge — Guia digital da sua casa" },
+      { name: "twitter:title", content: "Concierge — Guia digital da sua casa" },
       {
         name: "twitter:description",
         content:
@@ -98,7 +98,7 @@ function Nav() {
           <div className="size-7 rounded-lg bg-foreground grid place-items-center">
             <Sparkles className="size-3.5 text-background" strokeWidth={2} />
           </div>
-          <span className="font-display text-lg tracking-tight">SigmaConcierge</span>
+          <span className="font-display text-lg tracking-tight">Concierge</span>
         </Link>
         <div className="flex items-center gap-1">
           <Link
@@ -274,7 +274,7 @@ function PhoneMock() {
             <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent" />
             <div className="absolute top-9 left-4 right-4 flex justify-between items-center">
               <span className="glass rounded-full px-2.5 py-1 text-[8px] uppercase tracking-[0.2em] font-semibold text-white/95 border border-white/15">
-                SigmaConcierge
+                Concierge
               </span>
               <span className="glass rounded-full px-2.5 py-1 text-[8px] uppercase tracking-wider font-medium text-white/95 border border-white/15">
                 EN
@@ -654,7 +654,7 @@ function Manifesto() {
           “Um bom guia não substitui o anfitrião —<span className="italic text-accent"> conta a história </span>
           da casa quando ele não está por perto.”
         </blockquote>
-        <p className="mt-10 text-xs uppercase tracking-[0.3em] text-muted-foreground">SigmaConcierge · Edição 2026</p>
+        <p className="mt-10 text-xs uppercase tracking-[0.3em] text-muted-foreground">Concierge · Edição 2026</p>
       </div>
     </section>
   );
@@ -786,7 +786,7 @@ function Footer() {
             <div className="size-6 rounded-md bg-foreground grid place-items-center">
               <Sparkles className="size-3 text-background" strokeWidth={2} />
             </div>
-            <span className="font-display text-sm">SigmaConcierge</span>
+            <span className="font-display text-sm">Concierge</span>
           </div>
           <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground">Hospedagem com afeto · MMXXVI</p>
           <div className="flex items-center gap-4 text-xs text-muted-foreground">
@@ -799,7 +799,7 @@ function Footer() {
           </div>
         </div>
         <div className="border-t border-border/60 pt-6 flex flex-col md:flex-row items-center justify-between gap-3 text-xs text-muted-foreground">
-          <p>© MMXXVI SigmaConcierge — Todos os direitos reservados.</p>
+          <p>© MMXXVI Concierge — Todos os direitos reservados.</p>
           <nav className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2">
             <Link to="/precos" className="hover:text-foreground transition-colors">
               Preços

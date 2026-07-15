@@ -1,5 +1,6 @@
 import { createFileRoute, Outlet, Link, useNavigate, useRouterState } from "@tanstack/react-router";
-import { Sparkles, LogOut, LayoutDashboard, CreditCard, Menu, Users, Shield, Library, ShieldCheck, Activity, Star } from "lucide-react";
+import { LogOut, LayoutDashboard, CreditCard, Menu, Users, Shield, Library, ShieldCheck, Activity, Star } from "lucide-react";
+import conciergeLogo from "@/assets/concierge-logo.png";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
@@ -65,11 +66,9 @@ function AdminLayout() {
       >
         <div className="px-6 py-6 border-b border-border">
           <Link to="/admin" className="inline-flex items-center gap-2.5">
-            <div className="size-9 rounded-xl bg-primary grid place-items-center shadow-sm">
-              <Sparkles className="size-4 text-primary-foreground" strokeWidth={2} />
-            </div>
+            <img src={conciergeLogo} alt="Concierge" className="size-9 rounded-xl object-contain" />
             <div className="leading-tight">
-              <div className="font-display text-xl">SigmaConcierge</div>
+              <div className="font-display text-xl">Concierge</div>
               <div className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground font-semibold mt-0.5">Painel</div>
             </div>
           </Link>
@@ -164,10 +163,8 @@ function AdminLayout() {
             <Menu className="size-5" />
           </button>
           <Link to="/admin" className="inline-flex items-center gap-2">
-            <div className="size-7 rounded-lg bg-primary grid place-items-center">
-              <Sparkles className="size-3.5 text-primary-foreground" />
-            </div>
-            <span className="font-display text-lg">SigmaConcierge</span>
+            <img src={conciergeLogo} alt="Concierge" className="size-7 rounded-lg object-contain" />
+            <span className="font-display text-lg">Concierge</span>
           </Link>
           <div className="size-9" />
         </header>
