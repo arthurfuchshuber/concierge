@@ -316,6 +316,15 @@ export const sendHandoffMessage = createServerFn({ method: "POST" })
   .inputValidator((i: unknown) => SendInput.parse(i))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
+    // Trava: se a conversa está atribuída a outro atendente, bloqueia o envio.
+    const { data: cur } = await supabase
+      .from("property_chat_conversations")
+      .select("assigned_to")
+      .eq("id", data.conversationId)
+      .maybeSingle();
+    if (cur?.assigned_to && cur.assigned_to !== userId) {
+      throw new Error("Esta conversa está sendo atendida por outro membro. Solicite acesso ou peça uma transferência.");
+    }
     const { error } = await supabase.from("property_chat_messages").insert({
       conversation_id: data.conversationId,
       role: data.internalNote ? "assistant" : "assistant",
