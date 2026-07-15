@@ -148,7 +148,15 @@ type GuestAgg = {
   messagesCount: number;
   conversationsCount: number;
   hasUnresolvedFeedback: boolean;
+  accessesCount: number;
+  avgSessionSeconds: number;
+  maxSessionSeconds: number;
+  topSection: string | null;
+  topSectionSeconds: number;
 };
+
+const SECTION_GAP_MS = 20 * 60 * 1000;
+const SECTION_MIN_MS = 5 * 1000;
 
 function buildGuestIndex(data: Awaited<ReturnType<typeof loadCommon>>) {
   const { logs, events, convs, msgs, feedback, nameById } = data;
@@ -156,13 +164,11 @@ function buildGuestIndex(data: Awaited<ReturnType<typeof loadCommon>>) {
   const sessions = sessionize(events);
   const sessionByPhoneName = new Map<string, Session[]>();
   for (const s of sessions) {
-    // sessão pertence a "algum" hóspede desse imóvel — associaremos por (phone|name)
     const idKey = s.phone ? `${s.propertyId}|p:${s.phone}` : (s.name ? `${s.propertyId}|n:${s.name}` : `${s.propertyId}|sid:${s.sid}`);
     const arr = sessionByPhoneName.get(idKey) ?? [];
     arr.push(s); sessionByPhoneName.set(idKey, arr);
   }
 
-  // sessão → conversas atribuíveis por guest_session_id
   const convBySid = new Map<string, Array<typeof convs[number]>>();
   for (const c of convs) {
     if (!c.guest_session_id) continue;
@@ -177,7 +183,6 @@ function buildGuestIndex(data: Awaited<ReturnType<typeof loadCommon>>) {
   const unresolvedByConv = new Set<string>();
   for (const f of feedback) if (!f.resolved) unresolvedByConv.add(f.conversation_id);
 
-  // Cada linha de guide_access_logs é uma "reserva" — chave de hóspede.
   const guests = new Map<string, GuestAgg>();
   for (const l of logs) {
     const phone = normalizePhone(l.guest_phone);
@@ -189,6 +194,7 @@ function buildGuestIndex(data: Awaited<ReturnType<typeof loadCommon>>) {
       if (l.created_at < existing.firstAccess) existing.firstAccess = l.created_at;
       if (l.created_at > existing.lastActivity) existing.lastActivity = l.created_at;
       if (!existing.reservationCode && l.reservation_code) existing.reservationCode = l.reservation_code;
+      existing.accessesCount++;
     } else {
       guests.set(key, {
         key,
@@ -199,20 +205,33 @@ function buildGuestIndex(data: Awaited<ReturnType<typeof loadCommon>>) {
         totalSeconds: 0, sessionsCount: 0, sectionsCount: 0,
         messagesCount: 0, conversationsCount: 0,
         hasUnresolvedFeedback: false,
+        accessesCount: 1,
+        avgSessionSeconds: 0, maxSessionSeconds: 0,
+        topSection: null, topSectionSeconds: 0,
       });
     }
   }
 
-  // Atribui sessões e chats aos hóspedes por (propertyId + phone|name)
   for (const g of guests.values()) {
     const idKey = g.phone ? `${g.propertyId}|p:${g.phone}` : `${g.propertyId}|n:${normalizeName(g.guestName)}`;
     const ss = sessionByPhoneName.get(idKey) ?? [];
     const uniqueSections = new Set<string>();
+    const secondsBySection = new Map<string, number>();
+    let maxS = 0;
     for (const s of ss) {
-      g.totalSeconds += sessionSeconds(s);
+      const sec = sessionSeconds(s);
+      g.totalSeconds += sec;
       g.sessionsCount++;
-      for (const it of s.sections) uniqueSections.add(it.section);
-      // chats desta sessão
+      if (sec > maxS) maxS = sec;
+      // duração por seção: gap para o próximo evento na mesma sessão
+      const items = s.sections;
+      for (let i = 0; i < items.length; i++) {
+        uniqueSections.add(items[i].section);
+        const tCur = new Date(items[i].at).getTime();
+        const tNext = i < items.length - 1 ? new Date(items[i + 1].at).getTime() : tCur + SECTION_MIN_MS;
+        const dur = Math.min(SECTION_GAP_MS, Math.max(SECTION_MIN_MS, tNext - tCur)) / 1000;
+        secondsBySection.set(items[i].section, (secondsBySection.get(items[i].section) ?? 0) + dur);
+      }
       const cs = convBySid.get(s.sid) ?? [];
       for (const c of cs) {
         g.conversationsCount++;
@@ -224,6 +243,15 @@ function buildGuestIndex(data: Awaited<ReturnType<typeof loadCommon>>) {
     }
     g.sectionsCount = uniqueSections.size;
     g.totalSeconds = Math.round(g.totalSeconds);
+    g.maxSessionSeconds = Math.round(maxS);
+    g.avgSessionSeconds = g.sessionsCount > 0 ? Math.round(g.totalSeconds / g.sessionsCount) : 0;
+    let topName: string | null = null;
+    let topSec = 0;
+    for (const [k, v] of secondsBySection) {
+      if (v > topSec) { topSec = v; topName = k; }
+    }
+    g.topSection = topName;
+    g.topSectionSeconds = Math.round(topSec);
   }
 
   return { guests, sessions, convs, msgs, msgsByConv, unresolvedByConv, sessionByPhoneName, convBySid };
