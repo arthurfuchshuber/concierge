@@ -130,6 +130,16 @@ function EngagementPage() {
     });
   }
 
+  const filtersBtn = (
+    <FiltersIconButton
+      filters={filters}
+      onChange={(p) => patch(p)}
+      properties={data?.properties ?? []}
+      accountId={accountId}
+      onAccountChange={(uid) => patch({ account: uid })}
+    />
+  );
+
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 space-y-4">
       <header className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
@@ -139,17 +149,10 @@ function EngagementPage() {
           </div>
           <h1 className="text-2xl sm:text-3xl font-display">Engajamento</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Entenda como seus hóspedes usam o guia — e o que fazer com isso.
+            Como seus hóspedes usam o guia.
           </p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          <FiltersIconButton
-            filters={filters}
-            onChange={(p) => patch(p)}
-            properties={data?.properties ?? []}
-            accountId={accountId}
-            onAccountChange={(uid) => patch({ account: uid })}
-          />
           <Button asChild variant="ghost" size="sm">
             <Link to="/admin"><ArrowLeft className="size-4 mr-1" /> Voltar</Link>
           </Button>
@@ -175,12 +178,15 @@ function EngagementPage() {
             <EmptyState />
           ) : (
             <Tabs value={tab} onValueChange={(v) => patch({ tab: v })} className="w-full">
-              <TabsList className="w-full h-auto p-1 bg-muted/40 flex-wrap">
-                <TabsTrigger value="panorama" className="text-xs flex-1">Panorama</TabsTrigger>
-                <TabsTrigger value="jornada" className="text-xs flex-1">Jornada</TabsTrigger>
-                <TabsTrigger value="conteudo" className="text-xs flex-1">Conteúdo</TabsTrigger>
-                <TabsTrigger value="hospedes" className="text-xs flex-1">Hóspedes</TabsTrigger>
-              </TabsList>
+              <div className="flex items-center gap-2">
+                <TabsList className="flex-1 h-auto p-1 bg-muted/40 flex-wrap">
+                  <TabsTrigger value="panorama" className="text-xs flex-1">Panorama</TabsTrigger>
+                  <TabsTrigger value="jornada" className="text-xs flex-1">Jornada</TabsTrigger>
+                  <TabsTrigger value="conteudo" className="text-xs flex-1">Conteúdo</TabsTrigger>
+                  <TabsTrigger value="hospedes" className="text-xs flex-1">Hóspedes</TabsTrigger>
+                </TabsList>
+                {filtersBtn}
+              </div>
 
               <TabsContent value="panorama" className="space-y-5 mt-5">
                 <InsightsRibbon insights={insights} />
