@@ -237,7 +237,7 @@ function EngagementPage() {
         </>
       )}
 
-      {data && <DetailSheet target={detail} onClose={() => setDetail(null)} data={data} />}
+      {data && <DetailSheet target={detail} onClose={() => setDetail(null)} data={data} accountId={accountId} />}
     </div>
   );
 }
