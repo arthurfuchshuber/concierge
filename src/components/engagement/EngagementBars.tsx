@@ -13,38 +13,57 @@ const tooltipContentStyle: CSSProperties = {
 const tooltipItemStyle: CSSProperties = { color: "var(--popover-foreground)" };
 const tooltipLabelStyle: CSSProperties = { color: "var(--popover-foreground)", fontWeight: 500 };
 
+const BAR_COLORS = ["#f43f5e", "#f59e0b", "#eab308", "#22c55e", "#10b981"];
+const BAR_LEGEND = ["Rápido", "Curto", "Médio", "Bom", "Ótimo"];
+
+function BarLegend() {
+  return (
+    <div className="mt-3 flex flex-wrap justify-center gap-x-3 gap-y-1 text-[11px] text-foreground/85">
+      {BAR_COLORS.map((c, i) => (
+        <span key={i} className="inline-flex items-center gap-1">
+          <span className="size-2 rounded-full" style={{ background: c }} />
+          {BAR_LEGEND[i]}
+        </span>
+      ))}
+    </div>
+  );
+}
+
 export function DurationBuckets({ buckets }: { buckets: Array<{ label: string; count: number }> }) {
   const total = buckets.reduce((a, b) => a + b.count, 0);
-  const colors = ["#f43f5e", "#f59e0b", "#eab308", "#22c55e", "#10b981"];
   return (
     <div className="rounded-2xl border border-border bg-card p-4">
       <header className="mb-3 pr-14">
-        <h3 className="text-sm font-semibold whitespace-nowrap">Tempo de permanência</h3>
+        <h3 className="text-sm font-semibold whitespace-nowrap truncate">Tempo de permanência</h3>
         <p className="text-xs text-muted-foreground">Distribuição das sessões por duração — revela se o guia prende atenção.</p>
       </header>
       {total === 0 ? (
         <div className="text-xs text-muted-foreground py-6 text-center">Sem sessões no período.</div>
       ) : (
-        <div className="h-40">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={buckets} margin={{ top: 8, right: 8, left: 0, bottom: 10 }}>
-              <XAxis dataKey="label" tick={tickStyle} axisLine={false} tickLine={false} tickMargin={8} interval={0} height={34} />
-              <Tooltip
-                cursor={false}
-                contentStyle={tooltipContentStyle}
-                itemStyle={tooltipItemStyle}
-                labelStyle={tooltipLabelStyle}
-              />
-              <Bar dataKey="count" radius={[6, 6, 0, 0]}>
-                {buckets.map((_, i) => <Cell key={i} fill={colors[i] ?? "var(--foreground)"} />)}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
+        <>
+          <div className="h-40">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={buckets} margin={{ top: 8, right: 8, left: 0, bottom: 10 }}>
+                <XAxis dataKey="label" tick={tickStyle} axisLine={false} tickLine={false} tickMargin={8} interval={0} height={34} />
+                <Tooltip
+                  cursor={false}
+                  contentStyle={tooltipContentStyle}
+                  itemStyle={tooltipItemStyle}
+                  labelStyle={tooltipLabelStyle}
+                />
+                <Bar dataKey="count" radius={[6, 6, 0, 0]}>
+                  {buckets.map((_, i) => <Cell key={i} fill={BAR_COLORS[i] ?? "var(--foreground)"} />)}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+          <BarLegend />
+        </>
       )}
     </div>
   );
 }
+
 
 export function DepthCurve({ curve }: { curve: Array<{ label: string; count: number }> }) {
   const total = curve.reduce((a, b) => a + b.count, 0);
