@@ -82,7 +82,16 @@ async function loadCommon(
   ctx: { supabase: import("@supabase/supabase-js").SupabaseClient; userId: string },
   input: z.infer<typeof InputSchema>,
 ) {
-  const { supabase, userId } = ctx;
+  let effectiveUserId = ctx.userId;
+  let supabase = ctx.supabase;
+  if (input.asUserId && input.asUserId !== ctx.userId) {
+    const { data: isAdmin } = await ctx.supabase.rpc("has_role", { _user_id: ctx.userId, _role: "admin" });
+    if (!isAdmin) throw new Error("Acesso negado");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    supabase = supabaseAdmin as unknown as typeof ctx.supabase;
+    effectiveUserId = input.asUserId;
+  }
+  const userId = effectiveUserId;
   const days = daysFor(input.period);
   const since = new Date(Date.now() - days * 86400_000);
 
