@@ -1,23 +1,24 @@
 import { BarChart, Bar, XAxis, ResponsiveContainer, Tooltip, Cell } from "recharts";
+import type { CSSProperties } from "react";
 
-const tickStyle = { fontSize: 11, fill: "hsl(var(--foreground))", opacity: 0.85 };
-const tooltipContentStyle: React.CSSProperties = {
+const tickStyle = { fontSize: 12, fill: "var(--foreground)", opacity: 0.95, fontWeight: 500 };
+const tooltipContentStyle: CSSProperties = {
   fontSize: 12,
   borderRadius: 10,
-  border: "1px solid hsl(var(--border))",
-  background: "hsl(var(--popover))",
-  color: "hsl(var(--popover-foreground))",
+  border: "1px solid var(--border)",
+  background: "var(--popover)",
+  color: "var(--popover-foreground)",
   boxShadow: "0 4px 12px rgba(0,0,0,0.4)",
 };
-const tooltipItemStyle: React.CSSProperties = { color: "hsl(var(--popover-foreground))" };
-const tooltipLabelStyle: React.CSSProperties = { color: "hsl(var(--popover-foreground))", fontWeight: 500 };
+const tooltipItemStyle: CSSProperties = { color: "var(--popover-foreground)" };
+const tooltipLabelStyle: CSSProperties = { color: "var(--popover-foreground)", fontWeight: 500 };
 
 export function DurationBuckets({ buckets }: { buckets: Array<{ label: string; count: number }> }) {
   const total = buckets.reduce((a, b) => a + b.count, 0);
   const colors = ["#f43f5e", "#f59e0b", "#eab308", "#22c55e", "#10b981"];
   return (
     <div className="rounded-2xl border border-border bg-card p-4">
-      <header className="mb-3">
+      <header className="mb-3 pr-14">
         <h3 className="text-sm font-semibold whitespace-nowrap">Tempo de permanência</h3>
         <p className="text-xs text-muted-foreground">Distribuição das sessões por duração — revela se o guia prende atenção.</p>
       </header>
@@ -26,8 +27,8 @@ export function DurationBuckets({ buckets }: { buckets: Array<{ label: string; c
       ) : (
         <div className="h-40">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={buckets} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-              <XAxis dataKey="label" tick={tickStyle} axisLine={false} tickLine={false} />
+            <BarChart data={buckets} margin={{ top: 8, right: 8, left: 0, bottom: 10 }}>
+              <XAxis dataKey="label" tick={tickStyle} axisLine={false} tickLine={false} tickMargin={8} interval={0} height={34} />
               <Tooltip
                 cursor={false}
                 contentStyle={tooltipContentStyle}
@@ -35,7 +36,7 @@ export function DurationBuckets({ buckets }: { buckets: Array<{ label: string; c
                 labelStyle={tooltipLabelStyle}
               />
               <Bar dataKey="count" radius={[6, 6, 0, 0]}>
-                {buckets.map((_, i) => <Cell key={i} fill={colors[i] ?? "hsl(var(--primary))"} />)}
+                {buckets.map((_, i) => <Cell key={i} fill={colors[i] ?? "var(--foreground)"} />)}
               </Bar>
             </BarChart>
           </ResponsiveContainer>
@@ -51,7 +52,7 @@ export function DepthCurve({ curve }: { curve: Array<{ label: string; count: num
   const colors = ["#f43f5e", "#f59e0b", "#eab308", "#22c55e", "#10b981"];
   return (
     <div className="rounded-2xl border border-border bg-card p-4">
-      <header className="mb-3">
+      <header className="mb-3 pr-14">
         <h3 className="text-sm font-semibold whitespace-nowrap">Profundidade da leitura</h3>
         <p className="text-xs text-muted-foreground">Quantas seções distintas cada sessão explora.</p>
       </header>
@@ -60,8 +61,8 @@ export function DepthCurve({ curve }: { curve: Array<{ label: string; count: num
       ) : (
         <div className="h-40">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={curve} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-              <XAxis dataKey="label" tick={tickStyle} axisLine={false} tickLine={false} />
+            <BarChart data={curve} margin={{ top: 8, right: 8, left: 0, bottom: 10 }}>
+              <XAxis dataKey="label" tick={tickStyle} axisLine={false} tickLine={false} tickMargin={8} interval={0} height={34} />
               <Tooltip
                 cursor={false}
                 contentStyle={tooltipContentStyle}

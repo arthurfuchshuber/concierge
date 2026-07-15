@@ -20,7 +20,7 @@ export function PropertiesDotPlot({ rows, onSelect }: { rows: Row[]; onSelect?: 
 
   return (
     <div className="rounded-2xl border border-border bg-card p-4">
-      <header className="mb-3">
+      <header className="mb-3 pr-14">
         <h3 className="text-sm font-semibold">Ranking por tempo de permanência</h3>
         <p className="text-xs text-muted-foreground">
           Guias que prendem atenção. Ponto vermelho = alto atrito no chat.
