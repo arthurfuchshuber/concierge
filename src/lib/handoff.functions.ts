@@ -5,7 +5,9 @@ import { z } from "zod";
 // -------- List conversations for the current user (filtered by queue) --------
 
 const ListInput = z.object({
-  queue: z.enum(["needs_human", "assigned_to_me", "all_active", "resolved"]).default("needs_human"),
+  queue: z
+    .enum(["needs_human", "assigned_to_me", "all_active", "ai_only", "all", "resolved"])
+    .default("needs_human"),
   limit: z.number().int().min(1).max(200).default(50),
 });
 
@@ -26,7 +28,10 @@ export const listHandoffConversations = createServerFn({ method: "POST" })
     if (data.queue === "needs_human") q = q.eq("status", "needs_human");
     else if (data.queue === "assigned_to_me") q = q.eq("assigned_to", userId).in("status", ["assigned", "needs_human"]);
     else if (data.queue === "all_active") q = q.in("status", ["needs_human", "assigned"]);
+    else if (data.queue === "ai_only") q = q.eq("status", "ai");
     else if (data.queue === "resolved") q = q.eq("status", "resolved");
+    // "all" → sem filtro de status: mostra todas as conversas visíveis por RLS
+    // (owner + membros ativos da conta veem tudo; RLS restringe automaticamente).
 
     const { data: rows, error } = await q;
     if (error) throw new Error(error.message);
