@@ -44,6 +44,37 @@ const InviteInput = z.object({
   role: z.enum(["owner", "agent", "viewer"]).default("agent"),
 });
 
+async function sendAccountInviteEmail(email: string, inviterName: string | null) {
+  // Uses Supabase's built-in invite email (routes through the auth email queue
+  // and our branded invite.tsx template). If the user already exists, we
+  // fall back to a magic-link so they can sign in and pick up the invite.
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const siteUrl =
+    process.env.SITE_URL ||
+    process.env.PUBLIC_SITE_URL ||
+    "https://sigmaconcierge.lovable.app";
+  const redirectTo = `${siteUrl.replace(/\/$/, "")}/admin/atendimento`;
+  const meta = { invited_by_name: inviterName ?? undefined, invite_kind: "account_member" };
+  const { error } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
+    redirectTo,
+    data: meta,
+  });
+  if (!error) return { sent: true, via: "invite" as const };
+  const msg = (error.message || "").toLowerCase();
+  // If already registered, send a magic-link so they can log in — the
+  // account_member_invites row will be redeemable via the app once signed in.
+  if (msg.includes("already") || msg.includes("registered") || msg.includes("exists")) {
+    const { error: linkErr } = await supabaseAdmin.auth.admin.generateLink({
+      type: "magiclink",
+      email,
+      options: { redirectTo },
+    });
+    if (linkErr) throw new Error(linkErr.message);
+    return { sent: true, via: "magiclink" as const };
+  }
+  throw new Error(error.message);
+}
+
 export const inviteTeamMember = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((i: unknown) => InviteInput.parse(i))
@@ -71,7 +102,22 @@ export const inviteTeamMember = createServerFn({ method: "POST" })
       .select("id")
       .single();
     if (error) throw new Error(error.message);
-    return { ok: true, id: inserted.id };
+
+    // Look up inviter's name for a nicer email
+    const { data: inviter } = await supabase
+      .from("profiles")
+      .select("full_name")
+      .eq("id", userId)
+      .maybeSingle();
+
+    try {
+      await sendAccountInviteEmail(data.email, (inviter?.full_name as string) ?? null);
+      return { ok: true, id: inserted.id, emailSent: true };
+    } catch (e) {
+      // Convite ficou registrado mesmo se o envio falhar — o titular pode
+      // usar o botão "Reenviar" na lista de convites pendentes.
+      return { ok: true, id: inserted.id, emailSent: false, emailError: (e as Error).message };
+    }
   });
 
 const RevokeInput = z.object({ inviteId: z.string().uuid() });
@@ -87,6 +133,36 @@ export const revokeTeamInvite = createServerFn({ method: "POST" })
       .eq("id", data.inviteId)
       .eq("owner_id", userId);
     if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+export const resendTeamInvite = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => RevokeInput.parse(i))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { data: inv, error } = await supabase
+      .from("account_member_invites")
+      .select("id, email, status, expires_at")
+      .eq("id", data.inviteId)
+      .eq("owner_id", userId)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!inv) throw new Error("Convite não encontrado.");
+    if (inv.status !== "pending") throw new Error("Este convite não está mais pendente.");
+    // Refresh expiration to give the recipient another 7 days
+    const newExpiry = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+    await supabase
+      .from("account_member_invites")
+      .update({ expires_at: newExpiry })
+      .eq("id", inv.id)
+      .eq("owner_id", userId);
+    const { data: inviter } = await supabase
+      .from("profiles")
+      .select("full_name")
+      .eq("id", userId)
+      .maybeSingle();
+    await sendAccountInviteEmail(inv.email as string, (inviter?.full_name as string) ?? null);
     return { ok: true };
   });
 
