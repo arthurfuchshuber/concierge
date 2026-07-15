@@ -236,9 +236,7 @@ function PhoneMockup() {
           </div>
           {/* Chat header */}
           <div className="px-4 py-3 flex items-center gap-2.5 border-b border-black/5">
-            <div className="size-9 rounded-full grid place-items-center" style={{ background: BRAND_GRADIENT }}>
-              <img src={conciergeLogo} alt="" className="size-6 object-contain" />
-            </div>
+            <img src={conciergeLogo} alt="" className="size-9 object-contain" />
             <div className="flex-1 min-w-0">
               <div className="text-sm font-semibold">Casa Verão</div>
               <div className="text-[11px] text-emerald-600 flex items-center gap-1">
