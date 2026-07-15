@@ -62,6 +62,7 @@ function LandingPage() {
       <FAQ />
       <FinalCTA />
       <Footer />
+      <FloatingContact />
     </div>
   );
 }
