@@ -204,7 +204,7 @@ function AdminLayout() {
           )}
         </main>
       </div>
-      {handoffEnabled && <FloatingHandoffDock />}
+      {handoffEnabled && !pathname.startsWith("/admin/atendimento") && <FloatingHandoffDock />}
     </div>
   );
 }
