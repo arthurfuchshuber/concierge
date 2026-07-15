@@ -13,8 +13,11 @@ import {
   transferHandoffConversation,
   listConversationTransferTargets,
 } from "@/lib/handoff.functions";
-import { Send, UserCheck, RotateCcw, CheckCircle2, Loader2, StickyNote, Phone, Calendar, Hash, Lock, UserPlus2, ArrowRightLeft, X, Sparkles } from "lucide-react";
+import { attachStaffMessage } from "@/lib/chat-attachments.functions";
+import { Send, UserCheck, RotateCcw, CheckCircle2, Loader2, StickyNote, Phone, Calendar, Hash, Lock, UserPlus2, ArrowRightLeft, X, Sparkles, Paperclip } from "lucide-react";
 import { TeachAiDialog } from "@/components/handoff/TeachAiDialog";
+import { AudioRecorderButton, type RecordedAudio } from "@/components/handoff/AudioRecorderButton";
+import { AttachmentBubble, type AttachmentInfo } from "@/components/handoff/AttachmentBubble";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -44,6 +47,7 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
   const cancelReqFn = useServerFn(cancelHandoffClaimRequest);
   const transferFn = useServerFn(transferHandoffConversation);
   const targetsFn = useServerFn(listConversationTransferTargets);
+  const attachFn = useServerFn(attachStaffMessage);
   const qc = useQueryClient();
 
   const q = useQuery({
@@ -58,6 +62,8 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [teachOpen, setTeachOpen] = useState(false);
   const [teachSource, setTeachSource] = useState<{ id: string; content: string } | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -118,6 +124,77 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
     onSuccess: () => { setTransferOpen(false); invalidateAll(); },
     onError: (e) => setErrorMsg((e as Error).message),
   });
+
+  function inferAttachmentType(mime: string): "image" | "audio" | "video" | "document" | null {
+    if (mime.startsWith("image/")) return "image";
+    if (mime.startsWith("audio/")) return "audio";
+    if (mime.startsWith("video/")) return "video";
+    if (mime === "application/pdf") return "document";
+    return null;
+  }
+
+  async function uploadAndAttach(file: Blob, opts: { name?: string; mime?: string; durationMs?: number }) {
+    if (!conv?.property_id) return;
+    const MAX = 20 * 1024 * 1024;
+    if (file.size > MAX) {
+      setErrorMsg("Arquivo maior que 20 MB.");
+      return;
+    }
+    const mime = opts.mime ?? (file as File).type ?? "application/octet-stream";
+    const type = inferAttachmentType(mime);
+    if (!type) {
+      setErrorMsg("Tipo de arquivo não suportado.");
+      return;
+    }
+    setUploading(true);
+    try {
+      const ext =
+        type === "image" ? (mime.split("/")[1] ?? "jpg").replace("jpeg", "jpg") :
+        type === "audio" ? (mime.includes("mp4") ? "m4a" : mime.includes("mpeg") ? "mp3" : "webm") :
+        type === "video" ? (mime.split("/")[1] ?? "mp4") :
+        "pdf";
+      const objectId = crypto.randomUUID();
+      const path = `${conv.property_id}/${conversationId}/staff-${objectId}.${ext}`;
+      const { error: upErr } = await supabase.storage
+        .from("chat-attachments")
+        .upload(path, file, { contentType: mime, upsert: false });
+      if (upErr) throw new Error(upErr.message);
+      await attachFn({
+        data: {
+          conversationId,
+          path,
+          attachmentType: type,
+          mime,
+          sizeBytes: file.size,
+          durationMs: opts.durationMs ?? null,
+          name: opts.name ?? null,
+          caption: null,
+          internalNote: note,
+        },
+      });
+      invalidateAll();
+    } catch (e) {
+      setErrorMsg((e as Error).message || "Falha ao enviar anexo.");
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  async function onFilePicked(e: React.ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0];
+    e.target.value = "";
+    if (!f) return;
+    await uploadAndAttach(f, { name: f.name, mime: f.type });
+  }
+
+  async function onAudioRecorded(audio: RecordedAudio) {
+    const filename = `audio-${Date.now()}.${audio.mime.includes("mp4") ? "m4a" : "webm"}`;
+    await uploadAndAttach(audio.blob, {
+      name: filename,
+      mime: audio.mime,
+      durationMs: audio.durationMs,
+    });
+  }
 
   const targetsQ = useQuery({
     queryKey: ["handoff-transfer-targets", conversationId],
@@ -267,6 +344,16 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
           const isGuest = m.sender_type === "guest";
           const isNote = m.is_internal_note;
           const canTeach = !isNote && typeof m.content === "string" && m.content.trim().length > 2;
+          const attachment: AttachmentInfo | null = m.attachment_path
+            ? {
+                type: m.attachment_type as AttachmentInfo["type"],
+                mime: m.attachment_mime,
+                durationMs: m.attachment_duration_ms,
+                sizeBytes: m.attachment_size_bytes,
+                name: m.attachment_name,
+                path: m.attachment_path,
+              }
+            : null;
           return (
             <div key={m.id} className={`flex flex-col ${isGuest ? "items-start" : "items-end"}`}>
               <div
@@ -286,7 +373,12 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
                     {m.sender_type === "human" ? "Atendente" : "IA"}
                   </div>
                 )}
-                {m.content}
+                {attachment && (
+                  <div className="mb-1">
+                    <AttachmentBubble attachment={attachment} />
+                  </div>
+                )}
+                {m.content && <>{m.content}</>}
                 <div className="text-[10px] opacity-60 mt-1">
                   {formatDistanceToNow(new Date(m.created_at), { locale: ptBR, addSuffix: true })}
                 </div>
@@ -319,7 +411,14 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
 
       {status !== "resolved" && (
         isLockedByOther ? (
-          <div className="shrink-0 border-t border-border p-3 text-center text-xs text-muted-foreground bg-surface inline-flex items-center justify-center gap-1">
+          <div
+            className="shrink-0 border-t border-border p-3 text-center text-xs text-muted-foreground bg-surface inline-flex items-center justify-center gap-1"
+            style={{
+              paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))",
+              paddingLeft: "max(0.75rem, env(safe-area-inset-left))",
+              paddingRight: "max(0.75rem, env(safe-area-inset-right))",
+            }}
+          >
             <Lock className="size-3" /> Somente {assignedProfile?.displayName ?? "o atendente responsável"} pode responder.
           </div>
         ) : (
@@ -329,32 +428,65 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
               if (!text.trim() || send.isPending) return;
               send.mutate();
             }}
-            className="shrink-0 border-t border-border p-2 flex items-end gap-2 bg-surface"
+            className="shrink-0 border-t border-border bg-surface"
+            style={{
+              paddingTop: "0.5rem",
+              paddingBottom: "max(0.5rem, env(safe-area-inset-bottom))",
+              paddingLeft: "max(0.5rem, env(safe-area-inset-left))",
+              paddingRight: "max(0.5rem, env(safe-area-inset-right))",
+            }}
           >
-            <label className="flex items-center gap-1 text-[11px] text-muted-foreground shrink-0 select-none">
-              <input type="checkbox" checked={note} onChange={(e) => setNote(e.target.checked)} className="size-3" />
-              nota
-            </label>
-            <textarea
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
-                  e.preventDefault();
-                  if (text.trim()) send.mutate();
-                }
-              }}
-              placeholder={note ? "Nota interna (não visível ao hóspede)…" : "Escrever para o hóspede…"}
-              rows={compact ? 1 : 2}
-              className="flex-1 resize-none rounded-md border border-border bg-background px-2 py-1.5 text-sm outline-none focus:ring-2 focus:ring-primary/40"
-            />
-            <button
-              type="submit"
-              disabled={!text.trim() || send.isPending}
-              className="size-9 grid place-items-center rounded-md bg-primary text-primary-foreground disabled:opacity-40"
-            >
-              {send.isPending ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
-            </button>
+            <div className="flex items-center gap-2 mb-1">
+              <label className="flex items-center gap-1 text-[11px] text-muted-foreground shrink-0 select-none">
+                <input type="checkbox" checked={note} onChange={(e) => setNote(e.target.checked)} className="size-3" />
+                nota
+              </label>
+              {uploading && <span className="text-[10px] text-muted-foreground inline-flex items-center gap-1"><Loader2 className="size-3 animate-spin" /> enviando anexo…</span>}
+            </div>
+            <div className="flex items-end gap-1.5">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*,application/pdf,video/mp4,video/webm,video/quicktime"
+                className="hidden"
+                onChange={onFilePicked}
+              />
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploading}
+                title="Anexar arquivo"
+                aria-label="Anexar arquivo"
+                className="grid size-9 place-items-center rounded-full hover:bg-muted text-muted-foreground hover:text-foreground shrink-0 disabled:opacity-40"
+              >
+                <Paperclip className="size-4" />
+              </button>
+              <AudioRecorderButton
+                disabled={uploading}
+                maxSeconds={60}
+                onRecorded={onAudioRecorded}
+              />
+              <textarea
+                value={text}
+                onChange={(e) => setText(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    if (text.trim()) send.mutate();
+                  }
+                }}
+                placeholder={note ? "Nota interna (não visível ao hóspede)…" : "Escrever para o hóspede…"}
+                rows={compact ? 1 : 2}
+                className="flex-1 resize-none rounded-md border border-border bg-background px-2 py-1.5 text-sm outline-none focus:ring-2 focus:ring-primary/40 min-w-0"
+              />
+              <button
+                type="submit"
+                disabled={!text.trim() || send.isPending}
+                className="size-9 grid place-items-center rounded-md bg-primary text-primary-foreground disabled:opacity-40 shrink-0"
+              >
+                {send.isPending ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
+              </button>
+            </div>
           </form>
         )
       )}

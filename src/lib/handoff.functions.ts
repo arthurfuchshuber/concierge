@@ -109,7 +109,9 @@ export const getHandoffConversation = createServerFn({ method: "POST" })
         .maybeSingle(),
       supabase
         .from("property_chat_messages")
-        .select("id, role, content, sender_type, sender_user_id, is_internal_note, created_at")
+        .select(
+          "id, role, content, sender_type, sender_user_id, is_internal_note, created_at, attachment_path, attachment_type, attachment_mime, attachment_duration_ms, attachment_size_bytes, attachment_name",
+        )
         .eq("conversation_id", data.conversationId)
         .order("created_at", { ascending: true }),
     ]);

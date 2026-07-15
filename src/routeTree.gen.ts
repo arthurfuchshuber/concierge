@@ -29,6 +29,7 @@ import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authentic
 import { Route as GSlugExplorarRouteImport } from './routes/g.$slug.explorar'
 import { Route as ApiPublicPlacePhotoRouteImport } from './routes/api/public/place-photo'
 import { Route as ApiPublicLandingChatRouteImport } from './routes/api/public/landing-chat'
+import { Route as ApiPublicGuideChatUploadRouteImport } from './routes/api/public/guide-chat-upload'
 import { Route as ApiPublicGuideChatRouteImport } from './routes/api/public/guide-chat'
 import { Route as ApiPublicGuestPushRouteImport } from './routes/api/public/guest-push'
 import { Route as AuthenticatedAdminTaxonomiaRouteImport } from './routes/_authenticated/admin.taxonomia'
@@ -156,6 +157,12 @@ const ApiPublicLandingChatRoute = ApiPublicLandingChatRouteImport.update({
   path: '/api/public/landing-chat',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicGuideChatUploadRoute =
+  ApiPublicGuideChatUploadRouteImport.update({
+    id: '/api/public/guide-chat-upload',
+    path: '/api/public/guide-chat-upload',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicGuideChatRoute = ApiPublicGuideChatRouteImport.update({
   id: '/api/public/guide-chat',
   path: '/api/public/guide-chat',
@@ -329,6 +336,7 @@ export interface FileRoutesByFullPath {
   '/admin/taxonomia': typeof AuthenticatedAdminTaxonomiaRoute
   '/api/public/guest-push': typeof ApiPublicGuestPushRoute
   '/api/public/guide-chat': typeof ApiPublicGuideChatRoute
+  '/api/public/guide-chat-upload': typeof ApiPublicGuideChatUploadRoute
   '/api/public/landing-chat': typeof ApiPublicLandingChatRoute
   '/api/public/place-photo': typeof ApiPublicPlacePhotoRoute
   '/g/$slug/explorar': typeof GSlugExplorarRoute
@@ -373,6 +381,7 @@ export interface FileRoutesByTo {
   '/admin/taxonomia': typeof AuthenticatedAdminTaxonomiaRoute
   '/api/public/guest-push': typeof ApiPublicGuestPushRoute
   '/api/public/guide-chat': typeof ApiPublicGuideChatRoute
+  '/api/public/guide-chat-upload': typeof ApiPublicGuideChatUploadRoute
   '/api/public/landing-chat': typeof ApiPublicLandingChatRoute
   '/api/public/place-photo': typeof ApiPublicPlacePhotoRoute
   '/g/$slug/explorar': typeof GSlugExplorarRoute
@@ -421,6 +430,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/taxonomia': typeof AuthenticatedAdminTaxonomiaRoute
   '/api/public/guest-push': typeof ApiPublicGuestPushRoute
   '/api/public/guide-chat': typeof ApiPublicGuideChatRoute
+  '/api/public/guide-chat-upload': typeof ApiPublicGuideChatUploadRoute
   '/api/public/landing-chat': typeof ApiPublicLandingChatRoute
   '/api/public/place-photo': typeof ApiPublicPlacePhotoRoute
   '/g/$slug/explorar': typeof GSlugExplorarRoute
@@ -469,6 +479,7 @@ export interface FileRouteTypes {
     | '/admin/taxonomia'
     | '/api/public/guest-push'
     | '/api/public/guide-chat'
+    | '/api/public/guide-chat-upload'
     | '/api/public/landing-chat'
     | '/api/public/place-photo'
     | '/g/$slug/explorar'
@@ -513,6 +524,7 @@ export interface FileRouteTypes {
     | '/admin/taxonomia'
     | '/api/public/guest-push'
     | '/api/public/guide-chat'
+    | '/api/public/guide-chat-upload'
     | '/api/public/landing-chat'
     | '/api/public/place-photo'
     | '/g/$slug/explorar'
@@ -560,6 +572,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/taxonomia'
     | '/api/public/guest-push'
     | '/api/public/guide-chat'
+    | '/api/public/guide-chat-upload'
     | '/api/public/landing-chat'
     | '/api/public/place-photo'
     | '/g/$slug/explorar'
@@ -599,6 +612,7 @@ export interface RootRouteChildren {
   Char91DotmcpChar93InvokeToolToolRoute: typeof Char91DotmcpChar93InvokeToolToolRoute
   ApiPublicGuestPushRoute: typeof ApiPublicGuestPushRoute
   ApiPublicGuideChatRoute: typeof ApiPublicGuideChatRoute
+  ApiPublicGuideChatUploadRoute: typeof ApiPublicGuideChatUploadRoute
   ApiPublicLandingChatRoute: typeof ApiPublicLandingChatRoute
   ApiPublicPlacePhotoRoute: typeof ApiPublicPlacePhotoRoute
   ApiPublicCronRefreshCityReferencesRoute: typeof ApiPublicCronRefreshCityReferencesRoute
@@ -749,6 +763,13 @@ declare module '@tanstack/react-router' {
       path: '/api/public/landing-chat'
       fullPath: '/api/public/landing-chat'
       preLoaderRoute: typeof ApiPublicLandingChatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/guide-chat-upload': {
+      id: '/api/public/guide-chat-upload'
+      path: '/api/public/guide-chat-upload'
+      fullPath: '/api/public/guide-chat-upload'
+      preLoaderRoute: typeof ApiPublicGuideChatUploadRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/guide-chat': {
@@ -1017,6 +1038,7 @@ const rootRouteChildren: RootRouteChildren = {
   Char91DotmcpChar93InvokeToolToolRoute: Char91DotmcpChar93InvokeToolToolRoute,
   ApiPublicGuestPushRoute: ApiPublicGuestPushRoute,
   ApiPublicGuideChatRoute: ApiPublicGuideChatRoute,
+  ApiPublicGuideChatUploadRoute: ApiPublicGuideChatUploadRoute,
   ApiPublicLandingChatRoute: ApiPublicLandingChatRoute,
   ApiPublicPlacePhotoRoute: ApiPublicPlacePhotoRoute,
   ApiPublicCronRefreshCityReferencesRoute:

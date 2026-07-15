@@ -1,10 +1,19 @@
 import { useEffect, useRef, useState } from "react";
-import { MessageCircleMore, Send, X, Loader2 } from "lucide-react";
+import { MessageCircleMore, Send, X, Loader2, Paperclip } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { GuestNotificationsPrompt } from "@/components/GuestNotificationsPrompt";
+import { AudioRecorderButton, type RecordedAudio } from "@/components/handoff/AudioRecorderButton";
+import { AttachmentBubble, type AttachmentInfo } from "@/components/handoff/AttachmentBubble";
 
-type Msg = { role: "user" | "assistant" | "system"; content: string; id?: string; createdAt?: string; senderType?: string };
+type Msg = {
+  role: "user" | "assistant" | "system";
+  content: string;
+  id?: string;
+  createdAt?: string;
+  senderType?: string;
+  attachment?: AttachmentInfo | null;
+};
 
 function getSessionId(slug: string): string {
   const key = `guide-chat-session:${slug}`;
@@ -113,7 +122,88 @@ export function GuideAiChat({ slug, propertyName, guestName }: { slug: string; p
   }, [open]);
 
   const [humanMode, setHumanMode] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [uploadErr, setUploadErr] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const lastFetchedAtRef = useRef<string | undefined>(undefined);
+
+  async function uploadGuestAttachment(blob: Blob, opts: { filename: string; mime: string; durationMs?: number }) {
+    if (!conversationId) {
+      setUploadErr("Envie primeiro uma mensagem para o atendente humano.");
+      return;
+    }
+    if (!humanMode) {
+      setUploadErr("Anexos só ficam disponíveis durante o atendimento humano.");
+      return;
+    }
+    if (blob.size > 20 * 1024 * 1024) {
+      setUploadErr("Arquivo maior que 20 MB.");
+      return;
+    }
+    setUploading(true);
+    setUploadErr(null);
+    try {
+      const form = new FormData();
+      form.append("slug", slug);
+      form.append("sessionId", sessionId);
+      form.append("conversationId", conversationId);
+      if (opts.durationMs != null) form.append("durationMs", String(opts.durationMs));
+      const file = new File([blob], opts.filename, { type: opts.mime });
+      form.append("file", file);
+      const res = await fetch("/api/public/guide-chat-upload", { method: "POST", body: form });
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}));
+        throw new Error(j?.error ?? "Falha ao enviar anexo.");
+      }
+      const data = (await res.json()) as {
+        id: string;
+        path: string;
+        url: string | null;
+        type: "image" | "audio" | "video" | "document";
+        mime: string;
+        durationMs: number | null;
+        name: string | null;
+      };
+      const msg: Msg = {
+        role: "user",
+        content: "",
+        id: data.id,
+        senderType: "guest",
+        attachment: {
+          type: data.type,
+          mime: data.mime,
+          durationMs: data.durationMs,
+          sizeBytes: blob.size,
+          name: data.name,
+          url: data.url,
+        },
+      };
+      const merged = [...messages, msg];
+      setMessages(merged);
+      saveCachedMessages(slug, conversationId, merged);
+    } catch (e) {
+      setUploadErr((e as Error).message);
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  async function onGuestFilePicked(e: React.ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0];
+    e.target.value = "";
+    if (!f) return;
+    await uploadGuestAttachment(f, { filename: f.name, mime: f.type });
+  }
+
+  async function onGuestAudio(audio: RecordedAudio) {
+    const ext = audio.mime.includes("mp4") ? "m4a" : "webm";
+    await uploadGuestAttachment(audio.blob, {
+      filename: `audio-${Date.now()}.${ext}`,
+      mime: audio.mime,
+      durationMs: audio.durationMs,
+    });
+  }
+
 
   async function send() {
     const text = input.trim();
@@ -175,7 +265,14 @@ export function GuideAiChat({ slug, propertyName, guestName }: { slug: string; p
         if (!res.ok) return;
         const data = (await res.json()) as {
           humanMode?: boolean;
-          messages?: { id: string; role: string; content: string; senderType?: string; createdAt: string }[];
+          messages?: {
+            id: string;
+            role: string;
+            content: string;
+            senderType?: string;
+            createdAt: string;
+            attachment?: AttachmentInfo | null;
+          }[];
         };
         if (cancelled) return;
         if (typeof data.humanMode === "boolean") setHumanMode(data.humanMode);
@@ -186,13 +283,14 @@ export function GuideAiChat({ slug, propertyName, guestName }: { slug: string; p
           setMessages((prev) => {
             const seen = new Set(prev.map((p) => p.id).filter(Boolean));
             const additions = incoming
-              .filter((m) => !seen.has(m.id) && m.content?.trim())
+              .filter((m) => !seen.has(m.id) && (m.content?.trim() || m.attachment))
               .map((m) => ({
                 role: "assistant" as const,
                 content: m.content,
                 id: m.id,
                 createdAt: m.createdAt,
                 senderType: m.senderType,
+                attachment: m.attachment ?? null,
               }));
             if (!additions.length) return prev;
             const merged = [...prev, ...additions];
@@ -334,11 +432,16 @@ export function GuideAiChat({ slug, propertyName, guestName }: { slug: string; p
                 </div>
               </div>
             )}
-            {messages.filter((m) => (m.content ?? "").trim().length > 0).map((m, i) => (
+            {messages.filter((m) => (m.content ?? "").trim().length > 0 || m.attachment).map((m, i) => (
               <div key={m.id ?? i} className={`flex ${m.role === "user" ? "justify-end" : m.role === "system" ? "justify-center" : "justify-start"}`}>
                 {m.role === "user" ? (
-                  <div className="max-w-[85%] rounded-2xl rounded-tr-md bg-foreground text-background px-3.5 py-2.5 text-[13.5px] leading-relaxed whitespace-pre-line">
-                    {m.content}
+                  <div className="max-w-[85%] flex flex-col items-end gap-1">
+                    {m.attachment && <AttachmentBubble attachment={m.attachment} />}
+                    {m.content && (
+                      <div className="rounded-2xl rounded-tr-md bg-foreground text-background px-3.5 py-2.5 text-[13.5px] leading-relaxed whitespace-pre-line">
+                        {m.content}
+                      </div>
+                    )}
                   </div>
                 ) : m.role === "system" ? (
                   <div className="max-w-[92%] text-center text-[11.5px] text-muted-foreground italic px-3 py-1.5 rounded-full bg-muted/50">
@@ -349,16 +452,23 @@ export function GuideAiChat({ slug, propertyName, guestName }: { slug: string; p
                     {m.senderType === "human" && (
                       <p className="text-[10px] uppercase tracking-[0.18em] text-accent/80 font-semibold mb-1">Atendente</p>
                     )}
-                    <ReactMarkdown
-                      remarkPlugins={[remarkGfm]}
-                      components={{
-                        a: ({ node, ...props }) => (
-                          <a {...props} target="_blank" rel="noopener noreferrer" />
-                        ),
-                      }}
-                    >
-                      {m.content}
-                    </ReactMarkdown>
+                    {m.attachment && (
+                      <div className="mb-1">
+                        <AttachmentBubble attachment={m.attachment} />
+                      </div>
+                    )}
+                    {m.content && (
+                      <ReactMarkdown
+                        remarkPlugins={[remarkGfm]}
+                        components={{
+                          a: ({ node, ...props }) => (
+                            <a {...props} target="_blank" rel="noopener noreferrer" />
+                          ),
+                        }}
+                      >
+                        {m.content}
+                      </ReactMarkdown>
+                    )}
                   </div>
                 )}
               </div>
@@ -378,8 +488,44 @@ export function GuideAiChat({ slug, propertyName, guestName }: { slug: string; p
           />
 
           {/* Composer */}
-          <div className="px-3 pb-3 pt-2 border-t border-border bg-background">
-            <div className="flex items-end gap-2 bg-card border border-border rounded-2xl px-3 py-2 focus-within:border-accent/35 transition-colors">
+          <div
+            className="px-3 pt-2 border-t border-border bg-background"
+            style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}
+          >
+            {uploadErr && (
+              <div className="text-[11px] text-destructive mb-1.5 px-1 flex items-center justify-between">
+                <span>{uploadErr}</span>
+                <button onClick={() => setUploadErr(null)} className="ml-2"><X className="size-3" /></button>
+              </div>
+            )}
+            <div className="flex items-end gap-1.5 bg-card border border-border rounded-2xl px-2 py-2 focus-within:border-accent/35 transition-colors">
+              {humanMode && (
+                <>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*,application/pdf,video/mp4,video/webm,video/quicktime"
+                    className="hidden"
+                    onChange={onGuestFilePicked}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploading || loading}
+                    title="Anexar"
+                    aria-label="Anexar arquivo"
+                    className="grid size-8 place-items-center rounded-full text-muted-foreground hover:text-foreground hover:bg-muted shrink-0 disabled:opacity-40"
+                  >
+                    <Paperclip className="size-4" />
+                  </button>
+                  <AudioRecorderButton
+                    disabled={uploading || loading}
+                    maxSeconds={60}
+                    onRecorded={onGuestAudio}
+                    compact
+                  />
+                </>
+              )}
               <textarea
                 ref={inputRef}
                 value={input}
@@ -387,14 +533,15 @@ export function GuideAiChat({ slug, propertyName, guestName }: { slug: string; p
                 onKeyDown={onKey}
                 rows={1}
                 maxLength={2000}
-                placeholder="Pergunte alguma coisa…"
+                placeholder={uploading ? "Enviando anexo…" : "Pergunte alguma coisa…"}
                 aria-label="Mensagem para o concierge"
-                className="flex-1 resize-none bg-transparent text-[16px] leading-relaxed outline-none placeholder:text-muted-foreground/70 max-h-32"
+                disabled={uploading}
+                className="flex-1 resize-none bg-transparent text-[16px] leading-relaxed outline-none placeholder:text-muted-foreground/70 max-h-32 min-w-0"
               />
               <button
                 type="button"
                 onClick={send}
-                disabled={loading || !input.trim()}
+                disabled={loading || uploading || !input.trim()}
                 aria-label="Enviar"
                 className="grid size-9 place-items-center rounded-full bg-foreground text-background hover:opacity-90 active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
               >

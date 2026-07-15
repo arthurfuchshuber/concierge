@@ -1,127 +1,86 @@
+## Escopo aprovado
 
-# Plano: Central de Atendimento + Handoff IA↔Humano
+1. **Layout mobile** — apenas o chat aberto com o hóspede (ConversationView do admin). Aplicar `env(safe-area-inset-bottom/left/right)` no composer e footer para não ser cortado por notch/arredondamento.
+2. **Anexos e áudios (atendente ↔ hóspede)** — imagens (jpg/png/webp), PDF/documentos, vídeos curtos, áudio gravado estilo Instagram (hold-to-record, waveform, máx 60s).
+3. **Melhorias beta**:
+   - Indicador "digitando…" no widget do hóspede (Realtime).
+   - Som + badge no título da aba do painel quando chega mensagem nova.
+   - Respostas rápidas com **aprendizado contínuo** — sugestões geradas a partir das respostas humanas anteriores.
 
-## 1. Modelo de acesso
+## Backend
 
-**Equipe por conta (multi-usuário com papéis)**
+**Bucket de storage** `chat-attachments` (privado, servido via signed URL).
 
-Nova tabela `account_members` vinculando usuários ao anfitrião (owner):
-- `owner_id` (dono da assinatura Business/Enterprise)
-- `member_user_id` (atendente convidado)
-- `role`: `owner` | `agent` | `viewer`
-- `status`: `pending` | `active` | `revoked`
+**Schema `property_chat_messages`** — adicionar colunas:
+- `attachment_url text` (path no bucket)
+- `attachment_type text` (`image` | `audio` | `video` | `document`)
+- `attachment_mime text`
+- `attachment_duration_ms int` (para áudio/vídeo)
+- `attachment_size_bytes int`
 
-Tabela `account_member_invites` para convites por e-mail (padrão do `admin_invites` já existente). Aceite ao logar cria linha em `account_members`.
+**Nova tabela `chat_quick_replies`** por `account_id`:
+- `id`, `account_id`, `property_id (nullable)`, `trigger_pattern text`, `response text`, `usage_count int`, `last_used_at`, `learned_from_message_id (nullable)`, `created_at`.
+- Aprendizado: quando o atendente envia manualmente uma resposta que "resolve" (a próxima mensagem do hóspede não é pergunta), um trigger extrai o par pergunta→resposta e cria/incrementa uma quick reply. Sugestões aparecem no composer quando o texto da última mensagem do hóspede tem similaridade (LIKE / trigram) com um `trigger_pattern`.
 
-**Permissões:**
-- `owner`: tudo (convidar/remover, configurar IA, ver todas conversas, responder, faturamento)
-- `agent`: ver conversas atribuídas + fila, atribuir a si, responder, devolver pra IA
-- `viewer`: só leitura (auditoria/supervisão)
+**Nova tabela `chat_typing_indicators`** (efêmera, TTL 8s) — `conversation_id`, `who` (`guest`|`staff`), `updated_at`. Alimentada por Realtime broadcast em vez de escrita constante (mais leve): usar canal Supabase `broadcast` sem persistir.
 
-Limite por plano:
-- Business: até 3 atendentes (owner + 2)
-- Enterprise: ilimitado (ou parametrizável)
+**Server functions novas em `src/lib/chat-attachments.functions.ts`**:
+- `createStaffUploadUrl({ conversationId, mime, sizeBytes })` — valida permissão, retorna `{ path, signedUploadUrl }`.
+- `attachStaffMessage({ conversationId, path, type, mime, sizeBytes, durationMs, caption })` — insere mensagem com anexo.
 
-## 2. Central de Atendimento (nova rota `/atendimento`)
+**Rota pública `src/routes/api/public/guide-chat-upload.ts`** — hóspede POSTa multipart (validado por `sessionId`+`conversationId`) e o servidor faz upload com `supabaseAdmin`, retornando o path. Polling existente do widget já entrega o attachment.
 
-Só habilitada se o anfitrião estiver em Business ou Enterprise ativo (`has_active_subscription` já existe).
+**Server function `src/lib/chat-quick-replies.functions.ts`**:
+- `suggestQuickReplies({ conversationId })` → top 3 respostas com maior score.
+- `recordQuickReplyUsage({ id })`.
+- Job de aprendizado leve: dentro de `sendHandoffMessage`, quando `sender_type='human'` e `is_internal_note=false`, olha a última mensagem do hóspede e faz upsert em `chat_quick_replies` (dedupe por normalização + similaridade).
 
-Layout:
-- Sidebar esquerda: filas (**Aguardando IA** → **Precisa humano** → **Meus** → **Todas** → **Resolvidas**)
-- Centro: lista de conversas (nome do hóspede, propriedade, última mensagem, tempo de espera, badge de urgência)
-- Direita: painel da conversa com:
-  - Histórico completo (IA + hóspede + humanos)
-  - Toggle **"IA ativa / Assumir"** por conversa
-  - Composer com respostas rápidas
-  - Notas internas (não visíveis ao hóspede)
-  - Metadados (propriedade, check-in, telefone se houver)
+## Frontend
 
-Tabelas novas/estendidas:
-- `property_chat_conversations` (já existe): adicionar `status` (`ai` | `needs_human` | `assigned` | `resolved`), `assigned_to`, `handoff_reason`, `handoff_at`, `last_message_at`
-- `property_chat_messages` (já existe): adicionar `sender_type` (`guest` | `ai` | `human`), `sender_user_id`, `is_internal_note`
+**`src/components/handoff/ConversationView.tsx`**
+- Wrap externo com `pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]` no rodapé (form + estado "resolvido/locked").
+- Composer redesenhado: linha superior com checkbox nota; linha do input com botões `[📎 anexo] [🎤 áudio] [textarea] [enviar]`.
+- **Attachment button**: `<input type=file accept="image/*,application/pdf,video/mp4">` → preview → envia.
+- **Áudio Instagram-style**: press-and-hold no botão do microfone → começa `MediaRecorder`, mostra timer + waveform (canvas + AnalyserNode), desliza para a esquerda = cancelar, solta = enviar. Corte automático em 60s.
+- Renderização de mensagens: se `attachment_type='image'` → thumb; `audio` → player custom com waveform+duração; `video` → `<video controls>`; `document` → cartão com nome/tamanho + link.
+- **Quick replies**: chip row acima do composer com as 3 sugestões do `suggestQuickReplies`. Clicar preenche o textarea (permite editar antes de enviar) e dispara `recordQuickReplyUsage` no envio.
 
-## 3. Gatilho de handoff (pedido explícito + incerteza da IA)
+**`src/components/GuideAiChat.tsx`**
+- Botões `[📎] [🎤]` no composer do hóspede (só quando `humanMode` — evita distrair a IA). Áudio mesma UX (hold-to-record, 60s).
+- Renderização de anexos idêntica.
 
-No prompt do sistema da IA de conversa do hóspede, adicionar instrução:
+**Indicador de digitação (Realtime broadcast)**
+- Ambos os lados publicam `typing` a cada 2s enquanto digitam; escutam o canal e mostram "atendente está digitando…" / "hóspede está digitando…" quando `now - last < 4s`.
 
-> Quando (a) o hóspede pedir explicitamente falar com humano, OU (b) você não tiver confiança na resposta, OU (c) detectar frustração/emergência, chame a ferramenta `request_human_handoff({ reason, urgency })`.
+**Som + badge no painel `admin.atendimento`**
+- Hook `useNewMessageAlert(conversationId?)` que, ao receber postgres_changes em `property_chat_messages` (mensagens que não são do usuário atual), toca um som curto (`/sounds/ping.mp3`, gerado como base64 pequeno) e atualiza `document.title` prefixando `(N) ` até a aba ganhar foco.
 
-Server function `requestHumanHandoff` (via tool call):
-1. Atualiza conversa: `status = 'needs_human'`, salva `handoff_reason`, `handoff_at`
-2. Envia mensagem ao hóspede: *"Estou chamando um atendente humano, aguarde um instante."*
-3. Dispara notificação web push para todos os `owner` + `agent` da conta
-4. Aparece na fila **Precisa humano** em tempo real (Supabase Realtime)
+**Empty/erros**: toasts em português. Bloqueios: 20MB por arquivo, mime allowlist, áudio 60s.
 
-Anfitrião pode ainda configurar sensibilidade no painel (**Configurações → IA**): `apenas explícito` / `explícito + incerteza` (padrão) / `agressivo`.
+## Arquivos
 
-## 4. Janela flutuante no desktop
+Novos:
+- `supabase/migrations/<ts>_chat_attachments_and_quickreplies.sql`
+- `src/lib/chat-attachments.functions.ts`
+- `src/lib/chat-quick-replies.functions.ts`
+- `src/components/handoff/AudioRecorderButton.tsx`
+- `src/components/handoff/AttachmentPreview.tsx`
+- `src/components/handoff/QuickRepliesRow.tsx`
+- `src/hooks/useTypingIndicator.ts`
+- `src/hooks/useNewMessageAlert.ts`
+- `src/routes/api/public/guide-chat-upload.ts`
+- `public/sounds/ping.mp3` (asset gerado)
 
-Componente `<FloatingHandoffDock />` renderizado no layout `_authenticated`:
+Editados:
+- `src/components/handoff/ConversationView.tsx`
+- `src/components/GuideAiChat.tsx`
+- `src/routes/api/public/guide-chat.ts` (retornar campos `attachment_*` no polling)
+- `src/lib/handoff.functions.ts` (hook de aprendizado de quick replies dentro de `sendHandoffMessage`)
 
-- Desktop (≥1024px): widget fixo `bottom-6 right-6`, ~380×560px, com header (contador de pendentes + minimizar/fechar), lista compacta e chat inline. Persiste ao navegar entre rotas do painel. Estado (aberto/minimizado) em localStorage.
-- Mobile (<1024px): botão flutuante que abre em tela cheia (rota `/atendimento`).
+## Fora do escopo agora (posso fazer depois se quiser)
 
-Abre automaticamente (com som + destaque) quando chega um novo handoff se estiver minimizado. Botão "Abrir central completa" leva pra `/atendimento`.
+- Transcrição automática dos áudios (poderia usar `openai/gpt-4o-transcribe` via Lovable AI para virar texto pesquisável e alimentar a IA).
+- Marcar mensagem individual como lida/não lida.
+- Compressão client-side de imagens/vídeos antes do upload.
 
-## 5. Notificações (Push + som + badge)
-
-**Web Push via VAPID** (padrão Web Push, sem depender do Firebase):
-
-- Gerar par de chaves VAPID → salvar `VAPID_PUBLIC_KEY` (VITE) e `VAPID_PRIVATE_KEY` (secret)
-- Service worker `public/sw-push.js` (isolado do PWA app-shell — segue skill/pwa: SW de messaging fora da regra de kill-switch)
-- Tabela `push_subscriptions` (user_id, endpoint, p256dh, auth, user_agent, created_at)
-- Server function `subscribePush` / `unsubscribePush`
-- Server function `sendHandoffPush(conversationId)` chamada dentro de `requestHumanHandoff` — envia para todas as subscriptions do owner + agents ativos
-- Payload: título "Hóspede precisa de você", corpo com nome/propriedade, `data.url` → `/atendimento?conv=<id>`
-- SW toca som ao receber (arquivo `/sounds/handoff.mp3`) e mantém badge com `navigator.setAppBadge(n)` (suportado em Chrome/Edge desktop e iOS PWA instalado)
-- Quando anfitrião abre a conversa: `navigator.clearAppBadge()`
-
-Aviso claro no onboarding do PWA em iOS: "Adicione à Tela de Início e abra pelo menos uma vez para receber notificações."
-
-Página **Configurações → Notificações** com toggle por atendente para: push on/off, som on/off, horário silencioso.
-
-## 6. Planos e cobrança
-
-- **Business (R$ 399)**: habilitar Central + até 3 atendentes + push
-- **Enterprise**: novo tier no Paddle (pré-cadastrar via `create_product` quando você definir preço), atendentes ilimitados, SLA, mesma feature
-
-Bloqueio: middleware do route `/atendimento` verifica `has_active_subscription(user, 'live')` E plano `IN ('business','enterprise')` — senão redireciona pra `/upgrade` com CTA específico.
-
-## 7. Realtime e UX
-
-- `ALTER PUBLICATION supabase_realtime ADD TABLE property_chat_conversations, property_chat_messages;`
-- Front assina mudanças da conta (filtrado por `owner_id`) → fila atualiza sem refresh
-- Indicador "digitando" (humano) enviado via canal presence
-- Quando humano assume: IA para de responder naquela conversa até owner clicar "Devolver pra IA"
-
-## 8. Auditoria
-
-Logs em `audit_logs` (já existe) para: convite enviado/aceito/revogado, conversa assumida, devolvida à IA, resolvida, notas internas criadas.
-
-## 9. Segurança (RLS)
-
-Todas as tabelas novas com RLS:
-- `account_members`: SELECT pelos próprios membros; INSERT/DELETE só pelo owner
-- `push_subscriptions`: cada usuário só vê/gerencia as próprias
-- `property_chat_conversations` / `messages`: SELECT pelos membros ativos da conta dona da propriedade (helper `user_is_account_member(auth.uid(), property.owner_id)`)
-
-## 10. Escopo entregável (ordem)
-
-1. Migração: tabelas + policies + realtime + colunas novas
-2. Server fns: convites, aceite, listar conversas, atribuir, enviar mensagem humana, handoff, push
-3. Rota `/atendimento` + `<FloatingHandoffDock />`
-4. Configurações: Notificações, Equipe, IA (sensibilidade)
-5. Tool `request_human_handoff` no chat IA da landing e do guia
-6. Onboarding VAPID + PWA install prompt no painel
-7. Gate por plano + banner de upgrade
-
-## Detalhes técnicos
-
-- Push nativo via `web-push` npm (compatível com Cloudflare Workers, evita Firebase)
-- SW de push isolado do PWA app-shell (skill/pwa)
-- IA usa tool calling — se modelo atual não suportar bem, faz fallback: parser que detecta marcadores `[HANDOFF: motivo]` na resposta
-- Realtime com filtro por `property.owner_id` via helper SECURITY DEFINER pra RLS
-- Auto-reabertura da janela flutuante: `BroadcastChannel` entre abas evita som duplicado
-- Enterprise no Paddle criado depois via `payments--create_product` quando você definir preço
-
-Prazo estimado: 2–3 semanas de implementação incremental.
+Confirma que posso executar tudo isso?
