@@ -1235,7 +1235,7 @@ function FloatingContact() {
         <button
           onClick={() => setChatOpen((v) => !v)}
           aria-label={chatOpen ? "Fechar chat" : "Falar com a IA"}
-          className="size-14 rounded-full grid place-items-center text-white shadow-2xl hover:scale-105 active:scale-95 transition"
+          className="btn-shine size-14 rounded-full grid place-items-center text-white shadow-2xl hover:scale-105 active:scale-95 transition"
           style={{ background: BRAND_GRADIENT }}
         >
           {chatOpen ? <X className="size-6" /> : <MessageCircle className="size-6" />}
