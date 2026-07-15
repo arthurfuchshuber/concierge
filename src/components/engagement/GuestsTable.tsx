@@ -138,7 +138,7 @@ export function GuestsTable({
               </tr>
             </thead>
             <tbody>
-              {sorted.map((g) => (
+              {pageRows.map((g) => (
                 <tr
                   key={g.key}
                   onClick={() => onSelect(g.key)}
