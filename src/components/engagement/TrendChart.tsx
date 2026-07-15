@@ -43,9 +43,15 @@ export function TrendChart({ data }: { data: Point[] }) {
           </AreaChart>
         </ResponsiveContainer>
       </div>
+      <div className="mt-3 flex flex-wrap justify-center gap-x-4 gap-y-1 text-[11px] text-foreground/85">
+        <LegendDot color="var(--foreground)" label="Acessos" />
+        <LegendDot color="var(--muted-foreground)" label="Sessões" />
+        <LegendDot color="var(--destructive)" label="Chats" />
+      </div>
     </div>
   );
 }
+
 
 function LegendDot({ color, label }: { color: string; label: string }) {
   return (
