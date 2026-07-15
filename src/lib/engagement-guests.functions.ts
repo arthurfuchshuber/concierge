@@ -140,7 +140,7 @@ async function loadCommon(
 
 type GuestAgg = {
   key: string;
-  propertyId: string; propertyName: string;
+  propertyId: string; propertyName: string; propertyCity: string | null;
   guestName: string; phone: string; phoneCountry: string | null;
   reservationCode: string | null; checkinDate: string;
   firstAccess: string; lastActivity: string;
