@@ -14,12 +14,13 @@ export function ContentImpactMatrix({ rows }: { rows: Row[] }) {
   return (
     <div className="rounded-2xl border border-border bg-card p-4">
       <header className="mb-2 pr-14">
-        <h3 className="text-sm font-semibold">Matriz de impacto de conteúdo</h3>
+        <h3 className="text-sm font-semibold whitespace-nowrap truncate">Matriz de impacto de conteúdo</h3>
         <p className="text-xs text-muted-foreground">
           Volume × autonomia. Alto & alto = <span className="font-medium text-emerald-600 dark:text-emerald-400">estrelas</span>.
           Baixo & baixo = ruído. Alto & baixo = gera atrito.
         </p>
       </header>
+
       <div className="h-72">
         {data.length === 0 ? (
           <div className="h-full flex items-center justify-center text-xs text-muted-foreground">
