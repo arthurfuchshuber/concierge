@@ -13,7 +13,8 @@ import {
   transferHandoffConversation,
   listConversationTransferTargets,
 } from "@/lib/handoff.functions";
-import { Send, UserCheck, RotateCcw, CheckCircle2, Loader2, StickyNote, Phone, Calendar, Hash, Lock, UserPlus2, ArrowRightLeft, X } from "lucide-react";
+import { Send, UserCheck, RotateCcw, CheckCircle2, Loader2, StickyNote, Phone, Calendar, Hash, Lock, UserPlus2, ArrowRightLeft, X, Sparkles } from "lucide-react";
+import { TeachAiDialog } from "@/components/handoff/TeachAiDialog";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
