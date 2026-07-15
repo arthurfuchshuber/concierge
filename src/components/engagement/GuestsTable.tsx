@@ -195,6 +195,40 @@ export function GuestsTable({
           </table>
         </div>
       )}
+      {sorted.length > 0 && (
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 px-4 py-3 border-t border-border text-xs text-muted-foreground">
+          <div>
+            {pageStart + 1}–{Math.min(pageStart + pageSize, sorted.length)} de {sorted.length}
+          </div>
+          <div className="flex items-center gap-3">
+            <label className="inline-flex items-center gap-1.5">
+              <span>Por página</span>
+              <select
+                value={pageSize}
+                onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1); }}
+                className="h-7 rounded-md border border-border bg-background px-1.5 text-xs"
+              >
+                {[10, 20, 50, 100].map((n) => <option key={n} value={n}>{n}</option>)}
+              </select>
+            </label>
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={currentPage <= 1}
+                className="h-7 px-2 rounded-md border border-border bg-background disabled:opacity-40 hover:bg-muted/40"
+              >Anterior</button>
+              <span className="tabular-nums">{currentPage}/{totalPages}</span>
+              <button
+                type="button"
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                disabled={currentPage >= totalPages}
+                className="h-7 px-2 rounded-md border border-border bg-background disabled:opacity-40 hover:bg-muted/40"
+              >Próxima</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
