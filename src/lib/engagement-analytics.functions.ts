@@ -120,7 +120,7 @@ async function runAnalytics(
 
   const { data: propsRaw, error: pErr } = await supabase
     .from("properties")
-    .select("id, name, slug, published, wifi_ssid, wifi_password, checkin_instructions, house_rules, tagline, hero_image_url")
+      .select("id, name, slug, published, wifi_ssid, wifi_password, checkin_instructions, house_rules, tagline, hero_image_url, marketplace_links")
     .eq("owner_id", userId)
     .order("name", { ascending: true });
   if (pErr) throw pErr;
@@ -129,6 +129,17 @@ async function runAnalytics(
     published: !!p.published, completeness: completenessScore(p),
   }));
   const propertyName = new Map(properties.map((p) => [p.id, p.name]));
+  const marketplaceNameByUrl = new Map<string, string>();
+  for (const p of propsRaw ?? []) {
+    const links = Array.isArray((p as { marketplace_links?: unknown }).marketplace_links)
+      ? ((p as { marketplace_links?: Array<{ url?: unknown; label?: unknown }> }).marketplace_links ?? [])
+      : [];
+    for (const link of links) {
+      const url = typeof link.url === "string" ? link.url.trim() : "";
+      const label = typeof link.label === "string" ? link.label.trim() : "";
+      if (url && label) marketplaceNameByUrl.set(url, label);
+    }
+  }
 
   const allIds = properties.map((p) => p.id);
   const req = input.propertyIds ?? null;
@@ -355,6 +366,36 @@ async function runAnalytics(
     if (rid && nm) recNameById.set(rid, nm);
     if (pid && nm) recNameByPlace.set(pid, nm);
   }
+  const poiKeys = Array.from(new Set(poiEvents.map((e) => String(e.poi_key ?? "").trim()).filter(Boolean)));
+  const poiCandidates = Array.from(new Set(poiKeys.flatMap((k) => {
+    const parts = k.split(":");
+    const candidate = parts.length > 1 ? parts.slice(1).join(":") : k;
+    return [k, candidate];
+  })));
+  const uuidCandidates = poiCandidates.filter((k) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(k));
+  const cityNameById = new Map<string, string>();
+  const cityNameByPlace = new Map<string, string>();
+  if (poiCandidates.length > 0) {
+    const cityQueries: Array<Promise<{ data: Array<{ id?: string | null; place_id?: string | null; name?: string | null }> | null }>> = [];
+    if (uuidCandidates.length > 0) {
+      cityQueries.push(
+        supabaseAdmin.from("city_references").select("id, place_id, name").in("id", uuidCandidates).limit(5000) as Promise<{ data: Array<{ id?: string | null; place_id?: string | null; name?: string | null }> | null }>,
+      );
+    }
+    cityQueries.push(
+      supabaseAdmin.from("city_references").select("id, place_id, name").in("place_id", poiCandidates).limit(5000) as Promise<{ data: Array<{ id?: string | null; place_id?: string | null; name?: string | null }> | null }>,
+    );
+    const cityResults = await Promise.all(cityQueries);
+    for (const result of cityResults) {
+      for (const r of result.data ?? []) {
+        const id = typeof r.id === "string" ? r.id : null;
+        const place = typeof r.place_id === "string" ? r.place_id : null;
+        const name = typeof r.name === "string" ? r.name.trim() : "";
+        if (id && name) cityNameById.set(id, name);
+        if (place && name) cityNameByPlace.set(place, name);
+      }
+    }
+  }
   const poiCounts = new Map<string, { key: string; displayName: string; views: number; likes: number; dislikes: number }>();
   for (const e of poiEvents) {
     const k = e.poi_key as string;
@@ -367,6 +408,12 @@ async function runAnalytics(
         recNameById.get(candidate) ??
         recNameByPlace.get(candidate) ??
         recNameByPlace.get(k) ??
+        cityNameById.get(k) ??
+        cityNameById.get(candidate) ??
+        cityNameByPlace.get(candidate) ??
+        cityNameByPlace.get(k) ??
+        marketplaceNameByUrl.get(k) ??
+        marketplaceNameByUrl.get(candidate) ??
         null;
       // Fallback: se o poi_key parece uma URL ou UUID cru, mostra rótulo genérico
       const isUrl = /^https?:\/\//i.test(k) || k.startsWith("//");
