@@ -1,6 +1,8 @@
 import { createFileRoute, notFound, Link, useRouter } from "@tanstack/react-router";
 import { useMemo, useState, useEffect, useRef } from "react";
 import { getPublicGuide } from "@/lib/guide.functions";
+import { trackGuideEvent } from "@/lib/guide-analytics.functions";
+import { readAccessRecord } from "@/components/GuideAccessGate";
 import {
   ArrowLeft,
   Compass,
