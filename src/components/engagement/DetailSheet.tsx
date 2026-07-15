@@ -17,11 +17,12 @@ export type DetailTarget =
   | null;
 
 export function DetailSheet({
-  target, onClose, data,
+  target, onClose, data, accountId,
 }: {
   target: DetailTarget;
   onClose: () => void;
   data: EngagementAnalytics;
+  accountId?: string | null;
 }) {
   const open = !!target;
   return (
@@ -29,7 +30,7 @@ export function DetailSheet({
       <SheetContent side="right" className="w-full sm:max-w-2xl overflow-y-auto">
         {target?.kind === "property" && <PropertyDetail data={data} id={target.id} />}
         {target?.kind === "section" && <SectionDetail data={data} section={target.section} />}
-        {target?.kind === "guest" && <GuestDetail guestKey={target.guestKey} />}
+        {target?.kind === "guest" && <GuestDetail guestKey={target.guestKey} accountId={accountId ?? null} />}
       </SheetContent>
     </Sheet>
   );
