@@ -325,7 +325,7 @@ export const getGuestDetail = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     // A chave carrega propertyId|p:phone|checkin OU propertyId|n:name|checkin.
     // Recarregamos um período longo (365d) para não perder eventos antigos.
-    const common = await loadCommon(context, { period: "all", propertyIds: null });
+    const common = await loadCommon(context, { period: "all", propertyIds: null, asUserId: data.asUserId ?? null });
     const built = buildGuestIndex(common);
     const g = built.guests.get(data.guestKey);
     if (!g) throw new Error("Hóspede não encontrado");
