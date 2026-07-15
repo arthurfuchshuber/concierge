@@ -5,18 +5,12 @@ type Point = { date: string; accesses: number; sessions: number; chats: number }
 export function TrendChart({ data }: { data: Point[] }) {
   return (
     <div className="rounded-2xl border border-border bg-card p-4">
-      <header className="flex items-start justify-between gap-3 mb-3 pr-14 sm:pr-0">
-        <div className="min-w-0">
-          <h3 className="text-sm font-semibold">Evolução no tempo</h3>
-          <p className="text-xs text-muted-foreground">Acessos, sessões engajadas e conversas iniciadas</p>
-        </div>
-        <div className="flex flex-wrap justify-end gap-x-3 gap-y-1 text-[10px] text-foreground/85 shrink-0">
-          <LegendDot color="var(--foreground)" label="Acessos" />
-          <LegendDot color="var(--muted-foreground)" label="Sessões" />
-          <LegendDot color="var(--destructive)" label="Chats" />
-        </div>
+      <header className="mb-3">
+        <h3 className="text-sm font-semibold whitespace-nowrap truncate">Evolução no tempo</h3>
+        <p className="text-xs text-muted-foreground">Acessos, sessões engajadas e conversas iniciadas</p>
       </header>
       <div className="h-64">
+
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart data={data} margin={{ top: 6, right: 8, left: -20, bottom: 0 }}>
             <defs>
