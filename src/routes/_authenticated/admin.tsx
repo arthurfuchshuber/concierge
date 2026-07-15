@@ -1,13 +1,16 @@
 import { createFileRoute, Outlet, Link, useNavigate, useRouterState } from "@tanstack/react-router";
-import { LogOut, LayoutDashboard, CreditCard, Menu, Users, Shield, Library, ShieldCheck, Activity, Star } from "lucide-react";
+import { LogOut, LayoutDashboard, CreditCard, Menu, Users, Shield, Library, ShieldCheck, Activity, Star, Headphones, UsersRound } from "lucide-react";
 import conciergeLogo from "@/assets/concierge-logo.png";
 import { supabase } from "@/integrations/supabase/client";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
+import { useServerFn } from "@tanstack/react-start";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { useSubscription } from "@/hooks/useSubscription";
 import { OnboardingCheckout } from "@/components/OnboardingCheckout";
 import { ClientSwitcher } from "@/components/admin/ClientSwitcher";
+import { FloatingHandoffDock } from "@/components/handoff/FloatingHandoffDock";
+import { getAtendimentoAccess, countPendingHandoffs } from "@/lib/handoff.functions";
 
 export const Route = createFileRoute("/_authenticated/admin")({
   component: AdminLayout,
@@ -32,7 +35,23 @@ function AdminLayout() {
   const { isAdmin, isLoading: adminLoading } = useIsAdmin();
   const [email, setEmail] = useState<string>("");
   const [open, setOpen] = useState(false);
-  const nav = baseNav;
+  const accessFn = useServerFn(getAtendimentoAccess);
+  const pendingFn = useServerFn(countPendingHandoffs);
+  const access = useQuery({ queryKey: ["handoff-access"], queryFn: () => accessFn(), staleTime: 5 * 60_000 });
+  const pending = useQuery({
+    queryKey: ["handoff-pending-count"],
+    queryFn: () => pendingFn(),
+    enabled: access.data?.allowed === true,
+    refetchInterval: 15_000,
+  });
+  const handoffEnabled = access.data?.allowed === true;
+  const nav = handoffEnabled
+    ? [
+        ...baseNav,
+        { to: "/admin/atendimento", label: "Atendimento", icon: Headphones, exact: false, badge: pending.data?.count ?? 0 } as const,
+        { to: "/admin/equipe", label: "Equipe", icon: UsersRound, exact: false } as const,
+      ]
+    : baseNav;
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setEmail(data.user?.email ?? ""));
@@ -80,6 +99,7 @@ function AdminLayout() {
           {nav.map((item) => {
             const active = item.exact ? pathname === item.to : pathname.startsWith(item.to);
             const Icon = item.icon;
+            const badge = ("badge" in item ? item.badge : 0) ?? 0;
             return (
               <Link
                 key={item.label}
@@ -91,7 +111,12 @@ function AdminLayout() {
                 }`}
               >
                 <Icon className="size-4" strokeWidth={2} />
-                {item.label}
+                <span className="flex-1">{item.label}</span>
+                {badge > 0 && (
+                  <span className="min-w-5 h-5 px-1.5 rounded-full bg-red-500 text-white text-[10px] font-bold grid place-items-center">
+                    {badge}
+                  </span>
+                )}
               </Link>
             );
           })}
@@ -174,6 +199,7 @@ function AdminLayout() {
           )}
         </main>
       </div>
+      {handoffEnabled && <FloatingHandoffDock />}
     </div>
   );
 }

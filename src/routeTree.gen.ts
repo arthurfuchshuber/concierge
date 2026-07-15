@@ -31,9 +31,11 @@ import { Route as ApiPublicPlacePhotoRouteImport } from './routes/api/public/pla
 import { Route as ApiPublicLandingChatRouteImport } from './routes/api/public/landing-chat'
 import { Route as ApiPublicGuideChatRouteImport } from './routes/api/public/guide-chat'
 import { Route as AuthenticatedAdminTaxonomiaRouteImport } from './routes/_authenticated/admin.taxonomia'
+import { Route as AuthenticatedAdminEquipeRouteImport } from './routes/_authenticated/admin.equipe'
 import { Route as AuthenticatedAdminEngajamentoRouteImport } from './routes/_authenticated/admin.engajamento'
 import { Route as AuthenticatedAdminClientesRouteImport } from './routes/_authenticated/admin.clientes'
 import { Route as AuthenticatedAdminBibliotecaRouteImport } from './routes/_authenticated/admin.biblioteca'
+import { Route as AuthenticatedAdminAtendimentoRouteImport } from './routes/_authenticated/admin.atendimento'
 import { Route as AuthenticatedAdminAssinaturaRouteImport } from './routes/_authenticated/admin.assinatura'
 import { Route as AuthenticatedAdminAdminsRouteImport } from './routes/_authenticated/admin.admins'
 import { Route as Char91DotmcpChar93InvokeToolToolRouteImport } from './routes/[.mcp]/invoke-tool/$tool'
@@ -164,6 +166,12 @@ const AuthenticatedAdminTaxonomiaRoute =
     path: '/taxonomia',
     getParentRoute: () => AuthenticatedAdminRoute,
   } as any)
+const AuthenticatedAdminEquipeRoute =
+  AuthenticatedAdminEquipeRouteImport.update({
+    id: '/equipe',
+    path: '/equipe',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
 const AuthenticatedAdminEngajamentoRoute =
   AuthenticatedAdminEngajamentoRouteImport.update({
     id: '/engajamento',
@@ -180,6 +188,12 @@ const AuthenticatedAdminBibliotecaRoute =
   AuthenticatedAdminBibliotecaRouteImport.update({
     id: '/biblioteca',
     path: '/biblioteca',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
+const AuthenticatedAdminAtendimentoRoute =
+  AuthenticatedAdminAtendimentoRouteImport.update({
+    id: '/atendimento',
+    path: '/atendimento',
     getParentRoute: () => AuthenticatedAdminRoute,
   } as any)
 const AuthenticatedAdminAssinaturaRoute =
@@ -301,9 +315,11 @@ export interface FileRoutesByFullPath {
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/admin/admins': typeof AuthenticatedAdminAdminsRoute
   '/admin/assinatura': typeof AuthenticatedAdminAssinaturaRoute
+  '/admin/atendimento': typeof AuthenticatedAdminAtendimentoRoute
   '/admin/biblioteca': typeof AuthenticatedAdminBibliotecaRoute
   '/admin/clientes': typeof AuthenticatedAdminClientesRoute
   '/admin/engajamento': typeof AuthenticatedAdminEngajamentoRoute
+  '/admin/equipe': typeof AuthenticatedAdminEquipeRoute
   '/admin/taxonomia': typeof AuthenticatedAdminTaxonomiaRoute
   '/api/public/guide-chat': typeof ApiPublicGuideChatRoute
   '/api/public/landing-chat': typeof ApiPublicLandingChatRoute
@@ -342,9 +358,11 @@ export interface FileRoutesByTo {
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/admin/admins': typeof AuthenticatedAdminAdminsRoute
   '/admin/assinatura': typeof AuthenticatedAdminAssinaturaRoute
+  '/admin/atendimento': typeof AuthenticatedAdminAtendimentoRoute
   '/admin/biblioteca': typeof AuthenticatedAdminBibliotecaRoute
   '/admin/clientes': typeof AuthenticatedAdminClientesRoute
   '/admin/engajamento': typeof AuthenticatedAdminEngajamentoRoute
+  '/admin/equipe': typeof AuthenticatedAdminEquipeRoute
   '/admin/taxonomia': typeof AuthenticatedAdminTaxonomiaRoute
   '/api/public/guide-chat': typeof ApiPublicGuideChatRoute
   '/api/public/landing-chat': typeof ApiPublicLandingChatRoute
@@ -387,9 +405,11 @@ export interface FileRoutesById {
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/_authenticated/admin/admins': typeof AuthenticatedAdminAdminsRoute
   '/_authenticated/admin/assinatura': typeof AuthenticatedAdminAssinaturaRoute
+  '/_authenticated/admin/atendimento': typeof AuthenticatedAdminAtendimentoRoute
   '/_authenticated/admin/biblioteca': typeof AuthenticatedAdminBibliotecaRoute
   '/_authenticated/admin/clientes': typeof AuthenticatedAdminClientesRoute
   '/_authenticated/admin/engajamento': typeof AuthenticatedAdminEngajamentoRoute
+  '/_authenticated/admin/equipe': typeof AuthenticatedAdminEquipeRoute
   '/_authenticated/admin/taxonomia': typeof AuthenticatedAdminTaxonomiaRoute
   '/api/public/guide-chat': typeof ApiPublicGuideChatRoute
   '/api/public/landing-chat': typeof ApiPublicLandingChatRoute
@@ -432,9 +452,11 @@ export interface FileRouteTypes {
     | '/.mcp/invoke-tool/$tool'
     | '/admin/admins'
     | '/admin/assinatura'
+    | '/admin/atendimento'
     | '/admin/biblioteca'
     | '/admin/clientes'
     | '/admin/engajamento'
+    | '/admin/equipe'
     | '/admin/taxonomia'
     | '/api/public/guide-chat'
     | '/api/public/landing-chat'
@@ -473,9 +495,11 @@ export interface FileRouteTypes {
     | '/.mcp/invoke-tool/$tool'
     | '/admin/admins'
     | '/admin/assinatura'
+    | '/admin/atendimento'
     | '/admin/biblioteca'
     | '/admin/clientes'
     | '/admin/engajamento'
+    | '/admin/equipe'
     | '/admin/taxonomia'
     | '/api/public/guide-chat'
     | '/api/public/landing-chat'
@@ -517,9 +541,11 @@ export interface FileRouteTypes {
     | '/.mcp/invoke-tool/$tool'
     | '/_authenticated/admin/admins'
     | '/_authenticated/admin/assinatura'
+    | '/_authenticated/admin/atendimento'
     | '/_authenticated/admin/biblioteca'
     | '/_authenticated/admin/clientes'
     | '/_authenticated/admin/engajamento'
+    | '/_authenticated/admin/equipe'
     | '/_authenticated/admin/taxonomia'
     | '/api/public/guide-chat'
     | '/api/public/landing-chat'
@@ -726,6 +752,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminTaxonomiaRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
     }
+    '/_authenticated/admin/equipe': {
+      id: '/_authenticated/admin/equipe'
+      path: '/equipe'
+      fullPath: '/admin/equipe'
+      preLoaderRoute: typeof AuthenticatedAdminEquipeRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
     '/_authenticated/admin/engajamento': {
       id: '/_authenticated/admin/engajamento'
       path: '/engajamento'
@@ -745,6 +778,13 @@ declare module '@tanstack/react-router' {
       path: '/biblioteca'
       fullPath: '/admin/biblioteca'
       preLoaderRoute: typeof AuthenticatedAdminBibliotecaRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/atendimento': {
+      id: '/_authenticated/admin/atendimento'
+      path: '/atendimento'
+      fullPath: '/admin/atendimento'
+      preLoaderRoute: typeof AuthenticatedAdminAtendimentoRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
     }
     '/_authenticated/admin/assinatura': {
@@ -872,9 +912,11 @@ declare module '@tanstack/react-router' {
 interface AuthenticatedAdminRouteChildren {
   AuthenticatedAdminAdminsRoute: typeof AuthenticatedAdminAdminsRoute
   AuthenticatedAdminAssinaturaRoute: typeof AuthenticatedAdminAssinaturaRoute
+  AuthenticatedAdminAtendimentoRoute: typeof AuthenticatedAdminAtendimentoRoute
   AuthenticatedAdminBibliotecaRoute: typeof AuthenticatedAdminBibliotecaRoute
   AuthenticatedAdminClientesRoute: typeof AuthenticatedAdminClientesRoute
   AuthenticatedAdminEngajamentoRoute: typeof AuthenticatedAdminEngajamentoRoute
+  AuthenticatedAdminEquipeRoute: typeof AuthenticatedAdminEquipeRoute
   AuthenticatedAdminTaxonomiaRoute: typeof AuthenticatedAdminTaxonomiaRoute
   AuthenticatedAdminIndexRoute: typeof AuthenticatedAdminIndexRoute
   AuthenticatedAdminCidadesCityKeyRoute: typeof AuthenticatedAdminCidadesCityKeyRoute
@@ -889,9 +931,11 @@ interface AuthenticatedAdminRouteChildren {
 const AuthenticatedAdminRouteChildren: AuthenticatedAdminRouteChildren = {
   AuthenticatedAdminAdminsRoute: AuthenticatedAdminAdminsRoute,
   AuthenticatedAdminAssinaturaRoute: AuthenticatedAdminAssinaturaRoute,
+  AuthenticatedAdminAtendimentoRoute: AuthenticatedAdminAtendimentoRoute,
   AuthenticatedAdminBibliotecaRoute: AuthenticatedAdminBibliotecaRoute,
   AuthenticatedAdminClientesRoute: AuthenticatedAdminClientesRoute,
   AuthenticatedAdminEngajamentoRoute: AuthenticatedAdminEngajamentoRoute,
+  AuthenticatedAdminEquipeRoute: AuthenticatedAdminEquipeRoute,
   AuthenticatedAdminTaxonomiaRoute: AuthenticatedAdminTaxonomiaRoute,
   AuthenticatedAdminIndexRoute: AuthenticatedAdminIndexRoute,
   AuthenticatedAdminCidadesCityKeyRoute: AuthenticatedAdminCidadesCityKeyRoute,
@@ -966,13 +1010,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}

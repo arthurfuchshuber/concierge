@@ -296,6 +296,31 @@ export const Route = createFileRoute("/api/public/guide-chat")({
           conversationId = created.id;
         }
 
+        // If the conversation is currently handled by a human (ai_paused), just
+        // persist the guest message and let the agent reply — the guide chat
+        // will surface new agent messages via polling / realtime.
+        const { data: convState } = await supabaseAdmin
+          .from("property_chat_conversations")
+          .select("ai_paused, status")
+          .eq("id", conversationId)
+          .maybeSingle();
+        if (convState?.ai_paused) {
+          await supabaseAdmin.from("property_chat_messages").insert({
+            conversation_id: conversationId,
+            role: "user",
+            content: body.message,
+            sender_type: "guest",
+          });
+          await supabaseAdmin
+            .from("property_chat_conversations")
+            .update({ last_message_at: new Date().toISOString(), guest_name: body.guestName ?? undefined })
+            .eq("id", conversationId);
+          return new Response(
+            JSON.stringify({ conversationId, reply: "", handoff: true, humanMode: true }),
+            { status: 200, headers: { "Content-Type": "application/json" } },
+          );
+        }
+
         // Load prior messages (latest 20)
         const { data: priorRaw } = await supabaseAdmin
           .from("property_chat_messages")
@@ -307,15 +332,17 @@ export const Route = createFileRoute("/api/public/guide-chat")({
           .filter((m) => m.role === "user" || m.role === "assistant")
           .reverse();
 
-        // Persist user message
         await supabaseAdmin.from("property_chat_messages").insert({
           conversation_id: conversationId,
           role: "user",
           content: body.message,
+          sender_type: "guest",
         });
 
+        const HANDOFF_INSTRUCTIONS = `\n\nHandoff humano: se o hóspede (a) pedir explicitamente falar com humano/anfitrião, OU (b) você não tiver confiança na resposta, OU (c) detectar frustração ou emergência real, chame a ferramenta request_human_handoff com o motivo e a urgência. Após chamar a ferramenta, responda apenas: "Estou chamando um atendente humano, aguarde só um instante." Não invente contatos.`;
+
         const messages = [
-          { role: "system" as const, content: `${SYSTEM_PROMPT}\n\n${systemContext}` },
+          { role: "system" as const, content: `${SYSTEM_PROMPT}${HANDOFF_INSTRUCTIONS}\n\n${systemContext}` },
           ...prior.map((m) => ({ role: m.role as "user" | "assistant", content: m.content })),
           { role: "user" as const, content: body.message },
         ];
@@ -326,7 +353,24 @@ export const Route = createFileRoute("/api/public/guide-chat")({
           body: JSON.stringify({
             model: "google/gemini-2.5-flash",
             messages,
-            tools: [{ google_search: {} }],
+            tools: [
+              { google_search: {} },
+              {
+                type: "function",
+                function: {
+                  name: "request_human_handoff",
+                  description: "Solicita atendimento humano. Chame quando o hóspede pedir explicitamente, quando não souber responder com segurança, ou em caso de frustração/emergência.",
+                  parameters: {
+                    type: "object",
+                    properties: {
+                      reason: { type: "string", description: "Motivo curto (máx 200)." },
+                      urgency: { type: "string", enum: ["low", "normal", "high"] },
+                    },
+                    required: ["reason"],
+                  },
+                },
+              },
+            ],
           }),
         });
 
@@ -342,14 +386,51 @@ export const Route = createFileRoute("/api/public/guide-chat")({
           return new Response(JSON.stringify({ error: "Não consegui responder agora. Tente de novo.", conversationId }), { status: 502, headers: { "Content-Type": "application/json" } });
         }
 
-        const json = (await aiRes.json()) as { choices?: Array<{ message?: { content?: string } }> };
-        const reply = json.choices?.[0]?.message?.content?.trim() ?? "";
+        const json = (await aiRes.json()) as {
+          choices?: Array<{ message?: { content?: string; tool_calls?: Array<{ function?: { name?: string; arguments?: string } }> } }>;
+        };
+        const choice = json.choices?.[0]?.message;
+        const toolCalls = choice?.tool_calls ?? [];
+        let handoffTriggered = false;
+        for (const tc of toolCalls) {
+          if (tc.function?.name === "request_human_handoff") {
+            let args: { reason?: string; urgency?: string } = {};
+            try { args = JSON.parse(tc.function?.arguments ?? "{}"); } catch { /* ignore */ }
+            const reason = (args.reason ?? "Hóspede pediu atendimento humano.").slice(0, 300);
+            const urgency = args.urgency === "high" || args.urgency === "low" ? args.urgency : "normal";
+            await supabaseAdmin
+              .from("property_chat_conversations")
+              .update({ status: "needs_human", ai_paused: true, handoff_reason: reason, handoff_urgency: urgency, handoff_at: new Date().toISOString() })
+              .eq("id", conversationId);
+            handoffTriggered = true;
+            try {
+              const { getPropertyNotifiableUsers, sendHandoffPush } = await import("@/lib/handoff.server");
+              const userIds = await getPropertyNotifiableUsers(supabaseAdmin, prop.id);
+              await sendHandoffPush(supabaseAdmin, {
+                userIds,
+                conversationId,
+                propertyName: prop.name,
+                guestName: body.guestName ?? null,
+                reason,
+                urgency,
+              });
+            } catch (e) {
+              console.error("Handoff push failed", e);
+            }
+          }
+        }
 
-        if (reply) {
+        const reply = (choice?.content ?? "").trim();
+        const finalReply = handoffTriggered && !reply
+          ? "Estou chamando um atendente humano, aguarde só um instante."
+          : reply;
+
+        if (finalReply) {
           await supabaseAdmin.from("property_chat_messages").insert({
             conversation_id: conversationId,
             role: "assistant",
-            content: reply,
+            content: finalReply,
+            sender_type: handoffTriggered ? "ai" : "ai",
           });
         }
         await supabaseAdmin
@@ -357,7 +438,7 @@ export const Route = createFileRoute("/api/public/guide-chat")({
           .update({ last_message_at: new Date().toISOString(), guest_name: body.guestName ?? undefined })
           .eq("id", conversationId);
 
-        return new Response(JSON.stringify({ conversationId, reply }), { status: 200, headers: { "Content-Type": "application/json" } });
+        return new Response(JSON.stringify({ conversationId, reply: finalReply, handoff: handoffTriggered }), { status: 200, headers: { "Content-Type": "application/json" } });
       },
     },
   },
