@@ -90,11 +90,11 @@ function Consent() {
           <div className="size-8 rounded-xl bg-primary grid place-items-center">
             <Sparkles className="size-4 text-primary-foreground" strokeWidth={2} />
           </div>
-          <span className="font-display text-lg">Concierge</span>
+          <span className="font-display text-lg">ConciergeIA</span>
         </div>
         <h1 className="font-display text-2xl">Conectar {clientName}</h1>
         <p className="text-sm text-muted-foreground mt-2">
-          Isso permite que <strong>{clientName}</strong> acesse os dados do seu Concierge
+          Isso permite que <strong>{clientName}</strong> acesse os dados do seu ConciergeIA
           (seus guias e a atividade dos hóspedes) em seu nome.
         </p>
         {error && (

@@ -643,7 +643,7 @@ function CardTab({
           </div>
           <div className="mt-3 text-[11px] text-muted-foreground flex items-center gap-1.5">
             <ShieldCheck className="size-3.5" /> Os dados do cartão ficam armazenados com segurança no
-            provedor de pagamento — nunca passam pelos servidores da Concierge.
+            provedor de pagamento — nunca passam pelos servidores da ConciergeIA.
           </div>
         </div>
       </div>

@@ -3,16 +3,16 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 export const Route = createFileRoute("/privacidade")({
   head: () => ({
     meta: [
-      { title: "Política de Privacidade — Concierge" },
+      { title: "Política de Privacidade — ConciergeIA" },
       {
         name: "description",
-        content: "Como o Concierge coleta, usa e protege seus dados pessoais em conformidade com a LGPD.",
+        content: "Como o ConciergeIA coleta, usa e protege seus dados pessoais em conformidade com a LGPD.",
       },
-      { property: "og:title", content: "Política de Privacidade — Concierge" },
+      { property: "og:title", content: "Política de Privacidade — ConciergeIA" },
       {
         property: "og:description",
         content:
-          "Práticas de coleta, uso, compartilhamento, retenção e direitos sobre dados pessoais no Concierge (LGPD).",
+          "Práticas de coleta, uso, compartilhamento, retenção e direitos sobre dados pessoais no ConciergeIA (LGPD).",
       },
       { property: "og:url", content: "/privacidade" },
     ],
@@ -34,7 +34,7 @@ function PrivacyPage() {
         <section className="mt-8 space-y-4 text-sm leading-relaxed">
           <h2 className="font-display text-2xl mt-6">1. Controlador de dados</h2>
           <p>
-            <strong>Concierge</strong> é o nome legal do prestador responsável por este serviço e atua como
+            <strong>ConciergeIA</strong> é o nome legal do prestador responsável por este serviço e atua como
             controlador dos dados pessoais coletados, em conformidade com a LGPD (Lei Geral de Proteção de Dados).
             Contato: <strong>sigma@anfitriaosigma.com.br</strong>.
           </p>

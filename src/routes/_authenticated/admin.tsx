@@ -66,11 +66,8 @@ function AdminLayout() {
       >
         <div className="px-6 py-6 border-b border-border">
           <Link to="/admin" className="inline-flex items-center gap-2.5">
-            <img src={conciergeLogo} alt="Concierge" className="size-9 rounded-xl object-contain" />
-            <div className="leading-tight">
-              <div className="font-display text-xl">Concierge</div>
-              <div className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground font-semibold mt-0.5">Painel</div>
-            </div>
+            <img src={conciergeLogo} alt="ConciergeIA" className="size-10 rounded-xl object-contain" />
+            <div className="font-display text-xl leading-none">ConciergeIA</div>
           </Link>
         </div>
 
@@ -163,8 +160,8 @@ function AdminLayout() {
             <Menu className="size-5" />
           </button>
           <Link to="/admin" className="inline-flex items-center gap-2.5">
-            <img src={conciergeLogo} alt="Concierge" className="size-10 rounded-lg object-contain shrink-0" />
-            <span className="font-display text-xl leading-none">Concierge</span>
+            <img src={conciergeLogo} alt="ConciergeIA" className="size-10 rounded-lg object-contain shrink-0" />
+            <span className="font-display text-xl leading-none">ConciergeIA</span>
           </Link>
           <div className="size-9" />
         </header>

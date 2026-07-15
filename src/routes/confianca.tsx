@@ -3,7 +3,7 @@ import { ShieldCheck, Lock, KeyRound, Database, Globe, Mail } from "lucide-react
 
 const FAQ_ITEMS: Array<{ q: string; a: string }> = [
   {
-    q: "Como o Concierge protege senhas de Wi-Fi e códigos de acesso?",
+    q: "Como o ConciergeIA protege senhas de Wi-Fi e códigos de acesso?",
     a: "Cada anfitrião pode proteger campos sensíveis (Wi-Fi, portões, fechaduras, códigos de acesso) com um PIN. Sem o PIN correto, nem o hóspede nem a assistente de IA conseguem ver o conteúdo bloqueado.",
   },
   {
@@ -11,7 +11,7 @@ const FAQ_ITEMS: Array<{ q: string; a: string }> = [
     a: "Apenas você. O isolamento é aplicado no banco de dados via Row Level Security, então cada anfitrião acessa somente seus próprios imóveis, conversas e configurações.",
   },
   {
-    q: "Quais subprocessadores o Concierge utiliza?",
+    q: "Quais subprocessadores o ConciergeIA utiliza?",
     a: "Hospedagem na Lovable (Cloudflare edge), banco e autenticação no Supabase, pagamentos na Paddle (Merchant of Record), Google Maps Platform para mapas e fotos, e provedores de IA via Lovable AI Gateway.",
   },
   {
@@ -27,17 +27,17 @@ const FAQ_ITEMS: Array<{ q: string; a: string }> = [
 export const Route = createFileRoute("/confianca")({
   head: () => ({
     meta: [
-      { title: "Central de Confiança — Concierge" },
+      { title: "Central de Confiança — ConciergeIA" },
       {
         name: "description",
         content:
-          "Como o Concierge protege os dados de anfitriões e hóspedes: autenticação, criptografia, controle de acesso e privacidade.",
+          "Como o ConciergeIA protege os dados de anfitriões e hóspedes: autenticação, criptografia, controle de acesso e privacidade.",
       },
-      { property: "og:title", content: "Central de Confiança — Concierge" },
+      { property: "og:title", content: "Central de Confiança — ConciergeIA" },
       {
         property: "og:description",
         content:
-          "Controles de segurança, privacidade e subprocessadores do Concierge para anfitriões e hóspedes.",
+          "Controles de segurança, privacidade e subprocessadores do ConciergeIA para anfitriões e hóspedes.",
       },
       { property: "og:url", content: "/confianca" },
     ],
@@ -70,11 +70,11 @@ function TrustPage() {
 
         <header className="mt-6">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-border bg-card text-xs text-muted-foreground">
-            <ShieldCheck className="size-3.5" /> Página mantida pela Concierge
+            <ShieldCheck className="size-3.5" /> Página mantida pela ConciergeIA
           </div>
           <h1 className="font-display text-4xl mt-4">Central de Confiança</h1>
           <p className="text-sm text-muted-foreground mt-2 max-w-2xl">
-            Esta página é mantida pela equipe do Concierge para responder dúvidas
+            Esta página é mantida pela equipe do ConciergeIA para responder dúvidas
             comuns sobre segurança, privacidade e operação do produto. Não constitui
             certificação independente; é um descritivo dos controles atualmente em
             uso no aplicativo.

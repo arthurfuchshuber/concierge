@@ -84,7 +84,7 @@ export const Route = createFileRoute("/g/$slug/explorar")({
   },
   head: ({ loaderData, params }) => {
     if (!loaderData || loaderData.status !== "ok") {
-      return { meta: [{ title: "Explorar — Concierge" }, { name: "robots", content: "noindex" }] };
+      return { meta: [{ title: "Explorar — ConciergeIA" }, { name: "robots", content: "noindex" }] };
     }
     const p = loaderData.property as Record<string, unknown>;
     const name = p.name as string;
@@ -630,7 +630,7 @@ function ExplorePage() {
           )}
 
           <header className="mt-6 mb-8">
-            <p className="text-[10px] uppercase tracking-[0.32em] text-accent font-semibold mb-3">Concierge</p>
+            <p className="text-[10px] uppercase tracking-[0.32em] text-accent font-semibold mb-3">ConciergeIA</p>
             <div className="flex items-start justify-between gap-4">
               <h1 className="font-serif text-[2.1rem] md:text-[2.8rem] leading-[1.02] tracking-tight">
                 {active ? active.meta.title : "Explore a Região"}

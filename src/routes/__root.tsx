@@ -63,21 +63,21 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, viewport-fit=cover" },
-      { name: "theme-color", content: "#1c1c1c" },
+      { name: "theme-color", content: "#FDF9F2" },
       { property: "og:type", content: "website" },
-      { property: "og:site_name", content: "Concierge" },
+      { property: "og:site_name", content: "ConciergeIA" },
       { name: "twitter:card", content: "summary_large_image" },
       { name: "google-site-verification", content: "o7m2Z68kLI_sgZFwkIsA1VQzKGI1OYfiqw6FKxsup5E" },
     ],
     links: [
       { rel: "stylesheet", href: appCss },
       { rel: "icon", type: "image/png", href: "/favicon.png" },
-      { rel: "apple-touch-icon", href: "/favicon.png" },
+      { rel: "apple-touch-icon", href: "/apple-touch-icon.png" },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "" },
       {
         rel: "stylesheet",
-        href: "https://fonts.googleapis.com/css2?family=Geist:wght@300..800&family=Geist+Mono:wght@400..700&display=swap",
+        href: "https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700;800&family=Manrope:wght@300;400;500;600;700;800&display=swap",
       },
     ],
     scripts: [
@@ -86,9 +86,9 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         children: JSON.stringify({
           "@context": "https://schema.org",
           "@type": "Organization",
-          name: "Concierge",
+          name: "ConciergeIA",
           url: "https://guia.anfitriaosigma.com.br",
-          logo: "https://guia.anfitriaosigma.com.br/favicon.ico",
+          logo: "https://guia.anfitriaosigma.com.br/favicon.png",
         }),
       },
     ],

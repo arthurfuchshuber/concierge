@@ -9,13 +9,13 @@ import { toast } from "sonner";
 export const Route = createFileRoute("/precos")({
   head: () => ({
     meta: [
-      { title: "Planos e preços — Concierge" },
+      { title: "Planos e preços — ConciergeIA" },
       {
         name: "description",
         content:
           "Escolha o plano ideal para criar guias digitais para seus hóspedes. 7 dias grátis em todos os planos.",
       },
-      { property: "og:title", content: "Planos Concierge" },
+      { property: "og:title", content: "Planos ConciergeIA" },
       { property: "og:description", content: "Starter, Pro, Business e Enterprise. 7 dias grátis." },
       { property: "og:url", content: "/precos" },
     ],
@@ -72,7 +72,7 @@ const PLANS: Plan[] = [
     description: "Para gestores profissionais que querem IA atendendo os hóspedes.",
     features: [
       "Até 50 guias",
-      "Concierge IA (chat 24h nos guias)",
+      "ConciergeIA IA (chat 24h nos guias)",
       "Base de conhecimento e comportamento da IA",
       "Tudo do Pro",
       "Suporte prioritário",
@@ -138,7 +138,7 @@ function PricingPage() {
             <div className="size-7 rounded-lg bg-foreground grid place-items-center">
               <Sparkles className="size-3.5 text-background" strokeWidth={2} />
             </div>
-            <span className="font-display text-lg">Concierge</span>
+            <span className="font-display text-lg">ConciergeIA</span>
           </Link>
           <Link to="/auth" className="text-sm px-4 py-2 rounded-full hover:bg-secondary">
             Entrar
