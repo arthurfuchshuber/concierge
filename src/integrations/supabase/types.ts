@@ -14,6 +14,81 @@ export type Database = {
   }
   public: {
     Tables: {
+      account_member_invites: {
+        Row: {
+          accepted_at: string | null
+          accepted_user_id: string | null
+          created_at: string
+          email: string
+          expires_at: string
+          id: string
+          invited_by: string | null
+          owner_id: string
+          role: Database["public"]["Enums"]["account_member_role"]
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          accepted_at?: string | null
+          accepted_user_id?: string | null
+          created_at?: string
+          email: string
+          expires_at?: string
+          id?: string
+          invited_by?: string | null
+          owner_id: string
+          role?: Database["public"]["Enums"]["account_member_role"]
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          accepted_at?: string | null
+          accepted_user_id?: string | null
+          created_at?: string
+          email?: string
+          expires_at?: string
+          id?: string
+          invited_by?: string | null
+          owner_id?: string
+          role?: Database["public"]["Enums"]["account_member_role"]
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      account_members: {
+        Row: {
+          created_at: string
+          id: string
+          invited_by: string | null
+          member_user_id: string
+          owner_id: string
+          role: Database["public"]["Enums"]["account_member_role"]
+          status: Database["public"]["Enums"]["account_member_status"]
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          invited_by?: string | null
+          member_user_id: string
+          owner_id: string
+          role?: Database["public"]["Enums"]["account_member_role"]
+          status?: Database["public"]["Enums"]["account_member_status"]
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          invited_by?: string | null
+          member_user_id?: string
+          owner_id?: string
+          role?: Database["public"]["Enums"]["account_member_role"]
+          status?: Database["public"]["Enums"]["account_member_status"]
+          updated_at?: string
+        }
+        Relationships: []
+      }
       admin_invites: {
         Row: {
           accepted_at: string | null
@@ -1020,30 +1095,51 @@ export type Database = {
       }
       property_chat_conversations: {
         Row: {
+          ai_paused: boolean
+          assigned_to: string | null
           created_at: string
           guest_name: string | null
           guest_session_id: string
+          handoff_at: string | null
+          handoff_reason: string | null
+          handoff_urgency: string | null
           id: string
           last_message_at: string
           property_id: string
+          resolved_at: string | null
+          status: Database["public"]["Enums"]["chat_conversation_status"]
           updated_at: string
         }
         Insert: {
+          ai_paused?: boolean
+          assigned_to?: string | null
           created_at?: string
           guest_name?: string | null
           guest_session_id: string
+          handoff_at?: string | null
+          handoff_reason?: string | null
+          handoff_urgency?: string | null
           id?: string
           last_message_at?: string
           property_id: string
+          resolved_at?: string | null
+          status?: Database["public"]["Enums"]["chat_conversation_status"]
           updated_at?: string
         }
         Update: {
+          ai_paused?: boolean
+          assigned_to?: string | null
           created_at?: string
           guest_name?: string | null
           guest_session_id?: string
+          handoff_at?: string | null
+          handoff_reason?: string | null
+          handoff_urgency?: string | null
           id?: string
           last_message_at?: string
           property_id?: string
+          resolved_at?: string | null
+          status?: Database["public"]["Enums"]["chat_conversation_status"]
           updated_at?: string
         }
         Relationships: [
@@ -1062,21 +1158,30 @@ export type Database = {
           conversation_id: string
           created_at: string
           id: string
+          is_internal_note: boolean
           role: string
+          sender_type: Database["public"]["Enums"]["chat_sender_type"]
+          sender_user_id: string | null
         }
         Insert: {
           content: string
           conversation_id: string
           created_at?: string
           id?: string
+          is_internal_note?: boolean
           role: string
+          sender_type?: Database["public"]["Enums"]["chat_sender_type"]
+          sender_user_id?: string | null
         }
         Update: {
           content?: string
           conversation_id?: string
           created_at?: string
           id?: string
+          is_internal_note?: boolean
           role?: string
+          sender_type?: Database["public"]["Enums"]["chat_sender_type"]
+          sender_user_id?: string | null
         }
         Relationships: [
           {
@@ -1298,6 +1403,54 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      push_subscriptions: {
+        Row: {
+          auth: string
+          created_at: string
+          enabled: boolean
+          endpoint: string
+          id: string
+          last_used_at: string | null
+          p256dh: string
+          quiet_hours_end: number | null
+          quiet_hours_start: number | null
+          sound_enabled: boolean
+          updated_at: string
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          auth: string
+          created_at?: string
+          enabled?: boolean
+          endpoint: string
+          id?: string
+          last_used_at?: string | null
+          p256dh: string
+          quiet_hours_end?: number | null
+          quiet_hours_start?: number | null
+          sound_enabled?: boolean
+          updated_at?: string
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          auth?: string
+          created_at?: string
+          enabled?: boolean
+          endpoint?: string
+          id?: string
+          last_used_at?: string | null
+          p256dh?: string
+          quiet_hours_end?: number | null
+          quiet_hours_start?: number | null
+          sound_enabled?: boolean
+          updated_at?: string
+          user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: []
       }
       sigma_city_faqs: {
         Row: {
@@ -1613,6 +1766,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      account_member_role_of: {
+        Args: { _owner_id: string; _user_id: string }
+        Returns: Database["public"]["Enums"]["account_member_role"]
+      }
       delete_email: {
         Args: { message_id: number; queue_name: string }
         Returns: boolean
@@ -1633,6 +1790,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_account_member: {
+        Args: { _owner_id: string; _user_id: string }
+        Returns: boolean
+      }
       move_to_dlq: {
         Args: {
           dlq_name: string
@@ -1650,6 +1811,10 @@ export type Database = {
           read_ct: number
         }[]
       }
+      user_can_access_property: {
+        Args: { _property_id: string; _user_id: string }
+        Returns: boolean
+      }
       user_is_group_member: {
         Args: { _group_id: string; _user_id: string }
         Returns: boolean
@@ -1661,7 +1826,11 @@ export type Database = {
     }
     Enums: {
       access_mode: "public" | "pin"
+      account_member_role: "owner" | "agent" | "viewer"
+      account_member_status: "pending" | "active" | "revoked"
       app_role: "admin" | "host"
+      chat_conversation_status: "ai" | "needs_human" | "assigned" | "resolved"
+      chat_sender_type: "guest" | "ai" | "human" | "system"
       guide_language: "pt" | "en"
       rec_scope: "nearby" | "city"
       rec_type:
@@ -1804,7 +1973,11 @@ export const Constants = {
   public: {
     Enums: {
       access_mode: ["public", "pin"],
+      account_member_role: ["owner", "agent", "viewer"],
+      account_member_status: ["pending", "active", "revoked"],
       app_role: ["admin", "host"],
+      chat_conversation_status: ["ai", "needs_human", "assigned", "resolved"],
+      chat_sender_type: ["guest", "ai", "human", "system"],
       guide_language: ["pt", "en"],
       rec_scope: ["nearby", "city"],
       rec_type: [
