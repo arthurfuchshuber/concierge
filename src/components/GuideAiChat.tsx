@@ -4,7 +4,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { GuestNotificationsPrompt } from "@/components/GuestNotificationsPrompt";
 
-type Msg = { role: "user" | "assistant"; content: string };
+type Msg = { role: "user" | "assistant" | "system"; content: string; id?: string; createdAt?: string; senderType?: string };
 
 function getSessionId(slug: string): string {
   const key = `guide-chat-session:${slug}`;
@@ -112,6 +112,9 @@ export function GuideAiChat({ slug, propertyName, guestName }: { slug: string; p
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
+  const [humanMode, setHumanMode] = useState(false);
+  const lastFetchedAtRef = useRef<string | undefined>(undefined);
+
   async function send() {
     const text = input.trim();
     if (!text || loading) return;
@@ -125,7 +128,7 @@ export function GuideAiChat({ slug, propertyName, guestName }: { slug: string; p
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ slug, sessionId, conversationId, message: text }),
       });
-      const data = (await res.json().catch(() => ({}))) as { conversationId?: string; reply?: string; error?: string };
+      const data = (await res.json().catch(() => ({}))) as { conversationId?: string; reply?: string; error?: string; handoff?: boolean; humanMode?: boolean };
       if (!res.ok) {
         const errMsg = data.error || "Não consegui responder agora.";
         const updated = [...next, { role: "assistant" as const, content: errMsg }];
@@ -134,10 +137,21 @@ export function GuideAiChat({ slug, propertyName, guestName }: { slug: string; p
         saveCachedMessages(slug, data.conversationId ?? conversationId, updated);
         return;
       }
-      const updated = [...next, { role: "assistant" as const, content: data.reply || "" }];
-      setMessages(updated);
       if (data.conversationId) setConversationId(data.conversationId);
-      saveCachedMessages(slug, data.conversationId ?? conversationId, updated);
+      if (data.humanMode) {
+        setHumanMode(true);
+        // Add a one-time system note so the guest sees why the AI didn't answer.
+        const alreadyNoted = next.some((m) => m.role === "system" && m.content.startsWith("Um atendente humano"));
+        const updated = alreadyNoted
+          ? next
+          : [...next, { role: "system" as const, content: "Um atendente humano vai responder por aqui em instantes." }];
+        setMessages(updated);
+        saveCachedMessages(slug, data.conversationId ?? conversationId, updated);
+      } else {
+        const updated = [...next, { role: "assistant" as const, content: data.reply || "" }];
+        setMessages(updated);
+        saveCachedMessages(slug, data.conversationId ?? conversationId, updated);
+      }
     } catch {
       const updated = [...next, { role: "assistant" as const, content: "Sem conexão. Tente novamente." }];
       setMessages(updated);
@@ -147,6 +161,62 @@ export function GuideAiChat({ slug, propertyName, guestName }: { slug: string; p
       setTimeout(() => inputRef.current?.focus(), 30);
     }
   }
+
+  // Poll for new agent/AI messages when we have a conversation. Ensures human
+  // replies after handoff show up in the guest widget without a reload.
+  useEffect(() => {
+    if (!conversationId || !sessionId) return;
+    let cancelled = false;
+    async function poll() {
+      try {
+        const params = new URLSearchParams({ conversationId: conversationId!, sessionId });
+        if (lastFetchedAtRef.current) params.set("since", lastFetchedAtRef.current);
+        const res = await fetch(`/api/public/guide-chat?${params.toString()}`);
+        if (!res.ok) return;
+        const data = (await res.json()) as {
+          humanMode?: boolean;
+          messages?: { id: string; role: string; content: string; senderType?: string; createdAt: string }[];
+        };
+        if (cancelled) return;
+        if (typeof data.humanMode === "boolean") setHumanMode(data.humanMode);
+        const incoming = (data.messages ?? []).filter(
+          (m) => m.senderType === "human" || (m.senderType === "ai" && lastFetchedAtRef.current), // skip AI backfill on first load
+        );
+        if (incoming.length) {
+          setMessages((prev) => {
+            const seen = new Set(prev.map((p) => p.id).filter(Boolean));
+            const additions = incoming
+              .filter((m) => !seen.has(m.id) && m.content?.trim())
+              .map((m) => ({
+                role: "assistant" as const,
+                content: m.content,
+                id: m.id,
+                createdAt: m.createdAt,
+                senderType: m.senderType,
+              }));
+            if (!additions.length) return prev;
+            const merged = [...prev, ...additions];
+            saveCachedMessages(slug, conversationId, merged);
+            return merged;
+          });
+        }
+        const latest = (data.messages ?? []).at(-1)?.createdAt;
+        if (latest) lastFetchedAtRef.current = latest;
+      } catch {
+        // ignore transient poll errors
+      }
+    }
+    // First poll: initialize the cursor to "now" so we don't re-append stale AI
+    // messages already cached in localStorage, but still catch anything newer.
+    if (!lastFetchedAtRef.current) lastFetchedAtRef.current = new Date().toISOString();
+    const interval = open || humanMode ? 4000 : 15000;
+    poll();
+    const t = window.setInterval(poll, interval);
+    return () => {
+      cancelled = true;
+      window.clearInterval(t);
+    };
+  }, [conversationId, sessionId, open, humanMode, slug]);
 
   function onKey(e: React.KeyboardEvent<HTMLTextAreaElement>) {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -264,14 +334,21 @@ export function GuideAiChat({ slug, propertyName, guestName }: { slug: string; p
                 </div>
               </div>
             )}
-            {messages.map((m, i) => (
-              <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
+            {messages.filter((m) => (m.content ?? "").trim().length > 0).map((m, i) => (
+              <div key={m.id ?? i} className={`flex ${m.role === "user" ? "justify-end" : m.role === "system" ? "justify-center" : "justify-start"}`}>
                 {m.role === "user" ? (
                   <div className="max-w-[85%] rounded-2xl rounded-tr-md bg-foreground text-background px-3.5 py-2.5 text-[13.5px] leading-relaxed whitespace-pre-line">
                     {m.content}
                   </div>
+                ) : m.role === "system" ? (
+                  <div className="max-w-[92%] text-center text-[11.5px] text-muted-foreground italic px-3 py-1.5 rounded-full bg-muted/50">
+                    {m.content}
+                  </div>
                 ) : (
                   <div className="max-w-[88%] text-[13.5px] leading-relaxed text-foreground/90 prose prose-sm prose-invert max-w-none [&_p]:my-1 [&_p]:leading-relaxed [&_strong]:font-semibold [&_strong]:text-foreground [&_a]:text-accent [&_a]:underline [&_a]:underline-offset-2 [&_ul]:my-1 [&_ul]:pl-4 [&_ol]:my-1 [&_ol]:pl-4 [&_li]:my-0.5">
+                    {m.senderType === "human" && (
+                      <p className="text-[10px] uppercase tracking-[0.18em] text-accent/80 font-semibold mb-1">Atendente</p>
+                    )}
                     <ReactMarkdown
                       remarkPlugins={[remarkGfm]}
                       components={{

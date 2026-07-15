@@ -440,6 +440,48 @@ export const Route = createFileRoute("/api/public/guide-chat")({
 
         return new Response(JSON.stringify({ conversationId, reply: finalReply, handoff: handoffTriggered }), { status: 200, headers: { "Content-Type": "application/json" } });
       },
+      // Poll for new messages in a conversation (used after human handoff so the
+      // guest widget can surface agent replies without a page reload).
+      GET: async ({ request }) => {
+        const url = new URL(request.url);
+        const conversationId = url.searchParams.get("conversationId") ?? "";
+        const sessionId = url.searchParams.get("sessionId") ?? "";
+        const since = url.searchParams.get("since");
+        if (!/^[0-9a-f-]{36}$/i.test(conversationId) || sessionId.length < 8) {
+          return new Response(JSON.stringify({ error: "invalid" }), { status: 400, headers: { "Content-Type": "application/json" } });
+        }
+        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+        const { data: conv } = await supabaseAdmin
+          .from("property_chat_conversations")
+          .select("id, guest_session_id, ai_paused, status")
+          .eq("id", conversationId)
+          .maybeSingle();
+        if (!conv || conv.guest_session_id !== sessionId) {
+          return new Response(JSON.stringify({ error: "not_found" }), { status: 404, headers: { "Content-Type": "application/json" } });
+        }
+        let q = supabaseAdmin
+          .from("property_chat_messages")
+          .select("id, role, content, sender_type, created_at")
+          .eq("conversation_id", conversationId)
+          .order("created_at", { ascending: true })
+          .limit(50);
+        if (since) q = q.gt("created_at", since);
+        const { data: msgs } = await q;
+        return new Response(
+          JSON.stringify({
+            humanMode: !!conv.ai_paused,
+            status: conv.status,
+            messages: (msgs ?? []).map((m) => ({
+              id: m.id,
+              role: m.role,
+              content: m.content,
+              senderType: m.sender_type,
+              createdAt: m.created_at,
+            })),
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        );
+      },
     },
   },
 });
