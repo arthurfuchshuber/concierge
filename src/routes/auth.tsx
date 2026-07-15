@@ -161,9 +161,10 @@ function AuthPage() {
             <img src={conciergeLogo} alt="ConciergeIA" className="size-14 object-contain" />
           </div>
 
-          <h1 className="font-display text-3xl text-black text-balance">
+          <h1 className="font-display text-[26px] sm:text-3xl text-black text-balance whitespace-nowrap">
             {mode === "signin" ? "Bem-vindo de volta" : "Crie sua conta"}
           </h1>
+
           <p className="text-sm text-black/60 mt-2 mb-7">
             {mode === "signin" ? "Acesse seu ConciergeIA" : "Comece grátis por 7 dias"}
           </p>
