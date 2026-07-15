@@ -51,7 +51,7 @@ export const getHandoffConversation = createServerFn({ method: "POST" })
       supabase
         .from("property_chat_conversations")
         .select(
-          "id, property_id, guest_session_id, guest_name, status, ai_paused, assigned_to, handoff_reason, handoff_urgency, handoff_at, last_message_at, created_at, resolved_at, properties:property_id(id, name, owner_id, slug, city)",
+          "id, property_id, guest_session_id, guest_name, status, ai_paused, assigned_to, claim_requested_by, claim_requested_at, handoff_reason, handoff_urgency, handoff_at, last_message_at, created_at, resolved_at, properties:property_id(id, name, owner_id, slug, city)",
         )
         .eq("id", data.conversationId)
         .maybeSingle(),
@@ -64,20 +64,195 @@ export const getHandoffConversation = createServerFn({ method: "POST" })
     if (cErr) throw new Error(cErr.message);
     if (mErr) throw new Error(mErr.message);
     if (!conv) throw new Error("Conversa não encontrada.");
-    return { conversation: conv, messages: msgs ?? [] };
+
+    // Busca o registro de acesso mais recente (nome, telefone, checkin) via service-role
+    // — a RLS de guide_access_logs só permite owner; usamos admin porque a RLS de
+    // property_chat_conversations já confirmou que o usuário pode ver esta conversa.
+    let guestDetails: {
+      name: string | null;
+      phone: string | null;
+      phoneCountry: string | null;
+      checkinDate: string | null;
+      reservationCode: string | null;
+    } = { name: conv.guest_name, phone: null, phoneCountry: null, checkinDate: null, reservationCode: null };
+    try {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      let logQ = supabaseAdmin
+        .from("guide_access_logs")
+        .select("guest_name, guest_phone, guest_phone_country, checkin_date, reservation_code, created_at")
+        .eq("property_id", conv.property_id)
+        .order("created_at", { ascending: false })
+        .limit(1);
+      if (conv.guest_name) logQ = logQ.ilike("guest_name", conv.guest_name);
+      const { data: logs } = await logQ;
+      const log = logs?.[0];
+      if (log) {
+        guestDetails = {
+          name: log.guest_name ?? conv.guest_name,
+          phone: log.guest_phone,
+          phoneCountry: log.guest_phone_country,
+          checkinDate: log.checkin_date,
+          reservationCode: log.reservation_code,
+        };
+      }
+    } catch {
+      // silencioso — se não achar, seguimos com o que temos
+    }
+
+    // Nome do solicitante do claim (se houver)
+    let claimRequester: { userId: string; displayName: string | null } | null = null;
+    if (conv.claim_requested_by) {
+      const { data: prof } = await supabase
+        .from("profiles")
+        .select("id, full_name")
+        .eq("id", conv.claim_requested_by)
+        .maybeSingle();
+      claimRequester = {
+        userId: conv.claim_requested_by,
+        displayName: prof?.full_name ?? null,
+      };
+    }
+    let assignedProfile: { userId: string; displayName: string | null } | null = null;
+    if (conv.assigned_to) {
+      const { data: prof } = await supabase
+        .from("profiles")
+        .select("id, full_name")
+        .eq("id", conv.assigned_to)
+        .maybeSingle();
+      assignedProfile = { userId: conv.assigned_to, displayName: prof?.full_name ?? null };
+    }
+
+    return { conversation: conv, messages: msgs ?? [], guestDetails, claimRequester, assignedProfile };
   });
 
-// -------- Claim / assign to me --------
+// -------- Claim / assign to me (bloqueia se já está com outro atendente) --------
 
 export const claimHandoffConversation = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((i: unknown) => GetInput.parse(i))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
+    // Só permite claim se: sem dono, ou já é meu.
+    const { data: cur, error: readErr } = await supabase
+      .from("property_chat_conversations")
+      .select("assigned_to, status")
+      .eq("id", data.conversationId)
+      .maybeSingle();
+    if (readErr) throw new Error(readErr.message);
+    if (!cur) throw new Error("Conversa não encontrada.");
+    if (cur.assigned_to && cur.assigned_to !== userId) {
+      throw new Error("Esta conversa já está sendo atendida por outro membro. Solicite acesso ou peça uma transferência.");
+    }
     const { error } = await supabase
       .from("property_chat_conversations")
-      .update({ status: "assigned", assigned_to: userId, ai_paused: true })
+      .update({
+        status: "assigned",
+        assigned_to: userId,
+        ai_paused: true,
+        claim_requested_by: null,
+        claim_requested_at: null,
+      })
       .eq("id", data.conversationId);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+// -------- Solicitar acesso a uma conversa já assumida por outro --------
+
+export const requestHandoffClaim = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => GetInput.parse(i))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { data: cur, error: readErr } = await supabase
+      .from("property_chat_conversations")
+      .select("assigned_to")
+      .eq("id", data.conversationId)
+      .maybeSingle();
+    if (readErr) throw new Error(readErr.message);
+    if (!cur) throw new Error("Conversa não encontrada.");
+    if (!cur.assigned_to) throw new Error("Conversa livre — assuma diretamente.");
+    if (cur.assigned_to === userId) return { ok: true, alreadyMine: true };
+
+    const { error } = await supabase
+      .from("property_chat_conversations")
+      .update({ claim_requested_by: userId, claim_requested_at: new Date().toISOString() })
+      .eq("id", data.conversationId);
+    if (error) throw new Error(error.message);
+
+    // Registra nota interna para o atendente atual visualizar o pedido.
+    const { data: prof } = await supabase.from("profiles").select("full_name").eq("id", userId).maybeSingle();
+    const who = prof?.full_name ?? "Um membro da equipe";
+    await supabase.from("property_chat_messages").insert({
+      conversation_id: data.conversationId,
+      role: "assistant",
+      content: `🔔 ${who} solicitou acesso a esta conversa.`,
+      sender_type: "human",
+      sender_user_id: userId,
+      is_internal_note: true,
+    });
+    return { ok: true };
+  });
+
+// -------- Transferir a conversa para outro membro (só quem está atendendo) --------
+
+const TransferInput = z.object({
+  conversationId: z.string().uuid(),
+  toUserId: z.string().uuid(),
+});
+
+export const transferHandoffConversation = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => TransferInput.parse(i))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { data: cur, error: readErr } = await supabase
+      .from("property_chat_conversations")
+      .select("assigned_to")
+      .eq("id", data.conversationId)
+      .maybeSingle();
+    if (readErr) throw new Error(readErr.message);
+    if (!cur) throw new Error("Conversa não encontrada.");
+    if (cur.assigned_to !== userId) {
+      throw new Error("Apenas o atendente responsável pode transferir esta conversa.");
+    }
+    const { error } = await supabase
+      .from("property_chat_conversations")
+      .update({
+        assigned_to: data.toUserId,
+        status: "assigned",
+        ai_paused: true,
+        claim_requested_by: null,
+        claim_requested_at: null,
+      })
+      .eq("id", data.conversationId);
+    if (error) throw new Error(error.message);
+
+    const { data: prof } = await supabase.from("profiles").select("full_name").eq("id", data.toUserId).maybeSingle();
+    const who = prof?.full_name ?? "outro membro";
+    await supabase.from("property_chat_messages").insert({
+      conversation_id: data.conversationId,
+      role: "assistant",
+      content: `🔁 Conversa transferida para ${who}.`,
+      sender_type: "human",
+      sender_user_id: userId,
+      is_internal_note: true,
+    });
+    return { ok: true };
+  });
+
+// -------- Cancelar solicitação de acesso pendente (quem solicitou) --------
+
+export const cancelHandoffClaimRequest = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => GetInput.parse(i))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { error } = await supabase
+      .from("property_chat_conversations")
+      .update({ claim_requested_by: null, claim_requested_at: null })
+      .eq("id", data.conversationId)
+      .eq("claim_requested_by", userId);
     if (error) throw new Error(error.message);
     return { ok: true };
   });
@@ -91,7 +266,16 @@ export const releaseHandoffConversation = createServerFn({ method: "POST" })
     const { supabase } = context;
     const { error } = await supabase
       .from("property_chat_conversations")
-      .update({ status: "ai", assigned_to: null, ai_paused: false, handoff_reason: null, handoff_at: null, handoff_urgency: null })
+      .update({
+        status: "ai",
+        assigned_to: null,
+        ai_paused: false,
+        handoff_reason: null,
+        handoff_at: null,
+        handoff_urgency: null,
+        claim_requested_by: null,
+        claim_requested_at: null,
+      })
       .eq("id", data.conversationId);
     if (error) throw new Error(error.message);
     return { ok: true };
@@ -106,11 +290,18 @@ export const resolveHandoffConversation = createServerFn({ method: "POST" })
     const { supabase } = context;
     const { error } = await supabase
       .from("property_chat_conversations")
-      .update({ status: "resolved", resolved_at: new Date().toISOString(), ai_paused: false })
+      .update({
+        status: "resolved",
+        resolved_at: new Date().toISOString(),
+        ai_paused: false,
+        claim_requested_by: null,
+        claim_requested_at: null,
+      })
       .eq("id", data.conversationId);
     if (error) throw new Error(error.message);
     return { ok: true };
   });
+
 
 // -------- Send a human/agent message --------
 
@@ -125,6 +316,15 @@ export const sendHandoffMessage = createServerFn({ method: "POST" })
   .inputValidator((i: unknown) => SendInput.parse(i))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
+    // Trava: se a conversa está atribuída a outro atendente, bloqueia o envio.
+    const { data: cur } = await supabase
+      .from("property_chat_conversations")
+      .select("assigned_to")
+      .eq("id", data.conversationId)
+      .maybeSingle();
+    if (cur?.assigned_to && cur.assigned_to !== userId) {
+      throw new Error("Esta conversa está sendo atendida por outro membro. Solicite acesso ou peça uma transferência.");
+    }
     const { error } = await supabase.from("property_chat_messages").insert({
       conversation_id: data.conversationId,
       role: data.internalNote ? "assistant" : "assistant",
@@ -212,4 +412,51 @@ export const getAtendimentoAccess = createServerFn({ method: "GET" })
       }
     }
     return { allowed: false as const, as: null, plan: null };
+  });
+
+// -------- List transfer targets for a conversation (owner + active members) --------
+
+export const listConversationTransferTargets = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => GetInput.parse(i))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { data: conv } = await supabase
+      .from("property_chat_conversations")
+      .select("id, properties:property_id(owner_id)")
+      .eq("id", data.conversationId)
+      .maybeSingle();
+    const ownerId = (conv?.properties as { owner_id?: string } | null)?.owner_id ?? null;
+    if (!ownerId) return { targets: [] };
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: members } = await supabaseAdmin
+      .from("account_members")
+      .select("member_user_id, role")
+      .eq("owner_id", ownerId)
+      .eq("status", "active");
+
+    const ids = new Set<string>([ownerId, ...((members ?? []).map((m) => m.member_user_id as string))]);
+    ids.delete(userId); // sem transferir para si mesmo
+    const idList = Array.from(ids);
+    if (idList.length === 0) return { targets: [] };
+
+    const { data: profs } = await supabaseAdmin
+      .from("profiles")
+      .select("id, full_name")
+      .in("id", idList);
+    const nameById = new Map<string, string | null>();
+    for (const p of profs ?? []) nameById.set(p.id as string, (p.full_name as string) ?? null);
+
+    const roleById = new Map<string, string>();
+    roleById.set(ownerId, "owner");
+    for (const m of members ?? []) roleById.set(m.member_user_id as string, m.role as string);
+
+    return {
+      targets: idList.map((id) => ({
+        userId: id,
+        displayName: nameById.get(id) ?? null,
+        role: roleById.get(id) ?? "agent",
+      })),
+    };
   });
