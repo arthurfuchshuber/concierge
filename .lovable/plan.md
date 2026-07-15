@@ -1,138 +1,77 @@
+# Refatoração Engajamento — Fase 2
 
-# Nova página Engajamento — Behavioral Analytics
+Escopo: exclusivamente a página `/admin/engajamento` e seu backend dedicado (`engagement-analytics.functions.ts`, `src/components/engagement/*`). Nada fora disso.
 
-Reconstrução do zero de `admin.engajamento.tsx`. Todo o conteúdo atual (5 abas, cards numéricos, tabelas brutas) será removido. Nenhuma outra tela do sistema é tocada.
+## 1. Reposicionamento: de KPIs de volume → gestão do todo
 
-## Princípios
+**Remover** (ruído no agregado multi-cliente):
+- Insight "acessos subiram X%" e "guia menos acessado" (deltas de volume e outliers baixos).
+- `QuestionsCluster` (nuvem de termos do chat — ruidoso).
+- `CompletenessScatter` (redundante com o dot-plot).
+- `AccessHeatmap` (largura excessiva; substituído por versão compacta).
+- `DeviceMix` (pouco acionável agregado).
 
-- Cada visualização responde uma pergunta de negócio. Sem gráfico decorativo.
-- Poucas abas, profundas. Filtros globais na URL, compartilhados entre abas.
-- Insights automáticos gerados no cliente a partir dos dados que já temos — nada de integração externa.
-- Drill-down em toda visualização importante (Sheet lateral com detalhes).
-- Estética Product Analytics: whitespace generoso, tipografia sóbria, sem excesso de tokens de cor.
+**Adicionar/promover como núcleo gerencial:**
+- **Tempo médio de sessão** (mediana + p90). Calculado por `guest_session_id`: janela entre 1º e último `guide_section_event`, gap > 20 min quebra em nova sessão.
+- **Ranking de imóveis por engajamento real**: novo dot-plot com eixo = tempo médio de sessão (não mais chatRate isolado).
+- **Sessões por tempo de permanência** (histograma: <30s, 30s–2min, 2–5min, 5–15min, >15min) — revela se o guia prende atenção.
+- **Profundidade de leitura**: seções/sessão + % sessões que abriram ≥3 seções.
+- **Curva de retenção intra-sessão**: sessão 1 seção → 2 → 3 → 4+ (drop-off).
 
-## Filtros globais (barra fina fixa no topo, dentro da URL)
+**Manter e refinar:**
+- `TrendChart` (mantém).
+- `Funnel` (mantém — já é gerencial).
+- `SectionsBar` (mantém, é o que revela onde o guia entrega valor).
+- `ContentImpactMatrix` (mantém — volume × auto-resolução por seção).
+- POIs top/frios: **usar o nome real personalizado pelo anfitrião** em vez do `poi_key`. Consulta `property_recommendations` para resolver `place_id`/`name`.
+- `FeedbackList` (mantém — acionável).
+- `InsightsRibbon`: reduzir a 3 heurísticas gerenciais (atrito alto, silêncio de seção, backlog de feedback).
 
-`?period=30d&property=all&device=all&q=`
+## 2. Nova aba **Hóspedes**
 
-- Período: 7d · 30d · 90d · Tudo
-- Imóvel: dropdown com busca (afeta todas as abas)
-- Dispositivo: Todos · Mobile · Tablet · Desktop
-- Busca livre (usada em jornadas e conteúdos)
+Identidade: `telefone_normalizado + checkin_date` como chave (consistente com regra já usada nas conversas).
 
-Estado via `Route.useSearch()` + `useNavigate` para permanecer entre abas e ser compartilhável.
+**Lista consolidada** (tabela sortável, uma linha por hóspede):
+- Nome, telefone, código de reserva, check-in, imóvel.
+- Tempo total com guia aberto (soma das sessões).
+- Nº de seções visitadas.
+- Nº de mensagens no chat com IA (0 = sem chat).
+- Última atividade.
 
-## Arquitetura de abas (3 abas)
+**Detalhe do hóspede** (drill-in via `DetailSheet` existente, nova branch `kind: "guest"`):
+- Card com dados do check-in.
+- Métricas: tempo total, nº sessões, tempo médio, ranking de seções.
+- Timeline cronológica de seções visitadas.
+- Todas as conversas com a IA agrupadas (uma thread por conversa, com feedback e link "ensinar IA").
 
-### 1. Panorama — "o que preciso saber agora"
-Objetivo: em 5 segundos entender se o guia está funcionando.
+**Tabela macro de conversas** (segunda visão dentro da aba): todas as conversas do período, filtráveis por imóvel, com preview da 1ª pergunta, contagem de mensagens, hóspede identificado, e clique abre thread completa. Reaproveita `TeachAiDialog` existente para responder à IA.
 
-- **Faixa de insights automáticos** (cards horizontais roláveis): frases geradas por heurísticas — "3 seções nunca foram abertas em Studio 101", "Acessos mobile caíram 34% na última semana", "8 conversas com feedback não resolvido", "FAQ 'Wi-Fi' evitou 42 conversas".
-- **4 KPIs vivos** com sparkline embutido (não card gigante): Acessos únicos · Sessões que iniciaram chat · Taxa de auto-resolução (acessos sem chat) · Feedback negativo pendente.
-- **Série temporal** empilhada (acessos vs conversas) — linha suave, sem eixos pesados.
-- **Ranking de imóveis** em dot-plot horizontal: cada imóvel um ponto, eixo X = acessos, cor = taxa de conversa. Clicar → drill-down.
+Consolidação chat↔hóspede: match por (i) `guest_session_id` compartilhado com `guide_access_logs` do mesmo período, ou (ii) proximidade temporal + `guest_phone` normalizado quando disponível.
 
-### 2. Jornada — "como o hóspede usa o guia"
-Objetivo: entender comportamento de navegação.
+## 3. Filtros
 
-- **Funil**: Acessou guia → Abriu ≥1 seção → Iniciou chat → Recebeu resposta útil (feedback positivo ou sem feedback negativo). Cada etapa clicável.
-- **Seções consumidas** — bar chart horizontal ordenado por volume, com badge "ignorada" (0 aberturas) e "hotspot" (>P75). Ao lado, lista das **seções silenciosas** (existem no guia mas nunca foram abertas) com CTA "revisar destaque".
-- **Heatmap dia da semana × hora** dos acessos — identifica janelas de atendimento e picos.
-- **Distribuição de dispositivo + navegador** compacta (donut mobile/tablet/desktop) e comparativo de comportamento por dispositivo (mobile abre menos seções? converte mais em chat?).
-- **Fluxo entre seções** (quando houver `guide_section_events` suficiente): sankey simplificado seção→seção mais comum. Se dado insuficiente, oculta o bloco (não mostra placeholder vazio).
+**Multi-select de imóveis** com "Selecionar todos"/"Limpar":
+- `URL search param`: `property=all` ou lista CSV `property=id1,id2,id3`.
+- Backend `getEngagementAnalytics.propertyIds: string[] | null` (quebra o atual `propertyId: string | null` — só afeta esta página).
+- Componente `PropertyMultiSelect` com Popover + Command (shadcn).
 
-### 3. Conteúdo & Dúvidas — "o que resolve, o que gera atrito"
-Objetivo: descobrir quais conteúdos merecem investimento.
+**Mobile: filtro unificado**:
+- Em telas < md, os 3 selects colapsam num único botão "Filtros" que abre um `Sheet` bottom com: período, imóveis, dispositivo, botão "Aplicar" / "Limpar".
+- Em ≥ md, layout atual permanece (agora com o multi-select).
 
-- **Matriz 2×2** ("Impacto do conteúdo"): eixo X = volume de aberturas, eixo Y = taxa de auto-resolução (sessões que abriram a seção e NÃO iniciaram chat). Quadrantes: Estrelas · Oportunidades · Ruído · Manutenção. Clicar em ponto abre drill.
-- **Dúvidas frequentes reveladas pelo chat**: agrupamento por primeira mensagem (top substrings/termos) — mostra "sobre o que os hóspedes perguntam mesmo quando a informação existe".
-- **Feedback de IA** — lista compacta de mensagens marcadas como não úteis + botão "ensinar IA" (reaproveita `TeachAiDialog` existente, sem alterá-lo). Só é reaproveitado se o hóspede clicou no "não resolveu"; caso contrário fora do escopo.
-- **POIs (Aqui pertinho + Cidade)** — top 10 mais clicados e 10 nunca clicados. Reusa `getPoiEngagementCounts` / `getMarketplaceClicks`.
-- **Completude vs Engajamento** — scatter: score de completude do guia × acessos por sessão. Detecta guias completos mas não usados e vice-versa.
+## 4. Arquitetura técnica
 
-## Drill-down
+- `engagement-analytics.functions.ts`: reescrever para (a) aceitar `propertyIds[]`, (b) calcular durações de sessão, (c) devolver novos campos `sessionDuration{ p50, p90, buckets[] }`, `depthCurve[]`, remover `heatmap`/`deviceMix` do DTO; POIs vêm com `displayName` resolvido.
+- Nova função `getEngagementGuests` no mesmo arquivo (ou `engagement-guests.functions.ts`): retorna lista de hóspedes agregados + todas as conversas do período.
+- Nova função `getGuestDetail` para o drill-in.
+- Novos componentes: `PropertyMultiSelect`, `MobileFilterSheet`, `SessionDurationCard`, `DepthCurve`, `GuestsTable`, `ConversationsTable`, `GuestDetail` (extensão do `DetailSheet`).
+- Rotas: `admin.engajamento.tsx` ganha aba `hospedes`, aceita `property=csv`, `q=` para busca de hóspede.
 
-Um único componente `<DetailSheet />` (side sheet à direita). Recebe `kind: "property" | "section" | "funnelStep"` e renderiza:
-- Séries temporais isoladas do item
-- Top 5 fatos derivados
-- Ações contextuais (abrir edição do imóvel, exportar CSV do subset)
+## 5. O que fica fora
 
-## Insights automáticos (regras, no cliente)
+- Sem novas tabelas, migrations ou tracking novo.
+- Sem alteração no `TeachAiDialog`, `AiPlanLock`, chat público, nenhuma outra rota.
+- Sem export CSV geral (mantém opção de export nos drill-downs se for barato).
+- Sem i18n adicional além do português já vigente.
 
-Módulo `insights.ts` local à página. Recebe o payload de `getEngagementOverview` já filtrado e retorna `Array<{severity, title, detail, cta?}>`. Regras iniciais:
-
-- Seção com 0 aberturas nos últimos 30d, mas guia publicado → "oportunidade oculta"
-- Queda ≥ 25% de acessos week-over-week → "tendência de queda"
-- Taxa de conversa > 60% em um imóvel específico → "atrito: hóspedes precisam perguntar demais"
-- Taxa de conversa < 5% + alto tempo → "guia auto-suficiente" (positivo)
-- Feedback negativo não resolvido há > 7 dias → "backlog de aprendizado"
-- Guia com completude < 40 e acessos > mediana → "conteúdo escasso para demanda real"
-
-## Backend
-
-Uma única server function nova: `getEngagementAnalytics(filters)` em novo arquivo `src/lib/engagement-analytics.functions.ts`. Recebe `{period, propertyId, device}` e devolve um DTO calibrado para o novo layout (evita passar payloads gigantes ao cliente). A função antiga `getEngagementOverview` permanece intocada (usada em nenhum outro lugar do sistema após esta refatoração — confirmado por grep) mas fica no arquivo para não quebrar imports; se de fato só a página Engajamento usa, marcamos como deprecada em comentário — sem remover.
-
-Dados usados (todos já existentes):
-- `guide_access_logs` (acessos, user_agent, timestamp)
-- `guide_section_events` (aberturas de seção)
-- `property_chat_conversations` + `property_chat_messages` + `chat_message_feedback`
-- `properties` (completude, publicação)
-- `poi_engagement_events` (via funções já existentes)
-- `host_faqs`, `host_knowledge`, `host_behavior` (counts)
-
-Sem novas tabelas. Sem novas migrations. Sem alterar tracking.
-
-## Bibliotecas
-
-Reusar o que já existe no projeto:
-- `recharts` (já usado) — linhas, barras, scatter, sparkline, radial
-- Componentes shadcn — Tabs, Sheet, Popover, Badge, Card, Tooltip
-- Sem introduzir libs de sankey/heatmap: desenhamos heatmap com CSS grid e o "sankey simplificado" com barras conectadas por SVG puro (bloco pequeno). Se complexidade explodir, degrada elegante mostrando lista ranqueada.
-
-## Estrutura de arquivos
-
-```
-src/routes/_authenticated/admin.engajamento.tsx        (reescrito do zero)
-src/components/engagement/
-  GlobalFilters.tsx        — barra de filtros (URL search)
-  InsightsRibbon.tsx       — cards horizontais de insights
-  KpiStrip.tsx             — 4 KPIs com sparkline
-  TrendChart.tsx           — série temporal principal
-  PropertiesDotPlot.tsx    — ranking de imóveis
-  Funnel.tsx               — funil 4 etapas
-  SectionsBar.tsx          — barras + seções silenciosas
-  AccessHeatmap.tsx        — heatmap dia×hora
-  DeviceMix.tsx            — donut compacto
-  ContentImpactMatrix.tsx  — scatter 2×2
-  QuestionsCluster.tsx     — top perguntas do chat
-  FeedbackList.tsx         — feedback + Teach AI
-  PoiInsights.tsx          — top/bottom POIs
-  CompletenessScatter.tsx  — completude × engajamento
-  DetailSheet.tsx          — drill-down unificado
-  insights.ts              — regras automáticas
-src/lib/engagement-analytics.functions.ts              (nova server fn)
-```
-
-Cada componente ~80–200 linhas, sem props globais mágicos: recebem os slices já preparados pela rota.
-
-## Fluxo de navegação
-
-1. Usuário abre `/admin/engajamento` → filtros default (30d, todos).
-2. Panorama carrega. Insights aparecem no topo.
-3. Clique num insight/imóvel → DetailSheet à direita, sem trocar de aba.
-4. Aba Jornada assume os mesmos filtros. Clique em seção → DetailSheet.
-5. Aba Conteúdo idem. Ações "ensinar IA" abrem o dialog existente.
-
-## Fora do escopo (não implementar)
-
-- Idioma como filtro (não temos o dado hoje de forma confiável no `guide_access_logs`).
-- Exportação CSV geral (só nos drill-downs pontuais).
-- Alteração de qualquer outra rota, componente global, migrations, RLS, tracking client-side.
-- Mudança em `TeachAiDialog`, `AiPlanLock`, `getConversationMessages`.
-
-## Verificação após implementação
-
-- `tsgo` limpo.
-- Página carrega vazia e com dados (guiar por `getEngagementOverview` degradado quando não houver imóveis).
-- Filtros persistem em URL e sobrevivem a refresh.
-- Nenhum outro arquivo do projeto foi tocado além dos listados acima.
+Ao aprovar, implemento tudo em um único passe.

@@ -1,59 +1,51 @@
 import { LineChart, Line, ResponsiveContainer } from "recharts";
-import { ArrowDown, ArrowUp, Minus } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { Timer, Layers, Activity, MessageCircle } from "lucide-react";
 
-type Point = { date: string; accesses: number; sessions: number; chats: number };
-
-type Kpi = {
-  label: string;
-  value: number | string;
-  suffix?: string;
-  delta?: number | null;
-  series: number[];
-  hint?: string;
-};
-
-function trendFrom(series: Point[], key: keyof Point): number[] {
-  return series.map((p) => Number(p[key] ?? 0));
-}
+type Point = { date: string; accesses: number; sessions: number; chats: number; avgDurSec: number };
 
 export function KpiStrip({ kpis, timeseries }: {
   kpis: {
     totalAccesses: number;
     uniqueSessions: number;
+    avgSessionSeconds: number;
+    p90SessionSeconds: number;
+    depthAvg: number;
+    depthEngagedRate: number;
     chatRate: number;
     autoResolveRate: number;
-    accessesDelta: number | null;
+    openFeedback: number;
   };
   timeseries: Point[];
 }) {
-  const cards: Kpi[] = [
+  const cards = [
     {
-      label: "Acessos",
-      value: kpis.totalAccesses,
-      delta: kpis.accessesDelta,
-      series: trendFrom(timeseries, "accesses"),
-      hint: "Aberturas do guia no período",
+      icon: Timer,
+      label: "Tempo médio no guia",
+      value: formatDur(kpis.avgSessionSeconds),
+      hint: `p90 ${formatDur(kpis.p90SessionSeconds)} · sessão típica`,
+      series: timeseries.map((p) => p.avgDurSec),
     },
     {
+      icon: Layers,
+      label: "Profundidade média",
+      value: kpis.depthAvg.toString(),
+      suffix: "seções",
+      hint: `${kpis.depthEngagedRate}% das sessões abrem ≥ 3`,
+      series: timeseries.map((p) => p.sessions),
+    },
+    {
+      icon: Activity,
       label: "Sessões únicas",
-      value: kpis.uniqueSessions,
-      series: trendFrom(timeseries, "sessions"),
-      hint: "Hóspedes distintos que navegaram",
+      value: kpis.uniqueSessions.toString(),
+      hint: `${kpis.totalAccesses} acessos no total`,
+      series: timeseries.map((p) => p.sessions),
     },
     {
-      label: "Auto-resolução",
-      value: kpis.autoResolveRate,
-      suffix: "%",
-      series: trendFrom(timeseries, "accesses").map((v, i) => v - (timeseries[i]?.chats ?? 0)),
-      hint: "Visitas que não precisaram de chat",
-    },
-    {
-      label: "Taxa de conversa",
-      value: kpis.chatRate,
-      suffix: "%",
-      series: trendFrom(timeseries, "chats"),
-      hint: "Sessões que iniciaram chat",
+      icon: MessageCircle,
+      label: "Atrito no chat",
+      value: `${kpis.chatRate}%`,
+      hint: `auto-resolução ${kpis.autoResolveRate}% · ${kpis.openFeedback} feedback aberto`,
+      series: timeseries.map((p) => p.chats),
     },
   ];
 
@@ -61,45 +53,33 @@ export function KpiStrip({ kpis, timeseries }: {
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
       {cards.map((k) => (
         <div key={k.label} className="rounded-2xl border border-border bg-card p-4 flex flex-col gap-2">
-          <div className="flex items-center justify-between text-[11px] uppercase tracking-wider text-muted-foreground font-medium">
-            <span>{k.label}</span>
-            {typeof k.delta === "number" && <DeltaBadge value={k.delta} />}
+          <div className="flex items-center gap-1.5 text-[11px] uppercase tracking-wider text-muted-foreground font-medium">
+            <k.icon className="size-3.5" /> {k.label}
           </div>
           <div className="flex items-baseline gap-1">
-            <span className="text-3xl font-display tabular-nums">{k.value}</span>
-            {k.suffix && <span className="text-lg text-muted-foreground">{k.suffix}</span>}
+            <span className="text-2xl sm:text-3xl font-display tabular-nums">{k.value}</span>
+            {"suffix" in k && k.suffix && <span className="text-xs text-muted-foreground">{k.suffix}</span>}
           </div>
-          <div className="h-8">
+          <div className="h-7">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={k.series.map((v, i) => ({ i, v }))}>
-                <Line
-                  type="monotone"
-                  dataKey="v"
-                  stroke="hsl(var(--primary))"
-                  strokeWidth={1.5}
-                  dot={false}
-                  isAnimationActive={false}
-                />
+                <Line type="monotone" dataKey="v" stroke="hsl(var(--primary))" strokeWidth={1.5} dot={false} isAnimationActive={false} />
               </LineChart>
             </ResponsiveContainer>
           </div>
-          {k.hint && <div className="text-[10px] text-muted-foreground">{k.hint}</div>}
+          <div className="text-[10px] text-muted-foreground leading-snug">{k.hint}</div>
         </div>
       ))}
     </div>
   );
 }
 
-function DeltaBadge({ value }: { value: number }) {
-  const Icon = value > 0 ? ArrowUp : value < 0 ? ArrowDown : Minus;
-  const cls = value > 0
-    ? "text-emerald-600 dark:text-emerald-400"
-    : value < 0
-    ? "text-rose-600 dark:text-rose-400"
-    : "text-muted-foreground";
-  return (
-    <span className={cn("inline-flex items-center gap-0.5 text-[10px] font-medium", cls)}>
-      <Icon className="size-3" /> {Math.abs(value)}%
-    </span>
-  );
+export function formatDur(seconds: number): string {
+  if (!seconds || seconds < 1) return "0s";
+  if (seconds < 60) return `${Math.round(seconds)}s`;
+  const m = Math.floor(seconds / 60);
+  const s = Math.round(seconds - m * 60);
+  if (m < 60) return s > 0 ? `${m}m ${s}s` : `${m}m`;
+  const h = Math.floor(m / 60);
+  return `${h}h ${m - h * 60}m`;
 }
