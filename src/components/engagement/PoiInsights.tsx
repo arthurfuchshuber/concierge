@@ -18,14 +18,15 @@ export function PoiInsights({ top, cold }: { top: Row[]; cold: Row[] }) {
 function Card({ title, subtitle, children }: { title: string; subtitle: string; children: React.ReactNode }) {
   return (
     <div className="rounded-2xl border border-border bg-card p-4">
-      <header className="mb-3 pr-14">
-        <h3 className="text-sm font-semibold">{title}</h3>
+      <header className="mb-3">
+        <h3 className="text-sm font-semibold whitespace-nowrap truncate">{title}</h3>
         <p className="text-xs text-muted-foreground">{subtitle}</p>
       </header>
       {children}
     </div>
   );
 }
+
 
 function Empty() {
   return <div className="text-xs text-muted-foreground py-6 text-center">Sem interações no período.</div>;
