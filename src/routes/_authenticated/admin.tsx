@@ -162,9 +162,9 @@ function AdminLayout() {
           >
             <Menu className="size-5" />
           </button>
-          <Link to="/admin" className="inline-flex items-center gap-2">
-            <img src={conciergeLogo} alt="Concierge" className="size-7 rounded-lg object-contain" />
-            <span className="font-display text-lg">Concierge</span>
+          <Link to="/admin" className="inline-flex items-center gap-2.5">
+            <img src={conciergeLogo} alt="Concierge" className="size-10 rounded-lg object-contain shrink-0" />
+            <span className="font-display text-xl leading-none">Concierge</span>
           </Link>
           <div className="size-9" />
         </header>
