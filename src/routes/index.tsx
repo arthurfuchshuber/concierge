@@ -154,9 +154,9 @@ function Hero() {
               className="inline-block bg-clip-text text-transparent"
               style={{ backgroundImage: BRAND_GRADIENT, WebkitBackgroundClip: "text" }}
             >
-              3 segundos
-            </span>
-            , 24 horas por dia.
+              3 segundos,
+            </span>{" "}
+            24 horas por dia.
           </h1>
 
           <p className="mt-5 text-[15px] sm:text-lg text-black/70 leading-relaxed text-pretty">
