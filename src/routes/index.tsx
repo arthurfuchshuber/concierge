@@ -148,7 +148,7 @@ function Hero() {
             IA para anfitriões de temporada
           </div>
 
-          <h1 className="mt-6 font-display font-extrabold text-4xl sm:text-5xl lg:text-6xl leading-[1.02] tracking-tight text-balance">
+          <h1 className="mt-6 font-display font-extrabold text-4xl sm:text-5xl lg:text-6xl leading-[1.1] tracking-tight text-balance">
             Seus hóspedes atendidos em{" "}
             <span
               className="inline-block bg-clip-text text-transparent"
