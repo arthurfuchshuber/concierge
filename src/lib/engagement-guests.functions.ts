@@ -96,10 +96,11 @@ async function loadCommon(
   const since = new Date(Date.now() - days * 86400_000);
 
   const { data: props, error: pErr } = await supabase
-    .from("properties").select("id, name").eq("owner_id", userId);
+    .from("properties").select("id, name, city").eq("owner_id", userId);
   if (pErr) throw pErr;
   const allIds = (props ?? []).map((p) => p.id as string);
   const nameById = new Map<string, string>((props ?? []).map((p) => [p.id as string, p.name as string]));
+  const cityById = new Map<string, string | null>((props ?? []).map((p) => [p.id as string, (p as { city: string | null }).city]));
   const req = input.propertyIds ?? null;
   const filteredIds = req && req.length > 0 && !req.includes("all") ? req.filter((id) => allIds.includes(id)) : allIds;
 
