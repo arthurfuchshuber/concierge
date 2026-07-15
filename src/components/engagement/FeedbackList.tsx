@@ -45,7 +45,7 @@ export function FeedbackList({ items, properties }: { items: Item[]; properties:
 
   return (
     <div className="rounded-2xl border border-border bg-card p-4">
-      <header className="mb-3 flex items-center justify-between">
+      <header className="mb-3 flex items-center justify-between pr-14">
         <div>
           <h3 className="text-sm font-semibold flex items-center gap-1.5">
             <AlertCircle className="size-4 text-amber-500" />

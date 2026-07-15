@@ -119,7 +119,7 @@ export function GuestsTable({
               <tr>
                 <th
                   onClick={() => toggle("guestName", "asc")}
-                  className="text-left px-4 py-2 pr-6 font-medium whitespace-nowrap sticky left-0 bg-muted/60 backdrop-blur z-10 cursor-pointer hover:text-foreground transition-colors w-[200px] max-w-[200px]"
+                  className="text-left px-4 py-2 pr-5 font-medium whitespace-nowrap sticky left-0 bg-muted/60 backdrop-blur z-10 cursor-pointer hover:text-foreground transition-colors w-[168px] max-w-[168px] sm:w-[200px] sm:max-w-[200px]"
                 >
                   <span className="inline-flex items-center gap-1">
                     Hóspede <SortIndicator active={active("guestName")} dir={sort.dir} />
@@ -144,7 +144,7 @@ export function GuestsTable({
                   onClick={() => onSelect(g.key)}
                   className="border-t border-border cursor-pointer hover:bg-muted/40 transition-colors"
                 >
-                  <td className="px-4 py-3 pr-6 sticky left-0 bg-card z-10 w-[200px] max-w-[200px]">
+                  <td className="px-4 py-3 pr-5 sticky left-0 bg-card z-10 w-[168px] max-w-[168px] sm:w-[200px] sm:max-w-[200px]">
                     <div className="font-medium truncate" title={g.guestName}>{g.guestName || "—"}</div>
                     <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground whitespace-nowrap overflow-hidden">
                       {g.phone ? (
