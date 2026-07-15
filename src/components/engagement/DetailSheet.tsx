@@ -1,29 +1,35 @@
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Link } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
-import { Home as HomeIcon, ExternalLink } from "lucide-react";
+import { Home as HomeIcon, ExternalLink, User, Clock, Layers, MessageSquare, AlertCircle } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import { LineChart, Line, ResponsiveContainer, Tooltip, XAxis } from "recharts";
 import type { EngagementAnalytics } from "@/lib/engagement-analytics.functions";
+import { getGuestDetail } from "@/lib/engagement-guests.functions";
 import { labelFor } from "./insights";
+import { formatDur } from "./KpiStrip";
 
-type Target =
+export type DetailTarget =
   | { kind: "property"; id: string }
   | { kind: "section"; section: string }
+  | { kind: "guest"; guestKey: string }
   | null;
 
 export function DetailSheet({
   target, onClose, data,
 }: {
-  target: Target;
+  target: DetailTarget;
   onClose: () => void;
   data: EngagementAnalytics;
 }) {
   const open = !!target;
   return (
     <Sheet open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
-      <SheetContent side="right" className="w-full sm:max-w-xl overflow-y-auto">
+      <SheetContent side="right" className="w-full sm:max-w-2xl overflow-y-auto">
         {target?.kind === "property" && <PropertyDetail data={data} id={target.id} />}
         {target?.kind === "section" && <SectionDetail data={data} section={target.section} />}
+        {target?.kind === "guest" && <GuestDetail guestKey={target.guestKey} />}
       </SheetContent>
     </Sheet>
   );
@@ -37,34 +43,16 @@ function PropertyDetail({ data, id }: { data: EngagementAnalytics; id: string })
     <>
       <SheetHeader>
         <SheetTitle className="flex items-center gap-2"><HomeIcon className="size-4" /> {prop.name}</SheetTitle>
-        <SheetDescription>Comportamento desse imóvel no período filtrado</SheetDescription>
+        <SheetDescription>Comportamento deste imóvel no período</SheetDescription>
       </SheetHeader>
-
       <dl className="grid grid-cols-2 gap-3 mt-6">
-        <Stat label="Acessos" value={prop.accesses} />
         <Stat label="Sessões" value={prop.sessions} />
-        <Stat label="Conversas" value={prop.chats} />
-        <Stat label="Taxa de conversa" value={`${prop.chatRate}%`} />
+        <Stat label="Tempo médio" value={formatDur(prop.avgSessionSeconds)} />
+        <Stat label="Acessos" value={prop.accesses} />
         <Stat label="Seções/sessão" value={prop.sectionsPerSession} />
+        <Stat label="Taxa de chat" value={`${prop.chatRate}%`} />
         <Stat label="Completude" value={`${prop.completeness}/100`} />
       </dl>
-
-      <div className="mt-6 space-y-2 text-sm">
-        <p>
-          <span className="font-medium">Leitura rápida:</span>{" "}
-          {prop.chatRate >= 55
-            ? "hóspedes recorrem muito ao chat — o conteúdo desse guia deixa dúvidas em aberto."
-            : prop.chatRate <= 10 && prop.accesses > 5
-            ? "guia auto-suficiente: hóspedes encontram o que precisam sem perguntar."
-            : "comportamento equilibrado entre consulta ao guia e chat."}
-        </p>
-        {prop.completeness < 60 && (
-          <p className="text-amber-700 dark:text-amber-400">
-            Completude abaixo de 60 — vale enriquecer Wi-Fi, check-in e regras da casa.
-          </p>
-        )}
-      </div>
-
       <div className="mt-6 flex gap-2">
         <Button asChild size="sm" variant="outline">
           <Link to="/admin/properties/$id" params={{ id: raw.id }}>
@@ -100,7 +88,7 @@ function SectionDetail({ data, section }: { data: EngagementAnalytics; section: 
           </dl>
           <div className="mt-6 text-sm space-y-2">
             {s.autoResolveRate >= 80
-              ? <p className="text-emerald-700 dark:text-emerald-400">Sessões que abrem essa seção raramente precisam do chat — ótimo sinal.</p>
+              ? <p className="text-emerald-700 dark:text-emerald-400">Sessões que abrem essa seção raramente precisam do chat.</p>
               : s.autoResolveRate <= 40
               ? <p className="text-amber-700 dark:text-amber-400">Muitas sessões que abrem essa seção acabam recorrendo ao chat. Vale revisar o conteúdo.</p>
               : <p>Comportamento equilibrado nessa seção.</p>}
@@ -109,15 +97,11 @@ function SectionDetail({ data, section }: { data: EngagementAnalytics; section: 
       ) : (
         <p className="text-sm text-muted-foreground mt-6">Sem dados dessa seção no recorte atual.</p>
       )}
-
       <div className="mt-6 h-24">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={data.timeseries}>
             <XAxis dataKey="date" hide />
-            <Tooltip
-              contentStyle={{ fontSize: 12, borderRadius: 10, border: "1px solid hsl(var(--border))" }}
-              labelFormatter={(v) => new Date(v as string).toLocaleDateString("pt-BR")}
-            />
+            <Tooltip contentStyle={{ fontSize: 12, borderRadius: 10, border: "1px solid hsl(var(--border))" }} labelFormatter={(v) => new Date(v as string).toLocaleDateString("pt-BR")} />
             <Line type="monotone" dataKey="sessions" stroke="hsl(var(--primary))" strokeWidth={1.5} dot={false} isAnimationActive={false} />
           </LineChart>
         </ResponsiveContainer>
@@ -126,11 +110,109 @@ function SectionDetail({ data, section }: { data: EngagementAnalytics; section: 
   );
 }
 
-function Stat({ label, value }: { label: string; value: string | number }) {
+function GuestDetail({ guestKey }: { guestKey: string }) {
+  const fn = useServerFn(getGuestDetail);
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ["guest-detail", guestKey],
+    queryFn: () => fn({ data: { guestKey } }),
+  });
+  if (isLoading) return <p className="text-sm text-muted-foreground mt-6">Carregando…</p>;
+  if (isError || !data) return <p className="text-sm text-muted-foreground mt-6">Não foi possível carregar.</p>;
+  const g = data.guest;
+  return (
+    <>
+      <SheetHeader>
+        <SheetTitle className="flex items-center gap-2"><User className="size-4" /> {g.guestName || "Hóspede"}</SheetTitle>
+        <SheetDescription className="space-x-2">
+          {g.phone && <span className="tabular-nums">{g.phoneCountry ?? ""} {g.phone}</span>}
+          {g.reservationCode && <span>· {g.reservationCode}</span>}
+          <span>· {g.propertyName}</span>
+        </SheetDescription>
+      </SheetHeader>
+
+      <dl className="grid grid-cols-2 gap-3 mt-6">
+        <Stat label="Check-in" value={new Date(g.checkinDate).toLocaleDateString("pt-BR")} />
+        <Stat label="Tempo total" value={formatDur(g.totalSeconds)} icon={<Clock className="size-3" />} />
+        <Stat label="Sessões" value={g.sessionsCount} />
+        <Stat label="Seções distintas" value={g.sectionsCount} icon={<Layers className="size-3" />} />
+        <Stat label="Msgs no chat" value={g.messagesCount} icon={<MessageSquare className="size-3" />} />
+        <Stat label="Última atividade" value={new Date(g.lastActivity).toLocaleString("pt-BR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })} />
+      </dl>
+
+      {/* Timeline de sessões */}
+      <section className="mt-8">
+        <h4 className="text-xs uppercase tracking-wider text-muted-foreground font-medium mb-2">Timeline de navegação</h4>
+        {data.sessions.length === 0 ? (
+          <div className="text-xs text-muted-foreground">Sem eventos de navegação registrados.</div>
+        ) : (
+          <ol className="space-y-3">
+            {data.sessions.map((s) => (
+              <li key={s.sid} className="rounded-lg border border-border p-3 bg-muted/20">
+                <div className="flex items-center justify-between text-[11px] text-muted-foreground mb-2">
+                  <span>{new Date(s.startedAt).toLocaleString("pt-BR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}</span>
+                  <span>{formatDur(s.durationSeconds)}</span>
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {s.sectionsSequence.map((it, i) => (
+                    <span key={i} className="inline-flex items-center rounded-full border border-border bg-background px-2 py-0.5 text-[11px]">
+                      {labelFor(it.section)}
+                    </span>
+                  ))}
+                </div>
+              </li>
+            ))}
+          </ol>
+        )}
+      </section>
+
+      {/* Conversas com a IA */}
+      <section className="mt-8">
+        <h4 className="text-xs uppercase tracking-wider text-muted-foreground font-medium mb-2">
+          Conversas com a IA {data.conversations.length > 0 && <span className="normal-case text-muted-foreground">({data.conversations.length})</span>}
+        </h4>
+        {data.conversations.length === 0 ? (
+          <div className="text-xs text-muted-foreground">Este hóspede não recorreu ao chat.</div>
+        ) : (
+          <div className="space-y-4">
+            {data.conversations.map((c) => (
+              <div key={c.id} className="rounded-lg border border-border p-3">
+                <div className="text-[11px] text-muted-foreground mb-2">
+                  {new Date(c.startedAt).toLocaleString("pt-BR")} · {c.messages.length} mensagens
+                </div>
+                <div className="space-y-2">
+                  {c.messages.map((m) => (
+                    <div
+                      key={m.id}
+                      className={m.role === "user"
+                        ? "rounded-md bg-muted/60 px-3 py-2 text-xs"
+                        : "rounded-md bg-primary/5 border border-primary/10 px-3 py-2 text-xs"}
+                    >
+                      <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">
+                        {m.role === "user" ? "Hóspede" : m.role === "assistant" ? "IA" : m.role}
+                      </div>
+                      <div className="whitespace-pre-wrap">{m.content}</div>
+                      {m.feedback && !m.feedback.resolved && (
+                        <div className="mt-1.5 text-[11px] text-rose-600 dark:text-rose-400 flex items-center gap-1">
+                          <AlertCircle className="size-3" /> Marcada como não útil{m.feedback.reason ? ` — ${m.feedback.reason}` : ""}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+    </>
+  );
+}
+
+function Stat({ label, value, icon }: { label: string; value: string | number; icon?: React.ReactNode }) {
   return (
     <div className="rounded-lg border border-border bg-muted/30 p-3">
-      <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</div>
-      <div className="text-lg font-semibold tabular-nums">{value}</div>
+      <div className="text-[10px] uppercase tracking-wider text-muted-foreground flex items-center gap-1">{icon} {label}</div>
+      <div className="text-lg font-semibold tabular-nums truncate">{value}</div>
     </div>
   );
 }

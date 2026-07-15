@@ -1,19 +1,15 @@
 import { Heart, Eye, ThumbsDown } from "lucide-react";
 
-type Row = { key: string; views: number; likes: number; dislikes: number };
+type Row = { key: string; displayName: string; views: number; likes: number; dislikes: number };
 
 export function PoiInsights({ top, cold }: { top: Row[]; cold: Row[] }) {
   return (
     <div className="grid md:grid-cols-2 gap-4">
-      <Card title="Pontos mais engajados" subtitle="Recomendações que atraem interações">
-        {top.length === 0
-          ? <Empty />
-          : <PoiList rows={top} showEmpty={false} />}
+      <Card title="Pontos mais engajados" subtitle="Recomendações que atraem interações dos hóspedes">
+        {top.length === 0 ? <Empty /> : <PoiList rows={top} showEmpty={false} />}
       </Card>
-      <Card title="Pontos frios" subtitle="Recomendações sem qualquer interação">
-        {cold.length === 0
-          ? <div className="text-xs text-muted-foreground py-6 text-center">Nenhum ponto frio no período.</div>
-          : <PoiList rows={cold} showEmpty />}
+      <Card title="Pontos frios" subtitle="Recomendações sem qualquer interação — vale revisar ou remover">
+        {cold.length === 0 ? <div className="text-xs text-muted-foreground py-6 text-center">Nenhum ponto frio.</div> : <PoiList rows={cold} showEmpty />}
       </Card>
     </div>
   );
@@ -40,7 +36,7 @@ function PoiList({ rows, showEmpty }: { rows: Row[]; showEmpty: boolean }) {
     <ul className="space-y-1.5">
       {rows.map((r) => (
         <li key={r.key} className="flex items-center gap-2 text-xs">
-          <span className="flex-1 truncate font-mono text-[11px]" title={r.key}>{prettify(r.key)}</span>
+          <span className="flex-1 truncate">{r.displayName}</span>
           <span className="inline-flex items-center gap-1 text-muted-foreground">
             <Eye className="size-3" /> {r.views}
           </span>
@@ -60,10 +56,4 @@ function PoiList({ rows, showEmpty }: { rows: Row[]; showEmpty: boolean }) {
       ))}
     </ul>
   );
-}
-
-function prettify(key: string): string {
-  // poi_keys costumam vir como `type:place_id` — mostra a parte legível
-  const parts = key.split(":");
-  return parts.length > 1 ? parts.slice(1).join(":") : key;
 }
