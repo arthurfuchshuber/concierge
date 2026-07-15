@@ -901,7 +901,7 @@ function FAQ() {
           <p className="text-[11px] uppercase tracking-[0.25em] font-semibold text-black/50">
             Perguntas frequentes
           </p>
-          <h2 className="mt-3 font-display font-extrabold text-3xl sm:text-5xl leading-[1.05] tracking-tight text-balance">
+          <h2 className="mt-3 font-display font-extrabold text-3xl sm:text-5xl leading-[1.15] tracking-tight text-balance line-clamp-2">
             Tudo o que você quer saber.
           </h2>
         </div>
