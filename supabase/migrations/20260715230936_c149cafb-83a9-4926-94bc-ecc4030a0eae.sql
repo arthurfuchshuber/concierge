@@ -1,0 +1,17 @@
+REVOKE EXECUTE ON FUNCTION public.accept_account_invite_on_signup() FROM authenticated, anon, PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.update_conversation_last_message() FROM authenticated, anon, PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.is_account_member(uuid, uuid) FROM authenticated, anon, PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.account_member_role_of(uuid, uuid) FROM authenticated, anon, PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.user_owns_property_in_city(uuid, text) FROM authenticated, anon, PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.enqueue_email(text, jsonb) FROM authenticated, anon, PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.read_email_batch(text, integer, integer) FROM authenticated, anon, PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.delete_email(text, bigint) FROM authenticated, anon, PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.move_to_dlq(text, text, bigint, jsonb) FROM authenticated, anon, PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.accept_admin_invite_on_signup() FROM authenticated, anon, PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.email_queue_dispatch() FROM authenticated, anon, PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.email_queue_wake() FROM authenticated, anon, PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.sync_nearby_recommendations() FROM authenticated, anon, PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.handle_new_user() FROM authenticated, anon, PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.log_table_change() FROM authenticated, anon, PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.touch_updated_at() FROM authenticated, anon, PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.has_active_subscription(uuid, text) FROM anon, PUBLIC;
