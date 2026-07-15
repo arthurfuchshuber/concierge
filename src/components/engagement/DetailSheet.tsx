@@ -147,15 +147,14 @@ function GuestDetail({ guestKey, accountId }: { guestKey: string; accountId: str
         <Stat label="Última atividade" value={new Date(g.lastActivity).toLocaleString("pt-BR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })} />
       </dl>
 
-      {/* Timeline + conversas unificadas */}
+      {/* Timeline de navegação */}
       <section className="mt-8">
         <h4 className="text-xs uppercase tracking-wider text-muted-foreground font-medium mb-2">Timeline</h4>
-        {data.sessions.length === 0 && data.conversations.length === 0 ? (
+        {data.sessions.length === 0 ? (
           <div className="text-xs text-muted-foreground">Sem eventos de navegação registrados.</div>
         ) : (
           <ol className="space-y-3">
             {data.sessions.map((s, idx) => {
-              // agrega tempo por seção dentro desta sessão (dedupe)
               const perSec = new Map<string, number>();
               const seq = s.sectionsSequence;
               const SECTION_GAP_MS = 20 * 60 * 1000;
@@ -167,8 +166,6 @@ function GuestDetail({ guestKey, accountId }: { guestKey: string; accountId: str
                 perSec.set(seq[i].section, (perSec.get(seq[i].section) ?? 0) + dur);
               }
               const uniqueSecs = Array.from(perSec.entries()).sort((a, b) => b[1] - a[1]);
-              // conversas desta sessão (heurística: início entre s.startedAt e s.endedAt)
-              const convs = data.conversations.filter((c) => c.startedAt >= s.startedAt && c.startedAt <= (s.endedAt ?? s.startedAt));
               return (
                 <li key={s.sid} className="rounded-lg border border-border p-3 bg-muted/20">
                   <div className="flex items-center justify-between text-[11px] text-muted-foreground mb-2 gap-3">
@@ -181,7 +178,7 @@ function GuestDetail({ guestKey, accountId }: { guestKey: string; accountId: str
                     {uniqueSecs.length} seç{uniqueSecs.length === 1 ? "ão" : "ões"} visitada{uniqueSecs.length === 1 ? "" : "s"}
                   </div>
                   {uniqueSecs.length > 0 && (
-                    <ul className="space-y-1 mb-2">
+                    <ul className="space-y-1">
                       {uniqueSecs.map(([sec, dur]) => (
                         <li key={sec} className="flex items-center justify-between gap-2 text-[11px]">
                           <span className="inline-flex items-center rounded-full border border-border bg-background px-2 py-0.5">
@@ -192,41 +189,54 @@ function GuestDetail({ guestKey, accountId }: { guestKey: string; accountId: str
                       ))}
                     </ul>
                   )}
-                  {convs.length > 0 && (
-                    <div className="mt-3 space-y-2">
-                      <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium flex items-center gap-1">
-                        <MessageSquare className="size-3" /> Conversa com a IA
-                      </div>
-                      {convs.map((c) => (
-                        <div key={c.id} className="rounded-md border border-border p-2 space-y-1.5">
-                          {c.messages.map((m) => (
-                            <div
-                              key={m.id}
-                              className={m.role === "user"
-                                ? "rounded-md bg-muted/60 px-2 py-1.5 text-[11px]"
-                                : "rounded-md bg-primary/5 border border-primary/10 px-2 py-1.5 text-[11px]"}
-                            >
-                              <div className="text-[9px] uppercase tracking-wider text-muted-foreground mb-0.5">
-                                {m.role === "user" ? "Hóspede" : m.role === "assistant" ? "IA" : m.role}
-                              </div>
-                              <div className="whitespace-pre-wrap">{m.content}</div>
-                              {m.feedback && !m.feedback.resolved && (
-                                <div className="mt-1 text-[10px] text-rose-600 dark:text-rose-400 flex items-center gap-1">
-                                  <AlertCircle className="size-3" /> Marcada como não útil{m.feedback.reason ? ` — ${m.feedback.reason}` : ""}
-                                </div>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      ))}
-                    </div>
-                  )}
                 </li>
               );
             })}
           </ol>
         )}
       </section>
+
+      {/* Conversas com a IA — sempre listadas, independente da sessão */}
+      {data.conversations.length > 0 && (
+        <section className="mt-8">
+          <h4 className="text-xs uppercase tracking-wider text-muted-foreground font-medium mb-2 flex items-center gap-1.5">
+            <MessageSquare className="size-3.5" /> Conversas com a IA
+          </h4>
+          <div className="space-y-3">
+            {data.conversations.map((c, idx) => (
+              <div key={c.id} className="rounded-lg border border-border p-3 bg-muted/20 space-y-2">
+                <div className="text-[11px] text-muted-foreground flex items-center justify-between">
+                  <span className="font-medium text-foreground">Conversa {idx + 1}</span>
+                  <span className="tabular-nums">
+                    {new Date(c.startedAt).toLocaleString("pt-BR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
+                  </span>
+                </div>
+                <div className="space-y-1.5">
+                  {c.messages.map((m) => (
+                    <div
+                      key={m.id}
+                      className={m.role === "user"
+                        ? "rounded-md bg-background border border-border px-2.5 py-1.5 text-[12px]"
+                        : "rounded-md bg-primary/5 border border-primary/10 px-2.5 py-1.5 text-[12px]"}
+                    >
+                      <div className="text-[9px] uppercase tracking-wider text-muted-foreground mb-0.5">
+                        {m.role === "user" ? "Hóspede" : m.role === "assistant" ? "IA" : m.role}
+                      </div>
+                      <div className="whitespace-pre-wrap">{m.content}</div>
+                      {m.feedback && !m.feedback.resolved && (
+                        <div className="mt-1 text-[10px] text-rose-600 dark:text-rose-400 flex items-center gap-1">
+                          <AlertCircle className="size-3" /> Marcada como não útil{m.feedback.reason ? ` — ${m.feedback.reason}` : ""}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
     </>
   );
 }

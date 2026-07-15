@@ -1063,15 +1063,10 @@ function FloatingContact() {
     setSending(true);
     try {
       const history = [
-        {
-          role: "system",
-          content:
-            "Você é a IA de vendas do ConciergeIA, SaaS de guia digital com IA para anfitriões de temporada. Responda breve, em PT-BR, tom próximo. Planos: Starter R$99 (guia bilíngue, QR, analytics), Pro R$199 (importação Airbnb, recomendações Google Maps, curadoria local, deep links Uber/99/Waze), Business R$399 (IA 24/7 nos guias, base treinável, insights). 7 dias grátis. WhatsApp Business API está no roadmap 2026. Se perceber que o usuário quer suporte humano ou algo fora do seu escopo, termine sua resposta com [HANDOFF].",
-        },
         ...messages.map((m) => ({ role: m.role === "ai" ? "assistant" : "user", content: m.text })),
         { role: "user", content: q },
       ];
-      const res = await fetch("/api/public/guide-chat", {
+      const res = await fetch("/api/public/landing-chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ messages: history }),
