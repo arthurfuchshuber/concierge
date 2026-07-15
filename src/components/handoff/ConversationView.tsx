@@ -13,7 +13,8 @@ import {
   transferHandoffConversation,
   listConversationTransferTargets,
 } from "@/lib/handoff.functions";
-import { Send, UserCheck, RotateCcw, CheckCircle2, Loader2, StickyNote, Phone, Calendar, Hash, Lock, UserPlus2, ArrowRightLeft, X } from "lucide-react";
+import { Send, UserCheck, RotateCcw, CheckCircle2, Loader2, StickyNote, Phone, Calendar, Hash, Lock, UserPlus2, ArrowRightLeft, X, Sparkles } from "lucide-react";
+import { TeachAiDialog } from "@/components/handoff/TeachAiDialog";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -55,6 +56,8 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
   const [note, setNote] = useState(false);
   const [transferOpen, setTransferOpen] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [teachOpen, setTeachOpen] = useState(false);
+  const [teachSource, setTeachSource] = useState<{ id: string; content: string } | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -263,8 +266,9 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
         {msgs.map((m) => {
           const isGuest = m.sender_type === "guest";
           const isNote = m.is_internal_note;
+          const canTeach = !isNote && typeof m.content === "string" && m.content.trim().length > 2;
           return (
-            <div key={m.id} className={`flex ${isGuest ? "justify-start" : "justify-end"}`}>
+            <div key={m.id} className={`flex flex-col ${isGuest ? "items-start" : "items-end"}`}>
               <div
                 className={`max-w-[85%] rounded-2xl px-3 py-2 text-sm whitespace-pre-wrap break-words ${
                   isNote
@@ -287,10 +291,31 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
                   {formatDistanceToNow(new Date(m.created_at), { locale: ptBR, addSuffix: true })}
                 </div>
               </div>
+              {canTeach && conv?.property_id && (
+                <button
+                  type="button"
+                  onClick={() => { setTeachSource({ id: m.id, content: m.content }); setTeachOpen(true); }}
+                  className="mt-1 inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+                  title="Adicionar este conteúdo à base de conhecimento da IA"
+                >
+                  <Sparkles className="size-3" /> Ensinar IA
+                </button>
+              )}
             </div>
           );
         })}
       </div>
+
+      {conv?.property_id && teachSource && (
+        <TeachAiDialog
+          open={teachOpen}
+          onOpenChange={(v) => { setTeachOpen(v); if (!v) setTeachSource(null); }}
+          propertyId={conv.property_id as string}
+          propertyName={propertyName}
+          initialContent={teachSource.content}
+          sourceMessageId={teachSource.id}
+        />
+      )}
 
       {status !== "resolved" && (
         isLockedByOther ? (

@@ -9,6 +9,7 @@ import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { useSubscription } from "@/hooks/useSubscription";
 import { OnboardingCheckout } from "@/components/OnboardingCheckout";
 import { ClientSwitcher } from "@/components/admin/ClientSwitcher";
+import { AccountSwitcher } from "@/components/admin/AccountSwitcher";
 import { FloatingHandoffDock } from "@/components/handoff/FloatingHandoffDock";
 import { getAtendimentoAccess, countPendingHandoffs } from "@/lib/handoff.functions";
 
@@ -91,9 +92,13 @@ function AdminLayout() {
         </div>
 
         <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-          {isAdmin && (
+          {isAdmin ? (
             <div className="px-1 pb-3 mb-2 border-b border-border/60">
               <ClientSwitcher />
+            </div>
+          ) : (
+            <div className="px-1 pb-3 mb-2 border-b border-border/60">
+              <AccountSwitcher />
             </div>
           )}
           {nav.map((item) => {
