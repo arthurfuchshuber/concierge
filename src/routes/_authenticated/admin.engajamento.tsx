@@ -13,7 +13,7 @@ import { checkIsAdmin } from "@/lib/admin-subs.functions";
 import { useSubscription } from "@/hooks/useSubscription";
 import { AiPlanLock } from "@/components/admin/AiPlanLock";
 
-import { GlobalFilters, type EngagementFilters } from "@/components/engagement/GlobalFilters";
+import { FiltersIconButton, type EngagementFilters } from "@/components/engagement/GlobalFilters";
 import { InsightsRibbon } from "@/components/engagement/InsightsRibbon";
 import { KpiStrip } from "@/components/engagement/KpiStrip";
 import { TrendChart } from "@/components/engagement/TrendChart";
@@ -31,10 +31,11 @@ import { computeInsights } from "@/components/engagement/insights";
 
 const searchSchema = z.object({
   period: fallback(z.string(), "30d").default("30d"),
-  property: fallback(z.string(), "all").default("all"), // CSV ou "all"
+  property: fallback(z.string(), "all").default("all"),
   device: fallback(z.string(), "all").default("all"),
   tab: fallback(z.string(), "panorama").default("panorama"),
   q: fallback(z.string(), "").default(""),
+  account: fallback(z.string(), "").default(""),
 });
 
 function normalizePeriod(v: string): EngagementFilters["period"] {
@@ -73,6 +74,8 @@ export const Route = createFileRoute("/_authenticated/admin/engajamento")({
   ),
 });
 
+type SearchShape = z.infer<typeof searchSchema>;
+
 function EngagementPage() {
   const search = Route.useSearch();
   const navigate = useNavigate({ from: Route.fullPath });
@@ -86,14 +89,15 @@ function EngagementPage() {
   };
   const tab = search.tab || "panorama";
   const q = search.q ?? "";
+  const accountId = search.account ? search.account : null;
 
   const backendPropIds = filters.propertyIds.includes("all") ? null : filters.propertyIds;
 
   const analyticsFn = useServerFn(getEngagementAnalytics);
   const analyticsQ = useQuery({
-    queryKey: ["engagement-analytics", filters.period, filters.propertyIds.join(","), filters.device],
+    queryKey: ["engagement-analytics", filters.period, filters.propertyIds.join(","), filters.device, accountId ?? "self"],
     queryFn: () => analyticsFn({
-      data: { period: filters.period, propertyIds: backendPropIds, device: filters.device },
+      data: { period: filters.period, propertyIds: backendPropIds, device: filters.device, asUserId: accountId },
     }),
     staleTime: 30_000,
   });
@@ -101,9 +105,9 @@ function EngagementPage() {
 
   const guestsFn = useServerFn(getEngagementGuests);
   const guestsQ = useQuery({
-    queryKey: ["engagement-guests", filters.period, filters.propertyIds.join(","), q],
+    queryKey: ["engagement-guests", filters.period, filters.propertyIds.join(","), q, accountId ?? "self"],
     queryFn: () => guestsFn({
-      data: { period: filters.period, propertyIds: backendPropIds, q: q || null },
+      data: { period: filters.period, propertyIds: backendPropIds, q: q || null, asUserId: accountId },
     }),
     enabled: tab === "hospedes",
     staleTime: 30_000,
@@ -112,23 +116,24 @@ function EngagementPage() {
   const [detail, setDetail] = useState<DetailTarget>(null);
   const insights = useMemo(() => (data ? computeInsights(data) : []), [data]);
 
-  function patch(p: Partial<EngagementFilters & { tab: string; q: string }>) {
+  function patch(p: Partial<EngagementFilters> & { tab?: string; q?: string; account?: string | null }) {
     navigate({
-      search: (prev: z.infer<typeof searchSchema>) => ({
+      search: (prev: SearchShape) => ({
         period: p.period ?? prev.period,
         property: p.propertyIds ? serializeProperty(p.propertyIds) : prev.property,
         device: p.device ?? prev.device,
         tab: p.tab ?? prev.tab,
         q: typeof p.q === "string" ? p.q : prev.q,
+        account: p.account !== undefined ? (p.account ?? "") : prev.account,
       }),
       replace: true,
     });
   }
 
   return (
-    <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 space-y-6">
-      <header className="flex items-center justify-between gap-3">
-        <div>
+    <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 space-y-4">
+      <header className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
+        <div className="min-w-0">
           <div className="text-[11px] uppercase tracking-widest text-muted-foreground font-medium mb-1">
             Behavioral Analytics
           </div>
@@ -137,16 +142,19 @@ function EngagementPage() {
             Entenda como seus hóspedes usam o guia — e o que fazer com isso.
           </p>
         </div>
-        <Button asChild variant="ghost" size="sm">
-          <Link to="/admin"><ArrowLeft className="size-4 mr-1" /> Voltar</Link>
-        </Button>
+        <div className="flex items-center gap-2 shrink-0">
+          <FiltersIconButton
+            filters={filters}
+            onChange={(p) => patch(p)}
+            properties={data?.properties ?? []}
+            accountId={accountId}
+            onAccountChange={(uid) => patch({ account: uid })}
+          />
+          <Button asChild variant="ghost" size="sm">
+            <Link to="/admin"><ArrowLeft className="size-4 mr-1" /> Voltar</Link>
+          </Button>
+        </div>
       </header>
-
-      <GlobalFilters
-        filters={filters}
-        onChange={(p) => patch(p)}
-        properties={data?.properties ?? []}
-      />
 
       {analyticsQ.isLoading && (
         <div className="py-24 flex items-center justify-center text-sm text-muted-foreground">
@@ -174,7 +182,6 @@ function EngagementPage() {
                 <TabsTrigger value="hospedes" className="text-xs flex-1">Hóspedes</TabsTrigger>
               </TabsList>
 
-              {/* ---------- PANORAMA ---------- */}
               <TabsContent value="panorama" className="space-y-5 mt-5">
                 <InsightsRibbon insights={insights} />
                 <KpiStrip kpis={data.kpis} timeseries={data.timeseries} />
@@ -184,7 +191,6 @@ function EngagementPage() {
                 </div>
               </TabsContent>
 
-              {/* ---------- JORNADA ---------- */}
               <TabsContent value="jornada" className="space-y-5 mt-5">
                 <div className="grid lg:grid-cols-2 gap-4">
                   <DurationBuckets buckets={data.durationBuckets} />
@@ -194,7 +200,6 @@ function EngagementPage() {
                 <SectionsBar rows={data.sections} silent={data.silentSections} />
               </TabsContent>
 
-              {/* ---------- CONTEÚDO ---------- */}
               <TabsContent value="conteudo" className="space-y-5 mt-5">
                 <ContentImpactMatrix rows={data.sections} />
                 <AiPlanLock locked={aiLocked}>
@@ -203,7 +208,6 @@ function EngagementPage() {
                 <PoiInsights top={data.topPois} cold={data.coldPois} />
               </TabsContent>
 
-              {/* ---------- HÓSPEDES ---------- */}
               <TabsContent value="hospedes" className="space-y-5 mt-5">
                 {guestsQ.isLoading ? (
                   <div className="py-12 flex items-center justify-center text-sm text-muted-foreground">
@@ -233,7 +237,7 @@ function EngagementPage() {
         </>
       )}
 
-      {data && <DetailSheet target={detail} onClose={() => setDetail(null)} data={data} />}
+      {data && <DetailSheet target={detail} onClose={() => setDetail(null)} data={data} accountId={accountId} />}
     </div>
   );
 }

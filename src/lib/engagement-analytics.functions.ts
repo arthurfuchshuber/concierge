@@ -14,6 +14,7 @@ const InputSchema = z.object({
   period: z.enum(["7d", "30d", "90d", "all"]).default("30d"),
   propertyIds: z.array(z.string()).nullable().optional(),
   device: z.enum(["all", "mobile", "tablet", "desktop"]).default("all"),
+  asUserId: z.string().uuid().nullable().optional(),
 });
 
 function detectDevice(ua: string | null): "mobile" | "tablet" | "desktop" {
@@ -100,7 +101,19 @@ async function runAnalytics(
   input: z.infer<typeof InputSchema>,
   ctx: { supabase: import("@supabase/supabase-js").SupabaseClient; userId: string },
 ) {
-  const { supabase, userId } = ctx;
+  // Admin impersonation: quando asUserId é informado, o solicitante precisa ser
+  // admin — passamos a agir como aquele usuário (usando supabaseAdmin p/ bypass RLS).
+  let effectiveUserId = ctx.userId;
+  let db = ctx.supabase;
+  if (input.asUserId && input.asUserId !== ctx.userId) {
+    const { data: isAdmin } = await ctx.supabase.rpc("has_role", { _user_id: ctx.userId, _role: "admin" });
+    if (!isAdmin) throw new Error("Acesso negado");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    db = supabaseAdmin as unknown as typeof ctx.supabase;
+    effectiveUserId = input.asUserId;
+  }
+  const userId = effectiveUserId;
+  const supabase = db;
   const days = daysFor(input.period);
   const since = new Date(Date.now() - days * 86400_000);
   const prevSince = new Date(Date.now() - days * 2 * 86400_000);
@@ -151,7 +164,7 @@ async function runAnalytics(
       .select("property_id, poi_key, poi_type, event_type, created_at")
       .in("property_id", filteredIds).gte("created_at", since.toISOString()).limit(20000),
     supabase.from("property_recommendations")
-      .select("property_id, place_id, name").in("property_id", filteredIds).limit(5000),
+      .select("id, property_id, place_id, name").in("property_id", filteredIds).limit(5000),
   ]);
   const logs = logsQ.data ?? [];
   const prevLogs = prevLogsQ.data ?? [];
@@ -332,22 +345,34 @@ async function runAnalytics(
       created_at: f.created_at as string,
     }));
 
-  // ---- POIs com nome real ---------------------------------------------
-  const placeToName = new Map<string, string>();
+  // ---- POIs com nome real (mapeia poi_key por id OU place_id) ----------
+  const recNameById = new Map<string, string>();
+  const recNameByPlace = new Map<string, string>();
   for (const r of recs) {
+    const rid = r.id as string | null;
     const pid = r.place_id as string | null;
-    if (pid) placeToName.set(pid, (r.name as string) ?? pid);
+    const nm = (r.name as string) ?? null;
+    if (rid && nm) recNameById.set(rid, nm);
+    if (pid && nm) recNameByPlace.set(pid, nm);
   }
   const poiCounts = new Map<string, { key: string; displayName: string; views: number; likes: number; dislikes: number }>();
   for (const e of poiEvents) {
     const k = e.poi_key as string;
     let entry = poiCounts.get(k);
     if (!entry) {
-      // poi_key vem como "type:id" ou apenas id; extrai place_id
       const parts = k.split(":");
-      const placeCandidate = parts.length > 1 ? parts.slice(1).join(":") : k;
-      const display = placeToName.get(placeCandidate) ?? placeToName.get(k) ?? placeCandidate;
-      entry = { key: k, displayName: display, views: 0, likes: 0, dislikes: 0 };
+      const candidate = parts.length > 1 ? parts.slice(1).join(":") : k;
+      const display =
+        recNameById.get(k) ??
+        recNameById.get(candidate) ??
+        recNameByPlace.get(candidate) ??
+        recNameByPlace.get(k) ??
+        null;
+      // Fallback: se o poi_key parece uma URL ou UUID cru, mostra rótulo genérico
+      const isUrl = /^https?:\/\//i.test(k) || k.startsWith("//");
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-/i.test(k);
+      const finalDisplay = display ?? (isUrl ? "Link externo" : isUuid ? "Recomendação sem nome" : candidate);
+      entry = { key: k, displayName: finalDisplay, views: 0, likes: 0, dislikes: 0 };
       poiCounts.set(k, entry);
     }
     const t = e.event_type as string;

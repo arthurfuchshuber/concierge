@@ -17,11 +17,12 @@ export type DetailTarget =
   | null;
 
 export function DetailSheet({
-  target, onClose, data,
+  target, onClose, data, accountId,
 }: {
   target: DetailTarget;
   onClose: () => void;
   data: EngagementAnalytics;
+  accountId?: string | null;
 }) {
   const open = !!target;
   return (
@@ -29,7 +30,7 @@ export function DetailSheet({
       <SheetContent side="right" className="w-full sm:max-w-2xl overflow-y-auto">
         {target?.kind === "property" && <PropertyDetail data={data} id={target.id} />}
         {target?.kind === "section" && <SectionDetail data={data} section={target.section} />}
-        {target?.kind === "guest" && <GuestDetail guestKey={target.guestKey} />}
+        {target?.kind === "guest" && <GuestDetail guestKey={target.guestKey} accountId={accountId ?? null} />}
       </SheetContent>
     </Sheet>
   );
@@ -110,11 +111,11 @@ function SectionDetail({ data, section }: { data: EngagementAnalytics; section: 
   );
 }
 
-function GuestDetail({ guestKey }: { guestKey: string }) {
+function GuestDetail({ guestKey, accountId }: { guestKey: string; accountId: string | null }) {
   const fn = useServerFn(getGuestDetail);
   const { data, isLoading, isError } = useQuery({
-    queryKey: ["guest-detail", guestKey],
-    queryFn: () => fn({ data: { guestKey } }),
+    queryKey: ["guest-detail", guestKey, accountId ?? "self"],
+    queryFn: () => fn({ data: { guestKey, asUserId: accountId } }),
   });
   if (isLoading) return <p className="text-sm text-muted-foreground mt-6">Carregando…</p>;
   if (isError || !data) return <p className="text-sm text-muted-foreground mt-6">Não foi possível carregar.</p>;

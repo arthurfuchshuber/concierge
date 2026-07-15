@@ -17,9 +17,10 @@ const InputSchema = z.object({
   period: z.enum(["7d", "30d", "90d", "all"]).default("30d"),
   propertyIds: z.array(z.string()).nullable().optional(),
   q: z.string().nullable().optional(),
+  asUserId: z.string().uuid().nullable().optional(),
 });
 
-const GuestDetailInput = z.object({ guestKey: z.string() });
+const GuestDetailInput = z.object({ guestKey: z.string(), asUserId: z.string().uuid().nullable().optional() });
 
 function daysFor(period: "7d" | "30d" | "90d" | "all"): number {
   return period === "7d" ? 7 : period === "30d" ? 30 : period === "90d" ? 90 : 365;
@@ -81,7 +82,16 @@ async function loadCommon(
   ctx: { supabase: import("@supabase/supabase-js").SupabaseClient; userId: string },
   input: z.infer<typeof InputSchema>,
 ) {
-  const { supabase, userId } = ctx;
+  let effectiveUserId = ctx.userId;
+  let supabase = ctx.supabase;
+  if (input.asUserId && input.asUserId !== ctx.userId) {
+    const { data: isAdmin } = await ctx.supabase.rpc("has_role", { _user_id: ctx.userId, _role: "admin" });
+    if (!isAdmin) throw new Error("Acesso negado");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    supabase = supabaseAdmin as unknown as typeof ctx.supabase;
+    effectiveUserId = input.asUserId;
+  }
+  const userId = effectiveUserId;
   const days = daysFor(input.period);
   const since = new Date(Date.now() - days * 86400_000);
 
@@ -138,7 +148,15 @@ type GuestAgg = {
   messagesCount: number;
   conversationsCount: number;
   hasUnresolvedFeedback: boolean;
+  accessesCount: number;
+  avgSessionSeconds: number;
+  maxSessionSeconds: number;
+  topSection: string | null;
+  topSectionSeconds: number;
 };
+
+const SECTION_GAP_MS = 20 * 60 * 1000;
+const SECTION_MIN_MS = 5 * 1000;
 
 function buildGuestIndex(data: Awaited<ReturnType<typeof loadCommon>>) {
   const { logs, events, convs, msgs, feedback, nameById } = data;
@@ -146,13 +164,11 @@ function buildGuestIndex(data: Awaited<ReturnType<typeof loadCommon>>) {
   const sessions = sessionize(events);
   const sessionByPhoneName = new Map<string, Session[]>();
   for (const s of sessions) {
-    // sessão pertence a "algum" hóspede desse imóvel — associaremos por (phone|name)
     const idKey = s.phone ? `${s.propertyId}|p:${s.phone}` : (s.name ? `${s.propertyId}|n:${s.name}` : `${s.propertyId}|sid:${s.sid}`);
     const arr = sessionByPhoneName.get(idKey) ?? [];
     arr.push(s); sessionByPhoneName.set(idKey, arr);
   }
 
-  // sessão → conversas atribuíveis por guest_session_id
   const convBySid = new Map<string, Array<typeof convs[number]>>();
   for (const c of convs) {
     if (!c.guest_session_id) continue;
@@ -167,7 +183,6 @@ function buildGuestIndex(data: Awaited<ReturnType<typeof loadCommon>>) {
   const unresolvedByConv = new Set<string>();
   for (const f of feedback) if (!f.resolved) unresolvedByConv.add(f.conversation_id);
 
-  // Cada linha de guide_access_logs é uma "reserva" — chave de hóspede.
   const guests = new Map<string, GuestAgg>();
   for (const l of logs) {
     const phone = normalizePhone(l.guest_phone);
@@ -179,6 +194,7 @@ function buildGuestIndex(data: Awaited<ReturnType<typeof loadCommon>>) {
       if (l.created_at < existing.firstAccess) existing.firstAccess = l.created_at;
       if (l.created_at > existing.lastActivity) existing.lastActivity = l.created_at;
       if (!existing.reservationCode && l.reservation_code) existing.reservationCode = l.reservation_code;
+      existing.accessesCount++;
     } else {
       guests.set(key, {
         key,
@@ -189,20 +205,33 @@ function buildGuestIndex(data: Awaited<ReturnType<typeof loadCommon>>) {
         totalSeconds: 0, sessionsCount: 0, sectionsCount: 0,
         messagesCount: 0, conversationsCount: 0,
         hasUnresolvedFeedback: false,
+        accessesCount: 1,
+        avgSessionSeconds: 0, maxSessionSeconds: 0,
+        topSection: null, topSectionSeconds: 0,
       });
     }
   }
 
-  // Atribui sessões e chats aos hóspedes por (propertyId + phone|name)
   for (const g of guests.values()) {
     const idKey = g.phone ? `${g.propertyId}|p:${g.phone}` : `${g.propertyId}|n:${normalizeName(g.guestName)}`;
     const ss = sessionByPhoneName.get(idKey) ?? [];
     const uniqueSections = new Set<string>();
+    const secondsBySection = new Map<string, number>();
+    let maxS = 0;
     for (const s of ss) {
-      g.totalSeconds += sessionSeconds(s);
+      const sec = sessionSeconds(s);
+      g.totalSeconds += sec;
       g.sessionsCount++;
-      for (const it of s.sections) uniqueSections.add(it.section);
-      // chats desta sessão
+      if (sec > maxS) maxS = sec;
+      // duração por seção: gap para o próximo evento na mesma sessão
+      const items = s.sections;
+      for (let i = 0; i < items.length; i++) {
+        uniqueSections.add(items[i].section);
+        const tCur = new Date(items[i].at).getTime();
+        const tNext = i < items.length - 1 ? new Date(items[i + 1].at).getTime() : tCur + SECTION_MIN_MS;
+        const dur = Math.min(SECTION_GAP_MS, Math.max(SECTION_MIN_MS, tNext - tCur)) / 1000;
+        secondsBySection.set(items[i].section, (secondsBySection.get(items[i].section) ?? 0) + dur);
+      }
       const cs = convBySid.get(s.sid) ?? [];
       for (const c of cs) {
         g.conversationsCount++;
@@ -214,6 +243,15 @@ function buildGuestIndex(data: Awaited<ReturnType<typeof loadCommon>>) {
     }
     g.sectionsCount = uniqueSections.size;
     g.totalSeconds = Math.round(g.totalSeconds);
+    g.maxSessionSeconds = Math.round(maxS);
+    g.avgSessionSeconds = g.sessionsCount > 0 ? Math.round(g.totalSeconds / g.sessionsCount) : 0;
+    let topName: string | null = null;
+    let topSec = 0;
+    for (const [k, v] of secondsBySection) {
+      if (v > topSec) { topSec = v; topName = k; }
+    }
+    g.topSection = topName;
+    g.topSectionSeconds = Math.round(topSec);
   }
 
   return { guests, sessions, convs, msgs, msgsByConv, unresolvedByConv, sessionByPhoneName, convBySid };
@@ -287,7 +325,7 @@ export const getGuestDetail = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     // A chave carrega propertyId|p:phone|checkin OU propertyId|n:name|checkin.
     // Recarregamos um período longo (365d) para não perder eventos antigos.
-    const common = await loadCommon(context, { period: "all", propertyIds: null });
+    const common = await loadCommon(context, { period: "all", propertyIds: null, asUserId: data.asUserId ?? null });
     const built = buildGuestIndex(common);
     const g = built.guests.get(data.guestKey);
     if (!g) throw new Error("Hóspede não encontrado");
