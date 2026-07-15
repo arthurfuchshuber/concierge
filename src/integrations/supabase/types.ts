@@ -1157,6 +1157,8 @@ export type Database = {
         Row: {
           ai_paused: boolean
           assigned_to: string | null
+          claim_requested_at: string | null
+          claim_requested_by: string | null
           created_at: string
           guest_name: string | null
           guest_session_id: string
@@ -1173,6 +1175,8 @@ export type Database = {
         Insert: {
           ai_paused?: boolean
           assigned_to?: string | null
+          claim_requested_at?: string | null
+          claim_requested_by?: string | null
           created_at?: string
           guest_name?: string | null
           guest_session_id: string
@@ -1189,6 +1193,8 @@ export type Database = {
         Update: {
           ai_paused?: boolean
           assigned_to?: string | null
+          claim_requested_at?: string | null
+          claim_requested_by?: string | null
           created_at?: string
           guest_name?: string | null
           guest_session_id?: string
