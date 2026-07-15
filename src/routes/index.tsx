@@ -874,7 +874,7 @@ function FAQ() {
     },
     {
       q: "Funciona no WhatsApp?",
-      a: "Sim, integramos com WhatsApp Business a partir do plano Professional. Também funciona via link direto e QR code no imóvel.",
+      a: "Hoje o ConciergeIA funciona via link direto do guia e QR code no imóvel — o hóspede acessa pelo navegador, sem instalar nada. A integração nativa com WhatsApp Business API está no nosso roadmap para 2026; anfitriões dos planos Pro e Business terão acesso antecipado quando disponível.",
     },
     {
       q: "E se a IA não souber responder?",
