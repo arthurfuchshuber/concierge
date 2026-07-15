@@ -187,7 +187,7 @@ function EngagementPage() {
 
               <div className="relative">
                 <div className="absolute right-3 top-3 z-20">{filtersBtn}</div>
-              </div>
+
 
               <TabsContent value="panorama" className="space-y-5 mt-5">
                 <InsightsRibbon insights={insights} />
