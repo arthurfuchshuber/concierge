@@ -36,7 +36,7 @@ export const subscribePush = createServerFn({ method: "POST" })
           enabled: true,
           last_used_at: new Date().toISOString(),
         },
-        { onConflict: "endpoint" },
+        { onConflict: "user_id,endpoint" },
       );
     if (error) throw new Error(error.message);
     return { ok: true };
