@@ -1019,3 +1019,163 @@ function Footer() {
     </footer>
   );
 }
+
+/* ---------- FLOATING CONTACT (AI chat + WhatsApp) ---------- */
+const WHATSAPP_NUMBER = "5547996759381";
+const WHATSAPP_DISPLAY = "(47) 99675-9381";
+
+function FloatingContact() {
+  const [open, setOpen] = useState(false);
+  const [chatOpen, setChatOpen] = useState(false);
+  const [messages, setMessages] = useState<{ role: "user" | "ai"; text: string }[]>([
+    {
+      role: "ai",
+      text: "Olá! 👋 Sou a IA do ConciergeIA. Posso tirar dúvidas sobre planos, funcionalidades, integrações — o que quiser antes de contratar.",
+    },
+  ]);
+  const [input, setInput] = useState("");
+  const [sending, setSending] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
+  }, [messages, chatOpen]);
+
+  async function send() {
+    const q = input.trim();
+    if (!q || sending) return;
+    setMessages((m) => [...m, { role: "user", text: q }]);
+    setInput("");
+    setSending(true);
+    try {
+      const res = await fetch("/api/public/guide-chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          messages: [
+            {
+              role: "system",
+              content:
+                "Você é a IA de vendas do ConciergeIA, SaaS de guia digital com IA para anfitriões de temporada. Responda breve, em PT-BR, tom próximo. Planos: Starter R$99 (guia bilíngue, QR, analytics), Pro R$199 (importação Airbnb, recomendações Google Maps, curadoria local, deep links Uber/99/Waze), Business R$399 (IA 24/7 nos guias, base treinável, insights). 7 dias grátis. WhatsApp Business API está no roadmap 2026. Se não souber, oriente falar no WhatsApp (47) 99675-9381.",
+            },
+            ...messages.map((m) => ({ role: m.role === "ai" ? "assistant" : "user", content: m.text })),
+            { role: "user", content: q },
+          ],
+        }),
+      });
+      if (!res.ok) throw new Error("fail");
+      const data = await res.json().catch(() => null);
+      const reply =
+        (data && (data.reply || data.message || data.content)) ||
+        "Posso te ajudar melhor no WhatsApp: (47) 99675-9381. Nosso time responde em minutos.";
+      setMessages((m) => [...m, { role: "ai", text: String(reply) }]);
+    } catch {
+      setMessages((m) => [
+        ...m,
+        {
+          role: "ai",
+          text: "Não consegui responder agora. Fale com nosso time no WhatsApp (47) 99675-9381 — respondemos em minutos.",
+        },
+      ]);
+    } finally {
+      setSending(false);
+    }
+  }
+
+  return (
+    <>
+      {/* Chat window */}
+      {chatOpen && (
+        <div className="fixed bottom-24 right-4 sm:right-6 z-[60] w-[calc(100vw-2rem)] max-w-sm rounded-3xl bg-white shadow-2xl border border-black/10 overflow-hidden flex flex-col" style={{ maxHeight: "min(560px, calc(100vh - 8rem))" }}>
+          <div className="px-4 py-3 flex items-center gap-3 text-white" style={{ background: BRAND_GRADIENT }}>
+            <div className="size-9 rounded-full bg-white/20 grid place-items-center">
+              <Sparkles className="size-4" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="text-sm font-semibold">Falar com a IA</div>
+              <div className="text-[11px] text-white/85">Tire dúvidas antes de contratar</div>
+            </div>
+            <button onClick={() => setChatOpen(false)} className="size-8 grid place-items-center rounded-full hover:bg-white/15" aria-label="Fechar">
+              <X className="size-4" />
+            </button>
+          </div>
+          <div ref={scrollRef} className="flex-1 overflow-y-auto px-3 py-3 space-y-2 bg-[#FDF9F2]">
+            {messages.map((m, i) => (
+              <div key={i} className={m.role === "user" ? "flex justify-end" : "flex justify-start"}>
+                <div
+                  className={
+                    m.role === "user"
+                      ? "max-w-[85%] text-[13px] bg-white rounded-2xl rounded-br-sm px-3 py-2 shadow-sm border border-black/5"
+                      : "max-w-[88%] text-[13px] text-white rounded-2xl rounded-bl-sm px-3 py-2 shadow-md"
+                  }
+                  style={m.role === "ai" ? { background: BRAND_GRADIENT } : undefined}
+                >
+                  {m.text}
+                </div>
+              </div>
+            ))}
+            {sending && (
+              <div className="flex justify-start">
+                <div className="text-[12px] text-black/50 px-3 py-2">digitando…</div>
+              </div>
+            )}
+          </div>
+          <div className="p-2 border-t border-black/5 bg-white">
+            <div className="flex items-center gap-2 rounded-full border border-black/10 pl-4 pr-1 py-1">
+              <input
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") send(); }}
+                placeholder="Pergunte sobre planos, IA, integrações…"
+                className="flex-1 bg-transparent text-sm outline-none py-1.5"
+              />
+              <button
+                onClick={send}
+                disabled={!input.trim() || sending}
+                className="size-9 rounded-full grid place-items-center text-white disabled:opacity-50"
+                style={{ background: BRAND_GRADIENT }}
+                aria-label="Enviar"
+              >
+                <Send className="size-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* FAB stack */}
+      <div className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-[55] flex flex-col items-end gap-2">
+        {open && !chatOpen && (
+          <>
+            <a
+              href={`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent("Olá! Vim pelo site do ConciergeIA e gostaria de falar com a equipe.")}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 rounded-full bg-[#25D366] text-white pl-3 pr-4 h-11 shadow-xl hover:opacity-95 transition"
+            >
+              <Phone className="size-4" />
+              <span className="text-sm font-semibold">{WHATSAPP_DISPLAY}</span>
+            </a>
+            <button
+              onClick={() => { setChatOpen(true); setOpen(false); }}
+              className="flex items-center gap-2 rounded-full text-white pl-3 pr-4 h-11 shadow-xl hover:opacity-95 transition"
+              style={{ background: BRAND_GRADIENT }}
+            >
+              <Sparkles className="size-4" />
+              <span className="text-sm font-semibold">Perguntar à IA</span>
+            </button>
+          </>
+        )}
+        <button
+          onClick={() => { if (chatOpen) setChatOpen(false); else setOpen((v) => !v); }}
+          aria-label="Ajuda"
+          className="size-14 rounded-full grid place-items-center text-white shadow-2xl hover:scale-105 active:scale-95 transition"
+          style={{ background: BRAND_GRADIENT }}
+        >
+          {open || chatOpen ? <X className="size-6" /> : <MessageCircle className="size-6" />}
+        </button>
+      </div>
+    </>
+  );
+}
+
