@@ -8,6 +8,7 @@ import { Loader2, Sparkles, ArrowLeft } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { getEngagementAnalytics } from "@/lib/engagement-analytics.functions";
+import { getEngagementGuests } from "@/lib/engagement-guests.functions";
 import { checkIsAdmin } from "@/lib/admin-subs.functions";
 import { useSubscription } from "@/hooks/useSubscription";
 import { AiPlanLock } from "@/components/admin/AiPlanLock";
@@ -19,21 +20,21 @@ import { TrendChart } from "@/components/engagement/TrendChart";
 import { PropertiesDotPlot } from "@/components/engagement/PropertiesDotPlot";
 import { Funnel } from "@/components/engagement/Funnel";
 import { SectionsBar } from "@/components/engagement/SectionsBar";
-import { AccessHeatmap } from "@/components/engagement/AccessHeatmap";
-import { DeviceMix } from "@/components/engagement/DeviceMix";
 import { ContentImpactMatrix } from "@/components/engagement/ContentImpactMatrix";
-import { QuestionsCluster } from "@/components/engagement/QuestionsCluster";
 import { FeedbackList } from "@/components/engagement/FeedbackList";
 import { PoiInsights } from "@/components/engagement/PoiInsights";
-import { CompletenessScatter } from "@/components/engagement/CompletenessScatter";
-import { DetailSheet } from "@/components/engagement/DetailSheet";
+import { DetailSheet, type DetailTarget } from "@/components/engagement/DetailSheet";
+import { DurationBuckets, DepthCurve } from "@/components/engagement/EngagementBars";
+import { GuestsTable } from "@/components/engagement/GuestsTable";
+import { ConversationsTable } from "@/components/engagement/ConversationsTable";
 import { computeInsights } from "@/components/engagement/insights";
 
 const searchSchema = z.object({
   period: fallback(z.string(), "30d").default("30d"),
-  property: fallback(z.string(), "all").default("all"),
+  property: fallback(z.string(), "all").default("all"), // CSV ou "all"
   device: fallback(z.string(), "all").default("all"),
   tab: fallback(z.string(), "panorama").default("panorama"),
+  q: fallback(z.string(), "").default(""),
 });
 
 function normalizePeriod(v: string): EngagementFilters["period"] {
@@ -41,6 +42,15 @@ function normalizePeriod(v: string): EngagementFilters["period"] {
 }
 function normalizeDevice(v: string): EngagementFilters["device"] {
   return v === "mobile" || v === "tablet" || v === "desktop" ? v : "all";
+}
+function parsePropertyCsv(v: string): string[] {
+  if (!v || v === "all") return ["all"];
+  const parts = v.split(",").map((s) => s.trim()).filter(Boolean);
+  return parts.length === 0 ? ["all"] : parts;
+}
+function serializeProperty(ids: string[]): string {
+  if (ids.length === 0 || ids.includes("all")) return "all";
+  return ids.join(",");
 }
 
 export const Route = createFileRoute("/_authenticated/admin/engajamento")({
@@ -71,39 +81,45 @@ function EngagementPage() {
 
   const filters: EngagementFilters = {
     period: normalizePeriod(search.period),
-    propertyId: search.property || "all",
+    propertyIds: parsePropertyCsv(search.property),
     device: normalizeDevice(search.device),
   };
   const tab = search.tab || "panorama";
+  const q = search.q ?? "";
 
-  const fn = useServerFn(getEngagementAnalytics);
-  const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: ["engagement-analytics", filters.period, filters.propertyId, filters.device],
-    queryFn: () => fn({
-      data: {
-        period: filters.period,
-        propertyId: filters.propertyId === "all" ? null : filters.propertyId,
-        device: filters.device,
-      },
+  const backendPropIds = filters.propertyIds.includes("all") ? null : filters.propertyIds;
+
+  const analyticsFn = useServerFn(getEngagementAnalytics);
+  const analyticsQ = useQuery({
+    queryKey: ["engagement-analytics", filters.period, filters.propertyIds.join(","), filters.device],
+    queryFn: () => analyticsFn({
+      data: { period: filters.period, propertyIds: backendPropIds, device: filters.device },
     }),
     staleTime: 30_000,
   });
+  const data = analyticsQ.data;
 
-  const [detail, setDetail] = useState<
-    | { kind: "property"; id: string }
-    | { kind: "section"; section: string }
-    | null
-  >(null);
+  const guestsFn = useServerFn(getEngagementGuests);
+  const guestsQ = useQuery({
+    queryKey: ["engagement-guests", filters.period, filters.propertyIds.join(","), q],
+    queryFn: () => guestsFn({
+      data: { period: filters.period, propertyIds: backendPropIds, q: q || null },
+    }),
+    enabled: tab === "hospedes",
+    staleTime: 30_000,
+  });
 
+  const [detail, setDetail] = useState<DetailTarget>(null);
   const insights = useMemo(() => (data ? computeInsights(data) : []), [data]);
 
-  function patch(p: Partial<EngagementFilters & { tab: string }>) {
+  function patch(p: Partial<EngagementFilters & { tab: string; q: string }>) {
     navigate({
       search: (prev: z.infer<typeof searchSchema>) => ({
         period: p.period ?? prev.period,
-        property: p.propertyId ?? prev.property,
+        property: p.propertyIds ? serializeProperty(p.propertyIds) : prev.property,
         device: p.device ?? prev.device,
         tab: p.tab ?? prev.tab,
+        q: typeof p.q === "string" ? p.q : prev.q,
       }),
       replace: true,
     });
@@ -132,29 +148,30 @@ function EngagementPage() {
         properties={data?.properties ?? []}
       />
 
-      {isLoading && (
+      {analyticsQ.isLoading && (
         <div className="py-24 flex items-center justify-center text-sm text-muted-foreground">
           <Loader2 className="size-4 animate-spin mr-2" /> Carregando comportamento…
         </div>
       )}
 
-      {isError && (
+      {analyticsQ.isError && (
         <div className="rounded-2xl border border-destructive/30 bg-destructive/5 p-6 text-sm space-y-2">
           <p>Não foi possível carregar os dados.</p>
-          <Button size="sm" variant="outline" onClick={() => refetch()}>Tentar novamente</Button>
+          <Button size="sm" variant="outline" onClick={() => analyticsQ.refetch()}>Tentar novamente</Button>
         </div>
       )}
 
-      {data && !isLoading && (
+      {data && !analyticsQ.isLoading && (
         <>
           {data.properties.length === 0 ? (
             <EmptyState />
           ) : (
             <Tabs value={tab} onValueChange={(v) => patch({ tab: v })} className="w-full">
-              <TabsList className="w-full h-auto p-1 bg-muted/40">
-                <TabsTrigger value="panorama" className="text-xs">Panorama</TabsTrigger>
-                <TabsTrigger value="jornada" className="text-xs">Jornada</TabsTrigger>
-                <TabsTrigger value="conteudo" className="text-xs">Conteúdo & Dúvidas</TabsTrigger>
+              <TabsList className="w-full h-auto p-1 bg-muted/40 flex-wrap">
+                <TabsTrigger value="panorama" className="text-xs flex-1">Panorama</TabsTrigger>
+                <TabsTrigger value="jornada" className="text-xs flex-1">Jornada</TabsTrigger>
+                <TabsTrigger value="conteudo" className="text-xs flex-1">Conteúdo</TabsTrigger>
+                <TabsTrigger value="hospedes" className="text-xs flex-1">Hóspedes</TabsTrigger>
               </TabsList>
 
               {/* ---------- PANORAMA ---------- */}
@@ -169,37 +186,54 @@ function EngagementPage() {
 
               {/* ---------- JORNADA ---------- */}
               <TabsContent value="jornada" className="space-y-5 mt-5">
-                <div className="grid lg:grid-cols-[1fr_1fr] gap-4">
-                  <Funnel steps={data.funnel} />
-                  <DeviceMix mix={data.deviceMix} />
+                <div className="grid lg:grid-cols-2 gap-4">
+                  <DurationBuckets buckets={data.durationBuckets} />
+                  <DepthCurve curve={data.depthCurve} />
                 </div>
+                <Funnel steps={data.funnel} />
                 <SectionsBar rows={data.sections} silent={data.silentSections} />
-                <AccessHeatmap matrix={data.heatmap} />
               </TabsContent>
 
-              {/* ---------- CONTEÚDO & DÚVIDAS ---------- */}
+              {/* ---------- CONTEÚDO ---------- */}
               <TabsContent value="conteudo" className="space-y-5 mt-5">
                 <ContentImpactMatrix rows={data.sections} />
-                <div className="grid lg:grid-cols-[1.2fr_1fr] gap-4">
-                  <QuestionsCluster items={data.topQuestions} />
-                  <AiPlanLock locked={aiLocked}>
-                    <FeedbackList items={data.openFeedbackList} properties={data.properties} />
-                  </AiPlanLock>
-                </div>
+                <AiPlanLock locked={aiLocked}>
+                  <FeedbackList items={data.openFeedbackList} properties={data.properties} />
+                </AiPlanLock>
                 <PoiInsights top={data.topPois} cold={data.coldPois} />
-                <CompletenessScatter
-                  rows={data.perProperty.map((p) => ({ id: p.id, name: p.name, completeness: p.completeness, accesses: p.accesses }))}
-                  onSelect={(id) => setDetail({ kind: "property", id })}
-                />
+              </TabsContent>
+
+              {/* ---------- HÓSPEDES ---------- */}
+              <TabsContent value="hospedes" className="space-y-5 mt-5">
+                {guestsQ.isLoading ? (
+                  <div className="py-12 flex items-center justify-center text-sm text-muted-foreground">
+                    <Loader2 className="size-4 animate-spin mr-2" /> Consolidando hóspedes…
+                  </div>
+                ) : guestsQ.isError ? (
+                  <div className="rounded-2xl border border-destructive/30 bg-destructive/5 p-6 text-sm">
+                    Não foi possível carregar os hóspedes.
+                  </div>
+                ) : guestsQ.data ? (
+                  <>
+                    <GuestsTable
+                      guests={guestsQ.data.guests}
+                      q={q}
+                      onQ={(v) => patch({ q: v })}
+                      onSelect={(guestKey) => setDetail({ kind: "guest", guestKey })}
+                    />
+                    <ConversationsTable
+                      conversations={guestsQ.data.conversations}
+                      onSelect={(guestKey) => { if (guestKey) setDetail({ kind: "guest", guestKey }); }}
+                    />
+                  </>
+                ) : null}
               </TabsContent>
             </Tabs>
           )}
         </>
       )}
 
-      {data && (
-        <DetailSheet target={detail} onClose={() => setDetail(null)} data={data} />
-      )}
+      {data && <DetailSheet target={detail} onClose={() => setDetail(null)} data={data} />}
     </div>
   );
 }
