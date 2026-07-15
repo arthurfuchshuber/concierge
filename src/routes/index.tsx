@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ArrowRight,
   Check,
@@ -19,6 +19,7 @@ import {
   Menu,
   X,
   Send,
+  Phone,
 } from "lucide-react";
 import conciergeLogo from "@/assets/concierge-logo.png";
 
@@ -61,6 +62,7 @@ function LandingPage() {
       <FAQ />
       <FinalCTA />
       <Footer />
+      <FloatingContact />
     </div>
   );
 }
@@ -146,7 +148,7 @@ function Hero() {
             IA para anfitriões de temporada
           </div>
 
-          <h1 className="mt-6 font-display font-extrabold text-4xl sm:text-5xl lg:text-6xl leading-[1.02] tracking-tight text-balance">
+          <h1 className="mt-6 font-display font-extrabold text-4xl sm:text-5xl lg:text-6xl leading-[1.1] tracking-tight text-balance">
             Seus hóspedes atendidos em{" "}
             <span
               className="inline-block bg-clip-text text-transparent"
@@ -378,11 +380,11 @@ function Pain() {
   return (
     <section id="recursos" className="py-20 sm:py-28">
       <div className="max-w-6xl mx-auto px-5 sm:px-8">
-        <div className="max-w-2xl">
+        <div>
           <p className="text-[11px] uppercase tracking-[0.25em] font-semibold text-black/50">
             O que trava seu dia
           </p>
-          <h2 className="mt-3 font-display font-extrabold text-3xl sm:text-5xl leading-[1.05] tracking-tight text-balance">
+          <h2 className="mt-3 font-display font-extrabold text-3xl sm:text-5xl leading-[1.15] tracking-tight text-balance line-clamp-2">
             Você não abriu um <span className="italic">callcenter</span>. Abriu uma casa.
           </h2>
           <p className="mt-4 text-black/60 text-lg leading-relaxed">
@@ -445,11 +447,11 @@ function Showcase() {
   return (
     <section className="py-20 sm:py-28" style={{ backgroundColor: "#FFFFFF" }}>
       <div className="max-w-6xl mx-auto px-5 sm:px-8">
-        <div className="max-w-2xl">
+        <div>
           <p className="text-[11px] uppercase tracking-[0.25em] font-semibold text-black/50">
             Como funciona
           </p>
-          <h2 className="mt-3 font-display font-extrabold text-3xl sm:text-5xl leading-[1.05] tracking-tight text-balance">
+          <h2 className="mt-3 font-display font-extrabold text-3xl sm:text-5xl leading-[1.15] tracking-tight text-balance line-clamp-2">
             Um produto pensado por quem já foi anfitrião.
           </h2>
         </div>
@@ -469,10 +471,10 @@ function Showcase() {
                 >
                   <Sparkles className="size-3" /> {b.tag}
                 </div>
-                <h3 className="mt-4 font-display font-bold text-2xl sm:text-4xl leading-[1.1] tracking-tight text-balance">
+                <h3 className="mt-4 font-display font-bold text-2xl sm:text-4xl leading-[1.2] tracking-tight text-balance line-clamp-2">
                   {b.title}
                 </h3>
-                <p className="mt-4 text-black/70 text-lg leading-relaxed max-w-lg">{b.body}</p>
+                <p className="mt-4 text-black/70 text-lg leading-relaxed">{b.body}</p>
               </div>
               <div className="flex justify-center">{b.mockup}</div>
             </div>
@@ -692,11 +694,11 @@ function Testimonials() {
   return (
     <section className="py-20 sm:py-28" style={{ backgroundColor: "#FFFFFF" }}>
       <div className="max-w-6xl mx-auto px-5 sm:px-8">
-        <div className="max-w-2xl">
+        <div>
           <p className="text-[11px] uppercase tracking-[0.25em] font-semibold text-black/50">
             Depoimentos
           </p>
-          <h2 className="mt-3 font-display font-extrabold text-3xl sm:text-5xl leading-[1.05] tracking-tight text-balance">
+          <h2 className="mt-3 font-display font-extrabold text-3xl sm:text-5xl leading-[1.15] tracking-tight text-balance line-clamp-2">
             Anfitriões que dormem em paz.
           </h2>
         </div>
@@ -797,11 +799,11 @@ function Pricing() {
   return (
     <section id="planos" className="py-20 sm:py-28">
       <div className="max-w-6xl mx-auto px-5 sm:px-8">
-        <div className="text-center max-w-2xl mx-auto">
+        <div className="text-center">
           <p className="text-[11px] uppercase tracking-[0.25em] font-semibold text-black/50">
             Planos
           </p>
-          <h2 className="mt-3 font-display font-extrabold text-3xl sm:text-5xl leading-[1.05] tracking-tight text-balance">
+          <h2 className="mt-3 font-display font-extrabold text-3xl sm:text-5xl leading-[1.15] tracking-tight text-balance line-clamp-2">
             Menos de uma diária. Muito mais que uma equipe.
           </h2>
           <p className="mt-4 text-black/60 text-lg">
@@ -872,7 +874,7 @@ function FAQ() {
     },
     {
       q: "Funciona no WhatsApp?",
-      a: "Sim, integramos com WhatsApp Business a partir do plano Professional. Também funciona via link direto e QR code no imóvel.",
+      a: "Hoje o ConciergeIA funciona via link direto do guia e QR code no imóvel — o hóspede acessa pelo navegador, sem instalar nada. A integração nativa com WhatsApp Business API está no nosso roadmap para 2026; anfitriões dos planos Pro e Business terão acesso antecipado quando disponível.",
     },
     {
       q: "E se a IA não souber responder?",
@@ -899,7 +901,7 @@ function FAQ() {
           <p className="text-[11px] uppercase tracking-[0.25em] font-semibold text-black/50">
             Perguntas frequentes
           </p>
-          <h2 className="mt-3 font-display font-extrabold text-3xl sm:text-5xl leading-[1.05] tracking-tight text-balance">
+          <h2 className="mt-3 font-display font-extrabold text-3xl sm:text-5xl leading-[1.15] tracking-tight text-balance line-clamp-2">
             Tudo o que você quer saber.
           </h2>
         </div>
@@ -947,7 +949,7 @@ function FinalCTA() {
             <div className="inline-flex items-center gap-2 rounded-full bg-white/15 backdrop-blur px-3.5 py-1.5 text-[11px] font-semibold uppercase tracking-widest">
               <Sparkles className="size-3.5" /> 7 dias grátis · sem cartão
             </div>
-            <h2 className="mt-5 font-display font-extrabold text-4xl sm:text-6xl leading-[1.02] tracking-tight text-balance">
+            <h2 className="mt-5 font-display font-extrabold text-4xl sm:text-6xl leading-[1.1] tracking-tight text-balance">
               Sua próxima review 5 estrelas está a um clique.
             </h2>
             <p className="mt-4 text-white/90 text-lg max-w-xl mx-auto">
@@ -1017,3 +1019,163 @@ function Footer() {
     </footer>
   );
 }
+
+/* ---------- FLOATING CONTACT (AI chat + WhatsApp) ---------- */
+const WHATSAPP_NUMBER = "5547996759381";
+const WHATSAPP_DISPLAY = "(47) 99675-9381";
+
+function FloatingContact() {
+  const [open, setOpen] = useState(false);
+  const [chatOpen, setChatOpen] = useState(false);
+  const [messages, setMessages] = useState<{ role: "user" | "ai"; text: string }[]>([
+    {
+      role: "ai",
+      text: "Olá! 👋 Sou a IA do ConciergeIA. Posso tirar dúvidas sobre planos, funcionalidades, integrações — o que quiser antes de contratar.",
+    },
+  ]);
+  const [input, setInput] = useState("");
+  const [sending, setSending] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
+  }, [messages, chatOpen]);
+
+  async function send() {
+    const q = input.trim();
+    if (!q || sending) return;
+    setMessages((m) => [...m, { role: "user", text: q }]);
+    setInput("");
+    setSending(true);
+    try {
+      const res = await fetch("/api/public/guide-chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          messages: [
+            {
+              role: "system",
+              content:
+                "Você é a IA de vendas do ConciergeIA, SaaS de guia digital com IA para anfitriões de temporada. Responda breve, em PT-BR, tom próximo. Planos: Starter R$99 (guia bilíngue, QR, analytics), Pro R$199 (importação Airbnb, recomendações Google Maps, curadoria local, deep links Uber/99/Waze), Business R$399 (IA 24/7 nos guias, base treinável, insights). 7 dias grátis. WhatsApp Business API está no roadmap 2026. Se não souber, oriente falar no WhatsApp (47) 99675-9381.",
+            },
+            ...messages.map((m) => ({ role: m.role === "ai" ? "assistant" : "user", content: m.text })),
+            { role: "user", content: q },
+          ],
+        }),
+      });
+      if (!res.ok) throw new Error("fail");
+      const data = await res.json().catch(() => null);
+      const reply =
+        (data && (data.reply || data.message || data.content)) ||
+        "Posso te ajudar melhor no WhatsApp: (47) 99675-9381. Nosso time responde em minutos.";
+      setMessages((m) => [...m, { role: "ai", text: String(reply) }]);
+    } catch {
+      setMessages((m) => [
+        ...m,
+        {
+          role: "ai",
+          text: "Não consegui responder agora. Fale com nosso time no WhatsApp (47) 99675-9381 — respondemos em minutos.",
+        },
+      ]);
+    } finally {
+      setSending(false);
+    }
+  }
+
+  return (
+    <>
+      {/* Chat window */}
+      {chatOpen && (
+        <div className="fixed bottom-24 right-4 sm:right-6 z-[60] w-[calc(100vw-2rem)] max-w-sm rounded-3xl bg-white shadow-2xl border border-black/10 overflow-hidden flex flex-col" style={{ maxHeight: "min(560px, calc(100vh - 8rem))" }}>
+          <div className="px-4 py-3 flex items-center gap-3 text-white" style={{ background: BRAND_GRADIENT }}>
+            <div className="size-9 rounded-full bg-white/20 grid place-items-center">
+              <Sparkles className="size-4" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="text-sm font-semibold">Falar com a IA</div>
+              <div className="text-[11px] text-white/85">Tire dúvidas antes de contratar</div>
+            </div>
+            <button onClick={() => setChatOpen(false)} className="size-8 grid place-items-center rounded-full hover:bg-white/15" aria-label="Fechar">
+              <X className="size-4" />
+            </button>
+          </div>
+          <div ref={scrollRef} className="flex-1 overflow-y-auto px-3 py-3 space-y-2 bg-[#FDF9F2]">
+            {messages.map((m, i) => (
+              <div key={i} className={m.role === "user" ? "flex justify-end" : "flex justify-start"}>
+                <div
+                  className={
+                    m.role === "user"
+                      ? "max-w-[85%] text-[13px] bg-white rounded-2xl rounded-br-sm px-3 py-2 shadow-sm border border-black/5"
+                      : "max-w-[88%] text-[13px] text-white rounded-2xl rounded-bl-sm px-3 py-2 shadow-md"
+                  }
+                  style={m.role === "ai" ? { background: BRAND_GRADIENT } : undefined}
+                >
+                  {m.text}
+                </div>
+              </div>
+            ))}
+            {sending && (
+              <div className="flex justify-start">
+                <div className="text-[12px] text-black/50 px-3 py-2">digitando…</div>
+              </div>
+            )}
+          </div>
+          <div className="p-2 border-t border-black/5 bg-white">
+            <div className="flex items-center gap-2 rounded-full border border-black/10 pl-4 pr-1 py-1">
+              <input
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") send(); }}
+                placeholder="Pergunte sobre planos, IA, integrações…"
+                className="flex-1 bg-transparent text-sm outline-none py-1.5"
+              />
+              <button
+                onClick={send}
+                disabled={!input.trim() || sending}
+                className="size-9 rounded-full grid place-items-center text-white disabled:opacity-50"
+                style={{ background: BRAND_GRADIENT }}
+                aria-label="Enviar"
+              >
+                <Send className="size-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* FAB stack */}
+      <div className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-[55] flex flex-col items-end gap-2">
+        {open && !chatOpen && (
+          <>
+            <a
+              href={`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent("Olá! Vim pelo site do ConciergeIA e gostaria de falar com a equipe.")}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 rounded-full bg-[#25D366] text-white pl-3 pr-4 h-11 shadow-xl hover:opacity-95 transition"
+            >
+              <Phone className="size-4" />
+              <span className="text-sm font-semibold">{WHATSAPP_DISPLAY}</span>
+            </a>
+            <button
+              onClick={() => { setChatOpen(true); setOpen(false); }}
+              className="flex items-center gap-2 rounded-full text-white pl-3 pr-4 h-11 shadow-xl hover:opacity-95 transition"
+              style={{ background: BRAND_GRADIENT }}
+            >
+              <Sparkles className="size-4" />
+              <span className="text-sm font-semibold">Perguntar à IA</span>
+            </button>
+          </>
+        )}
+        <button
+          onClick={() => { if (chatOpen) setChatOpen(false); else setOpen((v) => !v); }}
+          aria-label="Ajuda"
+          className="size-14 rounded-full grid place-items-center text-white shadow-2xl hover:scale-105 active:scale-95 transition"
+          style={{ background: BRAND_GRADIENT }}
+        >
+          {open || chatOpen ? <X className="size-6" /> : <MessageCircle className="size-6" />}
+        </button>
+      </div>
+    </>
+  );
+}
+
