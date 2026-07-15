@@ -446,14 +446,7 @@ function Showcase() {
   return (
     <section className="py-20 sm:py-28" style={{ backgroundColor: "#FFFFFF" }}>
       <div className="max-w-6xl mx-auto px-5 sm:px-8">
-        <div>
-          <p className="text-[11px] uppercase tracking-[0.25em] font-semibold text-black/50">
-            Como funciona
-          </p>
-          <h2 className="mt-3 font-display font-extrabold text-[26px] sm:text-5xl leading-[1.15] tracking-tight text-balance">
-            Um produto pensado por quem já foi anfitrião.
-          </h2>
-        </div>
+        
 
         <div className="mt-16 space-y-24">
           {blocks.map((b, i) => (
