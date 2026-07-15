@@ -3,16 +3,16 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 export const Route = createFileRoute("/reembolso")({
   head: () => ({
     meta: [
-      { title: "Política de Reembolso — SigmaConcierge" },
+      { title: "Política de Reembolso — Concierge" },
       {
         name: "description",
         content:
-          "Garantia de devolução de 30 dias do SigmaConcierge. Veja como solicitar reembolso e cancelar sua assinatura pelo portal do cliente.",
+          "Garantia de devolução de 30 dias do Concierge. Veja como solicitar reembolso e cancelar sua assinatura pelo portal do cliente.",
       },
-      { property: "og:title", content: "Política de Reembolso — SigmaConcierge" },
+      { property: "og:title", content: "Política de Reembolso — Concierge" },
       {
         property: "og:description",
-        content: "Garantia de 30 dias e instruções para solicitar reembolso ou cancelar a assinatura SigmaConcierge.",
+        content: "Garantia de 30 dias e instruções para solicitar reembolso ou cancelar a assinatura Concierge.",
       },
       { property: "og:url", content: "/reembolso" },
     ],
@@ -31,7 +31,7 @@ function RefundPage() {
         <h1 className="font-display text-4xl mt-6">Política de Reembolso</h1>
         <p className="text-xs text-muted-foreground mt-2">Última atualização: Junho de 2026</p>
         <p className="text-sm mt-4">
-          Prestador: <strong>SigmaConcierge</strong> — contato: <strong>sigma@anfitriaosigma.com.br</strong>.
+          Prestador: <strong>Concierge</strong> — contato: <strong>sigma@anfitriaosigma.com.br</strong>.
         </p>
 
         <section className="mt-8 space-y-4 text-sm leading-relaxed">

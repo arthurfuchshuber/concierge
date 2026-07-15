@@ -3,16 +3,16 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 export const Route = createFileRoute("/termos")({
   head: () => ({
     meta: [
-      { title: "Termos e Condições — SigmaConcierge" },
+      { title: "Termos e Condições — Concierge" },
       {
         name: "description",
         content:
-          "Leia os termos e condições de uso do SigmaConcierge: contas, pagamentos via Paddle, limites de responsabilidade e suporte.",
+          "Leia os termos e condições de uso do Concierge: contas, pagamentos via Paddle, limites de responsabilidade e suporte.",
       },
-      { property: "og:title", content: "Termos e Condições — SigmaConcierge" },
+      { property: "og:title", content: "Termos e Condições — Concierge" },
       {
         property: "og:description",
-        content: "Termos de uso do SigmaConcierge, incluindo assinatura, pagamentos via Paddle e suporte.",
+        content: "Termos de uso do Concierge, incluindo assinatura, pagamentos via Paddle e suporte.",
       },
       { property: "og:url", content: "/termos" },
     ],
@@ -34,10 +34,10 @@ function TermsPage() {
         <section className="mt-8 space-y-4 text-sm leading-relaxed">
           <h2 className="font-display text-2xl mt-6">1. O serviço e o prestador</h2>
           <p>
-            <strong>SigmaConcierge</strong> ("nós", "serviço") é o nome legal do prestador responsável por este SaaS,
+            <strong>Concierge</strong> ("nós", "serviço") é o nome legal do prestador responsável por este SaaS,
             que permite a anfitriões de aluguel por temporada criarem guias digitais editoriais para seus hóspedes.
             Contato: <strong>sigma@anfitriaosigma.com.br</strong>. Ao usar o serviço, você concorda com estes Termos e
-            contrata diretamente com a SigmaConcierge.
+            contrata diretamente com a Concierge.
           </p>
 
           <h2 className="font-display text-2xl mt-6">2. Uso aceitável</h2>
@@ -54,7 +54,7 @@ function TermsPage() {
 
           <h2 className="font-display text-2xl mt-6">4. Propriedade intelectual</h2>
           <p>
-            O SigmaConcierge retém todos os direitos sobre o software, documentação e marca. Concedemos a você uma
+            O Concierge retém todos os direitos sobre o software, documentação e marca. Concedemos a você uma
             licença limitada, não exclusiva e intransferível para usar o serviço dentro do plano contratado.
           </p>
 

@@ -65,7 +65,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "viewport", content: "width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, viewport-fit=cover" },
       { name: "theme-color", content: "#1c1c1c" },
       { property: "og:type", content: "website" },
-      { property: "og:site_name", content: "SigmaConcierge" },
+      { property: "og:site_name", content: "Concierge" },
       { name: "twitter:card", content: "summary_large_image" },
       { name: "google-site-verification", content: "o7m2Z68kLI_sgZFwkIsA1VQzKGI1OYfiqw6FKxsup5E" },
     ],
@@ -86,7 +86,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         children: JSON.stringify({
           "@context": "https://schema.org",
           "@type": "Organization",
-          name: "SigmaConcierge",
+          name: "Concierge",
           url: "https://guia.anfitriaosigma.com.br",
           logo: "https://guia.anfitriaosigma.com.br/favicon.ico",
         }),

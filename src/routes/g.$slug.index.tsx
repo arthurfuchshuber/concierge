@@ -67,7 +67,7 @@ export const Route = createFileRoute("/g/$slug/")({
   },
   head: ({ loaderData, params }) => {
     if (!loaderData || loaderData.status !== "ok") {
-      return { meta: [{ title: "Concierge — SigmaConcierge" }, { name: "robots", content: "noindex" }] };
+      return { meta: [{ title: "Concierge — Concierge" }, { name: "robots", content: "noindex" }] };
     }
     const p = loaderData.property as Record<string, unknown>;
     const name = p.name as string;
