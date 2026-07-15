@@ -96,15 +96,16 @@ async function loadCommon(
   const since = new Date(Date.now() - days * 86400_000);
 
   const { data: props, error: pErr } = await supabase
-    .from("properties").select("id, name").eq("owner_id", userId);
+    .from("properties").select("id, name, city").eq("owner_id", userId);
   if (pErr) throw pErr;
   const allIds = (props ?? []).map((p) => p.id as string);
   const nameById = new Map<string, string>((props ?? []).map((p) => [p.id as string, p.name as string]));
+  const cityById = new Map<string, string | null>((props ?? []).map((p) => [p.id as string, (p as { city: string | null }).city]));
   const req = input.propertyIds ?? null;
   const filteredIds = req && req.length > 0 && !req.includes("all") ? req.filter((id) => allIds.includes(id)) : allIds;
 
   if (filteredIds.length === 0) {
-    return { filteredIds, nameById, since, logs: [], events: [], convs: [], msgs: [], feedback: [] };
+    return { filteredIds, nameById, cityById, since, logs: [], events: [], convs: [], msgs: [], feedback: [] };
   }
 
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -128,7 +129,7 @@ async function loadCommon(
       .eq("owner_id", userId).in("property_id", filteredIds).gte("created_at", since.toISOString()),
   ]);
   return {
-    filteredIds, nameById, since,
+    filteredIds, nameById, cityById, since,
     logs: (logsQ.data ?? []) as Array<{ id: string; property_id: string; guest_name: string; reservation_code: string | null; checkin_date: string; guest_phone: string | null; guest_phone_country: string | null; created_at: string }>,
     events: (eventsQ.data ?? []) as Evt[],
     convs: (convsQ.data ?? []) as Array<{ id: string; property_id: string; guest_session_id: string; guest_name: string | null; created_at: string; last_message_at: string }>,
@@ -139,7 +140,7 @@ async function loadCommon(
 
 type GuestAgg = {
   key: string;
-  propertyId: string; propertyName: string;
+  propertyId: string; propertyName: string; propertyCity: string | null;
   guestName: string; phone: string; phoneCountry: string | null;
   reservationCode: string | null; checkinDate: string;
   firstAccess: string; lastActivity: string;
@@ -159,7 +160,7 @@ const SECTION_GAP_MS = 20 * 60 * 1000;
 const SECTION_MIN_MS = 5 * 1000;
 
 function buildGuestIndex(data: Awaited<ReturnType<typeof loadCommon>>) {
-  const { logs, events, convs, msgs, feedback, nameById } = data;
+  const { logs, events, convs, msgs, feedback, nameById, cityById } = data;
 
   const sessions = sessionize(events);
   const sessionByPhoneName = new Map<string, Session[]>();
@@ -198,7 +199,7 @@ function buildGuestIndex(data: Awaited<ReturnType<typeof loadCommon>>) {
     } else {
       guests.set(key, {
         key,
-        propertyId: l.property_id, propertyName,
+        propertyId: l.property_id, propertyName, propertyCity: cityById.get(l.property_id) ?? null,
         guestName: l.guest_name, phone, phoneCountry: l.guest_phone_country,
         reservationCode: l.reservation_code, checkinDate: l.checkin_date,
         firstAccess: l.created_at, lastActivity: l.created_at,

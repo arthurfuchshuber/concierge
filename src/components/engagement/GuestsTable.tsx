@@ -53,6 +53,8 @@ export function GuestsTable({
   onSelect: (guestKey: string) => void;
 }) {
   const [sort, setSort] = useState<SortState>({ key: "lastActivity", dir: "desc" });
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
 
   const sorted = useMemo(() => {
     const arr = [...guests];
@@ -81,10 +83,15 @@ export function GuestsTable({
 
   const active = (k: SortKey) => sort.key === k;
 
+  const totalPages = Math.max(1, Math.ceil(sorted.length / pageSize));
+  const currentPage = Math.min(page, totalPages);
+  const pageStart = (currentPage - 1) * pageSize;
+  const pageRows = sorted.slice(pageStart, pageStart + pageSize);
+
   return (
     <div className="rounded-2xl border border-border bg-card overflow-hidden">
       <header className="p-4 flex flex-col sm:flex-row sm:items-center gap-3 border-b border-border">
-        <div className="flex-1 min-w-0">
+        <div className="flex-1 min-w-0 pr-10 sm:pr-0">
           <h3 className="text-sm font-semibold">Hóspedes</h3>
           <p className="text-xs text-muted-foreground">
             Consolidação por telefone + data de check-in. Clique em uma linha para ver detalhes.
@@ -131,7 +138,7 @@ export function GuestsTable({
               </tr>
             </thead>
             <tbody>
-              {sorted.map((g) => (
+              {pageRows.map((g) => (
                 <tr
                   key={g.key}
                   onClick={() => onSelect(g.key)}
@@ -186,6 +193,40 @@ export function GuestsTable({
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+      {sorted.length > 0 && (
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 px-4 py-3 border-t border-border text-xs text-muted-foreground">
+          <div>
+            {pageStart + 1}–{Math.min(pageStart + pageSize, sorted.length)} de {sorted.length}
+          </div>
+          <div className="flex items-center gap-3">
+            <label className="inline-flex items-center gap-1.5">
+              <span>Por página</span>
+              <select
+                value={pageSize}
+                onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1); }}
+                className="h-7 rounded-md border border-border bg-background px-1.5 text-xs"
+              >
+                {[10, 20, 50, 100].map((n) => <option key={n} value={n}>{n}</option>)}
+              </select>
+            </label>
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={currentPage <= 1}
+                className="h-7 px-2 rounded-md border border-border bg-background disabled:opacity-40 hover:bg-muted/40"
+              >Anterior</button>
+              <span className="tabular-nums">{currentPage}/{totalPages}</span>
+              <button
+                type="button"
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                disabled={currentPage >= totalPages}
+                className="h-7 px-2 rounded-md border border-border bg-background disabled:opacity-40 hover:bg-muted/40"
+              >Próxima</button>
+            </div>
+          </div>
         </div>
       )}
     </div>

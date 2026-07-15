@@ -1,6 +1,8 @@
 import { createFileRoute, notFound, Link, useRouter } from "@tanstack/react-router";
 import { useMemo, useState, useEffect, useRef } from "react";
 import { getPublicGuide } from "@/lib/guide.functions";
+import { trackGuideEvent } from "@/lib/guide-analytics.functions";
+import { readAccessRecord } from "@/components/GuideAccessGate";
 import {
   ArrowLeft,
   Compass,
@@ -387,6 +389,27 @@ function ExplorePage() {
       alive = false;
     };
   }, [slug, fetchCounts, fetchReactions]);
+
+  // Track "explorar" section + subsections for engagement analytics.
+  const trackEvent = useServerFn(trackGuideEvent);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const rec = readAccessRecord(slug);
+    const sid = window.localStorage.getItem(`guide-chat-session:${slug}`) ?? "anon";
+    const pagePath = window.location.pathname;
+    const section = activeKey ? `explorar/${activeKey}` : "explorar";
+    trackEvent({
+      data: {
+        slug,
+        section: section.slice(0, 40),
+        sessionId: sid,
+        guestName: rec?.name ?? null,
+        guestPhone: rec?.phone ?? null,
+        pagePath,
+      },
+    }).catch(() => {});
+  }, [slug, activeKey, trackEvent]);
+
 
   if (r.status !== "ok") {
     return (
