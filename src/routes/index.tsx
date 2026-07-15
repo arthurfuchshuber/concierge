@@ -446,9 +446,7 @@ function Showcase() {
   return (
     <section className="py-20 sm:py-28" style={{ backgroundColor: "#FFFFFF" }}>
       <div className="max-w-6xl mx-auto px-5 sm:px-8">
-        
-
-        <div className="mt-16 space-y-24">
+        <div className="space-y-24">
           {blocks.map((b, i) => (
             <div
               key={b.tag}
