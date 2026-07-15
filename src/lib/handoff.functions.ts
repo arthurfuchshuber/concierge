@@ -140,6 +140,30 @@ export const sendHandoffMessage = createServerFn({ method: "POST" })
         .from("property_chat_conversations")
         .update({ ai_paused: true, status: "assigned", assigned_to: userId, last_message_at: new Date().toISOString() })
         .eq("id", data.conversationId);
+
+      // Dispara push para o hóspede (se ele tiver ativado notificações).
+      try {
+        const { data: conv } = await supabase
+          .from("property_chat_conversations")
+          .select("id, properties:property_id(name, slug)")
+          .eq("id", data.conversationId)
+          .maybeSingle();
+        const propName = (conv?.properties as { name?: string } | null)?.name ?? "Anfitrião";
+        const slug = (conv?.properties as { slug?: string } | null)?.slug ?? "";
+        const { sendPushToGuest } = await import("@/lib/guest-push.server");
+        const preview = data.content.length > 120 ? `${data.content.slice(0, 117)}…` : data.content;
+        await sendPushToGuest(data.conversationId, {
+          title: `Nova mensagem — ${propName}`,
+          body: preview,
+          data: {
+            url: slug ? `/g/${slug}?chat=1` : "/",
+            conversationId: data.conversationId,
+            tag: `guest-reply-${data.conversationId}`,
+          },
+        });
+      } catch {
+        // Não bloqueia o envio se o push falhar.
+      }
     }
     return { ok: true };
   });
