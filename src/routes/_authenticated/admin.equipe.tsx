@@ -6,12 +6,14 @@ import {
   listMyTeam,
   inviteTeamMember,
   revokeTeamInvite,
+  resendTeamInvite,
   removeTeamMember,
   updateTeamMemberRole,
 } from "@/lib/team.functions";
 import { getAtendimentoAccess } from "@/lib/handoff.functions";
 import { enablePush, disablePush, isPushSupported, currentPushSubscription } from "@/lib/push-client";
-import { Users, Bell, BellOff, Loader2, Trash2, Mail } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { Users, Bell, BellOff, Loader2, Trash2, Mail, Send as SendIcon } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/admin/equipe")({
   component: EquipePage,
