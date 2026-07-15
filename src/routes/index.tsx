@@ -159,7 +159,7 @@ function Hero() {
             , 24 horas por dia.
           </h1>
 
-          <p className="mt-5 text-lg text-black/70 leading-relaxed max-w-lg">
+          <p className="mt-5 text-[15px] sm:text-lg text-black/70 leading-relaxed max-w-lg text-pretty">
             O ConciergeIA responde dúvidas do check-in ao check-out — no idioma do hóspede
             e com o tom da sua marca. Você recupera seu tempo. Eles ficam encantados.
           </p>
@@ -382,10 +382,10 @@ function Pain() {
           <p className="text-[11px] uppercase tracking-[0.25em] font-semibold text-black/50">
             O que trava seu dia
           </p>
-          <h2 className="mt-3 font-display font-extrabold text-3xl sm:text-5xl leading-[1.15] tracking-tight text-balance line-clamp-2">
+          <h2 className="mt-3 font-display font-extrabold text-[26px] sm:text-5xl leading-[1.15] tracking-tight text-balance">
             Você não abriu um <span className="italic">callcenter</span>. Abriu uma casa.
           </h2>
-          <p className="mt-4 text-black/60 text-lg leading-relaxed">
+          <p className="mt-4 text-[15px] sm:text-lg text-black/60 leading-relaxed text-pretty">
             Todo anfitrião enfrenta o mesmo. O ConciergeIA resolve — sem perder o toque humano.
           </p>
         </div>
@@ -449,7 +449,7 @@ function Showcase() {
           <p className="text-[11px] uppercase tracking-[0.25em] font-semibold text-black/50">
             Como funciona
           </p>
-          <h2 className="mt-3 font-display font-extrabold text-3xl sm:text-5xl leading-[1.15] tracking-tight text-balance line-clamp-2">
+          <h2 className="mt-3 font-display font-extrabold text-[26px] sm:text-5xl leading-[1.15] tracking-tight text-balance">
             Um produto pensado por quem já foi anfitrião.
           </h2>
         </div>
@@ -469,10 +469,10 @@ function Showcase() {
                 >
                   <Sparkles className="size-3" /> {b.tag}
                 </div>
-                <h3 className="mt-4 font-display font-bold text-2xl sm:text-4xl leading-[1.2] tracking-tight text-balance line-clamp-2">
+                <h3 className="mt-4 font-display font-bold text-[22px] sm:text-4xl leading-[1.2] tracking-tight text-balance">
                   {b.title}
                 </h3>
-                <p className="mt-4 text-black/70 text-lg leading-relaxed">{b.body}</p>
+                <p className="mt-4 text-[15px] sm:text-lg text-black/70 leading-relaxed text-pretty">{b.body}</p>
               </div>
               <div className="flex justify-center">{b.mockup}</div>
             </div>
@@ -694,7 +694,7 @@ function Testimonials() {
           <p className="text-[11px] uppercase tracking-[0.25em] font-semibold text-black/50">
             Depoimentos
           </p>
-          <h2 className="mt-3 font-display font-extrabold text-3xl sm:text-5xl leading-[1.15] tracking-tight text-balance line-clamp-2">
+          <h2 className="mt-3 font-display font-extrabold text-[26px] sm:text-5xl leading-[1.15] tracking-tight text-balance">
             Anfitriões que dormem em paz.
           </h2>
         </div>
@@ -799,10 +799,10 @@ function Pricing() {
           <p className="text-[11px] uppercase tracking-[0.25em] font-semibold text-black/50">
             Planos
           </p>
-          <h2 className="mt-3 font-display font-extrabold text-3xl sm:text-5xl leading-[1.15] tracking-tight text-balance line-clamp-2">
+          <h2 className="mt-3 font-display font-extrabold text-[26px] sm:text-5xl leading-[1.15] tracking-tight text-balance">
             Menos de uma diária. Muito mais que uma equipe.
           </h2>
-          <p className="mt-4 text-black/60 text-lg">
+          <p className="mt-4 text-[15px] sm:text-lg text-black/60 text-pretty">
             7 dias grátis em todos os planos. Cancele quando quiser.
           </p>
         </div>
@@ -897,7 +897,7 @@ function FAQ() {
           <p className="text-[11px] uppercase tracking-[0.25em] font-semibold text-black/50">
             Perguntas frequentes
           </p>
-          <h2 className="mt-3 font-display font-extrabold text-3xl sm:text-5xl leading-[1.15] tracking-tight text-balance line-clamp-2">
+          <h2 className="mt-3 font-display font-extrabold text-[26px] sm:text-5xl leading-[1.15] tracking-tight text-balance">
             Tudo o que você quer saber.
           </h2>
         </div>
