@@ -17,9 +17,10 @@ const InputSchema = z.object({
   period: z.enum(["7d", "30d", "90d", "all"]).default("30d"),
   propertyIds: z.array(z.string()).nullable().optional(),
   q: z.string().nullable().optional(),
+  asUserId: z.string().uuid().nullable().optional(),
 });
 
-const GuestDetailInput = z.object({ guestKey: z.string() });
+const GuestDetailInput = z.object({ guestKey: z.string(), asUserId: z.string().uuid().nullable().optional() });
 
 function daysFor(period: "7d" | "30d" | "90d" | "all"): number {
   return period === "7d" ? 7 : period === "30d" ? 30 : period === "90d" ? 90 : 365;
