@@ -72,7 +72,7 @@ export function GuestsTable({
           Nenhum hóspede encontrado no período/filtro.
         </div>
       ) : (
-        <div className="overflow-x-auto scrollbar-thin">
+        <div className="overflow-x-auto sg-elegant-scroll">
           <table className="w-full text-sm min-w-[1180px]">
             <thead className="bg-muted/40 text-[10px] uppercase tracking-wider text-muted-foreground">
               <tr>
