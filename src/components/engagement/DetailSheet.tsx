@@ -122,12 +122,19 @@ function GuestDetail({ guestKey, accountId }: { guestKey: string; accountId: str
   const g = data.guest;
   return (
     <>
-      <SheetHeader>
-        <SheetTitle className="flex items-center gap-2"><User className="size-4" /> {g.guestName || "Hóspede"}</SheetTitle>
-        <SheetDescription className="space-x-2">
-          {g.phone && <span className="tabular-nums">{g.phoneCountry ?? ""} {g.phone}</span>}
-          {g.reservationCode && <span>· {g.reservationCode}</span>}
-          <span>· {g.propertyName}</span>
+      <SheetHeader className="items-center text-center">
+        <SheetTitle className="flex items-center justify-center gap-2"><User className="size-4" /> {g.guestName || "Hóspede"}</SheetTitle>
+        <SheetDescription asChild>
+          <div className="flex flex-col items-center gap-0.5 text-center">
+            {g.phone ? (
+              <span className="tabular-nums">{g.phoneCountry ?? ""} {g.phone}</span>
+            ) : (
+              <span>Sem telefone</span>
+            )}
+            <span>{g.propertyName}</span>
+            {g.propertyCity && <span>{g.propertyCity}</span>}
+            {g.reservationCode && <span className="text-[11px] opacity-70">Reserva {g.reservationCode}</span>}
+          </div>
         </SheetDescription>
       </SheetHeader>
 
@@ -147,11 +154,16 @@ function GuestDetail({ guestKey, accountId }: { guestKey: string; accountId: str
           <div className="text-xs text-muted-foreground">Sem eventos de navegação registrados.</div>
         ) : (
           <ol className="space-y-3">
-            {data.sessions.map((s) => (
+            {data.sessions.map((s, idx) => (
               <li key={s.sid} className="rounded-lg border border-border p-3 bg-muted/20">
-                <div className="flex items-center justify-between text-[11px] text-muted-foreground mb-2">
-                  <span>{new Date(s.startedAt).toLocaleString("pt-BR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}</span>
-                  <span>{formatDur(s.durationSeconds)}</span>
+                <div className="flex items-center justify-between text-[11px] text-muted-foreground mb-2 gap-3">
+                  <span className="font-medium text-foreground">Sessão {idx + 1}</span>
+                  <span className="tabular-nums">{formatDur(s.durationSeconds)}</span>
+                </div>
+                <div className="text-[11px] text-muted-foreground mb-2">
+                  {new Date(s.startedAt).toLocaleString("pt-BR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
+                  {" · "}
+                  {s.sectionsSequence.length} evento{s.sectionsSequence.length === 1 ? "" : "s"} de navegação
                 </div>
                 <div className="flex flex-wrap gap-1.5">
                   {s.sectionsSequence.map((it, i) => (
