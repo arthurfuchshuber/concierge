@@ -86,13 +86,42 @@ function EquipePage() {
   async function togglePush() {
     setPushBusy(true);
     try {
-      if (pushOn) { await disablePush(); setPushOn(false); }
-      else {
-        const r = await enablePush();
-        if (r.ok) setPushOn(true);
-        else alert("Não foi possível ativar notificações: " + r.reason);
+      if (pushOn) {
+        await disablePush();
+        setPushOn(false);
+        toast.success("Notificações desativadas");
+        return;
       }
-    } finally { setPushBusy(false); }
+      if (!isPushSupported()) {
+        const isIOS = typeof navigator !== "undefined" && /iPhone|iPad|iPod/.test(navigator.userAgent);
+        const nav = typeof window !== "undefined" ? (window.navigator as Navigator & { standalone?: boolean }) : null;
+        const standalone = nav?.standalone || window.matchMedia?.("(display-mode: standalone)").matches;
+        if (isIOS && !standalone) {
+          toast.error("No iPhone/iPad, adicione o app à Tela de Início e abra por ali para ativar notificações.");
+        } else {
+          toast.error("Este navegador não suporta notificações push.");
+        }
+        return;
+      }
+      if (typeof Notification !== "undefined" && Notification.permission === "denied") {
+        toast.error("Notificações bloqueadas. Ative nas configurações do navegador para este site.");
+        return;
+      }
+      const r = await enablePush();
+      if (r.ok) {
+        setPushOn(true);
+        toast.success("Notificações ativadas neste dispositivo");
+      } else if (r.reason === "denied") {
+        toast.error("Você negou a permissão de notificações.");
+      } else {
+        toast.error("Não foi possível ativar notificações (" + r.reason + ")");
+      }
+    } catch (e) {
+      console.error("[push] enable error", e);
+      toast.error("Erro ao ativar notificações: " + ((e as Error)?.message ?? "desconhecido"));
+    } finally {
+      setPushBusy(false);
+    }
   }
 
   if (access.data?.allowed !== true) {
