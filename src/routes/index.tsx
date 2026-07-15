@@ -52,20 +52,23 @@ function LandingPage() {
   return (
     <div className="min-h-screen text-black font-sans" style={{ backgroundColor: CREAM }}>
       <Header />
-      <Hero />
-      <SocialProof />
-      <Pain />
-      <Showcase />
-      <Metrics />
-      <Testimonials />
-      <Pricing />
-      <FAQ />
-      <FinalCTA />
+      <main id="main">
+        <Hero />
+        <SocialProof />
+        <Pain />
+        <Showcase />
+        <Metrics />
+        <Testimonials />
+        <Pricing />
+        <FAQ />
+        <FinalCTA />
+      </main>
       <Footer />
       <FloatingContact />
     </div>
   );
 }
+
 
 /* ---------- HEADER ---------- */
 function Header() {
