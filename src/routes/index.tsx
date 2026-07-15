@@ -141,8 +141,8 @@ function Hero() {
         style={{ background: BRAND_GRADIENT }}
       />
 
-      <div className="relative max-w-6xl mx-auto px-5 sm:px-8 pt-14 sm:pt-24 pb-16 sm:pb-24 grid lg:grid-cols-2 gap-12 lg:gap-8 items-center">
-        <div>
+      <div className="relative max-w-6xl mx-auto px-5 sm:px-8 pt-14 sm:pt-24 pb-16 sm:pb-24 flex flex-col items-center gap-12">
+        <div className="text-center max-w-3xl mx-auto flex flex-col items-center">
           <div className="inline-flex items-center gap-2 rounded-full bg-white border border-black/5 px-3.5 py-1.5 text-[11px] font-semibold uppercase tracking-widest text-black/70 shadow-sm">
             <Sparkles className="size-3.5" style={{ color: "#7C1AD8" }} />
             IA para anfitriões de temporada
@@ -159,12 +159,12 @@ function Hero() {
             , 24 horas por dia.
           </h1>
 
-          <p className="mt-5 text-[15px] sm:text-lg text-black/70 leading-relaxed max-w-lg text-pretty">
+          <p className="mt-5 text-[15px] sm:text-lg text-black/70 leading-relaxed text-pretty">
             O ConciergeIA responde dúvidas do check-in ao check-out — no idioma do hóspede
             e com o tom da sua marca. Você recupera seu tempo. Eles ficam encantados.
           </p>
 
-          <div className="mt-8 flex flex-col sm:flex-row gap-3">
+          <div className="mt-8 flex flex-col sm:flex-row gap-3 w-full sm:w-auto justify-center">
             <Link
               to="/auth"
               className="btn-shine inline-flex items-center justify-center gap-2 rounded-full h-12 px-7 text-white text-sm font-semibold shadow-xl hover:opacity-95 transition"
@@ -182,7 +182,7 @@ function Hero() {
           </div>
 
           {/* Prova social leve */}
-          <div className="mt-8 flex items-center gap-5 text-xs text-black/60">
+          <div className="mt-8 flex items-center justify-center gap-5 text-xs text-black/60">
             <div className="flex -space-x-2">
               {["#7C1AD8", "#E82DAE", "#9B4ADC", "#C93AC1"].map((c, i) => (
                 <div
@@ -192,7 +192,7 @@ function Hero() {
                 />
               ))}
             </div>
-            <div>
+            <div className="text-left">
               <div className="flex items-center gap-1 text-amber-500">
                 {[...Array(5)].map((_, i) => (
                   <Star key={i} className="size-3.5 fill-current" />
@@ -206,13 +206,14 @@ function Hero() {
         </div>
 
         {/* Mockup do produto (phone frame + chat) */}
-        <div className="relative flex justify-center lg:justify-end">
+        <div className="relative flex justify-center w-full">
           <PhoneMockup />
         </div>
       </div>
     </section>
   );
 }
+
 
 /* Phone mockup with a fake chat conversation */
 function PhoneMockup() {
