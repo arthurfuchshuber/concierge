@@ -345,22 +345,34 @@ async function runAnalytics(
       created_at: f.created_at as string,
     }));
 
-  // ---- POIs com nome real ---------------------------------------------
-  const placeToName = new Map<string, string>();
+  // ---- POIs com nome real (mapeia poi_key por id OU place_id) ----------
+  const recNameById = new Map<string, string>();
+  const recNameByPlace = new Map<string, string>();
   for (const r of recs) {
+    const rid = r.id as string | null;
     const pid = r.place_id as string | null;
-    if (pid) placeToName.set(pid, (r.name as string) ?? pid);
+    const nm = (r.name as string) ?? null;
+    if (rid && nm) recNameById.set(rid, nm);
+    if (pid && nm) recNameByPlace.set(pid, nm);
   }
   const poiCounts = new Map<string, { key: string; displayName: string; views: number; likes: number; dislikes: number }>();
   for (const e of poiEvents) {
     const k = e.poi_key as string;
     let entry = poiCounts.get(k);
     if (!entry) {
-      // poi_key vem como "type:id" ou apenas id; extrai place_id
       const parts = k.split(":");
-      const placeCandidate = parts.length > 1 ? parts.slice(1).join(":") : k;
-      const display = placeToName.get(placeCandidate) ?? placeToName.get(k) ?? placeCandidate;
-      entry = { key: k, displayName: display, views: 0, likes: 0, dislikes: 0 };
+      const candidate = parts.length > 1 ? parts.slice(1).join(":") : k;
+      const display =
+        recNameById.get(k) ??
+        recNameById.get(candidate) ??
+        recNameByPlace.get(candidate) ??
+        recNameByPlace.get(k) ??
+        null;
+      // Fallback: se o poi_key parece uma URL ou UUID cru, mostra rótulo genérico
+      const isUrl = /^https?:\/\//i.test(k) || k.startsWith("//");
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-/i.test(k);
+      const finalDisplay = display ?? (isUrl ? "Link externo" : isUuid ? "Recomendação sem nome" : candidate);
+      entry = { key: k, displayName: finalDisplay, views: 0, likes: 0, dislikes: 0 };
       poiCounts.set(k, entry);
     }
     const t = e.event_type as string;
