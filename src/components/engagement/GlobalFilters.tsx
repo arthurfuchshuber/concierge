@@ -37,11 +37,12 @@ export function FiltersIconButton({
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger asChild>
         <Button
-          variant="outline"
+          variant="ghost"
           size="icon"
           aria-label="Filtros"
-          className={cn("relative size-9 rounded-full shrink-0", className)}
+          className={cn("relative size-9 rounded-full shrink-0 bg-transparent hover:bg-transparent border-0 shadow-none text-foreground", className)}
         >
+
           <Filter className="size-4" />
           {activeCount > 0 && (
             <Badge
