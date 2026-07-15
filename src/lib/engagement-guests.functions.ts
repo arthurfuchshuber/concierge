@@ -105,7 +105,7 @@ async function loadCommon(
   const filteredIds = req && req.length > 0 && !req.includes("all") ? req.filter((id) => allIds.includes(id)) : allIds;
 
   if (filteredIds.length === 0) {
-    return { filteredIds, nameById, since, logs: [], events: [], convs: [], msgs: [], feedback: [] };
+    return { filteredIds, nameById, cityById, since, logs: [], events: [], convs: [], msgs: [], feedback: [] };
   }
 
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
