@@ -448,14 +448,9 @@ function Showcase() {
     <section className="py-20 sm:py-28" style={{ backgroundColor: "#FFFFFF" }}>
       <div className="max-w-6xl mx-auto px-5 sm:px-8">
         <div className="space-y-24">
-          {blocks.map((b, i) => (
-            <div
-              key={b.tag}
-              className={`grid lg:grid-cols-2 gap-10 lg:gap-16 items-center ${
-                i % 2 === 1 ? "lg:[&>*:first-child]:order-2" : ""
-              }`}
-            >
-              <div>
+          {blocks.map((b) => (
+            <div key={b.tag} className="flex flex-col items-center gap-10">
+              <div className="text-center max-w-3xl mx-auto flex flex-col items-center">
                 <div
                   className="inline-flex items-center gap-2 rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-widest text-white"
                   style={{ background: BRAND_GRADIENT }}
@@ -467,7 +462,7 @@ function Showcase() {
                 </h3>
                 <p className="mt-4 text-[15px] sm:text-lg text-black/70 leading-relaxed text-pretty">{b.body}</p>
               </div>
-              <div className="flex justify-center">{b.mockup}</div>
+              <div className="flex justify-center w-full">{b.mockup}</div>
             </div>
           ))}
         </div>
@@ -475,6 +470,7 @@ function Showcase() {
     </section>
   );
 }
+
 
 /* --- fake product mockups --- */
 function MockupBrain() {
