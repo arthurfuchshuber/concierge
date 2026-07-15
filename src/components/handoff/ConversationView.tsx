@@ -62,8 +62,11 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
   }, [q.data?.messages?.length]);
 
   useEffect(() => {
+    // Unique per-mount name avoids "cannot add postgres_changes callbacks after subscribe()"
+    // when the effect remounts (StrictMode, tab focus, etc.) and Supabase reuses a same-name channel.
+    const channelName = `conv-${conversationId}-${Math.random().toString(36).slice(2)}`;
     const ch = supabase
-      .channel(`conv-${conversationId}`)
+      .channel(channelName)
       .on("postgres_changes", { event: "*", schema: "public", table: "property_chat_messages", filter: `conversation_id=eq.${conversationId}` }, () => {
         qc.invalidateQueries({ queryKey: ["handoff-conv", conversationId] });
       })
