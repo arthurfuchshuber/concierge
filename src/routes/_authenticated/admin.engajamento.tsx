@@ -26,7 +26,7 @@ import { PoiInsights } from "@/components/engagement/PoiInsights";
 import { DetailSheet, type DetailTarget } from "@/components/engagement/DetailSheet";
 import { DurationBuckets, DepthCurve } from "@/components/engagement/EngagementBars";
 import { GuestsTable } from "@/components/engagement/GuestsTable";
-import { ConversationsTable } from "@/components/engagement/ConversationsTable";
+
 import { computeInsights } from "@/components/engagement/insights";
 
 const searchSchema = z.object({
