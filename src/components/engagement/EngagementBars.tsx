@@ -36,7 +36,7 @@ export function DurationBuckets({ buckets }: { buckets: Array<{ label: string; c
                 labelStyle={tooltipLabelStyle}
               />
               <Bar dataKey="count" radius={[6, 6, 0, 0]}>
-                {buckets.map((_, i) => <Cell key={i} fill={colors[i] ?? "hsl(var(--primary))"} />)}
+                {buckets.map((_, i) => <Cell key={i} fill={colors[i] ?? "var(--foreground)"} />)}
               </Bar>
             </BarChart>
           </ResponsiveContainer>

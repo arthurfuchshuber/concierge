@@ -63,7 +63,7 @@ export function KpiStrip({ kpis, timeseries }: {
           <div className="h-7">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={k.series.map((v, i) => ({ i, v }))}>
-                <Line type="monotone" dataKey="v" stroke="hsl(var(--primary))" strokeWidth={1.5} dot={false} isAnimationActive={false} />
+                <Line type="monotone" dataKey="v" stroke="var(--foreground)" strokeWidth={1.5} dot={false} isAnimationActive={false} />
               </LineChart>
             </ResponsiveContainer>
           </div>

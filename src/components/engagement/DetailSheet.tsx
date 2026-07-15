@@ -102,8 +102,8 @@ function SectionDetail({ data, section }: { data: EngagementAnalytics; section: 
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={data.timeseries}>
             <XAxis dataKey="date" hide />
-            <Tooltip contentStyle={{ fontSize: 12, borderRadius: 10, border: "1px solid hsl(var(--border))" }} labelFormatter={(v) => new Date(v as string).toLocaleDateString("pt-BR")} />
-            <Line type="monotone" dataKey="sessions" stroke="hsl(var(--primary))" strokeWidth={1.5} dot={false} isAnimationActive={false} />
+            <Tooltip contentStyle={{ fontSize: 12, borderRadius: 10, border: "1px solid var(--border)", background: "var(--popover)", color: "var(--popover-foreground)" }} labelFormatter={(v) => new Date(v as string).toLocaleDateString("pt-BR")} />
+            <Line type="monotone" dataKey="sessions" stroke="var(--foreground)" strokeWidth={1.5} dot={false} isAnimationActive={false} />
           </LineChart>
         </ResponsiveContainer>
       </div>
