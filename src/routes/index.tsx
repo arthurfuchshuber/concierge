@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ArrowRight,
   Check,
@@ -19,6 +19,7 @@ import {
   Menu,
   X,
   Send,
+  Phone,
 } from "lucide-react";
 import conciergeLogo from "@/assets/concierge-logo.png";
 
