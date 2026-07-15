@@ -148,7 +148,7 @@ function Hero() {
             IA para anfitriões de temporada
           </div>
 
-          <h1 className="mt-6 font-display font-extrabold text-4xl sm:text-5xl lg:text-6xl leading-[1.1] tracking-tight text-balance">
+          <h1 className="mt-6 font-display font-extrabold text-[30px] sm:text-5xl lg:text-6xl leading-[1.1] tracking-tight text-balance">
             Seus hóspedes atendidos em{" "}
             <span
               className="inline-block bg-clip-text text-transparent"
@@ -167,11 +167,12 @@ function Hero() {
           <div className="mt-8 flex flex-col sm:flex-row gap-3">
             <Link
               to="/auth"
-              className="inline-flex items-center justify-center gap-2 rounded-full h-12 px-7 text-white text-sm font-semibold shadow-xl hover:opacity-95 transition"
+              className="btn-shine inline-flex items-center justify-center gap-2 rounded-full h-12 px-7 text-white text-sm font-semibold shadow-xl hover:opacity-95 transition"
               style={{ background: BRAND_GRADIENT }}
             >
-              Testar 7 dias grátis <ArrowRight className="size-4" />
+              <span className="inline-flex items-center gap-2">Testar 7 dias grátis <ArrowRight className="size-4" /></span>
             </Link>
+
             <a
               href="#recursos"
               className="inline-flex items-center justify-center gap-2 rounded-full h-12 px-7 border border-black/15 bg-white text-sm font-semibold hover:bg-black/5 transition"
@@ -799,7 +800,8 @@ function Pricing() {
           <p className="text-[11px] uppercase tracking-[0.25em] font-semibold text-black/50">
             Planos
           </p>
-          <h2 className="mt-3 font-display font-extrabold text-[26px] sm:text-5xl leading-[1.15] tracking-tight text-balance">
+          <h2 className="mt-3 font-display font-extrabold text-[22px] sm:text-5xl leading-[1.15] tracking-tight text-balance">
+
             Menos de uma diária. Muito mais que uma equipe.
           </h2>
           <p className="mt-4 text-[15px] sm:text-lg text-black/60 text-pretty">
@@ -841,14 +843,15 @@ function Pricing() {
               </ul>
               <Link
                 to="/auth"
-                className={`mt-8 inline-flex items-center justify-center gap-2 rounded-full h-12 text-sm font-semibold transition ${
+                className={`btn-shine mt-8 inline-flex items-center justify-center gap-2 rounded-full h-12 text-sm font-semibold transition ${
                   p.highlight
                     ? "bg-white text-black hover:bg-black hover:text-white"
                     : "bg-black text-white hover:opacity-90"
                 }`}
               >
-                {p.cta} <ArrowRight className="size-4" />
+                <span className="inline-flex items-center gap-2">{p.cta} <ArrowRight className="size-4" /></span>
               </Link>
+
             </div>
           ))}
         </div>
@@ -945,7 +948,7 @@ function FinalCTA() {
             <div className="inline-flex items-center gap-2 rounded-full bg-white/15 backdrop-blur px-3.5 py-1.5 text-[11px] font-semibold uppercase tracking-widest">
               <Sparkles className="size-3.5" /> 7 dias grátis · sem cartão
             </div>
-            <h2 className="mt-5 font-display font-extrabold text-4xl sm:text-6xl leading-[1.1] tracking-tight text-balance">
+            <h2 className="mt-5 font-display font-extrabold text-[30px] sm:text-6xl leading-[1.1] tracking-tight text-balance">
               Sua próxima review 5 estrelas está a um clique.
             </h2>
             <p className="mt-4 text-white/90 text-lg max-w-xl mx-auto">
@@ -967,54 +970,40 @@ function FinalCTA() {
 /* ---------- FOOTER ---------- */
 function Footer() {
   return (
-    <footer className="border-t border-black/10 py-12">
-      <div className="max-w-6xl mx-auto px-5 sm:px-8 grid md:grid-cols-4 gap-8">
-        <div>
-          <div className="flex items-center gap-2.5">
-            <img src={conciergeLogo} alt="ConciergeIA" className="size-9 object-contain" />
-            <span className="font-display font-bold text-lg">ConciergeIA</span>
-          </div>
-          <p className="mt-3 text-sm text-black/60 leading-relaxed max-w-xs">
-            IA que atende hóspedes com o cuidado de um anfitrião premiado.
-          </p>
+    <footer className="border-t border-black/10 py-8">
+      <div className="max-w-6xl mx-auto px-5 sm:px-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-5">
+        <div className="flex items-center gap-2.5">
+          <img src={conciergeLogo} alt="ConciergeIA" className="size-8 object-contain" />
+          <span className="font-display font-bold text-base">ConciergeIA</span>
         </div>
-        <div>
-          <div className="text-[11px] uppercase tracking-widest font-bold text-black/50 mb-3">Produto</div>
-          <ul className="space-y-2 text-sm text-black/70">
-            <li><a href="#recursos" className="hover:text-black">Recursos</a></li>
-            <li><a href="#planos" className="hover:text-black">Planos</a></li>
-            <li><a href="#faq" className="hover:text-black">FAQ</a></li>
-          </ul>
-        </div>
-        <div>
-          <div className="text-[11px] uppercase tracking-widest font-bold text-black/50 mb-3">Empresa</div>
-          <ul className="space-y-2 text-sm text-black/70">
-            <li><Link to="/confianca" className="hover:text-black">Central de confiança</Link></li>
-            <li><Link to="/privacidade" className="hover:text-black">Privacidade</Link></li>
-            <li><Link to="/termos" className="hover:text-black">Termos</Link></li>
-            <li><Link to="/reembolso" className="hover:text-black">Reembolso</Link></li>
-          </ul>
-        </div>
-        <div>
-          <div className="text-[11px] uppercase tracking-widest font-bold text-black/50 mb-3">Comece agora</div>
-          <Link
-            to="/auth"
-            className="inline-flex items-center justify-center gap-2 rounded-full h-11 px-6 text-white text-sm font-semibold shadow-lg"
-            style={{ background: BRAND_GRADIENT }}
-          >
-            Testar 7 dias grátis <ArrowRight className="size-4" />
-          </Link>
-        </div>
+        <nav className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-black/70">
+          <a href="#recursos" className="hover:text-black">Recursos</a>
+          <a href="#planos" className="hover:text-black">Planos</a>
+          <a href="#faq" className="hover:text-black">FAQ</a>
+          <Link to="/privacidade" className="hover:text-black">Privacidade</Link>
+          <Link to="/termos" className="hover:text-black">Termos</Link>
+          <Link to="/reembolso" className="hover:text-black">Reembolso</Link>
+          <Link to="/confianca" className="hover:text-black">Confiança</Link>
+        </nav>
       </div>
-      <div className="max-w-6xl mx-auto px-5 sm:px-8 mt-10 pt-6 border-t border-black/5 flex flex-col sm:flex-row justify-between gap-2 text-xs text-black/50">
+      <div className="max-w-6xl mx-auto px-5 sm:px-8 mt-5 pt-5 border-t border-black/5 flex flex-col sm:flex-row justify-between gap-2 text-xs text-black/50">
         <p>© {new Date().getFullYear()} ConciergeIA — Todos os direitos reservados.</p>
-        <p className="flex items-center gap-1">
-          Feito com <Heart className="size-3 fill-current" style={{ color: "#E82DAE" }} /> no Brasil
+        <p className="flex items-center gap-1 flex-wrap">
+          Feito com <Heart className="size-3 fill-current" style={{ color: "#E82DAE" }} /> no Brasil by{" "}
+          <a
+            href="https://www.anfitriaosigma.com.br"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-semibold text-black/70 hover:text-black underline underline-offset-2"
+          >
+            Anfitrião Sigma
+          </a>
         </p>
       </div>
     </footer>
   );
 }
+
 
 /* ---------- FLOATING CONTACT (AI chat + WhatsApp handoff) ---------- */
 const WHATSAPP_NUMBER = "5547996759381";
@@ -1247,7 +1236,7 @@ function FloatingContact() {
         <button
           onClick={() => setChatOpen((v) => !v)}
           aria-label={chatOpen ? "Fechar chat" : "Falar com a IA"}
-          className="size-14 rounded-full grid place-items-center text-white shadow-2xl hover:scale-105 active:scale-95 transition"
+          className="btn-shine size-14 rounded-full grid place-items-center text-white shadow-2xl hover:scale-105 active:scale-95 transition"
           style={{ background: BRAND_GRADIENT }}
         >
           {chatOpen ? <X className="size-6" /> : <MessageCircle className="size-6" />}
