@@ -199,7 +199,7 @@ function buildGuestIndex(data: Awaited<ReturnType<typeof loadCommon>>) {
     } else {
       guests.set(key, {
         key,
-        propertyId: l.property_id, propertyName,
+        propertyId: l.property_id, propertyName, propertyCity: cityById.get(l.property_id) ?? null,
         guestName: l.guest_name, phone, phoneCountry: l.guest_phone_country,
         reservationCode: l.reservation_code, checkinDate: l.checkin_date,
         firstAccess: l.created_at, lastActivity: l.created_at,
