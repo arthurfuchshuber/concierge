@@ -160,7 +160,7 @@ const SECTION_GAP_MS = 20 * 60 * 1000;
 const SECTION_MIN_MS = 5 * 1000;
 
 function buildGuestIndex(data: Awaited<ReturnType<typeof loadCommon>>) {
-  const { logs, events, convs, msgs, feedback, nameById } = data;
+  const { logs, events, convs, msgs, feedback, nameById, cityById } = data;
 
   const sessions = sessionize(events);
   const sessionByPhoneName = new Map<string, Session[]>();
