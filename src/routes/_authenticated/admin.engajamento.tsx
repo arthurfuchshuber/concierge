@@ -232,10 +232,6 @@ function EngagementPage() {
                       onQ={(v) => patch({ q: v })}
                       onSelect={(guestKey) => setDetail({ kind: "guest", guestKey })}
                     />
-                    <ConversationsTable
-                      conversations={guestsQ.data.conversations}
-                      onSelect={(guestKey) => { if (guestKey) setDetail({ kind: "guest", guestKey }); }}
-                    />
                   </>
                 ) : null}
               </TabsContent>
