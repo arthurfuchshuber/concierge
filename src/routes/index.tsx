@@ -800,7 +800,8 @@ function Pricing() {
           <p className="text-[11px] uppercase tracking-[0.25em] font-semibold text-black/50">
             Planos
           </p>
-          <h2 className="mt-3 font-display font-extrabold text-[26px] sm:text-5xl leading-[1.15] tracking-tight text-balance">
+          <h2 className="mt-3 font-display font-extrabold text-[22px] sm:text-5xl leading-[1.15] tracking-tight text-balance">
+
             Menos de uma diária. Muito mais que uma equipe.
           </h2>
           <p className="mt-4 text-[15px] sm:text-lg text-black/60 text-pretty">
