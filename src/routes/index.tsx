@@ -843,14 +843,15 @@ function Pricing() {
               </ul>
               <Link
                 to="/auth"
-                className={`mt-8 inline-flex items-center justify-center gap-2 rounded-full h-12 text-sm font-semibold transition ${
+                className={`btn-shine mt-8 inline-flex items-center justify-center gap-2 rounded-full h-12 text-sm font-semibold transition ${
                   p.highlight
                     ? "bg-white text-black hover:bg-black hover:text-white"
                     : "bg-black text-white hover:opacity-90"
                 }`}
               >
-                {p.cta} <ArrowRight className="size-4" />
+                <span className="inline-flex items-center gap-2">{p.cta} <ArrowRight className="size-4" /></span>
               </Link>
+
             </div>
           ))}
         </div>
