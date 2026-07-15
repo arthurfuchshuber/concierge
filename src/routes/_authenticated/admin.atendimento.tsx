@@ -116,6 +116,7 @@ function AtendimentoPage() {
           </div>
           <ConversationList
             conversations={conversations as any}
+            details={details}
             activeId={activeId}
             onSelect={setActiveId}
           />
