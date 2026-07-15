@@ -471,10 +471,10 @@ function Showcase() {
                 >
                   <Sparkles className="size-3" /> {b.tag}
                 </div>
-                <h3 className="mt-4 font-display font-bold text-2xl sm:text-4xl leading-[1.1] tracking-tight text-balance">
+                <h3 className="mt-4 font-display font-bold text-2xl sm:text-4xl leading-[1.2] tracking-tight text-balance line-clamp-2">
                   {b.title}
                 </h3>
-                <p className="mt-4 text-black/70 text-lg leading-relaxed max-w-lg">{b.body}</p>
+                <p className="mt-4 text-black/70 text-lg leading-relaxed">{b.body}</p>
               </div>
               <div className="flex justify-center">{b.mockup}</div>
             </div>
