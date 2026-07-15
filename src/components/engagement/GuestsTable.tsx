@@ -83,10 +83,15 @@ export function GuestsTable({
 
   const active = (k: SortKey) => sort.key === k;
 
+  const totalPages = Math.max(1, Math.ceil(sorted.length / pageSize));
+  const currentPage = Math.min(page, totalPages);
+  const pageStart = (currentPage - 1) * pageSize;
+  const pageRows = sorted.slice(pageStart, pageStart + pageSize);
+
   return (
     <div className="rounded-2xl border border-border bg-card overflow-hidden">
       <header className="p-4 flex flex-col sm:flex-row sm:items-center gap-3 border-b border-border">
-        <div className="flex-1 min-w-0">
+        <div className="flex-1 min-w-0 pr-10 sm:pr-0">
           <h3 className="text-sm font-semibold">Hóspedes</h3>
           <p className="text-xs text-muted-foreground">
             Consolidação por telefone + data de check-in. Clique em uma linha para ver detalhes.
