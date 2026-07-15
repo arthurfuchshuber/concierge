@@ -51,10 +51,11 @@ export function SectionsBar({ rows, silent }: { rows: Row[]; silent: string[] })
       </div>
 
       <div className="rounded-2xl border border-border bg-card p-4">
-        <header className="mb-3 pr-14">
-          <h3 className="text-sm font-semibold">Seções silenciosas</h3>
+        <header className="mb-3">
+          <h3 className="text-sm font-semibold whitespace-nowrap truncate">Seções silenciosas</h3>
           <p className="text-xs text-muted-foreground">Existem no produto mas não receberam aberturas</p>
         </header>
+
         {silent.length === 0 ? (
           <div className="text-xs text-muted-foreground py-6 text-center">Nada silencioso 🎉</div>
         ) : (
