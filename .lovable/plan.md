@@ -1,77 +1,127 @@
-# Refatoração Engajamento — Fase 2
 
-Escopo: exclusivamente a página `/admin/engajamento` e seu backend dedicado (`engagement-analytics.functions.ts`, `src/components/engagement/*`). Nada fora disso.
+# Plano: Central de Atendimento + Handoff IA↔Humano
 
-## 1. Reposicionamento: de KPIs de volume → gestão do todo
+## 1. Modelo de acesso
 
-**Remover** (ruído no agregado multi-cliente):
-- Insight "acessos subiram X%" e "guia menos acessado" (deltas de volume e outliers baixos).
-- `QuestionsCluster` (nuvem de termos do chat — ruidoso).
-- `CompletenessScatter` (redundante com o dot-plot).
-- `AccessHeatmap` (largura excessiva; substituído por versão compacta).
-- `DeviceMix` (pouco acionável agregado).
+**Equipe por conta (multi-usuário com papéis)**
 
-**Adicionar/promover como núcleo gerencial:**
-- **Tempo médio de sessão** (mediana + p90). Calculado por `guest_session_id`: janela entre 1º e último `guide_section_event`, gap > 20 min quebra em nova sessão.
-- **Ranking de imóveis por engajamento real**: novo dot-plot com eixo = tempo médio de sessão (não mais chatRate isolado).
-- **Sessões por tempo de permanência** (histograma: <30s, 30s–2min, 2–5min, 5–15min, >15min) — revela se o guia prende atenção.
-- **Profundidade de leitura**: seções/sessão + % sessões que abriram ≥3 seções.
-- **Curva de retenção intra-sessão**: sessão 1 seção → 2 → 3 → 4+ (drop-off).
+Nova tabela `account_members` vinculando usuários ao anfitrião (owner):
+- `owner_id` (dono da assinatura Business/Enterprise)
+- `member_user_id` (atendente convidado)
+- `role`: `owner` | `agent` | `viewer`
+- `status`: `pending` | `active` | `revoked`
 
-**Manter e refinar:**
-- `TrendChart` (mantém).
-- `Funnel` (mantém — já é gerencial).
-- `SectionsBar` (mantém, é o que revela onde o guia entrega valor).
-- `ContentImpactMatrix` (mantém — volume × auto-resolução por seção).
-- POIs top/frios: **usar o nome real personalizado pelo anfitrião** em vez do `poi_key`. Consulta `property_recommendations` para resolver `place_id`/`name`.
-- `FeedbackList` (mantém — acionável).
-- `InsightsRibbon`: reduzir a 3 heurísticas gerenciais (atrito alto, silêncio de seção, backlog de feedback).
+Tabela `account_member_invites` para convites por e-mail (padrão do `admin_invites` já existente). Aceite ao logar cria linha em `account_members`.
 
-## 2. Nova aba **Hóspedes**
+**Permissões:**
+- `owner`: tudo (convidar/remover, configurar IA, ver todas conversas, responder, faturamento)
+- `agent`: ver conversas atribuídas + fila, atribuir a si, responder, devolver pra IA
+- `viewer`: só leitura (auditoria/supervisão)
 
-Identidade: `telefone_normalizado + checkin_date` como chave (consistente com regra já usada nas conversas).
+Limite por plano:
+- Business: até 3 atendentes (owner + 2)
+- Enterprise: ilimitado (ou parametrizável)
 
-**Lista consolidada** (tabela sortável, uma linha por hóspede):
-- Nome, telefone, código de reserva, check-in, imóvel.
-- Tempo total com guia aberto (soma das sessões).
-- Nº de seções visitadas.
-- Nº de mensagens no chat com IA (0 = sem chat).
-- Última atividade.
+## 2. Central de Atendimento (nova rota `/atendimento`)
 
-**Detalhe do hóspede** (drill-in via `DetailSheet` existente, nova branch `kind: "guest"`):
-- Card com dados do check-in.
-- Métricas: tempo total, nº sessões, tempo médio, ranking de seções.
-- Timeline cronológica de seções visitadas.
-- Todas as conversas com a IA agrupadas (uma thread por conversa, com feedback e link "ensinar IA").
+Só habilitada se o anfitrião estiver em Business ou Enterprise ativo (`has_active_subscription` já existe).
 
-**Tabela macro de conversas** (segunda visão dentro da aba): todas as conversas do período, filtráveis por imóvel, com preview da 1ª pergunta, contagem de mensagens, hóspede identificado, e clique abre thread completa. Reaproveita `TeachAiDialog` existente para responder à IA.
+Layout:
+- Sidebar esquerda: filas (**Aguardando IA** → **Precisa humano** → **Meus** → **Todas** → **Resolvidas**)
+- Centro: lista de conversas (nome do hóspede, propriedade, última mensagem, tempo de espera, badge de urgência)
+- Direita: painel da conversa com:
+  - Histórico completo (IA + hóspede + humanos)
+  - Toggle **"IA ativa / Assumir"** por conversa
+  - Composer com respostas rápidas
+  - Notas internas (não visíveis ao hóspede)
+  - Metadados (propriedade, check-in, telefone se houver)
 
-Consolidação chat↔hóspede: match por (i) `guest_session_id` compartilhado com `guide_access_logs` do mesmo período, ou (ii) proximidade temporal + `guest_phone` normalizado quando disponível.
+Tabelas novas/estendidas:
+- `property_chat_conversations` (já existe): adicionar `status` (`ai` | `needs_human` | `assigned` | `resolved`), `assigned_to`, `handoff_reason`, `handoff_at`, `last_message_at`
+- `property_chat_messages` (já existe): adicionar `sender_type` (`guest` | `ai` | `human`), `sender_user_id`, `is_internal_note`
 
-## 3. Filtros
+## 3. Gatilho de handoff (pedido explícito + incerteza da IA)
 
-**Multi-select de imóveis** com "Selecionar todos"/"Limpar":
-- `URL search param`: `property=all` ou lista CSV `property=id1,id2,id3`.
-- Backend `getEngagementAnalytics.propertyIds: string[] | null` (quebra o atual `propertyId: string | null` — só afeta esta página).
-- Componente `PropertyMultiSelect` com Popover + Command (shadcn).
+No prompt do sistema da IA de conversa do hóspede, adicionar instrução:
 
-**Mobile: filtro unificado**:
-- Em telas < md, os 3 selects colapsam num único botão "Filtros" que abre um `Sheet` bottom com: período, imóveis, dispositivo, botão "Aplicar" / "Limpar".
-- Em ≥ md, layout atual permanece (agora com o multi-select).
+> Quando (a) o hóspede pedir explicitamente falar com humano, OU (b) você não tiver confiança na resposta, OU (c) detectar frustração/emergência, chame a ferramenta `request_human_handoff({ reason, urgency })`.
 
-## 4. Arquitetura técnica
+Server function `requestHumanHandoff` (via tool call):
+1. Atualiza conversa: `status = 'needs_human'`, salva `handoff_reason`, `handoff_at`
+2. Envia mensagem ao hóspede: *"Estou chamando um atendente humano, aguarde um instante."*
+3. Dispara notificação web push para todos os `owner` + `agent` da conta
+4. Aparece na fila **Precisa humano** em tempo real (Supabase Realtime)
 
-- `engagement-analytics.functions.ts`: reescrever para (a) aceitar `propertyIds[]`, (b) calcular durações de sessão, (c) devolver novos campos `sessionDuration{ p50, p90, buckets[] }`, `depthCurve[]`, remover `heatmap`/`deviceMix` do DTO; POIs vêm com `displayName` resolvido.
-- Nova função `getEngagementGuests` no mesmo arquivo (ou `engagement-guests.functions.ts`): retorna lista de hóspedes agregados + todas as conversas do período.
-- Nova função `getGuestDetail` para o drill-in.
-- Novos componentes: `PropertyMultiSelect`, `MobileFilterSheet`, `SessionDurationCard`, `DepthCurve`, `GuestsTable`, `ConversationsTable`, `GuestDetail` (extensão do `DetailSheet`).
-- Rotas: `admin.engajamento.tsx` ganha aba `hospedes`, aceita `property=csv`, `q=` para busca de hóspede.
+Anfitrião pode ainda configurar sensibilidade no painel (**Configurações → IA**): `apenas explícito` / `explícito + incerteza` (padrão) / `agressivo`.
 
-## 5. O que fica fora
+## 4. Janela flutuante no desktop
 
-- Sem novas tabelas, migrations ou tracking novo.
-- Sem alteração no `TeachAiDialog`, `AiPlanLock`, chat público, nenhuma outra rota.
-- Sem export CSV geral (mantém opção de export nos drill-downs se for barato).
-- Sem i18n adicional além do português já vigente.
+Componente `<FloatingHandoffDock />` renderizado no layout `_authenticated`:
 
-Ao aprovar, implemento tudo em um único passe.
+- Desktop (≥1024px): widget fixo `bottom-6 right-6`, ~380×560px, com header (contador de pendentes + minimizar/fechar), lista compacta e chat inline. Persiste ao navegar entre rotas do painel. Estado (aberto/minimizado) em localStorage.
+- Mobile (<1024px): botão flutuante que abre em tela cheia (rota `/atendimento`).
+
+Abre automaticamente (com som + destaque) quando chega um novo handoff se estiver minimizado. Botão "Abrir central completa" leva pra `/atendimento`.
+
+## 5. Notificações (Push + som + badge)
+
+**Web Push via VAPID** (padrão Web Push, sem depender do Firebase):
+
+- Gerar par de chaves VAPID → salvar `VAPID_PUBLIC_KEY` (VITE) e `VAPID_PRIVATE_KEY` (secret)
+- Service worker `public/sw-push.js` (isolado do PWA app-shell — segue skill/pwa: SW de messaging fora da regra de kill-switch)
+- Tabela `push_subscriptions` (user_id, endpoint, p256dh, auth, user_agent, created_at)
+- Server function `subscribePush` / `unsubscribePush`
+- Server function `sendHandoffPush(conversationId)` chamada dentro de `requestHumanHandoff` — envia para todas as subscriptions do owner + agents ativos
+- Payload: título "Hóspede precisa de você", corpo com nome/propriedade, `data.url` → `/atendimento?conv=<id>`
+- SW toca som ao receber (arquivo `/sounds/handoff.mp3`) e mantém badge com `navigator.setAppBadge(n)` (suportado em Chrome/Edge desktop e iOS PWA instalado)
+- Quando anfitrião abre a conversa: `navigator.clearAppBadge()`
+
+Aviso claro no onboarding do PWA em iOS: "Adicione à Tela de Início e abra pelo menos uma vez para receber notificações."
+
+Página **Configurações → Notificações** com toggle por atendente para: push on/off, som on/off, horário silencioso.
+
+## 6. Planos e cobrança
+
+- **Business (R$ 399)**: habilitar Central + até 3 atendentes + push
+- **Enterprise**: novo tier no Paddle (pré-cadastrar via `create_product` quando você definir preço), atendentes ilimitados, SLA, mesma feature
+
+Bloqueio: middleware do route `/atendimento` verifica `has_active_subscription(user, 'live')` E plano `IN ('business','enterprise')` — senão redireciona pra `/upgrade` com CTA específico.
+
+## 7. Realtime e UX
+
+- `ALTER PUBLICATION supabase_realtime ADD TABLE property_chat_conversations, property_chat_messages;`
+- Front assina mudanças da conta (filtrado por `owner_id`) → fila atualiza sem refresh
+- Indicador "digitando" (humano) enviado via canal presence
+- Quando humano assume: IA para de responder naquela conversa até owner clicar "Devolver pra IA"
+
+## 8. Auditoria
+
+Logs em `audit_logs` (já existe) para: convite enviado/aceito/revogado, conversa assumida, devolvida à IA, resolvida, notas internas criadas.
+
+## 9. Segurança (RLS)
+
+Todas as tabelas novas com RLS:
+- `account_members`: SELECT pelos próprios membros; INSERT/DELETE só pelo owner
+- `push_subscriptions`: cada usuário só vê/gerencia as próprias
+- `property_chat_conversations` / `messages`: SELECT pelos membros ativos da conta dona da propriedade (helper `user_is_account_member(auth.uid(), property.owner_id)`)
+
+## 10. Escopo entregável (ordem)
+
+1. Migração: tabelas + policies + realtime + colunas novas
+2. Server fns: convites, aceite, listar conversas, atribuir, enviar mensagem humana, handoff, push
+3. Rota `/atendimento` + `<FloatingHandoffDock />`
+4. Configurações: Notificações, Equipe, IA (sensibilidade)
+5. Tool `request_human_handoff` no chat IA da landing e do guia
+6. Onboarding VAPID + PWA install prompt no painel
+7. Gate por plano + banner de upgrade
+
+## Detalhes técnicos
+
+- Push nativo via `web-push` npm (compatível com Cloudflare Workers, evita Firebase)
+- SW de push isolado do PWA app-shell (skill/pwa)
+- IA usa tool calling — se modelo atual não suportar bem, faz fallback: parser que detecta marcadores `[HANDOFF: motivo]` na resposta
+- Realtime com filtro por `property.owner_id` via helper SECURITY DEFINER pra RLS
+- Auto-reabertura da janela flutuante: `BroadcastChannel` entre abas evita som duplicado
+- Enterprise no Paddle criado depois via `payments--create_product` quando você definir preço
+
+Prazo estimado: 2–3 semanas de implementação incremental.
