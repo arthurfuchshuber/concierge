@@ -1,10 +1,19 @@
 import { useEffect, useRef, useState } from "react";
-import { MessageCircleMore, Send, X, Loader2 } from "lucide-react";
+import { MessageCircleMore, Send, X, Loader2, Paperclip } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { GuestNotificationsPrompt } from "@/components/GuestNotificationsPrompt";
+import { AudioRecorderButton, type RecordedAudio } from "@/components/handoff/AudioRecorderButton";
+import { AttachmentBubble, type AttachmentInfo } from "@/components/handoff/AttachmentBubble";
 
-type Msg = { role: "user" | "assistant" | "system"; content: string; id?: string; createdAt?: string; senderType?: string };
+type Msg = {
+  role: "user" | "assistant" | "system";
+  content: string;
+  id?: string;
+  createdAt?: string;
+  senderType?: string;
+  attachment?: AttachmentInfo | null;
+};
 
 function getSessionId(slug: string): string {
   const key = `guide-chat-session:${slug}`;
@@ -113,7 +122,88 @@ export function GuideAiChat({ slug, propertyName, guestName }: { slug: string; p
   }, [open]);
 
   const [humanMode, setHumanMode] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [uploadErr, setUploadErr] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const lastFetchedAtRef = useRef<string | undefined>(undefined);
+
+  async function uploadGuestAttachment(blob: Blob, opts: { filename: string; mime: string; durationMs?: number }) {
+    if (!conversationId) {
+      setUploadErr("Envie primeiro uma mensagem para o atendente humano.");
+      return;
+    }
+    if (!humanMode) {
+      setUploadErr("Anexos só ficam disponíveis durante o atendimento humano.");
+      return;
+    }
+    if (blob.size > 20 * 1024 * 1024) {
+      setUploadErr("Arquivo maior que 20 MB.");
+      return;
+    }
+    setUploading(true);
+    setUploadErr(null);
+    try {
+      const form = new FormData();
+      form.append("slug", slug);
+      form.append("sessionId", sessionId);
+      form.append("conversationId", conversationId);
+      if (opts.durationMs != null) form.append("durationMs", String(opts.durationMs));
+      const file = new File([blob], opts.filename, { type: opts.mime });
+      form.append("file", file);
+      const res = await fetch("/api/public/guide-chat-upload", { method: "POST", body: form });
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}));
+        throw new Error(j?.error ?? "Falha ao enviar anexo.");
+      }
+      const data = (await res.json()) as {
+        id: string;
+        path: string;
+        url: string | null;
+        type: "image" | "audio" | "video" | "document";
+        mime: string;
+        durationMs: number | null;
+        name: string | null;
+      };
+      const msg: Msg = {
+        role: "user",
+        content: "",
+        id: data.id,
+        senderType: "guest",
+        attachment: {
+          type: data.type,
+          mime: data.mime,
+          durationMs: data.durationMs,
+          sizeBytes: blob.size,
+          name: data.name,
+          url: data.url,
+        },
+      };
+      const merged = [...messages, msg];
+      setMessages(merged);
+      saveCachedMessages(slug, conversationId, merged);
+    } catch (e) {
+      setUploadErr((e as Error).message);
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  async function onGuestFilePicked(e: React.ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0];
+    e.target.value = "";
+    if (!f) return;
+    await uploadGuestAttachment(f, { filename: f.name, mime: f.type });
+  }
+
+  async function onGuestAudio(audio: RecordedAudio) {
+    const ext = audio.mime.includes("mp4") ? "m4a" : "webm";
+    await uploadGuestAttachment(audio.blob, {
+      filename: `audio-${Date.now()}.${ext}`,
+      mime: audio.mime,
+      durationMs: audio.durationMs,
+    });
+  }
+
 
   async function send() {
     const text = input.trim();
@@ -175,7 +265,14 @@ export function GuideAiChat({ slug, propertyName, guestName }: { slug: string; p
         if (!res.ok) return;
         const data = (await res.json()) as {
           humanMode?: boolean;
-          messages?: { id: string; role: string; content: string; senderType?: string; createdAt: string }[];
+          messages?: {
+            id: string;
+            role: string;
+            content: string;
+            senderType?: string;
+            createdAt: string;
+            attachment?: AttachmentInfo | null;
+          }[];
         };
         if (cancelled) return;
         if (typeof data.humanMode === "boolean") setHumanMode(data.humanMode);
@@ -186,13 +283,14 @@ export function GuideAiChat({ slug, propertyName, guestName }: { slug: string; p
           setMessages((prev) => {
             const seen = new Set(prev.map((p) => p.id).filter(Boolean));
             const additions = incoming
-              .filter((m) => !seen.has(m.id) && m.content?.trim())
+              .filter((m) => !seen.has(m.id) && (m.content?.trim() || m.attachment))
               .map((m) => ({
                 role: "assistant" as const,
                 content: m.content,
                 id: m.id,
                 createdAt: m.createdAt,
                 senderType: m.senderType,
+                attachment: m.attachment ?? null,
               }));
             if (!additions.length) return prev;
             const merged = [...prev, ...additions];

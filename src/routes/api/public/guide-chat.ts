@@ -461,13 +461,29 @@ export const Route = createFileRoute("/api/public/guide-chat")({
         }
         let q = supabaseAdmin
           .from("property_chat_messages")
-          .select("id, role, content, sender_type, created_at")
+          .select(
+            "id, role, content, sender_type, created_at, attachment_path, attachment_type, attachment_mime, attachment_duration_ms, attachment_size_bytes, attachment_name",
+          )
           .eq("conversation_id", conversationId)
           .eq("is_internal_note", false)
           .order("created_at", { ascending: true })
           .limit(50);
         if (since) q = q.gt("created_at", since);
         const { data: msgs } = await q;
+
+        // Sign URLs for any attachment so the guest can preview them.
+        const withAttachments = (msgs ?? []).filter((m) => m.attachment_path);
+        const signedMap = new Map<string, string>();
+        if (withAttachments.length) {
+          const paths = withAttachments.map((m) => m.attachment_path as string);
+          const { data: signed } = await supabaseAdmin.storage
+            .from("chat-attachments")
+            .createSignedUrls(paths, 60 * 60);
+          for (const s of signed ?? []) {
+            if (s.path && s.signedUrl) signedMap.set(s.path, s.signedUrl);
+          }
+        }
+
         return new Response(
           JSON.stringify({
             humanMode: !!conv.ai_paused,
@@ -478,6 +494,16 @@ export const Route = createFileRoute("/api/public/guide-chat")({
               content: m.content,
               senderType: m.sender_type,
               createdAt: m.created_at,
+              attachment: m.attachment_path
+                ? {
+                    type: m.attachment_type,
+                    mime: m.attachment_mime,
+                    durationMs: m.attachment_duration_ms,
+                    sizeBytes: m.attachment_size_bytes,
+                    name: m.attachment_name,
+                    url: signedMap.get(m.attachment_path as string) ?? null,
+                  }
+                : null,
             })),
           }),
           { status: 200, headers: { "Content-Type": "application/json" } },
