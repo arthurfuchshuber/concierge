@@ -949,7 +949,7 @@ function FinalCTA() {
             <div className="inline-flex items-center gap-2 rounded-full bg-white/15 backdrop-blur px-3.5 py-1.5 text-[11px] font-semibold uppercase tracking-widest">
               <Sparkles className="size-3.5" /> 7 dias grátis · sem cartão
             </div>
-            <h2 className="mt-5 font-display font-extrabold text-4xl sm:text-6xl leading-[1.02] tracking-tight text-balance">
+            <h2 className="mt-5 font-display font-extrabold text-4xl sm:text-6xl leading-[1.1] tracking-tight text-balance">
               Sua próxima review 5 estrelas está a um clique.
             </h2>
             <p className="mt-4 text-white/90 text-lg max-w-xl mx-auto">
