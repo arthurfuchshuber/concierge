@@ -4,7 +4,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { GuestNotificationsPrompt } from "@/components/GuestNotificationsPrompt";
 
-type Msg = { role: "user" | "assistant"; content: string };
+type Msg = { role: "user" | "assistant" | "system"; content: string; id?: string; createdAt?: string; senderType?: string };
 
 function getSessionId(slug: string): string {
   const key = `guide-chat-session:${slug}`;
