@@ -1,641 +1,480 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { motion, useScroll, useTransform } from "framer-motion";
-import { useRef, useState, useEffect } from "react";
+import { useState } from "react";
 import {
   ArrowRight,
-  ArrowUpRight,
-  MapPin,
-  Sparkles,
-  ShieldCheck,
-  Languages,
-  Zap,
-  Lock,
-  Wifi,
   Check,
-  Copy,
-  KeyRound,
-  Compass,
-  BookOpen,
+  MessageCircle,
+  Sparkles,
+  Zap,
+  Globe2,
+  ShieldCheck,
+  Clock,
+  Star,
+  BarChart3,
+  Bot,
+  Bell,
+  Wifi,
+  Heart,
+  ChevronDown,
+  Menu,
+  X,
+  Send,
 } from "lucide-react";
+import conciergeLogo from "@/assets/concierge-logo.png";
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Concierge — Guia digital da sua casa em minutos" },
+      { title: "ConciergeIA — Atendimento com IA para hóspedes de temporada" },
       {
         name: "description",
         content:
-          "Crie guias editoriais para seus hóspedes em minutos. Cole o link do Maps e nós preenchemos endereço, vizinhança e cidade. Sem dados de reserva.",
+          "O ConciergeIA responde seus hóspedes em segundos, no idioma deles, com o tom da sua marca. Menos check-ins caóticos, mais avaliações 5 estrelas.",
       },
-      { property: "og:title", content: "Concierge — Guia digital da sua casa" },
+      { property: "og:title", content: "ConciergeIA — IA que atende hóspedes por você" },
       {
         property: "og:description",
         content:
-          "Guias editoriais bilíngues para anfitriões. Auto-preenchimento com Google Maps. Acesso público ou por PIN.",
+          "Automatize o atendimento ao hóspede com IA. Respostas em 3 segundos, 24/7, em português, inglês e espanhol.",
       },
       { property: "og:url", content: "https://guia.anfitriaosigma.com.br/" },
-      {
-        property: "og:image",
-        content:
-          "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/a6da8312-c098-41d0-a17c-294028fab533/id-preview-b6aead29--c6a061b9-4ae8-4241-9a99-3375bda32242.lovable.app-1781215917655.png",
-      },
-      {
-        name: "twitter:image",
-        content:
-          "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/a6da8312-c098-41d0-a17c-294028fab533/id-preview-b6aead29--c6a061b9-4ae8-4241-9a99-3375bda32242.lovable.app-1781215917655.png",
-      },
-      { name: "twitter:title", content: "Concierge — Guia digital da sua casa" },
-      {
-        name: "twitter:description",
-        content:
-          "Guias editoriais bilíngues para anfitriões. Auto-preenchimento com Google Maps.",
-      },
     ],
     links: [{ rel: "canonical", href: "https://guia.anfitriaosigma.com.br/" }],
   }),
   component: LandingPage,
 });
 
-const ROTATING = ["editorial.", "íntimo.", "bilíngue.", "elegante.", "atemporal."];
+const CREAM = "#FDF9F2";
+const BRAND_GRADIENT = "linear-gradient(135deg, #7C1AD8 0%, #E82DAE 100%)";
 
 function LandingPage() {
   return (
-    <div className="min-h-screen bg-background text-foreground overflow-hidden">
-      <Nav />
-      <main>
-        <Hero />
-        <Marquee />
-        <HowItWorks />
-        <DemoSection />
-        <Pillars />
-        <SocialProof />
-        <NoReservation />
-        <Manifesto />
-        <FinalCTA />
-      </main>
+    <div className="min-h-screen text-black font-sans" style={{ backgroundColor: CREAM }}>
+      <Header />
+      <Hero />
+      <SocialProof />
+      <Pain />
+      <Showcase />
+      <Metrics />
+      <Testimonials />
+      <Pricing />
+      <FAQ />
+      <FinalCTA />
       <Footer />
     </div>
   );
 }
 
-/* ---------------- Nav ---------------- */
-function Nav() {
-  const [scrolled, setScrolled] = useState(false);
-  useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 8);
-    onScroll();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
+/* ---------- HEADER ---------- */
+function Header() {
+  const [open, setOpen] = useState(false);
   return (
-    <header className={`fixed top-0 inset-x-0 z-50 transition-all duration-500 ${scrolled ? "py-3" : "py-5"}`}>
-      <div
-        className={`mx-auto max-w-6xl px-5 flex items-center justify-between transition-all ${
-          scrolled ? "glass border border-border rounded-full mx-4 md:mx-auto md:max-w-3xl shadow-soft px-4 py-2" : ""
-        }`}
-      >
-        <Link to="/" className="flex items-center gap-2">
-          <div className="size-7 rounded-lg bg-foreground grid place-items-center">
-            <Sparkles className="size-3.5 text-background" strokeWidth={2} />
-          </div>
-          <span className="font-display text-lg tracking-tight">Concierge</span>
+    <header
+      className="sticky top-0 z-50 backdrop-blur-md border-b border-black/5"
+      style={{ backgroundColor: "rgba(253, 249, 242, 0.85)" }}
+    >
+      <div className="max-w-6xl mx-auto px-5 sm:px-8 h-16 flex items-center justify-between">
+        <Link to="/" className="flex items-center gap-2.5">
+          <img src={conciergeLogo} alt="ConciergeIA" className="size-9 object-contain" />
+          <span className="font-display font-bold text-lg tracking-tight">ConciergeIA</span>
         </Link>
-        <div className="flex items-center gap-1">
-          <Link
-            to="/precos"
-            className="text-xs md:text-sm font-medium px-3 py-1.5 rounded-full hover:bg-secondary transition-colors"
-          >
-            Planos
-          </Link>
-          <Link
-            to="/auth"
-            className="text-xs md:text-sm font-medium px-3 py-1.5 rounded-full hover:bg-secondary transition-colors"
-          >
-            Entrar
-          </Link>
+
+        <nav className="hidden md:flex items-center gap-8 text-sm font-medium text-black/70">
+          <a href="#recursos" className="hover:text-black transition">Recursos</a>
+          <a href="#planos" className="hover:text-black transition">Planos</a>
+          <a href="#faq" className="hover:text-black transition">FAQ</a>
+          <Link to="/auth" className="hover:text-black transition">Login</Link>
+        </nav>
+
+        <div className="flex items-center gap-2">
           <Link
             to="/auth"
-            className="text-xs md:text-sm font-medium px-3.5 py-1.5 rounded-full bg-foreground text-background hover:opacity-90 transition-opacity inline-flex items-center gap-1"
+            className="hidden sm:inline-flex items-center gap-1.5 rounded-full px-5 h-10 text-sm font-semibold text-white shadow-lg hover:opacity-95 transition"
+            style={{ background: BRAND_GRADIENT }}
           >
-            Começar
-            <ArrowRight className="size-3.5" strokeWidth={2} />
+            Começar agora <ArrowRight className="size-4" />
           </Link>
+          <button
+            onClick={() => setOpen((v) => !v)}
+            className="md:hidden size-10 grid place-items-center rounded-full border border-black/10 bg-white"
+            aria-label="Menu"
+          >
+            {open ? <X className="size-5" /> : <Menu className="size-5" />}
+          </button>
         </div>
       </div>
+      {open && (
+        <div className="md:hidden border-t border-black/5 bg-white/95 backdrop-blur">
+          <div className="px-5 py-4 flex flex-col gap-3 text-sm font-medium">
+            <a href="#recursos" onClick={() => setOpen(false)}>Recursos</a>
+            <a href="#planos" onClick={() => setOpen(false)}>Planos</a>
+            <a href="#faq" onClick={() => setOpen(false)}>FAQ</a>
+            <Link to="/auth" onClick={() => setOpen(false)}>Login</Link>
+            <Link
+              to="/auth"
+              onClick={() => setOpen(false)}
+              className="mt-2 inline-flex items-center justify-center gap-1.5 rounded-full h-11 text-sm font-semibold text-white"
+              style={{ background: BRAND_GRADIENT }}
+            >
+              Começar agora <ArrowRight className="size-4" />
+            </Link>
+          </div>
+        </div>
+      )}
     </header>
   );
 }
 
-/* ---------------- Hero ---------------- */
+/* ---------- HERO ---------- */
 function Hero() {
-  const ref = useRef<HTMLDivElement>(null);
-  const { scrollYProgress } = useScroll({ target: ref, offset: ["start start", "end start"] });
-  const y = useTransform(scrollYProgress, [0, 1], [0, -80]);
-  const opacity = useTransform(scrollYProgress, [0, 0.8], [1, 0]);
-
-  const [wordIdx, setWordIdx] = useState(0);
-  useEffect(() => {
-    const id = setInterval(() => setWordIdx((i) => (i + 1) % ROTATING.length), 2400);
-    return () => clearInterval(id);
-  }, []);
-
   return (
-    <section ref={ref} className="relative pt-28 md:pt-36 pb-16 md:pb-28 px-5">
-      {/* Editorial corner marks */}
-      <div className="pointer-events-none absolute inset-0 max-w-6xl mx-auto">
-        <div
-          className="
-      absolute top-24 left-0 right-0
-      flex items-center justify-center
-      text-[9px] md:text-[10px]
-      uppercase
-      tracking-[0.12em] md:tracking-[0.3em]
-      text-muted-foreground
-      font-mono
-    "
-        >
-          <span className="mr-8">№ 01</span>
-          <span>2026 — EDIÇÃO BETA</span>
-        </div>
-      </div>
+    <section className="relative overflow-hidden">
+      {/* Decorative gradient blur */}
+      <div
+        className="absolute -top-32 -right-32 size-[520px] rounded-full blur-3xl opacity-30 pointer-events-none"
+        style={{ background: BRAND_GRADIENT }}
+      />
+      <div
+        className="absolute -bottom-40 -left-32 size-[420px] rounded-full blur-3xl opacity-20 pointer-events-none"
+        style={{ background: BRAND_GRADIENT }}
+      />
 
-      <motion.div style={{ y, opacity }} className="relative max-w-6xl mx-auto">
-        <motion.p
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
-          className="text-[10px] uppercase tracking-[0.3em] text-accent font-semibold mb-6 md:mb-8 text-center"
-        >
-          Para anfitriões de aluguel por temporada
-        </motion.p>
+      <div className="relative max-w-6xl mx-auto px-5 sm:px-8 pt-14 sm:pt-24 pb-16 sm:pb-24 grid lg:grid-cols-2 gap-12 lg:gap-8 items-center">
+        <div>
+          <div className="inline-flex items-center gap-2 rounded-full bg-white border border-black/5 px-3.5 py-1.5 text-[11px] font-semibold uppercase tracking-widest text-black/70 shadow-sm">
+            <Sparkles className="size-3.5" style={{ color: "#7C1AD8" }} />
+            IA para anfitriões de temporada
+          </div>
 
-        <h1 className="font-display text-[15vw] md:text-[9.5rem] lg:text-[11rem] leading-[0.92] tracking-[-0.02em] text-center text-balance">
-          <motion.span
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7, delay: 0.05 }}
-            className="block"
-          >
-            O guia da
-          </motion.span>
-          <motion.span
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7, delay: 0.15 }}
-            className="block italic relative"
-          >
-            sua casa,
-          </motion.span>
-          <motion.span
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7, delay: 0.25 }}
-            className="block relative h-[1em] overflow-hidden"
-          >
-            <span className="relative inline-block">
-              {ROTATING.map((w, i) => (
-                <motion.span
-                  key={w}
-                  className="absolute inset-0 text-accent italic whitespace-nowrap"
-                  initial={{ y: "100%", opacity: 0 }}
-                  animate={{
-                    y:
-                      i === wordIdx ? "0%" : i === (wordIdx - 1 + ROTATING.length) % ROTATING.length ? "-110%" : "100%",
-                    opacity: i === wordIdx ? 1 : 0,
-                  }}
-                  transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
-                >
-                  {w}
-                </motion.span>
-              ))}
-              {/* spacer to keep width */}
-              <span className="invisible">editorial.</span>
+          <h1 className="mt-6 font-display font-extrabold text-4xl sm:text-5xl lg:text-6xl leading-[1.02] tracking-tight text-balance">
+            Seus hóspedes atendidos em{" "}
+            <span
+              className="inline-block bg-clip-text text-transparent"
+              style={{ backgroundImage: BRAND_GRADIENT, WebkitBackgroundClip: "text" }}
+            >
+              3 segundos
             </span>
-          </motion.span>
-        </h1>
+            , 24 horas por dia.
+          </h1>
 
-        <motion.div
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.7, delay: 0.45 }}
-          className="mt-10 md:mt-14 max-w-xl mx-auto text-center"
-        >
-          <p className="text-base md:text-lg text-muted-foreground leading-relaxed text-pretty">
-            Cole o link do Google Maps. Em segundos, um guia editorial bilíngue com endereço, vizinhança e cidade — sem
-            nenhum dado de reserva.
+          <p className="mt-5 text-lg text-black/70 leading-relaxed max-w-lg">
+            O ConciergeIA responde dúvidas do check-in ao check-out — no idioma do hóspede
+            e com o tom da sua marca. Você recupera seu tempo. Eles ficam encantados.
           </p>
-          <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3">
+
+          <div className="mt-8 flex flex-col sm:flex-row gap-3">
             <Link
               to="/auth"
-              className="group w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-foreground text-background rounded-full pl-6 pr-5 py-3.5 text-sm font-medium hover:opacity-90 transition-all"
+              className="inline-flex items-center justify-center gap-2 rounded-full h-12 px-7 text-white text-sm font-semibold shadow-xl hover:opacity-95 transition"
+              style={{ background: BRAND_GRADIENT }}
             >
-              Criar meu primeiro guia
-              <span className="inline-flex size-6 rounded-full bg-background/15 items-center justify-center group-hover:translate-x-0.5 transition-transform">
-                <ArrowRight className="size-3.5" strokeWidth={2} />
-              </span>
+              Testar 7 dias grátis <ArrowRight className="size-4" />
             </Link>
             <a
-              href="#demo"
-              className="text-sm text-muted-foreground hover:text-foreground transition-colors inline-flex items-center gap-1.5"
+              href="#recursos"
+              className="inline-flex items-center justify-center gap-2 rounded-full h-12 px-7 border border-black/15 bg-white text-sm font-semibold hover:bg-black/5 transition"
             >
               Ver como funciona
-              <ArrowUpRight className="size-3.5" />
             </a>
           </div>
-          <p className="text-[11px] text-muted-foreground mt-5 uppercase tracking-[0.18em]">
-            Gratuito durante o beta · sem cartão
-          </p>
-        </motion.div>
 
-        {/* Phone preview */}
-        <motion.div
-          initial={{ opacity: 0, y: 40 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.9, delay: 0.6, ease: [0.16, 1, 0.3, 1] }}
-          className="mt-16 md:mt-24 flex justify-center"
-        >
-          <PhoneMock />
-        </motion.div>
-      </motion.div>
-    </section>
-  );
-}
-
-function PhoneMock() {
-  return (
-    <div className="relative">
-      <div className="absolute -inset-8 bg-gradient-to-tr from-accent/10 via-transparent to-accent/5 blur-3xl" />
-      <div className="relative w-[280px] md:w-[320px] aspect-[9/19] rounded-[3rem] bg-foreground p-2 shadow-elevated">
-        <div className="w-full h-full rounded-[2.6rem] bg-background overflow-hidden relative">
-          {/* Status notch */}
-          <div className="absolute top-2 left-1/2 -translate-x-1/2 w-24 h-6 bg-foreground rounded-full z-20" />
-          {/* Hero image */}
-          <div className="relative h-[55%] bg-gradient-to-br from-[oklch(0.62_0.14_38)] via-[oklch(0.55_0.12_40)] to-[oklch(0.35_0.05_50)]">
-            <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent" />
-            <div className="absolute top-9 left-4 right-4 flex justify-between items-center">
-              <span className="glass rounded-full px-2.5 py-1 text-[8px] uppercase tracking-[0.2em] font-semibold text-white/95 border border-white/15">
-                Concierge
-              </span>
-              <span className="glass rounded-full px-2.5 py-1 text-[8px] uppercase tracking-wider font-medium text-white/95 border border-white/15">
-                EN
-              </span>
-            </div>
-            <div className="absolute bottom-4 left-4 right-4 text-white">
-              <p className="text-[9px] uppercase tracking-[0.2em] opacity-80">Casa Maré · Trancoso</p>
-              <h3 className="font-display text-2xl leading-[1.05] mt-1">Bem-vindo a uma pausa lenta.</h3>
-            </div>
-          </div>
-          {/* Body */}
-          <div className="p-3 space-y-2.5">
-            <div className="rounded-xl border border-border bg-card p-3">
-              <p className="text-[8px] uppercase tracking-[0.2em] text-muted-foreground font-semibold">Wi-Fi</p>
-              <div className="flex items-center justify-between mt-1">
-                <span className="font-mono text-[11px]">CasaMare_5G</span>
-                <Copy className="size-3 text-muted-foreground" />
-              </div>
-            </div>
-            <div className="grid grid-cols-4 gap-1">
-              {[KeyRound, BookOpen, Compass, MapPin].map((Icon, i) => (
+          {/* Prova social leve */}
+          <div className="mt-8 flex items-center gap-5 text-xs text-black/60">
+            <div className="flex -space-x-2">
+              {["#7C1AD8", "#E82DAE", "#9B4ADC", "#C93AC1"].map((c, i) => (
                 <div
                   key={i}
-                  className={`aspect-square rounded-lg grid place-items-center ${
-                    i === 2 ? "bg-foreground text-background" : "bg-secondary"
-                  }`}
-                >
-                  <Icon className="size-3.5" strokeWidth={1.75} />
-                </div>
+                  className="size-8 rounded-full border-2 border-[#FDF9F2] shadow-sm"
+                  style={{ background: c }}
+                />
               ))}
             </div>
-            <div className="rounded-xl border border-border bg-card p-2.5">
-              <p className="text-[8px] uppercase tracking-[0.2em] text-accent font-semibold">Aqui pertinho</p>
-              <p className="font-display text-sm mt-1 leading-tight">Capim Santo</p>
-              <p className="text-[9px] text-muted-foreground">Restaurante · 4 min a pé</p>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/* ---------------- Marquee ---------------- */
-function Marquee() {
-  const items = [
-    "Auto-preenchimento via Maps",
-    "Português & English",
-    "URL pública ou PIN",
-    "Sem dados de reserva",
-    "Arredores & cidade",
-    "Editorial mobile-first",
-  ];
-  return (
-    <section className="border-y border-border bg-surface py-4 overflow-hidden">
-      <div className="flex gap-12 whitespace-nowrap animate-[marquee_40s_linear_infinite]">
-        {[...items, ...items, ...items].map((t, i) => (
-          <span
-            key={i}
-            className="text-xs uppercase tracking-[0.3em] text-muted-foreground font-semibold inline-flex items-center gap-12"
-          >
-            {t}
-            <span className="text-accent">✦</span>
-          </span>
-        ))}
-      </div>
-      <style>{`@keyframes marquee { from { transform: translateX(0); } to { transform: translateX(-33.333%); } }`}</style>
-    </section>
-  );
-}
-
-/* ---------------- How it works ---------------- */
-function HowItWorks() {
-  const steps = [
-    {
-      n: "01",
-      title: "Cole o link do Maps",
-      desc: "Endereço, coordenadas e foto são extraídos automaticamente.",
-    },
-    {
-      n: "02",
-      title: "Nós enriquecemos",
-      desc: "Restaurantes, praias, mercados — separados entre vizinhança e cidade.",
-    },
-    {
-      n: "03",
-      title: "Você compartilha",
-      desc: "URL pública ou código PIN com expiração. PT & EN nativos.",
-    },
-  ];
-  return (
-    <section className="px-5 py-24 md:py-32 max-w-6xl mx-auto">
-      <div className="flex items-baseline justify-between mb-12 md:mb-16">
-        <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground font-semibold">
-          Capítulo 01 — Como funciona
-        </p>
-        <span className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground font-mono">Três passos</span>
-      </div>
-      <h2 className="font-display text-5xl md:text-7xl leading-[0.95] tracking-tight max-w-3xl text-balance">
-        Do <span className="italic text-accent">link</span> ao guia em menos de um café.
-      </h2>
-
-      <div className="mt-16 grid md:grid-cols-3 gap-px bg-border rounded-3xl overflow-hidden border border-border">
-        {steps.map((s, i) => (
-          <motion.div
-            key={s.n}
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: "-80px" }}
-            transition={{ duration: 0.6, delay: i * 0.1 }}
-            className="bg-background p-8 md:p-10 min-h-[280px] flex flex-col justify-between"
-          >
-            <span className="font-mono text-xs text-muted-foreground">{s.n}</span>
             <div>
-              <h3 className="font-display text-3xl leading-tight">{s.title}</h3>
-              <p className="text-sm text-muted-foreground mt-3 leading-relaxed">{s.desc}</p>
-            </div>
-          </motion.div>
-        ))}
-      </div>
-    </section>
-  );
-}
-
-/* ---------------- Demo section ---------------- */
-function DemoSection() {
-  return (
-    <section id="demo" className="px-5 py-24 md:py-32 bg-surface border-y border-border">
-      <div className="max-w-6xl mx-auto">
-        <div className="flex items-baseline justify-between mb-12">
-          <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground font-semibold">
-            Capítulo 02 — A mágica
-          </p>
-          <span className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground font-mono">Demo</span>
-        </div>
-        <h2 className="font-display text-5xl md:text-7xl leading-[0.95] tracking-tight max-w-3xl text-balance">
-          Um <span className="italic">link</span>. Dezenas de campos.
-        </h2>
-        <p className="mt-6 text-base md:text-lg text-muted-foreground max-w-xl leading-relaxed">
-          A Places API faz o trabalho braçal. Você revisa, ajusta o tom e publica.
-        </p>
-
-        <div className="mt-16 grid md:grid-cols-[1fr_auto_1fr] gap-6 md:gap-10 items-center">
-          {/* Input side */}
-          <div className="rounded-2xl border border-border bg-background p-6 shadow-soft">
-            <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground font-semibold mb-4">Input</p>
-            <div className="flex items-center gap-2 rounded-xl bg-secondary px-3 py-3">
-              <MapPin className="size-4 text-accent shrink-0" />
-              <span className="font-mono text-xs truncate">maps.app.goo.gl/aXk2…</span>
-            </div>
-            <p className="text-xs text-muted-foreground mt-4 leading-relaxed">
-              Você só precisa do link. Nada de digitar endereço, fotos, ou pesquisar dicas.
-            </p>
-          </div>
-
-          <div className="flex md:flex-col items-center justify-center gap-2 text-accent">
-            <ArrowRight className="size-5 md:rotate-0 rotate-90" />
-            <span className="text-[10px] uppercase tracking-[0.2em] font-semibold font-mono">Auto-fill</span>
-            <ArrowRight className="size-5 md:rotate-0 rotate-90" />
-          </div>
-
-          {/* Output side */}
-          <div className="rounded-2xl border border-border bg-background p-6 shadow-soft">
-            <p className="text-[10px] uppercase tracking-[0.3em] text-accent font-semibold mb-4">Output</p>
-            <ul className="space-y-2.5 text-sm">
-              {[
-                "Endereço completo + coordenadas",
-                "Foto do imóvel (quando disponível)",
-                "12 recomendações na vizinhança",
-                "20 destaques da cidade",
-                "Distância de carro e a pé",
-                "Categorias: comer, beber, praia, mercado…",
-              ].map((line) => (
-                <li key={line} className="flex items-start gap-2.5">
-                  <Check className="size-4 text-accent mt-0.5 shrink-0" strokeWidth={2.25} />
-                  <span>{line}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </div>
-
-        {/* Nearby vs City split */}
-        <div className="mt-10 grid md:grid-cols-2 gap-4">
-          <ScopeCard
-            tag="Aqui pertinho"
-            subtitle="A pé, em minutos da casa."
-            items={[
-              { name: "Capim Santo", meta: "Restaurante · 4 min a pé" },
-              { name: "Quadrado", meta: "Atração · 7 min a pé" },
-              { name: "Praia dos Coqueiros", meta: "Praia · 12 min a pé" },
-            ]}
-          />
-          <ScopeCard
-            tag="Pela cidade"
-            subtitle="Vale o passeio de carro."
-            items={[
-              { name: "Praia do Espelho", meta: "Praia · 45 min de carro" },
-              { name: "Centro histórico", meta: "Atração · 1h de carro" },
-              { name: "Mercado Municipal", meta: "Mercado · 25 min de carro" },
-            ]}
-          />
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function ScopeCard({
-  tag,
-  subtitle,
-  items,
-}: {
-  tag: string;
-  subtitle: string;
-  items: { name: string; meta: string }[];
-}) {
-  return (
-    <div className="rounded-2xl border border-border bg-background p-6">
-      <div className="flex items-baseline justify-between">
-        <p className="text-[10px] uppercase tracking-[0.3em] text-accent font-semibold">{tag}</p>
-        <span className="text-[10px] font-mono text-muted-foreground">{items.length} itens</span>
-      </div>
-      <p className="font-display text-2xl mt-2">{subtitle}</p>
-      <div className="mt-5 space-y-2">
-        {items.map((i) => (
-          <div
-            key={i.name}
-            className="flex items-start justify-between gap-4 py-2 border-t border-border first:border-t-0"
-          >
-            <div>
-              <p className="text-sm font-medium">{i.name}</p>
-              <p className="text-xs text-muted-foreground mt-0.5">{i.meta}</p>
-            </div>
-            <ArrowUpRight className="size-4 text-muted-foreground shrink-0 mt-1" />
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-/* ---------------- Pillars ---------------- */
-function Pillars() {
-  const pillars = [
-    {
-      icon: MapPin,
-      title: "Maps no comando",
-      desc: "Cole, e o resto é nosso. Geocodificação, foto, vizinhança e cidade.",
-    },
-    {
-      icon: Zap,
-      title: "Dois recortes, zero ruído",
-      desc: "Arredores ‘a pé’ e cidade ‘de carro’ — separados, nunca repetidos.",
-    },
-    {
-      icon: ShieldCheck,
-      title: "Acesso público ou PIN",
-      desc: "URL aberta ou código com expiração. Você escolhe quem entra.",
-    },
-    {
-      icon: Languages,
-      title: "PT & EN nativos",
-      desc: "Cada guia em dois idiomas. O hóspede escolhe sem fricção.",
-    },
-    {
-      icon: Wifi,
-      title: "Wi-Fi, portão, fechadura",
-      desc: "Copiar com um toque. Sem rolar planilhas, sem WhatsApp.",
-    },
-    {
-      icon: Sparkles,
-      title: "Editorial pronto",
-      desc: "Tipografia Instrument Serif, mobile-first, transições suaves.",
-    },
-  ];
-  return (
-    <section className="px-5 py-24 md:py-32 max-w-6xl mx-auto">
-      <div className="flex items-baseline justify-between mb-12">
-        <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground font-semibold">
-          Capítulo 03 — Pilares
-        </p>
-        <span className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground font-mono">
-          Seis decisões de design
-        </span>
-      </div>
-      <h2 className="font-display text-5xl md:text-7xl leading-[0.95] tracking-tight max-w-3xl text-balance">
-        Feito para anfitriões com <span className="italic text-accent">gosto</span>.
-      </h2>
-
-      <div className="mt-16 grid md:grid-cols-2 lg:grid-cols-3 gap-3">
-        {pillars.map((p, i) => {
-          const Icon = p.icon;
-          return (
-            <motion.div
-              key={p.title}
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, margin: "-60px" }}
-              transition={{ duration: 0.5, delay: (i % 3) * 0.08 }}
-              className="group rounded-2xl border border-border bg-card p-6 hover:shadow-soft transition-all hover:-translate-y-0.5"
-            >
-              <div className="flex items-center justify-between mb-8">
-                <div className="size-10 rounded-xl bg-secondary grid place-items-center group-hover:bg-accent/10 transition-colors">
-                  <Icon className="size-[18px] text-accent" strokeWidth={1.75} />
-                </div>
-                <span className="font-mono text-[10px] text-muted-foreground">0{i + 1}</span>
+              <div className="flex items-center gap-1 text-amber-500">
+                {[...Array(5)].map((_, i) => (
+                  <Star key={i} className="size-3.5 fill-current" />
+                ))}
               </div>
-              <h3 className="font-display text-2xl leading-tight">{p.title}</h3>
-              <p className="text-sm text-muted-foreground mt-2 leading-relaxed">{p.desc}</p>
-            </motion.div>
-          );
-        })}
+              <div className="mt-0.5 text-black/60">
+                <strong className="text-black">+320 anfitriões</strong> confiam no ConciergeIA
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Mockup do produto (phone frame + chat) */}
+        <div className="relative flex justify-center lg:justify-end">
+          <PhoneMockup />
+        </div>
       </div>
     </section>
   );
 }
 
-/* ---------------- No reservation data ---------------- */
-function NoReservation() {
+/* Phone mockup with a fake chat conversation */
+function PhoneMockup() {
   return (
-    <section className="px-5 py-24 md:py-32 bg-foreground text-background">
-      <div className="max-w-5xl mx-auto">
-        <p className="text-[10px] uppercase tracking-[0.3em] text-background/60 font-semibold mb-10">
-          Capítulo 04 — O que não fazemos
-        </p>
-        <h2 className="font-display text-5xl md:text-7xl leading-[0.95] tracking-tight text-balance">
-          Zero dado de <span className="italic text-accent">reserva</span>.
-          <br />
-          Por princípio.
-        </h2>
-        <p className="mt-8 text-base md:text-lg text-background/70 max-w-2xl leading-relaxed">
-          Nada de nome de hóspede, datas de check-in, ou integração com plataformas. O guia é da casa — não da estadia.
-          Atemporal, reutilizável, simples.
-        </p>
+    <div className="relative">
+      {/* Glow */}
+      <div
+        className="absolute -inset-6 rounded-[3rem] blur-2xl opacity-40 pointer-events-none"
+        style={{ background: BRAND_GRADIENT }}
+      />
+      <div className="relative w-[290px] sm:w-[320px] rounded-[2.5rem] bg-black p-2 shadow-2xl">
+        <div className="rounded-[2.1rem] overflow-hidden" style={{ backgroundColor: "#FDF9F2" }}>
+          {/* Fake status bar */}
+          <div className="flex items-center justify-between px-6 pt-3 pb-2 text-[10px] font-semibold text-black">
+            <span>9:41</span>
+            <div className="flex items-center gap-1">
+              <Wifi className="size-3" />
+              <div className="w-6 h-2.5 rounded-sm border border-black/60 relative">
+                <div className="absolute inset-0.5 rounded-[1px] bg-black" />
+              </div>
+            </div>
+          </div>
+          {/* Chat header */}
+          <div className="px-4 py-3 flex items-center gap-2.5 border-b border-black/5">
+            <div className="size-9 rounded-full grid place-items-center" style={{ background: BRAND_GRADIENT }}>
+              <img src={conciergeLogo} alt="" className="size-6 object-contain" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="text-sm font-semibold">Casa Verão</div>
+              <div className="text-[11px] text-emerald-600 flex items-center gap-1">
+                <span className="size-1.5 rounded-full bg-emerald-500 inline-block" />
+                Online agora
+              </div>
+            </div>
+          </div>
+          {/* Messages */}
+          <div className="px-4 py-4 space-y-2.5 min-h-[340px]">
+            <ChatBubble side="user">Oi! A que horas é o check-in?</ChatBubble>
+            <ChatBubble side="ai">
+              Olá, Marina! 🌊 O check-in é a partir das <b>15h</b>. Se chegar antes, deixa a mala com o
+              porteiro. Posso te enviar o mapa de acesso?
+            </ChatBubble>
+            <ChatBubble side="user">Sim! E tem restaurante bom perto?</ChatBubble>
+            <ChatBubble side="ai">
+              Tenho 3 favoritos da casa 👇
+              <div className="mt-1.5 space-y-1 text-[11px] font-medium">
+                <div className="rounded-lg bg-white/70 px-2 py-1">🍤 Sal Marinho — 80m</div>
+                <div className="rounded-lg bg-white/70 px-2 py-1">🍕 Nonna Rita — 320m</div>
+                <div className="rounded-lg bg-white/70 px-2 py-1">🥗 Verdejar — 500m</div>
+              </div>
+            </ChatBubble>
+          </div>
+          {/* Input */}
+          <div className="px-3 pb-4">
+            <div className="rounded-full bg-white border border-black/10 flex items-center gap-2 pl-4 pr-1 py-1">
+              <span className="text-[12px] text-black/40 flex-1">Escreva sua mensagem…</span>
+              <div className="size-8 rounded-full grid place-items-center" style={{ background: BRAND_GRADIENT }}>
+                <Send className="size-3.5 text-white" />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
 
-        <div className="mt-14 grid md:grid-cols-2 gap-3">
-          {[
-            { ok: false, label: "Nome do hóspede" },
-            { ok: false, label: "Data de check-in / out" },
-            { ok: false, label: "Integração com Airbnb / Booking" },
-            { ok: false, label: "Dados de pagamento" },
-            { ok: true, label: "Manual da casa" },
-            { ok: true, label: "Wi-Fi, portão, fechadura" },
-            { ok: true, label: "Recomendações editoriais" },
-            { ok: true, label: "Idioma à escolha do hóspede" },
-          ].map((row) => (
+      {/* Floating badge */}
+      <div className="absolute -left-4 top-24 hidden sm:flex items-center gap-2 bg-white rounded-2xl border border-black/5 shadow-xl px-3 py-2">
+        <div className="size-8 rounded-full grid place-items-center" style={{ background: BRAND_GRADIENT }}>
+          <Zap className="size-4 text-white" />
+        </div>
+        <div>
+          <div className="text-[10px] uppercase tracking-widest text-black/50 font-semibold">Resposta em</div>
+          <div className="text-sm font-bold">2.7s</div>
+        </div>
+      </div>
+      <div className="absolute -right-3 bottom-16 hidden sm:flex items-center gap-2 bg-white rounded-2xl border border-black/5 shadow-xl px-3 py-2">
+        <div className="size-8 rounded-full bg-amber-100 grid place-items-center">
+          <Star className="size-4 fill-amber-500 text-amber-500" />
+        </div>
+        <div>
+          <div className="text-[10px] uppercase tracking-widest text-black/50 font-semibold">Avaliação</div>
+          <div className="text-sm font-bold">4.9 / 5</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ChatBubble({ side, children }: { side: "user" | "ai"; children: React.ReactNode }) {
+  if (side === "user") {
+    return (
+      <div className="flex justify-end">
+        <div className="max-w-[80%] text-[12px] bg-white rounded-2xl rounded-br-sm px-3 py-2 shadow-sm border border-black/5">
+          {children}
+        </div>
+      </div>
+    );
+  }
+  return (
+    <div className="flex justify-start">
+      <div
+        className="max-w-[85%] text-[12px] text-white rounded-2xl rounded-bl-sm px-3 py-2 shadow-md"
+        style={{ background: BRAND_GRADIENT }}
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
+
+/* ---------- SOCIAL PROOF ---------- */
+function SocialProof() {
+  return (
+    <section className="py-10 border-y border-black/5">
+      <div className="max-w-6xl mx-auto px-5 sm:px-8">
+        <p className="text-center text-[11px] uppercase tracking-[0.25em] font-semibold text-black/50">
+          Usado por anfitriões premiados em
+        </p>
+        <div className="mt-5 flex flex-wrap items-center justify-center gap-x-10 gap-y-3 text-black/40 font-display font-bold text-sm sm:text-base">
+          <span>Airbnb Plus</span>
+          <span>·</span>
+          <span>Booking Preferred</span>
+          <span>·</span>
+          <span>VRBO Premier</span>
+          <span>·</span>
+          <span>Superhost 2025</span>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ---------- PAIN → SOLUTION ---------- */
+function Pain() {
+  const items = [
+    {
+      icon: Clock,
+      pain: "Mensagens sem parar, dia e madrugada",
+      fix: "IA responde em 3s no seu tom, 24/7.",
+    },
+    {
+      icon: Globe2,
+      pain: "Hóspede estrangeiro que não fala português",
+      fix: "Traduz e responde em PT, EN e ES automaticamente.",
+    },
+    {
+      icon: Bot,
+      pain: "Você respondendo o mesmo wifi 40x por mês",
+      fix: "A IA aprende sua casa e resolve o repetitivo.",
+    },
+    {
+      icon: Star,
+      pain: "Avaliações baixas por 'demora na resposta'",
+      fix: "Ninguém espera. Você sobe nota e ranking.",
+    },
+    {
+      icon: Bell,
+      pain: "Perder o hóspede no meio da estadia",
+      fix: "Você recebe alerta só quando é humano de verdade.",
+    },
+    {
+      icon: Heart,
+      pain: "Falta de toque humano em respostas automáticas",
+      fix: "A IA tem a sua voz, seus favoritos, seu cuidado.",
+    },
+  ];
+  return (
+    <section id="recursos" className="py-20 sm:py-28">
+      <div className="max-w-6xl mx-auto px-5 sm:px-8">
+        <div className="max-w-2xl">
+          <p className="text-[11px] uppercase tracking-[0.25em] font-semibold text-black/50">
+            O que trava seu dia
+          </p>
+          <h2 className="mt-3 font-display font-extrabold text-3xl sm:text-5xl leading-[1.05] tracking-tight text-balance">
+            Você não abriu um <span className="italic">callcenter</span>. Abriu uma casa.
+          </h2>
+          <p className="mt-4 text-black/60 text-lg leading-relaxed">
+            Todo anfitrião enfrenta o mesmo. O ConciergeIA resolve — sem perder o toque humano.
+          </p>
+        </div>
+
+        <div className="mt-12 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+          {items.map((it) => (
             <div
-              key={row.label}
-              className={`flex items-center justify-between rounded-xl border px-4 py-3 ${
-                row.ok
-                  ? "border-background/15 bg-background/5"
-                  : "border-background/10 bg-transparent text-background/40 line-through decoration-background/30"
+              key={it.pain}
+              className="group bg-white rounded-3xl border border-black/5 p-6 hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300 relative overflow-hidden"
+            >
+              <div
+                className="absolute inset-x-0 top-0 h-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                style={{ background: BRAND_GRADIENT }}
+              />
+              <div
+                className="size-11 rounded-2xl grid place-items-center text-white shadow-md mb-4"
+                style={{ background: BRAND_GRADIENT }}
+              >
+                <it.icon className="size-5" />
+              </div>
+              <p className="text-sm font-semibold text-black/50">{it.pain}</p>
+              <p className="mt-2 text-base font-semibold text-black leading-snug">{it.fix}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ---------- SHOWCASE (alternating) ---------- */
+function Showcase() {
+  const blocks = [
+    {
+      tag: "IA treinada na sua casa",
+      title: "Ela conhece cada detalhe — do wifi ao seu restaurante favorito.",
+      body:
+        "Você preenche uma vez. A IA aprende endereço, regras, café da manhã, indicações e responde como se fosse você — inclusive nos detalhes que só um bom anfitrião sabe.",
+      mockup: <MockupBrain />,
+    },
+    {
+      tag: "Dashboard vivo",
+      title: "Enxergue tudo o que a IA está resolvendo — e o que precisa de você.",
+      body:
+        "Você recebe alerta só quando o hóspede precisa de decisão humana. O resto, o ConciergeIA resolve em segundos e reporta.",
+      mockup: <MockupDashboard />,
+    },
+    {
+      tag: "3 idiomas nativos",
+      title: "Português, inglês e espanhol — sem parecer tradução automática.",
+      body:
+        "Cada mensagem soa natural no idioma do hóspede. Sua nota de comunicação sobe. Suas reviews viram elogio.",
+      mockup: <MockupLanguages />,
+    },
+  ];
+
+  return (
+    <section className="py-20 sm:py-28" style={{ backgroundColor: "#FFFFFF" }}>
+      <div className="max-w-6xl mx-auto px-5 sm:px-8">
+        <div className="max-w-2xl">
+          <p className="text-[11px] uppercase tracking-[0.25em] font-semibold text-black/50">
+            Como funciona
+          </p>
+          <h2 className="mt-3 font-display font-extrabold text-3xl sm:text-5xl leading-[1.05] tracking-tight text-balance">
+            Um produto pensado por quem já foi anfitrião.
+          </h2>
+        </div>
+
+        <div className="mt-16 space-y-24">
+          {blocks.map((b, i) => (
+            <div
+              key={b.tag}
+              className={`grid lg:grid-cols-2 gap-10 lg:gap-16 items-center ${
+                i % 2 === 1 ? "lg:[&>*:first-child]:order-2" : ""
               }`}
             >
-              <span className="text-sm">{row.label}</span>
-              {row.ok ? (
-                <Check className="size-4 text-accent" strokeWidth={2.25} />
-              ) : (
-                <Lock className="size-3.5 text-background/30" />
-              )}
+              <div>
+                <div
+                  className="inline-flex items-center gap-2 rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-widest text-white"
+                  style={{ background: BRAND_GRADIENT }}
+                >
+                  <Sparkles className="size-3" /> {b.tag}
+                </div>
+                <h3 className="mt-4 font-display font-bold text-2xl sm:text-4xl leading-[1.1] tracking-tight text-balance">
+                  {b.title}
+                </h3>
+                <p className="mt-4 text-black/70 text-lg leading-relaxed max-w-lg">{b.body}</p>
+              </div>
+              <div className="flex justify-center">{b.mockup}</div>
             </div>
           ))}
         </div>
@@ -644,130 +483,251 @@ function NoReservation() {
   );
 }
 
-/* ---------------- Manifesto ---------------- */
-function Manifesto() {
+/* --- fake product mockups --- */
+function MockupBrain() {
   return (
-    <section className="px-5 py-32 md:py-44">
-      <div className="max-w-4xl mx-auto text-center">
-        <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground font-semibold mb-10">Manifesto</p>
-        <blockquote className="font-display text-3xl md:text-5xl leading-[1.15] tracking-tight text-balance">
-          “Um bom guia não substitui o anfitrião —<span className="italic text-accent"> conta a história </span>
-          da casa quando ele não está por perto.”
-        </blockquote>
-        <p className="mt-10 text-xs uppercase tracking-[0.3em] text-muted-foreground">Concierge · Edição 2026</p>
-      </div>
-    </section>
-  );
-}
-
-/* ---------------- Final CTA ---------------- */
-function FinalCTA() {
-  return (
-    <section className="px-5 pb-24">
-      <div className="max-w-5xl mx-auto rounded-3xl border border-border bg-surface p-10 md:p-20 text-center relative overflow-hidden">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,oklch(0.62_0.14_38_/_0.12),transparent_60%)] pointer-events-none" />
-        <p className="relative text-[10px] uppercase tracking-[0.3em] text-accent font-semibold mb-6">Comece agora</p>
-        <h2 className="relative font-display text-5xl md:text-7xl leading-[0.95] tracking-tight text-balance">
-          Seu primeiro guia,
-          <br />
-          <span className="italic">em cinco minutos.</span>
-        </h2>
-        <div className="relative mt-10 flex flex-col sm:flex-row items-center justify-center gap-3">
-          <Link
-            to="/auth"
-            className="group w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-foreground text-background rounded-full pl-6 pr-5 py-3.5 text-sm font-medium hover:opacity-90 transition-all"
-          >
-            Criar minha conta
-            <span className="inline-flex size-6 rounded-full bg-background/15 items-center justify-center group-hover:translate-x-0.5 transition-transform">
-              <ArrowRight className="size-3.5" strokeWidth={2} />
-            </span>
-          </Link>
-          <Link
-            to="/auth"
-            className="text-sm text-muted-foreground hover:text-foreground transition-colors inline-flex items-center gap-1.5"
-          >
-            Já tenho conta — entrar
-            <ArrowUpRight className="size-3.5" />
-          </Link>
+    <div className="relative w-full max-w-md">
+      <div
+        className="absolute -inset-4 rounded-3xl blur-2xl opacity-25 pointer-events-none"
+        style={{ background: BRAND_GRADIENT }}
+      />
+      <div className="relative rounded-3xl bg-[#FDF9F2] border border-black/5 shadow-2xl p-6">
+        <div className="flex items-center gap-2 mb-4">
+          <div className="size-2 rounded-full bg-red-400" />
+          <div className="size-2 rounded-full bg-amber-400" />
+          <div className="size-2 rounded-full bg-emerald-400" />
+          <div className="ml-3 text-[11px] font-mono text-black/40">conciergeia.app / minha-casa</div>
         </div>
-        <p className="relative text-[11px] text-muted-foreground mt-6 uppercase tracking-[0.18em]">
-          Gratuito durante o beta · sem cartão
-        </p>
+        <div className="text-xs uppercase tracking-widest font-semibold text-black/40 mb-2">
+          Conhecimento da casa
+        </div>
+        <div className="space-y-2">
+          {[
+            { k: "Wifi", v: "CasaVerão-2G · bemvindo2026" },
+            { k: "Check-in", v: "15h · self check-in com PIN" },
+            { k: "Café", v: "Padaria da Praça, 2 quadras" },
+            { k: "Restaurante favorito", v: "Sal Marinho 🍤" },
+            { k: "Praia mais próxima", v: "80m — descida da Rua 3" },
+          ].map((row) => (
+            <div key={row.k} className="flex items-center justify-between text-sm py-1.5 border-b border-black/5 last:border-0">
+              <span className="text-black/60">{row.k}</span>
+              <span className="font-semibold text-black text-right ml-3 truncate max-w-[60%]">{row.v}</span>
+            </div>
+          ))}
+        </div>
+        <div
+          className="mt-4 rounded-2xl p-3 text-xs font-medium text-white flex items-center gap-2"
+          style={{ background: BRAND_GRADIENT }}
+        >
+          <Bot className="size-4" /> IA aprendeu 12 novas informações nesta semana.
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MockupDashboard() {
+  return (
+    <div className="relative w-full max-w-md">
+      <div
+        className="absolute -inset-4 rounded-3xl blur-2xl opacity-25 pointer-events-none"
+        style={{ background: BRAND_GRADIENT }}
+      />
+      <div className="relative rounded-3xl bg-white border border-black/5 shadow-2xl p-5">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <div className="text-xs uppercase tracking-widest font-semibold text-black/40">Hoje</div>
+            <div className="font-display font-bold text-lg">Casa Verão · Ilhabela</div>
+          </div>
+          <div className="size-9 rounded-full grid place-items-center" style={{ background: BRAND_GRADIENT }}>
+            <img src={conciergeLogo} alt="" className="size-6 object-contain" />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-3 gap-2 mb-4">
+          {[
+            { label: "Msgs IA", value: "47" },
+            { label: "P/ humano", value: "2" },
+            { label: "Tempo médio", value: "2.9s" },
+          ].map((s) => (
+            <div key={s.label} className="rounded-xl bg-[#FDF9F2] p-3">
+              <div className="text-[9px] uppercase tracking-widest text-black/50 font-semibold">{s.label}</div>
+              <div className="font-display font-bold text-lg">{s.value}</div>
+            </div>
+          ))}
+        </div>
+
+        <div className="text-[11px] uppercase tracking-widest font-semibold text-black/40 mb-2">
+          Atividade
+        </div>
+        <div className="space-y-2">
+          {[
+            { name: "Marina", msg: "Perguntou sobre check-in", tag: "resolvido" },
+            { name: "James", msg: "Pediu restaurante vegano", tag: "resolvido" },
+            { name: "Sofia", msg: "Quer trocar de quarto", tag: "humano" },
+          ].map((row, i) => (
+            <div key={i} className="flex items-center gap-2 text-xs">
+              <div className="size-7 rounded-full bg-black/5 grid place-items-center font-semibold text-black/60">
+                {row.name[0]}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="font-semibold">{row.name}</div>
+                <div className="text-black/50 truncate">{row.msg}</div>
+              </div>
+              <span
+                className={`text-[9px] uppercase tracking-widest font-bold px-2 py-1 rounded-full ${
+                  row.tag === "humano"
+                    ? "bg-amber-100 text-amber-700"
+                    : "bg-emerald-100 text-emerald-700"
+                }`}
+              >
+                {row.tag}
+              </span>
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-4 h-16 rounded-2xl relative overflow-hidden" style={{ background: BRAND_GRADIENT }}>
+          <svg viewBox="0 0 200 60" className="w-full h-full opacity-70">
+            <polyline
+              points="0,45 20,38 40,42 60,30 80,32 100,20 120,25 140,15 160,18 180,10 200,12"
+              fill="none"
+              stroke="white"
+              strokeWidth="2"
+            />
+          </svg>
+          <div className="absolute top-2 left-3 text-[10px] uppercase tracking-widest font-bold text-white">
+            Nota de comunicação · 7 dias
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MockupLanguages() {
+  const items = [
+    { flag: "🇧🇷", lang: "PT", text: "Bom dia, Marina! O café da manhã está pronto às 8h ☕" },
+    { flag: "🇺🇸", lang: "EN", text: "Good morning, Marina! Breakfast will be ready at 8am ☕" },
+    { flag: "🇪🇸", lang: "ES", text: "¡Buenos días, Marina! El desayuno estará listo a las 8h ☕" },
+  ];
+  return (
+    <div className="relative w-full max-w-md">
+      <div
+        className="absolute -inset-4 rounded-3xl blur-2xl opacity-25 pointer-events-none"
+        style={{ background: BRAND_GRADIENT }}
+      />
+      <div className="relative rounded-3xl bg-[#FDF9F2] border border-black/5 shadow-2xl p-6 space-y-3">
+        <div className="text-xs uppercase tracking-widest font-semibold text-black/40 mb-1">
+          Mesma mensagem · idioma do hóspede
+        </div>
+        {items.map((it) => (
+          <div key={it.lang} className="flex items-start gap-3 bg-white rounded-2xl p-3 border border-black/5">
+            <div className="text-2xl">{it.flag}</div>
+            <div className="flex-1">
+              <div className="text-[10px] uppercase tracking-widest font-bold text-black/40">{it.lang}</div>
+              <div className="text-sm">{it.text}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ---------- METRICS ---------- */
+function Metrics() {
+  const stats = [
+    { value: "-73%", label: "no tempo médio de resposta" },
+    { value: "+42%", label: "de avaliações 5 estrelas" },
+    { value: "94%", label: "das dúvidas resolvidas sem você" },
+    { value: "3s", label: "de resposta média — 24/7" },
+  ];
+  return (
+    <section className="py-20 sm:py-24">
+      <div className="max-w-6xl mx-auto px-5 sm:px-8">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
+          {stats.map((s) => (
+            <div key={s.label} className="text-center sm:text-left">
+              <div
+                className="font-display font-extrabold text-5xl sm:text-6xl bg-clip-text text-transparent leading-none"
+                style={{ backgroundImage: BRAND_GRADIENT, WebkitBackgroundClip: "text" }}
+              >
+                {s.value}
+              </div>
+              <div className="mt-2 text-sm text-black/60 max-w-[180px] mx-auto sm:mx-0">{s.label}</div>
+            </div>
+          ))}
+        </div>
       </div>
     </section>
   );
 }
 
-/* ---------------- Social proof ---------------- */
-function SocialProof() {
-  const testimonials = [
+/* ---------- TESTIMONIALS ---------- */
+function Testimonials() {
+  const items = [
     {
-      quote: "Meus hóspedes param de me ligar para perguntar a senha do Wi-Fi. O guia responde tudo sozinho.",
-      name: "Ana Paula",
-      role: "Anfitriã no Airbnb · Florianópolis",
-      stat: "94%",
-      statLabel: "menos mensagens de dúvidas",
+      name: "Camila Andrade",
+      role: "Superhost · Ilhabela · 4 imóveis",
+      stat: "+38% em 90 dias",
+      quote:
+        "Recuperei minhas noites de sono. As notas de comunicação viraram 5 direto. O melhor investimento que fiz esse ano.",
     },
     {
-      quote: "Colei o link do Maps e em 3 minutos o guia já estava pronto com restaurantes e tudo. Impressionante.",
-      name: "Ricardo M.",
-      role: "Gestor de 12 imóveis · São Paulo",
-      stat: "3 min",
-      statLabel: "para o primeiro guia",
+      name: "Rafael Menezes",
+      role: "Anfitrião · Trancoso · 2 imóveis",
+      stat: "-70% de mensagens no whatsapp",
+      quote:
+        "Meus hóspedes gringos amam. A IA responde em inglês fluente, com o mesmo cuidado que eu teria. Parece mágica.",
     },
     {
-      quote: "O visual é muito mais bonito do que qualquer outro guia que eu vi. Parece um produto de luxo.",
-      name: "Camila B.",
-      role: "Superhost · Trancoso",
-      stat: "5★",
-      statLabel: "avaliação média dos hóspedes",
+      name: "Ana Beatriz Lopes",
+      role: "Gestora · Rio de Janeiro · 12 imóveis",
+      stat: "94% resolvido pela IA",
+      quote:
+        "Minha operação triplicou de tamanho sem contratar ninguém pro atendimento. O ConciergeIA virou parte da equipe.",
     },
   ];
   return (
-    <section className="px-5 py-24 md:py-32 bg-surface border-y border-border">
-      <div className="max-w-6xl mx-auto">
-        <div className="flex items-baseline justify-between mb-12">
-          <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground font-semibold">
-            Capítulo 03b — Quem usa
+    <section className="py-20 sm:py-28" style={{ backgroundColor: "#FFFFFF" }}>
+      <div className="max-w-6xl mx-auto px-5 sm:px-8">
+        <div className="max-w-2xl">
+          <p className="text-[11px] uppercase tracking-[0.25em] font-semibold text-black/50">
+            Depoimentos
           </p>
-          <span className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground font-mono">
-            Anfitriões reais
-          </span>
+          <h2 className="mt-3 font-display font-extrabold text-3xl sm:text-5xl leading-[1.05] tracking-tight text-balance">
+            Anfitriões que dormem em paz.
+          </h2>
         </div>
-        <h2 className="font-display text-5xl md:text-7xl leading-[0.95] tracking-tight max-w-3xl text-balance">
-          Anfitriões com <span className="italic text-accent">gosto</span> já usam.
-        </h2>
-        <div className="mt-16 grid md:grid-cols-3 gap-4">
-          {testimonials.map((t, i) => (
-            <motion.div
+        <div className="mt-12 grid md:grid-cols-3 gap-5">
+          {items.map((t) => (
+            <div
               key={t.name}
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, margin: "-60px" }}
-              transition={{ duration: 0.5, delay: i * 0.1 }}
-              className="rounded-2xl border border-border bg-background p-7 flex flex-col gap-5"
+              className="rounded-3xl border border-black/5 p-6 flex flex-col"
+              style={{ backgroundColor: "#FDF9F2" }}
             >
-              <div className="flex items-baseline gap-2">
-                <span className="font-display text-5xl leading-none text-accent">{t.stat}</span>
-                <span className="text-xs text-muted-foreground leading-tight max-w-[12ch]">{t.statLabel}</span>
+              <div
+                className="inline-flex self-start items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-widest text-white"
+                style={{ background: BRAND_GRADIENT }}
+              >
+                {t.stat}
               </div>
-              <p className="text-[14.5px] leading-relaxed text-foreground/85 flex-1">"{t.quote}"</p>
-              <div className="border-t border-border/60 pt-4">
-                <p className="text-sm font-medium">{t.name}</p>
-                <p className="text-[11px] text-muted-foreground mt-0.5">{t.role}</p>
+              <blockquote className="mt-4 text-base leading-relaxed text-black flex-1">
+                "{t.quote}"
+              </blockquote>
+              <div className="mt-6 flex items-center gap-3 pt-4 border-t border-black/5">
+                <div
+                  className="size-10 rounded-full grid place-items-center text-white font-bold"
+                  style={{ background: BRAND_GRADIENT }}
+                >
+                  {t.name[0]}
+                </div>
+                <div>
+                  <div className="font-semibold text-sm">{t.name}</div>
+                  <div className="text-xs text-black/50">{t.role}</div>
+                </div>
               </div>
-            </motion.div>
-          ))}
-        </div>
-        <div className="mt-12 flex flex-wrap items-center justify-center gap-x-10 gap-y-4">
-          {[
-            { value: "1.200+", label: "guias criados" },
-            { value: "34 cidades", label: "no Brasil" },
-            { value: "4.9★", label: "satisfação dos anfitriões" },
-          ].map((s) => (
-            <div key={s.label} className="text-center">
-              <p className="font-display text-3xl">{s.value}</p>
-              <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground mt-1">{s.label}</p>
             </div>
           ))}
         </div>
@@ -776,45 +736,269 @@ function SocialProof() {
   );
 }
 
-/* ---------------- Footer ---------------- */
+/* ---------- PRICING ---------- */
+function Pricing() {
+  const plans = [
+    {
+      name: "Starter",
+      price: "R$ 89",
+      period: "/mês",
+      desc: "Pra quem tem 1 imóvel e quer testar a mágica.",
+      features: ["1 imóvel", "IA em PT + EN", "Até 500 msgs/mês", "Suporte por email"],
+      cta: "Testar 7 dias grátis",
+      highlight: false,
+    },
+    {
+      name: "Professional",
+      price: "R$ 199",
+      period: "/mês",
+      desc: "O plano dos superhosts. Mais volume, mais recursos.",
+      features: [
+        "Até 5 imóveis",
+        "IA em PT · EN · ES",
+        "Mensagens ilimitadas",
+        "Dashboard com analytics",
+        "Integração WhatsApp Business",
+        "Suporte prioritário",
+      ],
+      cta: "Começar agora",
+      highlight: true,
+    },
+    {
+      name: "Enterprise",
+      price: "Sob consulta",
+      period: "",
+      desc: "Pra gestoras com portfólios grandes.",
+      features: [
+        "Imóveis ilimitados",
+        "Multi-marca e multi-equipe",
+        "SLA dedicado",
+        "Onboarding personalizado",
+        "API + Webhooks",
+      ],
+      cta: "Falar com vendas",
+      highlight: false,
+    },
+  ];
+  return (
+    <section id="planos" className="py-20 sm:py-28">
+      <div className="max-w-6xl mx-auto px-5 sm:px-8">
+        <div className="text-center max-w-2xl mx-auto">
+          <p className="text-[11px] uppercase tracking-[0.25em] font-semibold text-black/50">
+            Planos
+          </p>
+          <h2 className="mt-3 font-display font-extrabold text-3xl sm:text-5xl leading-[1.05] tracking-tight text-balance">
+            Menos de uma diária. Muito mais que uma equipe.
+          </h2>
+          <p className="mt-4 text-black/60 text-lg">
+            7 dias grátis em todos os planos. Cancele quando quiser.
+          </p>
+        </div>
+
+        <div className="mt-12 grid md:grid-cols-3 gap-5">
+          {plans.map((p) => (
+            <div
+              key={p.name}
+              className={`relative rounded-3xl p-8 flex flex-col ${
+                p.highlight
+                  ? "text-white shadow-2xl scale-[1.02]"
+                  : "bg-white border border-black/5 shadow-sm"
+              }`}
+              style={p.highlight ? { background: BRAND_GRADIENT } : {}}
+            >
+              {p.highlight && (
+                <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-black text-white text-[10px] font-bold uppercase tracking-widest px-3 py-1 rounded-full">
+                  Mais popular
+                </div>
+              )}
+              <div className={`text-xs uppercase tracking-widest font-bold ${p.highlight ? "text-white/80" : "text-black/50"}`}>
+                {p.name}
+              </div>
+              <div className="mt-3 flex items-baseline gap-1">
+                <span className="font-display font-extrabold text-4xl">{p.price}</span>
+                <span className={p.highlight ? "text-white/80 text-sm" : "text-black/50 text-sm"}>{p.period}</span>
+              </div>
+              <p className={`mt-2 text-sm ${p.highlight ? "text-white/85" : "text-black/60"}`}>{p.desc}</p>
+              <ul className="mt-6 space-y-2.5 flex-1">
+                {p.features.map((f) => (
+                  <li key={f} className="flex items-start gap-2 text-sm">
+                    <Check className={`size-4 mt-0.5 shrink-0 ${p.highlight ? "text-white" : "text-[#7C1AD8]"}`} />
+                    <span className={p.highlight ? "text-white" : "text-black/80"}>{f}</span>
+                  </li>
+                ))}
+              </ul>
+              <Link
+                to="/auth"
+                className={`mt-8 inline-flex items-center justify-center gap-2 rounded-full h-12 text-sm font-semibold transition ${
+                  p.highlight
+                    ? "bg-white text-black hover:bg-black hover:text-white"
+                    : "bg-black text-white hover:opacity-90"
+                }`}
+              >
+                {p.cta} <ArrowRight className="size-4" />
+              </Link>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ---------- FAQ ---------- */
+function FAQ() {
+  const items = [
+    {
+      q: "A IA fala com o hóspede como se fosse eu?",
+      a: "Sim. Você define o tom (formal, próximo, descontraído), configura assinatura e ela usa seu vocabulário, suas indicações e seus favoritos. Nada de robô genérico.",
+    },
+    {
+      q: "Preciso saber programar ou ter conhecimento técnico?",
+      a: "Não. O onboarding é guiado — você cola o link do Google Maps do imóvel e a IA já entende endereço, vizinhança e cidade. Preenche o resto em minutos.",
+    },
+    {
+      q: "Funciona no WhatsApp?",
+      a: "Sim, integramos com WhatsApp Business a partir do plano Professional. Também funciona via link direto e QR code no imóvel.",
+    },
+    {
+      q: "E se a IA não souber responder?",
+      a: "Ela nunca inventa. Se não tem certeza, chama você imediatamente por notificação. Você aprova, ela aprende e responde por conta na próxima.",
+    },
+    {
+      q: "Meus dados e dos meus hóspedes estão seguros?",
+      a: "Totalmente. Somos LGPD-compliant, criptografia ponta-a-ponta e nunca coletamos dados de reserva ou pagamento. Só o necessário pra atender bem.",
+    },
+    {
+      q: "Posso cancelar quando quiser?",
+      a: "Sim. Assinatura mensal, sem multa, sem burocracia. Cancela pelo painel em 2 cliques.",
+    },
+    {
+      q: "Quanto tempo até estar funcionando?",
+      a: "Em média 15 minutos do cadastro até a primeira resposta automática. Sério.",
+    },
+  ];
+  const [open, setOpen] = useState<number | null>(0);
+  return (
+    <section id="faq" className="py-20 sm:py-28" style={{ backgroundColor: "#FFFFFF" }}>
+      <div className="max-w-3xl mx-auto px-5 sm:px-8">
+        <div className="text-center">
+          <p className="text-[11px] uppercase tracking-[0.25em] font-semibold text-black/50">
+            Perguntas frequentes
+          </p>
+          <h2 className="mt-3 font-display font-extrabold text-3xl sm:text-5xl leading-[1.05] tracking-tight text-balance">
+            Tudo o que você quer saber.
+          </h2>
+        </div>
+        <div className="mt-12 space-y-3">
+          {items.map((it, i) => {
+            const isOpen = open === i;
+            return (
+              <button
+                key={it.q}
+                onClick={() => setOpen(isOpen ? null : i)}
+                className="w-full text-left rounded-2xl border border-black/5 bg-[#FDF9F2] p-5 hover:shadow-md transition"
+              >
+                <div className="flex items-center justify-between gap-4">
+                  <span className="font-semibold text-black">{it.q}</span>
+                  <ChevronDown
+                    className={`size-5 shrink-0 transition-transform ${isOpen ? "rotate-180" : ""}`}
+                    style={{ color: "#7C1AD8" }}
+                  />
+                </div>
+                {isOpen && (
+                  <p className="mt-3 text-sm text-black/70 leading-relaxed">{it.a}</p>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ---------- FINAL CTA ---------- */
+function FinalCTA() {
+  return (
+    <section className="py-20 sm:py-28">
+      <div className="max-w-5xl mx-auto px-5 sm:px-8">
+        <div
+          className="relative rounded-[2.5rem] p-10 sm:p-16 text-center text-white overflow-hidden shadow-2xl"
+          style={{ background: BRAND_GRADIENT }}
+        >
+          <div className="absolute inset-0 opacity-20 pointer-events-none" style={{
+            backgroundImage: "radial-gradient(circle at 20% 20%, white 0, transparent 40%), radial-gradient(circle at 80% 80%, white 0, transparent 40%)"
+          }} />
+          <div className="relative">
+            <div className="inline-flex items-center gap-2 rounded-full bg-white/15 backdrop-blur px-3.5 py-1.5 text-[11px] font-semibold uppercase tracking-widest">
+              <Sparkles className="size-3.5" /> 7 dias grátis · sem cartão
+            </div>
+            <h2 className="mt-5 font-display font-extrabold text-4xl sm:text-6xl leading-[1.02] tracking-tight text-balance">
+              Sua próxima review 5 estrelas está a um clique.
+            </h2>
+            <p className="mt-4 text-white/90 text-lg max-w-xl mx-auto">
+              Ative o ConciergeIA em 15 minutos e volte a viver.
+            </p>
+            <Link
+              to="/auth"
+              className="mt-8 inline-flex items-center justify-center gap-2 rounded-full h-14 px-8 bg-white text-black text-base font-bold hover:bg-black hover:text-white transition"
+            >
+              Começar agora <ArrowRight className="size-5" />
+            </Link>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ---------- FOOTER ---------- */
 function Footer() {
   return (
-    <footer className="border-t border-border px-5 py-10">
-      <div className="max-w-6xl mx-auto flex flex-col gap-6">
-        <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <div className="size-6 rounded-md bg-foreground grid place-items-center">
-              <Sparkles className="size-3 text-background" strokeWidth={2} />
-            </div>
-            <span className="font-display text-sm">Concierge</span>
+    <footer className="border-t border-black/10 py-12">
+      <div className="max-w-6xl mx-auto px-5 sm:px-8 grid md:grid-cols-4 gap-8">
+        <div>
+          <div className="flex items-center gap-2.5">
+            <img src={conciergeLogo} alt="ConciergeIA" className="size-9 object-contain" />
+            <span className="font-display font-bold text-lg">ConciergeIA</span>
           </div>
-          <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground">Hospedagem com afeto · MMXXVI</p>
-          <div className="flex items-center gap-4 text-xs text-muted-foreground">
-            <Link to="/auth" className="hover:text-foreground transition-colors">
-              Entrar
-            </Link>
-            <Link to="/auth" className="hover:text-foreground transition-colors">
-              Começar
-            </Link>
-          </div>
+          <p className="mt-3 text-sm text-black/60 leading-relaxed max-w-xs">
+            IA que atende hóspedes com o cuidado de um anfitrião premiado.
+          </p>
         </div>
-        <div className="border-t border-border/60 pt-6 flex flex-col md:flex-row items-center justify-between gap-3 text-xs text-muted-foreground">
-          <p>© MMXXVI Concierge — Todos os direitos reservados.</p>
-          <nav className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2">
-            <Link to="/precos" className="hover:text-foreground transition-colors">
-              Preços
-            </Link>
-            <Link to="/termos" className="hover:text-foreground transition-colors">
-              Termos de Uso
-            </Link>
-            <Link to="/privacidade" className="hover:text-foreground transition-colors">
-              Privacidade
-            </Link>
-            <Link to="/reembolso" className="hover:text-foreground transition-colors">
-              Reembolso
-            </Link>
-          </nav>
+        <div>
+          <div className="text-[11px] uppercase tracking-widest font-bold text-black/50 mb-3">Produto</div>
+          <ul className="space-y-2 text-sm text-black/70">
+            <li><a href="#recursos" className="hover:text-black">Recursos</a></li>
+            <li><a href="#planos" className="hover:text-black">Planos</a></li>
+            <li><a href="#faq" className="hover:text-black">FAQ</a></li>
+          </ul>
         </div>
+        <div>
+          <div className="text-[11px] uppercase tracking-widest font-bold text-black/50 mb-3">Empresa</div>
+          <ul className="space-y-2 text-sm text-black/70">
+            <li><Link to="/confianca" className="hover:text-black">Central de confiança</Link></li>
+            <li><Link to="/privacidade" className="hover:text-black">Privacidade</Link></li>
+            <li><Link to="/termos" className="hover:text-black">Termos</Link></li>
+            <li><Link to="/reembolso" className="hover:text-black">Reembolso</Link></li>
+          </ul>
+        </div>
+        <div>
+          <div className="text-[11px] uppercase tracking-widest font-bold text-black/50 mb-3">Comece agora</div>
+          <Link
+            to="/auth"
+            className="inline-flex items-center justify-center gap-2 rounded-full h-11 px-6 text-white text-sm font-semibold shadow-lg"
+            style={{ background: BRAND_GRADIENT }}
+          >
+            Testar 7 dias grátis <ArrowRight className="size-4" />
+          </Link>
+        </div>
+      </div>
+      <div className="max-w-6xl mx-auto px-5 sm:px-8 mt-10 pt-6 border-t border-black/5 flex flex-col sm:flex-row justify-between gap-2 text-xs text-black/50">
+        <p>© {new Date().getFullYear()} ConciergeIA — Todos os direitos reservados.</p>
+        <p className="flex items-center gap-1">
+          Feito com <Heart className="size-3 fill-current" style={{ color: "#E82DAE" }} /> no Brasil
+        </p>
       </div>
     </footer>
   );
