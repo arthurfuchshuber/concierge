@@ -539,9 +539,7 @@ function MockupDashboard() {
             <div className="text-xs uppercase tracking-widest font-semibold text-black/40">Hoje</div>
             <div className="font-display font-bold text-lg">Casa Verão · Ilhabela</div>
           </div>
-          <div className="size-9 rounded-full grid place-items-center" style={{ background: BRAND_GRADIENT }}>
-            <img src={conciergeLogo} alt="" className="size-6 object-contain" />
-          </div>
+          <img src={conciergeLogo} alt="" className="size-9 object-contain" />
         </div>
 
         <div className="grid grid-cols-3 gap-2 mb-4">
