@@ -53,6 +53,8 @@ export function GuestsTable({
   onSelect: (guestKey: string) => void;
 }) {
   const [sort, setSort] = useState<SortState>({ key: "lastActivity", dir: "desc" });
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
 
   const sorted = useMemo(() => {
     const arr = [...guests];
