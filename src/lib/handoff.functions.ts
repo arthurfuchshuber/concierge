@@ -404,3 +404,50 @@ export const getAtendimentoAccess = createServerFn({ method: "GET" })
     }
     return { allowed: false as const, as: null, plan: null };
   });
+
+// -------- List transfer targets for a conversation (owner + active members) --------
+
+export const listConversationTransferTargets = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => GetInput.parse(i))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { data: conv } = await supabase
+      .from("property_chat_conversations")
+      .select("id, properties:property_id(owner_id)")
+      .eq("id", data.conversationId)
+      .maybeSingle();
+    const ownerId = (conv?.properties as { owner_id?: string } | null)?.owner_id ?? null;
+    if (!ownerId) return { targets: [] };
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: members } = await supabaseAdmin
+      .from("account_members")
+      .select("member_user_id, role")
+      .eq("owner_id", ownerId)
+      .eq("status", "active");
+
+    const ids = new Set<string>([ownerId, ...((members ?? []).map((m) => m.member_user_id as string))]);
+    ids.delete(userId); // sem transferir para si mesmo
+    const idList = Array.from(ids);
+    if (idList.length === 0) return { targets: [] };
+
+    const { data: profs } = await supabaseAdmin
+      .from("profiles")
+      .select("id, full_name")
+      .in("id", idList);
+    const nameById = new Map<string, string | null>();
+    for (const p of profs ?? []) nameById.set(p.id as string, (p.full_name as string) ?? null);
+
+    const roleById = new Map<string, string>();
+    roleById.set(ownerId, "owner");
+    for (const m of members ?? []) roleById.set(m.member_user_id as string, m.role as string);
+
+    return {
+      targets: idList.map((id) => ({
+        userId: id,
+        displayName: nameById.get(id) ?? null,
+        role: roleById.get(id) ?? "agent",
+      })),
+    };
+  });
