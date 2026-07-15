@@ -799,11 +799,11 @@ function Pricing() {
   return (
     <section id="planos" className="py-20 sm:py-28">
       <div className="max-w-6xl mx-auto px-5 sm:px-8">
-        <div className="text-center max-w-2xl mx-auto">
+        <div className="text-center">
           <p className="text-[11px] uppercase tracking-[0.25em] font-semibold text-black/50">
             Planos
           </p>
-          <h2 className="mt-3 font-display font-extrabold text-3xl sm:text-5xl leading-[1.05] tracking-tight text-balance">
+          <h2 className="mt-3 font-display font-extrabold text-3xl sm:text-5xl leading-[1.15] tracking-tight text-balance line-clamp-2">
             Menos de uma diária. Muito mais que uma equipe.
           </h2>
           <p className="mt-4 text-black/60 text-lg">
