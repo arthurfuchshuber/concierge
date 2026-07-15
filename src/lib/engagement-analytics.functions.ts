@@ -164,7 +164,7 @@ async function runAnalytics(
       .select("property_id, poi_key, poi_type, event_type, created_at")
       .in("property_id", filteredIds).gte("created_at", since.toISOString()).limit(20000),
     supabase.from("property_recommendations")
-      .select("property_id, place_id, name").in("property_id", filteredIds).limit(5000),
+      .select("id, property_id, place_id, name").in("property_id", filteredIds).limit(5000),
   ]);
   const logs = logsQ.data ?? [];
   const prevLogs = prevLogsQ.data ?? [];
