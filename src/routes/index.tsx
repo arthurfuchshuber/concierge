@@ -379,7 +379,7 @@ function Pain() {
   return (
     <section id="recursos" className="py-20 sm:py-28">
       <div className="max-w-6xl mx-auto px-5 sm:px-8">
-        <div>
+        <div className="text-center max-w-3xl mx-auto">
           <p className="text-[11px] uppercase tracking-[0.25em] font-semibold text-black/50">
             O que trava seu dia
           </p>
@@ -446,16 +446,7 @@ function Showcase() {
   return (
     <section className="py-20 sm:py-28" style={{ backgroundColor: "#FFFFFF" }}>
       <div className="max-w-6xl mx-auto px-5 sm:px-8">
-        <div>
-          <p className="text-[11px] uppercase tracking-[0.25em] font-semibold text-black/50">
-            Como funciona
-          </p>
-          <h2 className="mt-3 font-display font-extrabold text-[26px] sm:text-5xl leading-[1.15] tracking-tight text-balance">
-            Um produto pensado por quem já foi anfitrião.
-          </h2>
-        </div>
-
-        <div className="mt-16 space-y-24">
+        <div className="space-y-24">
           {blocks.map((b, i) => (
             <div
               key={b.tag}
@@ -691,7 +682,7 @@ function Testimonials() {
   return (
     <section className="py-20 sm:py-28" style={{ backgroundColor: "#FFFFFF" }}>
       <div className="max-w-6xl mx-auto px-5 sm:px-8">
-        <div>
+        <div className="text-center max-w-3xl mx-auto">
           <p className="text-[11px] uppercase tracking-[0.25em] font-semibold text-black/50">
             Depoimentos
           </p>
@@ -796,12 +787,11 @@ function Pricing() {
   return (
     <section id="planos" className="py-20 sm:py-28">
       <div className="max-w-6xl mx-auto px-5 sm:px-8">
-        <div className="text-center">
+        <div className="text-center max-w-3xl mx-auto">
           <p className="text-[11px] uppercase tracking-[0.25em] font-semibold text-black/50">
             Planos
           </p>
-          <h2 className="mt-3 font-display font-extrabold text-[22px] sm:text-5xl leading-[1.15] tracking-tight text-balance">
-
+          <h2 className="mt-3 font-display font-extrabold text-[26px] sm:text-5xl leading-[1.15] tracking-tight text-balance">
             Menos de uma diária. Muito mais que uma equipe.
           </h2>
           <p className="mt-4 text-[15px] sm:text-lg text-black/60 text-pretty">
@@ -948,10 +938,10 @@ function FinalCTA() {
             <div className="inline-flex items-center gap-2 rounded-full bg-white/15 backdrop-blur px-3.5 py-1.5 text-[11px] font-semibold uppercase tracking-widest">
               <Sparkles className="size-3.5" /> 7 dias grátis · sem cartão
             </div>
-            <h2 className="mt-5 font-display font-extrabold text-[30px] sm:text-6xl leading-[1.1] tracking-tight text-balance">
+            <h2 className="mt-5 font-display font-extrabold text-[30px] sm:text-6xl leading-[1.1] tracking-tight text-balance max-w-3xl mx-auto">
               Sua próxima review 5 estrelas está a um clique.
             </h2>
-            <p className="mt-4 text-white/90 text-lg max-w-xl mx-auto">
+            <p className="mt-4 text-white/90 text-lg max-w-3xl mx-auto text-pretty">
               Ative o ConciergeIA em 15 minutos e volte a viver.
             </p>
             <Link
