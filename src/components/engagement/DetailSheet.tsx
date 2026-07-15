@@ -147,79 +147,90 @@ function GuestDetail({ guestKey, accountId }: { guestKey: string; accountId: str
         <Stat label="Última atividade" value={new Date(g.lastActivity).toLocaleString("pt-BR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })} />
       </dl>
 
-      {/* Timeline de sessões */}
+      {/* Timeline + conversas unificadas */}
       <section className="mt-8">
-        <h4 className="text-xs uppercase tracking-wider text-muted-foreground font-medium mb-2">Timeline de navegação</h4>
-        {data.sessions.length === 0 ? (
+        <h4 className="text-xs uppercase tracking-wider text-muted-foreground font-medium mb-2">Timeline</h4>
+        {data.sessions.length === 0 && data.conversations.length === 0 ? (
           <div className="text-xs text-muted-foreground">Sem eventos de navegação registrados.</div>
         ) : (
           <ol className="space-y-3">
-            {data.sessions.map((s, idx) => (
-              <li key={s.sid} className="rounded-lg border border-border p-3 bg-muted/20">
-                <div className="flex items-center justify-between text-[11px] text-muted-foreground mb-2 gap-3">
-                  <span className="font-medium text-foreground">Sessão {idx + 1}</span>
-                  <span className="tabular-nums">{formatDur(s.durationSeconds)}</span>
-                </div>
-                <div className="text-[11px] text-muted-foreground mb-2">
-                  {new Date(s.startedAt).toLocaleString("pt-BR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
-                  {" · "}
-                  {s.sectionsSequence.length} evento{s.sectionsSequence.length === 1 ? "" : "s"} de navegação
-                </div>
-                <div className="flex flex-wrap gap-1.5">
-                  {s.sectionsSequence.map((it, i) => (
-                    <span key={i} className="inline-flex items-center rounded-full border border-border bg-background px-2 py-0.5 text-[11px]">
-                      {labelFor(it.section)}
-                    </span>
-                  ))}
-                </div>
-              </li>
-            ))}
-          </ol>
-        )}
-      </section>
-
-      {/* Conversas com a IA */}
-      <section className="mt-8">
-        <h4 className="text-xs uppercase tracking-wider text-muted-foreground font-medium mb-2">
-          Conversas com a IA {data.conversations.length > 0 && <span className="normal-case text-muted-foreground">({data.conversations.length})</span>}
-        </h4>
-        {data.conversations.length === 0 ? (
-          <div className="text-xs text-muted-foreground">Este hóspede não recorreu ao chat.</div>
-        ) : (
-          <div className="space-y-4">
-            {data.conversations.map((c) => (
-              <div key={c.id} className="rounded-lg border border-border p-3">
-                <div className="text-[11px] text-muted-foreground mb-2">
-                  {new Date(c.startedAt).toLocaleString("pt-BR")} · {c.messages.length} mensagens
-                </div>
-                <div className="space-y-2">
-                  {c.messages.map((m) => (
-                    <div
-                      key={m.id}
-                      className={m.role === "user"
-                        ? "rounded-md bg-muted/60 px-3 py-2 text-xs"
-                        : "rounded-md bg-primary/5 border border-primary/10 px-3 py-2 text-xs"}
-                    >
-                      <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">
-                        {m.role === "user" ? "Hóspede" : m.role === "assistant" ? "IA" : m.role}
+            {data.sessions.map((s, idx) => {
+              // agrega tempo por seção dentro desta sessão (dedupe)
+              const perSec = new Map<string, number>();
+              const seq = s.sectionsSequence;
+              const SECTION_GAP_MS = 20 * 60 * 1000;
+              const SECTION_MIN_MS = 5 * 1000;
+              for (let i = 0; i < seq.length; i++) {
+                const tCur = new Date(seq[i].at).getTime();
+                const tNext = i < seq.length - 1 ? new Date(seq[i + 1].at).getTime() : tCur + SECTION_MIN_MS;
+                const dur = Math.min(SECTION_GAP_MS, Math.max(SECTION_MIN_MS, tNext - tCur)) / 1000;
+                perSec.set(seq[i].section, (perSec.get(seq[i].section) ?? 0) + dur);
+              }
+              const uniqueSecs = Array.from(perSec.entries()).sort((a, b) => b[1] - a[1]);
+              // conversas desta sessão (heurística: início entre s.startedAt e s.endedAt)
+              const convs = data.conversations.filter((c) => c.startedAt >= s.startedAt && c.startedAt <= (s.endedAt ?? s.startedAt));
+              return (
+                <li key={s.sid} className="rounded-lg border border-border p-3 bg-muted/20">
+                  <div className="flex items-center justify-between text-[11px] text-muted-foreground mb-2 gap-3">
+                    <span className="font-medium text-foreground">Sessão {idx + 1}</span>
+                    <span className="tabular-nums">{formatDur(s.durationSeconds)}</span>
+                  </div>
+                  <div className="text-[11px] text-muted-foreground mb-2">
+                    {new Date(s.startedAt).toLocaleString("pt-BR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
+                    {" · "}
+                    {uniqueSecs.length} seç{uniqueSecs.length === 1 ? "ão" : "ões"} visitada{uniqueSecs.length === 1 ? "" : "s"}
+                  </div>
+                  {uniqueSecs.length > 0 && (
+                    <ul className="space-y-1 mb-2">
+                      {uniqueSecs.map(([sec, dur]) => (
+                        <li key={sec} className="flex items-center justify-between gap-2 text-[11px]">
+                          <span className="inline-flex items-center rounded-full border border-border bg-background px-2 py-0.5">
+                            {labelFor(sec)}
+                          </span>
+                          <span className="tabular-nums text-muted-foreground">{formatDur(dur)}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  {convs.length > 0 && (
+                    <div className="mt-3 space-y-2">
+                      <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium flex items-center gap-1">
+                        <MessageSquare className="size-3" /> Conversa com a IA
                       </div>
-                      <div className="whitespace-pre-wrap">{m.content}</div>
-                      {m.feedback && !m.feedback.resolved && (
-                        <div className="mt-1.5 text-[11px] text-rose-600 dark:text-rose-400 flex items-center gap-1">
-                          <AlertCircle className="size-3" /> Marcada como não útil{m.feedback.reason ? ` — ${m.feedback.reason}` : ""}
+                      {convs.map((c) => (
+                        <div key={c.id} className="rounded-md border border-border p-2 space-y-1.5">
+                          {c.messages.map((m) => (
+                            <div
+                              key={m.id}
+                              className={m.role === "user"
+                                ? "rounded-md bg-muted/60 px-2 py-1.5 text-[11px]"
+                                : "rounded-md bg-primary/5 border border-primary/10 px-2 py-1.5 text-[11px]"}
+                            >
+                              <div className="text-[9px] uppercase tracking-wider text-muted-foreground mb-0.5">
+                                {m.role === "user" ? "Hóspede" : m.role === "assistant" ? "IA" : m.role}
+                              </div>
+                              <div className="whitespace-pre-wrap">{m.content}</div>
+                              {m.feedback && !m.feedback.resolved && (
+                                <div className="mt-1 text-[10px] text-rose-600 dark:text-rose-400 flex items-center gap-1">
+                                  <AlertCircle className="size-3" /> Marcada como não útil{m.feedback.reason ? ` — ${m.feedback.reason}` : ""}
+                                </div>
+                              )}
+                            </div>
+                          ))}
                         </div>
-                      )}
+                      ))}
                     </div>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
+                  )}
+                </li>
+              );
+            })}
+          </ol>
         )}
       </section>
     </>
   );
 }
+
 
 function Stat({ label, value, icon }: { label: string; value: string | number; icon?: React.ReactNode }) {
   return (
