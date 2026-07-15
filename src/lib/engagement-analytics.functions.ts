@@ -376,16 +376,13 @@ async function runAnalytics(
   const cityNameById = new Map<string, string>();
   const cityNameByPlace = new Map<string, string>();
   if (poiCandidates.length > 0) {
-    const cityQueries: Array<Promise<{ data: Array<{ id?: string | null; place_id?: string | null; name?: string | null }> | null }>> = [];
+    const cityResults: Array<{ data: Array<{ id?: string | null; place_id?: string | null; name?: string | null }> | null }> = [];
     if (uuidCandidates.length > 0) {
-      cityQueries.push(
-        supabaseAdmin.from("city_references").select("id, place_id, name").in("id", uuidCandidates).limit(5000) as Promise<{ data: Array<{ id?: string | null; place_id?: string | null; name?: string | null }> | null }>,
-      );
+      const byId = await supabaseAdmin.from("city_references").select("id, place_id, name").in("id", uuidCandidates).limit(5000);
+      cityResults.push(byId as { data: Array<{ id?: string | null; place_id?: string | null; name?: string | null }> | null });
     }
-    cityQueries.push(
-      supabaseAdmin.from("city_references").select("id, place_id, name").in("place_id", poiCandidates).limit(5000) as Promise<{ data: Array<{ id?: string | null; place_id?: string | null; name?: string | null }> | null }>,
-    );
-    const cityResults = await Promise.all(cityQueries);
+    const byPlace = await supabaseAdmin.from("city_references").select("id, place_id, name").in("place_id", poiCandidates).limit(5000);
+    cityResults.push(byPlace as { data: Array<{ id?: string | null; place_id?: string | null; name?: string | null }> | null });
     for (const result of cityResults) {
       for (const r of result.data ?? []) {
         const id = typeof r.id === "string" ? r.id : null;
