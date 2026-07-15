@@ -92,9 +92,13 @@ function AdminLayout() {
         </div>
 
         <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-          {isAdmin && (
+          {isAdmin ? (
             <div className="px-1 pb-3 mb-2 border-b border-border/60">
               <ClientSwitcher />
+            </div>
+          ) : (
+            <div className="px-1 pb-3 mb-2 border-b border-border/60">
+              <AccountSwitcher />
             </div>
           )}
           {nav.map((item) => {
