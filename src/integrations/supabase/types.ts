@@ -523,6 +523,66 @@ export type Database = {
         }
         Relationships: []
       }
+      guest_push_subscriptions: {
+        Row: {
+          auth: string
+          conversation_id: string | null
+          created_at: string
+          enabled: boolean
+          endpoint: string
+          guest_session_id: string
+          id: string
+          last_used_at: string | null
+          p256dh: string
+          property_id: string
+          updated_at: string
+          user_agent: string | null
+        }
+        Insert: {
+          auth: string
+          conversation_id?: string | null
+          created_at?: string
+          enabled?: boolean
+          endpoint: string
+          guest_session_id: string
+          id?: string
+          last_used_at?: string | null
+          p256dh: string
+          property_id: string
+          updated_at?: string
+          user_agent?: string | null
+        }
+        Update: {
+          auth?: string
+          conversation_id?: string | null
+          created_at?: string
+          enabled?: boolean
+          endpoint?: string
+          guest_session_id?: string
+          id?: string
+          last_used_at?: string | null
+          p256dh?: string
+          property_id?: string
+          updated_at?: string
+          user_agent?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "guest_push_subscriptions_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "property_chat_conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "guest_push_subscriptions_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       guide_access_logs: {
         Row: {
           checkin_date: string
