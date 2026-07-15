@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { MessageCircleMore, Send, X, Loader2 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { GuestNotificationsPrompt } from "@/components/GuestNotificationsPrompt";
 
 type Msg = { role: "user" | "assistant"; content: string };
 
@@ -291,6 +292,13 @@ export function GuideAiChat({ slug, propertyName, guestName }: { slug: string; p
               </div>
             )}
           </div>
+
+          <GuestNotificationsPrompt
+            slug={slug}
+            sessionId={sessionId}
+            conversationId={conversationId}
+            visible={messages.some((m) => m.role === "user")}
+          />
 
           {/* Composer */}
           <div className="px-3 pb-3 pt-2 border-t border-border bg-background">

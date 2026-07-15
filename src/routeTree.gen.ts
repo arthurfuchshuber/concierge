@@ -30,6 +30,7 @@ import { Route as GSlugExplorarRouteImport } from './routes/g.$slug.explorar'
 import { Route as ApiPublicPlacePhotoRouteImport } from './routes/api/public/place-photo'
 import { Route as ApiPublicLandingChatRouteImport } from './routes/api/public/landing-chat'
 import { Route as ApiPublicGuideChatRouteImport } from './routes/api/public/guide-chat'
+import { Route as ApiPublicGuestPushRouteImport } from './routes/api/public/guest-push'
 import { Route as AuthenticatedAdminTaxonomiaRouteImport } from './routes/_authenticated/admin.taxonomia'
 import { Route as AuthenticatedAdminEquipeRouteImport } from './routes/_authenticated/admin.equipe'
 import { Route as AuthenticatedAdminEngajamentoRouteImport } from './routes/_authenticated/admin.engajamento'
@@ -158,6 +159,11 @@ const ApiPublicLandingChatRoute = ApiPublicLandingChatRouteImport.update({
 const ApiPublicGuideChatRoute = ApiPublicGuideChatRouteImport.update({
   id: '/api/public/guide-chat',
   path: '/api/public/guide-chat',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicGuestPushRoute = ApiPublicGuestPushRouteImport.update({
+  id: '/api/public/guest-push',
+  path: '/api/public/guest-push',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedAdminTaxonomiaRoute =
@@ -321,6 +327,7 @@ export interface FileRoutesByFullPath {
   '/admin/engajamento': typeof AuthenticatedAdminEngajamentoRoute
   '/admin/equipe': typeof AuthenticatedAdminEquipeRoute
   '/admin/taxonomia': typeof AuthenticatedAdminTaxonomiaRoute
+  '/api/public/guest-push': typeof ApiPublicGuestPushRoute
   '/api/public/guide-chat': typeof ApiPublicGuideChatRoute
   '/api/public/landing-chat': typeof ApiPublicLandingChatRoute
   '/api/public/place-photo': typeof ApiPublicPlacePhotoRoute
@@ -364,6 +371,7 @@ export interface FileRoutesByTo {
   '/admin/engajamento': typeof AuthenticatedAdminEngajamentoRoute
   '/admin/equipe': typeof AuthenticatedAdminEquipeRoute
   '/admin/taxonomia': typeof AuthenticatedAdminTaxonomiaRoute
+  '/api/public/guest-push': typeof ApiPublicGuestPushRoute
   '/api/public/guide-chat': typeof ApiPublicGuideChatRoute
   '/api/public/landing-chat': typeof ApiPublicLandingChatRoute
   '/api/public/place-photo': typeof ApiPublicPlacePhotoRoute
@@ -411,6 +419,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/engajamento': typeof AuthenticatedAdminEngajamentoRoute
   '/_authenticated/admin/equipe': typeof AuthenticatedAdminEquipeRoute
   '/_authenticated/admin/taxonomia': typeof AuthenticatedAdminTaxonomiaRoute
+  '/api/public/guest-push': typeof ApiPublicGuestPushRoute
   '/api/public/guide-chat': typeof ApiPublicGuideChatRoute
   '/api/public/landing-chat': typeof ApiPublicLandingChatRoute
   '/api/public/place-photo': typeof ApiPublicPlacePhotoRoute
@@ -458,6 +467,7 @@ export interface FileRouteTypes {
     | '/admin/engajamento'
     | '/admin/equipe'
     | '/admin/taxonomia'
+    | '/api/public/guest-push'
     | '/api/public/guide-chat'
     | '/api/public/landing-chat'
     | '/api/public/place-photo'
@@ -501,6 +511,7 @@ export interface FileRouteTypes {
     | '/admin/engajamento'
     | '/admin/equipe'
     | '/admin/taxonomia'
+    | '/api/public/guest-push'
     | '/api/public/guide-chat'
     | '/api/public/landing-chat'
     | '/api/public/place-photo'
@@ -547,6 +558,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/engajamento'
     | '/_authenticated/admin/equipe'
     | '/_authenticated/admin/taxonomia'
+    | '/api/public/guest-push'
     | '/api/public/guide-chat'
     | '/api/public/landing-chat'
     | '/api/public/place-photo'
@@ -585,6 +597,7 @@ export interface RootRouteChildren {
   GSlugRoute: typeof GSlugRouteWithChildren
   DotlovableOauthConsentRoute: typeof DotlovableOauthConsentRoute
   Char91DotmcpChar93InvokeToolToolRoute: typeof Char91DotmcpChar93InvokeToolToolRoute
+  ApiPublicGuestPushRoute: typeof ApiPublicGuestPushRoute
   ApiPublicGuideChatRoute: typeof ApiPublicGuideChatRoute
   ApiPublicLandingChatRoute: typeof ApiPublicLandingChatRoute
   ApiPublicPlacePhotoRoute: typeof ApiPublicPlacePhotoRoute
@@ -743,6 +756,13 @@ declare module '@tanstack/react-router' {
       path: '/api/public/guide-chat'
       fullPath: '/api/public/guide-chat'
       preLoaderRoute: typeof ApiPublicGuideChatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/guest-push': {
+      id: '/api/public/guest-push'
+      path: '/api/public/guest-push'
+      fullPath: '/api/public/guest-push'
+      preLoaderRoute: typeof ApiPublicGuestPushRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/admin/taxonomia': {
@@ -995,6 +1015,7 @@ const rootRouteChildren: RootRouteChildren = {
   GSlugRoute: GSlugRouteWithChildren,
   DotlovableOauthConsentRoute: DotlovableOauthConsentRoute,
   Char91DotmcpChar93InvokeToolToolRoute: Char91DotmcpChar93InvokeToolToolRoute,
+  ApiPublicGuestPushRoute: ApiPublicGuestPushRoute,
   ApiPublicGuideChatRoute: ApiPublicGuideChatRoute,
   ApiPublicLandingChatRoute: ApiPublicLandingChatRoute,
   ApiPublicPlacePhotoRoute: ApiPublicPlacePhotoRoute,
