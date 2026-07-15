@@ -129,7 +129,7 @@ async function loadCommon(
       .eq("owner_id", userId).in("property_id", filteredIds).gte("created_at", since.toISOString()),
   ]);
   return {
-    filteredIds, nameById, since,
+    filteredIds, nameById, cityById, since,
     logs: (logsQ.data ?? []) as Array<{ id: string; property_id: string; guest_name: string; reservation_code: string | null; checkin_date: string; guest_phone: string | null; guest_phone_country: string | null; created_at: string }>,
     events: (eventsQ.data ?? []) as Evt[],
     convs: (convsQ.data ?? []) as Array<{ id: string; property_id: string; guest_session_id: string; guest_name: string | null; created_at: string; last_message_at: string }>,
