@@ -794,24 +794,35 @@ function Guide({ data }: { data: GuideOk }) {
                         : p.address
                           ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(p.address)}`
                           : safeStoredMapsUrl;
-                    // Uber: the new "looking" deep link works without a client_id on desktop & mobile.
-                    const uberDrop = hasCoords
-                      ? {
-                          latitude: Number(p.lat),
-                          longitude: Number(p.lng),
-                          ...(p.address ? { addressLine1: String(p.address) } : {}),
-                        }
-                      : p.address
-                        ? { addressLine1: String(p.address) }
-                        : null;
-                    const uberUrl = uberDrop
-                      ? `https://m.uber.com/looking?drop[0]=${encodeURIComponent(JSON.stringify(uberDrop))}`
+                    // Uber Universal Link — abre o app com destino preenchido
+                    const uberParams = new URLSearchParams();
+                    uberParams.set("action", "setPickup");
+                    uberParams.set("pickup", "my_location");
+                    if (hasCoords) {
+                      uberParams.set("dropoff[latitude]", String(p.lat));
+                      uberParams.set("dropoff[longitude]", String(p.lng));
+                    }
+                    if (p.address) {
+                      uberParams.set("dropoff[formatted_address]", String(p.address));
+                      uberParams.set("dropoff[nickname]", String(p.address).slice(0, 60));
+                    }
+                    const uberUrl = (hasCoords || p.address)
+                      ? `https://m.uber.com/ul/?${uberParams.toString()}`
                       : null;
-                    const noveNoveUrl = hasCoords
-                      ? `https://99app.com/open/?destination_lat=${p.lat}&destination_lng=${p.lng}${p.address ? `&destination_address=${encodeURIComponent(String(p.address))}` : ""}`
-                      : p.address
-                        ? `https://99app.com/open/?destination_address=${encodeURIComponent(String(p.address))}`
-                        : null;
+                    // 99 deep link — abre o app com destino preenchido
+                    const noveNoveParams = new URLSearchParams();
+                    noveNoveParams.set("deep_link_value", "open_ride_estimate");
+                    if (hasCoords) {
+                      noveNoveParams.set("dropoff_latitude", String(p.lat));
+                      noveNoveParams.set("dropoff_longitude", String(p.lng));
+                    }
+                    if (p.address) {
+                      noveNoveParams.set("dropoff_title", String(p.address));
+                    }
+                    const noveNoveUrl = (hasCoords || p.address)
+                      ? `https://99app.com/open/?${noveNoveParams.toString()}`
+                      : null;
+
                     return (
                       <SubList>
                         {hasHorario &&
