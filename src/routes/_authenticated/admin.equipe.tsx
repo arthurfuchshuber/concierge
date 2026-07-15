@@ -14,6 +14,7 @@ import { getAtendimentoAccess } from "@/lib/handoff.functions";
 import { enablePush, disablePush, isPushSupported, currentPushSubscription } from "@/lib/push-client";
 import { supabase } from "@/integrations/supabase/client";
 import { Users, Bell, BellOff, Loader2, Trash2, Mail, Send as SendIcon } from "lucide-react";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/admin/equipe")({
   component: EquipePage,
