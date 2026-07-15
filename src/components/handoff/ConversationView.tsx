@@ -56,6 +56,8 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
   const [note, setNote] = useState(false);
   const [transferOpen, setTransferOpen] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [teachOpen, setTeachOpen] = useState(false);
+  const [teachSource, setTeachSource] = useState<{ id: string; content: string } | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
