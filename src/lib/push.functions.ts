@@ -70,7 +70,12 @@ export const updatePushPrefs = createServerFn({ method: "POST" })
   .inputValidator((i: unknown) => PrefsInput.parse(i))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    const patch: Record<string, unknown> = {};
+    const patch: {
+      enabled?: boolean;
+      sound_enabled?: boolean;
+      quiet_hours_start?: number | null;
+      quiet_hours_end?: number | null;
+    } = {};
     if (data.enabled !== undefined) patch.enabled = data.enabled;
     if (data.soundEnabled !== undefined) patch.sound_enabled = data.soundEnabled;
     if (data.quietHoursStart !== undefined) patch.quiet_hours_start = data.quietHoursStart;

@@ -54,7 +54,7 @@ export async function enablePush(): Promise<{ ok: true } | { ok: false; reason: 
   if (!sub) {
     sub = await reg.pushManager.subscribe({
       userVisibleOnly: true,
-      applicationServerKey,
+      applicationServerKey: applicationServerKey.buffer as ArrayBuffer,
     });
   }
 
