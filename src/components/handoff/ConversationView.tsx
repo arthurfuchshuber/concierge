@@ -8,12 +8,30 @@ import {
   claimHandoffConversation,
   releaseHandoffConversation,
   resolveHandoffConversation,
+  requestHandoffClaim,
+  cancelHandoffClaimRequest,
+  transferHandoffConversation,
+  listConversationTransferTargets,
 } from "@/lib/handoff.functions";
-import { Send, UserCheck, RotateCcw, CheckCircle2, Loader2, StickyNote } from "lucide-react";
+import { Send, UserCheck, RotateCcw, CheckCircle2, Loader2, StickyNote, Phone, Calendar, Hash, Lock, UserPlus2, ArrowRightLeft, X } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
 type Props = { conversationId: string; compact?: boolean; myUserId: string | null };
+
+function whatsappHref(phone: string, country: string | null) {
+  const digits = `${(country ?? "").replace(/\D+/g, "")}${phone.replace(/\D+/g, "")}`;
+  return digits ? `https://wa.me/${digits}` : null;
+}
+
+function fmtCheckin(iso: string | null) {
+  if (!iso) return null;
+  try {
+    return new Date(iso + "T00:00:00").toLocaleDateString("pt-BR");
+  } catch {
+    return iso;
+  }
+}
 
 export function ConversationView({ conversationId, compact, myUserId }: Props) {
   const getFn = useServerFn(getHandoffConversation);
@@ -21,6 +39,10 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
   const claimFn = useServerFn(claimHandoffConversation);
   const releaseFn = useServerFn(releaseHandoffConversation);
   const resolveFn = useServerFn(resolveHandoffConversation);
+  const requestFn = useServerFn(requestHandoffClaim);
+  const cancelReqFn = useServerFn(cancelHandoffClaimRequest);
+  const transferFn = useServerFn(transferHandoffConversation);
+  const targetsFn = useServerFn(listConversationTransferTargets);
   const qc = useQueryClient();
 
   const q = useQuery({
@@ -31,13 +53,14 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
 
   const [text, setText] = useState("");
   const [note, setNote] = useState(false);
+  const [transferOpen, setTransferOpen] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
   }, [q.data?.messages?.length]);
 
-  // Realtime: assina alterações desta conversa
   useEffect(() => {
     const ch = supabase
       .channel(`conv-${conversationId}`)
@@ -51,77 +74,185 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
     return () => { supabase.removeChannel(ch); };
   }, [conversationId, qc]);
 
+  const invalidateAll = () => {
+    qc.invalidateQueries({ queryKey: ["handoff-conv", conversationId] });
+    qc.invalidateQueries({ queryKey: ["handoff-list"] });
+    qc.invalidateQueries({ queryKey: ["handoff-pending-count"] });
+  };
+
   const send = useMutation({
     mutationFn: async () => sendFn({ data: { conversationId, content: text.trim(), internalNote: note } }),
-    onSuccess: () => {
-      setText("");
-      qc.invalidateQueries({ queryKey: ["handoff-conv", conversationId] });
-      qc.invalidateQueries({ queryKey: ["handoff-list"] });
-      qc.invalidateQueries({ queryKey: ["handoff-pending-count"] });
-    },
+    onSuccess: () => { setText(""); invalidateAll(); },
+    onError: (e) => setErrorMsg((e as Error).message),
   });
-
   const claim = useMutation({
     mutationFn: async () => claimFn({ data: { conversationId } }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["handoff-conv", conversationId] });
-      qc.invalidateQueries({ queryKey: ["handoff-list"] });
-      qc.invalidateQueries({ queryKey: ["handoff-pending-count"] });
-    },
+    onSuccess: invalidateAll,
+    onError: (e) => setErrorMsg((e as Error).message),
+  });
+  const requestClaim = useMutation({
+    mutationFn: async () => requestFn({ data: { conversationId } }),
+    onSuccess: invalidateAll,
+    onError: (e) => setErrorMsg((e as Error).message),
+  });
+  const cancelRequest = useMutation({
+    mutationFn: async () => cancelReqFn({ data: { conversationId } }),
+    onSuccess: invalidateAll,
   });
   const release = useMutation({
     mutationFn: async () => releaseFn({ data: { conversationId } }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["handoff-conv", conversationId] });
-      qc.invalidateQueries({ queryKey: ["handoff-list"] });
-    },
+    onSuccess: invalidateAll,
   });
   const resolve = useMutation({
     mutationFn: async () => resolveFn({ data: { conversationId } }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["handoff-conv", conversationId] });
-      qc.invalidateQueries({ queryKey: ["handoff-list"] });
-    },
+    onSuccess: invalidateAll,
+  });
+  const transfer = useMutation({
+    mutationFn: async (toUserId: string) => transferFn({ data: { conversationId, toUserId } }),
+    onSuccess: () => { setTransferOpen(false); invalidateAll(); },
+    onError: (e) => setErrorMsg((e as Error).message),
+  });
+
+  const targetsQ = useQuery({
+    queryKey: ["handoff-transfer-targets", conversationId],
+    queryFn: () => targetsFn({ data: { conversationId } }),
+    enabled: transferOpen,
+    staleTime: 30_000,
   });
 
   const conv = q.data?.conversation;
   const msgs = q.data?.messages ?? [];
+  const guest = q.data?.guestDetails;
+  const claimReq = q.data?.claimRequester;
+  const assignedProfile = q.data?.assignedProfile;
   const propertyName = (conv?.properties as { name?: string } | null)?.name ?? "Guia";
-  const isMine = conv?.assigned_to && myUserId && conv.assigned_to === myUserId;
+  const isMine = !!(conv?.assigned_to && myUserId && conv.assigned_to === myUserId);
+  const isLockedByOther = !!(conv?.assigned_to && myUserId && conv.assigned_to !== myUserId);
+  const iRequested = !!(conv?.claim_requested_by && myUserId && conv.claim_requested_by === myUserId);
+  const someoneRequestedFromMe = !!(isMine && conv?.claim_requested_by && conv.claim_requested_by !== myUserId);
   const status = conv?.status;
+
+  const guestName = guest?.name ?? conv?.guest_name ?? "Hóspede anônimo";
+  const waHref = guest?.phone ? whatsappHref(guest.phone, guest.phoneCountry) : null;
+  const checkinFmt = fmtCheckin(guest?.checkinDate ?? null);
 
   return (
     <div className="flex flex-col h-full min-h-0">
-      <div className="border-b border-border p-3 flex items-center justify-between gap-2 shrink-0">
-        <div className="min-w-0">
-          <div className="text-sm font-medium truncate">{conv?.guest_name || "Hóspede anônimo"}</div>
-          <div className="text-[11px] text-muted-foreground truncate">
-            {propertyName}
-            {conv?.handoff_at ? ` · ${formatDistanceToNow(new Date(conv.handoff_at), { locale: ptBR, addSuffix: true })}` : ""}
-          </div>
-          {conv?.handoff_reason && (
-            <div className="text-[11px] mt-1 px-2 py-1 rounded bg-amber-500/10 text-amber-700 border border-amber-500/30 line-clamp-2">
-              {conv.handoff_reason}
+      <div className="border-b border-border p-3 space-y-2 shrink-0">
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0 flex-1">
+            <div className="text-sm font-medium truncate">{guestName}</div>
+            <div className="text-[11px] text-muted-foreground truncate">
+              {propertyName}
+              {conv?.handoff_at ? ` · ${formatDistanceToNow(new Date(conv.handoff_at), { locale: ptBR, addSuffix: true })}` : ""}
             </div>
-          )}
+
+            {(waHref || checkinFmt || guest?.reservationCode) && (
+              <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
+                {waHref && (
+                  <a href={waHref} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-emerald-600 hover:underline">
+                    <Phone className="size-3" /> {guest?.phoneCountry ?? ""} {guest?.phone}
+                  </a>
+                )}
+                {checkinFmt && (
+                  <span className="inline-flex items-center gap-1">
+                    <Calendar className="size-3" /> Check-in {checkinFmt}
+                  </span>
+                )}
+                {guest?.reservationCode && (
+                  <span className="inline-flex items-center gap-1">
+                    <Hash className="size-3" /> {guest.reservationCode}
+                  </span>
+                )}
+              </div>
+            )}
+
+            {conv?.handoff_reason && (
+              <div className="text-[11px] mt-2 px-2 py-1 rounded bg-amber-500/10 text-amber-700 border border-amber-500/30 line-clamp-2">
+                {conv.handoff_reason}
+              </div>
+            )}
+
+            {isLockedByOther && (
+              <div className="text-[11px] mt-2 px-2 py-1 rounded bg-secondary text-foreground/80 border border-border inline-flex items-center gap-1">
+                <Lock className="size-3" /> Em atendimento por {assignedProfile?.displayName ?? "outro membro"}
+              </div>
+            )}
+            {someoneRequestedFromMe && (
+              <div className="text-[11px] mt-2 px-2 py-1 rounded bg-primary/10 text-primary border border-primary/30 flex items-center justify-between gap-2">
+                <span className="inline-flex items-center gap-1"><UserPlus2 className="size-3" /> {claimReq?.displayName ?? "Um membro"} pediu acesso</span>
+                <button
+                  onClick={() => claimReq?.userId && transfer.mutate(claimReq.userId)}
+                  className="px-2 py-0.5 rounded bg-primary text-primary-foreground text-[11px]"
+                >
+                  Transferir
+                </button>
+              </div>
+            )}
+          </div>
+
+          <div className="flex flex-col gap-1 shrink-0 items-end">
+            {/* Livre → assumir */}
+            {(!conv?.assigned_to && status !== "resolved") && (
+              <button onClick={() => claim.mutate()} disabled={claim.isPending} className="text-xs px-2 py-1.5 rounded-md bg-primary text-primary-foreground hover:opacity-90 inline-flex items-center gap-1">
+                <UserCheck className="size-3" /> Assumir
+              </button>
+            )}
+            {/* Travada por outro → pedir acesso */}
+            {isLockedByOther && !iRequested && status !== "resolved" && (
+              <button onClick={() => requestClaim.mutate()} disabled={requestClaim.isPending} className="text-xs px-2 py-1.5 rounded-md border border-border hover:bg-secondary inline-flex items-center gap-1">
+                <UserPlus2 className="size-3" /> Solicitar acesso
+              </button>
+            )}
+            {isLockedByOther && iRequested && (
+              <button onClick={() => cancelRequest.mutate()} disabled={cancelRequest.isPending} className="text-xs px-2 py-1.5 rounded-md border border-border hover:bg-secondary inline-flex items-center gap-1">
+                <X className="size-3" /> Cancelar solicitação
+              </button>
+            )}
+            {/* É minha → transferir / devolver IA */}
+            {isMine && status !== "resolved" && (
+              <>
+                <button onClick={() => setTransferOpen((v) => !v)} className="text-xs px-2 py-1.5 rounded-md border border-border hover:bg-secondary inline-flex items-center gap-1">
+                  <ArrowRightLeft className="size-3" /> Transferir
+                </button>
+                <button onClick={() => release.mutate()} disabled={release.isPending} className="text-xs px-2 py-1.5 rounded-md border border-border hover:bg-secondary inline-flex items-center gap-1" title="Devolver à IA">
+                  <RotateCcw className="size-3" /> IA
+                </button>
+              </>
+            )}
+            {status !== "resolved" && (isMine || !conv?.assigned_to) && (
+              <button onClick={() => resolve.mutate()} disabled={resolve.isPending} className="text-xs px-2 py-1.5 rounded-md border border-border hover:bg-secondary inline-flex items-center gap-1">
+                <CheckCircle2 className="size-3" /> Resolver
+              </button>
+            )}
+          </div>
         </div>
-        <div className="flex gap-1 shrink-0">
-          {status === "needs_human" && (
-            <button onClick={() => claim.mutate()} disabled={claim.isPending} className="text-xs px-2 py-1.5 rounded-md bg-primary text-primary-foreground hover:opacity-90 inline-flex items-center gap-1">
-              <UserCheck className="size-3" /> Assumir
-            </button>
-          )}
-          {status === "assigned" && isMine && (
-            <button onClick={() => release.mutate()} disabled={release.isPending} className="text-xs px-2 py-1.5 rounded-md border border-border hover:bg-secondary inline-flex items-center gap-1" title="Devolver à IA">
-              <RotateCcw className="size-3" /> IA
-            </button>
-          )}
-          {status !== "resolved" && (
-            <button onClick={() => resolve.mutate()} disabled={resolve.isPending} className="text-xs px-2 py-1.5 rounded-md border border-border hover:bg-secondary inline-flex items-center gap-1">
-              <CheckCircle2 className="size-3" /> Resolver
-            </button>
-          )}
-        </div>
+
+        {transferOpen && isMine && (
+          <div className="rounded-md border border-border bg-background p-2 space-y-1">
+            <div className="text-[11px] text-muted-foreground px-1">Transferir para:</div>
+            {targetsQ.isLoading && <div className="text-xs text-muted-foreground px-1 py-1"><Loader2 className="size-3 animate-spin inline mr-1" /> Carregando…</div>}
+            {targetsQ.data?.targets.length === 0 && <div className="text-xs text-muted-foreground px-1 py-1">Nenhum outro membro disponível.</div>}
+            {targetsQ.data?.targets.map((t) => (
+              <button
+                key={t.userId}
+                onClick={() => transfer.mutate(t.userId)}
+                disabled={transfer.isPending}
+                className="w-full text-left px-2 py-1.5 text-xs rounded hover:bg-secondary flex items-center justify-between"
+              >
+                <span>{t.displayName ?? t.userId.slice(0, 8)}</span>
+                <span className="text-[10px] text-muted-foreground uppercase">{t.role}</span>
+              </button>
+            ))}
+          </div>
+        )}
+
+        {errorMsg && (
+          <div className="text-[11px] px-2 py-1 rounded bg-destructive/10 text-destructive border border-destructive/30 flex items-center justify-between gap-2">
+            <span>{errorMsg}</span>
+            <button onClick={() => setErrorMsg(null)}><X className="size-3" /></button>
+          </div>
+        )}
       </div>
 
       <div ref={scrollRef} className="flex-1 overflow-y-auto p-3 space-y-2 min-h-0 bg-background/40">
@@ -159,43 +290,50 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
       </div>
 
       {status !== "resolved" && (
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            if (!text.trim() || send.isPending) return;
-            send.mutate();
-          }}
-          className="shrink-0 border-t border-border p-2 flex items-end gap-2 bg-surface"
-        >
-          <label className="flex items-center gap-1 text-[11px] text-muted-foreground shrink-0 select-none">
-            <input type="checkbox" checked={note} onChange={(e) => setNote(e.target.checked)} className="size-3" />
-            nota
-          </label>
-          <textarea
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                if (text.trim()) send.mutate();
-              }
+        isLockedByOther ? (
+          <div className="shrink-0 border-t border-border p-3 text-center text-xs text-muted-foreground bg-surface inline-flex items-center justify-center gap-1">
+            <Lock className="size-3" /> Somente {assignedProfile?.displayName ?? "o atendente responsável"} pode responder.
+          </div>
+        ) : (
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (!text.trim() || send.isPending) return;
+              send.mutate();
             }}
-            placeholder={note ? "Nota interna (não visível ao hóspede)…" : "Escrever para o hóspede…"}
-            rows={compact ? 1 : 2}
-            className="flex-1 resize-none rounded-md border border-border bg-background px-2 py-1.5 text-sm outline-none focus:ring-2 focus:ring-primary/40"
-          />
-          <button
-            type="submit"
-            disabled={!text.trim() || send.isPending}
-            className="size-9 grid place-items-center rounded-md bg-primary text-primary-foreground disabled:opacity-40"
+            className="shrink-0 border-t border-border p-2 flex items-end gap-2 bg-surface"
           >
-            {send.isPending ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
-          </button>
-        </form>
+            <label className="flex items-center gap-1 text-[11px] text-muted-foreground shrink-0 select-none">
+              <input type="checkbox" checked={note} onChange={(e) => setNote(e.target.checked)} className="size-3" />
+              nota
+            </label>
+            <textarea
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  if (text.trim()) send.mutate();
+                }
+              }}
+              placeholder={note ? "Nota interna (não visível ao hóspede)…" : "Escrever para o hóspede…"}
+              rows={compact ? 1 : 2}
+              className="flex-1 resize-none rounded-md border border-border bg-background px-2 py-1.5 text-sm outline-none focus:ring-2 focus:ring-primary/40"
+            />
+            <button
+              type="submit"
+              disabled={!text.trim() || send.isPending}
+              className="size-9 grid place-items-center rounded-md bg-primary text-primary-foreground disabled:opacity-40"
+            >
+              {send.isPending ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
+            </button>
+          </form>
+        )
       )}
     </div>
   );
 }
+
 
 export function ConversationList({
   conversations,
