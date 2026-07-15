@@ -347,3 +347,7 @@
 }
 .btn-shine > * { position: relative; z-index: 2; }
 
+
+/* Regra global: pontuação nunca inicia uma linha (evita órfãos ",", ".", ";", etc). */
+:root { hanging-punctuation: first allow-end last; }
+h1, h2, h3, h4, h5, h6, p, li, blockquote, figcaption, dt, dd { text-wrap: pretty; }
