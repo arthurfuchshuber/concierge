@@ -1,13 +1,13 @@
 import { BarChart, Bar, XAxis, ResponsiveContainer, Tooltip, Cell } from "recharts";
 
-const tickStyle = { fontSize: 11, fill: "hsl(var(--muted-foreground))" };
+const tickStyle = { fontSize: 11, fill: "hsl(var(--foreground))", opacity: 0.85 };
 const tooltipContentStyle: React.CSSProperties = {
   fontSize: 12,
   borderRadius: 10,
   border: "1px solid hsl(var(--border))",
   background: "hsl(var(--popover))",
   color: "hsl(var(--popover-foreground))",
-  boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+  boxShadow: "0 4px 12px rgba(0,0,0,0.4)",
 };
 const tooltipItemStyle: React.CSSProperties = { color: "hsl(var(--popover-foreground))" };
 const tooltipLabelStyle: React.CSSProperties = { color: "hsl(var(--popover-foreground))", fontWeight: 500 };
@@ -47,6 +47,8 @@ export function DurationBuckets({ buckets }: { buckets: Array<{ label: string; c
 
 export function DepthCurve({ curve }: { curve: Array<{ label: string; count: number }> }) {
   const total = curve.reduce((a, b) => a + b.count, 0);
+  // Reverse ramp: 1 seção = ruim (vermelho), 5+ = ótimo (verde)
+  const colors = ["#f43f5e", "#f59e0b", "#eab308", "#22c55e", "#10b981"];
   return (
     <div className="rounded-2xl border border-border bg-card p-4">
       <header className="mb-3">
@@ -66,7 +68,9 @@ export function DepthCurve({ curve }: { curve: Array<{ label: string; count: num
                 itemStyle={tooltipItemStyle}
                 labelStyle={tooltipLabelStyle}
               />
-              <Bar dataKey="count" fill="hsl(var(--foreground))" radius={[6, 6, 0, 0]} />
+              <Bar dataKey="count" radius={[6, 6, 0, 0]}>
+                {curve.map((_, i) => <Cell key={i} fill={colors[i] ?? "#22c55e"} />)}
+              </Bar>
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -74,3 +78,4 @@ export function DepthCurve({ curve }: { curve: Array<{ label: string; count: num
     </div>
   );
 }
+
