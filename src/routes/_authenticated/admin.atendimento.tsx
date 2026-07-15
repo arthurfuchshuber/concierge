@@ -8,7 +8,7 @@ import {
   getAtendimentoAccess,
 } from "@/lib/handoff.functions";
 import { ConversationList, ConversationView, useMyUserId } from "@/components/handoff/ConversationView";
-import { Headphones, Inbox, User, CheckCircle2, ListChecks } from "lucide-react";
+import { Headphones, Inbox, User, CheckCircle2, ListChecks, Bot, MessagesSquare } from "lucide-react";
 
 const searchSchema = z.object({ conv: z.string().uuid().optional() });
 
@@ -17,12 +17,14 @@ export const Route = createFileRoute("/_authenticated/admin/atendimento")({
   component: AtendimentoPage,
 });
 
-type Queue = "needs_human" | "assigned_to_me" | "all_active" | "resolved";
+type Queue = "needs_human" | "assigned_to_me" | "all_active" | "ai_only" | "all" | "resolved";
 
 const QUEUES: Array<{ key: Queue; label: string; icon: typeof Inbox }> = [
   { key: "needs_human", label: "Precisa humano", icon: Inbox },
   { key: "assigned_to_me", label: "Meus", icon: User },
-  { key: "all_active", label: "Todas ativas", icon: ListChecks },
+  { key: "all_active", label: "Ativas", icon: ListChecks },
+  { key: "ai_only", label: "Com a IA", icon: Bot },
+  { key: "all", label: "Todas", icon: MessagesSquare },
   { key: "resolved", label: "Resolvidas", icon: CheckCircle2 },
 ];
 
