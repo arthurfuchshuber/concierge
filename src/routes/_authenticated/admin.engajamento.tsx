@@ -239,6 +239,7 @@ function EngagementPage() {
                   </>
                 ) : null}
               </TabsContent>
+              </div>
             </Tabs>
           )}
         </>
