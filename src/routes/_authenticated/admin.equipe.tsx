@@ -24,6 +24,7 @@ function EquipePage() {
   const listFn = useServerFn(listMyTeam);
   const inviteFn = useServerFn(inviteTeamMember);
   const revokeFn = useServerFn(revokeTeamInvite);
+  const resendFn = useServerFn(resendTeamInvite);
   const removeFn = useServerFn(removeTeamMember);
   const updateRoleFn = useServerFn(updateTeamMemberRole);
   const qc = useQueryClient();
@@ -31,16 +32,39 @@ function EquipePage() {
   const access = useQuery({ queryKey: ["handoff-access"], queryFn: () => accessFn(), staleTime: 5 * 60_000 });
   const team = useQuery({ queryKey: ["my-team"], queryFn: () => listFn(), enabled: access.data?.allowed === true });
 
+  const [myUserId, setMyUserId] = useState<string | null>(null);
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => setMyUserId(data.user?.id ?? null));
+  }, []);
+
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<"owner" | "agent" | "viewer">("agent");
+  const [feedback, setFeedback] = useState<string | null>(null);
 
   const invite = useMutation({
     mutationFn: async () => inviteFn({ data: { email: email.trim().toLowerCase(), role } }),
-    onSuccess: () => { setEmail(""); qc.invalidateQueries({ queryKey: ["my-team"] }); },
+    onSuccess: (res) => {
+      setEmail("");
+      qc.invalidateQueries({ queryKey: ["my-team"] });
+      setFeedback(res?.emailSent ? "Convite enviado por email." : "Convite criado, mas o email não foi enviado. Use “Reenviar”.");
+      setTimeout(() => setFeedback(null), 4500);
+    },
   });
   const revoke = useMutation({
     mutationFn: async (id: string) => revokeFn({ data: { inviteId: id } }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["my-team"] }),
+  });
+  const resend = useMutation({
+    mutationFn: async (id: string) => resendFn({ data: { inviteId: id } }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["my-team"] });
+      setFeedback("Convite reenviado.");
+      setTimeout(() => setFeedback(null), 3500);
+    },
+    onError: (e) => {
+      setFeedback("Falha ao reenviar: " + (e as Error).message);
+      setTimeout(() => setFeedback(null), 5000);
+    },
   });
   const remove = useMutation({
     mutationFn: async (id: string) => removeFn({ data: { memberId: id } }),
