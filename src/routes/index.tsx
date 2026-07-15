@@ -694,11 +694,11 @@ function Testimonials() {
   return (
     <section className="py-20 sm:py-28" style={{ backgroundColor: "#FFFFFF" }}>
       <div className="max-w-6xl mx-auto px-5 sm:px-8">
-        <div className="max-w-2xl">
+        <div>
           <p className="text-[11px] uppercase tracking-[0.25em] font-semibold text-black/50">
             Depoimentos
           </p>
-          <h2 className="mt-3 font-display font-extrabold text-3xl sm:text-5xl leading-[1.05] tracking-tight text-balance">
+          <h2 className="mt-3 font-display font-extrabold text-3xl sm:text-5xl leading-[1.15] tracking-tight text-balance line-clamp-2">
             Anfitriões que dormem em paz.
           </h2>
         </div>
