@@ -463,6 +463,7 @@ export const Route = createFileRoute("/api/public/guide-chat")({
           .from("property_chat_messages")
           .select("id, role, content, sender_type, created_at")
           .eq("conversation_id", conversationId)
+          .eq("is_internal_note", false)
           .order("created_at", { ascending: true })
           .limit(50);
         if (since) q = q.gt("created_at", since);
