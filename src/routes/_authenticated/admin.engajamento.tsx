@@ -99,7 +99,7 @@ function EngagementPage() {
 
   function patch(p: Partial<EngagementFilters & { tab: string }>) {
     navigate({
-      search: (prev) => ({
+      search: (prev: z.infer<typeof searchSchema>) => ({
         period: p.period ?? prev.period,
         property: p.propertyId ?? prev.property,
         device: p.device ?? prev.device,
