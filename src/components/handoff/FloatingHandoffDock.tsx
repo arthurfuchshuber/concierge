@@ -186,6 +186,7 @@ export function FloatingHandoffDock() {
               <div className="w-[180px] border-r border-border overflow-y-auto shrink-0">
                 <ConversationList
                   conversations={convs as any}
+                  details={details}
                   activeId={activeId}
                   onSelect={setActiveId}
                 />
