@@ -379,7 +379,7 @@ function Pain() {
   return (
     <section id="recursos" className="py-20 sm:py-28">
       <div className="max-w-6xl mx-auto px-5 sm:px-8">
-        <div>
+        <div className="text-center max-w-3xl mx-auto">
           <p className="text-[11px] uppercase tracking-[0.25em] font-semibold text-black/50">
             O que trava seu dia
           </p>
