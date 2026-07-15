@@ -101,7 +101,19 @@ async function runAnalytics(
   input: z.infer<typeof InputSchema>,
   ctx: { supabase: import("@supabase/supabase-js").SupabaseClient; userId: string },
 ) {
-  const { supabase, userId } = ctx;
+  // Admin impersonation: quando asUserId é informado, o solicitante precisa ser
+  // admin — passamos a agir como aquele usuário (usando supabaseAdmin p/ bypass RLS).
+  let effectiveUserId = ctx.userId;
+  let db = ctx.supabase;
+  if (input.asUserId && input.asUserId !== ctx.userId) {
+    const { data: isAdmin } = await ctx.supabase.rpc("has_role", { _user_id: ctx.userId, _role: "admin" });
+    if (!isAdmin) throw new Error("Acesso negado");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    db = supabaseAdmin as unknown as typeof ctx.supabase;
+    effectiveUserId = input.asUserId;
+  }
+  const userId = effectiveUserId;
+  const supabase = db;
   const days = daysFor(input.period);
   const since = new Date(Date.now() - days * 86400_000);
   const prevSince = new Date(Date.now() - days * 2 * 86400_000);
