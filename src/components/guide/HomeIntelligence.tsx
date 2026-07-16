@@ -50,15 +50,20 @@ export function HomeIntelligence({
         transition={{ duration: 0.4, ease: [0.2, 0.8, 0.2, 1] }}
         className={`relative overflow-hidden rounded-3xl border backdrop-blur-xl px-5 py-5 md:px-6 md:py-6 ${
           isDark
-            ? "border-white/10 bg-white/[0.04]"
-            : "border-border bg-card"
+            ? "border-white/10 bg-gradient-to-br from-white/[0.06] via-white/[0.03] to-transparent shadow-[0_20px_60px_-30px_rgba(139,92,246,0.5)]"
+            : "border-border bg-gradient-to-br from-card via-card to-violet-50/40 shadow-[0_20px_60px_-30px_rgba(139,92,246,0.25)]"
         }`}
       >
         {/* Ambient glows inside the panel */}
-        {isDark && (
+        {isDark ? (
           <>
-            <span className="pointer-events-none absolute -top-16 -right-16 h-40 w-40 rounded-full bg-amber-400/15 blur-3xl" />
-            <span className="pointer-events-none absolute -bottom-20 -left-16 h-40 w-40 rounded-full bg-purple-500/15 blur-3xl" />
+            <span className="pointer-events-none absolute -top-16 -right-16 h-40 w-40 rounded-full bg-amber-400/20 blur-3xl" />
+            <span className="pointer-events-none absolute -bottom-20 -left-16 h-40 w-40 rounded-full bg-purple-500/20 blur-3xl" />
+          </>
+        ) : (
+          <>
+            <span className="pointer-events-none absolute -top-16 -right-16 h-40 w-40 rounded-full bg-amber-300/30 blur-3xl" />
+            <span className="pointer-events-none absolute -bottom-20 -left-16 h-40 w-40 rounded-full bg-violet-300/25 blur-3xl" />
           </>
         )}
 

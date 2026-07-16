@@ -541,12 +541,18 @@ function Guide({ data }: { data: GuideOk }) {
     <div
       className={`sigma-public-guide guide-ambient relative min-h-screen bg-background text-foreground pb-16 overflow-x-hidden ${theme === "light" ? "theme-light" : ""}`}
     >
-      {/* Celestial ambient glows — fixed behind everything */}
-      {theme === "dark" && (
+      {/* Celestial ambient glows — fixed behind everything, in both themes */}
+      {theme === "dark" ? (
         <>
-          <div className="pointer-events-none fixed -top-32 -right-32 h-[380px] w-[380px] rounded-full bg-amber-500/[0.08] blur-[120px] z-0" />
-          <div className="pointer-events-none fixed top-[45%] -left-32 h-[320px] w-[320px] rounded-full bg-purple-600/[0.08] blur-[110px] z-0" />
-          <div className="pointer-events-none fixed bottom-0 right-1/4 h-[280px] w-[280px] rounded-full bg-sky-500/[0.05] blur-[100px] z-0" />
+          <div className="pointer-events-none fixed -top-32 -right-32 h-[420px] w-[420px] rounded-full bg-amber-500/[0.10] blur-[130px] z-0 animate-[pulse_9s_ease-in-out_infinite]" />
+          <div className="pointer-events-none fixed top-[40%] -left-32 h-[360px] w-[360px] rounded-full bg-purple-600/[0.10] blur-[120px] z-0 animate-[pulse_11s_ease-in-out_infinite]" />
+          <div className="pointer-events-none fixed bottom-0 right-1/4 h-[320px] w-[320px] rounded-full bg-sky-500/[0.07] blur-[110px] z-0 animate-[pulse_13s_ease-in-out_infinite]" />
+        </>
+      ) : (
+        <>
+          <div className="pointer-events-none fixed -top-40 -right-40 h-[460px] w-[460px] rounded-full bg-amber-300/25 blur-[130px] z-0" />
+          <div className="pointer-events-none fixed top-[38%] -left-40 h-[380px] w-[380px] rounded-full bg-violet-300/20 blur-[130px] z-0" />
+          <div className="pointer-events-none fixed bottom-0 right-1/4 h-[340px] w-[340px] rounded-full bg-sky-300/15 blur-[120px] z-0" />
         </>
       )}
       {needsGate && (
@@ -647,11 +653,11 @@ function Guide({ data }: { data: GuideOk }) {
 
               <section id="guide-actions" className="px-5 md:px-10 lg:px-16 mt-5 md:mt-6 relative z-10">
                 <div className="flex items-center gap-3 mb-4 md:mb-5">
-                  <p className="shrink-0 whitespace-nowrap text-[9.5px] md:text-[10px] uppercase tracking-[0.22em] text-white/40 dark:text-white/40 font-bold">
+                  <p className={`shrink-0 whitespace-nowrap text-[9.5px] md:text-[10px] uppercase tracking-[0.22em] font-bold ${theme === "dark" ? "text-white/50" : "text-foreground/55"}`}>
                     <span className="inline-block size-1 rounded-full bg-amber-400 mr-2 align-middle shadow-[0_0_6px_rgba(251,191,36,0.7)]" />
                     Acessos rápidos
                   </p>
-                  <span className="h-px flex-1 bg-gradient-to-r from-white/15 via-white/5 to-transparent" />
+                  <span className={`h-px flex-1 bg-gradient-to-r ${theme === "dark" ? "from-white/15 via-white/5" : "from-foreground/15 via-foreground/5"} to-transparent`} />
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">

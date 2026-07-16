@@ -66,22 +66,23 @@ export function CityNewsFeed({
 
   return (
     <section className="mt-8 md:mt-10 relative z-10">
-      {/* Section title — one line, elegant */}
-      <div className="px-5 md:px-10 lg:px-16 flex items-center justify-between gap-3 mb-4">
-        <div className="flex items-center gap-2 min-w-0">
+      {/* Section title — one line, elegant, adapts to both themes */}
+      <div className="px-5 md:px-10 lg:px-16 flex items-center gap-3 mb-4">
+        <div className="flex items-center gap-2 min-w-0 shrink-0">
           <span className="relative flex size-1.5 shrink-0">
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-70" />
-            <span className="relative inline-flex rounded-full size-1.5 bg-emerald-400" />
+            <span className="relative inline-flex rounded-full size-1.5 bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.7)]" />
           </span>
           <h2
-            className={`whitespace-nowrap text-[10px] md:text-[11px] uppercase tracking-[0.22em] font-bold ${
+            className={`whitespace-nowrap text-[9.5px] md:text-[11px] uppercase tracking-[0.2em] md:tracking-[0.22em] font-bold ${
               isDark ? "text-white/85" : "text-foreground/80"
             }`}
           >
             {city ? `O que rola em ${city}` : "O que rola hoje"}
           </h2>
         </div>
-        <span className={`shrink-0 text-[9px] uppercase tracking-[0.2em] font-medium ${isDark ? "text-white/35" : "text-foreground/45"}`}>
+        <span className={`h-px flex-1 bg-gradient-to-r ${isDark ? "from-white/15 via-white/5" : "from-foreground/15 via-foreground/5"} to-transparent`} />
+        <span className={`shrink-0 text-[9px] uppercase tracking-[0.2em] font-semibold ${isDark ? "text-emerald-300/80" : "text-emerald-700/80"}`}>
           agora
         </span>
       </div>
