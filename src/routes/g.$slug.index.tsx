@@ -56,6 +56,8 @@ import {
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { GuideAiChat } from "@/components/GuideAiChat";
 import { HomeIntelligence } from "@/components/guide/HomeIntelligence";
+import { CityNewsFeed } from "@/components/guide/CityNewsFeed";
+import { CheckinCountdown } from "@/components/guide/CheckinCountdown";
 import { GuideAccessGate, readAccessRecord, type AccessRecord } from "@/components/GuideAccessGate";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -566,6 +568,12 @@ function Guide({ data }: { data: GuideOk }) {
                 onToggleLang={toggleLang}
               />
 
+              {/* Countdown do check-in — some após liberado + 3h */}
+              {homeStripsVisible && (
+                <CheckinCountdown checkinTime={p.checkin_time as string | null} theme={theme} />
+              )}
+
+
               {/* Faixas com Wi-Fi e códigos: aparecem de 8h antes do check-in
                 até 12h depois. No desktop ficam lado a lado para economizar
                 altura da página. */}
@@ -666,6 +674,17 @@ function Guide({ data }: { data: GuideOk }) {
                   theme={theme}
                 />
               )}
+
+              {/* Feed "O que rola hoje" — notícias reais curadas por IA */}
+              {accessRec && (
+                <CityNewsFeed
+                  city={(p.city as string | null) ?? null}
+                  country={(p.country as string | null) ?? null}
+                  lang={lang as "pt" | "en" | "es" | "fr"}
+                  theme={theme}
+                />
+              )}
+
 
 
               {/* Faixa amarela full-bleed com "informações importantes"

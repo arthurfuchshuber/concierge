@@ -232,6 +232,27 @@ export type Database = {
           },
         ]
       }
+      city_daily_news: {
+        Row: {
+          city_key: string
+          created_at: string
+          date: string
+          items: Json
+        }
+        Insert: {
+          city_key: string
+          created_at?: string
+          date: string
+          items?: Json
+        }
+        Update: {
+          city_key?: string
+          created_at?: string
+          date?: string
+          items?: Json
+        }
+        Relationships: []
+      }
       city_daily_pulse: {
         Row: {
           city_key: string
