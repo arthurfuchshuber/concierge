@@ -75,7 +75,7 @@ Retorne JSON estrito no formato: {"greeting":"...","title":"...","body":"..."}.
     method: "POST",
     headers: { "Content-Type": "application/json", "Lovable-API-Key": key },
     body: JSON.stringify({
-      model: "google/gemini-3.5-flash",
+      model: "google/gemini-2.5-flash",
       messages: [
         { role: "system", content: sys },
         { role: "user", content: user },
