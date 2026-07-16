@@ -1941,28 +1941,68 @@ function SectionCard({
         </>
       )}
 
-      {badge && (
-        <span
-          className={`absolute top-3 right-3 z-10 rounded-md px-2 py-0.5 text-[9.5px] font-black uppercase tracking-tighter ${
-            isDark
-              ? "bg-amber-400 text-black shadow-[0_0_12px_rgba(251,191,36,0.5)]"
-              : "bg-amber-500 text-white"
-          }`}
+      {/* Luggage watermark — only on the hero "Chegada" card (gold) */}
+      {isHero && isGold && (
+        <svg
+          viewBox="0 0 120 100"
+          aria-hidden="true"
+          className={`pointer-events-none absolute -right-3 top-3 bottom-3 h-[calc(100%-24px)] w-auto ${isDark ? "text-white/12" : "text-foreground/10"}`}
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.4"
+          strokeLinejoin="round"
+          strokeLinecap="round"
         >
-          {badge}
-        </span>
+          {/* Handles */}
+          <path d="M42 22 v-6 a6 6 0 0 1 6 -6 h14 a6 6 0 0 1 6 6 v6" />
+          <path d="M78 26 v-4 a4 4 0 0 1 4 -4 h8 a4 4 0 0 1 4 4 v4" />
+          {/* Big suitcase */}
+          <rect x="30" y="22" width="52" height="60" rx="7" />
+          <line x1="56" y1="22" x2="56" y2="82" />
+          <circle cx="42" cy="80" r="3" />
+          <circle cx="70" cy="80" r="3" />
+          {/* Small carry-on */}
+          <rect x="66" y="30" width="34" height="50" rx="5" />
+          <line x1="66" y1="52" x2="100" y2="52" />
+        </svg>
       )}
 
-      <div
-        className={`relative grid ${iconSize} place-items-center rounded-2xl border mb-3 ${iconBgCls} ${iconRingCls}`}
-      >
-        <span className={`${iconColorCls} ${iconSvg}`}>{icon}</span>
+      <div className="relative flex items-start gap-4">
+        <div
+          className={`grid ${iconSize} shrink-0 place-items-center rounded-2xl border ${iconBgCls} ${iconRingCls}`}
+        >
+          <span className={`${iconColorCls} ${iconSvg}`}>{icon}</span>
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className={`${titleSize} font-semibold ${titleColor}`}>{title}</p>
+          <p className={`mt-0.5 ${descSize} leading-[1.4] ${descColor}`}>{desc}</p>
+        </div>
       </div>
-      <p className={`relative ${titleSize} font-semibold ${titleColor}`}>{title}</p>
-      <p className={`relative mt-0.5 ${descSize} leading-[1.4] ${descColor}`}>{desc}</p>
+
+      {isHero && badge ? (
+        <div className="relative mt-4 flex justify-end">
+          <span className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-fuchsia-500 via-pink-500 to-rose-500 px-4 py-2 text-[10.5px] font-black uppercase tracking-[0.16em] text-white shadow-[0_10px_30px_-10px_rgba(236,72,153,0.7)]">
+            {badge}
+            <ArrowRight className="size-3.5" strokeWidth={2.4} />
+          </span>
+        </div>
+      ) : (
+        badge && (
+          <span
+            className={`absolute top-3 right-3 z-10 rounded-md px-2 py-0.5 text-[9.5px] font-black uppercase tracking-tighter ${
+              isDark
+                ? "bg-amber-400 text-black shadow-[0_0_12px_rgba(251,191,36,0.5)]"
+                : "bg-amber-500 text-white"
+            }`}
+          >
+            {badge}
+          </span>
+        )
+      )}
     </div>
   );
 }
+
 
 
 function SubList({ children }: { children: React.ReactNode }) {
