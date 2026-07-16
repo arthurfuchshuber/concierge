@@ -11,14 +11,17 @@ function openChat(prompt: string) {
   window.dispatchEvent(new CustomEvent("open-guide-chat", { detail: { prompt } }));
 }
 
-const CATEGORY_STYLES: Record<string, { bg: string; text: string; ring: string }> = {
-  natureza: { bg: "bg-emerald-500/15", text: "text-emerald-400", ring: "ring-emerald-500/30" },
-  gastronomia: { bg: "bg-orange-500/15", text: "text-orange-400", ring: "ring-orange-500/30" },
-  evento: { bg: "bg-fuchsia-500/15", text: "text-fuchsia-400", ring: "ring-fuchsia-500/30" },
-  passeio: { bg: "bg-sky-500/15", text: "text-sky-400", ring: "ring-sky-500/30" },
-  cultura: { bg: "bg-amber-500/15", text: "text-amber-400", ring: "ring-amber-500/30" },
-  noite: { bg: "bg-indigo-500/15", text: "text-indigo-400", ring: "ring-indigo-500/30" },
-  mercado: { bg: "bg-rose-500/15", text: "text-rose-400", ring: "ring-rose-500/30" },
+const CATEGORY_STYLES: Record<
+  string,
+  { cover: string; icon: string; chipBg: string; chipText: string }
+> = {
+  natureza: { cover: "bg-[#1E2E3F]", icon: "text-[#8CB4DC]", chipBg: "bg-[#8CB4DC]/15", chipText: "text-[#8CB4DC]" },
+  gastronomia: { cover: "bg-[#3A2A20]", icon: "text-[#DC966E]", chipBg: "bg-[#DC966E]/15", chipText: "text-[#DC966E]" },
+  evento: { cover: "bg-[#3A1F35]", icon: "text-[#E0A8CE]", chipBg: "bg-[#E0A8CE]/15", chipText: "text-[#E0A8CE]" },
+  passeio: { cover: "bg-[#1F3540]", icon: "text-[#7EC8D8]", chipBg: "bg-[#7EC8D8]/15", chipText: "text-[#7EC8D8]" },
+  cultura: { cover: "bg-[#3A2E1A]", icon: "text-[#C9A876]", chipBg: "bg-[#C9A876]/15", chipText: "text-[#C9A876]" },
+  noite: { cover: "bg-[#221F3E]", icon: "text-[#9B92E8]", chipBg: "bg-[#9B92E8]/15", chipText: "text-[#9B92E8]" },
+  mercado: { cover: "bg-[#3A1F28]", icon: "text-[#E8A0B0]", chipBg: "bg-[#E8A0B0]/15", chipText: "text-[#E8A0B0]" },
 };
 
 function styleFor(cat: string) {
