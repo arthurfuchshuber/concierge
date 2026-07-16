@@ -645,15 +645,16 @@ function Guide({ data }: { data: GuideOk }) {
                 )}
 
 
-              <section id="guide-actions" className="px-5 md:px-10 lg:px-16 relative z-10">
-                <div className="flex items-center gap-3 mb-3 md:mb-5">
-                  <p className="shrink-0 text-[9px] uppercase tracking-[0.3em] text-accent/75 font-semibold">
-                    O que você deseja acessar?
+              <section id="guide-actions" className="px-5 md:px-10 lg:px-16 mt-5 md:mt-6 relative z-10">
+                <div className="flex items-center gap-3 mb-4 md:mb-5">
+                  <p className="shrink-0 whitespace-nowrap text-[9.5px] md:text-[10px] uppercase tracking-[0.22em] text-white/40 dark:text-white/40 font-bold">
+                    <span className="inline-block size-1 rounded-full bg-amber-400 mr-2 align-middle shadow-[0_0_6px_rgba(251,191,36,0.7)]" />
+                    Acessos rápidos
                   </p>
-                  <span className="h-px flex-1 bg-accent/20" />
+                  <span className="h-px flex-1 bg-gradient-to-r from-white/15 via-white/5 to-transparent" />
                 </div>
 
-                <div className="grid grid-cols-2 gap-2 md:gap-3">
+                <div className="grid grid-cols-2 gap-3">
                   {cards.map((c) => {
                     const span =
                       c.variant === "hero-wide" || c.variant === "horizontal-wide" ? "col-span-2" : "";
