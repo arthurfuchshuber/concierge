@@ -582,6 +582,8 @@ function Guide({ data }: { data: GuideOk }) {
                 onToggleTheme={toggleTheme}
                 lang={lang}
                 onToggleLang={toggleLang}
+                brandName={(p.brand_name as string | null) ?? null}
+                brandLogoUrl={(p.brand_logo_url as string | null) ?? null}
               />
 
               {/* Countdown do check-in — some após liberado + 3h */}
