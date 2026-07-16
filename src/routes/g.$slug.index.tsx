@@ -2708,6 +2708,67 @@ function GatedCopyCard({
   );
 }
 
+function CodesTrigger({
+  theme,
+  open,
+  onToggle,
+  checkinTime,
+}: {
+  theme: "dark" | "light";
+  open: boolean;
+  onToggle: () => void;
+  checkinTime: string | null;
+}) {
+  // Só aparece quando o CheckinCountdown não está visível (fora da janela ativa),
+  // para não duplicar. Reproduz a lógica do CheckinCountdown de forma leve.
+  const [now, setNow] = useState<Date | null>(null);
+  useEffect(() => {
+    setNow(new Date());
+    const t = setInterval(() => setNow(new Date()), 60_000);
+    return () => clearInterval(t);
+  }, []);
+  if (!now) return null;
+  const m = checkinTime ? String(checkinTime).match(/^(\d{1,2}):(\d{2})/) : null;
+  if (m) {
+    const target = new Date(now);
+    target.setHours(Number(m[1]), Number(m[2]), 0, 0);
+    const startOfWindow = new Date(now);
+    startOfWindow.setHours(0, 0, 0, 0);
+    const diffMs = target.getTime() - now.getTime();
+    const inCountdown = now >= startOfWindow && now <= target;
+    const inLiberated = diffMs < 0 && Math.abs(diffMs) < 3 * 60 * 60 * 1000;
+    if (inCountdown || inLiberated) return null; // CheckinCountdown já cobre
+  }
+  const isLight = theme === "light";
+  return (
+    <div className="mx-4 md:mx-10 lg:mx-16 mb-3 relative z-10">
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={open}
+        className={`block w-full text-left rounded-2xl border backdrop-blur-xl px-4 py-3 transition ${
+          isLight
+            ? "border-border bg-card/70 hover:bg-card/90"
+            : "border-white/10 bg-white/[0.04] hover:bg-white/[0.07]"
+        }`}
+      >
+        <div className="flex items-center justify-between gap-2">
+          <p className={`text-[12px] font-medium inline-flex items-center gap-1.5 ${isLight ? "text-foreground/80" : "text-white/85"}`}>
+            <KeyRound className="size-3.5 text-amber-400" strokeWidth={2} />
+            {open ? "Ocultar senhas de acesso" : "Ver senhas de acesso"}
+          </p>
+          <ChevronDown
+            className={`size-4 shrink-0 transition-transform duration-300 ${open ? "rotate-180" : ""} ${isLight ? "text-foreground/60" : "text-white/70"}`}
+            strokeWidth={2.2}
+          />
+        </div>
+      </button>
+    </div>
+  );
+}
+
+
+
 function WifiStrip({
   ssid,
   password,
