@@ -71,6 +71,7 @@ export function GuideAiChat({ slug, propertyName, guestName }: { slug: string; p
   const [loading, setLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const forceAiNextRef = useRef(false);
   const { greeting, hint } = getTimeContext();
 
   useEffect(() => {
@@ -124,8 +125,10 @@ export function GuideAiChat({ slug, propertyName, guestName }: { slug: string; p
   // Permite abrir o chat via evento global disparado da home (bolha do concierge, sugestões).
   useEffect(() => {
     function onOpen(e: Event) {
-      const detail = (e as CustomEvent<{ prompt?: string }>).detail;
+      const detail = (e as CustomEvent<{ prompt?: string; forceAi?: boolean }>).detail;
       if (detail?.prompt) setInput(detail.prompt);
+      forceAiNextRef.current = !!detail?.forceAi;
+      if (detail?.forceAi) setHumanMode(false);
       setOpen(true);
     }
     window.addEventListener("open-guide-chat", onOpen as EventListener);
@@ -220,6 +223,8 @@ export function GuideAiChat({ slug, propertyName, guestName }: { slug: string; p
     const text = input.trim();
     if (!text || loading) return;
     const next = [...messages, { role: "user" as const, content: text }];
+    const forceAi = forceAiNextRef.current;
+    forceAiNextRef.current = false;
     setMessages(next);
     setInput("");
     setLoading(true);
@@ -227,7 +232,7 @@ export function GuideAiChat({ slug, propertyName, guestName }: { slug: string; p
       const res = await fetch("/api/public/guide-chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ slug, sessionId, conversationId, message: text, guestName: guestName ?? undefined }),
+        body: JSON.stringify({ slug, sessionId, conversationId, message: text, guestName: guestName ?? undefined, forceAi: forceAi || undefined }),
       });
       const data = (await res.json().catch(() => ({}))) as { conversationId?: string; reply?: string; error?: string; handoff?: boolean; humanMode?: boolean };
       if (!res.ok) {

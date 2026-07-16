@@ -52,6 +52,7 @@ const Body = z.object({
   conversationId: z.string().uuid().optional(),
   guestName: z.string().trim().min(1).max(80).optional(),
   message: z.string().trim().min(1).max(2000),
+  forceAi: z.boolean().optional(),
 });
 
 const SYSTEM_PROMPT = `Você é um concierge virtual de uma hospedagem de temporada.
@@ -304,7 +305,7 @@ export const Route = createFileRoute("/api/public/guide-chat")({
           .select("ai_paused, status")
           .eq("id", conversationId)
           .maybeSingle();
-        if (convState?.ai_paused) {
+        if (convState?.ai_paused && !body.forceAi) {
           await supabaseAdmin.from("property_chat_messages").insert({
             conversation_id: conversationId,
             role: "user",
@@ -339,21 +340,20 @@ export const Route = createFileRoute("/api/public/guide-chat")({
           sender_type: "guest",
         });
 
-        const HANDOFF_INSTRUCTIONS = `\n\nHandoff humano: se o hóspede (a) pedir explicitamente falar com humano/anfitrião, OU (b) você não tiver confiança na resposta, OU (c) detectar frustração ou emergência real, chame a ferramenta request_human_handoff com o motivo e a urgência. Após chamar a ferramenta, responda apenas: "Estou chamando um atendente humano, aguarde só um instante." Não invente contatos.`;
+        if (body.forceAi && convState?.ai_paused) {
+          await supabaseAdmin
+            .from("property_chat_conversations")
+            .update({ ai_paused: false, status: "ai", handoff_reason: null, handoff_urgency: null, handoff_at: null })
+            .eq("id", conversationId);
+        }
 
-        const messages = [
-          { role: "system" as const, content: `${SYSTEM_PROMPT}${HANDOFF_INSTRUCTIONS}\n\n${systemContext}` },
-          ...prior.map((m) => ({ role: m.role as "user" | "assistant", content: m.content })),
-          { role: "user" as const, content: body.message },
-        ];
+        const HANDOFF_INSTRUCTIONS = body.forceAi
+          ? `\n\nContexto de dica/recomendação da cidade: responda diretamente com base no título, resumo, categoria, contexto do guia e, se necessário, google_search. NÃO chame atendimento humano apenas por falta de confiança sobre essa dica; busque, explique e ofereça uma orientação útil. Só mencione anfitrião para detalhes críticos da hospedagem.`
+          : `\n\nHandoff humano: se o hóspede (a) pedir explicitamente falar com humano/anfitrião, OU (b) você não tiver confiança na resposta, OU (c) detectar frustração ou emergência real, chame a ferramenta request_human_handoff com o motivo e a urgência. Após chamar a ferramenta, responda apenas: "Estou chamando um atendente humano, aguarde só um instante." Não invente contatos.`;
 
-        const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-          method: "POST",
-          headers: { "Content-Type": "application/json", "Lovable-API-Key": apiKey },
-          body: JSON.stringify({
-            model: "google/gemini-2.5-flash",
-            messages,
-            tools: [
+        const tools = body.forceAi
+          ? [{ google_search: {} }]
+          : [
               { google_search: {} },
               {
                 type: "function",
@@ -370,7 +370,21 @@ export const Route = createFileRoute("/api/public/guide-chat")({
                   },
                 },
               },
-            ],
+            ];
+
+        const messages = [
+          { role: "system" as const, content: `${SYSTEM_PROMPT}${HANDOFF_INSTRUCTIONS}\n\n${systemContext}` },
+          ...prior.map((m) => ({ role: m.role as "user" | "assistant", content: m.content })),
+          { role: "user" as const, content: body.message },
+        ];
+
+        const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "Lovable-API-Key": apiKey },
+          body: JSON.stringify({
+            model: "google/gemini-2.5-flash",
+            messages,
+            tools,
           }),
         });
 
