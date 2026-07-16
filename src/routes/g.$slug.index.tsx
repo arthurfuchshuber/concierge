@@ -1749,14 +1749,14 @@ function HeroCompact({
   return (
     <section className="relative px-4 md:px-10 lg:px-16 pt-4 pb-3 md:pt-6 md:pb-5">
       <header className="relative z-10 flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 min-w-0">
           <img
             src={conciergeLogo}
             alt="ConciergeIA"
-            className="size-9 object-contain"
+            className="size-6 object-contain shrink-0"
           />
           <span
-            className={`font-display font-bold text-[17px] tracking-tight ${isDark ? "text-white" : "text-foreground"}`}
+            className={`font-display font-bold text-[13.5px] tracking-tight truncate ${isDark ? "text-white" : "text-foreground"}`}
           >
             ConciergeIA
           </span>
