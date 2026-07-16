@@ -59,6 +59,7 @@ import { HomeIntelligence } from "@/components/guide/HomeIntelligence";
 import { CityNewsFeed } from "@/components/guide/CityNewsFeed";
 import { CheckinCountdown } from "@/components/guide/CheckinCountdown";
 import waterfallImg from "@/assets/rec-waterfall.jpg";
+import conciergeLogo from "@/assets/concierge-logo.png";
 import { GuideAccessGate, readAccessRecord, type AccessRecord } from "@/components/GuideAccessGate";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -788,6 +789,7 @@ function Guide({ data }: { data: GuideOk }) {
                   country={(p.country as string | null) ?? null}
                   lang={lang as "pt" | "en" | "es" | "fr"}
                   guestName={accessRec?.name ?? null}
+                  checkinDate={accessRec?.checkinDate ?? null}
                   theme={theme}
                 />
               )}
@@ -1742,45 +1744,22 @@ function HeroCompact({
     if (Math.abs(dx) > 40) go(dx < 0 ? 1 : -1);
   }
 
-  // Brand — two-line stacked (mockup style): "ANFITRIÃO / SIGMA"
-  const rawBrand = (brandName ?? "Anfitrião Sigma").trim();
-  const brandParts = rawBrand.split(/\s+/);
-  const brandTop = brandParts.length > 1 ? brandParts.slice(0, -1).join(" ") : rawBrand;
-  const brandBottom = brandParts.length > 1 ? brandParts[brandParts.length - 1] : null;
-
+  // Marca fixa do produto: ConciergeIA (mesma logomarca da landing/painel).
+  // A logo específica do anfitrião fica no rodapé, não no topo.
   return (
     <section className="relative px-4 md:px-10 lg:px-16 pt-4 pb-3 md:pt-6 md:pb-5">
       <header className="relative z-10 flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2.5">
-          {brandLogoUrl ? (
-            <img
-              src={brandLogoUrl}
-              alt={brandName ?? "Logotipo"}
-              className="h-10 w-auto object-contain"
-            />
-          ) : (
-            <svg viewBox="0 0 32 32" aria-hidden="true" className="size-10 shrink-0">
-              <defs>
-                <linearGradient id="brandA" x1="0" y1="0" x2="1" y2="1">
-                  <stop offset="0%" stopColor="#f97316" />
-                  <stop offset="55%" stopColor="#ec4899" />
-                  <stop offset="100%" stopColor="#8b5cf6" />
-                </linearGradient>
-              </defs>
-              <path d="M16 3 L29 29 H22 L16 15 L10 29 H3 Z" fill="url(#brandA)" />
-              <circle cx="16" cy="22" r="2.4" fill={isDark ? "#0a0a0a" : "#fafafa"} />
-            </svg>
-          )}
-          <div className="flex flex-col leading-[1] gap-[3px]">
-            <span className={`text-[10px] font-semibold tracking-[0.28em] uppercase ${isDark ? "text-white/85" : "text-foreground/75"}`}>
-              {brandTop}
-            </span>
-            {brandBottom && (
-              <span className={`text-[13px] font-bold tracking-[0.32em] uppercase ${isDark ? "text-white" : "text-foreground"}`}>
-                {brandBottom}
-              </span>
-            )}
-          </div>
+        <div className="flex items-center gap-2">
+          <img
+            src={conciergeLogo}
+            alt="ConciergeIA"
+            className="size-9 object-contain"
+          />
+          <span
+            className={`font-display font-bold text-[17px] tracking-tight ${isDark ? "text-white" : "text-foreground"}`}
+          >
+            ConciergeIA
+          </span>
         </div>
         <div className="flex items-center gap-2 shrink-0">
           {city && (
@@ -1856,20 +1835,15 @@ function HeroCompact({
 
           <div className="absolute inset-0 flex flex-col justify-end p-5 pb-6 md:p-8">
             <h1
-              className={`text-[36px] md:text-[46px] leading-[1.02] tracking-[-0.01em] max-w-[255px] md:max-w-[420px] font-black ${
-                isDark ? "text-white" : "text-foreground"
+              className={`text-[26px] md:text-[34px] leading-[1.06] tracking-[-0.01em] max-w-[300px] md:max-w-[460px] font-black line-clamp-2 ${
+                isDark ? "text-[#f5efe4]" : "text-foreground"
               }`}
+              title={tagline ? `${name} ${tagline}` : name}
             >
               {name}
+              {tagline ? <span className="opacity-90"> {tagline}</span> : null}
             </h1>
-            {tagline && (
-              <p
-                className="mt-0.5 text-[32px] md:text-[40px] leading-[1.02] tracking-[-0.01em] max-w-[285px] md:max-w-[420px] font-black bg-gradient-to-r from-pink-500 via-fuchsia-500 to-violet-500 bg-clip-text text-transparent"
-              >
-                {tagline}
-              </p>
-            )}
-            <p className={`relative z-10 mt-3 max-w-[240px] text-[13px] md:text-[14px] leading-[1.45] ${isDark ? "text-white/82" : "text-slate-950/76"}`}>
+            <p className={`relative z-10 mt-2.5 max-w-[260px] text-[12.5px] md:text-[13.5px] leading-[1.45] ${isDark ? "text-white/72" : "text-slate-950/76"}`}>
               Tudo o que você precisa para uma estadia incrível.
             </p>
           </div>
@@ -1923,7 +1897,7 @@ function HeroCompact({
 const SECTION_TONES = {
   gold:   { border: "border-pink-500/22",    bg: "bg-[linear-gradient(135deg,rgba(236,72,153,0.09),rgba(88,28,135,0.04)_58%,rgba(2,6,23,0.55))]", iconBg: "bg-pink-500/14",    iconRing: "border-pink-400/22",    icon: "text-pink-300",    accent: "text-pink-200",    glow: "shadow-pink-500/12" },
   blue:   { border: "border-blue-500/16",    bg: "bg-white/[0.035]", iconBg: "bg-blue-500/12",    iconRing: "border-blue-400/20",    icon: "text-blue-300",    accent: "text-blue-200",    glow: "shadow-blue-500/8" },
-  green:  { border: "border-emerald-500/16", bg: "bg-white/[0.035]", iconBg: "bg-emerald-500/12", iconRing: "border-emerald-400/20", icon: "text-emerald-300", accent: "text-emerald-200", glow: "shadow-emerald-500/8" },
+  green:  { border: "border-amber-400/18",   bg: "bg-white/[0.035]", iconBg: "bg-amber-400/12",   iconRing: "border-amber-300/22",   icon: "text-amber-200",   accent: "text-amber-100",   glow: "shadow-amber-500/8" },
   purple: { border: "border-violet-500/18",  bg: "bg-white/[0.035]", iconBg: "bg-violet-500/14",  iconRing: "border-violet-400/22",  icon: "text-violet-300",  accent: "text-violet-200",  glow: "shadow-violet-500/8" },
   rose:   { border: "border-pink-500/24",    bg: "bg-pink-500/[0.10]", iconBg: "bg-pink-500/16", iconRing: "border-pink-400/22", icon: "text-pink-300", accent: "text-pink-200", glow: "shadow-pink-500/12" },
 } as const;
