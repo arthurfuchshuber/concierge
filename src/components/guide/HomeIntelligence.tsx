@@ -300,9 +300,9 @@ export function HomeIntelligence({
             </div>
 
             <div className="mt-4 grid grid-cols-3 gap-2.5">
-              <Chip icon={<CalendarDays />} label="O que fazer hoje?" onClick={() => openChat("O que fazer hoje aqui?")} />
-              <Chip icon={<Utensils />} label="Melhor restaurante" onClick={() => openChat("Qual o melhor restaurante perto daqui?")} />
-              <Chip icon={<Waves />} label="Como chego na praia?" onClick={() => openChat("Como chego na praia mais próxima?")} />
+              {chips.map((c) => (
+                <Chip key={c.label} icon={c.icon} label={c.label} onClick={() => openChat(c.prompt)} />
+              ))}
             </div>
           </div>
         ) : null}
