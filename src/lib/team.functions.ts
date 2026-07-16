@@ -44,10 +44,18 @@ const InviteInput = z.object({
   role: z.enum(["owner", "agent", "viewer"]).default("agent"),
 });
 
+async function findUserIdByEmail(email: string): Promise<string | null> {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  // getUserByEmail via listUsers filter (admin API doesn't expose direct lookup)
+  const { data, error } = await supabaseAdmin.auth.admin.listUsers({ perPage: 200 });
+  if (error) return null;
+  const found = data.users.find((u) => (u.email ?? "").toLowerCase() === email.toLowerCase());
+  return found?.id ?? null;
+}
+
 async function sendAccountInviteEmail(email: string, inviterName: string | null) {
-  // Uses Supabase's built-in invite email (routes through the auth email queue
-  // and our branded invite.tsx template). If the user already exists, we
-  // fall back to a magic-link so they can sign in and pick up the invite.
+  // Sends via Supabase's built-in invite email (routes through our auth webhook
+  // and the branded invite.tsx template). Only works for NEW users.
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const siteUrl =
     process.env.SITE_URL ||
@@ -59,21 +67,10 @@ async function sendAccountInviteEmail(email: string, inviterName: string | null)
     redirectTo,
     data: meta,
   });
-  if (!error) return { sent: true, via: "invite" as const };
-  const msg = (error.message || "").toLowerCase();
-  // If already registered, send a magic-link so they can log in — the
-  // account_member_invites row will be redeemable via the app once signed in.
-  if (msg.includes("already") || msg.includes("registered") || msg.includes("exists")) {
-    const { error: linkErr } = await supabaseAdmin.auth.admin.generateLink({
-      type: "magiclink",
-      email,
-      options: { redirectTo },
-    });
-    if (linkErr) throw new Error(linkErr.message);
-    return { sent: true, via: "magiclink" as const };
-  }
-  throw new Error(error.message);
+  if (error) throw new Error(error.message);
+  return { sent: true, via: "invite" as const };
 }
+
 
 export const inviteTeamMember = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -110,15 +107,41 @@ export const inviteTeamMember = createServerFn({ method: "POST" })
       .eq("id", userId)
       .maybeSingle();
 
+    // If the email already belongs to a Sigma user, auto-accept the invite
+    // (they don't need a signup link). They'll see the shared account in
+    // their account switcher on next load.
+    const existingUserId = await findUserIdByEmail(data.email);
+    if (existingUserId) {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      await supabaseAdmin
+        .from("account_members")
+        .upsert(
+          {
+            owner_id: userId,
+            member_user_id: existingUserId,
+            role: data.role,
+            status: "active",
+            invited_by: userId,
+          },
+          { onConflict: "owner_id,member_user_id" },
+        );
+      await supabaseAdmin
+        .from("account_member_invites")
+        .update({ status: "accepted", accepted_user_id: existingUserId, accepted_at: new Date().toISOString() })
+        .eq("id", inserted.id);
+      return { ok: true, id: inserted.id, emailSent: false, autoAccepted: true };
+    }
+
     try {
       await sendAccountInviteEmail(data.email, (inviter?.full_name as string) ?? null);
-      return { ok: true, id: inserted.id, emailSent: true };
+      return { ok: true, id: inserted.id, emailSent: true, autoAccepted: false };
     } catch (e) {
       // Convite ficou registrado mesmo se o envio falhar — o titular pode
       // usar o botão "Reenviar" na lista de convites pendentes.
-      return { ok: true, id: inserted.id, emailSent: false, emailError: (e as Error).message };
+      return { ok: true, id: inserted.id, emailSent: false, autoAccepted: false, emailError: (e as Error).message };
     }
   });
+
 
 const RevokeInput = z.object({ inviteId: z.string().uuid() });
 
@@ -162,8 +185,25 @@ export const resendTeamInvite = createServerFn({ method: "POST" })
       .select("full_name")
       .eq("id", userId)
       .maybeSingle();
+    // If the recipient already exists, auto-accept instead of sending email again.
+    const existingUserId = await findUserIdByEmail(inv.email as string);
+    if (existingUserId) {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      await supabaseAdmin
+        .from("account_members")
+        .upsert(
+          { owner_id: userId, member_user_id: existingUserId, role: "agent", status: "active", invited_by: userId },
+          { onConflict: "owner_id,member_user_id" },
+        );
+      await supabaseAdmin
+        .from("account_member_invites")
+        .update({ status: "accepted", accepted_user_id: existingUserId, accepted_at: new Date().toISOString() })
+        .eq("id", inv.id);
+      return { ok: true, autoAccepted: true };
+    }
     await sendAccountInviteEmail(inv.email as string, (inviter?.full_name as string) ?? null);
-    return { ok: true };
+    return { ok: true, autoAccepted: false };
+
   });
 
 const MemberOpInput = z.object({ memberId: z.string().uuid() });
