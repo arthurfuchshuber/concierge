@@ -134,25 +134,19 @@ export function HomeIntelligence({
                     Perguntar mais ao Concierge IA
                   </p>
                   <p className="mt-0.5 text-[11.5px] font-medium leading-snug text-white/82">
-                    {guestName ? `${tip.greeting} ${guestName.split(" ")[0]} · ` : ""}{tip.title}
+                    Respostas imediatas e personalizadas
                   </p>
                 </div>
               </div>
               <button
                 type="button"
-                onClick={() => openChat(`Sobre a dica de hoje: ${tip.title}. `)}
+                onClick={() => openChat(tip.title ? `Sobre a dica de hoje: ${tip.title}. ` : "")}
                 aria-label="Perguntar ao Concierge IA"
                 className="grid size-12 shrink-0 place-items-center rounded-full bg-pink-500/90 text-white shadow-[0_12px_32px_-10px_rgba(236,72,153,0.9)] transition hover:bg-pink-400 active:scale-95"
               >
                 <ArrowRight className="size-5" strokeWidth={2.2} />
               </button>
             </div>
-
-            {tip.body && (
-              <p className="mt-3 line-clamp-2 text-[11.5px] leading-[1.45] text-white/70 [text-wrap:pretty]">
-                {tip.body}
-              </p>
-            )}
 
             <div className="mt-4 grid grid-cols-3 gap-2.5">
               <Chip icon={<CalendarDays />} label="O que fazer hoje?" onClick={() => openChat("O que fazer hoje aqui?")} />
