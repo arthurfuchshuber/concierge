@@ -244,15 +244,15 @@ export function HomeIntelligence({
         transition={{ duration: 0.4, ease: [0.2, 0.8, 0.2, 1] }}
         className={`relative overflow-hidden rounded-[24px] border px-4 py-4 md:px-5 md:py-5 ${
           isDark
-            ? "border-fuchsia-400/25 bg-[linear-gradient(135deg,#6d28d9_0%,#bc1bd8_52%,#ec2f97_100%)] shadow-[0_22px_60px_-24px_rgba(217,70,239,0.72)]"
+            ? "border-fuchsia-400/20 bg-[linear-gradient(135deg,#160b23_0%,#241035_52%,#2f1440_100%)] shadow-[0_22px_60px_-30px_rgba(217,70,239,0.45)]"
             : "border-fuchsia-200/70 bg-[linear-gradient(135deg,#7c3aed_0%,#c026d3_50%,#ec4899_100%)] shadow-[0_22px_60px_-24px_rgba(217,70,239,0.42)]"
         }`}
       >
         {/* Ambient glows inside the panel */}
         {isDark ? (
           <>
-            <span className="pointer-events-none absolute -top-20 -right-16 h-40 w-40 rounded-full bg-pink-300/25 blur-3xl" />
-            <span className="pointer-events-none absolute -bottom-24 -left-20 h-48 w-48 rounded-full bg-violet-200/20 blur-3xl" />
+            <span className="pointer-events-none absolute -top-20 -right-16 h-40 w-40 rounded-full bg-pink-500/18 blur-3xl" />
+            <span className="pointer-events-none absolute -bottom-24 -left-20 h-48 w-48 rounded-full bg-violet-500/14 blur-3xl" />
           </>
         ) : (
           <>
