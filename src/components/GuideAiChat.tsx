@@ -253,6 +253,9 @@ export function GuideAiChat({ slug, propertyName, guestName }: { slug: string; p
         setMessages(updated);
         saveCachedMessages(slug, data.conversationId ?? conversationId, updated);
       }
+      // Advance the polling cursor past the just-persisted user+AI rows so the
+      // next poll doesn't re-append the AI reply we already rendered optimistically.
+      lastFetchedAtRef.current = new Date().toISOString();
     } catch {
       const updated = [...next, { role: "assistant" as const, content: "Sem conexão. Tente novamente." }];
       setMessages(updated);
@@ -293,8 +296,19 @@ export function GuideAiChat({ slug, propertyName, guestName }: { slug: string; p
         if (incoming.length) {
           setMessages((prev) => {
             const seen = new Set(prev.map((p) => p.id).filter(Boolean));
+            // Fallback dedupe for optimistic assistant messages that were appended
+            // without an id (send() pushes `{ role, content }`). Match by content
+            // against the tail so the polled copy of the same reply doesn't duplicate.
+            const recentContents = new Set(
+              prev.slice(-6).filter((p) => !p.id && p.role === "assistant").map((p) => (p.content || "").trim()),
+            );
             const additions = incoming
-              .filter((m) => !seen.has(m.id) && (m.content?.trim() || m.attachment))
+              .filter(
+                (m) =>
+                  !seen.has(m.id) &&
+                  (m.content?.trim() || m.attachment) &&
+                  !(m.senderType === "ai" && recentContents.has((m.content || "").trim())),
+              )
               .map((m) => ({
                 role: "assistant" as const,
                 content: m.content,
