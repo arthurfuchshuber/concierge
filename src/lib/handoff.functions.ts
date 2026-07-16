@@ -1,54 +1,63 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { z } from "zod";
+import {
+  emptyHandoffListResult,
+  normalizeHandoffConversationRows,
+  parseHandoffConversationInput,
+  parseHandoffListInput,
+  parseHandoffSendInput,
+  parseHandoffTransferInput,
+  type HandoffConversationSummary,
+  type HandoffGuestDetail,
+  type HandoffListResult,
+} from "@/lib/handoff.schemas";
 
 // -------- List conversations for the current user (filtered by queue) --------
 
-const ListInput = z.object({
-  queue: z
-    .enum(["needs_human", "assigned_to_me", "all_active", "ai_only", "all", "resolved"])
-    .default("needs_human"),
-  limit: z.number().int().min(1).max(200).default(50),
-});
-
 export const listHandoffConversations = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((i: unknown) => ListInput.parse(i))
-  .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
-    let q = supabase
-      .from("property_chat_conversations")
-      .select(
-        "id, property_id, guest_session_id, guest_name, status, ai_paused, assigned_to, handoff_reason, handoff_urgency, handoff_at, last_message_at, created_at, resolved_at, properties:property_id(id, name, owner_id, slug)",
-      )
-      .order("handoff_at", { ascending: false, nullsFirst: false })
-      .order("last_message_at", { ascending: false })
-      .limit(data.limit);
+  .inputValidator(parseHandoffListInput)
+  .handler(async ({ data, context }): Promise<HandoffListResult> => {
+    let list: HandoffConversationSummary[] = [];
+    try {
+      const { supabase, userId } = context;
+      let q = supabase
+        .from("property_chat_conversations")
+        .select(
+          "id, property_id, guest_session_id, guest_name, status, ai_paused, assigned_to, handoff_reason, handoff_urgency, handoff_at, last_message_at, created_at, resolved_at, properties:property_id(id, name, owner_id, slug)",
+        )
+        .order("handoff_at", { ascending: false, nullsFirst: false })
+        .order("last_message_at", { ascending: false })
+        .limit(data.limit);
 
-    if (data.queue === "needs_human") q = q.eq("status", "needs_human");
-    else if (data.queue === "assigned_to_me") q = q.eq("assigned_to", userId).in("status", ["assigned", "needs_human"]);
-    else if (data.queue === "all_active") q = q.in("status", ["needs_human", "assigned"]);
-    else if (data.queue === "ai_only") q = q.eq("status", "ai");
-    else if (data.queue === "resolved") q = q.eq("status", "resolved");
-    // "all" → sem filtro de status: mostra todas as conversas visíveis por RLS
-    // (owner + membros ativos da conta veem tudo; RLS restringe automaticamente).
+      if (data.queue === "needs_human") q = q.eq("status", "needs_human");
+      else if (data.queue === "assigned_to_me") q = q.eq("assigned_to", userId).in("status", ["assigned", "needs_human"]);
+      else if (data.queue === "all_active") q = q.in("status", ["needs_human", "assigned"]);
+      else if (data.queue === "ai_only") q = q.eq("status", "ai");
+      else if (data.queue === "resolved") q = q.eq("status", "resolved");
+      // "all" → sem filtro de status: mostra todas as conversas visíveis por RLS
+      // (owner + membros ativos da conta veem tudo; RLS restringe automaticamente).
 
-    const { data: rows, error } = await q;
-    if (error) throw new Error(error.message);
-    const list = rows ?? [];
+      const { data: rows, error } = await q;
+      if (error) {
+        console.error("listHandoffConversations failed", error);
+        return emptyHandoffListResult(error.message);
+      }
+      list = normalizeHandoffConversationRows(rows);
+    } catch (error) {
+      console.error("listHandoffConversations crashed", error);
+      return emptyHandoffListResult("Não foi possível carregar as conversas agora.");
+    }
 
     // Enriquece cada conversa com nome do hóspede, telefone e check-in vindos
     // do último guide_access_logs correspondente (mesma propriedade). RLS de
     // guide_access_logs só permite owner — usamos admin porque a RLS de
     // conversations já garantiu que o usuário pode ver estas linhas.
-    const details: Record<
-      string,
-      { name: string | null; phone: string | null; phoneCountry: string | null; checkinDate: string | null; reservationCode: string | null }
-    > = {};
+    const details: Record<string, HandoffGuestDetail> = {};
     if (list.length > 0) {
       try {
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-        const propIds = Array.from(new Set(list.map((c) => c.property_id as string)));
+        const propIds = Array.from(new Set(list.map((c) => c.property_id).filter(Boolean) as string[]));
         const { data: logs } = await supabaseAdmin
           .from("guide_access_logs")
           .select("property_id, guest_name, guest_phone, guest_phone_country, checkin_date, reservation_code, created_at")
@@ -92,11 +101,9 @@ export const listHandoffConversations = createServerFn({ method: "POST" })
 
 // -------- Get one conversation with messages --------
 
-const GetInput = z.object({ conversationId: z.string().uuid() });
-
 export const getHandoffConversation = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((i: unknown) => GetInput.parse(i))
+  .inputValidator(parseHandoffConversationInput)
   .handler(async ({ data, context }) => {
     const { supabase } = context;
     const [{ data: conv, error: cErr }, { data: msgs, error: mErr }] = await Promise.all([
@@ -183,7 +190,7 @@ export const getHandoffConversation = createServerFn({ method: "POST" })
 
 export const claimHandoffConversation = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((i: unknown) => GetInput.parse(i))
+  .inputValidator(parseHandoffConversationInput)
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
     // Só permite claim se: sem dono, ou já é meu.
@@ -215,7 +222,7 @@ export const claimHandoffConversation = createServerFn({ method: "POST" })
 
 export const requestHandoffClaim = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((i: unknown) => GetInput.parse(i))
+  .inputValidator(parseHandoffConversationInput)
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
     const { data: cur, error: readErr } = await supabase
@@ -250,14 +257,9 @@ export const requestHandoffClaim = createServerFn({ method: "POST" })
 
 // -------- Transferir a conversa para outro membro (só quem está atendendo) --------
 
-const TransferInput = z.object({
-  conversationId: z.string().uuid(),
-  toUserId: z.string().uuid(),
-});
-
 export const transferHandoffConversation = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((i: unknown) => TransferInput.parse(i))
+  .inputValidator(parseHandoffTransferInput)
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
     const { data: cur, error: readErr } = await supabase
@@ -299,7 +301,7 @@ export const transferHandoffConversation = createServerFn({ method: "POST" })
 
 export const cancelHandoffClaimRequest = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((i: unknown) => GetInput.parse(i))
+  .inputValidator(parseHandoffConversationInput)
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
     const { error } = await supabase
@@ -315,7 +317,7 @@ export const cancelHandoffClaimRequest = createServerFn({ method: "POST" })
 
 export const releaseHandoffConversation = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((i: unknown) => GetInput.parse(i))
+  .inputValidator(parseHandoffConversationInput)
   .handler(async ({ data, context }) => {
     const { supabase } = context;
     const { error } = await supabase
@@ -339,7 +341,7 @@ export const releaseHandoffConversation = createServerFn({ method: "POST" })
 
 export const resolveHandoffConversation = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((i: unknown) => GetInput.parse(i))
+  .inputValidator(parseHandoffConversationInput)
   .handler(async ({ data, context }) => {
     const { supabase } = context;
     const { error } = await supabase
@@ -359,15 +361,9 @@ export const resolveHandoffConversation = createServerFn({ method: "POST" })
 
 // -------- Send a human/agent message --------
 
-const SendInput = z.object({
-  conversationId: z.string().uuid(),
-  content: z.string().trim().min(1).max(4000),
-  internalNote: z.boolean().optional().default(false),
-});
-
 export const sendHandoffMessage = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((i: unknown) => SendInput.parse(i))
+  .inputValidator(parseHandoffSendInput)
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
     // Trava: se a conversa está atribuída a outro atendente, bloqueia o envio.
@@ -427,13 +423,21 @@ export const sendHandoffMessage = createServerFn({ method: "POST" })
 export const countPendingHandoffs = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { supabase } = context;
-    const { count, error } = await supabase
-      .from("property_chat_conversations")
-      .select("id", { count: "exact", head: true })
-      .eq("status", "needs_human");
-    if (error) throw new Error(error.message);
-    return { count: count ?? 0 };
+    try {
+      const { supabase } = context;
+      const { count, error } = await supabase
+        .from("property_chat_conversations")
+        .select("id", { count: "exact", head: true })
+        .eq("status", "needs_human");
+      if (error) {
+        console.error("countPendingHandoffs failed", error);
+        return { count: 0, error: error.message };
+      }
+      return { count: count ?? 0 };
+    } catch (error) {
+      console.error("countPendingHandoffs crashed", error);
+      return { count: 0, error: "Não foi possível carregar o contador agora." };
+    }
   });
 
 // -------- Check whether current user has access to central de atendimento --------
@@ -472,7 +476,7 @@ export const getAtendimentoAccess = createServerFn({ method: "GET" })
 
 export const listConversationTransferTargets = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((i: unknown) => GetInput.parse(i))
+  .inputValidator(parseHandoffConversationInput)
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
     const { data: conv } = await supabase
