@@ -234,6 +234,13 @@ export async function generateAndCacheCityNews(input: {
   }
   if (items.length === 0) return { items: null, cached: false, generated: false };
 
+  // Enriquece com fotos reais do Google Places (foto do lugar/atração/restaurante).
+  try {
+    items = await attachPlacePhotos(items, input.cityLabel, input.country ?? null);
+  } catch {
+    // segue sem fotos — o card usa fallback local por categoria
+  }
+
   await supabaseAdmin
     .from("city_daily_news")
     .upsert({ city_key: input.cityKey, date: today, items }, { onConflict: "city_key,date" });
