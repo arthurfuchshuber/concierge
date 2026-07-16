@@ -347,41 +347,48 @@ export const Route = createFileRoute("/api/public/guide-chat")({
             .eq("id", conversationId);
         }
 
-        const HANDOFF_INSTRUCTIONS = body.forceAi
-          ? `\n\nModo EXPLORAÇÃO DE DICA DA CIDADE (ativo agora):
-- O hóspede clicou em "Ver mais" de uma dica. Ele quer uma resposta rica, bem estruturada e FÁCIL DE LER — não uma paráfrase do resumo, nem um blocão de texto corrido.
-- PROIBIDO começar com "Essa dica...", "Isso se refere a...", "Trata-se de...", "Essa recomendação..." ou qualquer variação que apenas reafirme o que ele já leu. Comece pelo mais interessante.
-- NUNCA prometa nem sugira ações que você não consegue executar: não diga "quer que eu verifique os horários de hoje?", "posso confirmar o preço agora?", "vou buscar em tempo real", "quer que eu ligue?". Você não faz buscas ao vivo nem liga para lugares. Se um dado depende de tempo real (horário do dia, ingresso disponível, agenda de hoje), diga "os horários podem variar — confirme direto no site oficial / Instagram do local antes de ir" e ofereça algo que VOCÊ consegue: sugerir um restaurante próximo, explicar como chegar, comparar com outra opção parecida, dar dica prática.
-- NÃO chame atendimento humano nesse modo — resolva você mesmo.
+        // Sticky exploration mode: se qualquer resposta anterior da IA já foi no
+        // formato de exploração de dica, mantemos o mesmo comportamento nos
+        // turnos seguintes (sem handoff automático, tom de amigo local).
+        const explorationSignature = /Destaques|Melhor horário|Como chegar|Dica de quem conhece/i;
+        const inExplorationFlow = body.forceAi || prior.some(
+          (m) => m.role === "assistant" && explorationSignature.test(m.content ?? ""),
+        );
 
-FORMATO OBRIGATÓRIO (Markdown, sempre nessa estrutura, sem título de topo):
-Parágrafo de abertura curto (2-3 linhas) contando o que é o lugar e por que vale a pena, com tom de amigo local empolgado.
+        const EXPLORATION_MODE = `\n\nModo EXPLORAÇÃO — conversa sobre a cidade / dicas / lugares (ativo agora):
+Você é um amigo local empolgado contando sobre lugares da cidade. Use livremente todo o seu conhecimento sobre Foz do Iguaçu e a região (atrações, restaurantes, bares, passeios, história, dicas práticas) — o Gemini tem conhecimento amplo, use-o com confiança, sem inventar detalhes específicos (preços exatos, horários do dia, se está aberto agora).
 
-**Destaques**
-- 2 a 4 bullets curtos com o que fazer / ver / comer / experimentar.
+Tom e leitura:
+- Escreva como quem conversa: texto fluido, respirável, 2 a 4 parágrafos curtos. Nada de "formulário" com muitos campos em negrito.
+- Use **negrito** com moderação — só em 1 ou 2 palavras-chave da resposta inteira (nome do lugar, uma dica-chave). Não crie seções fixas tipo "Quanto custa / Melhor horário / Como chegar" — só mencione esses tópicos quando forem naturais na resposta.
+- Bullets só se ajudarem (ex.: 2-3 destaques rápidos). Nunca obrigatório.
+- Alvo: 100–180 palavras. Prefira menos a mais.
+- NUNCA comece com "Essa dica...", "Trata-se de...", "Isso se refere a...". Comece pelo que é mais interessante.
 
-**Quanto custa** — 1 linha com faixa de preço estimada (ou "gratuito"). Se não souber, diga "consulte no local".
-**Melhor horário** — 1 linha (período do dia / dia da semana / evitar filas).
-**Como chegar** — 1 linha objetiva (Uber, carro, caminhada, tempo aproximado).
-**Dica de quem conhece** — 1 linha com um truque local (chegar cedo, comprar ingresso online, o que pedir, etc).
+O que você NÃO faz (seja transparente, sem prometer):
+- Não busca ao vivo, não confirma horários de hoje, não checa disponibilidade de ingresso, não liga para lugares. Se o hóspede precisa desse tipo de dado, diga "os horários e preços podem variar — confirme no site/Instagram oficial antes de ir" e siga oferecendo o que VOCÊ consegue.
+- NÃO transfere para humano nesse modo. Resolva você mesmo com base no seu conhecimento. Se realmente não souber algo específico, admita naturalmente e ofereça um caminho útil.
 
-Encerre com UMA pergunta curta que convide o hóspede a continuar — e que VOCÊ consegue responder (ex.: "quer que eu sugira onde jantar por perto?", "posso comparar com [outra opção da cidade]?"). Nada de "quer que eu verifique agora?".`
-          : `\n\nHandoff humano: se o hóspede (a) pedir explicitamente falar com humano/anfitrião, OU (b) você não tiver confiança na resposta, OU (c) detectar frustração ou emergência real, chame a ferramenta request_human_handoff com o motivo e a urgência. Após chamar a ferramenta, responda apenas: "Estou chamando um atendente humano, aguarde só um instante." Não invente contatos.`;
+Encerramento:
+- Termine com no MÁXIMO uma pergunta curta e natural, só quando fizer sentido — e apenas sobre algo que VOCÊ consegue responder (comparar com outro lugar, sugerir onde comer perto, contar sobre outro passeio). Não force pergunta em toda resposta.
+- Nunca ofereça "quer que eu verifique / confirme / busque em tempo real".`;
 
+        const NORMAL_MODE = `\n\nHandoff humano: chame a ferramenta request_human_handoff APENAS quando o hóspede pedir explicitamente falar com humano/anfitrião, OU quando houver emergência real (segurança, saúde, problema grave na hospedagem). Nunca chame por incerteza sua, nunca chame quando o hóspede só respondeu "sim", "ok", "pode ser" a uma pergunta sua. Após chamar, responda apenas: "Estou chamando um atendente humano, aguarde só um instante." Não invente contatos.`;
 
-        const tools = body.forceAi
-          ? [{ google_search: {} }]
+        const MODE_INSTRUCTIONS = inExplorationFlow ? EXPLORATION_MODE : NORMAL_MODE;
+
+        const tools = inExplorationFlow
+          ? undefined
           : [
-              { google_search: {} },
               {
                 type: "function",
                 function: {
                   name: "request_human_handoff",
-                  description: "Solicita atendimento humano. Antes de chamar, escreva um RESUMO curto (1-2 frases, no máx 220 caracteres) do que o hóspede precisa, no formato: 'Hóspede está perguntando sobre X — resumo do contexto e do que ele quer saber'. Esse resumo aparece na notificação enviada ao anfitrião, então precisa ser específico e útil (não copie a mensagem do hóspede na íntegra, sintetize).",
+                  description: "Solicita atendimento humano. USE APENAS quando o hóspede PEDIR EXPLICITAMENTE falar com humano/anfitrião (ex.: 'quero falar com uma pessoa', 'chama o anfitrião', 'preciso de ajuda humana') ou quando houver emergência real (segurança, saúde, problema grave na hospedagem). NUNCA chame por incerteza sua. NUNCA chame quando o hóspede só respondeu 'sim', 'ok', 'pode ser', 'legal' a uma pergunta sua — isso é continuar a conversa, não pedir humano. Antes de chamar, escreva um RESUMO curto (1-2 frases, máx 220 caracteres) do que o hóspede precisa, no formato: 'Hóspede está perguntando sobre X — contexto e o que ele quer saber'.",
                   parameters: {
                     type: "object",
                     properties: {
-                      reason: { type: "string", description: "Resumo curto do pedido do hóspede em 3ª pessoa (máx 220 caracteres). Ex: 'Hóspede está perguntando sobre os horários do Globo da Morte hoje à noite e quer saber se ainda tem ingresso disponível.'" },
+                      reason: { type: "string", description: "Resumo curto do pedido do hóspede em 3ª pessoa (máx 220 caracteres)." },
                       urgency: { type: "string", enum: ["low", "normal", "high"] },
                     },
                     required: ["reason"],
@@ -390,11 +397,11 @@ Encerre com UMA pergunta curta que convide o hóspede a continuar — e que VOC�
               },
             ];
 
-        const OVERRIDE_LENGTH = body.forceAi
-          ? `\n\n[OVERRIDE do modo dica]: ignore o limite de "máx 3 frases" acima. Siga estritamente o FORMATO OBRIGATÓRIO. Alvo: 140–220 palavras no total. Use **negrito** e bullets — evite blocos densos de texto.`
+        const OVERRIDE_LENGTH = inExplorationFlow
+          ? `\n\n[OVERRIDE]: ignore o limite de "máx 3 frases" do prompt base. Neste modo exploração, alvo 100–180 palavras, tom conversacional, sem formulário.`
           : "";
         const messages = [
-          { role: "system" as const, content: `${SYSTEM_PROMPT}${HANDOFF_INSTRUCTIONS}${OVERRIDE_LENGTH}\n\n${systemContext}` },
+          { role: "system" as const, content: `${SYSTEM_PROMPT}${MODE_INSTRUCTIONS}${OVERRIDE_LENGTH}\n\n${systemContext}` },
           ...prior.map((m) => ({ role: m.role as "user" | "assistant", content: m.content })),
           { role: "user" as const, content: body.message },
         ];
@@ -404,9 +411,9 @@ Encerre com UMA pergunta curta que convide o hóspede a continuar — e que VOC�
           method: "POST",
           headers: { "Content-Type": "application/json", "Lovable-API-Key": apiKey },
           body: JSON.stringify({
-            model: body.forceAi ? "google/gemini-2.5-pro" : "google/gemini-2.5-flash",
+            model: inExplorationFlow ? "google/gemini-2.5-pro" : "google/gemini-2.5-flash",
             messages,
-            tools,
+            ...(tools ? { tools } : {}),
           }),
         });
 
