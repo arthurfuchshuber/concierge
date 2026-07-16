@@ -36,18 +36,24 @@ export function CheckinCountdown({
   if (now < startOfWindow || now > target) {
     if (diffMs < 0 && Math.abs(diffMs) < 3 * 60 * 60 * 1000) {
       return (
-        <div
-          className={`mx-4 md:mx-10 lg:mx-16 mb-2.5 rounded-[12px] border px-3.5 py-2.5 flex items-center gap-2 relative z-10 ${
-            isLight
-              ? "border-emerald-500/30 bg-emerald-500/5"
-              : "border-emerald-500/25 bg-emerald-500/[0.06]"
-          }`}
-        >
-          <CheckCircle2 className="size-3.5 text-emerald-500 shrink-0" strokeWidth={2} />
-          <p className="text-[11.5px] text-foreground/85 font-medium">
-            Check-in liberado —{" "}
-            <span className="text-emerald-500 font-semibold">pode chegar quando quiser</span>
-          </p>
+        <div className="mx-4 md:mx-10 lg:mx-16 mb-3 relative z-10">
+          <div
+            className={`relative rounded-2xl border backdrop-blur-xl px-4 py-3 flex items-center gap-2.5 overflow-hidden ${
+              isLight
+                ? "border-emerald-500/30 bg-emerald-500/5"
+                : "border-emerald-400/25 bg-emerald-500/[0.08]"
+            }`}
+          >
+            <span className="absolute -inset-px rounded-2xl bg-gradient-to-r from-emerald-400/10 via-transparent to-emerald-400/10 opacity-60 pointer-events-none" />
+            <span className="relative flex size-2 shrink-0">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+              <span className="relative inline-flex rounded-full size-2 bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.9)]" />
+            </span>
+            <p className="relative text-[12px] font-medium text-foreground/90">
+              Check-in liberado —{" "}
+              <span className="text-emerald-400 font-semibold">pode chegar quando quiser</span>
+            </p>
+          </div>
         </div>
       );
     }
@@ -66,36 +72,41 @@ export function CheckinCountdown({
   const targetLabel = `${String(parsed.h).padStart(2, "0")}:${String(parsed.m).padStart(2, "0")}`;
 
   return (
-    <div
-      className={`mx-4 md:mx-10 lg:mx-16 mb-2.5 md:mb-3 rounded-[12px] border px-3.5 py-2.5 relative z-10 ${
-        isLight ? "border-border bg-card/80" : "border-[#332C22] bg-[#1C1712]"
-      }`}
-    >
-      <div className="flex items-center justify-between gap-2 mb-1.5">
-        <p
-          className={`text-[11px] inline-flex items-center gap-1.5 ${
-            isLight ? "text-foreground/75" : "text-[#D8CFC0]"
-          }`}
-        >
-          <Clock className="size-3 text-[#C9A876]" strokeWidth={2} />
-          check-in libera em{" "}
-          <strong className="text-[#C9A876] font-medium tabular-nums">{label}</strong>
-        </p>
-        <span
-          className={`text-[10px] tabular-nums ${isLight ? "text-foreground/45" : "text-[#8A8378]"}`}
-        >
-          {targetLabel}
-        </span>
-      </div>
+    <div className="mx-4 md:mx-10 lg:mx-16 mb-3 md:mb-4 relative z-10">
       <div
-        className={`h-[3px] rounded-full overflow-hidden ${
-          isLight ? "bg-foreground/10" : "bg-[#332C22]"
+        className={`relative overflow-hidden rounded-2xl border backdrop-blur-xl px-4 py-3 ${
+          isLight
+            ? "border-border bg-card/70"
+            : "border-white/10 bg-white/[0.04]"
         }`}
       >
+        <span className="pointer-events-none absolute -top-8 -right-8 h-24 w-24 rounded-full bg-amber-400/20 blur-2xl" />
+        <div className="relative flex items-center justify-between gap-2 mb-2">
+          <p
+            className={`text-[11.5px] inline-flex items-center gap-1.5 ${
+              isLight ? "text-foreground/75" : "text-white/80"
+            }`}
+          >
+            <Clock className="size-3 text-amber-400" strokeWidth={2} />
+            check-in libera em{" "}
+            <strong className="text-amber-300 font-semibold tabular-nums">{label}</strong>
+          </p>
+          <span
+            className={`text-[10px] tabular-nums font-medium ${isLight ? "text-foreground/45" : "text-white/40"}`}
+          >
+            {targetLabel}
+          </span>
+        </div>
         <div
-          className="h-full bg-[#C9A876] transition-[width] duration-1000 ease-out"
-          style={{ width: `${pct}%` }}
-        />
+          className={`relative h-[3px] rounded-full overflow-hidden ${
+            isLight ? "bg-foreground/10" : "bg-white/10"
+          }`}
+        >
+          <div
+            className="h-full bg-gradient-to-r from-amber-500 via-amber-400 to-amber-300 shadow-[0_0_10px_rgba(251,191,36,0.6)] transition-[width] duration-1000 ease-out"
+            style={{ width: `${pct}%` }}
+          />
+        </div>
       </div>
     </div>
   );
