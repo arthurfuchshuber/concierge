@@ -51,7 +51,7 @@ export function HomeIntelligence({
       return;
     }
     let alive = true;
-    const cityKey = cityKeyFromLabel(city);
+    const cityKeyValue = cityKey(city);
     pulseFn({ data: { cityKey, cityLabel: city, country: country ?? undefined, lang } })
       .then((r) => alive && setPulse(r?.items ?? null))
       .catch(() => {})
