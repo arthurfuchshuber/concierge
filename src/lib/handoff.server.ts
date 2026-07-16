@@ -34,7 +34,7 @@ export async function getPropertyNotifiableUsers(admin: Admin, propertyId: strin
 
 export async function sendHandoffPush(
   admin: Admin,
-  opts: { userIds: string[]; conversationId: string; propertyName: string | null; guestName: string | null; reason: string | null; urgency: string | null },
+  opts: { userIds: string[]; conversationId: string; propertyName: string | null; guestName: string | null; guestMessage: string | null; checkinDate: string | null; reason: string | null; urgency: string | null },
 ) {
   if (opts.userIds.length === 0) return { sent: 0, failed: 0 };
   const { data: subs } = await admin
@@ -44,11 +44,20 @@ export async function sendHandoffPush(
     .eq("enabled", true);
   if (!subs || subs.length === 0) return { sent: 0, failed: 0 };
 
-  const guest = opts.guestName?.trim() || "Um hóspede";
-  const prop = opts.propertyName?.trim() || "seu guia";
+  const guest = opts.guestName?.trim() || "Hóspede";
+  let checkinLabel = "";
+  if (opts.checkinDate) {
+    try {
+      const [y, m, d] = opts.checkinDate.split("-").map(Number);
+      if (y && m && d) checkinLabel = ` • check-in ${String(d).padStart(2, "0")}/${String(m).padStart(2, "0")}`;
+    } catch {
+      // ignore
+    }
+  }
+  const bodyText = (opts.guestMessage?.trim() || opts.reason?.trim() || `${guest} pediu atendimento humano.`).slice(0, 220);
   const payload: PushPayload = {
-    title: `${guest} precisa de você`,
-    body: opts.reason?.slice(0, 140) || `${guest} pediu atendimento humano em ${prop}.`,
+    title: `${guest}${checkinLabel}`,
+    body: bodyText,
     data: {
       url: `/admin/atendimento?conv=${opts.conversationId}`,
       conversationId: opts.conversationId,
