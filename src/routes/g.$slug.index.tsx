@@ -539,8 +539,16 @@ function Guide({ data }: { data: GuideOk }) {
 
   return (
     <div
-      className={`sigma-public-guide guide-ambient min-h-screen bg-background text-foreground pb-16 ${theme === "light" ? "theme-light" : ""}`}
+      className={`sigma-public-guide guide-ambient relative min-h-screen bg-background text-foreground pb-16 overflow-x-hidden ${theme === "light" ? "theme-light" : ""}`}
     >
+      {/* Celestial ambient glows — fixed behind everything */}
+      {theme === "dark" && (
+        <>
+          <div className="pointer-events-none fixed -top-32 -right-32 h-[380px] w-[380px] rounded-full bg-amber-500/[0.08] blur-[120px] z-0" />
+          <div className="pointer-events-none fixed top-[45%] -left-32 h-[320px] w-[320px] rounded-full bg-purple-600/[0.08] blur-[110px] z-0" />
+          <div className="pointer-events-none fixed bottom-0 right-1/4 h-[280px] w-[280px] rounded-full bg-sky-500/[0.05] blur-[100px] z-0" />
+        </>
+      )}
       {needsGate && (
         <GuideAccessGate
           slug={slug}
@@ -549,7 +557,7 @@ function Guide({ data }: { data: GuideOk }) {
           onUnlock={setAccessRec}
         />
       )}
-      <div className="mx-auto w-full max-w-md md:max-w-none">
+      <div className="relative z-10 mx-auto w-full max-w-md md:max-w-none">
         <AnimatePresence mode="wait" initial={false}>
           {section === "home" ? (
             <motion.div
@@ -637,15 +645,16 @@ function Guide({ data }: { data: GuideOk }) {
                 )}
 
 
-              <section id="guide-actions" className="px-5 md:px-10 lg:px-16 relative z-10">
-                <div className="flex items-center gap-3 mb-3 md:mb-5">
-                  <p className="shrink-0 text-[9px] uppercase tracking-[0.3em] text-accent/75 font-semibold">
-                    O que você deseja acessar?
+              <section id="guide-actions" className="px-5 md:px-10 lg:px-16 mt-5 md:mt-6 relative z-10">
+                <div className="flex items-center gap-3 mb-4 md:mb-5">
+                  <p className="shrink-0 whitespace-nowrap text-[9.5px] md:text-[10px] uppercase tracking-[0.22em] text-white/40 dark:text-white/40 font-bold">
+                    <span className="inline-block size-1 rounded-full bg-amber-400 mr-2 align-middle shadow-[0_0_6px_rgba(251,191,36,0.7)]" />
+                    Acessos rápidos
                   </p>
-                  <span className="h-px flex-1 bg-accent/20" />
+                  <span className="h-px flex-1 bg-gradient-to-r from-white/15 via-white/5 to-transparent" />
                 </div>
 
-                <div className="grid grid-cols-2 gap-2 md:gap-3">
+                <div className="grid grid-cols-2 gap-3">
                   {cards.map((c) => {
                     const span =
                       c.variant === "hero-wide" || c.variant === "horizontal-wide" ? "col-span-2" : "";
@@ -1642,6 +1651,7 @@ function HeroCompact({
   const touchStartX = useRef<number | null>(null);
   const total = photos.length;
   const hasMany = total > 1;
+  const isDark = theme === "dark";
 
   function go(dir: number) {
     if (!hasMany) return;
@@ -1659,7 +1669,7 @@ function HeroCompact({
 
   return (
     <section
-      className="relative overflow-hidden px-4 md:px-10 lg:px-16 pt-3.5 pb-5 md:pt-6 md:pb-8"
+      className="relative overflow-hidden px-5 md:px-10 lg:px-16 pt-5 pb-6 md:pt-7 md:pb-9"
       onTouchStart={onTouchStart}
       onTouchEnd={onTouchEnd}
     >
@@ -1670,32 +1680,61 @@ function HeroCompact({
             key={`${src}-${i}`}
             src={src}
             alt=""
-            className={`absolute inset-0 size-full object-cover object-center transition-opacity duration-500 ${
+            className={`absolute inset-0 size-full object-cover object-center transition-opacity duration-700 ${
               i === idx ? "opacity-100" : "opacity-0"
-            }`}
+            } ${isDark ? "opacity-45" : "opacity-90"}`}
           />
         ))}
       </div>
-      {/* Warm brown overlay to mimic #26211A tone */}
-      <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(15,12,8,0.35)_0%,rgba(38,33,26,0.55)_55%,rgba(38,33,26,0.92)_100%)]" />
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-[linear-gradient(180deg,transparent,var(--background))]" />
+      {/* Cinematic overlay */}
+      <div
+        className={
+          isDark
+            ? "absolute inset-0 bg-[linear-gradient(180deg,rgba(5,5,5,0.55)_0%,rgba(5,5,5,0.75)_55%,rgba(5,5,5,0.98)_100%)]"
+            : "absolute inset-0 bg-[linear-gradient(180deg,rgba(255,255,255,0.1)_0%,rgba(255,255,255,0.35)_55%,rgba(255,255,255,0.9)_100%)]"
+        }
+      />
+      {isDark && (
+        <>
+          <span className="pointer-events-none absolute -top-24 -right-24 h-56 w-56 rounded-full bg-amber-400/20 blur-[80px]" />
+          <span className="pointer-events-none absolute -bottom-16 -left-24 h-48 w-48 rounded-full bg-purple-500/15 blur-[80px]" />
+        </>
+      )}
 
       <header className="relative z-10 flex items-center justify-between gap-3">
-        <div className="flex items-center gap-1.5 text-[#E8DFCF] text-[12px] font-medium">
-          <GuideMark className="size-3.5 text-[#C9A876]" />
-          <span>SigmaGuide</span>
+        <div className="flex items-center gap-2">
+          <div className="grid size-7 place-items-center rounded-lg bg-gradient-to-tr from-amber-400 to-amber-600 shadow-[0_0_15px_rgba(251,191,36,0.4)]">
+            <span className="text-black font-serif italic text-[11px] font-bold leading-none">S</span>
+          </div>
+          <span className={`text-[11px] font-semibold tracking-[0.2em] uppercase ${isDark ? "text-white/85" : "text-foreground/85"}`}>
+            SigmaGuide
+          </span>
         </div>
         <div className="flex items-center gap-2 shrink-0">
           {city && (
-            <span className="inline-flex items-center gap-1 rounded-full border-[0.5px] border-[#C9A876] bg-[#C9A876]/15 px-2.5 py-1 text-[9.5px] uppercase tracking-[0.18em] text-[#C9A876] font-medium">
-              <MapPin className="size-2.5" strokeWidth={2.2} /> {city}
+            <span
+              className={`inline-flex items-center gap-1.5 rounded-full border backdrop-blur-md px-2.5 py-1 text-[9.5px] uppercase tracking-[0.16em] font-semibold ${
+                isDark
+                  ? "border-white/15 bg-white/5 text-white/85"
+                  : "border-border bg-card/70 text-foreground/85"
+              }`}
+            >
+              <span className="relative flex size-1.5">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                <span className="relative inline-flex rounded-full size-1.5 bg-emerald-400" />
+              </span>
+              {city}
             </span>
           )}
           <button
             type="button"
             onClick={onToggleTheme}
             aria-label={theme === "dark" ? "Tema claro" : "Tema escuro"}
-            className="grid size-7 place-items-center rounded-full border-[0.5px] border-white/25 bg-black/35 text-white/85 backdrop-blur-sm hover:bg-black/55"
+            className={`grid size-8 place-items-center rounded-full border backdrop-blur-md transition ${
+              isDark
+                ? "border-white/15 bg-white/5 text-white/85 hover:bg-white/10"
+                : "border-border bg-card/70 text-foreground/80 hover:bg-card"
+            }`}
           >
             {theme === "dark" ? (
               <Sun className="size-3.5" strokeWidth={1.8} />
@@ -1706,12 +1745,19 @@ function HeroCompact({
         </div>
       </header>
 
-      <h1 className="relative z-10 mt-3.5 md:mt-6 font-serif font-medium text-white text-[22px] md:text-[36px] leading-[1.15] tracking-[-0.01em] line-clamp-2 max-w-[300px] md:max-w-[720px] drop-shadow-[0_2px_16px_rgba(0,0,0,0.5)]">
+      <h1
+        className={`relative z-10 mt-5 md:mt-8 font-serif text-[26px] md:text-[40px] leading-[1.1] tracking-[-0.015em] line-clamp-2 max-w-[320px] md:max-w-[720px] ${
+          isDark
+            ? "bg-gradient-to-b from-white via-white to-white/60 bg-clip-text text-transparent"
+            : "text-foreground"
+        }`}
+        style={{ fontWeight: 600 }}
+      >
         {name}
       </h1>
 
       {hasMany && (
-        <div className="relative z-10 mt-3 md:mt-4 flex gap-1.5">
+        <div className="relative z-10 mt-4 flex gap-1.5">
           {photos.map((_, i) => (
             <button
               key={i}
@@ -1719,7 +1765,11 @@ function HeroCompact({
               onClick={() => setIdx(i)}
               aria-label={`Ir para foto ${i + 1}`}
               className={`h-1 rounded-full transition-all ${
-                i === idx ? "w-5 bg-[#C9A876]" : "w-1 bg-white/45 hover:bg-white/70"
+                i === idx
+                  ? "w-6 bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.6)]"
+                  : isDark
+                    ? "w-1 bg-white/40 hover:bg-white/70"
+                    : "w-1 bg-foreground/25 hover:bg-foreground/50"
               }`}
             />
           ))}
@@ -1732,7 +1782,7 @@ function HeroCompact({
             type="button"
             onClick={() => go(-1)}
             aria-label="Foto anterior"
-            className="hidden md:grid absolute left-3 top-1/2 -translate-y-1/2 z-10 size-8 place-items-center rounded-full border border-white/25 bg-black/35 text-white backdrop-blur-sm hover:bg-black/55"
+            className="hidden md:grid absolute left-3 top-1/2 -translate-y-1/2 z-10 size-8 place-items-center rounded-full border border-white/20 bg-black/40 text-white backdrop-blur-md hover:bg-black/60"
           >
             <ArrowLeft className="size-3.5" />
           </button>
@@ -1740,7 +1790,7 @@ function HeroCompact({
             type="button"
             onClick={() => go(1)}
             aria-label="Próxima foto"
-            className="hidden md:grid absolute right-3 top-1/2 -translate-y-1/2 z-10 size-8 place-items-center rounded-full border border-white/25 bg-black/35 text-white backdrop-blur-sm hover:bg-black/55"
+            className="hidden md:grid absolute right-3 top-1/2 -translate-y-1/2 z-10 size-8 place-items-center rounded-full border border-white/20 bg-black/40 text-white backdrop-blur-md hover:bg-black/60"
           >
             <ArrowRight className="size-3.5" />
           </button>
@@ -1750,12 +1800,13 @@ function HeroCompact({
   );
 }
 
+// Celestial glassmorphism — each tone owns its color story
 const SECTION_TONES = {
-  gold: { cover: "bg-[#3A2E1A]", icon: "text-[#C9A876]", accent: "text-[#C9A876]" },
-  blue: { cover: "bg-[#22334A]", icon: "text-[#8FA8E8]", accent: "text-[#8FA8E8]" },
-  green: { cover: "bg-[#22331F]", icon: "text-[#A0C896]", accent: "text-[#A0C896]" },
-  purple: { cover: "bg-[#332030]", icon: "text-[#E0A8CE]", accent: "text-[#E0A8CE]" },
-  rose: { cover: "bg-[#3A2028]", icon: "text-[#E8A0B0]", accent: "text-[#E8A0B0]" },
+  gold:   { border: "border-amber-400/30",   bg: "bg-gradient-to-br from-amber-500/20 via-amber-500/5 to-transparent", iconBg: "bg-amber-400/15",  iconRing: "border-amber-400/30",  icon: "text-amber-300",   accent: "text-amber-200",  glow: "shadow-amber-500/20" },
+  blue:   { border: "border-sky-400/20",     bg: "bg-white/[0.04]",                                                     iconBg: "bg-sky-500/15",     iconRing: "border-sky-400/25",    icon: "text-sky-300",     accent: "text-sky-200",    glow: "shadow-sky-500/10" },
+  green:  { border: "border-emerald-400/20", bg: "bg-white/[0.04]",                                                     iconBg: "bg-emerald-500/15", iconRing: "border-emerald-400/25", icon: "text-emerald-300", accent: "text-emerald-200", glow: "shadow-emerald-500/10" },
+  purple: { border: "border-violet-400/20",  bg: "bg-white/[0.04]",                                                     iconBg: "bg-violet-500/15",  iconRing: "border-violet-400/25", icon: "text-violet-300",  accent: "text-violet-200", glow: "shadow-violet-500/10" },
+  rose:   { border: "border-rose-400/20",    bg: "bg-white/[0.04]",                                                     iconBg: "bg-rose-500/15",    iconRing: "border-rose-400/25",   icon: "text-rose-300",    accent: "text-rose-200",   glow: "shadow-rose-500/10" },
 } as const;
 
 function SectionCard({
@@ -1776,65 +1827,89 @@ function SectionCard({
   theme: "dark" | "light";
 }) {
   const t = SECTION_TONES[tone];
-  const isLight = theme === "light";
+  const isDark = theme === "dark";
   const isGold = tone === "gold";
 
-  const surfaceCls = isLight ? "bg-card" : "bg-[#1C1712]";
-  const borderCls = isGold
-    ? "border-[1.5px] border-[#C9A876]"
-    : isLight
-      ? "border border-border"
-      : "border border-white/[0.06]";
-  const titleColor = isLight ? "text-foreground" : "text-white";
-  const descColor = isLight ? "text-muted-foreground" : "text-white/55";
+  // Light theme fallback — keeps the card readable without glass
+  const lightBg = "bg-card";
+  const lightBorder = "border-border";
+  const lightIconBg = isGold ? "bg-amber-100" : "bg-muted";
+  const lightIcon = isGold ? "text-amber-600" : "text-foreground/70";
+
+  const surfaceBg = isDark ? t.bg : lightBg;
+  const surfaceBorder = isDark ? t.border : lightBorder;
+  const iconBgCls = isDark ? t.iconBg : lightIconBg;
+  const iconRingCls = isDark ? t.iconRing : "border-transparent";
+  const iconColorCls = isDark ? t.icon : lightIcon;
+  const titleColor = isDark ? "text-white" : "text-foreground";
+  const descColor = isDark ? "text-white/55" : "text-muted-foreground";
 
   if (variant === "horizontal-wide") {
     return (
       <div
-        className={`relative flex overflow-hidden rounded-[12px] transition-all duration-300 ease-out hover:-translate-y-0.5 active:scale-[0.99] ${surfaceCls} ${borderCls}`}
+        className={`relative flex items-center gap-3 overflow-hidden rounded-3xl border backdrop-blur-md px-4 py-3.5 transition-all duration-300 ease-out hover:-translate-y-0.5 active:scale-[0.99] ${surfaceBg} ${surfaceBorder} ${isDark ? `shadow-lg ${t.glow}` : ""}`}
       >
-        <div className={`${t.cover} w-[80px] shrink-0 grid place-items-center`}>
-          <span className={`${t.icon} [&>svg]:size-[26px]`}>{icon}</span>
+        {isDark && (
+          <span className={`pointer-events-none absolute -top-8 -right-8 h-24 w-24 rounded-full opacity-30 blur-2xl ${t.iconBg}`} />
+        )}
+        <div
+          className={`relative grid size-11 shrink-0 place-items-center rounded-2xl border ${iconBgCls} ${iconRingCls}`}
+        >
+          <span className={`${iconColorCls} [&>svg]:size-5`}>{icon}</span>
         </div>
-        <div className="flex-1 min-w-0 flex items-center justify-between gap-2 px-3.5 py-3">
-          <div className="min-w-0">
-            <p className={`text-[12.5px] font-medium truncate ${titleColor}`}>{title}</p>
-            <p className={`mt-0.5 text-[10.5px] leading-tight truncate ${descColor}`}>
-              <span className={`${t.accent} font-medium`}>{desc}</span>
-            </p>
-          </div>
-          <ArrowRight className={`size-4 shrink-0 ${t.accent}`} strokeWidth={2} />
+        <div className="relative flex-1 min-w-0">
+          <p className={`text-[13.5px] font-semibold truncate ${titleColor}`}>{title}</p>
+          <p className={`mt-0.5 text-[11px] leading-tight truncate ${descColor}`}>{desc}</p>
         </div>
+        <ArrowRight className={`relative size-4 shrink-0 ${isDark ? t.icon : "text-foreground/40"}`} strokeWidth={2} />
       </div>
     );
   }
 
   const isHero = variant === "hero-wide";
-  const coverH = isHero ? "h-[68px]" : "h-[56px]";
-  const iconSize = isHero ? "[&>svg]:size-[30px]" : "[&>svg]:size-[24px]";
-  const titleSize = isHero ? "text-[13.5px]" : "text-[12px]";
-  const descSize = isHero ? "text-[11px]" : "text-[10px]";
-  const pad = isHero ? "px-3 py-2.5" : "px-2.5 py-2";
+  const pad = isHero ? "p-5 md:p-6" : "p-4";
+  const iconSize = isHero ? "size-12" : "size-10";
+  const iconSvg = isHero ? "[&>svg]:size-6" : "[&>svg]:size-5";
+  const titleSize = isHero ? "text-[17px]" : "text-[13px]";
+  const descSize = isHero ? "text-[12px]" : "text-[10.5px]";
 
   return (
     <div
-      className={`relative overflow-hidden rounded-[12px] transition-all duration-300 ease-out hover:-translate-y-0.5 active:scale-[0.99] ${surfaceCls} ${borderCls}`}
+      className={`relative overflow-hidden rounded-3xl border backdrop-blur-md ${pad} transition-all duration-300 ease-out hover:-translate-y-0.5 active:scale-[0.99] ${surfaceBg} ${surfaceBorder} ${isDark ? `shadow-lg ${t.glow}` : ""}`}
     >
-      <div className={`${t.cover} ${coverH} grid place-items-center relative`}>
-        <span className={`${t.icon} ${iconSize}`}>{icon}</span>
-        {badge && (
-          <span className="absolute top-2 right-2 bg-[#C9A876] text-[#2C220F] text-[9.5px] font-medium px-2 py-0.5 rounded-[10px]">
-            {badge}
-          </span>
-        )}
+      {/* Interior glow */}
+      {isDark && (
+        <>
+          <span className={`pointer-events-none absolute -top-10 -right-10 h-28 w-28 rounded-full opacity-40 blur-3xl ${t.iconBg}`} />
+          {isGold && (
+            <span className="pointer-events-none absolute inset-0 rounded-3xl bg-gradient-to-br from-amber-400/[0.08] to-transparent" />
+          )}
+        </>
+      )}
+
+      {badge && (
+        <span
+          className={`absolute top-3 right-3 z-10 rounded-md px-2 py-0.5 text-[9.5px] font-black uppercase tracking-tighter ${
+            isDark
+              ? "bg-amber-400 text-black shadow-[0_0_12px_rgba(251,191,36,0.5)]"
+              : "bg-amber-500 text-white"
+          }`}
+        >
+          {badge}
+        </span>
+      )}
+
+      <div
+        className={`relative grid ${iconSize} place-items-center rounded-2xl border mb-3 ${iconBgCls} ${iconRingCls}`}
+      >
+        <span className={`${iconColorCls} ${iconSvg}`}>{icon}</span>
       </div>
-      <div className={pad}>
-        <p className={`${titleSize} font-medium ${titleColor}`}>{title}</p>
-        <p className={`mt-0.5 ${descSize} leading-[1.35] ${descColor}`}>{desc}</p>
-      </div>
+      <p className={`relative ${titleSize} font-semibold ${titleColor}`}>{title}</p>
+      <p className={`relative mt-0.5 ${descSize} leading-[1.4] ${descColor}`}>{desc}</p>
     </div>
   );
 }
+
 
 function SubList({ children }: { children: React.ReactNode }) {
   return (

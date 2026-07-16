@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { motion } from "framer-motion";
-import { Radio, ArrowUpRight, ExternalLink, Bookmark } from "lucide-react";
+import { ArrowUpRight } from "lucide-react";
 import { getCityNews, type NewsItem } from "@/lib/city-news.functions";
 import { cityKey } from "@/lib/city-key";
 
@@ -11,17 +11,18 @@ function openChat(prompt: string) {
   window.dispatchEvent(new CustomEvent("open-guide-chat", { detail: { prompt } }));
 }
 
+// Category color system — vibrant editorial pills over the image
 const CATEGORY_STYLES: Record<
   string,
-  { cover: string; icon: string; chipBg: string; chipText: string }
+  { cover: string; pill: string; glow: string }
 > = {
-  natureza: { cover: "bg-[#1E2E3F]", icon: "text-[#8CB4DC]", chipBg: "bg-[#8CB4DC]/15", chipText: "text-[#8CB4DC]" },
-  gastronomia: { cover: "bg-[#3A2A20]", icon: "text-[#DC966E]", chipBg: "bg-[#DC966E]/15", chipText: "text-[#DC966E]" },
-  evento: { cover: "bg-[#3A1F35]", icon: "text-[#E0A8CE]", chipBg: "bg-[#E0A8CE]/15", chipText: "text-[#E0A8CE]" },
-  passeio: { cover: "bg-[#1F3540]", icon: "text-[#7EC8D8]", chipBg: "bg-[#7EC8D8]/15", chipText: "text-[#7EC8D8]" },
-  cultura: { cover: "bg-[#3A2E1A]", icon: "text-[#C9A876]", chipBg: "bg-[#C9A876]/15", chipText: "text-[#C9A876]" },
-  noite: { cover: "bg-[#221F3E]", icon: "text-[#9B92E8]", chipBg: "bg-[#9B92E8]/15", chipText: "text-[#9B92E8]" },
-  mercado: { cover: "bg-[#3A1F28]", icon: "text-[#E8A0B0]", chipBg: "bg-[#E8A0B0]/15", chipText: "text-[#E8A0B0]" },
+  natureza:    { cover: "bg-gradient-to-br from-emerald-900 via-emerald-950 to-teal-950",   pill: "bg-emerald-500 text-emerald-950",   glow: "shadow-emerald-500/30" },
+  gastronomia: { cover: "bg-gradient-to-br from-orange-900 via-amber-950 to-rose-950",       pill: "bg-orange-400 text-orange-950",     glow: "shadow-orange-500/30" },
+  evento:      { cover: "bg-gradient-to-br from-fuchsia-900 via-purple-950 to-indigo-950",   pill: "bg-fuchsia-400 text-fuchsia-950",   glow: "shadow-fuchsia-500/30" },
+  passeio:     { cover: "bg-gradient-to-br from-cyan-900 via-sky-950 to-blue-950",           pill: "bg-cyan-300 text-cyan-950",         glow: "shadow-cyan-500/30" },
+  cultura:     { cover: "bg-gradient-to-br from-amber-800 via-amber-950 to-stone-950",       pill: "bg-amber-300 text-amber-950",       glow: "shadow-amber-500/30" },
+  noite:       { cover: "bg-gradient-to-br from-indigo-900 via-violet-950 to-slate-950",     pill: "bg-violet-300 text-violet-950",     glow: "shadow-violet-500/30" },
+  mercado:     { cover: "bg-gradient-to-br from-rose-900 via-pink-950 to-rose-950",          pill: "bg-rose-300 text-rose-950",         glow: "shadow-rose-500/30" },
 };
 
 function styleFor(cat: string) {
@@ -64,188 +65,112 @@ export function CityNewsFeed({
   const isDark = theme === "dark";
 
   return (
-    <section className="mt-6 md:mt-8 relative z-10">
-      <div className="px-5 md:px-10 lg:px-16 flex items-center gap-2 mb-3">
-        <span className="relative flex size-1.5">
-          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-60" />
-          <span className="relative inline-flex rounded-full size-1.5 bg-emerald-400" />
+    <section className="mt-8 md:mt-10 relative z-10">
+      {/* Section title — one line, elegant */}
+      <div className="px-5 md:px-10 lg:px-16 flex items-center justify-between gap-3 mb-4">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="relative flex size-1.5 shrink-0">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-70" />
+            <span className="relative inline-flex rounded-full size-1.5 bg-emerald-400" />
+          </span>
+          <h2
+            className={`whitespace-nowrap text-[10px] md:text-[11px] uppercase tracking-[0.22em] font-bold ${
+              isDark ? "text-white/85" : "text-foreground/80"
+            }`}
+          >
+            {city ? `O que rola em ${city}` : "O que rola hoje"}
+          </h2>
+        </div>
+        <span className={`shrink-0 text-[9px] uppercase tracking-[0.2em] font-medium ${isDark ? "text-white/35" : "text-foreground/45"}`}>
+          agora
         </span>
-        <p className="text-[10px] uppercase tracking-[0.3em] font-semibold text-accent/80 flex items-center gap-1.5">
-          <Radio className="size-3" />
-          {city ? `o que rola em ${city}` : "o que rola hoje"}
-        </p>
-        <span className="text-[9px] uppercase tracking-[0.25em] text-foreground/40">· atualizado agora</span>
       </div>
 
       {loading && !hasItems ? (
-        <div className="px-5 md:px-10 lg:px-16 flex gap-3 overflow-x-hidden">
+        <div className="pl-5 md:pl-10 lg:pl-16 pr-5 md:pr-10 lg:pr-16 flex gap-4 overflow-x-hidden">
           {[0, 1, 2].map((i) => (
             <div
               key={i}
-              className={`shrink-0 w-[74%] sm:w-[46%] md:w-[32%] rounded-2xl border overflow-hidden animate-pulse ${
-                isDark ? "border-border/60 bg-card/40" : "border-border/70 bg-card/70"
-              }`}
-            >
-              <div className="h-32 bg-foreground/10" />
-              <div className="p-3 space-y-2">
-                <div className="h-3 w-20 rounded bg-foreground/10" />
-                <div className="h-4 w-4/5 rounded bg-foreground/10" />
-                <div className="h-3 w-full rounded bg-foreground/10" />
-              </div>
-            </div>
+              className="shrink-0 w-[240px] aspect-[3/4] rounded-[28px] border border-white/5 bg-white/[0.03] animate-pulse"
+            />
           ))}
         </div>
       ) : (
-        <div className="relative">
-          <div
-            className="flex gap-3 overflow-x-auto snap-x snap-mandatory scrollbar-none pl-5 md:pl-10 lg:pl-16 pr-5 md:pr-10 lg:pr-16 pb-2"
-            style={{ scrollbarWidth: "none" }}
-          >
-            {items!.map((it, idx) => {
-              const s = styleFor(it.category);
-              const isFeatured = idx === 0;
-
-              if (!isFeatured) {
-                // Compact horizontal row card
-                return (
-                  <motion.article
-                    key={idx}
-                    initial={{ opacity: 0, y: 6 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.3, delay: idx * 0.04 }}
-                    className={`snap-start shrink-0 w-[76%] sm:w-[46%] md:w-[32%] rounded-[12px] border overflow-hidden group transition flex ${
-                      isDark
-                        ? "border-[#292019] bg-[#1C1712]"
-                        : "border-border bg-card"
-                    }`}
-                  >
-                    <button
-                      type="button"
-                      onClick={() => openChat(`Me conte mais sobre isso em ${city ?? "aqui"}: ${it.title}`)}
-                      className="flex w-full text-left"
-                    >
-                      <div className={`${s.cover} w-16 shrink-0 grid place-items-center relative`}>
-                        {it.imageUrl ? (
-                          <img
-                            src={it.imageUrl}
-                            alt=""
-                            loading="lazy"
-                            referrerPolicy="no-referrer"
-                            className="absolute inset-0 h-full w-full object-cover opacity-60"
-                            onError={(e) => {
-                              (e.currentTarget as HTMLImageElement).style.display = "none";
-                            }}
-                          />
-                        ) : null}
-                        <span className={`relative text-[22px] leading-none ${s.icon}`}>
-                          {it.emoji ?? "✨"}
-                        </span>
-                      </div>
-                      <div className="flex-1 min-w-0 px-3 py-2.5 flex flex-col justify-center">
-                        <div className="flex items-center justify-between gap-2">
-                          <p
-                            className={`text-[12px] font-medium leading-tight line-clamp-2 ${
-                              isDark ? "text-white" : "text-foreground"
-                            }`}
-                          >
-                            {it.title}
-                          </p>
-                          <ArrowUpRight
-                            className={`size-3 shrink-0 ${isDark ? "text-[#8A8378]" : "text-foreground/50"}`}
-                          />
-                        </div>
-                        <span
-                          className={`mt-1 text-[9px] uppercase tracking-[0.18em] font-medium ${isDark ? "text-[#8A8378]" : "text-foreground/50"}`}
-                        >
-                          {it.category}
-                        </span>
-                      </div>
-                    </button>
-                  </motion.article>
-                );
-              }
-
-              // Featured card (idx === 0)
-              return (
-                <motion.article
-                  key={idx}
-                  initial={{ opacity: 0, y: 6 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.3, delay: idx * 0.04 }}
-                  className={`snap-start shrink-0 w-[80%] sm:w-[46%] md:w-[32%] rounded-[12px] border overflow-hidden group transition ${
-                    isDark
-                      ? "border-[#3A2F1E] bg-[#1C1712]"
-                      : "border-border bg-card"
-                  }`}
+        <div
+          className="flex gap-4 overflow-x-auto snap-x snap-mandatory scrollbar-none pl-5 md:pl-10 lg:pl-16 pr-5 md:pr-10 lg:pr-16 pb-4"
+          style={{ scrollbarWidth: "none" }}
+        >
+          {items!.map((it, idx) => {
+            const s = styleFor(it.category);
+            return (
+              <motion.article
+                key={idx}
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4, delay: idx * 0.05, ease: [0.2, 0.8, 0.2, 1] }}
+                className={`snap-start shrink-0 w-[240px] aspect-[3/4] relative rounded-[28px] overflow-hidden border ${
+                  isDark ? "border-white/10" : "border-border"
+                } shadow-2xl ${s.glow}`}
+              >
+                <button
+                  type="button"
+                  onClick={() => openChat(`Me conte mais sobre isso em ${city ?? "aqui"}: ${it.title}`)}
+                  className="block h-full w-full text-left group"
                 >
-                  <button
-                    type="button"
-                    onClick={() => openChat(`Me conte mais sobre isso em ${city ?? "aqui"}: ${it.title}`)}
-                    className="block w-full text-left"
-                  >
-                    <div className={`${s.cover} relative h-[80px] w-full overflow-hidden grid place-items-center`}>
-                      {it.imageUrl ? (
-                        <img
-                          src={it.imageUrl}
-                          alt=""
-                          loading="lazy"
-                          referrerPolicy="no-referrer"
-                          className="absolute inset-0 h-full w-full object-cover opacity-50 group-hover:opacity-60 transition"
-                          onError={(e) => {
-                            (e.currentTarget as HTMLImageElement).style.display = "none";
-                          }}
-                        />
-                      ) : null}
-                      <span className={`relative text-[30px] leading-none ${s.icon}`}>
-                        {it.emoji ?? "✨"}
-                      </span>
-                      <Bookmark
-                        className={`absolute top-2 right-2 size-3.5 ${isDark ? "text-[#D8CFC0]" : "text-white/80"}`}
-                        strokeWidth={1.8}
+                  {/* Cover — image or gradient fallback */}
+                  <div className={`absolute inset-0 ${s.cover}`}>
+                    {it.imageUrl && (
+                      <img
+                        src={it.imageUrl}
+                        alt=""
+                        loading="lazy"
+                        referrerPolicy="no-referrer"
+                        className="absolute inset-0 h-full w-full object-cover opacity-70 group-hover:opacity-85 group-hover:scale-105 transition-all duration-700 ease-out"
+                        onError={(e) => {
+                          (e.currentTarget as HTMLImageElement).style.display = "none";
+                        }}
                       />
-                    </div>
-                    <div className="px-3 py-2.5">
-                      <span
-                        className={`inline-block rounded-full px-2 py-0.5 text-[9px] uppercase tracking-[0.16em] font-semibold ${s.chipBg} ${s.chipText}`}
-                      >
-                        {it.category}
-                      </span>
-                      <p
-                        className={`mt-1.5 font-medium text-[13px] leading-snug line-clamp-2 [text-wrap:pretty] ${
-                          isDark ? "text-white" : "text-foreground"
-                        }`}
-                      >
-                        {it.title}
-                      </p>
-                      {it.summary && (
-                        <p
-                          className={`mt-1 text-[11px] leading-[1.5] line-clamp-2 [text-wrap:pretty] ${
-                            isDark ? "text-[#B8AF9E]" : "text-foreground/65"
-                          }`}
-                        >
-                          {it.summary}
-                        </p>
-                      )}
-                    </div>
-                  </button>
-                  {it.sourceUrl && (
-                    <a
-                      href={it.sourceUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className={`flex items-center justify-center gap-1.5 py-1.5 text-[10px] transition border-t ${
-                        isDark
-                          ? "border-[#292019] text-[#8A8378] hover:text-[#C9A876]"
-                          : "border-border text-foreground/50 hover:text-accent"
-                      }`}
-                    >
-                      abrir fonte <ExternalLink className="size-2.5" />
-                    </a>
+                    )}
+                  </div>
+
+                  {/* Dark gradient overlay for readability */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent" />
+
+                  {/* Emoji watermark */}
+                  {it.emoji && (
+                    <span className="absolute top-6 right-5 text-[38px] leading-none drop-shadow-[0_2px_12px_rgba(0,0,0,0.6)] opacity-90 group-hover:scale-110 transition-transform duration-500">
+                      {it.emoji}
+                    </span>
                   )}
-                </motion.article>
-              );
-            })}
-          </div>
+
+                  {/* Category pill */}
+                  <div className="absolute top-5 left-5">
+                    <span
+                      className={`inline-block rounded-lg px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.15em] ${s.pill}`}
+                    >
+                      {it.category}
+                    </span>
+                  </div>
+
+                  {/* Bottom content */}
+                  <div className="absolute bottom-0 left-0 right-0 p-5">
+                    <h3 className="text-white font-bold text-[17px] leading-[1.2] tracking-[-0.01em] [text-wrap:pretty] line-clamp-3 drop-shadow-[0_2px_10px_rgba(0,0,0,0.6)]">
+                      {it.title}
+                    </h3>
+                    {it.summary && (
+                      <p className="mt-2 text-[11px] leading-[1.45] text-white/70 line-clamp-2 [text-wrap:pretty]">
+                        {it.summary}
+                      </p>
+                    )}
+                    <div className="mt-3 inline-flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-[0.2em] text-white/80">
+                      Ver mais
+                      <ArrowUpRight className="size-3 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" strokeWidth={2.2} />
+                    </div>
+                  </div>
+                </button>
+              </motion.article>
+            );
+          })}
         </div>
       )}
     </section>
