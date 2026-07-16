@@ -111,11 +111,15 @@ function Dashboard() {
     }
   }
   const { data, isLoading, refetch } = useQuery({
-    queryKey: ["my-properties", impersonation?.userId ?? "self"],
-    queryFn: () =>
-      impersonation
+    queryKey: ["my-properties", impersonation?.userId ?? "self", isSaasAdmin ? "admin" : "member"],
+    queryFn: () => {
+      if (!impersonation) return list();
+      // Admin SaaS impersonando cliente → função admin (traz metadados extras).
+      // Membro de conta → usa RLS via listPropertiesForAccount.
+      return isSaasAdmin
         ? listAsUser({ data: { userId: impersonation.userId } })
-        : list(),
+        : listForAccount({ data: { ownerId: impersonation.userId } });
+    },
   });
   const { info: sub } = useSubscription({ impersonateUserId: impersonation?.userId ?? null });
 
@@ -123,6 +127,7 @@ function Dashboard() {
   // ele pode escolher manualmente um cliente pelo dropdown da sidebar.
   const { isAdmin } = useIsAdmin();
   void isAdmin;
+
 
 
 
