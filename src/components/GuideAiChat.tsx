@@ -227,7 +227,7 @@ export function GuideAiChat({ slug, propertyName, guestName }: { slug: string; p
       const res = await fetch("/api/public/guide-chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ slug, sessionId, conversationId, message: text }),
+        body: JSON.stringify({ slug, sessionId, conversationId, message: text, guestName: guestName ?? undefined }),
       });
       const data = (await res.json().catch(() => ({}))) as { conversationId?: string; reply?: string; error?: string; handoff?: boolean; humanMode?: boolean };
       if (!res.ok) {
