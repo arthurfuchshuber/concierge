@@ -1,41 +1,52 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
-const Input = z.object({ propertyId: z.string().uuid() });
+const Input = z.object({
+  propertyId: z.string().uuid(),
+  // YYYY-MM-DD — se informado, forecast começa nessa data (data do check-in).
+  fromDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+});
+
+export type ForecastDay = {
+  date: string; // YYYY-MM-DD
+  tempMin: number;
+  tempMax: number;
+  icon: string;
+  label: string;
+};
 
 export type LiveWeather = {
   tempC: number;
   label: string;
   icon: string;
-  observedAt: string; // ISO — quando o clima foi observado pela Open-Meteo
+  observedAt: string;
+  forecast: ForecastDay[]; // 3 dias (checkin + 2)
 } | null;
 
 const WEATHER_MAP: Record<number, { label: string; icon: string }> = {
   0: { label: "Céu limpo", icon: "☀️" },
-  1: { label: "Predominantemente sol", icon: "🌤️" },
-  2: { label: "Parcialmente nublado", icon: "⛅" },
+  1: { label: "Sol", icon: "🌤️" },
+  2: { label: "Parc. nublado", icon: "⛅" },
   3: { label: "Nublado", icon: "☁️" },
   45: { label: "Neblina", icon: "🌫️" },
   48: { label: "Neblina", icon: "🌫️" },
-  51: { label: "Garoa leve", icon: "🌦️" },
+  51: { label: "Garoa", icon: "🌦️" },
   53: { label: "Garoa", icon: "🌦️" },
-  55: { label: "Garoa densa", icon: "🌦️" },
+  55: { label: "Garoa", icon: "🌦️" },
   61: { label: "Chuva", icon: "🌧️" },
   63: { label: "Chuva forte", icon: "🌧️" },
-  65: { label: "Chuva intensa", icon: "⛈️" },
+  65: { label: "Chuva forte", icon: "⛈️" },
   71: { label: "Neve", icon: "🌨️" },
   73: { label: "Neve", icon: "🌨️" },
-  75: { label: "Neve intensa", icon: "🌨️" },
-  80: { label: "Pancadas de chuva", icon: "🌦️" },
-  81: { label: "Pancadas fortes", icon: "🌦️" },
-  82: { label: "Temporal de chuva", icon: "⛈️" },
+  75: { label: "Neve", icon: "🌨️" },
+  80: { label: "Pancadas", icon: "🌦️" },
+  81: { label: "Pancadas", icon: "🌦️" },
+  82: { label: "Temporal", icon: "⛈️" },
   95: { label: "Tempestade", icon: "⛈️" },
-  96: { label: "Tempestade com granizo", icon: "⛈️" },
-  99: { label: "Tempestade severa", icon: "⛈️" },
+  96: { label: "Tempestade", icon: "⛈️" },
+  99: { label: "Tempestade", icon: "⛈️" },
 };
 
-// Server fn leve — SEM IA e SEM cache: pega direto da Open-Meteo (gratuito, sem chave)
-// para permitir polling client-side em tempo real (a cada ~5 min).
 export const getLiveWeather = createServerFn({ method: "POST" })
   .inputValidator((i: unknown) => Input.parse(i))
   .handler(async ({ data }): Promise<LiveWeather> => {
@@ -48,22 +59,53 @@ export const getLiveWeather = createServerFn({ method: "POST" })
     if (!prop || prop.lat == null || prop.lng == null) return null;
 
     try {
-      const r = await fetch(
-        `https://api.open-meteo.com/v1/forecast?latitude=${Number(prop.lat)}&longitude=${Number(prop.lng)}&current=temperature_2m,weather_code&timezone=auto`,
-        { signal: AbortSignal.timeout(3500) },
-      );
+      const url =
+        `https://api.open-meteo.com/v1/forecast?latitude=${Number(prop.lat)}&longitude=${Number(prop.lng)}` +
+        `&current=temperature_2m,weather_code` +
+        `&daily=weather_code,temperature_2m_max,temperature_2m_min` +
+        `&forecast_days=10&timezone=auto`;
+      const r = await fetch(url, { signal: AbortSignal.timeout(3500) });
       if (!r.ok) return null;
       const j = (await r.json()) as {
         current?: { time?: string; temperature_2m?: number; weather_code?: number };
+        daily?: {
+          time?: string[];
+          weather_code?: number[];
+          temperature_2m_max?: number[];
+          temperature_2m_min?: number[];
+        };
       };
       const c = j.current;
       if (!c || typeof c.temperature_2m !== "number") return null;
       const m = WEATHER_MAP[c.weather_code ?? 0] ?? { label: "Tempo estável", icon: "🌤️" };
+
+      const daily = j.daily;
+      const forecast: ForecastDay[] = [];
+      if (daily?.time && daily.weather_code && daily.temperature_2m_max && daily.temperature_2m_min) {
+        // Determina o índice de início — data do check-in se estiver no range, senão hoje.
+        let startIdx = 0;
+        if (data.fromDate) {
+          const idx = daily.time.indexOf(data.fromDate);
+          if (idx >= 0) startIdx = idx;
+        }
+        for (let i = startIdx; i < startIdx + 3 && i < daily.time.length; i++) {
+          const wm = WEATHER_MAP[daily.weather_code[i] ?? 0] ?? { label: "—", icon: "🌤️" };
+          forecast.push({
+            date: daily.time[i],
+            tempMin: Math.round(daily.temperature_2m_min[i]),
+            tempMax: Math.round(daily.temperature_2m_max[i]),
+            icon: wm.icon,
+            label: wm.label,
+          });
+        }
+      }
+
       return {
         tempC: Math.round(c.temperature_2m),
         label: m.label,
         icon: m.icon,
         observedAt: c.time ?? new Date().toISOString(),
+        forecast,
       };
     } catch {
       return null;
