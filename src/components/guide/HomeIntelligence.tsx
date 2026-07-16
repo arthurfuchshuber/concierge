@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { motion } from "framer-motion";
-import { Sparkles, ArrowRight } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { getDailyTip, type DailyTip } from "@/lib/daily-tip.functions";
 
 type Lang = "pt" | "en" | "es" | "fr";
