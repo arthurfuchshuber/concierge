@@ -59,6 +59,7 @@ import { HomeIntelligence } from "@/components/guide/HomeIntelligence";
 import { CityNewsFeed } from "@/components/guide/CityNewsFeed";
 import { CheckinCountdown } from "@/components/guide/CheckinCountdown";
 import waterfallImg from "@/assets/rec-waterfall.jpg";
+import conciergeLogo from "@/assets/concierge-logo.png";
 import { GuideAccessGate, readAccessRecord, type AccessRecord } from "@/components/GuideAccessGate";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -1742,45 +1743,22 @@ function HeroCompact({
     if (Math.abs(dx) > 40) go(dx < 0 ? 1 : -1);
   }
 
-  // Brand — two-line stacked (mockup style): "ANFITRIÃO / SIGMA"
-  const rawBrand = (brandName ?? "Anfitrião Sigma").trim();
-  const brandParts = rawBrand.split(/\s+/);
-  const brandTop = brandParts.length > 1 ? brandParts.slice(0, -1).join(" ") : rawBrand;
-  const brandBottom = brandParts.length > 1 ? brandParts[brandParts.length - 1] : null;
-
+  // Marca fixa do produto: ConciergeIA (mesma logomarca da landing/painel).
+  // A logo específica do anfitrião fica no rodapé, não no topo.
   return (
     <section className="relative px-4 md:px-10 lg:px-16 pt-4 pb-3 md:pt-6 md:pb-5">
       <header className="relative z-10 flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2.5">
-          {brandLogoUrl ? (
-            <img
-              src={brandLogoUrl}
-              alt={brandName ?? "Logotipo"}
-              className="h-10 w-auto object-contain"
-            />
-          ) : (
-            <svg viewBox="0 0 32 32" aria-hidden="true" className="size-10 shrink-0">
-              <defs>
-                <linearGradient id="brandA" x1="0" y1="0" x2="1" y2="1">
-                  <stop offset="0%" stopColor="#f97316" />
-                  <stop offset="55%" stopColor="#ec4899" />
-                  <stop offset="100%" stopColor="#8b5cf6" />
-                </linearGradient>
-              </defs>
-              <path d="M16 3 L29 29 H22 L16 15 L10 29 H3 Z" fill="url(#brandA)" />
-              <circle cx="16" cy="22" r="2.4" fill={isDark ? "#0a0a0a" : "#fafafa"} />
-            </svg>
-          )}
-          <div className="flex flex-col leading-[1] gap-[3px]">
-            <span className={`text-[10px] font-semibold tracking-[0.28em] uppercase ${isDark ? "text-white/85" : "text-foreground/75"}`}>
-              {brandTop}
-            </span>
-            {brandBottom && (
-              <span className={`text-[13px] font-bold tracking-[0.32em] uppercase ${isDark ? "text-white" : "text-foreground"}`}>
-                {brandBottom}
-              </span>
-            )}
-          </div>
+        <div className="flex items-center gap-2">
+          <img
+            src={conciergeLogo}
+            alt="ConciergeIA"
+            className="size-9 object-contain"
+          />
+          <span
+            className={`font-display font-bold text-[17px] tracking-tight ${isDark ? "text-white" : "text-foreground"}`}
+          >
+            ConciergeIA
+          </span>
         </div>
         <div className="flex items-center gap-2 shrink-0">
           {city && (
