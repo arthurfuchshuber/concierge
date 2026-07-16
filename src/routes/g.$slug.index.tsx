@@ -789,6 +789,7 @@ function Guide({ data }: { data: GuideOk }) {
                   country={(p.country as string | null) ?? null}
                   lang={lang as "pt" | "en" | "es" | "fr"}
                   guestName={accessRec?.name ?? null}
+                  checkinDate={accessRec?.checkinDate ?? null}
                   theme={theme}
                 />
               )}
