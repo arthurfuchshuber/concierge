@@ -4,6 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { motion } from "framer-motion";
 import { ArrowRight, CalendarDays, Utensils, Waves } from "lucide-react";
 import { getDailyTip, type DailyTip } from "@/lib/daily-tip.functions";
+import { getLiveWeather, type LiveWeather } from "@/lib/live-weather.functions";
 
 type Lang = "pt" | "en" | "es" | "fr";
 
@@ -25,9 +26,13 @@ export function HomeIntelligence({
   theme: "dark" | "light";
 }) {
   const dailyFn = useServerFn(getDailyTip);
+  const liveWeatherFn = useServerFn(getLiveWeather);
   const [tip, setTip] = useState<DailyTip | null>(null);
+  const [live, setLive] = useState<LiveWeather>(null);
+  const [nowLabel, setNowLabel] = useState<string>("");
   const [loading, setLoading] = useState(true);
 
+  // Dica do dia (IA, cacheada por dia).
   useEffect(() => {
     let alive = true;
     dailyFn({ data: { propertyId, lang } })
@@ -39,9 +44,41 @@ export function HomeIntelligence({
     };
   }, [propertyId, lang, dailyFn]);
 
+  // Clima ao vivo: primeira chamada + polling a cada 5 min enquanto a tela está aberta.
+  useEffect(() => {
+    let alive = true;
+    const tick = () => {
+      liveWeatherFn({ data: { propertyId } })
+        .then((w) => alive && w && setLive(w))
+        .catch(() => {});
+    };
+    tick();
+    const t = setInterval(tick, 5 * 60_000);
+    return () => {
+      alive = false;
+      clearInterval(t);
+    };
+  }, [propertyId, liveWeatherFn]);
+
+  // Relógio real-time — atualiza a cada segundo enquanto a tela está aberta.
+  useEffect(() => {
+    const fmt = () =>
+      new Date().toLocaleTimeString("pt-BR", {
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+      });
+    setNowLabel(fmt());
+    const t = setInterval(() => setNowLabel(fmt()), 1_000);
+    return () => clearInterval(t);
+  }, []);
+
   const hasTip = !!tip;
   if (!loading && !hasTip) return null;
   const isDark = theme === "dark";
+
+  // Mescla: prioriza clima ao vivo (mais recente); mantém dica de tip como fallback.
+  const weather = live ?? tip?.weather ?? null;
 
   return (
     <section className="px-4 md:px-10 lg:px-16 mt-3 md:mt-5 relative z-10">
