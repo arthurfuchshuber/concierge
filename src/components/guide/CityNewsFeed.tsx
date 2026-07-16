@@ -11,7 +11,7 @@ import recCafe from "@/assets/rec-cafe.jpg";
 type Lang = "pt" | "en" | "es" | "fr";
 
 function openChat(prompt: string) {
-  window.dispatchEvent(new CustomEvent("open-guide-chat", { detail: { prompt } }));
+  window.dispatchEvent(new CustomEvent("open-guide-chat", { detail: { prompt, source: "city_news", forceAi: true } }));
 }
 
 // Category color system — editorial pills over the image
@@ -92,7 +92,7 @@ export function CityNewsFeed({
         </div>
         <span className={`h-px flex-1 bg-gradient-to-r ${isDark ? "from-white/12 via-white/5" : "from-slate-900/12 via-slate-900/5"} to-transparent`} />
         <span className={`shrink-0 text-[9px] uppercase tracking-[0.24em] font-bold ${isDark ? "text-fuchsia-300/90" : "text-fuchsia-600/85"}`}>
-          agora
+          RECENTE
         </span>
       </div>
 
@@ -129,7 +129,7 @@ export function CityNewsFeed({
                 <button
                   type="button"
                   onClick={() => openChat(
-                    `Me conte mais sobre isso em ${city ?? "aqui"} — "${it.title}"${it.summary ? `. Contexto: ${it.summary}` : ""}${it.category ? ` (categoria: ${it.category})` : ""}.`,
+                    `Me explique esta dica de ${city ?? "aqui"}: "${it.title}"${it.summary ? `. Contexto: ${it.summary}` : ""}${it.category ? ` Categoria: ${it.category}.` : ""}`,
                   )}
                   className="block h-full w-full text-left group"
                 >
