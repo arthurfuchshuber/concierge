@@ -345,6 +345,7 @@ function Dashboard() {
               : "Assine um plano para criar guias"}
           </p>
         </div>
+        </div>
         )}
       </div>
 
