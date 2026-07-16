@@ -1823,7 +1823,7 @@ function SectionCard({
       <div className={`${t.cover} ${coverH} grid place-items-center relative`}>
         <span className={`${t.icon} ${iconSize}`}>{icon}</span>
         {badge && (
-          <span className="absolute top-2 right-2 bg-[#C9A876] text-[#2C220F] text-[9px] font-semibold px-1.5 py-0.5 rounded-[10px] uppercase tracking-wider">
+          <span className="absolute top-2 right-2 bg-[#C9A876] text-[#2C220F] text-[9.5px] font-medium px-2 py-0.5 rounded-[10px]">
             {badge}
           </span>
         )}
