@@ -654,6 +654,20 @@ function Guide({ data }: { data: GuideOk }) {
                 </div>
               </section>
 
+              {/* Dica do dia IA + Bolha do Concierge + Pulso da cidade — camada
+                  de engajamento que aparece só quando temos contexto útil. */}
+              {accessRec && (
+                <HomeIntelligence
+                  propertyId={p.id as string}
+                  city={(p.city as string | null) ?? null}
+                  country={(p.country as string | null) ?? null}
+                  lang={lang as "pt" | "en" | "es" | "fr"}
+                  guestName={accessRec?.name ?? null}
+                  theme={theme}
+                />
+              )}
+
+
               {/* Faixa amarela full-bleed com "informações importantes"
                 (observações de check-in / check-out). Mantém as janelas de
                 visibilidade já configuradas: check-in de 8h antes até 12h
