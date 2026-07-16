@@ -251,8 +251,22 @@ function Dashboard() {
       </div>
 
 
-      {/* Stat cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-10">
+      {/* Stat cards (collapsible) */}
+      <div className="mb-10">
+        <button
+          type="button"
+          onClick={() => setStatCardsOpen((v) => !v)}
+          className="w-full flex items-center justify-between gap-2 px-4 py-2.5 rounded-xl border border-border bg-card hover:bg-secondary/40 transition-colors mb-3"
+          aria-expanded={statCardsOpen}
+        >
+          <span className="text-sm font-medium text-foreground/80 flex items-center gap-2">
+            <CreditCard className="size-4 text-muted-foreground" />
+            Plano e uso · <span className="text-muted-foreground">{planName} · {count}{planLimit > 0 ? `/${planLimit >= 9999 ? "∞" : planLimit}` : ""}</span>
+          </span>
+          <ChevronDown className={`size-4 text-muted-foreground transition-transform ${statCardsOpen ? "rotate-180" : ""}`} />
+        </button>
+        {statCardsOpen && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Plano */}
         <div className="rounded-2xl border border-border bg-card p-5">
           <div className="flex items-center justify-between mb-3">
