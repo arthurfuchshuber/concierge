@@ -4,6 +4,9 @@ import { motion } from "framer-motion";
 import { ArrowUpRight } from "lucide-react";
 import { getCityNews, type NewsItem } from "@/lib/city-news.functions";
 import { cityKey } from "@/lib/city-key";
+import recBeach from "@/assets/rec-beach.jpg";
+import recRestaurant from "@/assets/rec-restaurant.jpg";
+import recCafe from "@/assets/rec-cafe.jpg";
 
 type Lang = "pt" | "en" | "es" | "fr";
 
@@ -27,6 +30,13 @@ const CATEGORY_STYLES: Record<
 
 function styleFor(cat: string) {
   return CATEGORY_STYLES[cat.toLowerCase()] ?? CATEGORY_STYLES.passeio;
+}
+
+function fallbackImage(cat: string, idx: number) {
+  const key = cat.toLowerCase();
+  if (/gastr|rest|noite|experi|mercado/.test(key)) return recRestaurant;
+  if (/cafe|café|cultura|evento/.test(key)) return recCafe;
+  return idx % 2 === 0 ? recBeach : recRestaurant;
 }
 
 export function CityNewsFeed({
@@ -110,7 +120,7 @@ export function CityNewsFeed({
                 initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.4, delay: idx * 0.05, ease: [0.2, 0.8, 0.2, 1] }}
-                className={`snap-start shrink-0 w-[210px] h-[232px] relative overflow-hidden rounded-[18px] border ${
+                className={`snap-start shrink-0 w-[210px] h-[238px] relative overflow-hidden rounded-[18px] border ${
                   isDark
                     ? "border-white/8 bg-[#070817] shadow-[0_20px_48px_-28px_rgba(0,0,0,0.9)]"
                     : "border-slate-900/[0.055] bg-white/70 shadow-[0_18px_45px_-32px_rgba(31,24,74,0.32)]"
@@ -121,10 +131,9 @@ export function CityNewsFeed({
                   onClick={() => openChat(`Me conte mais sobre isso em ${city ?? "aqui"}: ${it.title}`)}
                   className="block h-full w-full text-left group"
                 >
-                  <div className={`absolute inset-x-0 top-0 h-[92px] overflow-hidden ${s.cover}`}>
-                    {it.imageUrl && (
+                  <div className={`absolute inset-x-0 top-0 h-[96px] overflow-hidden ${s.cover}`}>
                       <img
-                        src={it.imageUrl}
+                        src={it.imageUrl || fallbackImage(it.category, idx)}
                         alt=""
                         loading="lazy"
                         referrerPolicy="no-referrer"
@@ -133,10 +142,9 @@ export function CityNewsFeed({
                           (e.currentTarget as HTMLImageElement).style.display = "none";
                         }}
                       />
-                    )}
                   </div>
 
-                  <div className="absolute inset-x-0 top-0 h-[92px] bg-gradient-to-b from-black/8 via-transparent to-black/22" />
+                  <div className="absolute inset-x-0 top-0 h-[96px] bg-gradient-to-b from-black/8 via-transparent to-black/22" />
 
                   {it.emoji && (
                     <span className="absolute top-5 right-4 text-[25px] leading-none drop-shadow-[0_2px_10px_rgba(0,0,0,0.45)] opacity-85 group-hover:scale-110 transition-transform duration-500">
@@ -152,7 +160,7 @@ export function CityNewsFeed({
                     </span>
                   </div>
 
-                  <div className="absolute inset-x-0 bottom-0 top-[92px] p-4">
+                  <div className="absolute inset-x-0 bottom-0 top-[96px] p-4">
                     <h3 className={`font-black text-[14px] leading-[1.18] [text-wrap:pretty] line-clamp-3 ${isDark ? "text-white" : "text-slate-950"}`}>
                       {it.title}
                     </h3>
