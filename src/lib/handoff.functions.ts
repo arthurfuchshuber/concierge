@@ -1,10 +1,15 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import {
+  emptyHandoffListResult,
+  normalizeHandoffConversationRows,
   parseHandoffConversationInput,
   parseHandoffListInput,
   parseHandoffSendInput,
   parseHandoffTransferInput,
+  type HandoffConversationSummary,
+  type HandoffGuestDetail,
+  type HandoffListResult,
 } from "@/lib/handoff.schemas";
 
 // -------- List conversations for the current user (filtered by queue) --------
@@ -12,13 +17,8 @@ import {
 export const listHandoffConversations = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator(parseHandoffListInput)
-  .handler(async ({ data, context }) => {
-    let list: Array<{
-      id: string;
-      property_id: string | null;
-      guest_name: string | null;
-      [key: string]: unknown;
-    }> = [];
+  .handler(async ({ data, context }): Promise<HandoffListResult> => {
+    let list: HandoffConversationSummary[] = [];
     try {
       const { supabase, userId } = context;
       let q = supabase
@@ -41,22 +41,19 @@ export const listHandoffConversations = createServerFn({ method: "POST" })
       const { data: rows, error } = await q;
       if (error) {
         console.error("listHandoffConversations failed", error);
-        return { conversations: [], details: {}, error: error.message };
+        return emptyHandoffListResult(error.message);
       }
-      list = rows ?? [];
+      list = normalizeHandoffConversationRows(rows);
     } catch (error) {
       console.error("listHandoffConversations crashed", error);
-      return { conversations: [], details: {}, error: "Não foi possível carregar as conversas agora." };
+      return emptyHandoffListResult("Não foi possível carregar as conversas agora.");
     }
 
     // Enriquece cada conversa com nome do hóspede, telefone e check-in vindos
     // do último guide_access_logs correspondente (mesma propriedade). RLS de
     // guide_access_logs só permite owner — usamos admin porque a RLS de
     // conversations já garantiu que o usuário pode ver estas linhas.
-    const details: Record<
-      string,
-      { name: string | null; phone: string | null; phoneCountry: string | null; checkinDate: string | null; reservationCode: string | null }
-    > = {};
+    const details: Record<string, HandoffGuestDetail> = {};
     if (list.length > 0) {
       try {
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
