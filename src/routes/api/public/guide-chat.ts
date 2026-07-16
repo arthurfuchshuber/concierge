@@ -343,7 +343,7 @@ export const Route = createFileRoute("/api/public/guide-chat")({
         if (body.forceAi && convState?.ai_paused) {
           await supabaseAdmin
             .from("property_chat_conversations")
-            .update({ ai_paused: false, status: "open", handoff_reason: null, handoff_urgency: null, handoff_at: null })
+            .update({ ai_paused: false, status: "ai", handoff_reason: null, handoff_urgency: null, handoff_at: null })
             .eq("id", conversationId);
         }
 
