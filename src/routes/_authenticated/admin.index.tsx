@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle, DialogDescription, DialogFooter, DialogHeader } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
-import { Plus, ExternalLink, Pencil, Trash2, Lock, Globe, BookOpen, PlayCircle, CreditCard, LayoutGrid, List, Link2, Check, AlertTriangle, MapPin, ChevronDown, ChevronRight, PenSquare, Search, X, Copy } from "lucide-react";
+import { Plus, ExternalLink, Pencil, Trash2, Lock, Globe, BookOpen, CreditCard, LayoutGrid, List, Link2, Check, AlertTriangle, MapPin, ChevronDown, ChevronRight, PenSquare, Search, X, Copy, Filter } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { useState, useMemo } from "react";
@@ -64,6 +65,7 @@ function Dashboard() {
   const { impersonation, clear: clearImpersonation } = useImpersonation();
   const readOnly = !!impersonation;
   const [view, setView] = useState<"grid" | "list">("grid");
+  const [statCardsOpen, setStatCardsOpen] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [viewSlug, setViewSlug] = useState<string | null>(null);
   const [previewMode, setPreviewMode] = useState<"mobile" | "desktop" | null>(null);
@@ -228,14 +230,7 @@ function Dashboard() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <a
-            href="/g/demo"
-            target="_blank"
-            rel="noreferrer"
-            className="inline-flex items-center gap-1.5 text-sm px-4 py-2 rounded-full border border-border hover:bg-secondary transition-colors"
-          >
-            <PlayCircle className="size-4" /> Ver demo ao vivo
-          </a>
+
           {!readOnly && (
             <Button
               onClick={() => navigate({ to: "/admin/properties/$id", params: { id: "new" } })}
@@ -256,8 +251,22 @@ function Dashboard() {
       </div>
 
 
-      {/* Stat cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-10">
+      {/* Stat cards (collapsible) */}
+      <div className="mb-10">
+        <button
+          type="button"
+          onClick={() => setStatCardsOpen((v) => !v)}
+          className="w-full flex items-center justify-between gap-2 px-4 py-2.5 rounded-xl border border-border bg-card hover:bg-secondary/40 transition-colors mb-3"
+          aria-expanded={statCardsOpen}
+        >
+          <span className="text-sm font-medium text-foreground/80 flex items-center gap-2">
+            <CreditCard className="size-4 text-muted-foreground" />
+            Plano e uso · <span className="text-muted-foreground">{planName} · {count}{planLimit > 0 ? `/${planLimit >= 9999 ? "∞" : planLimit}` : ""}</span>
+          </span>
+          <ChevronDown className={`size-4 text-muted-foreground transition-transform ${statCardsOpen ? "rotate-180" : ""}`} />
+        </button>
+        {statCardsOpen && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Plano */}
         <div className="rounded-2xl border border-border bg-card p-5">
           <div className="flex items-center justify-between mb-3">
@@ -336,6 +345,8 @@ function Dashboard() {
               : "Assine um plano para criar guias"}
           </p>
         </div>
+        </div>
+        )}
       </div>
 
 
@@ -361,85 +372,108 @@ function Dashboard() {
       <div className="flex flex-col gap-4 mb-5">
         <div className="flex items-center justify-between gap-3">
           <h2 className="font-display text-2xl">Seus guias</h2>
-          <div className="flex items-center gap-1 rounded-full border border-border p-1 bg-card">
-            <button
-              onClick={() => setView("grid")}
-              className={`size-8 grid place-items-center rounded-full transition-colors ${view === "grid" ? "bg-secondary text-foreground" : "text-muted-foreground"}`}
-              aria-label="Grade"
-            >
-              <LayoutGrid className="size-3.5" />
-            </button>
-            <button
-              onClick={() => setView("list")}
-              className={`size-8 grid place-items-center rounded-full transition-colors ${view === "list" ? "bg-secondary text-foreground" : "text-muted-foreground"}`}
-              aria-label="Lista"
-            >
-              <List className="size-3.5" />
-            </button>
+          <div className="flex items-center gap-2">
+            <Popover>
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  className="relative size-9 grid place-items-center rounded-full border border-border bg-card hover:bg-secondary/60 transition-colors"
+                  aria-label="Filtros"
+                >
+                  <Filter className="size-4" />
+                  {(statusFilter !== "all" || accessFilter !== "all") && (
+                    <span className="absolute -top-0.5 -right-0.5 size-2 rounded-full bg-accent" />
+                  )}
+                </button>
+              </PopoverTrigger>
+              <PopoverContent align="end" className="w-64 p-4 space-y-4">
+                <div>
+                  <div className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold mb-2">Status</div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {([
+                      { v: "all", label: "Todos" },
+                      { v: "published", label: "Publicados" },
+                      { v: "draft", label: "Rascunhos" },
+                    ] as { v: StatusFilter; label: string }[]).map((opt) => (
+                      <button
+                        key={opt.v}
+                        type="button"
+                        onClick={() => setStatusFilter(opt.v)}
+                        className={`px-3 py-1.5 rounded-full text-xs border transition-colors ${statusFilter === opt.v ? "bg-foreground text-background border-foreground" : "bg-background border-border text-muted-foreground hover:border-foreground/40"}`}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold mb-2">Acesso</div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {([
+                      { v: "all", label: "Todos" },
+                      { v: "public", label: "Público" },
+                      { v: "pin", label: "PIN" },
+                    ] as { v: AccessFilter; label: string }[]).map((opt) => (
+                      <button
+                        key={opt.v}
+                        type="button"
+                        onClick={() => setAccessFilter(opt.v)}
+                        className={`px-3 py-1.5 rounded-full text-xs border transition-colors ${accessFilter === opt.v ? "bg-foreground text-background border-foreground" : "bg-background border-border text-muted-foreground hover:border-foreground/40"}`}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                {hasActiveFilters && (
+                  <button
+                    type="button"
+                    onClick={clearFilters}
+                    className="w-full text-xs text-muted-foreground hover:text-foreground py-1.5 rounded-lg border border-border hover:bg-secondary/40"
+                  >
+                    Limpar filtros
+                  </button>
+                )}
+              </PopoverContent>
+            </Popover>
+            <div className="flex items-center gap-1 rounded-full border border-border p-1 bg-card">
+              <button
+                onClick={() => setView("grid")}
+                className={`size-8 grid place-items-center rounded-full transition-colors ${view === "grid" ? "bg-secondary text-foreground" : "text-muted-foreground"}`}
+                aria-label="Grade"
+              >
+                <LayoutGrid className="size-3.5" />
+              </button>
+              <button
+                onClick={() => setView("list")}
+                className={`size-8 grid place-items-center rounded-full transition-colors ${view === "list" ? "bg-secondary text-foreground" : "text-muted-foreground"}`}
+                aria-label="Lista"
+              >
+                <List className="size-3.5" />
+              </button>
+            </div>
           </div>
         </div>
 
         {data && data.length > 0 && (
-          <div className="flex flex-col md:flex-row md:items-center gap-3">
-            <div className="relative flex-1 min-w-0">
-              <Search className="size-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2" />
-              <Input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Buscar por nome, endereço, cidade…"
-                className="pl-9 pr-9 rounded-full"
-              />
-              {search && (
-                <button
-                  type="button"
-                  onClick={() => setSearch("")}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 size-6 grid place-items-center rounded-full text-muted-foreground hover:bg-secondary"
-                  aria-label="Limpar busca"
-                >
-                  <X className="size-3.5" />
-                </button>
-              )}
-            </div>
-            <div className="flex flex-wrap items-center gap-1.5">
-              {([
-                { v: "all", label: "Todos" },
-                { v: "published", label: "Publicados" },
-                { v: "draft", label: "Rascunhos" },
-              ] as { v: StatusFilter; label: string }[]).map((opt) => (
-                <button
-                  key={opt.v}
-                  type="button"
-                  onClick={() => setStatusFilter(opt.v)}
-                  className={`px-3 py-1.5 rounded-full text-xs border transition-colors ${statusFilter === opt.v ? "bg-foreground text-background border-foreground" : "bg-background border-border text-muted-foreground hover:border-foreground/40"}`}
-                >
-                  {opt.label}
-                </button>
-              ))}
-              <span className="mx-1 h-4 w-px bg-border" />
-              {([
-                { v: "all", label: "Acesso" },
-                { v: "public", label: "Público" },
-                { v: "pin", label: "PIN" },
-              ] as { v: AccessFilter; label: string }[]).map((opt) => (
-                <button
-                  key={opt.v}
-                  type="button"
-                  onClick={() => setAccessFilter(opt.v)}
-                  className={`px-3 py-1.5 rounded-full text-xs border transition-colors ${accessFilter === opt.v ? "bg-foreground text-background border-foreground" : "bg-background border-border text-muted-foreground hover:border-foreground/40"}`}
-                >
-                  {opt.label}
-                </button>
-              ))}
-              {hasActiveFilters && (
-                <button
-                  type="button"
-                  onClick={clearFilters}
-                  className="ml-1 text-xs text-muted-foreground hover:text-foreground underline-offset-2 hover:underline"
-                >
-                  Limpar
-                </button>
-              )}
-            </div>
+          <div className="relative">
+            <Search className="size-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2" />
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Buscar por nome, endereço, cidade…"
+              className="pl-9 pr-9 rounded-full"
+            />
+            {search && (
+              <button
+                type="button"
+                onClick={() => setSearch("")}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 size-6 grid place-items-center rounded-full text-muted-foreground hover:bg-secondary"
+                aria-label="Limpar busca"
+              >
+                <X className="size-3.5" />
+              </button>
+            )}
           </div>
         )}
 
