@@ -208,7 +208,27 @@ export async function generateAndCacheCityNews(input: {
       .eq("date", today)
       .maybeSingle();
     if (cached?.items && Array.isArray(cached.items) && (cached.items as NewsItem[]).length > 0) {
-      return { items: cached.items as NewsItem[], cached: true, generated: false };
+      let cachedItems = cached.items as NewsItem[];
+      // Migração one-shot: se o cache do dia ainda usa OG image antigo (URL http externa),
+      // troca por fotos reais do Google Places e re-salva.
+      const needsPhotoMigration = cachedItems.some(
+        (it) => it.imageUrl && !it.imageUrl.startsWith("/api/public/place-photo"),
+      ) || cachedItems.every((it) => !it.imageUrl);
+      if (needsPhotoMigration) {
+        try {
+          cachedItems = await attachPlacePhotos(
+            cachedItems.map((it) => ({ ...it, imageUrl: null })),
+            input.cityLabel,
+            input.country ?? null,
+          );
+          await supabaseAdmin
+            .from("city_daily_news")
+            .upsert({ city_key: input.cityKey, date: today, items: cachedItems }, { onConflict: "city_key,date" });
+        } catch {
+          // segue com o cache original
+        }
+      }
+      return { items: cachedItems, cached: true, generated: false };
     }
   }
 
