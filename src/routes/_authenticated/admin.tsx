@@ -39,13 +39,24 @@ function AdminLayout() {
   const [open, setOpen] = useState(false);
   const accessFn = useServerFn(getAtendimentoAccess);
   const pendingFn = useServerFn(countPendingHandoffs);
-  const access = useQuery({ queryKey: ["handoff-access"], queryFn: () => accessFn(), staleTime: 5 * 60_000 });
+  const access = useQuery({
+    queryKey: ["handoff-access"],
+    queryFn: async () => {
+      try { return await accessFn(); } catch { return { allowed: false as const, as: null, plan: null }; }
+    },
+    staleTime: 5 * 60_000,
+    retry: false,
+  });
   const pending = useQuery({
     queryKey: ["handoff-pending-count"],
-    queryFn: () => pendingFn(),
+    queryFn: async () => {
+      try { return await pendingFn(); } catch { return { count: 0 }; }
+    },
     enabled: access.data?.allowed === true,
     refetchInterval: 15_000,
+    retry: false,
   });
+
   const handoffEnabled = access.data?.allowed === true;
   const nav = handoffEnabled
     ? [

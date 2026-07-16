@@ -34,7 +34,14 @@ function AtendimentoPage() {
   const listFn = useServerFn(listHandoffConversations);
   const myUserId = useMyUserId();
 
-  const access = useQuery({ queryKey: ["handoff-access"], queryFn: () => accessFn(), staleTime: 5 * 60_000 });
+  const access = useQuery({
+    queryKey: ["handoff-access"],
+    queryFn: async () => {
+      try { return await accessFn(); } catch { return { allowed: false as const, as: null, plan: null }; }
+    },
+    staleTime: 5 * 60_000,
+    retry: false,
+  });
 
   const [queue, setQueue] = useState<Queue>("needs_human");
   const [activeId, setActiveId] = useState<string | null>(conv ?? null);
@@ -43,10 +50,15 @@ function AtendimentoPage() {
 
   const list = useQuery({
     queryKey: ["handoff-list", queue],
-    queryFn: () => listFn({ data: { queue, limit: 100 } }),
+    queryFn: async () => {
+      try { return await listFn({ data: { queue, limit: 100 } }); }
+      catch { return { conversations: [], details: {} }; }
+    },
     enabled: access.data?.allowed === true,
     refetchInterval: 15_000,
+    retry: false,
   });
+
 
   if (access.isLoading) {
     return <div className="p-8 text-sm text-muted-foreground">Carregando…</div>;
