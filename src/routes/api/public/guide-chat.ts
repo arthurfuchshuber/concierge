@@ -406,15 +406,18 @@ export const Route = createFileRoute("/api/public/guide-chat")({
             try {
               const { getPropertyNotifiableUsers, sendHandoffPush } = await import("@/lib/handoff.server");
               const userIds = await getPropertyNotifiableUsers(supabaseAdmin, prop.id);
-              // Busca o access log mais recente dessa sessão para pegar nome + checkin
-              const { data: accessLog } = await supabaseAdmin
-                .from("guide_access_logs")
-                .select("guest_name, checkin_date")
-                .eq("property_id", prop.id)
-                .eq("guest_session_id", body.sessionId)
-                .order("created_at", { ascending: false })
-                .limit(1)
-                .maybeSingle();
+              // Busca o access log mais recente do hóspede (por nome + propriedade) para pegar checkin_date
+              const guestNameForLookup = (body.guestName ?? "").trim();
+              const { data: accessLog } = guestNameForLookup
+                ? await supabaseAdmin
+                    .from("guide_access_logs")
+                    .select("guest_name, checkin_date")
+                    .eq("property_id", prop.id)
+                    .eq("guest_name", guestNameForLookup)
+                    .order("created_at", { ascending: false })
+                    .limit(1)
+                    .maybeSingle()
+                : { data: null as { guest_name: string; checkin_date: string } | null };
               await sendHandoffPush(supabaseAdmin, {
                 userIds,
                 conversationId,
