@@ -1,8 +1,25 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { motion } from "framer-motion";
-import { ArrowRight, CalendarDays, Utensils, Waves } from "lucide-react";
+import {
+  ArrowRight,
+  CalendarDays,
+  Utensils,
+  Waves,
+  Mountain,
+  Landmark,
+  Sparkles,
+  MapPin,
+  Wine,
+  Music,
+  TreePine,
+  Bike,
+  ShoppingBag,
+  Camera,
+  Building2,
+  Sun,
+} from "lucide-react";
 import { getDailyTip, type DailyTip } from "@/lib/daily-tip.functions";
 import { getLiveWeather, type LiveWeather } from "@/lib/live-weather.functions";
 

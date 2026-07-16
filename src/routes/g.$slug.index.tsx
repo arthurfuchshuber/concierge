@@ -695,7 +695,7 @@ function Guide({ data }: { data: GuideOk }) {
                           <LogIn className="size-[18px]" strokeWidth={2} />
                         </span>
                         <div className="min-w-0">
-                          <p className="text-[10px] uppercase tracking-[0.22em] font-black opacity-75">
+                          <p className="text-[10px] uppercase tracking-[0.18em] font-black opacity-75 truncate whitespace-nowrap">
                             Informação importante · Check-in
                           </p>
                           <p className="text-[13px] leading-relaxed font-medium mt-1 whitespace-pre-line">
@@ -710,7 +710,7 @@ function Guide({ data }: { data: GuideOk }) {
                           <LogOut className="size-[18px]" strokeWidth={2} />
                         </span>
                         <div className="min-w-0">
-                          <p className="text-[10px] uppercase tracking-[0.22em] font-black opacity-75">
+                          <p className="text-[10px] uppercase tracking-[0.18em] font-black opacity-75 truncate whitespace-nowrap">
                             {(() => {
                               const t = p.checkout_time
                                 ? String(p.checkout_time).match(/^(\d{1,2}):(\d{2})/)
@@ -1852,25 +1852,7 @@ function HeroCompact({
                 : "bg-[linear-gradient(0deg,rgba(255,255,255,0.76),rgba(255,255,255,0.32),transparent)]"
             }`}
           />
-          <svg
-            aria-hidden="true"
-            viewBox="0 0 400 300"
-            preserveAspectRatio="none"
-            className="absolute inset-0 size-full"
-          >
-            <defs>
-              <linearGradient id="heroCurve" x1="0" y1="0" x2="1" y2="1">
-                <stop offset="0%" stopColor="#6d28d9" stopOpacity={isDark ? "0.82" : "0.66"} />
-                <stop offset="52%" stopColor="#c026d3" stopOpacity={isDark ? "0.92" : "0.76"} />
-                <stop offset="100%" stopColor="#ff4eb8" stopOpacity={isDark ? "0.98" : "0.86"} />
-              </linearGradient>
-            </defs>
-            <path
-              d="M 260 300 C 306 250 335 194 400 166 L 400 300 Z"
-              fill="url(#heroCurve)"
-            />
-            <path d="M 302 300 C 334 265 362 222 400 204 L 400 300 Z" fill="#ff4eb8" opacity={isDark ? "0.44" : "0.52"} />
-          </svg>
+          {/* pink corner blob removed for a cleaner hero */}
 
           <div className="absolute inset-0 flex flex-col justify-end p-5 pb-6 md:p-8">
             <h1
@@ -1939,7 +1921,7 @@ function HeroCompact({
 
 // Celestial glassmorphism — each tone owns its color story
 const SECTION_TONES = {
-  gold:   { border: "border-pink-500/35",    bg: "bg-[linear-gradient(135deg,rgba(236,72,153,0.18),rgba(124,58,237,0.05)_58%,rgba(2,6,23,0.10))]", iconBg: "bg-pink-500/16",    iconRing: "border-pink-400/28",    icon: "text-pink-300",    accent: "text-pink-200",    glow: "shadow-pink-500/18" },
+  gold:   { border: "border-pink-500/22",    bg: "bg-[linear-gradient(135deg,rgba(236,72,153,0.09),rgba(88,28,135,0.04)_58%,rgba(2,6,23,0.55))]", iconBg: "bg-pink-500/14",    iconRing: "border-pink-400/22",    icon: "text-pink-300",    accent: "text-pink-200",    glow: "shadow-pink-500/12" },
   blue:   { border: "border-blue-500/16",    bg: "bg-white/[0.035]", iconBg: "bg-blue-500/12",    iconRing: "border-blue-400/20",    icon: "text-blue-300",    accent: "text-blue-200",    glow: "shadow-blue-500/8" },
   green:  { border: "border-emerald-500/16", bg: "bg-white/[0.035]", iconBg: "bg-emerald-500/12", iconRing: "border-emerald-400/20", icon: "text-emerald-300", accent: "text-emerald-200", glow: "shadow-emerald-500/8" },
   purple: { border: "border-violet-500/18",  bg: "bg-white/[0.035]", iconBg: "bg-violet-500/14",  iconRing: "border-violet-400/22",  icon: "text-violet-300",  accent: "text-violet-200",  glow: "shadow-violet-500/8" },
@@ -2075,16 +2057,16 @@ function SectionCard({
           <span className={`${iconColorCls} ${iconSvg}`}>{icon}</span>
         </div>
         <div className="min-w-0 flex-1">
-          <p className={`${titleSize} font-black leading-tight ${titleColor}`}>{title}</p>
-          <p className={`mt-1 ${descSize} leading-[1.32] ${descColor}`}>{desc}</p>
+          <p className={`${titleSize} font-black leading-tight truncate ${titleColor}`}>{title}</p>
+          <p className={`mt-1 ${descSize} leading-[1.32] line-clamp-2 ${descColor}`}>{desc}</p>
         </div>
       </div>
 
       {isHero && badge ? (
         <div className="relative -mt-1 flex justify-end">
-          <span className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-violet-600 via-fuchsia-500 to-pink-500 px-4 py-2 text-[10px] font-black uppercase tracking-[0.08em] text-white shadow-[0_10px_28px_-10px_rgba(236,72,153,0.78)]">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-violet-600 via-fuchsia-500 to-pink-500 px-3 py-1.5 text-[9.5px] font-black uppercase tracking-[0.08em] text-white shadow-[0_8px_22px_-10px_rgba(236,72,153,0.65)]">
             {badge}
-            <ArrowRight className="size-3.5" strokeWidth={2.4} />
+            <ArrowRight className="size-3" strokeWidth={2.4} />
           </span>
         </div>
       ) : (
@@ -2844,17 +2826,17 @@ function WifiStrip({
         className={`pointer-events-none absolute inset-0 ${isLight ? "opacity-[0.04]" : "opacity-[0.07]"} [background-image:radial-gradient(oklch(var(--accent))_1px,transparent_1px)] [background-size:14px_14px]`}
       />
       <div
-        className={`pointer-events-none absolute -top-12 -right-12 size-40 rounded-full ${isLight ? "bg-accent/15" : "bg-accent/25"} blur-3xl`}
+        className={`pointer-events-none absolute -top-12 -right-12 size-40 rounded-full ${isLight ? "bg-accent/15" : "bg-emerald-400/20"} blur-3xl`}
       />
       <div className="relative flex items-center gap-3.5 px-4 py-2.5 md:px-5 md:py-3">
         <span
-          className={`relative grid size-11 shrink-0 place-items-center rounded-2xl ring-1 ${isLight ? "bg-accent/15 text-accent/80 ring-accent/20" : "bg-accent/10 text-accent/75 ring-accent/15"}`}
+          className={`relative grid size-11 shrink-0 place-items-center rounded-2xl ring-1 ${isLight ? "bg-accent/15 text-accent/80 ring-accent/20" : "bg-emerald-400/12 text-emerald-300 ring-emerald-300/25"}`}
         >
-          <span className="wifi-pulse pointer-events-none absolute -inset-1 rounded-2xl bg-accent/15 blur-md -z-10" />
+          <span className={`wifi-pulse pointer-events-none absolute -inset-1 rounded-2xl ${isLight ? "bg-accent/15" : "bg-emerald-400/15"} blur-md -z-10`} />
           <Wifi className="relative size-[20px]" strokeWidth={2} />
         </span>
         <div className="flex-1 min-w-0">
-          <p className="text-[9.5px] uppercase tracking-[0.3em] text-accent/75 font-semibold">Senha do Wi-Fi</p>
+          <p className={`text-[9.5px] uppercase tracking-[0.3em] font-semibold truncate whitespace-nowrap ${isLight ? "text-accent/75" : "text-emerald-300/90"}`}>Senha do Wi-Fi</p>
           <p className="text-[12.5px] text-foreground/85 truncate font-medium mt-0.5">{ssid || "Rede da casa"}</p>
           <p
             className={`font-mono text-[15px] md:text-[16px] font-semibold tracking-[0.22em] mt-0.5 truncate ${showing ? "text-foreground" : "text-foreground/75"}`}
@@ -2985,16 +2967,16 @@ function AccessCodesStrip({
         className={`pointer-events-none absolute inset-0 ${isLight ? "opacity-[0.04]" : "opacity-[0.07]"} [background-image:radial-gradient(oklch(var(--accent))_1px,transparent_1px)] [background-size:14px_14px]`}
       />
       <div
-        className={`pointer-events-none absolute -top-12 -right-12 size-40 rounded-full ${isLight ? "bg-accent/15" : "bg-accent/25"} blur-3xl`}
+        className={`pointer-events-none absolute -top-12 -right-12 size-40 rounded-full ${isLight ? "bg-accent/15" : "bg-emerald-400/20"} blur-3xl`}
       />
       <div className="relative flex items-center gap-3.5 px-4 py-2.5 md:px-5 md:py-3">
         <span
-          className={`relative grid size-11 shrink-0 place-items-center rounded-2xl ring-1 ${isLight ? "bg-accent/15 text-accent/80 ring-accent/20" : "bg-accent/10 text-accent/75 ring-accent/15"}`}
+          className={`relative grid size-11 shrink-0 place-items-center rounded-2xl ring-1 ${isLight ? "bg-accent/15 text-accent/80 ring-accent/20" : "bg-emerald-400/12 text-emerald-300 ring-emerald-300/25"}`}
         >
           <KeyRound className="relative size-[20px]" strokeWidth={2} />
         </span>
         <div className="flex-1 min-w-0">
-          <p className="text-[9.5px] uppercase tracking-[0.3em] text-accent/75 font-semibold">Códigos de acesso</p>
+          <p className={`text-[9.5px] uppercase tracking-[0.3em] font-semibold truncate whitespace-nowrap ${isLight ? "text-accent/75" : "text-emerald-300/90"}`}>Códigos de acesso</p>
           {showing ? (
             <div className="mt-1 space-y-0.5">
               {gateCode && (
