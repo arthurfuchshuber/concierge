@@ -56,6 +56,8 @@ import {
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { GuideAiChat } from "@/components/GuideAiChat";
 import { HomeIntelligence } from "@/components/guide/HomeIntelligence";
+import { CityNewsFeed } from "@/components/guide/CityNewsFeed";
+import { CheckinCountdown } from "@/components/guide/CheckinCountdown";
 import { GuideAccessGate, readAccessRecord, type AccessRecord } from "@/components/GuideAccessGate";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
