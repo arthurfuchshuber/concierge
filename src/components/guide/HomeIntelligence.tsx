@@ -1,8 +1,25 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { motion } from "framer-motion";
-import { ArrowRight, CalendarDays, Utensils, Waves } from "lucide-react";
+import {
+  ArrowRight,
+  CalendarDays,
+  Utensils,
+  Waves,
+  Mountain,
+  Landmark,
+  Sparkles,
+  MapPin,
+  Wine,
+  Music,
+  TreePine,
+  Bike,
+  ShoppingBag,
+  Camera,
+  Building2,
+  Sun,
+} from "lucide-react";
 import { getDailyTip, type DailyTip } from "@/lib/daily-tip.functions";
 import { getLiveWeather, type LiveWeather } from "@/lib/live-weather.functions";
 
@@ -12,8 +29,102 @@ function openChat(prompt?: string) {
   window.dispatchEvent(new CustomEvent("open-guide-chat", { detail: prompt ? { prompt } : {} }));
 }
 
+type ChipDef = { label: string; prompt: string; icon: ReactNode };
+
+function normalizeCity(city: string | null): string {
+  return (city || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim();
+}
+
+// Sugestões contextuais por cidade. Para cidades desconhecidas, cai em um
+// conjunto genérico que evita menções a praia/mar quando não faz sentido.
+function chipsForCity(city: string | null): ChipDef[] {
+  const c = normalizeCity(city);
+
+  if (c.includes("foz do iguacu") || c.includes("iguacu")) {
+    return [
+      { label: "Cataratas hoje", prompt: "Como visitar as Cataratas do Iguaçu hoje?", icon: <Mountain /> },
+      { label: "Ir ao Paraguai", prompt: "Como atravesso para o Paraguai (Ciudad del Este)?", icon: <MapPin /> },
+      { label: "Onde jantar?", prompt: "Melhor restaurante para jantar perto daqui?", icon: <Utensils /> },
+    ];
+  }
+  if (c.includes("rio de janeiro") || c.includes("rio")) {
+    return [
+      { label: "Praias hoje", prompt: "Qual a melhor praia para hoje aqui no Rio?", icon: <Waves /> },
+      { label: "Cristo Redentor", prompt: "Como chegar ao Cristo Redentor?", icon: <Mountain /> },
+      { label: "Onde jantar?", prompt: "Melhor restaurante para jantar perto daqui?", icon: <Utensils /> },
+    ];
+  }
+  if (c.includes("sao paulo") || c === "sp") {
+    return [
+      { label: "O que fazer hoje?", prompt: "O que fazer em São Paulo hoje?", icon: <CalendarDays /> },
+      { label: "Melhor restaurante", prompt: "Melhor restaurante perto daqui?", icon: <Utensils /> },
+      { label: "Vida noturna", prompt: "Onde curtir a noite em São Paulo?", icon: <Music /> },
+    ];
+  }
+  if (c.includes("gramado") || c.includes("canela")) {
+    return [
+      { label: "Passeios hoje", prompt: "Melhores passeios em Gramado/Canela hoje?", icon: <TreePine /> },
+      { label: "Fondue & vinho", prompt: "Onde comer fondue e tomar vinho na região?", icon: <Wine /> },
+      { label: "Cascatas", prompt: "Como chego nas cascatas próximas?", icon: <Mountain /> },
+    ];
+  }
+  if (c.includes("florianopolis") || c.includes("floripa")) {
+    return [
+      { label: "Praia hoje", prompt: "Qual a melhor praia em Floripa hoje?", icon: <Waves /> },
+      { label: "Trilhas", prompt: "Trilhas legais para fazer aqui?", icon: <Mountain /> },
+      { label: "Onde jantar?", prompt: "Melhor restaurante perto daqui?", icon: <Utensils /> },
+    ];
+  }
+  if (c.includes("salvador") || c.includes("bahia")) {
+    return [
+      { label: "Pelourinho", prompt: "Como visitar o Pelourinho hoje?", icon: <Landmark /> },
+      { label: "Praia hoje", prompt: "Qual a melhor praia em Salvador hoje?", icon: <Waves /> },
+      { label: "Comida típica", prompt: "Onde comer comida baiana autêntica?", icon: <Utensils /> },
+    ];
+  }
+  if (c.includes("belo horizonte") || c === "bh") {
+    return [
+      { label: "Bares hoje", prompt: "Melhores bares em BH hoje?", icon: <Wine /> },
+      { label: "Inhotim", prompt: "Como chegar a Inhotim daqui?", icon: <Camera /> },
+      { label: "Comida mineira", prompt: "Onde comer comida mineira autêntica?", icon: <Utensils /> },
+    ];
+  }
+  if (c.includes("curitiba")) {
+    return [
+      { label: "O que fazer?", prompt: "O que fazer em Curitiba hoje?", icon: <CalendarDays /> },
+      { label: "Parques", prompt: "Melhores parques para visitar?", icon: <TreePine /> },
+      { label: "Onde comer?", prompt: "Melhor restaurante perto daqui?", icon: <Utensils /> },
+    ];
+  }
+  if (c.includes("brasilia")) {
+    return [
+      { label: "Monumentos", prompt: "Quais monumentos visitar em Brasília hoje?", icon: <Landmark /> },
+      { label: "Onde comer?", prompt: "Melhor restaurante perto daqui?", icon: <Utensils /> },
+      { label: "Passeios", prompt: "Passeios interessantes para hoje?", icon: <CalendarDays /> },
+    ];
+  }
+  if (c.includes("bonito")) {
+    return [
+      { label: "Passeios hoje", prompt: "Melhores passeios em Bonito hoje?", icon: <Waves /> },
+      { label: "Flutuação", prompt: "Como agendar flutuação nos rios?", icon: <Waves /> },
+      { label: "Onde comer?", prompt: "Melhor restaurante perto daqui?", icon: <Utensils /> },
+    ];
+  }
+  // Genérico — evita "praia" para cidades sem praia
+  return [
+    { label: "O que fazer hoje?", prompt: "O que fazer hoje aqui?", icon: <CalendarDays /> },
+    { label: "Onde jantar?", prompt: "Melhor restaurante perto daqui?", icon: <Utensils /> },
+    { label: "Passeios", prompt: "Melhores passeios/pontos turísticos perto daqui?", icon: <Camera /> },
+  ];
+}
+
 export function HomeIntelligence({
   propertyId,
+  city,
   lang,
   guestName,
   theme,
@@ -31,6 +142,7 @@ export function HomeIntelligence({
   const [live, setLive] = useState<LiveWeather>(null);
   const [nowLabel, setNowLabel] = useState<string>("");
   const [loading, setLoading] = useState(true);
+  const chips = useMemo<ChipDef[]>(() => chipsForCity(city), [city]);
 
   // Dica do dia (IA, cacheada por dia).
   useEffect(() => {
@@ -133,15 +245,15 @@ export function HomeIntelligence({
         transition={{ duration: 0.4, ease: [0.2, 0.8, 0.2, 1] }}
         className={`relative overflow-hidden rounded-[24px] border px-4 py-4 md:px-5 md:py-5 ${
           isDark
-            ? "border-fuchsia-400/25 bg-[linear-gradient(135deg,#6d28d9_0%,#bc1bd8_52%,#ec2f97_100%)] shadow-[0_22px_60px_-24px_rgba(217,70,239,0.72)]"
+            ? "border-fuchsia-400/20 bg-[linear-gradient(135deg,#160b23_0%,#241035_52%,#2f1440_100%)] shadow-[0_22px_60px_-30px_rgba(217,70,239,0.45)]"
             : "border-fuchsia-200/70 bg-[linear-gradient(135deg,#7c3aed_0%,#c026d3_50%,#ec4899_100%)] shadow-[0_22px_60px_-24px_rgba(217,70,239,0.42)]"
         }`}
       >
         {/* Ambient glows inside the panel */}
         {isDark ? (
           <>
-            <span className="pointer-events-none absolute -top-20 -right-16 h-40 w-40 rounded-full bg-pink-300/25 blur-3xl" />
-            <span className="pointer-events-none absolute -bottom-24 -left-20 h-48 w-48 rounded-full bg-violet-200/20 blur-3xl" />
+            <span className="pointer-events-none absolute -top-20 -right-16 h-40 w-40 rounded-full bg-pink-500/18 blur-3xl" />
+            <span className="pointer-events-none absolute -bottom-24 -left-20 h-48 w-48 rounded-full bg-violet-500/14 blur-3xl" />
           </>
         ) : (
           <>
@@ -189,9 +301,9 @@ export function HomeIntelligence({
             </div>
 
             <div className="mt-4 grid grid-cols-3 gap-2.5">
-              <Chip icon={<CalendarDays />} label="O que fazer hoje?" onClick={() => openChat("O que fazer hoje aqui?")} />
-              <Chip icon={<Utensils />} label="Melhor restaurante" onClick={() => openChat("Qual o melhor restaurante perto daqui?")} />
-              <Chip icon={<Waves />} label="Como chego na praia?" onClick={() => openChat("Como chego na praia mais próxima?")} />
+              {chips.map((c) => (
+                <Chip key={c.label} icon={c.icon} label={c.label} onClick={() => openChat(c.prompt)} />
+              ))}
             </div>
           </div>
         ) : null}
