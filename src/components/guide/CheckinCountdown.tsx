@@ -25,7 +25,8 @@ export function CheckinCountdown({
 
   useEffect(() => {
     setNow(new Date());
-    const t = setInterval(() => setNow(new Date()), 30_000);
+    // Tick a cada 1s para sensação real-time (relógio vivo, segundos visíveis).
+    const t = setInterval(() => setNow(new Date()), 1_000);
     return () => clearInterval(t);
   }, []);
 
