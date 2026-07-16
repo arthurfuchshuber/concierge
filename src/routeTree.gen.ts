@@ -50,6 +50,7 @@ import { Route as LovableEmailAuthPreviewRouteImport } from './routes/lovable/em
 import { Route as ApiPublicPaymentsWebhookRouteImport } from './routes/api/public/payments/webhook'
 import { Route as ApiPublicCronRefreshRecommendationsRouteImport } from './routes/api/public/cron.refresh-recommendations'
 import { Route as ApiPublicCronRefreshCityReferencesRouteImport } from './routes/api/public/cron.refresh-city-references'
+import { Route as ApiPublicCronRefreshCityNewsRouteImport } from './routes/api/public/cron.refresh-city-news'
 import { Route as AuthenticatedAdminRecomendacoesSigmaCityKeyRouteImport } from './routes/_authenticated/admin.recomendacoes-sigma.$cityKey'
 import { Route as AuthenticatedAdminPropertiesIdRouteImport } from './routes/_authenticated/admin.properties.$id'
 import { Route as AuthenticatedAdminCidadesCityKeyRouteImport } from './routes/_authenticated/admin.cidades.$cityKey'
@@ -278,6 +279,12 @@ const ApiPublicCronRefreshCityReferencesRoute =
     path: '/api/public/cron/refresh-city-references',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicCronRefreshCityNewsRoute =
+  ApiPublicCronRefreshCityNewsRouteImport.update({
+    id: '/api/public/cron/refresh-city-news',
+    path: '/api/public/cron/refresh-city-news',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const AuthenticatedAdminRecomendacoesSigmaCityKeyRoute =
   AuthenticatedAdminRecomendacoesSigmaCityKeyRouteImport.update({
     id: '/recomendacoes-sigma/$cityKey',
@@ -345,6 +352,7 @@ export interface FileRoutesByFullPath {
   '/admin/cidades/$cityKey': typeof AuthenticatedAdminCidadesCityKeyRoute
   '/admin/properties/$id': typeof AuthenticatedAdminPropertiesIdRoute
   '/admin/recomendacoes-sigma/$cityKey': typeof AuthenticatedAdminRecomendacoesSigmaCityKeyRoute
+  '/api/public/cron/refresh-city-news': typeof ApiPublicCronRefreshCityNewsRoute
   '/api/public/cron/refresh-city-references': typeof ApiPublicCronRefreshCityReferencesRoute
   '/api/public/cron/refresh-recommendations': typeof ApiPublicCronRefreshRecommendationsRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
@@ -390,6 +398,7 @@ export interface FileRoutesByTo {
   '/admin/cidades/$cityKey': typeof AuthenticatedAdminCidadesCityKeyRoute
   '/admin/properties/$id': typeof AuthenticatedAdminPropertiesIdRoute
   '/admin/recomendacoes-sigma/$cityKey': typeof AuthenticatedAdminRecomendacoesSigmaCityKeyRoute
+  '/api/public/cron/refresh-city-news': typeof ApiPublicCronRefreshCityNewsRoute
   '/api/public/cron/refresh-city-references': typeof ApiPublicCronRefreshCityReferencesRoute
   '/api/public/cron/refresh-recommendations': typeof ApiPublicCronRefreshRecommendationsRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
@@ -439,6 +448,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/cidades/$cityKey': typeof AuthenticatedAdminCidadesCityKeyRoute
   '/_authenticated/admin/properties/$id': typeof AuthenticatedAdminPropertiesIdRoute
   '/_authenticated/admin/recomendacoes-sigma/$cityKey': typeof AuthenticatedAdminRecomendacoesSigmaCityKeyRoute
+  '/api/public/cron/refresh-city-news': typeof ApiPublicCronRefreshCityNewsRoute
   '/api/public/cron/refresh-city-references': typeof ApiPublicCronRefreshCityReferencesRoute
   '/api/public/cron/refresh-recommendations': typeof ApiPublicCronRefreshRecommendationsRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
@@ -488,6 +498,7 @@ export interface FileRouteTypes {
     | '/admin/cidades/$cityKey'
     | '/admin/properties/$id'
     | '/admin/recomendacoes-sigma/$cityKey'
+    | '/api/public/cron/refresh-city-news'
     | '/api/public/cron/refresh-city-references'
     | '/api/public/cron/refresh-recommendations'
     | '/api/public/payments/webhook'
@@ -533,6 +544,7 @@ export interface FileRouteTypes {
     | '/admin/cidades/$cityKey'
     | '/admin/properties/$id'
     | '/admin/recomendacoes-sigma/$cityKey'
+    | '/api/public/cron/refresh-city-news'
     | '/api/public/cron/refresh-city-references'
     | '/api/public/cron/refresh-recommendations'
     | '/api/public/payments/webhook'
@@ -581,6 +593,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/cidades/$cityKey'
     | '/_authenticated/admin/properties/$id'
     | '/_authenticated/admin/recomendacoes-sigma/$cityKey'
+    | '/api/public/cron/refresh-city-news'
     | '/api/public/cron/refresh-city-references'
     | '/api/public/cron/refresh-recommendations'
     | '/api/public/payments/webhook'
@@ -615,6 +628,7 @@ export interface RootRouteChildren {
   ApiPublicGuideChatUploadRoute: typeof ApiPublicGuideChatUploadRoute
   ApiPublicLandingChatRoute: typeof ApiPublicLandingChatRoute
   ApiPublicPlacePhotoRoute: typeof ApiPublicPlacePhotoRoute
+  ApiPublicCronRefreshCityNewsRoute: typeof ApiPublicCronRefreshCityNewsRoute
   ApiPublicCronRefreshCityReferencesRoute: typeof ApiPublicCronRefreshCityReferencesRoute
   ApiPublicCronRefreshRecommendationsRoute: typeof ApiPublicCronRefreshRecommendationsRoute
   ApiPublicPaymentsWebhookRoute: typeof ApiPublicPaymentsWebhookRoute
@@ -912,6 +926,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicCronRefreshCityReferencesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/cron/refresh-city-news': {
+      id: '/api/public/cron/refresh-city-news'
+      path: '/api/public/cron/refresh-city-news'
+      fullPath: '/api/public/cron/refresh-city-news'
+      preLoaderRoute: typeof ApiPublicCronRefreshCityNewsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_authenticated/admin/recomendacoes-sigma/$cityKey': {
       id: '/_authenticated/admin/recomendacoes-sigma/$cityKey'
       path: '/recomendacoes-sigma/$cityKey'
@@ -1041,6 +1062,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicGuideChatUploadRoute: ApiPublicGuideChatUploadRoute,
   ApiPublicLandingChatRoute: ApiPublicLandingChatRoute,
   ApiPublicPlacePhotoRoute: ApiPublicPlacePhotoRoute,
+  ApiPublicCronRefreshCityNewsRoute: ApiPublicCronRefreshCityNewsRoute,
   ApiPublicCronRefreshCityReferencesRoute:
     ApiPublicCronRefreshCityReferencesRoute,
   ApiPublicCronRefreshRecommendationsRoute:

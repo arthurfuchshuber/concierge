@@ -141,47 +141,68 @@ ${feed}`;
   return items.filter((i) => i.title.length > 3);
 }
 
-export const getCityNews = createServerFn({ method: "POST" })
-  .inputValidator((i: unknown) => Input.parse(i))
-  .handler(async ({ data }): Promise<CityNews | null> => {
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const today = new Date().toISOString().slice(0, 10);
+// Núcleo compartilhado — usado pelo server fn e pelo cron diário.
+// Retorna { items, cached, generated } para o cron logar o que fez.
+export async function generateAndCacheCityNews(input: {
+  cityKey: string;
+  cityLabel: string;
+  country?: string | null;
+  lang?: "pt" | "en" | "es" | "fr";
+  force?: boolean; // ignora o cache do dia (usado pelo cron das 10h)
+}): Promise<{ items: NewsItem[] | null; cached: boolean; generated: boolean }> {
+  const lang = input.lang ?? "pt";
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const today = new Date().toISOString().slice(0, 10);
 
+  if (!input.force) {
     const { data: cached } = await supabaseAdmin
       .from("city_daily_news")
       .select("items")
-      .eq("city_key", data.cityKey)
+      .eq("city_key", input.cityKey)
       .eq("date", today)
       .maybeSingle();
     if (cached?.items && Array.isArray(cached.items) && (cached.items as NewsItem[]).length > 0) {
-      return { items: cached.items as NewsItem[] };
+      return { items: cached.items as NewsItem[], cached: true, generated: false };
     }
+  }
 
-    const query = `"${data.cityLabel}" ${data.country ?? ""} eventos festival gastronomia passeios restaurantes atrações turismo esta semana`;
-    let candidates: FirecrawlSearchResult[] = [];
-    try {
-      candidates = await firecrawlSearch(query);
-    } catch {
-      candidates = [];
-    }
-    if (candidates.length === 0) return null;
+  const query = `"${input.cityLabel}" ${input.country ?? ""} eventos festival gastronomia passeios restaurantes atrações turismo esta semana`;
+  let candidates: FirecrawlSearchResult[] = [];
+  try {
+    candidates = await firecrawlSearch(query);
+  } catch {
+    candidates = [];
+  }
+  if (candidates.length === 0) return { items: null, cached: false, generated: false };
 
-    let items: NewsItem[] = [];
-    try {
-      items = await curateWithAi({
-        cityLabel: data.cityLabel,
-        country: data.country ?? null,
-        lang: data.lang,
-        candidates,
-      });
-    } catch {
-      items = [];
-    }
-    if (items.length === 0) return null;
+  let items: NewsItem[] = [];
+  try {
+    items = await curateWithAi({
+      cityLabel: input.cityLabel,
+      country: input.country ?? null,
+      lang,
+      candidates,
+    });
+  } catch {
+    items = [];
+  }
+  if (items.length === 0) return { items: null, cached: false, generated: false };
 
-    await supabaseAdmin
-      .from("city_daily_news")
-      .upsert({ city_key: data.cityKey, date: today, items }, { onConflict: "city_key,date" });
+  await supabaseAdmin
+    .from("city_daily_news")
+    .upsert({ city_key: input.cityKey, date: today, items }, { onConflict: "city_key,date" });
 
-    return { items };
+  return { items, cached: false, generated: true };
+}
+
+export const getCityNews = createServerFn({ method: "POST" })
+  .inputValidator((i: unknown) => Input.parse(i))
+  .handler(async ({ data }): Promise<CityNews | null> => {
+    const r = await generateAndCacheCityNews({
+      cityKey: data.cityKey,
+      cityLabel: data.cityLabel,
+      country: data.country ?? null,
+      lang: data.lang,
+    });
+    return r.items ? { items: r.items } : null;
   });
