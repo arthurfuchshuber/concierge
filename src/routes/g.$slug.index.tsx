@@ -2141,7 +2141,7 @@ const RULE_CATEGORIES: RuleCategory[] = [
     key: "limpeza",
     label: "Limpeza e cuidado",
     icon: <Trash2 className="size-[14px]" strokeWidth={1.9} />,
-    tone: "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 ring-emerald-200/60 dark:ring-emerald-400/20",
+    tone: "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-amber-50 ring-emerald-200/60 dark:ring-emerald-400/20",
     patterns: [/lixo|residu|sujei|limpe/i, /toalha|len[çc]ol|cama/i, /dano|estragar|quebrar/i],
   },
   {
@@ -2800,17 +2800,17 @@ function WifiStrip({
         className={`pointer-events-none absolute inset-0 ${isLight ? "opacity-[0.04]" : "opacity-[0.07]"} [background-image:radial-gradient(oklch(var(--accent))_1px,transparent_1px)] [background-size:14px_14px]`}
       />
       <div
-        className={`pointer-events-none absolute -top-12 -right-12 size-40 rounded-full ${isLight ? "bg-accent/15" : "bg-emerald-400/20"} blur-3xl`}
+        className={`pointer-events-none absolute -top-12 -right-12 size-40 rounded-full ${isLight ? "bg-accent/15" : "bg-amber-400/15"} blur-3xl`}
       />
       <div className="relative flex items-center gap-3.5 px-4 py-2.5 md:px-5 md:py-3">
         <span
-          className={`relative grid size-11 shrink-0 place-items-center rounded-2xl ring-1 ${isLight ? "bg-accent/15 text-accent/80 ring-accent/20" : "bg-emerald-400/12 text-emerald-300 ring-emerald-300/25"}`}
+          className={`relative grid size-11 shrink-0 place-items-center rounded-2xl ring-1 ${isLight ? "bg-accent/15 text-accent/80 ring-accent/20" : "bg-amber-400/10 text-amber-50 ring-amber-200/25"}`}
         >
-          <span className={`wifi-pulse pointer-events-none absolute -inset-1 rounded-2xl ${isLight ? "bg-accent/15" : "bg-emerald-400/15"} blur-md -z-10`} />
+          <span className={`wifi-pulse pointer-events-none absolute -inset-1 rounded-2xl ${isLight ? "bg-accent/15" : "bg-amber-400/12"} blur-md -z-10`} />
           <Wifi className="relative size-[20px]" strokeWidth={2} />
         </span>
         <div className="flex-1 min-w-0">
-          <p className={`text-[9.5px] uppercase tracking-[0.3em] font-semibold truncate whitespace-nowrap ${isLight ? "text-accent/75" : "text-emerald-300/90"}`}>Senha do Wi-Fi</p>
+          <p className={`text-[9.5px] uppercase tracking-[0.3em] font-semibold truncate whitespace-nowrap ${isLight ? "text-accent/75" : "text-amber-50/90"}`}>Senha do Wi-Fi</p>
           <p className="text-[12.5px] text-foreground/85 truncate font-medium mt-0.5">{ssid || "Rede da casa"}</p>
           <p
             className={`font-mono text-[15px] md:text-[16px] font-semibold tracking-[0.22em] mt-0.5 truncate ${showing ? "text-foreground" : "text-foreground/75"}`}
@@ -2941,16 +2941,16 @@ function AccessCodesStrip({
         className={`pointer-events-none absolute inset-0 ${isLight ? "opacity-[0.04]" : "opacity-[0.07]"} [background-image:radial-gradient(oklch(var(--accent))_1px,transparent_1px)] [background-size:14px_14px]`}
       />
       <div
-        className={`pointer-events-none absolute -top-12 -right-12 size-40 rounded-full ${isLight ? "bg-accent/15" : "bg-emerald-400/20"} blur-3xl`}
+        className={`pointer-events-none absolute -top-12 -right-12 size-40 rounded-full ${isLight ? "bg-accent/15" : "bg-amber-400/15"} blur-3xl`}
       />
       <div className="relative flex items-center gap-3.5 px-4 py-2.5 md:px-5 md:py-3">
         <span
-          className={`relative grid size-11 shrink-0 place-items-center rounded-2xl ring-1 ${isLight ? "bg-accent/15 text-accent/80 ring-accent/20" : "bg-emerald-400/12 text-emerald-300 ring-emerald-300/25"}`}
+          className={`relative grid size-11 shrink-0 place-items-center rounded-2xl ring-1 ${isLight ? "bg-accent/15 text-accent/80 ring-accent/20" : "bg-amber-400/10 text-amber-50 ring-amber-200/25"}`}
         >
           <KeyRound className="relative size-[20px]" strokeWidth={2} />
         </span>
         <div className="flex-1 min-w-0">
-          <p className={`text-[9.5px] uppercase tracking-[0.3em] font-semibold truncate whitespace-nowrap ${isLight ? "text-accent/75" : "text-emerald-300/90"}`}>Códigos de acesso</p>
+          <p className={`text-[9.5px] uppercase tracking-[0.3em] font-semibold truncate whitespace-nowrap ${isLight ? "text-accent/75" : "text-amber-50/90"}`}>Códigos de acesso</p>
           {showing ? (
             <div className="mt-1 space-y-0.5">
               {gateCode && (
