@@ -71,7 +71,7 @@ function Dashboard() {
   const [previewMode, setPreviewMode] = useState<"mobile" | "desktop" | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkOpen, setBulkOpen] = useState(false);
-  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
+  const [expandedGroup, setExpandedGroup] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [accessFilter, setAccessFilter] = useState<AccessFilter>("all");
@@ -718,31 +718,22 @@ function Dashboard() {
               </div>
 
               {groupList.map(([gk, grp]) => {
-                const collapsed = collapsedGroups.has(gk);
+                const expanded = expandedGroup === gk;
                 const groupIds = grp.items.map((i) => i.id);
                 const allInGroupSelected = groupIds.every((id) => selected.has(id));
                 return (
-                  <div key={gk} className="rounded-2xl border border-border bg-card overflow-hidden">
+                  <div key={gk} className="rounded-2xl border border-border/70 bg-card/60 overflow-hidden backdrop-blur-[2px]">
                     <button
                       type="button"
-                      onClick={() =>
-                        setCollapsedGroups((s) => {
-                          const ns = new Set(s);
-                          if (ns.has(gk)) ns.delete(gk);
-                          else ns.add(gk);
-                          return ns;
-                        })
-                      }
-                      className="w-full flex items-center gap-2.5 px-4 py-3 bg-secondary/40 hover:bg-secondary/60 transition-colors text-left"
+                      onClick={() => setExpandedGroup((cur) => (cur === gk ? null : gk))}
+                      className="w-full flex items-center gap-3 px-4 py-3 hover:bg-secondary/40 transition-colors text-left"
                     >
-                      {collapsed ? (
-                        <ChevronRight className="size-3.5 text-muted-foreground shrink-0" />
-                      ) : (
-                        <ChevronDown className="size-3.5 text-muted-foreground shrink-0" />
-                      )}
+                      <ChevronRight
+                        className={`size-3.5 text-muted-foreground shrink-0 transition-transform duration-200 ${expanded ? "rotate-90" : ""}`}
+                      />
                       <MapPin className="size-3.5 text-muted-foreground shrink-0" />
-                      <span className="text-sm font-medium truncate flex-1">{grp.label}</span>
-                      <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
+                      <span className="text-[13px] font-medium truncate flex-1 tracking-tight">{grp.label}</span>
+                      <span className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground/80 tabular-nums">
                         {grp.items.length} {grp.items.length === 1 ? "guia" : "guias"}
                       </span>
                       <span
@@ -759,68 +750,105 @@ function Dashboard() {
                         }}
                         className="text-[11px] text-accent hover:underline"
                       >
-                        {allInGroupSelected ? "Desmarcar" : "Selecionar todos"}
+                        {allInGroupSelected ? "Desmarcar" : "Selecionar"}
                       </span>
                     </button>
-                    {!collapsed && (
-                      <div className="divide-y divide-border">
+                    {expanded && (
+                      <ul className="divide-y divide-border/60 border-t border-border/60">
                         {grp.items.map((p) => {
                           const isSel = selected.has(p.id);
                           return (
-                            <div key={p.id} className={`p-3 sm:p-4 hover:bg-secondary/40 transition-colors ${isSel ? "bg-accent/5" : ""}`}>
-                              <div className="flex items-center gap-3">
-                                <Checkbox
-                                  checked={isSel}
-                                  onCheckedChange={(v) =>
-                                    setSelected((s) => {
-                                      const ns = new Set(s);
-                                      if (v) ns.add(p.id);
-                                      else ns.delete(p.id);
-                                      return ns;
-                                    })
-                                  }
-                                />
-                                <div className="size-12 rounded-xl bg-secondary overflow-hidden shrink-0 ring-1 ring-border/50">
-                                  {p.hero_image_url ? <img src={p.hero_image_url} alt={p.name} className="w-full h-full object-cover" /> : (
-                                    <div className="w-full h-full grid place-items-center text-[9px] text-muted-foreground">Sem foto</div>
+                            <li
+                              key={p.id}
+                              className={`group/item relative flex items-center gap-3 px-3 sm:px-4 py-3 transition-colors ${isSel ? "bg-accent/[0.06]" : "hover:bg-secondary/30"}`}
+                            >
+                              <Checkbox
+                                checked={isSel}
+                                onCheckedChange={(v) =>
+                                  setSelected((s) => {
+                                    const ns = new Set(s);
+                                    if (v) ns.add(p.id);
+                                    else ns.delete(p.id);
+                                    return ns;
+                                  })
+                                }
+                                className="shrink-0"
+                              />
+                              <div className="size-11 rounded-lg bg-secondary overflow-hidden shrink-0 ring-1 ring-border/60">
+                                {p.hero_image_url ? (
+                                  <img src={p.hero_image_url} alt={p.name} className="w-full h-full object-cover" />
+                                ) : (
+                                  <div className="w-full h-full grid place-items-center text-[9px] text-muted-foreground">Sem foto</div>
+                                )}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <h3 className="font-medium text-[13.5px] tracking-tight truncate">{p.name}</h3>
+                                  {!p.published && (
+                                    <span className="shrink-0 text-[9px] uppercase tracking-[0.14em] font-semibold bg-yellow-500/15 text-yellow-700 dark:text-yellow-400 px-1.5 py-0.5 rounded-full">
+                                      Rascunho
+                                    </span>
                                   )}
                                 </div>
-                                <div className="flex-1 min-w-0">
-                                  <div className="flex items-center gap-1.5 flex-wrap">
-                                    <h3 className="font-semibold text-sm truncate max-w-full">{p.name}</h3>
-                                    {!p.published && (
-                                      <span className="text-[9px] uppercase tracking-wider font-semibold bg-yellow-500/20 text-yellow-700 dark:text-yellow-400 px-1.5 py-0.5 rounded-full">Rascunho</span>
-                                    )}
-                                    <span className="inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[9px] uppercase tracking-wider font-semibold bg-secondary/70 text-muted-foreground">
-                                      {p.access_mode === "pin" ? <><Lock className="size-2.5" /> PIN</> : <><Globe className="size-2.5" /> Público</>}
+                                <div className="flex items-center gap-1.5 mt-0.5 text-[11px] text-muted-foreground/90 min-w-0">
+                                  <span className="inline-flex items-center gap-1 shrink-0">
+                                    {p.access_mode === "pin" ? <Lock className="size-2.5" /> : <Globe className="size-2.5" />}
+                                    <span className="uppercase tracking-[0.1em] text-[10px]">
+                                      {p.access_mode === "pin" ? "PIN" : "Público"}
                                     </span>
-                                  </div>
-                                  <p className="text-[11.5px] text-muted-foreground truncate mt-0.5">
-                                    {p.tagline || `${p.city ?? ""}${p.country ? `, ${p.country}` : ""}` || "—"}
-                                  </p>
+                                  </span>
+                                  {p.tagline && (
+                                    <>
+                                      <span className="text-muted-foreground/40">·</span>
+                                      <span className="truncate">{p.tagline}</span>
+                                    </>
+                                  )}
                                 </div>
                               </div>
-                              <div className="mt-2.5 flex items-center gap-1 pl-[calc(1rem+3rem+0.75rem)] sm:pl-[calc(1rem+3rem+0.75rem)]">
-                                <Link to="/admin/properties/$id" params={{ id: p.id }} className="flex-1 inline-flex items-center justify-center gap-1 text-[11.5px] font-medium bg-secondary/70 rounded-full py-1.5 hover:bg-secondary">
-                                  <Pencil className="size-3" /> Editar
+                              <div className="flex items-center shrink-0 ml-1">
+                                <Link
+                                  to="/admin/properties/$id"
+                                  params={{ id: p.id }}
+                                  className="size-8 grid place-items-center rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+                                  aria-label="Editar"
+                                >
+                                  <Pencil className="size-3.5" />
                                 </Link>
-                                <button type="button" onClick={() => setViewSlug(p.slug)} className="flex-1 inline-flex items-center justify-center gap-1 text-[11.5px] font-medium bg-secondary/70 rounded-full py-1.5 hover:bg-secondary">
-                                  <ExternalLink className="size-3" /> Ver
+                                <button
+                                  type="button"
+                                  onClick={() => setViewSlug(p.slug)}
+                                  className="size-8 grid place-items-center rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+                                  aria-label="Ver"
+                                >
+                                  <ExternalLink className="size-3.5" />
                                 </button>
-                                <button onClick={() => handleCopyLink(p.slug, p.id)} className="size-8 grid place-items-center rounded-full hover:bg-secondary text-muted-foreground hover:text-foreground" aria-label="Copiar link público">
+                                <button
+                                  onClick={() => handleCopyLink(p.slug, p.id)}
+                                  className="size-8 grid place-items-center rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+                                  aria-label="Copiar link público"
+                                >
                                   {copiedId === p.id ? <Check className="size-3.5 text-accent" /> : <Link2 className="size-3.5" />}
                                 </button>
-                                <button type="button" onClick={() => { setDupTarget({ id: p.id, name: p.name }); setDupCopies(1); }} className="size-8 grid place-items-center rounded-full hover:bg-secondary text-muted-foreground hover:text-foreground" aria-label="Duplicar">
+                                <button
+                                  type="button"
+                                  onClick={() => { setDupTarget({ id: p.id, name: p.name }); setDupCopies(1); }}
+                                  className="size-8 grid place-items-center rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+                                  aria-label="Duplicar"
+                                >
                                   <Copy className="size-3.5" />
                                 </button>
-                                <button onClick={() => handleDelete(p.id, p.name)} className="size-8 grid place-items-center rounded-full hover:bg-destructive/10 text-muted-foreground hover:text-destructive" aria-label="Excluir">
+                                <button
+                                  onClick={() => handleDelete(p.id, p.name)}
+                                  className="size-8 grid place-items-center rounded-full text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                                  aria-label="Excluir"
+                                >
                                   <Trash2 className="size-3.5" />
                                 </button>
                               </div>
-                            </div>
+                            </li>
                           );
                         })}
-                      </div>
+                      </ul>
                     )}
                   </div>
                 );
