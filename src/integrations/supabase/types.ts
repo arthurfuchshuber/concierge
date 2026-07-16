@@ -232,6 +232,30 @@ export type Database = {
           },
         ]
       }
+      city_daily_pulse: {
+        Row: {
+          city_key: string
+          created_at: string
+          date: string
+          id: string
+          items: Json
+        }
+        Insert: {
+          city_key: string
+          created_at?: string
+          date: string
+          id?: string
+          items: Json
+        }
+        Update: {
+          city_key?: string
+          created_at?: string
+          date?: string
+          id?: string
+          items?: Json
+        }
+        Relationships: []
+      }
       city_reference_group_members: {
         Row: {
           group_id: string
@@ -1299,6 +1323,38 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "property_checkout_items_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      property_daily_tips: {
+        Row: {
+          content: Json
+          created_at: string
+          date: string
+          id: string
+          property_id: string
+        }
+        Insert: {
+          content: Json
+          created_at?: string
+          date: string
+          id?: string
+          property_id: string
+        }
+        Update: {
+          content?: Json
+          created_at?: string
+          date?: string
+          id?: string
+          property_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "property_daily_tips_property_id_fkey"
             columns: ["property_id"]
             isOneToOne: false
             referencedRelation: "properties"
