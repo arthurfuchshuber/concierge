@@ -157,7 +157,7 @@ export const getCityNews = createServerFn({ method: "POST" })
       return { items: cached.items as NewsItem[] };
     }
 
-    const query = `${data.cityLabel} ${data.country ?? ""} eventos turismo gastronomia passeios essa semana`;
+    const query = `"${data.cityLabel}" ${data.country ?? ""} eventos festival gastronomia passeios restaurantes atrações turismo esta semana`;
     let candidates: FirecrawlSearchResult[] = [];
     try {
       candidates = await firecrawlSearch(query);
