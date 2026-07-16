@@ -56,6 +56,8 @@ function guideCompleteness(p: {
 function Dashboard() {
   const list = useServerFn(listMyProperties);
   const listAsUser = useServerFn(adminListUserPropertiesFull);
+  const listForAccount = useServerFn(listPropertiesForAccount);
+  const { isAdmin: isSaasAdmin } = useIsAdmin();
   const del = useServerFn(deleteProperty);
   const dup = useServerFn(duplicateProperty);
   const [dupTarget, setDupTarget] = useState<{ id: string; name: string } | null>(null);
@@ -63,7 +65,10 @@ function Dashboard() {
   const [dupBusy, setDupBusy] = useState(false);
   const navigate = useNavigate();
   const { impersonation, clear: clearImpersonation } = useImpersonation();
-  const readOnly = !!impersonation;
+  // Read-only banner apenas quando um admin SaaS está visualizando um cliente.
+  // Membros de conta (atendentes/owners convidados) têm acesso de edição.
+  const readOnly = !!impersonation && isSaasAdmin;
+
   const [view, setView] = useState<"grid" | "list">("grid");
   const [statCardsOpen, setStatCardsOpen] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
