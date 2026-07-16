@@ -582,6 +582,8 @@ function Guide({ data }: { data: GuideOk }) {
                 onToggleTheme={toggleTheme}
                 lang={lang}
                 onToggleLang={toggleLang}
+                brandName={(p.brand_name as string | null) ?? null}
+                brandLogoUrl={(p.brand_logo_url as string | null) ?? null}
               />
 
               {/* Countdown do check-in — some após liberado + 3h */}
@@ -1639,19 +1641,24 @@ function GuideMark({ className = "" }: { className?: string }) {
 
 function HeroCompact({
   name,
+  tagline,
   city,
   photos,
   theme,
   onToggleTheme,
+  brandName,
+  brandLogoUrl,
 }: {
   name: string;
-  tagline?: string;
+  tagline?: string | null;
   city?: string;
   photos: string[];
   theme: "dark" | "light";
   onToggleTheme: () => void;
   lang: string;
   onToggleLang: () => void;
+  brandName?: string | null;
+  brandLogoUrl?: string | null;
 }) {
   const [idx, setIdx] = useState(0);
   const touchStartX = useRef<number | null>(null);
@@ -1672,6 +1679,12 @@ function HeroCompact({
     touchStartX.current = null;
     if (Math.abs(dx) > 40) go(dx < 0 ? 1 : -1);
   }
+
+  // Brand — two-line stacked (mockup style): "ANFITRIÃO / SIGMA"
+  const rawBrand = (brandName ?? "Anfitrião Sigma").trim();
+  const brandParts = rawBrand.split(/\s+/);
+  const brandTop = brandParts.length > 1 ? brandParts.slice(0, -1).join(" ") : rawBrand;
+  const brandBottom = brandParts.length > 1 ? brandParts[brandParts.length - 1] : null;
 
   return (
     <section
@@ -1707,14 +1720,37 @@ function HeroCompact({
         </>
       )}
 
-      <header className="relative z-10 flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <div className="grid size-7 place-items-center rounded-lg bg-gradient-to-tr from-amber-400 to-amber-600 shadow-[0_0_15px_rgba(251,191,36,0.4)]">
-            <span className="text-black font-serif italic text-[11px] font-bold leading-none">S</span>
+      <header className="relative z-10 flex items-start justify-between gap-3">
+        <div className="flex items-center gap-2.5">
+          {brandLogoUrl ? (
+            <img
+              src={brandLogoUrl}
+              alt={brandName ?? "Logotipo"}
+              className="h-9 w-auto object-contain"
+            />
+          ) : (
+            <svg viewBox="0 0 32 32" aria-hidden="true" className="size-8 shrink-0">
+              <defs>
+                <linearGradient id="brandA" x1="0" y1="0" x2="1" y2="1">
+                  <stop offset="0%" stopColor="#f97316" />
+                  <stop offset="55%" stopColor="#ec4899" />
+                  <stop offset="100%" stopColor="#8b5cf6" />
+                </linearGradient>
+              </defs>
+              <path d="M16 3 L29 29 H22 L16 15 L10 29 H3 Z" fill="url(#brandA)" />
+              <circle cx="16" cy="22" r="2.4" fill={isDark ? "#0a0a0a" : "#fafafa"} />
+            </svg>
+          )}
+          <div className="flex flex-col leading-[1] gap-[3px]">
+            <span className={`text-[10px] font-semibold tracking-[0.28em] uppercase ${isDark ? "text-white/85" : "text-foreground/85"}`}>
+              {brandTop}
+            </span>
+            {brandBottom && (
+              <span className={`text-[13px] font-bold tracking-[0.32em] uppercase ${isDark ? "text-white" : "text-foreground"}`}>
+                {brandBottom}
+              </span>
+            )}
           </div>
-          <span className={`text-[11px] font-semibold tracking-[0.2em] uppercase ${isDark ? "text-white/85" : "text-foreground/85"}`}>
-            SigmaGuide
-          </span>
         </div>
         <div className="flex items-center gap-2 shrink-0">
           {city && (
@@ -1752,7 +1788,7 @@ function HeroCompact({
       </header>
 
       <h1
-        className={`relative z-10 mt-5 md:mt-8 font-serif text-[26px] md:text-[40px] leading-[1.1] tracking-[-0.015em] line-clamp-2 max-w-[320px] md:max-w-[720px] ${
+        className={`relative z-10 mt-5 md:mt-8 font-serif text-[26px] md:text-[40px] leading-[1.05] tracking-[-0.015em] max-w-[320px] md:max-w-[720px] ${
           isDark
             ? "bg-gradient-to-b from-white via-white to-white/60 bg-clip-text text-transparent"
             : "text-foreground"
@@ -1761,6 +1797,18 @@ function HeroCompact({
       >
         {name}
       </h1>
+      {tagline && (
+        <p
+          className="relative z-10 mt-1 font-serif text-[24px] md:text-[36px] leading-[1.05] tracking-[-0.015em] max-w-[320px] md:max-w-[720px] bg-gradient-to-r from-rose-400 via-pink-400 to-fuchsia-400 bg-clip-text text-transparent"
+          style={{ fontWeight: 600 }}
+        >
+          {tagline}
+        </p>
+      )}
+      <p className={`relative z-10 mt-3 text-[12.5px] md:text-[13px] leading-[1.45] max-w-[300px] md:max-w-[420px] ${isDark ? "text-white/60" : "text-foreground/65"}`}>
+        Tudo o que você precisa para uma estadia incrível.
+      </p>
+
 
       {hasMany && (
         <div className="relative z-10 mt-4 flex gap-1.5">
@@ -1893,28 +1941,68 @@ function SectionCard({
         </>
       )}
 
-      {badge && (
-        <span
-          className={`absolute top-3 right-3 z-10 rounded-md px-2 py-0.5 text-[9.5px] font-black uppercase tracking-tighter ${
-            isDark
-              ? "bg-amber-400 text-black shadow-[0_0_12px_rgba(251,191,36,0.5)]"
-              : "bg-amber-500 text-white"
-          }`}
+      {/* Luggage watermark — only on the hero "Chegada" card (gold) */}
+      {isHero && isGold && (
+        <svg
+          viewBox="0 0 120 100"
+          aria-hidden="true"
+          className={`pointer-events-none absolute -right-3 top-3 bottom-3 h-[calc(100%-24px)] w-auto ${isDark ? "text-white/12" : "text-foreground/10"}`}
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.4"
+          strokeLinejoin="round"
+          strokeLinecap="round"
         >
-          {badge}
-        </span>
+          {/* Handles */}
+          <path d="M42 22 v-6 a6 6 0 0 1 6 -6 h14 a6 6 0 0 1 6 6 v6" />
+          <path d="M78 26 v-4 a4 4 0 0 1 4 -4 h8 a4 4 0 0 1 4 4 v4" />
+          {/* Big suitcase */}
+          <rect x="30" y="22" width="52" height="60" rx="7" />
+          <line x1="56" y1="22" x2="56" y2="82" />
+          <circle cx="42" cy="80" r="3" />
+          <circle cx="70" cy="80" r="3" />
+          {/* Small carry-on */}
+          <rect x="66" y="30" width="34" height="50" rx="5" />
+          <line x1="66" y1="52" x2="100" y2="52" />
+        </svg>
       )}
 
-      <div
-        className={`relative grid ${iconSize} place-items-center rounded-2xl border mb-3 ${iconBgCls} ${iconRingCls}`}
-      >
-        <span className={`${iconColorCls} ${iconSvg}`}>{icon}</span>
+      <div className="relative flex items-start gap-4">
+        <div
+          className={`grid ${iconSize} shrink-0 place-items-center rounded-2xl border ${iconBgCls} ${iconRingCls}`}
+        >
+          <span className={`${iconColorCls} ${iconSvg}`}>{icon}</span>
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className={`${titleSize} font-semibold ${titleColor}`}>{title}</p>
+          <p className={`mt-0.5 ${descSize} leading-[1.4] ${descColor}`}>{desc}</p>
+        </div>
       </div>
-      <p className={`relative ${titleSize} font-semibold ${titleColor}`}>{title}</p>
-      <p className={`relative mt-0.5 ${descSize} leading-[1.4] ${descColor}`}>{desc}</p>
+
+      {isHero && badge ? (
+        <div className="relative mt-4 flex justify-end">
+          <span className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-fuchsia-500 via-pink-500 to-rose-500 px-4 py-2 text-[10.5px] font-black uppercase tracking-[0.16em] text-white shadow-[0_10px_30px_-10px_rgba(236,72,153,0.7)]">
+            {badge}
+            <ArrowRight className="size-3.5" strokeWidth={2.4} />
+          </span>
+        </div>
+      ) : (
+        badge && (
+          <span
+            className={`absolute top-3 right-3 z-10 rounded-md px-2 py-0.5 text-[9.5px] font-black uppercase tracking-tighter ${
+              isDark
+                ? "bg-amber-400 text-black shadow-[0_0_12px_rgba(251,191,36,0.5)]"
+                : "bg-amber-500 text-white"
+            }`}
+          >
+            {badge}
+          </span>
+        )
+      )}
     </div>
   );
 }
+
 
 
 function SubList({ children }: { children: React.ReactNode }) {
