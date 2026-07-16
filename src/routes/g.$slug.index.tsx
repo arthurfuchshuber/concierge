@@ -536,25 +536,13 @@ function Guide({ data }: { data: GuideOk }) {
     },
   ];
   const cards = allCards.filter((c) => c.visible);
+  const quickCards = cards.filter((c) => c.key !== "faq");
+  const faqCard = cards.find((c) => c.key === "faq");
 
   return (
     <div
-      className={`sigma-public-guide guide-ambient relative min-h-screen bg-background text-foreground pb-16 overflow-x-hidden ${theme === "light" ? "theme-light" : ""}`}
+      className={`sigma-public-guide relative min-h-screen bg-background text-foreground pb-10 overflow-x-hidden ${theme === "light" ? "theme-light" : ""}`}
     >
-      {/* Celestial ambient glows — fixed behind everything, in both themes */}
-      {theme === "dark" ? (
-        <>
-          <div className="pointer-events-none fixed -top-32 -right-32 h-[420px] w-[420px] rounded-full bg-amber-500/[0.10] blur-[130px] z-0 animate-[pulse_9s_ease-in-out_infinite]" />
-          <div className="pointer-events-none fixed top-[40%] -left-32 h-[360px] w-[360px] rounded-full bg-purple-600/[0.10] blur-[120px] z-0 animate-[pulse_11s_ease-in-out_infinite]" />
-          <div className="pointer-events-none fixed bottom-0 right-1/4 h-[320px] w-[320px] rounded-full bg-sky-500/[0.07] blur-[110px] z-0 animate-[pulse_13s_ease-in-out_infinite]" />
-        </>
-      ) : (
-        <>
-          <div className="pointer-events-none fixed -top-40 -right-40 h-[460px] w-[460px] rounded-full bg-amber-300/25 blur-[130px] z-0" />
-          <div className="pointer-events-none fixed top-[38%] -left-40 h-[380px] w-[380px] rounded-full bg-violet-300/20 blur-[130px] z-0" />
-          <div className="pointer-events-none fixed bottom-0 right-1/4 h-[340px] w-[340px] rounded-full bg-sky-300/15 blur-[120px] z-0" />
-        </>
-      )}
       {needsGate && (
         <GuideAccessGate
           slug={slug}
@@ -563,7 +551,7 @@ function Guide({ data }: { data: GuideOk }) {
           onUnlock={setAccessRec}
         />
       )}
-      <div className="relative z-10 mx-auto w-full max-w-md md:max-w-none">
+      <div className="relative z-10 mx-auto w-full max-w-[490px] md:max-w-[520px]">
         <AnimatePresence mode="wait" initial={false}>
           {section === "home" ? (
             <motion.div
@@ -653,17 +641,17 @@ function Guide({ data }: { data: GuideOk }) {
                 )}
 
 
-              <section id="guide-actions" className="px-5 md:px-10 lg:px-16 mt-5 md:mt-6 relative z-10">
-                <div className="flex items-center gap-3 mb-4 md:mb-5">
-                  <p className={`shrink-0 whitespace-nowrap text-[9.5px] md:text-[10px] uppercase tracking-[0.22em] font-bold ${theme === "dark" ? "text-white/50" : "text-foreground/55"}`}>
-                    <span className="inline-block size-1 rounded-full bg-amber-400 mr-2 align-middle shadow-[0_0_6px_rgba(251,191,36,0.7)]" />
+              <section id="guide-actions" className="px-4 md:px-10 lg:px-16 mt-3.5 md:mt-5 relative z-10">
+                <div className="flex items-center gap-3 mb-3.5 md:mb-4">
+                  <p className={`shrink-0 whitespace-nowrap text-[9.5px] md:text-[10px] uppercase tracking-[0.24em] font-black ${theme === "dark" ? "text-white/76" : "text-slate-950/78"}`}>
+                    <span className="inline-block size-1.5 rounded-full bg-fuchsia-500 mr-2 align-middle shadow-[0_0_7px_rgba(217,70,239,0.75)]" />
                     Acessos rápidos
                   </p>
-                  <span className={`h-px flex-1 bg-gradient-to-r ${theme === "dark" ? "from-white/15 via-white/5" : "from-foreground/15 via-foreground/5"} to-transparent`} />
+                  <span className={`h-px flex-1 bg-gradient-to-r ${theme === "dark" ? "from-white/12 via-white/4" : "from-slate-900/12 via-slate-900/4"} to-transparent`} />
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
-                  {cards.map((c) => {
+                  {quickCards.map((c) => {
                     const span =
                       c.variant === "hero-wide" || c.variant === "horizontal-wide" ? "col-span-2" : "";
                     const inner = (
@@ -675,6 +663,7 @@ function Guide({ data }: { data: GuideOk }) {
                         tone={c.tone}
                         badge={c.badge}
                         theme={theme}
+                        imageUrl={c.key === "explore" ? themePick("explore", 1) : undefined}
                       />
                     );
                     return c.to?.kind === "link" ? (
@@ -722,6 +711,22 @@ function Guide({ data }: { data: GuideOk }) {
                 />
               )}
 
+              {faqCard && (
+                <section className="px-4 md:px-10 lg:px-16 mt-3 relative z-10">
+                  <button type="button" onClick={() => gotoSection("faq")} className="w-full text-left">
+                    <SectionCard
+                      title={faqCard.title}
+                      desc={faqCard.desc}
+                      icon={faqCard.icon}
+                      variant="horizontal-wide"
+                      tone={faqCard.tone}
+                      theme={theme}
+                      footerStyle
+                    />
+                  </button>
+                </section>
+              )}
+
 
 
               {/* Faixa amarela full-bleed com "informações importantes"
@@ -730,18 +735,18 @@ function Guide({ data }: { data: GuideOk }) {
                 depois; check-out das 3h até as 15h do dia do check-out. */}
               {((homeStripsVisible && p.checkin_note) ||
                 (checkoutNoticeVisible && (p.checkout_note || p.checkout_time))) && (
-                <div className="relative left-1/2 right-1/2 -mx-[50vw] w-screen mt-6 md:mt-8 bg-amber-300 text-amber-950 border-y border-amber-500/60 shadow-[0_2px_18px_-8px_rgba(180,120,0,0.35)]">
-                  <div className="mx-auto max-w-6xl px-5 md:px-10 lg:px-16 py-4 md:py-5 flex flex-col md:flex-row md:items-start gap-4 md:gap-8">
+                <div className="px-4 md:px-10 lg:px-16 mt-3.5 md:mt-5">
+                  <div className={`rounded-[22px] border px-4 py-4 flex flex-col gap-4 ${theme === "dark" ? "border-amber-300/22 bg-amber-300/10 text-amber-50" : "border-amber-200/80 bg-amber-50/90 text-amber-950"}`}>
                     {homeStripsVisible && p.checkin_note && (
                       <div className="flex items-start gap-3 md:flex-1 md:min-w-0">
-                        <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-amber-950/10 text-amber-950">
+                        <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-amber-400/15 text-amber-400">
                           <LogIn className="size-[18px]" strokeWidth={2} />
                         </span>
                         <div className="min-w-0">
-                          <p className="text-[10px] uppercase tracking-[0.28em] font-semibold text-amber-950/75">
+                          <p className="text-[10px] uppercase tracking-[0.22em] font-black opacity-75">
                             Informação importante · Check-in
                           </p>
-                          <p className="text-[13.5px] leading-relaxed font-medium mt-1 whitespace-pre-line">
+                          <p className="text-[13px] leading-relaxed font-medium mt-1 whitespace-pre-line">
                             {String(p.checkin_note)}
                           </p>
                         </div>
@@ -749,11 +754,11 @@ function Guide({ data }: { data: GuideOk }) {
                     )}
                     {checkoutNoticeVisible && (p.checkout_note || p.checkout_time) && (
                       <div className="flex items-start gap-3 md:flex-1 md:min-w-0">
-                        <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-amber-950/10 text-amber-950">
+                        <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-amber-400/15 text-amber-400">
                           <LogOut className="size-[18px]" strokeWidth={2} />
                         </span>
                         <div className="min-w-0">
-                          <p className="text-[10px] uppercase tracking-[0.28em] font-semibold text-amber-950/75">
+                          <p className="text-[10px] uppercase tracking-[0.22em] font-black opacity-75">
                             {(() => {
                               const t = p.checkout_time
                                 ? String(p.checkout_time).match(/^(\d{1,2}):(\d{2})/)
@@ -763,7 +768,7 @@ function Guide({ data }: { data: GuideOk }) {
                             })()}
                           </p>
                           {p.checkout_note && (
-                            <p className="text-[13.5px] leading-relaxed font-medium mt-1 whitespace-pre-line">
+                            <p className="text-[13px] leading-relaxed font-medium mt-1 whitespace-pre-line">
                               {String(p.checkout_note)}
                             </p>
                           )}
