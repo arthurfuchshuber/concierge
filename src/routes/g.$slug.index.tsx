@@ -404,7 +404,7 @@ function Guide({ data }: { data: GuideOk }) {
   const galleryRaw: string[] = Array.isArray(p.gallery_images) ? p.gallery_images : [];
   const photos: string[] = galleryRaw.length ? galleryRaw : p.hero_image_url ? [p.hero_image_url] : [];
   const heroImg = photos[0];
-  const heroTitle = cleanGuideTitle(p.name, p.city);
+  const heroParts = splitGuideHeroTitle(cleanGuideTitle(p.name, p.city), p.tagline);
 
   const rules = data.manual.filter(isRule);
   const houseManual = data.manual.filter((m: any) => !isRule(m));
@@ -562,8 +562,8 @@ function Guide({ data }: { data: GuideOk }) {
               transition={{ duration: 0.28, ease: [0.4, 0, 0.2, 1] }}
             >
               <HeroCompact
-                name={heroTitle}
-                tagline={p.tagline}
+                name={heroParts.title}
+                tagline={heroParts.tagline}
                 city={p.city}
                 photos={photos}
                 theme={theme}
@@ -573,73 +573,6 @@ function Guide({ data }: { data: GuideOk }) {
                 brandName={(p.brand_name as string | null) ?? null}
                 brandLogoUrl={(p.brand_logo_url as string | null) ?? null}
               />
-
-              {/* Countdown do check-in — some após liberado + 3h */}
-              {homeStripsVisible && (
-                <CheckinCountdown checkinTime={p.checkin_time as string | null} theme={theme} />
-              )}
-
-
-              {/* Faixas com Wi-Fi e códigos: aparecem de 8h antes do check-in
-                até 12h depois. No desktop ficam lado a lado para economizar
-                altura da página. */}
-              {homeStripsVisible &&
-                (p.wifi_ssid ||
-                  (p as any).gate_code_set ||
-                  (p as any).lock_code_set ||
-                  p.gate_code ||
-                  p.lock_code) && (
-                  <div className="px-5 md:px-10 lg:px-16 -mt-2 md:-mt-3 relative z-10 mb-3 md:mb-4 flex flex-col md:flex-row md:items-stretch gap-2.5 md:gap-3">
-                    {p.wifi_ssid && (
-                      <div className="md:flex-1 md:min-w-0">
-                        <WifiStrip
-                          ssid={p.wifi_ssid}
-                          password={p.wifi_password}
-                          passwordSet={!!((p as any).wifi_password_set || p.wifi_password)}
-                          theme={theme}
-                          unlocked={unlocked}
-                          requestUnlock={requestUnlock}
-                          checkinLocked={checkinLocked}
-                          hasAccessRec={!!accessRec}
-                          gateEnabled={gateEnabled}
-                        />
-                      </div>
-                    )}
-                    {((p as any).gate_code_set || (p as any).lock_code_set || p.gate_code || p.lock_code) && (
-                      <div className="md:flex-1 md:min-w-0">
-                        <AccessCodesStrip
-                          gateCode={p.gate_code as string | null}
-                          lockCode={p.lock_code as string | null}
-                          gateCodeSet={!!((p as any).gate_code_set || p.gate_code)}
-                          lockCodeSet={!!((p as any).lock_code_set || p.lock_code)}
-                          gateLabel={(p.gate_label as string | null) || "Portão"}
-                          lockLabel={(p.lock_label as string | null) || "Fechadura"}
-                          unlocked={unlocked}
-                          requestUnlock={requestUnlock}
-                          checkinLocked={checkinLocked}
-                          hasAccessRec={!!accessRec}
-                          gateEnabled={gateEnabled}
-                          theme={theme}
-                          gateInstructions={p.gate_instructions as string | null}
-                          lockInstructions={p.lock_instructions as string | null}
-                          gateVideoUrl={p.gate_video_url as string | null}
-                          lockVideoUrl={p.lock_video_url as string | null}
-                          gateMedia={
-                            Array.isArray(p.gate_media)
-                              ? (p.gate_media as Array<{ url: string; type: "image" | "video" }>)
-                              : []
-                          }
-                          lockMedia={
-                            Array.isArray(p.lock_media)
-                              ? (p.lock_media as Array<{ url: string; type: "image" | "video" }>)
-                              : []
-                          }
-                        />
-                      </div>
-                    )}
-                  </div>
-                )}
-
 
               <section id="guide-actions" className="px-4 md:px-10 lg:px-16 mt-3.5 md:mt-5 relative z-10">
                 <div className="flex items-center gap-3 mb-3.5 md:mb-4">
@@ -726,6 +659,69 @@ function Guide({ data }: { data: GuideOk }) {
                   </button>
                 </section>
               )}
+
+              {/* Countdown do check-in — preservado, mas abaixo do grid para manter o ritmo do mockup. */}
+              {homeStripsVisible && (
+                <CheckinCountdown checkinTime={p.checkin_time as string | null} theme={theme} />
+              )}
+
+              {/* Wi-Fi e códigos preservados sem ocupar o topo visual do mockup. */}
+              {homeStripsVisible &&
+                (p.wifi_ssid ||
+                  (p as any).gate_code_set ||
+                  (p as any).lock_code_set ||
+                  p.gate_code ||
+                  p.lock_code) && (
+                  <div className="px-4 md:px-10 lg:px-16 mt-3 relative z-10 flex flex-col md:flex-row md:items-stretch gap-2.5 md:gap-3">
+                    {p.wifi_ssid && (
+                      <div className="md:flex-1 md:min-w-0">
+                        <WifiStrip
+                          ssid={p.wifi_ssid}
+                          password={p.wifi_password}
+                          passwordSet={!!((p as any).wifi_password_set || p.wifi_password)}
+                          theme={theme}
+                          unlocked={unlocked}
+                          requestUnlock={requestUnlock}
+                          checkinLocked={checkinLocked}
+                          hasAccessRec={!!accessRec}
+                          gateEnabled={gateEnabled}
+                        />
+                      </div>
+                    )}
+                    {((p as any).gate_code_set || (p as any).lock_code_set || p.gate_code || p.lock_code) && (
+                      <div className="md:flex-1 md:min-w-0">
+                        <AccessCodesStrip
+                          gateCode={p.gate_code as string | null}
+                          lockCode={p.lock_code as string | null}
+                          gateCodeSet={!!((p as any).gate_code_set || p.gate_code)}
+                          lockCodeSet={!!((p as any).lock_code_set || p.lock_code)}
+                          gateLabel={(p.gate_label as string | null) || "Portão"}
+                          lockLabel={(p.lock_label as string | null) || "Fechadura"}
+                          unlocked={unlocked}
+                          requestUnlock={requestUnlock}
+                          checkinLocked={checkinLocked}
+                          hasAccessRec={!!accessRec}
+                          gateEnabled={gateEnabled}
+                          theme={theme}
+                          gateInstructions={p.gate_instructions as string | null}
+                          lockInstructions={p.lock_instructions as string | null}
+                          gateVideoUrl={p.gate_video_url as string | null}
+                          lockVideoUrl={p.lock_video_url as string | null}
+                          gateMedia={
+                            Array.isArray(p.gate_media)
+                              ? (p.gate_media as Array<{ url: string; type: "image" | "video" }>)
+                              : []
+                          }
+                          lockMedia={
+                            Array.isArray(p.lock_media)
+                              ? (p.lock_media as Array<{ url: string; type: "image" | "video" }>)
+                              : []
+                          }
+                        />
+                      </div>
+                    )}
+                  </div>
+                )}
 
 
 
