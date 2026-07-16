@@ -295,30 +295,31 @@ function Guide({ data }: { data: GuideOk }) {
   const gateEnabled = !!p.require_access_gate;
   // Modo "preview" para admin do SaaS dentro do iframe (?preview=1): pula o gate
   // e mostra o conteúdo do guia diretamente, sem exigir preenchimento.
-  const isPreview = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("preview") === "1";
-  const [accessRec, setAccessRec] = useState<AccessRecord | null>(() => {
-    if (isPreview) {
+  const [isPreview, setIsPreview] = useState(false);
+  const [accessRec, setAccessRec] = useState<AccessRecord | null>(null);
+  // Hidrata o registro do localStorage somente após mount (evita mismatch SSR
+  // que descartava o registro e fazia o popup reaparecer a cada acesso).
+  const [gateReady, setGateReady] = useState(false);
+  useEffect(() => {
+    const preview = new URLSearchParams(window.location.search).get("preview") === "1";
+    if (preview) {
       const today = new Date().toISOString().slice(0, 10);
-      return {
+      setIsPreview(true);
+      setAccessRec({
         name: "Pré-visualização",
         code: null,
         checkinDate: today,
         checkoutDate: today,
         phone: null,
         phoneCountry: null,
-      };
+      });
+      setGateReady(true);
+      return;
     }
-    return null;
-  });
-  // Hidrata o registro do localStorage somente após mount (evita mismatch SSR
-  // que descartava o registro e fazia o popup reaparecer a cada acesso).
-  const [gateReady, setGateReady] = useState(isPreview);
-  useEffect(() => {
-    if (isPreview) return;
     const rec = readAccessRecord(slug);
     if (rec) setAccessRec(rec);
     setGateReady(true);
-  }, [slug, isPreview]);
+  }, [slug]);
   const needsGate = gateReady && !accessRec && !isPreview;
 
   // (Wi-Fi e senhas de acesso agora seguem apenas a regra de check-out às
@@ -404,7 +405,7 @@ function Guide({ data }: { data: GuideOk }) {
   const galleryRaw: string[] = Array.isArray(p.gallery_images) ? p.gallery_images : [];
   const photos: string[] = galleryRaw.length ? galleryRaw : p.hero_image_url ? [p.hero_image_url] : [];
   const heroImg = photos[0];
-  const heroTitle = cleanGuideTitle(p.name, p.city);
+  const heroParts = splitGuideHeroTitle(cleanGuideTitle(p.name, p.city), p.tagline);
 
   const rules = data.manual.filter(isRule);
   const houseManual = data.manual.filter((m: any) => !isRule(m));
@@ -536,25 +537,13 @@ function Guide({ data }: { data: GuideOk }) {
     },
   ];
   const cards = allCards.filter((c) => c.visible);
+  const quickCards = cards.filter((c) => c.key !== "faq");
+  const faqCard = cards.find((c) => c.key === "faq");
 
   return (
     <div
-      className={`sigma-public-guide guide-ambient relative min-h-screen bg-background text-foreground pb-16 overflow-x-hidden ${theme === "light" ? "theme-light" : ""}`}
+      className={`sigma-public-guide relative min-h-screen bg-background text-foreground pb-10 overflow-x-hidden ${theme === "light" ? "theme-light" : ""}`}
     >
-      {/* Celestial ambient glows — fixed behind everything, in both themes */}
-      {theme === "dark" ? (
-        <>
-          <div className="pointer-events-none fixed -top-32 -right-32 h-[420px] w-[420px] rounded-full bg-amber-500/[0.10] blur-[130px] z-0 animate-[pulse_9s_ease-in-out_infinite]" />
-          <div className="pointer-events-none fixed top-[40%] -left-32 h-[360px] w-[360px] rounded-full bg-purple-600/[0.10] blur-[120px] z-0 animate-[pulse_11s_ease-in-out_infinite]" />
-          <div className="pointer-events-none fixed bottom-0 right-1/4 h-[320px] w-[320px] rounded-full bg-sky-500/[0.07] blur-[110px] z-0 animate-[pulse_13s_ease-in-out_infinite]" />
-        </>
-      ) : (
-        <>
-          <div className="pointer-events-none fixed -top-40 -right-40 h-[460px] w-[460px] rounded-full bg-amber-300/25 blur-[130px] z-0" />
-          <div className="pointer-events-none fixed top-[38%] -left-40 h-[380px] w-[380px] rounded-full bg-violet-300/20 blur-[130px] z-0" />
-          <div className="pointer-events-none fixed bottom-0 right-1/4 h-[340px] w-[340px] rounded-full bg-sky-300/15 blur-[120px] z-0" />
-        </>
-      )}
       {needsGate && (
         <GuideAccessGate
           slug={slug}
@@ -563,7 +552,7 @@ function Guide({ data }: { data: GuideOk }) {
           onUnlock={setAccessRec}
         />
       )}
-      <div className="relative z-10 mx-auto w-full max-w-md md:max-w-none">
+      <div className="relative z-10 mx-auto w-full max-w-[490px] md:max-w-[520px]">
         <AnimatePresence mode="wait" initial={false}>
           {section === "home" ? (
             <motion.div
@@ -574,8 +563,8 @@ function Guide({ data }: { data: GuideOk }) {
               transition={{ duration: 0.28, ease: [0.4, 0, 0.2, 1] }}
             >
               <HeroCompact
-                name={heroTitle}
-                tagline={p.tagline}
+                name={heroParts.title}
+                tagline={heroParts.tagline}
                 city={p.city}
                 photos={photos}
                 theme={theme}
@@ -586,22 +575,105 @@ function Guide({ data }: { data: GuideOk }) {
                 brandLogoUrl={(p.brand_logo_url as string | null) ?? null}
               />
 
-              {/* Countdown do check-in — some após liberado + 3h */}
+              <section id="guide-actions" className="px-4 md:px-10 lg:px-16 mt-3.5 md:mt-5 relative z-10">
+                <div className="flex items-center gap-3 mb-3.5 md:mb-4">
+                  <p className={`shrink-0 whitespace-nowrap text-[9.5px] md:text-[10px] uppercase tracking-[0.24em] font-black ${theme === "dark" ? "text-white/76" : "text-slate-950/78"}`}>
+                    <span className="inline-block size-1.5 rounded-full bg-fuchsia-500 mr-2 align-middle shadow-[0_0_7px_rgba(217,70,239,0.75)]" />
+                    Acessos rápidos
+                  </p>
+                  <span className={`h-px flex-1 bg-gradient-to-r ${theme === "dark" ? "from-white/12 via-white/4" : "from-slate-900/12 via-slate-900/4"} to-transparent`} />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  {quickCards.map((c) => {
+                    const span =
+                      c.variant === "hero-wide" || c.variant === "horizontal-wide" ? "col-span-2" : "";
+                    const inner = (
+                      <SectionCard
+                        title={c.title}
+                        desc={c.desc}
+                        icon={c.icon}
+                        variant={c.variant}
+                        tone={c.tone}
+                        badge={c.badge}
+                        theme={theme}
+                        imageUrl={c.key === "explore" ? themePick("explore", 1) : undefined}
+                      />
+                    );
+                    return c.to?.kind === "link" ? (
+                      <Link
+                        key={c.key}
+                        to="/g/$slug/explorar"
+                        params={{ slug }}
+                        className={`block ${span}`}
+                      >
+                        {inner}
+                      </Link>
+                    ) : (
+                      <button
+                        key={c.key}
+                        onClick={() => c.to?.kind === "section" && gotoSection(c.to.value)}
+                        className={`w-full text-left ${span}`}
+                      >
+                        {inner}
+                      </button>
+                    );
+                  })}
+                </div>
+              </section>
+
+              {/* Dica do dia IA + Bolha do Concierge + Pulso da cidade — camada
+                  de engajamento que aparece só quando temos contexto útil. */}
+              {accessRec && (
+                <HomeIntelligence
+                  propertyId={p.id as string}
+                  city={(p.city as string | null) ?? null}
+                  country={(p.country as string | null) ?? null}
+                  lang={lang as "pt" | "en" | "es" | "fr"}
+                  guestName={accessRec?.name ?? null}
+                  theme={theme}
+                />
+              )}
+
+              {/* Feed "O que rola hoje" — notícias reais curadas por IA */}
+              {accessRec && (
+                <CityNewsFeed
+                  city={(p.city as string | null) ?? null}
+                  country={(p.country as string | null) ?? null}
+                  lang={lang as "pt" | "en" | "es" | "fr"}
+                  theme={theme}
+                />
+              )}
+
+              {faqCard && (
+                <section className="px-4 md:px-10 lg:px-16 mt-3 relative z-10">
+                  <button type="button" onClick={() => gotoSection("faq")} className="w-full text-left">
+                    <SectionCard
+                      title={faqCard.title}
+                      desc={faqCard.desc}
+                      icon={faqCard.icon}
+                      variant="horizontal-wide"
+                      tone={faqCard.tone}
+                      theme={theme}
+                      footerStyle
+                    />
+                  </button>
+                </section>
+              )}
+
+              {/* Countdown do check-in — preservado, mas abaixo do grid para manter o ritmo do mockup. */}
               {homeStripsVisible && (
                 <CheckinCountdown checkinTime={p.checkin_time as string | null} theme={theme} />
               )}
 
-
-              {/* Faixas com Wi-Fi e códigos: aparecem de 8h antes do check-in
-                até 12h depois. No desktop ficam lado a lado para economizar
-                altura da página. */}
+              {/* Wi-Fi e códigos preservados sem ocupar o topo visual do mockup. */}
               {homeStripsVisible &&
                 (p.wifi_ssid ||
                   (p as any).gate_code_set ||
                   (p as any).lock_code_set ||
                   p.gate_code ||
                   p.lock_code) && (
-                  <div className="px-5 md:px-10 lg:px-16 -mt-2 md:-mt-3 relative z-10 mb-3 md:mb-4 flex flex-col md:flex-row md:items-stretch gap-2.5 md:gap-3">
+                  <div className="px-4 md:px-10 lg:px-16 mt-3 relative z-10 flex flex-col md:flex-row md:items-stretch gap-2.5 md:gap-3">
                     {p.wifi_ssid && (
                       <div className="md:flex-1 md:min-w-0">
                         <WifiStrip
@@ -653,76 +725,6 @@ function Guide({ data }: { data: GuideOk }) {
                 )}
 
 
-              <section id="guide-actions" className="px-5 md:px-10 lg:px-16 mt-5 md:mt-6 relative z-10">
-                <div className="flex items-center gap-3 mb-4 md:mb-5">
-                  <p className={`shrink-0 whitespace-nowrap text-[9.5px] md:text-[10px] uppercase tracking-[0.22em] font-bold ${theme === "dark" ? "text-white/50" : "text-foreground/55"}`}>
-                    <span className="inline-block size-1 rounded-full bg-amber-400 mr-2 align-middle shadow-[0_0_6px_rgba(251,191,36,0.7)]" />
-                    Acessos rápidos
-                  </p>
-                  <span className={`h-px flex-1 bg-gradient-to-r ${theme === "dark" ? "from-white/15 via-white/5" : "from-foreground/15 via-foreground/5"} to-transparent`} />
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  {cards.map((c) => {
-                    const span =
-                      c.variant === "hero-wide" || c.variant === "horizontal-wide" ? "col-span-2" : "";
-                    const inner = (
-                      <SectionCard
-                        title={c.title}
-                        desc={c.desc}
-                        icon={c.icon}
-                        variant={c.variant}
-                        tone={c.tone}
-                        badge={c.badge}
-                        theme={theme}
-                      />
-                    );
-                    return c.to?.kind === "link" ? (
-                      <Link
-                        key={c.key}
-                        to="/g/$slug/explorar"
-                        params={{ slug }}
-                        className={`block ${span}`}
-                      >
-                        {inner}
-                      </Link>
-                    ) : (
-                      <button
-                        key={c.key}
-                        onClick={() => c.to?.kind === "section" && gotoSection(c.to.value)}
-                        className={`w-full text-left ${span}`}
-                      >
-                        {inner}
-                      </button>
-                    );
-                  })}
-                </div>
-              </section>
-
-              {/* Dica do dia IA + Bolha do Concierge + Pulso da cidade — camada
-                  de engajamento que aparece só quando temos contexto útil. */}
-              {accessRec && (
-                <HomeIntelligence
-                  propertyId={p.id as string}
-                  city={(p.city as string | null) ?? null}
-                  country={(p.country as string | null) ?? null}
-                  lang={lang as "pt" | "en" | "es" | "fr"}
-                  guestName={accessRec?.name ?? null}
-                  theme={theme}
-                />
-              )}
-
-              {/* Feed "O que rola hoje" — notícias reais curadas por IA */}
-              {accessRec && (
-                <CityNewsFeed
-                  city={(p.city as string | null) ?? null}
-                  country={(p.country as string | null) ?? null}
-                  lang={lang as "pt" | "en" | "es" | "fr"}
-                  theme={theme}
-                />
-              )}
-
-
 
               {/* Faixa amarela full-bleed com "informações importantes"
                 (observações de check-in / check-out). Mantém as janelas de
@@ -730,18 +732,18 @@ function Guide({ data }: { data: GuideOk }) {
                 depois; check-out das 3h até as 15h do dia do check-out. */}
               {((homeStripsVisible && p.checkin_note) ||
                 (checkoutNoticeVisible && (p.checkout_note || p.checkout_time))) && (
-                <div className="relative left-1/2 right-1/2 -mx-[50vw] w-screen mt-6 md:mt-8 bg-amber-300 text-amber-950 border-y border-amber-500/60 shadow-[0_2px_18px_-8px_rgba(180,120,0,0.35)]">
-                  <div className="mx-auto max-w-6xl px-5 md:px-10 lg:px-16 py-4 md:py-5 flex flex-col md:flex-row md:items-start gap-4 md:gap-8">
+                <div className="px-4 md:px-10 lg:px-16 mt-3.5 md:mt-5">
+                  <div className={`rounded-[22px] border px-4 py-4 flex flex-col gap-4 ${theme === "dark" ? "border-amber-300/22 bg-amber-300/10 text-amber-50" : "border-amber-200/80 bg-amber-50/90 text-amber-950"}`}>
                     {homeStripsVisible && p.checkin_note && (
                       <div className="flex items-start gap-3 md:flex-1 md:min-w-0">
-                        <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-amber-950/10 text-amber-950">
+                        <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-amber-400/15 text-amber-400">
                           <LogIn className="size-[18px]" strokeWidth={2} />
                         </span>
                         <div className="min-w-0">
-                          <p className="text-[10px] uppercase tracking-[0.28em] font-semibold text-amber-950/75">
+                          <p className="text-[10px] uppercase tracking-[0.22em] font-black opacity-75">
                             Informação importante · Check-in
                           </p>
-                          <p className="text-[13.5px] leading-relaxed font-medium mt-1 whitespace-pre-line">
+                          <p className="text-[13px] leading-relaxed font-medium mt-1 whitespace-pre-line">
                             {String(p.checkin_note)}
                           </p>
                         </div>
@@ -749,11 +751,11 @@ function Guide({ data }: { data: GuideOk }) {
                     )}
                     {checkoutNoticeVisible && (p.checkout_note || p.checkout_time) && (
                       <div className="flex items-start gap-3 md:flex-1 md:min-w-0">
-                        <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-amber-950/10 text-amber-950">
+                        <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-amber-400/15 text-amber-400">
                           <LogOut className="size-[18px]" strokeWidth={2} />
                         </span>
                         <div className="min-w-0">
-                          <p className="text-[10px] uppercase tracking-[0.28em] font-semibold text-amber-950/75">
+                          <p className="text-[10px] uppercase tracking-[0.22em] font-black opacity-75">
                             {(() => {
                               const t = p.checkout_time
                                 ? String(p.checkout_time).match(/^(\d{1,2}):(\d{2})/)
@@ -763,7 +765,7 @@ function Guide({ data }: { data: GuideOk }) {
                             })()}
                           </p>
                           {p.checkout_note && (
-                            <p className="text-[13.5px] leading-relaxed font-medium mt-1 whitespace-pre-line">
+                            <p className="text-[13px] leading-relaxed font-medium mt-1 whitespace-pre-line">
                               {String(p.checkout_note)}
                             </p>
                           )}
@@ -1520,7 +1522,7 @@ function Guide({ data }: { data: GuideOk }) {
           )}
         </AnimatePresence>
       </div>
-      {data.aiEnabled ? <GuideAiChat slug={slug} propertyName={heroTitle} guestName={accessRec?.name ?? null} /> : null}
+      {data.aiEnabled ? <GuideAiChat slug={slug} propertyName={heroParts.title} guestName={accessRec?.name ?? null} /> : null}
       <PinDialog
         open={pinDialog.open}
         slug={slug}
@@ -1620,6 +1622,22 @@ function cleanGuideTitle(name?: string, city?: string) {
   );
 }
 
+function splitGuideHeroTitle(name?: string, tagline?: string | null) {
+  const cleanName = String(name ?? "Guia").trim() || "Guia";
+  const cleanTagline = String(tagline ?? "").trim();
+  const proximity = cleanName.match(/\b(?:pr[oó]x\.?|perto|pr[oó]ximo(?:a)?|ao lado)\b[\s\S]*$/i);
+  if (proximity?.index && proximity.index > 0) {
+    const title = cleanName.slice(0, proximity.index).trim() || cleanName;
+    const derivedTagline = cleanName.slice(proximity.index).trim();
+    return { title, tagline: derivedTagline };
+  }
+  if (!cleanTagline) return { title: cleanName, tagline: null as string | null };
+  const escaped = cleanTagline.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const re = new RegExp(`\\s*${escaped}\\s*$`, "i");
+  const title = cleanName.replace(re, "").trim() || cleanName;
+  return { title, tagline: cleanTagline };
+}
+
 function GuideMark({ className = "" }: { className?: string }) {
   return (
     <svg viewBox="0 0 32 32" aria-hidden="true" className={className} fill="none">
@@ -1687,18 +1705,17 @@ function HeroCompact({
   const brandBottom = brandParts.length > 1 ? brandParts[brandParts.length - 1] : null;
 
   return (
-    <section className="relative px-5 md:px-10 lg:px-16 pt-5 pb-5 md:pt-7 md:pb-7">
-      {/* Header: brand + city + theme toggle — sits on page background, above the photo card */}
+    <section className="relative px-4 md:px-10 lg:px-16 pt-4 pb-3 md:pt-6 md:pb-5">
       <header className="relative z-10 flex items-center justify-between gap-3">
         <div className="flex items-center gap-2.5">
           {brandLogoUrl ? (
             <img
               src={brandLogoUrl}
               alt={brandName ?? "Logotipo"}
-              className="h-9 w-auto object-contain"
+              className="h-10 w-auto object-contain"
             />
           ) : (
-            <svg viewBox="0 0 32 32" aria-hidden="true" className="size-9 shrink-0">
+            <svg viewBox="0 0 32 32" aria-hidden="true" className="size-10 shrink-0">
               <defs>
                 <linearGradient id="brandA" x1="0" y1="0" x2="1" y2="1">
                   <stop offset="0%" stopColor="#f97316" />
@@ -1724,10 +1741,10 @@ function HeroCompact({
         <div className="flex items-center gap-2 shrink-0">
           {city && (
             <span
-              className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[9.5px] uppercase tracking-[0.16em] font-semibold ${
+              className={`inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-[9.5px] uppercase tracking-[0.12em] font-black ${
                 isDark
-                  ? "border-white/15 bg-white/[0.04] text-white/85"
-                  : "border-border bg-background text-foreground/85"
+                  ? "border-white/10 bg-white/[0.035] text-white/88"
+                  : "border-slate-900/[0.055] bg-white/44 text-slate-950/82"
               }`}
             >
               <span className="relative flex size-1.5">
@@ -1741,10 +1758,10 @@ function HeroCompact({
             type="button"
             onClick={onToggleTheme}
             aria-label={theme === "dark" ? "Tema claro" : "Tema escuro"}
-            className={`grid size-8 place-items-center rounded-full border transition ${
+            className={`grid size-9 place-items-center rounded-full border transition ${
               isDark
-                ? "border-white/15 bg-white/[0.04] text-white/85 hover:bg-white/10"
-                : "border-border bg-background text-foreground/80 hover:bg-muted"
+                ? "border-white/10 bg-white/[0.045] text-white/86 hover:bg-white/10"
+                : "border-slate-900/[0.055] bg-white/55 text-slate-950/78 hover:bg-white/80"
             }`}
           >
             {theme === "dark" ? (
@@ -1756,18 +1773,16 @@ function HeroCompact({
         </div>
       </header>
 
-      {/* Photo card: bounded rounded-3xl with curved gradient overlay, title/tagline layered on top */}
       <div
-        className={`relative mt-4 md:mt-6 overflow-hidden rounded-3xl border ${
+        className={`relative mt-4 md:mt-5 overflow-hidden rounded-[24px] border ${
           isDark
-            ? "border-white/10 shadow-[0_20px_60px_-25px_rgba(139,92,246,0.55)]"
-            : "border-black/5 shadow-[0_20px_60px_-30px_rgba(139,92,246,0.35)]"
+            ? "border-white/8 shadow-[0_20px_58px_-28px_rgba(0,0,0,0.9)]"
+            : "border-slate-900/[0.04] shadow-[0_22px_58px_-34px_rgba(49,36,96,0.32)]"
         }`}
         onTouchStart={onTouchStart}
         onTouchEnd={onTouchEnd}
       >
-        {/* Photo slides */}
-        <div className="relative h-[280px] md:h-[360px] w-full">
+        <div className="relative h-[282px] md:h-[350px] w-full">
           {photos.map((src, i) => (
             <img
               key={`${src}-${i}`}
@@ -1778,7 +1793,21 @@ function HeroCompact({
               }`}
             />
           ))}
-          {/* Curved gradient overlay — organic sweep from left (opaque) to right (transparent-ish photo reveal) */}
+          {photos.length === 0 && <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-violet-950 to-pink-950" />}
+          <div
+            className={`absolute inset-0 ${
+              isDark
+                ? "bg-[linear-gradient(90deg,rgba(5,6,18,0.74)_0%,rgba(5,6,18,0.34)_47%,rgba(5,6,18,0.05)_100%)]"
+                : "bg-[linear-gradient(90deg,rgba(255,255,255,0.74)_0%,rgba(255,255,255,0.42)_42%,rgba(255,255,255,0.08)_100%)]"
+            }`}
+          />
+          <div
+            className={`absolute inset-x-0 bottom-0 h-[58%] ${
+              isDark
+                ? "bg-[linear-gradient(0deg,rgba(5,6,18,0.82),rgba(5,6,18,0.22),transparent)]"
+                : "bg-[linear-gradient(0deg,rgba(255,255,255,0.76),rgba(255,255,255,0.32),transparent)]"
+            }`}
+          />
           <svg
             aria-hidden="true"
             viewBox="0 0 400 300"
@@ -1787,32 +1816,21 @@ function HeroCompact({
           >
             <defs>
               <linearGradient id="heroCurve" x1="0" y1="0" x2="1" y2="1">
-                {isDark ? (
-                  <>
-                    <stop offset="0%" stopColor="#0a0a0f" stopOpacity="0.98" />
-                    <stop offset="55%" stopColor="#1a0f2e" stopOpacity="0.9" />
-                    <stop offset="100%" stopColor="#3d1a5b" stopOpacity="0.55" />
-                  </>
-                ) : (
-                  <>
-                    <stop offset="0%" stopColor="#ffffff" stopOpacity="0.97" />
-                    <stop offset="55%" stopColor="#fdf4ff" stopOpacity="0.88" />
-                    <stop offset="100%" stopColor="#f5d0fe" stopOpacity="0.55" />
-                  </>
-                )}
+                <stop offset="0%" stopColor="#6d28d9" stopOpacity={isDark ? "0.82" : "0.66"} />
+                <stop offset="52%" stopColor="#c026d3" stopOpacity={isDark ? "0.92" : "0.76"} />
+                <stop offset="100%" stopColor="#ff4eb8" stopOpacity={isDark ? "0.98" : "0.86"} />
               </linearGradient>
             </defs>
-            {/* Left-heavy curved shape covering ~60% of card, curving into the photo */}
             <path
-              d="M 0 0 L 240 0 Q 220 90 200 150 Q 180 220 100 300 L 0 300 Z"
+              d="M 260 300 C 306 250 335 194 400 166 L 400 300 Z"
               fill="url(#heroCurve)"
             />
+            <path d="M 302 300 C 334 265 362 222 400 204 L 400 300 Z" fill="#ff4eb8" opacity={isDark ? "0.44" : "0.52"} />
           </svg>
 
-          {/* Text layer */}
-          <div className="absolute inset-0 flex flex-col justify-end p-5 md:p-8">
+          <div className="absolute inset-0 flex flex-col justify-end p-5 pb-6 md:p-8">
             <h1
-              className={`font-serif text-[28px] md:text-[42px] leading-[1] tracking-[-0.02em] max-w-[220px] md:max-w-[420px] ${
+              className={`font-serif text-[30px] md:text-[42px] leading-[1.02] max-w-[255px] md:max-w-[420px] ${
                 isDark ? "text-white" : "text-foreground"
               }`}
               style={{ fontWeight: 600 }}
@@ -1821,12 +1839,15 @@ function HeroCompact({
             </h1>
             {tagline && (
               <p
-                className="mt-1 font-serif text-[24px] md:text-[36px] leading-[1] tracking-[-0.02em] max-w-[220px] md:max-w-[420px] bg-gradient-to-r from-rose-500 via-pink-500 to-fuchsia-500 bg-clip-text text-transparent"
+                className="mt-1 font-serif text-[27px] md:text-[37px] leading-[1.02] max-w-[285px] md:max-w-[420px] bg-gradient-to-r from-pink-500 via-fuchsia-500 to-violet-500 bg-clip-text text-transparent"
                 style={{ fontWeight: 600 }}
               >
                 {tagline}
               </p>
             )}
+            <p className={`relative z-10 mt-3 max-w-[240px] text-[13px] md:text-[14px] leading-[1.45] ${isDark ? "text-white/82" : "text-slate-950/76"}`}>
+              Tudo o que você precisa para uma estadia incrível.
+            </p>
           </div>
 
           {hasMany && (
@@ -1870,21 +1891,17 @@ function HeroCompact({
         </div>
       </div>
 
-      {/* Sub-caption under the photo card */}
-      <p className={`relative z-10 mt-4 text-[12.5px] md:text-[13px] leading-[1.45] max-w-[320px] md:max-w-[420px] ${isDark ? "text-white/60" : "text-foreground/65"}`}>
-        Tudo o que você precisa para uma estadia incrível.
-      </p>
     </section>
   );
 }
 
 // Celestial glassmorphism — each tone owns its color story
 const SECTION_TONES = {
-  gold:   { border: "border-amber-400/30",   bg: "bg-gradient-to-br from-amber-500/20 via-amber-500/5 to-transparent", iconBg: "bg-amber-400/15",  iconRing: "border-amber-400/30",  icon: "text-amber-300",   accent: "text-amber-200",  glow: "shadow-amber-500/20" },
-  blue:   { border: "border-sky-400/20",     bg: "bg-white/[0.04]",                                                     iconBg: "bg-sky-500/15",     iconRing: "border-sky-400/25",    icon: "text-sky-300",     accent: "text-sky-200",    glow: "shadow-sky-500/10" },
-  green:  { border: "border-emerald-400/20", bg: "bg-white/[0.04]",                                                     iconBg: "bg-emerald-500/15", iconRing: "border-emerald-400/25", icon: "text-emerald-300", accent: "text-emerald-200", glow: "shadow-emerald-500/10" },
-  purple: { border: "border-violet-400/20",  bg: "bg-white/[0.04]",                                                     iconBg: "bg-violet-500/15",  iconRing: "border-violet-400/25", icon: "text-violet-300",  accent: "text-violet-200", glow: "shadow-violet-500/10" },
-  rose:   { border: "border-rose-400/20",    bg: "bg-white/[0.04]",                                                     iconBg: "bg-rose-500/15",    iconRing: "border-rose-400/25",   icon: "text-rose-300",    accent: "text-rose-200",   glow: "shadow-rose-500/10" },
+  gold:   { border: "border-pink-500/35",    bg: "bg-[linear-gradient(135deg,rgba(236,72,153,0.18),rgba(124,58,237,0.05)_58%,rgba(2,6,23,0.10))]", iconBg: "bg-pink-500/16",    iconRing: "border-pink-400/28",    icon: "text-pink-300",    accent: "text-pink-200",    glow: "shadow-pink-500/18" },
+  blue:   { border: "border-blue-500/16",    bg: "bg-white/[0.035]", iconBg: "bg-blue-500/12",    iconRing: "border-blue-400/20",    icon: "text-blue-300",    accent: "text-blue-200",    glow: "shadow-blue-500/8" },
+  green:  { border: "border-emerald-500/16", bg: "bg-white/[0.035]", iconBg: "bg-emerald-500/12", iconRing: "border-emerald-400/20", icon: "text-emerald-300", accent: "text-emerald-200", glow: "shadow-emerald-500/8" },
+  purple: { border: "border-violet-500/18",  bg: "bg-white/[0.035]", iconBg: "bg-violet-500/14",  iconRing: "border-violet-400/22",  icon: "text-violet-300",  accent: "text-violet-200",  glow: "shadow-violet-500/8" },
+  rose:   { border: "border-pink-500/24",    bg: "bg-pink-500/[0.10]", iconBg: "bg-pink-500/16", iconRing: "border-pink-400/22", icon: "text-pink-300", accent: "text-pink-200", glow: "shadow-pink-500/12" },
 } as const;
 
 function SectionCard({
@@ -1895,6 +1912,8 @@ function SectionCard({
   tone = "gold",
   badge,
   theme,
+  imageUrl,
+  footerStyle = false,
 }: {
   title: string;
   desc: string;
@@ -1903,16 +1922,18 @@ function SectionCard({
   tone?: keyof typeof SECTION_TONES;
   badge?: string;
   theme: "dark" | "light";
+  imageUrl?: string;
+  footerStyle?: boolean;
 }) {
   const t = SECTION_TONES[tone];
   const isDark = theme === "dark";
   const isGold = tone === "gold";
 
   // Light theme fallback — keeps the card readable without glass
-  const lightBg = "bg-card";
-  const lightBorder = "border-border";
-  const lightIconBg = isGold ? "bg-amber-100" : "bg-muted";
-  const lightIcon = isGold ? "text-amber-600" : "text-foreground/70";
+  const lightBg = footerStyle ? "bg-pink-50/88" : isGold ? "bg-white/62" : "bg-white/45";
+  const lightBorder = footerStyle ? "border-pink-100" : "border-slate-900/[0.055]";
+  const lightIconBg = isGold ? "bg-pink-50" : tone === "purple" ? "bg-violet-50" : tone === "green" ? "bg-emerald-50" : tone === "blue" ? "bg-blue-50" : "bg-pink-50";
+  const lightIcon = isGold ? "text-pink-600" : tone === "purple" ? "text-violet-600" : tone === "green" ? "text-emerald-600" : tone === "blue" ? "text-blue-600" : "text-pink-600";
 
   const surfaceBg = isDark ? t.bg : lightBg;
   const surfaceBorder = isDark ? t.border : lightBorder;
@@ -1925,42 +1946,56 @@ function SectionCard({
   if (variant === "horizontal-wide") {
     return (
       <div
-        className={`relative flex items-center gap-3 overflow-hidden rounded-3xl border backdrop-blur-md px-4 py-3.5 transition-all duration-300 ease-out hover:-translate-y-0.5 active:scale-[0.99] ${surfaceBg} ${surfaceBorder} ${isDark ? `shadow-lg ${t.glow}` : ""}`}
+        className={`relative flex min-h-[76px] items-center gap-3 overflow-hidden rounded-[20px] border px-4 py-3.5 transition-all duration-300 ease-out hover:-translate-y-0.5 active:scale-[0.99] ${surfaceBg} ${surfaceBorder} ${isDark ? `shadow-[0_16px_40px_-28px_rgba(0,0,0,0.9)] ${t.glow}` : "shadow-[0_14px_34px_-30px_rgba(31,24,74,0.32)]"}`}
       >
-        {isDark && (
-          <span className={`pointer-events-none absolute -top-8 -right-8 h-24 w-24 rounded-full opacity-30 blur-2xl ${t.iconBg}`} />
+        {imageUrl && (
+          <>
+            <img
+              src={imageUrl}
+              alt=""
+              loading="lazy"
+              className="absolute inset-y-0 right-0 w-[54%] object-cover opacity-70"
+              onError={(e) => {
+                (e.currentTarget as HTMLImageElement).style.display = "none";
+              }}
+            />
+            <span className={`pointer-events-none absolute inset-y-0 right-0 w-[72%] ${isDark ? "bg-gradient-to-r from-[#080815] via-[#080815]/70 to-transparent" : "bg-gradient-to-r from-white via-white/76 to-transparent"}`} />
+          </>
+        )}
+        {!imageUrl && isDark && (
+          <span className={`pointer-events-none absolute -top-8 -right-8 h-24 w-24 rounded-full opacity-24 blur-2xl ${t.iconBg}`} />
         )}
         <div
-          className={`relative grid size-11 shrink-0 place-items-center rounded-2xl border ${iconBgCls} ${iconRingCls}`}
+          className={`relative grid size-12 shrink-0 place-items-center rounded-full border ${iconBgCls} ${iconRingCls}`}
         >
           <span className={`${iconColorCls} [&>svg]:size-5`}>{icon}</span>
         </div>
         <div className="relative flex-1 min-w-0">
-          <p className={`text-[13.5px] font-semibold truncate ${titleColor}`}>{title}</p>
-          <p className={`mt-0.5 text-[11px] leading-tight truncate ${descColor}`}>{desc}</p>
+          <p className={`text-[14px] font-black leading-tight ${titleColor}`}>{title}</p>
+          <p className={`mt-1 text-[11.5px] leading-snug line-clamp-2 ${descColor}`}>{desc}</p>
         </div>
-        <ArrowRight className={`relative size-4 shrink-0 ${isDark ? t.icon : "text-foreground/40"}`} strokeWidth={2} />
+        <ChevronRight className={`relative size-4 shrink-0 ${isDark ? "text-white/82" : "text-slate-950/68"}`} strokeWidth={2} />
       </div>
     );
   }
 
   const isHero = variant === "hero-wide";
   const pad = isHero ? "p-5 md:p-6" : "p-4";
-  const iconSize = isHero ? "size-12" : "size-10";
+  const iconSize = isHero ? "size-[58px]" : "size-10";
   const iconSvg = isHero ? "[&>svg]:size-6" : "[&>svg]:size-5";
-  const titleSize = isHero ? "text-[17px]" : "text-[13px]";
-  const descSize = isHero ? "text-[12px]" : "text-[10.5px]";
+  const titleSize = isHero ? "text-[18px]" : "text-[13.5px]";
+  const descSize = isHero ? "text-[12.5px]" : "text-[10.8px]";
 
   return (
     <div
-      className={`relative overflow-hidden rounded-3xl border backdrop-blur-md ${pad} transition-all duration-300 ease-out hover:-translate-y-0.5 active:scale-[0.99] ${surfaceBg} ${surfaceBorder} ${isDark ? `shadow-lg ${t.glow}` : ""}`}
+      className={`relative overflow-hidden rounded-[20px] border ${isHero ? "min-h-[132px]" : "min-h-[104px]"} ${pad} transition-all duration-300 ease-out hover:-translate-y-0.5 active:scale-[0.99] ${surfaceBg} ${surfaceBorder} ${isDark ? `shadow-[0_16px_40px_-28px_rgba(0,0,0,0.9)] ${t.glow}` : "shadow-[0_14px_34px_-30px_rgba(31,24,74,0.32)]"}`}
     >
       {/* Interior glow */}
       {isDark && (
         <>
-          <span className={`pointer-events-none absolute -top-10 -right-10 h-28 w-28 rounded-full opacity-40 blur-3xl ${t.iconBg}`} />
+          <span className={`pointer-events-none absolute -top-10 -right-10 h-28 w-28 rounded-full opacity-24 blur-3xl ${t.iconBg}`} />
           {isGold && (
-            <span className="pointer-events-none absolute inset-0 rounded-3xl bg-gradient-to-br from-amber-400/[0.08] to-transparent" />
+            <span className="pointer-events-none absolute inset-0 rounded-[20px] bg-gradient-to-br from-pink-400/[0.08] to-transparent" />
           )}
         </>
       )}
@@ -1970,7 +2005,7 @@ function SectionCard({
         <svg
           viewBox="0 0 120 100"
           aria-hidden="true"
-          className={`pointer-events-none absolute -right-3 top-3 bottom-3 h-[calc(100%-24px)] w-auto ${isDark ? "text-white/12" : "text-foreground/10"}`}
+          className={`pointer-events-none absolute -right-2 top-3 bottom-3 h-[calc(100%-20px)] w-auto ${isDark ? "text-pink-200/10" : "text-pink-900/7"}`}
           fill="none"
           stroke="currentColor"
           strokeWidth="1.4"
@@ -1991,21 +2026,21 @@ function SectionCard({
         </svg>
       )}
 
-      <div className="relative flex items-start gap-4">
+      <div className={`relative flex items-start ${isHero ? "gap-4" : "gap-3"}`}>
         <div
-          className={`grid ${iconSize} shrink-0 place-items-center rounded-2xl border ${iconBgCls} ${iconRingCls}`}
+          className={`grid ${iconSize} shrink-0 place-items-center rounded-full border ${iconBgCls} ${iconRingCls}`}
         >
           <span className={`${iconColorCls} ${iconSvg}`}>{icon}</span>
         </div>
         <div className="min-w-0 flex-1">
-          <p className={`${titleSize} font-semibold ${titleColor}`}>{title}</p>
-          <p className={`mt-0.5 ${descSize} leading-[1.4] ${descColor}`}>{desc}</p>
+          <p className={`${titleSize} font-black leading-tight ${titleColor}`}>{title}</p>
+          <p className={`mt-1 ${descSize} leading-[1.32] ${descColor}`}>{desc}</p>
         </div>
       </div>
 
       {isHero && badge ? (
-        <div className="relative mt-4 flex justify-end">
-          <span className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-fuchsia-500 via-pink-500 to-rose-500 px-4 py-2 text-[10.5px] font-black uppercase tracking-[0.16em] text-white shadow-[0_10px_30px_-10px_rgba(236,72,153,0.7)]">
+        <div className="relative -mt-1 flex justify-end">
+          <span className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-violet-600 via-fuchsia-500 to-pink-500 px-4 py-2 text-[10px] font-black uppercase tracking-[0.08em] text-white shadow-[0_10px_28px_-10px_rgba(236,72,153,0.78)]">
             {badge}
             <ArrowRight className="size-3.5" strokeWidth={2.4} />
           </span>

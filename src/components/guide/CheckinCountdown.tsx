@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Clock, CheckCircle2 } from "lucide-react";
+import { Clock } from "lucide-react";
 
 function parseTime(t: string | null | undefined): { h: number; m: number } | null {
   if (!t) return null;
@@ -15,15 +15,16 @@ export function CheckinCountdown({
   checkinTime: string | null | undefined;
   theme: "dark" | "light";
 }) {
-  const [now, setNow] = useState(() => new Date());
+  const [now, setNow] = useState<Date | null>(null);
 
   useEffect(() => {
+    setNow(new Date());
     const t = setInterval(() => setNow(new Date()), 30_000);
     return () => clearInterval(t);
   }, []);
 
   const parsed = parseTime(checkinTime);
-  if (!parsed) return null;
+  if (!parsed || !now) return null;
 
   const target = new Date(now);
   target.setHours(parsed.h, parsed.m, 0, 0);
