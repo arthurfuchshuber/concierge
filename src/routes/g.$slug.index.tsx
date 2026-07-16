@@ -1624,6 +1624,12 @@ function cleanGuideTitle(name?: string, city?: string) {
 function splitGuideHeroTitle(name?: string, tagline?: string | null) {
   const cleanName = String(name ?? "Guia").trim() || "Guia";
   const cleanTagline = String(tagline ?? "").trim();
+  const proximity = cleanName.match(/\b(?:pr[oó]x\.?|perto|pr[oó]ximo(?:a)?|ao lado)\b[\s\S]*$/i);
+  if (proximity?.index && proximity.index > 0) {
+    const title = cleanName.slice(0, proximity.index).trim() || cleanName;
+    const derivedTagline = cleanName.slice(proximity.index).trim();
+    return { title, tagline: derivedTagline };
+  }
   if (!cleanTagline) return { title: cleanName, tagline: null as string | null };
   const escaped = cleanTagline.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   const re = new RegExp(`\\s*${escaped}\\s*$`, "i");
