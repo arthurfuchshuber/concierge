@@ -379,11 +379,15 @@ export const Route = createFileRoute("/api/public/guide-chat")({
               },
             ];
 
+        const OVERRIDE_LENGTH = body.forceAi
+          ? `\n\n[OVERRIDE do modo dica]: ignore o limite de "máx 3 frases" acima. Responda com riqueza (150–280 palavras), com quebras de parágrafo e bullets quando ajudar. Continue direto, sem enrolação.`
+          : "";
         const messages = [
-          { role: "system" as const, content: `${SYSTEM_PROMPT}${HANDOFF_INSTRUCTIONS}\n\n${systemContext}` },
+          { role: "system" as const, content: `${SYSTEM_PROMPT}${HANDOFF_INSTRUCTIONS}${OVERRIDE_LENGTH}\n\n${systemContext}` },
           ...prior.map((m) => ({ role: m.role as "user" | "assistant", content: m.content })),
           { role: "user" as const, content: body.message },
         ];
+
 
         const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
           method: "POST",
