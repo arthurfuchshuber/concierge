@@ -129,7 +129,7 @@ export function CityNewsFeed({
                 <button
                   type="button"
                   onClick={() => openChat(
-                    `Sobre "${it.title}" em ${city ?? "aqui"}${it.category ? ` (${it.category})` : ""}${it.summary ? `. Resumo: ${it.summary}` : ""}. Me conta mais sobre isso — o que é, por que vale a pena, o que dá pra fazer/ver/comer lá, quanto custa em média, melhor horário, como chegar e alguma dica de quem já foi. Solte curiosidades, seja natural, empolgado, como se estivesse me contando pessoalmente. Termine sugerindo próximos passos ou perguntando algo relevante.`,
+                    `Me conta mais sobre "${it.title}"${city ? ` em ${city}` : ""}.`,
                   )}
 
                   className="block h-full w-full text-left group"

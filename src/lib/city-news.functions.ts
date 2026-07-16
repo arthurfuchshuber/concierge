@@ -126,19 +126,65 @@ ${feed}`;
   }
   const items: NewsItem[] = (parsed.items ?? []).slice(0, 7).map((it) => {
     const src = typeof it.sourceIndex === "number" ? params.candidates[it.sourceIndex] : undefined;
-    const ogImage = src?.metadata?.ogImage ?? null;
     const siteName = src?.metadata?.ogSiteName ?? (src?.url ? new URL(src.url).hostname.replace(/^www\./, "") : null);
     return {
       title: (it.title ?? "").slice(0, 90),
       category: (it.category ?? "passeio").slice(0, 20).toLowerCase(),
       summary: it.summary ? String(it.summary).slice(0, 220) : null,
       emoji: it.emoji ? String(it.emoji).slice(0, 4) : null,
-      imageUrl: ogImage,
+      // imageUrl é resolvido depois via Google Places (foto real do lugar).
+      // OG image das notícias costuma não bater com o tema — evitamos.
+      imageUrl: null,
       sourceUrl: src?.url ?? null,
       sourceName: siteName ?? null,
     };
   });
   return items.filter((i) => i.title.length > 3);
+}
+
+// Busca uma foto real do Google Places para cada item, usando o título + cidade
+// como query. Se não encontrar, deixa imageUrl null (o cliente mostra fallback).
+async function attachPlacePhotos(items: NewsItem[], cityLabel: string, country: string | null): Promise<NewsItem[]> {
+  const apiKey = process.env.LOVABLE_API_KEY;
+  const mapsKey = process.env.GOOGLE_MAPS_API_KEY_2 ?? process.env.GOOGLE_MAPS_API_KEY;
+  if (!apiKey || !mapsKey) return items;
+
+  const regionCode = (country ?? "BR").toUpperCase().slice(0, 2);
+
+  await Promise.all(
+    items.map(async (it, idx) => {
+      // Query robusta: título curto + cidade. Para categorias mais genéricas
+      // (gastronomia, evento), incluímos a categoria pra guiar o Places.
+      const q = `${it.title} ${cityLabel}`.slice(0, 120);
+      try {
+        const res = await fetch("https://connector-gateway.lovable.dev/google_maps/places/v1/places:searchText", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+            "X-Connection-Api-Key": mapsKey,
+            "Content-Type": "application/json",
+            "X-Goog-FieldMask": "places.photos.name",
+          },
+          body: JSON.stringify({
+            textQuery: q,
+            maxResultCount: 1,
+            languageCode: "pt-BR",
+            regionCode,
+          }),
+          signal: AbortSignal.timeout(6000),
+        });
+        if (!res.ok) return;
+        const j = (await res.json()) as { places?: Array<{ photos?: Array<{ name?: string }> }> };
+        const photoName = j.places?.[0]?.photos?.[0]?.name;
+        if (photoName && /^places\/[A-Za-z0-9_-]+\/photos\/[A-Za-z0-9_-]+$/.test(photoName)) {
+          items[idx].imageUrl = `/api/public/place-photo?name=${encodeURIComponent(photoName)}&w=800`;
+        }
+      } catch {
+        // ignora — mantém fallback
+      }
+    }),
+  );
+  return items;
 }
 
 // Núcleo compartilhado — usado pelo server fn e pelo cron diário.
@@ -162,7 +208,27 @@ export async function generateAndCacheCityNews(input: {
       .eq("date", today)
       .maybeSingle();
     if (cached?.items && Array.isArray(cached.items) && (cached.items as NewsItem[]).length > 0) {
-      return { items: cached.items as NewsItem[], cached: true, generated: false };
+      let cachedItems = cached.items as NewsItem[];
+      // Migração one-shot: se o cache do dia ainda usa OG image antigo (URL http externa),
+      // troca por fotos reais do Google Places e re-salva.
+      const needsPhotoMigration = cachedItems.some(
+        (it) => it.imageUrl && !it.imageUrl.startsWith("/api/public/place-photo"),
+      ) || cachedItems.every((it) => !it.imageUrl);
+      if (needsPhotoMigration) {
+        try {
+          cachedItems = await attachPlacePhotos(
+            cachedItems.map((it) => ({ ...it, imageUrl: null })),
+            input.cityLabel,
+            input.country ?? null,
+          );
+          await supabaseAdmin
+            .from("city_daily_news")
+            .upsert({ city_key: input.cityKey, date: today, items: cachedItems }, { onConflict: "city_key,date" });
+        } catch {
+          // segue com o cache original
+        }
+      }
+      return { items: cachedItems, cached: true, generated: false };
     }
   }
 
@@ -187,6 +253,13 @@ export async function generateAndCacheCityNews(input: {
     items = [];
   }
   if (items.length === 0) return { items: null, cached: false, generated: false };
+
+  // Enriquece com fotos reais do Google Places (foto do lugar/atração/restaurante).
+  try {
+    items = await attachPlacePhotos(items, input.cityLabel, input.country ?? null);
+  } catch {
+    // segue sem fotos — o card usa fallback local por categoria
+  }
 
   await supabaseAdmin
     .from("city_daily_news")
