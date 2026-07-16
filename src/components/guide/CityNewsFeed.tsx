@@ -120,7 +120,7 @@ export function CityNewsFeed({
                 initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.4, delay: idx * 0.05, ease: [0.2, 0.8, 0.2, 1] }}
-                className={`snap-start shrink-0 w-[210px] h-[238px] relative overflow-hidden rounded-[18px] border ${
+                className={`snap-start shrink-0 w-[210px] h-[260px] relative overflow-hidden rounded-[18px] border ${
                   isDark
                     ? "border-white/8 bg-[#070817] shadow-[0_20px_48px_-28px_rgba(0,0,0,0.9)]"
                     : "border-slate-900/[0.055] bg-white/70 shadow-[0_18px_45px_-32px_rgba(31,24,74,0.32)]"
@@ -128,7 +128,9 @@ export function CityNewsFeed({
               >
                 <button
                   type="button"
-                  onClick={() => openChat(`Me conte mais sobre isso em ${city ?? "aqui"}: ${it.title}`)}
+                  onClick={() => openChat(
+                    `Me conte mais sobre isso em ${city ?? "aqui"} — "${it.title}"${it.summary ? `. Contexto: ${it.summary}` : ""}${it.category ? ` (categoria: ${it.category})` : ""}.`,
+                  )}
                   className="block h-full w-full text-left group"
                 >
                   <div className={`absolute inset-x-0 top-0 h-[96px] overflow-hidden ${s.cover}`}>
@@ -160,19 +162,19 @@ export function CityNewsFeed({
                     </span>
                   </div>
 
-                  <div className="absolute inset-x-0 bottom-0 top-[96px] p-4">
-                    <h3 className={`font-black text-[14px] leading-[1.18] [text-wrap:pretty] line-clamp-3 ${isDark ? "text-white" : "text-slate-950"}`}>
+                  <div className="absolute inset-x-0 bottom-0 top-[96px] px-4 pt-3 pb-10">
+                    <h3 className={`font-black text-[13.5px] leading-[1.18] [text-wrap:pretty] line-clamp-2 ${isDark ? "text-white" : "text-slate-950"}`}>
                       {it.title}
                     </h3>
                     {it.summary && (
-                      <p className={`mt-2 text-[10.8px] leading-[1.38] line-clamp-3 [text-wrap:pretty] ${isDark ? "text-white/62" : "text-slate-700/78"}`}>
+                      <p className={`mt-1.5 text-[10.5px] leading-[1.38] line-clamp-3 [text-wrap:pretty] ${isDark ? "text-white/60" : "text-slate-700/78"}`}>
                         {it.summary}
                       </p>
                     )}
-                    <div className={`absolute bottom-4 left-4 inline-flex items-center gap-1.5 text-[8.5px] font-black uppercase tracking-[0.2em] ${isDark ? "text-pink-300" : "text-pink-600"}`}>
-                      Ver mais
-                      <ArrowUpRight className="size-3 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" strokeWidth={2.2} />
-                    </div>
+                  </div>
+                  <div className={`absolute bottom-3 left-4 inline-flex items-center gap-1.5 text-[8.5px] font-black uppercase tracking-[0.2em] ${isDark ? "text-pink-300" : "text-pink-600"}`}>
+                    Ver mais
+                    <ArrowUpRight className="size-3 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" strokeWidth={2.2} />
                   </div>
                 </button>
               </motion.article>
