@@ -265,6 +265,26 @@ function Dashboard() {
           </span>
           <ChevronDown className={`size-4 text-muted-foreground transition-transform ${statCardsOpen ? "rotate-180" : ""}`} />
         </button>
+
+        {/* Barra elegante de uso de guias */}
+        {planLimit > 0 && (
+          <div className="mb-3 px-1">
+            <div className="flex items-center justify-between text-[11px] mb-1.5">
+              <span className="uppercase tracking-[0.14em] text-muted-foreground font-medium">Uso de guias</span>
+              <span className="tabular-nums text-foreground/80">
+                <span className="font-semibold text-foreground">{count}</span>
+                <span className="text-muted-foreground"> / {planLimit >= 9999 ? "∞" : planLimit}</span>
+              </span>
+            </div>
+            <div className="relative h-2 rounded-full bg-secondary/60 overflow-hidden ring-1 ring-inset ring-border/40">
+              <div
+                className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-accent/70 via-accent to-accent/90 shadow-[0_0_12px_-2px_oklch(from_var(--accent)_l_c_h/0.6)] transition-all duration-700 ease-out"
+                style={{ width: `${planLimit >= 9999 ? Math.min(100, (count / Math.max(count + 10, 20)) * 100) : pct}%` }}
+              />
+            </div>
+          </div>
+        )}
+
         {statCardsOpen && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Plano */}
