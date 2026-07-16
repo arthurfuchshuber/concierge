@@ -371,6 +371,10 @@ function Guide({ data }: { data: GuideOk }) {
   const initialUnlocked = !!(p as any).accessUnlocked;
   const [unlocked, setUnlocked] = useState(initialUnlocked);
 
+
+  // Expansividade da barra "check-in libera em" — abre wi-fi/senhas
+  const [codesOpen, setCodesOpen] = useState(false);
+
   const [pinDialog, setPinDialog] = useState<{ open: boolean; cb: (() => void) | null }>({ open: false, cb: null });
   const requestUnlock = (cb?: () => void) => {
     if (!hasAccessPin || unlocked) {
