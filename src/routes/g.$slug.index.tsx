@@ -1834,20 +1834,15 @@ function HeroCompact({
 
           <div className="absolute inset-0 flex flex-col justify-end p-5 pb-6 md:p-8">
             <h1
-              className={`text-[36px] md:text-[46px] leading-[1.02] tracking-[-0.01em] max-w-[255px] md:max-w-[420px] font-black ${
-                isDark ? "text-white" : "text-foreground"
+              className={`text-[26px] md:text-[34px] leading-[1.06] tracking-[-0.01em] max-w-[300px] md:max-w-[460px] font-black line-clamp-2 ${
+                isDark ? "text-[#f5efe4]" : "text-foreground"
               }`}
+              title={tagline ? `${name} ${tagline}` : name}
             >
               {name}
+              {tagline ? <span className="opacity-90"> {tagline}</span> : null}
             </h1>
-            {tagline && (
-              <p
-                className="mt-0.5 text-[32px] md:text-[40px] leading-[1.02] tracking-[-0.01em] max-w-[285px] md:max-w-[420px] font-black bg-gradient-to-r from-pink-500 via-fuchsia-500 to-violet-500 bg-clip-text text-transparent"
-              >
-                {tagline}
-              </p>
-            )}
-            <p className={`relative z-10 mt-3 max-w-[240px] text-[13px] md:text-[14px] leading-[1.45] ${isDark ? "text-white/82" : "text-slate-950/76"}`}>
+            <p className={`relative z-10 mt-2.5 max-w-[260px] text-[12.5px] md:text-[13.5px] leading-[1.45] ${isDark ? "text-white/72" : "text-slate-950/76"}`}>
               Tudo o que você precisa para uma estadia incrível.
             </p>
           </div>
@@ -1901,7 +1896,7 @@ function HeroCompact({
 const SECTION_TONES = {
   gold:   { border: "border-pink-500/22",    bg: "bg-[linear-gradient(135deg,rgba(236,72,153,0.09),rgba(88,28,135,0.04)_58%,rgba(2,6,23,0.55))]", iconBg: "bg-pink-500/14",    iconRing: "border-pink-400/22",    icon: "text-pink-300",    accent: "text-pink-200",    glow: "shadow-pink-500/12" },
   blue:   { border: "border-blue-500/16",    bg: "bg-white/[0.035]", iconBg: "bg-blue-500/12",    iconRing: "border-blue-400/20",    icon: "text-blue-300",    accent: "text-blue-200",    glow: "shadow-blue-500/8" },
-  green:  { border: "border-emerald-500/16", bg: "bg-white/[0.035]", iconBg: "bg-emerald-500/12", iconRing: "border-emerald-400/20", icon: "text-emerald-300", accent: "text-emerald-200", glow: "shadow-emerald-500/8" },
+  green:  { border: "border-amber-400/18",   bg: "bg-white/[0.035]", iconBg: "bg-amber-400/12",   iconRing: "border-amber-300/22",   icon: "text-amber-200",   accent: "text-amber-100",   glow: "shadow-amber-500/8" },
   purple: { border: "border-violet-500/18",  bg: "bg-white/[0.035]", iconBg: "bg-violet-500/14",  iconRing: "border-violet-400/22",  icon: "text-violet-300",  accent: "text-violet-200",  glow: "shadow-violet-500/8" },
   rose:   { border: "border-pink-500/24",    bg: "bg-pink-500/[0.10]", iconBg: "bg-pink-500/16", iconRing: "border-pink-400/22", icon: "text-pink-300", accent: "text-pink-200", glow: "shadow-pink-500/12" },
 } as const;
