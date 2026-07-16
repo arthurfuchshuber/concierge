@@ -198,6 +198,7 @@ function AdminLayout() {
         </header>
 
         <main className="flex-1">
+          <PushNotificationBanner />
           {needsPlan ? (
             <OnboardingCheckout onSignOut={signOut} />
           ) : (
