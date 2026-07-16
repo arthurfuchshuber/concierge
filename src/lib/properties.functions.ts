@@ -137,6 +137,24 @@ export const listMyProperties = createServerFn({ method: "GET" })
     return await signPropertyImages(context.supabase, data ?? []);
   });
 
+// Lista as propriedades de uma conta específica que o usuário atual pode
+// acessar via `account_members` (RLS `user_can_access_property` autoriza).
+// Diferente de `adminListUserPropertiesFull`, não exige papel de admin SaaS —
+// serve para atendentes/owners convidados navegando entre contas.
+export const listPropertiesForAccount = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => z.object({ ownerId: z.string().uuid() }).parse(i))
+  .handler(async ({ data, context }) => {
+    const { data: rows, error } = await context.supabase
+      .from("properties")
+      .select("id, slug, name, tagline, hero_image_url, gallery_images, access_mode, pin_expires_at, published, city, country, address, lat, lng, updated_at, wifi_ssid, checkin_time, checkout_time")
+      .eq("owner_id", data.ownerId)
+      .order("updated_at", { ascending: false });
+    if (error) throw (await import("@/lib/db-errors.server")).safeDbError("properties", error);
+    const { signPropertyImages } = await import("@/lib/storage.server");
+    return await signPropertyImages(context.supabase, rows ?? []);
+  });
+
 // Versão leve: apenas os campos necessários para seleção de imóveis em UIs
 // como o CopyRecsDialog. Não carrega imagens assinadas, reduz payload.
 export const listMyPropertiesBrief = createServerFn({ method: "GET" })
