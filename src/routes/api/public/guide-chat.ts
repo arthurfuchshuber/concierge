@@ -348,8 +348,15 @@ export const Route = createFileRoute("/api/public/guide-chat")({
         }
 
         const HANDOFF_INSTRUCTIONS = body.forceAi
-          ? `\n\nContexto de dica/recomendação da cidade: responda diretamente com base no título, resumo, categoria, contexto do guia e, se necessário, google_search. NÃO chame atendimento humano apenas por falta de confiança sobre essa dica; busque, explique e ofereça uma orientação útil. Só mencione anfitrião para detalhes críticos da hospedagem.`
+          ? `\n\nModo EXPLORAÇÃO DE DICA DA CIDADE (ativo agora):
+- O hóspede clicou em "Ver mais" de uma dica/recomendação. Ele quer UM PAPO RICO, não uma paráfrase do resumo.
+- PROIBIDO começar com "Essa dica...", "Isso se refere a...", "Trata-se de...", "Essa recomendação..." ou qualquer variação que apenas reafirme o que ele já leu. Vá direto ao interessante.
+- Traga substância: o que é o lugar/evento, por que vale a pena, o que fazer/ver/comer lá, faixa de preço estimada, melhor horário/dia, como chegar do bairro dele, dica prática de quem conhece a cidade (fila, estacionamento, ingresso online, etc). Use google_search sempre que precisar de fatos atuais — horários, preços, endereço, agenda.
+- Tom: como um amigo local empolgado. Pode usar 2 parágrafos curtos + bullets quando ajudar. Nada de robótico, nada de rodapé genérico.
+- Encerre convidando pra próxima ação relevante ("quer que eu ache o horário de hoje?", "posso sugerir um restaurante perto?"). Uma pergunta só.
+- NÃO chame atendimento humano nesse modo — resolva você mesmo.`
           : `\n\nHandoff humano: se o hóspede (a) pedir explicitamente falar com humano/anfitrião, OU (b) você não tiver confiança na resposta, OU (c) detectar frustração ou emergência real, chame a ferramenta request_human_handoff com o motivo e a urgência. Após chamar a ferramenta, responda apenas: "Estou chamando um atendente humano, aguarde só um instante." Não invente contatos.`;
+
 
         const tools = body.forceAi
           ? [{ google_search: {} }]
@@ -372,21 +379,26 @@ export const Route = createFileRoute("/api/public/guide-chat")({
               },
             ];
 
+        const OVERRIDE_LENGTH = body.forceAi
+          ? `\n\n[OVERRIDE do modo dica]: ignore o limite de "máx 3 frases" acima. Responda com riqueza (150–280 palavras), com quebras de parágrafo e bullets quando ajudar. Continue direto, sem enrolação.`
+          : "";
         const messages = [
-          { role: "system" as const, content: `${SYSTEM_PROMPT}${HANDOFF_INSTRUCTIONS}\n\n${systemContext}` },
+          { role: "system" as const, content: `${SYSTEM_PROMPT}${HANDOFF_INSTRUCTIONS}${OVERRIDE_LENGTH}\n\n${systemContext}` },
           ...prior.map((m) => ({ role: m.role as "user" | "assistant", content: m.content })),
           { role: "user" as const, content: body.message },
         ];
+
 
         const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
           method: "POST",
           headers: { "Content-Type": "application/json", "Lovable-API-Key": apiKey },
           body: JSON.stringify({
-            model: "google/gemini-2.5-flash",
+            model: body.forceAi ? "google/gemini-2.5-pro" : "google/gemini-2.5-flash",
             messages,
             tools,
           }),
         });
+
 
         if (aiRes.status === 429) {
           return new Response(JSON.stringify({ error: "Muitas perguntas em pouco tempo. Tente novamente em instantes.", conversationId }), { status: 429, headers: { "Content-Type": "application/json" } });
