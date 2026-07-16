@@ -389,11 +389,12 @@ export const Route = createFileRoute("/api/public/guide-chat")({
           method: "POST",
           headers: { "Content-Type": "application/json", "Lovable-API-Key": apiKey },
           body: JSON.stringify({
-            model: "google/gemini-2.5-flash",
+            model: body.forceAi ? "google/gemini-2.5-pro" : "google/gemini-2.5-flash",
             messages,
             tools,
           }),
         });
+
 
         if (aiRes.status === 429) {
           return new Response(JSON.stringify({ error: "Muitas perguntas em pouco tempo. Tente novamente em instantes.", conversationId }), { status: 429, headers: { "Content-Type": "application/json" } });
