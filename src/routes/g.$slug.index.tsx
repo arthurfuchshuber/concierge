@@ -1692,18 +1692,17 @@ function HeroCompact({
   const brandBottom = brandParts.length > 1 ? brandParts[brandParts.length - 1] : null;
 
   return (
-    <section className="relative px-5 md:px-10 lg:px-16 pt-5 pb-5 md:pt-7 md:pb-7">
-      {/* Header: brand + city + theme toggle — sits on page background, above the photo card */}
+    <section className="relative px-4 md:px-10 lg:px-16 pt-4 pb-3 md:pt-6 md:pb-5">
       <header className="relative z-10 flex items-center justify-between gap-3">
         <div className="flex items-center gap-2.5">
           {brandLogoUrl ? (
             <img
               src={brandLogoUrl}
               alt={brandName ?? "Logotipo"}
-              className="h-9 w-auto object-contain"
+              className="h-10 w-auto object-contain"
             />
           ) : (
-            <svg viewBox="0 0 32 32" aria-hidden="true" className="size-9 shrink-0">
+            <svg viewBox="0 0 32 32" aria-hidden="true" className="size-10 shrink-0">
               <defs>
                 <linearGradient id="brandA" x1="0" y1="0" x2="1" y2="1">
                   <stop offset="0%" stopColor="#f97316" />
@@ -1729,10 +1728,10 @@ function HeroCompact({
         <div className="flex items-center gap-2 shrink-0">
           {city && (
             <span
-              className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[9.5px] uppercase tracking-[0.16em] font-semibold ${
+              className={`inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-[9.5px] uppercase tracking-[0.12em] font-black ${
                 isDark
-                  ? "border-white/15 bg-white/[0.04] text-white/85"
-                  : "border-border bg-background text-foreground/85"
+                  ? "border-white/10 bg-white/[0.035] text-white/88"
+                  : "border-slate-900/[0.055] bg-white/44 text-slate-950/82"
               }`}
             >
               <span className="relative flex size-1.5">
@@ -1746,10 +1745,10 @@ function HeroCompact({
             type="button"
             onClick={onToggleTheme}
             aria-label={theme === "dark" ? "Tema claro" : "Tema escuro"}
-            className={`grid size-8 place-items-center rounded-full border transition ${
+            className={`grid size-9 place-items-center rounded-full border transition ${
               isDark
-                ? "border-white/15 bg-white/[0.04] text-white/85 hover:bg-white/10"
-                : "border-border bg-background text-foreground/80 hover:bg-muted"
+                ? "border-white/10 bg-white/[0.045] text-white/86 hover:bg-white/10"
+                : "border-slate-900/[0.055] bg-white/55 text-slate-950/78 hover:bg-white/80"
             }`}
           >
             {theme === "dark" ? (
@@ -1761,18 +1760,16 @@ function HeroCompact({
         </div>
       </header>
 
-      {/* Photo card: bounded rounded-3xl with curved gradient overlay, title/tagline layered on top */}
       <div
-        className={`relative mt-4 md:mt-6 overflow-hidden rounded-3xl border ${
+        className={`relative mt-4 md:mt-5 overflow-hidden rounded-[24px] border ${
           isDark
-            ? "border-white/10 shadow-[0_20px_60px_-25px_rgba(139,92,246,0.55)]"
-            : "border-black/5 shadow-[0_20px_60px_-30px_rgba(139,92,246,0.35)]"
+            ? "border-white/8 shadow-[0_20px_58px_-28px_rgba(0,0,0,0.9)]"
+            : "border-slate-900/[0.04] shadow-[0_22px_58px_-34px_rgba(49,36,96,0.32)]"
         }`}
         onTouchStart={onTouchStart}
         onTouchEnd={onTouchEnd}
       >
-        {/* Photo slides */}
-        <div className="relative h-[280px] md:h-[360px] w-full">
+        <div className="relative h-[282px] md:h-[350px] w-full">
           {photos.map((src, i) => (
             <img
               key={`${src}-${i}`}
@@ -1783,7 +1780,21 @@ function HeroCompact({
               }`}
             />
           ))}
-          {/* Curved gradient overlay — organic sweep from left (opaque) to right (transparent-ish photo reveal) */}
+          {photos.length === 0 && <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-violet-950 to-pink-950" />}
+          <div
+            className={`absolute inset-0 ${
+              isDark
+                ? "bg-[linear-gradient(90deg,rgba(5,6,18,0.74)_0%,rgba(5,6,18,0.34)_47%,rgba(5,6,18,0.05)_100%)]"
+                : "bg-[linear-gradient(90deg,rgba(255,255,255,0.74)_0%,rgba(255,255,255,0.42)_42%,rgba(255,255,255,0.08)_100%)]"
+            }`}
+          />
+          <div
+            className={`absolute inset-x-0 bottom-0 h-[58%] ${
+              isDark
+                ? "bg-[linear-gradient(0deg,rgba(5,6,18,0.82),rgba(5,6,18,0.22),transparent)]"
+                : "bg-[linear-gradient(0deg,rgba(255,255,255,0.76),rgba(255,255,255,0.32),transparent)]"
+            }`}
+          />
           <svg
             aria-hidden="true"
             viewBox="0 0 400 300"
@@ -1792,32 +1803,21 @@ function HeroCompact({
           >
             <defs>
               <linearGradient id="heroCurve" x1="0" y1="0" x2="1" y2="1">
-                {isDark ? (
-                  <>
-                    <stop offset="0%" stopColor="#0a0a0f" stopOpacity="0.98" />
-                    <stop offset="55%" stopColor="#1a0f2e" stopOpacity="0.9" />
-                    <stop offset="100%" stopColor="#3d1a5b" stopOpacity="0.55" />
-                  </>
-                ) : (
-                  <>
-                    <stop offset="0%" stopColor="#ffffff" stopOpacity="0.97" />
-                    <stop offset="55%" stopColor="#fdf4ff" stopOpacity="0.88" />
-                    <stop offset="100%" stopColor="#f5d0fe" stopOpacity="0.55" />
-                  </>
-                )}
+                <stop offset="0%" stopColor="#6d28d9" stopOpacity={isDark ? "0.82" : "0.66"} />
+                <stop offset="52%" stopColor="#c026d3" stopOpacity={isDark ? "0.92" : "0.76"} />
+                <stop offset="100%" stopColor="#ff4eb8" stopOpacity={isDark ? "0.98" : "0.86"} />
               </linearGradient>
             </defs>
-            {/* Left-heavy curved shape covering ~60% of card, curving into the photo */}
             <path
-              d="M 0 0 L 240 0 Q 220 90 200 150 Q 180 220 100 300 L 0 300 Z"
+              d="M 260 300 C 306 250 335 194 400 166 L 400 300 Z"
               fill="url(#heroCurve)"
             />
+            <path d="M 302 300 C 334 265 362 222 400 204 L 400 300 Z" fill="#ff4eb8" opacity={isDark ? "0.44" : "0.52"} />
           </svg>
 
-          {/* Text layer */}
-          <div className="absolute inset-0 flex flex-col justify-end p-5 md:p-8">
+          <div className="absolute inset-0 flex flex-col justify-end p-5 pb-6 md:p-8">
             <h1
-              className={`font-serif text-[28px] md:text-[42px] leading-[1] tracking-[-0.02em] max-w-[220px] md:max-w-[420px] ${
+              className={`font-serif text-[30px] md:text-[42px] leading-[1.02] max-w-[255px] md:max-w-[420px] ${
                 isDark ? "text-white" : "text-foreground"
               }`}
               style={{ fontWeight: 600 }}
@@ -1826,12 +1826,15 @@ function HeroCompact({
             </h1>
             {tagline && (
               <p
-                className="mt-1 font-serif text-[24px] md:text-[36px] leading-[1] tracking-[-0.02em] max-w-[220px] md:max-w-[420px] bg-gradient-to-r from-rose-500 via-pink-500 to-fuchsia-500 bg-clip-text text-transparent"
+                className="mt-1 font-serif text-[27px] md:text-[37px] leading-[1.02] max-w-[285px] md:max-w-[420px] bg-gradient-to-r from-pink-500 via-fuchsia-500 to-violet-500 bg-clip-text text-transparent"
                 style={{ fontWeight: 600 }}
               >
                 {tagline}
               </p>
             )}
+            <p className={`relative z-10 mt-3 max-w-[240px] text-[13px] md:text-[14px] leading-[1.45] ${isDark ? "text-white/82" : "text-slate-950/76"}`}>
+              Tudo o que você precisa para uma estadia incrível.
+            </p>
           </div>
 
           {hasMany && (
@@ -1875,10 +1878,6 @@ function HeroCompact({
         </div>
       </div>
 
-      {/* Sub-caption under the photo card */}
-      <p className={`relative z-10 mt-4 text-[12.5px] md:text-[13px] leading-[1.45] max-w-[320px] md:max-w-[420px] ${isDark ? "text-white/60" : "text-foreground/65"}`}>
-        Tudo o que você precisa para uma estadia incrível.
-      </p>
     </section>
   );
 }
