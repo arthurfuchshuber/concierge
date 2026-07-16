@@ -295,30 +295,31 @@ function Guide({ data }: { data: GuideOk }) {
   const gateEnabled = !!p.require_access_gate;
   // Modo "preview" para admin do SaaS dentro do iframe (?preview=1): pula o gate
   // e mostra o conteúdo do guia diretamente, sem exigir preenchimento.
-  const isPreview = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("preview") === "1";
-  const [accessRec, setAccessRec] = useState<AccessRecord | null>(() => {
-    if (isPreview) {
+  const [isPreview, setIsPreview] = useState(false);
+  const [accessRec, setAccessRec] = useState<AccessRecord | null>(null);
+  // Hidrata o registro do localStorage somente após mount (evita mismatch SSR
+  // que descartava o registro e fazia o popup reaparecer a cada acesso).
+  const [gateReady, setGateReady] = useState(false);
+  useEffect(() => {
+    const preview = new URLSearchParams(window.location.search).get("preview") === "1";
+    if (preview) {
       const today = new Date().toISOString().slice(0, 10);
-      return {
+      setIsPreview(true);
+      setAccessRec({
         name: "Pré-visualização",
         code: null,
         checkinDate: today,
         checkoutDate: today,
         phone: null,
         phoneCountry: null,
-      };
+      });
+      setGateReady(true);
+      return;
     }
-    return null;
-  });
-  // Hidrata o registro do localStorage somente após mount (evita mismatch SSR
-  // que descartava o registro e fazia o popup reaparecer a cada acesso).
-  const [gateReady, setGateReady] = useState(isPreview);
-  useEffect(() => {
-    if (isPreview) return;
     const rec = readAccessRecord(slug);
     if (rec) setAccessRec(rec);
     setGateReady(true);
-  }, [slug, isPreview]);
+  }, [slug]);
   const needsGate = gateReady && !accessRec && !isPreview;
 
   // (Wi-Fi e senhas de acesso agora seguem apenas a regra de check-out às
