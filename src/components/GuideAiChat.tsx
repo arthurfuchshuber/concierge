@@ -121,6 +121,17 @@ export function GuideAiChat({ slug, propertyName, guestName }: { slug: string; p
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
+  // Permite abrir o chat via evento global disparado da home (bolha do concierge, sugestões).
+  useEffect(() => {
+    function onOpen(e: Event) {
+      const detail = (e as CustomEvent<{ prompt?: string }>).detail;
+      if (detail?.prompt) setInput(detail.prompt);
+      setOpen(true);
+    }
+    window.addEventListener("open-guide-chat", onOpen as EventListener);
+    return () => window.removeEventListener("open-guide-chat", onOpen as EventListener);
+  }, []);
+
   const [humanMode, setHumanMode] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadErr, setUploadErr] = useState<string | null>(null);
