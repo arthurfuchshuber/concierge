@@ -58,6 +58,7 @@ import { GuideAiChat } from "@/components/GuideAiChat";
 import { HomeIntelligence } from "@/components/guide/HomeIntelligence";
 import { CityNewsFeed } from "@/components/guide/CityNewsFeed";
 import { CheckinCountdown } from "@/components/guide/CheckinCountdown";
+import waterfallImg from "@/assets/rec-waterfall.jpg";
 import { GuideAccessGate, readAccessRecord, type AccessRecord } from "@/components/GuideAccessGate";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -597,7 +598,7 @@ function Guide({ data }: { data: GuideOk }) {
                         tone={c.tone}
                         badge={c.badge}
                         theme={theme}
-                        imageUrl={c.key === "explore" ? themePick("explore", 1) : undefined}
+                        imageUrl={c.key === "explore" ? (themeImages.explore || waterfallImg) : undefined}
                       />
                     );
                     return c.to?.kind === "link" ? (
@@ -1830,17 +1831,15 @@ function HeroCompact({
 
           <div className="absolute inset-0 flex flex-col justify-end p-5 pb-6 md:p-8">
             <h1
-              className={`font-serif text-[30px] md:text-[42px] leading-[1.02] max-w-[255px] md:max-w-[420px] ${
+              className={`text-[36px] md:text-[46px] leading-[1.02] tracking-[-0.01em] max-w-[255px] md:max-w-[420px] font-black ${
                 isDark ? "text-white" : "text-foreground"
               }`}
-              style={{ fontWeight: 600 }}
             >
               {name}
             </h1>
             {tagline && (
               <p
-                className="mt-1 font-serif text-[27px] md:text-[37px] leading-[1.02] max-w-[285px] md:max-w-[420px] bg-gradient-to-r from-pink-500 via-fuchsia-500 to-violet-500 bg-clip-text text-transparent"
-                style={{ fontWeight: 600 }}
+                className="mt-0.5 text-[32px] md:text-[40px] leading-[1.02] tracking-[-0.01em] max-w-[285px] md:max-w-[420px] font-black bg-gradient-to-r from-pink-500 via-fuchsia-500 to-violet-500 bg-clip-text text-transparent"
               >
                 {tagline}
               </p>
