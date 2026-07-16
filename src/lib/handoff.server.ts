@@ -54,7 +54,10 @@ export async function sendHandoffPush(
       // ignore
     }
   }
-  const bodyText = (opts.guestMessage?.trim() || opts.reason?.trim() || `${guest} pediu atendimento humano.`).slice(0, 220);
+  // Preferimos o `reason` (resumo gerado pela IA em 3ª pessoa: "Hóspede está
+  // perguntando sobre X…") — é mais útil para o anfitrião do que a mensagem
+  // crua do hóspede. Cai para a mensagem original se o resumo não veio.
+  const bodyText = (opts.reason?.trim() || opts.guestMessage?.trim() || `${guest} pediu atendimento humano.`).slice(0, 220);
   const payload: PushPayload = {
     title: `${guest}${checkinLabel}`,
     body: bodyText,
