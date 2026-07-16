@@ -568,6 +568,12 @@ function Guide({ data }: { data: GuideOk }) {
                 onToggleLang={toggleLang}
               />
 
+              {/* Countdown do check-in — some após liberado + 3h */}
+              {homeStripsVisible && (
+                <CheckinCountdown checkinTime={p.checkin_time as string | null} theme={theme} />
+              )}
+
+
               {/* Faixas com Wi-Fi e códigos: aparecem de 8h antes do check-in
                 até 12h depois. No desktop ficam lado a lado para economizar
                 altura da página. */}
