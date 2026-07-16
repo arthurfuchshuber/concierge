@@ -1,70 +1,43 @@
+# Redesign da Home Pública do Guia — Concierge Luxuoso
 
-## Redesign da Home do Guia — linguagem do V3.html
+Como os protótipos não renderizaram no chat, vou seguir com a direção **V3 · Concierge Luxuoso** — a que melhor traduz "de outro mundo, elegante, tecnológico" mantendo a estrutura do esboço. Ajustes serão feitos em **ambos os temas** (dark e light) e sem inventar conteúdo negativo.
 
-### Princípios visuais (extraídos do esboço)
-- **Compacto e editorial**, não chunky. H1 21px (hoje 32px+), card title 13px, meta 10-11px
-- **Paleta quente**: fundo `#100E0C`, superfícies `#1C1712`, hero `#26211A`, gold `#C9A876`, mutes `#B8AF9E` / `#8A8378`
-- **Capas coloridas por seção/categoria** (marrom-gold para chegada, azul para saída, verde para residência, roxo para explore) — não usar imagem da propriedade ofuscada; usar bloco de cor sólido com ícone grande (mais legível e leve que o esboço mencionava)
-- **Border 0.5px** com cores próximas do fundo, exceto Chegada que ganha border-gold 1.5px + badge "comece aqui"
+## Direção visual
 
-### 1) HeroCompact — reescrever
-- Reduzir altura de `min-h-[36svh]` para altura natural (~180px mobile)
-- Header top: logo `SigmaGuide` (pequeno, gold sparkles ícone) à esquerda + badge cidade à direita (formato pill com border-gold 0.5px, texto uppercase tracking-[0.22em])
-- Título abaixo em fonte serif `21px mobile / 32px desktop`, weight 500 (não 700), `line-clamp-2`, 2 linhas máx
-- Fundo: photo com overlay gradient marrom quente (`#26211A` no bottom via mix), não preto puro
-- Manter parallax e slider de fotos, mas com controles menores
+- **Hero cinematográfico**: foto da hospedagem em 4:5 com máscara de gradiente, título em Playfair Display itálico, destaque em gradiente âmbar→rosa→roxo (dark) / índigo sólido (light). Nome + tagline sempre em uma linha equilibrada.
+- **Glassmorphism celestial**: `bg-white/[0.04]` + `backdrop-blur-2xl` + borda `white/10`, com auréolas de cor (`blur-3xl`) atrás dos cards principais. No light: `bg-card` sólido + sombra suave + auréolas com opacidade baixa.
+- **Grid assimétrico de Acessos Rápidos**: card "Chegada" full-width com CTA gradiente e aura roxa; abaixo, dois cards satélite (Saída / A residência) e uma linha compacta (clima · status IA).
+- **Card Concierge IA**: painel maior com fundo em gradiente `from-[#1a0b2e] via-[#2d1b4e] to-[#4c1d95]` (dark) / `from-purple-50 via-white to-pink-50` (light), avatar em vidro, chips de sugestão com hover, botão primário luminoso.
+- **Feed "O que rola em [cidade]"**: título em **uma única linha** (whitespace-nowrap + tracking calibrado + tamanho responsivo), cards verticais 4:5 com foto, pill de categoria colorida, título serifado, hover-zoom sutil.
+- **FAQ**: card único elegante com contador de perguntas e chevron animado.
+- **Micro-detalhes**: pontos de status com halo pulsante, gradiente sutil respirando no header, entrada em stagger via Framer Motion (já disponível), transições `[0.2,0.8,0.2,1]`.
 
-### 2) Grid de acesso — reestruturar completamente
-Trocar `grid-cols-2` uniforme por layout **assimétrico** replicando o esboço:
+## Conteúdo
 
-```text
-┌─────────────────────────────┐
-│ CHEGADA (col-span-2)        │  ← capa gold 64px + badge "comece aqui"
-├──────────────┬──────────────┤
-│ SAÍDA (azul) │ RESID. (verde)│  ← capas coloridas 54px
-├──────────────┴──────────────┤
-│ EXPLORE (horizontal 2-col)  │  ← capa roxa 80px lateral esquerda
-├──────────────┬──────────────┤
-│ FAQ (rosa)   │              │  ← se sobrar
-└──────────────┴──────────────┘
-```
+Estritamente positivo e sobre a cidade: turismo, gastronomia, eventos locais, passeios, cultura, natureza, mercado. O prompt de `city-news.functions.ts` já filtra — vou reforçar o system prompt para excluir explicitamente notícias negativas/policiais/tragédias.
 
-Novo componente `SectionCard` (substitui `ThemeCard`) com props:
-- `variant`: `"hero-wide" | "compact" | "horizontal-wide"`
-- `tone`: `"gold" | "blue" | "green" | "purple" | "rose"` → mapa fixo de bg/border/icon color
-- `badge?`: string (para "comece aqui")
+## Alterações técnicas
 
-Título compacto (13px), meta (10-11px muted), sem parallax, sem shadow pesado.
+Arquivos a editar (nenhum código de backend novo, só apresentação):
 
-### 3) Countdown do check-in
-- Layout do esboço: label esquerda "check-in libera em **3h42**" (gold) + horário direita muted + barra progress 3px altura, `#C9A876` fill
+1. **`src/routes/g.$slug.index.tsx`** — reestruturar hero, headers de seção, grid de acessos rápidos, wrapper geral. Adicionar auréolas globais de fundo em ambos os temas.
+2. **`src/components/guide/HomeIntelligence.tsx`** — refinar card IA (gradiente novo, avatar em vidro, tipografia serifada no título, chips maiores, botão CTA luminoso).
+3. **`src/components/guide/CityNewsFeed.tsx`** — título em uma linha via `whitespace-nowrap` + `tracking-[0.2em]` + tamanho responsivo (`text-[11px] md:text-[13px]`), cards 4:5 com pill categoria e hover-zoom. Reforçar `openChat` com contexto positivo.
+4. **`src/components/guide/CheckinCountdown.tsx`** — harmonizar visual com nova linguagem (halo âmbar mais suave, borda glass).
+5. **`src/lib/city-news.functions.ts`** — reforçar prompt do modelo para excluir conteúdo negativo (crimes, tragédias, política) e focar em turismo/gastronomia/eventos/passeios/cultura.
+6. **`src/styles.css`** — adicionar (se necessário) tokens auxiliares para halos e gradientes celestiais reutilizáveis, e keyframe `aurora-drift` para respiração sutil dos gradientes de fundo.
 
-### 4) HomeIntelligence — ajustar visual
-- Header row: `☀ 19°C · céu limpo` esquerda + `● IA ativa agora` direita (dot verde `#8FCB7A`)
-- Título 17px serif "Céu azul perfeito pra cruzar a ponte hoje" (gerado pela IA)
-- Body 12px muted com highlight `#C9A876` em palavras-chave
-- Botão outline gold: "Perguntar mais ao ConciergeIA →"
-- Chips (border gold 0.5px) abaixo: "O que fazer hoje?", "Melhor restaurante"
+## Regras invioláveis
 
-### 5) CityNewsFeed — cards no mesmo idioma
-Mantém scroll horizontal, mas cards agora seguem 2 formatos:
-- **Featured** (primeiro): capa colorida por categoria (natureza=azul, gastronomia=laranja, evento=fúcsia, etc.) com ícone grande e bookmark no canto, chip categoria abaixo + título 13px + desc 11px muted
-- **Compact** (demais): row horizontal com capa 64px lateral + título + arrow, chip categoria pequena
+- Ambos os temas (dark + light) — nada de estilizar só um.
+- Apenas classes semânticas do design system (nada de `text-white`/`bg-black` hard-coded); onde precisar de cor absoluta em glass (ex: `bg-white/[0.04]`), aplicar via condicional de tema.
+- Regra global de tipografia mantida: pontuação nunca inicia linha; campos vazios do painel ocultam a seção inteira.
+- Título "O QUE ROLA EM FOZ DO IGUAÇU" **em uma linha** — testado em 360px de largura.
+- Conteúdo do feed: só positivo, só cidade.
 
-### O que NÃO muda
-- Popup de cadastro/telefone (intacto)
-- Sistema de gate de acesso, unlock, wifi, códigos
-- Rotas explorar, admin, fluxo de FAQ
-- Server functions (getCityNews, getDailyTip já prontos)
-- Regras condicionais de renderização (campo vazio = seção oculta)
+## Validação após implementação
 
-### Arquivos editados
-1. `src/routes/g.$slug.index.tsx` — `HeroCompact` e `ThemeCard` reescritos; grid dos cards com layout assimétrico
-2. `src/components/guide/CheckinCountdown.tsx` — refinar visual para o padrão do esboço
-3. `src/components/guide/HomeIntelligence.tsx` — refinar layout (clima + IA status + botão + chips)
-4. `src/components/guide/CityNewsFeed.tsx` — dois formatos de card com capas coloridas
+- Playwright: screenshot da home nos dois temas em 375px e 1280px, confirmar título do feed em uma linha, hero legível, cards com brilho.
+- Console/network: sem 500 em `getCityNews` / `getDailyTip`.
 
-**Nenhum novo arquivo, nenhuma migração, nenhuma nova função de servidor.** Só CSS/JSX.
-
-### Confirmação necessária
-Se aprovar, executo tudo numa passada só. Posso confirmar?
+Depois de aprovado, implemento tudo em um único passo.
