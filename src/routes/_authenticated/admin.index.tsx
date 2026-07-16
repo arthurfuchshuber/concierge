@@ -230,14 +230,7 @@ function Dashboard() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <a
-            href="/g/demo"
-            target="_blank"
-            rel="noreferrer"
-            className="inline-flex items-center gap-1.5 text-sm px-4 py-2 rounded-full border border-border hover:bg-secondary transition-colors"
-          >
-            <PlayCircle className="size-4" /> Ver demo ao vivo
-          </a>
+
           {!readOnly && (
             <Button
               onClick={() => navigate({ to: "/admin/properties/$id", params: { id: "new" } })}
