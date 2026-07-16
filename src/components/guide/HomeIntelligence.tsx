@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 import { Sparkles, MessageCircleMore, ArrowUpRight, Radio } from "lucide-react";
 import { getDailyTip, type DailyTip } from "@/lib/daily-tip.functions";
 import { getCityPulse, type PulseItem } from "@/lib/city-pulse.functions";
-import { cityKeyFromLabel } from "@/lib/city-key";
+import { cityKey } from "@/lib/city-key";
 
 type Lang = "pt" | "en" | "es" | "fr";
 
