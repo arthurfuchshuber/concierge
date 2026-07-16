@@ -653,11 +653,11 @@ function Guide({ data }: { data: GuideOk }) {
 
               <section id="guide-actions" className="px-5 md:px-10 lg:px-16 mt-5 md:mt-6 relative z-10">
                 <div className="flex items-center gap-3 mb-4 md:mb-5">
-                  <p className="shrink-0 whitespace-nowrap text-[9.5px] md:text-[10px] uppercase tracking-[0.22em] text-white/40 dark:text-white/40 font-bold">
+                  <p className={`shrink-0 whitespace-nowrap text-[9.5px] md:text-[10px] uppercase tracking-[0.22em] font-bold ${theme === "dark" ? "text-white/50" : "text-foreground/55"}`}>
                     <span className="inline-block size-1 rounded-full bg-amber-400 mr-2 align-middle shadow-[0_0_6px_rgba(251,191,36,0.7)]" />
                     Acessos rápidos
                   </p>
-                  <span className="h-px flex-1 bg-gradient-to-r from-white/15 via-white/5 to-transparent" />
+                  <span className={`h-px flex-1 bg-gradient-to-r ${theme === "dark" ? "from-white/15 via-white/5" : "from-foreground/15 via-foreground/5"} to-transparent`} />
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
