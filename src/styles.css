@@ -170,32 +170,38 @@
   }
 
   .sigma-public-guide {
-    --background: oklch(0.055 0.014 45);
+    --background: oklch(0.045 0.018 276);
     --foreground: oklch(0.985 0.008 80);
-    --card: oklch(0.105 0.014 48);
+    --card: oklch(0.085 0.018 278);
     --card-foreground: oklch(0.985 0.008 80);
-    --muted-foreground: oklch(0.72 0.012 70);
-    --accent: oklch(0.78 0.055 68);
-    --accent-foreground: oklch(0.095 0.012 48);
-    --border: oklch(0.78 0.055 68 / 0.18);
-    --secondary: oklch(0.16 0.012 48);
-    --muted: oklch(0.14 0.01 48);
+    --muted-foreground: oklch(0.72 0.025 285);
+    --accent: oklch(0.69 0.24 330);
+    --accent-foreground: oklch(0.985 0.008 80);
+    --border: oklch(0.72 0.16 320 / 0.16);
+    --secondary: oklch(0.13 0.022 280);
+    --muted: oklch(0.12 0.018 280);
     --primary: oklch(0.985 0.008 80);
+    background-image:
+      radial-gradient(80% 38% at 50% -12%, oklch(0.68 0.21 318 / 0.09), transparent 72%),
+      linear-gradient(180deg, oklch(0.045 0.018 276), oklch(0.032 0.016 276));
   }
 
   /* Tema branco gelo — claro, preciso e com acabamento SaaS premium */
   .sigma-public-guide.theme-light {
-    --background: oklch(0.988 0.003 250);
-    --foreground: oklch(0.18 0.018 255);
-    --card: oklch(1 0 0 / 0.96);
-    --card-foreground: oklch(0.18 0.018 255);
-    --muted-foreground: oklch(0.46 0.018 255);
-    --accent: oklch(0.69 0.052 70);
-    --accent-foreground: oklch(0.16 0.018 255);
-    --border: oklch(0.84 0.012 250);
-    --secondary: oklch(0.95 0.008 250);
-    --muted: oklch(0.955 0.007 250);
-    --primary: oklch(0.18 0.018 255);
+    --background: oklch(0.976 0.012 286);
+    --foreground: oklch(0.19 0.035 282);
+    --card: oklch(1 0 0 / 0.72);
+    --card-foreground: oklch(0.19 0.035 282);
+    --muted-foreground: oklch(0.48 0.026 282);
+    --accent: oklch(0.66 0.24 325);
+    --accent-foreground: oklch(0.985 0.008 80);
+    --border: oklch(0.86 0.02 286);
+    --secondary: oklch(0.945 0.012 286);
+    --muted: oklch(0.945 0.012 286);
+    --primary: oklch(0.19 0.035 282);
+    background-image:
+      radial-gradient(70% 32% at 50% -12%, oklch(0.75 0.18 315 / 0.16), transparent 72%),
+      linear-gradient(180deg, oklch(0.982 0.012 286), oklch(0.956 0.015 286));
   }
 
   .font-mono {
