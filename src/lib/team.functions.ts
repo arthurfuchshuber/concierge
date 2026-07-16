@@ -44,10 +44,18 @@ const InviteInput = z.object({
   role: z.enum(["owner", "agent", "viewer"]).default("agent"),
 });
 
+async function findUserIdByEmail(email: string): Promise<string | null> {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  // getUserByEmail via listUsers filter (admin API doesn't expose direct lookup)
+  const { data, error } = await supabaseAdmin.auth.admin.listUsers({ perPage: 200 });
+  if (error) return null;
+  const found = data.users.find((u) => (u.email ?? "").toLowerCase() === email.toLowerCase());
+  return found?.id ?? null;
+}
+
 async function sendAccountInviteEmail(email: string, inviterName: string | null) {
-  // Uses Supabase's built-in invite email (routes through the auth email queue
-  // and our branded invite.tsx template). If the user already exists, we
-  // fall back to a magic-link so they can sign in and pick up the invite.
+  // Sends via Supabase's built-in invite email (routes through our auth webhook
+  // and the branded invite.tsx template). Only works for NEW users.
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const siteUrl =
     process.env.SITE_URL ||
@@ -59,21 +67,10 @@ async function sendAccountInviteEmail(email: string, inviterName: string | null)
     redirectTo,
     data: meta,
   });
-  if (!error) return { sent: true, via: "invite" as const };
-  const msg = (error.message || "").toLowerCase();
-  // If already registered, send a magic-link so they can log in — the
-  // account_member_invites row will be redeemable via the app once signed in.
-  if (msg.includes("already") || msg.includes("registered") || msg.includes("exists")) {
-    const { error: linkErr } = await supabaseAdmin.auth.admin.generateLink({
-      type: "magiclink",
-      email,
-      options: { redirectTo },
-    });
-    if (linkErr) throw new Error(linkErr.message);
-    return { sent: true, via: "magiclink" as const };
-  }
-  throw new Error(error.message);
+  if (error) throw new Error(error.message);
+  return { sent: true, via: "invite" as const };
 }
+
 
 export const inviteTeamMember = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
