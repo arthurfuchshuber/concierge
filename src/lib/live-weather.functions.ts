@@ -53,14 +53,37 @@ export const getLiveWeather = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: prop } = await supabaseAdmin
       .from("properties")
-      .select("lat, lng")
+      .select("lat, lng, city, country")
       .eq("id", data.propertyId)
       .maybeSingle();
-    if (!prop || prop.lat == null || prop.lng == null) return null;
+    if (!prop) return null;
+
+    let lat: number | null = prop.lat != null ? Number(prop.lat) : null;
+    let lng: number | null = prop.lng != null ? Number(prop.lng) : null;
+
+    // Fallback: geocode by city name via open-meteo geocoding when property has no coords.
+    if ((lat == null || lng == null) && prop.city) {
+      try {
+        const q = encodeURIComponent(String(prop.city));
+        const geoUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${q}&count=1&language=pt&format=json`;
+        const gr = await fetch(geoUrl, { signal: AbortSignal.timeout(3000) });
+        if (gr.ok) {
+          const gj = (await gr.json()) as { results?: Array<{ latitude?: number; longitude?: number }> };
+          const first = gj.results?.[0];
+          if (first && typeof first.latitude === "number" && typeof first.longitude === "number") {
+            lat = first.latitude;
+            lng = first.longitude;
+          }
+        }
+      } catch {
+        // ignore
+      }
+    }
+    if (lat == null || lng == null) return null;
 
     try {
       const url =
-        `https://api.open-meteo.com/v1/forecast?latitude=${Number(prop.lat)}&longitude=${Number(prop.lng)}` +
+        `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}` +
         `&current=temperature_2m,weather_code` +
         `&daily=weather_code,temperature_2m_max,temperature_2m_min` +
         `&forecast_days=10&timezone=auto`;
