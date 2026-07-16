@@ -597,7 +597,7 @@ function Guide({ data }: { data: GuideOk }) {
                         tone={c.tone}
                         badge={c.badge}
                         theme={theme}
-                        imageUrl={c.key === "explore" ? themePick("explore", 1) : undefined}
+                        imageUrl={c.key === "explore" ? (themeImages.explore || waterfallImg) : undefined}
                       />
                     );
                     return c.to?.kind === "link" ? (
