@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
-import { listMyProperties, deleteProperty, duplicateProperty } from "@/lib/properties.functions";
+import { listMyProperties, deleteProperty, duplicateProperty, listPropertiesForAccount } from "@/lib/properties.functions";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle, DialogDescription, DialogFooter, DialogHeader } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -56,6 +56,8 @@ function guideCompleteness(p: {
 function Dashboard() {
   const list = useServerFn(listMyProperties);
   const listAsUser = useServerFn(adminListUserPropertiesFull);
+  const listForAccount = useServerFn(listPropertiesForAccount);
+  const { isAdmin: isSaasAdmin } = useIsAdmin();
   const del = useServerFn(deleteProperty);
   const dup = useServerFn(duplicateProperty);
   const [dupTarget, setDupTarget] = useState<{ id: string; name: string } | null>(null);
@@ -63,7 +65,10 @@ function Dashboard() {
   const [dupBusy, setDupBusy] = useState(false);
   const navigate = useNavigate();
   const { impersonation, clear: clearImpersonation } = useImpersonation();
-  const readOnly = !!impersonation;
+  // Read-only banner apenas quando um admin SaaS está visualizando um cliente.
+  // Membros de conta (atendentes/owners convidados) têm acesso de edição.
+  const readOnly = !!impersonation && isSaasAdmin;
+
   const [view, setView] = useState<"grid" | "list">("grid");
   const [statCardsOpen, setStatCardsOpen] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -106,18 +111,23 @@ function Dashboard() {
     }
   }
   const { data, isLoading, refetch } = useQuery({
-    queryKey: ["my-properties", impersonation?.userId ?? "self"],
-    queryFn: () =>
-      impersonation
+    queryKey: ["my-properties", impersonation?.userId ?? "self", isSaasAdmin ? "admin" : "member"],
+    queryFn: () => {
+      if (!impersonation) return list();
+      // Admin SaaS impersonando cliente → função admin (traz metadados extras).
+      // Membro de conta → usa RLS via listPropertiesForAccount.
+      return isSaasAdmin
         ? listAsUser({ data: { userId: impersonation.userId } })
-        : list(),
+        : listForAccount({ data: { ownerId: impersonation.userId } });
+    },
   });
-  const { info: sub } = useSubscription({ impersonateUserId: impersonation?.userId ?? null });
+  const { info: sub } = useSubscription({ impersonateUserId: impersonation && isSaasAdmin ? impersonation.userId : null });
 
   // Admin sem guias próprios e SEM impersonação: nada de auto-redirect agora —
   // ele pode escolher manualmente um cliente pelo dropdown da sidebar.
   const { isAdmin } = useIsAdmin();
   void isAdmin;
+
 
 
 
