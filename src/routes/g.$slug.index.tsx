@@ -541,12 +541,18 @@ function Guide({ data }: { data: GuideOk }) {
     <div
       className={`sigma-public-guide guide-ambient relative min-h-screen bg-background text-foreground pb-16 overflow-x-hidden ${theme === "light" ? "theme-light" : ""}`}
     >
-      {/* Celestial ambient glows — fixed behind everything */}
-      {theme === "dark" && (
+      {/* Celestial ambient glows — fixed behind everything, in both themes */}
+      {theme === "dark" ? (
         <>
-          <div className="pointer-events-none fixed -top-32 -right-32 h-[380px] w-[380px] rounded-full bg-amber-500/[0.08] blur-[120px] z-0" />
-          <div className="pointer-events-none fixed top-[45%] -left-32 h-[320px] w-[320px] rounded-full bg-purple-600/[0.08] blur-[110px] z-0" />
-          <div className="pointer-events-none fixed bottom-0 right-1/4 h-[280px] w-[280px] rounded-full bg-sky-500/[0.05] blur-[100px] z-0" />
+          <div className="pointer-events-none fixed -top-32 -right-32 h-[420px] w-[420px] rounded-full bg-amber-500/[0.10] blur-[130px] z-0 animate-[pulse_9s_ease-in-out_infinite]" />
+          <div className="pointer-events-none fixed top-[40%] -left-32 h-[360px] w-[360px] rounded-full bg-purple-600/[0.10] blur-[120px] z-0 animate-[pulse_11s_ease-in-out_infinite]" />
+          <div className="pointer-events-none fixed bottom-0 right-1/4 h-[320px] w-[320px] rounded-full bg-sky-500/[0.07] blur-[110px] z-0 animate-[pulse_13s_ease-in-out_infinite]" />
+        </>
+      ) : (
+        <>
+          <div className="pointer-events-none fixed -top-40 -right-40 h-[460px] w-[460px] rounded-full bg-amber-300/25 blur-[130px] z-0" />
+          <div className="pointer-events-none fixed top-[38%] -left-40 h-[380px] w-[380px] rounded-full bg-violet-300/20 blur-[130px] z-0" />
+          <div className="pointer-events-none fixed bottom-0 right-1/4 h-[340px] w-[340px] rounded-full bg-sky-300/15 blur-[120px] z-0" />
         </>
       )}
       {needsGate && (
