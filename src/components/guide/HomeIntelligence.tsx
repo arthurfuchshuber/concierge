@@ -142,6 +142,7 @@ export function HomeIntelligence({
   const [live, setLive] = useState<LiveWeather>(null);
   const [nowLabel, setNowLabel] = useState<string>("");
   const [loading, setLoading] = useState(true);
+  const chips = useMemo<ChipDef[]>(() => chipsForCity(city), [city]);
 
   // Dica do dia (IA, cacheada por dia).
   useEffect(() => {
