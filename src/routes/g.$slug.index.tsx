@@ -58,6 +58,7 @@ import { GuideAiChat } from "@/components/GuideAiChat";
 import { HomeIntelligence } from "@/components/guide/HomeIntelligence";
 import { CityNewsFeed } from "@/components/guide/CityNewsFeed";
 import { CheckinCountdown } from "@/components/guide/CheckinCountdown";
+import waterfallImg from "@/assets/rec-waterfall.jpg";
 import { GuideAccessGate, readAccessRecord, type AccessRecord } from "@/components/GuideAccessGate";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
