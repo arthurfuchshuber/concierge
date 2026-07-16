@@ -584,21 +584,35 @@ function Guide({ data }: { data: GuideOk }) {
                   Barra "check-in libera em" é clicável e expande as senhas. */}
               {homeStripsVisible && (
                 <div className="mt-3 md:mt-4">
-                  {(p.wifi_ssid ||
-                    (p as any).gate_code_set ||
-                    (p as any).lock_code_set ||
-                    p.gate_code ||
-                    p.lock_code) ? (
-                    <CheckinCountdown
-                      checkinTime={p.checkin_time as string | null}
-                      theme={theme}
-                      expandable
-                      open={codesOpen}
-                      onToggle={() => setCodesOpen((v) => !v)}
-                    />
-                  ) : (
-                    <CheckinCountdown checkinTime={p.checkin_time as string | null} theme={theme} />
-                  )}
+                  {(() => {
+                    const hasCodes =
+                      p.wifi_ssid ||
+                      (p as any).gate_code_set ||
+                      (p as any).lock_code_set ||
+                      p.gate_code ||
+                      p.lock_code;
+                    if (!hasCodes) {
+                      return <CheckinCountdown checkinTime={p.checkin_time as string | null} theme={theme} />;
+                    }
+                    return (
+                      <>
+                        <CheckinCountdown
+                          checkinTime={p.checkin_time as string | null}
+                          theme={theme}
+                          expandable
+                          open={codesOpen}
+                          onToggle={() => setCodesOpen((v) => !v)}
+                        />
+                        {/* Trigger neutro — aparece quando o countdown não está visível (fora da janela) */}
+                        <CodesTrigger
+                          theme={theme}
+                          open={codesOpen}
+                          onToggle={() => setCodesOpen((v) => !v)}
+                          checkinTime={p.checkin_time as string | null}
+                        />
+                      </>
+                    );
+                  })()}
 
                   <AnimatePresence initial={false}>
                     {codesOpen &&
