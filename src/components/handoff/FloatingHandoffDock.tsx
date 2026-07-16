@@ -54,8 +54,11 @@ export function FloatingHandoffDock() {
 
   const access = useQuery({
     queryKey: ["handoff-access"],
-    queryFn: () => accessFn(),
+    queryFn: async () => {
+      try { return await accessFn(); } catch { return { allowed: false as const, as: null, plan: null }; }
+    },
     staleTime: 5 * 60_000,
+    retry: false,
   });
 
   const allowed = access.data?.allowed === true;
@@ -67,16 +70,24 @@ export function FloatingHandoffDock() {
 
   const pendingQ = useQuery({
     queryKey: ["handoff-pending-count"],
-    queryFn: () => countFn(),
+    queryFn: async () => {
+      try { return await countFn(); } catch { return { count: 0 }; }
+    },
     enabled: allowed,
     refetchInterval: 15_000,
+    retry: false,
   });
   const list = useQuery({
     queryKey: ["handoff-list", "dock"],
-    queryFn: () => listFn({ data: { queue: "needs_human", limit: 30 } }),
+    queryFn: async () => {
+      try { return await listFn({ data: { queue: "needs_human", limit: 30 } }); }
+      catch { return { conversations: [], details: {} }; }
+    },
     enabled: allowed,
     refetchInterval: 15_000,
+    retry: false,
   });
+
 
   const lastCountRef = useRef<number>(-1);
   useEffect(() => {
