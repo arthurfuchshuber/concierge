@@ -97,10 +97,15 @@ export function CheckinCountdown({
     return null;
   }
 
-  const totalMin = Math.max(1, Math.floor(diffMs / 60_000));
-  const hours = Math.floor(totalMin / 60);
-  const minutes = totalMin % 60;
-  const label = hours > 0 ? `${hours}h${String(minutes).padStart(2, "0")}` : `${minutes}min`;
+  const totalSec = Math.max(1, Math.floor(diffMs / 1000));
+  const hours = Math.floor(totalSec / 3600);
+  const minutes = Math.floor((totalSec % 3600) / 60);
+  const seconds = totalSec % 60;
+  // Enquanto falta ≥ 1h mostramos "5h07"; abaixo disso, contagem fina "58:23".
+  const label =
+    hours > 0
+      ? `${hours}h${String(minutes).padStart(2, "0")}`
+      : `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
 
   const totalWindow = target.getTime() - startOfWindow.getTime();
   const progressed = now.getTime() - startOfWindow.getTime();
