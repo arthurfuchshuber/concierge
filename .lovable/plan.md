@@ -1,107 +1,70 @@
-# Redesign Home do Guia — "SigmaGuide viciante"
 
-Vamos reestruturar a Home (`src/routes/g.$slug.index.tsx`) inspirado no esboço enviado, transformando-a num painel visual com cards imagéticos e um feed de notícias reais rolando lateralmente (cascata horizontal). Nada mexe em cadastro/popup/telefone.
+## Redesign da Home do Guia — linguagem do V3.html
 
-## 1. Estrutura visual (baseada no esboço)
+### Princípios visuais (extraídos do esboço)
+- **Compacto e editorial**, não chunky. H1 21px (hoje 32px+), card title 13px, meta 10-11px
+- **Paleta quente**: fundo `#100E0C`, superfícies `#1C1712`, hero `#26211A`, gold `#C9A876`, mutes `#B8AF9E` / `#8A8378`
+- **Capas coloridas por seção/categoria** (marrom-gold para chegada, azul para saída, verde para residência, roxo para explore) — não usar imagem da propriedade ofuscada; usar bloco de cor sólido com ícone grande (mais legível e leve que o esboço mencionava)
+- **Border 0.5px** com cores próximas do fundo, exceto Chegada que ganha border-gold 1.5px + badge "comece aqui"
+
+### 1) HeroCompact — reescrever
+- Reduzir altura de `min-h-[36svh]` para altura natural (~180px mobile)
+- Header top: logo `SigmaGuide` (pequeno, gold sparkles ícone) à esquerda + badge cidade à direita (formato pill com border-gold 0.5px, texto uppercase tracking-[0.22em])
+- Título abaixo em fonte serif `21px mobile / 32px desktop`, weight 500 (não 700), `line-clamp-2`, 2 linhas máx
+- Fundo: photo com overlay gradient marrom quente (`#26211A` no bottom via mix), não preto puro
+- Manter parallax e slider de fotos, mas com controles menores
+
+### 2) Grid de acesso — reestruturar completamente
+Trocar `grid-cols-2` uniforme por layout **assimétrico** replicando o esboço:
 
 ```text
-┌─────────────────────────────────┐
-│ HERO (foto do imóvel ao fundo,  │
-│ escurecida)                     │
-│  · SigmaGuide  ·  [FOZ] pill    │
-│  Nome do imóvel                 │
-│  Tagline                        │
-└─────────────────────────────────┘
-┌ Faixa check-in ─────────────────┐
-│ ⏱ libera em 3h42 · barra prog.  │
-└─────────────────────────────────┘
-┌ O QUE VOCÊ DESEJA ACESSAR? ─────┐
-│ ┌ CHEGADA (largo, destacado)──┐│
-│ │ [imagem chave/porta blur]  ▸││ ← "comece aqui" badge
-│ └────────────────────────────┘│
-│ ┌ Saída ──┐ ┌ A residência ─┐ │
-│ │ img     │ │ img            │ │
-│ └─────────┘ └────────────────┘ │
-│ ┌ Explore a região (largo) ───┐│
-│ │ img · 182 lugares curados  ▸││
-│ └────────────────────────────┘│
-└─────────────────────────────────┘
-┌ Dica do dia (IA) ───────────────┐
-│ ☀ 19°C · céu limpo · IA ativa   │
-│ Título gerado pela IA           │
-│ Corpo + [Perguntar mais →]      │
-│ chips de sugestão               │
-└─────────────────────────────────┘
-┌ O QUE ROLA HOJE · scroll ↔ ─────┐
-│ [card news 1][card news 2]…    │ ← cascata horizontal
-│ imagem grande, categoria pill   │
-└─────────────────────────────────┘
+┌─────────────────────────────┐
+│ CHEGADA (col-span-2)        │  ← capa gold 64px + badge "comece aqui"
+├──────────────┬──────────────┤
+│ SAÍDA (azul) │ RESID. (verde)│  ← capas coloridas 54px
+├──────────────┴──────────────┤
+│ EXPLORE (horizontal 2-col)  │  ← capa roxa 80px lateral esquerda
+├──────────────┬──────────────┤
+│ FAQ (rosa)   │              │  ← se sobrar
+└──────────────┴──────────────┘
 ```
 
-## 2. Novidades técnicas
+Novo componente `SectionCard` (substitui `ThemeCard`) com props:
+- `variant`: `"hero-wide" | "compact" | "horizontal-wide"`
+- `tone`: `"gold" | "blue" | "green" | "purple" | "rose"` → mapa fixo de bg/border/icon color
+- `badge?`: string (para "comece aqui")
 
-### 2.1. Notícias reais da cidade (feed IA + Google/Firecrawl)
+Título compacto (13px), meta (10-11px muted), sem parallax, sem shadow pesado.
 
-- Nova server fn `getCityNews({ cityKey, cityLabel, country, lang })` em `src/lib/city-news.functions.ts`.
-- Nova tabela `city_daily_news` (cache diário — igual estrutura de `city_daily_pulse`):
-  - `city_key text`, `date date`, `items jsonb`, `created_at`, PK `(city_key, date)`.
-  - RLS: leitura pública via server fn (admin client).
-- Estratégia de curadoria:
-  1. Usa **Firecrawl `/v2/search`** (conector já linkado, gateway ou direct) com query tipo `notícias eventos turismo {cidade} hoje` + `tbs: 'qdr:w'` (última semana) para pegar manchetes reais.
-  2. Passa top 8 resultados (`title`, `description`, `url`) pra IA (`google/gemini-3.5-flash` via Lovable AI) com prompt que filtra e retorna JSON com 5–7 itens: `{title, category, summary, emoji, imageQuery, sourceUrl}`.
-  3. Categoria em: `natureza`, `gastronomia`, `evento`, `passeio`, `cultura`, `noite`, `mercado`.
-  4. `imageQuery`: 2–3 palavras para buscar foto (ex: "cataratas iguaçu passarela"). Server fn resolve imagem via **Google Places Photo** (já usamos em `place-photo.ts`) ou Firecrawl scrape com format `screenshot`. Fallback: usar `source.image` do resultado Firecrawl (`ogImage`).
-- Fallback silencioso: se Firecrawl/IA falhar, retorna `null` → feed some (não mostra placeholder).
+### 3) Countdown do check-in
+- Layout do esboço: label esquerda "check-in libera em **3h42**" (gold) + horário direita muted + barra progress 3px altura, `#C9A876` fill
 
-### 2.2. Componente `CityNewsFeed`
+### 4) HomeIntelligence — ajustar visual
+- Header row: `☀ 19°C · céu limpo` esquerda + `● IA ativa agora` direita (dot verde `#8FCB7A`)
+- Título 17px serif "Céu azul perfeito pra cruzar a ponte hoje" (gerado pela IA)
+- Body 12px muted com highlight `#C9A876` em palavras-chave
+- Botão outline gold: "Perguntar mais ao ConciergeIA →"
+- Chips (border gold 0.5px) abaixo: "O que fazer hoje?", "Melhor restaurante"
 
-- Novo em `src/components/guide/CityNewsFeed.tsx`.
-- Scroll horizontal com `snap-x snap-mandatory` + `overflow-x-auto scrollbar-none`.
-- Cards de ~72% width no mobile, imagem topo 140px, overlay leve, categoria pill colorida por tipo (cores diferentes por categoria).
-- Tap no card → `openChat("Me conte sobre: {título}")`, com botão externo pequeno para `sourceUrl` quando existir.
-- Tracking: `poi_engagement_events` com `event_type: 'news_open'` reaproveitando a tabela.
+### 5) CityNewsFeed — cards no mesmo idioma
+Mantém scroll horizontal, mas cards agora seguem 2 formatos:
+- **Featured** (primeiro): capa colorida por categoria (natureza=azul, gastronomia=laranja, evento=fúcsia, etc.) com ícone grande e bookmark no canto, chip categoria abaixo + título 13px + desc 11px muted
+- **Compact** (demais): row horizontal com capa 64px lateral + título + arrow, chip categoria pequena
 
-### 2.3. Redesign dos cards de seção ("O que você deseja acessar?")
+### O que NÃO muda
+- Popup de cadastro/telefone (intacto)
+- Sistema de gate de acesso, unlock, wifi, códigos
+- Rotas explorar, admin, fluxo de FAQ
+- Server functions (getCityNews, getDailyTip já prontos)
+- Regras condicionais de renderização (campo vazio = seção oculta)
 
-- Substituir accordion/blocos atuais na Home por 4 cards visuais (Chegada, Saída, Residência, Explorar):
-  - Cada um com "capa" colorida (mesma paleta accent do imóvel + variação por card) e ícone grande.
-  - Se o imóvel tem `main_image_url`, usa-a como plano de fundo com `opacity-25 blur-sm` no card grande "Chegada" (efeito "ofuscado" pedido).
-  - Card "Chegada" com badge "comece aqui" e borda accent (destaque primário).
-  - Card "Explorar" mostra contagem real de POIs (`property_recommendations` count).
-- Tap navega para as seções existentes: `#chegada`, `#saida`, `#residencia`, `/g/$slug/explorar`.
+### Arquivos editados
+1. `src/routes/g.$slug.index.tsx` — `HeroCompact` e `ThemeCard` reescritos; grid dos cards com layout assimétrico
+2. `src/components/guide/CheckinCountdown.tsx` — refinar visual para o padrão do esboço
+3. `src/components/guide/HomeIntelligence.tsx` — refinar layout (clima + IA status + botão + chips)
+4. `src/components/guide/CityNewsFeed.tsx` — dois formatos de card com capas coloridas
 
-### 2.4. Faixa de check-in countdown
+**Nenhum novo arquivo, nenhuma migração, nenhuma nova função de servidor.** Só CSS/JSX.
 
-- Novo componente inline com barra de progresso.
-- Se `property.check_in_time` existir e hoje for antes → calcula "libera em Xh Ym" e barra 0–100%.
-- Depois do check-in ou sem dado, mostra apenas "check-in liberado" ou some.
-
-### 2.5. Ajustes no `HomeIntelligence` atual
-
-- Mantém a lógica de `getDailyTip` (dica do dia + clima).
-- Ajusta layout do card pra bater com o esboço: header com "☀ 19°C · céu limpo" à esquerda + "● IA ativa agora" à direita, título maior, botão outline dourado, chips abaixo.
-- **Remove** a bolha "Concierge IA" separada (fica embutido no card da dica com o CTA).
-- **Remove** o bloco antigo "O que rola em X" (substituído pelo `CityNewsFeed`).
-
-## 3. Cron / cache
-
-- Estender cron `cron.refresh-city-references` (ou novo `cron.refresh-city-news`) para pré-gerar `city_daily_news` das cidades com imóveis ativos, 1x ao dia.
-- TTL implícito: `(city_key, date)` — nova entrada por dia.
-
-## 4. Ordem de implementação
-
-1. Migração: tabela `city_daily_news` + GRANTs + RLS.
-2. Server fn `getCityNews` (Firecrawl search → IA curadoria → cache). Firecrawl já linkado; usa `uses_connector_gateway` dinâmico.
-3. Componente `CityNewsFeed` + tracking.
-4. Redesign dos 4 cards de seção com imagens (fundo ofuscado).
-5. Faixa de check-in countdown.
-6. Ajuste `HomeIntelligence` (dica do dia com novo layout, remove bolha e pulso duplicado).
-7. Cron opcional para pré-aquecer notícias.
-
-## 5. O que NÃO muda
-
-- Popup de telefone / cadastro do hóspede — intocado.
-- Rota `explorar` e link de ingresso já existente em `property_recommendations.booking_url`.
-- Toda a estrutura de seções abaixo do fold (Wi-Fi, manual, FAQ, emergência, chat).
-
-Depois que aprovar, sigo pelos passos 1→7. Posso quebrar em 2 entregas: (A) redesign visual da Home + countdown + cards (passos 4–6, sem depender de dados novos); (B) feed de notícias reais (passos 1–3 + 7).
+### Confirmação necessária
+Se aprovar, executo tudo numa passada só. Posso confirmar?

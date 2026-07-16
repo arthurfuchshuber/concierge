@@ -474,61 +474,63 @@ function Guide({ data }: { data: GuideOk }) {
 
   const allCards: Array<{
     key: Exclude<Section, "home"> | "explore";
-    eyebrow: string;
     title: string;
     desc: string;
     icon: React.ReactNode;
-    image?: string;
+    variant: "hero-wide" | "compact" | "horizontal-wide";
+    tone: "gold" | "blue" | "green" | "purple" | "rose";
+    badge?: string;
     visible: boolean;
     to?: { kind: "section"; value: Section } | { kind: "link"; to: string };
   }> = [
     {
       key: "checkin",
-      eyebrow: "Estadia",
       title: "Chegada",
       desc: checkinDesc,
-      icon: <KeyRound className="size-5" strokeWidth={1.5} />,
-      image: themePick("checkin", 1),
+      icon: <KeyRound strokeWidth={1.6} />,
+      variant: "hero-wide",
+      tone: "gold",
+      badge: "comece aqui",
       visible: hasCheckin,
       to: { kind: "section", value: "checkin" },
     },
     {
       key: "saida",
-      eyebrow: "Estadia",
       title: "Saída",
       desc: saidaDesc,
-      icon: <LogOut className="size-5" strokeWidth={1.5} />,
-      image: themePick("saida", 5),
+      icon: <LogOut strokeWidth={1.6} />,
+      variant: "compact",
+      tone: "blue",
       visible: hasSaida,
       to: { kind: "section", value: "saida" },
     },
     {
       key: "residencia",
-      eyebrow: "A casa",
-      title: "A Residência",
+      title: "A residência",
       desc: residenciaDesc,
-      icon: <Home className="size-5" strokeWidth={1.5} />,
-      image: themePick("residencia", 2),
+      icon: <Home strokeWidth={1.6} />,
+      variant: "compact",
+      tone: "green",
       visible: hasResidencia,
       to: { kind: "section", value: "residencia" },
     },
     {
       key: "explore",
-      eyebrow: "ConciergeIA",
-      title: "Explore a Região",
+      title: "Explore a região",
       desc: exploreDesc,
-      icon: <Compass className="size-5" strokeWidth={1.5} />,
-      image: themePick("explore", 4),
+      icon: <Compass strokeWidth={1.6} />,
+      variant: "horizontal-wide",
+      tone: "purple",
       visible: hasExplore,
       to: { kind: "link", to: `/g/${slug}/explorar` },
     },
     {
       key: "faq",
-      eyebrow: "Suporte",
       title: "Dúvidas",
       desc: faqDesc,
-      icon: <HelpCircle className="size-5" strokeWidth={1.5} />,
-      image: themePick("faq", 3),
+      icon: <HelpCircle strokeWidth={1.6} />,
+      variant: "compact",
+      tone: "rose",
       visible: hasFaq,
       to: { kind: "section", value: "faq" },
     },
@@ -643,22 +645,40 @@ function Guide({ data }: { data: GuideOk }) {
                   <span className="h-px flex-1 bg-accent/20" />
                 </div>
 
-                <div className="grid grid-cols-2 gap-3 sm:gap-4 md:gap-5 lg:gap-6">
-                  {cards.map((c) =>
-                    c.to?.kind === "link" ? (
-                      <Link key={c.key} to="/g/$slug/explorar" params={{ slug }} className="block">
-                        <ThemeCard title={c.title} desc={c.desc} icon={c.icon} image={c.image} theme={theme} />
+                <div className="grid grid-cols-2 gap-2 md:gap-3">
+                  {cards.map((c) => {
+                    const span =
+                      c.variant === "hero-wide" || c.variant === "horizontal-wide" ? "col-span-2" : "";
+                    const inner = (
+                      <SectionCard
+                        title={c.title}
+                        desc={c.desc}
+                        icon={c.icon}
+                        variant={c.variant}
+                        tone={c.tone}
+                        badge={c.badge}
+                        theme={theme}
+                      />
+                    );
+                    return c.to?.kind === "link" ? (
+                      <Link
+                        key={c.key}
+                        to="/g/$slug/explorar"
+                        params={{ slug }}
+                        className={`block ${span}`}
+                      >
+                        {inner}
                       </Link>
                     ) : (
                       <button
                         key={c.key}
                         onClick={() => c.to?.kind === "section" && gotoSection(c.to.value)}
-                        className="w-full text-left"
+                        className={`w-full text-left ${span}`}
                       >
-                        <ThemeCard title={c.title} desc={c.desc} icon={c.icon} image={c.image} theme={theme} />
+                        {inner}
                       </button>
-                    ),
-                  )}
+                    );
+                  })}
                 </div>
               </section>
 
@@ -1604,13 +1624,10 @@ function GuideMark({ className = "" }: { className?: string }) {
 
 function HeroCompact({
   name,
-  tagline,
   city,
   photos,
   theme,
   onToggleTheme,
-  lang,
-  onToggleLang,
 }: {
   name: string;
   tagline?: string;
@@ -1622,16 +1639,9 @@ function HeroCompact({
   onToggleLang: () => void;
 }) {
   const [idx, setIdx] = useState(0);
-  const [scrollY, setScrollY] = useState(0);
   const touchStartX = useRef<number | null>(null);
   const total = photos.length;
   const hasMany = total > 1;
-
-  useEffect(() => {
-    const onScroll = () => setScrollY(window.scrollY);
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
 
   function go(dir: number) {
     if (!hasMany) return;
@@ -1649,77 +1659,72 @@ function HeroCompact({
 
   return (
     <section
-      className="relative overflow-hidden px-5 md:px-10 lg:px-16 pb-12 md:pb-16 pt-3 md:pt-5 min-h-[36svh] md:min-h-[44svh] flex flex-col"
+      className="relative overflow-hidden px-4 md:px-10 lg:px-16 pt-3.5 pb-5 md:pt-6 md:pb-8"
       onTouchStart={onTouchStart}
       onTouchEnd={onTouchEnd}
     >
-      {/* Photo slides with parallax */}
+      {/* Photo slides */}
       <div className="absolute inset-0 overflow-hidden">
         {photos.map((src, i) => (
           <img
             key={`${src}-${i}`}
             src={src}
             alt=""
-            style={{ transform: `translateY(${scrollY * 0.18}px) scale(1.04)`, transformOrigin: "center bottom" }}
-            className={`absolute inset-0 size-full object-cover object-[center_bottom] transition-opacity duration-500 will-change-transform ${i === idx ? "opacity-100" : "opacity-0"}`}
+            className={`absolute inset-0 size-full object-cover object-center transition-opacity duration-500 ${
+              i === idx ? "opacity-100" : "opacity-0"
+            }`}
           />
         ))}
       </div>
-      {/* Elegant cinematic gradient — keeps photo vivid, deepens at bottom for legibility */}
-      <div className="absolute inset-0 bg-[linear-gradient(115deg,rgba(0,0,0,0.55)_0%,rgba(0,0,0,0.25)_38%,rgba(0,0,0,0.02)_68%,rgba(0,0,0,0.18)_100%)]" />
-      <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,0.20)_0%,transparent_22%,transparent_55%,rgba(0,0,0,0.35)_82%,rgba(0,0,0,0.85)_100%)]" />
-      {/* bottom fade INTO the page background so the transition is seamless in any theme */}
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-56 md:h-72 bg-[linear-gradient(180deg,transparent_0%,color-mix(in_oklab,var(--background)_55%,transparent)_45%,var(--background)_100%)]" />
+      {/* Warm brown overlay to mimic #26211A tone */}
+      <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(15,12,8,0.35)_0%,rgba(38,33,26,0.55)_55%,rgba(38,33,26,0.92)_100%)]" />
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-[linear-gradient(180deg,transparent,var(--background))]" />
 
-      <header className="relative z-10 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <GuideMark className="size-5 text-accent/75" />
-          <p className="font-serif text-[1.25rem] leading-none text-white">
-            <span>Sigma</span>
-            <span className="text-accent/80">Guide</span>
-          </p>
+      <header className="relative z-10 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-1.5 text-[#E8DFCF] text-[12px] font-medium">
+          <GuideMark className="size-3.5 text-[#C9A876]" />
+          <span>SigmaGuide</span>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 shrink-0">
+          {city && (
+            <span className="inline-flex items-center gap-1 rounded-full border-[0.5px] border-[#C9A876] bg-[#C9A876]/15 px-2.5 py-1 text-[9.5px] uppercase tracking-[0.18em] text-[#C9A876] font-medium">
+              <MapPin className="size-2.5" strokeWidth={2.2} /> {city}
+            </span>
+          )}
           <button
             type="button"
             onClick={onToggleTheme}
-            aria-label={theme === "dark" ? "Mudar para tema claro" : "Mudar para tema escuro"}
-            title={theme === "dark" ? "Tema claro" : "Tema escuro"}
-            className="grid size-9 shrink-0 place-items-center rounded-full border border-white/25 bg-black/30 text-white/95 backdrop-blur-md transition-colors hover:bg-accent/30 hover:text-white"
+            aria-label={theme === "dark" ? "Tema claro" : "Tema escuro"}
+            className="grid size-7 place-items-center rounded-full border-[0.5px] border-white/25 bg-black/35 text-white/85 backdrop-blur-sm hover:bg-black/55"
           >
             {theme === "dark" ? (
-              <Sun className="size-4" strokeWidth={1.75} />
+              <Sun className="size-3.5" strokeWidth={1.8} />
             ) : (
-              <Moon className="size-4" strokeWidth={1.75} />
+              <Moon className="size-3.5" strokeWidth={1.8} />
             )}
           </button>
         </div>
       </header>
 
-      <div className="relative z-10 mt-auto pt-10 md:pt-14">
-        {city && (
-          <span className="mb-4 inline-flex items-center gap-1.5 rounded-full border border-white/25 bg-black/30 backdrop-blur-md px-3 py-1.5 text-[10.5px] md:text-[11px] font-semibold uppercase tracking-[0.22em] text-white/95">
-            <MapPin className="size-3 text-accent/80" strokeWidth={2} /> {city}
-          </span>
-        )}
-        <h1 className="font-serif text-[1.95rem] md:text-[3.5rem] leading-[1] tracking-[-0.01em] text-white text-balance max-w-[360px] md:max-w-[820px] drop-shadow-[0_2px_20px_rgba(0,0,0,0.45)] line-clamp-2">
-          {name}
-        </h1>
+      <h1 className="relative z-10 mt-3.5 md:mt-6 font-serif font-medium text-white text-[22px] md:text-[36px] leading-[1.15] tracking-[-0.01em] line-clamp-2 max-w-[300px] md:max-w-[720px] drop-shadow-[0_2px_16px_rgba(0,0,0,0.5)]">
+        {name}
+      </h1>
 
-        {hasMany && (
-          <div className="mt-5 md:mt-7 flex gap-1.5">
-            {photos.map((_, i) => (
-              <button
-                key={i}
-                type="button"
-                onClick={() => setIdx(i)}
-                aria-label={`Ir para foto ${i + 1}`}
-                className={`h-1.5 rounded-full transition-all ${i === idx ? "w-6 bg-accent/80" : "w-1.5 bg-white/50 hover:bg-white/80"}`}
-              />
-            ))}
-          </div>
-        )}
-      </div>
+      {hasMany && (
+        <div className="relative z-10 mt-3 md:mt-4 flex gap-1.5">
+          {photos.map((_, i) => (
+            <button
+              key={i}
+              type="button"
+              onClick={() => setIdx(i)}
+              aria-label={`Ir para foto ${i + 1}`}
+              className={`h-1 rounded-full transition-all ${
+                i === idx ? "w-5 bg-[#C9A876]" : "w-1 bg-white/45 hover:bg-white/70"
+              }`}
+            />
+          ))}
+        </div>
+      )}
 
       {hasMany && (
         <>
@@ -1727,17 +1732,17 @@ function HeroCompact({
             type="button"
             onClick={() => go(-1)}
             aria-label="Foto anterior"
-            className="hidden md:grid absolute left-3 top-1/2 -translate-y-1/2 z-10 size-10 place-items-center rounded-full border border-white/30 bg-black/30 text-white backdrop-blur-sm hover:bg-black/50"
+            className="hidden md:grid absolute left-3 top-1/2 -translate-y-1/2 z-10 size-8 place-items-center rounded-full border border-white/25 bg-black/35 text-white backdrop-blur-sm hover:bg-black/55"
           >
-            <ArrowLeft className="size-4" />
+            <ArrowLeft className="size-3.5" />
           </button>
           <button
             type="button"
             onClick={() => go(1)}
             aria-label="Próxima foto"
-            className="hidden md:grid absolute right-3 top-1/2 -translate-y-1/2 z-10 size-10 place-items-center rounded-full border border-white/30 bg-black/30 text-white backdrop-blur-sm hover:bg-black/50"
+            className="hidden md:grid absolute right-3 top-1/2 -translate-y-1/2 z-10 size-8 place-items-center rounded-full border border-white/25 bg-black/35 text-white backdrop-blur-sm hover:bg-black/55"
           >
-            <ArrowRight className="size-4" />
+            <ArrowRight className="size-3.5" />
           </button>
         </>
       )}
@@ -1745,77 +1750,87 @@ function HeroCompact({
   );
 }
 
-function ThemeCard({
+const SECTION_TONES = {
+  gold: { cover: "bg-[#3A2E1A]", icon: "text-[#C9A876]", accent: "text-[#C9A876]" },
+  blue: { cover: "bg-[#22334A]", icon: "text-[#8FA8E8]", accent: "text-[#8FA8E8]" },
+  green: { cover: "bg-[#22331F]", icon: "text-[#A0C896]", accent: "text-[#A0C896]" },
+  purple: { cover: "bg-[#332030]", icon: "text-[#E0A8CE]", accent: "text-[#E0A8CE]" },
+  rose: { cover: "bg-[#3A2028]", icon: "text-[#E8A0B0]", accent: "text-[#E8A0B0]" },
+} as const;
+
+function SectionCard({
   title,
   desc,
   icon,
-  theme = "dark",
+  variant = "compact",
+  tone = "gold",
+  badge,
+  theme,
 }: {
   title: string;
   desc: string;
   icon: React.ReactNode;
-  image?: string;
-  theme?: "dark" | "light";
+  variant?: "hero-wide" | "compact" | "horizontal-wide";
+  tone?: keyof typeof SECTION_TONES;
+  badge?: string;
+  theme: "dark" | "light";
 }) {
+  const t = SECTION_TONES[tone];
   const isLight = theme === "light";
+  const isGold = tone === "gold";
+
+  const surfaceCls = isLight ? "bg-card" : "bg-[#1C1712]";
+  const borderCls = isGold
+    ? "border-[1.5px] border-[#C9A876]"
+    : isLight
+      ? "border border-border"
+      : "border border-white/[0.06]";
+  const titleColor = isLight ? "text-foreground" : "text-white";
+  const descColor = isLight ? "text-muted-foreground" : "text-white/55";
+
+  if (variant === "horizontal-wide") {
+    return (
+      <div
+        className={`relative flex overflow-hidden rounded-[12px] transition-all duration-300 ease-out hover:-translate-y-0.5 active:scale-[0.99] ${surfaceCls} ${borderCls}`}
+      >
+        <div className={`${t.cover} w-[80px] shrink-0 grid place-items-center`}>
+          <span className={`${t.icon} [&>svg]:size-[26px]`}>{icon}</span>
+        </div>
+        <div className="flex-1 min-w-0 flex items-center justify-between gap-2 px-3.5 py-3">
+          <div className="min-w-0">
+            <p className={`text-[12.5px] font-medium truncate ${titleColor}`}>{title}</p>
+            <p className={`mt-0.5 text-[10.5px] leading-tight truncate ${descColor}`}>
+              <span className={`${t.accent} font-medium`}>{desc}</span>
+            </p>
+          </div>
+          <ArrowRight className={`size-4 shrink-0 ${t.accent}`} strokeWidth={2} />
+        </div>
+      </div>
+    );
+  }
+
+  const isHero = variant === "hero-wide";
+  const coverH = isHero ? "h-[68px]" : "h-[56px]";
+  const iconSize = isHero ? "[&>svg]:size-[30px]" : "[&>svg]:size-[24px]";
+  const titleSize = isHero ? "text-[13.5px]" : "text-[12px]";
+  const descSize = isHero ? "text-[11px]" : "text-[10px]";
+  const pad = isHero ? "px-3 py-2.5" : "px-2.5 py-2";
+
   return (
     <div
-      className={
-        "group relative flex h-[150px] sm:h-[170px] md:h-[190px] flex-col overflow-hidden rounded-[20px] transition-all duration-500 ease-out hover:-translate-y-1 active:scale-[0.99] " +
-        (isLight
-          ? "border border-border bg-card shadow-[0_4px_18px_-8px_rgba(0,0,0,0.10)] hover:shadow-[0_18px_40px_-18px_oklch(from_var(--accent)_l_c_h/0.45),0_0_0_1px_oklch(from_var(--accent)_l_c_h/0.3)]"
-          : "border border-white/10 bg-[linear-gradient(160deg,oklch(0.22_0.01_60)_0%,oklch(0.16_0.008_55)_100%)] shadow-[0_8px_30px_-12px_rgba(0,0,0,0.5)] hover:shadow-[0_24px_60px_-20px_oklch(from_var(--accent)_l_c_h/0.55),0_0_0_1px_oklch(from_var(--accent)_l_c_h/0.35)]")
-      }
+      className={`relative overflow-hidden rounded-[12px] transition-all duration-300 ease-out hover:-translate-y-0.5 active:scale-[0.99] ${surfaceCls} ${borderCls}`}
     >
-      {/* Subtle abstract accent — pattern + soft glow */}
-      <div
-        aria-hidden
-        className={
-          "pointer-events-none absolute inset-0 " +
-          (isLight ? "opacity-[0.05]" : "opacity-[0.08]") +
-          " [background-image:radial-gradient(oklch(var(--accent))_1px,transparent_1px)] [background-size:14px_14px]"
-        }
-      />
-      <div
-        aria-hidden
-        className="pointer-events-none absolute -top-16 -right-16 size-48 rounded-full bg-accent/20 blur-3xl opacity-60 group-hover:opacity-100 transition-opacity duration-500"
-      />
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-x-0 bottom-0 h-20 bg-[linear-gradient(180deg,transparent,oklch(from_var(--accent)_l_c_h/0.08))]"
-      />
-
-      <div className="relative z-10 flex h-full flex-col p-3.5 sm:p-4 md:p-5">
-        <span
-          className={
-            "grid size-10 sm:size-11 md:size-12 place-items-center rounded-xl ring-1 transition-colors " +
-            (isLight
-              ? "bg-accent/15 text-accent/80 ring-accent/20 shadow-[0_4px_14px_-10px_oklch(from_var(--accent)_l_c_h/0.35)]"
-              : "bg-accent/10 text-accent/75 ring-accent/15 shadow-[0_4px_14px_-10px_oklch(from_var(--accent)_l_c_h/0.28)]")
-          }
-        >
-          <span className="[&>svg]:size-[20px] sm:[&>svg]:size-[22px] md:[&>svg]:size-6 [&>svg]:stroke-[2.2]">
-            {icon}
+      <div className={`${t.cover} ${coverH} grid place-items-center relative`}>
+        <span className={`${t.icon} ${iconSize}`}>{icon}</span>
+        {badge && (
+          <span className="absolute top-2 right-2 bg-[#C9A876] text-[#2C220F] text-[9.5px] font-medium px-2 py-0.5 rounded-[10px]">
+            {badge}
           </span>
-        </span>
-        <div className="mt-auto min-w-0">
-          <h3
-            className={
-              "font-serif text-[1.05rem] sm:text-[1.18rem] md:text-[1.3rem] leading-[1.1] tracking-tight truncate " +
-              (isLight ? "text-foreground" : "text-white")
-            }
-          >
-            {title}
-          </h3>
-          <p
-            className={
-              "mt-1 text-[11px] sm:text-[12px] md:text-[12.5px] leading-[1.45] truncate " +
-              (isLight ? "text-muted-foreground" : "text-white/90")
-            }
-          >
-            {desc}
-          </p>
-        </div>
+        )}
+      </div>
+      <div className={pad}>
+        <p className={`${titleSize} font-medium ${titleColor}`}>{title}</p>
+        <p className={`mt-0.5 ${descSize} leading-[1.35] ${descColor}`}>{desc}</p>
       </div>
     </div>
   );

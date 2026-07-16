@@ -11,14 +11,17 @@ function openChat(prompt: string) {
   window.dispatchEvent(new CustomEvent("open-guide-chat", { detail: { prompt } }));
 }
 
-const CATEGORY_STYLES: Record<string, { bg: string; text: string; ring: string }> = {
-  natureza: { bg: "bg-emerald-500/15", text: "text-emerald-400", ring: "ring-emerald-500/30" },
-  gastronomia: { bg: "bg-orange-500/15", text: "text-orange-400", ring: "ring-orange-500/30" },
-  evento: { bg: "bg-fuchsia-500/15", text: "text-fuchsia-400", ring: "ring-fuchsia-500/30" },
-  passeio: { bg: "bg-sky-500/15", text: "text-sky-400", ring: "ring-sky-500/30" },
-  cultura: { bg: "bg-amber-500/15", text: "text-amber-400", ring: "ring-amber-500/30" },
-  noite: { bg: "bg-indigo-500/15", text: "text-indigo-400", ring: "ring-indigo-500/30" },
-  mercado: { bg: "bg-rose-500/15", text: "text-rose-400", ring: "ring-rose-500/30" },
+const CATEGORY_STYLES: Record<
+  string,
+  { cover: string; icon: string; chipBg: string; chipText: string }
+> = {
+  natureza: { cover: "bg-[#1E2E3F]", icon: "text-[#8CB4DC]", chipBg: "bg-[#8CB4DC]/15", chipText: "text-[#8CB4DC]" },
+  gastronomia: { cover: "bg-[#3A2A20]", icon: "text-[#DC966E]", chipBg: "bg-[#DC966E]/15", chipText: "text-[#DC966E]" },
+  evento: { cover: "bg-[#3A1F35]", icon: "text-[#E0A8CE]", chipBg: "bg-[#E0A8CE]/15", chipText: "text-[#E0A8CE]" },
+  passeio: { cover: "bg-[#1F3540]", icon: "text-[#7EC8D8]", chipBg: "bg-[#7EC8D8]/15", chipText: "text-[#7EC8D8]" },
+  cultura: { cover: "bg-[#3A2E1A]", icon: "text-[#C9A876]", chipBg: "bg-[#C9A876]/15", chipText: "text-[#C9A876]" },
+  noite: { cover: "bg-[#221F3E]", icon: "text-[#9B92E8]", chipBg: "bg-[#9B92E8]/15", chipText: "text-[#9B92E8]" },
+  mercado: { cover: "bg-[#3A1F28]", icon: "text-[#E8A0B0]", chipBg: "bg-[#E8A0B0]/15", chipText: "text-[#E8A0B0]" },
 };
 
 function styleFor(cat: string) {
@@ -100,16 +103,79 @@ export function CityNewsFeed({
           >
             {items!.map((it, idx) => {
               const s = styleFor(it.category);
+              const isFeatured = idx === 0;
+
+              if (!isFeatured) {
+                // Compact horizontal row card
+                return (
+                  <motion.article
+                    key={idx}
+                    initial={{ opacity: 0, y: 6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.3, delay: idx * 0.04 }}
+                    className={`snap-start shrink-0 w-[76%] sm:w-[46%] md:w-[32%] rounded-[12px] border overflow-hidden group transition flex ${
+                      isDark
+                        ? "border-[#292019] bg-[#1C1712]"
+                        : "border-border bg-card"
+                    }`}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => openChat(`Me conte mais sobre isso em ${city ?? "aqui"}: ${it.title}`)}
+                      className="flex w-full text-left"
+                    >
+                      <div className={`${s.cover} w-16 shrink-0 grid place-items-center relative`}>
+                        {it.imageUrl ? (
+                          <img
+                            src={it.imageUrl}
+                            alt=""
+                            loading="lazy"
+                            referrerPolicy="no-referrer"
+                            className="absolute inset-0 h-full w-full object-cover opacity-60"
+                            onError={(e) => {
+                              (e.currentTarget as HTMLImageElement).style.display = "none";
+                            }}
+                          />
+                        ) : null}
+                        <span className={`relative text-[22px] leading-none ${s.icon}`}>
+                          {it.emoji ?? "✨"}
+                        </span>
+                      </div>
+                      <div className="flex-1 min-w-0 px-3 py-2.5 flex flex-col justify-center">
+                        <div className="flex items-center justify-between gap-2">
+                          <p
+                            className={`text-[12px] font-medium leading-tight line-clamp-2 ${
+                              isDark ? "text-white" : "text-foreground"
+                            }`}
+                          >
+                            {it.title}
+                          </p>
+                          <ArrowUpRight
+                            className={`size-3 shrink-0 ${isDark ? "text-[#8A8378]" : "text-foreground/50"}`}
+                          />
+                        </div>
+                        <span
+                          className={`mt-1 text-[9px] uppercase tracking-[0.18em] font-medium ${isDark ? "text-[#8A8378]" : "text-foreground/50"}`}
+                        >
+                          {it.category}
+                        </span>
+                      </div>
+                    </button>
+                  </motion.article>
+                );
+              }
+
+              // Featured card (idx === 0)
               return (
                 <motion.article
                   key={idx}
                   initial={{ opacity: 0, y: 6 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.3, delay: idx * 0.04 }}
-                  className={`snap-start shrink-0 w-[76%] sm:w-[46%] md:w-[32%] rounded-2xl border overflow-hidden group transition ${
+                  className={`snap-start shrink-0 w-[80%] sm:w-[46%] md:w-[32%] rounded-[12px] border overflow-hidden group transition ${
                     isDark
-                      ? "border-border/60 bg-card/40 hover:border-accent/40"
-                      : "border-border/70 bg-card/70 hover:border-accent/50"
+                      ? "border-[#3A2F1E] bg-[#1C1712]"
+                      : "border-border bg-card"
                   }`}
                 >
                   <button
@@ -117,51 +183,49 @@ export function CityNewsFeed({
                     onClick={() => openChat(`Me conte mais sobre isso em ${city ?? "aqui"}: ${it.title}`)}
                     className="block w-full text-left"
                   >
-                    <div
-                      className={`relative h-36 w-full overflow-hidden ${
-                        isDark ? "bg-gradient-to-br from-foreground/10 to-foreground/5" : "bg-gradient-to-br from-foreground/8 to-foreground/3"
-                      }`}
-                    >
+                    <div className={`${s.cover} relative h-[80px] w-full overflow-hidden grid place-items-center`}>
                       {it.imageUrl ? (
                         <img
                           src={it.imageUrl}
                           alt=""
                           loading="lazy"
                           referrerPolicy="no-referrer"
-                          className="absolute inset-0 h-full w-full object-cover group-hover:scale-105 transition duration-500"
+                          className="absolute inset-0 h-full w-full object-cover opacity-50 group-hover:opacity-60 transition"
                           onError={(e) => {
                             (e.currentTarget as HTMLImageElement).style.display = "none";
                           }}
                         />
                       ) : null}
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/45 via-black/10 to-transparent" />
-                      <span className="absolute top-2 left-2 text-2xl leading-none drop-shadow">
+                      <span className={`relative text-[30px] leading-none ${s.icon}`}>
                         {it.emoji ?? "✨"}
                       </span>
-                      <Bookmark className="absolute top-2 right-2 size-3.5 text-white/70" />
+                      <Bookmark
+                        className={`absolute top-2 right-2 size-3.5 ${isDark ? "text-[#D8CFC0]" : "text-white/80"}`}
+                        strokeWidth={1.8}
+                      />
+                    </div>
+                    <div className="px-3 py-2.5">
                       <span
-                        className={`absolute bottom-2 left-2 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] uppercase tracking-[0.2em] font-semibold ring-1 ${s.bg} ${s.text} ${s.ring} backdrop-blur-sm`}
+                        className={`inline-block rounded-full px-2 py-0.5 text-[9px] uppercase tracking-[0.16em] font-semibold ${s.chipBg} ${s.chipText}`}
                       >
                         {it.category}
                       </span>
-                    </div>
-                    <div className="p-3">
-                      <p className="font-medium text-[13.5px] leading-snug text-foreground line-clamp-2 [text-wrap:pretty]">
+                      <p
+                        className={`mt-1.5 font-medium text-[13px] leading-snug line-clamp-2 [text-wrap:pretty] ${
+                          isDark ? "text-white" : "text-foreground"
+                        }`}
+                      >
                         {it.title}
                       </p>
                       {it.summary && (
-                        <p className="mt-1.5 text-[12px] leading-snug text-foreground/65 line-clamp-2 [text-wrap:pretty]">
+                        <p
+                          className={`mt-1 text-[11px] leading-[1.5] line-clamp-2 [text-wrap:pretty] ${
+                            isDark ? "text-[#B8AF9E]" : "text-foreground/65"
+                          }`}
+                        >
                           {it.summary}
                         </p>
                       )}
-                      <div className="mt-2.5 flex items-center justify-between text-[10px]">
-                        <span className="inline-flex items-center gap-1 text-accent/80 font-semibold">
-                          perguntar à IA <ArrowUpRight className="size-3" />
-                        </span>
-                        {it.sourceName && (
-                          <span className="text-foreground/40 truncate max-w-[110px]">{it.sourceName}</span>
-                        )}
-                      </div>
                     </div>
                   </button>
                   {it.sourceUrl && (
@@ -169,9 +233,13 @@ export function CityNewsFeed({
                       href={it.sourceUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="border-t border-border/40 flex items-center justify-center gap-1.5 py-1.5 text-[10.5px] text-foreground/50 hover:text-accent transition"
+                      className={`flex items-center justify-center gap-1.5 py-1.5 text-[10px] transition border-t ${
+                        isDark
+                          ? "border-[#292019] text-[#8A8378] hover:text-[#C9A876]"
+                          : "border-border text-foreground/50 hover:text-accent"
+                      }`}
                     >
-                      abrir fonte <ExternalLink className="size-3" />
+                      abrir fonte <ExternalLink className="size-2.5" />
                     </a>
                   )}
                 </motion.article>
