@@ -61,18 +61,36 @@ async function curateWithAi(params: {
     .map((c, i) => `[${i}] ${c.title ?? ""}\n${c.description ?? ""}\nURL: ${c.url ?? ""}`)
     .join("\n\n");
 
-  const sys = `Você seleciona e reescreve manchetes locais para hóspedes de temporada. Idioma: ${langName}. Priorize: eventos com data próxima, gastronomia, passeios, natureza, cultura, vida noturna. Descarte política nacional, tragédias, esportes profissionais, propaganda e conteúdo genérico.`;
-  const user = `Cidade: ${params.cityLabel}${params.country ? `, ${params.country}` : ""}.
-Abaixo estão resultados de busca reais. Selecione entre 5 e 7 mais interessantes para um turista/hóspede HOJE.
+  const sys = `Você é o curador editorial de um concierge de luxo. Sua missão: selecionar APENAS conteúdo POSITIVO e inspirador da cidade específica para turistas em estadia. Idioma: ${langName}.
+
+REGRAS ABSOLUTAS — DESCARTE IMEDIATAMENTE:
+- Qualquer notícia negativa: crimes, acidentes, tragédias, mortes, violência, desastres, protestos, greves.
+- Política (municipal, estadual ou nacional), economia geral, escândalos.
+- Esportes profissionais, futebol, resultados de jogos.
+- Trânsito, obras, problemas urbanos, reclamações.
+- Propaganda genérica, promoções de e-commerce, conteúdo nacional não local.
+- Qualquer coisa que não seja EXCLUSIVAMENTE sobre a cidade mencionada.
+
+PRIORIZE — turismo, hospitalidade e experiência:
+- Eventos culturais/gastronômicos com data (festivais, shows, feiras, exposições).
+- Restaurantes, bares, cafés e novidades gastronômicas locais.
+- Passeios, trilhas, atrações naturais, parques, mirantes.
+- Cultura, arte, música, teatro local.
+- Vida noturna, roteiros, experiências únicas da cidade.
+
+Se o resultado não for claramente local e positivo, descarte-o. Melhor devolver 3 itens excelentes do que 7 medianos.`;
+  const user = `Cidade-alvo: ${params.cityLabel}${params.country ? `, ${params.country}` : ""}.
+Selecione entre 3 e 6 itens EXCLUSIVAMENTE sobre esta cidade que animem um hóspede HOJE.
+
 Retorne JSON estrito: {"items":[{"title":"...","category":"...","summary":"...","emoji":"...","imageQuery":"...","sourceIndex": 0}]}
-- title: até 9 palavras, reescreva pra soar convidativo (nunca copie ipsis literis o título original).
+- title: até 9 palavras, tom convidativo e positivo (ex: "Festival de jazz ilumina o centro histórico"). Nunca copie o título original.
 - category: uma palavra entre: natureza, gastronomia, evento, passeio, cultura, noite, mercado.
-- summary: 1 frase (14-22 palavras) explicando por que vale hoje.
-- emoji: 1 emoji temático.
-- imageQuery: 2-3 palavras em inglês para buscar foto (ex: "iguazu falls walkway").
+- summary: 1 frase (14-22 palavras) explicando por que vale a experiência HOJE, sempre com tom acolhedor.
+- emoji: 1 emoji temático (🌿 🍽️ 🎉 🧭 🎭 🌙 🛍️ etc.).
+- imageQuery: 2-3 palavras em inglês para buscar foto.
 - sourceIndex: índice do resultado original.
 
-Resultados:
+Resultados brutos (filtre agressivamente):
 ${feed}`;
 
   const r = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
