@@ -1641,19 +1641,24 @@ function GuideMark({ className = "" }: { className?: string }) {
 
 function HeroCompact({
   name,
+  tagline,
   city,
   photos,
   theme,
   onToggleTheme,
+  brandName,
+  brandLogoUrl,
 }: {
   name: string;
-  tagline?: string;
+  tagline?: string | null;
   city?: string;
   photos: string[];
   theme: "dark" | "light";
   onToggleTheme: () => void;
   lang: string;
   onToggleLang: () => void;
+  brandName?: string | null;
+  brandLogoUrl?: string | null;
 }) {
   const [idx, setIdx] = useState(0);
   const touchStartX = useRef<number | null>(null);
@@ -1674,6 +1679,12 @@ function HeroCompact({
     touchStartX.current = null;
     if (Math.abs(dx) > 40) go(dx < 0 ? 1 : -1);
   }
+
+  // Brand — two-line stacked (mockup style): "ANFITRIÃO / SIGMA"
+  const rawBrand = (brandName ?? "Anfitrião Sigma").trim();
+  const brandParts = rawBrand.split(/\s+/);
+  const brandTop = brandParts.length > 1 ? brandParts.slice(0, -1).join(" ") : rawBrand;
+  const brandBottom = brandParts.length > 1 ? brandParts[brandParts.length - 1] : null;
 
   return (
     <section
@@ -1709,14 +1720,37 @@ function HeroCompact({
         </>
       )}
 
-      <header className="relative z-10 flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <div className="grid size-7 place-items-center rounded-lg bg-gradient-to-tr from-amber-400 to-amber-600 shadow-[0_0_15px_rgba(251,191,36,0.4)]">
-            <span className="text-black font-serif italic text-[11px] font-bold leading-none">S</span>
+      <header className="relative z-10 flex items-start justify-between gap-3">
+        <div className="flex items-center gap-2.5">
+          {brandLogoUrl ? (
+            <img
+              src={brandLogoUrl}
+              alt={brandName ?? "Logotipo"}
+              className="h-9 w-auto object-contain"
+            />
+          ) : (
+            <svg viewBox="0 0 32 32" aria-hidden="true" className="size-8 shrink-0">
+              <defs>
+                <linearGradient id="brandA" x1="0" y1="0" x2="1" y2="1">
+                  <stop offset="0%" stopColor="#f97316" />
+                  <stop offset="55%" stopColor="#ec4899" />
+                  <stop offset="100%" stopColor="#8b5cf6" />
+                </linearGradient>
+              </defs>
+              <path d="M16 3 L29 29 H22 L16 15 L10 29 H3 Z" fill="url(#brandA)" />
+              <circle cx="16" cy="22" r="2.4" fill={isDark ? "#0a0a0a" : "#fafafa"} />
+            </svg>
+          )}
+          <div className="flex flex-col leading-[1] gap-[3px]">
+            <span className={`text-[10px] font-semibold tracking-[0.28em] uppercase ${isDark ? "text-white/85" : "text-foreground/85"}`}>
+              {brandTop}
+            </span>
+            {brandBottom && (
+              <span className={`text-[13px] font-bold tracking-[0.32em] uppercase ${isDark ? "text-white" : "text-foreground"}`}>
+                {brandBottom}
+              </span>
+            )}
           </div>
-          <span className={`text-[11px] font-semibold tracking-[0.2em] uppercase ${isDark ? "text-white/85" : "text-foreground/85"}`}>
-            SigmaGuide
-          </span>
         </div>
         <div className="flex items-center gap-2 shrink-0">
           {city && (
@@ -1754,7 +1788,7 @@ function HeroCompact({
       </header>
 
       <h1
-        className={`relative z-10 mt-5 md:mt-8 font-serif text-[26px] md:text-[40px] leading-[1.1] tracking-[-0.015em] line-clamp-2 max-w-[320px] md:max-w-[720px] ${
+        className={`relative z-10 mt-5 md:mt-8 font-serif text-[26px] md:text-[40px] leading-[1.05] tracking-[-0.015em] max-w-[320px] md:max-w-[720px] ${
           isDark
             ? "bg-gradient-to-b from-white via-white to-white/60 bg-clip-text text-transparent"
             : "text-foreground"
@@ -1763,6 +1797,18 @@ function HeroCompact({
       >
         {name}
       </h1>
+      {tagline && (
+        <p
+          className="relative z-10 mt-1 font-serif text-[24px] md:text-[36px] leading-[1.05] tracking-[-0.015em] max-w-[320px] md:max-w-[720px] bg-gradient-to-r from-rose-400 via-pink-400 to-fuchsia-400 bg-clip-text text-transparent"
+          style={{ fontWeight: 600 }}
+        >
+          {tagline}
+        </p>
+      )}
+      <p className={`relative z-10 mt-3 text-[12.5px] md:text-[13px] leading-[1.45] max-w-[300px] md:max-w-[420px] ${isDark ? "text-white/60" : "text-foreground/65"}`}>
+        Tudo o que você precisa para uma estadia incrível.
+      </p>
+
 
       {hasMany && (
         <div className="relative z-10 mt-4 flex gap-1.5">
