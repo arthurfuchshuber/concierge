@@ -286,13 +286,11 @@ export function HomeIntelligence({
           <div className="relative">
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-3 min-w-0">
-                {/* WhatsApp-ish glass avatar */}
+                {/* AI sparkle avatar */}
                 <div
-                    className="grid size-12 shrink-0 place-items-center rounded-full border border-white/35 bg-white shadow-[0_12px_30px_-14px_rgba(0,0,0,0.55)]"
+                    className="grid size-12 shrink-0 place-items-center rounded-full border border-white/25 bg-gradient-to-br from-fuchsia-500/90 via-violet-500/90 to-pink-500/90 shadow-[0_12px_30px_-14px_rgba(217,70,239,0.55)]"
                 >
-                  <svg viewBox="0 0 24 24" className="size-8 text-emerald-500" fill="currentColor" aria-hidden="true">
-                    <path d="M20.52 3.48A11.86 11.86 0 0 0 12.05 0C5.5 0 .17 5.33.17 11.88c0 2.1.55 4.14 1.6 5.94L0 24l6.32-1.66a11.86 11.86 0 0 0 5.72 1.46h.01c6.55 0 11.88-5.33 11.88-11.88 0-3.17-1.23-6.15-3.41-8.44Zm-8.47 18.27h-.01a9.87 9.87 0 0 1-5.03-1.38l-.36-.21-3.75.99 1-3.66-.24-.38a9.87 9.87 0 0 1-1.51-5.23c0-5.45 4.44-9.88 9.9-9.88 2.64 0 5.13 1.03 6.99 2.9a9.83 9.83 0 0 1 2.9 6.99c0 5.45-4.44 9.86-9.89 9.86Zm5.42-7.4c-.3-.15-1.76-.87-2.03-.97-.27-.1-.47-.15-.66.15-.2.3-.76.97-.94 1.16-.17.2-.35.22-.65.07-.3-.15-1.26-.46-2.4-1.48a9.02 9.02 0 0 1-1.66-2.06c-.17-.3-.02-.46.13-.6.13-.13.3-.35.44-.52.15-.17.2-.3.3-.5.1-.2.05-.37-.02-.52-.08-.15-.66-1.59-.9-2.18-.24-.57-.48-.5-.66-.51h-.57c-.2 0-.52.07-.79.37-.27.3-1.04 1.02-1.04 2.5 0 1.47 1.06 2.9 1.21 3.1.15.2 2.08 3.17 5.04 4.45.7.3 1.25.48 1.68.62.7.22 1.34.19 1.84.11.56-.08 1.76-.72 2-1.42.25-.7.25-1.3.18-1.42-.08-.13-.28-.2-.58-.35Z" />
-                  </svg>
+                  <Sparkles className="size-6 text-white" strokeWidth={2.2} aria-hidden="true" />
                 </div>
                 <div className="min-w-0">
                   <p className="text-[15px] font-black leading-tight text-white">
