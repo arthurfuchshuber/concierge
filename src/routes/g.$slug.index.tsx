@@ -371,6 +371,10 @@ function Guide({ data }: { data: GuideOk }) {
   const initialUnlocked = !!(p as any).accessUnlocked;
   const [unlocked, setUnlocked] = useState(initialUnlocked);
 
+
+  // Expansividade da barra "check-in libera em" — abre wi-fi/senhas
+  const [codesOpen, setCodesOpen] = useState(false);
+
   const [pinDialog, setPinDialog] = useState<{ open: boolean; cb: (() => void) | null }>({ open: false, cb: null });
   const requestUnlock = (cb?: () => void) => {
     if (!hasAccessPin || unlocked) {
@@ -576,6 +580,158 @@ function Guide({ data }: { data: GuideOk }) {
                 brandLogoUrl={(p.brand_logo_url as string | null) ?? null}
               />
 
+              {/* Bloco de check-in — topo, logo abaixo da imagem.
+                  Barra "check-in libera em" é clicável e expande as senhas. */}
+              {homeStripsVisible && (
+                <div className="mt-3 md:mt-4">
+                  {(() => {
+                    const hasCodes =
+                      p.wifi_ssid ||
+                      (p as any).gate_code_set ||
+                      (p as any).lock_code_set ||
+                      p.gate_code ||
+                      p.lock_code;
+                    if (!hasCodes) {
+                      return <CheckinCountdown checkinTime={p.checkin_time as string | null} theme={theme} />;
+                    }
+                    return (
+                      <>
+                        <CheckinCountdown
+                          checkinTime={p.checkin_time as string | null}
+                          theme={theme}
+                          expandable
+                          open={codesOpen}
+                          onToggle={() => setCodesOpen((v) => !v)}
+                        />
+                        {/* Trigger neutro — aparece quando o countdown não está visível (fora da janela) */}
+                        <CodesTrigger
+                          theme={theme}
+                          open={codesOpen}
+                          onToggle={() => setCodesOpen((v) => !v)}
+                          checkinTime={p.checkin_time as string | null}
+                        />
+                      </>
+                    );
+                  })()}
+
+                  <AnimatePresence initial={false}>
+                    {codesOpen &&
+                      (p.wifi_ssid ||
+                        (p as any).gate_code_set ||
+                        (p as any).lock_code_set ||
+                        p.gate_code ||
+                        p.lock_code) && (
+                        <motion.div
+                          key="codes"
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: "auto", opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          transition={{ duration: 0.28, ease: [0.4, 0, 0.2, 1] }}
+                          className="overflow-hidden"
+                        >
+                          <div className="px-4 md:px-10 lg:px-16 pt-1 pb-1 relative z-10 flex flex-col md:flex-row md:items-stretch gap-2.5 md:gap-3">
+                            {p.wifi_ssid && (
+                              <div className="md:flex-1 md:min-w-0">
+                                <WifiStrip
+                                  ssid={p.wifi_ssid}
+                                  password={p.wifi_password}
+                                  passwordSet={!!((p as any).wifi_password_set || p.wifi_password)}
+                                  theme={theme}
+                                  unlocked={unlocked}
+                                  requestUnlock={requestUnlock}
+                                  checkinLocked={checkinLocked}
+                                  hasAccessRec={!!accessRec}
+                                  gateEnabled={gateEnabled}
+                                />
+                              </div>
+                            )}
+                            {((p as any).gate_code_set || (p as any).lock_code_set || p.gate_code || p.lock_code) && (
+                              <div className="md:flex-1 md:min-w-0">
+                                <AccessCodesStrip
+                                  gateCode={p.gate_code as string | null}
+                                  lockCode={p.lock_code as string | null}
+                                  gateCodeSet={!!((p as any).gate_code_set || p.gate_code)}
+                                  lockCodeSet={!!((p as any).lock_code_set || p.lock_code)}
+                                  gateLabel={(p.gate_label as string | null) || "Portão"}
+                                  lockLabel={(p.lock_label as string | null) || "Fechadura"}
+                                  unlocked={unlocked}
+                                  requestUnlock={requestUnlock}
+                                  checkinLocked={checkinLocked}
+                                  hasAccessRec={!!accessRec}
+                                  gateEnabled={gateEnabled}
+                                  theme={theme}
+                                  gateInstructions={p.gate_instructions as string | null}
+                                  lockInstructions={p.lock_instructions as string | null}
+                                  gateVideoUrl={p.gate_video_url as string | null}
+                                  lockVideoUrl={p.lock_video_url as string | null}
+                                  gateMedia={
+                                    Array.isArray(p.gate_media)
+                                      ? (p.gate_media as Array<{ url: string; type: "image" | "video" }>)
+                                      : []
+                                  }
+                                  lockMedia={
+                                    Array.isArray(p.lock_media)
+                                      ? (p.lock_media as Array<{ url: string; type: "image" | "video" }>)
+                                      : []
+                                  }
+                                />
+                              </div>
+                            )}
+                          </div>
+                        </motion.div>
+                      )}
+                  </AnimatePresence>
+                </div>
+              )}
+
+              {/* Faixa amarela — informações importantes de check-in/check-out. */}
+              {((homeStripsVisible && p.checkin_note) ||
+                (checkoutNoticeVisible && (p.checkout_note || p.checkout_time))) && (
+                <div className="px-4 md:px-10 lg:px-16 mt-3">
+                  <div className={`rounded-[22px] border px-4 py-4 flex flex-col gap-4 ${theme === "dark" ? "border-amber-300/22 bg-amber-300/10 text-amber-50" : "border-amber-200/80 bg-amber-50/90 text-amber-950"}`}>
+                    {homeStripsVisible && p.checkin_note && (
+                      <div className="flex items-start gap-3 md:flex-1 md:min-w-0">
+                        <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-amber-400/15 text-amber-400">
+                          <LogIn className="size-[18px]" strokeWidth={2} />
+                        </span>
+                        <div className="min-w-0">
+                          <p className="text-[10px] uppercase tracking-[0.22em] font-black opacity-75">
+                            Informação importante · Check-in
+                          </p>
+                          <p className="text-[13px] leading-relaxed font-medium mt-1 whitespace-pre-line">
+                            {String(p.checkin_note)}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                    {checkoutNoticeVisible && (p.checkout_note || p.checkout_time) && (
+                      <div className="flex items-start gap-3 md:flex-1 md:min-w-0">
+                        <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-amber-400/15 text-amber-400">
+                          <LogOut className="size-[18px]" strokeWidth={2} />
+                        </span>
+                        <div className="min-w-0">
+                          <p className="text-[10px] uppercase tracking-[0.22em] font-black opacity-75">
+                            {(() => {
+                              const t = p.checkout_time
+                                ? String(p.checkout_time).match(/^(\d{1,2}):(\d{2})/)
+                                : null;
+                              const time = t ? `${t[1].padStart(2, "0")}h${t[2] !== "00" ? t[2] : ""}` : null;
+                              return `Informação importante · Check-out${time ? ` até ${time}` : ""}`;
+                            })()}
+                          </p>
+                          {p.checkout_note && (
+                            <p className="text-[13px] leading-relaxed font-medium mt-1 whitespace-pre-line">
+                              {String(p.checkout_note)}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+
               <section id="guide-actions" className="px-4 md:px-10 lg:px-16 mt-3.5 md:mt-5 relative z-10">
                 <div className="flex items-center gap-3 mb-3.5 md:mb-4">
                   <p className={`shrink-0 whitespace-nowrap text-[9.5px] md:text-[10px] uppercase tracking-[0.24em] font-black ${theme === "dark" ? "text-white/76" : "text-slate-950/78"}`}>
@@ -662,120 +818,7 @@ function Guide({ data }: { data: GuideOk }) {
                 </section>
               )}
 
-              {/* Countdown do check-in — preservado, mas abaixo do grid para manter o ritmo do mockup. */}
-              {homeStripsVisible && (
-                <CheckinCountdown checkinTime={p.checkin_time as string | null} theme={theme} />
-              )}
 
-              {/* Wi-Fi e códigos preservados sem ocupar o topo visual do mockup. */}
-              {homeStripsVisible &&
-                (p.wifi_ssid ||
-                  (p as any).gate_code_set ||
-                  (p as any).lock_code_set ||
-                  p.gate_code ||
-                  p.lock_code) && (
-                  <div className="px-4 md:px-10 lg:px-16 mt-3 relative z-10 flex flex-col md:flex-row md:items-stretch gap-2.5 md:gap-3">
-                    {p.wifi_ssid && (
-                      <div className="md:flex-1 md:min-w-0">
-                        <WifiStrip
-                          ssid={p.wifi_ssid}
-                          password={p.wifi_password}
-                          passwordSet={!!((p as any).wifi_password_set || p.wifi_password)}
-                          theme={theme}
-                          unlocked={unlocked}
-                          requestUnlock={requestUnlock}
-                          checkinLocked={checkinLocked}
-                          hasAccessRec={!!accessRec}
-                          gateEnabled={gateEnabled}
-                        />
-                      </div>
-                    )}
-                    {((p as any).gate_code_set || (p as any).lock_code_set || p.gate_code || p.lock_code) && (
-                      <div className="md:flex-1 md:min-w-0">
-                        <AccessCodesStrip
-                          gateCode={p.gate_code as string | null}
-                          lockCode={p.lock_code as string | null}
-                          gateCodeSet={!!((p as any).gate_code_set || p.gate_code)}
-                          lockCodeSet={!!((p as any).lock_code_set || p.lock_code)}
-                          gateLabel={(p.gate_label as string | null) || "Portão"}
-                          lockLabel={(p.lock_label as string | null) || "Fechadura"}
-                          unlocked={unlocked}
-                          requestUnlock={requestUnlock}
-                          checkinLocked={checkinLocked}
-                          hasAccessRec={!!accessRec}
-                          gateEnabled={gateEnabled}
-                          theme={theme}
-                          gateInstructions={p.gate_instructions as string | null}
-                          lockInstructions={p.lock_instructions as string | null}
-                          gateVideoUrl={p.gate_video_url as string | null}
-                          lockVideoUrl={p.lock_video_url as string | null}
-                          gateMedia={
-                            Array.isArray(p.gate_media)
-                              ? (p.gate_media as Array<{ url: string; type: "image" | "video" }>)
-                              : []
-                          }
-                          lockMedia={
-                            Array.isArray(p.lock_media)
-                              ? (p.lock_media as Array<{ url: string; type: "image" | "video" }>)
-                              : []
-                          }
-                        />
-                      </div>
-                    )}
-                  </div>
-                )}
-
-
-
-              {/* Faixa amarela full-bleed com "informações importantes"
-                (observações de check-in / check-out). Mantém as janelas de
-                visibilidade já configuradas: check-in de 8h antes até 12h
-                depois; check-out das 3h até as 15h do dia do check-out. */}
-              {((homeStripsVisible && p.checkin_note) ||
-                (checkoutNoticeVisible && (p.checkout_note || p.checkout_time))) && (
-                <div className="px-4 md:px-10 lg:px-16 mt-3.5 md:mt-5">
-                  <div className={`rounded-[22px] border px-4 py-4 flex flex-col gap-4 ${theme === "dark" ? "border-amber-300/22 bg-amber-300/10 text-amber-50" : "border-amber-200/80 bg-amber-50/90 text-amber-950"}`}>
-                    {homeStripsVisible && p.checkin_note && (
-                      <div className="flex items-start gap-3 md:flex-1 md:min-w-0">
-                        <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-amber-400/15 text-amber-400">
-                          <LogIn className="size-[18px]" strokeWidth={2} />
-                        </span>
-                        <div className="min-w-0">
-                          <p className="text-[10px] uppercase tracking-[0.22em] font-black opacity-75">
-                            Informação importante · Check-in
-                          </p>
-                          <p className="text-[13px] leading-relaxed font-medium mt-1 whitespace-pre-line">
-                            {String(p.checkin_note)}
-                          </p>
-                        </div>
-                      </div>
-                    )}
-                    {checkoutNoticeVisible && (p.checkout_note || p.checkout_time) && (
-                      <div className="flex items-start gap-3 md:flex-1 md:min-w-0">
-                        <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-amber-400/15 text-amber-400">
-                          <LogOut className="size-[18px]" strokeWidth={2} />
-                        </span>
-                        <div className="min-w-0">
-                          <p className="text-[10px] uppercase tracking-[0.22em] font-black opacity-75">
-                            {(() => {
-                              const t = p.checkout_time
-                                ? String(p.checkout_time).match(/^(\d{1,2}):(\d{2})/)
-                                : null;
-                              const time = t ? `${t[1].padStart(2, "0")}h${t[2] !== "00" ? t[2] : ""}` : null;
-                              return `Informação importante · Check-out${time ? ` até ${time}` : ""}`;
-                            })()}
-                          </p>
-                          {p.checkout_note && (
-                            <p className="text-[13px] leading-relaxed font-medium mt-1 whitespace-pre-line">
-                              {String(p.checkout_note)}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
 
 
               <footer className="mt-10 px-6 text-center flex items-center justify-center gap-2.5">
@@ -2664,6 +2707,67 @@ function GatedCopyCard({
     </div>
   );
 }
+
+function CodesTrigger({
+  theme,
+  open,
+  onToggle,
+  checkinTime,
+}: {
+  theme: "dark" | "light";
+  open: boolean;
+  onToggle: () => void;
+  checkinTime: string | null;
+}) {
+  // Só aparece quando o CheckinCountdown não está visível (fora da janela ativa),
+  // para não duplicar. Reproduz a lógica do CheckinCountdown de forma leve.
+  const [now, setNow] = useState<Date | null>(null);
+  useEffect(() => {
+    setNow(new Date());
+    const t = setInterval(() => setNow(new Date()), 60_000);
+    return () => clearInterval(t);
+  }, []);
+  if (!now) return null;
+  const m = checkinTime ? String(checkinTime).match(/^(\d{1,2}):(\d{2})/) : null;
+  if (m) {
+    const target = new Date(now);
+    target.setHours(Number(m[1]), Number(m[2]), 0, 0);
+    const startOfWindow = new Date(now);
+    startOfWindow.setHours(0, 0, 0, 0);
+    const diffMs = target.getTime() - now.getTime();
+    const inCountdown = now >= startOfWindow && now <= target;
+    const inLiberated = diffMs < 0 && Math.abs(diffMs) < 3 * 60 * 60 * 1000;
+    if (inCountdown || inLiberated) return null; // CheckinCountdown já cobre
+  }
+  const isLight = theme === "light";
+  return (
+    <div className="mx-4 md:mx-10 lg:mx-16 mb-3 relative z-10">
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={open}
+        className={`block w-full text-left rounded-2xl border backdrop-blur-xl px-4 py-3 transition ${
+          isLight
+            ? "border-border bg-card/70 hover:bg-card/90"
+            : "border-white/10 bg-white/[0.04] hover:bg-white/[0.07]"
+        }`}
+      >
+        <div className="flex items-center justify-between gap-2">
+          <p className={`text-[12px] font-medium inline-flex items-center gap-1.5 ${isLight ? "text-foreground/80" : "text-white/85"}`}>
+            <KeyRound className="size-3.5 text-amber-400" strokeWidth={2} />
+            {open ? "Ocultar senhas de acesso" : "Ver senhas de acesso"}
+          </p>
+          <ChevronDown
+            className={`size-4 shrink-0 transition-transform duration-300 ${open ? "rotate-180" : ""} ${isLight ? "text-foreground/60" : "text-white/70"}`}
+            strokeWidth={2.2}
+          />
+        </div>
+      </button>
+    </div>
+  );
+}
+
+
 
 function WifiStrip({
   ssid,
