@@ -760,7 +760,7 @@ function Dashboard() {
                           return (
                             <li
                               key={p.id}
-                              className={`group/item relative flex items-center gap-3 px-3 sm:px-4 py-3 transition-colors ${isSel ? "bg-accent/[0.06]" : "hover:bg-secondary/30"}`}
+                              className={`relative flex items-center gap-3 px-3 sm:px-4 py-2.5 transition-colors ${isSel ? "bg-accent/[0.06]" : "hover:bg-secondary/30"}`}
                             >
                               <Checkbox
                                 checked={isSel}
@@ -774,77 +774,87 @@ function Dashboard() {
                                 }
                                 className="shrink-0"
                               />
-                              <div className="size-11 rounded-lg bg-secondary overflow-hidden shrink-0 ring-1 ring-border/60">
+                              <button
+                                type="button"
+                                onClick={() => navigate({ to: "/admin/properties/$id", params: { id: p.id } })}
+                                className="size-12 rounded-xl bg-secondary overflow-hidden shrink-0 ring-1 ring-border/60 hover:ring-foreground/30 transition"
+                                aria-label={`Editar ${p.name}`}
+                              >
                                 {p.hero_image_url ? (
-                                  <img src={p.hero_image_url} alt={p.name} className="w-full h-full object-cover" />
+                                  <img src={p.hero_image_url} alt="" className="w-full h-full object-cover" />
                                 ) : (
                                   <div className="w-full h-full grid place-items-center text-[9px] text-muted-foreground">Sem foto</div>
                                 )}
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-2 min-w-0">
-                                  <h3 className="font-medium text-[13.5px] tracking-tight truncate">{p.name}</h3>
-                                  {!p.published && (
-                                    <span className="shrink-0 text-[9px] uppercase tracking-[0.14em] font-semibold bg-yellow-500/15 text-yellow-700 dark:text-yellow-400 px-1.5 py-0.5 rounded-full">
-                                      Rascunho
-                                    </span>
-                                  )}
-                                </div>
-                                <div className="flex items-center gap-1.5 mt-0.5 text-[11px] text-muted-foreground/90 min-w-0">
-                                  <span className="inline-flex items-center gap-1 shrink-0">
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => navigate({ to: "/admin/properties/$id", params: { id: p.id } })}
+                                className="flex-1 min-w-0 text-left"
+                              >
+                                <h3 className="font-medium text-[13.5px] leading-snug tracking-tight line-clamp-2 [text-wrap:balance]">{p.name}</h3>
+                                <div className="mt-1 flex items-center gap-1.5 text-[10.5px] text-muted-foreground/90 min-w-0">
+                                  <span className="inline-flex items-center gap-1 shrink-0 uppercase tracking-[0.12em]">
                                     {p.access_mode === "pin" ? <Lock className="size-2.5" /> : <Globe className="size-2.5" />}
-                                    <span className="uppercase tracking-[0.1em] text-[10px]">
-                                      {p.access_mode === "pin" ? "PIN" : "Público"}
-                                    </span>
+                                    {p.access_mode === "pin" ? "PIN" : "Público"}
                                   </span>
-                                  {p.tagline && (
+                                  {!p.published && (
                                     <>
                                       <span className="text-muted-foreground/40">·</span>
-                                      <span className="truncate">{p.tagline}</span>
+                                      <span className="uppercase tracking-[0.12em] text-yellow-600 dark:text-yellow-400">Rascunho</span>
                                     </>
                                   )}
                                 </div>
-                              </div>
-                              <div className="flex items-center shrink-0 ml-1">
-                                <Link
-                                  to="/admin/properties/$id"
-                                  params={{ id: p.id }}
-                                  className="size-8 grid place-items-center rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
-                                  aria-label="Editar"
-                                >
-                                  <Pencil className="size-3.5" />
-                                </Link>
-                                <button
-                                  type="button"
-                                  onClick={() => setViewSlug(p.slug)}
-                                  className="size-8 grid place-items-center rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
-                                  aria-label="Ver"
-                                >
-                                  <ExternalLink className="size-3.5" />
-                                </button>
-                                <button
-                                  onClick={() => handleCopyLink(p.slug, p.id)}
-                                  className="size-8 grid place-items-center rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
-                                  aria-label="Copiar link público"
-                                >
-                                  {copiedId === p.id ? <Check className="size-3.5 text-accent" /> : <Link2 className="size-3.5" />}
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => { setDupTarget({ id: p.id, name: p.name }); setDupCopies(1); }}
-                                  className="size-8 grid place-items-center rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
-                                  aria-label="Duplicar"
-                                >
-                                  <Copy className="size-3.5" />
-                                </button>
-                                <button
-                                  onClick={() => handleDelete(p.id, p.name)}
-                                  className="size-8 grid place-items-center rounded-full text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-                                  aria-label="Excluir"
-                                >
-                                  <Trash2 className="size-3.5" />
-                                </button>
-                              </div>
+                              </button>
+                              <Popover>
+                                <PopoverTrigger asChild>
+                                  <button
+                                    type="button"
+                                    className="size-9 grid place-items-center rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors shrink-0"
+                                    aria-label="Mais ações"
+                                  >
+                                    <MoreHorizontal className="size-4" />
+                                  </button>
+                                </PopoverTrigger>
+                                <PopoverContent align="end" className="w-52 p-1.5">
+                                  <Link
+                                    to="/admin/properties/$id"
+                                    params={{ id: p.id }}
+                                    className="flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] hover:bg-secondary transition-colors"
+                                  >
+                                    <Pencil className="size-3.5 text-muted-foreground" /> Editar guia
+                                  </Link>
+                                  <button
+                                    type="button"
+                                    onClick={() => setViewSlug(p.slug)}
+                                    className="w-full flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] hover:bg-secondary transition-colors text-left"
+                                  >
+                                    <ExternalLink className="size-3.5 text-muted-foreground" /> Pré-visualizar
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleCopyLink(p.slug, p.id)}
+                                    className="w-full flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] hover:bg-secondary transition-colors text-left"
+                                  >
+                                    {copiedId === p.id ? <Check className="size-3.5 text-accent" /> : <Link2 className="size-3.5 text-muted-foreground" />}
+                                    {copiedId === p.id ? "Link copiado" : "Copiar link público"}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => { setDupTarget({ id: p.id, name: p.name }); setDupCopies(1); }}
+                                    className="w-full flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] hover:bg-secondary transition-colors text-left"
+                                  >
+                                    <Copy className="size-3.5 text-muted-foreground" /> Duplicar
+                                  </button>
+                                  <div className="my-1 h-px bg-border/70" />
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDelete(p.id, p.name)}
+                                    className="w-full flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] text-destructive hover:bg-destructive/10 transition-colors text-left"
+                                  >
+                                    <Trash2 className="size-3.5" /> Excluir
+                                  </button>
+                                </PopoverContent>
+                              </Popover>
                             </li>
                           );
                         })}
