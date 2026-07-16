@@ -253,6 +253,9 @@ export function GuideAiChat({ slug, propertyName, guestName }: { slug: string; p
         setMessages(updated);
         saveCachedMessages(slug, data.conversationId ?? conversationId, updated);
       }
+      // Advance the polling cursor past the just-persisted user+AI rows so the
+      // next poll doesn't re-append the AI reply we already rendered optimistically.
+      lastFetchedAtRef.current = new Date().toISOString();
     } catch {
       const updated = [...next, { role: "assistant" as const, content: "Sem conexão. Tente novamente." }];
       setMessages(updated);
