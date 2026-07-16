@@ -126,8 +126,8 @@ export function HomeIntelligence({
   propertyId,
   city,
   lang,
-  guestName,
   theme,
+  checkinDate,
 }: {
   propertyId: string;
   city: string | null;
@@ -135,12 +135,12 @@ export function HomeIntelligence({
   lang: Lang;
   guestName: string | null;
   theme: "dark" | "light";
+  checkinDate?: string | null;
 }) {
   const dailyFn = useServerFn(getDailyTip);
   const liveWeatherFn = useServerFn(getLiveWeather);
   const [tip, setTip] = useState<DailyTip | null>(null);
   const [live, setLive] = useState<LiveWeather>(null);
-  const [nowLabel, setNowLabel] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const chips = useMemo<ChipDef[]>(() => chipsForCity(city), [city]);
 
@@ -156,11 +156,11 @@ export function HomeIntelligence({
     };
   }, [propertyId, lang, dailyFn]);
 
-  // Clima ao vivo: primeira chamada + polling a cada 5 min enquanto a tela está aberta.
+  // Clima ao vivo + previsão 3 dias — polling a cada 5 min.
   useEffect(() => {
     let alive = true;
     const tick = () => {
-      liveWeatherFn({ data: { propertyId } })
+      liveWeatherFn({ data: { propertyId, fromDate: checkinDate ?? undefined } })
         .then((w) => alive && w && setLive(w))
         .catch(() => {});
     };
@@ -170,34 +170,31 @@ export function HomeIntelligence({
       alive = false;
       clearInterval(t);
     };
-  }, [propertyId, liveWeatherFn]);
-
-  // Relógio real-time — atualiza a cada segundo enquanto a tela está aberta.
-  useEffect(() => {
-    const fmt = () =>
-      new Date().toLocaleTimeString("pt-BR", {
-        hour: "2-digit",
-        minute: "2-digit",
-        second: "2-digit",
-      });
-    setNowLabel(fmt());
-    const t = setInterval(() => setNowLabel(fmt()), 1_000);
-    return () => clearInterval(t);
-  }, []);
+  }, [propertyId, checkinDate, liveWeatherFn]);
 
   const hasTip = !!tip;
   if (!loading && !hasTip) return null;
   const isDark = theme === "dark";
 
-  // Mescla: prioriza clima ao vivo (mais recente); mantém dica de tip como fallback.
   const weather = live ?? tip?.weather ?? null;
+  const forecast = live?.forecast ?? [];
+
+  const dayLabel = (iso: string, index: number): string => {
+    if (index === 0) return "Hoje";
+    try {
+      const d = new Date(`${iso}T12:00:00`);
+      return d.toLocaleDateString("pt-BR", { weekday: "short" }).replace(".", "").toUpperCase();
+    } catch {
+      return "—";
+    }
+  };
 
   return (
     <section className="px-4 md:px-10 lg:px-16 mt-3 md:mt-5 relative z-10">
       {weather && (
-        <div className="mb-3 grid grid-cols-2 gap-3">
+        <div className="mb-3 grid grid-cols-[minmax(0,1fr)_minmax(0,1.35fr)] gap-3">
           <div
-            className={`flex min-h-[72px] items-center gap-3 rounded-[20px] border px-4 py-3 ${
+            className={`flex min-h-[76px] items-center gap-3 rounded-[20px] border px-4 py-3 ${
               isDark
                 ? "border-white/8 bg-white/[0.035] shadow-[0_16px_40px_-28px_rgba(0,0,0,0.85)]"
                 : "border-slate-900/[0.06] bg-white/55 shadow-[0_14px_35px_-28px_rgba(31,24,74,0.28)]"
@@ -208,34 +205,50 @@ export function HomeIntelligence({
             </span>
             <div className="min-w-0">
               <div className="flex items-baseline gap-1.5">
-                <p className={`text-[15px] font-black leading-none tabular-nums ${isDark ? "text-white" : "text-slate-950"}`}>
+                <p className={`text-[16px] font-black leading-none tabular-nums ${isDark ? "text-white" : "text-slate-950"}`}>
                   {weather.tempC}°C
                 </p>
                 {live && (
                   <span className="relative flex size-1.5 shrink-0 translate-y-[-1px]">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                    <span className="relative inline-flex rounded-full size-1.5 bg-emerald-400" />
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-300 opacity-75" />
+                    <span className="relative inline-flex rounded-full size-1.5 bg-amber-300" />
                   </span>
                 )}
               </div>
-              <p className={`mt-1 text-[11px] leading-snug ${isDark ? "text-white/62" : "text-slate-700/80"}`}>
+              <p className={`mt-1 text-[11px] leading-snug truncate ${isDark ? "text-white/62" : "text-slate-700/80"}`}>
                 {weather.label || "Clima local"}
               </p>
             </div>
           </div>
           <div
-            className={`flex min-h-[72px] flex-col justify-center gap-1 rounded-[20px] border px-4 py-3 ${
+            className={`flex min-h-[76px] items-stretch rounded-[20px] border px-2 py-2 ${
               isDark
                 ? "border-white/8 bg-white/[0.035] shadow-[0_16px_40px_-28px_rgba(0,0,0,0.85)]"
                 : "border-slate-900/[0.06] bg-white/55 shadow-[0_14px_35px_-28px_rgba(31,24,74,0.28)]"
             }`}
           >
-            <span className={`text-[9.5px] font-black uppercase tracking-[0.22em] ${isDark ? "text-emerald-300/95" : "text-emerald-600/90"}`}>
-              Agora
-            </span>
-            <p className={`text-[18px] font-black leading-none tabular-nums ${isDark ? "text-white" : "text-slate-950"}`}>
-              {nowLabel || "--:--:--"}
-            </p>
+            {forecast.length > 0 ? (
+              forecast.slice(0, 3).map((d, i) => (
+                <div
+                  key={d.date}
+                  className={`flex-1 min-w-0 flex flex-col items-center justify-center gap-0.5 px-1 ${
+                    i < 2 ? (isDark ? "border-r border-white/6" : "border-r border-slate-900/[0.06]") : ""
+                  }`}
+                >
+                  <span className={`text-[9px] font-black uppercase tracking-[0.14em] ${isDark ? "text-white/55" : "text-slate-600/85"}`}>
+                    {dayLabel(d.date, i)}
+                  </span>
+                  <span className="text-[20px] leading-none">{d.icon}</span>
+                  <span className={`text-[10.5px] font-bold tabular-nums leading-none ${isDark ? "text-white/92" : "text-slate-950"}`}>
+                    {d.tempMax}° <span className={isDark ? "text-white/45" : "text-slate-500"}>{d.tempMin}°</span>
+                  </span>
+                </div>
+              ))
+            ) : (
+              <div className={`flex-1 grid place-items-center text-[11px] ${isDark ? "text-white/50" : "text-slate-600"}`}>
+                Previsão indisponível
+              </div>
+            )}
           </div>
         </div>
       )}
