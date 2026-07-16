@@ -121,7 +121,7 @@ function Dashboard() {
         : listForAccount({ data: { ownerId: impersonation.userId } });
     },
   });
-  const { info: sub } = useSubscription({ impersonateUserId: impersonation?.userId ?? null });
+  const { info: sub } = useSubscription({ impersonateUserId: impersonation && isSaasAdmin ? impersonation.userId : null });
 
   // Admin sem guias próprios e SEM impersonação: nada de auto-redirect agora —
   // ele pode escolher manualmente um cliente pelo dropdown da sidebar.
