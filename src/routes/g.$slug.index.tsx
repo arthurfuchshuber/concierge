@@ -675,6 +675,17 @@ function Guide({ data }: { data: GuideOk }) {
                 />
               )}
 
+              {/* Feed "O que rola hoje" — notícias reais curadas por IA */}
+              {accessRec && (
+                <CityNewsFeed
+                  city={(p.city as string | null) ?? null}
+                  country={(p.country as string | null) ?? null}
+                  lang={lang as "pt" | "en" | "es" | "fr"}
+                  theme={theme}
+                />
+              )}
+
+
 
               {/* Faixa amarela full-bleed com "informações importantes"
                 (observações de check-in / check-out). Mantém as janelas de
