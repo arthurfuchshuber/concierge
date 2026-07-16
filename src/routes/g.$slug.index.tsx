@@ -1521,7 +1521,7 @@ function Guide({ data }: { data: GuideOk }) {
           )}
         </AnimatePresence>
       </div>
-      {data.aiEnabled ? <GuideAiChat slug={slug} propertyName={heroTitle} guestName={accessRec?.name ?? null} /> : null}
+      {data.aiEnabled ? <GuideAiChat slug={slug} propertyName={heroParts.title} guestName={accessRec?.name ?? null} /> : null}
       <PinDialog
         open={pinDialog.open}
         slug={slug}
@@ -1619,6 +1619,16 @@ function cleanGuideTitle(name?: string, city?: string) {
       )
       .trim() || String(name ?? "Guia")
   );
+}
+
+function splitGuideHeroTitle(name?: string, tagline?: string | null) {
+  const cleanName = String(name ?? "Guia").trim() || "Guia";
+  const cleanTagline = String(tagline ?? "").trim();
+  if (!cleanTagline) return { title: cleanName, tagline: null as string | null };
+  const escaped = cleanTagline.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const re = new RegExp(`\\s*${escaped}\\s*$`, "i");
+  const title = cleanName.replace(re, "").trim() || cleanName;
+  return { title, tagline: cleanTagline };
 }
 
 function GuideMark({ className = "" }: { className?: string }) {
