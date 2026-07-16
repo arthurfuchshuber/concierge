@@ -65,6 +65,7 @@ function Dashboard() {
   const { impersonation, clear: clearImpersonation } = useImpersonation();
   const readOnly = !!impersonation;
   const [view, setView] = useState<"grid" | "list">("grid");
+  const [statCardsOpen, setStatCardsOpen] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [viewSlug, setViewSlug] = useState<string | null>(null);
   const [previewMode, setPreviewMode] = useState<"mobile" | "desktop" | null>(null);
