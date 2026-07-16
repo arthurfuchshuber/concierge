@@ -1687,40 +1687,9 @@ function HeroCompact({
   const brandBottom = brandParts.length > 1 ? brandParts[brandParts.length - 1] : null;
 
   return (
-    <section
-      className="relative overflow-hidden px-5 md:px-10 lg:px-16 pt-5 pb-6 md:pt-7 md:pb-9"
-      onTouchStart={onTouchStart}
-      onTouchEnd={onTouchEnd}
-    >
-      {/* Photo slides */}
-      <div className="absolute inset-0 overflow-hidden">
-        {photos.map((src, i) => (
-          <img
-            key={`${src}-${i}`}
-            src={src}
-            alt=""
-            className={`absolute inset-0 size-full object-cover object-center transition-opacity duration-700 ${
-              i === idx ? "opacity-100" : "opacity-0"
-            } ${isDark ? "opacity-45" : "opacity-90"}`}
-          />
-        ))}
-      </div>
-      {/* Cinematic overlay */}
-      <div
-        className={
-          isDark
-            ? "absolute inset-0 bg-[linear-gradient(180deg,rgba(5,5,5,0.55)_0%,rgba(5,5,5,0.75)_55%,rgba(5,5,5,0.98)_100%)]"
-            : "absolute inset-0 bg-[linear-gradient(180deg,rgba(255,255,255,0.1)_0%,rgba(255,255,255,0.35)_55%,rgba(255,255,255,0.9)_100%)]"
-        }
-      />
-      {isDark && (
-        <>
-          <span className="pointer-events-none absolute -top-24 -right-24 h-56 w-56 rounded-full bg-amber-400/20 blur-[80px]" />
-          <span className="pointer-events-none absolute -bottom-16 -left-24 h-48 w-48 rounded-full bg-purple-500/15 blur-[80px]" />
-        </>
-      )}
-
-      <header className="relative z-10 flex items-start justify-between gap-3">
+    <section className="relative px-5 md:px-10 lg:px-16 pt-5 pb-5 md:pt-7 md:pb-7">
+      {/* Header: brand + city + theme toggle — sits on page background, above the photo card */}
+      <header className="relative z-10 flex items-center justify-between gap-3">
         <div className="flex items-center gap-2.5">
           {brandLogoUrl ? (
             <img
@@ -1729,7 +1698,7 @@ function HeroCompact({
               className="h-9 w-auto object-contain"
             />
           ) : (
-            <svg viewBox="0 0 32 32" aria-hidden="true" className="size-8 shrink-0">
+            <svg viewBox="0 0 32 32" aria-hidden="true" className="size-9 shrink-0">
               <defs>
                 <linearGradient id="brandA" x1="0" y1="0" x2="1" y2="1">
                   <stop offset="0%" stopColor="#f97316" />
@@ -1742,7 +1711,7 @@ function HeroCompact({
             </svg>
           )}
           <div className="flex flex-col leading-[1] gap-[3px]">
-            <span className={`text-[10px] font-semibold tracking-[0.28em] uppercase ${isDark ? "text-white/85" : "text-foreground/85"}`}>
+            <span className={`text-[10px] font-semibold tracking-[0.28em] uppercase ${isDark ? "text-white/85" : "text-foreground/75"}`}>
               {brandTop}
             </span>
             {brandBottom && (
@@ -1755,10 +1724,10 @@ function HeroCompact({
         <div className="flex items-center gap-2 shrink-0">
           {city && (
             <span
-              className={`inline-flex items-center gap-1.5 rounded-full border backdrop-blur-md px-2.5 py-1 text-[9.5px] uppercase tracking-[0.16em] font-semibold ${
+              className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[9.5px] uppercase tracking-[0.16em] font-semibold ${
                 isDark
-                  ? "border-white/15 bg-white/5 text-white/85"
-                  : "border-border bg-card/70 text-foreground/85"
+                  ? "border-white/15 bg-white/[0.04] text-white/85"
+                  : "border-border bg-background text-foreground/85"
               }`}
             >
               <span className="relative flex size-1.5">
@@ -1772,10 +1741,10 @@ function HeroCompact({
             type="button"
             onClick={onToggleTheme}
             aria-label={theme === "dark" ? "Tema claro" : "Tema escuro"}
-            className={`grid size-8 place-items-center rounded-full border backdrop-blur-md transition ${
+            className={`grid size-8 place-items-center rounded-full border transition ${
               isDark
-                ? "border-white/15 bg-white/5 text-white/85 hover:bg-white/10"
-                : "border-border bg-card/70 text-foreground/80 hover:bg-card"
+                ? "border-white/15 bg-white/[0.04] text-white/85 hover:bg-white/10"
+                : "border-border bg-background text-foreground/80 hover:bg-muted"
             }`}
           >
             {theme === "dark" ? (
@@ -1787,69 +1756,124 @@ function HeroCompact({
         </div>
       </header>
 
-      <h1
-        className={`relative z-10 mt-5 md:mt-8 font-serif text-[26px] md:text-[40px] leading-[1.05] tracking-[-0.015em] max-w-[320px] md:max-w-[720px] ${
+      {/* Photo card: bounded rounded-3xl with curved gradient overlay, title/tagline layered on top */}
+      <div
+        className={`relative mt-4 md:mt-6 overflow-hidden rounded-3xl border ${
           isDark
-            ? "bg-gradient-to-b from-white via-white to-white/60 bg-clip-text text-transparent"
-            : "text-foreground"
+            ? "border-white/10 shadow-[0_20px_60px_-25px_rgba(139,92,246,0.55)]"
+            : "border-black/5 shadow-[0_20px_60px_-30px_rgba(139,92,246,0.35)]"
         }`}
-        style={{ fontWeight: 600 }}
+        onTouchStart={onTouchStart}
+        onTouchEnd={onTouchEnd}
       >
-        {name}
-      </h1>
-      {tagline && (
-        <p
-          className="relative z-10 mt-1 font-serif text-[24px] md:text-[36px] leading-[1.05] tracking-[-0.015em] max-w-[320px] md:max-w-[720px] bg-gradient-to-r from-rose-400 via-pink-400 to-fuchsia-400 bg-clip-text text-transparent"
-          style={{ fontWeight: 600 }}
-        >
-          {tagline}
-        </p>
-      )}
-      <p className={`relative z-10 mt-3 text-[12.5px] md:text-[13px] leading-[1.45] max-w-[300px] md:max-w-[420px] ${isDark ? "text-white/60" : "text-foreground/65"}`}>
-        Tudo o que você precisa para uma estadia incrível.
-      </p>
-
-
-      {hasMany && (
-        <div className="relative z-10 mt-4 flex gap-1.5">
-          {photos.map((_, i) => (
-            <button
-              key={i}
-              type="button"
-              onClick={() => setIdx(i)}
-              aria-label={`Ir para foto ${i + 1}`}
-              className={`h-1 rounded-full transition-all ${
-                i === idx
-                  ? "w-6 bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.6)]"
-                  : isDark
-                    ? "w-1 bg-white/40 hover:bg-white/70"
-                    : "w-1 bg-foreground/25 hover:bg-foreground/50"
+        {/* Photo slides */}
+        <div className="relative h-[280px] md:h-[360px] w-full">
+          {photos.map((src, i) => (
+            <img
+              key={`${src}-${i}`}
+              src={src}
+              alt=""
+              className={`absolute inset-0 size-full object-cover object-center transition-opacity duration-700 ${
+                i === idx ? "opacity-100" : "opacity-0"
               }`}
             />
           ))}
-        </div>
-      )}
+          {/* Curved gradient overlay — organic sweep from left (opaque) to right (transparent-ish photo reveal) */}
+          <svg
+            aria-hidden="true"
+            viewBox="0 0 400 300"
+            preserveAspectRatio="none"
+            className="absolute inset-0 size-full"
+          >
+            <defs>
+              <linearGradient id="heroCurve" x1="0" y1="0" x2="1" y2="1">
+                {isDark ? (
+                  <>
+                    <stop offset="0%" stopColor="#0a0a0f" stopOpacity="0.98" />
+                    <stop offset="55%" stopColor="#1a0f2e" stopOpacity="0.9" />
+                    <stop offset="100%" stopColor="#3d1a5b" stopOpacity="0.55" />
+                  </>
+                ) : (
+                  <>
+                    <stop offset="0%" stopColor="#ffffff" stopOpacity="0.97" />
+                    <stop offset="55%" stopColor="#fdf4ff" stopOpacity="0.88" />
+                    <stop offset="100%" stopColor="#f5d0fe" stopOpacity="0.55" />
+                  </>
+                )}
+              </linearGradient>
+            </defs>
+            {/* Left-heavy curved shape covering ~60% of card, curving into the photo */}
+            <path
+              d="M 0 0 L 240 0 Q 220 90 200 150 Q 180 220 100 300 L 0 300 Z"
+              fill="url(#heroCurve)"
+            />
+          </svg>
 
-      {hasMany && (
-        <>
-          <button
-            type="button"
-            onClick={() => go(-1)}
-            aria-label="Foto anterior"
-            className="hidden md:grid absolute left-3 top-1/2 -translate-y-1/2 z-10 size-8 place-items-center rounded-full border border-white/20 bg-black/40 text-white backdrop-blur-md hover:bg-black/60"
-          >
-            <ArrowLeft className="size-3.5" />
-          </button>
-          <button
-            type="button"
-            onClick={() => go(1)}
-            aria-label="Próxima foto"
-            className="hidden md:grid absolute right-3 top-1/2 -translate-y-1/2 z-10 size-8 place-items-center rounded-full border border-white/20 bg-black/40 text-white backdrop-blur-md hover:bg-black/60"
-          >
-            <ArrowRight className="size-3.5" />
-          </button>
-        </>
-      )}
+          {/* Text layer */}
+          <div className="absolute inset-0 flex flex-col justify-end p-5 md:p-8">
+            <h1
+              className={`font-serif text-[28px] md:text-[42px] leading-[1] tracking-[-0.02em] max-w-[220px] md:max-w-[420px] ${
+                isDark ? "text-white" : "text-foreground"
+              }`}
+              style={{ fontWeight: 600 }}
+            >
+              {name}
+            </h1>
+            {tagline && (
+              <p
+                className="mt-1 font-serif text-[24px] md:text-[36px] leading-[1] tracking-[-0.02em] max-w-[220px] md:max-w-[420px] bg-gradient-to-r from-rose-500 via-pink-500 to-fuchsia-500 bg-clip-text text-transparent"
+                style={{ fontWeight: 600 }}
+              >
+                {tagline}
+              </p>
+            )}
+          </div>
+
+          {hasMany && (
+            <div className="absolute bottom-3 right-3 z-10 flex gap-1.5">
+              {photos.map((_, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => setIdx(i)}
+                  aria-label={`Ir para foto ${i + 1}`}
+                  className={`h-1 rounded-full transition-all ${
+                    i === idx
+                      ? "w-6 bg-white shadow-[0_0_8px_rgba(255,255,255,0.7)]"
+                      : "w-1 bg-white/50 hover:bg-white/80"
+                  }`}
+                />
+              ))}
+            </div>
+          )}
+
+          {hasMany && (
+            <>
+              <button
+                type="button"
+                onClick={() => go(-1)}
+                aria-label="Foto anterior"
+                className="hidden md:grid absolute left-3 top-1/2 -translate-y-1/2 z-10 size-8 place-items-center rounded-full border border-white/20 bg-black/40 text-white backdrop-blur-md hover:bg-black/60"
+              >
+                <ArrowLeft className="size-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => go(1)}
+                aria-label="Próxima foto"
+                className="hidden md:grid absolute right-3 top-1/2 -translate-y-1/2 z-10 size-8 place-items-center rounded-full border border-white/20 bg-black/40 text-white backdrop-blur-md hover:bg-black/60"
+              >
+                <ArrowRight className="size-3.5" />
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Sub-caption under the photo card */}
+      <p className={`relative z-10 mt-4 text-[12.5px] md:text-[13px] leading-[1.45] max-w-[320px] md:max-w-[420px] ${isDark ? "text-white/60" : "text-foreground/65"}`}>
+        Tudo o que você precisa para uma estadia incrível.
+      </p>
     </section>
   );
 }
