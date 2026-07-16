@@ -1,86 +1,155 @@
-## Escopo aprovado
 
-1. **Layout mobile** — apenas o chat aberto com o hóspede (ConversationView do admin). Aplicar `env(safe-area-inset-bottom/left/right)` no composer e footer para não ser cortado por notch/arredondamento.
-2. **Anexos e áudios (atendente ↔ hóspede)** — imagens (jpg/png/webp), PDF/documentos, vídeos curtos, áudio gravado estilo Instagram (hold-to-record, waveform, máx 60s).
-3. **Melhorias beta**:
-   - Indicador "digitando…" no widget do hóspede (Realtime).
-   - Som + badge no título da aba do painel quando chega mensagem nova.
-   - Respostas rápidas com **aprendizado contínuo** — sugestões geradas a partir das respostas humanas anteriores.
+# Guia do hóspede: da consulta pontual → hub diário de estadia
 
-## Backend
+Vamos priorizar **prender a atenção primeiro, monetizar depois**. A estrutura abaixo é faseada: cada fase entrega valor sozinha e prepara terreno para a próxima.
 
-**Bucket de storage** `chat-attachments` (privado, servido via signed URL).
+## Princípios que guiam tudo
 
-**Schema `property_chat_messages`** — adicionar colunas:
-- `attachment_url text` (path no bucket)
-- `attachment_type text` (`image` | `audio` | `video` | `document`)
-- `attachment_mime text`
-- `attachment_duration_ms int` (para áudio/vídeo)
-- `attachment_size_bytes int`
+- **Nada que o anfitrião não preencheu aparece** (regra já ativa no projeto — mantida).
+- **Zero atrito de identidade**: o popup de telefone no primeiro acesso permanece exatamente como está.
+- **A IA é o motor** (dicas, notícias, chat) — reaproveitando `LOVABLE_API_KEY` que já existe.
+- **Toda seção nova é "colapsável" ou opcional**: se o anfitrião não configurar cidade/coordenadas, ela simplesmente some.
 
-**Nova tabela `chat_quick_replies`** por `account_id`:
-- `id`, `account_id`, `property_id (nullable)`, `trigger_pattern text`, `response text`, `usage_count int`, `last_used_at`, `learned_from_message_id (nullable)`, `created_at`.
-- Aprendizado: quando o atendente envia manualmente uma resposta que "resolve" (a próxima mensagem do hóspede não é pergunta), um trigger extrai o par pergunta→resposta e cria/incrementa uma quick reply. Sugestões aparecem no composer quando o texto da última mensagem do hóspede tem similaridade (LIKE / trigram) com um `trigger_pattern`.
+---
 
-**Nova tabela `chat_typing_indicators`** (efêmera, TTL 8s) — `conversation_id`, `who` (`guest`|`staff`), `updated_at`. Alimentada por Realtime broadcast em vez de escrita constante (mais leve): usar canal Supabase `broadcast` sem persistir.
+## Fase 1 — Home viciante (retenção)
 
-**Server functions novas em `src/lib/chat-attachments.functions.ts`**:
-- `createStaffUploadUrl({ conversationId, mime, sizeBytes })` — valida permissão, retorna `{ path, signedUploadUrl }`.
-- `attachStaffMessage({ conversationId, path, type, mime, sizeBytes, durationMs, caption })` — insere mensagem com anexo.
+Redesenhar `src/routes/g.$slug.index.tsx` para ter esta ordem visual (inspirado no print enviado, mas com nossa identidade):
 
-**Rota pública `src/routes/api/public/guide-chat-upload.ts`** — hóspede POSTa multipart (validado por `sessionId`+`conversationId`) e o servidor faz upload com `supabaseAdmin`, retornando o path. Polling existente do widget já entrega o attachment.
+```text
+┌─────────────────────────────────────┐
+│ Hero: "Bem-vindo à {Casa}"          │
+│ + foto do imóvel                    │
+├─────────────────────────────────────┤
+│ Cards essenciais (Wi-Fi | Check-in  │
+│ | Regras) — como no print           │
+├─────────────────────────────────────┤
+│ 🌤️  Dica do dia (IA)                │
+│ "Hoje faz sol e 28°C — que tal…"    │
+│ [gerada 1x/dia por hóspede]         │
+├─────────────────────────────────────┤
+│ 💬 Bolha do Concierge IA            │
+│ "Olá! Sou a ConciergeIA…"           │
+│ [campo digite sua dúvida — CTA]     │
+├─────────────────────────────────────┤
+│ 📰 O que rola em {Cidade} hoje      │
+│ Feed de 3-5 eventos/notícias        │
+│ [gerado por IA + curadoria Sigma]   │
+├─────────────────────────────────────┤
+│ 🍽️  Dicas locais (recs do imóvel)   │
+│ Cards grandes horizontais           │
+│ [primeiro com foto — estilo print]  │
+├─────────────────────────────────────┤
+│ Nav inferior: Início | Guia | …     │
+└─────────────────────────────────────┘
+```
 
-**Server function `src/lib/chat-quick-replies.functions.ts`**:
-- `suggestQuickReplies({ conversationId })` → top 3 respostas com maior score.
-- `recordQuickReplyUsage({ id })`.
-- Job de aprendizado leve: dentro de `sendHandoffMessage`, quando `sender_type='human'` e `is_internal_note=false`, olha a última mensagem do hóspede e faz upsert em `chat_quick_replies` (dedupe por normalização + similaridade).
+### Novidades técnicas da Fase 1
 
-## Frontend
+1. **Dica do dia (IA)** — nova server fn `getDailyTip({ propertyId })`:
+   - Prompt considera: cidade, clima (via API pública gratuita open-meteo), hora do dia, dia da semana.
+   - Cache por `property_id + data` em nova tabela `property_daily_tips` (auto-expira em 24h).
+   - Fallback: se sem cidade/coords, seção não renderiza.
 
-**`src/components/handoff/ConversationView.tsx`**
-- Wrap externo com `pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]` no rodapé (form + estado "resolvido/locked").
-- Composer redesenhado: linha superior com checkbox nota; linha do input com botões `[📎 anexo] [🎤 áudio] [textarea] [enviar]`.
-- **Attachment button**: `<input type=file accept="image/*,application/pdf,video/mp4">` → preview → envia.
-- **Áudio Instagram-style**: press-and-hold no botão do microfone → começa `MediaRecorder`, mostra timer + waveform (canvas + AnalyserNode), desliza para a esquerda = cancelar, solta = enviar. Corte automático em 60s.
-- Renderização de mensagens: se `attachment_type='image'` → thumb; `audio` → player custom com waveform+duração; `video` → `<video controls>`; `document` → cartão com nome/tamanho + link.
-- **Quick replies**: chip row acima do composer com as 3 sugestões do `suggestQuickReplies`. Clicar preenche o textarea (permite editar antes de enviar) e dispara `recordQuickReplyUsage` no envio.
+2. **Feed "Rola em {Cidade}"** — nova server fn `getCityPulse({ cityKey })`:
+   - Reusa `city_references` (já existente) + cron diário que a IA sintetiza em "manchetes do dia".
+   - Nova tabela `city_daily_pulse` (`city_key`, `date`, `items jsonb`) — 1 registro/cidade/dia.
+   - Cron já configurado (`cron.refresh-city-references`) ganha um passo extra para gerar o pulse.
 
-**`src/components/GuideAiChat.tsx`**
-- Botões `[📎] [🎤]` no composer do hóspede (só quando `humanMode` — evita distrair a IA). Áudio mesma UX (hold-to-record, 60s).
-- Renderização de anexos idêntica.
+3. **Chat IA em destaque na home** — mover `GuideAiChat` para uma "bolha viva" no meio da home (não só na aba dedicada), com 2-3 sugestões contextuais clicáveis ("O que fazer hoje?", "Melhor restaurante perto", "Como chegar na praia").
 
-**Indicador de digitação (Realtime broadcast)**
-- Ambos os lados publicam `typing` a cada 2s enquanto digitam; escutam o canal e mostram "atendente está digitando…" / "hóspede está digitando…" quando `now - last < 4s`.
+4. **Redesign visual** — captura da home atual + `design--create_directions` com o print de inspiração para 3 direções (paleta/tipografia/densidade). Você escolhe uma.
 
-**Som + badge no painel `admin.atendimento`**
-- Hook `useNewMessageAlert(conversationId?)` que, ao receber postgres_changes em `property_chat_messages` (mensagens que não são do usuário atual), toca um som curto (`/sounds/ping.mp3`, gerado como base64 pequeno) e atualiza `document.title` prefixando `(N) ` até a aba ganhar foco.
+---
 
-**Empty/erros**: toasts em português. Bloqueios: 20MB por arquivo, mime allowlist, áudio 60s.
+## Fase 2 — Ingressos e experiências (monetização suave)
 
-## Arquivos
+O campo de link de ingresso **já existe em Explorar** (`property_recommendations.booking_url` e afins). Vamos ativá-lo estrategicamente:
 
-Novos:
-- `supabase/migrations/<ts>_chat_attachments_and_quickreplies.sql`
-- `src/lib/chat-attachments.functions.ts`
-- `src/lib/chat-quick-replies.functions.ts`
-- `src/components/handoff/AudioRecorderButton.tsx`
-- `src/components/handoff/AttachmentPreview.tsx`
-- `src/components/handoff/QuickRepliesRow.tsx`
-- `src/hooks/useTypingIndicator.ts`
-- `src/hooks/useNewMessageAlert.ts`
-- `src/routes/api/public/guide-chat-upload.ts`
-- `public/sounds/ping.mp3` (asset gerado)
+1. **Badge "Reservar" / "Comprar ingresso"** nos cards de recomendação que tiverem `booking_url` preenchido — CTA proeminente no card, não escondido.
+2. **Rastrear cliques**: novo evento `poi_engagement_events` do tipo `booking_click` (tabela já existe) — mede quais parceiros convertem.
+3. **Nada de comissão agora**: só medimos volume. Quando tivermos números, negociamos afiliação com parceiros grandes (GetYourGuide, Civitatis) ou cobramos taxa dos locais.
+4. **Curadoria Sigma opcional**: a curadoria por cidade (`sigma_city_recommendations`, já existe) pode ganhar campos `booking_url` gerenciados pela Sigma — quando o anfitrião importa, herda o link e a receita futura pode ser dividida.
 
-Editados:
-- `src/components/handoff/ConversationView.tsx`
-- `src/components/GuideAiChat.tsx`
-- `src/routes/api/public/guide-chat.ts` (retornar campos `attachment_*` no polling)
-- `src/lib/handoff.functions.ts` (hook de aprendizado de quick replies dentro de `sendHandoffMessage`)
+---
 
-## Fora do escopo agora (posso fazer depois se quiser)
+## Fase 3 — Comunidade / retorno (futura, só planejar)
 
-- Transcrição automática dos áudios (poderia usar `openai/gpt-4o-transcribe` via Lovable AI para virar texto pesquisável e alimentar a IA).
-- Marcar mensagem individual como lida/não lida.
-- Compressão client-side de imagens/vídeos antes do upload.
+Já temos telefone do hóspede no popup. **Não vamos usar agora**, mas o ativo está lá para:
+- Push notification pós-checkout ("Voltou pra cidade? Nova recomendação…")
+- Newsletter mensal por cidade
+- Convite para deixar review público → alimenta social proof do anfitrião
 
-Confirma que posso executar tudo isso?
+Vou deixar apenas registrado em memória do projeto para retomar depois.
+
+---
+
+## Detalhes técnicos
+
+### Novas tabelas
+
+```sql
+-- Cache diário de dicas por imóvel (1 linha/imóvel/dia)
+CREATE TABLE public.property_daily_tips (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  property_id uuid REFERENCES public.properties(id) ON DELETE CASCADE,
+  date date NOT NULL,
+  content jsonb NOT NULL, -- {title, body, cta?, weather?}
+  created_at timestamptz DEFAULT now(),
+  UNIQUE (property_id, date)
+);
+GRANT SELECT ON public.property_daily_tips TO anon, authenticated;
+GRANT ALL ON public.property_daily_tips TO service_role;
+ALTER TABLE public.property_daily_tips ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "public read via guide" ON public.property_daily_tips FOR SELECT USING (true);
+
+-- Pulse diário por cidade (manchetes/eventos sintetizados)
+CREATE TABLE public.city_daily_pulse (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  city_key text NOT NULL,
+  date date NOT NULL,
+  items jsonb NOT NULL, -- [{title, category, url?, distance?}]
+  created_at timestamptz DEFAULT now(),
+  UNIQUE (city_key, date)
+);
+GRANT SELECT ON public.city_daily_pulse TO anon, authenticated;
+GRANT ALL ON public.city_daily_pulse TO service_role;
+ALTER TABLE public.city_daily_pulse ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "public read" ON public.city_daily_pulse FOR SELECT USING (true);
+```
+
+### Novas server functions (em `src/lib/`)
+
+- `daily-tip.functions.ts` → `getDailyTip({ propertyId })`
+- `city-pulse.functions.ts` → `getCityPulse({ cityKey })`
+- Ambas: cache-first, IA on-miss, retorna `null` se faltar contexto (a UI simplesmente esconde).
+
+### Cron / geração em background
+
+Estender `src/routes/api/public/cron.refresh-city-references.ts` para, no fim do job, gerar `city_daily_pulse` das cidades ativas via `openai/gpt-5.5` (bundle no gateway Lovable AI).
+
+### Redesign
+
+Depois deste plano aprovado, capturo screenshot da home atual em Playwright e disparo `design--create_directions` com o print que você enviou como referência de composição. Você escolhe uma das 3 direções e eu implemento.
+
+---
+
+## O que fica de fora deste plano (para não inchar)
+
+- Comissão/checkout no app (só link externo, sem processar pagamento agora).
+- Publicidade paga por local (só quando tivermos volume medido).
+- Perfil/comunidade pública de hóspedes (Fase 3, futura).
+- Qualquer mudança no popup de telefone / fluxo de acesso (mantido intacto conforme pedido).
+
+---
+
+## Ordem sugerida de execução após aprovação
+
+1. Migração das 2 novas tabelas.
+2. Server fns `getDailyTip` + `getCityPulse` (com fallbacks).
+3. Extensão do cron.
+4. Redesign da home (`design--create_directions` → você escolhe → implemento).
+5. Badges de "Reservar" nos cards de recomendação.
+6. Evento de tracking `booking_click`.
+
+Cada passo é entregável sozinho. Podemos parar em qualquer ponto se algo não fizer sentido.
