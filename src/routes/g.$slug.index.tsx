@@ -539,8 +539,16 @@ function Guide({ data }: { data: GuideOk }) {
 
   return (
     <div
-      className={`sigma-public-guide guide-ambient min-h-screen bg-background text-foreground pb-16 ${theme === "light" ? "theme-light" : ""}`}
+      className={`sigma-public-guide guide-ambient relative min-h-screen bg-background text-foreground pb-16 overflow-x-hidden ${theme === "light" ? "theme-light" : ""}`}
     >
+      {/* Celestial ambient glows — fixed behind everything */}
+      {theme === "dark" && (
+        <>
+          <div className="pointer-events-none fixed -top-32 -right-32 h-[380px] w-[380px] rounded-full bg-amber-500/[0.08] blur-[120px] z-0" />
+          <div className="pointer-events-none fixed top-[45%] -left-32 h-[320px] w-[320px] rounded-full bg-purple-600/[0.08] blur-[110px] z-0" />
+          <div className="pointer-events-none fixed bottom-0 right-1/4 h-[280px] w-[280px] rounded-full bg-sky-500/[0.05] blur-[100px] z-0" />
+        </>
+      )}
       {needsGate && (
         <GuideAccessGate
           slug={slug}
@@ -549,7 +557,7 @@ function Guide({ data }: { data: GuideOk }) {
           onUnlock={setAccessRec}
         />
       )}
-      <div className="mx-auto w-full max-w-md md:max-w-none">
+      <div className="relative z-10 mx-auto w-full max-w-md md:max-w-none">
         <AnimatePresence mode="wait" initial={false}>
           {section === "home" ? (
             <motion.div
