@@ -189,10 +189,12 @@ function GuestDetail({ guestKey, accountId }: { guestKey: string; accountId: str
                           {idx + 1}
                         </span>
                         <div className="min-w-0 text-left">
-                          <div className="text-[13px] font-medium text-foreground leading-tight truncate">
-                            {new Date(s.startedAt).toLocaleString("pt-BR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
+                          <div className="text-[13px] font-semibold text-foreground leading-tight truncate">
+                            Sessão {idx + 1}
                           </div>
-                          <div className="text-[10.5px] text-muted-foreground mt-0.5">
+                          <div className="text-[10.5px] text-muted-foreground mt-0.5 truncate">
+                            {new Date(s.startedAt).toLocaleString("pt-BR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
+                            {" · "}
                             {uniqueSecs.length} seç{uniqueSecs.length === 1 ? "ão" : "ões"}
                           </div>
                         </div>
