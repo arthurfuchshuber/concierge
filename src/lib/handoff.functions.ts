@@ -400,7 +400,8 @@ export const claimHandoffConversation = createServerFn({ method: "POST" })
   .inputValidator(parseHandoffConversationInput)
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    // Só permite claim se: sem dono, ou já é meu.
+    // Assumir sempre é permitido — se já pertence a outro, registra uma nota interna
+    // avisando quem assumiu. A confirmação (popup) é feita no cliente.
     const { data: cur, error: readErr } = await supabase
       .from("property_chat_conversations")
       .select("assigned_to, status")
@@ -408,9 +409,9 @@ export const claimHandoffConversation = createServerFn({ method: "POST" })
       .maybeSingle();
     if (readErr) throw new Error(readErr.message);
     if (!cur) throw new Error("Conversa não encontrada.");
-    if (cur.assigned_to && cur.assigned_to !== userId) {
-      throw new Error("Esta conversa já está sendo atendida por outro membro. Solicite acesso ou peça uma transferência.");
-    }
+    const previousAssignee = cur.assigned_to as string | null;
+    const takingOver = previousAssignee && previousAssignee !== userId;
+
     const { error } = await supabase
       .from("property_chat_conversations")
       .update({
@@ -422,6 +423,19 @@ export const claimHandoffConversation = createServerFn({ method: "POST" })
       })
       .eq("id", data.conversationId);
     if (error) throw new Error(error.message);
+
+    if (takingOver) {
+      const { data: prof } = await supabase.from("profiles").select("full_name").eq("id", userId).maybeSingle();
+      const who = prof?.full_name ?? "Um membro da equipe";
+      await supabase.from("property_chat_messages").insert({
+        conversation_id: data.conversationId,
+        role: "assistant",
+        content: `↪ ${who} assumiu esta conversa.`,
+        sender_type: "human",
+        sender_user_id: userId,
+        is_internal_note: true,
+      });
+    }
     return { ok: true };
   });
 
