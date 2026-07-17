@@ -370,13 +370,9 @@ export const getEngagementGuests = createServerFn({ method: "POST" })
       .map((c) => {
         const msgs = built.msgsByConv.get(c.id) ?? [];
         const firstUser = msgs.find((m) => m.role === "user");
-        let matchedGuest: GuestAgg | null = null;
-        const ss = built.sessionByPhoneName;
-        for (const g of built.guests.values()) {
-          const idKey = g.phone ? `${g.propertyId}|p:${g.phone}` : `${g.propertyId}|n:${normalizeName(g.guestName)}`;
-          const gs = ss.get(idKey) ?? [];
-          if (gs.some((s) => s.sid === c.guest_session_id)) { matchedGuest = g; break; }
-        }
+        const gk = built.convGuestKey.get(c.id) ?? null;
+        const matchedGuest: GuestAgg | null = gk ? (built.guests.get(gk) ?? null) : null;
+
         return {
           id: c.id,
           propertyId: c.property_id,
