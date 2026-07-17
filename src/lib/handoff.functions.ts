@@ -152,7 +152,7 @@ export const listHandoffConversations = createServerFn({ method: "POST" })
         const chooseNearestVisualLog = (conv: HandoffConversationSummary) => {
           const propId = conv.property_id ?? "";
           const anchor = timeOf(conv.created_at) || timeOf(conv.last_message_at);
-          const fallbackWindowMs = 1000 * 60 * 60 * 6;
+          const fallbackWindowMs = 1000 * 60 * 60 * 96;
           if (!propId || !anchor) return null;
           const candidates = logRows.filter((l) => {
             if (l.property_id !== propId) return false;
@@ -334,7 +334,7 @@ export const getHandoffConversation = createServerFn({ method: "POST" })
             .limit(500);
           log = ((logs ?? []) as AccessLog[]).filter((l) => {
             if (!anchor || (!l.guest_name && !l.guest_phone)) return false;
-            return Math.abs(timeOf(l.created_at) - anchor) <= 1000 * 60 * 60 * 6;
+            return Math.abs(timeOf(l.created_at) - anchor) <= 1000 * 60 * 60 * 96;
           }).sort((a, b) => Math.abs(timeOf(a.created_at) - anchor) - Math.abs(timeOf(b.created_at) - anchor))[0] ?? null;
         }
         if (log) {
