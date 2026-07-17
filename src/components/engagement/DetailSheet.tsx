@@ -1,7 +1,8 @@
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Link } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
-import { Home as HomeIcon, ExternalLink, User, Clock, Layers, MessageSquare, AlertCircle } from "lucide-react";
+import { Home as HomeIcon, ExternalLink, User, Clock, Layers, MessageSquare, AlertCircle, Activity } from "lucide-react";
+import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { LineChart, Line, ResponsiveContainer, Tooltip, XAxis } from "recharts";
