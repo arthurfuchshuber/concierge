@@ -102,18 +102,20 @@ async function runAnalytics(
   input: z.infer<typeof InputSchema>,
   ctx: { supabase: import("@supabase/supabase-js").SupabaseClient; userId: string },
 ) {
-  // Admin impersonation: quando asUserId é informado, o solicitante precisa ser
-  // admin — passamos a agir como aquele usuário (usando supabaseAdmin p/ bypass RLS).
-  let effectiveUserId = ctx.userId;
+  // Admin impersonation: quando asUserId/asUserIds é informado, o solicitante precisa ser
+  // admin — passamos a agir como aquele(s) usuário(s), usando supabaseAdmin p/ bypass RLS.
+  const requestedOwners = (input.asUserIds && input.asUserIds.length > 0)
+    ? input.asUserIds
+    : (input.asUserId ? [input.asUserId] : []);
+  let ownerIds: string[] = [ctx.userId];
   let db = ctx.supabase;
-  if (input.asUserId && input.asUserId !== ctx.userId) {
+  if (requestedOwners.length > 0 && !(requestedOwners.length === 1 && requestedOwners[0] === ctx.userId)) {
     const { data: isAdmin } = await ctx.supabase.rpc("has_role", { _user_id: ctx.userId, _role: "admin" });
     if (!isAdmin) throw new Error("Acesso negado");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     db = supabaseAdmin as unknown as typeof ctx.supabase;
-    effectiveUserId = input.asUserId;
+    ownerIds = requestedOwners;
   }
-  const userId = effectiveUserId;
   const supabase = db;
   const days = daysFor(input.period);
   const since = new Date(Date.now() - days * 86400_000);
@@ -122,7 +124,7 @@ async function runAnalytics(
   const { data: propsRaw, error: pErr } = await supabase
     .from("properties")
       .select("id, name, slug, published, wifi_ssid, wifi_password, checkin_instructions, house_rules, tagline, hero_image_url, marketplace_links")
-    .eq("owner_id", userId)
+    .in("owner_id", ownerIds)
     .order("name", { ascending: true });
   if (pErr) throw pErr;
   const properties = (propsRaw ?? []).map((p) => ({
