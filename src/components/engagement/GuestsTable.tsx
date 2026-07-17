@@ -95,7 +95,7 @@ export function GuestsTable({
         <div className="flex-1 min-w-0 pr-14 sm:pr-0">
           <h3 className="text-sm font-semibold">Hóspedes</h3>
           <p className="text-xs text-muted-foreground">
-            Consolidação por telefone + data de check-in. Clique em uma linha para ver detalhes.
+            Um hóspede por telefone (ou nome, quando não há telefone). Clique em uma linha para ver detalhes.
           </p>
         </div>
         <div className="relative w-full sm:w-72 shrink-0">
