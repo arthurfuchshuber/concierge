@@ -107,7 +107,6 @@ export const listHandoffConversations = createServerFn({ method: "POST" })
         }>;
         const events = (eventsR.data ?? []) as EventRow[];
         const logRows: LogRow[] = [];
-        const latestByProp = new Map<string, LogRow>();
         const latestEventBySession = new Map<string, EventRow>();
 
         for (const l of logs) {
@@ -121,9 +120,6 @@ export const listHandoffConversations = createServerFn({ method: "POST" })
             created_at: l.created_at as string,
           };
           logRows.push(row);
-          if (!latestByProp.has(row.property_id)) {
-            latestByProp.set(row.property_id, row);
-          }
         }
         for (const e of events) {
           if (!e.guest_session_id) continue;
@@ -148,6 +144,25 @@ export const listHandoffConversations = createServerFn({ method: "POST" })
           return candidates.sort((a, b) => {
             const da = Math.abs(timeOf(a.created_at) - convTime);
             const db = Math.abs(timeOf(b.created_at) - convTime);
+            if (da !== db) return da - db;
+            return (b.checkin_date ?? "").localeCompare(a.checkin_date ?? "") || b.created_at.localeCompare(a.created_at);
+          })[0];
+        };
+
+        const chooseNearestVisualLog = (conv: HandoffConversationSummary) => {
+          const propId = conv.property_id ?? "";
+          const anchor = timeOf(conv.created_at) || timeOf(conv.last_message_at);
+          const fallbackWindowMs = 1000 * 60 * 60 * 6;
+          if (!propId || !anchor) return null;
+          const candidates = logRows.filter((l) => {
+            if (l.property_id !== propId) return false;
+            if (!l.guest_name && !l.guest_phone) return false;
+            return Math.abs(timeOf(l.created_at) - anchor) <= fallbackWindowMs;
+          });
+          if (candidates.length === 0) return null;
+          return candidates.sort((a, b) => {
+            const da = Math.abs(timeOf(a.created_at) - anchor);
+            const db = Math.abs(timeOf(b.created_at) - anchor);
             if (da !== db) return da - db;
             return (b.checkin_date ?? "").localeCompare(a.checkin_date ?? "") || b.created_at.localeCompare(a.created_at);
           })[0];
@@ -181,15 +196,11 @@ export const listHandoffConversations = createServerFn({ method: "POST" })
               reservationCode: null,
             };
           } else {
-            // Fallback visual: só usa o log mais recente do imóvel quando ele
-            // está próximo no tempo da conversa (mesma "estadia"), evitando
-            // atribuir conversas anônimas antigas ao hóspede mais recente.
-            const fallback = latestByProp.get(conv.property_id as string);
-            const convTime = timeOf(conv.last_message_at ?? conv.created_at);
-            const withinWindow = fallback
-              ? Math.abs(timeOf(fallback.created_at) - convTime) <= 1000 * 60 * 60 * 48
-              : false;
-            if (fallback && withinWindow) {
+            // Fallback visual: usa o acesso mais próximo do início da conversa,
+            // não o hóspede mais recente do imóvel. Assim recupera nomes de
+            // conversas antigas sem grudar tudo no último hóspede que acessou.
+            const fallback = chooseNearestVisualLog(conv);
+            if (fallback) {
               details[conv.id as string] = {
                 name: fallback.guest_name ?? conv.guest_name,
                 phone: fallback.guest_phone,
