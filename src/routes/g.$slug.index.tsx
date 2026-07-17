@@ -1600,7 +1600,7 @@ function Guide({ data }: { data: GuideOk }) {
             theme={theme}
             active={active}
             items={items}
-            onSelect={(k) => {
+            onSelect={(k: BottomNavKey) => {
               if (k === "home") { setSection("home"); window.scrollTo({ top: 0, behavior: "smooth" }); return; }
               if (k === "explore") { window.location.href = `/g/${slug}/explorar`; return; }
               gotoSection(k as Section);
