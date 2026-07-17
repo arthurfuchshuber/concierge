@@ -22,30 +22,7 @@ export const listHandoffConversations = createServerFn({ method: "POST" })
     try {
       const { supabase, userId } = context;
 
-      // Multi-account impersonation (admin apenas)
-      const requestedOwners = (data.asUserIds && data.asUserIds.length > 0) ? data.asUserIds : null;
-      let client = supabase;
-      let restrictOwnerIds: string[] | null = null;
-      if (requestedOwners && !(requestedOwners.length === 1 && requestedOwners[0] === userId)) {
-        const { data: isAdmin } = await supabase.rpc("has_role", { _user_id: userId, _role: "admin" });
-        if (!isAdmin) return emptyHandoffListResult("Acesso negado");
-        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-        client = supabaseAdmin as unknown as typeof supabase;
-        restrictOwnerIds = requestedOwners;
-      }
-
-      // Quando bypass admin, precisamos limitar por owner_id nas properties selecionadas
-      let propertyFilter: string[] | null = null;
-      if (restrictOwnerIds) {
-        const { data: props } = await client
-          .from("properties")
-          .select("id")
-          .in("owner_id", restrictOwnerIds);
-        propertyFilter = (props ?? []).map((p) => p.id as string);
-        if (propertyFilter.length === 0) return { conversations: [], details: {} };
-      }
-
-      let q = client
+      let q = supabase
         .from("property_chat_conversations")
         .select(
           "id, property_id, guest_session_id, guest_name, status, ai_paused, assigned_to, handoff_reason, handoff_urgency, handoff_at, last_message_at, created_at, resolved_at, properties:property_id(id, name, owner_id, slug)",
@@ -53,8 +30,6 @@ export const listHandoffConversations = createServerFn({ method: "POST" })
         .order("handoff_at", { ascending: false, nullsFirst: false })
         .order("last_message_at", { ascending: false })
         .limit(data.limit);
-
-      if (propertyFilter) q = q.in("property_id", propertyFilter);
 
       if (data.queue === "needs_human") q = q.eq("status", "needs_human");
       else if (data.queue === "assigned_to_me") q = q.eq("assigned_to", userId).in("status", ["assigned", "needs_human"]);
