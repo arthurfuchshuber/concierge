@@ -157,12 +157,24 @@ function AtendimentoPage() {
               </button>
             ))}
           </div>
+          <div className="p-2 border-b border-border">
+            <div className="relative">
+              <Search className="size-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Nome, guia, telefone, check-in, mensagem…"
+                className="h-8 pl-8 text-xs"
+              />
+            </div>
+          </div>
           <ConversationList
-            conversations={conversations as any}
+            conversations={filteredConversations as any}
             details={details}
             activeId={activeId}
             onSelect={setActiveId}
           />
+
         </div>
 
         {/* Chat */}
