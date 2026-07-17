@@ -63,6 +63,7 @@ export function GuestsTable({
     arr.sort((a, b) => {
       switch (sort.key) {
         case "guestName":     return dir * cmpStr(a.guestName || "", b.guestName || "");
+        case "accountName":   return dir * cmpStr(a.accountName || "", b.accountName || "");
         case "propertyName":  return dir * cmpStr(a.propertyName || "", b.propertyName || "");
         case "topSection":    return dir * cmpStr(a.topSection || "", b.topSection || "");
         case "checkinDate":   return dir * (a.checkinDate || "").localeCompare(b.checkinDate || "");
