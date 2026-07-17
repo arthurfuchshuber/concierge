@@ -208,9 +208,11 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
   const guest = q.data?.guestDetails;
   const claimReq = q.data?.claimRequester;
   const assignedProfile = q.data?.assignedProfile;
+  const senderProfiles = (q.data as { senderProfiles?: Record<string, { displayName: string | null }> } | undefined)?.senderProfiles ?? {};
   const propertyName = (conv?.properties as { name?: string } | null)?.name ?? "Guia";
   const isMine = !!(conv?.assigned_to && myUserId && conv.assigned_to === myUserId);
   const isLockedByOther = !!(conv?.assigned_to && myUserId && conv.assigned_to !== myUserId);
+  const isUnassigned = !conv?.assigned_to;
   const iRequested = !!(conv?.claim_requested_by && myUserId && conv.claim_requested_by === myUserId);
   const someoneRequestedFromMe = !!(isMine && conv?.claim_requested_by && conv.claim_requested_by !== myUserId);
   const status = conv?.status;
@@ -218,6 +220,15 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
   const guestName = guest?.name ?? conv?.guest_name ?? "Hóspede anônimo";
   const waHref = guest?.phone ? whatsappHref(guest.phone, guest.phoneCountry) : null;
   const checkinFmt = fmtCheckin(guest?.checkinDate ?? null);
+
+  function handleClaim() {
+    if (isLockedByOther) {
+      const who = assignedProfile?.displayName ?? "outro membro";
+      const ok = typeof window !== "undefined" && window.confirm(`Esta conversa está sendo atendida por ${who}. Tem certeza que deseja assumir?`);
+      if (!ok) return;
+    }
+    claim.mutate();
+  }
 
   return (
     <div className="flex flex-col h-full min-h-0">
