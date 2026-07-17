@@ -267,15 +267,10 @@ function buildGuestIndex(data: Awaited<ReturnType<typeof loadCommon>>) {
         const dur = Math.min(SECTION_GAP_MS, Math.max(SECTION_MIN_MS, tNext - tCur)) / 1000;
         secondsBySection.set(items[i].section, (secondsBySection.get(items[i].section) ?? 0) + dur);
       }
-      const cs = convBySid.get(s.sid) ?? [];
-      for (const c of cs) {
-        g.conversationsCount++;
-        const msgs = msgsByConv.get(c.id) ?? [];
-        g.messagesCount += msgs.length;
-        if (unresolvedByConv.has(c.id)) g.hasUnresolvedFeedback = true;
-        if (c.last_message_at > g.lastActivity) g.lastActivity = c.last_message_at;
-      }
+      // conversas são atribuídas em um passo separado (abaixo) para
+      // capturar também as conversas cuja sessão não bate por sid.
     }
+
     g.sectionsCount = uniqueSections.size;
     g.totalSeconds = Math.round(g.totalSeconds);
     g.maxSessionSeconds = Math.round(maxS);
@@ -289,8 +284,67 @@ function buildGuestIndex(data: Awaited<ReturnType<typeof loadCommon>>) {
     g.topSectionSeconds = Math.round(topSec);
   }
 
-  return { guests, sessions, convs, msgs, msgsByConv, unresolvedByConv, sessionByPhoneName, convBySid };
+  // ---- Passo 2: atribuir TODAS as conversas a algum hóspede ----
+  // A vinculação por session_id só cobre casos onde a sessão bate por sid
+  // com os eventos. Muitas conversas do chat não têm essa correspondência,
+  // então usamos identidade via eventos, nome da conversa, ou o log de
+  // acesso mais próximo no tempo (janela de 96h) para o mesmo imóvel.
+  const identBySid = new Map<string, { phone: string; name: string }>();
+  for (const e of events) {
+    if (!e.guest_session_id) continue;
+    const cur = identBySid.get(e.guest_session_id) ?? { phone: "", name: "" };
+    if (!cur.phone && e.guest_phone) cur.phone = normalizePhone(e.guest_phone);
+    if (!cur.name && e.guest_name) cur.name = normalizeName(e.guest_name);
+    identBySid.set(e.guest_session_id, cur);
+  }
+  const logsByProp = new Map<string, typeof logs>();
+  for (const l of logs) {
+    const arr = logsByProp.get(l.property_id) ?? [];
+    arr.push(l); logsByProp.set(l.property_id, arr);
+  }
+  function resolveGuestForConv(c: typeof convs[number]): GuestAgg | null {
+    const ident = c.guest_session_id ? identBySid.get(c.guest_session_id) : null;
+    if (ident && (ident.phone || ident.name)) {
+      const k = guestKeyOf({ propertyId: c.property_id, phone: ident.phone, name: ident.name });
+      const g = guests.get(k); if (g) return g;
+    }
+    if (c.guest_name) {
+      const k = guestKeyOf({ propertyId: c.property_id, phone: "", name: normalizeName(c.guest_name) });
+      const g = guests.get(k); if (g) return g;
+    }
+    const propLogs = logsByProp.get(c.property_id) ?? [];
+    const target = new Date(c.last_message_at ?? c.created_at).getTime();
+    let best: (typeof logs)[number] | null = null;
+    let bestDiff = Infinity;
+    for (const l of propLogs) {
+      const d = Math.abs(new Date(l.created_at).getTime() - target);
+      if (d < bestDiff) { bestDiff = d; best = l; }
+    }
+    if (best && bestDiff <= 96 * 3600_000) {
+      const k = guestKeyOf({
+        propertyId: best.property_id,
+        phone: normalizePhone(best.guest_phone),
+        name: normalizeName(best.guest_name),
+      });
+      return guests.get(k) ?? null;
+    }
+    return null;
+  }
+  const convGuestKey = new Map<string, string>();
+  for (const c of convs) {
+    const g = resolveGuestForConv(c);
+    if (!g) continue;
+    convGuestKey.set(c.id, g.key);
+    const cmsgs = msgsByConv.get(c.id) ?? [];
+    g.conversationsCount++;
+    g.messagesCount += cmsgs.length;
+    if (unresolvedByConv.has(c.id)) g.hasUnresolvedFeedback = true;
+    if (c.last_message_at > g.lastActivity) g.lastActivity = c.last_message_at;
+  }
+
+  return { guests, sessions, convs, msgs, msgsByConv, unresolvedByConv, sessionByPhoneName, convBySid, convGuestKey };
 }
+
 
 export const getEngagementGuests = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -316,13 +370,9 @@ export const getEngagementGuests = createServerFn({ method: "POST" })
       .map((c) => {
         const msgs = built.msgsByConv.get(c.id) ?? [];
         const firstUser = msgs.find((m) => m.role === "user");
-        let matchedGuest: GuestAgg | null = null;
-        const ss = built.sessionByPhoneName;
-        for (const g of built.guests.values()) {
-          const idKey = g.phone ? `${g.propertyId}|p:${g.phone}` : `${g.propertyId}|n:${normalizeName(g.guestName)}`;
-          const gs = ss.get(idKey) ?? [];
-          if (gs.some((s) => s.sid === c.guest_session_id)) { matchedGuest = g; break; }
-        }
+        const gk = built.convGuestKey.get(c.id) ?? null;
+        const matchedGuest: GuestAgg | null = gk ? (built.guests.get(gk) ?? null) : null;
+
         return {
           id: c.id,
           propertyId: c.property_id,

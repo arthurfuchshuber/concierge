@@ -109,9 +109,10 @@ function EngagementPage() {
 
   const guestsFn = useServerFn(getEngagementGuests);
   const guestsQ = useQuery({
-    queryKey: ["engagement-guests", filters.period, filters.propertyIds.join(","), q, accountsKey],
+    queryKey: ["engagement-guests", filters.period, filters.propertyIds.join(","), accountsKey],
     queryFn: () => guestsFn({
-      data: { period: filters.period, propertyIds: backendPropIds, q: q || null, asUserIds: backendUserIds },
+      data: { period: filters.period, propertyIds: backendPropIds, q: null, asUserIds: backendUserIds },
+
     }),
     enabled: tab === "hospedes",
     staleTime: 30_000,
@@ -232,13 +233,12 @@ function EngagementPage() {
                   <>
                     <GuestsTable
                       guests={guestsQ.data.guests}
-                      q={q}
-                      onQ={(v) => patch({ q: v })}
                       onSelect={(guestKey) => {
                         const g = guestsQ.data?.guests.find((x) => x.key === guestKey);
                         setDetail({ kind: "guest", guestKey, accountId: g?.accountId ?? null });
                       }}
                     />
+
                   </>
                 ) : null}
               </TabsContent>
