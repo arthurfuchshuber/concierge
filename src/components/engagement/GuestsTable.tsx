@@ -169,6 +169,9 @@ export function GuestsTable({
                       {g.reservationCode && <span className="ml-1 truncate">· {g.reservationCode}</span>}
                     </div>
                   </td>
+                  <td className="px-3 py-3 text-left text-xs text-muted-foreground truncate max-w-[160px]" title={g.accountName}>
+                    {g.accountName || "—"}
+                  </td>
                   <td className="px-3 py-3 text-left text-xs text-muted-foreground truncate max-w-[200px]" title={g.propertyName}>
                     {g.propertyName}
                   </td>
