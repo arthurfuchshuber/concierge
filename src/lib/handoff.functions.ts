@@ -107,7 +107,6 @@ export const listHandoffConversations = createServerFn({ method: "POST" })
         }>;
         const events = (eventsR.data ?? []) as EventRow[];
         const logRows: LogRow[] = [];
-        const latestByProp = new Map<string, LogRow>();
         const latestEventBySession = new Map<string, EventRow>();
 
         for (const l of logs) {
@@ -121,9 +120,6 @@ export const listHandoffConversations = createServerFn({ method: "POST" })
             created_at: l.created_at as string,
           };
           logRows.push(row);
-          if (!latestByProp.has(row.property_id)) {
-            latestByProp.set(row.property_id, row);
-          }
         }
         for (const e of events) {
           if (!e.guest_session_id) continue;
@@ -148,6 +144,25 @@ export const listHandoffConversations = createServerFn({ method: "POST" })
           return candidates.sort((a, b) => {
             const da = Math.abs(timeOf(a.created_at) - convTime);
             const db = Math.abs(timeOf(b.created_at) - convTime);
+            if (da !== db) return da - db;
+            return (b.checkin_date ?? "").localeCompare(a.checkin_date ?? "") || b.created_at.localeCompare(a.created_at);
+          })[0];
+        };
+
+        const chooseNearestVisualLog = (conv: HandoffConversationSummary) => {
+          const propId = conv.property_id ?? "";
+          const anchor = timeOf(conv.created_at) || timeOf(conv.last_message_at);
+          const fallbackWindowMs = 1000 * 60 * 60 * 96;
+          if (!propId || !anchor) return null;
+          const candidates = logRows.filter((l) => {
+            if (l.property_id !== propId) return false;
+            if (!l.guest_name && !l.guest_phone) return false;
+            return Math.abs(timeOf(l.created_at) - anchor) <= fallbackWindowMs;
+          });
+          if (candidates.length === 0) return null;
+          return candidates.sort((a, b) => {
+            const da = Math.abs(timeOf(a.created_at) - anchor);
+            const db = Math.abs(timeOf(b.created_at) - anchor);
             if (da !== db) return da - db;
             return (b.checkin_date ?? "").localeCompare(a.checkin_date ?? "") || b.created_at.localeCompare(a.created_at);
           })[0];
@@ -181,15 +196,11 @@ export const listHandoffConversations = createServerFn({ method: "POST" })
               reservationCode: null,
             };
           } else {
-            // Fallback visual: só usa o log mais recente do imóvel quando ele
-            // está próximo no tempo da conversa (mesma "estadia"), evitando
-            // atribuir conversas anônimas antigas ao hóspede mais recente.
-            const fallback = latestByProp.get(conv.property_id as string);
-            const convTime = timeOf(conv.last_message_at ?? conv.created_at);
-            const withinWindow = fallback
-              ? Math.abs(timeOf(fallback.created_at) - convTime) <= 1000 * 60 * 60 * 48
-              : false;
-            if (fallback && withinWindow) {
+            // Fallback visual: usa o acesso mais próximo do início da conversa,
+            // não o hóspede mais recente do imóvel. Assim recupera nomes de
+            // conversas antigas sem grudar tudo no último hóspede que acessou.
+            const fallback = chooseNearestVisualLog(conv);
+            if (fallback) {
               details[conv.id as string] = {
                 name: fallback.guest_name ?? conv.guest_name,
                 phone: fallback.guest_phone,
@@ -277,27 +288,65 @@ export const getHandoffConversation = createServerFn({ method: "POST" })
     } = { name: conv.guest_name, phone: null, phoneCountry: null, checkinDate: null, reservationCode: null };
     try {
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-      // Só enriquece quando temos nome — sem nome não dá para casar sem risco de vazar dados
-      // de outro hóspede da mesma propriedade. Escolhemos o log com maior checkin_date
-      // (mesmo critério do Engajamento).
-      if (conv.guest_name) {
-        const { data: logs } = await supabaseAdmin
-          .from("guide_access_logs")
-          .select("guest_name, guest_phone, guest_phone_country, checkin_date, reservation_code, created_at")
-          .eq("property_id", conv.property_id)
-          .ilike("guest_name", conv.guest_name)
-          .order("checkin_date", { ascending: false, nullsFirst: false })
-          .order("created_at", { ascending: false })
-          .limit(1);
-        const log = logs?.[0];
+      if (conv.property_id) {
+        const norm = (s: string | null | undefined) => (s ?? "").trim().toLowerCase().replace(/\s+/g, " ");
+        const onlyDigits = (s: string | null | undefined) => (s ?? "").replace(/\D+/g, "").replace(/^0+/, "");
+        const timeOf = (iso: string | null | undefined) => {
+          const t = iso ? Date.parse(iso) : NaN;
+          return Number.isFinite(t) ? t : 0;
+        };
+        let identity: { name: string | null; phone: string | null } = { name: conv.guest_name, phone: null };
+        if (!identity.name && conv.guest_session_id) {
+          const { data: events } = await (supabaseAdmin.from("guide_section_events" as never) as ReturnType<typeof supabaseAdmin.from>)
+            .select("guest_name, guest_phone, created_at")
+            .eq("property_id", conv.property_id)
+            .eq("guest_session_id", conv.guest_session_id)
+            .or("guest_name.not.is.null,guest_phone.not.is.null")
+            .order("created_at", { ascending: false })
+            .limit(1);
+          const event = (events as Array<{ guest_name: string | null; guest_phone: string | null }> | null)?.[0];
+          if (event) identity = { name: event.guest_name, phone: event.guest_phone };
+        }
+
+        const phone = onlyDigits(identity.phone);
+        const name = norm(identity.name);
+        type AccessLog = { guest_name: string | null; guest_phone: string | null; guest_phone_country: string | null; checkin_date: string | null; reservation_code: string | null; created_at: string };
+        let log: AccessLog | null = null;
+        if (name || phone) {
+          const { data: logs } = await supabaseAdmin
+            .from("guide_access_logs")
+            .select("guest_name, guest_phone, guest_phone_country, checkin_date, reservation_code, created_at")
+            .eq("property_id", conv.property_id)
+            .order("checkin_date", { ascending: false, nullsFirst: false })
+            .order("created_at", { ascending: false })
+            .limit(100);
+          log = ((logs ?? []) as AccessLog[]).find((l) =>
+            (phone && onlyDigits(l.guest_phone) === phone) || (name && norm(l.guest_name) === name),
+          ) ?? null;
+        }
+        if (!log) {
+          const anchor = timeOf(conv.created_at) || timeOf(conv.last_message_at);
+          const { data: logs } = await supabaseAdmin
+            .from("guide_access_logs")
+            .select("guest_name, guest_phone, guest_phone_country, checkin_date, reservation_code, created_at")
+            .eq("property_id", conv.property_id)
+            .order("created_at", { ascending: false })
+            .limit(500);
+          log = ((logs ?? []) as AccessLog[]).filter((l) => {
+            if (!anchor || (!l.guest_name && !l.guest_phone)) return false;
+            return Math.abs(timeOf(l.created_at) - anchor) <= 1000 * 60 * 60 * 96;
+          }).sort((a, b) => Math.abs(timeOf(a.created_at) - anchor) - Math.abs(timeOf(b.created_at) - anchor))[0] ?? null;
+        }
         if (log) {
           guestDetails = {
-            name: log.guest_name ?? conv.guest_name,
+            name: log.guest_name ?? identity.name,
             phone: log.guest_phone,
             phoneCountry: log.guest_phone_country,
             checkinDate: log.checkin_date,
             reservationCode: log.reservation_code,
           };
+        } else if (identity.name || identity.phone) {
+          guestDetails = { ...guestDetails, name: identity.name, phone: identity.phone };
         }
       }
     } catch {
