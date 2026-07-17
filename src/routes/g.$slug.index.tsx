@@ -58,6 +58,7 @@ import { GuideAiChat } from "@/components/GuideAiChat";
 import { HomeIntelligence } from "@/components/guide/HomeIntelligence";
 import { CityNewsFeed } from "@/components/guide/CityNewsFeed";
 import { CheckinCountdown } from "@/components/guide/CheckinCountdown";
+import { BottomNav, type BottomNavKey } from "@/components/guide/BottomNav";
 import waterfallImg from "@/assets/rec-waterfall.jpg";
 import conciergeLogo from "@/assets/concierge-logo.png";
 import { GuideAccessGate, readAccessRecord, type AccessRecord } from "@/components/GuideAccessGate";
@@ -416,8 +417,21 @@ function Guide({ data }: { data: GuideOk }) {
   const rules = data.manual.filter(isRule);
   const houseManual = data.manual.filter((m: any) => !isRule(m));
 
+  // Card "Chegada/Saída" some 24h após a hora do check-in.
+  // Mesmo assim, essas seções continuam acessíveis pela barra inferior.
+  const stayCardsExpired = (() => {
+    if (!accessRec?.checkinDate) return false;
+    const t = String(p.checkin_time ?? "15:00").match(/^(\d{1,2}):(\d{2})/);
+    const hh = t ? Number(t[1]) : 15;
+    const mm = t ? Number(t[2]) : 0;
+    const [y, mo, d] = accessRec.checkinDate.split("-").map(Number);
+    if (!y || !mo || !d) return false;
+    const ci = new Date(y, mo - 1, d, hh, mm, 0, 0).getTime();
+    return Date.now() > ci + 24 * 3600_000;
+  })();
+
   // Category availability — hide a card entirely when no sub-item has content
-  const hasCheckin = !!(
+  const hasCheckinData = !!(
     p.checkin_time ||
     p.checkin_note ||
     p.address ||
@@ -428,7 +442,9 @@ function Guide({ data }: { data: GuideOk }) {
     p.wifi_ssid ||
     p.checkin_instructions
   );
-  const hasSaida = !!(p.checkout_time || p.checkout_note || p.checkout_instructions);
+  const hasCheckin = hasCheckinData && !stayCardsExpired;
+  const hasSaidaData = !!(p.checkout_time || p.checkout_note || p.checkout_instructions);
+  const hasSaida = hasSaidaData && !stayCardsExpired;
   const hasResidencia = houseManual.length > 0;
   const hasFaq = !!(p.host_name || p.host_phone) || data.emergency.length > 0 || data.faqs.length > 0;
   const hasExplore =
@@ -1568,6 +1584,30 @@ function Guide({ data }: { data: GuideOk }) {
           )}
         </AnimatePresence>
       </div>
+      {(() => {
+        const items: Array<{ key: import("@/components/guide/BottomNav").BottomNavKey; label: string }> = [
+          { key: "home", label: "Início" },
+        ];
+        if (hasCheckinData) items.push({ key: "checkin", label: "Chegada" });
+        if (hasSaidaData) items.push({ key: "saida", label: "Saída" });
+        if (hasResidencia) items.push({ key: "residencia", label: "Residência" });
+        if (hasExplore) items.push({ key: "explore", label: "Explorar" });
+        if (items.length <= 1) return null;
+        const active: import("@/components/guide/BottomNav").BottomNavKey =
+          section === "home" ? "home" : (section as import("@/components/guide/BottomNav").BottomNavKey);
+        return (
+          <BottomNav
+            theme={theme}
+            active={active}
+            items={items}
+            onSelect={(k: BottomNavKey) => {
+              if (k === "home") { setSection("home"); window.scrollTo({ top: 0, behavior: "smooth" }); return; }
+              if (k === "explore") { window.location.href = `/g/${slug}/explorar`; return; }
+              gotoSection(k as Section);
+            }}
+          />
+        );
+      })()}
       {data.aiEnabled ? <GuideAiChat slug={slug} propertyName={heroParts.title} guestName={accessRec?.name ?? null} /> : null}
       <PinDialog
         open={pinDialog.open}
@@ -1821,14 +1861,14 @@ function HeroCompact({
             className={`absolute inset-0 ${
               isDark
                 ? "bg-[linear-gradient(90deg,rgba(5,6,18,0.74)_0%,rgba(5,6,18,0.34)_47%,rgba(5,6,18,0.05)_100%)]"
-                : "bg-[linear-gradient(90deg,rgba(255,255,255,0.74)_0%,rgba(255,255,255,0.42)_42%,rgba(255,255,255,0.08)_100%)]"
+                : "bg-[linear-gradient(90deg,rgba(255,255,255,0.42)_0%,rgba(255,255,255,0.18)_45%,rgba(255,255,255,0)_100%)]"
             }`}
           />
           <div
-            className={`absolute inset-x-0 bottom-0 h-[58%] ${
+            className={`absolute inset-x-0 bottom-0 h-[62%] ${
               isDark
                 ? "bg-[linear-gradient(0deg,rgba(5,6,18,0.82),rgba(5,6,18,0.22),transparent)]"
-                : "bg-[linear-gradient(0deg,rgba(255,255,255,0.76),rgba(255,255,255,0.32),transparent)]"
+                : "bg-[linear-gradient(to_top,rgba(255,255,255,0.86)_0%,rgba(255,255,255,0.72)_22%,rgba(255,255,255,0.44)_50%,rgba(255,255,255,0.18)_75%,rgba(255,255,255,0)_100%)]"
             }`}
           />
           {/* pink corner blob removed for a cleaner hero */}
@@ -1952,12 +1992,18 @@ function SectionCard({
               src={imageUrl}
               alt=""
               loading="lazy"
-              className="absolute inset-y-0 right-0 w-[54%] object-cover opacity-70"
+              className="absolute inset-y-0 right-0 w-[62%] object-cover opacity-95"
               onError={(e) => {
                 (e.currentTarget as HTMLImageElement).style.display = "none";
               }}
             />
-            <span className={`pointer-events-none absolute inset-y-0 right-0 w-[72%] ${isDark ? "bg-gradient-to-r from-[#080815] via-[#080815]/70 to-transparent" : "bg-gradient-to-r from-white via-white/76 to-transparent"}`} />
+            <span
+              className={`pointer-events-none absolute inset-y-0 right-0 w-[82%] ${
+                isDark
+                  ? "bg-[linear-gradient(to_right,#080815_0%,rgba(8,8,21,0.94)_18%,rgba(8,8,21,0.72)_38%,rgba(8,8,21,0.36)_62%,rgba(8,8,21,0.08)_84%,rgba(8,8,21,0)_100%)]"
+                  : "bg-[linear-gradient(to_right,#ffffff_0%,rgba(255,255,255,0.96)_16%,rgba(255,255,255,0.78)_36%,rgba(255,255,255,0.42)_60%,rgba(255,255,255,0.14)_82%,rgba(255,255,255,0)_100%)]"
+              }`}
+            />
           </>
         )}
         {!imageUrl && isDark && (

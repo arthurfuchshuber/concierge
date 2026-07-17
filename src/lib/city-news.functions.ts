@@ -33,7 +33,7 @@ async function firecrawlSearch(query: string): Promise<FirecrawlSearchResult[]> 
   const r = await fetch("https://api.firecrawl.dev/v2/search", {
     method: "POST",
     headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ query, limit: 10, tbs: "qdr:w", lang: "pt", country: "br" }),
+    body: JSON.stringify({ query, limit: 20, tbs: "qdr:w", lang: "pt", country: "br" }),
     signal: AbortSignal.timeout(9000),
   });
   if (!r.ok) return [];
@@ -43,7 +43,7 @@ async function firecrawlSearch(query: string): Promise<FirecrawlSearchResult[]> 
     : Array.isArray((j.data as { web?: FirecrawlSearchResult[] })?.web)
       ? (j.data as { web?: FirecrawlSearchResult[] }).web!
       : [];
-  return list.slice(0, 10);
+  return list.slice(0, 20);
 }
 
 async function curateWithAi(params: {
@@ -78,9 +78,9 @@ PRIORIZE — turismo, hospitalidade e experiência:
 - Cultura, arte, música, teatro local.
 - Vida noturna, roteiros, experiências únicas da cidade.
 
-Se o resultado não for claramente local e positivo, descarte-o. Melhor devolver 3 itens excelentes do que 7 medianos.`;
+Se o resultado não for claramente local e positivo, descarte-o. Prefira 10 itens excelentes e variados a 12 medianos — mas garanta pelo menos 8 quando a cidade tiver oferta turística rica.`;
   const user = `Cidade-alvo: ${params.cityLabel}${params.country ? `, ${params.country}` : ""}.
-Selecione entre 3 e 6 itens EXCLUSIVAMENTE sobre esta cidade que animem um hóspede HOJE.
+Selecione entre 8 e 12 itens EXCLUSIVAMENTE sobre esta cidade que animem um hóspede HOJE. Priorize variedade de categorias (natureza, gastronomia, evento, passeio, cultura, noite, mercado) para dar ao hóspede um leque rico de opções.
 
 Retorne JSON estrito: {"items":[{"title":"...","category":"...","summary":"...","emoji":"...","imageQuery":"...","sourceIndex": 0}]}
 - title: até 9 palavras, tom convidativo e positivo (ex: "Festival de jazz ilumina o centro histórico"). Nunca copie o título original.
@@ -124,7 +124,7 @@ ${feed}`;
   } catch {
     return [];
   }
-  const items: NewsItem[] = (parsed.items ?? []).slice(0, 7).map((it) => {
+  const items: NewsItem[] = (parsed.items ?? []).slice(0, 14).map((it) => {
     const src = typeof it.sourceIndex === "number" ? params.candidates[it.sourceIndex] : undefined;
     const siteName = src?.metadata?.ogSiteName ?? (src?.url ? new URL(src.url).hostname.replace(/^www\./, "") : null);
     return {
