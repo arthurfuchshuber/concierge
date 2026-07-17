@@ -181,8 +181,15 @@ export const listHandoffConversations = createServerFn({ method: "POST" })
               reservationCode: null,
             };
           } else {
+            // Fallback visual: só usa o log mais recente do imóvel quando ele
+            // está próximo no tempo da conversa (mesma "estadia"), evitando
+            // atribuir conversas anônimas antigas ao hóspede mais recente.
             const fallback = latestByProp.get(conv.property_id as string);
-            if (fallback) {
+            const convTime = timeOf(conv.last_message_at ?? conv.created_at);
+            const withinWindow = fallback
+              ? Math.abs(timeOf(fallback.created_at) - convTime) <= 1000 * 60 * 60 * 48
+              : false;
+            if (fallback && withinWindow) {
               details[conv.id as string] = {
                 name: fallback.guest_name ?? conv.guest_name,
                 phone: fallback.guest_phone,
