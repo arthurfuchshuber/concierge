@@ -124,7 +124,7 @@ ${feed}`;
   } catch {
     return [];
   }
-  const items: NewsItem[] = (parsed.items ?? []).slice(0, 7).map((it) => {
+  const items: NewsItem[] = (parsed.items ?? []).slice(0, 14).map((it) => {
     const src = typeof it.sourceIndex === "number" ? params.candidates[it.sourceIndex] : undefined;
     const siteName = src?.metadata?.ogSiteName ?? (src?.url ? new URL(src.url).hostname.replace(/^www\./, "") : null);
     return {
