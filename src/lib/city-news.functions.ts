@@ -78,7 +78,7 @@ PRIORIZE — turismo, hospitalidade e experiência:
 - Cultura, arte, música, teatro local.
 - Vida noturna, roteiros, experiências únicas da cidade.
 
-Se o resultado não for claramente local e positivo, descarte-o. Melhor devolver 3 itens excelentes do que 7 medianos.`;
+Se o resultado não for claramente local e positivo, descarte-o. Prefira 10 itens excelentes e variados a 12 medianos — mas garanta pelo menos 8 quando a cidade tiver oferta turística rica.`;
   const user = `Cidade-alvo: ${params.cityLabel}${params.country ? `, ${params.country}` : ""}.
 Selecione entre 8 e 12 itens EXCLUSIVAMENTE sobre esta cidade que animem um hóspede HOJE. Priorize variedade de categorias (natureza, gastronomia, evento, passeio, cultura, noite, mercado) para dar ao hóspede um leque rico de opções.
 
