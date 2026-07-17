@@ -120,9 +120,11 @@ export function GuideAiChat({ slug, propertyName, guestName }: { slug: string; p
     if (open) {
       setHasOpened(true);
       setShowNudge(false);
+      setPendingPreview(null);
       persistDismissed();
       setTimeout(() => inputRef.current?.focus(), 80);
     }
+
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
