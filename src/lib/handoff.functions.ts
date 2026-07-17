@@ -190,6 +190,7 @@ export const listHandoffConversations = createServerFn({ method: "POST" })
                 checkinDate: fallback.checkin_date,
                 reservationCode: fallback.reservation_code,
               };
+              mergeDetails[conv.id as string] = details[conv.id as string];
             }
           }
         }
