@@ -332,6 +332,10 @@ export function GuideAiChat({ slug, propertyName, guestName }: { slug: string; p
             if (!additions.length) return prev;
             const merged = [...prev, ...additions];
             saveCachedMessages(slug, conversationId, merged);
+            if (!openRef.current) {
+              const lastText = additions[additions.length - 1]?.content?.trim();
+              if (lastText) setPendingPreview(lastText);
+            }
             return merged;
           });
         }
