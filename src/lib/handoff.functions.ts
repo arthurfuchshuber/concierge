@@ -53,7 +53,7 @@ export const listHandoffConversations = createServerFn({ method: "POST" })
     // Enriquece cada conversa com nome do hóspede, telefone e check-in.
     // A identidade primária vem de guest_name da conversa; quando ela não existe,
     // usamos guide_section_events pelo guest_session_id antes de qualquer fallback.
-    // A unificação usa o MESMO detalhe exibido na lista: Nome + Check-in + Guia.
+    // A unificação usa apenas identidade real/enriquecida; fallback é só visual.
     const norm = (s: string | null | undefined) => (s ?? "").trim().toLowerCase().replace(/\s+/g, " ");
     const onlyDigits = (s: string | null | undefined) => (s ?? "").replace(/\D+/g, "").replace(/^0+/, "");
     const timeOf = (iso: string | null | undefined) => {
