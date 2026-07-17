@@ -267,15 +267,10 @@ function buildGuestIndex(data: Awaited<ReturnType<typeof loadCommon>>) {
         const dur = Math.min(SECTION_GAP_MS, Math.max(SECTION_MIN_MS, tNext - tCur)) / 1000;
         secondsBySection.set(items[i].section, (secondsBySection.get(items[i].section) ?? 0) + dur);
       }
-      const cs = convBySid.get(s.sid) ?? [];
-      for (const c of cs) {
-        g.conversationsCount++;
-        const msgs = msgsByConv.get(c.id) ?? [];
-        g.messagesCount += msgs.length;
-        if (unresolvedByConv.has(c.id)) g.hasUnresolvedFeedback = true;
-        if (c.last_message_at > g.lastActivity) g.lastActivity = c.last_message_at;
-      }
+      // conversas são atribuídas em um passo separado (abaixo) para
+      // capturar também as conversas cuja sessão não bate por sid.
     }
+
     g.sectionsCount = uniqueSections.size;
     g.totalSeconds = Math.round(g.totalSeconds);
     g.maxSessionSeconds = Math.round(maxS);
