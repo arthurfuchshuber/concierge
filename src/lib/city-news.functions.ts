@@ -33,7 +33,7 @@ async function firecrawlSearch(query: string): Promise<FirecrawlSearchResult[]> 
   const r = await fetch("https://api.firecrawl.dev/v2/search", {
     method: "POST",
     headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ query, limit: 10, tbs: "qdr:w", lang: "pt", country: "br" }),
+    body: JSON.stringify({ query, limit: 20, tbs: "qdr:w", lang: "pt", country: "br" }),
     signal: AbortSignal.timeout(9000),
   });
   if (!r.ok) return [];
