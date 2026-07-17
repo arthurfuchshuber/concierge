@@ -109,9 +109,10 @@ function EngagementPage() {
 
   const guestsFn = useServerFn(getEngagementGuests);
   const guestsQ = useQuery({
-    queryKey: ["engagement-guests", filters.period, filters.propertyIds.join(","), q, accountsKey],
+    queryKey: ["engagement-guests", filters.period, filters.propertyIds.join(","), accountsKey],
     queryFn: () => guestsFn({
-      data: { period: filters.period, propertyIds: backendPropIds, q: q || null, asUserIds: backendUserIds },
+      data: { period: filters.period, propertyIds: backendPropIds, q: null, asUserIds: backendUserIds },
+
     }),
     enabled: tab === "hospedes",
     staleTime: 30_000,
