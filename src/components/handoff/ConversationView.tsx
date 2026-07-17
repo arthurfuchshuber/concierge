@@ -287,12 +287,17 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
 
           <div className="flex flex-col gap-1 shrink-0 items-end">
             {/* Livre → assumir */}
-            {(!conv?.assigned_to && status !== "resolved") && (
-              <button onClick={() => claim.mutate()} disabled={claim.isPending} className="text-xs px-2 py-1.5 rounded-md bg-primary text-primary-foreground hover:opacity-90 inline-flex items-center gap-1">
+            {(isUnassigned && status !== "resolved") && (
+              <button onClick={handleClaim} disabled={claim.isPending} className="text-xs px-2 py-1.5 rounded-md bg-primary text-primary-foreground hover:opacity-90 inline-flex items-center gap-1">
                 <UserCheck className="size-3" /> Assumir
               </button>
             )}
-            {/* Travada por outro → pedir acesso */}
+            {/* Travada por outro → assumir (com confirmação) + pedir acesso */}
+            {isLockedByOther && status !== "resolved" && (
+              <button onClick={handleClaim} disabled={claim.isPending} className="text-xs px-2 py-1.5 rounded-md bg-primary text-primary-foreground hover:opacity-90 inline-flex items-center gap-1">
+                <UserCheck className="size-3" /> Assumir
+              </button>
+            )}
             {isLockedByOther && !iRequested && status !== "resolved" && (
               <button onClick={() => requestClaim.mutate()} disabled={requestClaim.isPending} className="text-xs px-2 py-1.5 rounded-md border border-border hover:bg-secondary inline-flex items-center gap-1">
                 <UserPlus2 className="size-3" /> Solicitar acesso
