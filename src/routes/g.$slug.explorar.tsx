@@ -348,6 +348,7 @@ function ExplorePage() {
   const [viewMode, setViewMode] = useState<"grid" | "list">("list");
   const [minReviews, setMinReviews] = useState<number>(0);
   const [query, setQuery] = useState<string>("");
+  const [accessRec, setAccessRec] = useState<ReturnType<typeof readAccessRecord>>(null);
   // "Ver Mapa" temporariamente desabilitado — state preservado no histórico do arquivo.
 
   // Tema herdado da página inicial do guia (definido pelo visitante).
@@ -358,6 +359,10 @@ function ExplorePage() {
     const stored = window.localStorage.getItem(`guide-theme:${slug}`);
     return stored === "dark" || stored === "light" ? stored : adminTheme;
   });
+
+  useEffect(() => {
+    setAccessRec(readAccessRecord(slug));
+  }, [slug]);
   const realtimePropertyId = r.status === "ok" ? ((r.property as Record<string, unknown>).id as string | null) : null;
   useCityReferencesRealtime({ propertyId: realtimePropertyId }, () => {
     void router.invalidate();
@@ -800,7 +805,7 @@ function ExplorePage() {
             })()}
         </div>
         {(r as { aiEnabled?: boolean }).aiEnabled ? (
-          <GuideAiChat slug={slug} propertyName={(p.name as string) ?? "Guia"} guestName={null} />
+          <GuideAiChat slug={slug} propertyName={(p.name as string) ?? "Guia"} guestName={accessRec?.name ?? null} />
         ) : null}
       </div>
     </EngagementCtx.Provider>

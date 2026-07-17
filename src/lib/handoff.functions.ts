@@ -50,28 +50,38 @@ export const listHandoffConversations = createServerFn({ method: "POST" })
     }
 
 
-    // Enriquece cada conversa com nome do hóspede, telefone e check-in vindos
-    // do guide_access_logs. Mantemos dois mapas:
-    //   - `details` (retornado ao cliente): usa fallback para o log mais recente
-    //     da propriedade quando a conversa não tem nome próprio — assim o UI
-    //     mostra alguma informação em vez de "Hóspede anônimo".
-    //   - `strictDetails` (interno): só popula quando existe match REAL por nome.
-    //     É esse que a unificação usa, evitando fundir hóspedes distintos.
+    // Enriquece cada conversa com nome do hóspede, telefone e check-in.
+    // A identidade primária vem de guest_name da conversa; quando ela não existe,
+    // usamos guide_section_events pelo guest_session_id antes de qualquer fallback.
+    // A unificação usa apenas identidade real/enriquecida; fallback é só visual.
     const norm = (s: string | null | undefined) => (s ?? "").trim().toLowerCase().replace(/\s+/g, " ");
+    const onlyDigits = (s: string | null | undefined) => (s ?? "").replace(/\D+/g, "").replace(/^0+/, "");
+    const timeOf = (iso: string | null | undefined) => {
+      const t = iso ? Date.parse(iso) : NaN;
+      return Number.isFinite(t) ? t : 0;
+    };
     const details: Record<string, HandoffGuestDetail> = {};
-    const strictDetails: Record<string, HandoffGuestDetail> = {};
+    const mergeDetails: Record<string, HandoffGuestDetail> = {};
     if (list.length > 0) {
       try {
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
         const propIds = Array.from(new Set(list.map((c) => c.property_id).filter(Boolean) as string[]));
-        const { data: logs } = await supabaseAdmin
-          .from("guide_access_logs")
-          .select("property_id, guest_name, guest_phone, guest_phone_country, checkin_date, reservation_code, created_at")
-          .in("property_id", propIds)
-          .order("created_at", { ascending: false })
-          .limit(2000);
+        const [logsR, eventsR] = await Promise.all([
+          supabaseAdmin
+            .from("guide_access_logs")
+            .select("property_id, guest_name, guest_phone, guest_phone_country, checkin_date, reservation_code, created_at")
+            .in("property_id", propIds)
+            .order("created_at", { ascending: false })
+            .limit(5000),
+          (supabaseAdmin.from("guide_section_events" as never) as ReturnType<typeof supabaseAdmin.from>)
+            .select("property_id, guest_session_id, guest_name, guest_phone, created_at")
+            .in("property_id", propIds)
+            .order("created_at", { ascending: false })
+            .limit(10000),
+        ]);
 
         type LogRow = {
+          property_id: string;
           guest_name: string | null;
           guest_phone: string | null;
           guest_phone_country: string | null;
@@ -79,10 +89,30 @@ export const listHandoffConversations = createServerFn({ method: "POST" })
           reservation_code: string | null;
           created_at: string;
         };
-        const bestByNameKey = new Map<string, LogRow>();
+        type EventRow = {
+          property_id: string;
+          guest_session_id: string | null;
+          guest_name: string | null;
+          guest_phone: string | null;
+          created_at: string;
+        };
+        const logs = (logsR.data ?? []) as Array<{
+          property_id: string;
+          guest_name: string | null;
+          guest_phone: string | null;
+          guest_phone_country: string | null;
+          checkin_date: string | null;
+          reservation_code: string | null;
+          created_at: string;
+        }>;
+        const events = (eventsR.data ?? []) as EventRow[];
+        const logRows: LogRow[] = [];
         const latestByProp = new Map<string, LogRow>();
-        for (const l of logs ?? []) {
+        const latestEventBySession = new Map<string, EventRow>();
+
+        for (const l of logs) {
           const row: LogRow = {
+            property_id: l.property_id as string,
             guest_name: l.guest_name as string | null,
             guest_phone: l.guest_phone as string | null,
             guest_phone_country: l.guest_phone_country as string | null,
@@ -90,34 +120,66 @@ export const listHandoffConversations = createServerFn({ method: "POST" })
             reservation_code: (l.reservation_code as string | null) ?? null,
             created_at: l.created_at as string,
           };
-          const name = norm(l.guest_name as string | null);
-          if (name) {
-            const key = `${l.property_id}|${name}`;
-            const prev = bestByNameKey.get(key);
-            const curCk = row.checkin_date ?? "";
-            const prevCk = prev?.checkin_date ?? "";
-            if (!prev || curCk > prevCk || (curCk === prevCk && row.created_at > prev.created_at)) {
-              bestByNameKey.set(key, row);
-            }
-            if (!latestByProp.has(l.property_id as string)) {
-              latestByProp.set(l.property_id as string, row);
-            }
+          logRows.push(row);
+          if (!latestByProp.has(row.property_id)) {
+            latestByProp.set(row.property_id, row);
+          }
+        }
+        for (const e of events) {
+          if (!e.guest_session_id) continue;
+          const key = `${e.property_id}|${e.guest_session_id}`;
+          if (!latestEventBySession.has(key)) {
+            latestEventBySession.set(key, e);
           }
         }
 
+        const chooseLog = (conv: HandoffConversationSummary, identity: { name?: string | null; phone?: string | null }) => {
+          const propId = conv.property_id ?? "";
+          const name = norm(identity.name);
+          const phone = onlyDigits(identity.phone);
+          const convTime = timeOf(conv.last_message_at ?? conv.created_at);
+          const candidates = logRows.filter((l) => {
+            if (l.property_id !== propId) return false;
+            if (phone && onlyDigits(l.guest_phone) === phone) return true;
+            if (name && norm(l.guest_name) === name) return true;
+            return false;
+          });
+          if (candidates.length === 0) return null;
+          return candidates.sort((a, b) => {
+            const da = Math.abs(timeOf(a.created_at) - convTime);
+            const db = Math.abs(timeOf(b.created_at) - convTime);
+            if (da !== db) return da - db;
+            return (b.checkin_date ?? "").localeCompare(a.checkin_date ?? "") || b.created_at.localeCompare(a.created_at);
+          })[0];
+        };
+
         for (const conv of list) {
-          const name = norm(conv.guest_name);
-          const strictMatch = name ? bestByNameKey.get(`${conv.property_id}|${name}`) : null;
-          if (strictMatch) {
+          const eventMatch = conv.guest_session_id
+            ? latestEventBySession.get(`${conv.property_id}|${conv.guest_session_id}`)
+            : null;
+          const identity = {
+            name: conv.guest_name ?? eventMatch?.guest_name ?? null,
+            phone: eventMatch?.guest_phone ?? null,
+          };
+          const matchedLog = chooseLog(conv, identity);
+          if (matchedLog) {
             const d: HandoffGuestDetail = {
-              name: strictMatch.guest_name ?? conv.guest_name,
-              phone: strictMatch.guest_phone,
-              phoneCountry: strictMatch.guest_phone_country,
-              checkinDate: strictMatch.checkin_date,
-              reservationCode: strictMatch.reservation_code,
+              name: matchedLog.guest_name ?? identity.name,
+              phone: matchedLog.guest_phone,
+              phoneCountry: matchedLog.guest_phone_country,
+              checkinDate: matchedLog.checkin_date,
+              reservationCode: matchedLog.reservation_code,
             };
-            strictDetails[conv.id as string] = d;
             details[conv.id as string] = d;
+            mergeDetails[conv.id as string] = d;
+          } else if (eventMatch?.guest_name || eventMatch?.guest_phone) {
+            details[conv.id as string] = {
+              name: eventMatch.guest_name ?? conv.guest_name,
+              phone: eventMatch.guest_phone,
+              phoneCountry: null,
+              checkinDate: null,
+              reservationCode: null,
+            };
           } else {
             const fallback = latestByProp.get(conv.property_id as string);
             if (fallback) {
@@ -128,6 +190,7 @@ export const listHandoffConversations = createServerFn({ method: "POST" })
                 checkinDate: fallback.checkin_date,
                 reservationCode: fallback.reservation_code,
               };
+              mergeDetails[conv.id as string] = details[conv.id as string];
             }
           }
         }
@@ -136,12 +199,11 @@ export const listHandoffConversations = createServerFn({ method: "POST" })
       }
     }
 
-    // Unifica conversas do mesmo hóspede (Nome + Data de Check-in + Guia).
-    // Usa APENAS strictDetails — nunca o fallback — para não fundir hóspedes distintos.
+    // Unifica conversas do mesmo hóspede (Nome preenchido + Data de Check-in + Guia).
     const bestByKey = new Map<string, HandoffConversationSummary>();
     const ordered: HandoffConversationSummary[] = [];
     const keyFor = (c: HandoffConversationSummary): string => {
-      const d = strictDetails[c.id as string];
+      const d = mergeDetails[c.id as string];
       const name = norm(d?.name ?? c.guest_name);
       const checkin = d?.checkinDate ?? "";
       const propId = c.property_id ?? "";

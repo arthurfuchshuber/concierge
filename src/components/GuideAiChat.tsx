@@ -5,6 +5,7 @@ import remarkGfm from "remark-gfm";
 import { GuestNotificationsPrompt } from "@/components/GuestNotificationsPrompt";
 import { AudioRecorderButton, type RecordedAudio } from "@/components/handoff/AudioRecorderButton";
 import { AttachmentBubble, type AttachmentInfo } from "@/components/handoff/AttachmentBubble";
+import { readAccessRecord } from "@/components/GuideAccessGate";
 
 type Msg = {
   role: "user" | "assistant" | "system";
@@ -235,10 +236,11 @@ export function GuideAiChat({ slug, propertyName, guestName }: { slug: string; p
     setInput("");
     setLoading(true);
     try {
+      const effectiveGuestName = guestName ?? readAccessRecord(slug)?.name ?? undefined;
       const res = await fetch("/api/public/guide-chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ slug, sessionId, conversationId, message: text, guestName: guestName ?? undefined, forceAi: forceAi || undefined }),
+        body: JSON.stringify({ slug, sessionId, conversationId, message: text, guestName: effectiveGuestName, forceAi: forceAi || undefined }),
       });
       const data = (await res.json().catch(() => ({}))) as { conversationId?: string; reply?: string; error?: string; handoff?: boolean; humanMode?: boolean };
       if (!res.ok) {
