@@ -61,6 +61,7 @@ export const listHandoffConversations = createServerFn({ method: "POST" })
       return Number.isFinite(t) ? t : 0;
     };
     const details: Record<string, HandoffGuestDetail> = {};
+    const mergeDetails: Record<string, HandoffGuestDetail> = {};
     if (list.length > 0) {
       try {
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -170,6 +171,7 @@ export const listHandoffConversations = createServerFn({ method: "POST" })
               reservationCode: matchedLog.reservation_code,
             };
             details[conv.id as string] = d;
+            mergeDetails[conv.id as string] = d;
           } else if (eventMatch?.guest_name || eventMatch?.guest_phone) {
             details[conv.id as string] = {
               name: eventMatch.guest_name ?? conv.guest_name,
@@ -200,7 +202,7 @@ export const listHandoffConversations = createServerFn({ method: "POST" })
     const bestByKey = new Map<string, HandoffConversationSummary>();
     const ordered: HandoffConversationSummary[] = [];
     const keyFor = (c: HandoffConversationSummary): string => {
-      const d = details[c.id as string];
+      const d = mergeDetails[c.id as string];
       const name = norm(d?.name ?? c.guest_name);
       const checkin = d?.checkinDate ?? "";
       const propId = c.property_id ?? "";
