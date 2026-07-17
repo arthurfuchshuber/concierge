@@ -390,7 +390,26 @@ export const getHandoffConversation = createServerFn({ method: "POST" })
       assignedProfile = { userId: conv.assigned_to, displayName: prof?.full_name ?? null };
     }
 
-    return { conversation: conv, messages: msgs ?? [], guestDetails, claimRequester, assignedProfile };
+    // Perfis de todos os remetentes humanos (para exibir o nome em negrito nas mensagens).
+    const senderIds = Array.from(
+      new Set(
+        (msgs ?? [])
+          .map((m) => (m as { sender_user_id: string | null }).sender_user_id)
+          .filter((v): v is string => !!v),
+      ),
+    );
+    const senderProfiles: Record<string, { displayName: string | null }> = {};
+    if (senderIds.length > 0) {
+      const { data: profs } = await supabase
+        .from("profiles")
+        .select("id, full_name")
+        .in("id", senderIds);
+      for (const p of profs ?? []) {
+        senderProfiles[p.id as string] = { displayName: (p.full_name as string) ?? null };
+      }
+    }
+
+    return { conversation: conv, messages: msgs ?? [], guestDetails, claimRequester, assignedProfile, senderProfiles };
   });
 
 // -------- Claim / assign to me (bloqueia se já está com outro atendente) --------
