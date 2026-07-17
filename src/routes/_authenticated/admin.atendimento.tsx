@@ -94,6 +94,29 @@ function AtendimentoPage() {
   const conversations = list.data?.conversations ?? [];
   const details = list.data?.details ?? {};
 
+  const filteredConversations = (() => {
+    const term = search.trim().toLowerCase();
+    if (!term) return conversations;
+    const digits = term.replace(/\D+/g, "");
+    return conversations.filter((c) => {
+      const d = details[c.id];
+      const prop = Array.isArray(c.properties) ? c.properties[0] : c.properties;
+      const checkin = d?.checkinDate ?? null;
+      const hay = [
+        d?.name ?? c.guest_name ?? "",
+        prop?.name ?? "",
+        d?.reservationCode ?? "",
+        c.handoff_reason ?? "",
+        checkin ?? "",
+        checkin ? new Date(checkin).toLocaleDateString("pt-BR") : "",
+      ].join(" ").toLowerCase();
+      if (hay.includes(term)) return true;
+      if (digits && d?.phone && d.phone.replace(/\D+/g, "").includes(digits)) return true;
+      return false;
+    });
+  })();
+
+
   return (
     <div className="h-[calc(100vh-0px)] lg:h-screen flex flex-col">
       <header className="border-b border-border px-4 lg:px-6 py-3 flex items-center gap-3 shrink-0">
