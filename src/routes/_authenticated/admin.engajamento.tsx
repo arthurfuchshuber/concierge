@@ -232,13 +232,12 @@ function EngagementPage() {
                   <>
                     <GuestsTable
                       guests={guestsQ.data.guests}
-                      q={q}
-                      onQ={(v) => patch({ q: v })}
                       onSelect={(guestKey) => {
                         const g = guestsQ.data?.guests.find((x) => x.key === guestKey);
                         setDetail({ kind: "guest", guestKey, accountId: g?.accountId ?? null });
                       }}
                     />
+
                   </>
                 ) : null}
               </TabsContent>
