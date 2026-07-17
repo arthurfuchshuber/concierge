@@ -69,10 +69,14 @@ export function GuideAiChat({ slug, propertyName, guestName }: { slug: string; p
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [pendingPreview, setPendingPreview] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const forceAiNextRef = useRef(false);
+  const openRef = useRef(open);
+  useEffect(() => { openRef.current = open; }, [open]);
   const { greeting, hint } = getTimeContext();
+
 
   useEffect(() => {
     setSessionId(getSessionId(slug));
