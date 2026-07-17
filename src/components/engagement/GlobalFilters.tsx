@@ -107,7 +107,7 @@ export function FiltersIconButton({
             className="flex-1"
             onClick={() => {
               onChange({ period: "30d", propertyIds: ["all"], device: "all" });
-              onAccountChange(null, null);
+              onAccountsChange([]);
             }}
           >
             Limpar
