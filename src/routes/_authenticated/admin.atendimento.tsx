@@ -1,4 +1,4 @@
-import { createFileRoute, useSearch, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useSearch } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
@@ -9,11 +9,9 @@ import {
 } from "@/lib/handoff.functions";
 import { ConversationList, ConversationView, useMyUserId } from "@/components/handoff/ConversationView";
 import { Headphones, Inbox, User, CheckCircle2, ListChecks, Bot, MessagesSquare } from "lucide-react";
-import { AccountMultiSelect } from "@/components/engagement/AccountMultiSelect";
 
 const searchSchema = z.object({
   conv: z.string().uuid().optional(),
-  account: z.string().optional().default(""),
 });
 
 export const Route = createFileRoute("/_authenticated/admin/atendimento")({
@@ -33,16 +31,10 @@ const QUEUES: Array<{ key: Queue; label: string; icon: typeof Inbox }> = [
 ];
 
 function AtendimentoPage() {
-  const { conv, account } = useSearch({ from: "/_authenticated/admin/atendimento" });
-  const navigate = useNavigate({ from: "/_authenticated/admin/atendimento" });
+  const { conv } = useSearch({ from: "/_authenticated/admin/atendimento" });
   const accessFn = useServerFn(getAtendimentoAccess);
   const listFn = useServerFn(listHandoffConversations);
   const myUserId = useMyUserId();
-
-  const accountIds: string[] = account
-    ? account.split(",").map((s: string) => s.trim()).filter(Boolean)
-    : [];
-  const accountsKey = accountIds.join(",") || "self";
 
   const access = useQuery({
     queryKey: ["handoff-access"],
@@ -59,16 +51,10 @@ function AtendimentoPage() {
   useEffect(() => { if (conv) setActiveId(conv); }, [conv]);
 
   const list = useQuery({
-    queryKey: ["handoff-list", queue, accountsKey],
+    queryKey: ["handoff-list", queue],
     queryFn: async () => {
       try {
-        return await listFn({
-          data: {
-            queue,
-            limit: 100,
-            asUserIds: accountIds.length > 0 ? accountIds : null,
-          },
-        });
+        return await listFn({ data: { queue, limit: 100 } });
       }
       catch { return { conversations: [], details: {} }; }
     },
@@ -104,21 +90,11 @@ function AtendimentoPage() {
   const conversations = list.data?.conversations ?? [];
   const details = list.data?.details ?? {};
 
-  function setAccounts(ids: string[]) {
-    navigate({
-      search: (prev: z.infer<typeof searchSchema>) => ({ ...prev, account: ids.join(",") }),
-      replace: true,
-    });
-  }
-
   return (
     <div className="h-[calc(100vh-0px)] lg:h-screen flex flex-col">
       <header className="border-b border-border px-4 lg:px-6 py-3 flex items-center gap-3 shrink-0">
         <Headphones className="size-5 text-primary" />
         <h1 className="font-display text-lg lg:text-xl flex-1 min-w-0 truncate">Central de atendimento</h1>
-        <div className="shrink-0">
-          <AccountMultiSelect value={accountIds} onChange={setAccounts} />
-        </div>
       </header>
       <div className="flex-1 min-h-0 flex">
         {/* Filas */}
