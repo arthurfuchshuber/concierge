@@ -115,7 +115,7 @@ export function GuestsTable({
         </div>
       ) : (
         <div className="overflow-x-auto sg-elegant-scroll">
-          <table className="w-full text-sm min-w-[1180px]">
+          <table className="w-full text-sm min-w-[1320px]">
             <thead className="bg-muted/40 text-[10px] uppercase tracking-wider text-muted-foreground select-none">
               <tr>
                 <th
