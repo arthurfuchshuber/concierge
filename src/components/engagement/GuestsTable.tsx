@@ -123,9 +123,10 @@ export function GuestsTable({
           <Search className="size-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
           <Input
             value={q}
-            onChange={(e) => onQ(e.target.value)}
-            placeholder="Nome, telefone, reserva…"
+            onChange={(e) => { setQ(e.target.value); setPage(1); }}
+            placeholder="Nome, telefone, guia, check-in, reserva…"
             className="h-8 pl-8 text-xs"
+
           />
         </div>
       </header>
