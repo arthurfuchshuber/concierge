@@ -43,7 +43,7 @@ async function firecrawlSearch(query: string): Promise<FirecrawlSearchResult[]> 
     : Array.isArray((j.data as { web?: FirecrawlSearchResult[] })?.web)
       ? (j.data as { web?: FirecrawlSearchResult[] }).web!
       : [];
-  return list.slice(0, 10);
+  return list.slice(0, 20);
 }
 
 async function curateWithAi(params: {
