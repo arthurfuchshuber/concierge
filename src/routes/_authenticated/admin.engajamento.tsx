@@ -90,7 +90,7 @@ function EngagementPage() {
   const tab = search.tab || "panorama";
   const q = search.q ?? "";
   const accountIds: string[] = search.account
-    ? search.account.split(",").map((s) => s.trim()).filter(Boolean)
+    ? search.account.split(",").map((s: string) => s.trim()).filter(Boolean)
     : [];
 
   const backendPropIds = filters.propertyIds.includes("all") ? null : filters.propertyIds;
