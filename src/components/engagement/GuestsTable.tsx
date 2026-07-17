@@ -45,19 +45,39 @@ function SortIndicator({ active, dir }: { active: boolean; dir: "asc" | "desc" }
 }
 
 export function GuestsTable({
-  guests, q, onQ, onSelect,
+  guests, onSelect,
 }: {
   guests: GuestListItem[];
-  q: string;
-  onQ: (v: string) => void;
   onSelect: (guestKey: string) => void;
 }) {
   const [sort, setSort] = useState<SortState>({ key: "lastActivity", dir: "desc" });
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
+  const [q, setQ] = useState("");
+
+  const filtered = useMemo(() => {
+    const term = q.trim().toLowerCase();
+    if (!term) return guests;
+    const digits = term.replace(/\D+/g, "");
+    return guests.filter((g) => {
+      const hay = [
+        g.guestName,
+        g.propertyName,
+        g.accountName,
+        g.reservationCode ?? "",
+        g.topSection ?? "",
+        g.propertyCity ?? "",
+        g.checkinDate ?? "",
+        g.checkinDate ? new Date(g.checkinDate).toLocaleDateString("pt-BR") : "",
+      ].join(" ").toLowerCase();
+      if (hay.includes(term)) return true;
+      if (digits && g.phone && g.phone.includes(digits)) return true;
+      return false;
+    });
+  }, [guests, q]);
 
   const sorted = useMemo(() => {
-    const arr = [...guests];
+    const arr = [...filtered];
     const dir = sort.dir === "asc" ? 1 : -1;
     const cmpStr = (a: string, b: string) => a.localeCompare(b, "pt-BR", { sensitivity: "base" });
     arr.sort((a, b) => {
@@ -72,7 +92,8 @@ export function GuestsTable({
       }
     });
     return arr;
-  }, [guests, sort]);
+  }, [filtered, sort]);
+
 
   function toggle(key: SortKey, defaultDir: "asc" | "desc" = "desc") {
     setSort((prev) =>
