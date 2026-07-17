@@ -369,9 +369,43 @@ export function GuideAiChat({ slug, propertyName, guestName }: { slug: string; p
   return (
     <>
       {!open && (
-        <div className="fixed bottom-5 right-5 z-40 flex flex-col items-end gap-3">
+        <div
+          className="fixed right-4 sm:right-5 z-40 flex flex-col items-end gap-3"
+          style={{ bottom: "calc(env(safe-area-inset-bottom, 0px) + 96px)" }}
+        >
+          {/* Popup preview when AI replies while chat is closed */}
+          {pendingPreview && (
+            <div className="relative animate-in slide-in-from-bottom-2 fade-in duration-300">
+              <div className="max-w-[280px] rounded-2xl rounded-br-sm bg-background border-2 border-emerald-400/60 shadow-[0_20px_50px_-16px_rgba(16,185,129,0.35)] px-4 py-3">
+                <button
+                  type="button"
+                  onClick={() => setPendingPreview(null)}
+                  className="absolute top-2 right-2 size-5 grid place-items-center rounded-full text-muted-foreground hover:text-foreground transition-colors"
+                  aria-label="Fechar"
+                >
+                  <X className="size-3" />
+                </button>
+                <p className="text-[10px] font-black text-emerald-600 uppercase tracking-[0.18em] mb-1.5 flex items-center gap-1.5">
+                  <span className="inline-block size-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  Concierge IA respondeu
+                </p>
+                <p className="text-[12.5px] leading-relaxed text-foreground/90 line-clamp-4">
+                  {pendingPreview}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => { setPendingPreview(null); setOpen(true); }}
+                  className="mt-2.5 inline-flex items-center gap-1 text-[11.5px] font-bold text-emerald-700 hover:text-emerald-800 transition-colors"
+                >
+                  Abrir chat →
+                </button>
+              </div>
+              <div className="absolute -bottom-1.5 right-5 size-3 bg-background border-r-2 border-b-2 border-emerald-400/60 rotate-45" />
+            </div>
+          )}
+
           {/* Proactive nudge bubble */}
-          {showNudge && !hasOpened && (
+          {showNudge && !hasOpened && !pendingPreview && (
             <div className="relative animate-in slide-in-from-bottom-2 fade-in duration-500">
               <div className="max-w-[244px] rounded-2xl rounded-br-sm bg-background border border-border shadow-elevated px-4 py-3">
                 <button
@@ -399,25 +433,29 @@ export function GuideAiChat({ slug, propertyName, guestName }: { slug: string; p
                   Pedir sugestões agora →
                 </button>
               </div>
-              {/* tail */}
               <div className="absolute -bottom-1.5 right-5 size-3 bg-background border-r border-b border-border rotate-45" />
             </div>
           )}
+
           <button
             type="button"
             onClick={() => setOpen(true)}
             aria-label="Abrir assistente do guia"
             title="Peça dicas à IA"
-            className="group relative inline-flex items-center gap-2 px-4 sm:px-5 h-14 rounded-full bg-foreground text-background shadow-[0_14px_36px_-16px_oklch(from_var(--foreground)_l_c_h/0.45)] hover:shadow-[0_18px_44px_-18px_oklch(from_var(--foreground)_l_c_h/0.55)] active:scale-95 transition-all"
+            className="group relative inline-flex items-center gap-2 px-4 sm:px-5 h-14 rounded-full bg-emerald-500 text-white shadow-[0_16px_38px_-14px_rgba(16,185,129,0.7)] hover:bg-emerald-600 hover:shadow-[0_20px_46px_-16px_rgba(16,185,129,0.85)] active:scale-95 transition-all"
           >
-            <MessageCircleMore className="relative size-5 group-hover:scale-110 transition-transform" strokeWidth={2} />
-            <span className="hidden sm:inline text-[13px] font-semibold tracking-tight">
-              Pedir dicas à IA
+            {loading && (
+              <span className="absolute -top-1 -right-1 size-3.5 rounded-full bg-amber-400 ring-2 ring-background animate-pulse" title="Pensando…" />
+            )}
+            <MessageCircleMore className="relative size-5 group-hover:scale-110 transition-transform" strokeWidth={2.1} />
+            <span className="hidden sm:inline text-[13px] font-bold tracking-tight">
+              {loading ? "Pensando…" : "Pedir dicas à IA"}
             </span>
           </button>
 
         </div>
       )}
+
 
       {open && (
         <>
