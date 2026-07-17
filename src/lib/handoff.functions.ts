@@ -95,7 +95,42 @@ export const listHandoffConversations = createServerFn({ method: "POST" })
       }
     }
 
-    return { conversations: list, details };
+    // Unifica conversas do mesmo hóspede (mesmo Nome + mesma Data de Check-in + mesmo Guia/Propriedade).
+    // Mantém a conversa mais recente como canônica; conversas mais antigas do mesmo grupo são descartadas.
+    const norm = (s: string | null | undefined) => (s ?? "").trim().toLowerCase().replace(/\s+/g, " ");
+    const bestByKey = new Map<string, HandoffConversationSummary>();
+    const ordered: HandoffConversationSummary[] = [];
+    for (const conv of list) {
+      const d = details[conv.id as string];
+      const name = norm(d?.name ?? conv.guest_name);
+      const checkin = d?.checkinDate ?? "";
+      const propId = conv.property_id ?? "";
+      // Sem nome não dá para unificar com segurança — mantém como grupo próprio.
+      const key = name && checkin && propId ? `${propId}|${name}|${checkin}` : `__solo__:${conv.id}`;
+      const prev = bestByKey.get(key);
+      const prevTs = prev ? Date.parse(prev.last_message_at ?? "") : -1;
+      const curTs = Date.parse(conv.last_message_at ?? "");
+      if (!prev) {
+        bestByKey.set(key, conv);
+        ordered.push(conv);
+      } else if (curTs > prevTs) {
+        // Substitui a canônica na mesma posição da lista
+        const idx = ordered.indexOf(prev);
+        if (idx >= 0) ordered[idx] = conv;
+        bestByKey.set(key, conv);
+      }
+    }
+    const deduped = ordered.filter((c) => bestByKey.get(
+      (() => {
+        const d = details[c.id as string];
+        const name = norm(d?.name ?? c.guest_name);
+        const checkin = d?.checkinDate ?? "";
+        const propId = c.property_id ?? "";
+        return name && checkin && propId ? `${propId}|${name}|${checkin}` : `__solo__:${c.id}`;
+      })(),
+    ) === c);
+
+    return { conversations: deduped, details };
   });
 
 
