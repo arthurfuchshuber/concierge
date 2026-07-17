@@ -1821,14 +1821,14 @@ function HeroCompact({
             className={`absolute inset-0 ${
               isDark
                 ? "bg-[linear-gradient(90deg,rgba(5,6,18,0.74)_0%,rgba(5,6,18,0.34)_47%,rgba(5,6,18,0.05)_100%)]"
-                : "bg-[linear-gradient(90deg,rgba(255,255,255,0.74)_0%,rgba(255,255,255,0.42)_42%,rgba(255,255,255,0.08)_100%)]"
+                : "bg-[linear-gradient(90deg,rgba(255,255,255,0.42)_0%,rgba(255,255,255,0.18)_45%,rgba(255,255,255,0)_100%)]"
             }`}
           />
           <div
-            className={`absolute inset-x-0 bottom-0 h-[58%] ${
+            className={`absolute inset-x-0 bottom-0 h-[62%] ${
               isDark
                 ? "bg-[linear-gradient(0deg,rgba(5,6,18,0.82),rgba(5,6,18,0.22),transparent)]"
-                : "bg-[linear-gradient(0deg,rgba(255,255,255,0.76),rgba(255,255,255,0.32),transparent)]"
+                : "bg-[linear-gradient(to_top,rgba(255,255,255,0.86)_0%,rgba(255,255,255,0.72)_22%,rgba(255,255,255,0.44)_50%,rgba(255,255,255,0.18)_75%,rgba(255,255,255,0)_100%)]"
             }`}
           />
           {/* pink corner blob removed for a cleaner hero */}
