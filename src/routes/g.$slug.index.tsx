@@ -1952,12 +1952,18 @@ function SectionCard({
               src={imageUrl}
               alt=""
               loading="lazy"
-              className="absolute inset-y-0 right-0 w-[54%] object-cover opacity-70"
+              className="absolute inset-y-0 right-0 w-[62%] object-cover opacity-95"
               onError={(e) => {
                 (e.currentTarget as HTMLImageElement).style.display = "none";
               }}
             />
-            <span className={`pointer-events-none absolute inset-y-0 right-0 w-[72%] ${isDark ? "bg-gradient-to-r from-[#080815] via-[#080815]/70 to-transparent" : "bg-gradient-to-r from-white via-white/76 to-transparent"}`} />
+            <span
+              className={`pointer-events-none absolute inset-y-0 right-0 w-[82%] ${
+                isDark
+                  ? "bg-[linear-gradient(to_right,#080815_0%,rgba(8,8,21,0.94)_18%,rgba(8,8,21,0.72)_38%,rgba(8,8,21,0.36)_62%,rgba(8,8,21,0.08)_84%,rgba(8,8,21,0)_100%)]"
+                  : "bg-[linear-gradient(to_right,#ffffff_0%,rgba(255,255,255,0.96)_16%,rgba(255,255,255,0.78)_36%,rgba(255,255,255,0.42)_60%,rgba(255,255,255,0.14)_82%,rgba(255,255,255,0)_100%)]"
+              }`}
+            />
           </>
         )}
         {!imageUrl && isDark && (
