@@ -49,7 +49,7 @@ function AtendimentoPage() {
 
   const [queue, setQueue] = useState<Queue>("needs_human");
   const [activeId, setActiveId] = useState<string | null>(conv ?? null);
-  const [q, setQ] = useState("");
+  const [search, setSearch] = useState("");
 
 
   useEffect(() => { if (conv) setActiveId(conv); }, [conv]);
