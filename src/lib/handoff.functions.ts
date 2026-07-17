@@ -51,12 +51,15 @@ export const listHandoffConversations = createServerFn({ method: "POST" })
 
 
     // Enriquece cada conversa com nome do hóspede, telefone e check-in vindos
-    // do guide_access_logs correspondente (mesma propriedade + mesmo nome).
-    // IMPORTANTE: NÃO fazemos fallback para "o log mais recente da propriedade"
-    // — isso vazaria dados de outro hóspede e faria a unificação (Nome + Check-in
-    // + Guia) fundir conversas de pessoas diferentes.
+    // do guide_access_logs. Mantemos dois mapas:
+    //   - `details` (retornado ao cliente): usa fallback para o log mais recente
+    //     da propriedade quando a conversa não tem nome próprio — assim o UI
+    //     mostra alguma informação em vez de "Hóspede anônimo".
+    //   - `strictDetails` (interno): só popula quando existe match REAL por nome.
+    //     É esse que a unificação usa, evitando fundir hóspedes distintos.
     const norm = (s: string | null | undefined) => (s ?? "").trim().toLowerCase().replace(/\s+/g, " ");
     const details: Record<string, HandoffGuestDetail> = {};
+    const strictDetails: Record<string, HandoffGuestDetail> = {};
     if (list.length > 0) {
       try {
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -67,46 +70,65 @@ export const listHandoffConversations = createServerFn({ method: "POST" })
           .in("property_id", propIds)
           .order("created_at", { ascending: false })
           .limit(2000);
-        // Indexa por (property_id | nome-normalizado) → mantém o log com MAIOR checkin_date
-        // para bater com o critério usado em Engajamento.
-        const bestLogByKey = new Map<string, {
+
+        type LogRow = {
           guest_name: string | null;
           guest_phone: string | null;
           guest_phone_country: string | null;
           checkin_date: string | null;
           reservation_code: string | null;
           created_at: string;
-        }>();
+        };
+        const bestByNameKey = new Map<string, LogRow>();
+        const latestByProp = new Map<string, LogRow>();
         for (const l of logs ?? []) {
+          const row: LogRow = {
+            guest_name: l.guest_name as string | null,
+            guest_phone: l.guest_phone as string | null,
+            guest_phone_country: l.guest_phone_country as string | null,
+            checkin_date: (l.checkin_date as string | null) ?? null,
+            reservation_code: (l.reservation_code as string | null) ?? null,
+            created_at: l.created_at as string,
+          };
           const name = norm(l.guest_name as string | null);
-          if (!name) continue;
-          const key = `${l.property_id}|${name}`;
-          const prev = bestLogByKey.get(key);
-          const curCk = (l.checkin_date as string | null) ?? "";
-          const prevCk = prev?.checkin_date ?? "";
-          if (!prev || curCk > prevCk || (curCk === prevCk && (l.created_at as string) > prev.created_at)) {
-            bestLogByKey.set(key, {
-              guest_name: l.guest_name as string | null,
-              guest_phone: l.guest_phone as string | null,
-              guest_phone_country: l.guest_phone_country as string | null,
-              checkin_date: (l.checkin_date as string | null) ?? null,
-              reservation_code: (l.reservation_code as string | null) ?? null,
-              created_at: l.created_at as string,
-            });
+          if (name) {
+            const key = `${l.property_id}|${name}`;
+            const prev = bestByNameKey.get(key);
+            const curCk = row.checkin_date ?? "";
+            const prevCk = prev?.checkin_date ?? "";
+            if (!prev || curCk > prevCk || (curCk === prevCk && row.created_at > prev.created_at)) {
+              bestByNameKey.set(key, row);
+            }
+            if (!latestByProp.has(l.property_id as string)) {
+              latestByProp.set(l.property_id as string, row);
+            }
           }
         }
+
         for (const conv of list) {
           const name = norm(conv.guest_name);
-          if (!name) continue;
-          const match = bestLogByKey.get(`${conv.property_id}|${name}`);
-          if (match) {
-            details[conv.id as string] = {
-              name: match.guest_name ?? conv.guest_name,
-              phone: match.guest_phone,
-              phoneCountry: match.guest_phone_country,
-              checkinDate: match.checkin_date,
-              reservationCode: match.reservation_code,
+          const strictMatch = name ? bestByNameKey.get(`${conv.property_id}|${name}`) : null;
+          if (strictMatch) {
+            const d: HandoffGuestDetail = {
+              name: strictMatch.guest_name ?? conv.guest_name,
+              phone: strictMatch.guest_phone,
+              phoneCountry: strictMatch.guest_phone_country,
+              checkinDate: strictMatch.checkin_date,
+              reservationCode: strictMatch.reservation_code,
             };
+            strictDetails[conv.id as string] = d;
+            details[conv.id as string] = d;
+          } else {
+            const fallback = latestByProp.get(conv.property_id as string);
+            if (fallback) {
+              details[conv.id as string] = {
+                name: fallback.guest_name ?? conv.guest_name,
+                phone: fallback.guest_phone,
+                phoneCountry: fallback.guest_phone_country,
+                checkinDate: fallback.checkin_date,
+                reservationCode: fallback.reservation_code,
+              };
+            }
           }
         }
       } catch {
@@ -114,13 +136,12 @@ export const listHandoffConversations = createServerFn({ method: "POST" })
       }
     }
 
-    // Unifica conversas do mesmo hóspede (mesmo Nome + mesma Data de Check-in + mesmo Guia/Propriedade).
-    // Só unifica quando os TRÊS estão preenchidos — sem isso, mantém como conversa própria
-    // (evita fundir hóspedes distintos que ainda não tiveram nome/checkin resolvidos).
+    // Unifica conversas do mesmo hóspede (Nome + Data de Check-in + Guia).
+    // Usa APENAS strictDetails — nunca o fallback — para não fundir hóspedes distintos.
     const bestByKey = new Map<string, HandoffConversationSummary>();
     const ordered: HandoffConversationSummary[] = [];
     const keyFor = (c: HandoffConversationSummary): string => {
-      const d = details[c.id as string];
+      const d = strictDetails[c.id as string];
       const name = norm(d?.name ?? c.guest_name);
       const checkin = d?.checkinDate ?? "";
       const propId = c.property_id ?? "";
