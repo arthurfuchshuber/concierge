@@ -288,27 +288,65 @@ export const getHandoffConversation = createServerFn({ method: "POST" })
     } = { name: conv.guest_name, phone: null, phoneCountry: null, checkinDate: null, reservationCode: null };
     try {
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-      // Só enriquece quando temos nome — sem nome não dá para casar sem risco de vazar dados
-      // de outro hóspede da mesma propriedade. Escolhemos o log com maior checkin_date
-      // (mesmo critério do Engajamento).
-      if (conv.guest_name) {
-        const { data: logs } = await supabaseAdmin
-          .from("guide_access_logs")
-          .select("guest_name, guest_phone, guest_phone_country, checkin_date, reservation_code, created_at")
-          .eq("property_id", conv.property_id)
-          .ilike("guest_name", conv.guest_name)
-          .order("checkin_date", { ascending: false, nullsFirst: false })
-          .order("created_at", { ascending: false })
-          .limit(1);
-        const log = logs?.[0];
+      if (conv.property_id) {
+        const norm = (s: string | null | undefined) => (s ?? "").trim().toLowerCase().replace(/\s+/g, " ");
+        const onlyDigits = (s: string | null | undefined) => (s ?? "").replace(/\D+/g, "").replace(/^0+/, "");
+        const timeOf = (iso: string | null | undefined) => {
+          const t = iso ? Date.parse(iso) : NaN;
+          return Number.isFinite(t) ? t : 0;
+        };
+        let identity: { name: string | null; phone: string | null } = { name: conv.guest_name, phone: null };
+        if (!identity.name && conv.guest_session_id) {
+          const { data: events } = await (supabaseAdmin.from("guide_section_events" as never) as ReturnType<typeof supabaseAdmin.from>)
+            .select("guest_name, guest_phone, created_at")
+            .eq("property_id", conv.property_id)
+            .eq("guest_session_id", conv.guest_session_id)
+            .or("guest_name.not.is.null,guest_phone.not.is.null")
+            .order("created_at", { ascending: false })
+            .limit(1);
+          const event = (events as Array<{ guest_name: string | null; guest_phone: string | null }> | null)?.[0];
+          if (event) identity = { name: event.guest_name, phone: event.guest_phone };
+        }
+
+        const phone = onlyDigits(identity.phone);
+        const name = norm(identity.name);
+        type AccessLog = { guest_name: string | null; guest_phone: string | null; guest_phone_country: string | null; checkin_date: string | null; reservation_code: string | null; created_at: string };
+        let log: AccessLog | null = null;
+        if (name || phone) {
+          const { data: logs } = await supabaseAdmin
+            .from("guide_access_logs")
+            .select("guest_name, guest_phone, guest_phone_country, checkin_date, reservation_code, created_at")
+            .eq("property_id", conv.property_id)
+            .order("checkin_date", { ascending: false, nullsFirst: false })
+            .order("created_at", { ascending: false })
+            .limit(100);
+          log = ((logs ?? []) as AccessLog[]).find((l) =>
+            (phone && onlyDigits(l.guest_phone) === phone) || (name && norm(l.guest_name) === name),
+          ) ?? null;
+        }
+        if (!log) {
+          const anchor = timeOf(conv.created_at) || timeOf(conv.last_message_at);
+          const { data: logs } = await supabaseAdmin
+            .from("guide_access_logs")
+            .select("guest_name, guest_phone, guest_phone_country, checkin_date, reservation_code, created_at")
+            .eq("property_id", conv.property_id)
+            .order("created_at", { ascending: false })
+            .limit(500);
+          log = ((logs ?? []) as AccessLog[]).filter((l) => {
+            if (!anchor || (!l.guest_name && !l.guest_phone)) return false;
+            return Math.abs(timeOf(l.created_at) - anchor) <= 1000 * 60 * 60 * 6;
+          }).sort((a, b) => Math.abs(timeOf(a.created_at) - anchor) - Math.abs(timeOf(b.created_at) - anchor))[0] ?? null;
+        }
         if (log) {
           guestDetails = {
-            name: log.guest_name ?? conv.guest_name,
+            name: log.guest_name ?? identity.name,
             phone: log.guest_phone,
             phoneCountry: log.guest_phone_country,
             checkinDate: log.checkin_date,
             reservationCode: log.reservation_code,
           };
+        } else if (identity.name || identity.phone) {
+          guestDetails = { ...guestDetails, name: identity.name, phone: identity.phone };
         }
       }
     } catch {
