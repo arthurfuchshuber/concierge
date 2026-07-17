@@ -40,7 +40,7 @@ function AtendimentoPage() {
   const myUserId = useMyUserId();
 
   const accountIds: string[] = account
-    ? account.split(",").map((s) => s.trim()).filter(Boolean)
+    ? account.split(",").map((s: string) => s.trim()).filter(Boolean)
     : [];
   const accountsKey = accountIds.join(",") || "self";
 
