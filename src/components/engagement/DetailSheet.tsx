@@ -1,7 +1,8 @@
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Link } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
-import { Home as HomeIcon, ExternalLink, User, Clock, Layers, MessageSquare, AlertCircle } from "lucide-react";
+import { Home as HomeIcon, ExternalLink, User, Clock, Layers, MessageSquare, AlertCircle, Activity } from "lucide-react";
+import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { LineChart, Line, ResponsiveContainer, Tooltip, XAxis } from "recharts";
@@ -148,11 +149,20 @@ function GuestDetail({ guestKey, accountId }: { guestKey: string; accountId: str
 
       {/* Timeline de navegação */}
       <section className="mt-8">
-        <h4 className="text-xs uppercase tracking-wider text-muted-foreground font-medium mb-2">Timeline</h4>
+        <div className="flex items-center justify-between mb-3">
+          <h4 className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground font-semibold flex items-center gap-1.5">
+            <Activity className="size-3" /> Timeline
+          </h4>
+          <span className="text-[10px] text-muted-foreground tabular-nums">
+            {data.sessions.length} {data.sessions.length === 1 ? "sessão" : "sessões"}
+          </span>
+        </div>
         {data.sessions.length === 0 ? (
-          <div className="text-xs text-muted-foreground">Sem eventos de navegação registrados.</div>
+          <div className="text-xs text-muted-foreground rounded-xl border border-dashed border-border p-4 text-center">
+            Sem eventos de navegação registrados.
+          </div>
         ) : (
-          <ol className="space-y-3">
+          <Accordion type="single" collapsible className="space-y-2">
             {data.sessions.map((s, idx) => {
               const perSec = new Map<string, number>();
               const seq = s.sectionsSequence;
@@ -165,35 +175,67 @@ function GuestDetail({ guestKey, accountId }: { guestKey: string; accountId: str
                 perSec.set(seq[i].section, (perSec.get(seq[i].section) ?? 0) + dur);
               }
               const uniqueSecs = Array.from(perSec.entries()).sort((a, b) => b[1] - a[1]);
+              const totalDur = uniqueSecs.reduce((acc, [, d]) => acc + d, 0) || 1;
               return (
-                <li key={s.sid} className="rounded-lg border border-border p-3 bg-muted/20">
-                  <div className="flex items-center justify-between text-[11px] text-muted-foreground mb-2 gap-3">
-                    <span className="font-medium text-foreground">Sessão {idx + 1}</span>
-                    <span className="tabular-nums">{formatDur(s.durationSeconds)}</span>
-                  </div>
-                  <div className="text-[11px] text-muted-foreground mb-2">
-                    {new Date(s.startedAt).toLocaleString("pt-BR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
-                    {" · "}
-                    {uniqueSecs.length} seç{uniqueSecs.length === 1 ? "ão" : "ões"} visitada{uniqueSecs.length === 1 ? "" : "s"}
-                  </div>
-                  {uniqueSecs.length > 0 && (
-                    <ul className="space-y-1">
-                      {uniqueSecs.map(([sec, dur]) => (
-                        <li key={sec} className="flex items-center justify-between gap-2 text-[11px]">
-                          <span className="inline-flex items-center rounded-full border border-border bg-background px-2 py-0.5">
-                            {labelFor(sec)}
-                          </span>
-                          <span className="tabular-nums text-muted-foreground">{formatDur(dur)}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </li>
+                <AccordionItem
+                  key={s.sid}
+                  value={s.sid}
+                  className="rounded-xl border border-border bg-gradient-to-b from-muted/30 to-muted/10 overflow-hidden data-[state=open]:from-primary/5 data-[state=open]:to-transparent data-[state=open]:border-primary/30 transition-colors"
+                >
+                  <AccordionTrigger className="px-3.5 py-3 hover:no-underline [&>svg]:size-4 [&>svg]:text-muted-foreground">
+                    <div className="flex-1 min-w-0 flex items-center justify-between gap-3 pr-2">
+                      <div className="min-w-0 flex items-center gap-2.5">
+                        <span className="grid place-items-center size-6 rounded-full bg-primary/10 text-primary text-[10px] font-semibold tabular-nums shrink-0">
+                          {idx + 1}
+                        </span>
+                        <div className="min-w-0 text-left">
+                          <div className="text-[13px] font-medium text-foreground leading-tight truncate">
+                            {new Date(s.startedAt).toLocaleString("pt-BR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
+                          </div>
+                          <div className="text-[10.5px] text-muted-foreground mt-0.5">
+                            {uniqueSecs.length} seç{uniqueSecs.length === 1 ? "ão" : "ões"}
+                          </div>
+                        </div>
+                      </div>
+                      <span className="tabular-nums text-[11px] font-medium text-foreground/80 shrink-0">
+                        {formatDur(s.durationSeconds)}
+                      </span>
+                    </div>
+                  </AccordionTrigger>
+                  <AccordionContent className="px-3.5 pb-3 pt-0">
+                    {uniqueSecs.length > 0 ? (
+                      <ul className="space-y-1.5 border-t border-border/60 pt-3">
+                        {uniqueSecs.map(([sec, dur]) => {
+                          const pct = Math.round((dur / totalDur) * 100);
+                          return (
+                            <li key={sec} className="space-y-1">
+                              <div className="flex items-center justify-between gap-2 text-[11px]">
+                                <span className="font-medium text-foreground/90 truncate">{labelFor(sec)}</span>
+                                <span className="tabular-nums text-muted-foreground shrink-0">{formatDur(dur)}</span>
+                              </div>
+                              <div className="h-1 rounded-full bg-muted overflow-hidden">
+                                <div
+                                  className="h-full bg-primary/60 rounded-full"
+                                  style={{ width: `${Math.max(4, pct)}%` }}
+                                />
+                              </div>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    ) : (
+                      <div className="text-[11px] text-muted-foreground border-t border-border/60 pt-3">
+                        Sem seções registradas nesta sessão.
+                      </div>
+                    )}
+                  </AccordionContent>
+                </AccordionItem>
               );
             })}
-          </ol>
+          </Accordion>
         )}
       </section>
+
 
       {/* Conversas com a IA — sempre listadas, independente da sessão */}
       {data.conversations.length > 0 && (
