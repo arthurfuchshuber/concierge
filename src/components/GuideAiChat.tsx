@@ -258,10 +258,13 @@ export function GuideAiChat({ slug, propertyName, guestName }: { slug: string; p
         setMessages(updated);
         saveCachedMessages(slug, data.conversationId ?? conversationId, updated);
       } else {
-        const updated = [...next, { role: "assistant" as const, content: data.reply || "" }];
+        const replyText = data.reply || "";
+        const updated = [...next, { role: "assistant" as const, content: replyText }];
         setMessages(updated);
         saveCachedMessages(slug, data.conversationId ?? conversationId, updated);
+        if (!openRef.current && replyText.trim()) setPendingPreview(replyText);
       }
+
       // Advance the polling cursor past the just-persisted user+AI rows so the
       // next poll doesn't re-append the AI reply we already rendered optimistically.
       lastFetchedAtRef.current = new Date().toISOString();
