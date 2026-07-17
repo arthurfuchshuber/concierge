@@ -8,7 +8,7 @@ import {
   getAtendimentoAccess,
 } from "@/lib/handoff.functions";
 import { ConversationList, ConversationView, useMyUserId } from "@/components/handoff/ConversationView";
-import { Headphones, Inbox, User, CheckCircle2, ListChecks, Bot, MessagesSquare, Search } from "lucide-react";
+import { Headphones, Inbox, User, CheckCircle2, Bot, MessagesSquare, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 
 
