@@ -22,6 +22,19 @@ export const listHandoffConversations = createServerFn({ method: "POST" })
     try {
       const { supabase, userId } = context;
 
+      // Auto-encerra conversas com a IA sem atividade há mais de 1 hora → resolvidas.
+      try {
+        const cutoff = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+        await supabase
+          .from("property_chat_conversations")
+          .update({ status: "resolved", resolved_at: new Date().toISOString() })
+          .eq("status", "ai")
+          .lt("last_message_at", cutoff);
+      } catch (e) {
+        // não bloqueia leitura
+        console.warn("auto-resolve AI stale failed", e);
+      }
+
       let q = supabase
         .from("property_chat_conversations")
         .select(
