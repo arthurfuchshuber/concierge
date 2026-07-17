@@ -126,6 +126,7 @@ export function GuestsTable({
                     Hóspede <SortIndicator active={active("guestName")} dir={sort.dir} />
                   </span>
                 </th>
+                <ThSort onClick={() => toggle("accountName", "asc")} active={active("accountName")} dir={sort.dir} icon={Building2} align="left">Conta</ThSort>
                 <ThSort onClick={() => toggle("propertyName", "asc")} active={active("propertyName")} dir={sort.dir} align="left">Imóvel</ThSort>
                 <ThSort onClick={() => toggle("checkinDate", "desc")} active={active("checkinDate")} dir={sort.dir} icon={Calendar} align="left">Check-in</ThSort>
                 <ThSort onClick={() => toggle("lastActivity", "desc")} active={active("lastActivity")} dir={sort.dir} icon={CalendarCheck} align="left">Último acesso</ThSort>
