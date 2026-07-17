@@ -178,8 +178,8 @@ function GuestDetail({ guestKey, accountId }: { guestKey: string; accountId: str
               const totalDur = uniqueSecs.reduce((acc, [, d]) => acc + d, 0) || 1;
               return (
                 <AccordionItem
-                  key={s.sid}
-                  value={s.sid}
+                  key={`${s.sid}-${idx}`}
+                  value={`${s.sid}-${idx}`}
                   className="rounded-xl border border-border bg-gradient-to-b from-muted/30 to-muted/10 overflow-hidden data-[state=open]:from-primary/5 data-[state=open]:to-transparent data-[state=open]:border-primary/30 transition-colors"
                 >
                   <AccordionTrigger className="px-3.5 py-3 hover:no-underline [&>svg]:size-4 [&>svg]:text-muted-foreground">
