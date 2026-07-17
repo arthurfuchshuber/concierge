@@ -3,7 +3,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import {
   AlertCircle, Phone, MessageSquare, Clock, Layers, Search, Calendar, CalendarCheck,
-  MousePointerClick, Timer, Award, Star, ArrowUp, ArrowDown, ChevronsUpDown,
+  MousePointerClick, Timer, Award, Star, ArrowUp, ArrowDown, ChevronsUpDown, Building2,
 } from "lucide-react";
 import type { GuestListItem } from "@/lib/engagement-guests.functions";
 
@@ -33,7 +33,7 @@ function fmtDateTime(v: string | null | undefined): string {
 }
 
 type SortKey =
-  | "guestName" | "propertyName" | "checkinDate" | "lastActivity"
+  | "guestName" | "accountName" | "propertyName" | "checkinDate" | "lastActivity"
   | "accessesCount" | "sessionsCount" | "totalSeconds" | "avgSessionSeconds"
   | "maxSessionSeconds" | "topSection" | "messagesCount";
 
@@ -63,6 +63,7 @@ export function GuestsTable({
     arr.sort((a, b) => {
       switch (sort.key) {
         case "guestName":     return dir * cmpStr(a.guestName || "", b.guestName || "");
+        case "accountName":   return dir * cmpStr(a.accountName || "", b.accountName || "");
         case "propertyName":  return dir * cmpStr(a.propertyName || "", b.propertyName || "");
         case "topSection":    return dir * cmpStr(a.topSection || "", b.topSection || "");
         case "checkinDate":   return dir * (a.checkinDate || "").localeCompare(b.checkinDate || "");
@@ -94,7 +95,7 @@ export function GuestsTable({
         <div className="flex-1 min-w-0 pr-14 sm:pr-0">
           <h3 className="text-sm font-semibold">Hóspedes</h3>
           <p className="text-xs text-muted-foreground">
-            Consolidação por telefone + data de check-in. Clique em uma linha para ver detalhes.
+            Um hóspede por telefone (ou nome, quando não há telefone). Clique em uma linha para ver detalhes.
           </p>
         </div>
         <div className="relative w-full sm:w-72 shrink-0">
@@ -114,7 +115,7 @@ export function GuestsTable({
         </div>
       ) : (
         <div className="overflow-x-auto sg-elegant-scroll">
-          <table className="w-full text-sm min-w-[1180px]">
+          <table className="w-full text-sm min-w-[1320px]">
             <thead className="bg-muted/40 text-[10px] uppercase tracking-wider text-muted-foreground select-none">
               <tr>
                 <th
@@ -125,6 +126,7 @@ export function GuestsTable({
                     Hóspede <SortIndicator active={active("guestName")} dir={sort.dir} />
                   </span>
                 </th>
+                <ThSort onClick={() => toggle("accountName", "asc")} active={active("accountName")} dir={sort.dir} icon={Building2} align="left">Conta</ThSort>
                 <ThSort onClick={() => toggle("propertyName", "asc")} active={active("propertyName")} dir={sort.dir} align="left">Imóvel</ThSort>
                 <ThSort onClick={() => toggle("checkinDate", "desc")} active={active("checkinDate")} dir={sort.dir} icon={Calendar} align="left">Check-in</ThSort>
                 <ThSort onClick={() => toggle("lastActivity", "desc")} active={active("lastActivity")} dir={sort.dir} icon={CalendarCheck} align="left">Último acesso</ThSort>
@@ -166,6 +168,9 @@ export function GuestsTable({
                       ) : <span>sem telefone</span>}
                       {g.reservationCode && <span className="ml-1 truncate">· {g.reservationCode}</span>}
                     </div>
+                  </td>
+                  <td className="px-3 py-3 text-left text-xs text-muted-foreground truncate max-w-[160px]" title={g.accountName}>
+                    {g.accountName || "—"}
                   </td>
                   <td className="px-3 py-3 text-left text-xs text-muted-foreground truncate max-w-[200px]" title={g.propertyName}>
                     {g.propertyName}

@@ -8,11 +8,11 @@ import { Input } from "@/components/ui/input";
 import { ChevronDown, Search, Users, Loader2, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-export function AccountSelect({
+export function AccountMultiSelect({
   value, onChange, compact = false,
 }: {
-  value: string | null; // null = self / minha conta
-  onChange: (userId: string | null, name: string | null) => void;
+  value: string[]; // [] = minha conta
+  onChange: (userIds: string[]) => void;
   compact?: boolean;
 }) {
   const listFn = useServerFn(adminListCustomers);
@@ -25,32 +25,45 @@ export function AccountSelect({
     staleTime: 60_000,
   });
 
-  const filtered = useMemo(() => {
+  const all = useMemo(() => {
     const list = (q.data?.customers ?? []).filter(
       (c) => c.subscription?.status === "active" || c.subscription?.status === "trialing",
     );
-    const term = search.trim().toLowerCase();
-    const out = term
-      ? list.filter(
-          (c) =>
-            (c.fullName ?? "").toLowerCase().includes(term) ||
-            (c.email ?? "").toLowerCase().includes(term),
-        )
-      : list;
-    return [...out].sort((a, b) => {
+    return [...list].sort((a, b) => {
       const na = (a.fullName ?? a.email ?? "").toLowerCase();
       const nb = (b.fullName ?? b.email ?? "").toLowerCase();
       return na.localeCompare(nb, "pt-BR");
     });
-  }, [q.data, search]);
+  }, [q.data]);
 
-  const selectedName = useMemo(() => {
-    if (!value) return null;
-    const found = (q.data?.customers ?? []).find((c) => c.userId === value);
-    return found?.fullName ?? found?.email ?? "Cliente";
-  }, [value, q.data]);
+  const filtered = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    if (!term) return all;
+    return all.filter(
+      (c) => (c.fullName ?? "").toLowerCase().includes(term) || (c.email ?? "").toLowerCase().includes(term),
+    );
+  }, [all, search]);
 
-  const label = selectedName ?? "Minha conta";
+  const selectedSet = useMemo(() => new Set(value), [value]);
+  const nameById = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const c of all) m.set(c.userId, c.fullName || c.email || "Cliente");
+    return m;
+  }, [all]);
+
+  const label =
+    value.length === 0
+      ? "Todas as contas"
+      : value.length === 1
+        ? (nameById.get(value[0]) ?? "1 conta")
+        : `${value.length} contas`;
+
+  function toggle(id: string) {
+    if (selectedSet.has(id)) onChange(value.filter((x) => x !== id));
+    else onChange([...value, id]);
+  }
+  function selectAll() { onChange([]); }
+  function clear() { onChange([]); }
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -67,7 +80,7 @@ export function AccountSelect({
           <ChevronDown className="size-3.5 opacity-60 shrink-0" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent align="start" className="w-[300px] p-0 rounded-md">
+      <PopoverContent align="start" className="w-[320px] p-0 rounded-md">
         <div className="p-2 border-b border-border">
           <div className="relative">
             <Search className="size-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
@@ -80,17 +93,20 @@ export function AccountSelect({
             />
           </div>
         </div>
-        <div className="max-h-72 overflow-y-auto py-1">
+        <div className="flex items-center justify-between px-3 py-1.5 border-b border-border text-[11px]">
+          <button type="button" onClick={selectAll} className="text-primary hover:underline">
+            Todas
+          </button>
           <button
             type="button"
-            onClick={() => { onChange(null, null); setOpen(false); }}
-            className="w-full px-3 py-2 flex items-center gap-2 text-left text-xs hover:bg-secondary/60"
+            onClick={clear}
+            disabled={value.length === 0}
+            className="text-muted-foreground hover:text-foreground disabled:opacity-40"
           >
-            <div className={cn("flex size-4 items-center justify-center rounded-sm border", !value ? "bg-primary border-primary text-primary-foreground" : "border-border")}>
-              {!value && <Check className="size-3" />}
-            </div>
-            <span>Minha conta</span>
+            Limpar
           </button>
+        </div>
+        <div className="max-h-72 overflow-y-auto py-1">
           {q.isLoading ? (
             <div className="p-6 text-center text-xs text-muted-foreground flex items-center justify-center gap-2">
               <Loader2 className="size-3.5 animate-spin" /> Carregando…
@@ -100,12 +116,12 @@ export function AccountSelect({
           ) : (
             filtered.map((c) => {
               const name = c.fullName || c.email || "(sem nome)";
-              const active = value === c.userId;
+              const active = selectedSet.has(c.userId);
               return (
                 <button
                   key={c.userId}
                   type="button"
-                  onClick={() => { onChange(c.userId, name); setOpen(false); }}
+                  onClick={() => toggle(c.userId)}
                   className={cn("w-full px-3 py-2 flex items-center gap-2 text-left text-xs", active ? "bg-accent/10" : "hover:bg-secondary/60")}
                 >
                   <div className={cn("flex size-4 items-center justify-center rounded-sm border shrink-0", active ? "bg-primary border-primary text-primary-foreground" : "border-border")}>

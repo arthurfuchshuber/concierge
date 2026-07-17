@@ -3,8 +3,8 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
 
 /**
- * Consolidação por hóspede: chave = (property_id, telefone_normalizado, checkin_date)
- * quando telefone existe, senão (property_id, nome_normalizado, checkin_date).
+ * Consolidação por hóspede: chave = (property_id, telefone_normalizado)
+ * quando telefone existe, senão (property_id, nome_normalizado).
  *
  * Une:
  *  - guide_access_logs (identidade + reserva)
@@ -18,9 +18,13 @@ const InputSchema = z.object({
   propertyIds: z.array(z.string()).nullable().optional(),
   q: z.string().nullable().optional(),
   asUserId: z.string().uuid().nullable().optional(),
+  asUserIds: z.array(z.string().uuid()).nullable().optional(),
 });
 
-const GuestDetailInput = z.object({ guestKey: z.string(), asUserId: z.string().uuid().nullable().optional() });
+const GuestDetailInput = z.object({
+  guestKey: z.string(),
+  asUserId: z.string().uuid().nullable().optional(),
+});
 
 function daysFor(period: "7d" | "30d" | "90d" | "all"): number {
   return period === "7d" ? 7 : period === "30d" ? 30 : period === "90d" ? 90 : 365;
@@ -34,9 +38,9 @@ function normalizeName(n: string | null | undefined): string {
   return (n ?? "").trim().toLowerCase().replace(/\s+/g, " ");
 }
 
-function guestKeyOf(input: { propertyId: string; phone: string; name: string; checkinDate: string }): string {
+function guestKeyOf(input: { propertyId: string; phone: string; name: string }): string {
   const idPart = input.phone ? `p:${input.phone}` : `n:${input.name}`;
-  return `${input.propertyId}|${idPart}|${input.checkinDate}`;
+  return `${input.propertyId}|${idPart}`;
 }
 
 const GAP_MS = 20 * 60 * 1000;
@@ -82,33 +86,53 @@ async function loadCommon(
   ctx: { supabase: import("@supabase/supabase-js").SupabaseClient; userId: string },
   input: z.infer<typeof InputSchema>,
 ) {
-  let effectiveUserId = ctx.userId;
+  // Determinar universo de owner_ids
+  const requestedOwners = (input.asUserIds && input.asUserIds.length > 0)
+    ? input.asUserIds
+    : (input.asUserId ? [input.asUserId] : []);
+
   let supabase = ctx.supabase;
-  if (input.asUserId && input.asUserId !== ctx.userId) {
+  let ownerIds: string[] = [ctx.userId];
+
+  if (requestedOwners.length > 0 && !(requestedOwners.length === 1 && requestedOwners[0] === ctx.userId)) {
     const { data: isAdmin } = await ctx.supabase.rpc("has_role", { _user_id: ctx.userId, _role: "admin" });
     if (!isAdmin) throw new Error("Acesso negado");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     supabase = supabaseAdmin as unknown as typeof ctx.supabase;
-    effectiveUserId = input.asUserId;
+    ownerIds = requestedOwners;
   }
-  const userId = effectiveUserId;
+
   const days = daysFor(input.period);
   const since = new Date(Date.now() - days * 86400_000);
 
   const { data: props, error: pErr } = await supabase
-    .from("properties").select("id, name, city").eq("owner_id", userId);
+    .from("properties").select("id, name, city, owner_id").in("owner_id", ownerIds);
   if (pErr) throw pErr;
+
   const allIds = (props ?? []).map((p) => p.id as string);
   const nameById = new Map<string, string>((props ?? []).map((p) => [p.id as string, p.name as string]));
   const cityById = new Map<string, string | null>((props ?? []).map((p) => [p.id as string, (p as { city: string | null }).city]));
+  const ownerByPropId = new Map<string, string>((props ?? []).map((p) => [p.id as string, (p as { owner_id: string }).owner_id]));
+
+  // Nome das contas via profiles
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const accountNameById = new Map<string, string>();
+  if (ownerIds.length > 0) {
+    const { data: profiles } = await (supabaseAdmin.from("profiles") as ReturnType<typeof supabaseAdmin.from>)
+      .select("id, full_name")
+      .in("id", ownerIds);
+    for (const p of ((profiles ?? []) as Array<{ id: string; full_name: string | null }>)) {
+      accountNameById.set(p.id, p.full_name ?? "");
+    }
+  }
+
   const req = input.propertyIds ?? null;
   const filteredIds = req && req.length > 0 && !req.includes("all") ? req.filter((id) => allIds.includes(id)) : allIds;
 
   if (filteredIds.length === 0) {
-    return { filteredIds, nameById, cityById, since, logs: [], events: [], convs: [], msgs: [], feedback: [] };
+    return { filteredIds, nameById, cityById, ownerByPropId, accountNameById, ownerIds, since, logs: [], events: [], convs: [], msgs: [], feedback: [] };
   }
 
-  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const [logsQ, eventsQ, convsQ, msgsQ, feedbackQ] = await Promise.all([
     supabase.from("guide_access_logs")
       .select("id, property_id, guest_name, reservation_code, checkin_date, guest_phone, guest_phone_country, user_agent, created_at")
@@ -126,10 +150,10 @@ async function loadCommon(
       .gte("created_at", since.toISOString()).order("created_at", { ascending: true }).limit(30000),
     supabase.from("chat_message_feedback")
       .select("message_id, conversation_id, property_id, reason, resolved, created_at")
-      .eq("owner_id", userId).in("property_id", filteredIds).gte("created_at", since.toISOString()),
+      .in("property_id", filteredIds).gte("created_at", since.toISOString()),
   ]);
   return {
-    filteredIds, nameById, cityById, since,
+    filteredIds, nameById, cityById, ownerByPropId, accountNameById, ownerIds, since,
     logs: (logsQ.data ?? []) as Array<{ id: string; property_id: string; guest_name: string; reservation_code: string | null; checkin_date: string; guest_phone: string | null; guest_phone_country: string | null; created_at: string }>,
     events: (eventsQ.data ?? []) as Evt[],
     convs: (convsQ.data ?? []) as Array<{ id: string; property_id: string; guest_session_id: string; guest_name: string | null; created_at: string; last_message_at: string }>,
@@ -141,6 +165,7 @@ async function loadCommon(
 type GuestAgg = {
   key: string;
   propertyId: string; propertyName: string; propertyCity: string | null;
+  accountId: string; accountName: string;
   guestName: string; phone: string; phoneCountry: string | null;
   reservationCode: string | null; checkinDate: string;
   firstAccess: string; lastActivity: string;
@@ -160,7 +185,7 @@ const SECTION_GAP_MS = 20 * 60 * 1000;
 const SECTION_MIN_MS = 5 * 1000;
 
 function buildGuestIndex(data: Awaited<ReturnType<typeof loadCommon>>) {
-  const { logs, events, convs, msgs, feedback, nameById, cityById } = data;
+  const { logs, events, convs, msgs, feedback, nameById, cityById, ownerByPropId, accountNameById } = data;
 
   const sessions = sessionize(events);
   const sessionByPhoneName = new Map<string, Session[]>();
@@ -188,18 +213,28 @@ function buildGuestIndex(data: Awaited<ReturnType<typeof loadCommon>>) {
   for (const l of logs) {
     const phone = normalizePhone(l.guest_phone);
     const name = normalizeName(l.guest_name);
-    const key = guestKeyOf({ propertyId: l.property_id, phone, name, checkinDate: l.checkin_date });
+    const key = guestKeyOf({ propertyId: l.property_id, phone, name });
     const existing = guests.get(key);
     const propertyName = nameById.get(l.property_id) ?? "";
+    const ownerId = ownerByPropId.get(l.property_id) ?? "";
     if (existing) {
       if (l.created_at < existing.firstAccess) existing.firstAccess = l.created_at;
       if (l.created_at > existing.lastActivity) existing.lastActivity = l.created_at;
-      if (!existing.reservationCode && l.reservation_code) existing.reservationCode = l.reservation_code;
+      // manter check-in mais recente
+      if (l.checkin_date && l.checkin_date > existing.checkinDate) {
+        existing.checkinDate = l.checkin_date;
+        if (l.reservation_code) existing.reservationCode = l.reservation_code;
+      } else if (!existing.reservationCode && l.reservation_code) {
+        existing.reservationCode = l.reservation_code;
+      }
+      if (l.guest_name && !existing.guestName) existing.guestName = l.guest_name;
+      if (l.guest_phone_country && !existing.phoneCountry) existing.phoneCountry = l.guest_phone_country;
       existing.accessesCount++;
     } else {
       guests.set(key, {
         key,
         propertyId: l.property_id, propertyName, propertyCity: cityById.get(l.property_id) ?? null,
+        accountId: ownerId, accountName: accountNameById.get(ownerId) ?? "",
         guestName: l.guest_name, phone, phoneCountry: l.guest_phone_country,
         reservationCode: l.reservation_code, checkinDate: l.checkin_date,
         firstAccess: l.created_at, lastActivity: l.created_at,
@@ -224,7 +259,6 @@ function buildGuestIndex(data: Awaited<ReturnType<typeof loadCommon>>) {
       g.totalSeconds += sec;
       g.sessionsCount++;
       if (sec > maxS) maxS = sec;
-      // duração por seção: gap para o próximo evento na mesma sessão
       const items = s.sections;
       for (let i = 0; i < items.length; i++) {
         uniqueSections.add(items[i].section);
@@ -272,17 +306,16 @@ export const getEngagementGuests = createServerFn({ method: "POST" })
           g.guestName.toLowerCase().includes(q) ||
           (g.phone && g.phone.includes(q.replace(/\D+/g, ""))) ||
           (g.reservationCode ?? "").toLowerCase().includes(q) ||
-          g.propertyName.toLowerCase().includes(q)
+          g.propertyName.toLowerCase().includes(q) ||
+          g.accountName.toLowerCase().includes(q)
         );
       })
       .sort((a, b) => b.lastActivity.localeCompare(a.lastActivity));
 
-    // Tabela macro de conversas
     const conversations = built.convs
       .map((c) => {
         const msgs = built.msgsByConv.get(c.id) ?? [];
         const firstUser = msgs.find((m) => m.role === "user");
-        // encontrar hóspede via sessão
         let matchedGuest: GuestAgg | null = null;
         const ss = built.sessionByPhoneName;
         for (const g of built.guests.values()) {
@@ -309,6 +342,7 @@ export const getEngagementGuests = createServerFn({ method: "POST" })
 
     return {
       properties: Array.from(common.nameById.entries()).map(([id, name]) => ({ id, name })),
+      accounts: common.ownerIds.map((id) => ({ id, name: common.accountNameById.get(id) ?? "" })),
       guests: guestList,
       conversations,
     };
@@ -324,8 +358,6 @@ export const getGuestDetail = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((i: unknown) => GuestDetailInput.parse(i))
   .handler(async ({ data, context }) => {
-    // A chave carrega propertyId|p:phone|checkin OU propertyId|n:name|checkin.
-    // Recarregamos um período longo (365d) para não perder eventos antigos.
     const common = await loadCommon(context, { period: "all", propertyIds: null, asUserId: data.asUserId ?? null });
     const built = buildGuestIndex(common);
     const g = built.guests.get(data.guestKey);

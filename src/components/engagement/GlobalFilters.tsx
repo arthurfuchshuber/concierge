@@ -3,7 +3,7 @@ import { Filter } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetFooter } from "@/components/ui/sheet";
 import { PropertyMultiSelect } from "./PropertyMultiSelect";
-import { AccountSelect } from "./AccountSelect";
+import { AccountMultiSelect } from "./AccountMultiSelect";
 import { Badge } from "@/components/ui/badge";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
@@ -18,20 +18,20 @@ type Props = {
   filters: EngagementFilters;
   onChange: (patch: Partial<EngagementFilters>) => void;
   properties: Array<{ id: string; name: string }>;
-  accountId: string | null;
-  onAccountChange: (userId: string | null, name: string | null) => void;
+  accountIds: string[];
+  onAccountsChange: (userIds: string[]) => void;
   className?: string;
 };
 
 export function FiltersIconButton({
-  filters, onChange, properties, accountId, onAccountChange, className,
+  filters, onChange, properties, accountIds, onAccountsChange, className,
 }: Props) {
   const [open, setOpen] = useState(false);
   const activeCount =
     (filters.period !== "30d" ? 1 : 0) +
     (filters.propertyIds.length > 0 && !filters.propertyIds.includes("all") ? 1 : 0) +
     (filters.device !== "all" ? 1 : 0) +
-    (accountId ? 1 : 0);
+    (accountIds.length > 0 ? 1 : 0);
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>
@@ -60,9 +60,9 @@ export function FiltersIconButton({
         </SheetHeader>
         <div className="space-y-5 py-4">
           <div>
-            <label className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Conta</label>
+            <label className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Contas</label>
             <div className="mt-1.5">
-              <AccountSelect value={accountId} onChange={onAccountChange} compact />
+              <AccountMultiSelect value={accountIds} onChange={onAccountsChange} compact />
             </div>
           </div>
           <div>
@@ -107,7 +107,7 @@ export function FiltersIconButton({
             className="flex-1"
             onClick={() => {
               onChange({ period: "30d", propertyIds: ["all"], device: "all" });
-              onAccountChange(null, null);
+              onAccountsChange([]);
             }}
           >
             Limpar
