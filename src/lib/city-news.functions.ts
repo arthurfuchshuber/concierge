@@ -80,7 +80,7 @@ PRIORIZE — turismo, hospitalidade e experiência:
 
 Se o resultado não for claramente local e positivo, descarte-o. Melhor devolver 3 itens excelentes do que 7 medianos.`;
   const user = `Cidade-alvo: ${params.cityLabel}${params.country ? `, ${params.country}` : ""}.
-Selecione entre 3 e 6 itens EXCLUSIVAMENTE sobre esta cidade que animem um hóspede HOJE.
+Selecione entre 8 e 12 itens EXCLUSIVAMENTE sobre esta cidade que animem um hóspede HOJE. Priorize variedade de categorias (natureza, gastronomia, evento, passeio, cultura, noite, mercado) para dar ao hóspede um leque rico de opções.
 
 Retorne JSON estrito: {"items":[{"title":"...","category":"...","summary":"...","emoji":"...","imageQuery":"...","sourceIndex": 0}]}
 - title: até 9 palavras, tom convidativo e positivo (ex: "Festival de jazz ilumina o centro histórico"). Nunca copie o título original.
