@@ -89,15 +89,19 @@ function EngagementPage() {
   };
   const tab = search.tab || "panorama";
   const q = search.q ?? "";
-  const accountId = search.account ? search.account : null;
+  const accountIds: string[] = search.account
+    ? search.account.split(",").map((s) => s.trim()).filter(Boolean)
+    : [];
 
   const backendPropIds = filters.propertyIds.includes("all") ? null : filters.propertyIds;
+  const backendUserIds = accountIds.length > 0 ? accountIds : null;
+  const accountsKey = accountIds.join(",") || "self";
 
   const analyticsFn = useServerFn(getEngagementAnalytics);
   const analyticsQ = useQuery({
-    queryKey: ["engagement-analytics", filters.period, filters.propertyIds.join(","), filters.device, accountId ?? "self"],
+    queryKey: ["engagement-analytics", filters.period, filters.propertyIds.join(","), filters.device, accountsKey],
     queryFn: () => analyticsFn({
-      data: { period: filters.period, propertyIds: backendPropIds, device: filters.device, asUserId: accountId },
+      data: { period: filters.period, propertyIds: backendPropIds, device: filters.device, asUserIds: backendUserIds },
     }),
     staleTime: 30_000,
   });
@@ -105,9 +109,9 @@ function EngagementPage() {
 
   const guestsFn = useServerFn(getEngagementGuests);
   const guestsQ = useQuery({
-    queryKey: ["engagement-guests", filters.period, filters.propertyIds.join(","), q, accountId ?? "self"],
+    queryKey: ["engagement-guests", filters.period, filters.propertyIds.join(","), q, accountsKey],
     queryFn: () => guestsFn({
-      data: { period: filters.period, propertyIds: backendPropIds, q: q || null, asUserId: accountId },
+      data: { period: filters.period, propertyIds: backendPropIds, q: q || null, asUserIds: backendUserIds },
     }),
     enabled: tab === "hospedes",
     staleTime: 30_000,
@@ -116,7 +120,7 @@ function EngagementPage() {
   const [detail, setDetail] = useState<DetailTarget>(null);
   const insights = useMemo(() => (data ? computeInsights(data) : []), [data]);
 
-  function patch(p: Partial<EngagementFilters> & { tab?: string; q?: string; account?: string | null }) {
+  function patch(p: Partial<EngagementFilters> & { tab?: string; q?: string; accountIds?: string[] }) {
     navigate({
       search: (prev: SearchShape) => ({
         period: p.period ?? prev.period,
@@ -124,7 +128,7 @@ function EngagementPage() {
         device: p.device ?? prev.device,
         tab: p.tab ?? prev.tab,
         q: typeof p.q === "string" ? p.q : prev.q,
-        account: p.account !== undefined ? (p.account ?? "") : prev.account,
+        account: p.accountIds !== undefined ? p.accountIds.join(",") : prev.account,
       }),
       replace: true,
     });
@@ -135,8 +139,8 @@ function EngagementPage() {
       filters={filters}
       onChange={(p) => patch(p)}
       properties={data?.properties ?? []}
-      accountId={accountId}
-      onAccountChange={(uid) => patch({ account: uid })}
+      accountIds={accountIds}
+      onAccountsChange={(ids) => patch({ accountIds: ids })}
     />
   );
 
