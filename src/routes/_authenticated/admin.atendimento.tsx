@@ -106,7 +106,7 @@ function AtendimentoPage() {
 
   function setAccounts(ids: string[]) {
     navigate({
-      search: (prev) => ({ ...prev, account: ids.join(",") }),
+      search: (prev: z.infer<typeof searchSchema>) => ({ ...prev, account: ids.join(",") }),
       replace: true,
     });
   }
