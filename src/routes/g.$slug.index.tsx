@@ -1583,6 +1583,30 @@ function Guide({ data }: { data: GuideOk }) {
           )}
         </AnimatePresence>
       </div>
+      {(() => {
+        const items: Array<{ key: import("@/components/guide/BottomNav").BottomNavKey; label: string }> = [
+          { key: "home", label: "Início" },
+        ];
+        if (hasCheckinData) items.push({ key: "checkin", label: "Chegada" });
+        if (hasSaidaData) items.push({ key: "saida", label: "Saída" });
+        if (hasResidencia) items.push({ key: "residencia", label: "Residência" });
+        if (hasExplore) items.push({ key: "explore", label: "Explorar" });
+        if (items.length <= 1) return null;
+        const active: import("@/components/guide/BottomNav").BottomNavKey =
+          section === "home" ? "home" : (section as import("@/components/guide/BottomNav").BottomNavKey);
+        return (
+          <BottomNav
+            theme={theme}
+            active={active}
+            items={items}
+            onSelect={(k) => {
+              if (k === "home") { setSection("home"); window.scrollTo({ top: 0, behavior: "smooth" }); return; }
+              if (k === "explore") { window.location.href = `/g/${slug}/explorar`; return; }
+              gotoSection(k as Section);
+            }}
+          />
+        );
+      })()}
       {data.aiEnabled ? <GuideAiChat slug={slug} propertyName={heroParts.title} guestName={accessRec?.name ?? null} /> : null}
       <PinDialog
         open={pinDialog.open}
