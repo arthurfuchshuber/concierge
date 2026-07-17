@@ -33,7 +33,7 @@ function fmtDateTime(v: string | null | undefined): string {
 }
 
 type SortKey =
-  | "guestName" | "propertyName" | "checkinDate" | "lastActivity"
+  | "guestName" | "accountName" | "propertyName" | "checkinDate" | "lastActivity"
   | "accessesCount" | "sessionsCount" | "totalSeconds" | "avgSessionSeconds"
   | "maxSessionSeconds" | "topSection" | "messagesCount";
 
