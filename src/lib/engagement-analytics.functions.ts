@@ -169,7 +169,7 @@ async function runAnalytics(
       .gte("created_at", since.toISOString()).limit(20000),
     supabase.from("chat_message_feedback")
       .select("message_id, conversation_id, property_id, reason, resolved, created_at")
-      .eq("owner_id", userId).in("property_id", filteredIds).gte("created_at", since.toISOString()),
+      .in("property_id", filteredIds).gte("created_at", since.toISOString()),
     (supabaseAdmin.from("guide_section_events" as never) as ReturnType<typeof supabaseAdmin.from>)
       .select("property_id, section, guest_session_id, created_at")
       .in("property_id", filteredIds).gte("created_at", since.toISOString())
