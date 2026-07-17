@@ -3,7 +3,7 @@ import { Filter } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetFooter } from "@/components/ui/sheet";
 import { PropertyMultiSelect } from "./PropertyMultiSelect";
-import { AccountSelect } from "./AccountSelect";
+import { AccountMultiSelect } from "./AccountMultiSelect";
 import { Badge } from "@/components/ui/badge";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
