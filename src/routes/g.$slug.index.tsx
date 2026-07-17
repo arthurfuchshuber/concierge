@@ -416,8 +416,21 @@ function Guide({ data }: { data: GuideOk }) {
   const rules = data.manual.filter(isRule);
   const houseManual = data.manual.filter((m: any) => !isRule(m));
 
+  // Card "Chegada/Saída" some 24h após a hora do check-in.
+  // Mesmo assim, essas seções continuam acessíveis pela barra inferior.
+  const stayCardsExpired = (() => {
+    if (!accessRec?.checkinDate) return false;
+    const t = String(p.checkin_time ?? "15:00").match(/^(\d{1,2}):(\d{2})/);
+    const hh = t ? Number(t[1]) : 15;
+    const mm = t ? Number(t[2]) : 0;
+    const [y, mo, d] = accessRec.checkinDate.split("-").map(Number);
+    if (!y || !mo || !d) return false;
+    const ci = new Date(y, mo - 1, d, hh, mm, 0, 0).getTime();
+    return Date.now() > ci + 24 * 3600_000;
+  })();
+
   // Category availability — hide a card entirely when no sub-item has content
-  const hasCheckin = !!(
+  const hasCheckinData = !!(
     p.checkin_time ||
     p.checkin_note ||
     p.address ||
@@ -428,7 +441,9 @@ function Guide({ data }: { data: GuideOk }) {
     p.wifi_ssid ||
     p.checkin_instructions
   );
-  const hasSaida = !!(p.checkout_time || p.checkout_note || p.checkout_instructions);
+  const hasCheckin = hasCheckinData && !stayCardsExpired;
+  const hasSaidaData = !!(p.checkout_time || p.checkout_note || p.checkout_instructions);
+  const hasSaida = hasSaidaData && !stayCardsExpired;
   const hasResidencia = houseManual.length > 0;
   const hasFaq = !!(p.host_name || p.host_phone) || data.emergency.length > 0 || data.faqs.length > 0;
   const hasExplore =
