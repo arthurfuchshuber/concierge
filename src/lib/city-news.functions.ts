@@ -78,9 +78,9 @@ PRIORIZE — turismo, hospitalidade e experiência:
 - Cultura, arte, música, teatro local.
 - Vida noturna, roteiros, experiências únicas da cidade.
 
-Se o resultado não for claramente local e positivo, descarte-o. Prefira 10 itens excelentes e variados a 12 medianos — mas garanta pelo menos 8 quando a cidade tiver oferta turística rica.`;
+Se o resultado não for claramente local e positivo, descarte-o. NÃO há limite máximo de itens — inclua TODOS os itens realmente bons e distintos que encontrar. Prefira qualidade a quantidade, mas não deixe de fora um item excelente por medo de repetir categoria: pode haver vários itens da mesma categoria (ex: vários restaurantes, vários eventos), desde que cada um seja genuinamente interessante e distinto dos outros. Descarte apenas duplicatas óbvias e itens medianos.`;
   const user = `Cidade-alvo: ${params.cityLabel}${params.country ? `, ${params.country}` : ""}.
-Selecione entre 8 e 12 itens EXCLUSIVAMENTE sobre esta cidade que animem um hóspede HOJE. Priorize variedade de categorias (natureza, gastronomia, evento, passeio, cultura, noite, mercado) para dar ao hóspede um leque rico de opções.
+Selecione TODOS os itens EXCLUSIVAMENTE sobre esta cidade que sejam realmente bons e distintos para animar um hóspede HOJE. Sem teto — pode retornar 5, 15 ou 25 itens, o que importa é a qualidade e diversidade real de opções. Aceite múltiplos itens da mesma categoria quando forem experiências distintas (ex: 4 restaurantes diferentes, 3 eventos distintos).
 
 Retorne JSON estrito: {"items":[{"title":"...","category":"...","summary":"...","emoji":"...","imageQuery":"...","sourceIndex": 0}]}
 - title: até 9 palavras, tom convidativo e positivo (ex: "Festival de jazz ilumina o centro histórico"). Nunca copie o título original.
