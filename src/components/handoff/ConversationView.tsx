@@ -385,8 +385,14 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
               >
                 {isNote && <div className="text-[10px] uppercase tracking-wide opacity-70 mb-1 flex items-center gap-1"><StickyNote className="size-3" /> Nota interna</div>}
                 {!isNote && !isGuest && (
-                  <div className="text-[10px] uppercase tracking-wide opacity-70 mb-1">
-                    {m.sender_type === "human" ? "Atendente" : "IA"}
+                  <div className="text-[11px] mb-1">
+                    {m.sender_type === "human" ? (
+                      <span className="font-bold">
+                        {(m.sender_user_id && senderProfiles[m.sender_user_id]?.displayName) || "Atendente"}
+                      </span>
+                    ) : (
+                      <span className="uppercase tracking-wide opacity-70">IA</span>
+                    )}
                   </div>
                 )}
                 {attachment && (
