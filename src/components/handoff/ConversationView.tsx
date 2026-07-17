@@ -432,16 +432,28 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
       )}
 
       {status !== "resolved" && (
-        isLockedByOther ? (
+        !isMine ? (
           <div
-            className="shrink-0 border-t border-border p-3 text-center text-xs text-muted-foreground bg-surface inline-flex items-center justify-center gap-1"
+            className="shrink-0 border-t border-border p-3 text-center text-xs text-muted-foreground bg-surface flex items-center justify-center gap-2"
             style={{
               paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))",
               paddingLeft: "max(0.75rem, env(safe-area-inset-left))",
               paddingRight: "max(0.75rem, env(safe-area-inset-right))",
             }}
           >
-            <Lock className="size-3" /> Somente {assignedProfile?.displayName ?? "o atendente responsável"} pode responder.
+            <Lock className="size-3" />
+            <span>
+              {isLockedByOther
+                ? <>Somente <strong>{assignedProfile?.displayName ?? "o atendente responsável"}</strong> pode responder.</>
+                : "Assuma a conversa para poder responder ao hóspede."}
+            </span>
+            <button
+              onClick={handleClaim}
+              disabled={claim.isPending}
+              className="ml-1 text-[11px] px-2 py-1 rounded-md bg-primary text-primary-foreground inline-flex items-center gap-1"
+            >
+              <UserCheck className="size-3" /> Assumir
+            </button>
           </div>
         ) : (
           <form
