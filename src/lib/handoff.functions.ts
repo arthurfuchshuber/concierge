@@ -51,9 +51,11 @@ export const listHandoffConversations = createServerFn({ method: "POST" })
 
 
     // Enriquece cada conversa com nome do hóspede, telefone e check-in vindos
-    // do último guide_access_logs correspondente (mesma propriedade). RLS de
-    // guide_access_logs só permite owner — usamos admin porque a RLS de
-    // conversations já garantiu que o usuário pode ver estas linhas.
+    // do guide_access_logs correspondente (mesma propriedade + mesmo nome).
+    // IMPORTANTE: NÃO fazemos fallback para "o log mais recente da propriedade"
+    // — isso vazaria dados de outro hóspede e faria a unificação (Nome + Check-in
+    // + Guia) fundir conversas de pessoas diferentes.
+    const norm = (s: string | null | undefined) => (s ?? "").trim().toLowerCase().replace(/\s+/g, " ");
     const details: Record<string, HandoffGuestDetail> = {};
     if (list.length > 0) {
       try {
@@ -64,29 +66,46 @@ export const listHandoffConversations = createServerFn({ method: "POST" })
           .select("property_id, guest_name, guest_phone, guest_phone_country, checkin_date, reservation_code, created_at")
           .in("property_id", propIds)
           .order("created_at", { ascending: false })
-          .limit(500);
-        const logsByProp = new Map<string, typeof logs>();
+          .limit(2000);
+        // Indexa por (property_id | nome-normalizado) → mantém o log com MAIOR checkin_date
+        // para bater com o critério usado em Engajamento.
+        const bestLogByKey = new Map<string, {
+          guest_name: string | null;
+          guest_phone: string | null;
+          guest_phone_country: string | null;
+          checkin_date: string | null;
+          reservation_code: string | null;
+          created_at: string;
+        }>();
         for (const l of logs ?? []) {
-          const pid = l.property_id as string;
-          const arr = logsByProp.get(pid) ?? [];
-          arr.push(l);
-          logsByProp.set(pid, arr);
+          const name = norm(l.guest_name as string | null);
+          if (!name) continue;
+          const key = `${l.property_id}|${name}`;
+          const prev = bestLogByKey.get(key);
+          const curCk = (l.checkin_date as string | null) ?? "";
+          const prevCk = prev?.checkin_date ?? "";
+          if (!prev || curCk > prevCk || (curCk === prevCk && (l.created_at as string) > prev.created_at)) {
+            bestLogByKey.set(key, {
+              guest_name: l.guest_name as string | null,
+              guest_phone: l.guest_phone as string | null,
+              guest_phone_country: l.guest_phone_country as string | null,
+              checkin_date: (l.checkin_date as string | null) ?? null,
+              reservation_code: (l.reservation_code as string | null) ?? null,
+              created_at: l.created_at as string,
+            });
+          }
         }
         for (const conv of list) {
-          const arr = logsByProp.get(conv.property_id as string) ?? [];
-          // Tenta casar pelo nome (case-insensitive); senão pega o mais recente da propriedade.
-          const gn = (conv.guest_name ?? "").trim().toLowerCase();
-          const match =
-            (gn && arr.find((l) => ((l?.guest_name as string) ?? "").trim().toLowerCase() === gn)) ||
-            arr[0] ||
-            null;
+          const name = norm(conv.guest_name);
+          if (!name) continue;
+          const match = bestLogByKey.get(`${conv.property_id}|${name}`);
           if (match) {
             details[conv.id as string] = {
-              name: (match.guest_name as string) ?? conv.guest_name,
-              phone: (match.guest_phone as string) ?? null,
-              phoneCountry: (match.guest_phone_country as string) ?? null,
-              checkinDate: (match.checkin_date as string) ?? null,
-              reservationCode: (match.reservation_code as string) ?? null,
+              name: match.guest_name ?? conv.guest_name,
+              phone: match.guest_phone,
+              phoneCountry: match.guest_phone_country,
+              checkinDate: match.checkin_date,
+              reservationCode: match.reservation_code,
             };
           }
         }
@@ -96,17 +115,19 @@ export const listHandoffConversations = createServerFn({ method: "POST" })
     }
 
     // Unifica conversas do mesmo hóspede (mesmo Nome + mesma Data de Check-in + mesmo Guia/Propriedade).
-    // Mantém a conversa mais recente como canônica; conversas mais antigas do mesmo grupo são descartadas.
-    const norm = (s: string | null | undefined) => (s ?? "").trim().toLowerCase().replace(/\s+/g, " ");
+    // Só unifica quando os TRÊS estão preenchidos — sem isso, mantém como conversa própria
+    // (evita fundir hóspedes distintos que ainda não tiveram nome/checkin resolvidos).
     const bestByKey = new Map<string, HandoffConversationSummary>();
     const ordered: HandoffConversationSummary[] = [];
-    for (const conv of list) {
-      const d = details[conv.id as string];
-      const name = norm(d?.name ?? conv.guest_name);
+    const keyFor = (c: HandoffConversationSummary): string => {
+      const d = details[c.id as string];
+      const name = norm(d?.name ?? c.guest_name);
       const checkin = d?.checkinDate ?? "";
-      const propId = conv.property_id ?? "";
-      // Sem nome não dá para unificar com segurança — mantém como grupo próprio.
-      const key = name && checkin && propId ? `${propId}|${name}|${checkin}` : `__solo__:${conv.id}`;
+      const propId = c.property_id ?? "";
+      return name && checkin && propId ? `${propId}|${name}|${checkin}` : `__solo__:${c.id}`;
+    };
+    for (const conv of list) {
+      const key = keyFor(conv);
       const prev = bestByKey.get(key);
       const prevTs = prev ? Date.parse(prev.last_message_at ?? "") : -1;
       const curTs = Date.parse(conv.last_message_at ?? "");
@@ -114,21 +135,13 @@ export const listHandoffConversations = createServerFn({ method: "POST" })
         bestByKey.set(key, conv);
         ordered.push(conv);
       } else if (curTs > prevTs) {
-        // Substitui a canônica na mesma posição da lista
         const idx = ordered.indexOf(prev);
         if (idx >= 0) ordered[idx] = conv;
         bestByKey.set(key, conv);
       }
     }
-    const deduped = ordered.filter((c) => bestByKey.get(
-      (() => {
-        const d = details[c.id as string];
-        const name = norm(d?.name ?? c.guest_name);
-        const checkin = d?.checkinDate ?? "";
-        const propId = c.property_id ?? "";
-        return name && checkin && propId ? `${propId}|${name}|${checkin}` : `__solo__:${c.id}`;
-      })(),
-    ) === c);
+    const deduped = ordered.filter((c) => bestByKey.get(keyFor(c)) === c);
+
 
     return { conversations: deduped, details };
   });
