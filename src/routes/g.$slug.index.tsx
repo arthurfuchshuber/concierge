@@ -1992,16 +1992,22 @@ function SectionCard({
               src={imageUrl}
               alt=""
               loading="lazy"
-              className="absolute inset-y-0 right-0 w-[62%] object-cover opacity-95"
+              className="absolute inset-y-0 right-0 w-[72%] object-cover opacity-95"
+              style={{
+                WebkitMaskImage:
+                  "linear-gradient(to right, transparent 0%, rgba(0,0,0,0.15) 18%, rgba(0,0,0,0.55) 42%, rgba(0,0,0,0.9) 70%, #000 100%)",
+                maskImage:
+                  "linear-gradient(to right, transparent 0%, rgba(0,0,0,0.15) 18%, rgba(0,0,0,0.55) 42%, rgba(0,0,0,0.9) 70%, #000 100%)",
+              }}
               onError={(e) => {
                 (e.currentTarget as HTMLImageElement).style.display = "none";
               }}
             />
             <span
-              className={`pointer-events-none absolute inset-y-0 right-0 w-[82%] ${
+              className={`pointer-events-none absolute inset-y-0 right-0 w-[72%] ${
                 isDark
-                  ? "bg-[linear-gradient(to_right,#080815_0%,rgba(8,8,21,0.94)_18%,rgba(8,8,21,0.72)_38%,rgba(8,8,21,0.36)_62%,rgba(8,8,21,0.08)_84%,rgba(8,8,21,0)_100%)]"
-                  : "bg-[linear-gradient(to_right,#ffffff_0%,rgba(255,255,255,0.96)_16%,rgba(255,255,255,0.78)_36%,rgba(255,255,255,0.42)_60%,rgba(255,255,255,0.14)_82%,rgba(255,255,255,0)_100%)]"
+                  ? "bg-[linear-gradient(to_right,rgba(8,8,21,0.55)_0%,rgba(8,8,21,0.28)_35%,rgba(8,8,21,0.1)_65%,rgba(8,8,21,0)_100%)]"
+                  : "bg-[linear-gradient(to_right,rgba(255,255,255,0.5)_0%,rgba(255,255,255,0.22)_35%,rgba(255,255,255,0.06)_65%,rgba(255,255,255,0)_100%)]"
               }`}
             />
           </>
