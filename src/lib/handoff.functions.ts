@@ -22,6 +22,19 @@ export const listHandoffConversations = createServerFn({ method: "POST" })
     try {
       const { supabase, userId } = context;
 
+      // Auto-encerra conversas com a IA sem atividade há mais de 1 hora → resolvidas.
+      try {
+        const cutoff = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+        await supabase
+          .from("property_chat_conversations")
+          .update({ status: "resolved", resolved_at: new Date().toISOString() })
+          .eq("status", "ai")
+          .lt("last_message_at", cutoff);
+      } catch (e) {
+        // não bloqueia leitura
+        console.warn("auto-resolve AI stale failed", e);
+      }
+
       let q = supabase
         .from("property_chat_conversations")
         .select(
@@ -377,7 +390,26 @@ export const getHandoffConversation = createServerFn({ method: "POST" })
       assignedProfile = { userId: conv.assigned_to, displayName: prof?.full_name ?? null };
     }
 
-    return { conversation: conv, messages: msgs ?? [], guestDetails, claimRequester, assignedProfile };
+    // Perfis de todos os remetentes humanos (para exibir o nome em negrito nas mensagens).
+    const senderIds = Array.from(
+      new Set(
+        (msgs ?? [])
+          .map((m) => (m as { sender_user_id: string | null }).sender_user_id)
+          .filter((v): v is string => !!v),
+      ),
+    );
+    const senderProfiles: Record<string, { displayName: string | null }> = {};
+    if (senderIds.length > 0) {
+      const { data: profs } = await supabase
+        .from("profiles")
+        .select("id, full_name")
+        .in("id", senderIds);
+      for (const p of profs ?? []) {
+        senderProfiles[p.id as string] = { displayName: (p.full_name as string) ?? null };
+      }
+    }
+
+    return { conversation: conv, messages: msgs ?? [], guestDetails, claimRequester, assignedProfile, senderProfiles };
   });
 
 // -------- Claim / assign to me (bloqueia se já está com outro atendente) --------
@@ -387,7 +419,8 @@ export const claimHandoffConversation = createServerFn({ method: "POST" })
   .inputValidator(parseHandoffConversationInput)
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    // Só permite claim se: sem dono, ou já é meu.
+    // Assumir sempre é permitido — se já pertence a outro, registra uma nota interna
+    // avisando quem assumiu. A confirmação (popup) é feita no cliente.
     const { data: cur, error: readErr } = await supabase
       .from("property_chat_conversations")
       .select("assigned_to, status")
@@ -395,9 +428,9 @@ export const claimHandoffConversation = createServerFn({ method: "POST" })
       .maybeSingle();
     if (readErr) throw new Error(readErr.message);
     if (!cur) throw new Error("Conversa não encontrada.");
-    if (cur.assigned_to && cur.assigned_to !== userId) {
-      throw new Error("Esta conversa já está sendo atendida por outro membro. Solicite acesso ou peça uma transferência.");
-    }
+    const previousAssignee = cur.assigned_to as string | null;
+    const takingOver = previousAssignee && previousAssignee !== userId;
+
     const { error } = await supabase
       .from("property_chat_conversations")
       .update({
@@ -409,6 +442,19 @@ export const claimHandoffConversation = createServerFn({ method: "POST" })
       })
       .eq("id", data.conversationId);
     if (error) throw new Error(error.message);
+
+    if (takingOver) {
+      const { data: prof } = await supabase.from("profiles").select("full_name").eq("id", userId).maybeSingle();
+      const who = prof?.full_name ?? "Um membro da equipe";
+      await supabase.from("property_chat_messages").insert({
+        conversation_id: data.conversationId,
+        role: "assistant",
+        content: `↪ ${who} assumiu esta conversa.`,
+        sender_type: "human",
+        sender_user_id: userId,
+        is_internal_note: true,
+      });
+    }
     return { ok: true };
   });
 

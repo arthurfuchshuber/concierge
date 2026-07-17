@@ -208,9 +208,11 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
   const guest = q.data?.guestDetails;
   const claimReq = q.data?.claimRequester;
   const assignedProfile = q.data?.assignedProfile;
+  const senderProfiles = (q.data as { senderProfiles?: Record<string, { displayName: string | null }> } | undefined)?.senderProfiles ?? {};
   const propertyName = (conv?.properties as { name?: string } | null)?.name ?? "Guia";
   const isMine = !!(conv?.assigned_to && myUserId && conv.assigned_to === myUserId);
   const isLockedByOther = !!(conv?.assigned_to && myUserId && conv.assigned_to !== myUserId);
+  const isUnassigned = !conv?.assigned_to;
   const iRequested = !!(conv?.claim_requested_by && myUserId && conv.claim_requested_by === myUserId);
   const someoneRequestedFromMe = !!(isMine && conv?.claim_requested_by && conv.claim_requested_by !== myUserId);
   const status = conv?.status;
@@ -218,6 +220,15 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
   const guestName = guest?.name ?? conv?.guest_name ?? "Hóspede anônimo";
   const waHref = guest?.phone ? whatsappHref(guest.phone, guest.phoneCountry) : null;
   const checkinFmt = fmtCheckin(guest?.checkinDate ?? null);
+
+  function handleClaim() {
+    if (isLockedByOther) {
+      const who = assignedProfile?.displayName ?? "outro membro";
+      const ok = typeof window !== "undefined" && window.confirm(`Esta conversa está sendo atendida por ${who}. Tem certeza que deseja assumir?`);
+      if (!ok) return;
+    }
+    claim.mutate();
+  }
 
   return (
     <div className="flex flex-col h-full min-h-0">
@@ -276,12 +287,17 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
 
           <div className="flex flex-col gap-1 shrink-0 items-end">
             {/* Livre → assumir */}
-            {(!conv?.assigned_to && status !== "resolved") && (
-              <button onClick={() => claim.mutate()} disabled={claim.isPending} className="text-xs px-2 py-1.5 rounded-md bg-primary text-primary-foreground hover:opacity-90 inline-flex items-center gap-1">
+            {(isUnassigned && status !== "resolved") && (
+              <button onClick={handleClaim} disabled={claim.isPending} className="text-xs px-2 py-1.5 rounded-md bg-primary text-primary-foreground hover:opacity-90 inline-flex items-center gap-1">
                 <UserCheck className="size-3" /> Assumir
               </button>
             )}
-            {/* Travada por outro → pedir acesso */}
+            {/* Travada por outro → assumir (com confirmação) + pedir acesso */}
+            {isLockedByOther && status !== "resolved" && (
+              <button onClick={handleClaim} disabled={claim.isPending} className="text-xs px-2 py-1.5 rounded-md bg-primary text-primary-foreground hover:opacity-90 inline-flex items-center gap-1">
+                <UserCheck className="size-3" /> Assumir
+              </button>
+            )}
             {isLockedByOther && !iRequested && status !== "resolved" && (
               <button onClick={() => requestClaim.mutate()} disabled={requestClaim.isPending} className="text-xs px-2 py-1.5 rounded-md border border-border hover:bg-secondary inline-flex items-center gap-1">
                 <UserPlus2 className="size-3" /> Solicitar acesso
@@ -338,7 +354,7 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
         )}
       </div>
 
-      <div ref={scrollRef} className="flex-1 overflow-y-auto p-3 space-y-2 min-h-0 bg-background/40">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto p-3 space-y-2 min-h-0 bg-card">
         {q.isLoading && <div className="text-xs text-muted-foreground flex items-center gap-2"><Loader2 className="size-3 animate-spin" /> Carregando…</div>}
         {msgs.map((m) => {
           const isGuest = m.sender_type === "guest";
@@ -369,8 +385,14 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
               >
                 {isNote && <div className="text-[10px] uppercase tracking-wide opacity-70 mb-1 flex items-center gap-1"><StickyNote className="size-3" /> Nota interna</div>}
                 {!isNote && !isGuest && (
-                  <div className="text-[10px] uppercase tracking-wide opacity-70 mb-1">
-                    {m.sender_type === "human" ? "Atendente" : "IA"}
+                  <div className="text-[11px] mb-1">
+                    {m.sender_type === "human" ? (
+                      <span className="font-bold">
+                        {(m.sender_user_id && senderProfiles[m.sender_user_id]?.displayName) || "Atendente"}
+                      </span>
+                    ) : (
+                      <span className="uppercase tracking-wide opacity-70">IA</span>
+                    )}
                   </div>
                 )}
                 {attachment && (
@@ -410,16 +432,28 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
       )}
 
       {status !== "resolved" && (
-        isLockedByOther ? (
+        !isMine ? (
           <div
-            className="shrink-0 border-t border-border p-3 text-center text-xs text-muted-foreground bg-surface inline-flex items-center justify-center gap-1"
+            className="shrink-0 border-t border-border p-3 text-center text-xs text-muted-foreground bg-surface flex items-center justify-center gap-2"
             style={{
               paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))",
               paddingLeft: "max(0.75rem, env(safe-area-inset-left))",
               paddingRight: "max(0.75rem, env(safe-area-inset-right))",
             }}
           >
-            <Lock className="size-3" /> Somente {assignedProfile?.displayName ?? "o atendente responsável"} pode responder.
+            <Lock className="size-3" />
+            <span>
+              {isLockedByOther
+                ? <>Somente <strong>{assignedProfile?.displayName ?? "o atendente responsável"}</strong> pode responder.</>
+                : "Assuma a conversa para poder responder ao hóspede."}
+            </span>
+            <button
+              onClick={handleClaim}
+              disabled={claim.isPending}
+              className="ml-1 text-[11px] px-2 py-1 rounded-md bg-primary text-primary-foreground inline-flex items-center gap-1"
+            >
+              <UserCheck className="size-3" /> Assumir
+            </button>
           </div>
         ) : (
           <form

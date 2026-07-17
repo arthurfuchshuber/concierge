@@ -305,6 +305,15 @@ export const Route = createFileRoute("/api/public/guide-chat")({
           .select("ai_paused, status")
           .eq("id", conversationId)
           .maybeSingle();
+
+        // Se a conversa está "resolvida" e o hóspede envia nova mensagem, reabrir com a IA.
+        if (convState?.status === "resolved") {
+          await supabaseAdmin
+            .from("property_chat_conversations")
+            .update({ status: "ai", ai_paused: false, resolved_at: null, assigned_to: null })
+            .eq("id", conversationId);
+        }
+
         if (convState?.ai_paused && !body.forceAi) {
           await supabaseAdmin.from("property_chat_messages").insert({
             conversation_id: conversationId,
