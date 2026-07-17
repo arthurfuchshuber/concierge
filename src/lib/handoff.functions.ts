@@ -187,27 +187,33 @@ export const getHandoffConversation = createServerFn({ method: "POST" })
     } = { name: conv.guest_name, phone: null, phoneCountry: null, checkinDate: null, reservationCode: null };
     try {
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-      let logQ = supabaseAdmin
-        .from("guide_access_logs")
-        .select("guest_name, guest_phone, guest_phone_country, checkin_date, reservation_code, created_at")
-        .eq("property_id", conv.property_id)
-        .order("created_at", { ascending: false })
-        .limit(1);
-      if (conv.guest_name) logQ = logQ.ilike("guest_name", conv.guest_name);
-      const { data: logs } = await logQ;
-      const log = logs?.[0];
-      if (log) {
-        guestDetails = {
-          name: log.guest_name ?? conv.guest_name,
-          phone: log.guest_phone,
-          phoneCountry: log.guest_phone_country,
-          checkinDate: log.checkin_date,
-          reservationCode: log.reservation_code,
-        };
+      // Só enriquece quando temos nome — sem nome não dá para casar sem risco de vazar dados
+      // de outro hóspede da mesma propriedade. Escolhemos o log com maior checkin_date
+      // (mesmo critério do Engajamento).
+      if (conv.guest_name) {
+        const { data: logs } = await supabaseAdmin
+          .from("guide_access_logs")
+          .select("guest_name, guest_phone, guest_phone_country, checkin_date, reservation_code, created_at")
+          .eq("property_id", conv.property_id)
+          .ilike("guest_name", conv.guest_name)
+          .order("checkin_date", { ascending: false, nullsFirst: false })
+          .order("created_at", { ascending: false })
+          .limit(1);
+        const log = logs?.[0];
+        if (log) {
+          guestDetails = {
+            name: log.guest_name ?? conv.guest_name,
+            phone: log.guest_phone,
+            phoneCountry: log.guest_phone_country,
+            checkinDate: log.checkin_date,
+            reservationCode: log.reservation_code,
+          };
+        }
       }
     } catch {
       // silencioso — se não achar, seguimos com o que temos
     }
+
 
     // Nome do solicitante do claim (se houver)
     let claimRequester: { userId: string; displayName: string | null } | null = null;
