@@ -192,6 +192,42 @@ const BulkPatch = z.object({
   brand_name: z.string().max(120).optional(),
   brand_logo_url: HttpsUrl.optional(),
   guide_theme: z.enum(["dark", "light"]).optional(),
+  // Regras do espaço
+  house_rules: z.string().max(3000).optional(),
+  // Endereço e localização
+  address: z.string().max(500).optional(),
+  maps_url: HttpsUrl.optional(),
+  garage_maps_url: HttpsUrl.optional(),
+  city: z.string().max(120).optional(),
+  state: z.string().max(60).optional(),
+  country: z.string().max(120).optional(),
+  // Tipo do guia
+  default_language: z.enum(["pt", "en"]).optional(),
+  published: z.boolean().optional(),
+  // Modo de acesso
+  access_mode: z.enum(["public", "pin"]).optional(),
+  pin_code: z.string().max(20).optional(),
+  require_access_gate: z.boolean().optional(),
+}).strict();
+
+const BulkListsInput = z.object({
+  manual: z.array(z.object({
+    title: z.string().min(1).max(120),
+    description: z.string().max(300).optional().nullable(),
+    body: z.string().max(4000).optional().nullable(),
+  })).max(40).optional(),
+  emergency: z.array(z.object({
+    label: z.string().min(1).max(120),
+    number: z.string().min(1).max(40),
+  })).max(20).optional(),
+  faqs: z.array(z.object({
+    question: z.string().min(1).max(200),
+    answer: z.string().min(1).max(2000),
+    tags: z.array(z.string().max(40)).max(8).default([]),
+  })).max(40).optional(),
+  checkout: z.array(z.object({
+    label: z.string().min(1).max(200),
+  })).max(40).optional(),
 }).strict();
 
 export const bulkUpdateProperties = createServerFn({ method: "POST" })
@@ -200,23 +236,62 @@ export const bulkUpdateProperties = createServerFn({ method: "POST" })
     z.object({
       ids: z.array(z.string().uuid()).min(1).max(200),
       patch: BulkPatch,
+      lists: BulkListsInput.optional(),
     }).parse(i),
   )
   .handler(async ({ data, context }) => {
-    const patch: Record<string, string | null> = Object.fromEntries(
-      Object.entries(data.patch).map(([k, v]) => [k, v === "" ? null : (v as string)]),
+    const patch: Record<string, unknown> = Object.fromEntries(
+      Object.entries(data.patch).map(([k, v]) => [k, v === "" ? null : v]),
     );
-    if (Object.keys(patch).length === 0) {
-      return { updated: 0 };
+    let updated = 0;
+    if (Object.keys(patch).length > 0) {
+      // RLS automatically scopes to owner_id = auth.uid()
+      const { data: rows, error } = await context.supabase
+        .from("properties")
+        .update(patch as never)
+        .in("id", data.ids)
+        .select("id");
+      if (error) throw (await import("@/lib/db-errors.server")).safeDbError("properties", error);
+      updated = rows?.length ?? 0;
     }
-    // RLS automatically scopes to owner_id = auth.uid()
-    const { data: rows, error } = await context.supabase
-      .from("properties")
-      .update(patch as never)
-      .in("id", data.ids)
-      .select("id");
-    if (error) throw (await import("@/lib/db-errors.server")).safeDbError("properties", error);
-    return { updated: rows?.length ?? 0 };
+
+    // Replace-all para campos de lista: apaga o existente e insere o novo para cada guia selecionado.
+    const lists = data.lists;
+    if (lists) {
+      const sb = context.supabase;
+      for (const id of data.ids) {
+        if (lists.manual !== undefined) {
+          await sb.from("property_manual_items").delete().eq("property_id", id);
+          if (lists.manual.length) {
+            const rows = lists.manual.map((m, i) => ({ ...m, property_id: id, position: i }));
+            await sb.from("property_manual_items").insert(rows as never);
+          }
+        }
+        if (lists.emergency !== undefined) {
+          await sb.from("property_emergency_contacts").delete().eq("property_id", id);
+          if (lists.emergency.length) {
+            const rows = lists.emergency.map((m, i) => ({ ...m, property_id: id, position: i }));
+            await sb.from("property_emergency_contacts").insert(rows as never);
+          }
+        }
+        if (lists.faqs !== undefined) {
+          await sb.from("property_faqs").delete().eq("property_id", id);
+          if (lists.faqs.length) {
+            const rows = lists.faqs.map((m, i) => ({ ...m, property_id: id, position: i }));
+            await sb.from("property_faqs").insert(rows as never);
+          }
+        }
+        if (lists.checkout !== undefined) {
+          await sb.from("property_checkout_items").delete().eq("property_id", id);
+          if (lists.checkout.length) {
+            const rows = lists.checkout.map((m, i) => ({ ...m, property_id: id, position: i }));
+            await sb.from("property_checkout_items").insert(rows as never);
+          }
+        }
+      }
+      if (!updated) updated = data.ids.length;
+    }
+    return { updated };
   });
 
 export const getMyProperty = createServerFn({ method: "POST" })
