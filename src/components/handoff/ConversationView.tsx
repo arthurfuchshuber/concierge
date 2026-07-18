@@ -231,8 +231,8 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
   }
 
   return (
-    <div className="flex flex-col h-full min-h-0">
-      <div className="border-b border-border p-3 space-y-2 shrink-0">
+    <div className="flex flex-col h-full min-h-0 bg-muted/60">
+      <div className="border-b border-border p-3 space-y-2 shrink-0 bg-muted/40">
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0 flex-1">
             <div className="text-sm font-medium truncate">{guestName}</div>
