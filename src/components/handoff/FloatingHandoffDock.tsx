@@ -153,11 +153,8 @@ export function FloatingHandoffDock() {
       {!state.open && (
         <button
           onClick={() => setState({ open: true, minimized: false })}
-          className="fixed right-4 lg:right-6 size-14 rounded-full bg-primary text-primary-foreground shadow-xl grid place-items-center hover:scale-105 transition-transform"
-          style={{
-            bottom: "calc(env(safe-area-inset-bottom, 0px) + 88px)",
-            zIndex: 2147483000,
-          }}
+          className="fixed right-4 bottom-[calc(env(safe-area-inset-bottom,0px)+88px)] lg:bottom-6 lg:right-6 size-14 rounded-full bg-primary text-primary-foreground shadow-xl grid place-items-center hover:scale-105 transition-transform"
+          style={{ zIndex: 2147483000 }}
           aria-label="Central de atendimento"
         >
           <Headphones className="size-6" />
