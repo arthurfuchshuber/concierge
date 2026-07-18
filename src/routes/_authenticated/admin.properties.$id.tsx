@@ -489,7 +489,7 @@ function PropertyEditor() {
     }
     setGeneratingNearbyRecs(true);
     try {
-      const r = await enrich({ data: { mapsUrl: form.property.maps_url } });
+      const r = await enrich({ data: { mapsUrl: form.property.maps_url, propertyId: id !== "new" ? id : undefined } });
       const existing = new Set(form.recommendations.map((x) => x.place_id).filter((x): x is string => !!x));
       const incoming = r.recommendations
         .filter((rec) => rec.scope === "nearby")
