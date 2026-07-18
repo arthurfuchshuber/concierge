@@ -354,7 +354,7 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
         )}
       </div>
 
-      <div ref={scrollRef} className="flex-1 overflow-y-auto p-3 space-y-2 min-h-0 bg-card">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto p-3 space-y-2 min-h-0 bg-transparent">
         {q.isLoading && <div className="text-xs text-muted-foreground flex items-center gap-2"><Loader2 className="size-3 animate-spin" /> Carregando…</div>}
         {msgs.map((m) => {
           const isGuest = m.sender_type === "guest";
