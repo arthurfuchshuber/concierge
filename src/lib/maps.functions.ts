@@ -772,7 +772,7 @@ export const enrichFromMapsLink = createServerFn({ method: "POST" })
       tagline,
       hero_image_url,
       gallery_images,
-      recommendations,
+      recommendations: filtered,
     };
   });
 
