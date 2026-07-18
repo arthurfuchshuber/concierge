@@ -231,8 +231,26 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
   }
 
   return (
-    <div className="flex flex-col h-full min-h-0 bg-muted/60">
-      <div className="border-b border-border p-3 space-y-2 shrink-0 bg-muted/40">
+    <div
+      className="flex flex-col h-full min-h-0 bg-white text-zinc-900"
+      style={{
+        // Sobrescreve tokens do tema escuro dentro do painel de chat,
+        // deixando a janela completamente clara na visão desktop.
+        ["--background" as never]: "#ffffff",
+        ["--foreground" as never]: "#18181b",
+        ["--card" as never]: "#ffffff",
+        ["--card-foreground" as never]: "#18181b",
+        ["--muted" as never]: "#f4f4f5",
+        ["--muted-foreground" as never]: "#71717a",
+        ["--border" as never]: "#e4e4e7",
+        ["--input" as never]: "#e4e4e7",
+        ["--secondary" as never]: "#f4f4f5",
+        ["--secondary-foreground" as never]: "#18181b",
+        ["--popover" as never]: "#ffffff",
+        ["--popover-foreground" as never]: "#18181b",
+      }}
+    >
+      <div className="border-b border-zinc-200 p-3 space-y-2 shrink-0 bg-zinc-50">
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0 flex-1">
             <div className="text-sm font-medium truncate">{guestName}</div>
