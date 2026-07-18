@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -51,6 +52,7 @@ export function FloatingHandoffDock() {
   const countFn = useServerFn(countPendingHandoffs);
   const qc = useQueryClient();
   const myUserId = useMyUserId();
+  const [mounted, setMounted] = useState(false);
 
   const access = useQuery({
     queryKey: ["handoff-access"],
@@ -65,6 +67,14 @@ export function FloatingHandoffDock() {
 
   const [state, setState] = useState<DockState>(() => loadState());
   const [activeId, setActiveId] = useState<string | null>(null);
+
+  useEffect(() => { setMounted(true); }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const isMobile = window.matchMedia("(max-width: 1023px)").matches;
+    if (isMobile) setState({ open: false, minimized: false });
+  }, []);
 
   useEffect(() => { saveState(state); }, [state]);
 
@@ -131,19 +141,20 @@ export function FloatingHandoffDock() {
     });
   }, [qc]);
 
-  if (!allowed) return null;
+  if (!allowed || !mounted || typeof document === "undefined") return null;
 
   const count = pendingQ.data?.count ?? 0;
   const convs = list.data?.conversations ?? [];
   const details = list.data?.details ?? {};
 
-  return (
+  const dock = (
     <>
       {/* Botão flutuante fechado */}
       {!state.open && (
         <button
           onClick={() => setState({ open: true, minimized: false })}
-          className="fixed bottom-4 right-4 lg:bottom-6 lg:right-6 z-40 size-14 rounded-full bg-primary text-primary-foreground shadow-xl grid place-items-center hover:scale-105 transition-transform"
+          className="fixed right-4 bottom-[calc(env(safe-area-inset-bottom,0px)+88px)] lg:bottom-6 lg:right-6 size-14 rounded-full bg-primary text-primary-foreground shadow-xl grid place-items-center hover:scale-105 transition-transform"
+          style={{ zIndex: 2147483000 }}
           aria-label="Central de atendimento"
         >
           <Headphones className="size-6" />
@@ -158,7 +169,8 @@ export function FloatingHandoffDock() {
       {/* Widget desktop */}
       {state.open && (
         <div
-          className={`hidden lg:flex fixed bottom-6 right-6 z-40 flex-col bg-surface border border-border rounded-2xl shadow-2xl overflow-hidden ${state.minimized ? "w-80 h-14" : "w-[520px] h-[560px]"}`}
+          className={`hidden lg:flex fixed bottom-6 right-6 flex-col bg-surface border border-border rounded-2xl shadow-2xl overflow-hidden ${state.minimized ? "w-80 h-14" : "w-[520px] h-[560px]"}`}
+          style={{ zIndex: 2147483000 }}
         >
           <div className="shrink-0 flex items-center justify-between gap-2 px-3 h-12 border-b border-border bg-secondary/40">
             <div className="flex items-center gap-2 min-w-0">
@@ -215,6 +227,73 @@ export function FloatingHandoffDock() {
           )}
         </div>
       )}
+
+      {/* Widget mobile */}
+      {state.open && (
+        <div className="lg:hidden fixed inset-0" style={{ zIndex: 2147483000 }}>
+          <button
+            type="button"
+            className="absolute inset-0 bg-black/55 backdrop-blur-sm"
+            onClick={() => setState({ open: false, minimized: false })}
+            aria-label="Fechar central de atendimento"
+          />
+          <section
+            className="absolute inset-x-3 bottom-3 flex flex-col overflow-hidden rounded-2xl border border-border bg-surface shadow-2xl"
+            style={{ top: "max(5rem, calc(env(safe-area-inset-top, 0px) + 1rem))" }}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Central de atendimento"
+          >
+            <div className="shrink-0 flex items-center justify-between gap-2 px-3 h-12 border-b border-border bg-secondary/40">
+              <div className="flex items-center gap-2 min-w-0">
+                <Headphones className="size-4 text-primary shrink-0" />
+                <span className="text-sm font-medium truncate">
+                  Atendimento {count > 0 && <span className="ml-1 text-red-500">({count})</span>}
+                </span>
+              </div>
+              <div className="flex items-center gap-1 shrink-0">
+                <Link
+                  to="/admin/atendimento"
+                  className="text-[11px] px-2 py-1 rounded-md hover:bg-secondary"
+                  onClick={() => setState({ open: false, minimized: false })}
+                >
+                  Central completa
+                </Link>
+                <button
+                  type="button"
+                  onClick={() => setState({ open: false, minimized: false })}
+                  className="size-8 grid place-items-center rounded-md hover:bg-secondary"
+                  aria-label="Fechar"
+                >
+                  <X className="size-4" />
+                </button>
+              </div>
+            </div>
+
+            <div className="flex-1 min-h-0 flex flex-col">
+              {activeId ? (
+                <ConversationView conversationId={activeId} compact myUserId={myUserId} />
+              ) : (
+                <>
+                  <div className="px-3 py-2 text-xs font-semibold text-muted-foreground border-b border-border">
+                    Conversas aguardando atendimento
+                  </div>
+                  <div className="flex-1 min-h-0 overflow-y-auto">
+                    <ConversationList
+                      conversations={convs as any}
+                      details={details}
+                      activeId={activeId}
+                      onSelect={setActiveId}
+                    />
+                  </div>
+                </>
+              )}
+            </div>
+          </section>
+        </div>
+      )}
     </>
   );
+
+  return createPortal(dock, document.body);
 }
