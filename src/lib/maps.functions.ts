@@ -560,7 +560,7 @@ export const searchPlacesForRec = createServerFn({ method: "POST" })
 export const enrichFromMapsLink = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => InputSchema.parse(input))
-  .handler(async ({ data }): Promise<EnrichResult> => {
+  .handler(async ({ data, context }): Promise<EnrichResult> => {
     await hydrateTypeMap();
     const resolved = await resolveShortUrl(data.mapsUrl);
     let coords = extractCoords(resolved);
