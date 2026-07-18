@@ -135,7 +135,9 @@ export function GuideAiChat({ slug, propertyName, guestName }: { slug: string; p
       const detail = (e as CustomEvent<{ prompt?: string; forceAi?: boolean }>).detail;
       if (detail?.prompt) setInput(detail.prompt);
       forceAiNextRef.current = !!detail?.forceAi;
-      if (detail?.forceAi) setHumanMode(false);
+      // Não forçamos setHumanMode(false): se um humano assumiu a conversa,
+      // o servidor mantém o modo humano e responderá com humanMode:true.
+
       setOpen(true);
     }
     window.addEventListener("open-guide-chat", onOpen as EventListener);
