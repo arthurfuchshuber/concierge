@@ -729,9 +729,35 @@ export const enrichFromMapsLink = createServerFn({ method: "POST" })
     // "Recomendações da Cidade" (city_references) e exibidos no guia em
     // aba/categoria própria — sem misturar com o "pertinho da residência".
 
+    // Dupla checagem: se o cliente informou o propertyId, buscamos as recomendações
+    // já cadastradas em escopo "city" e removemos daqui qualquer coincidência
+    // (por place_id ou nome normalizado) — evita replicar pontos que o hóspede
+    // já veria em "Pela cidade", inclusive quando vindos do Sigma Concierge.
+    let filtered = recommendations;
+    if (data.propertyId) {
+      const { data: cityRows } = await context.supabase
+        .from("property_recommendations")
+        .select("place_id, name")
+        .eq("property_id", data.propertyId)
+        .eq("scope", "city");
+      const cityPlaceIds = new Set<string>();
+      const cityNames = new Set<string>();
+      for (const r of (cityRows ?? []) as Array<{ place_id: string | null; name: string | null }>) {
+        if (r.place_id) cityPlaceIds.add(r.place_id);
+        if (r.name) cityNames.add(normalizeName(r.name));
+      }
+      if (cityPlaceIds.size || cityNames.size) {
+        filtered = recommendations.filter((r) => {
+          if (r.place_id && cityPlaceIds.has(r.place_id)) return false;
+          if (r.name && cityNames.has(normalizeName(r.name))) return false;
+          return true;
+        });
+      }
+    }
+
     // Ordena para exibição: agrupa por categoria, dentro da categoria por
     // distância crescente.
-    recommendations.sort((a, b) => {
+    filtered.sort((a, b) => {
       if (a.type !== b.type) return a.type.localeCompare(b.type);
       return a.distance_meters - b.distance_meters;
     });
