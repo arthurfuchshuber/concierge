@@ -314,7 +314,10 @@ export const Route = createFileRoute("/api/public/guide-chat")({
             .eq("id", conversationId);
         }
 
-        if (convState?.ai_paused && !body.forceAi) {
+        // Se um humano assumiu a conversa (ai_paused), NUNCA devolvemos para a IA
+        // — mesmo que o hóspede clique em uma dica com forceAi. A mensagem é
+        // apenas persistida para o atendente responder.
+        if (convState?.ai_paused) {
           await supabaseAdmin.from("property_chat_messages").insert({
             conversation_id: conversationId,
             role: "user",
