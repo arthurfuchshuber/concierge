@@ -32,6 +32,10 @@ const InputSchema = z.object({
       },
       { message: "URL precisa ser um link do Google Maps." },
     ),
+  // Quando informado, exclui do resultado os pontos "pertinho" (nearby) cujo place_id
+  // ou nome já esteja cadastrado como recomendação "Pela cidade" (scope=city) —
+  // evita duplicar sugestões do Sigma/city_references.
+  propertyId: z.string().uuid().optional(),
 });
 
 type PlaceItem = {
