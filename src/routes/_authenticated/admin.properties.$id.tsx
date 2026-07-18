@@ -489,7 +489,7 @@ function PropertyEditor() {
     }
     setGeneratingNearbyRecs(true);
     try {
-      const r = await enrich({ data: { mapsUrl: form.property.maps_url } });
+      const r = await enrich({ data: { mapsUrl: form.property.maps_url, propertyId: id !== "new" ? id : undefined } });
       const existing = new Set(form.recommendations.map((x) => x.place_id).filter((x): x is string => !!x));
       const incoming = r.recommendations
         .filter((rec) => rec.scope === "nearby")
@@ -532,7 +532,7 @@ function PropertyEditor() {
     }
     setEnriching(true);
     try {
-      const r = await enrich({ data: { mapsUrl: form.property.maps_url } });
+      const r = await enrich({ data: { mapsUrl: form.property.maps_url, propertyId: id !== "new" ? id : undefined } });
       // Geração das referências da cidade roda em paralelo e grava direto em
       // city_references — não precisamos mais misturar no form do imóvel.
       const cityForGeneration = (r.city || form.property.city).trim();

@@ -231,8 +231,8 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
   }
 
   return (
-    <div className="flex flex-col h-full min-h-0">
-      <div className="border-b border-border p-3 space-y-2 shrink-0">
+    <div className="flex flex-col h-full min-h-0 bg-muted/60">
+      <div className="border-b border-border p-3 space-y-2 shrink-0 bg-muted/40">
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0 flex-1">
             <div className="text-sm font-medium truncate">{guestName}</div>
@@ -354,7 +354,7 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
         )}
       </div>
 
-      <div ref={scrollRef} className="flex-1 overflow-y-auto p-3 space-y-2 min-h-0 bg-card">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto p-3 space-y-2 min-h-0 bg-transparent">
         {q.isLoading && <div className="text-xs text-muted-foreground flex items-center gap-2"><Loader2 className="size-3 animate-spin" /> Carregando…</div>}
         {msgs.map((m) => {
           const isGuest = m.sender_type === "guest";
