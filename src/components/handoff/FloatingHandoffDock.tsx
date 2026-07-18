@@ -70,6 +70,12 @@ export function FloatingHandoffDock() {
 
   useEffect(() => { setMounted(true); }, []);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const isMobile = window.matchMedia("(max-width: 1023px)").matches;
+    if (isMobile) setState({ open: false, minimized: false });
+  }, []);
+
   useEffect(() => { saveState(state); }, [state]);
 
   const pendingQ = useQuery({
@@ -235,7 +241,8 @@ export function FloatingHandoffDock() {
             aria-label="Fechar central de atendimento"
           />
           <section
-            className="absolute inset-x-3 bottom-3 top-[max(5rem,env(safe-area-inset-top,0px)+1rem)] flex flex-col overflow-hidden rounded-2xl border border-border bg-surface shadow-2xl"
+            className="absolute inset-x-3 bottom-3 flex flex-col overflow-hidden rounded-2xl border border-border bg-surface shadow-2xl"
+            style={{ top: "max(5rem, calc(env(safe-area-inset-top, 0px) + 1rem))" }}
             role="dialog"
             aria-modal="true"
             aria-label="Central de atendimento"
