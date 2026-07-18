@@ -462,14 +462,14 @@ export function GuideAiChat({ slug, propertyName, guestName }: { slug: string; p
       )}
 
 
-      {open && (
+      {open && typeof document !== "undefined" && createPortal(
         <>
           <div
-            className="fixed inset-0 z-40 bg-black/55 backdrop-blur-sm"
+            className="fixed inset-0 z-[90] bg-black/55 backdrop-blur-sm"
             onClick={() => setOpen(false)}
             aria-hidden="true"
           />
-        <div className="fixed bottom-4 right-4 left-4 sm:left-auto sm:bottom-5 sm:right-5 z-50 w-auto sm:w-[360px] h-[480px] max-h-[calc(100vh-2rem)] flex flex-col bg-background rounded-2xl border border-border shadow-2xl overflow-hidden">
+        <div className="fixed bottom-4 right-4 left-4 sm:left-auto sm:bottom-5 sm:right-5 z-[100] w-auto sm:w-[360px] h-[70vh] max-h-[560px] sm:h-[480px] flex flex-col bg-background rounded-2xl border border-border shadow-2xl overflow-hidden">
           {/* Header */}
           <div className="relative px-4 py-3 border-b border-border bg-gradient-to-br from-accent/10 to-transparent">
             <div className="flex items-center gap-3">
@@ -639,7 +639,8 @@ export function GuideAiChat({ slug, propertyName, guestName }: { slug: string; p
             </p>
           </div>
         </div>
-        </>
+        </>,
+        document.body,
       )}
     </>
   );
