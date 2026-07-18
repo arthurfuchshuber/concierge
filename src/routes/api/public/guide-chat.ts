@@ -352,12 +352,9 @@ export const Route = createFileRoute("/api/public/guide-chat")({
           sender_type: "guest",
         });
 
-        if (body.forceAi && convState?.ai_paused) {
-          await supabaseAdmin
-            .from("property_chat_conversations")
-            .update({ ai_paused: false, status: "ai", handoff_reason: null, handoff_urgency: null, handoff_at: null })
-            .eq("id", conversationId);
-        }
+        // Nota: quando ai_paused=true, já retornamos acima. Aqui ai_paused é
+        // false, então não há handoff ativo para limpar.
+
 
         // Sticky exploration mode: se qualquer resposta anterior da IA já foi no
         // formato de exploração de dica, mantemos o mesmo comportamento nos
