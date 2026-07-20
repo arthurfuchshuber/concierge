@@ -216,7 +216,17 @@ export function BulkEditDialog({
       for (const f of tab.fields) {
         if (state.enabled[f.key]) {
           const v = state.values[f.key];
-          patch[f.key] = v === undefined ? "" : v;
+          if (f.kind === "boolean") {
+            patch[f.key] = v === true;
+          } else if (f.kind === "theme") {
+            patch[f.key] = v === "light" ? "light" : "dark";
+          } else if (f.kind === "language") {
+            patch[f.key] = v === "en" ? "en" : "pt";
+          } else if (f.kind === "access_mode") {
+            patch[f.key] = v === "pin" ? "pin" : "public";
+          } else {
+            patch[f.key] = v === undefined ? "" : v;
+          }
         }
       }
     }
