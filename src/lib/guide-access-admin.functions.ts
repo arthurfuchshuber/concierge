@@ -111,6 +111,7 @@ export const listOwnerGuestForms = createServerFn({ method: "GET" })
       .limit(1000);
     if (error) throw error;
 
+    type JsonValue = string | number | boolean | null | JsonValue[] | { [k: string]: JsonValue };
     type EnrichedLog = {
       id: string;
       guest_name: string;
@@ -119,8 +120,8 @@ export const listOwnerGuestForms = createServerFn({ method: "GET" })
       guest_phone: string | null;
       guest_phone_country: string | null;
       guest_arrival_time: string | null;
-      guest_vehicles: unknown;
-      guest_documents: unknown;
+      guest_vehicles: JsonValue;
+      guest_documents: JsonValue;
       user_agent: string | null;
       created_at: string;
       property_id: string;
@@ -135,7 +136,7 @@ export const listOwnerGuestForms = createServerFn({ method: "GET" })
         portaria_email: p?.portaria_email ?? null,
       };
     });
-    const signed = (await signGuestDocs(enriched)) as EnrichedLog[];
+    const signed = (await signGuestDocs(enriched as unknown as { guest_documents: unknown }[])) as unknown as EnrichedLog[];
 
     return {
       logs: signed,
