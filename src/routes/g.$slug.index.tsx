@@ -741,7 +741,7 @@ function Guide({ data }: { data: GuideOk }) {
                                 ? String(p.checkout_time).match(/^(\d{1,2}):(\d{2})/)
                                 : null;
                               const time = t ? `${t[1].padStart(2, "0")}h${t[2] !== "00" ? t[2] : ""}` : null;
-                              return `Informação importante · Check-out${time ? ` até ${time}` : ""}`;
+                              return `Importante · Check-out${time ? ` até ${time}` : ""}`;
                             })()}
                           </p>
                           {p.checkout_note && (
