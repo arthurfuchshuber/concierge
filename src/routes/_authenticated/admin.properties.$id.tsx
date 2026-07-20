@@ -1736,6 +1736,119 @@ function PropertyEditor() {
           </SectionGroup>
         </TabsContent>
 
+        <TabsContent value="capture" className="space-y-5 mt-6">
+          <SectionGroup>
+            <Section
+              icon={Lock}
+              title="Sempre coletado"
+              desc="Perguntas obrigatórias no formulário de primeiro acesso. Não podem ser desativadas."
+            >
+              <div className="grid gap-2">
+                {[
+                  { label: "Nome cadastrado na plataforma", icon: UserRound },
+                  { label: "Período da viagem (chegada e saída)", icon: Clock },
+                  { label: "Telefone", icon: Phone },
+                ].map((it) => (
+                  <div key={it.label} className="flex items-center justify-between rounded-xl border border-border/60 bg-muted/40 px-3.5 py-2.5">
+                    <div className="flex items-center gap-2.5">
+                      <span className="grid place-items-center size-8 rounded-lg bg-accent/10 text-accent">
+                        <it.icon className="size-4" />
+                      </span>
+                      <span className="text-sm font-medium">{it.label}</span>
+                    </div>
+                    <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">
+                      <Lock className="size-3" /> obrigatório
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </Section>
+
+            <Section
+              icon={ClipboardList}
+              title="Você pode pedir também"
+              desc="Ative apenas o que faz sentido para seu imóvel. Para cada um, decida se será opcional ou obrigatório para o hóspede."
+            >
+              <div className="space-y-3">
+                <CaptureRow
+                  icon={Clock}
+                  title="Horário previsto de chegada"
+                  desc="Ajuda a preparar o check-in no horário certo."
+                  mode={form.property.collect_arrival_time}
+                  onModeChange={(m) => setForm((f) => ({ ...f, property: { ...f.property, collect_arrival_time: m } }))}
+                />
+
+                <CaptureRow
+                  icon={Car}
+                  title="Veículo(s)"
+                  desc="O hóspede informa quantos veículos vai levar, e para cada um preenche placa, modelo e cor."
+                  mode={form.property.collect_vehicles}
+                  onModeChange={(m) => setForm((f) => ({ ...f, property: { ...f.property, collect_vehicles: m } }))}
+                >
+                  {form.property.collect_vehicles !== "off" && (
+                    <div className="flex items-center justify-between rounded-lg bg-muted/40 border border-border/50 px-3 py-2 mt-1">
+                      <div className="text-[12.5px] text-muted-foreground">
+                        <span className="font-medium text-foreground">Quantidade máxima permitida</span>
+                        <span className="block text-[11px]">Define o teto que o hóspede pode escolher.</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        {[1, 2, 3, 4, 5].map((n) => (
+                          <button
+                            key={n}
+                            type="button"
+                            onClick={() => setForm((f) => ({ ...f, property: { ...f.property, vehicles_max: n } }))}
+                            className={cn(
+                              "size-8 rounded-full text-[12px] font-semibold border transition-colors",
+                              form.property.vehicles_max === n
+                                ? "bg-accent text-accent-foreground border-accent"
+                                : "border-border text-muted-foreground hover:text-foreground",
+                            )}
+                          >
+                            {n}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </CaptureRow>
+
+                <CaptureRow
+                  icon={IdCard}
+                  title="Documento pessoal"
+                  desc="Nome completo + número (CPF, RG, passaporte…)."
+                  mode={form.property.collect_document}
+                  onModeChange={(m) => setForm((f) => ({ ...f, property: { ...f.property, collect_document: m } }))}
+                >
+                  {form.property.collect_document !== "off" && (
+                    <div className="rounded-lg bg-muted/40 border border-border/50 px-3 py-2 mt-1">
+                      <div className="text-[12px] font-medium mb-1.5">De quem coletar?</div>
+                      <div className="flex gap-1.5">
+                        {([
+                          { v: "main", label: "Só do hóspede principal" },
+                          { v: "all", label: "De todos os hóspedes" },
+                        ] as const).map((o) => (
+                          <button
+                            key={o.v}
+                            type="button"
+                            onClick={() => setForm((f) => ({ ...f, property: { ...f.property, document_scope: o.v } }))}
+                            className={cn(
+                              "px-3 py-1.5 rounded-full text-[11.5px] border transition-colors",
+                              form.property.document_scope === o.v
+                                ? "bg-accent text-accent-foreground border-accent"
+                                : "border-border text-muted-foreground hover:text-foreground",
+                            )}
+                          >
+                            {o.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </CaptureRow>
+              </div>
+            </Section>
+          </SectionGroup>
+        </TabsContent>
 
       </Tabs>
 
