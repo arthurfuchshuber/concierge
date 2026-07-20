@@ -1616,7 +1616,7 @@ function Guide({ data }: { data: GuideOk }) {
           />
         );
       })()}
-      {data.aiEnabled ? <GuideAiChat slug={slug} propertyName={heroParts.title} guestName={accessRec?.name ?? null} /> : null}
+      {!needsGate && data.aiEnabled ? <GuideAiChat slug={slug} propertyName={heroParts.title} guestName={accessRec?.name ?? null} /> : null}
       <PinDialog
         open={pinDialog.open}
         slug={slug}
