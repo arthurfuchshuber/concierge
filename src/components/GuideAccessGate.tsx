@@ -266,7 +266,7 @@ export function GuideAccessGate({ slug, propertyName, requireReservationCode, co
         code: requireReservationCode ? code.trim() : null,
         checkinDate,
         checkoutDate,
-        phone,
+        phone: phone ?? null,
         phoneCountry: country,
       };
       window.localStorage.setItem(STORAGE_PREFIX + slug, JSON.stringify(rec));
