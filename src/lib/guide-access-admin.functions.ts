@@ -9,6 +9,46 @@ const ListInput = z.object({
 const SELECT_FIELDS =
   "id, guest_name, reservation_code, checkin_date, guest_phone, guest_phone_country, guest_arrival_time, guest_vehicles, guest_documents, user_agent, created_at";
 
+type DocEntry = {
+  guest_name?: string | null;
+  file_url?: string | null;
+  file_path?: string | null;
+  file_name?: string | null;
+  doc_type?: string | null;
+  doc_number?: string | null;
+  legible?: boolean | null;
+};
+
+async function signGuestDocs<T extends { guest_documents: unknown }>(
+  rows: T[],
+): Promise<T[]> {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const allPaths: string[] = [];
+  for (const r of rows) {
+    const docs = (r.guest_documents ?? []) as DocEntry[] | null;
+    if (!docs) continue;
+    for (const d of docs) if (d?.file_path) allPaths.push(d.file_path);
+  }
+  if (allPaths.length === 0) return rows;
+  const urlMap = new Map<string, string>();
+  const { data } = await supabaseAdmin.storage
+    .from("guest-documents")
+    .createSignedUrls(allPaths, 60 * 60 * 24 * 7);
+  (data ?? []).forEach((entry, i) => {
+    const p = allPaths[i];
+    if (entry?.signedUrl && p) urlMap.set(p, entry.signedUrl);
+  });
+  return rows.map((r) => {
+    const docs = (r.guest_documents ?? []) as DocEntry[] | null;
+    if (!docs) return r;
+    const enriched = docs.map((d) => ({
+      ...d,
+      file_url: d.file_path ? urlMap.get(d.file_path) ?? d.file_url ?? null : d.file_url ?? null,
+    }));
+    return { ...r, guest_documents: enriched };
+  });
+}
+
 export const listGuideAccessLogs = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((i: unknown) => ListInput.parse(i))
@@ -31,13 +71,28 @@ export const listGuideAccessLogs = createServerFn({ method: "GET" })
       .limit(500);
     if (error) throw error;
 
+    type JsonValue = string | number | boolean | null | JsonValue[] | { [k: string]: JsonValue };
+    type AccessLog = {
+      id: string;
+      guest_name: string;
+      reservation_code: string | null;
+      checkin_date: string;
+      guest_phone: string | null;
+      guest_phone_country: string | null;
+      guest_arrival_time: string | null;
+      guest_vehicles: JsonValue;
+      guest_documents: JsonValue;
+      user_agent: string | null;
+      created_at: string;
+    };
+    const signedLogs = (await signGuestDocs(logs ?? [])) as unknown as AccessLog[];
     return {
       property: {
         id: prop.id,
         name: prop.name as string | null,
         portaria_email: (prop as { portaria_email: string | null }).portaria_email ?? null,
       },
-      logs: logs ?? [],
+      logs: signedLogs,
     };
   });
 
@@ -70,17 +125,35 @@ export const listOwnerGuestForms = createServerFn({ method: "GET" })
       .limit(1000);
     if (error) throw error;
 
-    const enriched = (logs ?? []).map((l) => {
+    type JsonValue = string | number | boolean | null | JsonValue[] | { [k: string]: JsonValue };
+    type EnrichedLog = {
+      id: string;
+      guest_name: string;
+      reservation_code: string | null;
+      checkin_date: string;
+      guest_phone: string | null;
+      guest_phone_country: string | null;
+      guest_arrival_time: string | null;
+      guest_vehicles: JsonValue;
+      guest_documents: JsonValue;
+      user_agent: string | null;
+      created_at: string;
+      property_id: string;
+      property_name: string | null;
+      portaria_email: string | null;
+    };
+    const enriched: EnrichedLog[] = (logs ?? []).map((l) => {
       const p = propMap.get((l as { property_id: string }).property_id);
       return {
-        ...(l as Record<string, unknown>),
+        ...(l as unknown as EnrichedLog),
         property_name: p?.name ?? null,
         portaria_email: p?.portaria_email ?? null,
       };
     });
+    const signed = (await signGuestDocs(enriched as unknown as { guest_documents: unknown }[])) as unknown as EnrichedLog[];
 
     return {
-      logs: enriched,
+      logs: signed,
       properties: propList.map((p) => ({
         id: p.id,
         name: (p as { name: string | null }).name ?? null,

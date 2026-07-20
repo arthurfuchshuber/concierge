@@ -32,6 +32,7 @@ import { Route as ApiPublicLandingChatRouteImport } from './routes/api/public/la
 import { Route as ApiPublicGuideChatUploadRouteImport } from './routes/api/public/guide-chat-upload'
 import { Route as ApiPublicGuideChatRouteImport } from './routes/api/public/guide-chat'
 import { Route as ApiPublicGuestPushRouteImport } from './routes/api/public/guest-push'
+import { Route as ApiPublicGuestDocUploadRouteImport } from './routes/api/public/guest-doc-upload'
 import { Route as AuthenticatedAdminTaxonomiaRouteImport } from './routes/_authenticated/admin.taxonomia'
 import { Route as AuthenticatedAdminHospedesRouteImport } from './routes/_authenticated/admin.hospedes'
 import { Route as AuthenticatedAdminEquipeRouteImport } from './routes/_authenticated/admin.equipe'
@@ -173,6 +174,11 @@ const ApiPublicGuideChatRoute = ApiPublicGuideChatRouteImport.update({
 const ApiPublicGuestPushRoute = ApiPublicGuestPushRouteImport.update({
   id: '/api/public/guest-push',
   path: '/api/public/guest-push',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicGuestDocUploadRoute = ApiPublicGuestDocUploadRouteImport.update({
+  id: '/api/public/guest-doc-upload',
+  path: '/api/public/guest-doc-upload',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedAdminTaxonomiaRoute =
@@ -349,6 +355,7 @@ export interface FileRoutesByFullPath {
   '/admin/equipe': typeof AuthenticatedAdminEquipeRoute
   '/admin/hospedes': typeof AuthenticatedAdminHospedesRoute
   '/admin/taxonomia': typeof AuthenticatedAdminTaxonomiaRoute
+  '/api/public/guest-doc-upload': typeof ApiPublicGuestDocUploadRoute
   '/api/public/guest-push': typeof ApiPublicGuestPushRoute
   '/api/public/guide-chat': typeof ApiPublicGuideChatRoute
   '/api/public/guide-chat-upload': typeof ApiPublicGuideChatUploadRoute
@@ -396,6 +403,7 @@ export interface FileRoutesByTo {
   '/admin/equipe': typeof AuthenticatedAdminEquipeRoute
   '/admin/hospedes': typeof AuthenticatedAdminHospedesRoute
   '/admin/taxonomia': typeof AuthenticatedAdminTaxonomiaRoute
+  '/api/public/guest-doc-upload': typeof ApiPublicGuestDocUploadRoute
   '/api/public/guest-push': typeof ApiPublicGuestPushRoute
   '/api/public/guide-chat': typeof ApiPublicGuideChatRoute
   '/api/public/guide-chat-upload': typeof ApiPublicGuideChatUploadRoute
@@ -447,6 +455,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/equipe': typeof AuthenticatedAdminEquipeRoute
   '/_authenticated/admin/hospedes': typeof AuthenticatedAdminHospedesRoute
   '/_authenticated/admin/taxonomia': typeof AuthenticatedAdminTaxonomiaRoute
+  '/api/public/guest-doc-upload': typeof ApiPublicGuestDocUploadRoute
   '/api/public/guest-push': typeof ApiPublicGuestPushRoute
   '/api/public/guide-chat': typeof ApiPublicGuideChatRoute
   '/api/public/guide-chat-upload': typeof ApiPublicGuideChatUploadRoute
@@ -498,6 +507,7 @@ export interface FileRouteTypes {
     | '/admin/equipe'
     | '/admin/hospedes'
     | '/admin/taxonomia'
+    | '/api/public/guest-doc-upload'
     | '/api/public/guest-push'
     | '/api/public/guide-chat'
     | '/api/public/guide-chat-upload'
@@ -545,6 +555,7 @@ export interface FileRouteTypes {
     | '/admin/equipe'
     | '/admin/hospedes'
     | '/admin/taxonomia'
+    | '/api/public/guest-doc-upload'
     | '/api/public/guest-push'
     | '/api/public/guide-chat'
     | '/api/public/guide-chat-upload'
@@ -595,6 +606,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/equipe'
     | '/_authenticated/admin/hospedes'
     | '/_authenticated/admin/taxonomia'
+    | '/api/public/guest-doc-upload'
     | '/api/public/guest-push'
     | '/api/public/guide-chat'
     | '/api/public/guide-chat-upload'
@@ -636,6 +648,7 @@ export interface RootRouteChildren {
   GSlugRoute: typeof GSlugRouteWithChildren
   DotlovableOauthConsentRoute: typeof DotlovableOauthConsentRoute
   Char91DotmcpChar93InvokeToolToolRoute: typeof Char91DotmcpChar93InvokeToolToolRoute
+  ApiPublicGuestDocUploadRoute: typeof ApiPublicGuestDocUploadRoute
   ApiPublicGuestPushRoute: typeof ApiPublicGuestPushRoute
   ApiPublicGuideChatRoute: typeof ApiPublicGuideChatRoute
   ApiPublicGuideChatUploadRoute: typeof ApiPublicGuideChatUploadRoute
@@ -811,6 +824,13 @@ declare module '@tanstack/react-router' {
       path: '/api/public/guest-push'
       fullPath: '/api/public/guest-push'
       preLoaderRoute: typeof ApiPublicGuestPushRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/guest-doc-upload': {
+      id: '/api/public/guest-doc-upload'
+      path: '/api/public/guest-doc-upload'
+      fullPath: '/api/public/guest-doc-upload'
+      preLoaderRoute: typeof ApiPublicGuestDocUploadRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/admin/taxonomia': {
@@ -1079,6 +1099,7 @@ const rootRouteChildren: RootRouteChildren = {
   GSlugRoute: GSlugRouteWithChildren,
   DotlovableOauthConsentRoute: DotlovableOauthConsentRoute,
   Char91DotmcpChar93InvokeToolToolRoute: Char91DotmcpChar93InvokeToolToolRoute,
+  ApiPublicGuestDocUploadRoute: ApiPublicGuestDocUploadRoute,
   ApiPublicGuestPushRoute: ApiPublicGuestPushRoute,
   ApiPublicGuideChatRoute: ApiPublicGuideChatRoute,
   ApiPublicGuideChatUploadRoute: ApiPublicGuideChatUploadRoute,
