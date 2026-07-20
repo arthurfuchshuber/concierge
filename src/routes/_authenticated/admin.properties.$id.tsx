@@ -3572,3 +3572,72 @@ function GenerateModeDialog({
   );
 }
 
+type CaptureMode = "off" | "optional" | "required";
+
+function CaptureRow({
+  icon: Icon,
+  title,
+  desc,
+  mode,
+  onModeChange,
+  children,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  title: string;
+  desc: string;
+  mode: CaptureMode;
+  onModeChange: (m: CaptureMode) => void;
+  children?: React.ReactNode;
+}) {
+  const options: { value: CaptureMode; label: string }[] = [
+    { value: "off", label: "Não pedir" },
+    { value: "optional", label: "Opcional" },
+    { value: "required", label: "Obrigatório" },
+  ];
+  const active = mode !== "off";
+  return (
+    <div
+      className={cn(
+        "rounded-2xl border transition-all",
+        active ? "border-accent/40 bg-accent/5" : "border-border/60 bg-card",
+      )}
+    >
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3 p-3.5">
+        <div className="flex items-center gap-2.5 flex-1 min-w-0">
+          <span
+            className={cn(
+              "grid place-items-center size-9 rounded-lg shrink-0",
+              active ? "bg-accent text-accent-foreground" : "bg-muted text-muted-foreground",
+            )}
+          >
+            <Icon className="size-4" />
+          </span>
+          <div className="min-w-0">
+            <div className="text-sm font-semibold leading-tight">{title}</div>
+            <div className="text-[11.5px] text-muted-foreground leading-snug">{desc}</div>
+          </div>
+        </div>
+        <div className="inline-flex items-center rounded-full bg-muted p-0.5 self-start sm:self-auto">
+          {options.map((o) => (
+            <button
+              key={o.value}
+              type="button"
+              onClick={() => onModeChange(o.value)}
+              className={cn(
+                "px-3 py-1.5 rounded-full text-[11.5px] font-medium transition-colors",
+                mode === o.value
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              {o.label}
+            </button>
+          ))}
+        </div>
+      </div>
+      {children && <div className="px-3.5 pb-3.5">{children}</div>}
+    </div>
+  );
+}
+
+
