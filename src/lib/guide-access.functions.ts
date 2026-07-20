@@ -11,8 +11,11 @@ const VehicleSchema = z.object({
 const DocumentSchema = z.object({
   guest_name: z.string().trim().max(200).optional().nullable(),
   file_url: z.string().trim().max(1000).optional().nullable(),
+  file_path: z.string().trim().max(500).optional().nullable(),
   doc_type: z.string().trim().max(40).optional().nullable(),
   doc_number: z.string().trim().max(80).optional().nullable(),
+  file_name: z.string().trim().max(200).optional().nullable(),
+  legible: z.boolean().optional().nullable(),
 });
 
 const AccessInput = z.object({
