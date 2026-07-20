@@ -85,6 +85,7 @@ function AdminLayout() {
   const { info: sub, isLoading: subLoading } = useSubscription();
   const allowedWithoutPlan =
     pathname.startsWith("/admin/engajamento") ||
+    pathname.startsWith("/admin/hospedes") ||
     pathname.startsWith("/admin/clientes") ||
     pathname.startsWith("/admin/taxonomia") ||
     pathname.startsWith("/admin/recomendacoes-sigma") ||
