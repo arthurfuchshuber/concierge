@@ -2,6 +2,19 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { getRequestHeader } from "@tanstack/react-start/server";
 
+const VehicleSchema = z.object({
+  plate: z.string().trim().max(20).optional().nullable(),
+  model: z.string().trim().max(80).optional().nullable(),
+  color: z.string().trim().max(40).optional().nullable(),
+});
+
+const DocumentSchema = z.object({
+  guest_name: z.string().trim().max(200).optional().nullable(),
+  file_url: z.string().trim().max(1000).optional().nullable(),
+  doc_type: z.string().trim().max(40).optional().nullable(),
+  doc_number: z.string().trim().max(80).optional().nullable(),
+});
+
 const AccessInput = z.object({
   slug: z.string().regex(/^[a-z0-9-]{1,64}$/),
   guest_name: z.string().trim().min(2).max(200),
@@ -9,6 +22,9 @@ const AccessInput = z.object({
   checkin_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   guest_phone: z.string().trim().max(40).optional().nullable(),
   guest_phone_country: z.string().trim().max(4).optional().nullable(),
+  guest_arrival_time: z.string().trim().max(10).optional().nullable(),
+  guest_vehicles: z.array(VehicleSchema).max(10).optional().nullable(),
+  guest_documents: z.array(DocumentSchema).max(20).optional().nullable(),
 });
 
 export const recordGuideAccess = createServerFn({ method: "POST" })
@@ -32,15 +48,14 @@ export const recordGuideAccess = createServerFn({ method: "POST" })
       checkin_date: data.checkin_date,
       guest_phone: data.guest_phone?.trim() || null,
       guest_phone_country: data.guest_phone_country?.trim() || null,
+      guest_arrival_time: data.guest_arrival_time?.trim() || null,
+      guest_vehicles: data.guest_vehicles && data.guest_vehicles.length > 0 ? data.guest_vehicles : null,
+      guest_documents: data.guest_documents && data.guest_documents.length > 0 ? data.guest_documents : null,
       user_agent: userAgent,
-    });
+    } as never);
     if (error) throw (await import("@/lib/db-errors.server")).safeDbError("guide_access_logs", error);
 
-    // Notify host via Supabase Auth email when a guest accesses their guide.
-    // We look up the owner's email and send a transactional notification.
-    // Runs fire-and-forget — never blocks the guest's access.
     try {
-      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
       const { data: fullProp } = await supabaseAdmin
         .from("properties")
         .select("owner_id, name, slug")
@@ -55,9 +70,6 @@ export const recordGuideAccess = createServerFn({ method: "POST" })
             ? new Date(data.checkin_date + "T12:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })
             : "data não informada";
           const guideUrl = `https://guia.anfitriaosigma.com.br/g/${fullProp.slug}`;
-          // Use Supabase transactional email via admin invite (repurposed as notification)
-          // We use a simple fetch to the Supabase edge function if configured,
-          // otherwise log for visibility.
           console.info(
             `[guide-access] Guest "${guestLabel}" (check-in ${checkinLabel}) accessed guide "${fullProp.name}". Notify: ${ownerEmail} — ${guideUrl}`,
           );
