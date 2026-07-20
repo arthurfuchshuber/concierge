@@ -713,7 +713,7 @@ function Guide({ data }: { data: GuideOk }) {
               {((homeStripsVisible && p.checkin_note) ||
                 (checkoutNoticeVisible && (p.checkout_note || p.checkout_time))) && (
                 <div className="px-4 md:px-10 lg:px-16 mt-3">
-                  <div className={`rounded-[22px] border px-4 py-4 flex flex-col gap-4 ${theme === "dark" ? "border-amber-300/22 bg-amber-300/10 text-amber-50" : "border-amber-200/80 bg-amber-50/90 text-amber-950"}`}>
+                  <div className={`btn-shine rounded-[22px] border px-4 py-4 flex flex-col gap-4 ${theme === "dark" ? "border-amber-300/22 bg-amber-300/10 text-amber-50" : "border-amber-200/80 bg-amber-50/90 text-amber-950"}`}>
                     {homeStripsVisible && p.checkin_note && (
                       <div className="flex items-start gap-3 md:flex-1 md:min-w-0">
                         <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-amber-400/15 text-amber-400">
@@ -721,7 +721,7 @@ function Guide({ data }: { data: GuideOk }) {
                         </span>
                         <div className="min-w-0">
                           <p className="text-[10px] uppercase tracking-[0.18em] font-black opacity-75 truncate whitespace-nowrap">
-                            Informação importante · Check-in
+                            Importante · Check-in
                           </p>
                           <p className="text-[13px] leading-relaxed font-medium mt-1 whitespace-pre-line">
                             {String(p.checkin_note)}
@@ -741,7 +741,7 @@ function Guide({ data }: { data: GuideOk }) {
                                 ? String(p.checkout_time).match(/^(\d{1,2}):(\d{2})/)
                                 : null;
                               const time = t ? `${t[1].padStart(2, "0")}h${t[2] !== "00" ? t[2] : ""}` : null;
-                              return `Informação importante · Check-out${time ? ` até ${time}` : ""}`;
+                              return `Importante · Check-out${time ? ` até ${time}` : ""}`;
                             })()}
                           </p>
                           {p.checkout_note && (
@@ -1616,7 +1616,7 @@ function Guide({ data }: { data: GuideOk }) {
           />
         );
       })()}
-      {data.aiEnabled ? <GuideAiChat slug={slug} propertyName={heroParts.title} guestName={accessRec?.name ?? null} /> : null}
+      {!needsGate && data.aiEnabled ? <GuideAiChat slug={slug} propertyName={heroParts.title} guestName={accessRec?.name ?? null} /> : null}
       <PinDialog
         open={pinDialog.open}
         slug={slug}
