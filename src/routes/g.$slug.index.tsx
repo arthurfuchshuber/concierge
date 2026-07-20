@@ -448,6 +448,7 @@ function Guide({ data }: { data: GuideOk }) {
   const hasSaidaData = !!(p.checkout_time || p.checkout_note || p.checkout_instructions);
   const hasSaida = hasSaidaData && !stayCardsExpired;
   const hasResidencia = houseManual.length > 0;
+  const hasLocWifi = !hasResidencia && !!(p.address || p.maps_url || p.wifi_ssid || (p as any).wifi_password_set);
   const hasFaq = !!(p.host_name || p.host_phone) || data.emergency.length > 0 || data.faqs.length > 0;
   const hasExplore =
     (Array.isArray(data.recommendations) && data.recommendations.length > 0) ||
