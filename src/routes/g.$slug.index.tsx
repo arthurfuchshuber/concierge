@@ -52,6 +52,7 @@ import {
   LogOut,
   PlayCircle,
   ListOrdered,
+  Loader2,
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { GuideAiChat } from "@/components/GuideAiChat";
@@ -571,6 +572,13 @@ function Guide({ data }: { data: GuideOk }) {
           slug={slug}
           propertyName={p.name as string}
           requireReservationCode={gateEnabled}
+          collection={{
+            arrivalTime: ((p as unknown as { collect_arrival_time?: string }).collect_arrival_time as "off" | "optional" | "required") ?? "off",
+            vehicles: ((p as unknown as { collect_vehicles?: string }).collect_vehicles as "off" | "optional" | "required") ?? "off",
+            vehiclesMax: (p as unknown as { vehicles_max?: number }).vehicles_max ?? 2,
+            document: ((p as unknown as { collect_document?: string }).collect_document as "off" | "optional" | "required") ?? "off",
+            documentScope: ((p as unknown as { document_scope?: string }).document_scope as "main" | "all") ?? "main",
+          }}
           onUnlock={setAccessRec}
         />
       )}
