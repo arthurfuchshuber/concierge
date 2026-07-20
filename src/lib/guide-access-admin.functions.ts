@@ -71,7 +71,8 @@ export const listGuideAccessLogs = createServerFn({ method: "GET" })
       .limit(500);
     if (error) throw error;
 
-    const signedLogs = (await signGuestDocs(logs ?? [])) as unknown as Array<{
+    type JsonValue = string | number | boolean | null | JsonValue[] | { [k: string]: JsonValue };
+    type AccessLog = {
       id: string;
       guest_name: string;
       reservation_code: string | null;
@@ -79,18 +80,19 @@ export const listGuideAccessLogs = createServerFn({ method: "GET" })
       guest_phone: string | null;
       guest_phone_country: string | null;
       guest_arrival_time: string | null;
-      guest_vehicles: unknown;
-      guest_documents: unknown;
+      guest_vehicles: JsonValue;
+      guest_documents: JsonValue;
       user_agent: string | null;
       created_at: string;
-    }>;
+    };
+    const signedLogs = (await signGuestDocs(logs ?? [])) as unknown as AccessLog[];
     return {
       property: {
         id: prop.id,
         name: prop.name as string | null,
         portaria_email: (prop as { portaria_email: string | null }).portaria_email ?? null,
       },
-      logs: signedLogs as unknown as ReturnType<() => typeof signedLogs>,
+      logs: signedLogs,
     };
   });
 
