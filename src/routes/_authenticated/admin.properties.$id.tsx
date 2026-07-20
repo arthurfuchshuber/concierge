@@ -386,6 +386,11 @@ function PropertyEditor() {
         guide_theme: ((p.guide_theme as "dark" | "light") ?? "dark"),
         published: (p.published as boolean) ?? true,
         require_access_gate: (p.require_access_gate as boolean) ?? false,
+        collect_arrival_time: ((p.collect_arrival_time as "off" | "optional" | "required") ?? "off"),
+        collect_vehicles: ((p.collect_vehicles as "off" | "optional" | "required") ?? "off"),
+        vehicles_max: (p.vehicles_max as number) ?? 2,
+        collect_document: ((p.collect_document as "off" | "optional" | "required") ?? "off"),
+        document_scope: ((p.document_scope as "main" | "all") ?? "main"),
       },
       manual: (data.manual ?? []).map((m: Record<string, unknown>) => ({
         title: (m.title as string) ?? "",
