@@ -377,6 +377,7 @@ function Guide({ data }: { data: GuideOk }) {
 
   // Expansividade da barra "check-in libera em" — abre wi-fi/senhas
   const [codesOpen, setCodesOpen] = useState(false);
+  const [locWifiOpen, setLocWifiOpen] = useState(false);
 
   const [pinDialog, setPinDialog] = useState<{ open: boolean; cb: (() => void) | null }>({ open: false, cb: null });
   const requestUnlock = (cb?: () => void) => {
@@ -447,6 +448,7 @@ function Guide({ data }: { data: GuideOk }) {
   const hasSaidaData = !!(p.checkout_time || p.checkout_note || p.checkout_instructions);
   const hasSaida = hasSaidaData && !stayCardsExpired;
   const hasResidencia = houseManual.length > 0;
+  const hasLocWifi = !hasResidencia && !!(p.address || p.maps_url || p.wifi_ssid || (p as any).wifi_password_set);
   const hasFaq = !!(p.host_name || p.host_phone) || data.emergency.length > 0 || data.faqs.length > 0;
   const hasExplore =
     (Array.isArray(data.recommendations) && data.recommendations.length > 0) ||
@@ -497,7 +499,7 @@ function Guide({ data }: { data: GuideOk }) {
   })();
 
   const allCards: Array<{
-    key: Exclude<Section, "home"> | "explore";
+    key: Exclude<Section, "home"> | "explore" | "locwifi";
     title: string;
     desc: string;
     icon: React.ReactNode;
@@ -505,7 +507,7 @@ function Guide({ data }: { data: GuideOk }) {
     tone: "gold" | "blue" | "green" | "purple" | "rose";
     badge?: string;
     visible: boolean;
-    to?: { kind: "section"; value: Section } | { kind: "link"; to: string };
+    to?: { kind: "section"; value: Section } | { kind: "link"; to: string } | { kind: "dialog"; value: "locwifi" };
   }> = [
     {
       key: "checkin",
@@ -537,6 +539,21 @@ function Guide({ data }: { data: GuideOk }) {
       tone: "green",
       visible: hasResidencia,
       to: { kind: "section", value: "residencia" },
+    },
+    {
+      key: "locwifi",
+      title: "Localização & Wi-Fi",
+      desc: (() => {
+        const bits: string[] = [];
+        if (p.address || p.maps_url) bits.push("Endereço");
+        if (p.wifi_ssid || (p as any).wifi_password_set) bits.push("Wi-Fi");
+        return bits.length ? bits.join(" · ") : "Endereço e rede da residência.";
+      })(),
+      icon: <Wifi strokeWidth={1.6} />,
+      variant: "compact",
+      tone: "green",
+      visible: hasLocWifi,
+      to: { kind: "dialog", value: "locwifi" },
     },
     {
       key: "explore",
@@ -794,7 +811,10 @@ function Guide({ data }: { data: GuideOk }) {
                     ) : (
                       <button
                         key={c.key}
-                        onClick={() => c.to?.kind === "section" && gotoSection(c.to.value)}
+                        onClick={() => {
+                          if (c.to?.kind === "section") gotoSection(c.to.value);
+                          else if (c.to?.kind === "dialog" && c.to.value === "locwifi") setLocWifiOpen(true);
+                        }}
                         className={`w-full text-left ${span}`}
                       >
                         {inner}
@@ -1629,9 +1649,183 @@ function Guide({ data }: { data: GuideOk }) {
           cb?.();
         }}
       />
+      <LocWifiDialog
+        open={locWifiOpen}
+        onOpenChange={setLocWifiOpen}
+        address={(p.address as string | null) ?? null}
+        addressNote={(p.address_note as string | null) ?? null}
+        mapsUrl={safeHttpsHref(p.maps_url as string | null)}
+        wifiSsid={(p.wifi_ssid as string | null) ?? null}
+        wifiPassword={(p.wifi_password as string | null) ?? null}
+        wifiPasswordSet={!!(p as any).wifi_password_set}
+        unlocked={unlocked}
+        onRequestUnlock={() => requestUnlock()}
+      />
     </div>
   );
 }
+
+function LocWifiDialog({
+  open,
+  onOpenChange,
+  address,
+  addressNote,
+  mapsUrl,
+  wifiSsid,
+  wifiPassword,
+  wifiPasswordSet,
+  unlocked,
+  onRequestUnlock,
+}: {
+  open: boolean;
+  onOpenChange: (o: boolean) => void;
+  address: string | null;
+  addressNote: string | null;
+  mapsUrl: string | null;
+  wifiSsid: string | null;
+  wifiPassword: string | null;
+  wifiPasswordSet: boolean;
+  unlocked: boolean;
+  onRequestUnlock: () => void;
+}) {
+  const [copied, setCopied] = useState<string | null>(null);
+  async function copy(label: string, value: string) {
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopied(label);
+      setTimeout(() => setCopied((c) => (c === label ? null : c)), 1600);
+    } catch {}
+  }
+  const hasLoc = !!(address || mapsUrl);
+  const hasWifi = !!(wifiSsid || wifiPassword || wifiPasswordSet);
+  const showWifiPass = unlocked && wifiPassword;
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-[400px] p-0 overflow-hidden rounded-[22px]">
+        <div className="px-5 pt-5 pb-3 text-center border-b border-border/40">
+          <div className="mx-auto mb-2.5 grid place-items-center size-11 rounded-full bg-emerald-500/12 ring-1 ring-emerald-500/25 text-emerald-500">
+            <Wifi className="size-[18px]" strokeWidth={1.75} />
+          </div>
+          <DialogTitle className="font-display text-[18px] tracking-tight">Localização & Wi-Fi</DialogTitle>
+          <p className="text-[12px] text-muted-foreground mt-1 leading-relaxed">
+            Onde estamos e como se conectar.
+          </p>
+        </div>
+        <div className="px-5 py-4 max-h-[65vh] overflow-y-auto sg-elegant-scroll space-y-5">
+          {hasLoc && (
+            <section className="space-y-2">
+              <p className="text-[10px] uppercase tracking-[0.22em] font-black text-foreground/60">
+                <MapPin className="inline size-3 -mt-0.5 mr-1" strokeWidth={2} />
+                Endereço
+              </p>
+              {address && (
+                <div className="rounded-2xl border border-border/60 bg-muted/30 px-4 py-3">
+                  <p className="text-[13.5px] leading-relaxed whitespace-pre-line">{address}</p>
+                  {addressNote && (
+                    <p className="text-[12px] text-muted-foreground mt-1.5 leading-relaxed whitespace-pre-line">
+                      {addressNote}
+                    </p>
+                  )}
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={() => copy("address", address)}
+                      className="inline-flex items-center gap-1.5 rounded-full bg-foreground/8 hover:bg-foreground/12 px-3 py-1.5 text-[11.5px] font-semibold"
+                    >
+                      {copied === "address" ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
+                      {copied === "address" ? "Copiado" : "Copiar"}
+                    </button>
+                    {mapsUrl && (
+                      <a
+                        href={mapsUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500 text-white px-3 py-1.5 text-[11.5px] font-semibold hover:opacity-90"
+                      >
+                        <ExternalLink className="size-3.5" />
+                        Abrir no Maps
+                      </a>
+                    )}
+                  </div>
+                </div>
+              )}
+              {!address && mapsUrl && (
+                <a
+                  href={mapsUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500 text-white px-3 py-1.5 text-[11.5px] font-semibold hover:opacity-90"
+                >
+                  <ExternalLink className="size-3.5" />
+                  Abrir no Maps
+                </a>
+              )}
+            </section>
+          )}
+          {hasLoc && hasWifi && <div className="h-px bg-border/50" />}
+          {hasWifi && (
+            <section className="space-y-2">
+              <p className="text-[10px] uppercase tracking-[0.22em] font-black text-foreground/60">
+                <Wifi className="inline size-3 -mt-0.5 mr-1" strokeWidth={2} />
+                Wi-Fi
+              </p>
+              <div className="rounded-2xl border border-border/60 bg-muted/30 px-4 py-3 space-y-2.5">
+                {wifiSsid && (
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Rede</p>
+                      <p className="text-[14px] font-semibold truncate">{wifiSsid}</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => copy("ssid", wifiSsid)}
+                      className="inline-flex items-center gap-1.5 rounded-full bg-foreground/8 hover:bg-foreground/12 px-3 py-1.5 text-[11.5px] font-semibold shrink-0"
+                    >
+                      {copied === "ssid" ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
+                    </button>
+                  </div>
+                )}
+                {(wifiPasswordSet || wifiPassword) && (
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Senha</p>
+                      {showWifiPass ? (
+                        <p className="text-[14px] font-mono font-semibold tracking-wider truncate">{wifiPassword}</p>
+                      ) : (
+                        <p className="text-[14px] font-mono tracking-[0.3em] text-foreground/50">••••••••</p>
+                      )}
+                    </div>
+                    {showWifiPass ? (
+                      <button
+                        type="button"
+                        onClick={() => copy("pass", wifiPassword!)}
+                        className="inline-flex items-center gap-1.5 rounded-full bg-foreground/8 hover:bg-foreground/12 px-3 py-1.5 text-[11.5px] font-semibold shrink-0"
+                      >
+                        {copied === "pass" ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={onRequestUnlock}
+                        className="inline-flex items-center gap-1.5 rounded-full bg-foreground text-background px-3 py-1.5 text-[11.5px] font-semibold shrink-0 hover:opacity-90"
+                      >
+                        <Eye className="size-3.5" strokeWidth={2.4} />
+                        Ver
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+            </section>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+
 
 function residenciaIcon(title: string): React.ReactNode {
   const t = title.toLowerCase();
