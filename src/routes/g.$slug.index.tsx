@@ -1649,6 +1649,18 @@ function Guide({ data }: { data: GuideOk }) {
           cb?.();
         }}
       />
+      <LocWifiDialog
+        open={locWifiOpen}
+        onOpenChange={setLocWifiOpen}
+        address={(p.address as string | null) ?? null}
+        addressNote={(p.address_note as string | null) ?? null}
+        mapsUrl={safeHttpsHref(p.maps_url as string | null)}
+        wifiSsid={(p.wifi_ssid as string | null) ?? null}
+        wifiPassword={(p.wifi_password as string | null) ?? null}
+        wifiPasswordSet={!!(p as any).wifi_password_set}
+        unlocked={unlocked}
+        onRequestUnlock={() => requestUnlock()}
+      />
     </div>
   );
 }
