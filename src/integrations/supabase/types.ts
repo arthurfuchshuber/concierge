@@ -1078,6 +1078,7 @@ export type Database = {
           owner_id: string
           pin_code: string | null
           pin_expires_at: string | null
+          portaria_email: string | null
           published: boolean
           require_access_gate: boolean
           sigma_pack_activated_at: string | null
@@ -1142,6 +1143,7 @@ export type Database = {
           owner_id: string
           pin_code?: string | null
           pin_expires_at?: string | null
+          portaria_email?: string | null
           published?: boolean
           require_access_gate?: boolean
           sigma_pack_activated_at?: string | null
@@ -1206,6 +1208,7 @@ export type Database = {
           owner_id?: string
           pin_code?: string | null
           pin_expires_at?: string | null
+          portaria_email?: string | null
           published?: boolean
           require_access_gate?: boolean
           sigma_pack_activated_at?: string | null
