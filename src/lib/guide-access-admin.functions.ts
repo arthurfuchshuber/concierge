@@ -71,14 +71,26 @@ export const listGuideAccessLogs = createServerFn({ method: "GET" })
       .limit(500);
     if (error) throw error;
 
-    const signedLogs = await signGuestDocs(logs ?? []);
+    const signedLogs = (await signGuestDocs(logs ?? [])) as unknown as Array<{
+      id: string;
+      guest_name: string;
+      reservation_code: string | null;
+      checkin_date: string;
+      guest_phone: string | null;
+      guest_phone_country: string | null;
+      guest_arrival_time: string | null;
+      guest_vehicles: unknown;
+      guest_documents: unknown;
+      user_agent: string | null;
+      created_at: string;
+    }>;
     return {
       property: {
         id: prop.id,
         name: prop.name as string | null,
         portaria_email: (prop as { portaria_email: string | null }).portaria_email ?? null,
       },
-      logs: signedLogs,
+      logs: signedLogs as unknown as ReturnType<() => typeof signedLogs>,
     };
   });
 
