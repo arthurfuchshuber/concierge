@@ -377,6 +377,7 @@ function Guide({ data }: { data: GuideOk }) {
 
   // Expansividade da barra "check-in libera em" — abre wi-fi/senhas
   const [codesOpen, setCodesOpen] = useState(false);
+  const [locWifiOpen, setLocWifiOpen] = useState(false);
 
   const [pinDialog, setPinDialog] = useState<{ open: boolean; cb: (() => void) | null }>({ open: false, cb: null });
   const requestUnlock = (cb?: () => void) => {
