@@ -499,7 +499,7 @@ function Guide({ data }: { data: GuideOk }) {
   })();
 
   const allCards: Array<{
-    key: Exclude<Section, "home"> | "explore";
+    key: Exclude<Section, "home"> | "explore" | "locwifi";
     title: string;
     desc: string;
     icon: React.ReactNode;
@@ -507,7 +507,7 @@ function Guide({ data }: { data: GuideOk }) {
     tone: "gold" | "blue" | "green" | "purple" | "rose";
     badge?: string;
     visible: boolean;
-    to?: { kind: "section"; value: Section } | { kind: "link"; to: string };
+    to?: { kind: "section"; value: Section } | { kind: "link"; to: string } | { kind: "dialog"; value: "locwifi" };
   }> = [
     {
       key: "checkin",
@@ -539,6 +539,21 @@ function Guide({ data }: { data: GuideOk }) {
       tone: "green",
       visible: hasResidencia,
       to: { kind: "section", value: "residencia" },
+    },
+    {
+      key: "locwifi",
+      title: "Localização & Wi-Fi",
+      desc: (() => {
+        const bits: string[] = [];
+        if (p.address || p.maps_url) bits.push("Endereço");
+        if (p.wifi_ssid || (p as any).wifi_password_set) bits.push("Wi-Fi");
+        return bits.length ? bits.join(" · ") : "Endereço e rede da residência.";
+      })(),
+      icon: <Wifi strokeWidth={1.6} />,
+      variant: "compact",
+      tone: "green",
+      visible: hasLocWifi,
+      to: { kind: "dialog", value: "locwifi" },
     },
     {
       key: "explore",
