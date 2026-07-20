@@ -721,7 +721,7 @@ function Guide({ data }: { data: GuideOk }) {
                         </span>
                         <div className="min-w-0">
                           <p className="text-[10px] uppercase tracking-[0.18em] font-black opacity-75 truncate whitespace-nowrap">
-                            Informação importante · Check-in
+                            Importante · Check-in
                           </p>
                           <p className="text-[13px] leading-relaxed font-medium mt-1 whitespace-pre-line">
                             {String(p.checkin_note)}
