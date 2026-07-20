@@ -811,7 +811,10 @@ function Guide({ data }: { data: GuideOk }) {
                     ) : (
                       <button
                         key={c.key}
-                        onClick={() => c.to?.kind === "section" && gotoSection(c.to.value)}
+                        onClick={() => {
+                          if (c.to?.kind === "section") gotoSection(c.to.value);
+                          else if (c.to?.kind === "dialog" && c.to.value === "locwifi") setLocWifiOpen(true);
+                        }}
                         className={`w-full text-left ${span}`}
                       >
                         {inner}
