@@ -3170,14 +3170,29 @@ function PinDialog({
         onOpenChange(o);
       }}
     >
-      <DialogContent className="max-w-sm">
-        <DialogHeader>
-          <DialogTitle>Senha de acesso</DialogTitle>
-        </DialogHeader>
-        <p className="text-sm text-muted-foreground -mt-1">
-          Digite a senha fornecida pelo anfitrião para visualizar as informações sensíveis.
-        </p>
-        <form onSubmit={submit} className="flex items-center gap-2 pt-1">
+      <DialogContent
+        className={cn(
+          "max-w-[380px] p-0 gap-0 overflow-hidden border-white/10",
+          "rounded-[24px]",
+          "bg-[color-mix(in_oklab,hsl(var(--background))_78%,transparent)]",
+          "backdrop-blur-2xl backdrop-saturate-150",
+          "shadow-[0_28px_70px_-18px_rgba(0,0,0,0.6),0_0_0_1px_rgba(255,255,255,0.05)_inset]",
+        )}
+      >
+        <div className="px-6 pt-6 pb-2">
+          <div className="mx-auto mb-4 grid size-11 place-items-center rounded-2xl bg-primary/12 ring-1 ring-primary/25 text-primary">
+            <KeyRound className="size-[18px]" strokeWidth={2} />
+          </div>
+          <DialogHeader className="text-center space-y-1.5">
+            <DialogTitle className="font-serif text-[20px] leading-tight tracking-tight">
+              Senha de acesso
+            </DialogTitle>
+            <p className="text-[12.5px] text-muted-foreground leading-relaxed px-2">
+              Digite a senha do anfitrião para ver os dados sensíveis.
+            </p>
+          </DialogHeader>
+        </div>
+        <form onSubmit={submit} className="px-6 pb-6 pt-3 space-y-3">
           <label htmlFor="guide-access-pin" className="sr-only">
             Senha de acesso da hospedagem
           </label>
@@ -3186,16 +3201,40 @@ function PinDialog({
             aria-label="Senha de acesso da hospedagem"
             value={value}
             onChange={(e) => setValue(e.target.value)}
-            placeholder="Senha"
+            placeholder="••••••"
             autoFocus
             type="password"
             maxLength={32}
-            className="h-10 flex-1"
+            className={cn(
+              "h-[52px] rounded-[14px] text-center text-[18px] tracking-[0.3em] font-semibold",
+              "bg-white/[0.04] border-white/10 focus-visible:ring-4 focus-visible:ring-primary/15 focus-visible:border-primary/50",
+            )}
           />
-
-          <Button type="submit" className="h-10">
-            Liberar
+          <Button
+            type="submit"
+            disabled={submitting || !value.trim()}
+            className={cn(
+              "w-full h-[48px] rounded-full text-[14px] font-semibold",
+              "bg-gradient-to-b from-primary to-[color-mix(in_oklab,hsl(var(--primary))_86%,#000)]",
+              "text-primary-foreground",
+              "shadow-[0_10px_28px_-8px_color-mix(in_oklab,hsl(var(--primary))_50%,transparent),0_1px_0_0_rgba(255,255,255,0.25)_inset]",
+              "transition-all duration-200 hover:translate-y-[-1px]",
+              "disabled:opacity-70 disabled:cursor-not-allowed",
+            )}
+          >
+            {submitting ? (
+              <span className="inline-flex items-center gap-2">
+                <Loader2 className="size-4 animate-spin" />
+                Validando…
+              </span>
+            ) : (
+              "Liberar informações"
+            )}
           </Button>
+          <p className="text-[10.5px] text-center text-muted-foreground/80 pt-1">
+            <Lock className="inline size-3 mr-1 -mt-0.5 text-primary/60" />
+            Compartilhada apenas com hóspedes autorizados.
+          </p>
         </form>
       </DialogContent>
     </Dialog>
