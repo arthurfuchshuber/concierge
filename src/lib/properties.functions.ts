@@ -102,6 +102,11 @@ const PropertyInput = z.object({
   guide_theme: z.enum(["dark", "light"]).default("dark"),
   published: z.boolean().default(true),
   require_access_gate: z.boolean().default(false),
+  collect_arrival_time: z.enum(["off", "optional", "required"]).default("off"),
+  collect_vehicles: z.enum(["off", "optional", "required"]).default("off"),
+  vehicles_max: z.number().int().min(0).max(10).default(2),
+  collect_document: z.enum(["off", "optional", "required"]).default("off"),
+  document_scope: z.enum(["main", "all"]).default("main"),
 });
 
 
@@ -208,6 +213,11 @@ const BulkPatch = z.object({
   access_mode: z.enum(["public", "pin"]).optional(),
   pin_code: z.string().max(20).optional(),
   require_access_gate: z.boolean().optional(),
+  collect_arrival_time: z.enum(["off", "optional", "required"]).optional(),
+  collect_vehicles: z.enum(["off", "optional", "required"]).optional(),
+  vehicles_max: z.number().int().min(0).max(10).optional(),
+  collect_document: z.enum(["off", "optional", "required"]).optional(),
+  document_scope: z.enum(["main", "all"]).optional(),
 }).strict();
 
 const BulkListsInput = z.object({

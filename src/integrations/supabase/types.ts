@@ -632,9 +632,12 @@ export type Database = {
         Row: {
           checkin_date: string
           created_at: string
+          guest_arrival_time: string | null
+          guest_documents: Json | null
           guest_name: string
           guest_phone: string | null
           guest_phone_country: string | null
+          guest_vehicles: Json | null
           id: string
           property_id: string
           reservation_code: string | null
@@ -643,9 +646,12 @@ export type Database = {
         Insert: {
           checkin_date: string
           created_at?: string
+          guest_arrival_time?: string | null
+          guest_documents?: Json | null
           guest_name: string
           guest_phone?: string | null
           guest_phone_country?: string | null
+          guest_vehicles?: Json | null
           id?: string
           property_id: string
           reservation_code?: string | null
@@ -654,9 +660,12 @@ export type Database = {
         Update: {
           checkin_date?: string
           created_at?: string
+          guest_arrival_time?: string | null
+          guest_documents?: Json | null
           guest_name?: string
           guest_phone?: string | null
           guest_phone_country?: string | null
+          guest_vehicles?: Json | null
           id?: string
           property_id?: string
           reservation_code?: string | null
@@ -1036,9 +1045,13 @@ export type Database = {
           checkout_time: string | null
           checkout_time_min: string | null
           city: string | null
+          collect_arrival_time: string
+          collect_document: string
+          collect_vehicles: string
           country: string | null
           created_at: string
           default_language: Database["public"]["Enums"]["guide_language"]
+          document_scope: string
           gallery_images: string[]
           garage_maps_url: string | null
           gate_code: string | null
@@ -1075,6 +1088,7 @@ export type Database = {
           tagline: string | null
           theme_images: Json
           updated_at: string
+          vehicles_max: number
           wifi_password: string | null
           wifi_ssid: string | null
         }
@@ -1095,9 +1109,13 @@ export type Database = {
           checkout_time?: string | null
           checkout_time_min?: string | null
           city?: string | null
+          collect_arrival_time?: string
+          collect_document?: string
+          collect_vehicles?: string
           country?: string | null
           created_at?: string
           default_language?: Database["public"]["Enums"]["guide_language"]
+          document_scope?: string
           gallery_images?: string[]
           garage_maps_url?: string | null
           gate_code?: string | null
@@ -1134,6 +1152,7 @@ export type Database = {
           tagline?: string | null
           theme_images?: Json
           updated_at?: string
+          vehicles_max?: number
           wifi_password?: string | null
           wifi_ssid?: string | null
         }
@@ -1154,9 +1173,13 @@ export type Database = {
           checkout_time?: string | null
           checkout_time_min?: string | null
           city?: string | null
+          collect_arrival_time?: string
+          collect_document?: string
+          collect_vehicles?: string
           country?: string | null
           created_at?: string
           default_language?: Database["public"]["Enums"]["guide_language"]
+          document_scope?: string
           gallery_images?: string[]
           garage_maps_url?: string | null
           gate_code?: string | null
@@ -1193,6 +1216,7 @@ export type Database = {
           tagline?: string | null
           theme_images?: Json
           updated_at?: string
+          vehicles_max?: number
           wifi_password?: string | null
           wifi_ssid?: string | null
         }

@@ -22,12 +22,13 @@ import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Loader2, Sparkles, Plus, Trash2, MapPin, ArrowLeft, FileText, KeyRound, Home, Compass, LifeBuoy, Check, Eye, Image as ImageIcon, MapPinned, Clock, DoorOpen, Wifi, UserRound, BookOpen, ClipboardCheck, Shield, Globe, Power, Phone, HelpCircle, Sun, Moon, Palette, Lock, MessageSquare, LogOut, ChevronDown, Ticket, RefreshCw, Copy, Share2, X, MoveRight } from "lucide-react";
+import { Loader2, Sparkles, Plus, Trash2, MapPin, ArrowLeft, FileText, KeyRound, Home, Compass, LifeBuoy, Check, Eye, Image as ImageIcon, MapPinned, Clock, DoorOpen, Wifi, UserRound, BookOpen, ClipboardCheck, Shield, Globe, Power, Phone, HelpCircle, Sun, Moon, Palette, Lock, MessageSquare, LogOut, ChevronDown, Ticket, RefreshCw, Copy, Share2, X, MoveRight, ClipboardList, Car, IdCard } from "lucide-react";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { ImageUpload } from "@/components/ImageUpload";
 import { MediaUpload, type MediaItem } from "@/components/MediaUpload";
 import { EtiquetaSelect, ETIQUETA_OPTIONS } from "@/components/EtiquetaSelect";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { cn } from "@/lib/utils";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { TimePicker } from "@/components/ui/time-picker";
 import { DateTimePicker } from "@/components/ui/date-picker";
@@ -120,6 +121,11 @@ type FormState = {
     guide_theme: "dark" | "light";
     published: boolean;
     require_access_gate: boolean;
+    collect_arrival_time: "off" | "optional" | "required";
+    collect_vehicles: "off" | "optional" | "required";
+    vehicles_max: number;
+    collect_document: "off" | "optional" | "required";
+    document_scope: "main" | "all";
   };
   manual: { title: string; description: string; body: string }[];
   emergency: { label: string; number: string }[];
@@ -139,6 +145,7 @@ function emptyForm(): FormState {
       lock_code: "", lock_label: "Fechadura", gate_code: "", gate_label: "Portão", access_codes_pin: "", address_note: "", checkin_instructions: "", checkout_instructions: "", house_rules: "", checkin_media: [], gate_instructions: "", gate_media: [], gate_video_url: "", lock_instructions: "", lock_media: [], lock_video_url: "", wifi_ssid: "", wifi_password: "",
       host_name: "", host_phone: "", brand_name: "", brand_logo_url: "", access_mode: "public", pin_code: "", pin_expires_at: "",
       default_language: "pt", guide_theme: "dark", published: true, require_access_gate: false,
+      collect_arrival_time: "off", collect_vehicles: "off", vehicles_max: 2, collect_document: "off", document_scope: "main",
     },
     manual: [],
     emergency: [{ label: "Polícia", number: "190" }, { label: "Bombeiros / SAMU", number: "192" }],
@@ -380,6 +387,11 @@ function PropertyEditor() {
         guide_theme: ((p.guide_theme as "dark" | "light") ?? "dark"),
         published: (p.published as boolean) ?? true,
         require_access_gate: (p.require_access_gate as boolean) ?? false,
+        collect_arrival_time: ((p.collect_arrival_time as "off" | "optional" | "required") ?? "off"),
+        collect_vehicles: ((p.collect_vehicles as "off" | "optional" | "required") ?? "off"),
+        vehicles_max: (p.vehicles_max as number) ?? 2,
+        collect_document: ((p.collect_document as "off" | "optional" | "required") ?? "off"),
+        document_scope: ((p.document_scope as "main" | "all") ?? "main"),
       },
       manual: (data.manual ?? []).map((m: Record<string, unknown>) => ({
         title: (m.title as string) ?? "",
@@ -893,6 +905,7 @@ function PropertyEditor() {
             { value: "house", label: "A casa", icon: Home },
             { value: "recs", label: "Recomendações", icon: Compass },
             { value: "extras", label: "Extras", icon: LifeBuoy },
+            { value: "capture", label: "Captação", icon: ClipboardList },
           ]}
         />
 
@@ -1724,6 +1737,119 @@ function PropertyEditor() {
           </SectionGroup>
         </TabsContent>
 
+        <TabsContent value="capture" className="space-y-5 mt-6">
+          <SectionGroup>
+            <Section
+              icon={Lock}
+              title="Sempre coletado"
+              desc="Perguntas obrigatórias no formulário de primeiro acesso. Não podem ser desativadas."
+            >
+              <div className="grid gap-2">
+                {[
+                  { label: "Nome cadastrado na plataforma", icon: UserRound },
+                  { label: "Período da viagem (chegada e saída)", icon: Clock },
+                  { label: "Telefone", icon: Phone },
+                ].map((it) => (
+                  <div key={it.label} className="flex items-center justify-between rounded-xl border border-border/60 bg-muted/40 px-3.5 py-2.5">
+                    <div className="flex items-center gap-2.5">
+                      <span className="grid place-items-center size-8 rounded-lg bg-accent/10 text-accent">
+                        <it.icon className="size-4" />
+                      </span>
+                      <span className="text-sm font-medium">{it.label}</span>
+                    </div>
+                    <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">
+                      <Lock className="size-3" /> obrigatório
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </Section>
+
+            <Section
+              icon={ClipboardList}
+              title="Você pode pedir também"
+              desc="Ative apenas o que faz sentido para seu imóvel. Para cada um, decida se será opcional ou obrigatório para o hóspede."
+            >
+              <div className="space-y-3">
+                <CaptureRow
+                  icon={Clock}
+                  title="Horário previsto de chegada"
+                  desc="Ajuda a preparar o check-in no horário certo."
+                  mode={form.property.collect_arrival_time}
+                  onModeChange={(m) => setForm((f) => ({ ...f, property: { ...f.property, collect_arrival_time: m } }))}
+                />
+
+                <CaptureRow
+                  icon={Car}
+                  title="Veículo(s)"
+                  desc="O hóspede informa quantos veículos vai levar, e para cada um preenche placa, modelo e cor."
+                  mode={form.property.collect_vehicles}
+                  onModeChange={(m) => setForm((f) => ({ ...f, property: { ...f.property, collect_vehicles: m } }))}
+                >
+                  {form.property.collect_vehicles !== "off" && (
+                    <div className="flex items-center justify-between rounded-lg bg-muted/40 border border-border/50 px-3 py-2 mt-1">
+                      <div className="text-[12.5px] text-muted-foreground">
+                        <span className="font-medium text-foreground">Quantidade máxima permitida</span>
+                        <span className="block text-[11px]">Define o teto que o hóspede pode escolher.</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        {[1, 2, 3, 4, 5].map((n) => (
+                          <button
+                            key={n}
+                            type="button"
+                            onClick={() => setForm((f) => ({ ...f, property: { ...f.property, vehicles_max: n } }))}
+                            className={cn(
+                              "size-8 rounded-full text-[12px] font-semibold border transition-colors",
+                              form.property.vehicles_max === n
+                                ? "bg-accent text-accent-foreground border-accent"
+                                : "border-border text-muted-foreground hover:text-foreground",
+                            )}
+                          >
+                            {n}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </CaptureRow>
+
+                <CaptureRow
+                  icon={IdCard}
+                  title="Documento pessoal"
+                  desc="Nome completo + número (CPF, RG, passaporte…)."
+                  mode={form.property.collect_document}
+                  onModeChange={(m) => setForm((f) => ({ ...f, property: { ...f.property, collect_document: m } }))}
+                >
+                  {form.property.collect_document !== "off" && (
+                    <div className="rounded-lg bg-muted/40 border border-border/50 px-3 py-2 mt-1">
+                      <div className="text-[12px] font-medium mb-1.5">De quem coletar?</div>
+                      <div className="flex gap-1.5">
+                        {([
+                          { v: "main", label: "Só do hóspede principal" },
+                          { v: "all", label: "De todos os hóspedes" },
+                        ] as const).map((o) => (
+                          <button
+                            key={o.v}
+                            type="button"
+                            onClick={() => setForm((f) => ({ ...f, property: { ...f.property, document_scope: o.v } }))}
+                            className={cn(
+                              "px-3 py-1.5 rounded-full text-[11.5px] border transition-colors",
+                              form.property.document_scope === o.v
+                                ? "bg-accent text-accent-foreground border-accent"
+                                : "border-border text-muted-foreground hover:text-foreground",
+                            )}
+                          >
+                            {o.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </CaptureRow>
+              </div>
+            </Section>
+          </SectionGroup>
+        </TabsContent>
 
       </Tabs>
 
@@ -3445,4 +3571,73 @@ function GenerateModeDialog({
     </Dialog>
   );
 }
+
+type CaptureMode = "off" | "optional" | "required";
+
+function CaptureRow({
+  icon: Icon,
+  title,
+  desc,
+  mode,
+  onModeChange,
+  children,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  title: string;
+  desc: string;
+  mode: CaptureMode;
+  onModeChange: (m: CaptureMode) => void;
+  children?: React.ReactNode;
+}) {
+  const options: { value: CaptureMode; label: string }[] = [
+    { value: "off", label: "Não pedir" },
+    { value: "optional", label: "Opcional" },
+    { value: "required", label: "Obrigatório" },
+  ];
+  const active = mode !== "off";
+  return (
+    <div
+      className={cn(
+        "rounded-2xl border transition-all",
+        active ? "border-accent/40 bg-accent/5" : "border-border/60 bg-card",
+      )}
+    >
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3 p-3.5">
+        <div className="flex items-center gap-2.5 flex-1 min-w-0">
+          <span
+            className={cn(
+              "grid place-items-center size-9 rounded-lg shrink-0",
+              active ? "bg-accent text-accent-foreground" : "bg-muted text-muted-foreground",
+            )}
+          >
+            <Icon className="size-4" />
+          </span>
+          <div className="min-w-0">
+            <div className="text-sm font-semibold leading-tight">{title}</div>
+            <div className="text-[11.5px] text-muted-foreground leading-snug">{desc}</div>
+          </div>
+        </div>
+        <div className="inline-flex items-center rounded-full bg-muted p-0.5 self-start sm:self-auto">
+          {options.map((o) => (
+            <button
+              key={o.value}
+              type="button"
+              onClick={() => onModeChange(o.value)}
+              className={cn(
+                "px-3 py-1.5 rounded-full text-[11.5px] font-medium transition-colors",
+                mode === o.value
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              {o.label}
+            </button>
+          ))}
+        </div>
+      </div>
+      {children && <div className="px-3.5 pb-3.5">{children}</div>}
+    </div>
+  );
+}
+
 
