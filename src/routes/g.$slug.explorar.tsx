@@ -28,6 +28,8 @@ import {
 } from "lucide-react";
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
 import { GuideAiChat } from "@/components/GuideAiChat";
+import { BottomNav, type BottomNavKey } from "@/components/guide/BottomNav";
+
 import { toTitleCase } from "@/lib/text";
 import { useCityReferencesRealtime } from "@/hooks/useCityReferencesRealtime";
 import { useTaxonomy } from "@/components/admin/TagPicker";
