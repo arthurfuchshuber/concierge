@@ -341,19 +341,10 @@ function Guide({ data }: { data: GuideOk }) {
     return Date.now() > end;
   })();
 
-  // Faixas da home: visíveis somente de 8h antes do check-in até 12h após
-  // a data e hora do check-in informados pelo anfitrião.
-  const homeStripsVisible = (() => {
-    if (!accessRec?.checkinDate) return false;
-    const t = String(p.checkin_time ?? "15:00").match(/^(\d{1,2}):(\d{2})/);
-    const hh = t ? Number(t[1]) : 15;
-    const mm = t ? Number(t[2]) : 0;
-    const [y, mo, d] = accessRec.checkinDate.split("-").map(Number);
-    if (!y || !mo || !d) return false;
-    const ci = new Date(y, mo - 1, d, hh, mm, 0, 0).getTime();
-    const now = Date.now();
-    return now >= ci - 8 * 3600_000 && now <= ci + 12 * 3600_000;
-  })();
+  // Faixas da home (Wi-Fi/Acesso e aviso de check-in): visíveis sempre que
+  // o hóspede já preencheu o formulário de acesso — sem janela temporal.
+  // A revelação das senhas continua gated por `checkinLocked`.
+  const homeStripsVisible = !!accessRec;
 
   // Aviso de check-out: aparece como faixa na home a partir das 3h00 do
   // dia do check-out e até as 15h00 do mesmo dia.
