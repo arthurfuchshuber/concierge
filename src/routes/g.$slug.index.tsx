@@ -3049,7 +3049,7 @@ function WifiStrip({
       />
       {/* Etiqueta centralizada sobre a linha superior do card */}
       <span
-        className={`absolute -top-2 left-1/2 -translate-x-1/2 z-10 inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[9px] font-bold uppercase tracking-[0.2em] ring-1 whitespace-nowrap ${
+        className={`absolute top-1.5 left-1/2 -translate-x-1/2 z-10 inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[9px] font-bold uppercase tracking-[0.2em] ring-1 whitespace-nowrap ${
           isLight
             ? "bg-card text-accent/85 ring-accent/30 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.08)]"
             : "bg-[oklch(0.16_0.04_50)] text-amber-100 ring-amber-200/35 shadow-[0_2px_10px_-2px_rgba(0,0,0,0.6)]"
@@ -3196,7 +3196,7 @@ function AccessCodesStrip({
       />
       {/* Etiqueta centralizada sobre a linha superior do card */}
       <span
-        className={`absolute -top-2 left-1/2 -translate-x-1/2 z-10 inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[9px] font-bold uppercase tracking-[0.2em] ring-1 whitespace-nowrap ${
+        className={`absolute top-1.5 left-1/2 -translate-x-1/2 z-10 inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[9px] font-bold uppercase tracking-[0.2em] ring-1 whitespace-nowrap ${
           isLight
             ? "bg-card text-accent/85 ring-accent/30 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.08)]"
             : "bg-[oklch(0.16_0.04_50)] text-amber-100 ring-amber-200/35 shadow-[0_2px_10px_-2px_rgba(0,0,0,0.6)]"
