@@ -265,6 +265,23 @@ function Guide({ data }: { data: GuideOk }) {
   const [section, setSection] = useState<Section>("home");
   const trackEvent = useServerFn(trackGuideEvent);
 
+  // Suporta navegação por hash (#checkin, #saida, #residencia) vinda de outras páginas.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const apply = () => {
+      const h = window.location.hash.replace("#", "");
+      const valid: Section[] = ["home", "checkin", "saida", "residencia", "faq"] as unknown as Section[];
+      if ((valid as string[]).includes(h)) {
+        setSection(h as Section);
+        window.scrollTo({ top: 0, behavior: "auto" });
+      }
+    };
+    apply();
+    window.addEventListener("hashchange", apply);
+    return () => window.removeEventListener("hashchange", apply);
+  }, []);
+
+
   function gotoSection(s: Section) {
     setSection(s);
     // Fire-and-forget analytics — never blocks navigation
