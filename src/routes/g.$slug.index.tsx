@@ -3056,29 +3056,38 @@ function WifiStrip({
       <div
         className={`pointer-events-none absolute -top-12 -right-12 size-40 rounded-full ${isLight ? "bg-accent/15" : "bg-amber-400/15"} blur-3xl`}
       />
-      <div className="relative flex items-center gap-3.5 px-4 py-2.5 md:px-5 md:py-3">
+      {/* Etiqueta no canto */}
+      <span
+        className={`absolute top-2.5 left-2.5 z-10 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.2em] ring-1 ${
+          isLight
+            ? "bg-accent/12 text-accent/85 ring-accent/25"
+            : "bg-amber-400/15 text-amber-100 ring-amber-200/30"
+        }`}
+      >
+        <Wifi className="size-2.5" strokeWidth={2.4} />
+        Wi-Fi
+      </span>
+
+      <div className="relative flex flex-col items-center text-center px-4 pt-8 pb-4 gap-2">
         <span
-          className={`relative grid size-11 shrink-0 place-items-center rounded-2xl ring-1 ${isLight ? "bg-accent/15 text-accent/80 ring-accent/20" : "bg-amber-400/10 text-amber-50 ring-amber-200/25"}`}
+          className={`relative grid size-12 shrink-0 place-items-center rounded-2xl ring-1 ${isLight ? "bg-accent/15 text-accent/80 ring-accent/20" : "bg-amber-400/10 text-amber-50 ring-amber-200/25"}`}
         >
           <span className={`wifi-pulse pointer-events-none absolute -inset-1 rounded-2xl ${isLight ? "bg-accent/15" : "bg-amber-400/12"} blur-md -z-10`} />
-          <Wifi className="relative size-[20px]" strokeWidth={2} />
+          <Wifi className="relative size-[22px]" strokeWidth={2} />
         </span>
-        <div className="flex-1 min-w-0">
-          <p className={`text-[9.5px] uppercase tracking-[0.3em] font-semibold truncate whitespace-nowrap ${isLight ? "text-accent/75" : "text-amber-50/90"}`}>Senha do Wi-Fi</p>
-          <p className="text-[12.5px] text-foreground/85 truncate font-medium mt-0.5">{ssid || "Rede da casa"}</p>
-          <p
-            className={`font-mono text-[15px] md:text-[16px] font-semibold tracking-[0.22em] mt-0.5 truncate ${showing ? "text-foreground" : "text-foreground/75"}`}
-          >
-            {hasPwd ? (showing ? password : masked) : "—"}
-          </p>
-        </div>
+        <p className="text-[13px] text-foreground/85 truncate font-medium max-w-full">{ssid || "Rede da casa"}</p>
+        <p
+          className={`font-mono text-[15px] md:text-[16px] font-semibold tracking-[0.22em] truncate max-w-full ${showing ? "text-foreground" : "text-foreground/75"}`}
+        >
+          {hasPwd ? (showing ? password : masked) : "—"}
+        </p>
         {hasPwd && (
-          <div className="flex flex-col items-center justify-center gap-2 shrink-0">
+          <div className="mt-1">
             {!showing ? (
               <button
                 onClick={handleEyeClick}
                 aria-label="Ver senha do Wi-Fi"
-                className="inline-flex items-center gap-1.5 rounded-full bg-foreground text-background px-3 py-1.5 text-[11.5px] font-semibold tracking-wide hover:opacity-90 active:scale-95 transition-all"
+                className="inline-flex items-center gap-1.5 rounded-full bg-foreground text-background px-3.5 py-1.5 text-[11.5px] font-semibold tracking-wide hover:opacity-90 active:scale-95 transition-all"
               >
                 <Eye className="size-3.5" strokeWidth={2.4} />
                 <span>Ver Senha</span>
@@ -3087,7 +3096,7 @@ function WifiStrip({
               <button
                 onClick={copyPwd}
                 aria-label="Copiar senha do Wi-Fi"
-                className="inline-flex items-center gap-1.5 rounded-full bg-foreground text-background px-3 py-1.5 text-[11.5px] font-semibold tracking-wide hover:opacity-90 active:scale-95 transition-all"
+                className="inline-flex items-center gap-1.5 rounded-full bg-foreground text-background px-3.5 py-1.5 text-[11.5px] font-semibold tracking-wide hover:opacity-90 active:scale-95 transition-all"
               >
                 {copied ? (
                   <Check className="size-3.5" strokeWidth={2.4} />
