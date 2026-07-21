@@ -478,14 +478,15 @@ export function GuideAiChat({ slug, propertyName, guestName }: { slug: string; p
         aria-hidden="true"
       />
       <div
-        className="fixed bottom-4 right-4 left-4 sm:left-auto sm:bottom-5 sm:right-5 w-auto sm:w-[360px] h-[70dvh] max-h-[560px] sm:h-[480px] flex flex-col bg-background rounded-2xl border border-border shadow-2xl overflow-hidden"
+        className="fixed bottom-4 right-4 left-4 sm:left-auto sm:bottom-5 sm:right-5 w-auto sm:w-[360px] h-[70dvh] max-h-[560px] sm:h-[480px] flex flex-col bg-white text-zinc-900 rounded-2xl border border-zinc-200 shadow-2xl overflow-hidden"
         style={{ zIndex: 2147483602 }}
         role="dialog"
         aria-modal="true"
         aria-label="Chat do concierge"
       >
         {/* Header */}
-        <div className="relative px-4 py-3 border-b border-border bg-gradient-to-br from-accent/10 to-transparent">
+        <div className="relative px-4 py-3 border-b border-zinc-200 bg-gradient-to-br from-emerald-50 to-white">
+
           <div className="flex items-center gap-3">
             <div className="size-9 rounded-full bg-emerald-100 text-emerald-700 grid place-items-center shrink-0 ring-1 ring-emerald-200">
               <MessageCircleMore className="size-4" strokeWidth={1.9} />
