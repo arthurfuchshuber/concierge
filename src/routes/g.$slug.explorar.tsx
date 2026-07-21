@@ -807,10 +807,41 @@ function ExplorePage() {
         {(r as { aiEnabled?: boolean }).aiEnabled ? (
           <GuideAiChat slug={slug} propertyName={(p.name as string) ?? "Guia"} guestName={accessRec?.name ?? null} />
         ) : null}
+        {(() => {
+          const hasCheckinData = !!(
+            p.checkin_time ||
+            p.checkin_note ||
+            p.checkin_instructions ||
+            (p.wifi_ssid && p.wifi_password_set)
+          );
+          const hasSaidaData = !!(p.checkout_time || p.checkout_note || p.checkout_instructions);
+          const hasResidencia = Array.isArray(p.house_manual) && p.house_manual.length > 0;
+          const items: Array<{ key: import("@/components/guide/BottomNav").BottomNavKey; label: string }> = [
+            { key: "home", label: "Início" },
+          ];
+          if (hasCheckinData) items.push({ key: "checkin", label: "Chegada" });
+          if (hasSaidaData) items.push({ key: "saida", label: "Saída" });
+          if (hasResidencia) items.push({ key: "residencia", label: "Residência" });
+          items.push({ key: "explore", label: "Explorar" });
+          if (items.length <= 1) return null;
+          return (
+            <BottomNav
+              theme={theme}
+              active="explore"
+              items={items}
+              onSelect={(k) => {
+                if (k === "explore") return;
+                const hash = k === "home" ? "" : `#${k}`;
+                window.location.href = `/g/${slug}${hash}`;
+              }}
+            />
+          );
+        })()}
       </div>
     </EngagementCtx.Provider>
   );
 }
+
 
 function SkeletonCard() {
   return (
