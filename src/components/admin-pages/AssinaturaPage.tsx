@@ -1,4 +1,4 @@
-import { createFileRoute, Link, useSearch } from "@tanstack/react-router";
+import { Link, useSearch } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -31,13 +31,6 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { toast } from "sonner";
-
-export const Route = createFileRoute("/_authenticated/admin/assinatura")({
-  validateSearch: (s: Record<string, unknown>) => ({
-    checkout: typeof s.checkout === "string" ? s.checkout : undefined,
-  }),
-  component: AssinaturaPage,
-});
 
 export { AssinaturaPage };
 
