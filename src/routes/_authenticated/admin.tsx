@@ -22,7 +22,6 @@ const baseNav = [
   { to: "/admin", label: "Painel", icon: LayoutDashboard, exact: true },
   { to: "/admin/hospedes", label: "Hóspedes", icon: Users, exact: false },
   { to: "/admin/biblioteca", label: "Biblioteca", icon: Library, exact: false },
-  { to: "/admin/administrativo", label: "Administrativo", icon: Settings2, exact: false },
 ] as const;
 const adminOnlyNav = [
   { to: "/admin/engajamento", label: "Engajamento", icon: Activity, exact: false },
@@ -60,11 +59,15 @@ function AdminLayout() {
 
   const handoffEnabled = access.data?.allowed === true;
   const nav = handoffEnabled
-    ? [
+    ? ([
         ...baseNav,
-        { to: "/admin/atendimento", label: "Atendimento", icon: Headphones, exact: false, badge: pending.data?.count ?? 0 } as const,
-      ]
-    : baseNav;
+        { to: "/admin/atendimento", label: "Atendimento", icon: Headphones, exact: false, badge: pending.data?.count ?? 0 },
+        { to: "/admin/administrativo", label: "Administrativo", icon: Settings2, exact: false },
+      ] as const)
+    : ([
+        ...baseNav,
+        { to: "/admin/administrativo", label: "Administrativo", icon: Settings2, exact: false },
+      ] as const);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setEmail(data.user?.email ?? ""));
