@@ -20,6 +20,8 @@ export const Route = createFileRoute("/_authenticated/admin/equipe")({
   component: EquipePage,
 });
 
+export { EquipePage };
+
 function EquipePage() {
   const accessFn = useServerFn(getAtendimentoAccess);
   const listFn = useServerFn(listMyTeam);
