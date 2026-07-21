@@ -831,7 +831,7 @@ function ExplorePage() {
               theme={theme}
               active="explore"
               items={items}
-              onSelect={(k) => {
+              onSelect={(k: BottomNavKey) => {
                 if (k === "explore") return;
                 const hash = k === "home" ? "" : `#${k}`;
                 window.location.href = `/g/${slug}${hash}`;
