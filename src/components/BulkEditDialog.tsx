@@ -267,17 +267,13 @@ export function BulkEditDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <Tabs defaultValue="chegada" className="w-full">
-          <TabsList className="w-full flex-wrap h-auto">
+        <Tabs defaultValue="basics" className="w-full">
+          <TabsList className="w-full grid grid-cols-4 h-auto">
             {TEXT_TABS.map((t) => (
-              <TabsTrigger key={t.id} value={t.id} className="text-xs">
+              <TabsTrigger key={t.id} value={t.id} className="text-xs whitespace-nowrap">
                 {t.label}
               </TabsTrigger>
             ))}
-            <TabsTrigger value="manual" className="text-xs">Manual</TabsTrigger>
-            <TabsTrigger value="checkout" className="text-xs">Checklist</TabsTrigger>
-            <TabsTrigger value="emergency" className="text-xs">Emergências</TabsTrigger>
-            <TabsTrigger value="faqs" className="text-xs">FAQ</TabsTrigger>
           </TabsList>
 
           {TEXT_TABS.map((tab) => (
@@ -290,8 +286,8 @@ export function BulkEditDialog({
                     key={f.key}
                     className={`rounded-xl border p-3 transition-colors ${enabled ? "border-accent/50 bg-accent/5" : "border-border bg-card/40"}`}
                   >
-                    <div className="flex items-center justify-between mb-2">
-                      <label className="text-sm font-medium">{f.label}</label>
+                    <div className="flex items-center justify-between mb-2 gap-3">
+                      <label className="text-sm font-medium whitespace-nowrap truncate">{f.label}</label>
                       <Switch checked={enabled} onCheckedChange={(v) => toggle(f.key, v)} />
                     </div>
                     {enabled && renderField(f, value, (v) => setValue(f.key, v))}
@@ -303,160 +299,168 @@ export function BulkEditDialog({
                   </div>
                 );
               })}
+
+              {(TAB_LISTS[tab.id] ?? []).includes("manual") && (
+                <>
+                  <ListToggle
+                    enabled={!!state.listsEnabled.manual}
+                    onChange={(v) => toggleList("manual", v)}
+                    title="Manual da casa"
+                    hint="Substitui todo o manual atual dos guias selecionados."
+                  />
+                  {state.listsEnabled.manual && (
+                    <div className="space-y-2">
+                      {state.manual.map((m, i) => (
+                        <div key={i} className="rounded-lg border border-border p-2 space-y-1.5">
+                          <div className="flex items-center gap-2">
+                            <Input
+                              value={m.title}
+                              placeholder="Título"
+                              className="h-8 text-sm"
+                              onChange={(e) => setState((s) => ({ ...s, manual: s.manual.map((x, j) => j === i ? { ...x, title: e.target.value } : x) }))}
+                            />
+                            <Button variant="ghost" size="icon" className="size-8 shrink-0" onClick={() => setState((s) => ({ ...s, manual: s.manual.filter((_, j) => j !== i) }))}>
+                              <Trash2 className="size-3.5" />
+                            </Button>
+                          </div>
+                          <Input
+                            value={m.description}
+                            placeholder="Descrição curta (opcional)"
+                            className="h-8 text-xs"
+                            onChange={(e) => setState((s) => ({ ...s, manual: s.manual.map((x, j) => j === i ? { ...x, description: e.target.value } : x) }))}
+                          />
+                          <Textarea
+                            value={m.body}
+                            placeholder="Instruções detalhadas (opcional)"
+                            rows={2}
+                            className="text-xs"
+                            onChange={(e) => setState((s) => ({ ...s, manual: s.manual.map((x, j) => j === i ? { ...x, body: e.target.value } : x) }))}
+                          />
+                        </div>
+                      ))}
+                      <Button variant="outline" size="sm" onClick={() => setState((s) => ({ ...s, manual: [...s.manual, { title: "", description: "", body: "" }] }))}>
+                        <Plus className="size-3.5 mr-1" /> Adicionar item
+                      </Button>
+                    </div>
+                  )}
+                </>
+              )}
+
+              {(TAB_LISTS[tab.id] ?? []).includes("checkout") && (
+                <>
+                  <ListToggle
+                    enabled={!!state.listsEnabled.checkout}
+                    onChange={(v) => toggleList("checkout", v)}
+                    title="Checklist de checkout"
+                    hint="Substitui todo o checklist atual dos guias selecionados."
+                  />
+                  {state.listsEnabled.checkout && (
+                    <div className="space-y-2">
+                      {state.checkout.map((c, i) => (
+                        <div key={i} className="flex items-center gap-2">
+                          <Input
+                            value={c.label}
+                            placeholder="Ex.: Deixar as chaves na fechadura"
+                            className="h-8 text-sm"
+                            onChange={(e) => setState((s) => ({ ...s, checkout: s.checkout.map((x, j) => j === i ? { label: e.target.value } : x) }))}
+                          />
+                          <Button variant="ghost" size="icon" className="size-8 shrink-0" onClick={() => setState((s) => ({ ...s, checkout: s.checkout.filter((_, j) => j !== i) }))}>
+                            <Trash2 className="size-3.5" />
+                          </Button>
+                        </div>
+                      ))}
+                      <Button variant="outline" size="sm" onClick={() => setState((s) => ({ ...s, checkout: [...s.checkout, { label: "" }] }))}>
+                        <Plus className="size-3.5 mr-1" /> Adicionar item
+                      </Button>
+                    </div>
+                  )}
+                </>
+              )}
+
+              {(TAB_LISTS[tab.id] ?? []).includes("emergency") && (
+                <>
+                  <ListToggle
+                    enabled={!!state.listsEnabled.emergency}
+                    onChange={(v) => toggleList("emergency", v)}
+                    title="Contatos de emergência"
+                    hint="Substitui todos os contatos de emergência atuais dos guias selecionados."
+                  />
+                  {state.listsEnabled.emergency && (
+                    <div className="space-y-2">
+                      {state.emergency.map((c, i) => (
+                        <div key={i} className="flex items-center gap-2">
+                          <Input
+                            value={c.label}
+                            placeholder="Ex.: SAMU"
+                            className="h-8 text-sm"
+                            onChange={(e) => setState((s) => ({ ...s, emergency: s.emergency.map((x, j) => j === i ? { ...x, label: e.target.value } : x) }))}
+                          />
+                          <Input
+                            value={c.number}
+                            placeholder="Número"
+                            className="h-8 text-sm max-w-[160px]"
+                            onChange={(e) => setState((s) => ({ ...s, emergency: s.emergency.map((x, j) => j === i ? { ...x, number: e.target.value } : x) }))}
+                          />
+                          <Button variant="ghost" size="icon" className="size-8 shrink-0" onClick={() => setState((s) => ({ ...s, emergency: s.emergency.filter((_, j) => j !== i) }))}>
+                            <Trash2 className="size-3.5" />
+                          </Button>
+                        </div>
+                      ))}
+                      <Button variant="outline" size="sm" onClick={() => setState((s) => ({ ...s, emergency: [...s.emergency, { label: "", number: "" }] }))}>
+                        <Plus className="size-3.5 mr-1" /> Adicionar contato
+                      </Button>
+                    </div>
+                  )}
+                </>
+              )}
+
+              {(TAB_LISTS[tab.id] ?? []).includes("faqs") && (
+                <>
+                  <ListToggle
+                    enabled={!!state.listsEnabled.faqs}
+                    onChange={(v) => toggleList("faqs", v)}
+                    title="Perguntas frequentes"
+                    hint="Substitui todas as perguntas atuais dos guias selecionados."
+                  />
+                  {state.listsEnabled.faqs && (
+                    <div className="space-y-2">
+                      {state.faqs.map((f, i) => (
+                        <div key={i} className="rounded-lg border border-border p-2 space-y-1.5">
+                          <div className="flex items-center gap-2">
+                            <Input
+                              value={f.question}
+                              placeholder="Pergunta"
+                              className="h-8 text-sm"
+                              onChange={(e) => setState((s) => ({ ...s, faqs: s.faqs.map((x, j) => j === i ? { ...x, question: e.target.value } : x) }))}
+                            />
+                            <Button variant="ghost" size="icon" className="size-8 shrink-0" onClick={() => setState((s) => ({ ...s, faqs: s.faqs.filter((_, j) => j !== i) }))}>
+                              <Trash2 className="size-3.5" />
+                            </Button>
+                          </div>
+                          <Textarea
+                            value={f.answer}
+                            placeholder="Resposta"
+                            rows={2}
+                            className="text-xs"
+                            onChange={(e) => setState((s) => ({ ...s, faqs: s.faqs.map((x, j) => j === i ? { ...x, answer: e.target.value } : x) }))}
+                          />
+                          <Input
+                            value={f.tags}
+                            placeholder="Tags separadas por vírgula (chegada, saida…)"
+                            className="h-7 text-[11px]"
+                            onChange={(e) => setState((s) => ({ ...s, faqs: s.faqs.map((x, j) => j === i ? { ...x, tags: e.target.value } : x) }))}
+                          />
+                        </div>
+                      ))}
+                      <Button variant="outline" size="sm" onClick={() => setState((s) => ({ ...s, faqs: [...s.faqs, { question: "", answer: "", tags: "" }] }))}>
+                        <Plus className="size-3.5 mr-1" /> Adicionar pergunta
+                      </Button>
+                    </div>
+                  )}
+                </>
+              )}
             </TabsContent>
           ))}
-
-          <TabsContent value="manual" className="space-y-3 pt-3">
-            <ListToggle
-              enabled={!!state.listsEnabled.manual}
-              onChange={(v) => toggleList("manual", v)}
-              title="Manual da casa"
-              hint="Substitui todo o manual atual dos guias selecionados."
-            />
-            {state.listsEnabled.manual && (
-              <div className="space-y-2">
-                {state.manual.map((m, i) => (
-                  <div key={i} className="rounded-lg border border-border p-2 space-y-1.5">
-                    <div className="flex items-center gap-2">
-                      <Input
-                        value={m.title}
-                        placeholder="Título"
-                        className="h-8 text-sm"
-                        onChange={(e) => setState((s) => ({ ...s, manual: s.manual.map((x, j) => j === i ? { ...x, title: e.target.value } : x) }))}
-                      />
-                      <Button variant="ghost" size="icon" className="size-8 shrink-0" onClick={() => setState((s) => ({ ...s, manual: s.manual.filter((_, j) => j !== i) }))}>
-                        <Trash2 className="size-3.5" />
-                      </Button>
-                    </div>
-                    <Input
-                      value={m.description}
-                      placeholder="Descrição curta (opcional)"
-                      className="h-8 text-xs"
-                      onChange={(e) => setState((s) => ({ ...s, manual: s.manual.map((x, j) => j === i ? { ...x, description: e.target.value } : x) }))}
-                    />
-                    <Textarea
-                      value={m.body}
-                      placeholder="Instruções detalhadas (opcional)"
-                      rows={2}
-                      className="text-xs"
-                      onChange={(e) => setState((s) => ({ ...s, manual: s.manual.map((x, j) => j === i ? { ...x, body: e.target.value } : x) }))}
-                    />
-                  </div>
-                ))}
-                <Button variant="outline" size="sm" onClick={() => setState((s) => ({ ...s, manual: [...s.manual, { title: "", description: "", body: "" }] }))}>
-                  <Plus className="size-3.5 mr-1" /> Adicionar item
-                </Button>
-              </div>
-            )}
-          </TabsContent>
-
-          <TabsContent value="checkout" className="space-y-3 pt-3">
-            <ListToggle
-              enabled={!!state.listsEnabled.checkout}
-              onChange={(v) => toggleList("checkout", v)}
-              title="Checklist de checkout"
-              hint="Substitui todo o checklist atual dos guias selecionados."
-            />
-            {state.listsEnabled.checkout && (
-              <div className="space-y-2">
-                {state.checkout.map((c, i) => (
-                  <div key={i} className="flex items-center gap-2">
-                    <Input
-                      value={c.label}
-                      placeholder="Ex.: Deixar as chaves na fechadura"
-                      className="h-8 text-sm"
-                      onChange={(e) => setState((s) => ({ ...s, checkout: s.checkout.map((x, j) => j === i ? { label: e.target.value } : x) }))}
-                    />
-                    <Button variant="ghost" size="icon" className="size-8 shrink-0" onClick={() => setState((s) => ({ ...s, checkout: s.checkout.filter((_, j) => j !== i) }))}>
-                      <Trash2 className="size-3.5" />
-                    </Button>
-                  </div>
-                ))}
-                <Button variant="outline" size="sm" onClick={() => setState((s) => ({ ...s, checkout: [...s.checkout, { label: "" }] }))}>
-                  <Plus className="size-3.5 mr-1" /> Adicionar item
-                </Button>
-              </div>
-            )}
-          </TabsContent>
-
-          <TabsContent value="emergency" className="space-y-3 pt-3">
-            <ListToggle
-              enabled={!!state.listsEnabled.emergency}
-              onChange={(v) => toggleList("emergency", v)}
-              title="Contatos de emergência"
-              hint="Substitui todos os contatos de emergência atuais dos guias selecionados."
-            />
-            {state.listsEnabled.emergency && (
-              <div className="space-y-2">
-                {state.emergency.map((c, i) => (
-                  <div key={i} className="flex items-center gap-2">
-                    <Input
-                      value={c.label}
-                      placeholder="Ex.: SAMU"
-                      className="h-8 text-sm"
-                      onChange={(e) => setState((s) => ({ ...s, emergency: s.emergency.map((x, j) => j === i ? { ...x, label: e.target.value } : x) }))}
-                    />
-                    <Input
-                      value={c.number}
-                      placeholder="Número"
-                      className="h-8 text-sm max-w-[160px]"
-                      onChange={(e) => setState((s) => ({ ...s, emergency: s.emergency.map((x, j) => j === i ? { ...x, number: e.target.value } : x) }))}
-                    />
-                    <Button variant="ghost" size="icon" className="size-8 shrink-0" onClick={() => setState((s) => ({ ...s, emergency: s.emergency.filter((_, j) => j !== i) }))}>
-                      <Trash2 className="size-3.5" />
-                    </Button>
-                  </div>
-                ))}
-                <Button variant="outline" size="sm" onClick={() => setState((s) => ({ ...s, emergency: [...s.emergency, { label: "", number: "" }] }))}>
-                  <Plus className="size-3.5 mr-1" /> Adicionar contato
-                </Button>
-              </div>
-            )}
-          </TabsContent>
-
-          <TabsContent value="faqs" className="space-y-3 pt-3">
-            <ListToggle
-              enabled={!!state.listsEnabled.faqs}
-              onChange={(v) => toggleList("faqs", v)}
-              title="Perguntas frequentes"
-              hint="Substitui todas as perguntas atuais dos guias selecionados."
-            />
-            {state.listsEnabled.faqs && (
-              <div className="space-y-2">
-                {state.faqs.map((f, i) => (
-                  <div key={i} className="rounded-lg border border-border p-2 space-y-1.5">
-                    <div className="flex items-center gap-2">
-                      <Input
-                        value={f.question}
-                        placeholder="Pergunta"
-                        className="h-8 text-sm"
-                        onChange={(e) => setState((s) => ({ ...s, faqs: s.faqs.map((x, j) => j === i ? { ...x, question: e.target.value } : x) }))}
-                      />
-                      <Button variant="ghost" size="icon" className="size-8 shrink-0" onClick={() => setState((s) => ({ ...s, faqs: s.faqs.filter((_, j) => j !== i) }))}>
-                        <Trash2 className="size-3.5" />
-                      </Button>
-                    </div>
-                    <Textarea
-                      value={f.answer}
-                      placeholder="Resposta"
-                      rows={2}
-                      className="text-xs"
-                      onChange={(e) => setState((s) => ({ ...s, faqs: s.faqs.map((x, j) => j === i ? { ...x, answer: e.target.value } : x) }))}
-                    />
-                    <Input
-                      value={f.tags}
-                      placeholder="Tags separadas por vírgula (chegada, saida…)"
-                      className="h-7 text-[11px]"
-                      onChange={(e) => setState((s) => ({ ...s, faqs: s.faqs.map((x, j) => j === i ? { ...x, tags: e.target.value } : x) }))}
-                    />
-                  </div>
-                ))}
-                <Button variant="outline" size="sm" onClick={() => setState((s) => ({ ...s, faqs: [...s.faqs, { question: "", answer: "", tags: "" }] }))}>
-                  <Plus className="size-3.5 mr-1" /> Adicionar pergunta
-                </Button>
-              </div>
-            )}
-          </TabsContent>
         </Tabs>
 
         <DialogFooter>
