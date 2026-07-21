@@ -1,8 +1,8 @@
 import { createFileRoute, useNavigate, useSearch } from "@tanstack/react-router";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { CreditCard, UsersRound } from "lucide-react";
-import { AssinaturaPage } from "./admin.assinatura";
-import { EquipePage } from "./admin.equipe";
+import { AssinaturaPage } from "@/components/admin-pages/AssinaturaPage";
+import { EquipePage } from "@/components/admin-pages/EquipePage";
 
 type Tab = "assinatura" | "equipe";
 
