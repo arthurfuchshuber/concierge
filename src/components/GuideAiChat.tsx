@@ -578,8 +578,9 @@ export function GuideAiChat({ slug, propertyName, guestName }: { slug: string; p
             </div>
           ))}
           {loading && (
-            <div className="flex items-center gap-2 text-muted-foreground text-[12.5px]">
+            <div className="flex items-center gap-2 text-zinc-500 text-[12.5px]">
               <Loader2 className="size-3.5 animate-spin" /> pensando…
+
             </div>
           )}
         </div>
