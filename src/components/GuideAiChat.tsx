@@ -478,28 +478,30 @@ export function GuideAiChat({ slug, propertyName, guestName }: { slug: string; p
         aria-hidden="true"
       />
       <div
-        className="fixed bottom-4 right-4 left-4 sm:left-auto sm:bottom-5 sm:right-5 w-auto sm:w-[360px] h-[70dvh] max-h-[560px] sm:h-[480px] flex flex-col bg-background rounded-2xl border border-border shadow-2xl overflow-hidden"
+        className="fixed bottom-4 right-4 left-4 sm:left-auto sm:bottom-5 sm:right-5 w-auto sm:w-[360px] h-[70dvh] max-h-[560px] sm:h-[480px] flex flex-col bg-white text-zinc-900 rounded-2xl border border-zinc-200 shadow-2xl overflow-hidden"
         style={{ zIndex: 2147483602 }}
         role="dialog"
         aria-modal="true"
         aria-label="Chat do concierge"
       >
         {/* Header */}
-        <div className="relative px-4 py-3 border-b border-border bg-gradient-to-br from-accent/10 to-transparent">
+        <div className="relative px-4 py-3 border-b border-zinc-200 bg-gradient-to-br from-emerald-50 to-white">
+
           <div className="flex items-center gap-3">
             <div className="size-9 rounded-full bg-emerald-100 text-emerald-700 grid place-items-center shrink-0 ring-1 ring-emerald-200">
               <MessageCircleMore className="size-4" strokeWidth={1.9} />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-[10px] uppercase tracking-[0.24em] text-accent/75 font-semibold">Concierge IA</p>
-              <p className="text-[13px] font-medium truncate">{propertyName}</p>
+              <p className="text-[10px] uppercase tracking-[0.24em] text-emerald-700/80 font-semibold">Concierge IA</p>
+              <p className="text-[13px] font-medium truncate text-zinc-900">{propertyName}</p>
             </div>
             <button
               type="button"
               onClick={() => setOpen(false)}
               aria-label="Fechar"
-              className="grid size-9 place-items-center rounded-full hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+              className="grid size-9 place-items-center rounded-full hover:bg-zinc-100 text-zinc-500 hover:text-zinc-900 transition-colors"
             >
+
               <X className="size-4" />
             </button>
           </div>
@@ -512,10 +514,10 @@ export function GuideAiChat({ slug, propertyName, guestName }: { slug: string; p
               <div className="mx-auto size-12 rounded-2xl bg-emerald-100 text-emerald-700 grid place-items-center mb-3 ring-1 ring-emerald-200">
                 <MessageCircleMore className="size-5" strokeWidth={1.9} />
               </div>
-              <p className="font-serif text-lg leading-tight">
+              <p className="font-serif text-lg leading-tight text-zinc-900">
                 {greeting}{guestName ? `, ${guestName.split(" ")[0]}` : ""}!
               </p>
-              <p className="text-[12.5px] text-muted-foreground mt-2 max-w-[28ch] mx-auto leading-relaxed">
+              <p className="text-[12.5px] text-zinc-500 mt-2 max-w-[28ch] mx-auto leading-relaxed">
                 {hint}
               </p>
               <div className="mt-4 flex flex-wrap gap-1.5 justify-center">
@@ -524,12 +526,13 @@ export function GuideAiChat({ slug, propertyName, guestName }: { slug: string; p
                     key={q}
                     type="button"
                     onClick={() => setInput(q)}
-                    className="text-[11.5px] px-3 py-1.5 rounded-full border border-border bg-card hover:border-accent/50 hover:text-accent transition-colors"
+                    className="text-[11.5px] px-3 py-1.5 rounded-full border border-zinc-200 bg-white text-zinc-700 hover:border-emerald-400/60 hover:text-emerald-700 transition-colors"
                   >
                     {q}
                   </button>
                 ))}
               </div>
+
             </div>
           )}
           {messages.filter((m) => (m.content ?? "").trim().length > 0 || m.attachment).map((m, i) => (
@@ -538,20 +541,21 @@ export function GuideAiChat({ slug, propertyName, guestName }: { slug: string; p
                 <div className="max-w-[85%] flex flex-col items-end gap-1">
                   {m.attachment && <AttachmentBubble attachment={m.attachment} />}
                   {m.content && (
-                    <div className="rounded-2xl rounded-tr-md bg-foreground text-background px-3.5 py-2.5 text-[13.5px] leading-relaxed whitespace-pre-line">
+                    <div className="rounded-2xl rounded-tr-md bg-zinc-900 text-white px-3.5 py-2.5 text-[13.5px] leading-relaxed whitespace-pre-line">
                       {m.content}
                     </div>
                   )}
                 </div>
               ) : m.role === "system" ? (
-                <div className="max-w-[92%] text-center text-[11.5px] text-muted-foreground italic px-3 py-1.5 rounded-full bg-muted/50">
+                <div className="max-w-[92%] text-center text-[11.5px] text-zinc-500 italic px-3 py-1.5 rounded-full bg-zinc-100">
                   {m.content}
                 </div>
               ) : (
-                <div className="max-w-[88%] text-[13.5px] leading-relaxed text-foreground/90 prose prose-sm prose-invert max-w-none [&_p]:my-1 [&_p]:leading-relaxed [&_strong]:font-semibold [&_strong]:text-foreground [&_a]:text-accent [&_a]:underline [&_a]:underline-offset-2 [&_ul]:my-1 [&_ul]:pl-4 [&_ol]:my-1 [&_ol]:pl-4 [&_li]:my-0.5">
+                <div className="max-w-[88%] text-[13.5px] leading-relaxed text-zinc-800 prose prose-sm max-w-none [&_p]:my-1 [&_p]:leading-relaxed [&_strong]:font-semibold [&_strong]:text-zinc-900 [&_a]:text-emerald-700 [&_a]:underline [&_a]:underline-offset-2 [&_ul]:my-1 [&_ul]:pl-4 [&_ol]:my-1 [&_ol]:pl-4 [&_li]:my-0.5">
                   {m.senderType === "human" && (
-                    <p className="text-[10px] uppercase tracking-[0.18em] text-accent/80 font-semibold mb-1">Atendente</p>
+                    <p className="text-[10px] uppercase tracking-[0.18em] text-emerald-700/85 font-semibold mb-1">Atendente</p>
                   )}
+
                   {m.attachment && (
                     <div className="mb-1">
                       <AttachmentBubble attachment={m.attachment} />
@@ -574,8 +578,9 @@ export function GuideAiChat({ slug, propertyName, guestName }: { slug: string; p
             </div>
           ))}
           {loading && (
-            <div className="flex items-center gap-2 text-muted-foreground text-[12.5px]">
+            <div className="flex items-center gap-2 text-zinc-500 text-[12.5px]">
               <Loader2 className="size-3.5 animate-spin" /> pensando…
+
             </div>
           )}
         </div>
@@ -589,16 +594,16 @@ export function GuideAiChat({ slug, propertyName, guestName }: { slug: string; p
 
         {/* Composer */}
         <div
-          className="px-3 pt-2 border-t border-border bg-background"
+          className="px-3 pt-2 border-t border-zinc-200 bg-white"
           style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}
         >
           {uploadErr && (
-            <div className="text-[11px] text-destructive mb-1.5 px-1 flex items-center justify-between">
+            <div className="text-[11px] text-red-600 mb-1.5 px-1 flex items-center justify-between">
               <span>{uploadErr}</span>
               <button onClick={() => setUploadErr(null)} className="ml-2"><X className="size-3" /></button>
             </div>
           )}
-          <div className="flex items-end gap-1.5 bg-card border border-border rounded-2xl px-2 py-2 focus-within:border-accent/35 transition-colors">
+          <div className="flex items-end gap-1.5 bg-zinc-50 border border-zinc-200 rounded-2xl px-2 py-2 focus-within:border-emerald-400/50 transition-colors">
             {humanMode && (
               <>
                 <input
@@ -614,7 +619,7 @@ export function GuideAiChat({ slug, propertyName, guestName }: { slug: string; p
                   disabled={uploading || loading}
                   title="Anexar"
                   aria-label="Anexar arquivo"
-                  className="grid size-8 place-items-center rounded-full text-muted-foreground hover:text-foreground hover:bg-muted shrink-0 disabled:opacity-40"
+                  className="grid size-8 place-items-center rounded-full text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100 shrink-0 disabled:opacity-40"
                 >
                   <Paperclip className="size-4" />
                 </button>
@@ -636,23 +641,24 @@ export function GuideAiChat({ slug, propertyName, guestName }: { slug: string; p
               placeholder={uploading ? "Enviando anexo…" : "Pergunte alguma coisa…"}
               aria-label="Mensagem para o concierge"
               disabled={uploading}
-              className="flex-1 resize-none bg-transparent text-[16px] leading-relaxed outline-none placeholder:text-muted-foreground/70 max-h-32 min-w-0"
+              className="flex-1 resize-none bg-transparent text-[16px] leading-relaxed text-zinc-900 outline-none placeholder:text-zinc-400 max-h-32 min-w-0"
             />
             <button
               type="button"
               onClick={send}
               disabled={loading || uploading || !input.trim()}
               aria-label="Enviar"
-              className="grid size-9 place-items-center rounded-full bg-foreground text-background hover:opacity-90 active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
+              className="grid size-9 place-items-center rounded-full bg-emerald-600 text-white hover:bg-emerald-700 active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
             >
               {loading ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" strokeWidth={2} />}
             </button>
           </div>
-          <p className="text-[10px] text-muted-foreground text-center mt-2 px-2">
+          <p className="text-[10px] text-zinc-500 text-center mt-2 px-2">
             A IA usa as informações do guia. Confirme detalhes críticos com o anfitrião.
           </p>
         </div>
       </div>
+
     </>
   ) : null;
 
