@@ -390,11 +390,11 @@ export function GuideAiChat({ slug, propertyName, guestName }: { slug: string; p
       {/* Popup preview when AI replies while chat is closed */}
       {pendingPreview && (
         <div className="relative animate-in slide-in-from-bottom-2 fade-in duration-300 pointer-events-auto">
-          <div className="max-w-[280px] rounded-2xl rounded-br-sm bg-background border-2 border-emerald-400/60 shadow-[0_20px_50px_-16px_rgba(16,185,129,0.35)] px-4 py-3">
+          <div className="max-w-[280px] rounded-2xl rounded-br-sm bg-white text-zinc-900 border-2 border-emerald-400/60 shadow-[0_20px_50px_-16px_rgba(16,185,129,0.35)] px-4 py-3">
             <button
               type="button"
               onClick={() => setPendingPreview(null)}
-              className="absolute top-2 right-2 size-5 grid place-items-center rounded-full text-muted-foreground hover:text-foreground transition-colors"
+              className="absolute top-2 right-2 size-5 grid place-items-center rounded-full text-zinc-500 hover:text-zinc-900 transition-colors"
               aria-label="Fechar"
             >
               <X className="size-3" />
@@ -403,7 +403,7 @@ export function GuideAiChat({ slug, propertyName, guestName }: { slug: string; p
               <span className="inline-block size-1.5 rounded-full bg-emerald-500 animate-pulse" />
               Concierge IA respondeu
             </p>
-            <p className="text-[12.5px] leading-relaxed text-foreground/90 line-clamp-4">
+            <p className="text-[12.5px] leading-relaxed text-zinc-800 line-clamp-4">
               {pendingPreview}
             </p>
             <button
@@ -414,7 +414,7 @@ export function GuideAiChat({ slug, propertyName, guestName }: { slug: string; p
               Abrir chat →
             </button>
           </div>
-          <div className="absolute -bottom-1.5 right-5 size-3 bg-background border-r-2 border-b-2 border-emerald-400/60 rotate-45" />
+          <div className="absolute -bottom-1.5 right-5 size-3 bg-white border-r-2 border-b-2 border-emerald-400/60 rotate-45" />
         </div>
       )}
 

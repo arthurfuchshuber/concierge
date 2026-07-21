@@ -39,6 +39,8 @@ export const Route = createFileRoute("/_authenticated/admin/assinatura")({
   component: AssinaturaPage,
 });
 
+export { AssinaturaPage };
+
 const PLAN_ORDER: PlanKey[] = ["starter", "pro", "business", "enterprise"];
 
 function AssinaturaPage() {

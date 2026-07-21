@@ -1,5 +1,5 @@
 import { createFileRoute, Outlet, Link, useNavigate, useRouterState } from "@tanstack/react-router";
-import { LogOut, LayoutDashboard, CreditCard, Menu, Users, Shield, Library, ShieldCheck, Activity, Star, Headphones, UsersRound } from "lucide-react";
+import { LogOut, LayoutDashboard, Settings2, Menu, Users, Shield, Library, ShieldCheck, Activity, Star, Headphones } from "lucide-react";
 import conciergeLogo from "@/assets/concierge-logo.png";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
@@ -22,7 +22,7 @@ const baseNav = [
   { to: "/admin", label: "Painel", icon: LayoutDashboard, exact: true },
   { to: "/admin/hospedes", label: "Hóspedes", icon: Users, exact: false },
   { to: "/admin/biblioteca", label: "Biblioteca", icon: Library, exact: false },
-  { to: "/admin/assinatura", label: "Assinatura", icon: CreditCard, exact: false },
+  { to: "/admin/administrativo", label: "Administrativo", icon: Settings2, exact: false },
 ] as const;
 const adminOnlyNav = [
   { to: "/admin/engajamento", label: "Engajamento", icon: Activity, exact: false },
@@ -63,7 +63,6 @@ function AdminLayout() {
     ? [
         ...baseNav,
         { to: "/admin/atendimento", label: "Atendimento", icon: Headphones, exact: false, badge: pending.data?.count ?? 0 } as const,
-        { to: "/admin/equipe", label: "Equipe", icon: UsersRound, exact: false } as const,
       ]
     : baseNav;
 
@@ -105,7 +104,7 @@ function AdminLayout() {
           </Link>
         </div>
 
-        <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
+        <nav className="flex-1 px-3 py-4 pb-8 space-y-1 overflow-y-auto min-h-0">
           {isAdmin ? (
             <div className="px-1 pb-3 mb-2 border-b border-border/60">
               <ClientSwitcher />
