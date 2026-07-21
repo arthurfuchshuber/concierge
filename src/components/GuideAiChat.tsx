@@ -514,10 +514,10 @@ export function GuideAiChat({ slug, propertyName, guestName }: { slug: string; p
               <div className="mx-auto size-12 rounded-2xl bg-emerald-100 text-emerald-700 grid place-items-center mb-3 ring-1 ring-emerald-200">
                 <MessageCircleMore className="size-5" strokeWidth={1.9} />
               </div>
-              <p className="font-serif text-lg leading-tight">
+              <p className="font-serif text-lg leading-tight text-zinc-900">
                 {greeting}{guestName ? `, ${guestName.split(" ")[0]}` : ""}!
               </p>
-              <p className="text-[12.5px] text-muted-foreground mt-2 max-w-[28ch] mx-auto leading-relaxed">
+              <p className="text-[12.5px] text-zinc-500 mt-2 max-w-[28ch] mx-auto leading-relaxed">
                 {hint}
               </p>
               <div className="mt-4 flex flex-wrap gap-1.5 justify-center">
@@ -526,12 +526,13 @@ export function GuideAiChat({ slug, propertyName, guestName }: { slug: string; p
                     key={q}
                     type="button"
                     onClick={() => setInput(q)}
-                    className="text-[11.5px] px-3 py-1.5 rounded-full border border-border bg-card hover:border-accent/50 hover:text-accent transition-colors"
+                    className="text-[11.5px] px-3 py-1.5 rounded-full border border-zinc-200 bg-white text-zinc-700 hover:border-emerald-400/60 hover:text-emerald-700 transition-colors"
                   >
                     {q}
                   </button>
                 ))}
               </div>
+
             </div>
           )}
           {messages.filter((m) => (m.content ?? "").trim().length > 0 || m.attachment).map((m, i) => (
