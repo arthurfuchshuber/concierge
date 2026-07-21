@@ -43,7 +43,7 @@ function AssinaturaPage() {
   const doChangePlan = useServerFn(changePlan);
   const { openCheckout } = usePaddleCheckout();
   const env = getPaddleEnvironment();
-  const search = useSearch({ from: "/_authenticated/admin/assinatura" });
+  const search = useSearch({ strict: false }) as { checkout?: string };
   const [opening, setOpening] = useState(false);
   const [changing, setChanging] = useState<PlanKey | null>(null);
   const [user, setUser] = useState<{ id: string; email: string | null } | null>(null);
