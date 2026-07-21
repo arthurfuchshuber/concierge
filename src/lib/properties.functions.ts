@@ -258,7 +258,7 @@ export const bulkFetchProperties = createServerFn({ method: "POST" })
       .select(cols)
       .in("id", data.ids);
     if (q.error) throw (await import("@/lib/db-errors.server")).safeDbError("properties", q.error);
-    const rows = (q.data ?? []) as unknown as Array<Record<string, unknown> & { id: string; name: string }>;
+    const rows = (q.data ?? []) as unknown as Array<{ id: string; name: string } & Record<string, string | number | boolean | null>>;
     const propIds = rows.map((r) => r.id);
     const [manual, emerg, faqs, checkout] = await Promise.all([
       sb.from("property_manual_items").select("property_id").in("property_id", propIds),
@@ -317,23 +317,22 @@ export const bulkUpdateProperties = createServerFn({ method: "POST" })
         for (const r of rows ?? []) updatedSet.add((r as { id: string }).id);
       } else {
         // fill-empty: por campo, aplica apenas onde o valor atual está vazio.
-        const { data: current, error } = await sb
+        const cq = await sb
           .from("properties")
           .select(["id", ...patchKeys].join(","))
           .in("id", data.ids);
-        if (error) throw (await import("@/lib/db-errors.server")).safeDbError("properties", error);
+        if (cq.error) throw (await import("@/lib/db-errors.server")).safeDbError("properties", cq.error);
+        const current = (cq.data ?? []) as unknown as Array<{ id: string } & Record<string, unknown>>;
         for (const key of patchKeys) {
-          const targetIds = (current ?? [])
-            .filter((r) => isEmpty((r as Record<string, unknown>)[key]))
-            .map((r) => (r as { id: string }).id);
+          const targetIds = current.filter((r) => isEmpty(r[key])).map((r) => r.id);
           if (!targetIds.length) continue;
-          const { data: rows, error: uErr } = await sb
+          const { data: uRows, error: uErr } = await sb
             .from("properties")
             .update({ [key]: patch[key] } as never)
             .in("id", targetIds)
             .select("id");
           if (uErr) throw (await import("@/lib/db-errors.server")).safeDbError("properties", uErr);
-          for (const r of rows ?? []) updatedSet.add((r as { id: string }).id);
+          for (const r of (uRows ?? []) as unknown as Array<{ id: string }>) updatedSet.add(r.id);
         }
       }
     }
