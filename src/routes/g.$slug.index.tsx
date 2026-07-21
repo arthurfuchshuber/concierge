@@ -3205,50 +3205,52 @@ function AccessCodesStrip({
         Acesso
       </span>
 
-      <div className="relative flex flex-col items-center text-center px-4 pt-8 pb-4 gap-2">
+      <div className="relative flex items-center gap-3 pl-3 pr-3 pt-[26px] pb-3">
         <span
-          className={`relative grid size-12 shrink-0 place-items-center rounded-2xl ring-1 ${isLight ? "bg-accent/15 text-accent/80 ring-accent/20" : "bg-amber-400/10 text-amber-50 ring-amber-200/25"}`}
+          className={`relative grid size-10 shrink-0 place-items-center rounded-xl ring-1 ${isLight ? "bg-accent/15 text-accent/80 ring-accent/20" : "bg-amber-400/10 text-amber-50 ring-amber-200/25"}`}
         >
-          <KeyRound className="relative size-[22px]" strokeWidth={2} />
+          <KeyRound className="relative size-[18px]" strokeWidth={2} />
         </span>
 
-        {showing ? (
-          <div className="w-full max-w-[220px] space-y-1">
-            {gateCode && (
-              <div className="flex items-center justify-between gap-3">
-                <span className="text-[12px] text-foreground/75 font-medium shrink-0">{gLabel}</span>
-                <span className="font-mono text-[14.5px] font-semibold tracking-[0.22em] text-foreground">
-                  {gateCode}
-                </span>
-              </div>
-            )}
-            {lockCode && (
-              <div className="flex items-center justify-between gap-3">
-                <span className="text-[12px] text-foreground/75 font-medium shrink-0">{lLabel}</span>
-                <span className="font-mono text-[14.5px] font-semibold tracking-[0.22em] text-foreground">
-                  {lockCode}
-                </span>
-              </div>
-            )}
-          </div>
-        ) : (
-          <>
-            <p className="text-[13px] text-foreground/85 truncate font-medium max-w-full">{hint}</p>
-            <p className="font-mono text-[15px] font-semibold tracking-[0.22em] text-foreground/75 truncate max-w-full">
-              {"•".repeat(10)}
-            </p>
-          </>
-        )}
+        <div className="flex-1 min-w-0">
+          {showing ? (
+            <div className="space-y-0.5">
+              {gateCode && (
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[11px] text-foreground/70 font-medium shrink-0 truncate">{gLabel}</span>
+                  <span className="font-mono text-[13px] font-semibold tracking-[0.22em] text-foreground truncate">
+                    {gateCode}
+                  </span>
+                </div>
+              )}
+              {lockCode && (
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[11px] text-foreground/70 font-medium shrink-0 truncate">{lLabel}</span>
+                  <span className="font-mono text-[13px] font-semibold tracking-[0.22em] text-foreground truncate">
+                    {lockCode}
+                  </span>
+                </div>
+              )}
+            </div>
+          ) : (
+            <>
+              <p className="text-[12px] text-foreground/85 truncate font-medium">{hint}</p>
+              <p className="font-mono text-[13px] font-semibold tracking-[0.22em] text-foreground/60 truncate">
+                {"•".repeat(10)}
+              </p>
+            </>
+          )}
+        </div>
 
-        <div className="mt-1 flex items-center gap-2.5">
+        <div className="shrink-0 flex flex-col items-end gap-1">
           {!showing && (
             <button
               onClick={handleEyeClick}
               aria-label="Ver senhas de acesso"
-              className="inline-flex items-center gap-1.5 rounded-full bg-foreground text-background px-3.5 py-1.5 text-[11.5px] font-semibold tracking-wide hover:opacity-90 active:scale-95 transition-all"
+              className="inline-flex items-center gap-1.5 rounded-full bg-foreground text-background px-3 py-1.5 text-[11px] font-semibold tracking-wide hover:opacity-90 active:scale-95 transition-all"
             >
               <Eye className="size-3.5" strokeWidth={2.4} />
-              <span>Ver Senha</span>
+              <span>Ver</span>
             </button>
           )}
           {hasInstructions && (
@@ -3256,7 +3258,7 @@ function AccessCodesStrip({
               type="button"
               onClick={() => setInstrOpen(true)}
               aria-label="Ver instruções de acesso"
-              className="inline-flex items-center gap-1.5 text-[11px] font-medium text-foreground/70 hover:text-foreground transition-colors"
+              className="inline-flex items-center gap-1 text-[10.5px] font-medium text-foreground/65 hover:text-foreground transition-colors"
             >
               <HelpCircle className="size-3" strokeWidth={2} />
               <span>Instruções</span>
