@@ -492,15 +492,16 @@ export function GuideAiChat({ slug, propertyName, guestName }: { slug: string; p
               <MessageCircleMore className="size-4" strokeWidth={1.9} />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-[10px] uppercase tracking-[0.24em] text-accent/75 font-semibold">Concierge IA</p>
-              <p className="text-[13px] font-medium truncate">{propertyName}</p>
+              <p className="text-[10px] uppercase tracking-[0.24em] text-emerald-700/80 font-semibold">Concierge IA</p>
+              <p className="text-[13px] font-medium truncate text-zinc-900">{propertyName}</p>
             </div>
             <button
               type="button"
               onClick={() => setOpen(false)}
               aria-label="Fechar"
-              className="grid size-9 place-items-center rounded-full hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+              className="grid size-9 place-items-center rounded-full hover:bg-zinc-100 text-zinc-500 hover:text-zinc-900 transition-colors"
             >
+
               <X className="size-4" />
             </button>
           </div>
