@@ -1,4 +1,3 @@
-import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
@@ -15,10 +14,6 @@ import { enablePush, disablePush, isPushSupported, currentPushSubscription } fro
 import { supabase } from "@/integrations/supabase/client";
 import { Users, Bell, BellOff, Loader2, Trash2, Mail, Send as SendIcon } from "lucide-react";
 import { toast } from "sonner";
-
-export const Route = createFileRoute("/_authenticated/admin/equipe")({
-  component: EquipePage,
-});
 
 export { EquipePage };
 
