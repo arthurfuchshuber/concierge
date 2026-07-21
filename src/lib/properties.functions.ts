@@ -240,6 +240,50 @@ const BulkListsInput = z.object({
   })).max(40).optional(),
 }).strict();
 
+// Retorna o conteúdo atual dos guias selecionados para exibir preview
+// no popup de edição em massa (valores por guia + contagem de listas).
+export const bulkFetchProperties = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) =>
+    z.object({ ids: z.array(z.string().uuid()).min(1).max(200) }).parse(i),
+  )
+  .handler(async ({ data, context }) => {
+    const sb = context.supabase;
+    const cols = [
+      "id","name",
+      ...Object.keys(BulkPatch.shape),
+    ].join(",");
+    const q = await sb
+      .from("properties")
+      .select(cols)
+      .in("id", data.ids);
+    if (q.error) throw (await import("@/lib/db-errors.server")).safeDbError("properties", q.error);
+    const rows = (q.data ?? []) as unknown as Array<{ id: string; name: string } & Record<string, string | number | boolean | null>>;
+    const propIds = rows.map((r) => r.id);
+    const [manual, emerg, faqs, checkout] = await Promise.all([
+      sb.from("property_manual_items").select("property_id").in("property_id", propIds),
+      sb.from("property_emergency_contacts").select("property_id").in("property_id", propIds),
+      sb.from("property_faqs").select("property_id").in("property_id", propIds),
+      sb.from("property_checkout_items").select("property_id").in("property_id", propIds),
+    ]);
+    function tally(arr: unknown): Record<string, number> {
+      const m: Record<string, number> = {};
+      for (const r of (arr as { property_id: string }[] | null) ?? [])
+        m[r.property_id] = (m[r.property_id] ?? 0) + 1;
+      return m;
+    }
+    return {
+      properties: rows,
+      listCounts: {
+        manual: tally(manual.data),
+        emergency: tally(emerg.data),
+        faqs: tally(faqs.data),
+        checkout: tally(checkout.data),
+      },
+    };
+  });
+
+
 export const bulkUpdateProperties = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((i: unknown) =>
@@ -247,62 +291,95 @@ export const bulkUpdateProperties = createServerFn({ method: "POST" })
       ids: z.array(z.string().uuid()).min(1).max(200),
       patch: BulkPatch,
       lists: BulkListsInput.optional(),
+      mode: z.enum(["overwrite", "fill-empty"]).default("overwrite"),
     }).parse(i),
   )
   .handler(async ({ data, context }) => {
+    const sb = context.supabase;
     const patch: Record<string, unknown> = Object.fromEntries(
       Object.entries(data.patch).map(([k, v]) => [k, v === "" ? null : v]),
     );
-    let updated = 0;
-    if (Object.keys(patch).length > 0) {
-      // RLS automatically scopes to owner_id = auth.uid()
-      const { data: rows, error } = await context.supabase
-        .from("properties")
-        .update(patch as never)
-        .in("id", data.ids)
-        .select("id");
-      if (error) throw (await import("@/lib/db-errors.server")).safeDbError("properties", error);
-      updated = rows?.length ?? 0;
+    const patchKeys = Object.keys(patch);
+    const updatedSet = new Set<string>();
+
+    function isEmpty(v: unknown): boolean {
+      return v === null || v === undefined || v === "";
     }
 
-    // Replace-all para campos de lista: apaga o existente e insere o novo para cada guia selecionado.
-    const lists = data.lists;
-    if (lists) {
-      const sb = context.supabase;
-      for (const id of data.ids) {
-        if (lists.manual !== undefined) {
-          await sb.from("property_manual_items").delete().eq("property_id", id);
-          if (lists.manual.length) {
-            const rows = lists.manual.map((m, i) => ({ ...m, property_id: id, position: i }));
-            await sb.from("property_manual_items").insert(rows as never);
-          }
-        }
-        if (lists.emergency !== undefined) {
-          await sb.from("property_emergency_contacts").delete().eq("property_id", id);
-          if (lists.emergency.length) {
-            const rows = lists.emergency.map((m, i) => ({ ...m, property_id: id, position: i }));
-            await sb.from("property_emergency_contacts").insert(rows as never);
-          }
-        }
-        if (lists.faqs !== undefined) {
-          await sb.from("property_faqs").delete().eq("property_id", id);
-          if (lists.faqs.length) {
-            const rows = lists.faqs.map((m, i) => ({ ...m, property_id: id, position: i }));
-            await sb.from("property_faqs").insert(rows as never);
-          }
-        }
-        if (lists.checkout !== undefined) {
-          await sb.from("property_checkout_items").delete().eq("property_id", id);
-          if (lists.checkout.length) {
-            const rows = lists.checkout.map((m, i) => ({ ...m, property_id: id, position: i }));
-            await sb.from("property_checkout_items").insert(rows as never);
-          }
+    if (patchKeys.length > 0) {
+      if (data.mode === "overwrite") {
+        const { data: rows, error } = await sb
+          .from("properties")
+          .update(patch as never)
+          .in("id", data.ids)
+          .select("id");
+        if (error) throw (await import("@/lib/db-errors.server")).safeDbError("properties", error);
+        for (const r of rows ?? []) updatedSet.add((r as { id: string }).id);
+      } else {
+        // fill-empty: por campo, aplica apenas onde o valor atual está vazio.
+        const cq = await sb
+          .from("properties")
+          .select(["id", ...patchKeys].join(","))
+          .in("id", data.ids);
+        if (cq.error) throw (await import("@/lib/db-errors.server")).safeDbError("properties", cq.error);
+        const current = (cq.data ?? []) as unknown as Array<{ id: string } & Record<string, unknown>>;
+        for (const key of patchKeys) {
+          const targetIds = current.filter((r) => isEmpty(r[key])).map((r) => r.id);
+          if (!targetIds.length) continue;
+          const { data: uRows, error: uErr } = await sb
+            .from("properties")
+            .update({ [key]: patch[key] } as never)
+            .in("id", targetIds)
+            .select("id");
+          if (uErr) throw (await import("@/lib/db-errors.server")).safeDbError("properties", uErr);
+          for (const r of (uRows ?? []) as unknown as Array<{ id: string }>) updatedSet.add(r.id);
         }
       }
-      if (!updated) updated = data.ids.length;
     }
-    return { updated };
+
+    // Listas
+    const lists = data.lists;
+    if (lists) {
+      // Conta itens existentes por guia para respeitar "fill-empty"
+      const listCounts: Record<string, Record<string, number>> = {};
+      if (data.mode === "fill-empty") {
+        const tables = [
+          ["manual", "property_manual_items"],
+          ["emergency", "property_emergency_contacts"],
+          ["faqs", "property_faqs"],
+          ["checkout", "property_checkout_items"],
+        ] as const;
+        for (const [key, table] of tables) {
+          const { data: rows } = await sb.from(table).select("property_id").in("property_id", data.ids);
+          const m: Record<string, number> = {};
+          for (const r of rows ?? []) m[(r as { property_id: string }).property_id] = (m[(r as { property_id: string }).property_id] ?? 0) + 1;
+          listCounts[key] = m;
+        }
+      }
+      const listMap = [
+        ["manual", "property_manual_items"],
+        ["emergency", "property_emergency_contacts"],
+        ["faqs", "property_faqs"],
+        ["checkout", "property_checkout_items"],
+      ] as const;
+
+      for (const id of data.ids) {
+        for (const [key, table] of listMap) {
+          const items = (lists as Record<string, unknown[]>)[key];
+          if (items === undefined) continue;
+          if (data.mode === "fill-empty" && (listCounts[key]?.[id] ?? 0) > 0) continue;
+          await sb.from(table).delete().eq("property_id", id);
+          if (items.length) {
+            const rows = items.map((m, i) => ({ ...(m as object), property_id: id, position: i }));
+            await sb.from(table).insert(rows as never);
+          }
+          updatedSet.add(id);
+        }
+      }
+    }
+    return { updated: updatedSet.size };
   });
+
 
 export const getMyProperty = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
