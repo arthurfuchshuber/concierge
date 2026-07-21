@@ -253,33 +253,36 @@ export const bulkFetchProperties = createServerFn({ method: "POST" })
       "id","name",
       ...Object.keys(BulkPatch.shape),
     ].join(",");
-    const { data: rows, error } = await sb
+    const q = await sb
       .from("properties")
       .select(cols)
       .in("id", data.ids);
-    if (error) throw (await import("@/lib/db-errors.server")).safeDbError("properties", error);
-    const propIds = (rows ?? []).map((r) => (r as { id: string }).id);
+    if (q.error) throw (await import("@/lib/db-errors.server")).safeDbError("properties", q.error);
+    const rows = (q.data ?? []) as unknown as Array<Record<string, unknown> & { id: string; name: string }>;
+    const propIds = rows.map((r) => r.id);
     const [manual, emerg, faqs, checkout] = await Promise.all([
       sb.from("property_manual_items").select("property_id").in("property_id", propIds),
       sb.from("property_emergency_contacts").select("property_id").in("property_id", propIds),
       sb.from("property_faqs").select("property_id").in("property_id", propIds),
       sb.from("property_checkout_items").select("property_id").in("property_id", propIds),
     ]);
-    function tally(arr: { property_id: string }[] | null | undefined) {
+    function tally(arr: unknown): Record<string, number> {
       const m: Record<string, number> = {};
-      for (const r of arr ?? []) m[r.property_id] = (m[r.property_id] ?? 0) + 1;
+      for (const r of (arr as { property_id: string }[] | null) ?? [])
+        m[r.property_id] = (m[r.property_id] ?? 0) + 1;
       return m;
     }
     return {
-      properties: (rows ?? []) as Array<Record<string, unknown> & { id: string; name: string }>,
+      properties: rows,
       listCounts: {
-        manual: tally(manual.data as { property_id: string }[] | null),
-        emergency: tally(emerg.data as { property_id: string }[] | null),
-        faqs: tally(faqs.data as { property_id: string }[] | null),
-        checkout: tally(checkout.data as { property_id: string }[] | null),
+        manual: tally(manual.data),
+        emergency: tally(emerg.data),
+        faqs: tally(faqs.data),
+        checkout: tally(checkout.data),
       },
     };
   });
+
 
 export const bulkUpdateProperties = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
