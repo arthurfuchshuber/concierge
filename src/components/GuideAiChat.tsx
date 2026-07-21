@@ -541,20 +541,21 @@ export function GuideAiChat({ slug, propertyName, guestName }: { slug: string; p
                 <div className="max-w-[85%] flex flex-col items-end gap-1">
                   {m.attachment && <AttachmentBubble attachment={m.attachment} />}
                   {m.content && (
-                    <div className="rounded-2xl rounded-tr-md bg-foreground text-background px-3.5 py-2.5 text-[13.5px] leading-relaxed whitespace-pre-line">
+                    <div className="rounded-2xl rounded-tr-md bg-zinc-900 text-white px-3.5 py-2.5 text-[13.5px] leading-relaxed whitespace-pre-line">
                       {m.content}
                     </div>
                   )}
                 </div>
               ) : m.role === "system" ? (
-                <div className="max-w-[92%] text-center text-[11.5px] text-muted-foreground italic px-3 py-1.5 rounded-full bg-muted/50">
+                <div className="max-w-[92%] text-center text-[11.5px] text-zinc-500 italic px-3 py-1.5 rounded-full bg-zinc-100">
                   {m.content}
                 </div>
               ) : (
-                <div className="max-w-[88%] text-[13.5px] leading-relaxed text-foreground/90 prose prose-sm prose-invert max-w-none [&_p]:my-1 [&_p]:leading-relaxed [&_strong]:font-semibold [&_strong]:text-foreground [&_a]:text-accent [&_a]:underline [&_a]:underline-offset-2 [&_ul]:my-1 [&_ul]:pl-4 [&_ol]:my-1 [&_ol]:pl-4 [&_li]:my-0.5">
+                <div className="max-w-[88%] text-[13.5px] leading-relaxed text-zinc-800 prose prose-sm max-w-none [&_p]:my-1 [&_p]:leading-relaxed [&_strong]:font-semibold [&_strong]:text-zinc-900 [&_a]:text-emerald-700 [&_a]:underline [&_a]:underline-offset-2 [&_ul]:my-1 [&_ul]:pl-4 [&_ol]:my-1 [&_ol]:pl-4 [&_li]:my-0.5">
                   {m.senderType === "human" && (
-                    <p className="text-[10px] uppercase tracking-[0.18em] text-accent/80 font-semibold mb-1">Atendente</p>
+                    <p className="text-[10px] uppercase tracking-[0.18em] text-emerald-700/85 font-semibold mb-1">Atendente</p>
                   )}
+
                   {m.attachment && (
                     <div className="mb-1">
                       <AttachmentBubble attachment={m.attachment} />
