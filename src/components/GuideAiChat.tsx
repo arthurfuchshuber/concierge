@@ -594,16 +594,16 @@ export function GuideAiChat({ slug, propertyName, guestName }: { slug: string; p
 
         {/* Composer */}
         <div
-          className="px-3 pt-2 border-t border-border bg-background"
+          className="px-3 pt-2 border-t border-zinc-200 bg-white"
           style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}
         >
           {uploadErr && (
-            <div className="text-[11px] text-destructive mb-1.5 px-1 flex items-center justify-between">
+            <div className="text-[11px] text-red-600 mb-1.5 px-1 flex items-center justify-between">
               <span>{uploadErr}</span>
               <button onClick={() => setUploadErr(null)} className="ml-2"><X className="size-3" /></button>
             </div>
           )}
-          <div className="flex items-end gap-1.5 bg-card border border-border rounded-2xl px-2 py-2 focus-within:border-accent/35 transition-colors">
+          <div className="flex items-end gap-1.5 bg-zinc-50 border border-zinc-200 rounded-2xl px-2 py-2 focus-within:border-emerald-400/50 transition-colors">
             {humanMode && (
               <>
                 <input
@@ -619,7 +619,7 @@ export function GuideAiChat({ slug, propertyName, guestName }: { slug: string; p
                   disabled={uploading || loading}
                   title="Anexar"
                   aria-label="Anexar arquivo"
-                  className="grid size-8 place-items-center rounded-full text-muted-foreground hover:text-foreground hover:bg-muted shrink-0 disabled:opacity-40"
+                  className="grid size-8 place-items-center rounded-full text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100 shrink-0 disabled:opacity-40"
                 >
                   <Paperclip className="size-4" />
                 </button>
@@ -641,23 +641,24 @@ export function GuideAiChat({ slug, propertyName, guestName }: { slug: string; p
               placeholder={uploading ? "Enviando anexo…" : "Pergunte alguma coisa…"}
               aria-label="Mensagem para o concierge"
               disabled={uploading}
-              className="flex-1 resize-none bg-transparent text-[16px] leading-relaxed outline-none placeholder:text-muted-foreground/70 max-h-32 min-w-0"
+              className="flex-1 resize-none bg-transparent text-[16px] leading-relaxed text-zinc-900 outline-none placeholder:text-zinc-400 max-h-32 min-w-0"
             />
             <button
               type="button"
               onClick={send}
               disabled={loading || uploading || !input.trim()}
               aria-label="Enviar"
-              className="grid size-9 place-items-center rounded-full bg-foreground text-background hover:opacity-90 active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
+              className="grid size-9 place-items-center rounded-full bg-emerald-600 text-white hover:bg-emerald-700 active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
             >
               {loading ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" strokeWidth={2} />}
             </button>
           </div>
-          <p className="text-[10px] text-muted-foreground text-center mt-2 px-2">
+          <p className="text-[10px] text-zinc-500 text-center mt-2 px-2">
             A IA usa as informações do guia. Confirme detalhes críticos com o anfitrião.
           </p>
         </div>
       </div>
+
     </>
   ) : null;
 
