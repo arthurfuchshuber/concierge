@@ -61,42 +61,31 @@ type ListKey = "manual" | "checkout" | "emergency" | "faqs";
 
 const TEXT_TABS: { id: string; label: string; fields: FieldDef[] }[] = [
   {
-    id: "chegada",
-    label: "Chegada",
+    id: "basics",
+    label: "Básico",
     fields: [
-      { key: "checkin_time", label: "Horário de check-in", kind: "text", placeholder: "15:00" },
-      { key: "checkin_time_max", label: "Check-in até", kind: "text", placeholder: "20:00" },
-      { key: "checkin_note", label: "Observação sobre o check-in", kind: "textarea" },
-      { key: "address_note", label: "Como chegar", kind: "textarea" },
-      { key: "checkin_instructions", label: "Instruções de check-in", kind: "textarea" },
-    ],
-  },
-  {
-    id: "saida",
-    label: "Saída",
-    fields: [
-      { key: "checkout_time", label: "Check-out até", kind: "text", placeholder: "11:00" },
-      { key: "checkout_time_min", label: "Check-out a partir", kind: "text" },
-      { key: "checkout_note", label: "Observação sobre o check-out", kind: "textarea" },
-      { key: "checkout_instructions", label: "Instruções de check-out", kind: "textarea" },
-    ],
-  },
-  {
-    id: "endereco",
-    label: "Endereço",
-    fields: [
+      { key: "brand_name", label: "Nome da marca", kind: "text" },
+      { key: "brand_logo_url", label: "URL do logo (https://)", kind: "text" },
+      { key: "guide_theme", label: "Tema do guia", kind: "theme" },
+      { key: "default_language", label: "Idioma padrão", kind: "language" },
+      { key: "published", label: "Publicado", kind: "boolean" },
+      { key: "host_name", label: "Nome do anfitrião", kind: "text" },
+      { key: "host_phone", label: "Telefone do anfitrião", kind: "text" },
       { key: "address", label: "Endereço completo", kind: "textarea", placeholder: "Rua, número, bairro…" },
       { key: "maps_url", label: "Link do Google Maps (https://)", kind: "text" },
-      { key: "garage_maps_url", label: "Link do Maps para a garagem (https://)", kind: "text" },
+      { key: "garage_maps_url", label: "Link do Maps para a garagem", kind: "text" },
       { key: "city", label: "Cidade", kind: "text" },
       { key: "state", label: "Estado", kind: "text" },
       { key: "country", label: "País", kind: "text" },
     ],
   },
   {
-    id: "acesso",
+    id: "access",
     label: "Acesso",
     fields: [
+      { key: "access_mode", label: "Modo de acesso do guia", kind: "access_mode" },
+      { key: "pin_code", label: "PIN (usado quando modo = PIN)", kind: "text" },
+      { key: "require_access_gate", label: "Exigir formulário de primeiro acesso", kind: "boolean" },
       { key: "gate_code", label: "Código do portão", kind: "text" },
       { key: "gate_label", label: "Nome do portão", kind: "text", placeholder: "Portão" },
       { key: "gate_instructions", label: "Instruções do portão", kind: "textarea" },
@@ -104,58 +93,39 @@ const TEXT_TABS: { id: string; label: string; fields: FieldDef[] }[] = [
       { key: "lock_label", label: "Nome da fechadura", kind: "text", placeholder: "Fechadura" },
       { key: "lock_instructions", label: "Instruções da fechadura", kind: "textarea" },
       { key: "access_codes_pin", label: "Senha para liberar códigos e Wi-Fi", kind: "text" },
+      { key: "wifi_ssid", label: "Rede Wi-Fi", kind: "text" },
+      { key: "wifi_password", label: "Senha do Wi-Fi", kind: "text" },
     ],
   },
   {
-    id: "wifi",
-    label: "Wi-Fi",
+    id: "house",
+    label: "A casa",
     fields: [
-      { key: "wifi_ssid", label: "Rede", kind: "text" },
-      { key: "wifi_password", label: "Senha", kind: "text" },
-    ],
-  },
-  {
-    id: "anfitriao",
-    label: "Anfitrião",
-    fields: [
-      { key: "host_name", label: "Nome", kind: "text" },
-      { key: "host_phone", label: "Telefone", kind: "text" },
-    ],
-  },
-  {
-    id: "marca",
-    label: "Marca",
-    fields: [
-      { key: "brand_name", label: "Nome da marca", kind: "text" },
-      { key: "brand_logo_url", label: "URL do logo (https://)", kind: "text" },
-      { key: "guide_theme", label: "Tema do guia", kind: "theme" },
-    ],
-  },
-  {
-    id: "tipo",
-    label: "Tipo do guia",
-    fields: [
-      { key: "default_language", label: "Idioma padrão", kind: "language" },
-      { key: "published", label: "Publicado", kind: "boolean" },
-    ],
-  },
-  {
-    id: "modo",
-    label: "Modo de acesso",
-    fields: [
-      { key: "access_mode", label: "Modo de acesso do guia", kind: "access_mode" },
-      { key: "pin_code", label: "PIN (usado quando modo = PIN)", kind: "text" },
-      { key: "require_access_gate", label: "Exigir formulário de primeiro acesso", kind: "boolean" },
-    ],
-  },
-  {
-    id: "regras",
-    label: "Regras",
-    fields: [
+      { key: "checkin_time", label: "Horário de check-in", kind: "text", placeholder: "15:00" },
+      { key: "checkin_time_max", label: "Check-in até", kind: "text", placeholder: "20:00" },
+      { key: "checkin_note", label: "Observação sobre o check-in", kind: "textarea" },
+      { key: "address_note", label: "Como chegar", kind: "textarea" },
+      { key: "checkin_instructions", label: "Instruções de check-in", kind: "textarea" },
+      { key: "checkout_time", label: "Check-out até", kind: "text", placeholder: "11:00" },
+      { key: "checkout_time_min", label: "Check-out a partir", kind: "text" },
+      { key: "checkout_note", label: "Observação sobre o check-out", kind: "textarea" },
+      { key: "checkout_instructions", label: "Instruções de check-out", kind: "textarea" },
       { key: "house_rules", label: "Regras do espaço", kind: "textarea" },
     ],
   },
+  {
+    id: "extras",
+    label: "Extras",
+    fields: [],
+  },
 ];
+
+// Listas atreladas a cada aba
+const TAB_LISTS: Record<string, ListKey[]> = {
+  house: ["manual", "checkout"],
+  extras: ["emergency", "faqs"],
+};
+
 
 type State = {
   enabled: Partial<Record<FieldKey, boolean>>;
