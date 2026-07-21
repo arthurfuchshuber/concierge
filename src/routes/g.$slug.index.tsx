@@ -3047,19 +3047,20 @@ function WifiStrip({
       <div
         className={`pointer-events-none absolute -top-12 -right-12 size-40 rounded-full ${isLight ? "bg-accent/15" : "bg-amber-400/15"} blur-3xl`}
       />
-      {/* Etiqueta no canto */}
+      {/* Etiqueta centralizada sobre a linha superior do card */}
       <span
-        className={`absolute top-2.5 left-2.5 z-10 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.2em] ring-1 ${
+        className={`absolute -top-2 left-1/2 -translate-x-1/2 z-10 inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[9px] font-bold uppercase tracking-[0.2em] ring-1 whitespace-nowrap ${
           isLight
-            ? "bg-accent/12 text-accent/85 ring-accent/25"
-            : "bg-amber-400/15 text-amber-100 ring-amber-200/30"
+            ? "bg-card text-accent/85 ring-accent/30 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.08)]"
+            : "bg-[oklch(0.16_0.04_50)] text-amber-100 ring-amber-200/35 shadow-[0_2px_10px_-2px_rgba(0,0,0,0.6)]"
         }`}
       >
         <Wifi className="size-2.5" strokeWidth={2.4} />
         Wi-Fi
       </span>
 
-      <div className="relative flex items-center gap-3 pl-3 pr-3 pt-[26px] pb-3">
+      <div className="relative flex items-center gap-3 px-3 py-3">
+
         <span
           className={`relative grid size-10 shrink-0 place-items-center rounded-xl ring-1 ${isLight ? "bg-accent/15 text-accent/80 ring-accent/20" : "bg-amber-400/10 text-amber-50 ring-amber-200/25"}`}
         >
