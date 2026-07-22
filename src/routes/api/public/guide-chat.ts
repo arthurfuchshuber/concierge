@@ -230,10 +230,10 @@ export const Route = createFileRoute("/api/public/guide-chat")({
           }
         }
 
-        // Gate: AI chat is only available to Business / Enterprise plan owners.
+        // Gate: guest AI chat is available from the Pro plan onwards.
         const { resolveOwnerPlanAdmin } = await import("@/lib/plan-guard.server");
         const ownerPlan = await resolveOwnerPlanAdmin(supabaseAdmin as SupabaseClient, prop.owner_id);
-        if (!ownerPlan.features.ai) {
+        if (!ownerPlan.features.guestChat) {
           return new Response(
             JSON.stringify({ error: "A assistente IA não está disponível neste guia." }),
             { status: 403, headers: { "Content-Type": "application/json" } },
