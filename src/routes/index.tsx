@@ -921,7 +921,7 @@ function Pricing() {
               </thead>
               <tbody className="divide-y divide-black/5">
                 {PLAN_COMPARISON_GROUPS.map((group) => (
-                  <>
+                  <Fragment key={group.group}>
                     <tr key={`g-${group.group}`} className="bg-black/[0.02]">
                       <td colSpan={5} className="px-4 sm:px-5 py-2.5 text-[11px] font-bold uppercase tracking-wider text-black/45">
                         {group.group}
