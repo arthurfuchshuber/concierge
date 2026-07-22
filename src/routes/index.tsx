@@ -23,6 +23,7 @@ import {
   Phone,
 } from "lucide-react";
 import conciergeLogo from "@/assets/concierge-logo.png";
+import { metaPixelTrack, metaPixelTrackCustom, metaPixelTrackCustomOnce } from "@/lib/meta-pixel";
 
 export const Route = createFileRoute("/")({
   head: () => ({
