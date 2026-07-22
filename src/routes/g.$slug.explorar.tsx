@@ -817,7 +817,8 @@ function ExplorePage() {
             (p.wifi_ssid && p.wifi_password_set)
           );
           const hasSaidaData = !!(p.checkout_time || p.checkout_note || p.checkout_instructions);
-          const hasResidencia = Array.isArray(p.house_manual) && p.house_manual.length > 0;
+          const manualList = (r as { manual?: Array<{ title: string; description?: string | null }> }).manual ?? [];
+          const hasResidencia = manualList.some((m) => !isRule(m));
           const items: Array<{ key: import("@/components/guide/BottomNav").BottomNavKey; label: string }> = [
             { key: "home", label: "Início" },
           ];
