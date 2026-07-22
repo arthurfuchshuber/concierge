@@ -74,7 +74,7 @@ function AssinaturaPage() {
     if (!info.isActive || !info.plan) return;
     const plan = PLANS[info.plan as PlanKey];
     if (!plan) return;
-    metaPixelTrackOnce(`Purchase:${info.plan}`, "Purchase", {
+    metaPixelTrackOnce("Purchase", {
       value: plan.priceNumeric,
       currency: "BRL",
       plan: plan.name,
