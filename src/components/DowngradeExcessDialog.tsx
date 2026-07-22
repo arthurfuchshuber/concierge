@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
-import { AlertTriangle, Loader2, Trash2 } from "lucide-react";
+import { AlertTriangle, Loader2, Trash2, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -12,6 +12,8 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { getDowngradeImpact, deleteGuides, PLANS, type PlanKey } from "@/lib/payments.functions";
+import { featuresLostOnDowngrade } from "@/lib/payments.shared";
+import { useSubscription } from "@/hooks/useSubscription";
 import { toast } from "sonner";
 
 export function DowngradeExcessDialog({
