@@ -1,10 +1,11 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Check, Sparkles, ArrowRight, X } from "lucide-react";
-import { Fragment, useEffect, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { usePaddleCheckout } from "@/hooks/usePaddleCheckout";
 import { PaymentTestModeBanner } from "@/components/PaymentTestModeBanner";
 import { PLAN_COMPARISON_GROUPS, type PlanKey } from "@/lib/payments.shared";
+import { metaPixelTrack, metaPixelTrackCustomOnce } from "@/lib/meta-pixel";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/precos")({
