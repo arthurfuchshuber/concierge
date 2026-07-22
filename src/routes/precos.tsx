@@ -241,9 +241,7 @@ function PricingPage() {
                   className={`mt-6 w-full inline-flex items-center justify-center gap-1 rounded-full py-2.5 text-sm font-medium transition-colors ${
                     isDark
                       ? "bg-background text-foreground hover:opacity-90"
-                      : isHi
-                        ? "bg-foreground text-background hover:opacity-90"
-                        : "bg-secondary hover:bg-secondary/70"
+                      : "bg-foreground text-background hover:opacity-90"
                   } disabled:opacity-50`}
                 >
                   {plan.cta}
