@@ -89,6 +89,23 @@ export function DowngradeExcessDialog({
           </DialogDescription>
         </DialogHeader>
 
+        {featuresLost.length > 0 && (
+          <div className="rounded-xl border border-amber-500/40 bg-amber-500/5 p-4 space-y-2">
+            <p className="text-sm font-medium text-amber-800 dark:text-amber-300">
+              Ao migrar para o plano {targetCfg.name}, seus guias deixarão de oferecer aos hóspedes:
+            </p>
+            <ul className="space-y-1.5">
+              {featuresLost.map((f) => (
+                <li key={f} className="flex items-start gap-2 text-sm text-foreground/80">
+                  <XCircle className="size-4 text-amber-600 shrink-0 mt-0.5" />
+                  <span>{f}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+
         {impactQuery.isLoading ? (
           <div className="h-40 grid place-items-center">
             <Loader2 className="size-5 animate-spin text-muted-foreground" />
