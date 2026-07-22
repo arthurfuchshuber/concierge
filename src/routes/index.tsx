@@ -727,128 +727,234 @@ function Testimonials() {
 }
 
 /* ---------- PRICING ---------- */
+import { PLANS as PLAN_CONFIG, PLAN_COMPARISON_GROUPS, type PlanKey } from "@/lib/payments.shared";
+
+type PricingCard = {
+  key: PlanKey;
+  name: string;
+  price: string;
+  period: string;
+  desc: string;
+  features: string[];
+  lockedNext?: string;
+  cta: string;
+  ctaHref: string;
+  highlight?: boolean;
+  dark?: boolean;
+};
+
 function Pricing() {
-  const plans = [
+  const plans: PricingCard[] = [
     {
+      key: "starter",
       name: "Starter",
       price: "R$ 99",
       period: "/mês",
-      desc: "Pra quem quer começar a encantar hóspedes com um guia digital profissional.",
+      desc: "Pra começar a encantar hóspedes com um guia digital profissional.",
       features: [
         "Até 3 guias digitais",
-        "Guia bilíngue (PT + EN)",
         "Edição manual completa (fotos, seções, dicas)",
-        "Acesso público por link ou PIN privado",
-        "Check-in, Wi-Fi e regras da casa",
-        "QR code personalizado do imóvel",
-        "Analytics de acessos e engajamento",
-        "Suporte por email",
+        "Bilíngue (PT + EN)",
+        "Acesso por link ou PIN privado",
+        "QR code personalizado por imóvel",
       ],
+      lockedNext: "Chat com IA para hóspedes",
       cta: "Testar 7 dias grátis",
-      highlight: false,
+      ctaHref: "/auth",
     },
     {
+      key: "pro",
       name: "Pro",
       price: "R$ 199",
       period: "/mês",
-      desc: "Pro anfitrião que quer ganhar tempo com automação e recomendações inteligentes.",
+      desc: "Automatize a rotina e deixe uma IA responder seus hóspedes por você.",
       features: [
-        "Até 20 guias digitais",
+        "Tudo do Starter, mais:",
+        "Até 20 guias",
         "Importação automática dos anúncios do Airbnb",
-        "Recomendações automáticas via Google Maps",
-        "Curadoria local (restaurantes, passeios, mercados)",
-        "Deep links pra Uber, 99, Waze e Google Maps",
-        "Dashboard de engajamento por imóvel",
-        "Tudo do Starter",
-        "Suporte prioritário",
+        "Chat com IA para hóspedes dentro do guia",
+        "Formulário de captação + validação de documentos por IA",
       ],
+      lockedNext: "Atendimento humano ao vivo",
       cta: "Começar agora",
+      ctaHref: "/auth",
       highlight: true,
     },
     {
+      key: "business",
       name: "Business",
       price: "R$ 399",
       period: "/mês",
-      desc: "Pra gestores profissionais que querem IA atendendo os hóspedes 24 horas.",
+      desc: "Pra gestores profissionais com equipe e atendimento ao vivo.",
       features: [
-        "Até 50 guias digitais",
-        "ConciergeIA — chat com IA 24/7 nos guias",
-        "Base de conhecimento e comportamento treinável",
-        "Respostas em PT · EN · ES",
-        "Feedbacks e melhoria contínua priorizada",
-        "Insights de conversas e conteúdo mais buscado",
-        "Tudo do Pro",
-        "Suporte prioritário com SLA",
+        "Tudo do Pro, mais:",
+        "Até 50 guias",
+        "Atendimento humano ao vivo (com sua equipe)",
+        "Ensinar a IA com sua base de conhecimento própria",
+        "Gestão de equipe + edição em massa",
       ],
+      lockedNext: "Marca própria (white label)",
       cta: "Começar agora",
-      highlight: false,
+      ctaHref: "/auth",
+    },
+    {
+      key: "enterprise",
+      name: "Enterprise",
+      price: "Sob consulta",
+      period: "",
+      desc: "Volume alto, marca própria e integrações sob medida.",
+      features: [
+        "Tudo do Business, mais:",
+        "Guias ilimitados",
+        "Marca própria (logo e nome)",
+        "Integração com sistemas externos",
+        "Onboarding dedicado e SLA 24/7",
+      ],
+      cta: "Falar com vendas",
+      ctaHref: "mailto:sigma@anfitriaosigma.com.br?subject=Plano Enterprise",
+      dark: true,
     },
   ];
+
   return (
     <section id="planos" className="py-20 sm:py-28">
-      <div className="max-w-6xl mx-auto px-5 sm:px-8">
+      <div className="max-w-7xl mx-auto px-5 sm:px-8">
         <div className="text-center max-w-3xl mx-auto">
           <p className="text-[11px] uppercase tracking-[0.25em] font-semibold text-black/50">
             Planos
           </p>
           <h2 className="mt-3 font-display font-extrabold text-[26px] sm:text-5xl leading-[1.15] tracking-tight text-balance">
-            Menos de uma diária. Muito mais que uma equipe.
+            Escolha o plano ideal para sua operação.
           </h2>
           <p className="mt-4 text-[15px] sm:text-lg text-black/60 text-pretty">
-            7 dias grátis em todos os planos. Cancele quando quiser.
+            7 dias grátis em todos os planos pagos. Cancele quando quiser.
           </p>
         </div>
 
-        <div className="mt-12 grid md:grid-cols-3 gap-5">
-          {plans.map((p) => (
-            <div
-              key={p.name}
-              className={`relative rounded-3xl p-8 flex flex-col ${
-                p.highlight
-                  ? "text-white shadow-2xl scale-[1.02]"
-                  : "bg-white border border-black/5 shadow-sm"
-              }`}
-              style={p.highlight ? { background: BRAND_GRADIENT } : {}}
-            >
-              {p.highlight && (
-                <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-black text-white text-[10px] font-bold uppercase tracking-widest px-3 py-1 rounded-full">
-                  Mais popular
-                </div>
-              )}
-              <div className={`text-xs uppercase tracking-widest font-bold ${p.highlight ? "text-white/80" : "text-black/50"}`}>
-                {p.name}
-              </div>
-              <div className="mt-3 flex items-baseline gap-1">
-                <span className="font-display font-extrabold text-4xl">{p.price}</span>
-                <span className={p.highlight ? "text-white/80 text-sm" : "text-black/50 text-sm"}>{p.period}</span>
-              </div>
-              <p className={`mt-2 text-sm ${p.highlight ? "text-white/85" : "text-black/60"}`}>{p.desc}</p>
-              <ul className="mt-6 space-y-2.5 flex-1">
-                {p.features.map((f) => (
-                  <li key={f} className="flex items-start gap-2 text-sm">
-                    <Check className={`size-4 mt-0.5 shrink-0 ${p.highlight ? "text-white" : "text-[#7C1AD8]"}`} />
-                    <span className={p.highlight ? "text-white" : "text-black/80"}>{f}</span>
-                  </li>
-                ))}
-              </ul>
-              <Link
-                to="/auth"
-                className={`btn-shine mt-8 inline-flex items-center justify-center gap-2 rounded-full h-12 text-sm font-semibold transition ${
-                  p.highlight
-                    ? "bg-white text-black hover:bg-black hover:text-white"
-                    : "bg-black text-white hover:opacity-90"
+        {/* Cards */}
+        <div className="mt-12 grid md:grid-cols-2 lg:grid-cols-4 gap-5">
+          {plans.map((p) => {
+            const isDark = p.dark;
+            const isHi = p.highlight;
+            const isEnterprise = p.ctaHref.startsWith("mailto:");
+            const CTA = isEnterprise ? "a" : Link;
+            const ctaProps = isEnterprise
+              ? { href: p.ctaHref }
+              : { to: p.ctaHref };
+            return (
+              <div
+                key={p.key}
+                className={`relative rounded-3xl p-8 flex flex-col ${
+                  isDark
+                    ? "bg-black text-white border border-black"
+                    : isHi
+                      ? "bg-white border-2 border-black shadow-xl"
+                      : "bg-white border border-black/10 shadow-sm"
                 }`}
               >
-                <span className="inline-flex items-center gap-2">{p.cta} <ArrowRight className="size-4" /></span>
-              </Link>
-
-            </div>
-          ))}
+                {isHi && (
+                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-black text-white text-[10px] font-bold uppercase tracking-widest px-3 py-1 rounded-full">
+                    Mais popular
+                  </div>
+                )}
+                <div className={`text-xs uppercase tracking-widest font-bold ${isDark ? "text-white/70" : "text-black/50"}`}>
+                  {p.name}
+                </div>
+                <div className="mt-3 flex items-baseline gap-1">
+                  <span className="font-display font-extrabold text-4xl">{p.price}</span>
+                  {p.period && <span className={isDark ? "text-white/60 text-sm" : "text-black/50 text-sm"}>{p.period}</span>}
+                </div>
+                <p className={`mt-2 text-sm min-h-[48px] ${isDark ? "text-white/70" : "text-black/60"}`}>{p.desc}</p>
+                <ul className="mt-6 space-y-2.5 flex-1">
+                  {p.features.map((f, idx) => (
+                    <li key={f} className="flex items-start gap-2 text-sm">
+                      <Check className={`size-4 mt-0.5 shrink-0 ${idx === 0 && f.startsWith("Tudo do") ? (isDark ? "text-white" : "text-black") : (isDark ? "text-white/80" : "text-[#7C1AD8]")}`} />
+                      <span className={isDark ? "text-white/90" : (idx === 0 && f.startsWith("Tudo do") ? "text-black font-semibold" : "text-black/80")}>{f}</span>
+                    </li>
+                  ))}
+                  {p.lockedNext && (
+                    <li className={`flex items-start gap-2 text-sm ${isDark ? "text-white/40" : "text-black/30"} line-through`}>
+                      <span className="size-4 mt-0.5 shrink-0 grid place-items-center">×</span>
+                      <span>{p.lockedNext}</span>
+                    </li>
+                  )}
+                </ul>
+                <CTA
+                  {...(ctaProps as { to: string })}
+                  className={`btn-shine mt-8 inline-flex items-center justify-center gap-2 rounded-full h-12 text-sm font-semibold transition ${
+                    isDark
+                      ? "bg-white text-black hover:opacity-90"
+                      : isHi
+                        ? "bg-black text-white hover:opacity-90"
+                        : "bg-secondary text-black hover:bg-secondary/70"
+                  }`}
+                >
+                  <span className="inline-flex items-center gap-2">{p.cta} <ArrowRight className="size-4" /></span>
+                </CTA>
+              </div>
+            );
+          })}
         </div>
+
+        {/* Comparison table */}
+        <div className="mt-16 rounded-3xl border border-black/10 bg-white shadow-sm overflow-hidden">
+          <div className="p-6 sm:p-8 border-b border-black/5 bg-black/[0.02]">
+            <h3 className="font-display font-bold text-xl sm:text-2xl">Comparativo detalhado</h3>
+            <p className="text-sm text-black/60 mt-1">
+              Tudo em linguagem simples. Sem termos técnicos.
+            </p>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse min-w-[720px]">
+              <thead>
+                <tr className="border-b border-black/5 bg-black/[0.02]">
+                  <th className="p-4 sm:p-5 text-xs uppercase tracking-wider font-semibold text-black/50 w-[38%]">Recurso</th>
+                  <th className="p-4 sm:p-5 text-sm font-semibold text-center">Starter</th>
+                  <th className="p-4 sm:p-5 text-sm font-semibold text-center bg-black/[0.04]">Pro</th>
+                  <th className="p-4 sm:p-5 text-sm font-semibold text-center">Business</th>
+                  <th className="p-4 sm:p-5 text-sm font-semibold text-center">Enterprise</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-black/5">
+                {PLAN_COMPARISON_GROUPS.map((group) => (
+                  <>
+                    <tr key={`g-${group.group}`} className="bg-black/[0.02]">
+                      <td colSpan={5} className="px-4 sm:px-5 py-2.5 text-[11px] font-bold uppercase tracking-wider text-black/45">
+                        {group.group}
+                      </td>
+                    </tr>
+                    {group.rows.map((row) => (
+                      <tr key={row.label}>
+                        <td className="p-4 sm:p-5 text-sm font-medium text-black/80">{row.label}</td>
+                        {(["starter", "pro", "business", "enterprise"] as PlanKey[]).map((k) => (
+                          <td
+                            key={k}
+                            className={`p-4 sm:p-5 text-sm text-center ${k === "pro" ? "bg-black/[0.03]" : ""} ${row.values[k] === "—" ? "text-black/30" : row.values[k] === "✓" ? "text-[#7C1AD8] font-semibold" : "text-black/70"}`}
+                          >
+                            {row.values[k]}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <p className="text-center text-xs text-black/50 mt-8">
+          Precisa de algo específico?{" "}
+          <a href="mailto:sigma@anfitriaosigma.com.br" className="underline hover:text-black">
+            Fale com um consultor
+          </a>{" "}
+          — soluções personalizadas para redes e grandes operações.
+        </p>
       </div>
     </section>
   );
 }
+
 
 /* ---------- FAQ ---------- */
 function FAQ() {
