@@ -880,18 +880,25 @@ function Pricing() {
                     </li>
                   )}
                 </ul>
-                <CTA
-                  {...(ctaProps as { to: string })}
-                  className={`btn-shine mt-8 inline-flex items-center justify-center gap-2 rounded-full h-12 text-sm font-semibold transition ${
-                    isDark
-                      ? "bg-white text-black hover:opacity-90"
-                      : isHi
-                        ? "bg-black text-white hover:opacity-90"
-                        : "bg-secondary text-black hover:bg-secondary/70"
-                  }`}
-                >
-                  <span className="inline-flex items-center gap-2">{p.cta} <ArrowRight className="size-4" /></span>
-                </CTA>
+                {isEnterprise ? (
+                  <a
+                    href={p.ctaHref}
+                    className={`btn-shine mt-8 inline-flex items-center justify-center gap-2 rounded-full h-12 text-sm font-semibold transition ${
+                      isDark ? "bg-white text-black hover:opacity-90" : "bg-secondary text-black hover:bg-secondary/70"
+                    }`}
+                  >
+                    <span className="inline-flex items-center gap-2">{p.cta} <ArrowRight className="size-4" /></span>
+                  </a>
+                ) : (
+                  <Link
+                    to={p.ctaHref}
+                    className={`btn-shine mt-8 inline-flex items-center justify-center gap-2 rounded-full h-12 text-sm font-semibold transition ${
+                      isHi ? "bg-black text-white hover:opacity-90" : "bg-secondary text-black hover:bg-secondary/70"
+                    }`}
+                  >
+                    <span className="inline-flex items-center gap-2">{p.cta} <ArrowRight className="size-4" /></span>
+                  </Link>
+                )}
               </div>
             );
           })}
