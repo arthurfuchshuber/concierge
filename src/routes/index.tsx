@@ -728,7 +728,7 @@ function Testimonials() {
 }
 
 /* ---------- PRICING ---------- */
-import { PLANS as PLAN_CONFIG, PLAN_COMPARISON_GROUPS, type PlanKey } from "@/lib/payments.shared";
+
 
 type PricingCard = {
   key: PlanKey;
