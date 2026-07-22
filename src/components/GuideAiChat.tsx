@@ -7,6 +7,7 @@ import { GuestNotificationsPrompt } from "@/components/GuestNotificationsPrompt"
 import { AudioRecorderButton, type RecordedAudio } from "@/components/handoff/AudioRecorderButton";
 import { AttachmentBubble, type AttachmentInfo } from "@/components/handoff/AttachmentBubble";
 import { readAccessRecord } from "@/components/GuideAccessGate";
+import { metaPixelTrackCustom } from "@/lib/meta-pixel";
 
 type Msg = {
   role: "user" | "assistant" | "system";
