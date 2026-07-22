@@ -454,7 +454,10 @@ export function GuideAiChat({ slug, propertyName, guestName }: { slug: string; p
 
       <button
         type="button"
-        onClick={() => setOpen(true)}
+        onClick={() => {
+          metaPixelTrackCustom("ChatClick", { location: "guide" });
+          setOpen(true);
+        }}
         aria-label="Abrir assistente do guia"
         title="Peça dicas à IA"
         className="btn-shine group relative inline-flex items-center gap-2 px-4 sm:px-5 h-14 rounded-full bg-emerald-500 text-white shadow-[0_16px_38px_-14px_rgba(16,185,129,0.7)] hover:bg-emerald-600 hover:shadow-[0_20px_46px_-16px_rgba(16,185,129,0.85)] active:scale-95 transition-all pointer-events-auto"
