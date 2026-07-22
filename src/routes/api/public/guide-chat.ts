@@ -388,7 +388,7 @@ Encerramento:
 - Termine com no MÁXIMO uma pergunta curta e natural, só quando fizer sentido — e apenas sobre algo que VOCÊ consegue responder (comparar com outro lugar, sugerir onde comer perto, contar sobre outro passeio). Não force pergunta em toda resposta.
 - Nunca ofereça "quer que eu verifique / confirme / busque em tempo real".`;
 
-        const NORMAL_MODE = `\n\nHandoff humano: chame a ferramenta request_human_handoff APENAS quando o hóspede pedir explicitamente falar com humano/anfitrião, OU quando houver emergência real (segurança, saúde, problema grave na hospedagem). Nunca chame por incerteza sua, nunca chame quando o hóspede só respondeu "sim", "ok", "pode ser" a uma pergunta sua. Após chamar, responda apenas: "Estou chamando um atendente humano, aguarde só um instante." Não invente contatos.`;
+        const NORMAL_MODE = `\n\nHandoff humano: chame a ferramenta request_human_handoff quando (a) o hóspede pedir explicitamente falar com humano/anfitrião, (b) houver emergência ou problema operacional no imóvel (não abriu, não funciona, quebrado, vazamento, sem energia, sem acesso), OU (c) a pergunta for sobre a residência e a resposta NÃO estiver claramente coberta pelo contexto abaixo. Não chame quando o hóspede só respondeu "sim", "ok", "pode ser" a uma pergunta sua. Após chamar, responda apenas: "Estou chamando um atendente humano, aguarde só um instante." Não invente contatos e NUNCA finja executar ações físicas.`;
 
         const MODE_INSTRUCTIONS = inExplorationFlow ? EXPLORATION_MODE : NORMAL_MODE;
 
