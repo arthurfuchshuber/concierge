@@ -812,7 +812,7 @@ function Pricing() {
         "Onboarding dedicado e SLA 24/7",
       ],
       cta: "Falar com vendas",
-      ctaHref: "mailto:sigma@anfitriaosigma.com.br?subject=Plano Enterprise",
+      ctaHref: "https://wa.me/5547996759381?text=" + encodeURIComponent("Olá! Tenho interesse no plano Enterprise do ConciergeIA."),
       dark: true,
     },
   ];
