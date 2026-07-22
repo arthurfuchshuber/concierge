@@ -841,7 +841,7 @@ function Pricing() {
   ];
 
   return (
-    <section id="planos" className="py-20 sm:py-28">
+    <section id="planos" ref={sectionRef} className="py-20 sm:py-28">
       <div className="max-w-7xl mx-auto px-5 sm:px-8">
         <div className="text-center max-w-3xl mx-auto">
           <p className="text-[11px] uppercase tracking-[0.25em] font-semibold text-black/50">
