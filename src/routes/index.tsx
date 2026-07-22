@@ -1354,7 +1354,10 @@ function FloatingContact() {
       {/* Single FAB — opens chat directly */}
       <div className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-[55]">
         <button
-          onClick={() => setChatOpen((v) => !v)}
+          onClick={() => {
+            metaPixelTrackCustom("ChatClick", { location: "landing" });
+            setChatOpen((v) => !v);
+          }}
           aria-label={chatOpen ? "Fechar chat" : "Falar com a IA"}
           className="btn-shine size-14 rounded-full grid place-items-center text-white shadow-2xl hover:scale-105 active:scale-95 transition"
           style={{ background: BRAND_GRADIENT }}
