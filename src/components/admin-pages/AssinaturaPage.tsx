@@ -113,6 +113,7 @@ function AssinaturaPage() {
       }
       try {
         setChanging(target);
+        metaPixelTrack("InitiateCheckout", { plan: targetPlan.name });
         await openCheckout({
           priceId: targetPlan.priceId,
           customerEmail: user.email ?? undefined,
