@@ -1,43 +1,86 @@
-# Redesign da Home Pública do Guia — Concierge Luxuoso
+# Plano de implementação — Planos, gating e comunicação
 
-Como os protótipos não renderizaram no chat, vou seguir com a direção **V3 · Concierge Luxuoso** — a que melhor traduz "de outro mundo, elegante, tecnológico" mantendo a estrutura do esboço. Ajustes serão feitos em **ambos os temas** (dark e light) e sem inventar conteúdo negativo.
+Layout aprovado: **v2 (Cards + Tabela agrupada)**. Adaptado às cores do projeto (foreground / background / accent) — não uso indigo do protótipo.
 
-## Direção visual
+---
 
-- **Hero cinematográfico**: foto da hospedagem em 4:5 com máscara de gradiente, título em Playfair Display itálico, destaque em gradiente âmbar→rosa→roxo (dark) / índigo sólido (light). Nome + tagline sempre em uma linha equilibrada.
-- **Glassmorphism celestial**: `bg-white/[0.04]` + `backdrop-blur-2xl` + borda `white/10`, com auréolas de cor (`blur-3xl`) atrás dos cards principais. No light: `bg-card` sólido + sombra suave + auréolas com opacidade baixa.
-- **Grid assimétrico de Acessos Rápidos**: card "Chegada" full-width com CTA gradiente e aura roxa; abaixo, dois cards satélite (Saída / A residência) e uma linha compacta (clima · status IA).
-- **Card Concierge IA**: painel maior com fundo em gradiente `from-[#1a0b2e] via-[#2d1b4e] to-[#4c1d95]` (dark) / `from-purple-50 via-white to-pink-50` (light), avatar em vidro, chips de sugestão com hover, botão primário luminoso.
-- **Feed "O que rola em [cidade]"**: título em **uma única linha** (whitespace-nowrap + tracking calibrado + tamanho responsivo), cards verticais 4:5 com foto, pill de categoria colorida, título serifado, hover-zoom sutil.
-- **FAQ**: card único elegante com contador de perguntas e chevron animado.
-- **Micro-detalhes**: pontos de status com halo pulsante, gradiente sutil respirando no header, entrada em stagger via Framer Motion (já disponível), transições `[0.2,0.8,0.2,1]`.
+## 1. Fonte da verdade dos planos (`src/lib/payments.shared.ts`)
 
-## Conteúdo
+Novo shape de `features` (flags por plano, todas em linguagem simples):
 
-Estritamente positivo e sobre a cidade: turismo, gastronomia, eventos locais, passeios, cultura, natureza, mercado. O prompt de `city-news.functions.ts` já filtra — vou reforçar o system prompt para excluir explicitamente notícias negativas/policiais/tragédias.
+| Feature key           | Rótulo público (não técnico)          | Starter | Pro | Business | Enterprise |
+| --------------------- | ------------------------------------- | :-----: | :-: | :------: | :--------: |
+| `guestChat`           | Chat com IA para hóspedes             |         |  ✓  |    ✓     |     ✓      |
+| `autoImport`          | Importação automática (Airbnb + Maps) |         |  ✓  |    ✓     |     ✓      |
+| `advancedIntake`      | Formulário de captação + docs por IA  |         |  ✓  |    ✓     |     ✓      |
+| `ai` (treinável)      | Ensinar a IA com sua base própria     |         |     |    ✓     |     ✓      |
+| `humanHandoff`        | Atendimento humano ao vivo            |         |     |    ✓     |     ✓      |
+| `team`                | Gestão de equipe + edição em massa    |         |     |    ✓     |     ✓      |
+| `customBrand`         | Marca própria (white label)           |         |     |          |     ✓      |
+| `externalIntegration` | Integração com sistemas externos      |         |     |          |     ✓      |
 
-## Alterações técnicas
+Limites: Starter 3 · Pro 20 · Business 50 · Enterprise ∞.
 
-Arquivos a editar (nenhum código de backend novo, só apresentação):
+## 2. Landing `src/routes/index.tsx` + `src/routes/precos.tsx`
 
-1. **`src/routes/g.$slug.index.tsx`** — reestruturar hero, headers de seção, grid de acessos rápidos, wrapper geral. Adicionar auréolas globais de fundo em ambos os temas.
-2. **`src/components/guide/HomeIntelligence.tsx`** — refinar card IA (gradiente novo, avatar em vidro, tipografia serifada no título, chips maiores, botão CTA luminoso).
-3. **`src/components/guide/CityNewsFeed.tsx`** — título em uma linha via `whitespace-nowrap` + `tracking-[0.2em]` + tamanho responsivo (`text-[11px] md:text-[13px]`), cards 4:5 com pill categoria e hover-zoom. Reforçar `openChat` com contexto positivo.
-4. **`src/components/guide/CheckinCountdown.tsx`** — harmonizar visual com nova linguagem (halo âmbar mais suave, borda glass).
-5. **`src/lib/city-news.functions.ts`** — reforçar prompt do modelo para excluir conteúdo negativo (crimes, tragédias, política) e focar em turismo/gastronomia/eventos/passeios/cultura.
-6. **`src/styles.css`** — adicionar (se necessário) tokens auxiliares para halos e gradientes celestiais reutilizáveis, e keyframe `aurora-drift` para respiração sutil dos gradientes de fundo.
+Aplicar layout v2 aprovado:
+- 4 cards (Pro destacado como "Mais popular").
+- Cada card lista 4-5 bullets — recursos-âncora do plano + 1 linha riscada mostrando "o que só existe no plano acima" (motor de upgrade).
+- Tabela comparativa agrupada abaixo dos cards, com colunas: Recurso · Starter · Pro (destacada) · Business · Enterprise.
+- Copy 100% em português simples: "Integração com sistemas externos" (não API), "Atendimento humano ao vivo" (não handoff), "Ensinar a IA" (não fine-tune / KB).
 
-## Regras invioláveis
+## 3. Gating no servidor
 
-- Ambos os temas (dark + light) — nada de estilizar só um.
-- Apenas classes semânticas do design system (nada de `text-white`/`bg-black` hard-coded); onde precisar de cor absoluta em glass (ex: `bg-white/[0.04]`), aplicar via condicional de tema.
-- Regra global de tipografia mantida: pontuação nunca inicia linha; campos vazios do painel ocultam a seção inteira.
-- Título "O QUE ROLA EM FOZ DO IGUAÇU" **em uma linha** — testado em 360px de largura.
-- Conteúdo do feed: só positivo, só cidade.
+- `src/lib/plan-guard.server.ts`: expandir `features` para as 8 chaves acima; `assertFeature` já cobre.
+- `src/routes/api/public/guide-chat.ts`:
+  - Se plano do dono não tem `guestChat` → rota devolve 403 ("Chat não disponível neste plano").
+  - Se não tem `humanHandoff` → IA **nunca** oferece transferência para humano; system prompt recebe flag `humanHandoffAllowed=false` e a ferramenta `request_human_handoff` é removida (já é hoje na exploração; estender para todos os contextos).
+- `src/lib/handoff.functions.ts`: `requestHandoff` server fn valida `humanHandoff` do dono antes de criar ticket.
+- Endpoints de importação Airbnb, upload de docs com validação IA, teach-ai, team invites, bulk edit — todos passam por `assertFeature` correspondente.
 
-## Validação após implementação
+## 4. Gating no cliente (guias de hóspede)
 
-- Playwright: screenshot da home nos dois temas em 375px e 1280px, confirmar título do feed em uma linha, hero legível, cards com brilho.
-- Console/network: sem 500 em `getCityNews` / `getDailyTip`.
+- `src/routes/g.$slug.tsx` loader: já resolve `resolveOwnerPlanAdmin` — expor `ownerFeatures` no contexto do guia.
+- `GuideAiChat.tsx`: só renderiza o botão flutuante se `ownerFeatures.guestChat === true`. Sem plano → botão some.
+- Dentro do chat, sumiço do CTA "Falar com atendente" se `ownerFeatures.humanHandoff === false`.
 
-Depois de aprovado, implemento tudo em um único passo.
+## 5. Gating no cliente (admin — bloqueios visuais)
+
+Recursos indisponíveis ficam **visíveis mas travados** com ícone de cadeado + tooltip "Disponível no plano X" e popup CTA para /precos (reaproveitar `AiPlanLock` renomeando para `PlanLock` genérico com prop `requiredPlan`). Aplicar em:
+- Aba "Importar Airbnb" (< Pro)
+- Aba "Captação avançada" + validação de docs (< Pro)
+- Painel "Atendimento" na sidebar (< Business)
+- Aba "Base de conhecimento IA" (< Business)
+- Aba "Equipe" + botão "Edição em massa" (< Business)
+- Aba "Marca personalizada" (< Enterprise)
+
+Comportamento ao clicar em item travado: `Dialog` com título "Recurso do plano X", descrição curta, e CTA "Ver planos" → `/precos`.
+
+## 6. Downgrade — aviso completo
+
+`src/components/DowngradeExcessDialog.tsx` já pede escolher guias a excluir. Adicionar bloco novo:
+
+> **Ao migrar para o plano [X], seus guias deixarão de oferecer:**
+> - Chat com IA para hóspedes
+> - Atendimento humano ao vivo
+> - Validação de documentos por IA
+> …
+
+Lista é derivada de `PLANS[current].features` menos `PLANS[target].features`, com rótulos legíveis.
+
+## 7. Ordem de entrega (para não empilhar risco)
+
+1. **Turno 1 (agora):** itens 1 + 2 + 6 — planos, landing/precos, aviso de downgrade. Zero regressão funcional.
+2. **Turno 2:** item 3 — gating server (chat/handoff/importação/team).
+3. **Turno 3:** itens 4 + 5 — gating client e bloqueios visuais em admin.
+
+Cada turno é auto-contido e testável isoladamente. Se quiser tudo num turno só, aviso que a chance de bug sobe.
+
+---
+
+## Detalhes técnicos (para desenvolvedor)
+
+- Novas keys de `features` são **union type discriminado**; TypeScript vai apontar todo lugar que precisa atualizar após mudança em `payments.shared.ts`.
+- `resolveOwnerPlanAdmin` já existe e é usado no guia — só preciso expor `features` no retorno do loader (já faz).
+- Gate visual (`PlanLock`) usa `useSubscription().info.features` — hook já retorna features do plano ativo.
+- Copy da tabela comparativa fica em constante `PLAN_COMPARISON_ROWS` no shared, para landing e /precos consumirem sem duplicar.

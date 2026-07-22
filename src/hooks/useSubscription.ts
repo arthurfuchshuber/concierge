@@ -4,6 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { getPaddleEnvironment } from "@/lib/paddle";
 import { getMySubscription, PLANS, type PlanKey } from "@/lib/payments.functions";
+import type { PlanFeatures } from "@/lib/payments.shared";
 import { adminGetUserSubscription } from "@/lib/admin-subs.functions";
 
 export type SubscriptionInfo = {
@@ -21,14 +22,19 @@ export type SubscriptionInfo = {
   customPriceCents: number | null;
   customCurrency: string | null;
   adminNotes: string | null;
-  features: { autoImport: boolean; ai: boolean; customBrand: boolean };
+  features: PlanFeatures;
 };
 
-const FREE_FEATURES = {
+const FREE_FEATURES: PlanFeatures = {
+  guestChat: false,
   autoImport: false,
+  advancedIntake: false,
   ai: false,
+  humanHandoff: false,
+  team: false,
   customBrand: false,
-} as const;
+  externalIntegration: false,
+};
 
 export function useSubscription(opts?: { impersonateUserId?: string | null }) {
   const fetchSub = useServerFn(getMySubscription);

@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
-import { AlertTriangle, Loader2, Trash2 } from "lucide-react";
+import { AlertTriangle, Loader2, Trash2, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -12,6 +12,8 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { getDowngradeImpact, deleteGuides, PLANS, type PlanKey } from "@/lib/payments.functions";
+import { featuresLostOnDowngrade } from "@/lib/payments.shared";
+import { useSubscription } from "@/hooks/useSubscription";
 import { toast } from "sonner";
 
 export function DowngradeExcessDialog({
@@ -30,8 +32,12 @@ export function DowngradeExcessDialog({
   const doDelete = useServerFn(deleteGuides);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [removing, setRemoving] = useState(false);
-
   const targetCfg = PLANS[targetPlan];
+  const { info: currentInfo } = useSubscription();
+  const featuresLost = useMemo(
+    () => featuresLostOnDowngrade(currentInfo.plan, targetPlan),
+    [currentInfo.plan, targetPlan],
+  );
 
   const impactQuery = useQuery({
     queryKey: ["downgrade-impact", targetCfg.priceId, open],
@@ -82,6 +88,23 @@ export function DowngradeExcessDialog({
             de fazer o downgrade.
           </DialogDescription>
         </DialogHeader>
+
+        {featuresLost.length > 0 && (
+          <div className="rounded-xl border border-amber-500/40 bg-amber-500/5 p-4 space-y-2">
+            <p className="text-sm font-medium text-amber-800 dark:text-amber-300">
+              Ao migrar para o plano {targetCfg.name}, seus guias deixarão de oferecer aos hóspedes:
+            </p>
+            <ul className="space-y-1.5">
+              {featuresLost.map((f) => (
+                <li key={f} className="flex items-start gap-2 text-sm text-foreground/80">
+                  <XCircle className="size-4 text-amber-600 shrink-0 mt-0.5" />
+                  <span>{f}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
 
         {impactQuery.isLoading ? (
           <div className="h-40 grid place-items-center">
