@@ -68,6 +68,19 @@ function AssinaturaPage() {
     }
   }, [search.checkout, refetch]);
 
+  // Meta Pixel Purchase — fire once after payment is confirmed and plan is active.
+  useEffect(() => {
+    if (search.checkout !== "success") return;
+    if (!info.isActive || !info.plan) return;
+    const plan = PLANS[info.plan as PlanKey];
+    if (!plan) return;
+    metaPixelTrackOnce(`Purchase:${info.plan}`, "Purchase", {
+      value: plan.priceNumeric,
+      currency: "BRL",
+      plan: plan.name,
+    });
+  }, [search.checkout, info.isActive, info.plan]);
+
   const paymentsQuery = useQuery({
     queryKey: ["my-payments", env],
     queryFn: () => fetchPayments({ data: { environment: env } }),
