@@ -114,11 +114,35 @@ const PLANS_UI: Plan[] = [
 function PricingPage() {
   const { openCheckout, loading } = usePaddleCheckout();
   const [user, setUser] = useState<{ id: string; email: string | null } | null>(null);
+  const plansRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
       if (data.user) setUser({ id: data.user.id, email: data.user.email ?? null });
     });
+  }, []);
+
+  // ViewPlans: fire once per page-session when the plans grid enters the viewport.
+  useEffect(() => {
+    const el = plansRef.current;
+    if (!el || typeof IntersectionObserver === "undefined") {
+      metaPixelTrackCustomOnce("ViewPlans", { location: "precos" });
+      return;
+    }
+    const obs = new IntersectionObserver(
+      (entries) => {
+        for (const e of entries) {
+          if (e.isIntersecting) {
+            metaPixelTrackCustomOnce("ViewPlans", { location: "precos" });
+            obs.disconnect();
+            break;
+          }
+        }
+      },
+      { threshold: 0.25 },
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
   }, []);
 
   async function handleSubscribe(plan: Plan) {
