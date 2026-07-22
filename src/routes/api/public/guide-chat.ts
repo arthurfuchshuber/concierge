@@ -399,7 +399,7 @@ Encerramento:
                 type: "function",
                 function: {
                   name: "request_human_handoff",
-                  description: "Solicita atendimento humano. USE APENAS quando o hóspede PEDIR EXPLICITAMENTE falar com humano/anfitrião (ex.: 'quero falar com uma pessoa', 'chama o anfitrião', 'preciso de ajuda humana') ou quando houver emergência real (segurança, saúde, problema grave na hospedagem). NUNCA chame por incerteza sua. NUNCA chame quando o hóspede só respondeu 'sim', 'ok', 'pode ser', 'legal' a uma pergunta sua — isso é continuar a conversa, não pedir humano. Antes de chamar, escreva um RESUMO curto (1-2 frases, máx 220 caracteres) do que o hóspede precisa, no formato: 'Hóspede está perguntando sobre X — contexto e o que ele quer saber'.",
+                  description: "Solicita atendimento humano. USE quando (a) o hóspede pedir explicitamente falar com humano/anfitrião, (b) houver emergência ou problema operacional no imóvel (não abriu, não funciona, quebrado, vazamento, sem energia, sem acesso), OU (c) a pergunta sobre a residência não estiver claramente coberta pelo contexto — nesses casos é MELHOR acionar humano do que arriscar resposta errada. NÃO chame quando o hóspede só respondeu 'sim', 'ok', 'pode ser', 'legal' a uma pergunta sua — isso é continuar a conversa. Antes de chamar, escreva um RESUMO curto (1-2 frases, máx 220 caracteres) do que o hóspede precisa, no formato: 'Hóspede está perguntando sobre X — contexto e o que ele quer saber'.",
                   parameters: {
                     type: "object",
                     properties: {
