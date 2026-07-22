@@ -819,9 +819,8 @@ function ExplorePage() {
           const hasSaidaData = !!(p.checkout_time || p.checkout_note || p.checkout_instructions);
           const manualList = (r as { manual?: Array<{ title: string; description?: string | null }> }).manual ?? [];
           const isRuleItem = (m: { title: string; description?: string | null }) => {
-            const t = (m.title || "").toLowerCase();
-            const d = (m.description || "").toLowerCase();
-            return /regra|proibid|permitid|não |nao /.test(t) || /regra|proibid|permitid/.test(d);
+            const s = `${m.title} ${m.description ?? ""}`.toLowerCase();
+            return /(regra|norma|polít|proibi|não\s+|no\s+smoking|rule|policy)/i.test(s);
           };
           const hasResidencia = manualList.some((m) => !isRuleItem(m));
           const items: Array<{ key: import("@/components/guide/BottomNav").BottomNavKey; label: string }> = [
