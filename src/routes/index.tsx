@@ -838,10 +838,6 @@ function Pricing() {
             const isDark = p.dark;
             const isHi = p.highlight;
             const isEnterprise = p.ctaHref.startsWith("mailto:");
-            const CTA = isEnterprise ? "a" : Link;
-            const ctaProps = isEnterprise
-              ? { href: p.ctaHref }
-              : { to: p.ctaHref };
             return (
               <div
                 key={p.key}
