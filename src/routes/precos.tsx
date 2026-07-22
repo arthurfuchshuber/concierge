@@ -122,7 +122,12 @@ function PricingPage() {
 
   async function handleSubscribe(plan: Plan) {
     if (plan.key === "enterprise") {
-      window.location.href = "mailto:sigma@anfitriaosigma.com.br?subject=Plano Enterprise";
+      window.open(
+        "https://wa.me/5547996759381?text=" +
+          encodeURIComponent("Olá! Tenho interesse no plano Enterprise do ConciergeIA."),
+        "_blank",
+        "noopener,noreferrer",
+      );
       return;
     }
     if (!plan.priceId) return;
