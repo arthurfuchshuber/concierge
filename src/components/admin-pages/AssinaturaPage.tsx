@@ -31,6 +31,7 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { toast } from "sonner";
+import { metaPixelTrack, metaPixelTrackOnce } from "@/lib/meta-pixel";
 
 export { AssinaturaPage };
 
