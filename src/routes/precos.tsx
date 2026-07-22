@@ -201,7 +201,7 @@ function PricingPage() {
         </div>
 
         {/* Cards */}
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-5">
+        <div id="planos" ref={plansRef} className="grid md:grid-cols-2 lg:grid-cols-4 gap-5">
           {PLANS_UI.map((plan) => {
             const isDark = plan.dark;
             const isHi = plan.featured;
