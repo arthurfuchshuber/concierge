@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
+import { PLAN_COMPARISON_GROUPS, type PlanKey } from "@/lib/payments.shared";
 import {
   ArrowRight,
   Check,
