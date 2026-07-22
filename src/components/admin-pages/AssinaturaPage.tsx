@@ -31,6 +31,7 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { toast } from "sonner";
+import { metaPixelTrack, metaPixelTrackOnce } from "@/lib/meta-pixel";
 
 export { AssinaturaPage };
 
@@ -67,6 +68,19 @@ function AssinaturaPage() {
     }
   }, [search.checkout, refetch]);
 
+  // Meta Pixel Purchase — fire once after payment is confirmed and plan is active.
+  useEffect(() => {
+    if (search.checkout !== "success") return;
+    if (!info.isActive || !info.plan) return;
+    const plan = PLANS[info.plan as PlanKey];
+    if (!plan) return;
+    metaPixelTrackOnce("Purchase", {
+      value: plan.priceNumeric,
+      currency: "BRL",
+      plan: plan.name,
+    });
+  }, [search.checkout, info.isActive, info.plan]);
+
   const paymentsQuery = useQuery({
     queryKey: ["my-payments", env],
     queryFn: () => fetchPayments({ data: { environment: env } }),
@@ -99,6 +113,7 @@ function AssinaturaPage() {
       }
       try {
         setChanging(target);
+        metaPixelTrack("InitiateCheckout", { plan: targetPlan.name });
         await openCheckout({
           priceId: targetPlan.priceId,
           customerEmail: user.email ?? undefined,

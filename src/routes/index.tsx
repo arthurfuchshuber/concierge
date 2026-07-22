@@ -23,6 +23,7 @@ import {
   Phone,
 } from "lucide-react";
 import conciergeLogo from "@/assets/concierge-logo.png";
+import { metaPixelTrack, metaPixelTrackCustom, metaPixelTrackCustomOnce } from "@/lib/meta-pixel";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -745,6 +746,28 @@ type PricingCard = {
 };
 
 function Pricing() {
+  const sectionRef = useRef<HTMLElement | null>(null);
+  useEffect(() => {
+    const el = sectionRef.current;
+    if (!el || typeof IntersectionObserver === "undefined") {
+      metaPixelTrackCustomOnce("ViewPlans", { location: "landing" });
+      return;
+    }
+    const obs = new IntersectionObserver(
+      (entries) => {
+        for (const e of entries) {
+          if (e.isIntersecting) {
+            metaPixelTrackCustomOnce("ViewPlans", { location: "landing" });
+            obs.disconnect();
+            break;
+          }
+        }
+      },
+      { threshold: 0.25 },
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
   const plans: PricingCard[] = [
     {
       key: "starter",
@@ -818,7 +841,7 @@ function Pricing() {
   ];
 
   return (
-    <section id="planos" className="py-20 sm:py-28">
+    <section id="planos" ref={sectionRef} className="py-20 sm:py-28">
       <div className="max-w-7xl mx-auto px-5 sm:px-8">
         <div className="text-center max-w-3xl mx-auto">
           <p className="text-[11px] uppercase tracking-[0.25em] font-semibold text-black/50">
@@ -881,6 +904,7 @@ function Pricing() {
                     href={p.ctaHref}
                     target="_blank"
                     rel="noopener noreferrer"
+                    onClick={() => metaPixelTrack("InitiateCheckout", { plan: p.name })}
                     className={`btn-shine mt-8 inline-flex items-center justify-center gap-2 rounded-full h-12 text-sm font-semibold transition ${
                       isDark ? "bg-white text-black hover:opacity-90" : "bg-black text-white hover:opacity-90"
                     }`}
@@ -890,6 +914,7 @@ function Pricing() {
                 ) : (
                   <Link
                     to={p.ctaHref}
+                    onClick={() => metaPixelTrack("InitiateCheckout", { plan: p.name })}
                     className="btn-shine mt-8 inline-flex items-center justify-center gap-2 rounded-full h-12 text-sm font-semibold transition bg-black text-white hover:opacity-90"
                   >
                     <span className="inline-flex items-center gap-2">{p.cta} <ArrowRight className="size-4" /></span>
@@ -1329,7 +1354,10 @@ function FloatingContact() {
       {/* Single FAB — opens chat directly */}
       <div className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-[55]">
         <button
-          onClick={() => setChatOpen((v) => !v)}
+          onClick={() => {
+            metaPixelTrackCustom("ChatClick", { location: "landing" });
+            setChatOpen((v) => !v);
+          }}
           aria-label={chatOpen ? "Fechar chat" : "Falar com a IA"}
           className="btn-shine size-14 rounded-full grid place-items-center text-white shadow-2xl hover:scale-105 active:scale-95 transition"
           style={{ background: BRAND_GRADIENT }}

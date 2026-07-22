@@ -1,10 +1,11 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Check, Sparkles, ArrowRight, X } from "lucide-react";
-import { Fragment, useEffect, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { usePaddleCheckout } from "@/hooks/usePaddleCheckout";
 import { PaymentTestModeBanner } from "@/components/PaymentTestModeBanner";
 import { PLAN_COMPARISON_GROUPS, type PlanKey } from "@/lib/payments.shared";
+import { metaPixelTrack, metaPixelTrackCustomOnce } from "@/lib/meta-pixel";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/precos")({
@@ -113,6 +114,7 @@ const PLANS_UI: Plan[] = [
 function PricingPage() {
   const { openCheckout, loading } = usePaddleCheckout();
   const [user, setUser] = useState<{ id: string; email: string | null } | null>(null);
+  const plansRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
@@ -120,7 +122,32 @@ function PricingPage() {
     });
   }, []);
 
+  // ViewPlans: fire once per page-session when the plans grid enters the viewport.
+  useEffect(() => {
+    const el = plansRef.current;
+    if (!el || typeof IntersectionObserver === "undefined") {
+      metaPixelTrackCustomOnce("ViewPlans", { location: "precos" });
+      return;
+    }
+    const obs = new IntersectionObserver(
+      (entries) => {
+        for (const e of entries) {
+          if (e.isIntersecting) {
+            metaPixelTrackCustomOnce("ViewPlans", { location: "precos" });
+            obs.disconnect();
+            break;
+          }
+        }
+      },
+      { threshold: 0.25 },
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
+
   async function handleSubscribe(plan: Plan) {
+    // Meta Pixel: standard InitiateCheckout event on any plan CTA click.
+    metaPixelTrack("InitiateCheckout", { plan: plan.name });
     if (plan.key === "enterprise") {
       window.open(
         "https://wa.me/5547996759381?text=" +
@@ -174,7 +201,7 @@ function PricingPage() {
         </div>
 
         {/* Cards */}
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-5">
+        <div id="planos" ref={plansRef} className="grid md:grid-cols-2 lg:grid-cols-4 gap-5">
           {PLANS_UI.map((plan) => {
             const isDark = plan.dark;
             const isHi = plan.featured;

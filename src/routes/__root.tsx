@@ -13,6 +13,7 @@ import { reportLovableError } from "../lib/lovable-error-reporting";
 import { I18nProvider } from "../lib/i18n";
 import { Toaster } from "../components/ui/sonner";
 import { supabase } from "../integrations/supabase/client";
+import { META_PIXEL_ID, initMetaPixel, metaPixelPageView } from "../lib/meta-pixel";
 
 function NotFoundComponent() {
   return (
@@ -111,6 +112,15 @@ function RootShell({ children }: { children: ReactNode }) {
         />
       </head>
       <body>
+        <noscript>
+          <img
+            height="1"
+            width="1"
+            style={{ display: "none" }}
+            alt=""
+            src={`https://www.facebook.com/tr?id=${META_PIXEL_ID}&ev=PageView&noscript=1`}
+          />
+        </noscript>
         {children}
         <Scripts />
       </body>
@@ -152,6 +162,14 @@ function RootComponent() {
   useEffect(() => {
     if (typeof window === "undefined") return;
     window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+  }, [pathname]);
+
+  // Meta Pixel: init once, then PageView on every client-side navigation.
+  useEffect(() => {
+    initMetaPixel();
+  }, []);
+  useEffect(() => {
+    metaPixelPageView(pathname);
   }, [pathname]);
 
 
