@@ -904,6 +904,7 @@ function Pricing() {
                     href={p.ctaHref}
                     target="_blank"
                     rel="noopener noreferrer"
+                    onClick={() => metaPixelTrack("InitiateCheckout", { plan: p.name })}
                     className={`btn-shine mt-8 inline-flex items-center justify-center gap-2 rounded-full h-12 text-sm font-semibold transition ${
                       isDark ? "bg-white text-black hover:opacity-90" : "bg-black text-white hover:opacity-90"
                     }`}
@@ -913,6 +914,7 @@ function Pricing() {
                 ) : (
                   <Link
                     to={p.ctaHref}
+                    onClick={() => metaPixelTrack("InitiateCheckout", { plan: p.name })}
                     className="btn-shine mt-8 inline-flex items-center justify-center gap-2 rounded-full h-12 text-sm font-semibold transition bg-black text-white hover:opacity-90"
                   >
                     <span className="inline-flex items-center gap-2">{p.cta} <ArrowRight className="size-4" /></span>
