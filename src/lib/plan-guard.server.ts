@@ -1,6 +1,7 @@
 // Server-side plan/quota enforcement. Loaded inside server-fn handlers only.
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { PLANS, type PlanKey, planFromProductId } from "@/lib/payments.functions";
+import type { PlanFeatures } from "@/lib/payments.shared";
 
 export type PaddleEnv = "sandbox" | "live";
 
@@ -8,14 +9,25 @@ export type ResolvedPlan = {
   plan: PlanKey | null;
   status: string | null;
   maxGuides: number;
-  features: { autoImport: boolean; ai: boolean; customBrand: boolean };
+  features: PlanFeatures;
+};
+
+const FREE_FEATURES: PlanFeatures = {
+  guestChat: false,
+  autoImport: false,
+  advancedIntake: false,
+  ai: false,
+  humanHandoff: false,
+  team: false,
+  customBrand: false,
+  externalIntegration: false,
 };
 
 const FREE: ResolvedPlan = {
   plan: null,
   status: null,
   maxGuides: 0,
-  features: { autoImport: false, ai: false, customBrand: false },
+  features: FREE_FEATURES,
 };
 
 // Runtime env: production build → live; preview/dev → sandbox. Mirrors how
