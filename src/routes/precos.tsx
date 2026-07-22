@@ -122,7 +122,12 @@ function PricingPage() {
 
   async function handleSubscribe(plan: Plan) {
     if (plan.key === "enterprise") {
-      window.location.href = "mailto:sigma@anfitriaosigma.com.br?subject=Plano Enterprise";
+      window.open(
+        "https://wa.me/5547996759381?text=" +
+          encodeURIComponent("Olá! Tenho interesse no plano Enterprise do ConciergeIA."),
+        "_blank",
+        "noopener,noreferrer",
+      );
       return;
     }
     if (!plan.priceId) return;
@@ -236,9 +241,7 @@ function PricingPage() {
                   className={`mt-6 w-full inline-flex items-center justify-center gap-1 rounded-full py-2.5 text-sm font-medium transition-colors ${
                     isDark
                       ? "bg-background text-foreground hover:opacity-90"
-                      : isHi
-                        ? "bg-foreground text-background hover:opacity-90"
-                        : "bg-secondary hover:bg-secondary/70"
+                      : "bg-foreground text-background hover:opacity-90"
                   } disabled:opacity-50`}
                 >
                   {plan.cta}
