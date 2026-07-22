@@ -146,6 +146,8 @@ function PricingPage() {
   }, []);
 
   async function handleSubscribe(plan: Plan) {
+    // Meta Pixel: standard InitiateCheckout event on any plan CTA click.
+    metaPixelTrack("InitiateCheckout", { plan: plan.name });
     if (plan.key === "enterprise") {
       window.open(
         "https://wa.me/5547996759381?text=" +
