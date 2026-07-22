@@ -746,6 +746,28 @@ type PricingCard = {
 };
 
 function Pricing() {
+  const sectionRef = useRef<HTMLElement | null>(null);
+  useEffect(() => {
+    const el = sectionRef.current;
+    if (!el || typeof IntersectionObserver === "undefined") {
+      metaPixelTrackCustomOnce("ViewPlans", { location: "landing" });
+      return;
+    }
+    const obs = new IntersectionObserver(
+      (entries) => {
+        for (const e of entries) {
+          if (e.isIntersecting) {
+            metaPixelTrackCustomOnce("ViewPlans", { location: "landing" });
+            obs.disconnect();
+            break;
+          }
+        }
+      },
+      { threshold: 0.25 },
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
   const plans: PricingCard[] = [
     {
       key: "starter",
