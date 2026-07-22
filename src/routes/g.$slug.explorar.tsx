@@ -818,7 +818,12 @@ function ExplorePage() {
           );
           const hasSaidaData = !!(p.checkout_time || p.checkout_note || p.checkout_instructions);
           const manualList = (r as { manual?: Array<{ title: string; description?: string | null }> }).manual ?? [];
-          const hasResidencia = manualList.some((m) => !isRule(m));
+          const isRuleItem = (m: { title: string; description?: string | null }) => {
+            const t = (m.title || "").toLowerCase();
+            const d = (m.description || "").toLowerCase();
+            return /regra|proibid|permitid|não |nao /.test(t) || /regra|proibid|permitid/.test(d);
+          };
+          const hasResidencia = manualList.some((m) => !isRuleItem(m));
           const items: Array<{ key: import("@/components/guide/BottomNav").BottomNavKey; label: string }> = [
             { key: "home", label: "Início" },
           ];
