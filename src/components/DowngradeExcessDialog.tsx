@@ -32,8 +32,12 @@ export function DowngradeExcessDialog({
   const doDelete = useServerFn(deleteGuides);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [removing, setRemoving] = useState(false);
-
   const targetCfg = PLANS[targetPlan];
+  const { info: currentInfo } = useSubscription();
+  const featuresLost = useMemo(
+    () => featuresLostOnDowngrade(currentInfo.plan, targetPlan),
+    [currentInfo.plan, targetPlan],
+  );
 
   const impactQuery = useQuery({
     queryKey: ["downgrade-impact", targetCfg.priceId, open],
