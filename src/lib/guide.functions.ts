@@ -90,7 +90,7 @@ export const getPublicGuide = createServerFn({ method: "POST" })
     // Resolve owner plan to gate AI chat in the public guide UI.
     const { resolveOwnerPlanAdmin } = await import("@/lib/plan-guard.server");
     const ownerPlan = await resolveOwnerPlanAdmin(supabaseAdmin as any, (prop as any).owner_id as string);
-    const aiEnabled = !!ownerPlan.features.ai;
+    const aiEnabled = !!ownerPlan.features.guestChat;
 
     // Referências macro da cidade — escopo POR IMÓVEL OU POR GRUPO de guias
     // vinculados. Nunca compartilhamos por city_key (causava vazamento entre
