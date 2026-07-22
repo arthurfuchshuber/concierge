@@ -837,7 +837,7 @@ function Pricing() {
           {plans.map((p) => {
             const isDark = p.dark;
             const isHi = p.highlight;
-            const isEnterprise = p.ctaHref.startsWith("mailto:");
+            const isEnterprise = p.ctaHref.startsWith("http") || p.ctaHref.startsWith("mailto:");
             return (
               <div
                 key={p.key}
@@ -879,8 +879,10 @@ function Pricing() {
                 {isEnterprise ? (
                   <a
                     href={p.ctaHref}
+                    target="_blank"
+                    rel="noopener noreferrer"
                     className={`btn-shine mt-8 inline-flex items-center justify-center gap-2 rounded-full h-12 text-sm font-semibold transition ${
-                      isDark ? "bg-white text-black hover:opacity-90" : "bg-secondary text-black hover:bg-secondary/70"
+                      isDark ? "bg-white text-black hover:opacity-90" : "bg-black text-white hover:opacity-90"
                     }`}
                   >
                     <span className="inline-flex items-center gap-2">{p.cta} <ArrowRight className="size-4" /></span>
@@ -888,9 +890,7 @@ function Pricing() {
                 ) : (
                   <Link
                     to={p.ctaHref}
-                    className={`btn-shine mt-8 inline-flex items-center justify-center gap-2 rounded-full h-12 text-sm font-semibold transition ${
-                      isHi ? "bg-black text-white hover:opacity-90" : "bg-secondary text-black hover:bg-secondary/70"
-                    }`}
+                    className="btn-shine mt-8 inline-flex items-center justify-center gap-2 rounded-full h-12 text-sm font-semibold transition bg-black text-white hover:opacity-90"
                   >
                     <span className="inline-flex items-center gap-2">{p.cta} <ArrowRight className="size-4" /></span>
                   </Link>
