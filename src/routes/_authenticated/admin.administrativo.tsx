@@ -48,6 +48,9 @@ function AdministrativoPage() {
             <TabsTrigger value="equipe" className="gap-2 rounded-xl px-4 py-2 text-sm">
               <UsersRound className="size-4" /> Equipe
             </TabsTrigger>
+            <TabsTrigger value="permissoes" className="gap-2 rounded-xl px-4 py-2 text-sm">
+              <ShieldCheck className="size-4" /> Permissões
+            </TabsTrigger>
           </TabsList>
         </div>
         <TabsContent value="perfil" className="mt-0">
@@ -58,6 +61,9 @@ function AdministrativoPage() {
         </TabsContent>
         <TabsContent value="equipe" className="mt-0">
           <EquipePage />
+        </TabsContent>
+        <TabsContent value="permissoes" className="mt-0">
+          <PermissoesPage />
         </TabsContent>
       </Tabs>
     </div>
