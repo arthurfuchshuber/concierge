@@ -80,8 +80,6 @@ export const validateTaxId = createServerFn({ method: "POST" })
         error: `Este ${kind === "cnpj" ? "CNPJ" : "CPF"} já está cadastrado em outra conta. Cada painel precisa ter um documento único.`,
       };
     }
-    const d = onlyDigits(data.value);
-    const kind: "cpf" | "cnpj" = d.length > 11 ? "cnpj" : "cpf";
 
     if (kind === "cpf") {
       const formatted = `${d.slice(0, 3)}.${d.slice(3, 6)}.${d.slice(6, 9)}-${d.slice(9, 11)}`;
