@@ -263,7 +263,7 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
               {conv?.handoff_at ? ` · ${formatDistanceToNow(new Date(conv.handoff_at), { locale: ptBR, addSuffix: true })}` : ""}
             </div>
 
-            {(waHref || checkinFmt || guest?.reservationCode) && (
+            {(waHref || checkinFmt || checkoutFmt || guest?.reservationCode) && (
               <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
                 {waHref && (
                   <a href={waHref} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-emerald-600 hover:underline">
@@ -275,6 +275,12 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
                     <Calendar className="size-3" /> Check-in {checkinFmt}
                   </span>
                 )}
+                {checkoutFmt && (
+                  <span className="inline-flex items-center gap-1">
+                    <Calendar className="size-3" /> Check-out {checkoutFmt}
+                  </span>
+                )}
+
                 {guest?.reservationCode && (
                   <span className="inline-flex items-center gap-1">
                     <Hash className="size-3" /> {guest.reservationCode}
