@@ -671,7 +671,8 @@ export const sendHandoffMessage = createServerFn({ method: "POST" })
   .inputValidator(parseHandoffSendInput)
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    // Trava: se a conversa está atribuída a outro atendente, bloqueia o envio.
+    await requireChatRespondForConversation(supabase, userId, data.conversationId);
+
     const { data: cur } = await supabase
       .from("property_chat_conversations")
       .select("assigned_to")
