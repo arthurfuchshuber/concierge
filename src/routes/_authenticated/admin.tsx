@@ -259,6 +259,8 @@ function AdminLayout() {
         </main>
       </div>
       {handoffEnabled && !pathname.startsWith("/admin/atendimento") && <FloatingHandoffDock />}
+      <PendingInviteDialog />
     </div>
+
   );
 }
