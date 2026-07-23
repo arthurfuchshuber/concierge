@@ -42,7 +42,10 @@ function fmtCheckin(iso: string | null) {
 }
 
 export function ConversationView({ conversationId, compact, myUserId }: Props) {
+  const { can, isOwner } = useMyPermissions();
+  const canChat = isOwner || can("chat_respond");
   const getFn = useServerFn(getHandoffConversation);
+
   const sendFn = useServerFn(sendHandoffMessage);
   const claimFn = useServerFn(claimHandoffConversation);
   const releaseFn = useServerFn(releaseHandoffConversation);
