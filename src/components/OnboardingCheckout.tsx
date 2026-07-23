@@ -75,10 +75,20 @@ export function OnboardingCheckout({ onSignOut }: { onSignOut?: () => void }) {
         return;
       }
       // Persiste no profile antes de avançar.
-      await supabase
+      const { error: upErr } = await supabase
         .from("profiles")
         .update({ cpf: result.digits })
         .eq("id", user.id);
+      if (upErr) {
+        if ((upErr as { code?: string }).code === "23505") {
+          setDocError(
+            `Este ${result.kind === "cnpj" ? "CNPJ" : "CPF"} já está cadastrado em outra conta. Cada painel precisa ter um documento único.`,
+          );
+        } else {
+          setDocError(upErr.message);
+        }
+        return;
+      }
       setStep(2);
     } catch (e) {
       setDocError(e instanceof Error ? e.message : "Não foi possível validar agora.");
