@@ -623,9 +623,9 @@ function EditDialog({
       toast.error("CPF inválido. Use o formato 000.000.000-00.");
       return;
     }
-    const phoneDigits = onlyDigits(phone);
-    if (!isValidBRMobile(phoneDigits)) {
-      toast.error("Telefone celular inválido. Use DDD + número (ex.: (11) 91234-5678).");
+    const phoneE164 = phone ? toE164(phone, phoneCountry) : "";
+    if (!phoneE164 || !isValidIntlPhone(phoneE164)) {
+      toast.error("Telefone inválido. Selecione o país e informe o número completo.");
       return;
     }
     if (customer.email && !isValidEmail(customer.email)) {
