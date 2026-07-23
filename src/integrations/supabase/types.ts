@@ -631,6 +631,7 @@ export type Database = {
       guide_access_logs: {
         Row: {
           checkin_date: string
+          checkout_date: string | null
           created_at: string
           guest_arrival_time: string | null
           guest_documents: Json | null
@@ -645,6 +646,7 @@ export type Database = {
         }
         Insert: {
           checkin_date: string
+          checkout_date?: string | null
           created_at?: string
           guest_arrival_time?: string | null
           guest_documents?: Json | null
@@ -659,6 +661,7 @@ export type Database = {
         }
         Update: {
           checkin_date?: string
+          checkout_date?: string | null
           created_at?: string
           guest_arrival_time?: string | null
           guest_documents?: Json | null
