@@ -290,6 +290,7 @@ function ClientesPage() {
                           <div className="min-w-0">
                             <div className="font-medium truncate text-[15px] leading-tight">{c.fullName ?? "—"}</div>
                             <div className="text-[11px] text-muted-foreground truncate">{c.email ?? "—"}</div>
+                            <WhatsAppLink phone={c.phone} country={c.phoneCountry} className="mt-1" />
                           </div>
                           <div className="shrink-0 flex items-center gap-1">
                             <OpenGuidesButton userId={c.userId} email={c.email} />
