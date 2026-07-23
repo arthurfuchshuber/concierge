@@ -425,18 +425,31 @@ export const getGuestDetail = createServerFn({ method: "POST" })
       id: string; startedAt: string; lastMessageAt: string;
       messages: Array<{ id: string; role: string; content: string; createdAt: string; feedback?: { reason: string | null; resolved: boolean } | null }>;
     }> = [];
+    const seen = new Set<string>();
+    // 1) Conversas atribuídas ao hóspede pela resolução por identidade/nome/tempo
+    for (const c of built.convs) {
+      if (built.convGuestKey.get(c.id) !== g.key) continue;
+      if (seen.has(c.id)) continue;
+      seen.add(c.id);
+      const msgs = (built.msgsByConv.get(c.id) ?? []).map((m) => ({
+        id: m.id, role: m.role, content: m.content ?? "", createdAt: m.created_at,
+      }));
+      conversations.push({ id: c.id, startedAt: c.created_at, lastMessageAt: c.last_message_at, messages: msgs });
+    }
+    // 2) Fallback: conversas ligadas às sessões deste hóspede por session_id
     for (const s of ss) {
       const cs = built.convBySid.get(s.sid) ?? [];
       for (const c of cs) {
+        if (seen.has(c.id)) continue;
+        seen.add(c.id);
         const msgs = (built.msgsByConv.get(c.id) ?? []).map((m) => ({
           id: m.id, role: m.role, content: m.content ?? "", createdAt: m.created_at,
         }));
-        conversations.push({
-          id: c.id, startedAt: c.created_at, lastMessageAt: c.last_message_at,
-          messages: msgs,
-        });
+        conversations.push({ id: c.id, startedAt: c.created_at, lastMessageAt: c.last_message_at, messages: msgs });
       }
     }
+    conversations.sort((a, b) => a.startedAt.localeCompare(b.startedAt));
+
     return { guest: g, sessions, conversations };
   });
 
