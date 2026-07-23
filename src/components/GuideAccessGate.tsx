@@ -239,6 +239,8 @@ export function GuideAccessGate({ slug, propertyName, requireReservationCode, co
           guest_name: titleCaseName(name),
           reservation_code: requireReservationCode ? code.trim() : null,
           checkin_date: checkinDate,
+          checkout_date: checkoutDate,
+
           guest_phone: phone,
           guest_phone_country: country,
           guest_arrival_time: arrivalStr || null,
