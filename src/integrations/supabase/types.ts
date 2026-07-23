@@ -997,36 +997,45 @@ export type Database = {
       profiles: {
         Row: {
           avatar_url: string | null
+          birth_date: string | null
           cpf: string | null
           created_at: string
           etiqueta_options: string[]
           full_name: string | null
           id: string
+          job_title: string | null
           onboarding_completed_at: string | null
           phone: string | null
           phone_country: string | null
+          trade_name: string | null
         }
         Insert: {
           avatar_url?: string | null
+          birth_date?: string | null
           cpf?: string | null
           created_at?: string
           etiqueta_options?: string[]
           full_name?: string | null
           id: string
+          job_title?: string | null
           onboarding_completed_at?: string | null
           phone?: string | null
           phone_country?: string | null
+          trade_name?: string | null
         }
         Update: {
           avatar_url?: string | null
+          birth_date?: string | null
           cpf?: string | null
           created_at?: string
           etiqueta_options?: string[]
           full_name?: string | null
           id?: string
+          job_title?: string | null
           onboarding_completed_at?: string | null
           phone?: string | null
           phone_country?: string | null
+          trade_name?: string | null
         }
         Relationships: []
       }
