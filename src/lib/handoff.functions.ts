@@ -1,5 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireMemberPermission } from "@/lib/member-permissions.server";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   emptyHandoffListResult,
   normalizeHandoffConversationRows,
@@ -11,6 +13,23 @@ import {
   type HandoffGuestDetail,
   type HandoffListResult,
 } from "@/lib/handoff.schemas";
+
+// Resolve the owner_id of the property behind a conversation, then enforce chat_respond.
+async function requireChatRespondForConversation(
+  supabase: SupabaseClient,
+  userId: string,
+  conversationId: string,
+): Promise<void> {
+  const { data: conv } = await supabase
+    .from("property_chat_conversations")
+    .select("property_id, properties:property_id(owner_id)")
+    .eq("id", conversationId)
+    .maybeSingle();
+  const ownerId = (conv?.properties as { owner_id?: string } | null)?.owner_id;
+  if (!ownerId) return; // conversa órfã: deixa a RLS decidir
+  await requireMemberPermission(supabase, userId, ownerId, "chat_respond");
+}
+
 
 // -------- List conversations for the current user (filtered by queue) --------
 
@@ -465,6 +484,8 @@ export const claimHandoffConversation = createServerFn({ method: "POST" })
   .inputValidator(parseHandoffConversationInput)
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
+    await requireChatRespondForConversation(supabase, userId, data.conversationId);
+
     // Assumir sempre é permitido — se já pertence a outro, registra uma nota interna
     // avisando quem assumiu. A confirmação (popup) é feita no cliente.
     const { data: cur, error: readErr } = await supabase
@@ -652,7 +673,8 @@ export const sendHandoffMessage = createServerFn({ method: "POST" })
   .inputValidator(parseHandoffSendInput)
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    // Trava: se a conversa está atribuída a outro atendente, bloqueia o envio.
+    await requireChatRespondForConversation(supabase, userId, data.conversationId);
+
     const { data: cur } = await supabase
       .from("property_chat_conversations")
       .select("assigned_to")

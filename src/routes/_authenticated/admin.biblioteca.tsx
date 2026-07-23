@@ -12,6 +12,8 @@ import {
 } from "@/lib/host-library.functions";
 import { listHostBehavior, saveHostBehavior } from "@/lib/host-behavior.functions";
 import { useSubscription } from "@/hooks/useSubscription";
+import { useMyPermissions } from "@/hooks/useMyPermissions";
+
 import { AiPlanLock } from "@/components/admin/AiPlanLock";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -92,6 +94,10 @@ function ScopeBadge({
 function BibliotecaPage() {
   const { info: sub } = useSubscription();
   const aiLocked = !sub.features.ai;
+  const { can, isOwner } = useMyPermissions();
+  const canLibrary = isOwner || can("library_edit");
+  const canTrain = isOwner || can("ai_train");
+
 
   const loadFaqs = useServerFn(listHostFaqs);
   const persistFaqs = useServerFn(saveHostFaqs);
@@ -474,7 +480,7 @@ function BibliotecaPage() {
             >
               <Plus className="size-4 mr-1.5" /> Nova pergunta
             </Button>
-            <Button onClick={handleSaveFaqs} disabled={savingFaqs} className="rounded-full">
+            <Button onClick={handleSaveFaqs} disabled={savingFaqs || !canLibrary} title={!canLibrary ? "Sem permissão para editar a biblioteca" : undefined} className="rounded-full">
               {savingFaqs ? (
                 <Loader2 className="size-4 mr-1.5 animate-spin" />
               ) : (
@@ -609,7 +615,7 @@ function BibliotecaPage() {
                 >
                   <Plus className="size-4 mr-1.5" /> Novo bloco
                 </Button>
-                <Button onClick={handleSaveKnow} disabled={savingKnow || aiLocked} className="rounded-full">
+                <Button onClick={handleSaveKnow} disabled={savingKnow || aiLocked || !canTrain} title={!canTrain ? "Sem permissão para ensinar a IA" : undefined} className="rounded-full">
                   {savingKnow ? (
                     <Loader2 className="size-4 mr-1.5 animate-spin" />
                   ) : (
@@ -728,7 +734,7 @@ function BibliotecaPage() {
                 >
                   <Plus className="size-4 mr-1.5" /> Nova regra
                 </Button>
-                <Button onClick={handleSaveBeh} disabled={savingBeh || aiLocked} className="rounded-full">
+                <Button onClick={handleSaveBeh} disabled={savingBeh || aiLocked || !canTrain} title={!canTrain ? "Sem permissão para ensinar a IA" : undefined} className="rounded-full">
                   {savingBeh ? (
                     <Loader2 className="size-4 mr-1.5 animate-spin" />
                   ) : (

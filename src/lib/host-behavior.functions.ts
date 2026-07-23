@@ -1,6 +1,8 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireMemberPermission } from "@/lib/member-permissions.server";
 import { z } from "zod";
+
 
 const BehaviorInput = z.object({
   id: z.string().uuid().optional().nullable(),
@@ -28,9 +30,11 @@ export const saveHostBehavior = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
+    await requireMemberPermission(supabase, userId, userId, "ai_train");
     // Replace-all keeps editor simple while preserving non-manual entries' source meta via re-insert
     const { error: delErr } = await supabase.from("host_behavior").delete().eq("owner_id", userId);
     if (delErr) throw new Error(delErr.message);
+
     if (!data.items.length) return { saved: 0 };
     const rows = data.items.map((it, i) => ({
       owner_id: userId,

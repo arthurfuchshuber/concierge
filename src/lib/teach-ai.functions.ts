@@ -1,6 +1,8 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireMemberPermission } from "@/lib/member-permissions.server";
 import { z } from "zod";
+
 
 const TeachInput = z.object({
   propertyId: z.string().uuid(),
@@ -39,6 +41,8 @@ export const teachAiFromMessage = createServerFn({ method: "POST" })
     if (pErr) throw new Error(pErr.message);
     if (!prop) throw new Error("Propriedade não encontrada.");
     const ownerId = prop.owner_id as string;
+    await requireMemberPermission(supabase, userId, ownerId, "ai_train");
+
 
     // 3) Resolve target scope_property_ids
     let targets: Array<string | null> = [];

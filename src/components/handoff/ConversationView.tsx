@@ -20,6 +20,8 @@ import { AudioRecorderButton, type RecordedAudio } from "@/components/handoff/Au
 import { AttachmentBubble, type AttachmentInfo } from "@/components/handoff/AttachmentBubble";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { useMyPermissions } from "@/hooks/useMyPermissions";
+
 
 type Props = { conversationId: string; compact?: boolean; myUserId: string | null };
 
@@ -40,7 +42,10 @@ function fmtCheckin(iso: string | null) {
 }
 
 export function ConversationView({ conversationId, compact, myUserId }: Props) {
+  const { can, isOwner } = useMyPermissions();
+  const canChat = isOwner || can("chat_respond");
   const getFn = useServerFn(getHandoffConversation);
+
   const sendFn = useServerFn(sendHandoffMessage);
   const claimFn = useServerFn(claimHandoffConversation);
   const releaseFn = useServerFn(releaseHandoffConversation);
@@ -459,7 +464,14 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
         />
       )}
 
-      {status !== "resolved" && (
+      {status !== "resolved" && !canChat && (
+        <div className="shrink-0 border-t border-border p-3 text-center text-xs text-muted-foreground bg-surface flex items-center justify-center gap-2">
+          <Lock className="size-3" />
+          <span>Você não tem permissão para responder no chat. Peça ao dono da conta para habilitar em Administrativo → Permissões.</span>
+        </div>
+      )}
+      {status !== "resolved" && canChat && (
+
         !isMine ? (
           <div
             className="shrink-0 border-t border-border p-3 text-center text-xs text-muted-foreground bg-surface flex items-center justify-center gap-2"
