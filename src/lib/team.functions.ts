@@ -107,30 +107,15 @@ export const inviteTeamMember = createServerFn({ method: "POST" })
       .eq("id", userId)
       .maybeSingle();
 
-    // If the email already belongs to a Sigma user, auto-accept the invite
-    // (they don't need a signup link). They'll see the shared account in
-    // their account switcher on next load.
+    // Invites always stay pending until the recipient explicitly accepts via
+    // the PendingInviteDialog — even when the e-mail already belongs to a
+    // Sigma user. Previously we auto-accepted for existing users, which
+    // silently added them to the account without their consent.
     const existingUserId = await findUserIdByEmail(data.email);
     if (existingUserId) {
-      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-      await supabaseAdmin
-        .from("account_members")
-        .upsert(
-          {
-            owner_id: userId,
-            member_user_id: existingUserId,
-            role: data.role,
-            status: "active",
-            invited_by: userId,
-          },
-          { onConflict: "owner_id,member_user_id" },
-        );
-      await supabaseAdmin
-        .from("account_member_invites")
-        .update({ status: "accepted", accepted_user_id: existingUserId, accepted_at: new Date().toISOString() })
-        .eq("id", inserted.id);
-      return { ok: true, id: inserted.id, emailSent: false, autoAccepted: true };
+      return { ok: true, id: inserted.id, emailSent: false, autoAccepted: false, existingUser: true };
     }
+
 
     try {
       await sendAccountInviteEmail(data.email, (inviter?.full_name as string) ?? null);
