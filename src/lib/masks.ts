@@ -34,6 +34,47 @@ export function isValidCPF(v: string | null | undefined): boolean {
   return d1 === Number(d[9]) && d2 === Number(d[10]);
 }
 
+// CNPJ: 00.000.000/0000-00
+export function formatCNPJ(v: string | null | undefined): string {
+  const d = onlyDigits(v).slice(0, 14);
+  const p1 = d.slice(0, 2);
+  const p2 = d.slice(2, 5);
+  const p3 = d.slice(5, 8);
+  const p4 = d.slice(8, 12);
+  const p5 = d.slice(12, 14);
+  let out = p1;
+  if (p2) out += "." + p2;
+  if (p3) out += "." + p3;
+  if (p4) out += "/" + p4;
+  if (p5) out += "-" + p5;
+  return out;
+}
+
+export function isValidCNPJ(v: string | null | undefined): boolean {
+  const d = onlyDigits(v);
+  if (d.length !== 14) return false;
+  if (/^(\d)\1{13}$/.test(d)) return false;
+  const calc = (base: string) => {
+    const weights =
+      base.length === 12
+        ? [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]
+        : [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2];
+    let sum = 0;
+    for (let i = 0; i < base.length; i++) sum += Number(base[i]) * weights[i];
+    const rest = sum % 11;
+    return rest < 2 ? 0 : 11 - rest;
+  };
+  const d1 = calc(d.slice(0, 12));
+  const d2 = calc(d.slice(0, 13));
+  return d1 === Number(d[12]) && d2 === Number(d[13]);
+}
+
+// Formata CPF ou CNPJ automaticamente pelo comprimento.
+export function formatTaxId(v: string | null | undefined): string {
+  const d = onlyDigits(v);
+  return d.length > 11 ? formatCNPJ(d) : formatCPF(d);
+}
+
 // BR mobile phone: (11) 91234-5678 — legado, mantido para compat.
 export function formatBRPhone(v: string | null | undefined): string {
   const d = onlyDigits(v).slice(0, 11);
