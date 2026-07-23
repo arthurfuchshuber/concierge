@@ -484,6 +484,8 @@ export const claimHandoffConversation = createServerFn({ method: "POST" })
   .inputValidator(parseHandoffConversationInput)
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
+    await requireChatRespondForConversation(supabase, userId, data.conversationId);
+
     // Assumir sempre é permitido — se já pertence a outro, registra uma nota interna
     // avisando quem assumiu. A confirmação (popup) é feita no cliente.
     const { data: cur, error: readErr } = await supabase
