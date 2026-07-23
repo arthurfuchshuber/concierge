@@ -186,7 +186,7 @@ export function GuestsTable({
                             className="tabular-nums truncate hover:text-emerald-500 hover:underline"
                             title="Abrir no WhatsApp"
                           >
-                            {g.phoneCountry ?? ""} {g.phone}
+                            {phoneLabel}
                           </a>
                         </>
                       ) : <span>sem telefone</span>}
