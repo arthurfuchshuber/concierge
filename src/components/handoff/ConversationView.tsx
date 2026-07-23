@@ -20,6 +20,8 @@ import { AudioRecorderButton, type RecordedAudio } from "@/components/handoff/Au
 import { AttachmentBubble, type AttachmentInfo } from "@/components/handoff/AttachmentBubble";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { useMyPermissions } from "@/hooks/useMyPermissions";
+
 
 type Props = { conversationId: string; compact?: boolean; myUserId: string | null };
 
