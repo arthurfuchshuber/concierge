@@ -10,6 +10,7 @@ import type { EngagementAnalytics } from "@/lib/engagement-analytics.functions";
 import { getGuestDetail } from "@/lib/engagement-guests.functions";
 import { labelFor } from "./insights";
 import { formatDur } from "./KpiStrip";
+import { formatIntlPhone } from "@/lib/masks";
 
 export type DetailTarget =
   | { kind: "property"; id: string }
