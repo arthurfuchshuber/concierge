@@ -1,4 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 // Valida CPF/CNPJ. Para CNPJ, consulta a Receita Federal via BrasilAPI
 // (endpoint público que espelha dados oficiais). Para CPF, a Receita não
