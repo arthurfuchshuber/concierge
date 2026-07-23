@@ -23,6 +23,8 @@ const AccessInput = z.object({
   guest_name: z.string().trim().min(2).max(200),
   reservation_code: z.string().trim().max(100).optional().nullable(),
   checkin_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  checkout_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
+
   guest_phone: z.string().trim().max(40).optional().nullable(),
   guest_phone_country: z.string().trim().max(4).optional().nullable(),
   guest_arrival_time: z.string().trim().max(10).optional().nullable(),
@@ -49,7 +51,9 @@ export const recordGuideAccess = createServerFn({ method: "POST" })
       guest_name: data.guest_name,
       reservation_code: data.reservation_code?.trim() || null,
       checkin_date: data.checkin_date,
+      checkout_date: data.checkout_date ?? null,
       guest_phone: data.guest_phone?.trim() || null,
+
       guest_phone_country: data.guest_phone_country?.trim() || null,
       guest_arrival_time: data.guest_arrival_time?.trim() || null,
       guest_vehicles: data.guest_vehicles && data.guest_vehicles.length > 0 ? data.guest_vehicles : null,

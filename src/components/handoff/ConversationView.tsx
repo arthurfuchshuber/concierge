@@ -222,6 +222,8 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
   const guestName = guest?.name ?? conv?.guest_name ?? "Hóspede anônimo";
   const waHref = guest?.phone ? whatsappHref(guest.phone, guest.phoneCountry) : null;
   const checkinFmt = fmtCheckin(guest?.checkinDate ?? null);
+  const checkoutFmt = fmtCheckin((guest as { checkoutDate?: string | null } | undefined)?.checkoutDate ?? null);
+
 
   function handleClaim() {
     if (isLockedByOther) {
@@ -261,7 +263,7 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
               {conv?.handoff_at ? ` · ${formatDistanceToNow(new Date(conv.handoff_at), { locale: ptBR, addSuffix: true })}` : ""}
             </div>
 
-            {(waHref || checkinFmt || guest?.reservationCode) && (
+            {(waHref || checkinFmt || checkoutFmt || guest?.reservationCode) && (
               <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
                 {waHref && (
                   <a href={waHref} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-emerald-600 hover:underline">
@@ -273,6 +275,12 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
                     <Calendar className="size-3" /> Check-in {checkinFmt}
                   </span>
                 )}
+                {checkoutFmt && (
+                  <span className="inline-flex items-center gap-1">
+                    <Calendar className="size-3" /> Check-out {checkoutFmt}
+                  </span>
+                )}
+
                 {guest?.reservationCode && (
                   <span className="inline-flex items-center gap-1">
                     <Hash className="size-3" /> {guest.reservationCode}
@@ -554,8 +562,10 @@ type GuestDetail = {
   phone: string | null;
   phoneCountry: string | null;
   checkinDate: string | null;
+  checkoutDate: string | null;
   reservationCode: string | null;
 };
+
 
 export function ConversationList({
   conversations,
@@ -584,6 +594,7 @@ export function ConversationList({
         const displayName = d?.name || c.guest_name || "Hóspede anônimo";
         const wa = d?.phone ? whatsappHref(d.phone, d.phoneCountry) : null;
         const checkin = fmtCheckin(d?.checkinDate ?? null);
+        const checkout = fmtCheckin(d?.checkoutDate ?? null);
         return (
           <div
             key={c.id}
@@ -598,7 +609,7 @@ export function ConversationList({
               </span>
             </div>
             <div className="text-[11px] text-muted-foreground truncate">{prop?.name ?? "—"}</div>
-            {(wa || checkin || d?.reservationCode) && (
+            {(wa || checkin || checkout || d?.reservationCode) && (
               <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-muted-foreground">
                 {wa && (
                   <a
@@ -613,9 +624,15 @@ export function ConversationList({
                 )}
                 {checkin && (
                   <span className="inline-flex items-center gap-1">
-                    <Calendar className="size-3" /> {checkin}
+                    <Calendar className="size-3" /> In {checkin}
                   </span>
                 )}
+                {checkout && (
+                  <span className="inline-flex items-center gap-1">
+                    <Calendar className="size-3" /> Out {checkout}
+                  </span>
+                )}
+
                 {d?.reservationCode && (
                   <span className="inline-flex items-center gap-1">
                     <Hash className="size-3" /> {d.reservationCode}
