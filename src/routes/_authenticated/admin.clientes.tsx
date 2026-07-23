@@ -45,7 +45,9 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import { DatePicker } from "@/components/ui/date-picker";
 import { toast } from "sonner";
-import { formatCPF, onlyDigits, isValidCPF, formatBRPhone, isValidBRMobile, isValidEmail, titleCaseName } from "@/lib/masks";
+import { formatCPF, onlyDigits, isValidCPF, isValidEmail, titleCaseName, formatIntlPhone, toE164, toWhatsappNumber, isValidIntlPhone } from "@/lib/masks";
+import PhoneInput, { type Country } from "react-phone-number-input";
+import "react-phone-number-input/style.css";
 
 
 export const Route = createFileRoute("/_authenticated/admin/clientes")({
@@ -74,11 +76,9 @@ function WhatsAppLink({
   className?: string;
 }) {
   if (!phone) return null;
-  const digits = onlyDigits(phone);
-  if (!digits) return null;
-  const cc = onlyDigits(country || "55") || "55";
-  const waNumber = digits.startsWith(cc) ? digits : `${cc}${digits}`;
-  const label = formatBRPhone(digits);
+  const waNumber = toWhatsappNumber(phone, country);
+  if (!waNumber) return null;
+  const label = formatIntlPhone(phone, country);
   return (
     <a
       href={`https://wa.me/${waNumber}`}
@@ -519,8 +519,8 @@ function ClientesPage() {
           onClose={() => setEditing(null)}
           onSave={async (values) => {
             try {
-              const { fullName, cpf, phone, plan, ...rest } = values;
-              await profileUpdater({ data: { userId: editing.userId, fullName, cpf, phone, phoneCountry: "55" } });
+              const { fullName, cpf, phone, phoneCountry, plan, ...rest } = values;
+              await profileUpdater({ data: { userId: editing.userId, fullName, cpf, phone, phoneCountry } });
 
               if (plan) {
                 await updater({ data: { userId: editing.userId, plan, ...rest } });
@@ -542,6 +542,7 @@ type EditValues = {
   fullName: string | null;
   cpf: string | null;
   phone: string | null;
+  phoneCountry: string | null;
   plan: PlanKey | null;
   status: string;
   environment: "sandbox" | "live";
@@ -580,7 +581,13 @@ function EditDialog({
   const s = customer.subscription;
   const [fullName, setFullName] = useState(customer.fullName ?? "");
   const [cpf, setCpf] = useState(formatCPF(customer.cpf ?? ""));
-  const [phone, setPhone] = useState(formatBRPhone(customer.phone ?? ""));
+  const initialPhoneE164 = toE164(customer.phone ?? "", customer.phoneCountry ?? undefined);
+  const [phone, setPhone] = useState<string | undefined>(initialPhoneE164 || undefined);
+  const [phoneCountry, setPhoneCountry] = useState<Country>(
+    (customer.phoneCountry && /^[A-Za-z]{2}$/.test(customer.phoneCountry)
+      ? (customer.phoneCountry.toUpperCase() as Country)
+      : "BR"),
+  );
   // null = "Sem plano" (não cria/atualiza assinatura). Quando o usuário não
   // tem assinatura, o padrão é "Sem plano" — coerente com o pedido do
   // anfitrião de não forçar plano em quem ainda não contratou.
@@ -616,9 +623,9 @@ function EditDialog({
       toast.error("CPF inválido. Use o formato 000.000.000-00.");
       return;
     }
-    const phoneDigits = onlyDigits(phone);
-    if (!isValidBRMobile(phoneDigits)) {
-      toast.error("Telefone celular inválido. Use DDD + número (ex.: (11) 91234-5678).");
+    const phoneE164 = phone ? toE164(phone, phoneCountry) : "";
+    if (!phoneE164 || !isValidIntlPhone(phoneE164)) {
+      toast.error("Telefone inválido. Selecione o país e informe o número completo.");
       return;
     }
     if (customer.email && !isValidEmail(customer.email)) {
@@ -642,7 +649,8 @@ function EditDialog({
       await onSave({
         fullName: cleanedName,
         cpf: cpfDigits,
-        phone: phoneDigits,
+        phone: phoneE164,
+        phoneCountry,
         plan,
         status,
         environment,
@@ -700,17 +708,18 @@ function EditDialog({
           </div>
 
           <div className="space-y-1.5">
-            <Label>Telefone celular <span className="text-destructive">*</span></Label>
-            <Input
-              type="tel"
-              inputMode="tel"
-              value={phone}
-              onChange={(e) => setPhone(formatBRPhone(e.target.value))}
-              placeholder="(11) 91234-5678"
-              required
-              maxLength={16}
-              autoComplete="tel"
-            />
+            <Label>Telefone (qualquer país) <span className="text-destructive">*</span></Label>
+            <div className="sg-phone-input">
+              <PhoneInput
+                international
+                defaultCountry={phoneCountry}
+                value={phone}
+                onChange={(v) => setPhone(v)}
+                onCountryChange={(c) => c && setPhoneCountry(c)}
+                limitMaxLength
+                placeholder="Ex.: +55 11 98765-4321"
+              />
+            </div>
           </div>
 
           <div className="space-y-1.5 sm:col-span-2">

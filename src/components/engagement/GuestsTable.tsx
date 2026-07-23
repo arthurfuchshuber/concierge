@@ -6,6 +6,7 @@ import {
   MousePointerClick, Timer, Award, Star, ArrowUp, ArrowDown, ChevronsUpDown, Building2,
 } from "lucide-react";
 import type { GuestListItem } from "@/lib/engagement-guests.functions";
+import { toWhatsappNumber, formatIntlPhone } from "@/lib/masks";
 
 /** Formata em uma linha compacta: 16m3s, 2h15m, 34s */
 function fmtCompact(seconds: number): string {
@@ -163,7 +164,8 @@ export function GuestsTable({
             </thead>
             <tbody>
               {pageRows.map((g) => {
-                const waNum = g.phone ? `${(g.phoneCountry ?? "").replace(/\D+/g, "")}${g.phone.replace(/\D+/g, "")}` : "";
+                const waNum = g.phone ? toWhatsappNumber(g.phone, g.phoneCountry) : "";
+                const phoneLabel = g.phone ? formatIntlPhone(g.phone, g.phoneCountry) : "";
                 return (
                 <tr
                   key={g.key}
@@ -184,7 +186,7 @@ export function GuestsTable({
                             className="tabular-nums truncate hover:text-emerald-500 hover:underline"
                             title="Abrir no WhatsApp"
                           >
-                            {g.phoneCountry ?? ""} {g.phone}
+                            {phoneLabel}
                           </a>
                         </>
                       ) : <span>sem telefone</span>}

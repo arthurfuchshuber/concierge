@@ -23,8 +23,10 @@ import { ptBR } from "date-fns/locale";
 
 type Props = { conversationId: string; compact?: boolean; myUserId: string | null };
 
+import { toWhatsappNumber, formatIntlPhone } from "@/lib/masks";
+
 function whatsappHref(phone: string, country: string | null) {
-  const digits = `${(country ?? "").replace(/\D+/g, "")}${phone.replace(/\D+/g, "")}`;
+  const digits = toWhatsappNumber(phone, country);
   return digits ? `https://wa.me/${digits}` : null;
 }
 
@@ -263,7 +265,7 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
               <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
                 {waHref && (
                   <a href={waHref} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-emerald-600 hover:underline">
-                    <Phone className="size-3" /> {guest?.phoneCountry ?? ""} {guest?.phone}
+                    <Phone className="size-3" /> {formatIntlPhone(guest?.phone, guest?.phoneCountry)}
                   </a>
                 )}
                 {checkinFmt && (
@@ -606,7 +608,7 @@ export function ConversationList({
                     onClick={(e) => e.stopPropagation()}
                     className="inline-flex items-center gap-1 text-emerald-600 hover:underline"
                   >
-                    <Phone className="size-3" /> {d?.phoneCountry ?? ""} {d?.phone}
+                    <Phone className="size-3" /> {formatIntlPhone(d?.phone, d?.phoneCountry)}
                   </a>
                 )}
                 {checkin && (
