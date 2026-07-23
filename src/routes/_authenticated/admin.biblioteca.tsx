@@ -615,7 +615,7 @@ function BibliotecaPage() {
                 >
                   <Plus className="size-4 mr-1.5" /> Novo bloco
                 </Button>
-                <Button onClick={handleSaveKnow} disabled={savingKnow || aiLocked} className="rounded-full">
+                <Button onClick={handleSaveKnow} disabled={savingKnow || aiLocked || !canTrain} title={!canTrain ? "Sem permissão para ensinar a IA" : undefined} className="rounded-full">
                   {savingKnow ? (
                     <Loader2 className="size-4 mr-1.5 animate-spin" />
                   ) : (
