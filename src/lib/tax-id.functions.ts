@@ -53,8 +53,33 @@ export type TaxIdCheck = {
 };
 
 export const validateTaxId = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
   .inputValidator((data: { value: string }) => data)
-  .handler(async ({ data }): Promise<TaxIdCheck> => {
+  .handler(async ({ data, context }): Promise<TaxIdCheck> => {
+    const d = onlyDigits(data.value);
+    const kind: "cpf" | "cnpj" = d.length > 11 ? "cnpj" : "cpf";
+
+    // Anti-duplicidade: outro painel já cadastrou este documento?
+    const { data: existing } = await context.supabase
+      .from("profiles")
+      .select("id")
+      .neq("id", context.userId)
+      .eq("cpf", d)
+      .limit(1)
+      .maybeSingle();
+    if (existing) {
+      const formattedDup =
+        kind === "cnpj"
+          ? `${d.slice(0, 2)}.${d.slice(2, 5)}.${d.slice(5, 8)}/${d.slice(8, 12)}-${d.slice(12, 14)}`
+          : `${d.slice(0, 3)}.${d.slice(3, 6)}.${d.slice(6, 9)}-${d.slice(9, 11)}`;
+      return {
+        ok: false,
+        kind,
+        digits: d,
+        formatted: formattedDup,
+        error: `Este ${kind === "cnpj" ? "CNPJ" : "CPF"} já está cadastrado em outra conta. Cada painel precisa ter um documento único.`,
+      };
+    }
     const d = onlyDigits(data.value);
     const kind: "cpf" | "cnpj" = d.length > 11 ? "cnpj" : "cpf";
 
