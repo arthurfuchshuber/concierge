@@ -581,7 +581,13 @@ function EditDialog({
   const s = customer.subscription;
   const [fullName, setFullName] = useState(customer.fullName ?? "");
   const [cpf, setCpf] = useState(formatCPF(customer.cpf ?? ""));
-  const [phone, setPhone] = useState(formatBRPhone(customer.phone ?? ""));
+  const initialPhoneE164 = toE164(customer.phone ?? "", customer.phoneCountry ?? undefined);
+  const [phone, setPhone] = useState<string | undefined>(initialPhoneE164 || undefined);
+  const [phoneCountry, setPhoneCountry] = useState<Country>(
+    (customer.phoneCountry && /^[A-Za-z]{2}$/.test(customer.phoneCountry)
+      ? (customer.phoneCountry.toUpperCase() as Country)
+      : "BR"),
+  );
   // null = "Sem plano" (não cria/atualiza assinatura). Quando o usuário não
   // tem assinatura, o padrão é "Sem plano" — coerente com o pedido do
   // anfitrião de não forçar plano em quem ainda não contratou.
