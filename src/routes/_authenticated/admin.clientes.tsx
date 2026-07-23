@@ -76,11 +76,9 @@ function WhatsAppLink({
   className?: string;
 }) {
   if (!phone) return null;
-  const digits = onlyDigits(phone);
-  if (!digits) return null;
-  const cc = onlyDigits(country || "55") || "55";
-  const waNumber = digits.startsWith(cc) ? digits : `${cc}${digits}`;
-  const label = formatBRPhone(digits);
+  const waNumber = toWhatsappNumber(phone, country);
+  if (!waNumber) return null;
+  const label = formatIntlPhone(phone, country);
   return (
     <a
       href={`https://wa.me/${waNumber}`}
