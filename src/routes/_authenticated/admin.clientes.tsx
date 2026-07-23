@@ -64,6 +64,39 @@ const PLAN_OPTIONS: PlanKey[] = ["starter", "pro", "business", "enterprise"];
 const STATUS_OPTIONS = ["trialing", "active", "past_due", "paused", "canceled"];
 const ENV_OPTIONS = ["sandbox", "live"];
 
+function WhatsAppLink({
+  phone,
+  country,
+  className,
+}: {
+  phone: string | null;
+  country: string | null;
+  className?: string;
+}) {
+  if (!phone) return null;
+  const digits = onlyDigits(phone);
+  if (!digits) return null;
+  const cc = onlyDigits(country || "55") || "55";
+  const waNumber = digits.startsWith(cc) ? digits : `${cc}${digits}`;
+  const label = formatBRPhone(digits);
+  return (
+    <a
+      href={`https://wa.me/${waNumber}`}
+      target="_blank"
+      rel="noopener noreferrer"
+      onClick={(e) => e.stopPropagation()}
+      className={cn(
+        "inline-flex items-center gap-1 rounded-full bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 px-2 py-0.5 text-[11px] font-medium tabular-nums transition",
+        className,
+      )}
+    >
+      <MessageCircle className="size-3" />
+      {label}
+    </a>
+  );
+}
+
+
 type StatusFilter = "all" | "active" | "trialing" | "canceled" | "past_due" | "incomplete";
 type PlanFilter = "all" | PlanKey | "none";
 
