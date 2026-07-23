@@ -13,6 +13,10 @@ import { AccountSwitcher } from "@/components/admin/AccountSwitcher";
 import { FloatingHandoffDock } from "@/components/handoff/FloatingHandoffDock";
 import { PushNotificationBanner } from "@/components/PushNotificationBanner";
 import { getAtendimentoAccess, countPendingHandoffs } from "@/lib/handoff.functions";
+import { listMyAccounts } from "@/lib/active-account.functions";
+import { PendingInviteDialog } from "@/components/admin/PendingInviteDialog";
+import { listMyPendingInvites } from "@/lib/pending-invites.functions";
+
 
 export const Route = createFileRoute("/_authenticated/admin")({
   component: AdminLayout,
