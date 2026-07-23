@@ -1993,9 +1993,17 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      accept_my_account_invite: {
+        Args: { _invite_id: string }
+        Returns: boolean
+      }
       account_member_role_of: {
         Args: { _owner_id: string; _user_id: string }
         Returns: Database["public"]["Enums"]["account_member_role"]
+      }
+      decline_my_account_invite: {
+        Args: { _invite_id: string }
+        Returns: boolean
       }
       delete_email: {
         Args: { message_id: number; queue_name: string }
