@@ -256,9 +256,19 @@ export const listHandoffConversations = createServerFn({ method: "POST" })
     }
     const deduped = ordered.filter((c) => bestByKey.get(keyFor(c)) === c);
 
+    // Ordena: 1) data/hora da última mensagem (desc); 2) data/hora do check-in do guia (desc).
+    deduped.sort((a, b) => {
+      const aMsg = Date.parse(a.last_message_at ?? "") || 0;
+      const bMsg = Date.parse(b.last_message_at ?? "") || 0;
+      if (bMsg !== aMsg) return bMsg - aMsg;
+      const aCk = Date.parse(mergeDetails[a.id as string]?.checkinDate ?? "") || 0;
+      const bCk = Date.parse(mergeDetails[b.id as string]?.checkinDate ?? "") || 0;
+      return bCk - aCk;
+    });
 
     return { conversations: deduped, details };
   });
+
 
 
 
