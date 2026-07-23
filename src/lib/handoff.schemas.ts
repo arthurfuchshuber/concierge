@@ -5,8 +5,10 @@ export type HandoffGuestDetail = {
   phone: string | null;
   phoneCountry: string | null;
   checkinDate: string | null;
+  checkoutDate: string | null;
   reservationCode: string | null;
 };
+
 
 export type HandoffConversationSummary = {
   id: string;
