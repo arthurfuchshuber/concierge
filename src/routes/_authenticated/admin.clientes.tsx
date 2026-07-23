@@ -708,17 +708,18 @@ function EditDialog({
           </div>
 
           <div className="space-y-1.5">
-            <Label>Telefone celular <span className="text-destructive">*</span></Label>
-            <Input
-              type="tel"
-              inputMode="tel"
-              value={phone}
-              onChange={(e) => setPhone(formatBRPhone(e.target.value))}
-              placeholder="(11) 91234-5678"
-              required
-              maxLength={16}
-              autoComplete="tel"
-            />
+            <Label>Telefone (qualquer país) <span className="text-destructive">*</span></Label>
+            <div className="sg-phone-input">
+              <PhoneInput
+                international
+                defaultCountry={phoneCountry}
+                value={phone}
+                onChange={(v) => setPhone(v)}
+                onCountryChange={(c) => c && setPhoneCountry(c)}
+                limitMaxLength
+                placeholder="Ex.: +55 11 98765-4321"
+              />
+            </div>
           </div>
 
           <div className="space-y-1.5 sm:col-span-2">
