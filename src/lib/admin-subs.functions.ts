@@ -489,12 +489,14 @@ export const adminUpdateCustomerProfile = createServerFn({ method: "POST" })
       if ((error as { code?: string }).code === "23505") {
         const msg = String(error.message ?? "");
         if (msg.includes("profiles_cpf_unique_digits")) {
-          throw new Error("Este CPF/CNPJ já está cadastrado em outra conta.");
+          const digits = (data.cpf ?? "").replace(/\D+/g, "");
+          const label = digits.length === 14 ? "CNPJ" : "CPF";
+          throw new Error(`Este ${label} já está cadastrado em outra conta.`);
         }
         if (msg.includes("profiles_phone_unique_digits")) {
           throw new Error("Este telefone já está cadastrado em outra conta.");
         }
-        throw new Error("Documento ou telefone já cadastrado em outra conta.");
+        throw new Error("Este dado já está cadastrado em outra conta.");
       }
       throw new Error("Não foi possível atualizar os dados do cliente.");
     }
