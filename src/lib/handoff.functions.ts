@@ -148,8 +148,13 @@ export const listHandoffConversations = createServerFn({ method: "POST" })
         for (const e of events) {
           if (!e.guest_session_id) continue;
           const key = `${e.property_id}|${e.guest_session_id}`;
+          const sanitizedEvent: EventRow = {
+            ...e,
+            guest_name: isPreviewName(e.guest_name) ? null : e.guest_name,
+          };
+          if (!sanitizedEvent.guest_name && !sanitizedEvent.guest_phone) continue;
           if (!latestEventBySession.has(key)) {
-            latestEventBySession.set(key, e);
+            latestEventBySession.set(key, sanitizedEvent);
           }
         }
 
@@ -197,7 +202,7 @@ export const listHandoffConversations = createServerFn({ method: "POST" })
             ? latestEventBySession.get(`${conv.property_id}|${conv.guest_session_id}`)
             : null;
           const identity = {
-            name: conv.guest_name ?? eventMatch?.guest_name ?? null,
+            name: isPreviewName(conv.guest_name) ? (eventMatch?.guest_name ?? null) : (conv.guest_name ?? eventMatch?.guest_name ?? null),
             phone: eventMatch?.guest_phone ?? null,
           };
           const matchedLog = chooseLog(conv, identity);
@@ -336,16 +341,17 @@ export const getHandoffConversation = createServerFn({ method: "POST" })
         };
         const isPreviewName = (s: string | null | undefined) =>
           !!s && /pr[eé]\s*-?\s*visualiza|preview/i.test(s.trim());
-        let identity: { name: string | null; phone: string | null } = { name: conv.guest_name, phone: null };
-        if (!identity.name && conv.guest_session_id) {
+        let identity: { name: string | null; phone: string | null } = { name: isPreviewName(conv.guest_name) ? null : conv.guest_name, phone: null };
+        if ((!identity.name || !identity.phone) && conv.guest_session_id) {
           const { data: events } = await (supabaseAdmin.from("guide_section_events" as never) as ReturnType<typeof supabaseAdmin.from>)
             .select("guest_name, guest_phone, created_at")
             .eq("property_id", conv.property_id)
             .eq("guest_session_id", conv.guest_session_id)
             .or("guest_name.not.is.null,guest_phone.not.is.null")
             .order("created_at", { ascending: false })
-            .limit(1);
-          const event = (events as Array<{ guest_name: string | null; guest_phone: string | null }> | null)?.[0];
+            .limit(20);
+          const event = (events as Array<{ guest_name: string | null; guest_phone: string | null }> | null)
+            ?.find((e) => !isPreviewName(e.guest_name) && (!!e.guest_name || !!e.guest_phone));
           if (event) identity = { name: event.guest_name, phone: event.guest_phone };
         }
 
