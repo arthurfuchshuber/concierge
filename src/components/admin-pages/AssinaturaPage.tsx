@@ -31,7 +31,7 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { toast } from "sonner";
-import { metaPixelTrack, metaPixelTrackOnce } from "@/lib/meta-pixel";
+import { metaPixelTrack, metaPixelTrackCustom, metaPixelTrackOnce } from "@/lib/meta-pixel";
 
 export { AssinaturaPage };
 
@@ -80,6 +80,24 @@ function AssinaturaPage() {
       plan: plan.name,
     });
   }, [search.checkout, info.isActive, info.plan]);
+
+  // Meta Pixel StartTrial — fire once per user when the 7-day trial actually starts.
+  // Guarded by localStorage keyed by user id so refresh/SPA nav never re-fires.
+  useEffect(() => {
+    if (!user?.id) return;
+    if (info.status !== "trialing") return;
+    const key = `fb_started_trial_${user.id}`;
+    try {
+      if (localStorage.getItem(key)) return;
+      localStorage.setItem(key, "1");
+    } catch {
+      return;
+    }
+    metaPixelTrackCustom("StartTrial", {
+      product: "ConciergeIA",
+      trial_days: 7,
+    });
+  }, [user?.id, info.status]);
 
   const paymentsQuery = useQuery({
     queryKey: ["my-payments", env],
