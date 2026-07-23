@@ -218,7 +218,7 @@ export const listHandoffConversations = createServerFn({ method: "POST" })
             mergeDetails[conv.id as string] = d;
           } else if (eventMatch?.guest_name || eventMatch?.guest_phone) {
             details[conv.id as string] = {
-              name: eventMatch.guest_name ?? conv.guest_name,
+              name: eventMatch.guest_name ?? identity.name,
               phone: eventMatch.guest_phone,
               phoneCountry: null,
               checkinDate: null,
@@ -232,7 +232,7 @@ export const listHandoffConversations = createServerFn({ method: "POST" })
             const fallback = chooseNearestVisualLog(conv);
             if (fallback) {
               details[conv.id as string] = {
-                name: fallback.guest_name ?? conv.guest_name,
+                name: fallback.guest_name ?? identity.name,
                 phone: fallback.guest_phone,
                 phoneCountry: fallback.guest_phone_country,
                 checkinDate: fallback.checkin_date,
@@ -301,6 +301,8 @@ export const getHandoffConversation = createServerFn({ method: "POST" })
   .inputValidator(parseHandoffConversationInput)
   .handler(async ({ data, context }) => {
     const { supabase } = context;
+    const isPreviewName = (s: string | null | undefined) =>
+      !!s && /pr[eé]\s*-?\s*visualiza|preview/i.test(s.trim());
     const [{ data: conv, error: cErr }, { data: msgs, error: mErr }] = await Promise.all([
       supabase
         .from("property_chat_conversations")
@@ -341,8 +343,6 @@ export const getHandoffConversation = createServerFn({ method: "POST" })
           const t = iso ? Date.parse(iso) : NaN;
           return Number.isFinite(t) ? t : 0;
         };
-        const isPreviewName = (s: string | null | undefined) =>
-          !!s && /pr[eé]\s*-?\s*visualiza|preview/i.test(s.trim());
         let identity: { name: string | null; phone: string | null } = { name: isPreviewName(conv.guest_name) ? null : conv.guest_name, phone: null };
         if ((!identity.name || !identity.phone) && conv.guest_session_id) {
           const { data: events } = await (supabaseAdmin.from("guide_section_events" as never) as ReturnType<typeof supabaseAdmin.from>)
@@ -448,7 +448,14 @@ export const getHandoffConversation = createServerFn({ method: "POST" })
       }
     }
 
-    return { conversation: conv, messages: msgs ?? [], guestDetails, claimRequester, assignedProfile, senderProfiles };
+    return {
+      conversation: isPreviewName(conv.guest_name) ? { ...conv, guest_name: null } : conv,
+      messages: msgs ?? [],
+      guestDetails,
+      claimRequester,
+      assignedProfile,
+      senderProfiles,
+    };
   });
 
 // -------- Claim / assign to me (bloqueia se já está com outro atendente) --------
