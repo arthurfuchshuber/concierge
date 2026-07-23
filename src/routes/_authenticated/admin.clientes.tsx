@@ -389,6 +389,7 @@ function ClientesPage() {
                             <div className="min-w-0">
                               <div className="font-medium truncate">{c.fullName ?? "—"}</div>
                               <div className="text-xs text-muted-foreground truncate">{c.email ?? "—"}</div>
+                              <WhatsAppLink phone={c.phone} country={c.phoneCountry} className="mt-1" />
                             </div>
                           </div>
                         </td>
