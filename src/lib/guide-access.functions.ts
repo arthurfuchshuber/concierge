@@ -23,6 +23,8 @@ const AccessInput = z.object({
   guest_name: z.string().trim().min(2).max(200),
   reservation_code: z.string().trim().max(100).optional().nullable(),
   checkin_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  checkout_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
+
   guest_phone: z.string().trim().max(40).optional().nullable(),
   guest_phone_country: z.string().trim().max(4).optional().nullable(),
   guest_arrival_time: z.string().trim().max(10).optional().nullable(),
