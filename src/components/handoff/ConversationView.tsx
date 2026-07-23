@@ -562,8 +562,10 @@ type GuestDetail = {
   phone: string | null;
   phoneCountry: string | null;
   checkinDate: string | null;
+  checkoutDate: string | null;
   reservationCode: string | null;
 };
+
 
 export function ConversationList({
   conversations,
