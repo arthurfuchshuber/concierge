@@ -89,6 +89,33 @@ function AdminLayout() {
   const initials = (email || "?").slice(0, 2).toUpperCase();
 
   const { info: sub, isLoading: subLoading } = useSubscription();
+
+  // Team members of another owner's account don't need their own plan — they
+  // ride on the owner's subscription. Skip the OnboardingCheckout gate for them.
+  const accountsFn = useServerFn(listMyAccounts);
+  const myAccounts = useQuery({
+    queryKey: ["my-accounts"],
+    queryFn: async () => {
+      try { return await accountsFn(); } catch { return { accounts: [], ownsProperties: false }; }
+    },
+    staleTime: 60_000,
+    retry: false,
+  });
+  const isTeamMember = (myAccounts.data?.accounts?.length ?? 0) > 0;
+
+  // Pending invites addressed to this user's e-mail — popup blocks the UI
+  // until they accept or decline.
+  const invitesFn = useServerFn(listMyPendingInvites);
+  const pendingInvites = useQuery({
+    queryKey: ["my-pending-invites"],
+    queryFn: async () => {
+      try { return await invitesFn(); } catch { return []; }
+    },
+    staleTime: 30_000,
+    retry: false,
+  });
+  const hasPendingInvite = (pendingInvites.data?.length ?? 0) > 0;
+
   const allowedWithoutPlan =
     pathname.startsWith("/admin/engajamento") ||
     pathname.startsWith("/admin/hospedes") ||
@@ -96,7 +123,13 @@ function AdminLayout() {
     pathname.startsWith("/admin/taxonomia") ||
     pathname.startsWith("/admin/recomendacoes-sigma") ||
     pathname.startsWith("/admin/admins");
-  const needsPlan = !subLoading && !adminLoading && !sub.plan && !allowedWithoutPlan && !isAdmin;
+  // Rule: without an invite in play AND without being a team member, the user
+  // can only see the panel after completing the account creation + validation
+  // (CPF/CNPJ + plan) flow inside OnboardingCheckout.
+  const needsPlan =
+    !subLoading && !adminLoading && !myAccounts.isLoading &&
+    !sub.plan && !allowedWithoutPlan && !isAdmin && !isTeamMember && !hasPendingInvite;
+
 
   return (
     <div className="min-h-screen bg-background text-foreground flex">
