@@ -38,7 +38,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Search, Users, Pencil, Loader2, Shield, Crown, Anchor, Ban, Calendar } from "lucide-react";
+import { Search, Users, Pencil, Loader2, Shield, Crown, Anchor, Ban, Calendar, Filter, MessageCircle } from "lucide-react";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetFooter } from "@/components/ui/sheet";
+import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
+import { cn } from "@/lib/utils";
 import { DatePicker } from "@/components/ui/date-picker";
 import { toast } from "sonner";
 import { formatCPF, onlyDigits, isValidCPF, formatBRPhone, isValidBRMobile, isValidEmail, titleCaseName } from "@/lib/masks";
