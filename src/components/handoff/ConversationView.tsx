@@ -464,7 +464,14 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
         />
       )}
 
-      {status !== "resolved" && (
+      {status !== "resolved" && !canChat && (
+        <div className="shrink-0 border-t border-border p-3 text-center text-xs text-muted-foreground bg-surface flex items-center justify-center gap-2">
+          <Lock className="size-3" />
+          <span>Você não tem permissão para responder no chat. Peça ao dono da conta para habilitar em Administrativo → Permissões.</span>
+        </div>
+      )}
+      {status !== "resolved" && canChat && (
+
         !isMine ? (
           <div
             className="shrink-0 border-t border-border p-3 text-center text-xs text-muted-foreground bg-surface flex items-center justify-center gap-2"
