@@ -64,6 +64,13 @@ const PLAN_OPTIONS: PlanKey[] = ["starter", "pro", "business", "enterprise"];
 const STATUS_OPTIONS = ["trialing", "active", "past_due", "paused", "canceled"];
 const ENV_OPTIONS = ["sandbox", "live"];
 
+type StatusFilter = "all" | "active" | "trialing" | "canceled" | "past_due" | "incomplete";
+type PlanFilter = "all" | PlanKey | "none";
+
+function isIncomplete(c: AdminCustomerRow) {
+  return !c.subscription;
+}
+
 function ClientesPage() {
   const fetcher = useServerFn(adminListCustomers);
   const updater = useServerFn(adminUpdateSubscription);
@@ -71,6 +78,10 @@ function ClientesPage() {
   const qc = useQueryClient();
   const [search, setSearch] = useState("");
   const [editing, setEditing] = useState<AdminCustomerRow | null>(null);
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [planFilter, setPlanFilter] = useState<PlanFilter>("all");
+  const [churnOnly, setChurnOnly] = useState(false);
+  const [filtersOpen, setFiltersOpen] = useState(false);
 
   const query = useQuery({
     queryKey: ["admin-customers"],
@@ -78,16 +89,31 @@ function ClientesPage() {
   });
 
   const customers = query.data?.customers ?? [];
+
   const filtered = useMemo(() => {
-    if (!search.trim()) return customers;
     const q = search.trim().toLowerCase();
-    return customers.filter(
-      (c) =>
-        c.email?.toLowerCase().includes(q) ||
-        c.fullName?.toLowerCase().includes(q) ||
-        c.subscription?.plan?.toLowerCase().includes(q),
-    );
-  }, [customers, search]);
+    return customers.filter((c) => {
+      if (q) {
+        const hay = `${c.email ?? ""} ${c.fullName ?? ""} ${c.subscription?.plan ?? ""} ${c.phone ?? ""}`.toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+      if (statusFilter !== "all") {
+        if (statusFilter === "incomplete") {
+          if (!isIncomplete(c)) return false;
+        } else if (c.subscription?.status !== statusFilter) return false;
+      }
+      if (planFilter !== "all") {
+        if (planFilter === "none") {
+          if (c.subscription) return false;
+        } else if (c.subscription?.plan !== planFilter) return false;
+      }
+      if (churnOnly && !c.churnRisk) return false;
+      return true;
+    });
+  }, [customers, search, statusFilter, planFilter, churnOnly]);
+
+  const activeFilterCount =
+    (statusFilter !== "all" ? 1 : 0) + (planFilter !== "all" ? 1 : 0) + (churnOnly ? 1 : 0);
 
   return (
     <div className="px-5 lg:px-10 py-8 lg:py-10 max-w-7xl mx-auto w-full">
@@ -103,41 +129,121 @@ function ClientesPage() {
             Gerencie planos, valores e períodos de teste de cada cliente.
           </p>
         </div>
-        <div className="relative">
-          <Search className="size-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Buscar por email, nome ou plano…"
-            className="pl-9 w-72"
-          />
+        <div className="flex items-center gap-2">
+          <div className="relative">
+            <Search className="size-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Buscar por email, nome, plano ou telefone…"
+              className="pl-9 w-72"
+            />
+          </div>
+          <Sheet open={filtersOpen} onOpenChange={setFiltersOpen}>
+            <SheetTrigger asChild>
+              <Button
+                variant="outline"
+                size="icon"
+                aria-label="Filtros"
+                className="relative size-10 rounded-full shrink-0"
+              >
+                <Filter className="size-4" />
+                {activeFilterCount > 0 && (
+                  <Badge
+                    variant="secondary"
+                    className="absolute -top-1 -right-1 h-4 min-w-4 px-1 rounded-full text-[9px] font-semibold flex items-center justify-center bg-primary text-primary-foreground"
+                  >
+                    {activeFilterCount}
+                  </Badge>
+                )}
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="right" className="w-[min(92vw,380px)] sm:max-w-md">
+              <SheetHeader>
+                <SheetTitle>Filtros</SheetTitle>
+              </SheetHeader>
+              <div className="space-y-5 py-4">
+                <div>
+                  <label className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Status</label>
+                  <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as StatusFilter)}>
+                    <SelectTrigger className="mt-1.5 h-9"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos</SelectItem>
+                      <SelectItem value="active">Ativos</SelectItem>
+                      <SelectItem value="trialing">Em trial</SelectItem>
+                      <SelectItem value="past_due">Atrasados</SelectItem>
+                      <SelectItem value="canceled">Cancelados</SelectItem>
+                      <SelectItem value="incomplete">Cadastro incompleto</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <label className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Plano</label>
+                  <Select value={planFilter} onValueChange={(v) => setPlanFilter(v as PlanFilter)}>
+                    <SelectTrigger className="mt-1.5 h-9"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos</SelectItem>
+                      <SelectItem value="none">Sem plano</SelectItem>
+                      {PLAN_OPTIONS.map((p) => (
+                        <SelectItem key={p} value={p}>{PLANS[p].name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <label className="flex items-center justify-between rounded-lg border border-border/60 px-3 py-2.5 cursor-pointer">
+                  <span className="text-sm">Somente risco de churn</span>
+                  <Checkbox checked={churnOnly} onCheckedChange={(v) => setChurnOnly(!!v)} />
+                </label>
+              </div>
+              <SheetFooter className="flex-row gap-2">
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => {
+                    setStatusFilter("all");
+                    setPlanFilter("all");
+                    setChurnOnly(false);
+                  }}
+                >
+                  Limpar
+                </Button>
+                <Button className="flex-1" onClick={() => setFiltersOpen(false)}>Aplicar</Button>
+              </SheetFooter>
+            </SheetContent>
+          </Sheet>
         </div>
       </div>
 
-      {/* Stats */}
-      <div className="mt-6 grid grid-cols-2 md:grid-cols-5 gap-3">
-        <StatCard label="Total" value={customers.length} />
+      {/* Stats — refletem os filtros aplicados */}
+      <div className="mt-6 grid grid-cols-2 md:grid-cols-6 gap-3">
+        <StatCard label="Total" value={filtered.length} />
         <StatCard
           label="Ativos"
-          value={customers.filter((c) => c.subscription?.status === "active" || c.subscription?.status === "trialing").length}
+          value={filtered.filter((c) => c.subscription?.status === "active" || c.subscription?.status === "trialing").length}
           tone="emerald"
         />
         <StatCard
           label="Em trial"
-          value={customers.filter((c) => c.subscription?.status === "trialing").length}
+          value={filtered.filter((c) => c.subscription?.status === "trialing").length}
           tone="amber"
         />
         <StatCard
+          label="Cadastro incompleto"
+          value={filtered.filter(isIncomplete).length}
+          tone="muted"
+        />
+        <StatCard
           label="Cancelados"
-          value={customers.filter((c) => c.subscription?.status === "canceled" || c.subscription?.status === "past_due").length}
+          value={filtered.filter((c) => c.subscription?.status === "canceled" || c.subscription?.status === "past_due").length}
           tone="muted"
         />
         <StatCard
           label="Risco de churn"
-          value={customers.filter((c) => c.churnRisk).length}
+          value={filtered.filter((c) => c.churnRisk).length}
           tone="red"
         />
       </div>
+
 
       <div className="mt-6 rounded-2xl border border-border bg-card overflow-hidden shadow-sm">
         {query.isLoading ? (
