@@ -542,6 +542,7 @@ type EditValues = {
   fullName: string | null;
   cpf: string | null;
   phone: string | null;
+  phoneCountry: string | null;
   plan: PlanKey | null;
   status: string;
   environment: "sandbox" | "live";
