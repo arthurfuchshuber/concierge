@@ -734,7 +734,7 @@ function BibliotecaPage() {
                 >
                   <Plus className="size-4 mr-1.5" /> Nova regra
                 </Button>
-                <Button onClick={handleSaveBeh} disabled={savingBeh || aiLocked} className="rounded-full">
+                <Button onClick={handleSaveBeh} disabled={savingBeh || aiLocked || !canTrain} title={!canTrain ? "Sem permissão para ensinar a IA" : undefined} className="rounded-full">
                   {savingBeh ? (
                     <Loader2 className="size-4 mr-1.5 animate-spin" />
                   ) : (
