@@ -127,7 +127,7 @@ function GuestDetail({ guestKey, accountId }: { guestKey: string; accountId: str
         <SheetDescription asChild>
           <div className="flex flex-col items-center gap-0.5 text-center">
             {g.phone ? (
-              <span className="tabular-nums">{g.phoneCountry ?? ""} {g.phone}</span>
+              <span className="tabular-nums">{formatIntlPhone(g.phone, g.phoneCountry)}</span>
             ) : (
               <span>Sem telefone</span>
             )}
