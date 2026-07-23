@@ -649,7 +649,8 @@ function EditDialog({
       await onSave({
         fullName: cleanedName,
         cpf: cpfDigits,
-        phone: phoneDigits,
+        phone: phoneE164,
+        phoneCountry,
         plan,
         status,
         environment,
