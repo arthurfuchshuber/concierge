@@ -104,8 +104,13 @@ export const validateTaxId = createServerFn({ method: "POST" })
         return { ok: false, kind, digits: d, formatted, error: "CNPJ não encontrado na Receita Federal." };
       }
       if (!res.ok) {
-        // Falha do provedor — não bloqueia (dígitos já são válidos).
-        return { ok: true, kind, digits: d, formatted };
+        return {
+          ok: false,
+          kind,
+          digits: d,
+          formatted,
+          error: "Não foi possível confirmar o CNPJ junto à Receita Federal agora. Tente novamente em instantes.",
+        };
       }
       const json: any = await res.json();
       const situacao: string = String(json?.descricao_situacao_cadastral ?? json?.situacao ?? "").toUpperCase();
@@ -123,7 +128,12 @@ export const validateTaxId = createServerFn({ method: "POST" })
       }
       return { ok: true, kind, digits: d, formatted, name, status: situacao || "ATIVA" };
     } catch {
-      // Rede indisponível — não bloqueia checkout se dígitos batem.
-      return { ok: true, kind, digits: d, formatted };
+      return {
+        ok: false,
+        kind,
+        digits: d,
+        formatted,
+        error: "Falha de rede ao consultar a Receita Federal. Verifique sua conexão e tente novamente.",
+      };
     }
   });
