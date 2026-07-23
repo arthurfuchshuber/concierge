@@ -170,24 +170,16 @@ export const resendTeamInvite = createServerFn({ method: "POST" })
       .select("full_name")
       .eq("id", userId)
       .maybeSingle();
-    // If the recipient already exists, auto-accept instead of sending email again.
+    // Recipient must accept explicitly via the PendingInviteDialog — even if
+    // they already have a Sigma account. We simply refresh the expiration and
+    // (optionally) resend the branded invite e-mail.
     const existingUserId = await findUserIdByEmail(inv.email as string);
     if (existingUserId) {
-      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-      await supabaseAdmin
-        .from("account_members")
-        .upsert(
-          { owner_id: userId, member_user_id: existingUserId, role: "agent", status: "active", invited_by: userId },
-          { onConflict: "owner_id,member_user_id" },
-        );
-      await supabaseAdmin
-        .from("account_member_invites")
-        .update({ status: "accepted", accepted_user_id: existingUserId, accepted_at: new Date().toISOString() })
-        .eq("id", inv.id);
-      return { ok: true, autoAccepted: true };
+      return { ok: true, autoAccepted: false, existingUser: true };
     }
     await sendAccountInviteEmail(inv.email as string, (inviter?.full_name as string) ?? null);
     return { ok: true, autoAccepted: false };
+
 
   });
 
