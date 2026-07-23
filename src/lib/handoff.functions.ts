@@ -82,7 +82,7 @@ export const listHandoffConversations = createServerFn({ method: "POST" })
         const [logsR, eventsR] = await Promise.all([
           supabaseAdmin
             .from("guide_access_logs")
-            .select("property_id, guest_name, guest_phone, guest_phone_country, checkin_date, reservation_code, created_at")
+            .select("property_id, guest_name, guest_phone, guest_phone_country, checkin_date, checkout_date, reservation_code, created_at")
             .in("property_id", propIds)
             .order("created_at", { ascending: false })
             .limit(5000),
@@ -92,6 +92,7 @@ export const listHandoffConversations = createServerFn({ method: "POST" })
             .order("created_at", { ascending: false })
             .limit(10000),
         ]);
+
 
         type LogRow = {
           property_id: string;
