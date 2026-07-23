@@ -73,6 +73,8 @@ export const listHandoffConversations = createServerFn({ method: "POST" })
       const t = iso ? Date.parse(iso) : NaN;
       return Number.isFinite(t) ? t : 0;
     };
+    const isPreviewName = (s: string | null | undefined) =>
+      !!s && /pr[eé]\s*-?\s*visualiza|preview/i.test(s.trim());
     const details: Record<string, HandoffGuestDetail> = {};
     const mergeDetails: Record<string, HandoffGuestDetail> = {};
     if (list.length > 0) {
@@ -124,9 +126,6 @@ export const listHandoffConversations = createServerFn({ method: "POST" })
         const events = (eventsR.data ?? []) as EventRow[];
         const logRows: LogRow[] = [];
         const latestEventBySession = new Map<string, EventRow>();
-
-        const isPreviewName = (s: string | null | undefined) =>
-          !!s && /pr[eé]\s*-?\s*visualiza|preview/i.test(s.trim());
 
         for (const l of logs) {
           // Ignora registros de "Pré-visualização" (acesso do admin em modo preview)
@@ -286,7 +285,10 @@ export const listHandoffConversations = createServerFn({ method: "POST" })
       return bCk - aCk;
     });
 
-    return { conversations: deduped, details };
+    return {
+      conversations: deduped.map((c) => (isPreviewName(c.guest_name) ? { ...c, guest_name: null } : c)),
+      details,
+    };
   });
 
 
@@ -329,7 +331,7 @@ export const getHandoffConversation = createServerFn({ method: "POST" })
       checkinDate: string | null;
       checkoutDate: string | null;
       reservationCode: string | null;
-    } = { name: conv.guest_name, phone: null, phoneCountry: null, checkinDate: null, checkoutDate: null, reservationCode: null };
+    } = { name: null, phone: null, phoneCountry: null, checkinDate: null, checkoutDate: null, reservationCode: null };
     try {
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
       if (conv.property_id) {
