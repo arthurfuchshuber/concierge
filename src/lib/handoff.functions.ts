@@ -100,6 +100,7 @@ export const listHandoffConversations = createServerFn({ method: "POST" })
           guest_phone: string | null;
           guest_phone_country: string | null;
           checkin_date: string | null;
+          checkout_date: string | null;
           reservation_code: string | null;
           created_at: string;
         };
@@ -116,6 +117,7 @@ export const listHandoffConversations = createServerFn({ method: "POST" })
           guest_phone: string | null;
           guest_phone_country: string | null;
           checkin_date: string | null;
+          checkout_date: string | null;
           reservation_code: string | null;
           created_at: string;
         }>;
@@ -123,18 +125,26 @@ export const listHandoffConversations = createServerFn({ method: "POST" })
         const logRows: LogRow[] = [];
         const latestEventBySession = new Map<string, EventRow>();
 
+        const isPreviewName = (s: string | null | undefined) =>
+          !!s && /pr[eé]\s*-?\s*visualiza|preview/i.test(s.trim());
+
         for (const l of logs) {
+          // Ignora registros de "Pré-visualização" (acesso do admin em modo preview)
+          // para que não vazem como nome do hóspede na fila de atendimento.
+          if (isPreviewName(l.guest_name as string | null)) continue;
           const row: LogRow = {
             property_id: l.property_id as string,
             guest_name: l.guest_name as string | null,
             guest_phone: l.guest_phone as string | null,
             guest_phone_country: l.guest_phone_country as string | null,
             checkin_date: (l.checkin_date as string | null) ?? null,
+            checkout_date: (l.checkout_date as string | null) ?? null,
             reservation_code: (l.reservation_code as string | null) ?? null,
             created_at: l.created_at as string,
           };
           logRows.push(row);
         }
+
         for (const e of events) {
           if (!e.guest_session_id) continue;
           const key = `${e.property_id}|${e.guest_session_id}`;
