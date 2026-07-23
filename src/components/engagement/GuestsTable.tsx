@@ -163,7 +163,8 @@ export function GuestsTable({
             </thead>
             <tbody>
               {pageRows.map((g) => {
-                const waNum = g.phone ? `${(g.phoneCountry ?? "").replace(/\D+/g, "")}${g.phone.replace(/\D+/g, "")}` : "";
+                const waNum = g.phone ? toWhatsappNumber(g.phone, g.phoneCountry) : "";
+                const phoneLabel = g.phone ? formatIntlPhone(g.phone, g.phoneCountry) : "";
                 return (
                 <tr
                   key={g.key}
