@@ -207,6 +207,7 @@ export const listHandoffConversations = createServerFn({ method: "POST" })
               phone: matchedLog.guest_phone,
               phoneCountry: matchedLog.guest_phone_country,
               checkinDate: matchedLog.checkin_date,
+              checkoutDate: matchedLog.checkout_date,
               reservationCode: matchedLog.reservation_code,
             };
             details[conv.id as string] = d;
@@ -217,6 +218,7 @@ export const listHandoffConversations = createServerFn({ method: "POST" })
               phone: eventMatch.guest_phone,
               phoneCountry: null,
               checkinDate: null,
+              checkoutDate: null,
               reservationCode: null,
             };
           } else {
@@ -230,11 +232,13 @@ export const listHandoffConversations = createServerFn({ method: "POST" })
                 phone: fallback.guest_phone,
                 phoneCountry: fallback.guest_phone_country,
                 checkinDate: fallback.checkin_date,
+                checkoutDate: fallback.checkout_date,
                 reservationCode: fallback.reservation_code,
               };
               mergeDetails[conv.id as string] = details[conv.id as string];
             }
           }
+
         }
       } catch {
         // silencioso — se falhar, seguimos apenas com o que temos na conversa
