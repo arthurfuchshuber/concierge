@@ -1,14 +1,15 @@
 import { createFileRoute, useNavigate, useSearch } from "@tanstack/react-router";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { CreditCard, UsersRound, User as UserIcon } from "lucide-react";
+import { CreditCard, UsersRound, User as UserIcon, ShieldCheck } from "lucide-react";
 import { AssinaturaPage } from "@/components/admin-pages/AssinaturaPage";
 import { EquipePage } from "@/components/admin-pages/EquipePage";
 import { MeuPerfilPage } from "@/components/admin-pages/MeuPerfilPage";
+import { PermissoesPage } from "@/components/admin-pages/PermissoesPage";
 
-type Tab = "perfil" | "assinatura" | "equipe";
+type Tab = "perfil" | "assinatura" | "equipe" | "permissoes";
 
 function coerceTab(v: unknown): Tab {
-  return v === "assinatura" || v === "equipe" ? v : "perfil";
+  return v === "assinatura" || v === "equipe" || v === "permissoes" ? v : "perfil";
 }
 
 export const Route = createFileRoute("/_authenticated/admin/administrativo")({
@@ -47,6 +48,9 @@ function AdministrativoPage() {
             <TabsTrigger value="equipe" className="gap-2 rounded-xl px-4 py-2 text-sm">
               <UsersRound className="size-4" /> Equipe
             </TabsTrigger>
+            <TabsTrigger value="permissoes" className="gap-2 rounded-xl px-4 py-2 text-sm">
+              <ShieldCheck className="size-4" /> Permissões
+            </TabsTrigger>
           </TabsList>
         </div>
         <TabsContent value="perfil" className="mt-0">
@@ -57,6 +61,9 @@ function AdministrativoPage() {
         </TabsContent>
         <TabsContent value="equipe" className="mt-0">
           <EquipePage />
+        </TabsContent>
+        <TabsContent value="permissoes" className="mt-0">
+          <PermissoesPage />
         </TabsContent>
       </Tabs>
     </div>

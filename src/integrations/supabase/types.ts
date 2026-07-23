@@ -56,6 +56,33 @@ export type Database = {
         }
         Relationships: []
       }
+      account_member_permissions: {
+        Row: {
+          granted: boolean
+          member_user_id: string
+          owner_id: string
+          permission: Database["public"]["Enums"]["member_permission"]
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          granted?: boolean
+          member_user_id: string
+          owner_id: string
+          permission: Database["public"]["Enums"]["member_permission"]
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          granted?: boolean
+          member_user_id?: string
+          owner_id?: string
+          permission?: Database["public"]["Enums"]["member_permission"]
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       account_members: {
         Row: {
           created_at: string
@@ -1983,6 +2010,14 @@ export type Database = {
         Args: { check_env?: string; user_uuid: string }
         Returns: boolean
       }
+      has_member_permission: {
+        Args: {
+          _owner_id: string
+          _permission: Database["public"]["Enums"]["member_permission"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -2032,6 +2067,13 @@ export type Database = {
       chat_conversation_status: "ai" | "needs_human" | "assigned" | "resolved"
       chat_sender_type: "guest" | "ai" | "human" | "system"
       guide_language: "pt" | "en"
+      member_permission:
+        | "chat_respond"
+        | "ai_train"
+        | "library_edit"
+        | "clients_manage"
+        | "trial_manage"
+        | "pricing_override"
       rec_scope: "nearby" | "city"
       rec_type:
         | "restaurant"
@@ -2179,6 +2221,14 @@ export const Constants = {
       chat_conversation_status: ["ai", "needs_human", "assigned", "resolved"],
       chat_sender_type: ["guest", "ai", "human", "system"],
       guide_language: ["pt", "en"],
+      member_permission: [
+        "chat_respond",
+        "ai_train",
+        "library_edit",
+        "clients_manage",
+        "trial_manage",
+        "pricing_override",
+      ],
       rec_scope: ["nearby", "city"],
       rec_type: [
         "restaurant",
