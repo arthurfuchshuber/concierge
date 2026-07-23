@@ -480,7 +480,7 @@ function BibliotecaPage() {
             >
               <Plus className="size-4 mr-1.5" /> Nova pergunta
             </Button>
-            <Button onClick={handleSaveFaqs} disabled={savingFaqs} className="rounded-full">
+            <Button onClick={handleSaveFaqs} disabled={savingFaqs || !canLibrary} title={!canLibrary ? "Sem permissão para editar a biblioteca" : undefined} className="rounded-full">
               {savingFaqs ? (
                 <Loader2 className="size-4 mr-1.5 animate-spin" />
               ) : (
