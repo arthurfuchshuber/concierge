@@ -40,9 +40,11 @@ export const saveHostFaqs = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
+    await requireMemberPermission(supabase, userId, userId, "library_edit");
     // Replace-all strategy keeps the editor simple
     const { error: delErr } = await supabase.from("host_faqs").delete().eq("owner_id", userId);
     if (delErr) throw new Error(delErr.message);
+
     if (!data.items.length) return { saved: 0 };
     const rows = data.items.map((it, i) => ({
       owner_id: userId,
