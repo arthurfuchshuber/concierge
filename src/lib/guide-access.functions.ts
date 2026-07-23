@@ -51,7 +51,9 @@ export const recordGuideAccess = createServerFn({ method: "POST" })
       guest_name: data.guest_name,
       reservation_code: data.reservation_code?.trim() || null,
       checkin_date: data.checkin_date,
+      checkout_date: data.checkout_date ?? null,
       guest_phone: data.guest_phone?.trim() || null,
+
       guest_phone_country: data.guest_phone_country?.trim() || null,
       guest_arrival_time: data.guest_arrival_time?.trim() || null,
       guest_vehicles: data.guest_vehicles && data.guest_vehicles.length > 0 ? data.guest_vehicles : null,
