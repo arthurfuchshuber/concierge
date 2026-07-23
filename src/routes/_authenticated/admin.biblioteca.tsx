@@ -12,6 +12,8 @@ import {
 } from "@/lib/host-library.functions";
 import { listHostBehavior, saveHostBehavior } from "@/lib/host-behavior.functions";
 import { useSubscription } from "@/hooks/useSubscription";
+import { useMyPermissions } from "@/hooks/useMyPermissions";
+
 import { AiPlanLock } from "@/components/admin/AiPlanLock";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
