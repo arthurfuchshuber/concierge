@@ -92,6 +92,10 @@ function ScopeBadge({
 function BibliotecaPage() {
   const { info: sub } = useSubscription();
   const aiLocked = !sub.features.ai;
+  const { can, isOwner } = useMyPermissions();
+  const canLibrary = isOwner || can("library_edit");
+  const canTrain = isOwner || can("ai_train");
+
 
   const loadFaqs = useServerFn(listHostFaqs);
   const persistFaqs = useServerFn(saveHostFaqs);
