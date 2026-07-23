@@ -322,8 +322,9 @@ export const getHandoffConversation = createServerFn({ method: "POST" })
       phone: string | null;
       phoneCountry: string | null;
       checkinDate: string | null;
+      checkoutDate: string | null;
       reservationCode: string | null;
-    } = { name: conv.guest_name, phone: null, phoneCountry: null, checkinDate: null, reservationCode: null };
+    } = { name: conv.guest_name, phone: null, phoneCountry: null, checkinDate: null, checkoutDate: null, reservationCode: null };
     try {
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
       if (conv.property_id) {
@@ -333,6 +334,8 @@ export const getHandoffConversation = createServerFn({ method: "POST" })
           const t = iso ? Date.parse(iso) : NaN;
           return Number.isFinite(t) ? t : 0;
         };
+        const isPreviewName = (s: string | null | undefined) =>
+          !!s && /pr[eé]\s*-?\s*visualiza|preview/i.test(s.trim());
         let identity: { name: string | null; phone: string | null } = { name: conv.guest_name, phone: null };
         if (!identity.name && conv.guest_session_id) {
           const { data: events } = await (supabaseAdmin.from("guide_section_events" as never) as ReturnType<typeof supabaseAdmin.from>)
@@ -348,17 +351,17 @@ export const getHandoffConversation = createServerFn({ method: "POST" })
 
         const phone = onlyDigits(identity.phone);
         const name = norm(identity.name);
-        type AccessLog = { guest_name: string | null; guest_phone: string | null; guest_phone_country: string | null; checkin_date: string | null; reservation_code: string | null; created_at: string };
+        type AccessLog = { guest_name: string | null; guest_phone: string | null; guest_phone_country: string | null; checkin_date: string | null; checkout_date: string | null; reservation_code: string | null; created_at: string };
         let log: AccessLog | null = null;
         if (name || phone) {
           const { data: logs } = await supabaseAdmin
             .from("guide_access_logs")
-            .select("guest_name, guest_phone, guest_phone_country, checkin_date, reservation_code, created_at")
+            .select("guest_name, guest_phone, guest_phone_country, checkin_date, checkout_date, reservation_code, created_at")
             .eq("property_id", conv.property_id)
             .order("checkin_date", { ascending: false, nullsFirst: false })
             .order("created_at", { ascending: false })
             .limit(100);
-          log = ((logs ?? []) as AccessLog[]).find((l) =>
+          log = ((logs ?? []) as AccessLog[]).filter((l) => !isPreviewName(l.guest_name)).find((l) =>
             (phone && onlyDigits(l.guest_phone) === phone) || (name && norm(l.guest_name) === name),
           ) ?? null;
         }
@@ -366,11 +369,12 @@ export const getHandoffConversation = createServerFn({ method: "POST" })
           const anchor = timeOf(conv.created_at) || timeOf(conv.last_message_at);
           const { data: logs } = await supabaseAdmin
             .from("guide_access_logs")
-            .select("guest_name, guest_phone, guest_phone_country, checkin_date, reservation_code, created_at")
+            .select("guest_name, guest_phone, guest_phone_country, checkin_date, checkout_date, reservation_code, created_at")
             .eq("property_id", conv.property_id)
             .order("created_at", { ascending: false })
             .limit(500);
           log = ((logs ?? []) as AccessLog[]).filter((l) => {
+            if (isPreviewName(l.guest_name)) return false;
             if (!anchor || (!l.guest_name && !l.guest_phone)) return false;
             return Math.abs(timeOf(l.created_at) - anchor) <= 1000 * 60 * 60 * 96;
           }).sort((a, b) => Math.abs(timeOf(a.created_at) - anchor) - Math.abs(timeOf(b.created_at) - anchor))[0] ?? null;
@@ -381,12 +385,14 @@ export const getHandoffConversation = createServerFn({ method: "POST" })
             phone: log.guest_phone,
             phoneCountry: log.guest_phone_country,
             checkinDate: log.checkin_date,
+            checkoutDate: log.checkout_date,
             reservationCode: log.reservation_code,
           };
         } else if (identity.name || identity.phone) {
           guestDetails = { ...guestDetails, name: identity.name, phone: identity.phone };
         }
       }
+
     } catch {
       // silencioso — se não achar, seguimos com o que temos
     }
