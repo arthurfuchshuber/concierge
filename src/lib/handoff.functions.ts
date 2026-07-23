@@ -1,5 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireMemberPermission } from "@/lib/member-permissions.server";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   emptyHandoffListResult,
   normalizeHandoffConversationRows,
@@ -11,6 +13,23 @@ import {
   type HandoffGuestDetail,
   type HandoffListResult,
 } from "@/lib/handoff.schemas";
+
+// Resolve the owner_id of the property behind a conversation, then enforce chat_respond.
+async function requireChatRespondForConversation(
+  supabase: SupabaseClient,
+  userId: string,
+  conversationId: string,
+): Promise<void> {
+  const { data: conv } = await supabase
+    .from("property_chat_conversations")
+    .select("property_id, properties:property_id(owner_id)")
+    .eq("id", conversationId)
+    .maybeSingle();
+  const ownerId = (conv?.properties as { owner_id?: string } | null)?.owner_id;
+  if (!ownerId) return; // conversa órfã: deixa a RLS decidir
+  await requireMemberPermission(supabase, userId, ownerId, "chat_respond");
+}
+
 
 // -------- List conversations for the current user (filtered by queue) --------
 
