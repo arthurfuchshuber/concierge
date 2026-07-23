@@ -23,8 +23,10 @@ import { ptBR } from "date-fns/locale";
 
 type Props = { conversationId: string; compact?: boolean; myUserId: string | null };
 
+import { toWhatsappNumber, formatIntlPhone } from "@/lib/masks";
+
 function whatsappHref(phone: string, country: string | null) {
-  const digits = `${(country ?? "").replace(/\D+/g, "")}${phone.replace(/\D+/g, "")}`;
+  const digits = toWhatsappNumber(phone, country);
   return digits ? `https://wa.me/${digits}` : null;
 }
 
