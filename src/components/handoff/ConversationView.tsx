@@ -222,6 +222,8 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
   const guestName = guest?.name ?? conv?.guest_name ?? "Hóspede anônimo";
   const waHref = guest?.phone ? whatsappHref(guest.phone, guest.phoneCountry) : null;
   const checkinFmt = fmtCheckin(guest?.checkinDate ?? null);
+  const checkoutFmt = fmtCheckin((guest as { checkoutDate?: string | null } | undefined)?.checkoutDate ?? null);
+
 
   function handleClaim() {
     if (isLockedByOther) {
