@@ -45,7 +45,9 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import { DatePicker } from "@/components/ui/date-picker";
 import { toast } from "sonner";
-import { formatCPF, onlyDigits, isValidCPF, formatBRPhone, isValidBRMobile, isValidEmail, titleCaseName } from "@/lib/masks";
+import { formatCPF, onlyDigits, isValidCPF, isValidEmail, titleCaseName, formatIntlPhone, toE164, toWhatsappNumber, isValidIntlPhone } from "@/lib/masks";
+import PhoneInput, { type Country } from "react-phone-number-input";
+import "react-phone-number-input/style.css";
 
 
 export const Route = createFileRoute("/_authenticated/admin/clientes")({
