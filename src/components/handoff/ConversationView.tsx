@@ -594,6 +594,7 @@ export function ConversationList({
         const displayName = d?.name || c.guest_name || "Hóspede anônimo";
         const wa = d?.phone ? whatsappHref(d.phone, d.phoneCountry) : null;
         const checkin = fmtCheckin(d?.checkinDate ?? null);
+        const checkout = fmtCheckin(d?.checkoutDate ?? null);
         return (
           <div
             key={c.id}
@@ -608,7 +609,7 @@ export function ConversationList({
               </span>
             </div>
             <div className="text-[11px] text-muted-foreground truncate">{prop?.name ?? "—"}</div>
-            {(wa || checkin || d?.reservationCode) && (
+            {(wa || checkin || checkout || d?.reservationCode) && (
               <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-muted-foreground">
                 {wa && (
                   <a
@@ -623,9 +624,15 @@ export function ConversationList({
                 )}
                 {checkin && (
                   <span className="inline-flex items-center gap-1">
-                    <Calendar className="size-3" /> {checkin}
+                    <Calendar className="size-3" /> In {checkin}
                   </span>
                 )}
+                {checkout && (
+                  <span className="inline-flex items-center gap-1">
+                    <Calendar className="size-3" /> Out {checkout}
+                  </span>
+                )}
+
                 {d?.reservationCode && (
                   <span className="inline-flex items-center gap-1">
                     <Hash className="size-3" /> {d.reservationCode}
