@@ -93,7 +93,7 @@ export function GuideAiChat({ slug, propertyName, guestName }: { slug: string; p
     } catch { /* ignore */ }
     return { side: "right", bottom: 96 };
   });
-  const [dragOffset, setDragOffset] = useState<{ dx: number; dy: number } | null>(null);
+  const [dragOffset, setDragOffset] = useState<{ dy: number } | null>(null);
   const dragStateRef = useRef<{
     x: number; y: number; moved: boolean; pointerId: number;
     startRect: DOMRect;
@@ -118,7 +118,7 @@ export function GuideAiChat({ slug, propertyName, guestName }: { slug: string; p
         if (!state.moved && (Math.abs(dx) > 6 || Math.abs(dy) > 6)) state.moved = true;
         if (state.moved) {
           ev.preventDefault();
-          setDragOffset({ dx, dy });
+          setDragOffset({ dy });
         }
       },
       up: (ev: PointerEvent) => {
@@ -128,17 +128,13 @@ export function GuideAiChat({ slug, propertyName, guestName }: { slug: string; p
         window.removeEventListener("pointercancel", state.up);
         dragStateRef.current = null;
         if (state.moved) {
-          const dx = ev.clientX - state.x;
           const dy = ev.clientY - state.y;
-          const newLeft = state.startRect.left + dx;
           const newTop = state.startRect.top + dy;
-          const centerX = newLeft + state.startRect.width / 2;
-          const side: "left" | "right" = centerX < window.innerWidth / 2 ? "left" : "right";
           const bottomPx = Math.max(24, Math.min(
             window.innerHeight - state.startRect.height - 24,
             window.innerHeight - (newTop + state.startRect.height),
           ));
-          const next = { side, bottom: bottomPx };
+          const next = { side: pos.side, bottom: bottomPx };
           setPos(next);
           setDragOffset(null);
           try { window.localStorage.setItem("guide-chat-pos", JSON.stringify(next)); } catch { /* ignore */ }
@@ -460,7 +456,7 @@ export function GuideAiChat({ slug, propertyName, guestName }: { slug: string; p
       style={{
         bottom: `calc(env(safe-area-inset-bottom, 0px) + ${pos.bottom}px)`,
         [pos.side]: "16px",
-        transform: dragOffset ? `translate(${dragOffset.dx}px, ${dragOffset.dy}px)` : undefined,
+        transform: dragOffset ? `translateY(${dragOffset.dy}px)` : undefined,
         transition: dragOffset ? "none" : "transform 200ms ease",
         touchAction: "none",
         zIndex: 2147483600,
