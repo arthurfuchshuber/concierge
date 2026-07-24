@@ -3,6 +3,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
 
 const AirbnbInput = z.object({
+  propertyId: z.string().uuid().optional(),
   url: z
     .string()
     .trim()
