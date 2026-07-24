@@ -198,6 +198,15 @@ function PropertyEditor() {
 
 
   const importAirbnb = useServerFn(importFromAirbnb);
+  const syncIcal = useServerFn(syncPropertyAirbnbIcal);
+  const listReservations = useServerFn(listPropertyReservations);
+  const [syncingIcal, setSyncingIcal] = useState(false);
+  const reservationsQuery = useQuery({
+    queryKey: ["airbnb-reservations", id],
+    queryFn: () => listReservations({ data: { propertyId: id } }),
+    enabled: !isNew,
+    refetchInterval: 60_000,
+  });
   const { info: sub } = useSubscription();
   const canAirbnb = sub.features.autoImport;
   const canBrand = sub.features.customBrand;
