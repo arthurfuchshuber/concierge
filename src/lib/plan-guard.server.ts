@@ -72,18 +72,63 @@ export async function resolveUserPlan(
 }
 
 
+/**
+ * Resolve o plano EFETIVO para uma operação. Diferente de `resolveUserPlan`
+ * (que sempre olha a assinatura do próprio caller), este helper considera o
+ * contexto da operação:
+ *
+ *  - Se `ownerId` (ou `propertyId`) apontar para outra conta e o caller for
+ *    membro ativo dessa conta, retornamos o plano do DONO daquela conta.
+ *  - Caso contrário, retornamos o plano do próprio caller.
+ *
+ * Isso garante que membros convidados operem sob o plano da conta
+ * (Enterprise / Business / Pro) — nunca caindo em Free silenciosamente.
+ */
+export async function resolveEffectivePlan(
+  supabase: SupabaseClient,
+  userId: string,
+  opts?: { ownerId?: string | null; propertyId?: string | null },
+): Promise<ResolvedPlan> {
+  let ownerId = opts?.ownerId ?? null;
+  if (!ownerId && opts?.propertyId) {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: prop } = await supabaseAdmin
+      .from("properties")
+      .select("owner_id")
+      .eq("id", opts.propertyId)
+      .maybeSingle();
+    ownerId = (prop?.owner_id as string | null) ?? null;
+  }
+  if (ownerId && ownerId !== userId) {
+    // Verifica membership antes de usar o admin client (evita leak entre contas).
+    const { data: isMember } = await supabase.rpc("is_account_member", {
+      _user_id: userId,
+      _owner_id: ownerId,
+    });
+    if (isMember) {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      return await resolveOwnerPlanAdmin(supabaseAdmin, ownerId);
+    }
+  }
+  return await resolveUserPlan(supabase, userId);
+}
+
 export async function assertCanCreateGuide(
   supabase: SupabaseClient,
   userId: string,
+  opts?: { ownerId?: string | null },
 ): Promise<void> {
-  const plan = await resolveUserPlan(supabase, userId);
+  const targetOwner = opts?.ownerId ?? userId;
+  const plan = await resolveEffectivePlan(supabase, userId, { ownerId: targetOwner });
   if (!plan.plan) {
     throw new Error("Você precisa de um plano ativo para criar guias. Assine em /precos.");
   }
-  const { count, error } = await supabase
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const client = targetOwner !== userId ? supabaseAdmin : supabase;
+  const { count, error } = await client
     .from("properties")
     .select("id", { count: "exact", head: true })
-    .eq("owner_id", userId);
+    .eq("owner_id", targetOwner);
   if (error) return; // soft-fail on count errors
   if ((count ?? 0) >= plan.maxGuides) {
     throw new Error(
@@ -96,8 +141,9 @@ export async function assertFeature(
   supabase: SupabaseClient,
   userId: string,
   feature: "autoImport" | "ai" | "customBrand",
+  opts?: { ownerId?: string | null; propertyId?: string | null },
 ): Promise<void> {
-  const plan = await resolveUserPlan(supabase, userId);
+  const plan = await resolveEffectivePlan(supabase, userId, opts);
   if (!plan.features[feature]) {
     const labels = {
       autoImport: "Importação automática (Airbnb)",
@@ -109,6 +155,7 @@ export async function assertFeature(
     );
   }
 }
+
 
 /**
  * Resolves a property owner's plan using the service role client. For use in
