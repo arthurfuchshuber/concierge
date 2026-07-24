@@ -24,7 +24,15 @@ async function buildPropertyContext(propertyId: string, userId: string): Promise
     .select("id, name, owner_id, address, checkin_time, checkout_time, wifi_ssid, host_name, tagline")
     .eq("id", propertyId)
     .maybeSingle();
-  if (!prop || prop.owner_id !== userId) return "";
+  if (!prop) return "";
+  // Owner OU membro ativo da conta do owner podem carregar o contexto.
+  if (prop.owner_id !== userId) {
+    const { data: isMember } = await supabaseAdmin.rpc("is_account_member", {
+      _user_id: userId,
+      _owner_id: prop.owner_id as string,
+    });
+    if (!isMember) return "";
+  }
 
   const [recs, emerg] = await Promise.all([
     supabaseAdmin.from("property_recommendations").select("name, category, distance_text, scope").eq("property_id", propertyId).limit(20),
@@ -52,7 +60,10 @@ export const askConcierge = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => InputSchema.parse(input))
   .handler(async ({ data, context }) => {
     const { assertFeature } = await import("@/lib/plan-guard.server");
-    await assertFeature(context.supabase, context.userId, "ai");
+    // Gate pelo plano da CONTA (dono da propriedade), não do caller — assim
+    // membros de equipe herdam o plano contratado.
+    await assertFeature(context.supabase, context.userId, "ai", { propertyId: data.propertyId ?? null });
+
     const apiKey = process.env.LOVABLE_API_KEY;
     if (!apiKey) {
       throw new Error("LOVABLE_API_KEY não configurada.");
