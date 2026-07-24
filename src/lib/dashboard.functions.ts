@@ -296,10 +296,17 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
           icalCheckout = near.checkout;
         }
       }
+      const evK = eventKey(l.property_id, l.guest_name, l.guest_phone);
       return {
         logId: l.id,
         propertyId: l.property_id,
         propertyName: p?.name ?? null,
+        propertyAddress: p?.address ?? null,
+        mapsUrl: p?.maps_url ?? null,
+        garageMapsUrl: p?.garage_maps_url ?? null,
+        hasPasswords: !!p?.hasPasswords,
+        openedCheckin: openedCheckinSet.has(evK),
+        viewedPasswords: viewedPasswordsSet.has(evK),
         guestName: l.guest_name,
         guestPhone: l.guest_phone,
         guestPhoneCountry: l.guest_phone_country,
