@@ -293,9 +293,9 @@ function DashboardPage() {
       </section>
 
       {/* Arrivals */}
-      <section className="relative overflow-hidden rounded-2xl border border-primary/10 bg-gradient-to-br from-primary/[0.03] via-transparent to-transparent p-4 sm:p-6 space-y-4 shadow-sm">
-        <div className="pointer-events-none absolute -bottom-32 -left-24 size-72 rounded-full bg-primary/5 blur-3xl" />
-        <div className="relative flex flex-wrap items-center gap-3">
+      <section className="rounded-2xl border border-border bg-card p-4 sm:p-5 space-y-4 shadow-sm">
+        <div className="flex flex-wrap items-center gap-3">
+
           <div className="inline-flex rounded-xl border border-primary/15 bg-primary/[0.03] overflow-hidden text-sm">
             <TabBtn active={kind === "checkin"} onClick={() => setKind("checkin")} icon={CalendarCheck}>Check-ins</TabBtn>
             <TabBtn active={kind === "checkout"} onClick={() => setKind("checkout")} icon={CalendarX}>Check-outs</TabBtn>
