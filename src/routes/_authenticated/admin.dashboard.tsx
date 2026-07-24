@@ -614,8 +614,6 @@ function ArrivalCard({ row, kind, onMark, onSyncIcal, onNote, onEditDates, onEdi
     <div className={`group relative overflow-hidden rounded-2xl border p-4 space-y-3 transition-all ${
       done
         ? "bg-secondary/30 border-border/50"
-        : isPendingFill
-        ? "bg-[linear-gradient(135deg,color-mix(in_oklab,var(--primary)_6%,transparent),transparent_60%)] border-primary/15 border-dashed"
         : isToday
         ? "bg-[linear-gradient(135deg,color-mix(in_oklab,var(--primary)_7%,transparent),color-mix(in_oklab,var(--primary)_2%,transparent))] border-primary/30 shadow-[0_14px_44px_-14px_color-mix(in_oklab,var(--primary)_55%,transparent),0_2px_8px_-2px_color-mix(in_oklab,var(--primary)_25%,transparent)] hover:shadow-[0_18px_54px_-14px_color-mix(in_oklab,var(--primary)_65%,transparent),0_2px_10px_-2px_color-mix(in_oklab,var(--primary)_30%,transparent)] hover:-translate-y-0.5"
         : "bg-[linear-gradient(135deg,color-mix(in_oklab,var(--primary)_5%,transparent),color-mix(in_oklab,var(--primary)_1%,transparent))] border-primary/15 shadow-sm hover:shadow-md hover:-translate-y-0.5"
@@ -623,12 +621,11 @@ function ArrivalCard({ row, kind, onMark, onSyncIcal, onNote, onEditDates, onEdi
       {!done && (
         <>
           <span aria-hidden className="absolute left-0 top-4 bottom-4 w-0.5 rounded-r bg-gradient-to-b from-primary/70 to-primary/30" />
-          {/* Contained decorative glow — no bleed */}
           <span aria-hidden className={`pointer-events-none absolute top-0 right-0 -translate-y-1/3 translate-x-1/3 rounded-full blur-2xl ${isToday ? "size-40 bg-primary/[0.14]" : "size-32 bg-primary/[0.07]"}`} />
         </>
       )}
 
-      {/* Header: name + dates (checkout vertically centered against guest name block) */}
+      {/* Header: avatar + name + property + inline date range */}
       <div className="flex items-center gap-3">
         <div className={`size-11 rounded-xl grid place-items-center font-semibold shrink-0 ring-1 ${
           isPendingFill
@@ -642,43 +639,38 @@ function ArrivalCard({ row, kind, onMark, onSyncIcal, onNote, onEditDates, onEdi
           <div className="text-xs text-muted-foreground truncate flex items-center gap-1">
             <Home className="size-3 shrink-0" /> {row.propertyName ?? "Sem nome"}
           </div>
-        </div>
-        {/* Stacked check-in / check-out dates, both editable, centered on name */}
-        <div className="text-right shrink-0 flex flex-col items-end gap-0.5 self-center">
-          <DateEditor
-            label="Check-in"
-            value={row.guestCheckin}
-            disabled={busy}
-            onChange={(v) => onEditDates(row, { checkinDate: v })}
-          />
-          {row.guestCheckout && (
+          {/* Período: "dd/mm/aaaa a dd/mm/aaaa", editável inline, alinhado à esquerda */}
+          <div className="mt-1 flex items-center gap-1 text-xs tabular-nums text-foreground/80">
             <DateEditor
-              label="Check-out"
-              value={row.guestCheckout}
-              disabled={busy}
-              onChange={(v) => onEditDates(row, { checkoutDate: v })}
+              value={row.guestCheckin}
+              disabled={busy || isPendingFill}
+              onChange={(v) => onEditDates(row, { checkinDate: v })}
             />
-          )}
+            {row.guestCheckout && (
+              <>
+                <span className="text-muted-foreground">a</span>
+                <DateEditor
+                  value={row.guestCheckout}
+                  disabled={busy || isPendingFill}
+                  onChange={(v) => onEditDates(row, { checkoutDate: v })}
+                />
+              </>
+            )}
+          </div>
         </div>
       </div>
 
-      {/* Engagement badges */}
-      {!isPendingFill && (row.openedCheckin || (row.hasPasswords && row.viewedPasswords) || row.hasPasswords) && (
+      {/* Engagement — só mostra pendências (fatos negativos). Estados positivos são omitidos. */}
+      {!isPendingFill && (!row.openedCheckin || (row.hasPasswords && !row.viewedPasswords)) && (
         <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
-          <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 border ${
-            row.openedCheckin
-              ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/25"
-              : "bg-muted/40 text-muted-foreground border-border/60"
-          }`}>
-            <Eye className="size-3" /> {row.openedCheckin ? "Abriu Chegada" : "Não abriu Chegada"}
-          </span>
-          {row.hasPasswords && (
-            <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 border ${
-              row.viewedPasswords
-                ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/25"
-                : "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/25"
-            }`}>
-              <KeyRound className="size-3" /> {row.viewedPasswords ? "Viu senhas" : "Não viu senhas"}
+          {!row.openedCheckin && (
+            <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 border bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/25">
+              <Eye className="size-3" /> Não abriu Chegada
+            </span>
+          )}
+          {row.hasPasswords && !row.viewedPasswords && (
+            <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 border bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/25">
+              <KeyRound className="size-3" /> Não viu senhas
             </span>
           )}
         </div>
@@ -731,8 +723,6 @@ function ArrivalCard({ row, kind, onMark, onSyncIcal, onNote, onEditDates, onEdi
         const iIn = row.ical.icalCheckin;
         const iOut = row.ical.icalCheckout;
         const anyDivergent = row.ical.matched && ((iIn && iIn !== gIn) || (iOut && gOut && iOut !== gOut));
-        // Só renderiza quando o "fato" NÃO aconteceu: divergência ou sem match no iCal.
-        // Reserva confirmada e alinhada não vira faixa — economiza espaço no card.
         if (!anyDivergent && row.ical.matched) return null;
         const fmtRange = (a: string | null, b: string | null) =>
           `${a ? fmtDateBR(a) : "?"} a ${b ? fmtDateBR(b) : "?"}`;
@@ -766,7 +756,7 @@ function ArrivalCard({ row, kind, onMark, onSyncIcal, onNote, onEditDates, onEdi
       })()}
 
       {isPendingFill && (
-        <div className="text-xs rounded-lg bg-primary/[0.06] border border-primary/15 px-2 py-1.5 flex items-center gap-2 text-foreground/70">
+        <div className="w-full text-xs rounded-lg bg-amber-500/10 border border-amber-500/30 px-2 py-1.5 flex items-center gap-2 text-amber-700 dark:text-amber-400">
           <UserPlus className="size-3.5 shrink-0" />
           <span>Reserva iCal · aguardando preenchimento do formulário de acesso</span>
         </div>
@@ -795,7 +785,7 @@ function ArrivalCard({ row, kind, onMark, onSyncIcal, onNote, onEditDates, onEdi
         </button>
       )}
 
-      {noteOpen && !isPendingFill && (
+      {noteOpen && (
         <div className="space-y-2">
           <textarea
             value={noteText}
@@ -826,18 +816,17 @@ function ArrivalCard({ row, kind, onMark, onSyncIcal, onNote, onEditDates, onEdi
         </div>
       )}
 
+      {/* Action row: ícones à esquerda; Copiar + Maps agrupados à direita */}
       <div className="flex flex-wrap items-center gap-2 pt-1">
-        {!isPendingFill && (
-          <button
-            onClick={() => onMark(row)}
-            disabled={busy}
-            aria-label={done ? "Reabrir" : "Marcar como realizado"}
-            title={done ? "Reabrir" : "Marcar como realizado"}
-            className={`size-9 grid place-items-center rounded-lg transition-colors ${done ? "bg-secondary hover:bg-secondary/80" : "bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm shadow-emerald-600/20"}`}
-          >
-            <Check className="size-4" />
-          </button>
-        )}
+        <button
+          onClick={() => onMark(row)}
+          disabled={busy}
+          aria-label={done ? "Reabrir" : "Marcar como realizado"}
+          title={done ? "Reabrir" : "Marcar como realizado"}
+          className={`size-9 grid place-items-center rounded-lg transition-colors ${done ? "bg-secondary hover:bg-secondary/80" : "bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm shadow-emerald-600/20"}`}
+        >
+          <Check className="size-4" />
+        </button>
         {wa && (
           <a
             href={wa} target="_blank" rel="noreferrer"
@@ -847,36 +836,36 @@ function ArrivalCard({ row, kind, onMark, onSyncIcal, onNote, onEditDates, onEdi
             <MessageCircle className="size-4" />
           </a>
         )}
-        {!isPendingFill && (
-          <button
-            onClick={() => setNoteOpen((v) => !v)}
-            aria-label={row.note ? "Editar nota" : "Adicionar nota"}
-            title={row.note ? "Editar nota" : "Nota interna"}
-            className="size-9 grid place-items-center rounded-lg bg-background/60 border border-border/50 hover:bg-primary/[0.08]"
-          >
-            <StickyNote className="size-4" />
-          </button>
-        )}
+        <button
+          onClick={() => setNoteOpen((v) => !v)}
+          aria-label={row.note ? "Editar nota" : "Adicionar nota"}
+          title={row.note ? "Editar nota" : "Nota interna"}
+          className="size-9 grid place-items-center rounded-lg bg-background/60 border border-border/50 hover:bg-primary/[0.08]"
+        >
+          <StickyNote className="size-4" />
+        </button>
         {mapsHref && (
-          <a
-            href={mapsHref} target="_blank" rel="noreferrer"
-            aria-label="Abrir no Google Maps"
-            title={row.garageMapsUrl ? "Ver garagem no Maps" : "Ver endereço no Maps"}
-            className="size-9 grid place-items-center rounded-lg bg-background/60 border border-border/50 hover:bg-primary/[0.08]"
-          >
-            <MapPin className="size-4" />
-          </a>
-        )}
-        {copyText && (
-          <button
-            type="button"
-            onClick={copyLink}
-            aria-label="Copiar link do endereço"
-            title="Copiar link do endereço"
-            className="size-9 grid place-items-center rounded-lg bg-background/60 border border-border/50 hover:bg-primary/[0.08]"
-          >
-            <LinkIcon className="size-4" />
-          </button>
+          <div className="ml-auto flex items-center gap-1.5">
+            {copyText && (
+              <button
+                type="button"
+                onClick={copyLink}
+                aria-label="Copiar link do endereço"
+                title="Copiar link do endereço"
+                className="size-9 grid place-items-center rounded-lg bg-background/60 border border-border/50 hover:bg-primary/[0.08]"
+              >
+                <LinkIcon className="size-4" />
+              </button>
+            )}
+            <a
+              href={mapsHref} target="_blank" rel="noreferrer"
+              aria-label="Abrir no Google Maps"
+              title={row.garageMapsUrl ? "Ver garagem no Maps" : "Ver endereço no Maps"}
+              className="h-9 px-3 inline-flex items-center gap-1.5 rounded-lg bg-background/60 border border-border/50 hover:bg-primary/[0.08] text-sm font-medium"
+            >
+              <MapPin className="size-4" /> Maps
+            </a>
+          </div>
         )}
       </div>
     </div>
