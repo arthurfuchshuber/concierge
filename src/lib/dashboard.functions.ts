@@ -153,6 +153,7 @@ export type ArrivalRow = {
   note: string | null;
   arrivalTimeOverride: string | null;
   doneAt: string | null;
+  pendingFill: boolean;            // true = reserva iCal sem formulário preenchido
   ical: { hasIcal: boolean; matched: boolean; icalCheckin: string | null; icalCheckout: string | null };
 };
 
