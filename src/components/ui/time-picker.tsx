@@ -33,7 +33,7 @@ export function TimePicker({
   value,
   onChange,
   placeholder = "Selecione um horário",
-  step = 15,
+  step = 30,
   className,
   allowEmpty = true,
   emptyLabel = "Nenhum",

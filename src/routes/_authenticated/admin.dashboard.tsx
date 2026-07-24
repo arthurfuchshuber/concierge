@@ -251,6 +251,7 @@ function DashboardPage() {
           loading={kpisQ.isLoading}
           listQuery={kpiTodayQ} kind="checkin"
           rangeLabel="Hoje"
+          shadowTone="emerald"
         />
         <KpiCard
           label="Check-ins amanhã" value={kpisQ.data?.checkinsTomorrow} icon={LogIn} tone="primary-soft"
@@ -263,6 +264,7 @@ function DashboardPage() {
           loading={kpisQ.isLoading}
           listQuery={kpiCoTodayQ} kind="checkout"
           rangeLabel="Hoje"
+          shadowTone="amber"
         />
         <KpiCard
           label="Check-outs amanhã" value={kpisQ.data?.checkoutsTomorrow} icon={LogOut} tone="primary-soft"
@@ -281,11 +283,8 @@ function DashboardPage() {
               <TrendingUp className="size-4" />
             </div>
             <div className="min-w-0">
-              <div className="text-sm font-semibold flex items-center gap-1">
+              <div className="text-sm font-semibold">
                 Engajamento do guia
-                <InfoHint title="Engajamento do guia">
-                  Compara quantos hóspedes com check-in no período efetivamente acessaram o guia e abriram a aba <b>Chegada</b>.
-                </InfoHint>
               </div>
               <div className="text-xs text-muted-foreground">Comparativo com os check-ins do período</div>
             </div>
@@ -310,15 +309,13 @@ function DashboardPage() {
             <SegBtn active={kind === "checkin"} onClick={() => setKind("checkin")} icon={CalendarCheck}>Check-ins</SegBtn>
             <SegBtn active={kind === "checkout"} onClick={() => setKind("checkout")} icon={CalendarX}>Check-outs</SegBtn>
           </div>
-          <RangeDropdown
-            value={range}
-            onChange={setRange}
-            options={[["today", "Hoje"], ["tomorrow", "Amanhã"], ["7d", "7 dias"], ["all", "Todos"]]}
-          />
-          <InfoHint title="Fila de chegadas / saídas">
-            Cada card representa uma reserva. Marque <b>Realizado</b> para tirar da fila; use <b>WhatsApp</b> para falar direto; a <b>Nota</b> fica visível só para sua equipe. Reservas sem formulário preenchido aparecem como <i>Hóspede pendente</i>.
-          </InfoHint>
-          <div className="ml-auto text-xs text-muted-foreground tabular-nums">{rangeLabel[range]} · {rows.length} registro{rows.length !== 1 ? "s" : ""}</div>
+          <div className="ml-auto">
+            <RangeDropdown
+              value={range}
+              onChange={setRange}
+              options={[["today", "Hoje"], ["tomorrow", "Amanhã"], ["7d", "7 dias"], ["all", "Todos"]]}
+            />
+          </div>
         </div>
 
         {listQ.isLoading ? (
@@ -369,27 +366,38 @@ function DashboardPage() {
 
 /* ------------------------- UI Building Blocks ------------------------- */
 
-function KpiCard({ label, value, icon: Icon, tone, loading, listQuery, kind, rangeLabel }: {
+function KpiCard({ label, value, icon: Icon, tone, loading, listQuery, kind, rangeLabel, shadowTone }: {
   label: string; value: number | undefined; icon: React.ElementType;
   tone: "primary" | "primary-soft"; loading: boolean;
   listQuery: ReturnType<typeof useQuery<{ rows: ArrivalRow[] } | undefined>>;
   kind: "checkin" | "checkout"; rangeLabel: string;
+  shadowTone?: "emerald" | "amber";
 }) {
   const [open, setOpen] = useState(false);
   const valueTone = tone === "primary" ? "text-primary" : "text-foreground";
   const rows = listQuery.data?.rows ?? [];
+  const shadowClass =
+    shadowTone === "emerald"
+      ? "shadow-[0_14px_44px_-14px_rgb(16_185_129_/_0.55),0_2px_8px_-2px_rgb(16_185_129_/_0.25)] hover:shadow-[0_18px_54px_-14px_rgb(16_185_129_/_0.65)] border-emerald-500/30"
+      : shadowTone === "amber"
+        ? "shadow-[0_14px_44px_-14px_rgb(245_158_11_/_0.55),0_2px_8px_-2px_rgb(245_158_11_/_0.25)] hover:shadow-[0_18px_54px_-14px_rgb(245_158_11_/_0.65)] border-amber-500/30"
+        : "";
+  const valueColor =
+    shadowTone === "emerald" ? "text-emerald-600 dark:text-emerald-400"
+      : shadowTone === "amber" ? "text-amber-600 dark:text-amber-400"
+      : valueTone;
 
   return (
     <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (v) listQuery.refetch(); }}>
       <DialogTrigger asChild>
         <button
           type="button"
-          className="rounded-xl border border-border bg-card px-4 py-3 text-left transition hover:border-primary/40 hover:bg-secondary/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+          className={`rounded-xl border border-border bg-card px-4 py-3 text-left transition hover:border-primary/40 hover:bg-secondary/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${shadowClass}`}
         >
           <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.16em] text-muted-foreground font-semibold">
             <Icon className="size-3.5" /> <span className="truncate">{label}</span>
           </div>
-          <div className={`text-2xl font-display mt-1 tabular-nums ${valueTone}`}>
+          <div className={`text-2xl font-display mt-1 tabular-nums ${valueColor}`}>
             {loading ? "—" : value ?? 0}
           </div>
         </button>
@@ -514,15 +522,18 @@ function EngagementBars({ loading, checkins, guideOpens, checkinTabOpens }: {
   );
 }
 function BarRow({ label, value, total, pct }: { label: string; value: number; total: number; pct: number }) {
-  const health = pct >= 80 ? "from-emerald-500 to-emerald-400" : pct >= 50 ? "from-primary to-primary/80" : "from-amber-500 to-amber-400";
   return (
     <div className="space-y-1.5">
       <div className="flex items-center justify-between text-sm">
         <span className="font-medium">{label}</span>
         <span className="tabular-nums text-muted-foreground text-xs">{value} / {total} check-ins</span>
       </div>
-      <div className="h-2.5 rounded-full bg-secondary/60 overflow-hidden">
-        <div className={`h-full bg-gradient-to-r ${health} transition-[width] duration-700`} style={{ width: `${pct}%` }} />
+      {/* Battery: red base, green fill overlay */}
+      <div className="h-2.5 rounded-full bg-rose-500/70 overflow-hidden ring-1 ring-rose-500/20">
+        <div
+          className="h-full bg-gradient-to-r from-emerald-500 to-emerald-400 transition-[width] duration-700"
+          style={{ width: `${pct}%` }}
+        />
       </div>
     </div>
   );
@@ -617,35 +628,8 @@ function ArrivalCard({ row, kind, onMark, onSyncIcal, onNote, onEditDates, onEdi
         </>
       )}
 
-      {/* Top-left location actions */}
-      {(mapsHref || row.propertyAddress) && !done && (
-        <div className="absolute top-3 left-3 flex items-center gap-1 z-10">
-          {copyText && (
-            <button
-              type="button"
-              onClick={copyLink}
-              title="Copiar link do endereço"
-              aria-label="Copiar link do endereço"
-              className="size-7 grid place-items-center rounded-md bg-background/70 backdrop-blur border border-border/50 text-muted-foreground hover:text-primary hover:border-primary/40"
-            >
-              <LinkIcon className="size-3.5" />
-            </button>
-          )}
-          {mapsHref && (
-            <a
-              href={mapsHref} target="_blank" rel="noreferrer"
-              title={row.garageMapsUrl ? "Ver garagem no Maps" : "Ver endereço no Maps"}
-              aria-label="Abrir no Google Maps"
-              className="inline-flex items-center gap-1 rounded-md bg-background/70 backdrop-blur border border-border/50 px-2 h-7 text-[11px] font-medium text-foreground/80 hover:text-primary hover:border-primary/40"
-            >
-              <MapPin className="size-3.5" /> Maps
-            </a>
-          )}
-        </div>
-      )}
-
-      {/* Header: name + dates */}
-      <div className={`flex items-start gap-3 ${!done && (mapsHref || row.propertyAddress) ? "pt-8" : ""}`}>
+      {/* Header: name + dates (checkout vertically centered against guest name block) */}
+      <div className="flex items-center gap-3">
         <div className={`size-11 rounded-xl grid place-items-center font-semibold shrink-0 ring-1 ${
           isPendingFill
             ? "bg-primary/5 text-primary/70 ring-primary/10"
@@ -659,8 +643,8 @@ function ArrivalCard({ row, kind, onMark, onSyncIcal, onNote, onEditDates, onEdi
             <Home className="size-3 shrink-0" /> {row.propertyName ?? "Sem nome"}
           </div>
         </div>
-        {/* Stacked check-in / check-out dates, both editable */}
-        <div className="text-right shrink-0 space-y-1">
+        {/* Stacked check-in / check-out dates, both editable, centered on name */}
+        <div className="text-right shrink-0 flex flex-col items-end gap-0.5 self-center">
           <DateEditor
             label="Check-in"
             value={row.guestCheckin}
@@ -718,6 +702,7 @@ function ArrivalCard({ row, kind, onMark, onSyncIcal, onNote, onEditDates, onEdi
             {editingTime && !isPendingFill ? (
               <input
                 type="time"
+                step={1800}
                 autoFocus
                 value={timeVal}
                 onChange={(e) => setTimeVal(e.target.value)}
@@ -746,28 +731,20 @@ function ArrivalCard({ row, kind, onMark, onSyncIcal, onNote, onEditDates, onEdi
         const iIn = row.ical.icalCheckin;
         const iOut = row.ical.icalCheckout;
         const anyDivergent = row.ical.matched && ((iIn && iIn !== gIn) || (iOut && gOut && iOut !== gOut));
+        // Só renderiza quando o "fato" NÃO aconteceu: divergência ou sem match no iCal.
+        // Reserva confirmada e alinhada não vira faixa — economiza espaço no card.
+        if (!anyDivergent && row.ical.matched) return null;
         const fmtRange = (a: string | null, b: string | null) =>
           `${a ? fmtDateBR(a) : "?"} a ${b ? fmtDateBR(b) : "?"}`;
         return (
-          <div className={`text-xs rounded-lg px-2 py-1.5 flex items-start gap-2 ${
-            anyDivergent
-              ? "bg-rose-500/10 text-rose-700 dark:text-rose-400"
-              : row.ical.matched
-                ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
-                : "bg-amber-500/10 text-amber-700 dark:text-amber-400"
-          }`}>
-            {anyDivergent ? <AlertTriangle className="size-3.5 shrink-0 mt-0.5" /> : row.ical.matched ? <Check className="size-3.5 shrink-0 mt-0.5" /> : <AlertTriangle className="size-3.5 shrink-0 mt-0.5" />}
+          <div className="w-full text-xs rounded-lg px-2 py-1.5 flex items-start gap-2 bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/30">
+            <AlertTriangle className="size-3.5 shrink-0 mt-0.5" />
             <div className="min-w-0 flex-1 leading-snug">
               {anyDivergent ? (
                 <>
                   <div className="font-semibold">Data Divergente Hóspede-Airbnb</div>
                   <div className="tabular-nums">Informada: {fmtRange(gIn, gOut)}</div>
                   <div className="tabular-nums">Correta: {fmtRange(iIn, iOut)}</div>
-                </>
-              ) : row.ical.matched ? (
-                <>
-                  <div className="font-semibold">Confirmado no Airbnb</div>
-                  <div className="tabular-nums">{fmtRange(iIn, iOut)}</div>
                 </>
               ) : (
                 <div>Sem reserva correspondente no iCal Airbnb</div>
@@ -795,8 +772,8 @@ function ArrivalCard({ row, kind, onMark, onSyncIcal, onNote, onEditDates, onEdi
         </div>
       )}
 
-      {divergent && !isPendingFill && (
-        <div className="text-xs rounded-lg bg-amber-500/10 border border-amber-500/30 px-2 py-1.5 flex items-center justify-between gap-2">
+      {divergent && !isPendingFill && !done && (
+        <div className="w-full text-xs rounded-lg bg-amber-500/10 border border-amber-500/30 px-2 py-1.5 flex items-center justify-between gap-2">
           <span className="flex items-center gap-1.5"><AlertTriangle className="size-3.5" /> Horário divergente do padrão</span>
           <button
             onClick={() => onSyncIcal(row)}
@@ -880,6 +857,27 @@ function ArrivalCard({ row, kind, onMark, onSyncIcal, onNote, onEditDates, onEdi
             <StickyNote className="size-4" />
           </button>
         )}
+        {mapsHref && (
+          <a
+            href={mapsHref} target="_blank" rel="noreferrer"
+            aria-label="Abrir no Google Maps"
+            title={row.garageMapsUrl ? "Ver garagem no Maps" : "Ver endereço no Maps"}
+            className="size-9 grid place-items-center rounded-lg bg-background/60 border border-border/50 hover:bg-primary/[0.08]"
+          >
+            <MapPin className="size-4" />
+          </a>
+        )}
+        {copyText && (
+          <button
+            type="button"
+            onClick={copyLink}
+            aria-label="Copiar link do endereço"
+            title="Copiar link do endereço"
+            className="size-9 grid place-items-center rounded-lg bg-background/60 border border-border/50 hover:bg-primary/[0.08]"
+          >
+            <LinkIcon className="size-4" />
+          </button>
+        )}
       </div>
     </div>
   );
@@ -897,9 +895,14 @@ function DateEditor({ label, value, disabled, onChange }: {
         if (input && typeof input.showPicker === "function") input.showPicker();
         else input?.focus();
       }}
-      className="relative inline-block text-right cursor-pointer rounded hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
+      className="relative inline-flex flex-col items-end cursor-pointer rounded hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
       title={`Clique para corrigir ${label.toLowerCase()}`}
     >
+      <span className="text-sm font-semibold tabular-nums leading-tight">
+        {fmtDateBR(value)}
+      </span>
+      <span className="text-[9px] uppercase tracking-wider text-muted-foreground -mt-0.5">{label}</span>
+      {/* Native input overlays the label — fully transparent, receives clicks/picker */}
       <input
         type="date"
         value={value}
@@ -910,9 +913,9 @@ function DateEditor({ label, value, disabled, onChange }: {
           onChange(v);
         }}
         onClick={(e) => e.stopPropagation()}
-        className="text-sm font-semibold tabular-nums leading-tight bg-transparent border-0 p-0 text-right w-[100px] cursor-pointer focus:outline-none [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-inner-spin-button]:hidden"
+        aria-label={label}
+        className="absolute inset-0 opacity-0 cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-0"
       />
-      <div className="text-[9px] uppercase tracking-wider text-muted-foreground -mt-0.5">{label}</div>
     </button>
   );
 }
