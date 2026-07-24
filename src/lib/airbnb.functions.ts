@@ -102,7 +102,7 @@ export const importFromAirbnb = createServerFn({ method: "POST" })
   .inputValidator((i: unknown) => AirbnbInput.parse(i))
   .handler(async ({ data, context }): Promise<AirbnbImportResult> => {
     const { assertFeature } = await import("@/lib/plan-guard.server");
-    await assertFeature(context.supabase, context.userId, "autoImport");
+    await assertFeature(context.supabase, context.userId, "autoImport", { propertyId: data.propertyId ?? null });
     const apiKey = process.env.FIRECRAWL_API_KEY;
     if (!apiKey) throw new Error("Integração Firecrawl indisponível");
 
