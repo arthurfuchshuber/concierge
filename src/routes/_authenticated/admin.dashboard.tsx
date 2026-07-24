@@ -632,31 +632,48 @@ function ArrivalCard({ row, kind, onMark, onSyncIcal, onNote, onEditDates, busy 
       </div>
 
       {row.ical.hasIcal && !isPendingFill && (() => {
-        const icalRef = kind === "checkin" ? row.ical.icalCheckin : row.ical.icalCheckout;
-        const dateDivergent = row.ical.matched && icalRef && icalRef !== row.date;
+        const gIn = row.guestCheckin;
+        const gOut = row.guestCheckout;
+        const iIn = row.ical.icalCheckin;
+        const iOut = row.ical.icalCheckout;
+        const anyDivergent = row.ical.matched && ((iIn && iIn !== gIn) || (iOut && gOut && iOut !== gOut));
+        const fmtRange = (a: string | null, b: string | null) =>
+          `${a ? fmtDateBR(a) : "?"} a ${b ? fmtDateBR(b) : "?"}`;
         return (
-          <div className={`text-xs rounded-lg px-2 py-1.5 flex items-center gap-2 ${
-            dateDivergent
+          <div className={`text-xs rounded-lg px-2 py-1.5 flex items-start gap-2 ${
+            anyDivergent
               ? "bg-rose-500/10 text-rose-700 dark:text-rose-400"
               : row.ical.matched
                 ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
                 : "bg-amber-500/10 text-amber-700 dark:text-amber-400"
           }`}>
-            {dateDivergent ? <AlertTriangle className="size-3.5 shrink-0" /> : row.ical.matched ? <Check className="size-3.5 shrink-0" /> : <AlertTriangle className="size-3.5 shrink-0" />}
-            <span className="min-w-0 truncate flex-1">
-              {dateDivergent
-                ? `Data divergente do iCal — hóspede: ${fmtDateBR(row.date)} · iCal: ${fmtDateBR(icalRef!)}`
-                : row.ical.matched
-                  ? `Confirmado no iCal Airbnb (${row.ical.icalCheckin ? fmtDateBR(row.ical.icalCheckin) : "?"} → ${row.ical.icalCheckout ? fmtDateBR(row.ical.icalCheckout) : "?"})`
-                  : "Sem reserva correspondente no iCal Airbnb"}
-            </span>
-            {dateDivergent && (
+            {anyDivergent ? <AlertTriangle className="size-3.5 shrink-0 mt-0.5" /> : row.ical.matched ? <Check className="size-3.5 shrink-0 mt-0.5" /> : <AlertTriangle className="size-3.5 shrink-0 mt-0.5" />}
+            <div className="min-w-0 flex-1 leading-snug">
+              {anyDivergent ? (
+                <>
+                  <div className="font-semibold">Data Divergente Hóspede-Airbnb</div>
+                  <div className="tabular-nums">Informada: {fmtRange(gIn, gOut)}</div>
+                  <div className="tabular-nums">Correta: {fmtRange(iIn, iOut)}</div>
+                </>
+              ) : row.ical.matched ? (
+                <>
+                  <div className="font-semibold">Confirmado no Airbnb</div>
+                  <div className="tabular-nums">{fmtRange(iIn, iOut)}</div>
+                </>
+              ) : (
+                <div>Sem reserva correspondente no iCal Airbnb</div>
+              )}
+            </div>
+            {anyDivergent && (
               <button
                 type="button"
                 disabled={busy}
-                onClick={() => onEditDates(row, kind === "checkin" ? { checkinDate: icalRef! } : { checkoutDate: icalRef! })}
-                className="text-xs underline underline-offset-2 hover:no-underline shrink-0"
-              >Usar iCal</button>
+                onClick={() => onEditDates(row, {
+                  ...(iIn && iIn !== gIn ? { checkinDate: iIn } : {}),
+                  ...(iOut && gOut && iOut !== gOut ? { checkoutDate: iOut } : {}),
+                })}
+                className="text-xs underline underline-offset-2 hover:no-underline shrink-0 mt-0.5"
+              >Usar Airbnb</button>
             )}
           </div>
         );
