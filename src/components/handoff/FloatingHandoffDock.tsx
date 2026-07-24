@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from "react";
 import { createPortal } from "react-dom";
 import { Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
@@ -10,6 +10,7 @@ import { listenToPushMessages } from "@/lib/push-client";
 import { Headphones, X, Minimize2, Maximize2 } from "lucide-react";
 
 const DOCK_STATE_KEY = "handoff-dock-state-v1";
+const DOCK_POSITION_KEY = "handoff-dock-position-v1";
 
 type DockState = { open: boolean; minimized: boolean };
 
@@ -23,6 +24,21 @@ function loadState(): DockState {
 }
 function saveState(s: DockState) {
   try { localStorage.setItem(DOCK_STATE_KEY, JSON.stringify(s)); } catch {}
+}
+
+function loadDockBottom(): number {
+  if (typeof window === "undefined") return 88;
+  try {
+    const raw = localStorage.getItem(DOCK_POSITION_KEY);
+    if (!raw) return 88;
+    const parsed = JSON.parse(raw) as { bottom?: number };
+    if (typeof parsed.bottom === "number" && Number.isFinite(parsed.bottom)) return parsed.bottom;
+  } catch {}
+  return 88;
+}
+
+function saveDockBottom(bottom: number) {
+  try { localStorage.setItem(DOCK_POSITION_KEY, JSON.stringify({ bottom })); } catch {}
 }
 
 let notifSound: HTMLAudioElement | null = null;
@@ -67,6 +83,17 @@ export function FloatingHandoffDock() {
 
   const [state, setState] = useState<DockState>(() => loadState());
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [dockBottom, setDockBottom] = useState(() => loadDockBottom());
+  const [dragY, setDragY] = useState<number | null>(null);
+  const justDraggedRef = useRef(false);
+  const dragRef = useRef<{
+    pointerId: number;
+    startY: number;
+    moved: boolean;
+    rect: DOMRect;
+    move: (ev: PointerEvent) => void;
+    up: (ev: PointerEvent) => void;
+  } | null>(null);
 
   useEffect(() => { setMounted(true); }, []);
 
@@ -77,6 +104,51 @@ export function FloatingHandoffDock() {
   }, []);
 
   useEffect(() => { saveState(state); }, [state]);
+
+  function onClosedButtonPointerDown(e: ReactPointerEvent<HTMLButtonElement>) {
+    if (e.pointerType === "mouse" && e.button !== 0) return;
+    const button = e.currentTarget;
+    const rect = button.getBoundingClientRect();
+    const drag = {
+      pointerId: e.pointerId,
+      startY: e.clientY,
+      moved: false,
+      rect,
+      move: (ev: PointerEvent) => {
+        if (ev.pointerId !== drag.pointerId) return;
+        const dy = ev.clientY - drag.startY;
+        if (!drag.moved && Math.abs(dy) > 5) drag.moved = true;
+        if (!drag.moved) return;
+        ev.preventDefault();
+        setDragY(dy);
+      },
+      up: (ev: PointerEvent) => {
+        if (ev.pointerId !== drag.pointerId) return;
+        window.removeEventListener("pointermove", drag.move);
+        window.removeEventListener("pointerup", drag.up);
+        window.removeEventListener("pointercancel", drag.up);
+        dragRef.current = null;
+        if (drag.moved) {
+          const dy = ev.clientY - drag.startY;
+          const nextTop = drag.rect.top + dy;
+          const nextBottom = Math.max(24, Math.min(
+            window.innerHeight - drag.rect.height - 24,
+            window.innerHeight - (nextTop + drag.rect.height),
+          ));
+          setDockBottom(nextBottom);
+          saveDockBottom(nextBottom);
+          justDraggedRef.current = true;
+          window.setTimeout(() => { justDraggedRef.current = false; }, 120);
+        }
+        setDragY(null);
+      },
+    };
+    dragRef.current = drag;
+    try { button.setPointerCapture(e.pointerId); } catch {}
+    window.addEventListener("pointermove", drag.move, { passive: false });
+    window.addEventListener("pointerup", drag.up);
+    window.addEventListener("pointercancel", drag.up);
+  }
 
   const pendingQ = useQuery({
     queryKey: ["handoff-pending-count"],
@@ -155,10 +227,20 @@ export function FloatingHandoffDock() {
       {/* Botão flutuante fechado */}
       {!state.open && (
         <button
-          onClick={() => setState({ open: true, minimized: false })}
-          className="fixed right-4 bottom-[calc(env(safe-area-inset-bottom,0px)+88px)] lg:bottom-6 lg:right-6 size-14 rounded-full bg-primary text-primary-foreground shadow-xl grid place-items-center hover:scale-105 transition-transform"
-          style={{ zIndex: 2147483000 }}
+          onPointerDown={onClosedButtonPointerDown}
+          onClick={() => {
+            if (justDraggedRef.current) return;
+            setState({ open: true, minimized: false });
+          }}
+          className="fixed right-4 lg:right-6 size-14 rounded-full bg-primary text-primary-foreground shadow-xl grid place-items-center hover:scale-105 transition-transform cursor-grab active:cursor-grabbing touch-none select-none"
+          style={{
+            zIndex: 2147483000,
+            bottom: `calc(env(safe-area-inset-bottom,0px) + ${dockBottom}px)`,
+            transform: dragY === null ? undefined : `translateY(${dragY}px)`,
+            transition: dragY === null ? undefined : "none",
+          } satisfies CSSProperties}
           aria-label="Central de atendimento"
+          title="Central de atendimento · arraste para cima ou para baixo"
         >
           <Headphones className="size-6" />
           {count > 0 && (
