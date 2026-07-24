@@ -23,7 +23,9 @@ export function PermissoesPage() {
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setMyUserId(data.user?.id ?? null));
   }, []);
-  const isOwnerContext = !impersonation; // only the real account owner may edit
+  // Owner context = no impersonation, OR impersonating own account (SaaS admin viewing self).
+  // The server function always scopes to context.userId, so it's safe.
+  const isOwnerContext = !impersonation || (!!myUserId && impersonation.userId === myUserId);
 
   const q = useQuery({
     queryKey: ["member-permissions"],
