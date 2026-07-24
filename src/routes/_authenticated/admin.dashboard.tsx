@@ -13,7 +13,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import {
-  getDashboardKpis, getGuideEngagement, listDashboardArrivals, upsertArrivalStatus,
+  getDashboardKpis, getGuideEngagement, listDashboardArrivals, upsertArrivalStatus, updateGuestStayDates,
   type ArrivalRow,
 } from "@/lib/dashboard.functions";
 
@@ -74,6 +74,7 @@ function DashboardPage() {
   const engFn = useServerFn(getGuideEngagement);
   const listFn = useServerFn(listDashboardArrivals);
   const upsertFn = useServerFn(upsertArrivalStatus);
+  const updateDatesFn = useServerFn(updateGuestStayDates);
   const qc = useQueryClient();
 
   const [kind, setKind] = useState<"checkin" | "checkout">("checkin");
@@ -128,6 +129,16 @@ function DashboardPage() {
       qc.invalidateQueries({ queryKey: ["dash-kpis"] });
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Falha ao atualizar."),
+  });
+
+  const updateDates = useMutation({
+    mutationFn: (v: { logId: string; checkinDate?: string; checkoutDate?: string | null }) => updateDatesFn({ data: v }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["dash-list"] });
+      qc.invalidateQueries({ queryKey: ["dash-kpis"] });
+      toast.success("Datas atualizadas.");
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Falha ao atualizar datas."),
   });
 
   const rows = listQ.data?.rows ?? [];
@@ -316,7 +327,8 @@ function DashboardPage() {
                 toast.success(`Horário alinhado ao iCal (${t}).`);
               }}
               onNote={(row, note) => upsert.mutate({ logId: row.logId, kind, note })}
-              busy={upsert.isPending}
+              onEditDates={(row, dates) => updateDates.mutate({ logId: row.logId, ...dates })}
+              busy={upsert.isPending || updateDates.isPending}
             />
             {done.length > 0 && (
               <ArrivalGroup
@@ -326,7 +338,8 @@ function DashboardPage() {
                 onMark={(row) => upsert.mutate({ logId: row.logId, kind, status: "pending" })}
                 onSyncIcal={() => {}}
                 onNote={(row, note) => upsert.mutate({ logId: row.logId, kind, note })}
-                busy={upsert.isPending}
+                onEditDates={(row, dates) => updateDates.mutate({ logId: row.logId, ...dates })}
+                busy={upsert.isPending || updateDates.isPending}
                 muted
               />
             )}
@@ -499,13 +512,14 @@ function BarRow({ label, value, total, pct }: { label: string; value: number; to
   );
 }
 
-function ArrivalGroup({ title, rows, kind, onMark, onSyncIcal, onNote, busy, muted }: {
+function ArrivalGroup({ title, rows, kind, onMark, onSyncIcal, onNote, onEditDates, busy, muted }: {
   title: string;
   rows: ArrivalRow[];
   kind: "checkin" | "checkout";
   onMark: (r: ArrivalRow) => void;
   onSyncIcal: (r: ArrivalRow) => void;
   onNote: (r: ArrivalRow, note: string | null) => void;
+  onEditDates: (r: ArrivalRow, dates: { checkinDate?: string; checkoutDate?: string | null }) => void;
   busy: boolean;
   muted?: boolean;
 }) {
@@ -518,18 +532,19 @@ function ArrivalGroup({ title, rows, kind, onMark, onSyncIcal, onNote, busy, mut
       </div>
       <div className={`grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 ${muted ? "opacity-70" : ""}`}>
         {rows.map((r) => (
-          <ArrivalCard key={r.logId} row={r} kind={kind} onMark={onMark} onSyncIcal={onSyncIcal} onNote={onNote} busy={busy} />
+          <ArrivalCard key={r.logId} row={r} kind={kind} onMark={onMark} onSyncIcal={onSyncIcal} onNote={onNote} onEditDates={onEditDates} busy={busy} />
         ))}
       </div>
     </div>
   );
 }
 
-function ArrivalCard({ row, kind, onMark, onSyncIcal, onNote, busy }: {
+function ArrivalCard({ row, kind, onMark, onSyncIcal, onNote, onEditDates, busy }: {
   row: ArrivalRow; kind: "checkin" | "checkout";
   onMark: (r: ArrivalRow) => void;
   onSyncIcal: (r: ArrivalRow) => void;
   onNote: (r: ArrivalRow, note: string | null) => void;
+  onEditDates: (r: ArrivalRow, dates: { checkinDate?: string; checkoutDate?: string | null }) => void;
   busy: boolean;
 }) {
   const [noteOpen, setNoteOpen] = useState(false);
@@ -581,7 +596,18 @@ function ArrivalCard({ row, kind, onMark, onSyncIcal, onNote, busy }: {
           )}
         </div>
         <div className="text-right shrink-0">
-          <div className="text-base font-semibold tabular-nums leading-tight">{fmtDateBR(row.date)}</div>
+          <input
+            type="date"
+            value={row.date}
+            disabled={busy}
+            onChange={(e) => {
+              const v = e.target.value;
+              if (!v || v === row.date) return;
+              onEditDates(row, kind === "checkin" ? { checkinDate: v } : { checkoutDate: v });
+            }}
+            className="text-base font-semibold tabular-nums leading-tight bg-transparent border-0 p-0 text-right w-[112px] cursor-pointer hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary/30 rounded"
+            title="Clique para corrigir a data"
+          />
           <div className="text-[10px] uppercase tracking-wider text-muted-foreground mt-0.5">{kind === "checkin" ? "Check-in" : "Check-out"}</div>
         </div>
       </div>
@@ -617,13 +643,21 @@ function ArrivalCard({ row, kind, onMark, onSyncIcal, onNote, busy }: {
                 : "bg-amber-500/10 text-amber-700 dark:text-amber-400"
           }`}>
             {dateDivergent ? <AlertTriangle className="size-3.5 shrink-0" /> : row.ical.matched ? <Check className="size-3.5 shrink-0" /> : <AlertTriangle className="size-3.5 shrink-0" />}
-            <span className="min-w-0 truncate">
+            <span className="min-w-0 truncate flex-1">
               {dateDivergent
                 ? `Data divergente do iCal — hóspede: ${fmtDateBR(row.date)} · iCal: ${fmtDateBR(icalRef!)}`
                 : row.ical.matched
                   ? `Confirmado no iCal Airbnb (${row.ical.icalCheckin ? fmtDateBR(row.ical.icalCheckin) : "?"} → ${row.ical.icalCheckout ? fmtDateBR(row.ical.icalCheckout) : "?"})`
                   : "Sem reserva correspondente no iCal Airbnb"}
             </span>
+            {dateDivergent && (
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => onEditDates(row, kind === "checkin" ? { checkinDate: icalRef! } : { checkoutDate: icalRef! })}
+                className="text-xs underline underline-offset-2 hover:no-underline shrink-0"
+              >Usar iCal</button>
+            )}
           </div>
         );
       })()}
