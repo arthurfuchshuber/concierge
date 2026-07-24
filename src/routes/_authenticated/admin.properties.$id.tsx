@@ -1050,7 +1050,7 @@ function PropertyEditor() {
 
 
 
-          <Section icon={FileText} title="Identidade do guia" desc="Como o guia se apresenta aos hóspedes.">
+          <Section icon={FileText} title="Identidade do guia" desc="Como o guia se apresenta aos hóspedes." collapsible>
             <Field label="Nome do imóvel" required hint={`Máx. 80 caracteres — ${form.property.name.length}/80. Curto e memorável funciona melhor no cabeçalho do guia.`}>
               <Input value={form.property.name} maxLength={80}
                 onChange={(e) => {
