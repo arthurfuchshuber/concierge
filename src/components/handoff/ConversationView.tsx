@@ -583,6 +583,7 @@ export function ConversationList({
   conversations,
   details,
   assignedNames,
+  reservations,
   activeId,
   onSelect,
 }: {
@@ -593,9 +594,11 @@ export function ConversationList({
   }>;
   details?: Record<string, GuestDetail>;
   assignedNames?: Record<string, string>;
+  reservations?: Record<string, { status: "confirmed" | "loose" | "missing" | "no_ical"; checkin: string | null; checkout: string | null }>;
   activeId: string | null;
   onSelect: (id: string) => void;
 }) {
+
   return (
     <div className="flex flex-col divide-y divide-border">
       {conversations.length === 0 && (
