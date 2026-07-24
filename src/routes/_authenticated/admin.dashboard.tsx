@@ -734,28 +734,20 @@ function ArrivalCard({ row, kind, onMark, onSyncIcal, onNote, onEditDates, onEdi
         const iIn = row.ical.icalCheckin;
         const iOut = row.ical.icalCheckout;
         const anyDivergent = row.ical.matched && ((iIn && iIn !== gIn) || (iOut && gOut && iOut !== gOut));
+        // Só renderiza quando o "fato" NÃO aconteceu: divergência ou sem match no iCal.
+        // Reserva confirmada e alinhada não vira faixa — economiza espaço no card.
+        if (!anyDivergent && row.ical.matched) return null;
         const fmtRange = (a: string | null, b: string | null) =>
           `${a ? fmtDateBR(a) : "?"} a ${b ? fmtDateBR(b) : "?"}`;
         return (
-          <div className={`text-xs rounded-lg px-2 py-1.5 flex items-start gap-2 ${
-            anyDivergent
-              ? "bg-rose-500/10 text-rose-700 dark:text-rose-400"
-              : row.ical.matched
-                ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
-                : "bg-amber-500/10 text-amber-700 dark:text-amber-400"
-          }`}>
-            {anyDivergent ? <AlertTriangle className="size-3.5 shrink-0 mt-0.5" /> : row.ical.matched ? <Check className="size-3.5 shrink-0 mt-0.5" /> : <AlertTriangle className="size-3.5 shrink-0 mt-0.5" />}
+          <div className="w-full text-xs rounded-lg px-2 py-1.5 flex items-start gap-2 bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/30">
+            <AlertTriangle className="size-3.5 shrink-0 mt-0.5" />
             <div className="min-w-0 flex-1 leading-snug">
               {anyDivergent ? (
                 <>
                   <div className="font-semibold">Data Divergente Hóspede-Airbnb</div>
                   <div className="tabular-nums">Informada: {fmtRange(gIn, gOut)}</div>
                   <div className="tabular-nums">Correta: {fmtRange(iIn, iOut)}</div>
-                </>
-              ) : row.ical.matched ? (
-                <>
-                  <div className="font-semibold">Confirmado no Airbnb</div>
-                  <div className="tabular-nums">{fmtRange(iIn, iOut)}</div>
                 </>
               ) : (
                 <div>Sem reserva correspondente no iCal Airbnb</div>
