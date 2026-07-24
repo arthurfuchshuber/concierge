@@ -1071,7 +1071,7 @@ function PropertyEditor() {
           </Section>
 
 
-          <Section icon={ImageIcon} title="Fotos da residência" desc="Até 4 fotos. A primeira será usada como capa.">
+          <Section icon={ImageIcon} title="Fotos da residência" desc="Até 4 fotos. A primeira será usada como capa." collapsible>
             <GalleryEditor
               value={form.property.gallery_images}
               onChange={(next) => {
