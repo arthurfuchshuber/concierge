@@ -149,7 +149,7 @@ function ClientesPage() {
     (statusFilter !== "all" ? 1 : 0) + (planFilter !== "all" ? 1 : 0) + (churnOnly ? 1 : 0);
 
   return (
-    <div className="px-5 lg:px-10 py-8 lg:py-10 max-w-7xl mx-auto w-full">
+    <div className="px-6 lg:px-10 py-8 lg:py-10 max-w-7xl mx-auto w-full">
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
           <div className="inline-flex items-center gap-2 text-[10px] uppercase tracking-[0.18em] text-accent font-semibold mb-2">
