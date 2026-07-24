@@ -179,4 +179,66 @@ export const listReservationDatesBySlug = createServerFn({ method: "POST" })
     return { hasIcal: true as const, ranges };
   });
 
+const LookupByCodeInput = z.object({
+  slug: z.string().regex(/^[a-z0-9-]{1,64}$/),
+  code: z.string().trim().min(3).max(100),
+});
+
+/**
+ * Public lookup of an Airbnb reservation by its code (e.g. HMABC123XY).
+ * Matches against `guest_hint` (extracted from the reservation URL) or
+ * against a substring of `reservation_url`. Returns only the dates —
+ * never guest names or other PII.
+ */
+export const lookupReservationByCode = createServerFn({ method: "POST" })
+  .inputValidator((i: unknown) => LookupByCodeInput.parse(i))
+  .handler(async ({ data }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: prop } = await supabaseAdmin
+      .from("properties")
+      .select("id, airbnb_ical_url")
+      .eq("slug", data.slug)
+      .eq("published", true)
+      .maybeSingle();
+    if (!prop) return { hasIcal: false as const, found: false as const };
+    const hasIcal = !!(prop.airbnb_ical_url as string | null);
+    if (!hasIcal) return { hasIcal: false as const, found: false as const };
+
+    const today = new Date().toISOString().slice(0, 10);
+    const codeNorm = data.code.trim().toUpperCase();
+
+    const { data: byHint } = await supabaseAdmin
+      .from("property_reservations")
+      .select("checkin_date, checkout_date")
+      .eq("property_id", prop.id)
+      .gte("checkout_date", today)
+      .ilike("guest_hint", codeNorm)
+      .order("checkin_date", { ascending: true })
+      .limit(1);
+
+    let hit = (byHint ?? [])[0] as { checkin_date: string; checkout_date: string } | undefined;
+
+    if (!hit) {
+      const { data: byUrl } = await supabaseAdmin
+        .from("property_reservations")
+        .select("checkin_date, checkout_date")
+        .eq("property_id", prop.id)
+        .gte("checkout_date", today)
+        .ilike("reservation_url", `%${codeNorm}%`)
+        .order("checkin_date", { ascending: true })
+        .limit(1);
+      hit = (byUrl ?? [])[0] as { checkin_date: string; checkout_date: string } | undefined;
+    }
+
+    if (!hit) return { hasIcal: true as const, found: false as const };
+    return {
+      hasIcal: true as const,
+      found: true as const,
+      checkin: hit.checkin_date,
+      checkout: hit.checkout_date,
+      code: codeNorm,
+    };
+  });
+
+
 

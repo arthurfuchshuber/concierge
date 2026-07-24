@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { recordGuideAccess, checkReservationBySlug, listReservationDatesBySlug } from "@/lib/guide-access.functions";
+import { recordGuideAccess, checkReservationBySlug, listReservationDatesBySlug, lookupReservationByCode } from "@/lib/guide-access.functions";
 import { Dialog, DialogPortal, DialogOverlay } from "@/components/ui/dialog";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { Button } from "@/components/ui/button";
@@ -106,6 +106,7 @@ export function GuideAccessGate({ slug, propertyName, requireReservationCode, co
   const submit = useServerFn(recordGuideAccess);
   const checkReservation = useServerFn(checkReservationBySlug);
   const listReservationDates = useServerFn(listReservationDatesBySlug);
+  const lookupByCode = useServerFn(lookupReservationByCode);
   const [step, setStep] = useState<1 | 2>(1);
   const [name, setName] = useState("");
   const [code, setCode] = useState("");
@@ -116,6 +117,12 @@ export function GuideAccessGate({ slug, propertyName, requireReservationCode, co
   const [reservedRanges, setReservedRanges] = useState<
     { hasIcal: boolean; ranges: Array<{ checkin: string; checkout: string }> } | null
   >(null);
+  const [codeLookup, setCodeLookup] = useState<
+    | { state: "idle" }
+    | { state: "checking" }
+    | { state: "found"; checkin: string; checkout: string }
+    | { state: "not-found" }
+  >({ state: "idle" });
   const [resCheck, setResCheck] = useState<
     | { state: "idle" }
     | { state: "checking" }
@@ -123,6 +130,9 @@ export function GuideAccessGate({ slug, propertyName, requireReservationCode, co
     | { state: "no-ical" }
     | { state: "no-match"; suggestedCheckout?: string }
   >({ state: "idle" });
+
+  const hasIcalMode = reservedRanges?.hasIcal === true;
+
 
   const cfg: CollectionConfig = collection ?? {
     arrivalTime: "off",
@@ -185,8 +195,13 @@ export function GuideAccessGate({ slug, propertyName, requireReservationCode, co
     return !isReservedDate(date);
   };
 
-  // Cross-check with Airbnb iCal reservations (soft warning, never blocks)
+  // Cross-check with Airbnb iCal reservations (soft warning; only when
+  // running the legacy manual-date flow — iCal mode uses code lookup instead)
   useEffect(() => {
+    if (hasIcalMode) {
+      setResCheck({ state: "idle" });
+      return;
+    }
     if (!range?.from || !range?.to) {
       setResCheck({ state: "idle" });
       return;
@@ -214,7 +229,49 @@ export function GuideAccessGate({ slug, propertyName, requireReservationCode, co
       cancelled = true;
       clearTimeout(t);
     };
-  }, [range?.from, range?.to, slug, checkReservation]);
+  }, [range?.from, range?.to, slug, checkReservation, hasIcalMode]);
+
+  // iCal mode: look up reservation by code (debounced)
+  useEffect(() => {
+    if (!hasIcalMode) {
+      setCodeLookup({ state: "idle" });
+      return;
+    }
+    const trimmed = code.trim();
+    if (trimmed.length < 4) {
+      setCodeLookup({ state: "idle" });
+      setRange(undefined);
+      return;
+    }
+    let cancelled = false;
+    setCodeLookup({ state: "checking" });
+    const t = setTimeout(() => {
+      lookupByCode({ data: { slug, code: trimmed } })
+        .then((r) => {
+          if (cancelled) return;
+          if (r.found) {
+            setCodeLookup({ state: "found", checkin: r.checkin, checkout: r.checkout });
+            const [cy, cm, cd] = r.checkin.split("-").map(Number);
+            const [oy, om, od] = r.checkout.split("-").map(Number);
+            setRange({
+              from: new Date(cy, cm - 1, cd),
+              to: new Date(oy, om - 1, od),
+            });
+          } else {
+            setCodeLookup({ state: "not-found" });
+            setRange(undefined);
+          }
+        })
+        .catch(() => {
+          if (!cancelled) setCodeLookup({ state: "idle" });
+        });
+    }, 500);
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+    };
+  }, [code, slug, hasIcalMode, lookupByCode]);
+
 
   // sync vehicle rows with count
   useEffect(() => {
@@ -253,20 +310,36 @@ export function GuideAccessGate({ slug, propertyName, requireReservationCode, co
       toast.error("Informe seu nome completo.");
       return false;
     }
-    if (!range?.from || !range?.to) {
-      toast.error("Selecione o período da viagem.");
-      return false;
+    if (hasIcalMode) {
+      if (!code.trim()) {
+        toast.error("Informe o código da reserva.");
+        return false;
+      }
+      if (codeLookup.state === "checking") {
+        toast.error("Aguarde a validação do código.");
+        return false;
+      }
+      if (codeLookup.state !== "found" || !range?.from || !range?.to) {
+        toast.error("Código de reserva não encontrado no calendário Airbnb.");
+        return false;
+      }
+    } else {
+      if (!range?.from || !range?.to) {
+        toast.error("Selecione o período da viagem.");
+        return false;
+      }
     }
     if (!phone || !isValidPhoneNumber(phone)) {
       toast.error("Informe um telefone válido.");
       return false;
     }
-    if (requireReservationCode && !code.trim()) {
+    if (requireReservationCode && !hasIcalMode && !code.trim()) {
       toast.error("Informe o código da reserva.");
       return false;
     }
     return true;
   }
+
 
   async function finalizeSubmit() {
     if (!range?.from || !range?.to) return;
@@ -315,7 +388,7 @@ export function GuideAccessGate({ slug, propertyName, requireReservationCode, co
         data: {
           slug,
           guest_name: titleCaseName(name),
-          reservation_code: requireReservationCode ? code.trim() : null,
+          reservation_code: (hasIcalMode || requireReservationCode) && code.trim() ? code.trim() : null,
           checkin_date: checkinDate,
           checkout_date: checkoutDate,
 
@@ -343,7 +416,7 @@ export function GuideAccessGate({ slug, propertyName, requireReservationCode, co
       }
       const rec: AccessRecord = {
         name: name.trim(),
-        code: requireReservationCode ? code.trim() : null,
+        code: (hasIcalMode || requireReservationCode) && code.trim() ? code.trim() : null,
         checkinDate,
         checkoutDate,
         phone: phone ?? null,
@@ -428,69 +501,117 @@ export function GuideAccessGate({ slug, propertyName, requireReservationCode, co
                   />
                 </FieldShell>
 
-                <div className="grid grid-cols-2 gap-2">
-                  <RangeButton
-                    label="Chegada"
-                    value={range?.from ? format(range.from, "dd MMM", { locale: ptBR }) : "—"}
-                    popover={
-                      <Calendar
-                        mode="range"
-                        selected={range as never}
-                        onSelect={(r) => setRange(r as { from?: Date; to?: Date } | undefined)}
-                        numberOfMonths={1}
-                        initialFocus
-                        locale={ptBR}
-                        disabled={isDateDisabled}
-                        className="p-3 pointer-events-auto"
+                {hasIcalMode ? (
+                  <>
+                    <FieldShell>
+                      <Input
+                        value={code}
+                        onChange={(e) => setCode(e.target.value.toUpperCase())}
+                        maxLength={100}
+                        required
+                        autoCapitalize="characters"
+                        className="h-[48px] rounded-[12px] px-3 text-[14.5px] tracking-wider bg-transparent border-transparent focus-visible:ring-0 uppercase"
+                        placeholder="Código da reserva Airbnb"
                       />
-                    }
-                  />
-                  <RangeButton
-                    label="Saída"
-                    value={range?.to ? format(range.to, "dd MMM", { locale: ptBR }) : "—"}
-                    popover={
-                      <Calendar
-                        mode="range"
-                        selected={range as never}
-                        onSelect={(r) => setRange(r as { from?: Date; to?: Date } | undefined)}
-                        numberOfMonths={1}
-                        initialFocus
-                        locale={ptBR}
-                        disabled={isDateDisabled}
-                        className="p-3 pointer-events-auto"
-                      />
-                    }
-                  />
-                </div>
+                    </FieldShell>
 
-                {resCheck.state === "matched" && (
-                  <div className="flex items-center gap-2 text-[12px] text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2">
-                    <CheckCircle2 className="size-4 shrink-0" />
-                    <span>Reserva Airbnb encontrada para estas datas.</span>
-                  </div>
-                )}
-                {resCheck.state === "no-match" && (
-                  <div className="flex items-start gap-2 text-[12px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-                    <AlertTriangle className="size-4 shrink-0 mt-0.5" />
-                    <span>
-                      Não encontramos uma reserva Airbnb para estas datas.
-                      {resCheck.suggestedCheckout && (
-                        <>
-                          {" "}Sua chegada bate com uma reserva, mas a saída é{" "}
+                    {codeLookup.state === "checking" && (
+                      <div className="flex items-center gap-2 text-[12px] text-muted-foreground bg-white/[0.03] border border-white/10 rounded-lg px-3 py-2">
+                        <Loader2 className="size-4 shrink-0 animate-spin" />
+                        <span>Verificando o código no calendário Airbnb…</span>
+                      </div>
+                    )}
+                    {codeLookup.state === "found" && (
+                      <div className="flex items-center gap-2 text-[12px] text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2">
+                        <CheckCircle2 className="size-4 shrink-0" />
+                        <span>
+                          Reserva confirmada:{" "}
                           <b>
-                            {new Date(resCheck.suggestedCheckout + "T12:00:00").toLocaleDateString("pt-BR", {
-                              day: "2-digit",
-                              month: "short",
-                            })}
+                            {new Date(codeLookup.checkin + "T12:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })}
+                          </b>{" "}
+                          →{" "}
+                          <b>
+                            {new Date(codeLookup.checkout + "T12:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })}
                           </b>
-                          . Confira se digitou corretamente.
-                        </>
-                      )}
-                      {!resCheck.suggestedCheckout && " Confira as datas ou siga se sua reserva foi feita por outro canal."}
-                    </span>
-                  </div>
-                )}
+                          .
+                        </span>
+                      </div>
+                    )}
+                    {codeLookup.state === "not-found" && code.trim().length >= 4 && (
+                      <div className="flex items-start gap-2 text-[12px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                        <AlertTriangle className="size-4 shrink-0 mt-0.5" />
+                        <span>
+                          Não encontramos essa reserva. Confira o código (ex.: <b>HMABC123XY</b>) ou fale com o anfitrião.
+                        </span>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <div className="grid grid-cols-2 gap-2">
+                      <RangeButton
+                        label="Chegada"
+                        value={range?.from ? format(range.from, "dd MMM", { locale: ptBR }) : "—"}
+                        popover={
+                          <Calendar
+                            mode="range"
+                            selected={range as never}
+                            onSelect={(r) => setRange(r as { from?: Date; to?: Date } | undefined)}
+                            numberOfMonths={1}
+                            initialFocus
+                            locale={ptBR}
+                            disabled={isDateDisabled}
+                            className="p-3 pointer-events-auto"
+                          />
+                        }
+                      />
+                      <RangeButton
+                        label="Saída"
+                        value={range?.to ? format(range.to, "dd MMM", { locale: ptBR }) : "—"}
+                        popover={
+                          <Calendar
+                            mode="range"
+                            selected={range as never}
+                            onSelect={(r) => setRange(r as { from?: Date; to?: Date } | undefined)}
+                            numberOfMonths={1}
+                            initialFocus
+                            locale={ptBR}
+                            disabled={isDateDisabled}
+                            className="p-3 pointer-events-auto"
+                          />
+                        }
+                      />
+                    </div>
 
+                    {resCheck.state === "matched" && (
+                      <div className="flex items-center gap-2 text-[12px] text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2">
+                        <CheckCircle2 className="size-4 shrink-0" />
+                        <span>Reserva Airbnb encontrada para estas datas.</span>
+                      </div>
+                    )}
+                    {resCheck.state === "no-match" && (
+                      <div className="flex items-start gap-2 text-[12px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                        <AlertTriangle className="size-4 shrink-0 mt-0.5" />
+                        <span>
+                          Não encontramos uma reserva Airbnb para estas datas.
+                          {resCheck.suggestedCheckout && (
+                            <>
+                              {" "}Sua chegada bate com uma reserva, mas a saída é{" "}
+                              <b>
+                                {new Date(resCheck.suggestedCheckout + "T12:00:00").toLocaleDateString("pt-BR", {
+                                  day: "2-digit",
+                                  month: "short",
+                                })}
+                              </b>
+                              . Confira se digitou corretamente.
+                            </>
+                          )}
+                          {!resCheck.suggestedCheckout && " Confira as datas ou siga se sua reserva foi feita por outro canal."}
+                        </span>
+                      </div>
+                    )}
+                  </>
+                )}
 
                 <div className="sg-phone-input">
                   <PhoneInput
@@ -506,7 +627,7 @@ export function GuideAccessGate({ slug, propertyName, requireReservationCode, co
                   />
                 </div>
 
-                {requireReservationCode && (
+                {requireReservationCode && !hasIcalMode && (
                   <FieldShell>
                     <Input
                       value={code}
@@ -518,6 +639,7 @@ export function GuideAccessGate({ slug, propertyName, requireReservationCode, co
                     />
                   </FieldShell>
                 )}
+
 
                 <div className="flex items-center gap-1.5 pt-0.5 text-[11.5px] text-muted-foreground/85">
                   <Lock className="size-3 text-primary/70" />
