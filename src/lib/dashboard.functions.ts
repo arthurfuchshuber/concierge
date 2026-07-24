@@ -210,10 +210,10 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
     }
     const uniqueLogs = Array.from(dedupMap.values());
 
-    const [{ data: props }, { data: statuses }, { data: reservations }] = await Promise.all([
+    const [{ data: props }, { data: statuses }, { data: reservations }, { data: sectionEvents }] = await Promise.all([
       context.supabase
         .from("properties")
-        .select("id, name, checkin_time, checkin_time_max, checkout_time, checkout_time_min, airbnb_ical_url")
+        .select("id, name, address, maps_url, garage_maps_url, wifi_password, lock_code, gate_code, checkin_time, checkin_time_max, checkout_time, checkout_time_min, airbnb_ical_url")
         .in("id", propIds),
       uniqueLogs.length > 0
         ? context.supabase
@@ -227,15 +227,36 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
         .select("property_id, checkin_date, checkout_date")
         .in("property_id", propIds)
         .eq("source", "airbnb"),
+      uniqueLogs.length > 0
+        ? context.supabase
+            .from("guide_section_events")
+            .select("property_id, section, guest_name, guest_phone")
+            .in("property_id", propIds)
+            .in("section", ["checkin", "senhas"])
+            .limit(5000)
+        : Promise.resolve({ data: [] as Array<{ property_id: string; section: string; guest_name: string | null; guest_phone: string | null }> }),
     ]);
 
-    const propMap = new Map<string, { name: string | null; checkin_time: string | null; checkin_time_max: string | null; checkout_time: string | null; checkout_time_min: string | null; airbnb_ical_url: string | null }>();
-    for (const p of (props ?? []) as Array<{ id: string; name: string | null; checkin_time: string | null; checkin_time_max: string | null; checkout_time: string | null; checkout_time_min: string | null; airbnb_ical_url: string | null }>) {
+    const propMap = new Map<string, { name: string | null; address: string | null; maps_url: string | null; garage_maps_url: string | null; hasPasswords: boolean; checkin_time: string | null; checkin_time_max: string | null; checkout_time: string | null; checkout_time_min: string | null; airbnb_ical_url: string | null }>();
+    for (const p of (props ?? []) as Array<{ id: string; name: string | null; address: string | null; maps_url: string | null; garage_maps_url: string | null; wifi_password: string | null; lock_code: string | null; gate_code: string | null; checkin_time: string | null; checkin_time_max: string | null; checkout_time: string | null; checkout_time_min: string | null; airbnb_ical_url: string | null }>) {
       propMap.set(p.id, {
-        name: p.name, checkin_time: p.checkin_time, checkin_time_max: p.checkin_time_max,
+        name: p.name, address: p.address, maps_url: p.maps_url, garage_maps_url: p.garage_maps_url,
+        hasPasswords: !!(p.wifi_password || p.lock_code || p.gate_code),
+        checkin_time: p.checkin_time, checkin_time_max: p.checkin_time_max,
         checkout_time: p.checkout_time, checkout_time_min: p.checkout_time_min,
         airbnb_ical_url: p.airbnb_ical_url,
       });
+    }
+
+    // Index section events by property_id + normalized guest identity
+    const eventKey = (pid: string, name: string | null, phone: string | null) =>
+      `${pid}|${(name || "").trim().toLowerCase()}|${(phone || "").replace(/\D/g, "")}`;
+    const openedCheckinSet = new Set<string>();
+    const viewedPasswordsSet = new Set<string>();
+    for (const ev of (sectionEvents ?? []) as Array<{ property_id: string; section: string; guest_name: string | null; guest_phone: string | null }>) {
+      const k = eventKey(ev.property_id, ev.guest_name, ev.guest_phone);
+      if (ev.section === "checkin") openedCheckinSet.add(k);
+      else if (ev.section === "senhas") viewedPasswordsSet.add(k);
     }
 
     const statusMap = new Map<string, { status: "pending" | "done"; note: string | null; arrival_time_override: string | null; done_at: string | null }>();
