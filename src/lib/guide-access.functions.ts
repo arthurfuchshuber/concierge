@@ -88,3 +88,56 @@ export const recordGuideAccess = createServerFn({ method: "POST" })
 
     return { ok: true as const, checkin_time: prop.checkin_time as string | null };
   });
+
+const CheckReservationInput = z.object({
+  slug: z.string().regex(/^[a-z0-9-]{1,64}$/),
+  checkin_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  checkout_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+});
+
+/**
+ * Public reservation match check for the guest access gate.
+ * Returns only booleans + a single hint date — never guest names or codes.
+ */
+export const checkReservationBySlug = createServerFn({ method: "POST" })
+  .inputValidator((i: unknown) => CheckReservationInput.parse(i))
+  .handler(async ({ data }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: prop } = await supabaseAdmin
+      .from("properties")
+      .select("id, airbnb_ical_url")
+      .eq("slug", data.slug)
+      .eq("published", true)
+      .maybeSingle();
+    if (!prop) return { hasIcal: false as const, matched: false as const };
+    const hasIcal = !!(prop.airbnb_ical_url as string | null);
+    if (!hasIcal) return { hasIcal: false as const, matched: false as const };
+
+    const { data: exact } = await supabaseAdmin
+      .from("property_reservations")
+      .select("id")
+      .eq("property_id", prop.id)
+      .eq("checkin_date", data.checkin_date)
+      .eq("checkout_date", data.checkout_date)
+      .limit(1);
+    if ((exact ?? []).length > 0) {
+      return { hasIcal: true as const, matched: true as const };
+    }
+    // Loose match: same check-in date, any check-out
+    const { data: loose } = await supabaseAdmin
+      .from("property_reservations")
+      .select("checkin_date, checkout_date")
+      .eq("property_id", prop.id)
+      .eq("checkin_date", data.checkin_date)
+      .limit(1);
+    if ((loose ?? []).length > 0) {
+      return {
+        hasIcal: true as const,
+        matched: false as const,
+        looseMatch: true as const,
+        suggestedCheckout: (loose![0] as { checkout_date: string }).checkout_date,
+      };
+    }
+    return { hasIcal: true as const, matched: false as const };
+  });
+
