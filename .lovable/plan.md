@@ -1,58 +1,104 @@
-# Planejamento estratégico — melhorias aprovadas
 
-Agrupei os 15 itens aprovados em **4 ondas**, priorizando o que destrava valor rápido e o que corrige bugs abertos (áudio, "com quem"), antes de partir para as features maiores (memória de IA, iCal, analytics avançado).
+## Objetivo
+Nova página `/admin/dashboard` (adicionada como primeiro item do menu, "Painel operacional") focada no dia a dia do anfitrião: quem chega/sai, engajamento com o guia, e ações rápidas (marcar realizado, notas, ajuste de horário, alerta iCal).
 
-Regra geral: cada onda é entregue e validada antes de começar a próxima, para evitar regressões no fluxo crítico de atendimento.
+O "Painel" atual (lista de guias) fica como está, renomeado para "Guias" no menu para não colidir semanticamente.
 
----
+## Fontes de dados existentes
+- `guide_access_logs` — hóspede preencheu o formulário (nome, telefone, hora prevista, checkin_date, checkout_date, reservation_code). É a fonte principal de "chegadas/saídas previstas".
+- `property_reservations` — iCal Airbnb (checkin/checkout oficiais). Base para o alerta de divergência.
+- `guide_section_events` — usado para contar aberturas da aba check-in.
+- `properties` — `checkin_time`, `checkin_time_max`, `checkout_time`, `checkout_time_min`.
 
-## Onda 1 — Correções + quick wins (1 sessão)
+## Estado operacional (nova tabela)
+`public.guest_arrival_status` — 1 linha por log + tipo:
+- `id uuid pk`, `log_id uuid fk guide_access_logs on delete cascade`
+- `property_id uuid` (para RLS via owner)
+- `kind text check in ('checkin','checkout')`
+- `status text default 'pending'` (`pending`|`done`)
+- `note text`
+- `arrival_time_override text` (HH:mm; null = usa o do hóspede)
+- `done_at timestamptz`, `updated_at timestamptz default now()`
+- unique(`log_id`,`kind`)
+- RLS: owner ou membro ativo da conta pode select/insert/update; deny anon. GRANTs padrão.
 
-Coisas curtas que já estão "quase prontas" ou são bug.
+## Server functions novas (`src/lib/dashboard.functions.ts`)
+Todas com `requireSupabaseAuth` + escopo pela conta ativa (helper existente `getActiveOwnerId`, mesmo padrão do resto do admin).
 
-- **#25 Áudio não toca para quem recebe** — investigar `AudioRecorderButton` + `AttachmentBubble`. Provável causa: MIME/`content-type` no upload ou URL assinada expirando. Corrigir player e reencode se necessário.
-- **#24 Coluna "Com alguém"** na aba Atendimento — mostrar nome do agente que assumiu (`assigned_to`) na lista e no header da conversa. Badge "Com Fulano" quando `status = human`.
-- **#23 Gates de permissão restantes** — varrer server functions ainda sem `requireMemberPermission` (edição de propriedade, exclusão de guia, alteração de recomendações, reset de conversa). Aplicar UI `disabled` correspondente.
+- `getDashboardKpis()` → `{ checkinsToday, checkinsTomorrow, checkoutsToday, checkoutsTomorrow }` (contagem em `guide_access_logs`, deduplicado por `guest_name+checkin_date+property_id`, restrito às propriedades do owner ativo).
+- `getGuideEngagement({ range: 'today'|'7d'|'30d' })` →
+  - `guideOpens`: acessos distintos ao guia (logs criados no período) por hóspede/checkin
+  - `checkinTabOpens`: `guide_section_events` com `section='checkin'` (distintos)
+  - `checkinsInPeriod`: check-ins previstos no período
+  - retorna 2 pares (`guideOpens/checkinsInPeriod`, `checkinTabOpens/checkinsInPeriod`).
+- `listDashboardArrivals({ kind: 'checkin'|'checkout', range: 'today'|'tomorrow'|'7d'|'all' })` →
+  join de `guide_access_logs` + reserva iCal casada (mesma propriedade + mesma data ±1 dia) + `guest_arrival_status` + horários padrão da propriedade. Ordenado por data/hora prevista ascendente.
+- `upsertArrivalStatus({ logId, kind, status?, note?, arrivalTimeOverride? })`.
+- `applyIcalTime({ logId, kind })` — copia data do iCal para override (aqui o iCal só traz data; se horário divergir, sobrescreve a data via nota interna). Faz sentido apenas quando há reserva casada.
 
-## Onda 2 — Analytics & feedback do hóspede (1 sessão)
+## Rota nova
+`src/routes/_authenticated/admin.dashboard.tsx` — componente `DashboardPage`.
 
-- **#6 NPS/CSAT automático após conversa** — ao marcar conversa como `resolved`, disparar mensagem final no chat do hóspede com 1 pergunta (👍/👎 + estrelas 1-5 + comentário opcional). Guardar em `chat_message_feedback` (tabela já existe) com flag `kind = 'csat'`. Widget no admin/atendimento e agregado em Engajamento.
+Menu (`admin.tsx`): substituir `{ to: "/admin", label: "Painel" }` por
+- `{ to: "/admin/dashboard", label: "Painel", icon: LayoutDashboard }`
+- `{ to: "/admin", label: "Guias", icon: BookOpen }`
 
-## Onda 3 — Integração de calendário (1–2 sessões)
+## Layout (mobile-first)
 
-- **#11 iCal** — sim, é possível. Airbnb, Booking e a maioria dos PMS exportam `.ics`.
-  - Campo `ical_url` por propriedade.
-  - Cron (`/api/public/cron.sync-ical`) 1×/h fazendo fetch + parse (`ical.js`), populando `reservations` (nova tabela) com `guest_name?`, `checkin`, `checkout`, `source`.
-  - Pré-preencher check-in/check-out no `GuideAccessGate` quando telefone/nome baterem com uma reserva próxima.
-  - Bloquear datas passadas continua valendo; datas fora de qualquer reserva ficam livres mas com aviso "não encontramos sua reserva".
+```text
+┌ Painel operacional ───────────────────────────────┐
+│ ┌KPI┐ ┌KPI┐ ┌KPI┐ ┌KPI┐   (grid-cols-2 sm:4)      │
+│ │ 3 │ │ 5 │ │ 1 │ │ 4 │   número grande roxo      │
+│ │Chk│ │Chk│ │Out│ │Out│   ícone + label pequeno   │
+│ │hoj│ │aman│ │hoj│ │aman│                          │
+│ └───┘ └───┘ └───┘ └───┘                            │
+│                                                    │
+│ ┌ Engajamento do guia ─── [hoje|7d|30d] ─┐         │
+│ │ Abriram o guia         12/15  ▓▓▓▓░ 80%│         │
+│ │ Abriram aba check-in    8/15  ▓▓▓░░ 53%│         │
+│ └────────────────────────────────────────┘         │
+│                                                    │
+│ [ Check-ins | Check-outs ]                         │
+│ [ Hoje | Amanhã | 7 dias | Todos ]                 │
+│                                                    │
+│ ┌ Card ────────────────────────────────┐          │
+│ │ Ana Silva          [Pendente]  ⚠ iCal│          │
+│ │ Residência: Loft Vila Madalena         │          │
+│ │ Padrão 15:00 · Chegada 17:30 ⚠         │          │
+│ │  ↳ informado pelo hóspede: 16:00 (t.t) │          │
+│ │ WhatsApp: +55 11 9…  (link)             │          │
+│ │ Nota: [_______________________]        │          │
+│ │ [Editar horário]  [Realizado ✓]        │          │
+│ └────────────────────────────────────────┘          │
+└────────────────────────────────────────────────────┘
+```
 
-## Onda 4 — IA memória longa + inovações restantes (2 sessões)
+### Componentes internos
+- `KpiCard` — número em `text-primary text-4xl font-black`, ícone `ArrowDownToLine`/`ArrowUpFromLine`, link "ver lista" que muda a aba+período abaixo.
+- `EngagementRow` — barra shadcn `Progress` + `X/Y (P%)`.
+- `ArrivalCard` — visual "kanban": borda esquerda colorida (roxo pendente / verde `opacity-70` realizado), badge status, badge amarelo "⚠ diverge do iCal" com `Popover` mostrando os dois valores e botão "Usar valor do iCal".
+- Ordenação: por data prevista asc, com sub-agrupamento por dia (`Hoje`, `Amanhã`, `Sáb 15 mar`, …).
+- Filtro de ordenação extra (dropdown): `Data prevista` / `Recém preenchido` / `Pendentes primeiro`.
 
-- **#1 Memória de longo prazo** por hóspede — tabela `guest_memory` (chave: `phone` + `owner_id`), com preferências extraídas automaticamente da conversa (Gemini structured output ao resolver a conversa). Injetar no system prompt em estadias futuras.
-- **#2 Follow-up proativo da IA** — job que envia mensagem 1 dia antes do check-in ("posso ajudar com algo?"). Sem envio pós-check-out, conforme confirmado.
-- **#3 Sugestões contextuais** — cards "hóspedes parecidos amaram" nas recomendações, com base em `poi_engagement_events`.
-- **#4 Detecção de intenção crítica** — classifier em cima da mensagem do hóspede; se `emergency|complaint`, escalar direto para humano + push prioritário.
-- **#10 Insights por propriedade** (perguntas mais frequentes, POIs bombados, gargalos).
-- **#16, #17, #20, #21, #22** — auditoria completa, exportação LGPD, modo offline PWA, compartilhamento de guia por link, audit log.
+### Edição de horário
+- Botão "Editar horário" abre `Popover` com `<input type="time">`. Salva em `arrival_time_override`.
+- Renderização: valor efetivo em destaque; valor original riscado ou em `title=` tooltip: "informado pelo hóspede: HH:mm".
 
----
+### Divergência iCal
+- Casamento: mesma `property_id` + `checkin_date` (para aba check-in) ou `checkout_date` (para aba check-out). Divergência quando o iCal existe mas a data no log difere. Horário: o iCal do Airbnb só traz data — a divergência se aplica só a data; se datas batem, mostrar chip verde `iCal ✓` discreto.
+- Botão "Usar valor do iCal" chama `applyIcalTime` (registra nota interna + marca como reconciliado — evita reescrever o input do hóspede).
 
-## Detalhes técnicos (para referência)
+### WhatsApp
+- Se `guest_phone_country` presente: `https://wa.me/{country}{phoneOnlyDigits}`; caso contrário só dígitos do telefone.
 
-**Áudio (#25):** provavelmente MIME `audio/webm;codecs=opus` sendo salvo sem `content-type` no bucket, ou `<audio>` sem `type`. Fix: setar `contentType` no `storage.upload` e no `<audio><source type>`; fallback transcodar para `mp3` server-side se necessário.
+## Detalhes de execução
+- Tokens do design system existente (roxo Sigma via `bg-primary`, superfícies via `bg-card`, sombra `shadow-elegant`). Nenhum hex hardcoded.
+- Cards com `rounded-2xl`, header com nome grande + badges à direita usando o pattern `grid-cols-[minmax(0,1fr)_auto]` + `min-w-0` + `truncate` para mobile.
+- `useQuery` para KPIs (staleTime 60s), engajamento (chave inclui range), lista (chave inclui aba+range). `useMutation` para status + nota + override + apply ical, com `queryClient.invalidateQueries`.
+- SEO: `head()` com título "Painel operacional — ConciergeIA".
 
-**"Com alguém" (#24):** join `handoff.functions.ts` já traz `assigned_to`; falta `profiles.full_name` do agente. Adicionar no `select` e no componente `ConversationList` + header.
-
-**iCal (#11):** dependência nova `ical.js` ou `node-ical`. Cron URL: `https://sigmaconcierge.lovable.app/api/public/cron.sync-ical`. Agendar via `pg_cron` a cada 1h.
-
-**NPS (#6):** reaproveita `chat_message_feedback`. Novo componente `CsatPrompt` no `GuideAiChat` quando `conversation.status = 'resolved'` e ainda sem feedback.
-
-**Memória IA (#1):** `generateText` com `Output.object({ preferences: z.array(...) })` ao resolver conversa. Prompt: "extraia preferências duráveis (alergias, restrições, gostos)".
-
----
-
-## Confirmações que preciso antes de começar
-
-1. **Onda 1 primeiro** (áudio + "com alguém" + gates)? — recomendo sim, são bugs/UX.
-2. **NPS (#6)**: envio automático ou só quando o humano marcar como resolvida? (padrão que sugiro: automático em ambos os casos, humano + IA).
-3. **iCal (#11)**: começar só com Airbnb ou já suportar múltiplas URLs (Airbnb + Booking + PMS) por propriedade?
+## Arquivos a criar/editar
+- migration: `guest_arrival_status` (+ GRANT + RLS + policies).
+- `src/lib/dashboard.functions.ts` (novo).
+- `src/routes/_authenticated/admin.dashboard.tsx` (novo) — inclui os subcomponentes locais.
+- `src/routes/_authenticated/admin.tsx` — ajuste no `baseNav`.
