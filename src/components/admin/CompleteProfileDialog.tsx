@@ -80,24 +80,24 @@ export function CompleteProfileDialog() {
   return (
     <Dialog open={open}>
       <DialogContent
-        className="max-w-lg [&>button]:hidden"
+        className="max-w-sm p-5 rounded-2xl [&>button]:hidden"
         onEscapeKeyDown={(e) => e.preventDefault()}
         onPointerDownOutside={(e) => e.preventDefault()}
         onInteractOutside={(e) => e.preventDefault()}
       >
-        <DialogHeader>
-          <div className="mx-auto mb-2 size-12 rounded-full bg-primary/10 grid place-items-center">
-            <UserCircle2 className="size-6 text-primary" />
+        <DialogHeader className="space-y-1.5">
+          <div className="mx-auto size-9 rounded-full bg-primary/10 grid place-items-center">
+            <UserCircle2 className="size-4 text-primary" />
           </div>
-          <DialogTitle className="text-center font-display text-xl">
+          <DialogTitle className="text-center font-display text-base">
             Complete seu cadastro
           </DialogTitle>
-          <DialogDescription className="text-center">
-            Precisamos de alguns dados obrigatórios para liberar o acesso ao painel.
+          <DialogDescription className="text-center text-xs">
+            Só faltam alguns dados para liberar o painel.
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4 pt-2">
+        <div className="space-y-3 pt-1">
           {missing.name && (
             <Field label="Nome completo" required>
               <input
@@ -124,7 +124,7 @@ export function CompleteProfileDialog() {
           )}
 
           {missing.cpf && (
-            <Field label="CPF" required hint="Usado apenas para identificação da conta.">
+            <Field label="CPF" required>
               <input
                 inputMode="numeric"
                 className="input"
@@ -135,16 +135,16 @@ export function CompleteProfileDialog() {
             </Field>
           )}
 
-          <div className="flex items-center gap-2 text-[11px] text-muted-foreground pt-1">
-            <ShieldCheck className="size-3.5" />
-            Seus dados ficam privados e são usados só para conformidade da conta.
+          <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+            <ShieldCheck className="size-3" />
+            Dados privados, usados só para conformidade.
           </div>
 
           <button
             type="button"
             onClick={onSave}
             disabled={!canSave || saving}
-            className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-primary text-primary-foreground px-4 py-2.5 text-sm font-medium hover:opacity-90 disabled:opacity-50"
+            className="w-full inline-flex items-center justify-center gap-2 rounded-lg bg-primary text-primary-foreground px-4 py-2 text-sm font-medium hover:opacity-90 disabled:opacity-50"
           >
             {saving && <Loader2 className="size-4 animate-spin" />}
             Salvar e continuar
@@ -152,7 +152,7 @@ export function CompleteProfileDialog() {
         </div>
 
         <style>{`
-          .input { width: 100%; border-radius: 0.75rem; border: 1px solid hsl(var(--border)); background: hsl(var(--background)); padding: 0.55rem 0.75rem; font-size: 0.875rem; outline: none; }
+          .input { width: 100%; border-radius: 0.6rem; border: 1px solid hsl(var(--border)); background: hsl(var(--background)); padding: 0.45rem 0.65rem; font-size: 0.85rem; outline: none; }
           .input:focus { border-color: hsl(var(--primary) / 0.7); box-shadow: 0 0 0 3px hsl(var(--primary) / 0.15); }
         `}</style>
       </DialogContent>
