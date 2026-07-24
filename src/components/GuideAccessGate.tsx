@@ -440,11 +440,7 @@ export function GuideAccessGate({ slug, propertyName, requireReservationCode, co
                         numberOfMonths={1}
                         initialFocus
                         locale={ptBR}
-                        disabled={(date) => {
-                          const today = new Date();
-                          today.setHours(0, 0, 0, 0);
-                          return date < today;
-                        }}
+                        disabled={isDateDisabled}
                         className="p-3 pointer-events-auto"
                       />
                     }
@@ -460,11 +456,7 @@ export function GuideAccessGate({ slug, propertyName, requireReservationCode, co
                         numberOfMonths={1}
                         initialFocus
                         locale={ptBR}
-                        disabled={(date) => {
-                          const today = new Date();
-                          today.setHours(0, 0, 0, 0);
-                          return date < today;
-                        }}
+                        disabled={isDateDisabled}
                         className="p-3 pointer-events-auto"
                       />
                     }
