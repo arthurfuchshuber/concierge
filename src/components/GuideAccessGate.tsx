@@ -432,6 +432,35 @@ export function GuideAccessGate({ slug, propertyName, requireReservationCode, co
                   />
                 </div>
 
+                {resCheck.state === "matched" && (
+                  <div className="flex items-center gap-2 text-[12px] text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2">
+                    <CheckCircle2 className="size-4 shrink-0" />
+                    <span>Reserva Airbnb encontrada para estas datas.</span>
+                  </div>
+                )}
+                {resCheck.state === "no-match" && (
+                  <div className="flex items-start gap-2 text-[12px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                    <AlertTriangle className="size-4 shrink-0 mt-0.5" />
+                    <span>
+                      Não encontramos uma reserva Airbnb para estas datas.
+                      {resCheck.suggestedCheckout && (
+                        <>
+                          {" "}Sua chegada bate com uma reserva, mas a saída é{" "}
+                          <b>
+                            {new Date(resCheck.suggestedCheckout + "T12:00:00").toLocaleDateString("pt-BR", {
+                              day: "2-digit",
+                              month: "short",
+                            })}
+                          </b>
+                          . Confira se digitou corretamente.
+                        </>
+                      )}
+                      {!resCheck.suggestedCheckout && " Confira as datas ou siga se sua reserva foi feita por outro canal."}
+                    </span>
+                  </div>
+                )}
+
+
                 <div className="sg-phone-input">
                   <PhoneInput
                     id="guest-phone"
