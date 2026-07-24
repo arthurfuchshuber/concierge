@@ -20,7 +20,7 @@ import {
 export const Route = createFileRoute("/_authenticated/admin/dashboard")({
   head: () => ({
     meta: [
-      { title: "Dashboard operacional — ConciergeIA" },
+      { title: "Operação — ConciergeIA" },
       { name: "description", content: "Painel operacional diário do anfitrião: check-ins, check-outs e engajamento do guia." },
     ],
   }),
