@@ -61,8 +61,15 @@ function DashboardPage() {
     staleTime: 30_000,
   });
 
+  type UpsertPayload = {
+    logId: string;
+    kind: "checkin" | "checkout";
+    status?: "pending" | "done";
+    note?: string | null;
+    arrivalTimeOverride?: string | null;
+  };
   const upsert = useMutation({
-    mutationFn: (v: Parameters<typeof upsertFn>[0]["data"]) => upsertFn({ data: v }),
+    mutationFn: (v: UpsertPayload) => upsertFn({ data: v }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["dash-list"] });
       qc.invalidateQueries({ queryKey: ["dash-kpis"] });
