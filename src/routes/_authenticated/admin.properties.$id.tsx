@@ -205,7 +205,7 @@ function PropertyEditor() {
   const syncIcal = useServerFn(syncPropertyAirbnbIcal);
   const listReservations = useServerFn(listPropertyReservations);
   const [syncingIcal, setSyncingIcal] = useState(false);
-  const [icalNotice, setIcalNotice] = useState<null | "activated" | "deactivated">(null);
+  
   const [pendingIcalClear, setPendingIcalClear] = useState(false);
   const reservationsQuery = useQuery({
     queryKey: ["airbnb-reservations", id],
