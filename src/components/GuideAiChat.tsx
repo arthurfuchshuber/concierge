@@ -81,6 +81,56 @@ export function GuideAiChat({ slug, propertyName, guestName }: { slug: string; p
   useEffect(() => { openRef.current = open; }, [open]);
   const { greeting, hint } = getTimeContext();
 
+  // Draggable launcher position (persistent). side + distance from bottom in px.
+  const [pos, setPos] = useState<{ side: "left" | "right"; bottom: number }>(() => {
+    if (typeof window === "undefined") return { side: "right", bottom: 96 };
+    try {
+      const raw = window.localStorage.getItem("guide-chat-pos");
+      if (raw) {
+        const p = JSON.parse(raw);
+        if ((p.side === "left" || p.side === "right") && typeof p.bottom === "number") return p;
+      }
+    } catch { /* ignore */ }
+    return { side: "right", bottom: 96 };
+  });
+  const [dragOffset, setDragOffset] = useState<{ dx: number; dy: number } | null>(null);
+  const dragStateRef = useRef<{ x: number; y: number; moved: boolean; pointerId: number } | null>(null);
+  const justDraggedRef = useRef(false);
+
+  function handleLauncherPointerDown(e: React.PointerEvent<HTMLButtonElement>) {
+    if (e.button !== 0 && e.pointerType === "mouse") return;
+    dragStateRef.current = { x: e.clientX, y: e.clientY, moved: false, pointerId: e.pointerId };
+    try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* ignore */ }
+  }
+  function handleLauncherPointerMove(e: React.PointerEvent<HTMLButtonElement>) {
+    const s = dragStateRef.current;
+    if (!s) return;
+    const dx = e.clientX - s.x;
+    const dy = e.clientY - s.y;
+    if (!s.moved && (Math.abs(dx) > 6 || Math.abs(dy) > 6)) s.moved = true;
+    if (s.moved) setDragOffset({ dx, dy });
+  }
+  function handleLauncherPointerUp(e: React.PointerEvent<HTMLButtonElement>) {
+    const s = dragStateRef.current;
+    dragStateRef.current = null;
+    try { e.currentTarget.releasePointerCapture(e.pointerId); } catch { /* ignore */ }
+    if (!s) return;
+    if (s.moved) {
+      const rect = e.currentTarget.getBoundingClientRect();
+      const centerX = rect.left + rect.width / 2;
+      const side: "left" | "right" = centerX < window.innerWidth / 2 ? "left" : "right";
+      const bottomPx = Math.max(24, Math.min(window.innerHeight - rect.height - 24, window.innerHeight - rect.bottom));
+      const next = { side, bottom: bottomPx };
+      setPos(next);
+      setDragOffset(null);
+      try { window.localStorage.setItem("guide-chat-pos", JSON.stringify(next)); } catch { /* ignore */ }
+      justDraggedRef.current = true;
+      window.setTimeout(() => { justDraggedRef.current = false; }, 50);
+    } else {
+      setDragOffset(null);
+    }
+  }
+
 
   useEffect(() => {
     setMounted(true);
@@ -382,11 +432,15 @@ export function GuideAiChat({ slug, propertyName, guestName }: { slug: string; p
 
   const launcher = !open ? (
     <div
-      className="fixed right-4 sm:right-5 flex flex-col items-end gap-3 pointer-events-none"
+      className={`fixed flex flex-col ${pos.side === "left" ? "items-start" : "items-end"} gap-3 pointer-events-none`}
       style={{
-        bottom: "calc(env(safe-area-inset-bottom, 0px) + 96px)",
+        bottom: `calc(env(safe-area-inset-bottom, 0px) + ${pos.bottom}px)`,
+        [pos.side]: "16px",
+        transform: dragOffset ? `translate(${dragOffset.dx}px, ${dragOffset.dy}px)` : undefined,
+        transition: dragOffset ? "none" : "transform 200ms ease",
+        touchAction: "none",
         zIndex: 2147483600,
-      }}
+      } as React.CSSProperties}
     >
       {/* Popup preview when AI replies while chat is closed */}
       {pendingPreview && (
@@ -454,13 +508,18 @@ export function GuideAiChat({ slug, propertyName, guestName }: { slug: string; p
 
       <button
         type="button"
+        onPointerDown={handleLauncherPointerDown}
+        onPointerMove={handleLauncherPointerMove}
+        onPointerUp={handleLauncherPointerUp}
+        onPointerCancel={handleLauncherPointerUp}
         onClick={() => {
+          if (justDraggedRef.current) return;
           metaPixelTrackCustom("ChatClick", { location: "guide" });
           setOpen(true);
         }}
-        aria-label="Abrir assistente do guia"
-        title="Peça dicas à IA"
-        className="btn-shine group relative inline-flex items-center gap-2 px-4 sm:px-5 h-14 rounded-full bg-emerald-500 text-white shadow-[0_16px_38px_-14px_rgba(16,185,129,0.7)] hover:bg-emerald-600 hover:shadow-[0_20px_46px_-16px_rgba(16,185,129,0.85)] active:scale-95 transition-all pointer-events-auto"
+        aria-label="Abrir assistente do guia (arraste para reposicionar)"
+        title="Peça dicas à IA · arraste para mover"
+        className="btn-shine group relative inline-flex items-center gap-2 px-4 sm:px-5 h-14 rounded-full bg-emerald-500 text-white shadow-[0_16px_38px_-14px_rgba(16,185,129,0.7)] hover:bg-emerald-600 hover:shadow-[0_20px_46px_-16px_rgba(16,185,129,0.85)] active:scale-95 transition-all pointer-events-auto cursor-grab active:cursor-grabbing touch-none select-none"
       >
         {loading && (
           <span className="absolute -top-1 -right-1 size-3.5 rounded-full bg-amber-400 ring-2 ring-background animate-pulse" title="Pensando…" />
