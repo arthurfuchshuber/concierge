@@ -312,15 +312,13 @@ function DashboardPage() {
             <SegBtn active={kind === "checkin"} onClick={() => setKind("checkin")} icon={CalendarCheck}>Check-ins</SegBtn>
             <SegBtn active={kind === "checkout"} onClick={() => setKind("checkout")} icon={CalendarX}>Check-outs</SegBtn>
           </div>
-          <RangeDropdown
-            value={range}
-            onChange={setRange}
-            options={[["today", "Hoje"], ["tomorrow", "Amanhã"], ["7d", "7 dias"], ["all", "Todos"]]}
-          />
-          <InfoHint title="Fila de chegadas / saídas">
-            Cada card representa uma reserva. Marque <b>Realizado</b> para tirar da fila; use <b>WhatsApp</b> para falar direto; a <b>Nota</b> fica visível só para sua equipe. Reservas sem formulário preenchido aparecem como <i>Hóspede pendente</i>.
-          </InfoHint>
-          <div className="ml-auto text-xs text-muted-foreground tabular-nums">{rangeLabel[range]} · {rows.length} registro{rows.length !== 1 ? "s" : ""}</div>
+          <div className="ml-auto">
+            <RangeDropdown
+              value={range}
+              onChange={setRange}
+              options={[["today", "Hoje"], ["tomorrow", "Amanhã"], ["7d", "7 dias"], ["all", "Todos"]]}
+            />
+          </div>
         </div>
 
         {listQ.isLoading ? (
