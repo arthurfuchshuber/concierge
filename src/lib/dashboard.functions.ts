@@ -43,29 +43,55 @@ export const getDashboardKpis = createServerFn({ method: "GET" })
     const today = todayISO();
     const tomorrow = addDaysISO(today, 1);
 
-    async function count(col: "checkin_date" | "checkout_date", date: string) {
-      const { data } = await context.supabase
+    // Filled logs + iCal reservations in parallel. Both feed the KPI counts so
+    // reservations that the guest has NOT accessed yet still surface up top.
+    const [{ data: logs }, { data: reservations }] = await Promise.all([
+      context.supabase
         .from("guide_access_logs")
-        .select("id, property_id, guest_name")
+        .select("property_id, guest_name, checkin_date, checkout_date")
         .in("property_id", propIds)
-        .eq(col, date)
-        .limit(1000);
-      // dedupe by property_id + guest_name (case-insensitive)
+        .or(
+          `checkin_date.in.(${today},${tomorrow}),checkout_date.in.(${today},${tomorrow})`,
+        )
+        .limit(2000),
+      context.supabase
+        .from("property_reservations")
+        .select("property_id, checkin_date, checkout_date")
+        .in("property_id", propIds)
+        .eq("source", "airbnb")
+        .or(
+          `checkin_date.in.(${today},${tomorrow}),checkout_date.in.(${today},${tomorrow})`,
+        ),
+    ]);
+
+    type LogRow = { property_id: string; guest_name: string; checkin_date: string; checkout_date: string | null };
+    type ResRow = { property_id: string; checkin_date: string; checkout_date: string };
+    const logRows = (logs ?? []) as LogRow[];
+    const resRows = (reservations ?? []) as ResRow[];
+
+    function countFor(col: "checkin_date" | "checkout_date", date: string) {
       const seen = new Set<string>();
-      for (const row of data ?? []) {
-        const key = `${(row as { property_id: string }).property_id}|${((row as { guest_name: string }).guest_name || "").trim().toLowerCase()}`;
-        seen.add(key);
+      const filledPropDates = new Set<string>();
+      for (const row of logRows) {
+        if (row[col] !== date) continue;
+        filledPropDates.add(`${row.property_id}|${date}`);
+        seen.add(`${row.property_id}|${(row.guest_name || "").trim().toLowerCase()}|${date}`);
+      }
+      for (const r of resRows) {
+        if (r[col] !== date) continue;
+        const pk = `${r.property_id}|${date}`;
+        if (filledPropDates.has(pk)) continue;
+        seen.add(`ical|${pk}`);
       }
       return seen.size;
     }
 
-    const [ciT, ciTo, coT, coTo] = await Promise.all([
-      count("checkin_date", today),
-      count("checkin_date", tomorrow),
-      count("checkout_date", today),
-      count("checkout_date", tomorrow),
-    ]);
-    return { checkinsToday: ciT, checkinsTomorrow: ciTo, checkoutsToday: coT, checkoutsTomorrow: coTo };
+    return {
+      checkinsToday: countFor("checkin_date", today),
+      checkinsTomorrow: countFor("checkin_date", tomorrow),
+      checkoutsToday: countFor("checkout_date", today),
+      checkoutsTomorrow: countFor("checkout_date", tomorrow),
+    };
   });
 
 // ----- Engagement -----
