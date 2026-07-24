@@ -27,12 +27,20 @@ export type HandoffConversationSummary = {
   properties: { id: string | null; name: string | null; owner_id: string | null; slug: string | null } | null;
 };
 
+export type HandoffReservationMatch = {
+  status: "confirmed" | "loose" | "missing" | "no_ical";
+  checkin: string | null;
+  checkout: string | null;
+};
+
 export type HandoffListResult = {
   conversations: HandoffConversationSummary[];
   details: Record<string, HandoffGuestDetail>;
   assignedNames?: Record<string, string>;
+  reservations?: Record<string, HandoffReservationMatch>;
   error?: string;
 };
+
 
 
 type RawHandoffRow = {
