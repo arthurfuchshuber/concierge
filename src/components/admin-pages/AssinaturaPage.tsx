@@ -171,7 +171,7 @@ function AssinaturaPage() {
   const currentPlanConfig = currentPlan ? PLANS[currentPlan] : null;
 
   return (
-    <div className="px-5 lg:px-10 py-8 lg:py-10 max-w-6xl mx-auto w-full">
+    <div className="w-full">
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
           <h1 className="font-display text-3xl md:text-4xl">Assinatura</h1>
