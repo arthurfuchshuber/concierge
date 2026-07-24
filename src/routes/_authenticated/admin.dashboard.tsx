@@ -394,15 +394,12 @@ function KpiCard({ label, value, icon: Icon, tone, loading, listQuery, kind, ran
             <div className="py-12 grid place-items-center text-muted-foreground"><Loader2 className="size-5 animate-spin" /></div>
           ) : rows.length === 0 ? (
             <div className="py-10 text-center text-sm text-muted-foreground">Nenhum registro.</div>
-          ) : (() => {
-            const showRes = rows.some((r) => !!r.reservationCode);
-            return (
+          ) : (
             <table className="w-full text-sm">
               <thead className="text-[10px] uppercase tracking-wider text-muted-foreground bg-secondary/40">
                 <tr>
                   <th className="text-left px-4 py-2 font-semibold">Hóspede</th>
                   <th className="text-left px-4 py-2 font-semibold">Unidade</th>
-                  {showRes && <th className="text-left px-4 py-2 font-semibold">Reserva</th>}
                   <th className="text-left px-4 py-2 font-semibold">Horário</th>
                   <th className="text-right px-4 py-2 font-semibold">Status</th>
                 </tr>
@@ -417,9 +414,6 @@ function KpiCard({ label, value, icon: Icon, tone, loading, listQuery, kind, ran
                         <div className={`font-medium truncate max-w-[180px] ${r.pendingFill ? "text-muted-foreground italic" : ""}`}>{r.guestName}</div>
                       </td>
                       <td className="px-4 py-2.5 text-muted-foreground truncate max-w-[160px]">{r.propertyName ?? "—"}</td>
-                      {showRes && (
-                        <td className="px-4 py-2.5 font-mono text-[12px] text-muted-foreground">{r.reservationCode ?? "—"}</td>
-                      )}
                       <td className="px-4 py-2.5 tabular-nums">{time}</td>
                       <td className="px-4 py-2.5 text-right">
                         {done ? (
@@ -438,6 +432,7 @@ function KpiCard({ label, value, icon: Icon, tone, loading, listQuery, kind, ran
                       </td>
                     </tr>
                   );
+
                 })}
               </tbody>
             </table>
