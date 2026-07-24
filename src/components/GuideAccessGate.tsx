@@ -150,6 +150,41 @@ export function GuideAccessGate({ slug, propertyName, requireReservationCode, co
     if (existing) onUnlock(existing);
   }, [slug, onUnlock]);
 
+  // Fetch upcoming reservation ranges (when iCal is connected) to restrict
+  // the calendar to reserved days only.
+  useEffect(() => {
+    let cancelled = false;
+    listReservationDates({ data: { slug } })
+      .then((r) => {
+        if (cancelled) return;
+        setReservedRanges({ hasIcal: r.hasIcal, ranges: r.ranges });
+      })
+      .catch(() => {
+        if (!cancelled) setReservedRanges({ hasIcal: false, ranges: [] });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [slug, listReservationDates]);
+
+  // Date is "reserved" if it falls inside any reservation window
+  // (inclusive of checkin and checkout, so the guest can pick both endpoints).
+  const isReservedDate = (date: Date): boolean => {
+    if (!reservedRanges || !reservedRanges.hasIcal) return true;
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, "0");
+    const d = String(date.getDate()).padStart(2, "0");
+    const iso = `${y}-${m}-${d}`;
+    return reservedRanges.ranges.some((r) => iso >= r.checkin && iso <= r.checkout);
+  };
+
+  const isDateDisabled = (date: Date): boolean => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    if (date < today) return true;
+    return !isReservedDate(date);
+  };
+
   // Cross-check with Airbnb iCal reservations (soft warning, never blocks)
   useEffect(() => {
     if (!range?.from || !range?.to) {
