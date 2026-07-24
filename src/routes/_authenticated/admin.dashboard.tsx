@@ -617,7 +617,7 @@ function ArrivalCard({ row, kind, onMark, onSyncIcal, onNote, onEditDates, onEdi
       done
         ? "bg-secondary/30 border-border/50"
         : isToday
-        ? "bg-[linear-gradient(135deg,color-mix(in_oklab,var(--primary)_7%,transparent),color-mix(in_oklab,var(--primary)_2%,transparent))] border-primary/30 shadow-[0_14px_44px_-14px_color-mix(in_oklab,var(--primary)_55%,transparent),0_2px_8px_-2px_color-mix(in_oklab,var(--primary)_25%,transparent)] hover:shadow-[0_18px_54px_-14px_color-mix(in_oklab,var(--primary)_65%,transparent),0_2px_10px_-2px_color-mix(in_oklab,var(--primary)_30%,transparent)] hover:-translate-y-0.5"
+        ? "bg-[linear-gradient(135deg,color-mix(in_oklab,var(--primary)_7%,transparent),color-mix(in_oklab,var(--primary)_2%,transparent))] border-primary/25 shadow-[0_10px_28px_-16px_color-mix(in_oklab,var(--primary)_28%,transparent),0_1px_4px_-2px_color-mix(in_oklab,var(--primary)_14%,transparent)] hover:shadow-[0_12px_32px_-16px_color-mix(in_oklab,var(--primary)_36%,transparent)] hover:-translate-y-0.5"
         : "bg-[linear-gradient(135deg,color-mix(in_oklab,var(--primary)_5%,transparent),color-mix(in_oklab,var(--primary)_1%,transparent))] border-primary/15 shadow-sm hover:shadow-md hover:-translate-y-0.5"
     }`}>
       {!done && (
