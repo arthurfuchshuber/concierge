@@ -1729,6 +1729,7 @@ function PropertyEditor() {
             icon={HelpCircle}
             title="Perguntas frequentes"
             desc="Antecipe dúvidas comuns dos hóspedes."
+            collapsible
             action={
               <div className="flex items-center gap-1.5">
                 <button
