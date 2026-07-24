@@ -1181,7 +1181,7 @@ function PropertyEditor() {
 
         <TabsContent value="access" className="space-y-5 mt-6">
           <SectionGroup>
-          <Section icon={Shield} title="Modo de acesso" desc="Quem pode visualizar este guia.">
+          <Section icon={Shield} title="Modo de acesso" desc="Quem pode visualizar este guia." collapsible>
 
             <Field label="Modo de acesso do Guia">
               <Select value={form.property.access_mode} onValueChange={(v) => update("access_mode", v as "public" | "pin")}>
