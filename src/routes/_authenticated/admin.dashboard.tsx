@@ -410,65 +410,76 @@ function KpiCard({ label, value, icon: Icon, tone, loading, listQuery, kind, ran
           </div>
         </button>
       </DialogTrigger>
-      <DialogContent className="max-w-lg p-0 overflow-hidden">
-        <DialogHeader className="px-5 pt-5 pb-3 border-b border-border/60">
-          <DialogTitle className="flex items-center gap-2 text-base">
-            <Icon className="size-4 text-primary" />
-            {label} <span className="text-muted-foreground font-normal">· {rangeLabel}</span>
-          </DialogTitle>
+      <DialogContent className="max-w-md p-0 overflow-hidden rounded-2xl border-border/60 bg-card/95 backdrop-blur-xl shadow-2xl">
+        <div className={`absolute inset-x-0 top-0 h-px ${shadowTone === "emerald" ? "bg-gradient-to-r from-transparent via-emerald-500/60 to-transparent" : shadowTone === "amber" ? "bg-gradient-to-r from-transparent via-amber-500/60 to-transparent" : "bg-gradient-to-r from-transparent via-primary/50 to-transparent"}`} />
+        <DialogHeader className="px-5 pt-5 pb-4">
+          <div className="flex items-center gap-3">
+            <div className={`grid place-items-center size-10 rounded-xl ${shadowTone === "emerald" ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" : shadowTone === "amber" ? "bg-amber-500/10 text-amber-600 dark:text-amber-400" : "bg-primary/10 text-primary"}`}>
+              <Icon className="size-5" />
+            </div>
+            <div className="min-w-0">
+              <DialogTitle className="text-base font-display leading-tight truncate">{label}</DialogTitle>
+              <div className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground mt-0.5">
+                {rangeLabel} · {rows.length} {rows.length === 1 ? "hóspede" : "hóspedes"}
+              </div>
+            </div>
+          </div>
         </DialogHeader>
-        <div className="max-h-[70vh] overflow-y-auto">
+        <div className="max-h-[70vh] overflow-y-auto px-3 pb-4">
           {listQuery.isFetching ? (
-            <div className="py-12 grid place-items-center text-muted-foreground"><Loader2 className="size-5 animate-spin" /></div>
+            <div className="py-14 grid place-items-center text-muted-foreground"><Loader2 className="size-5 animate-spin" /></div>
           ) : rows.length === 0 ? (
-            <div className="py-10 text-center text-sm text-muted-foreground">Nenhum registro.</div>
+            <div className="py-12 text-center text-sm text-muted-foreground">Nenhum registro no período.</div>
           ) : (
-            <table className="w-full text-sm">
-              <thead className="text-[10px] uppercase tracking-wider text-muted-foreground bg-secondary/40">
-                <tr>
-                  <th className="text-left px-4 py-2 font-semibold">Hóspede</th>
-                  <th className="text-left px-4 py-2 font-semibold">Unidade</th>
-                  <th className="text-left px-4 py-2 font-semibold">Horário</th>
-                  <th className="text-right px-4 py-2 font-semibold">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((r) => {
-                  const time = r.arrivalTimeOverride ?? r.guestArrivalTime ?? "—";
-                  const done = r.status === "done";
-                  return (
-                    <tr key={r.logId} className="border-t border-border/40 hover:bg-secondary/30">
-                      <td className="px-4 py-2.5">
-                        <div className={`font-medium truncate max-w-[180px] ${r.pendingFill ? "text-muted-foreground italic" : ""}`}>{r.guestName}</div>
-                      </td>
-                      <td className="px-4 py-2.5 text-muted-foreground truncate max-w-[160px]">{r.propertyName ?? "—"}</td>
-                      <td className="px-4 py-2.5 tabular-nums">{time}</td>
-                      <td className="px-4 py-2.5 text-right">
-                        {done ? (
-                          <span className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400 text-xs">
-                            <Check className="size-3.5" /> Realizado
-                          </span>
-                        ) : r.pendingFill ? (
-                          <span className="inline-flex items-center gap-1 text-amber-600 dark:text-amber-400 text-xs">
-                            <UserPlus className="size-3.5" /> Pendente
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 text-muted-foreground text-xs">
-                            <Clock className="size-3.5" /> Aguardando
-                          </span>
-                        )}
-                      </td>
-                    </tr>
-                  );
-
-                })}
-              </tbody>
-            </table>
+            <ul className="space-y-1.5">
+              {rows.map((r) => {
+                const time = r.arrivalTimeOverride ?? r.guestArrivalTime ?? null;
+                const done = r.status === "done";
+                const initials = (r.guestName || "?")
+                  .split(/\s+/).filter(Boolean).slice(0, 2).map((s) => s[0]?.toUpperCase() ?? "").join("") || "?";
+                return (
+                  <li
+                    key={r.logId}
+                    className="group flex items-center gap-3 rounded-xl border border-border/50 bg-background/40 px-3 py-2.5 transition hover:border-border hover:bg-secondary/40"
+                  >
+                    <div className={`grid place-items-center size-9 rounded-full text-xs font-semibold shrink-0 ${r.pendingFill ? "bg-muted text-muted-foreground" : "bg-primary/10 text-primary"}`}>
+                      {r.pendingFill ? <UserPlus className="size-4" /> : initials}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className={`text-sm font-medium leading-tight truncate ${r.pendingFill ? "text-muted-foreground italic" : ""}`}>
+                        {r.guestName}
+                      </div>
+                      <div className="text-xs text-muted-foreground truncate mt-0.5">
+                        {r.propertyName ?? "—"}
+                      </div>
+                    </div>
+                    <div className="flex flex-col items-end gap-1 shrink-0">
+                      {time ? (
+                        <span className="inline-flex items-center gap-1 text-xs tabular-nums text-foreground/80">
+                          <Clock className="size-3" /> {time}
+                        </span>
+                      ) : (
+                        <span className="text-xs text-muted-foreground/60">sem horário</span>
+                      )}
+                      {done ? (
+                        <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+                          <Check className="size-3" /> Realizado
+                        </span>
+                      ) : r.pendingFill ? (
+                        <span className="text-[10px] uppercase tracking-wider text-amber-600 dark:text-amber-400">Pendente</span>
+                      ) : (
+                        <span className="text-[10px] uppercase tracking-wider text-muted-foreground">Aguardando</span>
+                      )}
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
           )}
-
         </div>
       </DialogContent>
     </Dialog>
+
   );
 }
 
