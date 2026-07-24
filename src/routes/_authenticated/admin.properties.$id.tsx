@@ -1649,6 +1649,7 @@ function PropertyEditor() {
             icon={Ticket}
             title="Reservas & marketplace"
             desc="Links para venda de ingressos, passeios, transfers, produtos ou qualquer experiência que você queira oferecer ao hóspede."
+            collapsible
             action={sigmaLocked ? null : <AddBtn onClick={() => setForm((f) => ({ ...f, property: { ...f.property, marketplace_links: [...f.property.marketplace_links, { label: "", url: "", description: "" }] } }))} />}
           >
             {sigmaLocked && (
