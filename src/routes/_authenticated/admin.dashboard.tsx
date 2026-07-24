@@ -898,9 +898,14 @@ function DateEditor({ label, value, disabled, onChange }: {
         if (input && typeof input.showPicker === "function") input.showPicker();
         else input?.focus();
       }}
-      className="relative inline-block text-right cursor-pointer rounded hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
+      className="relative inline-flex flex-col items-end cursor-pointer rounded hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
       title={`Clique para corrigir ${label.toLowerCase()}`}
     >
+      <span className="text-sm font-semibold tabular-nums leading-tight">
+        {fmtDateBR(value)}
+      </span>
+      <span className="text-[9px] uppercase tracking-wider text-muted-foreground -mt-0.5">{label}</span>
+      {/* Native input overlays the label — fully transparent, receives clicks/picker */}
       <input
         type="date"
         value={value}
@@ -911,9 +916,9 @@ function DateEditor({ label, value, disabled, onChange }: {
           onChange(v);
         }}
         onClick={(e) => e.stopPropagation()}
-        className="text-sm font-semibold tabular-nums leading-tight bg-transparent border-0 p-0 text-right w-[100px] cursor-pointer focus:outline-none [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-inner-spin-button]:hidden"
+        aria-label={label}
+        className="absolute inset-0 opacity-0 cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-0"
       />
-      <div className="text-[9px] uppercase tracking-wider text-muted-foreground -mt-0.5">{label}</div>
     </button>
   );
 }
