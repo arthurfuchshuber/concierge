@@ -705,6 +705,7 @@ function ArrivalCard({ row, kind, onMark, onSyncIcal, onNote, onEditDates, onEdi
             {editingTime && !isPendingFill ? (
               <input
                 type="time"
+                step={1800}
                 autoFocus
                 value={timeVal}
                 onChange={(e) => setTimeVal(e.target.value)}
