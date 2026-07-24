@@ -146,6 +146,9 @@ export function FloatingHandoffDock() {
   const count = pendingQ.data?.count ?? 0;
   const convs = list.data?.conversations ?? [];
   const details = list.data?.details ?? {};
+  const assignedNames = list.data?.assignedNames ?? {};
+  const reservations = list.data?.reservations ?? {};
+
 
   const dock = (
     <>
