@@ -153,6 +153,14 @@ export function GuestsTable({
                 <ThSort onClick={() => toggle("accountName", "asc")} active={active("accountName")} dir={sort.dir} icon={Building2} align="left">Conta</ThSort>
                 <ThSort onClick={() => toggle("propertyName", "asc")} active={active("propertyName")} dir={sort.dir} align="left">Imóvel</ThSort>
                 <ThSort onClick={() => toggle("checkinDate", "desc")} active={active("checkinDate")} dir={sort.dir} icon={Calendar} align="left">Check-in</ThSort>
+                {showReservation && (
+                  <th className="text-left px-3 py-2 font-medium whitespace-nowrap">
+                    <span className="inline-flex items-center gap-1">
+                      <Hash className="size-3 shrink-0" />
+                      <span>Reserva</span>
+                    </span>
+                  </th>
+                )}
                 <ThSort onClick={() => toggle("lastActivity", "desc")} active={active("lastActivity")} dir={sort.dir} icon={CalendarCheck} align="left">Último acesso</ThSort>
                 <ThSort onClick={() => toggle("accessesCount", "desc")} active={active("accessesCount")} dir={sort.dir} icon={MousePointerClick} align="left">Acessos</ThSort>
                 <ThSort onClick={() => toggle("sessionsCount", "desc")} active={active("sessionsCount")} dir={sort.dir} icon={Layers} align="left">Sessões</ThSort>
