@@ -147,6 +147,8 @@ export type ArrivalRow = {
   standardTime: string | null;     // horário padrão da propriedade
   standardTimeMax: string | null;
   date: string;                    // data prevista (checkin ou checkout)
+  guestCheckin: string;
+  guestCheckout: string | null;
   reservationCode: string | null;
   createdAt: string;
   status: "pending" | "done";
@@ -278,6 +280,8 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
         standardTime: data.kind === "checkin" ? (p?.checkin_time ?? null) : (p?.checkout_time ?? null),
         standardTimeMax: data.kind === "checkin" ? (p?.checkin_time_max ?? null) : (p?.checkout_time_min ?? null),
         date,
+        guestCheckin: l.checkin_date,
+        guestCheckout: l.checkout_date ?? null,
         reservationCode: l.reservation_code,
         createdAt: l.created_at,
         status: s?.status ?? "pending",
@@ -315,6 +319,8 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
           standardTime: data.kind === "checkin" ? p.checkin_time : p.checkout_time,
           standardTimeMax: data.kind === "checkin" ? p.checkin_time_max : p.checkout_time_min,
           date: rd,
+          guestCheckin: r.checkin,
+          guestCheckout: r.checkout,
           reservationCode: null,
           createdAt: new Date().toISOString(),
           status: "pending",
