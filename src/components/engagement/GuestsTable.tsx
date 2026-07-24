@@ -199,7 +199,7 @@ export function GuestsTable({
                           </a>
                         </>
                       ) : <span>sem telefone</span>}
-                      {g.reservationCode && <span className="ml-1 truncate">· {g.reservationCode}</span>}
+                      {g.reservationCode && !showReservation && <span className="ml-1 truncate">· {g.reservationCode}</span>}
                     </div>
                   </td>
                   <td className="px-3 py-3 text-left text-xs text-muted-foreground truncate max-w-[160px]" title={g.accountName}>
@@ -211,6 +211,15 @@ export function GuestsTable({
                   <td className="px-3 py-3 text-left text-xs text-muted-foreground tabular-nums whitespace-nowrap">
                     {fmtDate(g.checkinDate)}
                   </td>
+                  {showReservation && (
+                    <td className="px-3 py-3 text-left whitespace-nowrap">
+                      {g.reservationCode ? (
+                        <span className="font-mono text-[11px] px-1.5 py-0.5 rounded bg-muted/60 border border-border/60">
+                          {g.reservationCode}
+                        </span>
+                      ) : <span className="text-xs text-muted-foreground">—</span>}
+                    </td>
+                  )}
                   <td className="px-3 py-3 text-left text-xs text-muted-foreground tabular-nums whitespace-nowrap">
                     {fmtDateTime(g.lastActivity)}
                   </td>
