@@ -92,11 +92,10 @@ export const getGuideEngagement = createServerFn({ method: "GET" })
       from = today;
       to = addDaysISO(today, 29);
     }
-
     // Guests with check-in in [from, to]
     const { data: logs } = await context.supabase
       .from("guide_access_logs")
-      .select("id, property_id, guest_name, guest_phone, guest_session_id, checkin_date")
+      .select("id, property_id, guest_name, guest_phone, checkin_date")
       .in("property_id", propIds)
       .gte("checkin_date", from)
       .lte("checkin_date", to)
@@ -106,29 +105,26 @@ export const getGuideEngagement = createServerFn({ method: "GET" })
       `${r.property_id}|${(r.guest_name || "").trim().toLowerCase()}|${(r.guest_phone || "").replace(/\D/g, "")}`;
 
     const guests = new Set<string>();
-    const sessionIds: string[] = [];
     for (const row of logs ?? []) {
-      const r = row as { property_id: string; guest_name: string | null; guest_phone: string | null; guest_session_id: string | null };
+      const r = row as { property_id: string; guest_name: string | null; guest_phone: string | null };
       guests.add(dedupKey(r));
-      if (r.guest_session_id) sessionIds.push(r.guest_session_id);
     }
     const checkinsInPeriod = guests.size;
     // Every filled log implies a guide open — the form is the entry point.
     const guideOpens = guests.size;
 
-    let checkinTabOpens = 0;
-    if (sessionIds.length > 0) {
-      const { data: evs } = await context.supabase
-        .from("guide_section_events")
-        .select("guest_session_id")
-        .in("property_id", propIds)
-        .eq("section", "checkin")
-        .in("guest_session_id", sessionIds)
-        .limit(5000);
-      const seen = new Set<string>();
-      for (const e of evs ?? []) seen.add((e as { guest_session_id: string }).guest_session_id);
-      checkinTabOpens = seen.size;
-    }
+    // Check-in tab opens: count events registered in the window (created_at).
+    const fromTs = `${from}T00:00:00.000Z`;
+    const toTs = `${addDaysISO(to, 1)}T00:00:00.000Z`;
+    const { data: evs } = await context.supabase
+      .from("guide_section_events")
+      .select("id")
+      .in("property_id", propIds)
+      .eq("section", "checkin")
+      .gte("created_at", fromTs)
+      .lt("created_at", toTs)
+      .limit(5000);
+    const checkinTabOpens = (evs ?? []).length;
 
     return { guideOpens, checkinTabOpens, checkinsInPeriod };
   });
