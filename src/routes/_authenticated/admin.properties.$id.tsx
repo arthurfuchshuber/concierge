@@ -1879,6 +1879,7 @@ function PropertyEditor() {
               icon={ClipboardList}
               title="Você pode pedir também"
               desc="Ative apenas o que faz sentido para seu imóvel. Para cada um, decida se será opcional ou obrigatório para o hóspede."
+              collapsible
             >
               <div className="space-y-3">
                 <CaptureRow
