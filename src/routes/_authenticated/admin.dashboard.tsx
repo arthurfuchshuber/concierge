@@ -483,13 +483,17 @@ function RangeDropdown<T extends string>({ value, onChange, options }: {
   );
 }
 
-function TabBtn({ active, onClick, icon: Icon, children }: { active: boolean; onClick: () => void; icon: React.ElementType; children: React.ReactNode }) {
+function SegBtn({ active, onClick, icon: Icon, children }: { active: boolean; onClick: () => void; icon: React.ElementType; children: React.ReactNode }) {
   return (
     <button
       onClick={onClick}
-      className={`px-3 py-2 inline-flex items-center gap-2 transition-colors text-sm ${active ? "bg-gradient-to-b from-primary to-primary/90 text-primary-foreground shadow-inner shadow-black/10" : "hover:bg-primary/[0.06] text-foreground/70"}`}
+      className={`px-3 py-1.5 inline-flex items-center gap-1.5 rounded-md transition-colors font-medium ${
+        active
+          ? "bg-primary text-primary-foreground shadow-sm"
+          : "text-foreground/70 hover:text-foreground hover:bg-primary/[0.06]"
+      }`}
     >
-      <Icon className="size-4" /> {children}
+      <Icon className="size-3.5" /> {children}
     </button>
   );
 }
