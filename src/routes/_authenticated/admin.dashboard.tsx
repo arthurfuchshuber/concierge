@@ -436,8 +436,8 @@ function KpiCard({ label, value, icon: Icon, tone, loading, listQuery, kind, ran
                 })}
               </tbody>
             </table>
-            );
-          })()}
+          )}
+
         </div>
       </DialogContent>
     </Dialog>
