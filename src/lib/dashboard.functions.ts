@@ -384,3 +384,33 @@ export const upsertArrivalStatus = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return { ok: true };
   });
+
+// ----- Inline edit: correct stay dates on a guest access log -----
+
+const UpdateStayDatesInput = z.object({
+  logId: z.string().uuid(),
+  checkinDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  checkoutDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
+});
+
+export const updateGuestStayDates = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => UpdateStayDatesInput.parse(i))
+  .handler(async ({ data, context }) => {
+    if (typeof data.checkinDate === "undefined" && typeof data.checkoutDate === "undefined") {
+      return { ok: true };
+    }
+    if (data.checkinDate && data.checkoutDate && data.checkoutDate < data.checkinDate) {
+      throw new Error("Data de saída não pode ser anterior à de entrada.");
+    }
+    const patch: Record<string, string | null> = {};
+    if (typeof data.checkinDate !== "undefined") patch.checkin_date = data.checkinDate;
+    if (typeof data.checkoutDate !== "undefined") patch.checkout_date = data.checkoutDate;
+
+    const { error } = await context.supabase
+      .from("guide_access_logs")
+      .update(patch)
+      .eq("id", data.logId);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
