@@ -574,6 +574,11 @@ function ArrivalCard({ row, kind, onMark, onSyncIcal, onNote, busy }: {
           <div className="text-xs text-muted-foreground truncate flex items-center gap-1">
             <Home className="size-3 shrink-0" /> {row.propertyName ?? "Sem nome"}
           </div>
+          {row.reservationCode && (
+            <div className="text-[11px] text-muted-foreground/90 mt-0.5 inline-flex items-center gap-1 font-mono">
+              <Hash className="size-3" /> {row.reservationCode}
+            </div>
+          )}
         </div>
         <div className="text-right shrink-0">
           <div className="text-base font-semibold tabular-nums leading-tight">{fmtDateBR(row.date)}</div>
