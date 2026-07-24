@@ -479,7 +479,7 @@ export function GuideAccessGate({ slug, propertyName, requireReservationCode, co
                   />
                 </div>
 
-                {requireReservationCode && !hasIcalMode && (
+                {requireReservationCode && (
                   <FieldShell>
                     <Input
                       value={code}
