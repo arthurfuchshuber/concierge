@@ -388,13 +388,19 @@ function KpiCard({ label, value, icon: Icon, tone, loading, listQuery, kind, ran
     shadowTone === "emerald" ? "text-emerald-600 dark:text-emerald-400"
       : shadowTone === "amber" ? "text-amber-600 dark:text-amber-400"
       : valueTone;
+  const shadowClass =
+    shadowTone === "emerald"
+      ? "shadow-[0_18px_42px_-18px_rgba(16,185,129,0.85),0_0_0_1px_rgba(16,185,129,0.10)] hover:shadow-[0_22px_52px_-18px_rgba(16,185,129,0.95),0_0_0_1px_rgba(16,185,129,0.16)]"
+      : shadowTone === "amber"
+      ? "shadow-[0_18px_42px_-18px_rgba(245,158,11,0.85),0_0_0_1px_rgba(245,158,11,0.10)] hover:shadow-[0_22px_52px_-18px_rgba(245,158,11,0.95),0_0_0_1px_rgba(245,158,11,0.16)]"
+      : "shadow-sm hover:shadow-md";
 
   return (
     <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (v) listQuery.refetch(); }}>
       <DialogTrigger asChild>
         <button
           type="button"
-          className="w-full h-full rounded-xl border border-border bg-card px-4 py-3 text-left transition hover:border-primary/40 hover:bg-secondary/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+          className={`w-full h-full rounded-xl border border-border bg-card px-4 py-3 text-left transition hover:border-primary/40 hover:bg-secondary/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${shadowClass}`}
         >
           <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.16em] text-muted-foreground font-semibold">
             <Icon className="size-3.5" /> <span className="truncate">{label}</span>
