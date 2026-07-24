@@ -70,7 +70,11 @@ function EquipePage() {
   });
   const changeRole = useMutation({
     mutationFn: async (v: { id: string; r: "owner" | "agent" | "viewer" }) => updateRoleFn({ data: { memberId: v.id, role: v.r } }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["my-team"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["my-team"] });
+      toast.success("Permissão atualizada");
+    },
+    onError: (e) => toast.error("Falha ao atualizar: " + (e as Error).message),
   });
 
   const [pushOn, setPushOn] = useState<boolean | null>(null);
