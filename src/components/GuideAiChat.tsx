@@ -533,9 +533,6 @@ export function GuideAiChat({ slug, propertyName, guestName }: { slug: string; p
       <button
         type="button"
         onPointerDown={handleLauncherPointerDown}
-        onPointerMove={handleLauncherPointerMove}
-        onPointerUp={handleLauncherPointerUp}
-        onPointerCancel={handleLauncherPointerUp}
         onClick={() => {
           if (justDraggedRef.current) return;
           metaPixelTrackCustom("ChatClick", { location: "guide" });
