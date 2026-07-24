@@ -2,7 +2,10 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
 
-const SyncInput = z.object({ propertyId: z.string().uuid() });
+const SyncInput = z.object({
+  propertyId: z.string().uuid(),
+  icalUrl: z.string().trim().url().max(2048).optional(),
+});
 
 export const syncPropertyAirbnbIcal = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -15,10 +18,23 @@ export const syncPropertyAirbnbIcal = createServerFn({ method: "POST" })
       .eq("id", data.propertyId)
       .maybeSingle();
     if (error || !prop) throw new Error("Guia não encontrado ou sem acesso.");
-    if (!prop.airbnb_ical_url) throw new Error("Nenhum link iCal cadastrado neste guia.");
+
+    // Persist the URL the user just pasted if it differs from what's stored,
+    // so "Sincronizar" works without waiting for the auto-save round-trip.
+    let effectiveUrl = (prop.airbnb_ical_url as string | null) ?? null;
+    if (data.icalUrl && data.icalUrl !== effectiveUrl) {
+      const { error: upErr } = await context.supabase
+        .from("properties")
+        .update({ airbnb_ical_url: data.icalUrl })
+        .eq("id", data.propertyId);
+      if (upErr) throw new Error("Não foi possível salvar o link iCal antes de sincronizar.");
+      effectiveUrl = data.icalUrl;
+    }
+
+    if (!effectiveUrl) throw new Error("Nenhum link iCal cadastrado neste guia.");
 
     const { syncPropertyIcal } = await import("@/lib/airbnb-ical.server");
-    const out = await syncPropertyIcal(prop.id, prop.airbnb_ical_url);
+    const out = await syncPropertyIcal(prop.id, effectiveUrl);
     if (!out.ok) throw new Error(out.error ?? "Falha ao sincronizar.");
     return out;
   });

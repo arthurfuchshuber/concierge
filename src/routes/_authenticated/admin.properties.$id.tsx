@@ -734,7 +734,7 @@ function PropertyEditor() {
     if (autoSaving) { toast.info("Aguarde salvar as alterações."); return; }
     setSyncingIcal(true);
     try {
-      const r = await syncIcal({ data: { propertyId: id } });
+      const r = await syncIcal({ data: { propertyId: id, icalUrl: url } });
       const parts: string[] = [];
       if (r.imported) parts.push(`${r.imported} nova(s)`);
       if (r.updated) parts.push(`${r.updated} atualizada(s)`);
