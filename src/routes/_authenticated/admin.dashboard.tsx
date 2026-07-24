@@ -306,9 +306,9 @@ function DashboardPage() {
       <section className="rounded-2xl border border-border bg-card p-4 sm:p-5 space-y-4 shadow-sm">
         <div className="flex flex-wrap items-center gap-3">
 
-          <div className="inline-flex rounded-xl border border-primary/15 bg-primary/[0.03] overflow-hidden text-sm">
-            <TabBtn active={kind === "checkin"} onClick={() => setKind("checkin")} icon={CalendarCheck}>Check-ins</TabBtn>
-            <TabBtn active={kind === "checkout"} onClick={() => setKind("checkout")} icon={CalendarX}>Check-outs</TabBtn>
+          <div className="inline-flex rounded-lg border border-primary/20 bg-primary/[0.04] p-0.5 text-xs">
+            <SegBtn active={kind === "checkin"} onClick={() => setKind("checkin")} icon={CalendarCheck}>Check-ins</SegBtn>
+            <SegBtn active={kind === "checkout"} onClick={() => setKind("checkout")} icon={CalendarX}>Check-outs</SegBtn>
           </div>
           <RangeDropdown
             value={range}
