@@ -559,6 +559,8 @@ function ArrivalCard({ row, kind, onMark, onSyncIcal, onNote, onEditDates, busy 
   const wa = waLink(row.guestPhone, row.guestPhoneCountry);
   const done = row.status === "done";
   const isPendingFill = row.pendingFill;
+  const todayISO = new Date().toLocaleDateString("sv-SE");
+  const isToday = row.date === todayISO;
 
   return (
     <div className={`group relative overflow-hidden rounded-2xl border p-4 space-y-3 transition-all ${
@@ -566,12 +568,14 @@ function ArrivalCard({ row, kind, onMark, onSyncIcal, onNote, onEditDates, busy 
         ? "bg-secondary/30 border-border/50"
         : isPendingFill
         ? "bg-[linear-gradient(135deg,color-mix(in_oklab,var(--primary)_6%,transparent),transparent_60%)] border-primary/15 border-dashed"
+        : isToday
+        ? "bg-[linear-gradient(135deg,color-mix(in_oklab,var(--primary)_7%,transparent),color-mix(in_oklab,var(--primary)_2%,transparent))] border-primary/30 shadow-[0_14px_44px_-14px_color-mix(in_oklab,var(--primary)_55%,transparent),0_2px_8px_-2px_color-mix(in_oklab,var(--primary)_25%,transparent)] hover:shadow-[0_18px_54px_-14px_color-mix(in_oklab,var(--primary)_65%,transparent),0_2px_10px_-2px_color-mix(in_oklab,var(--primary)_30%,transparent)] hover:-translate-y-0.5"
         : "bg-[linear-gradient(135deg,color-mix(in_oklab,var(--primary)_5%,transparent),color-mix(in_oklab,var(--primary)_1%,transparent))] border-primary/15 shadow-sm hover:shadow-md hover:-translate-y-0.5"
     }`}>
       {!done && (
         <>
           <span aria-hidden className="absolute left-0 top-4 bottom-4 w-0.5 rounded-r bg-gradient-to-b from-primary/70 to-primary/30" />
-          <span aria-hidden className="pointer-events-none absolute -top-16 -right-16 size-40 rounded-full bg-primary/[0.06] blur-2xl" />
+          <span aria-hidden className={`pointer-events-none absolute -top-16 -right-16 rounded-full blur-2xl ${isToday ? "size-48 bg-primary/[0.12]" : "size-40 bg-primary/[0.06]"}`} />
         </>
       )}
 
@@ -591,21 +595,34 @@ function ArrivalCard({ row, kind, onMark, onSyncIcal, onNote, onEditDates, busy 
           </div>
         </div>
         <div className="text-right shrink-0">
-          <input
-            type="date"
-            value={row.date}
+          <button
+            type="button"
             disabled={busy}
-            onChange={(e) => {
-              const v = e.target.value;
-              if (!v || v === row.date) return;
-              onEditDates(row, kind === "checkin" ? { checkinDate: v } : { checkoutDate: v });
+            onClick={(e) => {
+              const input = e.currentTarget.querySelector("input") as HTMLInputElement | null;
+              if (input && typeof input.showPicker === "function") input.showPicker();
+              else input?.focus();
             }}
-            className="text-base font-semibold tabular-nums leading-tight bg-transparent border-0 p-0 text-right w-[112px] cursor-pointer hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary/30 rounded"
+            className="relative inline-block text-right cursor-pointer rounded hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
             title="Clique para corrigir a data"
-          />
-          <div className="text-[10px] uppercase tracking-wider text-muted-foreground mt-0.5">{kind === "checkin" ? "Check-in" : "Check-out"}</div>
+          >
+            <input
+              type="date"
+              value={row.date}
+              disabled={busy}
+              onChange={(e) => {
+                const v = e.target.value;
+                if (!v || v === row.date) return;
+                onEditDates(row, kind === "checkin" ? { checkinDate: v } : { checkoutDate: v });
+              }}
+              onClick={(e) => e.stopPropagation()}
+              className="text-base font-semibold tabular-nums leading-tight bg-transparent border-0 p-0 text-right w-[112px] cursor-pointer focus:outline-none [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-inner-spin-button]:hidden"
+            />
+            <div className="text-[10px] uppercase tracking-wider text-muted-foreground mt-0.5">{kind === "checkin" ? "Check-in" : "Check-out"}</div>
+          </button>
         </div>
       </div>
+
 
       <div className="grid grid-cols-2 gap-2 text-xs">
         <div className="rounded-lg bg-background/50 border border-border/40 p-2 backdrop-blur-sm">
