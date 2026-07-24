@@ -512,13 +512,14 @@ function BarRow({ label, value, total, pct }: { label: string; value: number; to
   );
 }
 
-function ArrivalGroup({ title, rows, kind, onMark, onSyncIcal, onNote, busy, muted }: {
+function ArrivalGroup({ title, rows, kind, onMark, onSyncIcal, onNote, onEditDates, busy, muted }: {
   title: string;
   rows: ArrivalRow[];
   kind: "checkin" | "checkout";
   onMark: (r: ArrivalRow) => void;
   onSyncIcal: (r: ArrivalRow) => void;
   onNote: (r: ArrivalRow, note: string | null) => void;
+  onEditDates: (r: ArrivalRow, dates: { checkinDate?: string; checkoutDate?: string | null }) => void;
   busy: boolean;
   muted?: boolean;
 }) {
@@ -531,18 +532,19 @@ function ArrivalGroup({ title, rows, kind, onMark, onSyncIcal, onNote, busy, mut
       </div>
       <div className={`grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 ${muted ? "opacity-70" : ""}`}>
         {rows.map((r) => (
-          <ArrivalCard key={r.logId} row={r} kind={kind} onMark={onMark} onSyncIcal={onSyncIcal} onNote={onNote} busy={busy} />
+          <ArrivalCard key={r.logId} row={r} kind={kind} onMark={onMark} onSyncIcal={onSyncIcal} onNote={onNote} onEditDates={onEditDates} busy={busy} />
         ))}
       </div>
     </div>
   );
 }
 
-function ArrivalCard({ row, kind, onMark, onSyncIcal, onNote, busy }: {
+function ArrivalCard({ row, kind, onMark, onSyncIcal, onNote, onEditDates, busy }: {
   row: ArrivalRow; kind: "checkin" | "checkout";
   onMark: (r: ArrivalRow) => void;
   onSyncIcal: (r: ArrivalRow) => void;
   onNote: (r: ArrivalRow, note: string | null) => void;
+  onEditDates: (r: ArrivalRow, dates: { checkinDate?: string; checkoutDate?: string | null }) => void;
   busy: boolean;
 }) {
   const [noteOpen, setNoteOpen] = useState(false);
