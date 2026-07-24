@@ -69,31 +69,45 @@ function AccessLogsPage() {
             <Users className="size-3.5" />
             {data.logs.length} {data.logs.length === 1 ? "registro" : "registros"}
           </div>
-          <div className="divide-y divide-border/60">
-            {data.logs.map((log) => (
-              <div key={log.id} className="px-4 py-3 sm:grid sm:grid-cols-[1.3fr_1fr_1fr_1fr_auto] sm:gap-4 sm:items-center">
-                <div className="min-w-0">
-                  <div className="text-sm font-medium truncate">{log.guest_name}</div>
-                  <div className="text-[11px] text-muted-foreground sm:hidden mt-0.5 space-y-0.5">
-                    {log.guest_phone && <div>Tel.: {log.guest_phone}</div>}
-                    <div>{log.reservation_code ? `Reserva ${log.reservation_code} · ` : ""}Check-in {fmtDate(log.checkin_date)}</div>
+          {(() => {
+            const showRes = data.logs.some((l) => !!l.reservation_code);
+            const gridCols = showRes
+              ? "sm:grid-cols-[1.3fr_1fr_0.9fr_1fr_auto]"
+              : "sm:grid-cols-[1.3fr_1fr_1fr_auto]";
+            return (
+              <div className="divide-y divide-border/60">
+                {data.logs.map((log) => (
+                  <div key={log.id} className={`px-4 py-3 sm:grid ${gridCols} sm:gap-4 sm:items-center`}>
+                    <div className="min-w-0">
+                      <div className="text-sm font-medium truncate">{log.guest_name}</div>
+                      <div className="text-[11px] text-muted-foreground sm:hidden mt-0.5 space-y-0.5">
+                        {log.guest_phone && <div>Tel.: {log.guest_phone}</div>}
+                        <div>{log.reservation_code ? `Reserva ${log.reservation_code} · ` : ""}Check-in {fmtDate(log.checkin_date)}</div>
+                      </div>
+                    </div>
+                    <div className="hidden sm:block text-xs text-muted-foreground truncate">
+                      {log.guest_phone ? <>Tel. <span className="text-foreground">{log.guest_phone}</span></> : <span>—</span>}
+                    </div>
+                    {showRes && (
+                      <div className="hidden sm:block text-xs text-muted-foreground truncate">
+                        {log.reservation_code ? (
+                          <span className="font-mono text-[11px] px-1.5 py-0.5 rounded bg-muted/60 border border-border/60 text-foreground">
+                            {log.reservation_code}
+                          </span>
+                        ) : <span>—</span>}
+                      </div>
+                    )}
+                    <div className="hidden sm:block text-xs text-muted-foreground">
+                      Check-in <span className="text-foreground">{fmtDate(log.checkin_date)}</span>
+                    </div>
+                    <div className="text-[11px] text-muted-foreground mt-1 sm:mt-0 sm:text-right whitespace-nowrap">
+                      {fmt(log.created_at)}
+                    </div>
                   </div>
-                </div>
-                <div className="hidden sm:block text-xs text-muted-foreground truncate">
-                  {log.guest_phone ? <>Tel. <span className="text-foreground">{log.guest_phone}</span></> : <span>—</span>}
-                </div>
-                <div className="hidden sm:block text-xs text-muted-foreground truncate">
-                  {log.reservation_code ? <>Reserva <span className="text-foreground">{log.reservation_code}</span></> : <span>—</span>}
-                </div>
-                <div className="hidden sm:block text-xs text-muted-foreground">
-                  Check-in <span className="text-foreground">{fmtDate(log.checkin_date)}</span>
-                </div>
-                <div className="text-[11px] text-muted-foreground mt-1 sm:mt-0 sm:text-right whitespace-nowrap">
-                  {fmt(log.created_at)}
-                </div>
+                ))}
               </div>
-            ))}
-          </div>
+            );
+          })()}
         </div>
       )}
 
