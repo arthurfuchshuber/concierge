@@ -338,7 +338,8 @@ function DashboardPage() {
                 onMark={(row) => upsert.mutate({ logId: row.logId, kind, status: "pending" })}
                 onSyncIcal={() => {}}
                 onNote={(row, note) => upsert.mutate({ logId: row.logId, kind, note })}
-                busy={upsert.isPending}
+                onEditDates={(row, dates) => updateDates.mutate({ logId: row.logId, ...dates })}
+                busy={upsert.isPending || updateDates.isPending}
                 muted
               />
             )}
