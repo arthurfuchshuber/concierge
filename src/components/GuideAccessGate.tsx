@@ -236,13 +236,31 @@ export function GuideAccessGate({ slug, propertyName, requireReservationCode, co
       toast.error("Informe o código da reserva.");
       return false;
     }
+    if (resCheck.state === "checking") {
+      toast.error("Aguarde a validação das datas com a reserva do Airbnb.");
+      return false;
+    }
+    if (resCheck.state === "no-match") {
+      toast.error("As datas informadas não correspondem a nenhuma reserva ativa no Airbnb. Confira e ajuste.");
+      return false;
+    }
     return true;
   }
 
 
 
+
   async function finalizeSubmit() {
     if (!range?.from || !range?.to) return;
+    if (resCheck.state === "checking") {
+      toast.error("Aguarde a validação das datas com a reserva do Airbnb.");
+      return;
+    }
+    if (resCheck.state === "no-match") {
+      toast.error("As datas informadas não correspondem a nenhuma reserva ativa no Airbnb. Volte e ajuste.");
+      return;
+    }
+
 
     // Required optional fields
     const arrivalStr =
