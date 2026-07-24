@@ -1852,6 +1852,7 @@ function PropertyEditor() {
               icon={Lock}
               title="Sempre coletado"
               desc="Perguntas obrigatórias no formulário de primeiro acesso. Não podem ser desativadas."
+              collapsible
             >
               <div className="grid gap-2">
                 {[
