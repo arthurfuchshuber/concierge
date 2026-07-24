@@ -732,7 +732,7 @@ export const duplicateProperty = createServerFn({ method: "POST" })
       const { data: inserted, error: insErr } = await supabase
         .from("properties")
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        .insert({ ...(stripped as any), owner_id: userId, slug: newSlug, name: newName, published: false })
+        .insert({ ...(stripped as any), owner_id: sourceOwnerId, slug: newSlug, name: newName, published: false })
         .select("id")
         .single();
       if (insErr) throw (await import("@/lib/db-errors.server")).safeDbError("properties", insErr);
