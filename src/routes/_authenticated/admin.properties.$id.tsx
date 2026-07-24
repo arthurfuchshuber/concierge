@@ -977,6 +977,74 @@ function PropertyEditor() {
             </Field>
           </Section>
 
+          <Section
+            icon={RefreshCw}
+            title="Calendário Airbnb (iCal)"
+            desc="Cole a URL do calendário exportado no Airbnb para sincronizar automaticamente as reservas neste guia."
+          >
+            <Field
+              label="URL do calendário Airbnb"
+              hint="No Airbnb: Anúncio → Calendário → Disponibilidade → Exportar calendário. Sincroniza a cada 30 minutos."
+            >
+              <div className="flex gap-2">
+                <Input
+                  value={(form.property as { airbnb_ical_url?: string | null }).airbnb_ical_url ?? ""}
+                  onChange={(e) => update("airbnb_ical_url" as never, (e.target.value.trim() || null) as never)}
+                  placeholder="https://www.airbnb.com/calendar/ical/12345.ics?s=..."
+                />
+                <Button
+                  onClick={handleSyncIcal}
+                  disabled={syncingIcal || isNew || !((form.property as { airbnb_ical_url?: string | null }).airbnb_ical_url ?? "").trim()}
+                  variant="secondary"
+                  className="shrink-0"
+                  title={isNew ? "Salve o guia antes de sincronizar" : "Sincronizar agora"}
+                >
+                  {syncingIcal ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}
+                  <span className="ml-1.5 hidden sm:inline">{syncingIcal ? "Sincronizando…" : "Sincronizar"}</span>
+                </Button>
+              </div>
+            </Field>
+
+            {(() => {
+              const p = form.property as {
+                airbnb_ical_last_sync_at?: string | null;
+                airbnb_ical_last_error?: string | null;
+              };
+              if (!p.airbnb_ical_last_sync_at && !p.airbnb_ical_last_error) return null;
+              return (
+                <div className="text-[11px] text-muted-foreground flex items-center gap-2 flex-wrap">
+                  {p.airbnb_ical_last_sync_at && (
+                    <span>Última sincronização: {new Date(p.airbnb_ical_last_sync_at).toLocaleString("pt-BR")}</span>
+                  )}
+                  {p.airbnb_ical_last_error && (
+                    <span className="text-destructive">Erro: {p.airbnb_ical_last_error}</span>
+                  )}
+                </div>
+              );
+            })()}
+
+            {reservationsQuery.data?.reservations && reservationsQuery.data.reservations.length > 0 && (
+              <div className="mt-3 rounded-xl border border-border bg-muted/30 p-3">
+                <div className="text-xs font-semibold mb-2">Próximas reservas ({reservationsQuery.data.reservations.length})</div>
+                <ul className="space-y-1.5 max-h-56 overflow-y-auto">
+                  {reservationsQuery.data.reservations.map((r) => (
+                    <li key={r.id} className="text-xs flex items-center justify-between gap-2 py-1 border-b border-border/50 last:border-0">
+                      <span className="font-medium">
+                        {new Date(r.checkin_date).toLocaleDateString("pt-BR")} → {new Date(r.checkout_date).toLocaleDateString("pt-BR")}
+                      </span>
+                      {r.guest_hint && (
+                        <span className="text-muted-foreground font-mono text-[10px]">{r.guest_hint}</span>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </Section>
+
+
+
+
 
           <Section icon={FileText} title="Identidade do guia" desc="Como o guia se apresenta aos hóspedes.">
             <Field label="Nome do imóvel" required hint={`Máx. 80 caracteres — ${form.property.name.length}/80. Curto e memorável funciona melhor no cabeçalho do guia.`}>
