@@ -121,39 +121,35 @@ export function PermissoesPage() {
                 {m.role as string}
               </span>
             </header>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-0 divide-y md:divide-y-0 md:divide-x divide-border">
-              {(["operational", "admin"] as const).map((group) => (
-                <div key={group} className="p-5">
-                  <h3 className="text-[11px] uppercase tracking-wider text-muted-foreground mb-3">
-                    {group === "operational" ? "Operacional" : "Administrativo"}
-                  </h3>
-                  <ul className="space-y-3">
-                    {MEMBER_PERMISSIONS.filter((p) => PERMISSION_META[p].group === group).map((p) => {
-                      const meta = PERMISSION_META[p];
-                      const val = !!perms[p];
-                      return (
-                        <li key={p} className="flex items-start gap-3">
-                          <div className="flex-1 min-w-0">
-                            <div className="text-sm font-medium">{meta.label}</div>
-                            <div className="text-[12px] text-muted-foreground">{meta.description}</div>
-                          </div>
-                          <Switch
-                            checked={val}
-                            disabled={isSelf || upd.isPending}
-                            onCheckedChange={(checked) =>
-                              upd.mutate({
-                                memberUserId: m.member_user_id as string,
-                                permission: p,
-                                granted: checked,
-                              })
-                            }
-                          />
-                        </li>
-                      );
-                    })}
-                  </ul>
-                </div>
-              ))}
+            <div className="p-5">
+              <h3 className="text-[11px] uppercase tracking-wider text-muted-foreground mb-3">
+                Operacional
+              </h3>
+              <ul className="space-y-3">
+                {MEMBER_PERMISSIONS.filter((p) => PERMISSION_META[p].group === "operational").map((p) => {
+                  const meta = PERMISSION_META[p];
+                  const val = !!perms[p];
+                  return (
+                    <li key={p} className="flex items-start gap-3">
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-medium">{meta.label}</div>
+                        <div className="text-[12px] text-muted-foreground">{meta.description}</div>
+                      </div>
+                      <Switch
+                        checked={val}
+                        disabled={isSelf || upd.isPending}
+                        onCheckedChange={(checked) =>
+                          upd.mutate({
+                            memberUserId: m.member_user_id as string,
+                            permission: p,
+                            granted: checked,
+                          })
+                        }
+                      />
+                    </li>
+                  );
+                })}
+              </ul>
             </div>
           </section>
         );
