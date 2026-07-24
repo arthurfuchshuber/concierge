@@ -56,13 +56,13 @@ export function ClientSwitcher() {
   function pick(userId: string, name: string, email: string | null) {
     setImpersonation({ userId, name, email });
     setOpen(false);
-    navigate({ to: "/admin" });
+    navigate({ to: "/admin/guias" });
   }
 
   function exit(e: React.MouseEvent) {
     e.stopPropagation();
     clear();
-    navigate({ to: "/admin" });
+    navigate({ to: "/admin/guias" });
   }
 
   const label = impersonation?.name || impersonation?.email || "Acessar cliente";

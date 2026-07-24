@@ -35,6 +35,7 @@ import { Route as ApiPublicGuestPushRouteImport } from './routes/api/public/gues
 import { Route as ApiPublicGuestDocUploadRouteImport } from './routes/api/public/guest-doc-upload'
 import { Route as AuthenticatedAdminTaxonomiaRouteImport } from './routes/_authenticated/admin.taxonomia'
 import { Route as AuthenticatedAdminHospedesRouteImport } from './routes/_authenticated/admin.hospedes'
+import { Route as AuthenticatedAdminGuiasRouteImport } from './routes/_authenticated/admin.guias'
 import { Route as AuthenticatedAdminEquipeRouteImport } from './routes/_authenticated/admin.equipe'
 import { Route as AuthenticatedAdminEngajamentoRouteImport } from './routes/_authenticated/admin.engajamento'
 import { Route as AuthenticatedAdminDashboardRouteImport } from './routes/_authenticated/admin.dashboard'
@@ -196,6 +197,11 @@ const AuthenticatedAdminHospedesRoute =
     path: '/hospedes',
     getParentRoute: () => AuthenticatedAdminRoute,
   } as any)
+const AuthenticatedAdminGuiasRoute = AuthenticatedAdminGuiasRouteImport.update({
+  id: '/guias',
+  path: '/guias',
+  getParentRoute: () => AuthenticatedAdminRoute,
+} as any)
 const AuthenticatedAdminEquipeRoute =
   AuthenticatedAdminEquipeRouteImport.update({
     id: '/equipe',
@@ -376,6 +382,7 @@ export interface FileRoutesByFullPath {
   '/admin/dashboard': typeof AuthenticatedAdminDashboardRoute
   '/admin/engajamento': typeof AuthenticatedAdminEngajamentoRoute
   '/admin/equipe': typeof AuthenticatedAdminEquipeRoute
+  '/admin/guias': typeof AuthenticatedAdminGuiasRoute
   '/admin/hospedes': typeof AuthenticatedAdminHospedesRoute
   '/admin/taxonomia': typeof AuthenticatedAdminTaxonomiaRoute
   '/api/public/guest-doc-upload': typeof ApiPublicGuestDocUploadRoute
@@ -427,6 +434,7 @@ export interface FileRoutesByTo {
   '/admin/dashboard': typeof AuthenticatedAdminDashboardRoute
   '/admin/engajamento': typeof AuthenticatedAdminEngajamentoRoute
   '/admin/equipe': typeof AuthenticatedAdminEquipeRoute
+  '/admin/guias': typeof AuthenticatedAdminGuiasRoute
   '/admin/hospedes': typeof AuthenticatedAdminHospedesRoute
   '/admin/taxonomia': typeof AuthenticatedAdminTaxonomiaRoute
   '/api/public/guest-doc-upload': typeof ApiPublicGuestDocUploadRoute
@@ -482,6 +490,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/dashboard': typeof AuthenticatedAdminDashboardRoute
   '/_authenticated/admin/engajamento': typeof AuthenticatedAdminEngajamentoRoute
   '/_authenticated/admin/equipe': typeof AuthenticatedAdminEquipeRoute
+  '/_authenticated/admin/guias': typeof AuthenticatedAdminGuiasRoute
   '/_authenticated/admin/hospedes': typeof AuthenticatedAdminHospedesRoute
   '/_authenticated/admin/taxonomia': typeof AuthenticatedAdminTaxonomiaRoute
   '/api/public/guest-doc-upload': typeof ApiPublicGuestDocUploadRoute
@@ -537,6 +546,7 @@ export interface FileRouteTypes {
     | '/admin/dashboard'
     | '/admin/engajamento'
     | '/admin/equipe'
+    | '/admin/guias'
     | '/admin/hospedes'
     | '/admin/taxonomia'
     | '/api/public/guest-doc-upload'
@@ -588,6 +598,7 @@ export interface FileRouteTypes {
     | '/admin/dashboard'
     | '/admin/engajamento'
     | '/admin/equipe'
+    | '/admin/guias'
     | '/admin/hospedes'
     | '/admin/taxonomia'
     | '/api/public/guest-doc-upload'
@@ -642,6 +653,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/dashboard'
     | '/_authenticated/admin/engajamento'
     | '/_authenticated/admin/equipe'
+    | '/_authenticated/admin/guias'
     | '/_authenticated/admin/hospedes'
     | '/_authenticated/admin/taxonomia'
     | '/api/public/guest-doc-upload'
@@ -887,6 +899,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminHospedesRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
     }
+    '/_authenticated/admin/guias': {
+      id: '/_authenticated/admin/guias'
+      path: '/guias'
+      fullPath: '/admin/guias'
+      preLoaderRoute: typeof AuthenticatedAdminGuiasRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
     '/_authenticated/admin/equipe': {
       id: '/_authenticated/admin/equipe'
       path: '/equipe'
@@ -1082,6 +1101,7 @@ interface AuthenticatedAdminRouteChildren {
   AuthenticatedAdminDashboardRoute: typeof AuthenticatedAdminDashboardRoute
   AuthenticatedAdminEngajamentoRoute: typeof AuthenticatedAdminEngajamentoRoute
   AuthenticatedAdminEquipeRoute: typeof AuthenticatedAdminEquipeRoute
+  AuthenticatedAdminGuiasRoute: typeof AuthenticatedAdminGuiasRoute
   AuthenticatedAdminHospedesRoute: typeof AuthenticatedAdminHospedesRoute
   AuthenticatedAdminTaxonomiaRoute: typeof AuthenticatedAdminTaxonomiaRoute
   AuthenticatedAdminIndexRoute: typeof AuthenticatedAdminIndexRoute
@@ -1104,6 +1124,7 @@ const AuthenticatedAdminRouteChildren: AuthenticatedAdminRouteChildren = {
   AuthenticatedAdminDashboardRoute: AuthenticatedAdminDashboardRoute,
   AuthenticatedAdminEngajamentoRoute: AuthenticatedAdminEngajamentoRoute,
   AuthenticatedAdminEquipeRoute: AuthenticatedAdminEquipeRoute,
+  AuthenticatedAdminGuiasRoute: AuthenticatedAdminGuiasRoute,
   AuthenticatedAdminHospedesRoute: AuthenticatedAdminHospedesRoute,
   AuthenticatedAdminTaxonomiaRoute: AuthenticatedAdminTaxonomiaRoute,
   AuthenticatedAdminIndexRoute: AuthenticatedAdminIndexRoute,

@@ -911,7 +911,7 @@ function PropertyEditor() {
 
   return (
     <div className="px-6 lg:px-10 pt-8 lg:pt-10 max-w-7xl mx-auto w-full">
-      <Link to="/admin" className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground mb-5 transition-colors">
+      <Link to="/admin/guias" className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground mb-5 transition-colors">
         <ArrowLeft className="size-3.5" /> Voltar
       </Link>
       <div className="mb-4 sm:mb-5 pb-4 border-b border-border/60 flex items-start justify-between gap-4">
@@ -2138,7 +2138,7 @@ function PropertyEditor() {
             Próximo
             <ArrowLeft className="size-3.5 ml-1 rotate-180" />
           </Button>
-          <Button variant="ghost" className="h-10 min-w-[120px]" onClick={() => navigate({ to: "/admin" })}>Cancelar</Button>
+          <Button variant="ghost" className="h-10 min-w-[120px]" onClick={() => navigate({ to: "/admin/guias" })}>Cancelar</Button>
           <Button className="h-10 min-w-[120px]" onClick={handleSave} disabled={saving || !form.property.name}>
             {saving ? <Loader2 className="size-4 animate-spin mr-1.5" /> : null}
             Salvar

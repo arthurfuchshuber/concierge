@@ -20,7 +20,7 @@ import {
 export const Route = createFileRoute("/_authenticated/admin/dashboard")({
   head: () => ({
     meta: [
-      { title: "Dashboard operacional — ConciergeIA" },
+      { title: "Operação — ConciergeIA" },
       { name: "description", content: "Painel operacional diário do anfitrião: check-ins, check-outs e engajamento do guia." },
     ],
   }),
@@ -212,7 +212,7 @@ function DashboardPage() {
     <div className="px-6 lg:px-10 py-8 lg:py-10 max-w-7xl mx-auto w-full space-y-6">
       <header>
         <h1 className="font-display text-3xl md:text-4xl flex items-center gap-2.5">
-          <TrendingUp className="size-7 text-muted-foreground" /> Dashboard operacional
+          <TrendingUp className="size-7 text-muted-foreground" /> Operação
         </h1>
         <p className="text-sm text-muted-foreground mt-1.5">
           Sua rotina diária: check-ins, check-outs e engajamento do guia.
@@ -246,6 +246,7 @@ function DashboardPage() {
 
       {/* KPIs */}
       <section className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="order-1 lg:order-none ">
         <KpiCard
           label="Check-ins hoje" value={kpisQ.data?.checkinsToday} icon={LogIn} tone="primary"
           loading={kpisQ.isLoading}
@@ -253,12 +254,16 @@ function DashboardPage() {
           rangeLabel="Hoje"
           shadowTone="emerald"
         />
+        </div>
+        <div className="order-3 lg:order-none ">
         <KpiCard
           label="Check-ins amanhã" value={kpisQ.data?.checkinsTomorrow} icon={LogIn} tone="primary-soft"
           loading={kpisQ.isLoading}
           listQuery={kpiTomorrowQ} kind="checkin"
           rangeLabel="Amanhã"
         />
+        </div>
+        <div className="order-2 lg:order-none ">
         <KpiCard
           label="Check-outs hoje" value={kpisQ.data?.checkoutsToday} icon={LogOut} tone="primary"
           loading={kpisQ.isLoading}
@@ -266,12 +271,15 @@ function DashboardPage() {
           rangeLabel="Hoje"
           shadowTone="amber"
         />
+        </div>
+        <div className="order-4 lg:order-none ">
         <KpiCard
           label="Check-outs amanhã" value={kpisQ.data?.checkoutsTomorrow} icon={LogOut} tone="primary-soft"
           loading={kpisQ.isLoading}
           listQuery={kpiCoTomorrowQ} kind="checkout"
           rangeLabel="Amanhã"
         />
+        </div>
       </section>
 
       {/* Engagement */}
