@@ -197,11 +197,16 @@ function DashboardPage() {
   };
 
   return (
-    <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6">
-      <header className="space-y-1">
-        <h1 className="font-display text-2xl sm:text-3xl tracking-tight">Dashboard operacional</h1>
-        <p className="text-sm text-muted-foreground">Sua rotina diária: check-ins, check-outs e engajamento do guia.</p>
+    <div className="px-6 lg:px-10 py-8 lg:py-10 max-w-7xl mx-auto w-full space-y-6">
+      <header>
+        <h1 className="font-display text-3xl md:text-4xl flex items-center gap-2.5">
+          <TrendingUp className="size-7 text-muted-foreground" /> Dashboard operacional
+        </h1>
+        <p className="text-sm text-muted-foreground mt-1.5">
+          Sua rotina diária: check-ins, check-outs e engajamento do guia.
+        </p>
       </header>
+
 
       {/* Attention strip — stacked vertically */}
       {alerts.length > 0 && (
