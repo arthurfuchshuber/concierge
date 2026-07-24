@@ -319,6 +319,8 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
           standardTime: data.kind === "checkin" ? p.checkin_time : p.checkout_time,
           standardTimeMax: data.kind === "checkin" ? p.checkin_time_max : p.checkout_time_min,
           date: rd,
+          guestCheckin: r.checkin,
+          guestCheckout: r.checkout,
           reservationCode: null,
           createdAt: new Date().toISOString(),
           status: "pending",
