@@ -107,7 +107,12 @@ const PropertyInput = z.object({
   vehicles_max: z.number().int().min(0).max(10).default(2),
   collect_document: z.enum(["off", "optional", "required"]).default("off"),
   document_scope: z.enum(["main", "all"]).default("main"),
+  airbnb_ical_url: z.preprocess(
+    (v) => (typeof v === "string" && v.trim() === "" ? null : v),
+    z.string().trim().url().max(2048).refine(isHttpsUrl, "Use um link HTTPS válido").optional().nullable(),
+  ),
 });
+
 
 
 const RecInput = z.object({

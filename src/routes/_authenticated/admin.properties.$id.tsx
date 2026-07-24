@@ -8,6 +8,7 @@ import { buildDefaultFaqs, mergeDefaultFaqs } from "@/lib/default-faqs";
 import { enrichFromMapsLink, searchPlacesForRec, refreshRecommendationsFromGoogle, type PlaceSearchResult } from "@/lib/maps.functions";
 import { generateCityReferences, listCityReferences, addManualCityReference, updateCityReference, bulkDeleteCityReferences } from "@/lib/city-references.functions";
 import { importFromAirbnb } from "@/lib/airbnb.functions";
+import { syncPropertyAirbnbIcal, listPropertyReservations } from "@/lib/airbnb-ical.functions";
 import { useSubscription } from "@/hooks/useSubscription";
 import { useCityReferencesRealtime } from "@/hooks/useCityReferencesRealtime";
 import { LinkGuidesButton } from "@/components/admin/LinkGuidesDialog";
@@ -126,6 +127,9 @@ type FormState = {
     vehicles_max: number;
     collect_document: "off" | "optional" | "required";
     document_scope: "main" | "all";
+    airbnb_ical_url: string | null;
+    airbnb_ical_last_sync_at: string | null;
+    airbnb_ical_last_error: string | null;
   };
   manual: { title: string; description: string; body: string }[];
   emergency: { label: string; number: string }[];
@@ -146,6 +150,7 @@ function emptyForm(): FormState {
       host_name: "", host_phone: "", brand_name: "", brand_logo_url: "", access_mode: "public", pin_code: "", pin_expires_at: "",
       default_language: "pt", guide_theme: "dark", published: true, require_access_gate: false,
       collect_arrival_time: "off", collect_vehicles: "off", vehicles_max: 2, collect_document: "off", document_scope: "main",
+      airbnb_ical_url: null, airbnb_ical_last_sync_at: null, airbnb_ical_last_error: null,
     },
     manual: [],
     emergency: [{ label: "Polícia", number: "190" }, { label: "Bombeiros / SAMU", number: "192" }],
@@ -197,6 +202,15 @@ function PropertyEditor() {
 
 
   const importAirbnb = useServerFn(importFromAirbnb);
+  const syncIcal = useServerFn(syncPropertyAirbnbIcal);
+  const listReservations = useServerFn(listPropertyReservations);
+  const [syncingIcal, setSyncingIcal] = useState(false);
+  const reservationsQuery = useQuery({
+    queryKey: ["airbnb-reservations", id],
+    queryFn: () => listReservations({ data: { propertyId: id } }),
+    enabled: !isNew,
+    refetchInterval: 60_000,
+  });
   const { info: sub } = useSubscription();
   const canAirbnb = sub.features.autoImport;
   const canBrand = sub.features.customBrand;
@@ -392,6 +406,9 @@ function PropertyEditor() {
         vehicles_max: (p.vehicles_max as number) ?? 2,
         collect_document: ((p.collect_document as "off" | "optional" | "required") ?? "off"),
         document_scope: ((p.document_scope as "main" | "all") ?? "main"),
+        airbnb_ical_url: (p.airbnb_ical_url as string | null) ?? null,
+        airbnb_ical_last_sync_at: (p.airbnb_ical_last_sync_at as string | null) ?? null,
+        airbnb_ical_last_error: (p.airbnb_ical_last_error as string | null) ?? null,
       },
       manual: (data.manual ?? []).map((m: Record<string, unknown>) => ({
         title: (m.title as string) ?? "",
@@ -710,6 +727,29 @@ function PropertyEditor() {
     }
   }
 
+  async function handleSyncIcal() {
+    if (isNew) { toast.error("Salve o guia antes de sincronizar."); return; }
+    const url = form.property.airbnb_ical_url?.trim();
+    if (!url) { toast.error("Cole a URL do calendário Airbnb antes."); return; }
+    if (autoSaving) { toast.info("Aguarde salvar as alterações."); return; }
+    setSyncingIcal(true);
+    try {
+      const r = await syncIcal({ data: { propertyId: id } });
+      const parts: string[] = [];
+      if (r.imported) parts.push(`${r.imported} nova(s)`);
+      if (r.updated) parts.push(`${r.updated} atualizada(s)`);
+      if (r.removed) parts.push(`${r.removed} removida(s)`);
+      toast.success(parts.length ? `Sincronizado: ${parts.join(" · ")}` : "Sincronizado — nenhuma mudança.");
+      await reservationsQuery.refetch();
+      queryClient.invalidateQueries({ queryKey: ["property", id] });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Falha ao sincronizar");
+    } finally {
+      setSyncingIcal(false);
+    }
+  }
+
+
 
   async function handleSave() {
     if (gateOpen) {
@@ -943,6 +983,69 @@ function PropertyEditor() {
               </div>
             </Field>
           </Section>
+
+          <Section
+            icon={RefreshCw}
+            title="Calendário Airbnb (iCal)"
+            desc="Cole a URL do calendário exportado no Airbnb para sincronizar automaticamente as reservas neste guia."
+          >
+            <Field
+              label="URL do calendário Airbnb"
+              hint="No Airbnb: Anúncio → Calendário → Disponibilidade → Exportar calendário. Sincroniza a cada 30 minutos."
+            >
+              <div className="flex gap-2">
+                <Input
+                  value={form.property.airbnb_ical_url ?? ""}
+                  onChange={(e) => update("airbnb_ical_url", e.target.value.trim() || null)}
+                  placeholder="https://www.airbnb.com/calendar/ical/12345.ics?s=..."
+                />
+                <Button
+                  onClick={handleSyncIcal}
+                  disabled={syncingIcal || isNew || !(form.property.airbnb_ical_url ?? "").trim()}
+                  variant="secondary"
+                  className="shrink-0"
+                  title={isNew ? "Salve o guia antes de sincronizar" : "Sincronizar agora"}
+                >
+
+                  {syncingIcal ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}
+                  <span className="ml-1.5 hidden sm:inline">{syncingIcal ? "Sincronizando…" : "Sincronizar"}</span>
+                </Button>
+              </div>
+            </Field>
+
+            {(form.property.airbnb_ical_last_sync_at || form.property.airbnb_ical_last_error) && (
+              <div className="text-[11px] text-muted-foreground flex items-center gap-2 flex-wrap">
+                {form.property.airbnb_ical_last_sync_at && (
+                  <span>Última sincronização: {new Date(form.property.airbnb_ical_last_sync_at).toLocaleString("pt-BR")}</span>
+                )}
+                {form.property.airbnb_ical_last_error && (
+                  <span className="text-destructive">Erro: {form.property.airbnb_ical_last_error}</span>
+                )}
+              </div>
+            )}
+
+
+            {reservationsQuery.data?.reservations && reservationsQuery.data.reservations.length > 0 && (
+              <div className="mt-3 rounded-xl border border-border bg-muted/30 p-3">
+                <div className="text-xs font-semibold mb-2">Próximas reservas ({reservationsQuery.data.reservations.length})</div>
+                <ul className="space-y-1.5 max-h-56 overflow-y-auto">
+                  {reservationsQuery.data.reservations.map((r) => (
+                    <li key={r.id} className="text-xs flex items-center justify-between gap-2 py-1 border-b border-border/50 last:border-0">
+                      <span className="font-medium">
+                        {new Date(r.checkin_date).toLocaleDateString("pt-BR")} → {new Date(r.checkout_date).toLocaleDateString("pt-BR")}
+                      </span>
+                      {r.guest_hint && (
+                        <span className="text-muted-foreground font-mono text-[10px]">{r.guest_hint}</span>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </Section>
+
+
+
 
 
           <Section icon={FileText} title="Identidade do guia" desc="Como o guia se apresenta aos hóspedes.">

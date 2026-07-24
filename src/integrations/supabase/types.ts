@@ -1072,6 +1072,9 @@ export type Database = {
           access_mode: Database["public"]["Enums"]["access_mode"]
           address: string | null
           address_note: string | null
+          airbnb_ical_last_error: string | null
+          airbnb_ical_last_sync_at: string | null
+          airbnb_ical_url: string | null
           brand_logo_url: string | null
           brand_name: string | null
           checkin_instructions: string | null
@@ -1137,6 +1140,9 @@ export type Database = {
           access_mode?: Database["public"]["Enums"]["access_mode"]
           address?: string | null
           address_note?: string | null
+          airbnb_ical_last_error?: string | null
+          airbnb_ical_last_sync_at?: string | null
+          airbnb_ical_url?: string | null
           brand_logo_url?: string | null
           brand_name?: string | null
           checkin_instructions?: string | null
@@ -1202,6 +1208,9 @@ export type Database = {
           access_mode?: Database["public"]["Enums"]["access_mode"]
           address?: string | null
           address_note?: string | null
+          airbnb_ical_last_error?: string | null
+          airbnb_ical_last_sync_at?: string | null
+          airbnb_ical_url?: string | null
           brand_logo_url?: string | null
           brand_name?: string | null
           checkin_instructions?: string | null
@@ -1624,6 +1633,62 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "property_recommendations_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      property_reservations: {
+        Row: {
+          checkin_date: string
+          checkout_date: string
+          created_at: string
+          external_uid: string
+          guest_hint: string | null
+          id: string
+          property_id: string
+          raw_summary: string | null
+          reservation_url: string | null
+          source: string
+          status: string
+          synced_at: string
+          updated_at: string
+        }
+        Insert: {
+          checkin_date: string
+          checkout_date: string
+          created_at?: string
+          external_uid: string
+          guest_hint?: string | null
+          id?: string
+          property_id: string
+          raw_summary?: string | null
+          reservation_url?: string | null
+          source?: string
+          status?: string
+          synced_at?: string
+          updated_at?: string
+        }
+        Update: {
+          checkin_date?: string
+          checkout_date?: string
+          created_at?: string
+          external_uid?: string
+          guest_hint?: string | null
+          id?: string
+          property_id?: string
+          raw_summary?: string | null
+          reservation_url?: string | null
+          source?: string
+          status?: string
+          synced_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "property_reservations_property_id_fkey"
             columns: ["property_id"]
             isOneToOne: false
             referencedRelation: "properties"
