@@ -334,12 +334,67 @@ export const listHandoffConversations = createServerFn({ method: "POST" })
       console.warn("assigned names lookup failed", e);
     }
 
+    // Cruzamento com reservas Airbnb (iCal) — status por conversa.
+    const reservations: Record<string, import("@/lib/handoff.schemas").HandoffReservationMatch> = {};
+    try {
+      const propIds = Array.from(new Set(deduped.map((c) => c.property_id).filter((v): v is string => !!v)));
+      if (propIds.length > 0) {
+        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+        const [propsR, resR] = await Promise.all([
+          supabaseAdmin.from("properties").select("id, airbnb_ical_url").in("id", propIds),
+          supabaseAdmin
+            .from("property_reservations")
+            .select("property_id, checkin_date, checkout_date")
+            .in("property_id", propIds)
+            .eq("source", "airbnb"),
+        ]);
+        const hasIcal = new Set<string>();
+        for (const p of (propsR.data ?? []) as Array<{ id: string; airbnb_ical_url: string | null }>) {
+          if (p.airbnb_ical_url && p.airbnb_ical_url.trim()) hasIcal.add(p.id);
+        }
+        const byProp = new Map<string, Array<{ checkin: string; checkout: string }>>();
+        for (const r of (resR.data ?? []) as Array<{ property_id: string; checkin_date: string; checkout_date: string }>) {
+          const list = byProp.get(r.property_id) ?? [];
+          list.push({ checkin: r.checkin_date, checkout: r.checkout_date });
+          byProp.set(r.property_id, list);
+        }
+        for (const conv of deduped) {
+          const pid = conv.property_id ?? "";
+          if (!pid || !hasIcal.has(pid)) {
+            reservations[conv.id] = { status: "no_ical", checkin: null, checkout: null };
+            continue;
+          }
+          const det = mergeDetails[conv.id];
+          const ci = det?.checkinDate ?? null;
+          const co = det?.checkoutDate ?? null;
+          if (!ci) {
+            reservations[conv.id] = { status: "missing", checkin: null, checkout: null };
+            continue;
+          }
+          const rows = byProp.get(pid) ?? [];
+          const exact = rows.find((r) => r.checkin === ci && (!co || r.checkout === co));
+          if (exact) {
+            reservations[conv.id] = { status: "confirmed", checkin: exact.checkin, checkout: exact.checkout };
+            continue;
+          }
+          const loose = rows.find((r) => r.checkin === ci);
+          reservations[conv.id] = loose
+            ? { status: "loose", checkin: loose.checkin, checkout: loose.checkout }
+            : { status: "missing", checkin: null, checkout: null };
+        }
+      }
+    } catch (e) {
+      console.warn("reservation cross-check failed", e);
+    }
+
     return {
       conversations: deduped.map((c) => (isPreviewName(c.guest_name) ? { ...c, guest_name: null } : c)),
       details,
       assignedNames,
+      reservations,
     };
   });
+
 
 
 
