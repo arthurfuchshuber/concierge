@@ -956,7 +956,7 @@ function PropertyEditor() {
             icon={Sparkles}
             tone="accent"
             title="Importar do Airbnb"
-            desc="Cole o link público do anúncio e preencha nome, fotos, localização e horários automaticamente. Tudo continua editável depois."
+            desc="Cole o link público do anúncio e preencha nome, fotos, localização e horários automaticamente. Também sincronize o calendário (iCal) para trazer reservas."
             collapsible
           >
             {!canAirbnb && (
@@ -983,68 +983,69 @@ function PropertyEditor() {
                 </Button>
               </div>
             </Field>
+
+            <div className="mt-5 pt-5 border-t border-border/60 space-y-3">
+              <div className="flex items-center gap-2 text-sm font-medium">
+                <RefreshCw className="size-4 text-muted-foreground" />
+                Calendário Airbnb (iCal)
+              </div>
+              <Field
+                label="URL do calendário Airbnb"
+                hint="No Airbnb: Anúncio → Calendário → Disponibilidade → Exportar calendário. Sincroniza a cada 30 minutos."
+              >
+                <div className="flex gap-2">
+                  <Input
+                    value={form.property.airbnb_ical_url ?? ""}
+                    onChange={(e) => update("airbnb_ical_url", e.target.value.trim() || null)}
+                    placeholder="https://www.airbnb.com/calendar/ical/12345.ics?s=..."
+                  />
+                  <Button
+                    onClick={handleSyncIcal}
+                    disabled={syncingIcal || isNew || !(form.property.airbnb_ical_url ?? "").trim()}
+                    variant="secondary"
+                    className="shrink-0"
+                    title={isNew ? "Salve o guia antes de sincronizar" : "Sincronizar agora"}
+                  >
+                    {syncingIcal ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}
+                    <span className="ml-1.5 hidden sm:inline">{syncingIcal ? "Sincronizando…" : "Sincronizar"}</span>
+                  </Button>
+                </div>
+              </Field>
+
+              {(form.property.airbnb_ical_last_sync_at || form.property.airbnb_ical_last_error) && (
+                <div className="text-[11px] text-muted-foreground flex items-center gap-2 flex-wrap">
+                  {form.property.airbnb_ical_last_sync_at && (
+                    <span>Última sincronização: {new Date(form.property.airbnb_ical_last_sync_at).toLocaleString("pt-BR")}</span>
+                  )}
+                  {form.property.airbnb_ical_last_error && (
+                    <span className="text-destructive">Erro: {form.property.airbnb_ical_last_error}</span>
+                  )}
+                </div>
+              )}
+
+              {reservationsQuery.data?.reservations && reservationsQuery.data.reservations.length > 0 && (
+                <details className="group rounded-xl border border-border bg-muted/30">
+                  <summary className="list-none cursor-pointer select-none px-3 py-2.5 flex items-center justify-between text-xs font-semibold">
+                    <span>Próximas reservas ({reservationsQuery.data.reservations.length})</span>
+                    <ChevronDown className="size-4 text-muted-foreground transition-transform group-open:rotate-180" />
+                  </summary>
+                  <ul className="px-3 pb-3 space-y-1.5 max-h-56 overflow-y-auto">
+                    {reservationsQuery.data.reservations.map((r) => (
+                      <li key={r.id} className="text-xs flex items-center justify-between gap-2 py-1 border-b border-border/50 last:border-0">
+                        <span className="font-medium">
+                          {new Date(r.checkin_date).toLocaleDateString("pt-BR")} → {new Date(r.checkout_date).toLocaleDateString("pt-BR")}
+                        </span>
+                        {r.guest_hint && (
+                          <span className="text-muted-foreground font-mono text-[10px]">{r.guest_hint}</span>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                </details>
+              )}
+            </div>
           </Section>
 
-          <Section
-            icon={RefreshCw}
-            title="Calendário Airbnb (iCal)"
-            desc="Cole a URL do calendário exportado no Airbnb para sincronizar automaticamente as reservas neste guia."
-            collapsible
-          >
-            <Field
-              label="URL do calendário Airbnb"
-              hint="No Airbnb: Anúncio → Calendário → Disponibilidade → Exportar calendário. Sincroniza a cada 30 minutos."
-            >
-              <div className="flex gap-2">
-                <Input
-                  value={form.property.airbnb_ical_url ?? ""}
-                  onChange={(e) => update("airbnb_ical_url", e.target.value.trim() || null)}
-                  placeholder="https://www.airbnb.com/calendar/ical/12345.ics?s=..."
-                />
-                <Button
-                  onClick={handleSyncIcal}
-                  disabled={syncingIcal || isNew || !(form.property.airbnb_ical_url ?? "").trim()}
-                  variant="secondary"
-                  className="shrink-0"
-                  title={isNew ? "Salve o guia antes de sincronizar" : "Sincronizar agora"}
-                >
-
-                  {syncingIcal ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}
-                  <span className="ml-1.5 hidden sm:inline">{syncingIcal ? "Sincronizando…" : "Sincronizar"}</span>
-                </Button>
-              </div>
-            </Field>
-
-            {(form.property.airbnb_ical_last_sync_at || form.property.airbnb_ical_last_error) && (
-              <div className="text-[11px] text-muted-foreground flex items-center gap-2 flex-wrap">
-                {form.property.airbnb_ical_last_sync_at && (
-                  <span>Última sincronização: {new Date(form.property.airbnb_ical_last_sync_at).toLocaleString("pt-BR")}</span>
-                )}
-                {form.property.airbnb_ical_last_error && (
-                  <span className="text-destructive">Erro: {form.property.airbnb_ical_last_error}</span>
-                )}
-              </div>
-            )}
-
-
-            {reservationsQuery.data?.reservations && reservationsQuery.data.reservations.length > 0 && (
-              <div className="mt-3 rounded-xl border border-border bg-muted/30 p-3">
-                <div className="text-xs font-semibold mb-2">Próximas reservas ({reservationsQuery.data.reservations.length})</div>
-                <ul className="space-y-1.5 max-h-56 overflow-y-auto">
-                  {reservationsQuery.data.reservations.map((r) => (
-                    <li key={r.id} className="text-xs flex items-center justify-between gap-2 py-1 border-b border-border/50 last:border-0">
-                      <span className="font-medium">
-                        {new Date(r.checkin_date).toLocaleDateString("pt-BR")} → {new Date(r.checkout_date).toLocaleDateString("pt-BR")}
-                      </span>
-                      {r.guest_hint && (
-                        <span className="text-muted-foreground font-mono text-[10px]">{r.guest_hint}</span>
-                      )}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-          </Section>
 
 
 
