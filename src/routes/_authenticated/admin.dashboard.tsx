@@ -5,7 +5,7 @@ import { useMemo, useState } from "react";
 import {
   CalendarCheck, CalendarX, LogIn, LogOut, MessageCircle, StickyNote, Check,
   AlertTriangle, Clock, Loader2, Home, Info, Sparkles, TrendingUp, Bell,
-  ChevronDown, UserPlus,
+  ChevronDown, UserPlus, Hash,
 } from "lucide-react";
 import { toast } from "sonner";
 import { parsePhoneNumberFromString } from "libphonenumber-js";
