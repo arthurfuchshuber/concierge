@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { recordGuideAccess, checkReservationBySlug } from "@/lib/guide-access.functions";
+import { recordGuideAccess, checkReservationBySlug, listReservationDatesBySlug } from "@/lib/guide-access.functions";
 import { Dialog, DialogPortal, DialogOverlay } from "@/components/ui/dialog";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { Button } from "@/components/ui/button";
@@ -105,6 +105,7 @@ type Props = {
 export function GuideAccessGate({ slug, propertyName, requireReservationCode, collection, onUnlock }: Props) {
   const submit = useServerFn(recordGuideAccess);
   const checkReservation = useServerFn(checkReservationBySlug);
+  const listReservationDates = useServerFn(listReservationDatesBySlug);
   const [step, setStep] = useState<1 | 2>(1);
   const [name, setName] = useState("");
   const [code, setCode] = useState("");
@@ -112,6 +113,9 @@ export function GuideAccessGate({ slug, propertyName, requireReservationCode, co
   const [phone, setPhone] = useState<string | undefined>();
   const [country, setCountry] = useState<Country>("BR");
   const [loading, setLoading] = useState(false);
+  const [reservedRanges, setReservedRanges] = useState<
+    { hasIcal: boolean; ranges: Array<{ checkin: string; checkout: string }> } | null
+  >(null);
   const [resCheck, setResCheck] = useState<
     | { state: "idle" }
     | { state: "checking" }
@@ -145,6 +149,41 @@ export function GuideAccessGate({ slug, propertyName, requireReservationCode, co
     const existing = readAccessRecord(slug);
     if (existing) onUnlock(existing);
   }, [slug, onUnlock]);
+
+  // Fetch upcoming reservation ranges (when iCal is connected) to restrict
+  // the calendar to reserved days only.
+  useEffect(() => {
+    let cancelled = false;
+    listReservationDates({ data: { slug } })
+      .then((r) => {
+        if (cancelled) return;
+        setReservedRanges({ hasIcal: r.hasIcal, ranges: r.ranges });
+      })
+      .catch(() => {
+        if (!cancelled) setReservedRanges({ hasIcal: false, ranges: [] });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [slug, listReservationDates]);
+
+  // Date is "reserved" if it falls inside any reservation window
+  // (inclusive of checkin and checkout, so the guest can pick both endpoints).
+  const isReservedDate = (date: Date): boolean => {
+    if (!reservedRanges || !reservedRanges.hasIcal) return true;
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, "0");
+    const d = String(date.getDate()).padStart(2, "0");
+    const iso = `${y}-${m}-${d}`;
+    return reservedRanges.ranges.some((r) => iso >= r.checkin && iso <= r.checkout);
+  };
+
+  const isDateDisabled = (date: Date): boolean => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    if (date < today) return true;
+    return !isReservedDate(date);
+  };
 
   // Cross-check with Airbnb iCal reservations (soft warning, never blocks)
   useEffect(() => {
@@ -401,11 +440,7 @@ export function GuideAccessGate({ slug, propertyName, requireReservationCode, co
                         numberOfMonths={1}
                         initialFocus
                         locale={ptBR}
-                        disabled={(date) => {
-                          const today = new Date();
-                          today.setHours(0, 0, 0, 0);
-                          return date < today;
-                        }}
+                        disabled={isDateDisabled}
                         className="p-3 pointer-events-auto"
                       />
                     }
@@ -421,11 +456,7 @@ export function GuideAccessGate({ slug, propertyName, requireReservationCode, co
                         numberOfMonths={1}
                         initialFocus
                         locale={ptBR}
-                        disabled={(date) => {
-                          const today = new Date();
-                          today.setHours(0, 0, 0, 0);
-                          return date < today;
-                        }}
+                        disabled={isDateDisabled}
                         className="p-3 pointer-events-auto"
                       />
                     }
