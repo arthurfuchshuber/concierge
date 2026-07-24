@@ -30,8 +30,10 @@ export type HandoffConversationSummary = {
 export type HandoffListResult = {
   conversations: HandoffConversationSummary[];
   details: Record<string, HandoffGuestDetail>;
+  assignedNames?: Record<string, string>;
   error?: string;
 };
+
 
 type RawHandoffRow = {
   id?: unknown;
@@ -71,8 +73,9 @@ function normalizeProperty(value: unknown): HandoffConversationSummary["properti
 }
 
 export function emptyHandoffListResult(error?: string): HandoffListResult {
-  return error ? { conversations: [], details: {}, error } : { conversations: [], details: {} };
+  return error ? { conversations: [], details: {}, assignedNames: {}, error } : { conversations: [], details: {}, assignedNames: {} };
 }
+
 
 export function normalizeHandoffConversationRows(rows: RawHandoffRow[] | null | undefined): HandoffConversationSummary[] {
   return (rows ?? []).map((row) => ({
