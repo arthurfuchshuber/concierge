@@ -525,15 +525,18 @@ function EngagementBars({ loading, checkins, guideOpens, checkinTabOpens }: {
   );
 }
 function BarRow({ label, value, total, pct }: { label: string; value: number; total: number; pct: number }) {
-  const health = pct >= 80 ? "from-emerald-500 to-emerald-400" : pct >= 50 ? "from-primary to-primary/80" : "from-amber-500 to-amber-400";
   return (
     <div className="space-y-1.5">
       <div className="flex items-center justify-between text-sm">
         <span className="font-medium">{label}</span>
         <span className="tabular-nums text-muted-foreground text-xs">{value} / {total} check-ins</span>
       </div>
-      <div className="h-2.5 rounded-full bg-secondary/60 overflow-hidden">
-        <div className={`h-full bg-gradient-to-r ${health} transition-[width] duration-700`} style={{ width: `${pct}%` }} />
+      {/* Battery: red base, green fill overlay */}
+      <div className="h-2.5 rounded-full bg-rose-500/70 overflow-hidden ring-1 ring-rose-500/20">
+        <div
+          className="h-full bg-gradient-to-r from-emerald-500 to-emerald-400 transition-[width] duration-700"
+          style={{ width: `${pct}%` }}
+        />
       </div>
     </div>
   );
