@@ -58,6 +58,47 @@ export const getMySubscription = createServerFn({ method: "GET" })
     return { subscription: match, plan };
   });
 
+// Retorna a assinatura da CONTA (owner) para qualquer usuário que faça parte
+// dela via account_members. Permite que membros da equipe (não-owners)
+// enxerguem o plano real do dono da conta e desbloqueiem as features
+// contratadas (IA, biblioteca, etc.), em vez de caírem no plano Free.
+export const getAccountSubscription = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: { ownerId: string; environment: PaddleEnv }) =>
+    z.object({ ownerId: z.string().uuid(), environment: PaddleEnvSchema }).parse(data),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    if (data.ownerId !== userId) {
+      // Verifica se o usuário é membro ativo desta conta.
+      const { data: m } = await supabase
+        .from("account_members")
+        .select("id")
+        .eq("owner_id", data.ownerId)
+        .eq("member_user_id", userId)
+        .eq("status", "active")
+        .maybeSingle();
+      if (!m) throw new Error("Você não tem acesso a esta conta.");
+    }
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: rows, error } = await supabaseAdmin
+      .from("subscriptions")
+      .select(
+        "id, paddle_subscription_id, paddle_customer_id, product_id, price_id, status, current_period_start, current_period_end, cancel_at_period_end, environment, is_manual, custom_price_cents, custom_currency, trial_ends_at, max_guides_override, admin_notes, created_at",
+      )
+      .eq("user_id", data.ownerId)
+      .order("created_at", { ascending: false });
+    if (error) throw new Error("Não foi possível carregar a assinatura da conta.");
+    const list = rows ?? [];
+    const match =
+      list.find((r) => r.environment === data.environment) ??
+      list.find((r) => r.is_manual) ??
+      null;
+    if (!match) return { subscription: null, plan: null as PlanKey | null };
+    return { subscription: match, plan: planFromProductId(match.product_id) };
+  });
+
+
 export const createPortalSession = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data: { environment: PaddleEnv }) =>
