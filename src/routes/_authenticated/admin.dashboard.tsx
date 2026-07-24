@@ -74,6 +74,7 @@ function DashboardPage() {
   const engFn = useServerFn(getGuideEngagement);
   const listFn = useServerFn(listDashboardArrivals);
   const upsertFn = useServerFn(upsertArrivalStatus);
+  const updateDatesFn = useServerFn(updateGuestStayDates);
   const qc = useQueryClient();
 
   const [kind, setKind] = useState<"checkin" | "checkout">("checkin");
