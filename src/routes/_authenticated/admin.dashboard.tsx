@@ -528,7 +528,7 @@ function BarRow({ label, value, total, pct }: { label: string; value: number; to
   );
 }
 
-function ArrivalGroup({ title, rows, kind, onMark, onSyncIcal, onNote, onEditDates, busy, muted }: {
+function ArrivalGroup({ title, rows, kind, onMark, onSyncIcal, onNote, onEditDates, onEditTime, busy, muted }: {
   title: string;
   rows: ArrivalRow[];
   kind: "checkin" | "checkout";
@@ -536,6 +536,7 @@ function ArrivalGroup({ title, rows, kind, onMark, onSyncIcal, onNote, onEditDat
   onSyncIcal: (r: ArrivalRow) => void;
   onNote: (r: ArrivalRow, note: string | null) => void;
   onEditDates: (r: ArrivalRow, dates: { checkinDate?: string; checkoutDate?: string | null }) => void;
+  onEditTime: (r: ArrivalRow, time: string | null) => void;
   busy: boolean;
   muted?: boolean;
 }) {
@@ -548,23 +549,26 @@ function ArrivalGroup({ title, rows, kind, onMark, onSyncIcal, onNote, onEditDat
       </div>
       <div className={`grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 ${muted ? "opacity-70" : ""}`}>
         {rows.map((r) => (
-          <ArrivalCard key={r.logId} row={r} kind={kind} onMark={onMark} onSyncIcal={onSyncIcal} onNote={onNote} onEditDates={onEditDates} busy={busy} />
+          <ArrivalCard key={r.logId} row={r} kind={kind} onMark={onMark} onSyncIcal={onSyncIcal} onNote={onNote} onEditDates={onEditDates} onEditTime={onEditTime} busy={busy} />
         ))}
       </div>
     </div>
   );
 }
 
-function ArrivalCard({ row, kind, onMark, onSyncIcal, onNote, onEditDates, busy }: {
+function ArrivalCard({ row, kind, onMark, onSyncIcal, onNote, onEditDates, onEditTime, busy }: {
   row: ArrivalRow; kind: "checkin" | "checkout";
   onMark: (r: ArrivalRow) => void;
   onSyncIcal: (r: ArrivalRow) => void;
   onNote: (r: ArrivalRow, note: string | null) => void;
   onEditDates: (r: ArrivalRow, dates: { checkinDate?: string; checkoutDate?: string | null }) => void;
+  onEditTime: (r: ArrivalRow, time: string | null) => void;
   busy: boolean;
 }) {
   const [noteOpen, setNoteOpen] = useState(false);
   const [noteText, setNoteText] = useState(row.note ?? "");
+  const [editingTime, setEditingTime] = useState(false);
+  const [timeVal, setTimeVal] = useState(row.arrivalTimeOverride ?? row.guestArrivalTime ?? "");
   const guestTime = row.arrivalTimeOverride ?? row.guestArrivalTime;
   const stdWindow = row.standardTime
     ? row.standardTimeMax ? `${row.standardTime} – ${row.standardTimeMax}` : row.standardTime
@@ -577,6 +581,23 @@ function ArrivalCard({ row, kind, onMark, onSyncIcal, onNote, onEditDates, busy 
   const isPendingFill = row.pendingFill;
   const todayISO = new Date().toLocaleDateString("sv-SE");
   const isToday = row.date === todayISO;
+
+  // Prefer garage address when available for logistics
+  const mapsHref = row.garageMapsUrl ?? row.mapsUrl ?? (row.propertyAddress ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(row.propertyAddress)}` : null);
+  const copyText = mapsHref ?? row.propertyAddress ?? "";
+  const copyLink = async () => {
+    if (!copyText) return;
+    try { await navigator.clipboard.writeText(copyText); toast.success("Link copiado."); }
+    catch { toast.error("Não foi possível copiar."); }
+  };
+
+  const commitTime = () => {
+    setEditingTime(false);
+    const v = timeVal.trim();
+    if (!v) { onEditTime(row, null); return; }
+    if (!/^\d{2}:\d{2}$/.test(v)) { toast.error("Use o formato HH:mm."); return; }
+    if (v !== (row.arrivalTimeOverride ?? row.guestArrivalTime ?? "")) onEditTime(row, v);
+  };
 
   return (
     <div className={`group relative overflow-hidden rounded-2xl border p-4 space-y-3 transition-all ${
@@ -591,12 +612,40 @@ function ArrivalCard({ row, kind, onMark, onSyncIcal, onNote, onEditDates, busy 
       {!done && (
         <>
           <span aria-hidden className="absolute left-0 top-4 bottom-4 w-0.5 rounded-r bg-gradient-to-b from-primary/70 to-primary/30" />
-          <span aria-hidden className={`pointer-events-none absolute -top-16 -right-16 rounded-full blur-2xl ${isToday ? "size-48 bg-primary/[0.12]" : "size-40 bg-primary/[0.06]"}`} />
+          {/* Contained decorative glow — no bleed */}
+          <span aria-hidden className={`pointer-events-none absolute top-0 right-0 -translate-y-1/3 translate-x-1/3 rounded-full blur-2xl ${isToday ? "size-40 bg-primary/[0.14]" : "size-32 bg-primary/[0.07]"}`} />
         </>
       )}
 
-      {/* Header: avatar + name centered vertically with date; CHECK-IN label right-aligned below */}
-      <div className="flex items-center gap-3">
+      {/* Top-left location actions */}
+      {(mapsHref || row.propertyAddress) && !done && (
+        <div className="absolute top-3 left-3 flex items-center gap-1 z-10">
+          {copyText && (
+            <button
+              type="button"
+              onClick={copyLink}
+              title="Copiar link do endereço"
+              aria-label="Copiar link do endereço"
+              className="size-7 grid place-items-center rounded-md bg-background/70 backdrop-blur border border-border/50 text-muted-foreground hover:text-primary hover:border-primary/40"
+            >
+              <LinkIcon className="size-3.5" />
+            </button>
+          )}
+          {mapsHref && (
+            <a
+              href={mapsHref} target="_blank" rel="noreferrer"
+              title={row.garageMapsUrl ? "Ver garagem no Maps" : "Ver endereço no Maps"}
+              aria-label="Abrir no Google Maps"
+              className="inline-flex items-center gap-1 rounded-md bg-background/70 backdrop-blur border border-border/50 px-2 h-7 text-[11px] font-medium text-foreground/80 hover:text-primary hover:border-primary/40"
+            >
+              <MapPin className="size-3.5" /> Maps
+            </a>
+          )}
+        </div>
+      )}
+
+      {/* Header: name + dates */}
+      <div className={`flex items-start gap-3 ${!done && (mapsHref || row.propertyAddress) ? "pt-8" : ""}`}>
         <div className={`size-11 rounded-xl grid place-items-center font-semibold shrink-0 ring-1 ${
           isPendingFill
             ? "bg-primary/5 text-primary/70 ring-primary/10"
@@ -610,35 +659,46 @@ function ArrivalCard({ row, kind, onMark, onSyncIcal, onNote, onEditDates, busy 
             <Home className="size-3 shrink-0" /> {row.propertyName ?? "Sem nome"}
           </div>
         </div>
-        <div className="text-right shrink-0">
-          <button
-            type="button"
+        {/* Stacked check-in / check-out dates, both editable */}
+        <div className="text-right shrink-0 space-y-1">
+          <DateEditor
+            label="Check-in"
+            value={row.guestCheckin}
             disabled={busy}
-            onClick={(e) => {
-              const input = e.currentTarget.querySelector("input") as HTMLInputElement | null;
-              if (input && typeof input.showPicker === "function") input.showPicker();
-              else input?.focus();
-            }}
-            className="relative inline-block text-right cursor-pointer rounded hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
-            title="Clique para corrigir a data"
-          >
-            <input
-              type="date"
-              value={row.date}
+            onChange={(v) => onEditDates(row, { checkinDate: v })}
+          />
+          {row.guestCheckout && (
+            <DateEditor
+              label="Check-out"
+              value={row.guestCheckout}
               disabled={busy}
-              onChange={(e) => {
-                const v = e.target.value;
-                if (!v || v === row.date) return;
-                onEditDates(row, kind === "checkin" ? { checkinDate: v } : { checkoutDate: v });
-              }}
-              onClick={(e) => e.stopPropagation()}
-              className="text-base font-semibold tabular-nums leading-tight bg-transparent border-0 p-0 text-right w-[112px] cursor-pointer focus:outline-none [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-inner-spin-button]:hidden"
+              onChange={(v) => onEditDates(row, { checkoutDate: v })}
             />
-            <div className="text-[10px] uppercase tracking-wider text-muted-foreground mt-0.5">{kind === "checkin" ? "Check-in" : "Check-out"}</div>
-          </button>
+          )}
         </div>
       </div>
 
+      {/* Engagement badges */}
+      {!isPendingFill && (row.openedCheckin || (row.hasPasswords && row.viewedPasswords) || row.hasPasswords) && (
+        <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
+          <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 border ${
+            row.openedCheckin
+              ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/25"
+              : "bg-muted/40 text-muted-foreground border-border/60"
+          }`}>
+            <Eye className="size-3" /> {row.openedCheckin ? "Abriu Chegada" : "Não abriu Chegada"}
+          </span>
+          {row.hasPasswords && (
+            <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 border ${
+              row.viewedPasswords
+                ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/25"
+                : "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/25"
+            }`}>
+              <KeyRound className="size-3" /> {row.viewedPasswords ? "Viu senhas" : "Não viu senhas"}
+            </span>
+          )}
+        </div>
+      )}
 
       <div className="grid grid-cols-2 gap-2 text-xs">
         <div className="rounded-lg bg-background/50 border border-border/40 p-2 backdrop-blur-sm">
@@ -651,10 +711,31 @@ function ArrivalCard({ row, kind, onMark, onSyncIcal, onNote, onEditDates, busy 
         <div className={`rounded-lg p-2 backdrop-blur-sm ${divergent ? "bg-amber-500/10 border border-amber-500/30" : "bg-background/50 border border-border/40"}`}>
           <div className="text-[10px] uppercase tracking-wider text-muted-foreground flex items-center justify-between">
             <span>Previsto</span>
-            <InfoHint title="Horário previsto">Horário informado pelo hóspede — ou ajustado ao alinhar com o iCal.</InfoHint>
+            <InfoHint title="Horário previsto">Clique no horário para ajustar. A correção atualiza todas as demais telas.</InfoHint>
           </div>
           <div className="mt-0.5 tabular-nums flex items-center gap-1">
-            <Clock className="size-3" /> {guestTime ?? "—"}
+            <Clock className="size-3" />
+            {editingTime && !isPendingFill ? (
+              <input
+                type="time"
+                autoFocus
+                value={timeVal}
+                onChange={(e) => setTimeVal(e.target.value)}
+                onBlur={commitTime}
+                onKeyDown={(e) => { if (e.key === "Enter") commitTime(); if (e.key === "Escape") setEditingTime(false); }}
+                className="bg-transparent border-b border-primary/40 focus:outline-none w-16 tabular-nums"
+              />
+            ) : (
+              <button
+                type="button"
+                disabled={busy || isPendingFill}
+                onClick={() => { setTimeVal(guestTime ?? ""); setEditingTime(true); }}
+                className="tabular-nums hover:text-primary disabled:cursor-not-allowed disabled:hover:text-inherit"
+                title={isPendingFill ? "Aguarde o hóspede preencher" : "Clique para editar"}
+              >
+                {guestTime ?? "—"}
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -725,10 +806,16 @@ function ArrivalCard({ row, kind, onMark, onSyncIcal, onNote, onEditDates, busy 
         </div>
       )}
 
-      {row.note && (
-        <div className="text-xs rounded-lg bg-secondary/40 px-2 py-1.5 flex items-start gap-1.5">
-          <StickyNote className="size-3.5 mt-0.5 shrink-0" /> <span className="whitespace-pre-wrap">{row.note}</span>
-        </div>
+      {row.note && !noteOpen && (
+        <button
+          type="button"
+          onClick={() => { setNoteText(row.note ?? ""); setNoteOpen(true); }}
+          className="w-full text-left text-xs rounded-lg bg-secondary/40 hover:bg-secondary/60 px-2 py-1.5 flex items-start gap-1.5 transition-colors"
+          title="Clique para editar a nota"
+        >
+          <StickyNote className="size-3.5 mt-0.5 shrink-0" />
+          <span className="whitespace-pre-wrap flex-1">{row.note}</span>
+        </button>
       )}
 
       {noteOpen && !isPendingFill && (
@@ -741,13 +828,23 @@ function ArrivalCard({ row, kind, onMark, onSyncIcal, onNote, onEditDates, busy 
             placeholder="Nota interna (visível só para sua equipe)"
             className="w-full rounded-lg border border-border bg-background px-2 py-1.5 text-xs"
           />
-          <div className="flex gap-2 justify-end">
-            <button onClick={() => setNoteOpen(false)} className="text-xs px-2 py-1 rounded-md hover:bg-secondary">Cancelar</button>
-            <button
-              onClick={() => { onNote(row, noteText.trim() || null); setNoteOpen(false); }}
-              className="text-xs px-3 py-1 rounded-md bg-primary text-primary-foreground"
-              disabled={busy}
-            >Salvar</button>
+          <div className="flex items-center justify-between gap-2">
+            {row.note ? (
+              <button
+                onClick={() => { onNote(row, null); setNoteOpen(false); setNoteText(""); }}
+                className="text-xs px-2 py-1 rounded-md text-rose-600 hover:bg-rose-500/10 inline-flex items-center gap-1"
+                disabled={busy}
+                title="Excluir nota"
+              ><Trash2 className="size-3.5" /> Excluir</button>
+            ) : <span />}
+            <div className="flex gap-2">
+              <button onClick={() => setNoteOpen(false)} className="text-xs px-2 py-1 rounded-md hover:bg-secondary">Cancelar</button>
+              <button
+                onClick={() => { onNote(row, noteText.trim() || null); setNoteOpen(false); }}
+                className="text-xs px-3 py-1 rounded-md bg-primary text-primary-foreground"
+                disabled={busy}
+              >Salvar</button>
+            </div>
           </div>
         </div>
       )}
@@ -787,6 +884,39 @@ function ArrivalCard({ row, kind, onMark, onSyncIcal, onNote, onEditDates, busy 
     </div>
   );
 }
+
+function DateEditor({ label, value, disabled, onChange }: {
+  label: string; value: string; disabled: boolean; onChange: (v: string) => void;
+}) {
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={(e) => {
+        const input = e.currentTarget.querySelector("input") as HTMLInputElement | null;
+        if (input && typeof input.showPicker === "function") input.showPicker();
+        else input?.focus();
+      }}
+      className="relative inline-block text-right cursor-pointer rounded hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
+      title={`Clique para corrigir ${label.toLowerCase()}`}
+    >
+      <input
+        type="date"
+        value={value}
+        disabled={disabled}
+        onChange={(e) => {
+          const v = e.target.value;
+          if (!v || v === value) return;
+          onChange(v);
+        }}
+        onClick={(e) => e.stopPropagation()}
+        className="text-sm font-semibold tabular-nums leading-tight bg-transparent border-0 p-0 text-right w-[100px] cursor-pointer focus:outline-none [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-inner-spin-button]:hidden"
+      />
+      <div className="text-[9px] uppercase tracking-wider text-muted-foreground -mt-0.5">{label}</div>
+    </button>
+  );
+}
+
 
 function isTimeWithin(t: string, min: string, max: string | null): boolean {
   const toMin = (s: string) => {
