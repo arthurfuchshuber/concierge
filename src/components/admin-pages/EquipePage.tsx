@@ -70,7 +70,11 @@ function EquipePage() {
   });
   const changeRole = useMutation({
     mutationFn: async (v: { id: string; r: "owner" | "agent" | "viewer" }) => updateRoleFn({ data: { memberId: v.id, role: v.r } }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["my-team"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["my-team"] });
+      toast.success("Permissão atualizada");
+    },
+    onError: (e) => toast.error("Falha ao atualizar: " + (e as Error).message),
   });
 
   const [pushOn, setPushOn] = useState<boolean | null>(null);
@@ -184,7 +188,6 @@ function EquipePage() {
           <select value={role} onChange={(e) => setRole(e.target.value as any)} className="rounded-md border border-border bg-background px-3 py-2 text-sm">
             <option value="agent">Atendente</option>
             <option value="viewer">Somente leitura</option>
-            <option value="owner">Co-titular</option>
           </select>
           <button
             type="submit"
@@ -220,12 +223,12 @@ function EquipePage() {
                 <select
                   value={m.role as string}
                   onChange={(e) => changeRole.mutate({ id: m.id as string, r: e.target.value as any })}
-                  disabled={isSelf}
+                  disabled={isSelf || (m.role as string) === "owner"}
                   className="text-xs rounded-md border border-border bg-background px-2 py-1 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
+                  {(m.role as string) === "owner" && <option value="owner">Titular</option>}
                   <option value="agent">Atendente</option>
                   <option value="viewer">Somente leitura</option>
-                  <option value="owner">Co-titular</option>
                 </select>
                 {!isSelf && (
                   <button
