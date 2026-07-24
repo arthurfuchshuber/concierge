@@ -120,7 +120,7 @@ function HospedesPage() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
+    <div className="px-6 lg:px-10 py-8 lg:py-10 max-w-7xl mx-auto w-full">
       <div className="mb-6 pb-5 border-b border-border/60">
         <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground font-semibold mb-2">
           Formulários de primeiro acesso
