@@ -582,14 +582,17 @@ type GuestDetail = {
 export function ConversationList({
   conversations,
   details,
+  assignedNames,
   activeId,
   onSelect,
 }: {
   conversations: Array<{
     id: string; guest_name: string | null; status: string; handoff_at: string | null; last_message_at: string; handoff_urgency: string | null; handoff_reason: string | null;
+    assigned_to?: string | null;
     properties: { name: string | null } | { name: string | null }[] | null;
   }>;
   details?: Record<string, GuestDetail>;
+  assignedNames?: Record<string, string>;
   activeId: string | null;
   onSelect: (id: string) => void;
 }) {
@@ -607,6 +610,8 @@ export function ConversationList({
         const wa = d?.phone ? whatsappHref(d.phone, d.phoneCountry) : null;
         const checkin = fmtCheckin(d?.checkinDate ?? null);
         const checkout = fmtCheckin(d?.checkoutDate ?? null);
+        const withWhom = c.assigned_to ? (assignedNames?.[c.id] ?? "outro membro") : null;
+
         return (
           <div
             key={c.id}
@@ -650,6 +655,11 @@ export function ConversationList({
                     <Hash className="size-3" /> {d.reservationCode}
                   </span>
                 )}
+              </div>
+            )}
+            {withWhom && (
+              <div className="text-[11px] mt-0.5 inline-flex items-center gap-1 text-primary">
+                <UserCheck className="size-3" /> Com {withWhom}
               </div>
             )}
             {c.handoff_reason && <div className="text-[11px] text-foreground/70 truncate mt-0.5">{c.handoff_reason}</div>}

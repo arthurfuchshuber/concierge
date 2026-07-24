@@ -51,10 +51,14 @@ export function AudioRecorderButton({ disabled, maxSeconds = 60, onRecorded, com
   useEffect(() => () => cleanup(), []);
 
   function pickMime(): string {
+    // Preferimos mp4/AAC quando o navegador suportar (Safari) — é o codec de áudio
+    // com maior compatibilidade cross-browser. O Chrome não suporta mp4 no
+    // MediaRecorder e cai para webm/opus automaticamente.
     const candidates = [
+      "audio/mp4",
+      "audio/mp4;codecs=mp4a.40.2",
       "audio/webm;codecs=opus",
       "audio/webm",
-      "audio/mp4",
       "audio/ogg",
     ];
     for (const c of candidates) {
@@ -62,6 +66,7 @@ export function AudioRecorderButton({ disabled, maxSeconds = 60, onRecorded, com
     }
     return "";
   }
+
 
   async function start() {
     setError(null);

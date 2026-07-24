@@ -304,11 +304,43 @@ export const listHandoffConversations = createServerFn({ method: "POST" })
       return bCk - aCk;
     });
 
+    // Enriquece com nomes dos atendentes atribuídos (para a coluna "Com alguém").
+    const assignedNames: Record<string, string> = {};
+    try {
+      const assignedIds = Array.from(
+        new Set(deduped.map((c) => c.assigned_to).filter((v): v is string => !!v)),
+      );
+      if (assignedIds.length > 0) {
+        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+        const { data: profs } = await supabaseAdmin
+          .from("profiles")
+          .select("id, full_name, trade_name")
+          .in("id", assignedIds);
+        const byId = new Map<string, string>();
+        for (const p of (profs ?? []) as Array<{ id: string; full_name: string | null; trade_name: string | null }>) {
+          const name = (p.full_name || p.trade_name || "").trim();
+          if (name) byId.set(p.id, name);
+        }
+
+
+        for (const c of deduped) {
+          if (c.assigned_to) {
+            const n = byId.get(c.assigned_to);
+            if (n) assignedNames[c.id] = n;
+          }
+        }
+      }
+    } catch (e) {
+      console.warn("assigned names lookup failed", e);
+    }
+
     return {
       conversations: deduped.map((c) => (isPreviewName(c.guest_name) ? { ...c, guest_name: null } : c)),
       details,
+      assignedNames,
     };
   });
+
 
 
 
