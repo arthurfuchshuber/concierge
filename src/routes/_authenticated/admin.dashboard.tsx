@@ -246,6 +246,7 @@ function DashboardPage() {
 
       {/* KPIs */}
       <section className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="order-1 lg:order-none contents">
         <KpiCard
           label="Check-ins hoje" value={kpisQ.data?.checkinsToday} icon={LogIn} tone="primary"
           loading={kpisQ.isLoading}
@@ -253,12 +254,16 @@ function DashboardPage() {
           rangeLabel="Hoje"
           shadowTone="emerald"
         />
+        </div>
+        <div className="order-3 lg:order-none contents">
         <KpiCard
           label="Check-ins amanhã" value={kpisQ.data?.checkinsTomorrow} icon={LogIn} tone="primary-soft"
           loading={kpisQ.isLoading}
           listQuery={kpiTomorrowQ} kind="checkin"
           rangeLabel="Amanhã"
         />
+        </div>
+        <div className="order-2 lg:order-none contents">
         <KpiCard
           label="Check-outs hoje" value={kpisQ.data?.checkoutsToday} icon={LogOut} tone="primary"
           loading={kpisQ.isLoading}
@@ -266,12 +271,15 @@ function DashboardPage() {
           rangeLabel="Hoje"
           shadowTone="amber"
         />
+        </div>
+        <div className="order-4 lg:order-none contents">
         <KpiCard
           label="Check-outs amanhã" value={kpisQ.data?.checkoutsTomorrow} icon={LogOut} tone="primary-soft"
           loading={kpisQ.isLoading}
           listQuery={kpiCoTomorrowQ} kind="checkout"
           rangeLabel="Amanhã"
         />
+        </div>
       </section>
 
       {/* Engagement */}
