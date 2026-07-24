@@ -261,8 +261,8 @@ function DashboardPage() {
       </section>
 
       {/* Engagement */}
-      <section className="relative overflow-hidden rounded-2xl border border-primary/10 bg-gradient-to-br from-primary/[0.04] via-transparent to-primary/[0.02] p-4 sm:p-6 space-y-4 shadow-sm">
-        <div className="pointer-events-none absolute -top-24 -right-24 size-64 rounded-full bg-primary/5 blur-3xl" />
+      <section className="rounded-2xl border border-border bg-card p-4 sm:p-5 space-y-4 shadow-sm">
+
         <div className="relative flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-start gap-2 min-w-0">
             <div className="size-9 rounded-xl bg-primary/10 text-primary grid place-items-center shrink-0 ring-1 ring-primary/15">
@@ -293,9 +293,9 @@ function DashboardPage() {
       </section>
 
       {/* Arrivals */}
-      <section className="relative overflow-hidden rounded-2xl border border-primary/10 bg-gradient-to-br from-primary/[0.03] via-transparent to-transparent p-4 sm:p-6 space-y-4 shadow-sm">
-        <div className="pointer-events-none absolute -bottom-32 -left-24 size-72 rounded-full bg-primary/5 blur-3xl" />
-        <div className="relative flex flex-wrap items-center gap-3">
+      <section className="rounded-2xl border border-border bg-card p-4 sm:p-5 space-y-4 shadow-sm">
+        <div className="flex flex-wrap items-center gap-3">
+
           <div className="inline-flex rounded-xl border border-primary/15 bg-primary/[0.03] overflow-hidden text-sm">
             <TabBtn active={kind === "checkin"} onClick={() => setKind("checkin")} icon={CalendarCheck}>Check-ins</TabBtn>
             <TabBtn active={kind === "checkout"} onClick={() => setKind("checkout")} icon={CalendarX}>Check-outs</TabBtn>
@@ -364,9 +364,7 @@ function KpiCard({ label, value, icon: Icon, tone, loading, listQuery, kind, ran
   kind: "checkin" | "checkout"; rangeLabel: string;
 }) {
   const [open, setOpen] = useState(false);
-  const toneClass = tone === "primary"
-    ? "bg-gradient-to-br from-primary/95 via-primary to-primary/80 text-primary-foreground border-primary/40 shadow-lg shadow-primary/15"
-    : "bg-[linear-gradient(135deg,color-mix(in_oklab,var(--primary)_14%,transparent)_0%,color-mix(in_oklab,var(--primary)_4%,transparent)_100%)] text-primary border-primary/20";
+  const valueTone = tone === "primary" ? "text-primary" : "text-foreground";
   const rows = listQuery.data?.rows ?? [];
 
   return (
@@ -374,17 +372,14 @@ function KpiCard({ label, value, icon: Icon, tone, loading, listQuery, kind, ran
       <DialogTrigger asChild>
         <button
           type="button"
-          className={`relative overflow-hidden rounded-2xl border p-4 sm:p-5 text-left transition-all hover:-translate-y-0.5 hover:shadow-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${toneClass}`}
+          className="rounded-xl border border-border bg-card px-4 py-3 text-left transition hover:border-primary/40 hover:bg-secondary/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
         >
-          <span aria-hidden className="pointer-events-none absolute inset-x-0 -top-px h-px bg-white/25" />
-          <span aria-hidden className="pointer-events-none absolute -top-8 -right-8 size-28 rounded-full bg-white/10 blur-2xl" />
-          <div className="relative flex items-center gap-2 text-[11px] uppercase tracking-wider opacity-90">
-            <Icon className="size-4" /> <span className="truncate">{label}</span>
+          <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.16em] text-muted-foreground font-semibold">
+            <Icon className="size-3.5" /> <span className="truncate">{label}</span>
           </div>
-          <div className="relative mt-2 text-3xl sm:text-4xl font-display leading-none tabular-nums">
+          <div className={`text-2xl font-display mt-1 tabular-nums ${valueTone}`}>
             {loading ? "—" : value ?? 0}
           </div>
-          <div className="relative mt-2 text-[10px] uppercase tracking-wider opacity-70">Toque para detalhes</div>
         </button>
       </DialogTrigger>
       <DialogContent className="max-w-lg p-0 overflow-hidden">
