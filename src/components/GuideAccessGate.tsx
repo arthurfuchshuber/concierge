@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { recordGuideAccess, checkReservationBySlug, listReservationDatesBySlug, lookupReservationByCode } from "@/lib/guide-access.functions";
+import { recordGuideAccess, checkReservationBySlug } from "@/lib/guide-access.functions";
 import { Dialog, DialogPortal, DialogOverlay } from "@/components/ui/dialog";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { Button } from "@/components/ui/button";
