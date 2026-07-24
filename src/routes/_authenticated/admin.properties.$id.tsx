@@ -127,6 +127,9 @@ type FormState = {
     vehicles_max: number;
     collect_document: "off" | "optional" | "required";
     document_scope: "main" | "all";
+    airbnb_ical_url: string | null;
+    airbnb_ical_last_sync_at: string | null;
+    airbnb_ical_last_error: string | null;
   };
   manual: { title: string; description: string; body: string }[];
   emergency: { label: string; number: string }[];
