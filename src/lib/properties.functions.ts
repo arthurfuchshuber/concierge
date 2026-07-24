@@ -435,11 +435,25 @@ export const upsertProperty = createServerFn({ method: "POST" })
   .inputValidator((i: unknown) => SavePropertyInput.parse(i))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    const { resolveUserPlan, assertCanCreateGuide } = await import("@/lib/plan-guard.server");
-    const plan = await resolveUserPlan(supabase, userId);
+    const { resolveEffectivePlan, assertCanCreateGuide } = await import("@/lib/plan-guard.server");
     let propertyId = data.id ?? null;
 
-    // Strip Business-only fields when the user is not on Business.
+    // Descobre o dono efetivo (para membros de equipe editando propriedades
+    // do dono da conta, o plano relevante é o do DONO — não do caller).
+    let effectiveOwnerId: string = userId;
+    if (propertyId) {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const { data: existing } = await supabaseAdmin
+        .from("properties")
+        .select("owner_id")
+        .eq("id", propertyId)
+        .maybeSingle();
+      if (existing?.owner_id) effectiveOwnerId = existing.owner_id as string;
+    }
+
+    const plan = await resolveEffectivePlan(supabase, userId, { ownerId: effectiveOwnerId });
+
+    // Strip Business-only fields when the effective plan doesn't include white-label.
     const propertyData = { ...data.property };
     if (!plan.features.customBrand) {
       propertyData.brand_name = null;
@@ -454,8 +468,8 @@ export const upsertProperty = createServerFn({ method: "POST" })
         .eq("id", propertyId);
       if (error) throw (await import("@/lib/db-errors.server")).safeDbError("properties", error);
     } else {
-      // Enforce per-plan quota on creation.
-      await assertCanCreateGuide(supabase, userId);
+      // Enforce per-plan quota on creation (uses caller as new-guide owner).
+      await assertCanCreateGuide(supabase, userId, { ownerId: userId });
       const { data: inserted, error } = await supabase
         .from("properties")
         .insert({ ...propertyData, owner_id: userId })
@@ -463,6 +477,7 @@ export const upsertProperty = createServerFn({ method: "POST" })
         .single();
       if (error) throw (await import("@/lib/db-errors.server")).safeDbError("properties", error);
       propertyId = inserted.id;
+
 
       // Auto-generate default FAQs on first creation when the user didn't
       // provide any. Only fields that are actually filled produce a question.
