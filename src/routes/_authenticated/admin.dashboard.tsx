@@ -872,8 +872,8 @@ function ArrivalCard({ row, kind, onMark, onSyncIcal, onNote, onEditDates, onEdi
   );
 }
 
-function DateEditor({ label, value, disabled, onChange }: {
-  label: string; value: string; disabled: boolean; onChange: (v: string) => void;
+function DateEditor({ value, disabled, onChange }: {
+  value: string; disabled: boolean; onChange: (v: string) => void;
 }) {
   return (
     <button
@@ -884,14 +884,10 @@ function DateEditor({ label, value, disabled, onChange }: {
         if (input && typeof input.showPicker === "function") input.showPicker();
         else input?.focus();
       }}
-      className="relative inline-flex flex-col items-end cursor-pointer rounded hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
-      title={`Clique para corrigir ${label.toLowerCase()}`}
+      className="relative inline-flex items-center cursor-pointer rounded hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary/30 disabled:cursor-not-allowed disabled:hover:text-inherit"
+      title="Clique para corrigir a data"
     >
-      <span className="text-sm font-semibold tabular-nums leading-tight">
-        {fmtDateBR(value)}
-      </span>
-      <span className="text-[9px] uppercase tracking-wider text-muted-foreground -mt-0.5">{label}</span>
-      {/* Native input overlays the label — fully transparent, receives clicks/picker */}
+      <span className="tabular-nums">{fmtDateBR(value)}</span>
       <input
         type="date"
         value={value}
@@ -902,7 +898,7 @@ function DateEditor({ label, value, disabled, onChange }: {
           onChange(v);
         }}
         onClick={(e) => e.stopPropagation()}
-        aria-label={label}
+        aria-label="Data"
         className="absolute inset-0 opacity-0 cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-0"
       />
     </button>
