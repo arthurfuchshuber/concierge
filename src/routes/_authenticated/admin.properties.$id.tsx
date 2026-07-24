@@ -1000,7 +1000,15 @@ function PropertyEditor() {
                 <div className="flex gap-2">
                   <Input
                     value={form.property.airbnb_ical_url ?? ""}
-                    onChange={(e) => update("airbnb_ical_url", e.target.value.trim() || null)}
+                    onChange={(e) => {
+                      const next = e.target.value.trim() || null;
+                      const prev = form.property.airbnb_ical_url;
+                      if (!next && prev) {
+                        setPendingIcalClear(true);
+                        return;
+                      }
+                      update("airbnb_ical_url", next);
+                    }}
                     placeholder="https://www.airbnb.com/calendar/ical/12345.ics?s=..."
                   />
                   <Button
