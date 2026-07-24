@@ -314,13 +314,14 @@ export const listHandoffConversations = createServerFn({ method: "POST" })
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
         const { data: profs } = await supabaseAdmin
           .from("profiles")
-          .select("id, full_name, email")
+          .select("id, full_name, trade_name")
           .in("id", assignedIds);
         const byId = new Map<string, string>();
-        for (const p of (profs ?? []) as Array<{ id: string; full_name: string | null; email: string | null }>) {
-          const name = (p.full_name || (p.email ? p.email.split("@")[0] : "") || "").trim();
+        for (const p of (profs ?? []) as Array<{ id: string; full_name: string | null; trade_name: string | null }>) {
+          const name = (p.full_name || p.trade_name || "").trim();
           if (name) byId.set(p.id, name);
         }
+
 
         for (const c of deduped) {
           if (c.assigned_to) {
