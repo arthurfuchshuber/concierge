@@ -26,7 +26,7 @@ function AdministrativoPage() {
 
   return (
     <div className="min-h-screen">
-      <div className="px-4 md:px-8 pt-6 md:pt-8 pb-2 max-w-7xl mx-auto">
+      <div className="px-6 lg:px-10 pt-8 lg:pt-10 pb-2 max-w-7xl mx-auto w-full">
         <h1 className="font-display text-3xl md:text-4xl tracking-tight">Administrativo</h1>
         <p className="text-sm text-muted-foreground mt-1">Perfil, assinatura e equipe da sua conta.</p>
       </div>
@@ -37,7 +37,7 @@ function AdministrativoPage() {
         }
         className="w-full"
       >
-        <div className="px-4 md:px-8 max-w-7xl mx-auto">
+        <div className="px-6 lg:px-10 max-w-7xl mx-auto w-full">
           <TabsList className="h-auto p-1 bg-secondary/60 rounded-2xl">
             <TabsTrigger value="perfil" className="gap-2 rounded-xl px-4 py-2 text-sm">
               <UserIcon className="size-4" /> Meu perfil

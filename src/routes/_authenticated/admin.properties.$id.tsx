@@ -906,7 +906,7 @@ function PropertyEditor() {
   const previewSlug = savedSlug || form.property.slug;
 
   return (
-    <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6 sm:py-10 pb-40 sm:pb-32">
+    <div className="px-6 lg:px-10 py-8 lg:py-10 pb-40 sm:pb-32 max-w-7xl mx-auto w-full">
       <Link to="/admin" className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground mb-5 transition-colors">
         <ArrowLeft className="size-3.5" /> Voltar
       </Link>
@@ -957,6 +957,7 @@ function PropertyEditor() {
             tone="accent"
             title="Importar do Airbnb"
             desc="Cole o link público do anúncio e preencha nome, fotos, localização e horários automaticamente. Tudo continua editável depois."
+            collapsible
           >
             {!canAirbnb && (
               <div className="mb-3 rounded-xl border border-border bg-secondary/40 p-3 text-xs text-muted-foreground flex items-start gap-2">
@@ -988,6 +989,7 @@ function PropertyEditor() {
             icon={RefreshCw}
             title="Calendário Airbnb (iCal)"
             desc="Cole a URL do calendário exportado no Airbnb para sincronizar automaticamente as reservas neste guia."
+            collapsible
           >
             <Field
               label="URL do calendário Airbnb"
@@ -1048,7 +1050,7 @@ function PropertyEditor() {
 
 
 
-          <Section icon={FileText} title="Identidade do guia" desc="Como o guia se apresenta aos hóspedes.">
+          <Section icon={FileText} title="Identidade do guia" desc="Como o guia se apresenta aos hóspedes." collapsible>
             <Field label="Nome do imóvel" required hint={`Máx. 80 caracteres — ${form.property.name.length}/80. Curto e memorável funciona melhor no cabeçalho do guia.`}>
               <Input value={form.property.name} maxLength={80}
                 onChange={(e) => {
@@ -1069,7 +1071,7 @@ function PropertyEditor() {
           </Section>
 
 
-          <Section icon={ImageIcon} title="Fotos da residência" desc="Até 4 fotos. A primeira será usada como capa.">
+          <Section icon={ImageIcon} title="Fotos da residência" desc="Até 4 fotos. A primeira será usada como capa." collapsible>
             <GalleryEditor
               value={form.property.gallery_images}
               onChange={(next) => {
@@ -1089,6 +1091,7 @@ function PropertyEditor() {
             icon={MapPinned}
             title="Endereço e localização"
             desc="Cole o link do Google Maps e use Auto-preencher para obter endereço, coordenadas e pontos de interesse."
+            collapsible
           >
             <Field label="Link do Google Maps — Entrada principal" required>
               <div className="flex gap-2">
@@ -1178,7 +1181,7 @@ function PropertyEditor() {
 
         <TabsContent value="access" className="space-y-5 mt-6">
           <SectionGroup>
-          <Section icon={Shield} title="Modo de acesso" desc="Quem pode visualizar este guia.">
+          <Section icon={Shield} title="Modo de acesso" desc="Quem pode visualizar este guia." collapsible>
 
             <Field label="Modo de acesso do Guia">
               <Select value={form.property.access_mode} onValueChange={(v) => update("access_mode", v as "public" | "pin")}>
@@ -1204,7 +1207,7 @@ function PropertyEditor() {
 
 
 
-          <Section icon={Globe} title="Idioma">
+          <Section icon={Globe} title="Idioma" collapsible>
             <Field label="Idioma padrão">
               <Select value={form.property.default_language} onValueChange={(v) => update("default_language", v as "pt" | "en")}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
@@ -1646,6 +1649,7 @@ function PropertyEditor() {
             icon={Ticket}
             title="Reservas & marketplace"
             desc="Links para venda de ingressos, passeios, transfers, produtos ou qualquer experiência que você queira oferecer ao hóspede."
+            collapsible
             action={sigmaLocked ? null : <AddBtn onClick={() => setForm((f) => ({ ...f, property: { ...f.property, marketplace_links: [...f.property.marketplace_links, { label: "", url: "", description: "" }] } }))} />}
           >
             {sigmaLocked && (
@@ -1706,6 +1710,7 @@ function PropertyEditor() {
             title="Emergências"
 
             desc="Telefones úteis em caso de urgência."
+            collapsible
             action={<AddBtn onClick={() => setForm((f) => ({ ...f, emergency: [...f.emergency, { label: "", number: "" }] }))} />}
           >
             {form.emergency.length === 0 ? (
@@ -1724,6 +1729,7 @@ function PropertyEditor() {
             icon={HelpCircle}
             title="Perguntas frequentes"
             desc="Antecipe dúvidas comuns dos hóspedes."
+            collapsible
             action={
               <div className="flex items-center gap-1.5">
                 <button
@@ -1846,6 +1852,7 @@ function PropertyEditor() {
               icon={Lock}
               title="Sempre coletado"
               desc="Perguntas obrigatórias no formulário de primeiro acesso. Não podem ser desativadas."
+              collapsible
             >
               <div className="grid gap-2">
                 {[
@@ -1872,6 +1879,7 @@ function PropertyEditor() {
               icon={ClipboardList}
               title="Você pode pedir também"
               desc="Ative apenas o que faz sentido para seu imóvel. Para cada um, decida se será opcional ou obrigatório para o hóspede."
+              collapsible
             >
               <div className="space-y-3">
                 <CaptureRow

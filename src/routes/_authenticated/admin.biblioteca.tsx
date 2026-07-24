@@ -257,7 +257,7 @@ function BibliotecaPage() {
   }
 
   return (
-    <div className="px-6 lg:px-10 py-8 lg:py-10 max-w-5xl mx-auto w-full">
+    <div className="px-6 lg:px-10 py-8 lg:py-10 max-w-7xl mx-auto w-full">
       <div className="mb-8">
         <h1 className="font-display text-3xl md:text-4xl leading-tight">Biblioteca</h1>
         <p className="text-sm text-muted-foreground mt-1.5">

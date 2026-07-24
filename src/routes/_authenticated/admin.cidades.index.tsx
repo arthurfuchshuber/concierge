@@ -20,7 +20,7 @@ function AdminCitiesPage() {
   const totalRefs = cities.reduce((s, c) => s + c.ref_count, 0);
 
   return (
-    <div className="max-w-6xl mx-auto p-6 md:p-10 space-y-8">
+    <div className="px-6 lg:px-10 py-8 lg:py-10 max-w-7xl mx-auto w-full space-y-8">
       {/* Header */}
       <header className="space-y-2">
         <div className="inline-flex items-center gap-2 text-[11px] uppercase tracking-[0.18em] text-muted-foreground font-semibold">
