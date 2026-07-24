@@ -679,7 +679,7 @@ function PropertyEditor() {
     }
     setImportingAirbnb(true);
     try {
-      const r = await importAirbnb({ data: { url: airbnbUrl.trim() } });
+      const r = await importAirbnb({ data: { url: airbnbUrl.trim(), propertyId: id } });
       const importedGallery = r.gallery_images.filter((url) => url.trim()).slice(0, 4);
       setForm((f) => ({
         ...f,

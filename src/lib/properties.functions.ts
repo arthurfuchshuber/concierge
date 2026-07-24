@@ -435,11 +435,25 @@ export const upsertProperty = createServerFn({ method: "POST" })
   .inputValidator((i: unknown) => SavePropertyInput.parse(i))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    const { resolveUserPlan, assertCanCreateGuide } = await import("@/lib/plan-guard.server");
-    const plan = await resolveUserPlan(supabase, userId);
+    const { resolveEffectivePlan, assertCanCreateGuide } = await import("@/lib/plan-guard.server");
     let propertyId = data.id ?? null;
 
-    // Strip Business-only fields when the user is not on Business.
+    // Descobre o dono efetivo (para membros de equipe editando propriedades
+    // do dono da conta, o plano relevante é o do DONO — não do caller).
+    let effectiveOwnerId: string = userId;
+    if (propertyId) {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const { data: existing } = await supabaseAdmin
+        .from("properties")
+        .select("owner_id")
+        .eq("id", propertyId)
+        .maybeSingle();
+      if (existing?.owner_id) effectiveOwnerId = existing.owner_id as string;
+    }
+
+    const plan = await resolveEffectivePlan(supabase, userId, { ownerId: effectiveOwnerId });
+
+    // Strip Business-only fields when the effective plan doesn't include white-label.
     const propertyData = { ...data.property };
     if (!plan.features.customBrand) {
       propertyData.brand_name = null;
@@ -454,8 +468,8 @@ export const upsertProperty = createServerFn({ method: "POST" })
         .eq("id", propertyId);
       if (error) throw (await import("@/lib/db-errors.server")).safeDbError("properties", error);
     } else {
-      // Enforce per-plan quota on creation.
-      await assertCanCreateGuide(supabase, userId);
+      // Enforce per-plan quota on creation (uses caller as new-guide owner).
+      await assertCanCreateGuide(supabase, userId, { ownerId: userId });
       const { data: inserted, error } = await supabase
         .from("properties")
         .insert({ ...propertyData, owner_id: userId })
@@ -463,6 +477,7 @@ export const upsertProperty = createServerFn({ method: "POST" })
         .single();
       if (error) throw (await import("@/lib/db-errors.server")).safeDbError("properties", error);
       propertyId = inserted.id;
+
 
       // Auto-generate default FAQs on first creation when the user didn't
       // provide any. Only fields that are actually filled produce a question.
@@ -633,17 +648,27 @@ export const duplicateProperty = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { resolveUserPlan } = await import("@/lib/plan-guard.server");
+    const { resolveEffectivePlan } = await import("@/lib/plan-guard.server");
 
-    // Plan gate.
-    const plan = await resolveUserPlan(supabase, userId);
+    // Load source first — the effective owner may be the account owner (not the caller).
+    const { data: src, error: srcErr } = await supabase
+      .from("properties")
+      .select("*")
+      .eq("id", data.id)
+      .maybeSingle();
+    if (srcErr) throw (await import("@/lib/db-errors.server")).safeDbError("properties", srcErr);
+    if (!src) throw new Error("Guia de origem não encontrado.");
+    const sourceOwnerId = (src as { owner_id: string }).owner_id;
+
+    // Plan gate — usa o plano do DONO da propriedade fonte (para membros de equipe).
+    const plan = await resolveEffectivePlan(supabase, userId, { ownerId: sourceOwnerId });
     if (!plan.plan) {
       throw new Error("Você precisa de um plano ativo para duplicar guias.");
     }
-    const { count: currentCount, error: countErr } = await supabase
+    const { count: currentCount, error: countErr } = await supabaseAdmin
       .from("properties")
       .select("id", { count: "exact", head: true })
-      .eq("owner_id", userId);
+      .eq("owner_id", sourceOwnerId);
     if (countErr) throw new Error("Não foi possível verificar seu limite de guias.");
     const used = currentCount ?? 0;
     const remaining = Math.max(0, plan.maxGuides - used);
@@ -655,14 +680,6 @@ export const duplicateProperty = createServerFn({ method: "POST" })
     const toCreate = Math.min(data.copies, remaining);
     const skipped = data.copies - toCreate;
 
-    // Load source (owned by caller).
-    const { data: src, error: srcErr } = await supabase
-      .from("properties")
-      .select("*")
-      .eq("id", data.id)
-      .maybeSingle();
-    if (srcErr) throw (await import("@/lib/db-errors.server")).safeDbError("properties", srcErr);
-    if (!src) throw new Error("Guia de origem não encontrado.");
 
     const [manual, recs, emerg, faqs, checkout] = await Promise.all([
       supabaseAdmin.from("property_manual_items").select("*").eq("property_id", data.id).order("position"),
@@ -715,7 +732,7 @@ export const duplicateProperty = createServerFn({ method: "POST" })
       const { data: inserted, error: insErr } = await supabase
         .from("properties")
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        .insert({ ...(stripped as any), owner_id: userId, slug: newSlug, name: newName, published: false })
+        .insert({ ...(stripped as any), owner_id: sourceOwnerId, slug: newSlug, name: newName, published: false })
         .select("id")
         .single();
       if (insErr) throw (await import("@/lib/db-errors.server")).safeDbError("properties", insErr);
