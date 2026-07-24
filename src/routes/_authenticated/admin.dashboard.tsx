@@ -384,12 +384,6 @@ function KpiCard({ label, value, icon: Icon, tone, loading, listQuery, kind, ran
   const [open, setOpen] = useState(false);
   const valueTone = tone === "primary" ? "text-primary" : "text-foreground";
   const rows = listQuery.data?.rows ?? [];
-  const shadowClass =
-    shadowTone === "emerald"
-      ? "shadow-[0_14px_44px_-14px_rgb(16_185_129_/_0.55),0_2px_8px_-2px_rgb(16_185_129_/_0.25)] hover:shadow-[0_18px_54px_-14px_rgb(16_185_129_/_0.65)] border-emerald-500/30"
-      : shadowTone === "amber"
-        ? "shadow-[0_14px_44px_-14px_rgb(245_158_11_/_0.55),0_2px_8px_-2px_rgb(245_158_11_/_0.25)] hover:shadow-[0_18px_54px_-14px_rgb(245_158_11_/_0.65)] border-amber-500/30"
-        : "";
   const valueColor =
     shadowTone === "emerald" ? "text-emerald-600 dark:text-emerald-400"
       : shadowTone === "amber" ? "text-amber-600 dark:text-amber-400"
@@ -400,7 +394,7 @@ function KpiCard({ label, value, icon: Icon, tone, loading, listQuery, kind, ran
       <DialogTrigger asChild>
         <button
           type="button"
-          className={`rounded-xl border border-border bg-card px-4 py-3 text-left transition hover:border-primary/40 hover:bg-secondary/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${shadowClass}`}
+          className="w-full h-full rounded-xl border border-border bg-card px-4 py-3 text-left transition hover:border-primary/40 hover:bg-secondary/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
         >
           <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.16em] text-muted-foreground font-semibold">
             <Icon className="size-3.5" /> <span className="truncate">{label}</span>
