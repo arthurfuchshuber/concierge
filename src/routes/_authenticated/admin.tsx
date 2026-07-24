@@ -1,5 +1,5 @@
 import { createFileRoute, Outlet, Link, useNavigate, useRouterState } from "@tanstack/react-router";
-import { LogOut, LayoutDashboard, Settings2, Menu, Users, Shield, Library, ShieldCheck, Activity, Star, Headphones } from "lucide-react";
+import { LogOut, LayoutDashboard, Settings2, Menu, Users, Shield, Library, ShieldCheck, Activity, Star, Headphones, Home } from "lucide-react";
 import conciergeLogo from "@/assets/concierge-logo.png";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
