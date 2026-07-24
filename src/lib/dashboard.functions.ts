@@ -280,6 +280,8 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
         standardTime: data.kind === "checkin" ? (p?.checkin_time ?? null) : (p?.checkout_time ?? null),
         standardTimeMax: data.kind === "checkin" ? (p?.checkin_time_max ?? null) : (p?.checkout_time_min ?? null),
         date,
+        guestCheckin: l.checkin_date,
+        guestCheckout: l.checkout_date ?? null,
         reservationCode: l.reservation_code,
         createdAt: l.created_at,
         status: s?.status ?? "pending",
