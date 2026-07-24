@@ -94,41 +94,65 @@ export function GuideAiChat({ slug, propertyName, guestName }: { slug: string; p
     return { side: "right", bottom: 96 };
   });
   const [dragOffset, setDragOffset] = useState<{ dx: number; dy: number } | null>(null);
-  const dragStateRef = useRef<{ x: number; y: number; moved: boolean; pointerId: number } | null>(null);
+  const dragStateRef = useRef<{
+    x: number; y: number; moved: boolean; pointerId: number;
+    startRect: DOMRect;
+    button: HTMLButtonElement;
+    move: (ev: PointerEvent) => void;
+    up: (ev: PointerEvent) => void;
+  } | null>(null);
   const justDraggedRef = useRef(false);
 
   function handleLauncherPointerDown(e: React.PointerEvent<HTMLButtonElement>) {
     if (e.button !== 0 && e.pointerType === "mouse") return;
-    dragStateRef.current = { x: e.clientX, y: e.clientY, moved: false, pointerId: e.pointerId };
-    try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* ignore */ }
-  }
-  function handleLauncherPointerMove(e: React.PointerEvent<HTMLButtonElement>) {
-    const s = dragStateRef.current;
-    if (!s) return;
-    const dx = e.clientX - s.x;
-    const dy = e.clientY - s.y;
-    if (!s.moved && (Math.abs(dx) > 6 || Math.abs(dy) > 6)) s.moved = true;
-    if (s.moved) setDragOffset({ dx, dy });
-  }
-  function handleLauncherPointerUp(e: React.PointerEvent<HTMLButtonElement>) {
-    const s = dragStateRef.current;
-    dragStateRef.current = null;
-    try { e.currentTarget.releasePointerCapture(e.pointerId); } catch { /* ignore */ }
-    if (!s) return;
-    if (s.moved) {
-      const rect = e.currentTarget.getBoundingClientRect();
-      const centerX = rect.left + rect.width / 2;
-      const side: "left" | "right" = centerX < window.innerWidth / 2 ? "left" : "right";
-      const bottomPx = Math.max(24, Math.min(window.innerHeight - rect.height - 24, window.innerHeight - rect.bottom));
-      const next = { side, bottom: bottomPx };
-      setPos(next);
-      setDragOffset(null);
-      try { window.localStorage.setItem("guide-chat-pos", JSON.stringify(next)); } catch { /* ignore */ }
-      justDraggedRef.current = true;
-      window.setTimeout(() => { justDraggedRef.current = false; }, 50);
-    } else {
-      setDragOffset(null);
-    }
+    e.preventDefault();
+    const button = e.currentTarget;
+    const startRect = button.getBoundingClientRect();
+    const state = {
+      x: e.clientX, y: e.clientY, moved: false, pointerId: e.pointerId,
+      startRect, button,
+      move: (ev: PointerEvent) => {
+        if (ev.pointerId !== state.pointerId) return;
+        const dx = ev.clientX - state.x;
+        const dy = ev.clientY - state.y;
+        if (!state.moved && (Math.abs(dx) > 6 || Math.abs(dy) > 6)) state.moved = true;
+        if (state.moved) {
+          ev.preventDefault();
+          setDragOffset({ dx, dy });
+        }
+      },
+      up: (ev: PointerEvent) => {
+        if (ev.pointerId !== state.pointerId) return;
+        window.removeEventListener("pointermove", state.move);
+        window.removeEventListener("pointerup", state.up);
+        window.removeEventListener("pointercancel", state.up);
+        dragStateRef.current = null;
+        if (state.moved) {
+          const dx = ev.clientX - state.x;
+          const dy = ev.clientY - state.y;
+          const newLeft = state.startRect.left + dx;
+          const newTop = state.startRect.top + dy;
+          const centerX = newLeft + state.startRect.width / 2;
+          const side: "left" | "right" = centerX < window.innerWidth / 2 ? "left" : "right";
+          const bottomPx = Math.max(24, Math.min(
+            window.innerHeight - state.startRect.height - 24,
+            window.innerHeight - (newTop + state.startRect.height),
+          ));
+          const next = { side, bottom: bottomPx };
+          setPos(next);
+          setDragOffset(null);
+          try { window.localStorage.setItem("guide-chat-pos", JSON.stringify(next)); } catch { /* ignore */ }
+          justDraggedRef.current = true;
+          window.setTimeout(() => { justDraggedRef.current = false; }, 80);
+        } else {
+          setDragOffset(null);
+        }
+      },
+    };
+    dragStateRef.current = state;
+    window.addEventListener("pointermove", state.move, { passive: false });
+    window.addEventListener("pointerup", state.up);
+    window.addEventListener("pointercancel", state.up);
   }
 
 
@@ -509,9 +533,6 @@ export function GuideAiChat({ slug, propertyName, guestName }: { slug: string; p
       <button
         type="button"
         onPointerDown={handleLauncherPointerDown}
-        onPointerMove={handleLauncherPointerMove}
-        onPointerUp={handleLauncherPointerUp}
-        onPointerCancel={handleLauncherPointerUp}
         onClick={() => {
           if (justDraggedRef.current) return;
           metaPixelTrackCustom("ChatClick", { location: "guide" });
