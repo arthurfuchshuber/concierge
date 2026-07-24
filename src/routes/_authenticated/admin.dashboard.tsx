@@ -860,6 +860,27 @@ function ArrivalCard({ row, kind, onMark, onSyncIcal, onNote, onEditDates, onEdi
             <StickyNote className="size-4" />
           </button>
         )}
+        {mapsHref && (
+          <a
+            href={mapsHref} target="_blank" rel="noreferrer"
+            aria-label="Abrir no Google Maps"
+            title={row.garageMapsUrl ? "Ver garagem no Maps" : "Ver endereço no Maps"}
+            className="size-9 grid place-items-center rounded-lg bg-background/60 border border-border/50 hover:bg-primary/[0.08]"
+          >
+            <MapPin className="size-4" />
+          </a>
+        )}
+        {copyText && (
+          <button
+            type="button"
+            onClick={copyLink}
+            aria-label="Copiar link do endereço"
+            title="Copiar link do endereço"
+            className="size-9 grid place-items-center rounded-lg bg-background/60 border border-border/50 hover:bg-primary/[0.08]"
+          >
+            <LinkIcon className="size-4" />
+          </button>
+        )}
       </div>
     </div>
   );
