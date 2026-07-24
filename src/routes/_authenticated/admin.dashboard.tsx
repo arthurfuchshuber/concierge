@@ -596,7 +596,18 @@ function ArrivalCard({ row, kind, onMark, onSyncIcal, onNote, onEditDates, busy 
           )}
         </div>
         <div className="text-right shrink-0">
-          <div className="text-base font-semibold tabular-nums leading-tight">{fmtDateBR(row.date)}</div>
+          <input
+            type="date"
+            value={row.date}
+            disabled={busy}
+            onChange={(e) => {
+              const v = e.target.value;
+              if (!v || v === row.date) return;
+              onEditDates(row, kind === "checkin" ? { checkinDate: v } : { checkoutDate: v });
+            }}
+            className="text-base font-semibold tabular-nums leading-tight bg-transparent border-0 p-0 text-right w-[112px] cursor-pointer hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary/30 rounded"
+            title="Clique para corrigir a data"
+          />
           <div className="text-[10px] uppercase tracking-wider text-muted-foreground mt-0.5">{kind === "checkin" ? "Check-in" : "Check-out"}</div>
         </div>
       </div>
