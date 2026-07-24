@@ -648,17 +648,27 @@ export const duplicateProperty = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { resolveUserPlan } = await import("@/lib/plan-guard.server");
+    const { resolveEffectivePlan } = await import("@/lib/plan-guard.server");
 
-    // Plan gate.
-    const plan = await resolveUserPlan(supabase, userId);
+    // Load source first — the effective owner may be the account owner (not the caller).
+    const { data: src, error: srcErr } = await supabase
+      .from("properties")
+      .select("*")
+      .eq("id", data.id)
+      .maybeSingle();
+    if (srcErr) throw (await import("@/lib/db-errors.server")).safeDbError("properties", srcErr);
+    if (!src) throw new Error("Guia de origem não encontrado.");
+    const sourceOwnerId = (src as { owner_id: string }).owner_id;
+
+    // Plan gate — usa o plano do DONO da propriedade fonte (para membros de equipe).
+    const plan = await resolveEffectivePlan(supabase, userId, { ownerId: sourceOwnerId });
     if (!plan.plan) {
       throw new Error("Você precisa de um plano ativo para duplicar guias.");
     }
-    const { count: currentCount, error: countErr } = await supabase
+    const { count: currentCount, error: countErr } = await supabaseAdmin
       .from("properties")
       .select("id", { count: "exact", head: true })
-      .eq("owner_id", userId);
+      .eq("owner_id", sourceOwnerId);
     if (countErr) throw new Error("Não foi possível verificar seu limite de guias.");
     const used = currentCount ?? 0;
     const remaining = Math.max(0, plan.maxGuides - used);
@@ -670,14 +680,6 @@ export const duplicateProperty = createServerFn({ method: "POST" })
     const toCreate = Math.min(data.copies, remaining);
     const skipped = data.copies - toCreate;
 
-    // Load source (owned by caller).
-    const { data: src, error: srcErr } = await supabase
-      .from("properties")
-      .select("*")
-      .eq("id", data.id)
-      .maybeSingle();
-    if (srcErr) throw (await import("@/lib/db-errors.server")).safeDbError("properties", srcErr);
-    if (!src) throw new Error("Guia de origem não encontrado.");
 
     const [manual, recs, emerg, faqs, checkout] = await Promise.all([
       supabaseAdmin.from("property_manual_items").select("*").eq("property_id", data.id).order("position"),
