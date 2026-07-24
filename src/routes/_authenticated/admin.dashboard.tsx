@@ -283,11 +283,8 @@ function DashboardPage() {
               <TrendingUp className="size-4" />
             </div>
             <div className="min-w-0">
-              <div className="text-sm font-semibold flex items-center gap-1">
+              <div className="text-sm font-semibold">
                 Engajamento do guia
-                <InfoHint title="Engajamento do guia">
-                  Compara quantos hóspedes com check-in no período efetivamente acessaram o guia e abriram a aba <b>Chegada</b>.
-                </InfoHint>
               </div>
               <div className="text-xs text-muted-foreground">Comparativo com os check-ins do período</div>
             </div>
