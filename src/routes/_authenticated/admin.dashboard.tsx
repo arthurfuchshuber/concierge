@@ -631,35 +631,8 @@ function ArrivalCard({ row, kind, onMark, onSyncIcal, onNote, onEditDates, onEdi
         </>
       )}
 
-      {/* Top-left location actions */}
-      {(mapsHref || row.propertyAddress) && !done && (
-        <div className="absolute top-3 left-3 flex items-center gap-1 z-10">
-          {copyText && (
-            <button
-              type="button"
-              onClick={copyLink}
-              title="Copiar link do endereço"
-              aria-label="Copiar link do endereço"
-              className="size-7 grid place-items-center rounded-md bg-background/70 backdrop-blur border border-border/50 text-muted-foreground hover:text-primary hover:border-primary/40"
-            >
-              <LinkIcon className="size-3.5" />
-            </button>
-          )}
-          {mapsHref && (
-            <a
-              href={mapsHref} target="_blank" rel="noreferrer"
-              title={row.garageMapsUrl ? "Ver garagem no Maps" : "Ver endereço no Maps"}
-              aria-label="Abrir no Google Maps"
-              className="inline-flex items-center gap-1 rounded-md bg-background/70 backdrop-blur border border-border/50 px-2 h-7 text-[11px] font-medium text-foreground/80 hover:text-primary hover:border-primary/40"
-            >
-              <MapPin className="size-3.5" /> Maps
-            </a>
-          )}
-        </div>
-      )}
-
-      {/* Header: name + dates */}
-      <div className={`flex items-start gap-3 ${!done && (mapsHref || row.propertyAddress) ? "pt-8" : ""}`}>
+      {/* Header: name + dates (checkout vertically centered against guest name block) */}
+      <div className="flex items-center gap-3">
         <div className={`size-11 rounded-xl grid place-items-center font-semibold shrink-0 ring-1 ${
           isPendingFill
             ? "bg-primary/5 text-primary/70 ring-primary/10"
@@ -673,8 +646,8 @@ function ArrivalCard({ row, kind, onMark, onSyncIcal, onNote, onEditDates, onEdi
             <Home className="size-3 shrink-0" /> {row.propertyName ?? "Sem nome"}
           </div>
         </div>
-        {/* Stacked check-in / check-out dates, both editable */}
-        <div className="text-right shrink-0 space-y-1">
+        {/* Stacked check-in / check-out dates, both editable, centered on name */}
+        <div className="text-right shrink-0 flex flex-col items-end gap-0.5 self-center">
           <DateEditor
             label="Check-in"
             value={row.guestCheckin}
