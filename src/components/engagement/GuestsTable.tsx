@@ -110,6 +110,7 @@ export function GuestsTable({
   const currentPage = Math.min(page, totalPages);
   const pageStart = (currentPage - 1) * pageSize;
   const pageRows = sorted.slice(pageStart, pageStart + pageSize);
+  const showReservation = useMemo(() => guests.some((g) => !!g.reservationCode), [guests]);
 
   return (
     <div className="rounded-2xl border border-border bg-card overflow-hidden">
