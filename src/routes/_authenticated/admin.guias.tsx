@@ -23,7 +23,7 @@ import { Eye } from "lucide-react";
 
 
 
-export const Route = createFileRoute("/_authenticated/admin/")({
+export const Route = createFileRoute("/_authenticated/admin/guias")({
   component: Dashboard,
 });
 
