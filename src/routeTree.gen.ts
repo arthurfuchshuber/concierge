@@ -51,6 +51,7 @@ import { Route as LovableEmailQueueProcessRouteImport } from './routes/lovable/e
 import { Route as LovableEmailAuthWebhookRouteImport } from './routes/lovable/email/auth/webhook'
 import { Route as LovableEmailAuthPreviewRouteImport } from './routes/lovable/email/auth/preview'
 import { Route as ApiPublicPaymentsWebhookRouteImport } from './routes/api/public/payments/webhook'
+import { Route as ApiPublicCronSyncAirbnbIcalRouteImport } from './routes/api/public/cron.sync-airbnb-ical'
 import { Route as ApiPublicCronRefreshRecommendationsRouteImport } from './routes/api/public/cron.refresh-recommendations'
 import { Route as ApiPublicCronRefreshCityReferencesRouteImport } from './routes/api/public/cron.refresh-city-references'
 import { Route as ApiPublicCronRefreshCityNewsRouteImport } from './routes/api/public/cron.refresh-city-news'
@@ -287,6 +288,12 @@ const ApiPublicPaymentsWebhookRoute =
     path: '/api/public/payments/webhook',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicCronSyncAirbnbIcalRoute =
+  ApiPublicCronSyncAirbnbIcalRouteImport.update({
+    id: '/api/public/cron/sync-airbnb-ical',
+    path: '/api/public/cron/sync-airbnb-ical',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicCronRefreshRecommendationsRoute =
   ApiPublicCronRefreshRecommendationsRouteImport.update({
     id: '/api/public/cron/refresh-recommendations',
@@ -378,6 +385,7 @@ export interface FileRoutesByFullPath {
   '/api/public/cron/refresh-city-news': typeof ApiPublicCronRefreshCityNewsRoute
   '/api/public/cron/refresh-city-references': typeof ApiPublicCronRefreshCityReferencesRoute
   '/api/public/cron/refresh-recommendations': typeof ApiPublicCronRefreshRecommendationsRoute
+  '/api/public/cron/sync-airbnb-ical': typeof ApiPublicCronSyncAirbnbIcalRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
   '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
   '/lovable/email/auth/webhook': typeof LovableEmailAuthWebhookRoute
@@ -427,6 +435,7 @@ export interface FileRoutesByTo {
   '/api/public/cron/refresh-city-news': typeof ApiPublicCronRefreshCityNewsRoute
   '/api/public/cron/refresh-city-references': typeof ApiPublicCronRefreshCityReferencesRoute
   '/api/public/cron/refresh-recommendations': typeof ApiPublicCronRefreshRecommendationsRoute
+  '/api/public/cron/sync-airbnb-ical': typeof ApiPublicCronSyncAirbnbIcalRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
   '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
   '/lovable/email/auth/webhook': typeof LovableEmailAuthWebhookRoute
@@ -480,6 +489,7 @@ export interface FileRoutesById {
   '/api/public/cron/refresh-city-news': typeof ApiPublicCronRefreshCityNewsRoute
   '/api/public/cron/refresh-city-references': typeof ApiPublicCronRefreshCityReferencesRoute
   '/api/public/cron/refresh-recommendations': typeof ApiPublicCronRefreshRecommendationsRoute
+  '/api/public/cron/sync-airbnb-ical': typeof ApiPublicCronSyncAirbnbIcalRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
   '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
   '/lovable/email/auth/webhook': typeof LovableEmailAuthWebhookRoute
@@ -533,6 +543,7 @@ export interface FileRouteTypes {
     | '/api/public/cron/refresh-city-news'
     | '/api/public/cron/refresh-city-references'
     | '/api/public/cron/refresh-recommendations'
+    | '/api/public/cron/sync-airbnb-ical'
     | '/api/public/payments/webhook'
     | '/lovable/email/auth/preview'
     | '/lovable/email/auth/webhook'
@@ -582,6 +593,7 @@ export interface FileRouteTypes {
     | '/api/public/cron/refresh-city-news'
     | '/api/public/cron/refresh-city-references'
     | '/api/public/cron/refresh-recommendations'
+    | '/api/public/cron/sync-airbnb-ical'
     | '/api/public/payments/webhook'
     | '/lovable/email/auth/preview'
     | '/lovable/email/auth/webhook'
@@ -634,6 +646,7 @@ export interface FileRouteTypes {
     | '/api/public/cron/refresh-city-news'
     | '/api/public/cron/refresh-city-references'
     | '/api/public/cron/refresh-recommendations'
+    | '/api/public/cron/sync-airbnb-ical'
     | '/api/public/payments/webhook'
     | '/lovable/email/auth/preview'
     | '/lovable/email/auth/webhook'
@@ -670,6 +683,7 @@ export interface RootRouteChildren {
   ApiPublicCronRefreshCityNewsRoute: typeof ApiPublicCronRefreshCityNewsRoute
   ApiPublicCronRefreshCityReferencesRoute: typeof ApiPublicCronRefreshCityReferencesRoute
   ApiPublicCronRefreshRecommendationsRoute: typeof ApiPublicCronRefreshRecommendationsRoute
+  ApiPublicCronSyncAirbnbIcalRoute: typeof ApiPublicCronSyncAirbnbIcalRoute
   ApiPublicPaymentsWebhookRoute: typeof ApiPublicPaymentsWebhookRoute
   LovableEmailAuthPreviewRoute: typeof LovableEmailAuthPreviewRoute
   LovableEmailAuthWebhookRoute: typeof LovableEmailAuthWebhookRoute
@@ -972,6 +986,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicPaymentsWebhookRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/cron/sync-airbnb-ical': {
+      id: '/api/public/cron/sync-airbnb-ical'
+      path: '/api/public/cron/sync-airbnb-ical'
+      fullPath: '/api/public/cron/sync-airbnb-ical'
+      preLoaderRoute: typeof ApiPublicCronSyncAirbnbIcalRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/cron/refresh-recommendations': {
       id: '/api/public/cron/refresh-recommendations'
       path: '/api/public/cron/refresh-recommendations'
@@ -1132,6 +1153,7 @@ const rootRouteChildren: RootRouteChildren = {
     ApiPublicCronRefreshCityReferencesRoute,
   ApiPublicCronRefreshRecommendationsRoute:
     ApiPublicCronRefreshRecommendationsRoute,
+  ApiPublicCronSyncAirbnbIcalRoute: ApiPublicCronSyncAirbnbIcalRoute,
   ApiPublicPaymentsWebhookRoute: ApiPublicPaymentsWebhookRoute,
   LovableEmailAuthPreviewRoute: LovableEmailAuthPreviewRoute,
   LovableEmailAuthWebhookRoute: LovableEmailAuthWebhookRoute,
