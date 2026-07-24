@@ -75,11 +75,14 @@ function DashboardPage() {
   const listFn = useServerFn(listDashboardArrivals);
   const upsertFn = useServerFn(upsertArrivalStatus);
   const updateDatesFn = useServerFn(updateGuestStayDates);
+  const updateTimeFn = useServerFn(updateGuestArrivalTime);
   const qc = useQueryClient();
 
   const [kind, setKind] = useState<"checkin" | "checkout">("checkin");
   const [range, setRange] = useState<"today" | "tomorrow" | "7d" | "all">("today");
-  const [engRange, setEngRange] = useState<"today" | "7d" | "30d">("7d");
+  // Engagement window follows the kanban range: tomorrow/all map to 7d/30d.
+  const engRange: "today" | "7d" | "30d" =
+    range === "today" ? "today" : range === "all" ? "30d" : "7d";
 
   const kpisQ = useQuery({ queryKey: ["dash-kpis"], queryFn: () => kpisFn(), staleTime: 60_000 });
   const engQ = useQuery({
