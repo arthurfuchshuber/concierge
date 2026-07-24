@@ -252,18 +252,15 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
       let icalCheckout: string | null = null;
       if (hasIcal) {
         const list = resByProp.get(l.property_id) ?? [];
-        const target = date;
-        // Prefer exact match on the relevant endpoint; fall back to ±1 day
-        // tolerance only when no exact reservation exists. Without the exact
-        // check, `.find()` could return a neighboring reservation (e.g. the
-        // next guest starting the same day this one leaves).
-        const exact = list.find((r) => (data.kind === "checkin" ? r.checkin : r.checkout) === target);
+        // Always anchor the iCal match on the log's CHECK-IN date — guests are
+        // reliable about arrival, but often mistype checkout. Trying to match
+        // by checkout can snap to the previous/next reservation when the guest
+        // typed the wrong departure day.
+        const anchor = l.checkin_date;
+        const exact = list.find((r) => r.checkin === anchor);
         const near =
           exact ??
-          list.find((r) => {
-            const rd = data.kind === "checkin" ? r.checkin : r.checkout;
-            return rd === addDaysISO(target, -1) || rd === addDaysISO(target, 1);
-          });
+          list.find((r) => r.checkin === addDaysISO(anchor, -1) || r.checkin === addDaysISO(anchor, 1));
         if (near) {
           matched = true;
           icalCheckin = near.checkin;
