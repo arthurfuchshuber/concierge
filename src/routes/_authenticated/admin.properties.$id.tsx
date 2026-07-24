@@ -1207,7 +1207,7 @@ function PropertyEditor() {
 
 
 
-          <Section icon={Globe} title="Idioma">
+          <Section icon={Globe} title="Idioma" collapsible>
             <Field label="Idioma padrão">
               <Select value={form.property.default_language} onValueChange={(v) => update("default_language", v as "pt" | "en")}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
