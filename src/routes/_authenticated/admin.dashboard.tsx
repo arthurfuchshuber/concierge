@@ -261,8 +261,8 @@ function DashboardPage() {
       </section>
 
       {/* Engagement */}
-      <section className="relative overflow-hidden rounded-2xl border border-primary/10 bg-gradient-to-br from-primary/[0.04] via-transparent to-primary/[0.02] p-4 sm:p-6 space-y-4 shadow-sm">
-        <div className="pointer-events-none absolute -top-24 -right-24 size-64 rounded-full bg-primary/5 blur-3xl" />
+      <section className="rounded-2xl border border-border bg-card p-4 sm:p-5 space-y-4 shadow-sm">
+
         <div className="relative flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-start gap-2 min-w-0">
             <div className="size-9 rounded-xl bg-primary/10 text-primary grid place-items-center shrink-0 ring-1 ring-primary/15">
