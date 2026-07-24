@@ -508,13 +508,18 @@ export function GuideAiChat({ slug, propertyName, guestName }: { slug: string; p
 
       <button
         type="button"
+        onPointerDown={handleLauncherPointerDown}
+        onPointerMove={handleLauncherPointerMove}
+        onPointerUp={handleLauncherPointerUp}
+        onPointerCancel={handleLauncherPointerUp}
         onClick={() => {
+          if (justDraggedRef.current) return;
           metaPixelTrackCustom("ChatClick", { location: "guide" });
           setOpen(true);
         }}
-        aria-label="Abrir assistente do guia"
-        title="Peça dicas à IA"
-        className="btn-shine group relative inline-flex items-center gap-2 px-4 sm:px-5 h-14 rounded-full bg-emerald-500 text-white shadow-[0_16px_38px_-14px_rgba(16,185,129,0.7)] hover:bg-emerald-600 hover:shadow-[0_20px_46px_-16px_rgba(16,185,129,0.85)] active:scale-95 transition-all pointer-events-auto"
+        aria-label="Abrir assistente do guia (arraste para reposicionar)"
+        title="Peça dicas à IA · arraste para mover"
+        className="btn-shine group relative inline-flex items-center gap-2 px-4 sm:px-5 h-14 rounded-full bg-emerald-500 text-white shadow-[0_16px_38px_-14px_rgba(16,185,129,0.7)] hover:bg-emerald-600 hover:shadow-[0_20px_46px_-16px_rgba(16,185,129,0.85)] active:scale-95 transition-all pointer-events-auto cursor-grab active:cursor-grabbing touch-none select-none"
       >
         {loading && (
           <span className="absolute -top-1 -right-1 size-3.5 rounded-full bg-amber-400 ring-2 ring-background animate-pulse" title="Pensando…" />
