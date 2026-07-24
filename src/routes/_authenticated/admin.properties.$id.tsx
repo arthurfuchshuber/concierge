@@ -720,6 +720,29 @@ function PropertyEditor() {
     }
   }
 
+  async function handleSyncIcal() {
+    if (isNew) { toast.error("Salve o guia antes de sincronizar."); return; }
+    const url = (form.property as { airbnb_ical_url?: string | null }).airbnb_ical_url?.trim();
+    if (!url) { toast.error("Cole a URL do calendário Airbnb antes."); return; }
+    if (form.dirty) { toast.error("Salve as alterações antes de sincronizar."); return; }
+    setSyncingIcal(true);
+    try {
+      const r = await syncIcal({ data: { propertyId: id } });
+      const parts: string[] = [];
+      if (r.imported) parts.push(`${r.imported} nova(s)`);
+      if (r.updated) parts.push(`${r.updated} atualizada(s)`);
+      if (r.removed) parts.push(`${r.removed} removida(s)`);
+      toast.success(parts.length ? `Sincronizado: ${parts.join(" · ")}` : "Sincronizado — nenhuma mudança.");
+      await reservationsQuery.refetch();
+      queryClient.invalidateQueries({ queryKey: ["property", id] });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Falha ao sincronizar");
+    } finally {
+      setSyncingIcal(false);
+    }
+  }
+
+
 
   async function handleSave() {
     if (gateOpen) {
