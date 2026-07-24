@@ -3,7 +3,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import {
   AlertCircle, Phone, MessageSquare, Clock, Layers, Search, Calendar, CalendarCheck,
-  MousePointerClick, Timer, Award, Star, ArrowUp, ArrowDown, ChevronsUpDown, Building2,
+  MousePointerClick, Timer, Award, Star, ArrowUp, ArrowDown, ChevronsUpDown, Building2, Hash,
 } from "lucide-react";
 import type { GuestListItem } from "@/lib/engagement-guests.functions";
 import { toWhatsappNumber, formatIntlPhone } from "@/lib/masks";
@@ -110,6 +110,7 @@ export function GuestsTable({
   const currentPage = Math.min(page, totalPages);
   const pageStart = (currentPage - 1) * pageSize;
   const pageRows = sorted.slice(pageStart, pageStart + pageSize);
+  const showReservation = useMemo(() => guests.some((g) => !!g.reservationCode), [guests]);
 
   return (
     <div className="rounded-2xl border border-border bg-card overflow-hidden">
@@ -138,7 +139,7 @@ export function GuestsTable({
         </div>
       ) : (
         <div className="overflow-x-auto sg-elegant-scroll">
-          <table className="w-full text-sm min-w-[1320px]">
+          <table className={`w-full text-sm ${showReservation ? "min-w-[1440px]" : "min-w-[1320px]"}`}>
             <thead className="bg-muted/40 text-[10px] uppercase tracking-wider text-muted-foreground select-none">
               <tr>
                 <th
@@ -152,6 +153,14 @@ export function GuestsTable({
                 <ThSort onClick={() => toggle("accountName", "asc")} active={active("accountName")} dir={sort.dir} icon={Building2} align="left">Conta</ThSort>
                 <ThSort onClick={() => toggle("propertyName", "asc")} active={active("propertyName")} dir={sort.dir} align="left">Imóvel</ThSort>
                 <ThSort onClick={() => toggle("checkinDate", "desc")} active={active("checkinDate")} dir={sort.dir} icon={Calendar} align="left">Check-in</ThSort>
+                {showReservation && (
+                  <th className="text-left px-3 py-2 font-medium whitespace-nowrap">
+                    <span className="inline-flex items-center gap-1">
+                      <Hash className="size-3 shrink-0" />
+                      <span>Reserva</span>
+                    </span>
+                  </th>
+                )}
                 <ThSort onClick={() => toggle("lastActivity", "desc")} active={active("lastActivity")} dir={sort.dir} icon={CalendarCheck} align="left">Último acesso</ThSort>
                 <ThSort onClick={() => toggle("accessesCount", "desc")} active={active("accessesCount")} dir={sort.dir} icon={MousePointerClick} align="left">Acessos</ThSort>
                 <ThSort onClick={() => toggle("sessionsCount", "desc")} active={active("sessionsCount")} dir={sort.dir} icon={Layers} align="left">Sessões</ThSort>
@@ -190,7 +199,7 @@ export function GuestsTable({
                           </a>
                         </>
                       ) : <span>sem telefone</span>}
-                      {g.reservationCode && <span className="ml-1 truncate">· {g.reservationCode}</span>}
+                      {g.reservationCode && !showReservation && <span className="ml-1 truncate">· {g.reservationCode}</span>}
                     </div>
                   </td>
                   <td className="px-3 py-3 text-left text-xs text-muted-foreground truncate max-w-[160px]" title={g.accountName}>
@@ -202,6 +211,15 @@ export function GuestsTable({
                   <td className="px-3 py-3 text-left text-xs text-muted-foreground tabular-nums whitespace-nowrap">
                     {fmtDate(g.checkinDate)}
                   </td>
+                  {showReservation && (
+                    <td className="px-3 py-3 text-left whitespace-nowrap">
+                      {g.reservationCode ? (
+                        <span className="font-mono text-[11px] px-1.5 py-0.5 rounded bg-muted/60 border border-border/60">
+                          {g.reservationCode}
+                        </span>
+                      ) : <span className="text-xs text-muted-foreground">—</span>}
+                    </td>
+                  )}
                   <td className="px-3 py-3 text-left text-xs text-muted-foreground tabular-nums whitespace-nowrap">
                     {fmtDateTime(g.lastActivity)}
                   </td>
