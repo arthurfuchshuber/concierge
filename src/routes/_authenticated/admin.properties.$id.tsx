@@ -1013,23 +1013,17 @@ function PropertyEditor() {
               </div>
             </Field>
 
-            {(() => {
-              const p = form.property as {
-                airbnb_ical_last_sync_at?: string | null;
-                airbnb_ical_last_error?: string | null;
-              };
-              if (!p.airbnb_ical_last_sync_at && !p.airbnb_ical_last_error) return null;
-              return (
-                <div className="text-[11px] text-muted-foreground flex items-center gap-2 flex-wrap">
-                  {p.airbnb_ical_last_sync_at && (
-                    <span>Última sincronização: {new Date(p.airbnb_ical_last_sync_at).toLocaleString("pt-BR")}</span>
-                  )}
-                  {p.airbnb_ical_last_error && (
-                    <span className="text-destructive">Erro: {p.airbnb_ical_last_error}</span>
-                  )}
-                </div>
-              );
-            })()}
+            {(form.property.airbnb_ical_last_sync_at || form.property.airbnb_ical_last_error) && (
+              <div className="text-[11px] text-muted-foreground flex items-center gap-2 flex-wrap">
+                {form.property.airbnb_ical_last_sync_at && (
+                  <span>Última sincronização: {new Date(form.property.airbnb_ical_last_sync_at).toLocaleString("pt-BR")}</span>
+                )}
+                {form.property.airbnb_ical_last_error && (
+                  <span className="text-destructive">Erro: {form.property.airbnb_ical_last_error}</span>
+                )}
+              </div>
+            )}
+
 
             {reservationsQuery.data?.reservations && reservationsQuery.data.reservations.length > 0 && (
               <div className="mt-3 rounded-xl border border-border bg-muted/30 p-3">
