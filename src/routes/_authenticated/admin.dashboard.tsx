@@ -251,6 +251,7 @@ function DashboardPage() {
           loading={kpisQ.isLoading}
           listQuery={kpiTodayQ} kind="checkin"
           rangeLabel="Hoje"
+          shadowTone="emerald"
         />
         <KpiCard
           label="Check-ins amanhã" value={kpisQ.data?.checkinsTomorrow} icon={LogIn} tone="primary-soft"
@@ -263,6 +264,7 @@ function DashboardPage() {
           loading={kpisQ.isLoading}
           listQuery={kpiCoTodayQ} kind="checkout"
           rangeLabel="Hoje"
+          shadowTone="amber"
         />
         <KpiCard
           label="Check-outs amanhã" value={kpisQ.data?.checkoutsTomorrow} icon={LogOut} tone="primary-soft"
