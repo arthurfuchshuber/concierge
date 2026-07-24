@@ -734,6 +734,7 @@ function PropertyEditor() {
     const url = form.property.airbnb_ical_url?.trim();
     if (!url) { toast.error("Cole a URL do calendário Airbnb antes."); return; }
     if (autoSaving) { toast.info("Aguarde salvar as alterações."); return; }
+    const wasFirstActivation = !form.property.airbnb_ical_last_sync_at;
     setSyncingIcal(true);
     try {
       const r = await syncIcal({ data: { propertyId: id, icalUrl: url } });
