@@ -1,0 +1,41 @@
+import { createServerFn } from "@tanstack/react-start";
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { z } from "zod";
+
+const SyncInput = z.object({ propertyId: z.string().uuid() });
+
+export const syncPropertyAirbnbIcal = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => SyncInput.parse(input))
+  .handler(async ({ data, context }) => {
+    // Access check: owner or account member
+    const { data: prop, error } = await context.supabase
+      .from("properties")
+      .select("id, airbnb_ical_url")
+      .eq("id", data.propertyId)
+      .maybeSingle();
+    if (error || !prop) throw new Error("Guia não encontrado ou sem acesso.");
+    if (!prop.airbnb_ical_url) throw new Error("Nenhum link iCal cadastrado neste guia.");
+
+    const { syncPropertyIcal } = await import("@/lib/airbnb-ical.server");
+    const out = await syncPropertyIcal(prop.id, prop.airbnb_ical_url);
+    if (!out.ok) throw new Error(out.error ?? "Falha ao sincronizar.");
+    return out;
+  });
+
+const ListInput = z.object({ propertyId: z.string().uuid() });
+
+export const listPropertyReservations = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => ListInput.parse(input))
+  .handler(async ({ data, context }) => {
+    const today = new Date().toISOString().slice(0, 10);
+    const { data: rows } = await context.supabase
+      .from("property_reservations")
+      .select("id, checkin_date, checkout_date, raw_summary, guest_hint, reservation_url, status, synced_at")
+      .eq("property_id", data.propertyId)
+      .gte("checkout_date", today)
+      .order("checkin_date", { ascending: true })
+      .limit(50);
+    return { reservations: rows ?? [] };
+  });
