@@ -343,7 +343,8 @@ function DashboardPage() {
               }}
               onNote={(row, note) => upsert.mutate({ logId: row.logId, kind, note })}
               onEditDates={(row, dates) => updateDates.mutate({ logId: row.logId, ...dates })}
-              busy={upsert.isPending || updateDates.isPending}
+              onEditTime={(row, time) => updateTime.mutate({ logId: row.logId, time })}
+              busy={upsert.isPending || updateDates.isPending || updateTime.isPending}
             />
             {done.length > 0 && (
               <ArrivalGroup
@@ -354,7 +355,8 @@ function DashboardPage() {
                 onSyncIcal={() => {}}
                 onNote={(row, note) => upsert.mutate({ logId: row.logId, kind, note })}
                 onEditDates={(row, dates) => updateDates.mutate({ logId: row.logId, ...dates })}
-                busy={upsert.isPending || updateDates.isPending}
+                onEditTime={(row, time) => updateTime.mutate({ logId: row.logId, time })}
+                busy={upsert.isPending || updateDates.isPending || updateTime.isPending}
                 muted
               />
             )}
