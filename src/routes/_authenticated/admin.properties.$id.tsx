@@ -205,7 +205,7 @@ function PropertyEditor() {
   const syncIcal = useServerFn(syncPropertyAirbnbIcal);
   const listReservations = useServerFn(listPropertyReservations);
   const [syncingIcal, setSyncingIcal] = useState(false);
-  const [icalNotice, setIcalNotice] = useState<null | "activated" | "deactivated">(null);
+  
   const [pendingIcalClear, setPendingIcalClear] = useState(false);
   const reservationsQuery = useQuery({
     queryKey: ["airbnb-reservations", id],
@@ -745,7 +745,7 @@ function PropertyEditor() {
       toast.success(parts.length ? `Sincronizado: ${parts.join(" · ")}` : "Sincronizado — nenhuma mudança.");
       await reservationsQuery.refetch();
       queryClient.invalidateQueries({ queryKey: ["property", id] });
-      if (wasFirstActivation) setIcalNotice("activated");
+      
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Falha ao sincronizar");
     } finally {
@@ -2216,51 +2216,12 @@ function PropertyEditor() {
         </DialogContent>
       </Dialog>
 
-      {/* iCal ativado — informa mudança no fluxo de acesso do hóspede */}
-      <AlertDialog open={icalNotice === "activated"} onOpenChange={(o) => !o && setIcalNotice(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center gap-2">
-              <RefreshCw className="size-5 text-emerald-600" />
-              Calendário Airbnb conectado
-            </AlertDialogTitle>
-            <AlertDialogDescription asChild>
-              <div className="space-y-3 text-sm">
-                <p>
-                  A partir de agora, os hóspedes deste guia só conseguirão acessá-lo informando o <strong>código da reserva do Airbnb</strong> — o formulário deixa de pedir data de chegada e saída, que passam a ser preenchidas automaticamente a partir do calendário.
-                </p>
-                <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2">
-                  <div className="text-[11px] uppercase tracking-wide text-emerald-700 font-semibold">Exemplo de código</div>
-                  <div className="font-mono text-base text-emerald-900 mt-0.5">HMABC123XY</div>
-                  <p className="text-[11px] text-emerald-800/80 mt-1">
-                    Aparece na confirmação do Airbnb e na URL da reserva (ex.: airbnb.com/hosting/reservations/details/<b>HMABC123XY</b>).
-                  </p>
-                </div>
-                <p className="text-muted-foreground text-[12.5px]">
-                  Avise seus hóspedes para terem o código em mãos ao abrir o guia pela primeira vez.
-                </p>
-              </div>
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogAction onClick={() => setIcalNotice(null)}>Entendi</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
       <AlertDialog open={pendingIcalClear} onOpenChange={(o) => !o && setPendingIcalClear(false)}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Remover integração com o Airbnb?</AlertDialogTitle>
-            <AlertDialogDescription asChild>
-              <div className="space-y-3 text-sm">
-                <p>
-                  Ao desconectar o calendário, o guia volta ao <strong>fluxo manual</strong>: os hóspedes deixam de precisar do código da reserva e passam a informar <strong>datas de chegada e saída</strong> diretamente no formulário de acesso.
-                </p>
-                <p className="text-muted-foreground text-[12.5px]">
-                  Você pode reconectar o calendário a qualquer momento colando a URL novamente.
-                </p>
-              </div>
+            <AlertDialogDescription>
+              As reservas sincronizadas deixarão de ser atualizadas automaticamente. Você pode reconectar a qualquer momento colando a URL novamente.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -2269,7 +2230,6 @@ function PropertyEditor() {
               onClick={() => {
                 update("airbnb_ical_url", null);
                 setPendingIcalClear(false);
-                setIcalNotice("deactivated");
               }}
             >
               Remover integração
@@ -2278,19 +2238,6 @@ function PropertyEditor() {
         </AlertDialogContent>
       </AlertDialog>
 
-      <AlertDialog open={icalNotice === "deactivated"} onOpenChange={(o) => !o && setIcalNotice(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Fluxo manual reativado</AlertDialogTitle>
-            <AlertDialogDescription>
-              A partir de agora, os hóspedes deste guia informam nome, telefone e as <strong>datas de chegada e saída</strong> diretamente no formulário — sem exigir código de reserva do Airbnb.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogAction onClick={() => setIcalNotice(null)}>Ok</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
 
     </div>
   );
