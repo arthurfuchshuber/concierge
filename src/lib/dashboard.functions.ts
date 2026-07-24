@@ -252,17 +252,22 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
       let icalCheckout: string | null = null;
       if (hasIcal) {
         const list = resByProp.get(l.property_id) ?? [];
-        // Match by exact date on the relevant column, ±1 day tolerance.
         const target = date;
-        const found = list.find((r) => {
-          const rd = data.kind === "checkin" ? r.checkin : r.checkout;
-          if (rd === target) return true;
-          return rd === addDaysISO(target, -1) || rd === addDaysISO(target, 1);
-        });
-        if (found) {
+        // Prefer exact match on the relevant endpoint; fall back to ±1 day
+        // tolerance only when no exact reservation exists. Without the exact
+        // check, `.find()` could return a neighboring reservation (e.g. the
+        // next guest starting the same day this one leaves).
+        const exact = list.find((r) => (data.kind === "checkin" ? r.checkin : r.checkout) === target);
+        const near =
+          exact ??
+          list.find((r) => {
+            const rd = data.kind === "checkin" ? r.checkin : r.checkout;
+            return rd === addDaysISO(target, -1) || rd === addDaysISO(target, 1);
+          });
+        if (near) {
           matched = true;
-          icalCheckin = found.checkin;
-          icalCheckout = found.checkout;
+          icalCheckin = near.checkin;
+          icalCheckout = near.checkout;
         }
       }
       return {
