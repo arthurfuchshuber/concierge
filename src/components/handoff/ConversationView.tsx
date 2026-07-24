@@ -657,6 +657,11 @@ export function ConversationList({
                 )}
               </div>
             )}
+            {withWhom && (
+              <div className="text-[11px] mt-0.5 inline-flex items-center gap-1 text-primary">
+                <UserCheck className="size-3" /> Com {withWhom}
+              </div>
+            )}
             {c.handoff_reason && <div className="text-[11px] text-foreground/70 truncate mt-0.5">{c.handoff_reason}</div>}
           </div>
         );
