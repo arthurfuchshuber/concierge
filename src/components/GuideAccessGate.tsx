@@ -105,8 +105,6 @@ type Props = {
 export function GuideAccessGate({ slug, propertyName, requireReservationCode, collection, onUnlock }: Props) {
   const submit = useServerFn(recordGuideAccess);
   const checkReservation = useServerFn(checkReservationBySlug);
-  const listReservationDates = useServerFn(listReservationDatesBySlug);
-  const lookupByCode = useServerFn(lookupReservationByCode);
   const [step, setStep] = useState<1 | 2>(1);
   const [name, setName] = useState("");
   const [code, setCode] = useState("");
@@ -114,15 +112,6 @@ export function GuideAccessGate({ slug, propertyName, requireReservationCode, co
   const [phone, setPhone] = useState<string | undefined>();
   const [country, setCountry] = useState<Country>("BR");
   const [loading, setLoading] = useState(false);
-  const [reservedRanges, setReservedRanges] = useState<
-    { hasIcal: boolean; ranges: Array<{ checkin: string; checkout: string }> } | null
-  >(null);
-  const [codeLookup, setCodeLookup] = useState<
-    | { state: "idle" }
-    | { state: "checking" }
-    | { state: "found"; checkin: string; checkout: string }
-    | { state: "not-found" }
-  >({ state: "idle" });
   const [resCheck, setResCheck] = useState<
     | { state: "idle" }
     | { state: "checking" }
@@ -131,7 +120,6 @@ export function GuideAccessGate({ slug, propertyName, requireReservationCode, co
     | { state: "no-match"; suggestedCheckout?: string }
   >({ state: "idle" });
 
-  const hasIcalMode = reservedRanges?.hasIcal === true;
 
 
   const cfg: CollectionConfig = collection ?? {
