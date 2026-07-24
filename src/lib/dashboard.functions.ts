@@ -315,7 +315,15 @@ export const upsertArrivalStatus = createServerFn({ method: "POST" })
       .maybeSingle();
     if (logErr || !log) throw new Error("Registro não encontrado.");
 
-    const patch: Record<string, unknown> = {
+    const patch: {
+      log_id: string;
+      property_id: string;
+      kind: "checkin" | "checkout";
+      status?: "pending" | "done";
+      done_at?: string | null;
+      note?: string | null;
+      arrival_time_override?: string | null;
+    } = {
       log_id: data.logId,
       property_id: (log as { property_id: string }).property_id,
       kind: data.kind,
