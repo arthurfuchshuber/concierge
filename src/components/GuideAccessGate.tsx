@@ -316,7 +316,7 @@ export function GuideAccessGate({ slug, propertyName, requireReservationCode, co
       }
       const rec: AccessRecord = {
         name: name.trim(),
-        code: (hasIcalMode || requireReservationCode) && code.trim() ? code.trim() : null,
+        code: requireReservationCode && code.trim() ? code.trim() : null,
         checkinDate,
         checkoutDate,
         phone: phone ?? null,
