@@ -288,7 +288,7 @@ export function GuideAccessGate({ slug, propertyName, requireReservationCode, co
         data: {
           slug,
           guest_name: titleCaseName(name),
-          reservation_code: (hasIcalMode || requireReservationCode) && code.trim() ? code.trim() : null,
+          reservation_code: requireReservationCode && code.trim() ? code.trim() : null,
           checkin_date: checkinDate,
           checkout_date: checkoutDate,
 
