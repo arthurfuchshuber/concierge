@@ -838,11 +838,11 @@ function ArrivalCard({ row, kind, onMark, onSyncIcal, onNote, onEditDates, onEdi
       {/* Action row: ícones à esquerda; Copiar + Maps agrupados à direita */}
       <div className="flex flex-wrap items-center gap-2 pt-1">
         <button
-          onClick={() => onMark(row)}
-          disabled={busy}
-          aria-label={done ? "Reabrir" : "Marcar como realizado"}
-          title={done ? "Reabrir" : "Marcar como realizado"}
-          className={`size-9 grid place-items-center rounded-lg transition-colors ${done ? "bg-secondary hover:bg-secondary/80" : "bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm shadow-emerald-600/20"}`}
+          onClick={() => { if (!isPendingFill) onMark(row); }}
+          disabled={busy || isPendingFill}
+          aria-label={isPendingFill ? "Aguardando formulário do hóspede" : done ? "Reabrir" : "Marcar como realizado"}
+          title={isPendingFill ? "Aguardando o hóspede preencher o formulário" : done ? "Reabrir" : "Marcar como realizado"}
+          className={`size-9 grid place-items-center rounded-lg transition-colors ${isPendingFill ? "bg-muted text-muted-foreground cursor-not-allowed opacity-60" : done ? "bg-secondary hover:bg-secondary/80" : "bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm shadow-emerald-600/20"}`}
         >
           <Check className="size-4" />
         </button>
