@@ -140,6 +140,12 @@ export type ArrivalRow = {
   logId: string;
   propertyId: string;
   propertyName: string | null;
+  propertyAddress: string | null;
+  mapsUrl: string | null;
+  garageMapsUrl: string | null;
+  hasPasswords: boolean;
+  openedCheckin: boolean;
+  viewedPasswords: boolean;
   guestName: string;
   guestPhone: string | null;
   guestPhoneCountry: string | null;
@@ -204,10 +210,10 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
     }
     const uniqueLogs = Array.from(dedupMap.values());
 
-    const [{ data: props }, { data: statuses }, { data: reservations }] = await Promise.all([
+    const [{ data: props }, { data: statuses }, { data: reservations }, { data: sectionEvents }] = await Promise.all([
       context.supabase
         .from("properties")
-        .select("id, name, checkin_time, checkin_time_max, checkout_time, checkout_time_min, airbnb_ical_url")
+        .select("id, name, address, maps_url, garage_maps_url, wifi_password, lock_code, gate_code, checkin_time, checkin_time_max, checkout_time, checkout_time_min, airbnb_ical_url")
         .in("id", propIds),
       uniqueLogs.length > 0
         ? context.supabase
@@ -221,15 +227,36 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
         .select("property_id, checkin_date, checkout_date")
         .in("property_id", propIds)
         .eq("source", "airbnb"),
+      uniqueLogs.length > 0
+        ? context.supabase
+            .from("guide_section_events")
+            .select("property_id, section, guest_name, guest_phone")
+            .in("property_id", propIds)
+            .in("section", ["checkin", "senhas"])
+            .limit(5000)
+        : Promise.resolve({ data: [] as Array<{ property_id: string; section: string; guest_name: string | null; guest_phone: string | null }> }),
     ]);
 
-    const propMap = new Map<string, { name: string | null; checkin_time: string | null; checkin_time_max: string | null; checkout_time: string | null; checkout_time_min: string | null; airbnb_ical_url: string | null }>();
-    for (const p of (props ?? []) as Array<{ id: string; name: string | null; checkin_time: string | null; checkin_time_max: string | null; checkout_time: string | null; checkout_time_min: string | null; airbnb_ical_url: string | null }>) {
+    const propMap = new Map<string, { name: string | null; address: string | null; maps_url: string | null; garage_maps_url: string | null; hasPasswords: boolean; checkin_time: string | null; checkin_time_max: string | null; checkout_time: string | null; checkout_time_min: string | null; airbnb_ical_url: string | null }>();
+    for (const p of (props ?? []) as Array<{ id: string; name: string | null; address: string | null; maps_url: string | null; garage_maps_url: string | null; wifi_password: string | null; lock_code: string | null; gate_code: string | null; checkin_time: string | null; checkin_time_max: string | null; checkout_time: string | null; checkout_time_min: string | null; airbnb_ical_url: string | null }>) {
       propMap.set(p.id, {
-        name: p.name, checkin_time: p.checkin_time, checkin_time_max: p.checkin_time_max,
+        name: p.name, address: p.address, maps_url: p.maps_url, garage_maps_url: p.garage_maps_url,
+        hasPasswords: !!(p.wifi_password || p.lock_code || p.gate_code),
+        checkin_time: p.checkin_time, checkin_time_max: p.checkin_time_max,
         checkout_time: p.checkout_time, checkout_time_min: p.checkout_time_min,
         airbnb_ical_url: p.airbnb_ical_url,
       });
+    }
+
+    // Index section events by property_id + normalized guest identity
+    const eventKey = (pid: string, name: string | null, phone: string | null) =>
+      `${pid}|${(name || "").trim().toLowerCase()}|${(phone || "").replace(/\D/g, "")}`;
+    const openedCheckinSet = new Set<string>();
+    const viewedPasswordsSet = new Set<string>();
+    for (const ev of (sectionEvents ?? []) as Array<{ property_id: string; section: string; guest_name: string | null; guest_phone: string | null }>) {
+      const k = eventKey(ev.property_id, ev.guest_name, ev.guest_phone);
+      if (ev.section === "checkin") openedCheckinSet.add(k);
+      else if (ev.section === "senhas") viewedPasswordsSet.add(k);
     }
 
     const statusMap = new Map<string, { status: "pending" | "done"; note: string | null; arrival_time_override: string | null; done_at: string | null }>();
@@ -269,10 +296,17 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
           icalCheckout = near.checkout;
         }
       }
+      const evK = eventKey(l.property_id, l.guest_name, l.guest_phone);
       return {
         logId: l.id,
         propertyId: l.property_id,
         propertyName: p?.name ?? null,
+        propertyAddress: p?.address ?? null,
+        mapsUrl: p?.maps_url ?? null,
+        garageMapsUrl: p?.garage_maps_url ?? null,
+        hasPasswords: !!p?.hasPasswords,
+        openedCheckin: openedCheckinSet.has(evK),
+        viewedPasswords: viewedPasswordsSet.has(evK),
         guestName: l.guest_name,
         guestPhone: l.guest_phone,
         guestPhoneCountry: l.guest_phone_country,
@@ -312,6 +346,12 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
           logId: `pending:${pid}:${r.checkin}:${r.checkout}`,
           propertyId: pid,
           propertyName: p.name,
+          propertyAddress: p.address,
+          mapsUrl: p.maps_url,
+          garageMapsUrl: p.garage_maps_url,
+          hasPasswords: p.hasPasswords,
+          openedCheckin: false,
+          viewedPasswords: false,
           guestName: "Hóspede pendente",
           guestPhone: null,
           guestPhoneCountry: null,
@@ -416,6 +456,25 @@ export const updateGuestStayDates = createServerFn({ method: "POST" })
     const { error } = await context.supabase
       .from("guide_access_logs")
       .update(patch)
+      .eq("id", data.logId);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+// ----- Inline edit: correct arrival time on the guide access log -----
+
+const UpdateArrivalTimeInput = z.object({
+  logId: z.string().uuid(),
+  time: z.string().regex(/^\d{2}:\d{2}$/).nullable(),
+});
+
+export const updateGuestArrivalTime = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => UpdateArrivalTimeInput.parse(i))
+  .handler(async ({ data, context }) => {
+    const { error } = await context.supabase
+      .from("guide_access_logs")
+      .update({ guest_arrival_time: data.time })
       .eq("id", data.logId);
     if (error) throw new Error(error.message);
     return { ok: true };

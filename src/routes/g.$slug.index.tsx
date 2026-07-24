@@ -381,6 +381,25 @@ function Guide({ data }: { data: GuideOk }) {
   const hasAccessPin = !!(p as any).hasAccessPin;
   const initialUnlocked = !!(p as any).accessUnlocked;
   const [unlocked, setUnlocked] = useState(initialUnlocked);
+  // Track when the guest actually reveals credentials (unlocked flips to true)
+  const passwordsTrackedRef = useRef(false);
+  useEffect(() => {
+    if (!unlocked || passwordsTrackedRef.current) return;
+    passwordsTrackedRef.current = true;
+    const sid = typeof window !== "undefined" ? (localStorage.getItem(`guide-chat-session:${slug}`) ?? "anon") : "anon";
+    const pagePath = typeof window !== "undefined" ? window.location.pathname : null;
+    trackEvent({
+      data: {
+        slug,
+        section: "senhas",
+        sessionId: sid,
+        guestName: accessRec?.name ?? null,
+        guestPhone: accessRec?.phone ?? null,
+        pagePath,
+      },
+    }).catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [unlocked]);
 
 
   // Expansividade da barra "check-in libera em" — abre wi-fi/senhas
