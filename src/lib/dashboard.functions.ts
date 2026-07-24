@@ -147,6 +147,8 @@ export type ArrivalRow = {
   standardTime: string | null;     // horário padrão da propriedade
   standardTimeMax: string | null;
   date: string;                    // data prevista (checkin ou checkout)
+  guestCheckin: string;
+  guestCheckout: string | null;
   reservationCode: string | null;
   createdAt: string;
   status: "pending" | "done";
