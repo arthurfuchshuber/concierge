@@ -15,6 +15,7 @@ import { PushNotificationBanner } from "@/components/PushNotificationBanner";
 import { getAtendimentoAccess, countPendingHandoffs } from "@/lib/handoff.functions";
 import { listMyAccounts } from "@/lib/active-account.functions";
 import { PendingInviteDialog } from "@/components/admin/PendingInviteDialog";
+import { CompleteProfileDialog } from "@/components/admin/CompleteProfileDialog";
 import { listMyPendingInvites } from "@/lib/pending-invites.functions";
 
 
@@ -260,6 +261,7 @@ function AdminLayout() {
       </div>
       {handoffEnabled && !pathname.startsWith("/admin/atendimento") && <FloatingHandoffDock />}
       <PendingInviteDialog />
+      <CompleteProfileDialog />
     </div>
 
   );
