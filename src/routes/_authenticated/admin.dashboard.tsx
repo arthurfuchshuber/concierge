@@ -290,11 +290,9 @@ function DashboardPage() {
               <div className="text-xs text-muted-foreground">Comparativo com os check-ins do período</div>
             </div>
           </div>
-          <RangeDropdown
-            value={engRange}
-            onChange={setEngRange}
-            options={[["today", "Hoje"], ["7d", "7 dias"], ["30d", "30 dias"]]}
-          />
+          <div className="text-xs text-muted-foreground tabular-nums">
+            {engRange === "today" ? "Hoje" : engRange === "7d" ? "7 dias" : "30 dias"}
+          </div>
         </div>
         <EngagementBars
           loading={engQ.isLoading}
