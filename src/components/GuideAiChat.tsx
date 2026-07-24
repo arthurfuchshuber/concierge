@@ -81,6 +81,56 @@ export function GuideAiChat({ slug, propertyName, guestName }: { slug: string; p
   useEffect(() => { openRef.current = open; }, [open]);
   const { greeting, hint } = getTimeContext();
 
+  // Draggable launcher position (persistent). side + distance from bottom in px.
+  const [pos, setPos] = useState<{ side: "left" | "right"; bottom: number }>(() => {
+    if (typeof window === "undefined") return { side: "right", bottom: 96 };
+    try {
+      const raw = window.localStorage.getItem("guide-chat-pos");
+      if (raw) {
+        const p = JSON.parse(raw);
+        if ((p.side === "left" || p.side === "right") && typeof p.bottom === "number") return p;
+      }
+    } catch { /* ignore */ }
+    return { side: "right", bottom: 96 };
+  });
+  const [dragOffset, setDragOffset] = useState<{ dx: number; dy: number } | null>(null);
+  const dragStateRef = useRef<{ x: number; y: number; moved: boolean; pointerId: number } | null>(null);
+  const justDraggedRef = useRef(false);
+
+  function handleLauncherPointerDown(e: React.PointerEvent<HTMLButtonElement>) {
+    if (e.button !== 0 && e.pointerType === "mouse") return;
+    dragStateRef.current = { x: e.clientX, y: e.clientY, moved: false, pointerId: e.pointerId };
+    try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* ignore */ }
+  }
+  function handleLauncherPointerMove(e: React.PointerEvent<HTMLButtonElement>) {
+    const s = dragStateRef.current;
+    if (!s) return;
+    const dx = e.clientX - s.x;
+    const dy = e.clientY - s.y;
+    if (!s.moved && (Math.abs(dx) > 6 || Math.abs(dy) > 6)) s.moved = true;
+    if (s.moved) setDragOffset({ dx, dy });
+  }
+  function handleLauncherPointerUp(e: React.PointerEvent<HTMLButtonElement>) {
+    const s = dragStateRef.current;
+    dragStateRef.current = null;
+    try { e.currentTarget.releasePointerCapture(e.pointerId); } catch { /* ignore */ }
+    if (!s) return;
+    if (s.moved) {
+      const rect = e.currentTarget.getBoundingClientRect();
+      const centerX = rect.left + rect.width / 2;
+      const side: "left" | "right" = centerX < window.innerWidth / 2 ? "left" : "right";
+      const bottomPx = Math.max(24, Math.min(window.innerHeight - rect.height - 24, window.innerHeight - rect.bottom));
+      const next = { side, bottom: bottomPx };
+      setPos(next);
+      setDragOffset(null);
+      try { window.localStorage.setItem("guide-chat-pos", JSON.stringify(next)); } catch { /* ignore */ }
+      justDraggedRef.current = true;
+      window.setTimeout(() => { justDraggedRef.current = false; }, 50);
+    } else {
+      setDragOffset(null);
+    }
+  }
+
 
   useEffect(() => {
     setMounted(true);
