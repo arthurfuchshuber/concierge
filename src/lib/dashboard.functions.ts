@@ -140,6 +140,12 @@ export type ArrivalRow = {
   logId: string;
   propertyId: string;
   propertyName: string | null;
+  propertyAddress: string | null;
+  mapsUrl: string | null;
+  garageMapsUrl: string | null;
+  hasPasswords: boolean;
+  openedCheckin: boolean;
+  viewedPasswords: boolean;
   guestName: string;
   guestPhone: string | null;
   guestPhoneCountry: string | null;
