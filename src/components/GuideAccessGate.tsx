@@ -167,15 +167,15 @@ export function GuideAccessGate({ slug, propertyName, requireReservationCode, co
     };
   }, [slug, listReservationDates]);
 
-  // Date is "reserved" if it falls inside any reservation window
-  // (inclusive of checkin and checkout, so the guest can pick both endpoints).
+  // When iCal is connected, ONLY the exact checkin/checkout dates of each
+  // reservation are selectable — no other dates in between or outside.
   const isReservedDate = (date: Date): boolean => {
     if (!reservedRanges || !reservedRanges.hasIcal) return true;
     const y = date.getFullYear();
     const m = String(date.getMonth() + 1).padStart(2, "0");
     const d = String(date.getDate()).padStart(2, "0");
     const iso = `${y}-${m}-${d}`;
-    return reservedRanges.ranges.some((r) => iso >= r.checkin && iso <= r.checkout);
+    return reservedRanges.ranges.some((r) => iso === r.checkin || iso === r.checkout);
   };
 
   const isDateDisabled = (date: Date): boolean => {
