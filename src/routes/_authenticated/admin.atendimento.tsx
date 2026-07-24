@@ -169,9 +169,11 @@ function AtendimentoPage() {
           <ConversationList
             conversations={filteredConversations as any}
             details={details}
+            assignedNames={list.data?.assignedNames ?? {}}
             activeId={activeId}
             onSelect={setActiveId}
           />
+
 
         </div>
 
