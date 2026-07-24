@@ -144,6 +144,15 @@ function DashboardPage() {
     onError: (e) => toast.error(e instanceof Error ? e.message : "Falha ao atualizar datas."),
   });
 
+  const updateTime = useMutation({
+    mutationFn: (v: { logId: string; time: string | null }) => updateTimeFn({ data: v }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["dash-list"] });
+      toast.success("Horário atualizado.");
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Falha ao atualizar horário."),
+  });
+
   const rows = listQ.data?.rows ?? [];
   const pending = useMemo(() => rows.filter((r) => r.status === "pending"), [rows]);
   const done = useMemo(() => rows.filter((r) => r.status === "done"), [rows]);
