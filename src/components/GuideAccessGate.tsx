@@ -310,20 +310,36 @@ export function GuideAccessGate({ slug, propertyName, requireReservationCode, co
       toast.error("Informe seu nome completo.");
       return false;
     }
-    if (!range?.from || !range?.to) {
-      toast.error("Selecione o período da viagem.");
-      return false;
+    if (hasIcalMode) {
+      if (!code.trim()) {
+        toast.error("Informe o código da reserva.");
+        return false;
+      }
+      if (codeLookup.state === "checking") {
+        toast.error("Aguarde a validação do código.");
+        return false;
+      }
+      if (codeLookup.state !== "found" || !range?.from || !range?.to) {
+        toast.error("Código de reserva não encontrado no calendário Airbnb.");
+        return false;
+      }
+    } else {
+      if (!range?.from || !range?.to) {
+        toast.error("Selecione o período da viagem.");
+        return false;
+      }
     }
     if (!phone || !isValidPhoneNumber(phone)) {
       toast.error("Informe um telefone válido.");
       return false;
     }
-    if (requireReservationCode && !code.trim()) {
+    if (requireReservationCode && !hasIcalMode && !code.trim()) {
       toast.error("Informe o código da reserva.");
       return false;
     }
     return true;
   }
+
 
   async function finalizeSubmit() {
     if (!range?.from || !range?.to) return;
