@@ -595,6 +595,60 @@ export type Database = {
         }
         Relationships: []
       }
+      guest_arrival_status: {
+        Row: {
+          arrival_time_override: string | null
+          created_at: string
+          done_at: string | null
+          id: string
+          kind: string
+          log_id: string
+          note: string | null
+          property_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          arrival_time_override?: string | null
+          created_at?: string
+          done_at?: string | null
+          id?: string
+          kind: string
+          log_id: string
+          note?: string | null
+          property_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          arrival_time_override?: string | null
+          created_at?: string
+          done_at?: string | null
+          id?: string
+          kind?: string
+          log_id?: string
+          note?: string | null
+          property_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "guest_arrival_status_log_id_fkey"
+            columns: ["log_id"]
+            isOneToOne: false
+            referencedRelation: "guide_access_logs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "guest_arrival_status_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       guest_push_subscriptions: {
         Row: {
           auth: string
