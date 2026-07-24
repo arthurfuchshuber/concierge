@@ -403,7 +403,7 @@ export const updateGuestStayDates = createServerFn({ method: "POST" })
     if (data.checkinDate && data.checkoutDate && data.checkoutDate < data.checkinDate) {
       throw new Error("Data de saída não pode ser anterior à de entrada.");
     }
-    const patch: Record<string, string | null> = {};
+    const patch: { checkin_date?: string; checkout_date?: string | null } = {};
     if (typeof data.checkinDate !== "undefined") patch.checkin_date = data.checkinDate;
     if (typeof data.checkoutDate !== "undefined") patch.checkout_date = data.checkoutDate;
 
