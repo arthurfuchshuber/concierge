@@ -37,6 +37,7 @@ import { Route as AuthenticatedAdminTaxonomiaRouteImport } from './routes/_authe
 import { Route as AuthenticatedAdminHospedesRouteImport } from './routes/_authenticated/admin.hospedes'
 import { Route as AuthenticatedAdminEquipeRouteImport } from './routes/_authenticated/admin.equipe'
 import { Route as AuthenticatedAdminEngajamentoRouteImport } from './routes/_authenticated/admin.engajamento'
+import { Route as AuthenticatedAdminDashboardRouteImport } from './routes/_authenticated/admin.dashboard'
 import { Route as AuthenticatedAdminClientesRouteImport } from './routes/_authenticated/admin.clientes'
 import { Route as AuthenticatedAdminBibliotecaRouteImport } from './routes/_authenticated/admin.biblioteca'
 import { Route as AuthenticatedAdminAtendimentoRouteImport } from './routes/_authenticated/admin.atendimento'
@@ -207,6 +208,12 @@ const AuthenticatedAdminEngajamentoRoute =
     path: '/engajamento',
     getParentRoute: () => AuthenticatedAdminRoute,
   } as any)
+const AuthenticatedAdminDashboardRoute =
+  AuthenticatedAdminDashboardRouteImport.update({
+    id: '/dashboard',
+    path: '/dashboard',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
 const AuthenticatedAdminClientesRoute =
   AuthenticatedAdminClientesRouteImport.update({
     id: '/clientes',
@@ -366,6 +373,7 @@ export interface FileRoutesByFullPath {
   '/admin/atendimento': typeof AuthenticatedAdminAtendimentoRoute
   '/admin/biblioteca': typeof AuthenticatedAdminBibliotecaRoute
   '/admin/clientes': typeof AuthenticatedAdminClientesRoute
+  '/admin/dashboard': typeof AuthenticatedAdminDashboardRoute
   '/admin/engajamento': typeof AuthenticatedAdminEngajamentoRoute
   '/admin/equipe': typeof AuthenticatedAdminEquipeRoute
   '/admin/hospedes': typeof AuthenticatedAdminHospedesRoute
@@ -416,6 +424,7 @@ export interface FileRoutesByTo {
   '/admin/atendimento': typeof AuthenticatedAdminAtendimentoRoute
   '/admin/biblioteca': typeof AuthenticatedAdminBibliotecaRoute
   '/admin/clientes': typeof AuthenticatedAdminClientesRoute
+  '/admin/dashboard': typeof AuthenticatedAdminDashboardRoute
   '/admin/engajamento': typeof AuthenticatedAdminEngajamentoRoute
   '/admin/equipe': typeof AuthenticatedAdminEquipeRoute
   '/admin/hospedes': typeof AuthenticatedAdminHospedesRoute
@@ -470,6 +479,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/atendimento': typeof AuthenticatedAdminAtendimentoRoute
   '/_authenticated/admin/biblioteca': typeof AuthenticatedAdminBibliotecaRoute
   '/_authenticated/admin/clientes': typeof AuthenticatedAdminClientesRoute
+  '/_authenticated/admin/dashboard': typeof AuthenticatedAdminDashboardRoute
   '/_authenticated/admin/engajamento': typeof AuthenticatedAdminEngajamentoRoute
   '/_authenticated/admin/equipe': typeof AuthenticatedAdminEquipeRoute
   '/_authenticated/admin/hospedes': typeof AuthenticatedAdminHospedesRoute
@@ -524,6 +534,7 @@ export interface FileRouteTypes {
     | '/admin/atendimento'
     | '/admin/biblioteca'
     | '/admin/clientes'
+    | '/admin/dashboard'
     | '/admin/engajamento'
     | '/admin/equipe'
     | '/admin/hospedes'
@@ -574,6 +585,7 @@ export interface FileRouteTypes {
     | '/admin/atendimento'
     | '/admin/biblioteca'
     | '/admin/clientes'
+    | '/admin/dashboard'
     | '/admin/engajamento'
     | '/admin/equipe'
     | '/admin/hospedes'
@@ -627,6 +639,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/atendimento'
     | '/_authenticated/admin/biblioteca'
     | '/_authenticated/admin/clientes'
+    | '/_authenticated/admin/dashboard'
     | '/_authenticated/admin/engajamento'
     | '/_authenticated/admin/equipe'
     | '/_authenticated/admin/hospedes'
@@ -888,6 +901,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminEngajamentoRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
     }
+    '/_authenticated/admin/dashboard': {
+      id: '/_authenticated/admin/dashboard'
+      path: '/dashboard'
+      fullPath: '/admin/dashboard'
+      preLoaderRoute: typeof AuthenticatedAdminDashboardRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
     '/_authenticated/admin/clientes': {
       id: '/_authenticated/admin/clientes'
       path: '/clientes'
@@ -1059,6 +1079,7 @@ interface AuthenticatedAdminRouteChildren {
   AuthenticatedAdminAtendimentoRoute: typeof AuthenticatedAdminAtendimentoRoute
   AuthenticatedAdminBibliotecaRoute: typeof AuthenticatedAdminBibliotecaRoute
   AuthenticatedAdminClientesRoute: typeof AuthenticatedAdminClientesRoute
+  AuthenticatedAdminDashboardRoute: typeof AuthenticatedAdminDashboardRoute
   AuthenticatedAdminEngajamentoRoute: typeof AuthenticatedAdminEngajamentoRoute
   AuthenticatedAdminEquipeRoute: typeof AuthenticatedAdminEquipeRoute
   AuthenticatedAdminHospedesRoute: typeof AuthenticatedAdminHospedesRoute
@@ -1080,6 +1101,7 @@ const AuthenticatedAdminRouteChildren: AuthenticatedAdminRouteChildren = {
   AuthenticatedAdminAtendimentoRoute: AuthenticatedAdminAtendimentoRoute,
   AuthenticatedAdminBibliotecaRoute: AuthenticatedAdminBibliotecaRoute,
   AuthenticatedAdminClientesRoute: AuthenticatedAdminClientesRoute,
+  AuthenticatedAdminDashboardRoute: AuthenticatedAdminDashboardRoute,
   AuthenticatedAdminEngajamentoRoute: AuthenticatedAdminEngajamentoRoute,
   AuthenticatedAdminEquipeRoute: AuthenticatedAdminEquipeRoute,
   AuthenticatedAdminHospedesRoute: AuthenticatedAdminHospedesRoute,
