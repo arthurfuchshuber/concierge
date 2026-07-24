@@ -401,117 +401,69 @@ export function GuideAccessGate({ slug, propertyName, requireReservationCode, co
                   />
                 </FieldShell>
 
-                {hasIcalMode ? (
-                  <>
-                    <FieldShell>
-                      <Input
-                        value={code}
-                        onChange={(e) => setCode(e.target.value.toUpperCase())}
-                        maxLength={100}
-                        required
-                        autoCapitalize="characters"
-                        className="h-[48px] rounded-[12px] px-3 text-[14.5px] tracking-wider bg-transparent border-transparent focus-visible:ring-0 uppercase"
-                        placeholder="Código da reserva Airbnb"
+                <div className="grid grid-cols-2 gap-2">
+                  <RangeButton
+                    label="Chegada"
+                    value={range?.from ? format(range.from, "dd MMM", { locale: ptBR }) : "—"}
+                    popover={
+                      <Calendar
+                        mode="range"
+                        selected={range as never}
+                        onSelect={(r) => setRange(r as { from?: Date; to?: Date } | undefined)}
+                        numberOfMonths={1}
+                        initialFocus
+                        locale={ptBR}
+                        disabled={isDateDisabled}
+                        className="p-3 pointer-events-auto"
                       />
-                    </FieldShell>
+                    }
+                  />
+                  <RangeButton
+                    label="Saída"
+                    value={range?.to ? format(range.to, "dd MMM", { locale: ptBR }) : "—"}
+                    popover={
+                      <Calendar
+                        mode="range"
+                        selected={range as never}
+                        onSelect={(r) => setRange(r as { from?: Date; to?: Date } | undefined)}
+                        numberOfMonths={1}
+                        initialFocus
+                        locale={ptBR}
+                        disabled={isDateDisabled}
+                        className="p-3 pointer-events-auto"
+                      />
+                    }
+                  />
+                </div>
 
-                    {codeLookup.state === "checking" && (
-                      <div className="flex items-center gap-2 text-[12px] text-muted-foreground bg-white/[0.03] border border-white/10 rounded-lg px-3 py-2">
-                        <Loader2 className="size-4 shrink-0 animate-spin" />
-                        <span>Verificando o código no calendário Airbnb…</span>
-                      </div>
-                    )}
-                    {codeLookup.state === "found" && (
-                      <div className="flex items-center gap-2 text-[12px] text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2">
-                        <CheckCircle2 className="size-4 shrink-0" />
-                        <span>
-                          Reserva confirmada:{" "}
-                          <b>
-                            {new Date(codeLookup.checkin + "T12:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })}
-                          </b>{" "}
-                          →{" "}
-                          <b>
-                            {new Date(codeLookup.checkout + "T12:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })}
-                          </b>
-                          .
-                        </span>
-                      </div>
-                    )}
-                    {codeLookup.state === "not-found" && code.trim().length >= 4 && (
-                      <div className="flex items-start gap-2 text-[12px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-                        <AlertTriangle className="size-4 shrink-0 mt-0.5" />
-                        <span>
-                          Não encontramos essa reserva. Confira o código (ex.: <b>HMABC123XY</b>) ou fale com o anfitrião.
-                        </span>
-                      </div>
-                    )}
-                  </>
-                ) : (
-                  <>
-                    <div className="grid grid-cols-2 gap-2">
-                      <RangeButton
-                        label="Chegada"
-                        value={range?.from ? format(range.from, "dd MMM", { locale: ptBR }) : "—"}
-                        popover={
-                          <Calendar
-                            mode="range"
-                            selected={range as never}
-                            onSelect={(r) => setRange(r as { from?: Date; to?: Date } | undefined)}
-                            numberOfMonths={1}
-                            initialFocus
-                            locale={ptBR}
-                            disabled={isDateDisabled}
-                            className="p-3 pointer-events-auto"
-                          />
-                        }
-                      />
-                      <RangeButton
-                        label="Saída"
-                        value={range?.to ? format(range.to, "dd MMM", { locale: ptBR }) : "—"}
-                        popover={
-                          <Calendar
-                            mode="range"
-                            selected={range as never}
-                            onSelect={(r) => setRange(r as { from?: Date; to?: Date } | undefined)}
-                            numberOfMonths={1}
-                            initialFocus
-                            locale={ptBR}
-                            disabled={isDateDisabled}
-                            className="p-3 pointer-events-auto"
-                          />
-                        }
-                      />
-                    </div>
-
-                    {resCheck.state === "matched" && (
-                      <div className="flex items-center gap-2 text-[12px] text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2">
-                        <CheckCircle2 className="size-4 shrink-0" />
-                        <span>Reserva Airbnb encontrada para estas datas.</span>
-                      </div>
-                    )}
-                    {resCheck.state === "no-match" && (
-                      <div className="flex items-start gap-2 text-[12px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-                        <AlertTriangle className="size-4 shrink-0 mt-0.5" />
-                        <span>
-                          Não encontramos uma reserva Airbnb para estas datas.
-                          {resCheck.suggestedCheckout && (
-                            <>
-                              {" "}Sua chegada bate com uma reserva, mas a saída é{" "}
-                              <b>
-                                {new Date(resCheck.suggestedCheckout + "T12:00:00").toLocaleDateString("pt-BR", {
-                                  day: "2-digit",
-                                  month: "short",
-                                })}
-                              </b>
-                              . Confira se digitou corretamente.
-                            </>
-                          )}
-                          {!resCheck.suggestedCheckout && " Confira as datas ou siga se sua reserva foi feita por outro canal."}
-                        </span>
-                      </div>
-                    )}
-                  </>
+                {resCheck.state === "matched" && (
+                  <div className="flex items-center gap-2 text-[12px] text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2">
+                    <CheckCircle2 className="size-4 shrink-0" />
+                    <span>Reserva Airbnb encontrada para estas datas.</span>
+                  </div>
                 )}
+                {resCheck.state === "no-match" && (
+                  <div className="flex items-start gap-2 text-[12px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                    <AlertTriangle className="size-4 shrink-0 mt-0.5" />
+                    <span>
+                      Não encontramos uma reserva Airbnb para estas datas.
+                      {resCheck.suggestedCheckout && (
+                        <>
+                          {" "}Sua chegada bate com uma reserva, mas a saída é{" "}
+                          <b>
+                            {new Date(resCheck.suggestedCheckout + "T12:00:00").toLocaleDateString("pt-BR", {
+                              day: "2-digit",
+                              month: "short",
+                            })}
+                          </b>
+                          . Confira se digitou corretamente.
+                        </>
+                      )}
+                      {!resCheck.suggestedCheckout && " Confira as datas ou siga se sua reserva foi feita por outro canal."}
+                    </span>
+                  </div>
+                )}
+
 
                 <div className="sg-phone-input">
                   <PhoneInput
