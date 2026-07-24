@@ -174,7 +174,14 @@ function HospedesPage() {
                     <div className="min-w-0 flex-1 grid sm:grid-cols-[1.2fr_1fr_.8fr_.6fr] gap-3 items-center">
                       <div className="min-w-0">
                         <div className="text-sm font-medium truncate">{r.guest_name}</div>
-                        <div className="text-[11px] text-muted-foreground truncate">{r.property_name ?? "—"}</div>
+                        <div className="text-[11px] text-muted-foreground truncate flex items-center gap-1.5">
+                          <span className="truncate">{r.property_name ?? "—"}</span>
+                          {r.reservation_code && (
+                            <span className="font-mono text-[10.5px] px-1.5 py-0.5 rounded bg-muted/60 border border-border/60 shrink-0">
+                              {r.reservation_code}
+                            </span>
+                          )}
+                        </div>
                       </div>
                       <div className="text-xs text-muted-foreground truncate hidden sm:block">
                         {r.guest_phone ? `${r.guest_phone_country ?? ""} ${r.guest_phone}` : "—"}
