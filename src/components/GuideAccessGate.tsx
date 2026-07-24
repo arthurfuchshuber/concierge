@@ -195,8 +195,13 @@ export function GuideAccessGate({ slug, propertyName, requireReservationCode, co
     return !isReservedDate(date);
   };
 
-  // Cross-check with Airbnb iCal reservations (soft warning, never blocks)
+  // Cross-check with Airbnb iCal reservations (soft warning; only when
+  // running the legacy manual-date flow — iCal mode uses code lookup instead)
   useEffect(() => {
+    if (hasIcalMode) {
+      setResCheck({ state: "idle" });
+      return;
+    }
     if (!range?.from || !range?.to) {
       setResCheck({ state: "idle" });
       return;
@@ -224,7 +229,49 @@ export function GuideAccessGate({ slug, propertyName, requireReservationCode, co
       cancelled = true;
       clearTimeout(t);
     };
-  }, [range?.from, range?.to, slug, checkReservation]);
+  }, [range?.from, range?.to, slug, checkReservation, hasIcalMode]);
+
+  // iCal mode: look up reservation by code (debounced)
+  useEffect(() => {
+    if (!hasIcalMode) {
+      setCodeLookup({ state: "idle" });
+      return;
+    }
+    const trimmed = code.trim();
+    if (trimmed.length < 4) {
+      setCodeLookup({ state: "idle" });
+      setRange(undefined);
+      return;
+    }
+    let cancelled = false;
+    setCodeLookup({ state: "checking" });
+    const t = setTimeout(() => {
+      lookupByCode({ data: { slug, code: trimmed } })
+        .then((r) => {
+          if (cancelled) return;
+          if (r.found) {
+            setCodeLookup({ state: "found", checkin: r.checkin, checkout: r.checkout });
+            const [cy, cm, cd] = r.checkin.split("-").map(Number);
+            const [oy, om, od] = r.checkout.split("-").map(Number);
+            setRange({
+              from: new Date(cy, cm - 1, cd),
+              to: new Date(oy, om - 1, od),
+            });
+          } else {
+            setCodeLookup({ state: "not-found" });
+            setRange(undefined);
+          }
+        })
+        .catch(() => {
+          if (!cancelled) setCodeLookup({ state: "idle" });
+        });
+    }, 500);
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+    };
+  }, [code, slug, hasIcalMode, lookupByCode]);
+
 
   // sync vehicle rows with count
   useEffect(() => {
