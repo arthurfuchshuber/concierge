@@ -1,0 +1,339 @@
+import { createServerFn } from "@tanstack/react-start";
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { z } from "zod";
+
+// ----- helpers -----
+
+function todayISO(): string {
+  const d = new Date();
+  return d.toISOString().slice(0, 10);
+}
+function addDaysISO(iso: string, n: number): string {
+  const [y, m, d] = iso.split("-").map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  dt.setUTCDate(dt.getUTCDate() + n);
+  return dt.toISOString().slice(0, 10);
+}
+
+async function accessiblePropertyIds(supabase: {
+  from: (t: string) => {
+    select: (s: string) => {
+      order?: (c: string, o: { ascending: boolean }) => Promise<{ data: unknown[] | null }>;
+    };
+  };
+}): Promise<string[]> {
+  // RLS on properties already scopes to owner + active account members.
+  const { data } = await (supabase as unknown as {
+    from: (t: string) => { select: (s: string) => Promise<{ data: Array<{ id: string }> | null }> };
+  })
+    .from("properties")
+    .select("id");
+  return (data ?? []).map((r) => r.id);
+}
+
+// ----- KPIs -----
+
+export const getDashboardKpis = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const propIds = await accessiblePropertyIds(context.supabase as never);
+    if (propIds.length === 0) {
+      return { checkinsToday: 0, checkinsTomorrow: 0, checkoutsToday: 0, checkoutsTomorrow: 0 };
+    }
+    const today = todayISO();
+    const tomorrow = addDaysISO(today, 1);
+
+    async function count(col: "checkin_date" | "checkout_date", date: string) {
+      const { data } = await context.supabase
+        .from("guide_access_logs")
+        .select("id, property_id, guest_name")
+        .in("property_id", propIds)
+        .eq(col, date)
+        .limit(1000);
+      // dedupe by property_id + guest_name (case-insensitive)
+      const seen = new Set<string>();
+      for (const row of data ?? []) {
+        const key = `${(row as { property_id: string }).property_id}|${((row as { guest_name: string }).guest_name || "").trim().toLowerCase()}`;
+        seen.add(key);
+      }
+      return seen.size;
+    }
+
+    const [ciT, ciTo, coT, coTo] = await Promise.all([
+      count("checkin_date", today),
+      count("checkin_date", tomorrow),
+      count("checkout_date", today),
+      count("checkout_date", tomorrow),
+    ]);
+    return { checkinsToday: ciT, checkinsTomorrow: ciTo, checkoutsToday: coT, checkoutsTomorrow: coTo };
+  });
+
+// ----- Engagement -----
+
+const EngagementInput = z.object({
+  range: z.enum(["today", "7d", "30d"]).default("today"),
+});
+
+export const getGuideEngagement = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => EngagementInput.parse(i))
+  .handler(async ({ data, context }) => {
+    const propIds = await accessiblePropertyIds(context.supabase as never);
+    if (propIds.length === 0) {
+      return { guideOpens: 0, checkinTabOpens: 0, checkinsInPeriod: 0 };
+    }
+    const today = todayISO();
+    let from = today;
+    let to = today;
+    if (data.range === "7d") {
+      from = today;
+      to = addDaysISO(today, 6);
+    } else if (data.range === "30d") {
+      from = today;
+      to = addDaysISO(today, 29);
+    }
+
+    // Guests with check-in in [from, to]
+    const { data: logs } = await context.supabase
+      .from("guide_access_logs")
+      .select("id, property_id, guest_name, guest_phone, guest_session_id, checkin_date")
+      .in("property_id", propIds)
+      .gte("checkin_date", from)
+      .lte("checkin_date", to)
+      .limit(2000);
+
+    const dedupKey = (r: { property_id: string; guest_name?: string | null; guest_phone?: string | null }) =>
+      `${r.property_id}|${(r.guest_name || "").trim().toLowerCase()}|${(r.guest_phone || "").replace(/\D/g, "")}`;
+
+    const guests = new Set<string>();
+    const sessionIds: string[] = [];
+    for (const row of logs ?? []) {
+      const r = row as { property_id: string; guest_name: string | null; guest_phone: string | null; guest_session_id: string | null };
+      guests.add(dedupKey(r));
+      if (r.guest_session_id) sessionIds.push(r.guest_session_id);
+    }
+    const checkinsInPeriod = guests.size;
+    // Every filled log implies a guide open — the form is the entry point.
+    const guideOpens = guests.size;
+
+    let checkinTabOpens = 0;
+    if (sessionIds.length > 0) {
+      const { data: evs } = await context.supabase
+        .from("guide_section_events")
+        .select("guest_session_id")
+        .in("property_id", propIds)
+        .eq("section", "checkin")
+        .in("guest_session_id", sessionIds)
+        .limit(5000);
+      const seen = new Set<string>();
+      for (const e of evs ?? []) seen.add((e as { guest_session_id: string }).guest_session_id);
+      checkinTabOpens = seen.size;
+    }
+
+    return { guideOpens, checkinTabOpens, checkinsInPeriod };
+  });
+
+// ----- Arrivals list -----
+
+const ListInput = z.object({
+  kind: z.enum(["checkin", "checkout"]).default("checkin"),
+  range: z.enum(["today", "tomorrow", "7d", "all"]).default("today"),
+});
+
+export type ArrivalRow = {
+  logId: string;
+  propertyId: string;
+  propertyName: string | null;
+  guestName: string;
+  guestPhone: string | null;
+  guestPhoneCountry: string | null;
+  guestArrivalTime: string | null; // HH:mm informado pelo hóspede
+  standardTime: string | null;     // horário padrão da propriedade
+  standardTimeMax: string | null;
+  date: string;                    // data prevista (checkin ou checkout)
+  reservationCode: string | null;
+  createdAt: string;
+  status: "pending" | "done";
+  note: string | null;
+  arrivalTimeOverride: string | null;
+  doneAt: string | null;
+  ical: { hasIcal: boolean; matched: boolean; icalCheckin: string | null; icalCheckout: string | null };
+};
+
+export const listDashboardArrivals = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => ListInput.parse(i))
+  .handler(async ({ data, context }): Promise<{ rows: ArrivalRow[] }> => {
+    const propIds = await accessiblePropertyIds(context.supabase as never);
+    if (propIds.length === 0) return { rows: [] };
+
+    const dateCol = data.kind === "checkin" ? "checkin_date" : "checkout_date";
+    const today = todayISO();
+    let from: string | null = today;
+    let to: string | null = today;
+    if (data.range === "tomorrow") {
+      from = addDaysISO(today, 1);
+      to = from;
+    } else if (data.range === "7d") {
+      from = today;
+      to = addDaysISO(today, 6);
+    } else if (data.range === "all") {
+      from = today;
+      to = null;
+    }
+
+    let q = context.supabase
+      .from("guide_access_logs")
+      .select("id, property_id, guest_name, guest_phone, guest_phone_country, guest_arrival_time, checkin_date, checkout_date, reservation_code, created_at")
+      .in("property_id", propIds)
+      .gte(dateCol, from!);
+    if (to) q = q.lte(dateCol, to);
+    const { data: logs } = await q.order(dateCol, { ascending: true }).limit(500);
+
+    const rawLogs = (logs ?? []) as Array<{
+      id: string; property_id: string; guest_name: string; guest_phone: string | null;
+      guest_phone_country: string | null; guest_arrival_time: string | null;
+      checkin_date: string; checkout_date: string | null;
+      reservation_code: string | null; created_at: string;
+    }>;
+    if (rawLogs.length === 0) return { rows: [] };
+
+    // Dedupe per (property_id + guest_name + date) — keep the most recent log
+    const dedupMap = new Map<string, typeof rawLogs[number]>();
+    for (const l of rawLogs) {
+      const key = `${l.property_id}|${(l.guest_name || "").trim().toLowerCase()}|${data.kind === "checkin" ? l.checkin_date : l.checkout_date}`;
+      const prev = dedupMap.get(key);
+      if (!prev || new Date(l.created_at) > new Date(prev.created_at)) dedupMap.set(key, l);
+    }
+    const uniqueLogs = Array.from(dedupMap.values());
+
+    const uniqPropIds = Array.from(new Set(uniqueLogs.map((l) => l.property_id)));
+    const [{ data: props }, { data: statuses }, { data: reservations }] = await Promise.all([
+      context.supabase
+        .from("properties")
+        .select("id, name, checkin_time, checkin_time_max, checkout_time, checkout_time_min, airbnb_ical_url")
+        .in("id", uniqPropIds),
+      context.supabase
+        .from("guest_arrival_status")
+        .select("log_id, kind, status, note, arrival_time_override, done_at")
+        .in("log_id", uniqueLogs.map((l) => l.id))
+        .eq("kind", data.kind),
+      context.supabase
+        .from("property_reservations")
+        .select("property_id, checkin_date, checkout_date")
+        .in("property_id", uniqPropIds)
+        .eq("source", "airbnb"),
+    ]);
+
+    const propMap = new Map<string, { name: string | null; checkin_time: string | null; checkin_time_max: string | null; checkout_time: string | null; checkout_time_min: string | null; airbnb_ical_url: string | null }>();
+    for (const p of (props ?? []) as Array<{ id: string; name: string | null; checkin_time: string | null; checkin_time_max: string | null; checkout_time: string | null; checkout_time_min: string | null; airbnb_ical_url: string | null }>) {
+      propMap.set(p.id, {
+        name: p.name, checkin_time: p.checkin_time, checkin_time_max: p.checkin_time_max,
+        checkout_time: p.checkout_time, checkout_time_min: p.checkout_time_min,
+        airbnb_ical_url: p.airbnb_ical_url,
+      });
+    }
+
+    const statusMap = new Map<string, { status: "pending" | "done"; note: string | null; arrival_time_override: string | null; done_at: string | null }>();
+    for (const s of (statuses ?? []) as Array<{ log_id: string; status: "pending" | "done"; note: string | null; arrival_time_override: string | null; done_at: string | null }>) {
+      statusMap.set(s.log_id, { status: s.status, note: s.note, arrival_time_override: s.arrival_time_override, done_at: s.done_at });
+    }
+
+    const resByProp = new Map<string, Array<{ checkin: string; checkout: string }>>();
+    for (const r of (reservations ?? []) as Array<{ property_id: string; checkin_date: string; checkout_date: string }>) {
+      const arr = resByProp.get(r.property_id) ?? [];
+      arr.push({ checkin: r.checkin_date, checkout: r.checkout_date });
+      resByProp.set(r.property_id, arr);
+    }
+
+    const rows: ArrivalRow[] = uniqueLogs.map((l) => {
+      const p = propMap.get(l.property_id);
+      const s = statusMap.get(l.id);
+      const date = data.kind === "checkin" ? l.checkin_date : (l.checkout_date ?? l.checkin_date);
+      const hasIcal = !!p?.airbnb_ical_url;
+      let matched = false;
+      let icalCheckin: string | null = null;
+      let icalCheckout: string | null = null;
+      if (hasIcal) {
+        const list = resByProp.get(l.property_id) ?? [];
+        // Match by exact date on the relevant column, ±1 day tolerance.
+        const target = date;
+        const found = list.find((r) => {
+          const rd = data.kind === "checkin" ? r.checkin : r.checkout;
+          if (rd === target) return true;
+          return rd === addDaysISO(target, -1) || rd === addDaysISO(target, 1);
+        });
+        if (found) {
+          matched = true;
+          icalCheckin = found.checkin;
+          icalCheckout = found.checkout;
+        }
+      }
+      return {
+        logId: l.id,
+        propertyId: l.property_id,
+        propertyName: p?.name ?? null,
+        guestName: l.guest_name,
+        guestPhone: l.guest_phone,
+        guestPhoneCountry: l.guest_phone_country,
+        guestArrivalTime: l.guest_arrival_time,
+        standardTime: data.kind === "checkin" ? (p?.checkin_time ?? null) : (p?.checkout_time ?? null),
+        standardTimeMax: data.kind === "checkin" ? (p?.checkin_time_max ?? null) : (p?.checkout_time_min ?? null),
+        date,
+        reservationCode: l.reservation_code,
+        createdAt: l.created_at,
+        status: s?.status ?? "pending",
+        note: s?.note ?? null,
+        arrivalTimeOverride: s?.arrival_time_override ?? null,
+        doneAt: s?.done_at ?? null,
+        ical: { hasIcal, matched, icalCheckin, icalCheckout },
+      };
+    });
+
+    return { rows };
+  });
+
+// ----- Mutations -----
+
+const UpsertInput = z.object({
+  logId: z.string().uuid(),
+  kind: z.enum(["checkin", "checkout"]),
+  status: z.enum(["pending", "done"]).optional(),
+  note: z.string().max(500).nullable().optional(),
+  arrivalTimeOverride: z
+    .string()
+    .regex(/^\d{2}:\d{2}$/)
+    .nullable()
+    .optional(),
+});
+
+export const upsertArrivalStatus = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => UpsertInput.parse(i))
+  .handler(async ({ data, context }) => {
+    // Resolve property_id via the log (RLS on guide_access_logs will scope it)
+    const { data: log, error: logErr } = await context.supabase
+      .from("guide_access_logs")
+      .select("id, property_id")
+      .eq("id", data.logId)
+      .maybeSingle();
+    if (logErr || !log) throw new Error("Registro não encontrado.");
+
+    const patch: Record<string, unknown> = {
+      log_id: data.logId,
+      property_id: (log as { property_id: string }).property_id,
+      kind: data.kind,
+    };
+    if (typeof data.status !== "undefined") {
+      patch.status = data.status;
+      patch.done_at = data.status === "done" ? new Date().toISOString() : null;
+    }
+    if (typeof data.note !== "undefined") patch.note = data.note;
+    if (typeof data.arrivalTimeOverride !== "undefined") patch.arrival_time_override = data.arrivalTimeOverride;
+
+    const { error } = await context.supabase
+      .from("guest_arrival_status")
+      .upsert(patch, { onConflict: "log_id,kind" });
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
