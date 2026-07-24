@@ -724,7 +724,7 @@ function PropertyEditor() {
     if (isNew) { toast.error("Salve o guia antes de sincronizar."); return; }
     const url = (form.property as { airbnb_ical_url?: string | null }).airbnb_ical_url?.trim();
     if (!url) { toast.error("Cole a URL do calendário Airbnb antes."); return; }
-    if (form.dirty) { toast.error("Salve as alterações antes de sincronizar."); return; }
+    if (autoSaving) { toast.info("Aguarde salvar as alterações."); return; }
     setSyncingIcal(true);
     try {
       const r = await syncIcal({ data: { propertyId: id } });
