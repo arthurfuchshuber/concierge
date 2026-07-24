@@ -3,9 +3,14 @@ import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { getPaddleEnvironment } from "@/lib/paddle";
-import { getMySubscription, PLANS, type PlanKey } from "@/lib/payments.functions";
+import {
+  getMySubscription,
+  getAccountSubscription,
+  PLANS,
+  type PlanKey,
+} from "@/lib/payments.functions";
 import type { PlanFeatures } from "@/lib/payments.shared";
-import { adminGetUserSubscription } from "@/lib/admin-subs.functions";
+import { useImpersonation } from "@/hooks/useImpersonation";
 
 export type SubscriptionInfo = {
   plan: PlanKey | null;
@@ -36,14 +41,27 @@ const FREE_FEATURES: PlanFeatures = {
   externalIntegration: false,
 };
 
+/**
+ * Retorna a assinatura efetiva da CONTA ativa do usuário logado:
+ *  - Se ele estiver "impersonando" (SaaS admin) ou for membro de equipe de
+ *    outra conta (via account_members / AccountSwitcher), usamos o plano do
+ *    dono daquela conta.
+ *  - Caso contrário, usamos a assinatura do próprio usuário.
+ *
+ * Isso garante que membros convidados enxerguem as features contratadas pelo
+ * dono da conta (IA, biblioteca, etc.) em vez de caírem no plano Free.
+ */
 export function useSubscription(opts?: { impersonateUserId?: string | null }) {
-  const fetchSub = useServerFn(getMySubscription);
-  const fetchAsUser = useServerFn(adminGetUserSubscription);
+  const fetchSelf = useServerFn(getMySubscription);
+  const fetchAccount = useServerFn(getAccountSubscription);
   const qc = useQueryClient();
   const env = getPaddleEnvironment();
   const channelId = useId().replace(/[^a-zA-Z0-9_-]/g, "");
   const [userId, setUserId] = useState<string | null>(null);
-  const impersonateId = opts?.impersonateUserId ?? null;
+  const { impersonation } = useImpersonation();
+  const explicitImpersonate = opts?.impersonateUserId ?? null;
+  // Fonte da conta ativa: parâmetro explícito > impersonação global.
+  const activeOwnerId = explicitImpersonate ?? impersonation?.userId ?? null;
 
   useEffect(() => {
     let mounted = true;
@@ -62,18 +80,21 @@ export function useSubscription(opts?: { impersonateUserId?: string | null }) {
     };
   }, []);
 
+  // Se activeOwnerId == userId ou não houver impersonação, buscamos self.
+  const ownerForQuery = activeOwnerId && activeOwnerId !== userId ? activeOwnerId : null;
+
   const query = useQuery({
-    queryKey: ["my-subscription", env, userId, impersonateId],
+    queryKey: ["my-subscription", env, userId, ownerForQuery],
     enabled: !!userId,
     queryFn: () =>
-      impersonateId
-        ? fetchAsUser({ data: { userId: impersonateId, environment: env } })
-        : fetchSub({ data: { environment: env } }),
+      ownerForQuery
+        ? fetchAccount({ data: { ownerId: ownerForQuery, environment: env } })
+        : fetchSelf({ data: { environment: env } }),
   });
 
 
   useEffect(() => {
-    const target = impersonateId ?? userId;
+    const target = ownerForQuery ?? userId;
     if (!target) return;
     const channel = supabase
       .channel(`subscriptions:${target}:${channelId}`)
@@ -81,14 +102,14 @@ export function useSubscription(opts?: { impersonateUserId?: string | null }) {
         "postgres_changes",
         { event: "*", schema: "public", table: "subscriptions", filter: `user_id=eq.${target}` },
         () => {
-          qc.invalidateQueries({ queryKey: ["my-subscription", env, userId, impersonateId] });
+          qc.invalidateQueries({ queryKey: ["my-subscription", env, userId, ownerForQuery] });
         },
       )
       .subscribe();
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [userId, env, qc, channelId, impersonateId]);
+  }, [userId, env, qc, channelId, ownerForQuery]);
 
 
   const data = query.data;
