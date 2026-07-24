@@ -643,13 +643,21 @@ function ArrivalCard({ row, kind, onMark, onSyncIcal, onNote, onEditDates, busy 
                 : "bg-amber-500/10 text-amber-700 dark:text-amber-400"
           }`}>
             {dateDivergent ? <AlertTriangle className="size-3.5 shrink-0" /> : row.ical.matched ? <Check className="size-3.5 shrink-0" /> : <AlertTriangle className="size-3.5 shrink-0" />}
-            <span className="min-w-0 truncate">
+            <span className="min-w-0 truncate flex-1">
               {dateDivergent
                 ? `Data divergente do iCal — hóspede: ${fmtDateBR(row.date)} · iCal: ${fmtDateBR(icalRef!)}`
                 : row.ical.matched
                   ? `Confirmado no iCal Airbnb (${row.ical.icalCheckin ? fmtDateBR(row.ical.icalCheckin) : "?"} → ${row.ical.icalCheckout ? fmtDateBR(row.ical.icalCheckout) : "?"})`
                   : "Sem reserva correspondente no iCal Airbnb"}
             </span>
+            {dateDivergent && (
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => onEditDates(row, kind === "checkin" ? { checkinDate: icalRef! } : { checkoutDate: icalRef! })}
+                className="text-xs underline underline-offset-2 hover:no-underline shrink-0"
+              >Usar iCal</button>
+            )}
           </div>
         );
       })()}
