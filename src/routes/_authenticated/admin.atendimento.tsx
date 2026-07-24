@@ -27,7 +27,6 @@ const QUEUES: Array<{ key: Queue; label: string; icon: typeof Inbox }> = [
   { key: "needs_human", label: "Precisa humano", icon: Inbox },
   { key: "assigned_to_me", label: "Meus", icon: User },
   { key: "ai_only", label: "Com a IA", icon: Bot },
-  { key: "all", label: "Todas", icon: MessagesSquare },
   { key: "resolved", label: "Resolvidas", icon: CheckCircle2 },
 ];
 
