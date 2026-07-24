@@ -81,8 +81,11 @@ function normalizeProperty(value: unknown): HandoffConversationSummary["properti
 }
 
 export function emptyHandoffListResult(error?: string): HandoffListResult {
-  return error ? { conversations: [], details: {}, assignedNames: {}, error } : { conversations: [], details: {}, assignedNames: {} };
+  return error
+    ? { conversations: [], details: {}, assignedNames: {}, reservations: {}, error }
+    : { conversations: [], details: {}, assignedNames: {}, reservations: {} };
 }
+
 
 
 export function normalizeHandoffConversationRows(rows: RawHandoffRow[] | null | undefined): HandoffConversationSummary[] {
