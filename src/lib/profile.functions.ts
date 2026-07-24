@@ -89,6 +89,46 @@ export const removeMyAvatar = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+const CpfInput = z.object({
+  cpf: z.string().trim().regex(/^\d{11}$/, "CPF inválido (11 dígitos)"),
+});
+
+function isValidCPFDigits(d: string): boolean {
+  if (d.length !== 11 || /^(\d)\1{10}$/.test(d)) return false;
+  const calc = (base: string, factor: number) => {
+    let sum = 0;
+    for (let i = 0; i < base.length; i++) sum += Number(base[i]) * (factor - i);
+    const rest = (sum * 10) % 11;
+    return rest === 10 ? 0 : rest;
+  };
+  return (
+    calc(d.slice(0, 9), 10) === Number(d[9]) &&
+    calc(d.slice(0, 10), 11) === Number(d[10])
+  );
+}
+
+export const setMissingCpf = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => CpfInput.parse(i))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    if (!isValidCPFDigits(data.cpf)) throw new Error("CPF inválido.");
+    const { data: current } = await supabase
+      .from("profiles").select("cpf").eq("id", userId).maybeSingle();
+    if (current?.cpf) throw new Error("CPF já cadastrado. Alteração apenas via suporte.");
+    const { data: dup } = await supabase
+      .from("profiles").select("id").neq("id", userId).eq("cpf", data.cpf).limit(1).maybeSingle();
+    if (dup) throw new Error("Este CPF já está cadastrado em outra conta.");
+    const { error } = await supabase.from("profiles").update({ cpf: data.cpf }).eq("id", userId);
+    if (error) {
+      const msg = error.message || "";
+      if (msg.includes("profiles_cpf_unique_digits") || msg.toLowerCase().includes("duplicate"))
+        throw new Error("Este CPF já está cadastrado em outra conta.");
+      throw new Error(msg);
+    }
+    return { ok: true };
+  });
+
 const EmailInput = z.object({ email: z.string().trim().toLowerCase().email().max(200) });
 
 export const requestEmailChange = createServerFn({ method: "POST" })
