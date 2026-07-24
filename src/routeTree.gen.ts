@@ -25,6 +25,7 @@ import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/
 import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } from './routes/[.well-known]/oauth-protected-resource'
 import { Route as Char91DotmcpChar93ListToolsRouteImport } from './routes/[.mcp]/list-tools'
 import { Route as GSlugIndexRouteImport } from './routes/g.$slug.index'
+import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin.index'
 import { Route as GSlugExplorarRouteImport } from './routes/g.$slug.explorar'
 import { Route as ApiPublicPlacePhotoRouteImport } from './routes/api/public/place-photo'
 import { Route as ApiPublicLandingChatRouteImport } from './routes/api/public/landing-chat'
@@ -142,6 +143,11 @@ const GSlugIndexRoute = GSlugIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => GSlugRoute,
+} as any)
+const AuthenticatedAdminIndexRoute = AuthenticatedAdminIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AuthenticatedAdminRoute,
 } as any)
 const GSlugExplorarRoute = GSlugExplorarRouteImport.update({
   id: '/explorar',
@@ -386,6 +392,7 @@ export interface FileRoutesByFullPath {
   '/api/public/landing-chat': typeof ApiPublicLandingChatRoute
   '/api/public/place-photo': typeof ApiPublicPlacePhotoRoute
   '/g/$slug/explorar': typeof GSlugExplorarRoute
+  '/admin/': typeof AuthenticatedAdminIndexRoute
   '/g/$slug/': typeof GSlugIndexRoute
   '/admin/cidades/$cityKey': typeof AuthenticatedAdminCidadesCityKeyRoute
   '/admin/properties/$id': typeof AuthenticatedAdminPropertiesIdRoute
@@ -416,7 +423,6 @@ export interface FileRoutesByTo {
   '/termos': typeof TermosRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
-  '/admin': typeof AuthenticatedAdminRouteWithChildren
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/admin/administrativo': typeof AuthenticatedAdminAdministrativoRoute
@@ -438,6 +444,7 @@ export interface FileRoutesByTo {
   '/api/public/landing-chat': typeof ApiPublicLandingChatRoute
   '/api/public/place-photo': typeof ApiPublicPlacePhotoRoute
   '/g/$slug/explorar': typeof GSlugExplorarRoute
+  '/admin': typeof AuthenticatedAdminIndexRoute
   '/g/$slug': typeof GSlugIndexRoute
   '/admin/cidades/$cityKey': typeof AuthenticatedAdminCidadesCityKeyRoute
   '/admin/properties/$id': typeof AuthenticatedAdminPropertiesIdRoute
@@ -493,6 +500,7 @@ export interface FileRoutesById {
   '/api/public/landing-chat': typeof ApiPublicLandingChatRoute
   '/api/public/place-photo': typeof ApiPublicPlacePhotoRoute
   '/g/$slug/explorar': typeof GSlugExplorarRoute
+  '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
   '/g/$slug/': typeof GSlugIndexRoute
   '/_authenticated/admin/cidades/$cityKey': typeof AuthenticatedAdminCidadesCityKeyRoute
   '/_authenticated/admin/properties/$id': typeof AuthenticatedAdminPropertiesIdRoute
@@ -548,6 +556,7 @@ export interface FileRouteTypes {
     | '/api/public/landing-chat'
     | '/api/public/place-photo'
     | '/g/$slug/explorar'
+    | '/admin/'
     | '/g/$slug/'
     | '/admin/cidades/$cityKey'
     | '/admin/properties/$id'
@@ -578,7 +587,6 @@ export interface FileRouteTypes {
     | '/termos'
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
-    | '/admin'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
     | '/admin/administrativo'
@@ -600,6 +608,7 @@ export interface FileRouteTypes {
     | '/api/public/landing-chat'
     | '/api/public/place-photo'
     | '/g/$slug/explorar'
+    | '/admin'
     | '/g/$slug'
     | '/admin/cidades/$cityKey'
     | '/admin/properties/$id'
@@ -654,6 +663,7 @@ export interface FileRouteTypes {
     | '/api/public/landing-chat'
     | '/api/public/place-photo'
     | '/g/$slug/explorar'
+    | '/_authenticated/admin/'
     | '/g/$slug/'
     | '/_authenticated/admin/cidades/$cityKey'
     | '/_authenticated/admin/properties/$id'
@@ -818,6 +828,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/g/$slug/'
       preLoaderRoute: typeof GSlugIndexRouteImport
       parentRoute: typeof GSlugRoute
+    }
+    '/_authenticated/admin/': {
+      id: '/_authenticated/admin/'
+      path: '/'
+      fullPath: '/admin/'
+      preLoaderRoute: typeof AuthenticatedAdminIndexRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
     }
     '/g/$slug/explorar': {
       id: '/g/$slug/explorar'
@@ -1087,6 +1104,7 @@ interface AuthenticatedAdminRouteChildren {
   AuthenticatedAdminGuiasRoute: typeof AuthenticatedAdminGuiasRoute
   AuthenticatedAdminHospedesRoute: typeof AuthenticatedAdminHospedesRoute
   AuthenticatedAdminTaxonomiaRoute: typeof AuthenticatedAdminTaxonomiaRoute
+  AuthenticatedAdminIndexRoute: typeof AuthenticatedAdminIndexRoute
   AuthenticatedAdminCidadesCityKeyRoute: typeof AuthenticatedAdminCidadesCityKeyRoute
   AuthenticatedAdminPropertiesIdRoute: typeof AuthenticatedAdminPropertiesIdRoute
   AuthenticatedAdminRecomendacoesSigmaCityKeyRoute: typeof AuthenticatedAdminRecomendacoesSigmaCityKeyRoute
@@ -1109,6 +1127,7 @@ const AuthenticatedAdminRouteChildren: AuthenticatedAdminRouteChildren = {
   AuthenticatedAdminGuiasRoute: AuthenticatedAdminGuiasRoute,
   AuthenticatedAdminHospedesRoute: AuthenticatedAdminHospedesRoute,
   AuthenticatedAdminTaxonomiaRoute: AuthenticatedAdminTaxonomiaRoute,
+  AuthenticatedAdminIndexRoute: AuthenticatedAdminIndexRoute,
   AuthenticatedAdminCidadesCityKeyRoute: AuthenticatedAdminCidadesCityKeyRoute,
   AuthenticatedAdminPropertiesIdRoute: AuthenticatedAdminPropertiesIdRoute,
   AuthenticatedAdminRecomendacoesSigmaCityKeyRoute:
