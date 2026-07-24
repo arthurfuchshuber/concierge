@@ -1710,6 +1710,7 @@ function PropertyEditor() {
             title="Emergências"
 
             desc="Telefones úteis em caso de urgência."
+            collapsible
             action={<AddBtn onClick={() => setForm((f) => ({ ...f, emergency: [...f.emergency, { label: "", number: "" }] }))} />}
           >
             {form.emergency.length === 0 ? (
