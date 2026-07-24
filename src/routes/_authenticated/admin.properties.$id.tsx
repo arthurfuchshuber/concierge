@@ -957,6 +957,7 @@ function PropertyEditor() {
             tone="accent"
             title="Importar do Airbnb"
             desc="Cole o link público do anúncio e preencha nome, fotos, localização e horários automaticamente. Tudo continua editável depois."
+            collapsible
           >
             {!canAirbnb && (
               <div className="mb-3 rounded-xl border border-border bg-secondary/40 p-3 text-xs text-muted-foreground flex items-start gap-2">
