@@ -583,6 +583,7 @@ export function ConversationList({
   conversations,
   details,
   assignedNames,
+  reservations,
   activeId,
   onSelect,
 }: {
@@ -593,9 +594,11 @@ export function ConversationList({
   }>;
   details?: Record<string, GuestDetail>;
   assignedNames?: Record<string, string>;
+  reservations?: Record<string, { status: "confirmed" | "loose" | "missing" | "no_ical"; checkin: string | null; checkout: string | null }>;
   activeId: string | null;
   onSelect: (id: string) => void;
 }) {
+
   return (
     <div className="flex flex-col divide-y divide-border">
       {conversations.length === 0 && (
@@ -611,6 +614,8 @@ export function ConversationList({
         const checkin = fmtCheckin(d?.checkinDate ?? null);
         const checkout = fmtCheckin(d?.checkoutDate ?? null);
         const withWhom = c.assigned_to ? (assignedNames?.[c.id] ?? "outro membro") : null;
+        const res = reservations?.[c.id];
+
 
         return (
           <div
@@ -662,7 +667,27 @@ export function ConversationList({
                 <UserCheck className="size-3" /> Com {withWhom}
               </div>
             )}
+            {res && res.status !== "no_ical" && (
+              <div className="mt-0.5">
+                {res.status === "confirmed" && (
+                  <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                    ✓ Reserva confirmada
+                  </span>
+                )}
+                {res.status === "loose" && (
+                  <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200">
+                    ⚠ Datas divergem do Airbnb
+                  </span>
+                )}
+                {res.status === "missing" && (
+                  <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200">
+                    ⚠ Sem reserva Airbnb
+                  </span>
+                )}
+              </div>
+            )}
             {c.handoff_reason && <div className="text-[11px] text-foreground/70 truncate mt-0.5">{c.handoff_reason}</div>}
+
           </div>
         );
       })}

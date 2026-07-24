@@ -146,6 +146,9 @@ export function FloatingHandoffDock() {
   const count = pendingQ.data?.count ?? 0;
   const convs = list.data?.conversations ?? [];
   const details = list.data?.details ?? {};
+  const assignedNames = list.data?.assignedNames ?? {};
+  const reservations = list.data?.reservations ?? {};
+
 
   const dock = (
     <>
@@ -209,7 +212,7 @@ export function FloatingHandoffDock() {
               <div className="w-[180px] border-r border-border overflow-y-auto shrink-0">
                 <ConversationList
                   conversations={convs as any}
-                  details={details}
+                  details={details} assignedNames={assignedNames} reservations={reservations}
                   activeId={activeId}
                   onSelect={setActiveId}
                 />
@@ -281,7 +284,7 @@ export function FloatingHandoffDock() {
                   <div className="flex-1 min-h-0 overflow-y-auto">
                     <ConversationList
                       conversations={convs as any}
-                      details={details}
+                      details={details} assignedNames={assignedNames} reservations={reservations}
                       activeId={activeId}
                       onSelect={setActiveId}
                     />

@@ -27,12 +27,20 @@ export type HandoffConversationSummary = {
   properties: { id: string | null; name: string | null; owner_id: string | null; slug: string | null } | null;
 };
 
+export type HandoffReservationMatch = {
+  status: "confirmed" | "loose" | "missing" | "no_ical";
+  checkin: string | null;
+  checkout: string | null;
+};
+
 export type HandoffListResult = {
   conversations: HandoffConversationSummary[];
   details: Record<string, HandoffGuestDetail>;
   assignedNames?: Record<string, string>;
+  reservations?: Record<string, HandoffReservationMatch>;
   error?: string;
 };
+
 
 
 type RawHandoffRow = {
@@ -73,8 +81,11 @@ function normalizeProperty(value: unknown): HandoffConversationSummary["properti
 }
 
 export function emptyHandoffListResult(error?: string): HandoffListResult {
-  return error ? { conversations: [], details: {}, assignedNames: {}, error } : { conversations: [], details: {}, assignedNames: {} };
+  return error
+    ? { conversations: [], details: {}, assignedNames: {}, reservations: {}, error }
+    : { conversations: [], details: {}, assignedNames: {}, reservations: {} };
 }
+
 
 
 export function normalizeHandoffConversationRows(rows: RawHandoffRow[] | null | undefined): HandoffConversationSummary[] {

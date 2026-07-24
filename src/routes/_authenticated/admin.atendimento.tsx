@@ -170,6 +170,8 @@ function AtendimentoPage() {
             conversations={filteredConversations as any}
             details={details}
             assignedNames={list.data?.assignedNames ?? {}}
+            reservations={list.data?.reservations ?? {}}
+
             activeId={activeId}
             onSelect={setActiveId}
           />
