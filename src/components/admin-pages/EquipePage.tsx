@@ -219,12 +219,12 @@ function EquipePage() {
                 <select
                   value={m.role as string}
                   onChange={(e) => changeRole.mutate({ id: m.id as string, r: e.target.value as any })}
-                  disabled={isSelf}
+                  disabled={isSelf || (m.role as string) === "owner"}
                   className="text-xs rounded-md border border-border bg-background px-2 py-1 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
+                  {(m.role as string) === "owner" && <option value="owner">Titular</option>}
                   <option value="agent">Atendente</option>
                   <option value="viewer">Somente leitura</option>
-                  <option value="owner">Co-titular</option>
                 </select>
                 {!isSelf && (
                   <button
