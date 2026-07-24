@@ -5,7 +5,7 @@ import { useMemo, useState } from "react";
 import {
   CalendarCheck, CalendarX, LogIn, LogOut, MessageCircle, StickyNote, Check,
   AlertTriangle, Clock, Loader2, Home, Info, Sparkles, TrendingUp, Bell,
-  ChevronDown, UserPlus,
+  ChevronDown, UserPlus, Hash,
 } from "lucide-react";
 import { toast } from "sonner";
 import { parsePhoneNumberFromString } from "libphonenumber-js";
@@ -387,6 +387,7 @@ function KpiCard({ label, value, icon: Icon, tone, loading, listQuery, kind, ran
                 <tr>
                   <th className="text-left px-4 py-2 font-semibold">Hóspede</th>
                   <th className="text-left px-4 py-2 font-semibold">Unidade</th>
+                  <th className="text-left px-4 py-2 font-semibold">Reserva</th>
                   <th className="text-left px-4 py-2 font-semibold">Horário</th>
                   <th className="text-right px-4 py-2 font-semibold">Status</th>
                 </tr>
@@ -401,6 +402,7 @@ function KpiCard({ label, value, icon: Icon, tone, loading, listQuery, kind, ran
                         <div className={`font-medium truncate max-w-[180px] ${r.pendingFill ? "text-muted-foreground italic" : ""}`}>{r.guestName}</div>
                       </td>
                       <td className="px-4 py-2.5 text-muted-foreground truncate max-w-[160px]">{r.propertyName ?? "—"}</td>
+                      <td className="px-4 py-2.5 font-mono text-[12px] text-muted-foreground">{r.reservationCode ?? "—"}</td>
                       <td className="px-4 py-2.5 tabular-nums">{time}</td>
                       <td className="px-4 py-2.5 text-right">
                         {done ? (
@@ -572,6 +574,11 @@ function ArrivalCard({ row, kind, onMark, onSyncIcal, onNote, busy }: {
           <div className="text-xs text-muted-foreground truncate flex items-center gap-1">
             <Home className="size-3 shrink-0" /> {row.propertyName ?? "Sem nome"}
           </div>
+          {row.reservationCode && (
+            <div className="text-[11px] text-muted-foreground/90 mt-0.5 inline-flex items-center gap-1 font-mono">
+              <Hash className="size-3" /> {row.reservationCode}
+            </div>
+          )}
         </div>
         <div className="text-right shrink-0">
           <div className="text-base font-semibold tabular-nums leading-tight">{fmtDateBR(row.date)}</div>
