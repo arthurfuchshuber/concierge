@@ -614,6 +614,8 @@ export function ConversationList({
         const checkin = fmtCheckin(d?.checkinDate ?? null);
         const checkout = fmtCheckin(d?.checkoutDate ?? null);
         const withWhom = c.assigned_to ? (assignedNames?.[c.id] ?? "outro membro") : null;
+        const res = reservations?.[c.id];
+
 
         return (
           <div
