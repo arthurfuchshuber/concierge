@@ -745,7 +745,7 @@ function PropertyEditor() {
       toast.success(parts.length ? `Sincronizado: ${parts.join(" · ")}` : "Sincronizado — nenhuma mudança.");
       await reservationsQuery.refetch();
       queryClient.invalidateQueries({ queryKey: ["property", id] });
-      if (wasFirstActivation) setIcalNotice("activated");
+      
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Falha ao sincronizar");
     } finally {
