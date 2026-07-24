@@ -192,8 +192,6 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
       checkin_date: string; checkout_date: string | null;
       reservation_code: string | null; created_at: string;
     }>;
-    if (rawLogs.length === 0) return { rows: [] };
-
     // Dedupe per (property_id + guest_name + date) — keep the most recent log
     const dedupMap = new Map<string, typeof rawLogs[number]>();
     for (const l of rawLogs) {
@@ -203,21 +201,22 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
     }
     const uniqueLogs = Array.from(dedupMap.values());
 
-    const uniqPropIds = Array.from(new Set(uniqueLogs.map((l) => l.property_id)));
     const [{ data: props }, { data: statuses }, { data: reservations }] = await Promise.all([
       context.supabase
         .from("properties")
         .select("id, name, checkin_time, checkin_time_max, checkout_time, checkout_time_min, airbnb_ical_url")
-        .in("id", uniqPropIds),
-      context.supabase
-        .from("guest_arrival_status")
-        .select("log_id, kind, status, note, arrival_time_override, done_at")
-        .in("log_id", uniqueLogs.map((l) => l.id))
-        .eq("kind", data.kind),
+        .in("id", propIds),
+      uniqueLogs.length > 0
+        ? context.supabase
+            .from("guest_arrival_status")
+            .select("log_id, kind, status, note, arrival_time_override, done_at")
+            .in("log_id", uniqueLogs.map((l) => l.id))
+            .eq("kind", data.kind)
+        : Promise.resolve({ data: [] as Array<{ log_id: string; kind: string; status: "pending" | "done"; note: string | null; arrival_time_override: string | null; done_at: string | null }> }),
       context.supabase
         .from("property_reservations")
         .select("property_id, checkin_date, checkout_date")
-        .in("property_id", uniqPropIds)
+        .in("property_id", propIds)
         .eq("source", "airbnb"),
     ]);
 
