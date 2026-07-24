@@ -906,7 +906,7 @@ function PropertyEditor() {
   const previewSlug = savedSlug || form.property.slug;
 
   return (
-    <div className="px-6 lg:px-10 py-8 lg:py-10 pb-56 sm:pb-48 max-w-7xl mx-auto w-full">
+    <div className="px-6 lg:px-10 py-8 lg:py-10 pb-80 sm:pb-72 max-w-7xl mx-auto w-full">
       <Link to="/admin" className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground mb-5 transition-colors">
         <ArrowLeft className="size-3.5" /> Voltar
       </Link>
