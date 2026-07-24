@@ -995,17 +995,18 @@ function PropertyEditor() {
             >
               <div className="flex gap-2">
                 <Input
-                  value={(form.property as { airbnb_ical_url?: string | null }).airbnb_ical_url ?? ""}
-                  onChange={(e) => update("airbnb_ical_url" as never, (e.target.value.trim() || null) as never)}
+                  value={form.property.airbnb_ical_url ?? ""}
+                  onChange={(e) => update("airbnb_ical_url", e.target.value.trim() || null)}
                   placeholder="https://www.airbnb.com/calendar/ical/12345.ics?s=..."
                 />
                 <Button
                   onClick={handleSyncIcal}
-                  disabled={syncingIcal || isNew || !((form.property as { airbnb_ical_url?: string | null }).airbnb_ical_url ?? "").trim()}
+                  disabled={syncingIcal || isNew || !(form.property.airbnb_ical_url ?? "").trim()}
                   variant="secondary"
                   className="shrink-0"
                   title={isNew ? "Salve o guia antes de sincronizar" : "Sincronizar agora"}
                 >
+
                   {syncingIcal ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}
                   <span className="ml-1.5 hidden sm:inline">{syncingIcal ? "Sincronizando…" : "Sincronizar"}</span>
                 </Button>
