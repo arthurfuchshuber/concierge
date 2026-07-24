@@ -3,7 +3,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import {
   AlertCircle, Phone, MessageSquare, Clock, Layers, Search, Calendar, CalendarCheck,
-  MousePointerClick, Timer, Award, Star, ArrowUp, ArrowDown, ChevronsUpDown, Building2,
+  MousePointerClick, Timer, Award, Star, ArrowUp, ArrowDown, ChevronsUpDown, Building2, Hash,
 } from "lucide-react";
 import type { GuestListItem } from "@/lib/engagement-guests.functions";
 import { toWhatsappNumber, formatIntlPhone } from "@/lib/masks";
