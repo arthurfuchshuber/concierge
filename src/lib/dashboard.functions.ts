@@ -460,3 +460,22 @@ export const updateGuestStayDates = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return { ok: true };
   });
+
+// ----- Inline edit: correct arrival time on the guide access log -----
+
+const UpdateArrivalTimeInput = z.object({
+  logId: z.string().uuid(),
+  time: z.string().regex(/^\d{2}:\d{2}$/).nullable(),
+});
+
+export const updateGuestArrivalTime = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => UpdateArrivalTimeInput.parse(i))
+  .handler(async ({ data, context }) => {
+    const { error } = await context.supabase
+      .from("guide_access_logs")
+      .update({ guest_arrival_time: data.time })
+      .eq("id", data.logId);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
