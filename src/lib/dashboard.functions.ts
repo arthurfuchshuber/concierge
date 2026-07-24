@@ -153,6 +153,7 @@ export type ArrivalRow = {
   note: string | null;
   arrivalTimeOverride: string | null;
   doneAt: string | null;
+  pendingFill: boolean;            // true = reserva iCal sem formulário preenchido
   ical: { hasIcal: boolean; matched: boolean; icalCheckin: string | null; icalCheckout: string | null };
 };
 
@@ -192,8 +193,6 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
       checkin_date: string; checkout_date: string | null;
       reservation_code: string | null; created_at: string;
     }>;
-    if (rawLogs.length === 0) return { rows: [] };
-
     // Dedupe per (property_id + guest_name + date) — keep the most recent log
     const dedupMap = new Map<string, typeof rawLogs[number]>();
     for (const l of rawLogs) {
@@ -203,21 +202,22 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
     }
     const uniqueLogs = Array.from(dedupMap.values());
 
-    const uniqPropIds = Array.from(new Set(uniqueLogs.map((l) => l.property_id)));
     const [{ data: props }, { data: statuses }, { data: reservations }] = await Promise.all([
       context.supabase
         .from("properties")
         .select("id, name, checkin_time, checkin_time_max, checkout_time, checkout_time_min, airbnb_ical_url")
-        .in("id", uniqPropIds),
-      context.supabase
-        .from("guest_arrival_status")
-        .select("log_id, kind, status, note, arrival_time_override, done_at")
-        .in("log_id", uniqueLogs.map((l) => l.id))
-        .eq("kind", data.kind),
+        .in("id", propIds),
+      uniqueLogs.length > 0
+        ? context.supabase
+            .from("guest_arrival_status")
+            .select("log_id, kind, status, note, arrival_time_override, done_at")
+            .in("log_id", uniqueLogs.map((l) => l.id))
+            .eq("kind", data.kind)
+        : Promise.resolve({ data: [] as Array<{ log_id: string; kind: string; status: "pending" | "done"; note: string | null; arrival_time_override: string | null; done_at: string | null }> }),
       context.supabase
         .from("property_reservations")
         .select("property_id, checkin_date, checkout_date")
-        .in("property_id", uniqPropIds)
+        .in("property_id", propIds)
         .eq("source", "airbnb"),
     ]);
 
@@ -282,9 +282,50 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
         note: s?.note ?? null,
         arrivalTimeOverride: s?.arrival_time_override ?? null,
         doneAt: s?.done_at ?? null,
+        pendingFill: false,
         ical: { hasIcal, matched, icalCheckin, icalCheckout },
       };
     });
+
+    // Append synthetic "pending fill" rows: iCal reservations in-range with no matching filled log
+    const filledKeys = new Set(
+      uniqueLogs.map((l) => `${l.property_id}|${data.kind === "checkin" ? l.checkin_date : l.checkout_date}`),
+    );
+    for (const [pid, list] of resByProp.entries()) {
+      const p = propMap.get(pid);
+      if (!p) continue;
+      for (const r of list) {
+        const rd = data.kind === "checkin" ? r.checkin : r.checkout;
+        if (from && rd < from) continue;
+        if (to && rd > to) continue;
+        const key = `${pid}|${rd}`;
+        if (filledKeys.has(key)) continue;
+        // Avoid duplicates within pending set
+        filledKeys.add(key);
+        rows.push({
+          logId: `pending:${pid}:${r.checkin}:${r.checkout}`,
+          propertyId: pid,
+          propertyName: p.name,
+          guestName: "Hóspede pendente",
+          guestPhone: null,
+          guestPhoneCountry: null,
+          guestArrivalTime: null,
+          standardTime: data.kind === "checkin" ? p.checkin_time : p.checkout_time,
+          standardTimeMax: data.kind === "checkin" ? p.checkin_time_max : p.checkout_time_min,
+          date: rd,
+          reservationCode: null,
+          createdAt: new Date().toISOString(),
+          status: "pending",
+          note: null,
+          arrivalTimeOverride: null,
+          doneAt: null,
+          pendingFill: true,
+          ical: { hasIcal: true, matched: true, icalCheckin: r.checkin, icalCheckout: r.checkout },
+        });
+      }
+    }
+
+    rows.sort((a, b) => a.date.localeCompare(b.date));
 
     return { rows };
   });
