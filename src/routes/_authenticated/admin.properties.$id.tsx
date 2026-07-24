@@ -989,6 +989,7 @@ function PropertyEditor() {
             icon={RefreshCw}
             title="Calendário Airbnb (iCal)"
             desc="Cole a URL do calendário exportado no Airbnb para sincronizar automaticamente as reservas neste guia."
+            collapsible
           >
             <Field
               label="URL do calendário Airbnb"
