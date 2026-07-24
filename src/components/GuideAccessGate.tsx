@@ -146,6 +146,37 @@ export function GuideAccessGate({ slug, propertyName, requireReservationCode, co
     if (existing) onUnlock(existing);
   }, [slug, onUnlock]);
 
+  // Cross-check with Airbnb iCal reservations (soft warning, never blocks)
+  useEffect(() => {
+    if (!range?.from || !range?.to) {
+      setResCheck({ state: "idle" });
+      return;
+    }
+    const checkin = format(range.from, "yyyy-MM-dd");
+    const checkout = format(range.to, "yyyy-MM-dd");
+    let cancelled = false;
+    setResCheck({ state: "checking" });
+    const t = setTimeout(() => {
+      checkReservation({ data: { slug, checkin_date: checkin, checkout_date: checkout } })
+        .then((r) => {
+          if (cancelled) return;
+          if (!r.hasIcal) return setResCheck({ state: "no-ical" });
+          if (r.matched) return setResCheck({ state: "matched" });
+          setResCheck({
+            state: "no-match",
+            suggestedCheckout: "suggestedCheckout" in r ? r.suggestedCheckout : undefined,
+          });
+        })
+        .catch(() => {
+          if (!cancelled) setResCheck({ state: "idle" });
+        });
+    }, 400);
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+    };
+  }, [range?.from, range?.to, slug, checkReservation]);
+
   // sync vehicle rows with count
   useEffect(() => {
     setVehicles((prev) => {
