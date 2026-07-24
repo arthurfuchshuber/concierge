@@ -1091,6 +1091,7 @@ function PropertyEditor() {
             icon={MapPinned}
             title="Endereço e localização"
             desc="Cole o link do Google Maps e use Auto-preencher para obter endereço, coordenadas e pontos de interesse."
+            collapsible
           >
             <Field label="Link do Google Maps — Entrada principal" required>
               <div className="flex gap-2">
