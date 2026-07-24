@@ -432,11 +432,15 @@ export function GuideAiChat({ slug, propertyName, guestName }: { slug: string; p
 
   const launcher = !open ? (
     <div
-      className="fixed right-4 sm:right-5 flex flex-col items-end gap-3 pointer-events-none"
+      className={`fixed flex flex-col ${pos.side === "left" ? "items-start" : "items-end"} gap-3 pointer-events-none`}
       style={{
-        bottom: "calc(env(safe-area-inset-bottom, 0px) + 96px)",
+        bottom: `calc(env(safe-area-inset-bottom, 0px) + ${pos.bottom}px)`,
+        [pos.side]: "16px",
+        transform: dragOffset ? `translate(${dragOffset.dx}px, ${dragOffset.dy}px)` : undefined,
+        transition: dragOffset ? "none" : "transform 200ms ease",
+        touchAction: "none",
         zIndex: 2147483600,
-      }}
+      } as React.CSSProperties}
     >
       {/* Popup preview when AI replies while chat is closed */}
       {pendingPreview && (
