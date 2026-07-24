@@ -184,7 +184,6 @@ function EquipePage() {
           <select value={role} onChange={(e) => setRole(e.target.value as any)} className="rounded-md border border-border bg-background px-3 py-2 text-sm">
             <option value="agent">Atendente</option>
             <option value="viewer">Somente leitura</option>
-            <option value="owner">Co-titular</option>
           </select>
           <button
             type="submit"
