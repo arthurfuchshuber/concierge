@@ -406,6 +406,9 @@ function PropertyEditor() {
         vehicles_max: (p.vehicles_max as number) ?? 2,
         collect_document: ((p.collect_document as "off" | "optional" | "required") ?? "off"),
         document_scope: ((p.document_scope as "main" | "all") ?? "main"),
+        airbnb_ical_url: (p.airbnb_ical_url as string | null) ?? null,
+        airbnb_ical_last_sync_at: (p.airbnb_ical_last_sync_at as string | null) ?? null,
+        airbnb_ical_last_error: (p.airbnb_ical_last_error as string | null) ?? null,
       },
       manual: (data.manual ?? []).map((m: Record<string, unknown>) => ({
         title: (m.title as string) ?? "",
