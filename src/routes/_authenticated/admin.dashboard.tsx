@@ -598,16 +598,28 @@ function ArrivalCard({ row, kind, onMark, onSyncIcal, onNote, busy }: {
         </div>
       </div>
 
-      {row.ical.hasIcal && !isPendingFill && (
-        <div className={`text-xs rounded-lg px-2 py-1.5 flex items-center gap-2 ${row.ical.matched ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400" : "bg-amber-500/10 text-amber-700 dark:text-amber-400"}`}>
-          {row.ical.matched ? <Check className="size-3.5 shrink-0" /> : <AlertTriangle className="size-3.5 shrink-0" />}
-          <span className="min-w-0 truncate">
-            {row.ical.matched
-              ? `Confirmado no iCal Airbnb (${row.ical.icalCheckin ? fmtDateBR(row.ical.icalCheckin) : "?"} → ${row.ical.icalCheckout ? fmtDateBR(row.ical.icalCheckout) : "?"})`
-              : "Sem reserva correspondente no iCal Airbnb"}
-          </span>
-        </div>
-      )}
+      {row.ical.hasIcal && !isPendingFill && (() => {
+        const icalRef = kind === "checkin" ? row.ical.icalCheckin : row.ical.icalCheckout;
+        const dateDivergent = row.ical.matched && icalRef && icalRef !== row.date;
+        return (
+          <div className={`text-xs rounded-lg px-2 py-1.5 flex items-center gap-2 ${
+            dateDivergent
+              ? "bg-rose-500/10 text-rose-700 dark:text-rose-400"
+              : row.ical.matched
+                ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
+                : "bg-amber-500/10 text-amber-700 dark:text-amber-400"
+          }`}>
+            {dateDivergent ? <AlertTriangle className="size-3.5 shrink-0" /> : row.ical.matched ? <Check className="size-3.5 shrink-0" /> : <AlertTriangle className="size-3.5 shrink-0" />}
+            <span className="min-w-0 truncate">
+              {dateDivergent
+                ? `Data divergente do iCal — hóspede: ${fmtDateBR(row.date)} · iCal: ${fmtDateBR(icalRef!)}`
+                : row.ical.matched
+                  ? `Confirmado no iCal Airbnb (${row.ical.icalCheckin ? fmtDateBR(row.ical.icalCheckin) : "?"} → ${row.ical.icalCheckout ? fmtDateBR(row.ical.icalCheckout) : "?"})`
+                  : "Sem reserva correspondente no iCal Airbnb"}
+            </span>
+          </div>
+        );
+      })()}
 
       {isPendingFill && (
         <div className="text-xs rounded-lg bg-primary/[0.06] border border-primary/15 px-2 py-1.5 flex items-center gap-2 text-foreground/70">
