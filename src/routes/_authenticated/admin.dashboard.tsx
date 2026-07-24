@@ -5,7 +5,7 @@ import { useMemo, useState } from "react";
 import {
   CalendarCheck, CalendarX, LogIn, LogOut, MessageCircle, StickyNote, Check,
   AlertTriangle, Clock, Loader2, Home, Info, Sparkles, TrendingUp, Bell,
-  ChevronDown, UserPlus, Hash,
+  ChevronDown, UserPlus, MapPin, Link as LinkIcon, KeyRound, Eye, Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { parsePhoneNumberFromString } from "libphonenumber-js";
@@ -13,7 +13,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import {
-  getDashboardKpis, getGuideEngagement, listDashboardArrivals, upsertArrivalStatus, updateGuestStayDates,
+  getDashboardKpis, getGuideEngagement, listDashboardArrivals, upsertArrivalStatus, updateGuestStayDates, updateGuestArrivalTime,
   type ArrivalRow,
 } from "@/lib/dashboard.functions";
 
