@@ -141,3 +141,42 @@ export const checkReservationBySlug = createServerFn({ method: "POST" })
     return { hasIcal: true as const, matched: false as const };
   });
 
+const ListReservationsInput = z.object({
+  slug: z.string().regex(/^[a-z0-9-]{1,64}$/),
+});
+
+/**
+ * Public list of upcoming reservation date ranges for a property (by slug).
+ * Used by the guest access gate to restrict the calendar to reserved dates.
+ * Returns only checkin/checkout dates — no guest names, codes, or URLs.
+ */
+export const listReservationDatesBySlug = createServerFn({ method: "POST" })
+  .inputValidator((i: unknown) => ListReservationsInput.parse(i))
+  .handler(async ({ data }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: prop } = await supabaseAdmin
+      .from("properties")
+      .select("id, airbnb_ical_url")
+      .eq("slug", data.slug)
+      .eq("published", true)
+      .maybeSingle();
+    if (!prop) return { hasIcal: false as const, ranges: [] as Array<{ checkin: string; checkout: string }> };
+    const hasIcal = !!(prop.airbnb_ical_url as string | null);
+    if (!hasIcal) return { hasIcal: false as const, ranges: [] };
+
+    const today = new Date().toISOString().slice(0, 10);
+    const { data: rows } = await supabaseAdmin
+      .from("property_reservations")
+      .select("checkin_date, checkout_date")
+      .eq("property_id", prop.id)
+      .gte("checkout_date", today)
+      .order("checkin_date", { ascending: true })
+      .limit(200);
+    const ranges = (rows ?? []).map((r) => ({
+      checkin: (r as { checkin_date: string }).checkin_date,
+      checkout: (r as { checkout_date: string }).checkout_date,
+    }));
+    return { hasIcal: true as const, ranges };
+  });
+
+
