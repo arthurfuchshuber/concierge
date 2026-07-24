@@ -266,7 +266,7 @@ function EmptyState() {
         </p>
       </div>
       <Button asChild size="sm">
-        <Link to="/admin">Ir para meus guias</Link>
+        <Link to="/admin/guias">Ir para meus guias</Link>
       </Button>
     </div>
   );
