@@ -150,6 +150,7 @@ function emptyForm(): FormState {
       host_name: "", host_phone: "", brand_name: "", brand_logo_url: "", access_mode: "public", pin_code: "", pin_expires_at: "",
       default_language: "pt", guide_theme: "dark", published: true, require_access_gate: false,
       collect_arrival_time: "off", collect_vehicles: "off", vehicles_max: 2, collect_document: "off", document_scope: "main",
+      airbnb_ical_url: null, airbnb_ical_last_sync_at: null, airbnb_ical_last_error: null,
     },
     manual: [],
     emergency: [{ label: "Polícia", number: "190" }, { label: "Bombeiros / SAMU", number: "192" }],
