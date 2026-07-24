@@ -124,7 +124,7 @@ export function PermissoesPage() {
   }
 
   return (
-    <div className="p-4 lg:p-8 max-w-5xl mx-auto space-y-6 pb-32">
+    <div className="w-full space-y-6 pb-32">
       <div className="flex items-center gap-2">
         <ShieldCheck className="size-5 text-primary" />
         <h1 className="font-display text-2xl">Permissões da equipe</h1>

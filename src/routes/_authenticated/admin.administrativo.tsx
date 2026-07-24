@@ -53,18 +53,20 @@ function AdministrativoPage() {
             </TabsTrigger>
           </TabsList>
         </div>
-        <TabsContent value="perfil" className="mt-0">
-          <MeuPerfilPage />
-        </TabsContent>
-        <TabsContent value="assinatura" className="mt-0">
-          <AssinaturaPage />
-        </TabsContent>
-        <TabsContent value="equipe" className="mt-0">
-          <EquipePage />
-        </TabsContent>
-        <TabsContent value="permissoes" className="mt-0">
-          <PermissoesPage />
-        </TabsContent>
+        <div className="px-6 lg:px-10 max-w-7xl mx-auto w-full pt-6 pb-16">
+          <TabsContent value="perfil" className="mt-0">
+            <MeuPerfilPage />
+          </TabsContent>
+          <TabsContent value="assinatura" className="mt-0">
+            <AssinaturaPage />
+          </TabsContent>
+          <TabsContent value="equipe" className="mt-0">
+            <EquipePage />
+          </TabsContent>
+          <TabsContent value="permissoes" className="mt-0">
+            <PermissoesPage />
+          </TabsContent>
+        </div>
       </Tabs>
     </div>
   );
