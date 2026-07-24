@@ -131,6 +131,16 @@ function DashboardPage() {
     onError: (e) => toast.error(e instanceof Error ? e.message : "Falha ao atualizar."),
   });
 
+  const updateDates = useMutation({
+    mutationFn: (v: { logId: string; checkinDate?: string; checkoutDate?: string | null }) => updateDatesFn({ data: v }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["dash-list"] });
+      qc.invalidateQueries({ queryKey: ["dash-kpis"] });
+      toast.success("Datas atualizadas.");
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Falha ao atualizar datas."),
+  });
+
   const rows = listQ.data?.rows ?? [];
   const pending = useMemo(() => rows.filter((r) => r.status === "pending"), [rows]);
   const done = useMemo(() => rows.filter((r) => r.status === "done"), [rows]);
