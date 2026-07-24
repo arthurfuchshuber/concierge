@@ -102,11 +102,13 @@ export function parseIcs(ics: string): ParsedEvent[] {
 }
 
 export function extractGuestHint(ev: ParsedEvent): string | null {
-  // Airbnb typically puts reservation code + phone-last-4 in DESCRIPTION.
-  const src = `${ev.description ?? ""}\n${ev.summary ?? ""}`;
-  const m = src.match(/reservation[^\S\n]*(?:url|:)[^\n]*?\/([A-Z0-9]{6,})/i);
-  if (m) return m[1];
-  return null;
+  // Airbnb confirmation codes look like "HM" + 6+ uppercase alphanumerics.
+  // Host iCal feeds usually omit them entirely (SUMMARY="Reserved", no URL/DESCRIPTION);
+  // only the guest's trip iCal exposes the code. Scan every field defensively and
+  // require the HM… shape to avoid picking up path fragments like "/hosting/…".
+  const src = [ev.description, ev.summary, ev.url, ev.uid].filter(Boolean).join("\n");
+  const m = src.match(/\bHM[A-Z0-9]{6,}\b/);
+  return m ? m[0] : null;
 }
 
 async function fetchWithTimeout(url: string, timeoutMs = 15000): Promise<Response> {
