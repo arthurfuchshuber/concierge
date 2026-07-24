@@ -387,6 +387,7 @@ function KpiCard({ label, value, icon: Icon, tone, loading, listQuery, kind, ran
                 <tr>
                   <th className="text-left px-4 py-2 font-semibold">Hóspede</th>
                   <th className="text-left px-4 py-2 font-semibold">Unidade</th>
+                  <th className="text-left px-4 py-2 font-semibold">Reserva</th>
                   <th className="text-left px-4 py-2 font-semibold">Horário</th>
                   <th className="text-right px-4 py-2 font-semibold">Status</th>
                 </tr>
