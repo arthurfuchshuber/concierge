@@ -402,6 +402,7 @@ function KpiCard({ label, value, icon: Icon, tone, loading, listQuery, kind, ran
                         <div className={`font-medium truncate max-w-[180px] ${r.pendingFill ? "text-muted-foreground italic" : ""}`}>{r.guestName}</div>
                       </td>
                       <td className="px-4 py-2.5 text-muted-foreground truncate max-w-[160px]">{r.propertyName ?? "—"}</td>
+                      <td className="px-4 py-2.5 font-mono text-[12px] text-muted-foreground">{r.reservationCode ?? "—"}</td>
                       <td className="px-4 py-2.5 tabular-nums">{time}</td>
                       <td className="px-4 py-2.5 text-right">
                         {done ? (
