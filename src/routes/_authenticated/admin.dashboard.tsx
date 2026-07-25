@@ -603,8 +603,6 @@ function ArrivalCard({ row, kind, onMark, onSyncIcal, onNote, onEditDates, onEdi
 }) {
   const [noteOpen, setNoteOpen] = useState(false);
   const [noteText, setNoteText] = useState(row.note ?? "");
-  const [editingTime, setEditingTime] = useState(false);
-  const [timeVal, setTimeVal] = useState(row.arrivalTimeOverride ?? row.guestArrivalTime ?? "");
   const guestTime = row.arrivalTimeOverride ?? row.guestArrivalTime;
   const stdWindow = row.standardTime
     ? row.standardTimeMax ? `${row.standardTime} – ${row.standardTimeMax}` : row.standardTime
@@ -625,14 +623,6 @@ function ArrivalCard({ row, kind, onMark, onSyncIcal, onNote, onEditDates, onEdi
     if (!copyText) return;
     try { await navigator.clipboard.writeText(copyText); toast.success("Link copiado."); }
     catch { toast.error("Não foi possível copiar."); }
-  };
-
-  const commitTime = () => {
-    setEditingTime(false);
-    const v = timeVal.trim();
-    if (!v) { onEditTime(row, null); return; }
-    if (!/^\d{2}:\d{2}$/.test(v)) { toast.error("Use o formato HH:mm."); return; }
-    if (v !== (row.arrivalTimeOverride ?? row.guestArrivalTime ?? "")) onEditTime(row, v);
   };
 
   return (
