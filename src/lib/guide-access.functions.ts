@@ -48,13 +48,15 @@ export const recordGuideAccess = createServerFn({ method: "POST" })
     const hasIcal = !!((prop as { airbnb_ical_url?: string | null }).airbnb_ical_url ?? "").trim();
     if (hasIcal && data.checkout_date) {
       const { isAllowedGuidePeriod } = await import("@/lib/reservations.server");
+      // Fetch every event that OVERLAPS the requested range so merged
+      // reservation+block sequences can cover the stay.
       const { data: periods } = await supabaseAdmin
         .from("property_reservations")
         .select("checkin_date, checkout_date, raw_summary, status")
         .eq("property_id", prop.id)
-        .lte("checkin_date", data.checkin_date)
-        .gte("checkout_date", data.checkout_date)
-        .limit(20);
+        .lt("checkin_date", data.checkout_date)
+        .gt("checkout_date", data.checkin_date)
+        .limit(50);
       const allowed = isAllowedGuidePeriod((periods ?? []) as never, data.checkin_date, data.checkout_date);
       if (!allowed.matched) return { ok: false as const, reason: "no_match" };
     }
@@ -167,9 +169,9 @@ export const checkReservationBySlug = createServerFn({ method: "POST" })
       .from("property_reservations")
       .select("id, checkin_date, checkout_date, raw_summary, status")
       .eq("property_id", prop.id)
-      .lte("checkin_date", data.checkin_date)
-      .gte("checkout_date", data.checkout_date)
-      .limit(1);
+      .lt("checkin_date", data.checkout_date)
+      .gt("checkout_date", data.checkin_date)
+      .limit(50);
     const allowed = isAllowedGuidePeriod((exact ?? []) as never, data.checkin_date, data.checkout_date);
     if (allowed.matched) {
       return { hasIcal: true as const, matched: true as const, matchType: allowed.type };
