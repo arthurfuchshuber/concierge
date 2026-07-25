@@ -1,7 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
 import {
   CalendarCheck, CalendarX, LogIn, LogOut, MessageCircle, StickyNote, Check,
   AlertTriangle, Clock, Loader2, Home, Info, Sparkles, TrendingUp, Bell,
