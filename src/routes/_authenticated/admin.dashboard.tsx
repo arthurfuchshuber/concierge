@@ -930,6 +930,57 @@ function DateEditor({ value, disabled, onChange }: {
   );
 }
 
+export const TIME_SLOTS = Array.from({ length: 48 }, (_, i) => {
+  const h = String(Math.floor(i / 2)).padStart(2, "0");
+  const m = i % 2 === 0 ? "00" : "30";
+  return `${h}:${m}`;
+});
+
+function TimeDropdown({ value, disabled, onChange, size = "sm" }: {
+  value: string | null;
+  disabled?: boolean;
+  onChange: (v: string | null) => void;
+  size?: "sm" | "xs";
+}) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          type="button"
+          disabled={disabled}
+          onClick={(e) => e.stopPropagation()}
+          title={disabled ? "Indisponível" : "Selecionar horário previsto"}
+          className={`inline-flex items-center gap-1 tabular-nums rounded hover:text-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 disabled:cursor-not-allowed disabled:hover:text-inherit ${size === "xs" ? "text-xs" : "text-sm"}`}
+        >
+          <Clock className="size-3" />
+          <span>{value ?? "—"}</span>
+          <ChevronDown className="size-3 opacity-50" />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="max-h-64 overflow-y-auto min-w-[6rem] p-1">
+        {value && (
+          <DropdownMenuItem
+            onClick={(e) => { e.stopPropagation(); onChange(null); }}
+            className="text-xs text-muted-foreground justify-center"
+          >
+            Limpar
+          </DropdownMenuItem>
+        )}
+        {TIME_SLOTS.map((t) => (
+          <DropdownMenuItem
+            key={t}
+            onClick={(e) => { e.stopPropagation(); onChange(t); }}
+            className={`tabular-nums text-xs justify-center ${value === t ? "bg-primary/10 text-primary font-medium" : ""}`}
+          >
+            {t}
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+
 
 function isTimeWithin(t: string, min: string, max: string | null): boolean {
   const toMin = (s: string) => {
