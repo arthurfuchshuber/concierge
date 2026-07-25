@@ -235,6 +235,7 @@ export function FloatingHandoffDock() {
           className="fixed right-4 lg:right-6 size-14 rounded-full bg-primary text-primary-foreground shadow-xl grid place-items-center hover:scale-105 transition-transform cursor-grab active:cursor-grabbing touch-none select-none"
           style={{
             zIndex: 2147483000,
+            pointerEvents: "auto",
             bottom: `calc(env(safe-area-inset-bottom,0px) + ${dockBottom}px)`,
             transform: dragY === null ? undefined : `translateY(${dragY}px)`,
             transition: dragY === null ? undefined : "none",
