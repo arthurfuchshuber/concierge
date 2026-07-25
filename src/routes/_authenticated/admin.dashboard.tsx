@@ -795,7 +795,7 @@ function ArrivalCard({ row, kind, onMark, onSyncIcal, onNote, onEditDates, onEdi
         const fmtRange = (a: string | null, b: string | null) =>
           `${a ? fmtDateBR(a) : "?"} a ${b ? fmtDateBR(b) : "?"}`;
         return (
-          <div className="w-full text-xs rounded-lg px-2 py-1.5 flex items-start gap-2 bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/30">
+          <div className="w-full text-xs rounded-lg px-2 py-1.5 flex items-start gap-2 bg-red-500/10 text-red-700 dark:text-red-400 border border-red-500/40">
             <AlertTriangle className="size-3.5 shrink-0 mt-0.5" />
             <div className="min-w-0 flex-1 leading-snug">
               {anyDivergent ? (
