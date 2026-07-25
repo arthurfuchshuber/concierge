@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import { ChevronDown, ChevronRight, Download, Loader2, Mail, Search, Users, FileText, Car, Clock, Phone } from "lucide-react";
 import { listOwnerGuestForms, savePortariaEmail } from "@/lib/guide-access-admin.functions";
 import { toast } from "sonner";
+import { CopyButton } from "@/components/CopyButton";
 
 export const Route = createFileRoute("/_authenticated/admin/hospedes")({
   component: HospedesPage,
