@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { parsePhoneNumberFromString } from "libphonenumber-js";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { CopyButton } from "@/components/CopyButton";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import {
   getDashboardKpis, getGuideEngagement, listDashboardArrivals, upsertArrivalStatus, updateGuestStayDates, updateGuestArrivalTime,
@@ -462,8 +463,14 @@ function KpiCard({ label, value, icon: Icon, tone, loading, listQuery, kind, ran
                       {r.pendingFill ? <UserPlus className="size-4" /> : initials}
                     </div>
                     <div className="min-w-0 flex-1">
-                      <div className={`text-sm font-medium leading-tight truncate ${r.pendingFill ? "text-muted-foreground italic" : ""}`}>
-                        {r.guestName}
+                      <div className={`text-sm font-medium leading-tight truncate flex items-center gap-1.5 ${r.pendingFill ? "text-muted-foreground italic" : ""}`}>
+                        <span className="truncate">{r.guestName}</span>
+                        {r.reservationCode && (
+                          <span className="inline-flex items-center gap-0.5 text-[11px] text-muted-foreground font-normal not-italic shrink-0">
+                            <span className="truncate max-w-[90px]">{r.reservationCode}</span>
+                            <CopyButton value={r.reservationCode} size={10} className="p-0.5" />
+                          </span>
+                        )}
                       </div>
                       <div className="text-[11px] text-muted-foreground truncate mt-0.5">
                         {r.propertyName ?? "—"}
@@ -658,7 +665,15 @@ function ArrivalCard({ row, kind, onMark, onSyncIcal, onNote, onEditDates, onEdi
           {isPendingFill ? <UserPlus className="size-5" /> : initials(row.guestName)}
         </div>
         <div className="flex-1 min-w-0">
-          <div className={`font-semibold truncate ${isPendingFill ? "italic text-foreground/80" : ""}`}>{row.guestName}</div>
+          <div className={`font-semibold truncate flex items-center gap-2 ${isPendingFill ? "italic text-foreground/80" : ""}`}>
+            <span className="truncate">{row.guestName}</span>
+            {row.reservationCode && (
+              <span className="inline-flex items-center gap-0.5 text-xs text-muted-foreground font-normal not-italic shrink-0">
+                <span className="truncate max-w-[110px]">{row.reservationCode}</span>
+                <CopyButton value={row.reservationCode} size={11} className="p-0.5" />
+              </span>
+            )}
+          </div>
           <div className="text-xs text-muted-foreground truncate flex items-center gap-1">
             <Home className="size-3 shrink-0" /> {row.propertyName ?? "Sem nome"}
           </div>
