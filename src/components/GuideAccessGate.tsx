@@ -491,7 +491,7 @@ export function GuideAccessGate({ slug, propertyName, requireReservationCode, co
                       <Calendar
                         mode="range"
                         selected={range as never}
-                        onSelect={(r) => setRange(r as { from?: Date; to?: Date } | undefined)}
+                        onSelect={(r) => handleRangeSelect(r as { from?: Date; to?: Date } | undefined)}
                         numberOfMonths={1}
                         initialFocus
                         locale={ptBR}
@@ -507,7 +507,7 @@ export function GuideAccessGate({ slug, propertyName, requireReservationCode, co
                       <Calendar
                         mode="range"
                         selected={range as never}
-                        onSelect={(r) => setRange(r as { from?: Date; to?: Date } | undefined)}
+                        onSelect={(r) => handleRangeSelect(r as { from?: Date; to?: Date } | undefined)}
                         numberOfMonths={1}
                         initialFocus
                         locale={ptBR}
