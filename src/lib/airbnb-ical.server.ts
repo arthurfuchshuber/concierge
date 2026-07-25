@@ -3,6 +3,8 @@
 // - Fetches remote calendar with timeout
 // - Upserts into public.property_reservations
 
+import { classifyCalendarPeriod } from "@/lib/reservations.server";
+
 export type ParsedEvent = {
   uid: string;
   checkin: string; // YYYY-MM-DD
@@ -155,12 +157,7 @@ export async function syncPropertyIcal(propertyId: string, icalUrl: string): Pro
       return { ok: false, imported: 0, updated: 0, removed: 0, error: msg };
     }
 
-    const events = parseIcs(text).filter((ev) => {
-      // Ignore Airbnb "Not available" blocks — keep only real bookings.
-      const s = (ev.summary ?? "").toLowerCase();
-      if (s.includes("not available") || s.includes("unavailable") || s.includes("bloqueado")) return false;
-      return true;
-    });
+    const events = parseIcs(text);
 
     let imported = 0;
     let updated = 0;
@@ -174,7 +171,10 @@ export async function syncPropertyIcal(propertyId: string, icalUrl: string): Pro
         raw_summary: ev.summary,
         guest_hint: extractGuestHint(ev),
         reservation_url: ev.url,
-        status: ev.status ?? "confirmed",
+        status:
+          classifyCalendarPeriod({ checkin_date: ev.checkin, checkout_date: ev.checkout, raw_summary: ev.summary, status: ev.status }) === "block"
+            ? "blocked"
+            : ev.status ?? "confirmed",
         synced_at: now,
       }));
       const { data: existing } = await supabaseAdmin

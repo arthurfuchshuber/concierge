@@ -33,6 +33,7 @@ function isRealReservation(row: { status?: string | null; raw_summary?: string |
   const status = (row.status ?? "").toLowerCase();
   const summary = (row.raw_summary ?? "").toLowerCase();
   if (status.includes("cancel")) return false;
+  if (status.includes("block")) return false;
   if (summary.includes("not available") || summary.includes("unavailable") || summary.includes("bloqueado")) return false;
   return true;
 }
