@@ -270,6 +270,7 @@ function DashboardPage() {
           listQuery={kpiTodayQ} kind="checkin"
           rangeLabel="Hoje"
           shadowTone="emerald"
+          onEditTime={handleEditTime}
         />
         <KpiCard
           label="Check-outs hoje" value={kpisQ.data?.checkoutsToday} icon={LogOut} tone="primary"
@@ -277,20 +278,24 @@ function DashboardPage() {
           listQuery={kpiCoTodayQ} kind="checkout"
           rangeLabel="Hoje"
           shadowTone="amber"
+          onEditTime={handleEditTime}
         />
         <KpiCard
           label="Check-ins amanhã" value={kpisQ.data?.checkinsTomorrow} icon={LogIn} tone="primary-soft"
           loading={kpisQ.isLoading}
           listQuery={kpiTomorrowQ} kind="checkin"
           rangeLabel="Amanhã"
+          onEditTime={handleEditTime}
         />
         <KpiCard
           label="Check-outs amanhã" value={kpisQ.data?.checkoutsTomorrow} icon={LogOut} tone="primary-soft"
           loading={kpisQ.isLoading}
           listQuery={kpiCoTomorrowQ} kind="checkout"
           rangeLabel="Amanhã"
+          onEditTime={handleEditTime}
         />
       </section>
+
 
       {/* Engagement */}
       <section className="rounded-2xl border border-border bg-card p-4 sm:p-5 space-y-4 shadow-sm">
