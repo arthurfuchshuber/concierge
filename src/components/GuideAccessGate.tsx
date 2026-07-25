@@ -1095,22 +1095,22 @@ function FieldShell({ icon, children }: { icon?: React.ReactNode; children: Reac
   );
 }
 
-function RangeButton({ label, value, popover, locked = false, themeClass }: { label: string; value: string; popover?: React.ReactNode; locked?: boolean; themeClass?: string }) {
+function RangeButton({ label, value, popover, locked = false, themeClass, open, onOpenChange }: { label: string; value: string; popover?: React.ReactNode; locked?: boolean; themeClass?: string; open?: boolean; onOpenChange?: (open: boolean) => void }) {
   const button = (
     <button
       type="button"
       disabled={locked}
       className={cn(
-        "relative w-full h-[54px] rounded-[12px] border border-border bg-foreground/[0.04] px-3 text-left text-foreground",
-        "transition-all hover:bg-foreground/[0.07] focus:outline-none focus-visible:border-accent/60",
-        "flex flex-col justify-center disabled:cursor-default disabled:hover:bg-foreground/[0.04]",
+        "relative w-full h-[54px] rounded-[12px] border border-white/70 bg-[#f4f6f8] px-3 text-left text-neutral-900",
+        "transition-all hover:bg-white focus:outline-none focus-visible:border-accent",
+        "flex flex-col justify-center disabled:cursor-default disabled:hover:bg-[#f4f6f8]",
+        "shadow-[0_1px_0_rgba(255,255,255,0.6)_inset,0_2px_8px_-4px_rgba(0,0,0,0.15)]",
       )}
     >
-      <span className="text-[9.5px] uppercase tracking-[0.2em] text-muted-foreground font-semibold whitespace-nowrap">{label}</span>
-      <span className="text-[14px] font-medium flex items-center gap-1.5 mt-0.5 text-foreground">
-        <CalendarIcon className="size-3.5 text-accent" />
+      <span className="text-[9.5px] uppercase tracking-[0.2em] text-neutral-500 font-semibold whitespace-nowrap">{label}</span>
+      <span className="text-[14px] font-medium flex items-center gap-1.5 mt-0.5 text-neutral-900">
         {value}
-        {!locked && <ChevronDown className="size-3 text-muted-foreground ml-auto" />}
+        {!locked && <ChevronDown className="size-3 text-neutral-500 ml-auto" />}
       </span>
     </button>
   );
@@ -1118,11 +1118,20 @@ function RangeButton({ label, value, popover, locked = false, themeClass }: { la
   if (locked || !popover) return button;
 
   return (
-    <Popover>
+    <Popover open={open} onOpenChange={onOpenChange}>
       <PopoverTrigger asChild>
         {button}
       </PopoverTrigger>
-      <PopoverContent className={cn(themeClass, "w-auto p-0 rounded-2xl bg-card text-card-foreground border border-border")} align="start">
+      <PopoverContent
+        className={cn(
+          themeClass,
+          "w-auto p-0 rounded-2xl border border-white/10 text-foreground",
+          "bg-[color-mix(in_oklab,hsl(var(--background))_72%,transparent)]",
+          "backdrop-blur-2xl backdrop-saturate-150",
+          "shadow-[0_24px_60px_-18px_rgba(0,0,0,0.55),0_0_0_1px_rgba(255,255,255,0.06)_inset]",
+        )}
+        align="start"
+      >
         {popover}
       </PopoverContent>
     </Popover>
