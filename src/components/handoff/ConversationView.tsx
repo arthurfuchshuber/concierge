@@ -659,6 +659,7 @@ export function ConversationList({
                 {d?.reservationCode && (
                   <span className="inline-flex items-center gap-1">
                     <Hash className="size-3" /> {d.reservationCode}
+                    <CopyButton value={d.reservationCode} size={11} />
                   </span>
                 )}
               </div>

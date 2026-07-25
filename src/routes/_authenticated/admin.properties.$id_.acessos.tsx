@@ -91,8 +91,11 @@ function AccessLogsPage() {
                     {showRes && (
                       <div className="hidden sm:block text-xs text-muted-foreground truncate">
                         {log.reservation_code ? (
-                          <span className="font-mono text-[11px] px-1.5 py-0.5 rounded bg-muted/60 border border-border/60 text-foreground">
-                            {log.reservation_code}
+                          <span className="inline-flex items-center gap-1">
+                            <span className="font-mono text-[11px] px-1.5 py-0.5 rounded bg-muted/60 border border-border/60 text-foreground">
+                              {log.reservation_code}
+                            </span>
+                            <CopyButton value={log.reservation_code} size={11} />
                           </span>
                         ) : <span>—</span>}
                       </div>
