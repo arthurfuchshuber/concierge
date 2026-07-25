@@ -179,8 +179,8 @@ export const getGuideEngagement = createServerFn({ method: "GET" })
         .map((p) => p.id),
     );
 
-    const dedupKey = (r: { property_id: string; guest_name?: string | null; guest_phone?: string | null }) =>
-      `${r.property_id}|${(r.guest_name || "").trim().toLowerCase()}|${(r.guest_phone || "").replace(/\D/g, "")}`;
+    const dedupKey = (r: { property_id: string; guest_name?: string | null; guest_phone?: string | null; checkin_date?: string | null }) =>
+      `${r.property_id}|${(r.guest_name || "").trim().toLowerCase()}|${(r.guest_phone || "").replace(/\D/g, "")}|${r.checkin_date ?? ""}`;
 
     const guests = new Set<string>();
     for (const row of logs ?? []) {
