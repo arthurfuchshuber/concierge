@@ -885,7 +885,7 @@ function ArrivalCard({ row, kind, onMark, onSyncIcal, onNote, onEditDates, onEdi
       )}
 
       {/* Action row: ícones à esquerda; Copiar + Maps agrupados à direita */}
-      <div className="flex flex-wrap items-center gap-2 pt-1">
+      <div className="mt-auto flex flex-wrap items-center gap-2 pt-1">
         <button
           onClick={() => onMark(row)}
           disabled={busy}
