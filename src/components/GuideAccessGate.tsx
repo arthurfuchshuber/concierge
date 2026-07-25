@@ -513,7 +513,9 @@ export function GuideAccessGate({ slug, propertyId, propertyName, requireReserva
 
                 <div className="grid grid-cols-2 gap-2">
                   <RangeButton
+                    themeClass={themeClass}
                     label="Chegada"
+
                     value={range?.from ? format(range.from, "dd MMM", { locale: ptBR }) : "—"}
                     popover={
                       <Calendar
