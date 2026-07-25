@@ -50,16 +50,19 @@ export const recordGuideAccess = createServerFn({ method: "POST" })
 
     const hasIcal = !!((prop as { airbnb_ical_url?: string | null }).airbnb_ical_url ?? "").trim();
     if (hasIcal && data.checkout_date) {
-      const { isAllowedGuidePeriod } = await import("@/lib/reservations.server");
+      const { isAllowedGuidePeriod, operationalTodayISO } = await import("@/lib/reservations.server");
+      if (data.checkin_date !== operationalTodayISO()) return { ok: false as const, reason: "no_match" };
       const { data: periods } = await supabaseAdmin
         .from("property_reservations")
         .select("checkin_date, checkout_date, raw_summary, status")
         .eq("property_id", prop.id)
         .eq("source", "airbnb")
-        .lt("checkin_date", data.checkout_date)
+        .lte("checkin_date", data.checkin_date)
+        .eq("checkout_date", data.checkout_date)
         .gt("checkout_date", data.checkin_date)
         .limit(50);
-      const allowed = isAllowedGuidePeriod((periods ?? []) as never, data.checkin_date, data.checkout_date);
+      const normalized = (periods ?? []).map((p) => ({ ...(p as object), checkin_date: data.checkin_date }));
+      const allowed = isAllowedGuidePeriod(normalized as never, data.checkin_date, data.checkout_date);
       if (!allowed.matched) return { ok: false as const, reason: "no_match" };
     }
 
@@ -123,7 +126,7 @@ export const getGuideCalendarAvailability = createServerFn({ method: "POST" })
   .inputValidator((i: unknown) => AvailabilityInput.parse(i))
   .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { classifyCalendarPeriod } = await import("@/lib/reservations.server");
+    const { classifyCalendarPeriod, operationalTodayISO } = await import("@/lib/reservations.server");
     const propQuery = supabaseAdmin
       .from("properties")
       .select("id, airbnb_ical_url")
@@ -136,20 +139,21 @@ export const getGuideCalendarAvailability = createServerFn({ method: "POST" })
     const hasIcal = !!((prop.airbnb_ical_url as string | null) ?? "").trim();
     if (!hasIcal) return { hasIcal: false as const, periods: [] as Array<{ checkin: string; checkout: string; type: "reservation" | "block" }> };
 
-    const today = new Date().toISOString().slice(0, 10);
+    const today = operationalTodayISO();
     const { data: rows } = await supabaseAdmin
       .from("property_reservations")
       .select("checkin_date, checkout_date, raw_summary, status")
       .eq("property_id", prop.id)
       .eq("source", "airbnb")
-      .gte("checkout_date", today)
+      .lte("checkin_date", today)
+      .gt("checkout_date", today)
       .order("checkin_date", { ascending: true })
       .limit(500);
 
     const periods: Array<{ checkin: string; checkout: string; type: "reservation" | "block" }> = [];
     for (const row of (rows ?? []) as Array<{ checkin_date: string; checkout_date: string; raw_summary: string | null; status: string | null }>) {
       const type = classifyCalendarPeriod(row);
-      if (type) periods.push({ checkin: row.checkin_date, checkout: row.checkout_date, type });
+      if (type) periods.push({ checkin: today, checkout: row.checkout_date, type });
     }
 
     return { hasIcal: true as const, periods };
@@ -175,16 +179,19 @@ export const checkReservationBySlug = createServerFn({ method: "POST" })
     const hasIcal = !!(prop.airbnb_ical_url as string | null);
     if (!hasIcal) return { hasIcal: false as const, matched: false as const };
 
-    const { isAllowedGuidePeriod } = await import("@/lib/reservations.server");
+    const { isAllowedGuidePeriod, operationalTodayISO } = await import("@/lib/reservations.server");
+    if (data.checkin_date !== operationalTodayISO()) return { hasIcal: true as const, matched: false as const };
     const { data: exact } = await supabaseAdmin
       .from("property_reservations")
       .select("id, checkin_date, checkout_date, raw_summary, status")
       .eq("property_id", prop.id)
       .eq("source", "airbnb")
-      .lt("checkin_date", data.checkout_date)
+      .lte("checkin_date", data.checkin_date)
+      .eq("checkout_date", data.checkout_date)
       .gt("checkout_date", data.checkin_date)
       .limit(50);
-    const allowed = isAllowedGuidePeriod((exact ?? []) as never, data.checkin_date, data.checkout_date);
+    const normalized = (exact ?? []).map((p) => ({ ...(p as object), checkin_date: data.checkin_date }));
+    const allowed = isAllowedGuidePeriod(normalized as never, data.checkin_date, data.checkout_date);
     if (allowed.matched) {
       return { hasIcal: true as const, matched: true as const, matchType: allowed.type };
     }
@@ -194,7 +201,8 @@ export const checkReservationBySlug = createServerFn({ method: "POST" })
       .select("checkin_date, checkout_date")
       .eq("property_id", prop.id)
       .eq("source", "airbnb")
-      .eq("checkin_date", data.checkin_date)
+      .lte("checkin_date", data.checkin_date)
+      .gt("checkout_date", data.checkin_date)
       .limit(1);
     if ((loose ?? []).length > 0) {
       return {
