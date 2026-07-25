@@ -202,10 +202,15 @@ function DashboardPage() {
   const pending = useMemo(() => rows.filter((r) => r.status === "pending"), [rows]);
   const done = useMemo(() => rows.filter((r) => r.status === "done"), [rows]);
   const boardRows = mode === "stay" || mode === "cleaning" ? done : pending;
-  const boardTitle =
-    mode === "stay" ? `Em Estadia (${boardRows.length})`
-      : mode === "cleaning" ? `Em Limpeza (${boardRows.length})`
-      : `A fazer (${boardRows.length})`;
+
+  const ciRows = checkinListQ.data?.rows ?? [];
+  const coRows = checkoutListQ.data?.rows ?? [];
+  const counts = {
+    checkin: ciRows.filter((r) => r.status === "pending").length,
+    checkout: coRows.filter((r) => r.status === "pending").length,
+    stay: ciRows.filter((r) => r.status === "done").length,
+    cleaning: coRows.filter((r) => r.status === "done").length,
+  };
 
   /* ---------- Attention alerts ---------- */
   const alerts = useMemo(() => {
