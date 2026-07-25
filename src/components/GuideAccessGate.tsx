@@ -675,12 +675,13 @@ function Step2(props: {
   return (
     <>
       <div className="mb-5 space-y-1.5">
-        <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-primary/85">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-accent">
           Últimos detalhes
         </p>
-        <DialogPrimitive.Title className="font-serif text-[24px] leading-[1.1] tracking-tight">
+        <DialogPrimitive.Title className="font-serif text-[24px] leading-[1.1] tracking-tight text-foreground">
           Só mais algumas perguntas
         </DialogPrimitive.Title>
+
         <DialogPrimitive.Description className="text-[13px] leading-relaxed text-muted-foreground">
           Isso ajuda o anfitrião a preparar sua chegada.
         </DialogPrimitive.Description>
