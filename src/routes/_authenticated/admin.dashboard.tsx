@@ -363,7 +363,7 @@ function DashboardPage() {
               }}
               onNote={(row, note) => upsert.mutate({ ...statusTarget(row), kind, note })}
               onEditDates={(row, dates) => updateDates.mutate({ logId: row.logId, ...dates })}
-              onEditTime={(row, time) => updateTime.mutate({ logId: row.logId, time })}
+              onEditTime={(row, time) => handleEditTime(row, kind, time)}
               busy={upsert.isPending || updateDates.isPending || updateTime.isPending}
             />
             {done.length > 0 && (
@@ -375,7 +375,7 @@ function DashboardPage() {
                 onSyncIcal={() => {}}
                 onNote={(row, note) => upsert.mutate({ ...statusTarget(row), kind, note })}
                 onEditDates={(row, dates) => updateDates.mutate({ logId: row.logId, ...dates })}
-                onEditTime={(row, time) => updateTime.mutate({ logId: row.logId, time })}
+                onEditTime={(row, time) => handleEditTime(row, kind, time)}
                 busy={upsert.isPending || updateDates.isPending || updateTime.isPending}
                 muted
               />
