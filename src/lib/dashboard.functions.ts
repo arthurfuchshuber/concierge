@@ -505,3 +505,70 @@ export const updateGuestArrivalTime = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return { ok: true };
   });
+
+// ----- Mark a pending iCal reservation as done (no guest form yet) -----
+
+const MarkPendingInput = z.object({
+  propertyId: z.string().uuid(),
+  kind: z.enum(["checkin", "checkout"]),
+  checkinDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  checkoutDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
+  status: z.enum(["pending", "done"]).default("done"),
+});
+
+export const markPendingReservationStatus = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => MarkPendingInput.parse(i))
+  .handler(async ({ data, context }) => {
+    // Confirm the caller can access this property (RLS on properties).
+    const { data: prop, error: propErr } = await context.supabase
+      .from("properties")
+      .select("id")
+      .eq("id", data.propertyId)
+      .maybeSingle();
+    if (propErr || !prop) throw new Error("Propriedade não encontrada.");
+
+    // Look for an existing placeholder log for the same date so we don't duplicate.
+    const { data: existing } = await context.supabase
+      .from("guide_access_logs")
+      .select("id")
+      .eq("property_id", data.propertyId)
+      .eq("checkin_date", data.checkinDate)
+      .ilike("guest_name", "Hóspede pendente")
+      .limit(1);
+
+    let logId = (existing?.[0] as { id: string } | undefined)?.id;
+
+    if (!logId) {
+      // Client insert is blocked by RLS; use the admin client to create the placeholder.
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const { data: created, error: insErr } = await supabaseAdmin
+        .from("guide_access_logs")
+        .insert({
+          property_id: data.propertyId,
+          guest_name: "Hóspede pendente",
+          checkin_date: data.checkinDate,
+          checkout_date: data.checkoutDate ?? null,
+        })
+        .select("id")
+        .single();
+      if (insErr || !created) throw new Error(insErr?.message || "Falha ao criar registro.");
+      logId = (created as { id: string }).id;
+    }
+
+    const { error: upErr } = await context.supabase
+      .from("guest_arrival_status")
+      .upsert(
+        {
+          log_id: logId,
+          property_id: data.propertyId,
+          kind: data.kind,
+          status: data.status,
+          done_at: data.status === "done" ? new Date().toISOString() : null,
+        },
+        { onConflict: "log_id,kind" },
+      );
+    if (upErr) throw new Error(upErr.message);
+    return { ok: true, logId };
+  });
+

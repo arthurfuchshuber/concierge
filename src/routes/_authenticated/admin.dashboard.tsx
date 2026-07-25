@@ -13,7 +13,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import {
-  getDashboardKpis, getGuideEngagement, listDashboardArrivals, upsertArrivalStatus, updateGuestStayDates, updateGuestArrivalTime,
+  getDashboardKpis, getGuideEngagement, listDashboardArrivals, upsertArrivalStatus, updateGuestStayDates, updateGuestArrivalTime, markPendingReservationStatus,
   type ArrivalRow,
 } from "@/lib/dashboard.functions";
 
@@ -76,6 +76,7 @@ function DashboardPage() {
   const upsertFn = useServerFn(upsertArrivalStatus);
   const updateDatesFn = useServerFn(updateGuestStayDates);
   const updateTimeFn = useServerFn(updateGuestArrivalTime);
+  const markPendingFn = useServerFn(markPendingReservationStatus);
   const qc = useQueryClient();
 
   const [kind, setKind] = useState<"checkin" | "checkout">("checkin");
@@ -152,6 +153,31 @@ function DashboardPage() {
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Falha ao atualizar horário."),
   });
+
+  const markPending = useMutation({
+    mutationFn: (v: { propertyId: string; kind: "checkin" | "checkout"; checkinDate: string; checkoutDate: string | null; status: "pending" | "done" }) =>
+      markPendingFn({ data: v }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["dash-list"] });
+      qc.invalidateQueries({ queryKey: ["dash-kpis"] });
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Falha ao atualizar."),
+  });
+
+  function handleMark(row: ArrivalRow, nextStatus: "pending" | "done") {
+    if (row.pendingFill || !/^[0-9a-f-]{36}$/i.test(row.logId)) {
+      markPending.mutate({
+        propertyId: row.propertyId,
+        kind,
+        checkinDate: row.guestCheckin,
+        checkoutDate: row.guestCheckout ?? null,
+        status: nextStatus,
+      });
+    } else {
+      upsert.mutate({ logId: row.logId, kind, status: nextStatus });
+    }
+  }
+
 
   const rows = listQ.data?.rows ?? [];
   const pending = useMemo(() => rows.filter((r) => r.status === "pending"), [rows]);
@@ -340,7 +366,7 @@ function DashboardPage() {
               title={`Pendentes (${pending.length})`}
               rows={pending}
               kind={kind}
-              onMark={(row) => upsert.mutate({ logId: row.logId, kind, status: "done" })}
+              onMark={(row) => handleMark(row, "done")}
               onSyncIcal={(row) => {
                 const t = kind === "checkin" ? "15:00" : "11:00";
                 upsert.mutate({ logId: row.logId, kind, arrivalTimeOverride: t });
@@ -356,7 +382,7 @@ function DashboardPage() {
                 title={`Realizados (${done.length})`}
                 rows={done}
                 kind={kind}
-                onMark={(row) => upsert.mutate({ logId: row.logId, kind, status: "pending" })}
+                onMark={(row) => handleMark(row, "pending")}
                 onSyncIcal={() => {}}
                 onNote={(row, note) => upsert.mutate({ logId: row.logId, kind, note })}
                 onEditDates={(row, dates) => updateDates.mutate({ logId: row.logId, ...dates })}
@@ -838,11 +864,11 @@ function ArrivalCard({ row, kind, onMark, onSyncIcal, onNote, onEditDates, onEdi
       {/* Action row: ícones à esquerda; Copiar + Maps agrupados à direita */}
       <div className="flex flex-wrap items-center gap-2 pt-1">
         <button
-          onClick={() => { if (!isPendingFill) onMark(row); }}
-          disabled={busy || isPendingFill}
-          aria-label={isPendingFill ? "Aguardando formulário do hóspede" : done ? "Reabrir" : "Marcar como realizado"}
-          title={isPendingFill ? "Aguardando o hóspede preencher o formulário" : done ? "Reabrir" : "Marcar como realizado"}
-          className={`size-9 grid place-items-center rounded-lg transition-colors ${isPendingFill ? "bg-muted text-muted-foreground cursor-not-allowed opacity-60" : done ? "bg-secondary hover:bg-secondary/80" : "bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm shadow-emerald-600/20"}`}
+          onClick={() => onMark(row)}
+          disabled={busy}
+          aria-label={done ? "Reabrir" : "Marcar como realizado"}
+          title={done ? "Reabrir" : "Marcar como realizado"}
+          className={`size-9 grid place-items-center rounded-lg transition-colors ${done ? "bg-secondary hover:bg-secondary/80" : "bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm shadow-emerald-600/20"}`}
         >
           <Check className="size-4" />
         </button>
