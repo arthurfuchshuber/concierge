@@ -185,15 +185,16 @@ export function GuideAccessGate({ slug, propertyName, requireReservationCode, co
     return map;
   }, [calendarAvailability]);
 
+  // Only the check-in dates of real reservations are selectable. The paired
+  // check-out is filled automatically by handleRangeSelect, so exposing
+  // check-out days here would let guests pick a day that isn't a real arrival.
   const selectableDateSet = useMemo(() => {
     if (calendarAvailability.state !== "ready" || !calendarAvailability.hasIcal) return null;
     const set = new Set<string>();
-    for (const [checkin, checkout] of reservationMap) {
-      set.add(checkin);
-      set.add(checkout);
-    }
+    for (const checkin of reservationMap.keys()) set.add(checkin);
     return set;
   }, [calendarAvailability, reservationMap]);
+
 
   const isDateDisabled = (date: Date): boolean => {
     const today = new Date();
