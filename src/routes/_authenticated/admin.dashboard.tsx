@@ -13,7 +13,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import {
-  getDashboardKpis, getGuideEngagement, listDashboardArrivals, upsertArrivalStatus, updateGuestStayDates, updateGuestArrivalTime, markPendingReservationStatus,
+  getDashboardKpis, getGuideEngagement, listDashboardArrivals, upsertArrivalStatus, updateGuestStayDates, updateGuestArrivalTime,
   type ArrivalRow,
 } from "@/lib/dashboard.functions";
 import { useImpersonation } from "@/hooks/useImpersonation";
@@ -77,7 +77,6 @@ function DashboardPage() {
   const upsertFn = useServerFn(upsertArrivalStatus);
   const updateDatesFn = useServerFn(updateGuestStayDates);
   const updateTimeFn = useServerFn(updateGuestArrivalTime);
-  const markPendingFn = useServerFn(markPendingReservationStatus);
   const qc = useQueryClient();
   const { impersonation } = useImpersonation();
   const activeOwnerId = impersonation?.userId ?? null;
@@ -123,7 +122,8 @@ function DashboardPage() {
   });
 
   type UpsertPayload = {
-    logId: string;
+    logId?: string;
+    reservationId?: string;
     kind: "checkin" | "checkout";
     status?: "pending" | "done";
     note?: string | null;
@@ -157,28 +157,13 @@ function DashboardPage() {
     onError: (e) => toast.error(e instanceof Error ? e.message : "Falha ao atualizar horário."),
   });
 
-  const markPending = useMutation({
-    mutationFn: (v: { propertyId: string; kind: "checkin" | "checkout"; checkinDate: string; checkoutDate: string | null; status: "pending" | "done" }) =>
-      markPendingFn({ data: v }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["dash-list"] });
-      qc.invalidateQueries({ queryKey: ["dash-kpis"] });
-    },
-    onError: (e) => toast.error(e instanceof Error ? e.message : "Falha ao atualizar."),
-  });
+  function statusTarget(row: ArrivalRow): Pick<UpsertPayload, "logId" | "reservationId"> {
+    const logId = /^[0-9a-f-]{36}$/i.test(row.logId) ? row.logId : undefined;
+    return { ...(logId ? { logId } : {}), ...(row.reservationId ? { reservationId: row.reservationId } : {}) };
+  }
 
   function handleMark(row: ArrivalRow, nextStatus: "pending" | "done") {
-    if (row.pendingFill || !/^[0-9a-f-]{36}$/i.test(row.logId)) {
-      markPending.mutate({
-        propertyId: row.propertyId,
-        kind,
-        checkinDate: row.guestCheckin,
-        checkoutDate: row.guestCheckout ?? null,
-        status: nextStatus,
-      });
-    } else {
-      upsert.mutate({ logId: row.logId, kind, status: nextStatus });
-    }
+    upsert.mutate({ ...statusTarget(row), kind, status: nextStatus });
   }
 
 
@@ -372,10 +357,10 @@ function DashboardPage() {
               onMark={(row) => handleMark(row, "done")}
               onSyncIcal={(row) => {
                 const t = kind === "checkin" ? "15:00" : "11:00";
-                upsert.mutate({ logId: row.logId, kind, arrivalTimeOverride: t });
+                upsert.mutate({ ...statusTarget(row), kind, arrivalTimeOverride: t });
                 toast.success(`Horário alinhado ao iCal (${t}).`);
               }}
-              onNote={(row, note) => upsert.mutate({ logId: row.logId, kind, note })}
+              onNote={(row, note) => upsert.mutate({ ...statusTarget(row), kind, note })}
               onEditDates={(row, dates) => updateDates.mutate({ logId: row.logId, ...dates })}
               onEditTime={(row, time) => updateTime.mutate({ logId: row.logId, time })}
               busy={upsert.isPending || updateDates.isPending || updateTime.isPending}
@@ -387,7 +372,7 @@ function DashboardPage() {
                 kind={kind}
                 onMark={(row) => handleMark(row, "pending")}
                 onSyncIcal={() => {}}
-                onNote={(row, note) => upsert.mutate({ logId: row.logId, kind, note })}
+                onNote={(row, note) => upsert.mutate({ ...statusTarget(row), kind, note })}
                 onEditDates={(row, dates) => updateDates.mutate({ logId: row.logId, ...dates })}
                 onEditTime={(row, time) => updateTime.mutate({ logId: row.logId, time })}
                 busy={upsert.isPending || updateDates.isPending || updateTime.isPending}
