@@ -366,7 +366,7 @@ function DashboardPage() {
               title={`Pendentes (${pending.length})`}
               rows={pending}
               kind={kind}
-              onMark={(row) => upsert.mutate({ logId: row.logId, kind, status: "done" })}
+              onMark={(row) => handleMark(row, "done")}
               onSyncIcal={(row) => {
                 const t = kind === "checkin" ? "15:00" : "11:00";
                 upsert.mutate({ logId: row.logId, kind, arrivalTimeOverride: t });
