@@ -185,6 +185,7 @@ export const getGuideEngagement = createServerFn({ method: "GET" })
     const guests = new Set<string>();
     for (const row of logs ?? []) {
       const r = row as { property_id: string; guest_name: string | null; guest_phone: string | null };
+      if (isPlaceholderGuest(r.guest_name)) continue;
       guests.add(dedupKey(r));
     }
     const icalCheckins = new Set<string>();
@@ -579,15 +580,25 @@ export const upsertArrivalStatus = createServerFn({ method: "POST" })
     if (typeof data.note !== "undefined") patch.note = data.note;
     if (typeof data.arrivalTimeOverride !== "undefined") patch.arrival_time_override = data.arrivalTimeOverride;
 
-    const existingQuery = context.supabase
-      .from("guest_arrival_status")
-      .select("id")
-      .eq("kind", data.kind)
-      .limit(1);
-    const { data: existing } = data.reservationId
-      ? await existingQuery.eq("reservation_id", data.reservationId)
-      : await existingQuery.eq("log_id", data.logId as string);
-    const existingId = (existing?.[0] as { id: string } | undefined)?.id;
+    let existingId: string | undefined;
+    if (data.reservationId) {
+      const { data: existingByReservation } = await context.supabase
+        .from("guest_arrival_status")
+        .select("id")
+        .eq("reservation_id", data.reservationId)
+        .eq("kind", data.kind)
+        .limit(1);
+      existingId = (existingByReservation?.[0] as { id: string } | undefined)?.id;
+    }
+    if (!existingId && data.logId) {
+      const { data: existingByLog } = await context.supabase
+        .from("guest_arrival_status")
+        .select("id")
+        .eq("log_id", data.logId)
+        .eq("kind", data.kind)
+        .limit(1);
+      existingId = (existingByLog?.[0] as { id: string } | undefined)?.id;
+    }
     const { error } = existingId
       ? await context.supabase.from("guest_arrival_status").update(patch).eq("id", existingId)
       : await context.supabase.from("guest_arrival_status").insert(patch);
