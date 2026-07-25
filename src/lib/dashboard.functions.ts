@@ -5,8 +5,16 @@ import { z } from "zod";
 // ----- helpers -----
 
 function todayISO(): string {
-  const d = new Date();
-  return d.toISOString().slice(0, 10);
+  // Operational day follows the properties' business timezone. Near midnight
+  // UTC this avoids showing tomorrow's iCal reservations as "today" in Brazil.
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Sao_Paulo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date());
+  const pick = (type: string) => parts.find((p) => p.type === type)?.value ?? "";
+  return `${pick("year")}-${pick("month")}-${pick("day")}`;
 }
 function addDaysISO(iso: string, n: number): string {
   const [y, m, d] = iso.split("-").map(Number);
@@ -190,6 +198,7 @@ const ListInput = z.object({
 
 export type ArrivalRow = {
   logId: string;
+  reservationId: string | null;
   propertyId: string;
   propertyName: string | null;
   propertyAddress: string | null;
@@ -270,13 +279,12 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
         .from("properties")
         .select("id, name, address, maps_url, garage_maps_url, wifi_password, lock_code, gate_code, checkin_time, checkin_time_max, checkout_time, checkout_time_min, airbnb_ical_url")
         .in("id", propIds),
-      statusLogIds.length > 0
-        ? context.supabase
-            .from("guest_arrival_status")
-            .select("log_id, kind, status, note, arrival_time_override, done_at")
-            .in("log_id", statusLogIds)
-            .eq("kind", data.kind)
-        : Promise.resolve({ data: [] as Array<{ log_id: string; kind: string; status: "pending" | "done"; note: string | null; arrival_time_override: string | null; done_at: string | null }> }),
+      context.supabase
+        .from("guest_arrival_status")
+        .select("log_id, reservation_id, kind, status, note, arrival_time_override, done_at")
+        .in("property_id", propIds)
+        .eq("kind", data.kind)
+        .limit(5000),
       context.supabase
         .from("property_reservations")
         .select("id, property_id, checkin_date, checkout_date, raw_summary, guest_hint, reservation_url, status, synced_at")
@@ -315,9 +323,13 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
       else if (ev.section === "senhas") viewedPasswordsSet.add(k);
     }
 
-    const statusMap = new Map<string, { kind: "checkin" | "checkout"; status: "pending" | "done"; note: string | null; arrival_time_override: string | null; done_at: string | null }>();
-    for (const s of (statuses ?? []) as Array<{ log_id: string; kind: "checkin" | "checkout"; status: "pending" | "done"; note: string | null; arrival_time_override: string | null; done_at: string | null }>) {
-      statusMap.set(s.log_id, { kind: s.kind, status: s.status, note: s.note, arrival_time_override: s.arrival_time_override, done_at: s.done_at });
+    type StatusRow = { log_id: string | null; reservation_id: string | null; kind: "checkin" | "checkout"; status: "pending" | "done"; note: string | null; arrival_time_override: string | null; done_at: string | null };
+    const statusMap = new Map<string, Omit<StatusRow, "log_id" | "reservation_id">>();
+    const reservationStatusMap = new Map<string, Omit<StatusRow, "log_id" | "reservation_id">>();
+    for (const s of (statuses ?? []) as StatusRow[]) {
+      const value = { kind: s.kind, status: s.status, note: s.note, arrival_time_override: s.arrival_time_override, done_at: s.done_at };
+      if (s.log_id) statusMap.set(s.log_id, value);
+      if (s.reservation_id) reservationStatusMap.set(s.reservation_id, value);
     }
 
     const placeholderStatus = new Map<string, { status: "pending" | "done"; note: string | null; arrival_time_override: string | null; done_at: string | null }>();
@@ -384,6 +396,7 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
       const evK = eventKey(l.property_id, l.guest_name, l.guest_phone);
       return {
         logId: l.id,
+        reservationId: null,
         propertyId: l.property_id,
         propertyName: p?.name ?? null,
         propertyAddress: p?.address ?? null,
@@ -412,6 +425,45 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
       };
     }
 
+    function rowFromReservation(r: ReservationRow, matchedLog: typeof uniqueLogs[number] | null): ArrivalRow {
+      const p = propMap.get(r.property_id);
+      const legacy = placeholderStatus.get(placeholderKey(r.property_id, r.checkin_date, r.checkout_date, data.kind));
+      const logStatus = matchedLog ? statusMap.get(matchedLog.id) : undefined;
+      const s = reservationStatusMap.get(r.id) ?? legacy ?? logStatus;
+      const date = data.kind === "checkin" ? r.checkin_date : r.checkout_date;
+      const evK = matchedLog ? eventKey(matchedLog.property_id, matchedLog.guest_name, matchedLog.guest_phone) : "";
+
+      return {
+        logId: matchedLog?.id ?? `ical:${r.id}`,
+        reservationId: r.id,
+        propertyId: r.property_id,
+        propertyName: p?.name ?? null,
+        propertyAddress: p?.address ?? null,
+        mapsUrl: p?.maps_url ?? null,
+        garageMapsUrl: p?.garage_maps_url ?? null,
+        hasPasswords: !!p?.hasPasswords,
+        openedCheckin: matchedLog ? openedCheckinSet.has(evK) : false,
+        viewedPasswords: matchedLog ? viewedPasswordsSet.has(evK) : false,
+        guestName: matchedLog?.guest_name ?? r.guest_hint ?? "Reserva Airbnb",
+        guestPhone: matchedLog?.guest_phone ?? null,
+        guestPhoneCountry: matchedLog?.guest_phone_country ?? null,
+        guestArrivalTime: matchedLog?.guest_arrival_time ?? null,
+        standardTime: data.kind === "checkin" ? (p?.checkin_time ?? null) : (p?.checkout_time ?? null),
+        standardTimeMax: data.kind === "checkin" ? (p?.checkin_time_max ?? null) : (p?.checkout_time_min ?? null),
+        date,
+        guestCheckin: matchedLog?.checkin_date ?? r.checkin_date,
+        guestCheckout: matchedLog?.checkout_date ?? r.checkout_date,
+        reservationCode: matchedLog?.reservation_code ?? r.guest_hint ?? null,
+        createdAt: matchedLog?.created_at ?? r.synced_at ?? new Date().toISOString(),
+        status: s?.status ?? "pending",
+        note: s?.note ?? null,
+        arrivalTimeOverride: s?.arrival_time_override ?? null,
+        doneAt: s?.done_at ?? null,
+        pendingFill: !matchedLog,
+        ical: { hasIcal: true, matched: true, icalCheckin: r.checkin_date, icalCheckout: r.checkout_date },
+      };
+    }
+
     const rows: ArrivalRow[] = [];
     const usedLogIds = new Set<string>();
 
@@ -421,40 +473,8 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
       const matchedLog = findBestLogForReservation(r);
       if (matchedLog) {
         usedLogIds.add(matchedLog.id);
-        rows.push(rowFromLog(matchedLog, { hasIcal: true, matched: true, icalCheckin: r.checkin_date, icalCheckout: r.checkout_date }));
-        continue;
       }
-
-      const s = placeholderStatus.get(placeholderKey(r.property_id, r.checkin_date, r.checkout_date, data.kind));
-      const date = data.kind === "checkin" ? r.checkin_date : r.checkout_date;
-      rows.push({
-        logId: `ical:${r.id}`,
-        propertyId: r.property_id,
-        propertyName: p.name ?? null,
-        propertyAddress: p.address ?? null,
-        mapsUrl: p.maps_url ?? null,
-        garageMapsUrl: p.garage_maps_url ?? null,
-        hasPasswords: !!p.hasPasswords,
-        openedCheckin: false,
-        viewedPasswords: false,
-        guestName: r.guest_hint || "Reserva Airbnb",
-        guestPhone: null,
-        guestPhoneCountry: null,
-        guestArrivalTime: null,
-        standardTime: data.kind === "checkin" ? (p.checkin_time ?? null) : (p.checkout_time ?? null),
-        standardTimeMax: data.kind === "checkin" ? (p.checkin_time_max ?? null) : (p.checkout_time_min ?? null),
-        date,
-        guestCheckin: r.checkin_date,
-        guestCheckout: r.checkout_date,
-        reservationCode: r.guest_hint ?? null,
-        createdAt: r.synced_at ?? new Date().toISOString(),
-        status: s?.status ?? "pending",
-        note: s?.note ?? null,
-        arrivalTimeOverride: s?.arrival_time_override ?? null,
-        doneAt: s?.done_at ?? null,
-        pendingFill: true,
-        ical: { hasIcal: true, matched: true, icalCheckin: r.checkin_date, icalCheckout: r.checkout_date },
-      });
+      rows.push(rowFromReservation(r, matchedLog));
     }
 
     for (const l of uniqueLogs) {
