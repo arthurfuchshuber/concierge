@@ -103,7 +103,9 @@ type Props = {
   requireReservationCode: boolean;
   collection?: CollectionConfig;
   onUnlock: (rec: AccessRecord) => void;
+  theme?: "dark" | "light";
 };
+
 
 function dateFromISODate(value: string): Date | null {
   const [y, m, d] = value.split("-").map(Number);
