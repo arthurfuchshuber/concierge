@@ -356,7 +356,7 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
       return uniqueLogs.find((l) => l.property_id === r.property_id && l.checkout_date === r.checkout_date) ?? null;
     }
 
-    function rowFromLog(l: typeof uniqueLogs[number], forceIcal?: { matched: boolean; checkin: string | null; checkout: string | null }): ArrivalRow {
+    function rowFromLog(l: typeof uniqueLogs[number], forceIcal?: { hasIcal: boolean; matched: boolean; icalCheckin: string | null; icalCheckout: string | null }): ArrivalRow {
       const p = propMap.get(l.property_id);
       const s = statusMap.get(l.id);
       const date = data.kind === "checkin" ? l.checkin_date : (l.checkout_date ?? l.checkin_date);
@@ -421,7 +421,7 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
       const matchedLog = findBestLogForReservation(r);
       if (matchedLog) {
         usedLogIds.add(matchedLog.id);
-        rows.push(rowFromLog(matchedLog, { matched: true, checkin: r.checkin_date, checkout: r.checkout_date }));
+        rows.push(rowFromLog(matchedLog, { hasIcal: true, matched: true, icalCheckin: r.checkin_date, icalCheckout: r.checkout_date }));
         continue;
       }
 
