@@ -573,6 +573,47 @@ function RangeDropdown<T extends string>({ value, onChange, options }: {
   );
 }
 
+function ModeDropdown<T extends string>({ value, onChange, options }: {
+  value: T;
+  onChange: (v: T) => void;
+  options: Array<{ value: T; label: string; icon: React.ElementType; count: number }>;
+}) {
+  const current = options.find((o) => o.value === value) ?? options[0];
+  const CurrentIcon = current.icon;
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          type="button"
+          className="inline-flex items-center gap-1.5 rounded-lg border border-primary/20 bg-primary/[0.04] px-3 py-2 text-xs font-medium text-foreground/80 hover:bg-primary/[0.08] transition-colors"
+        >
+          <CurrentIcon className="size-3.5 shrink-0" />
+          <span>{current.label}</span>
+          <span className="tabular-nums text-muted-foreground">({current.count})</span>
+          <ChevronDown className="size-3.5 opacity-60" />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="min-w-[12rem]">
+        {options.map((o) => {
+          const Icon = o.icon;
+          const active = o.value === value;
+          return (
+            <DropdownMenuItem
+              key={o.value}
+              onClick={() => onChange(o.value)}
+              className={active ? "bg-primary/10 text-primary font-medium" : ""}
+            >
+              <Icon className="size-3.5 shrink-0" />
+              <span className="flex-1">{o.label}</span>
+              <span className="tabular-nums text-muted-foreground">({o.count})</span>
+            </DropdownMenuItem>
+          );
+        })}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
 function SegBtn({ active, onClick, icon: Icon, count, children }: { active: boolean; onClick: () => void; icon: React.ElementType; count?: number; children: React.ReactNode }) {
   return (
     <button
