@@ -353,51 +353,9 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
       };
     });
 
-    // Append synthetic "pending fill" rows: iCal reservations in-range with no matching filled log
-    const filledKeys = new Set(
-      uniqueLogs.map((l) => `${l.property_id}|${data.kind === "checkin" ? l.checkin_date : l.checkout_date}`),
-    );
-    for (const [pid, list] of resByProp.entries()) {
-      const p = propMap.get(pid);
-      if (!p) continue;
-      for (const r of list) {
-        const rd = data.kind === "checkin" ? r.checkin : r.checkout;
-        if (from && rd < from) continue;
-        if (to && rd > to) continue;
-        const key = `${pid}|${rd}`;
-        if (filledKeys.has(key)) continue;
-        // Avoid duplicates within pending set
-        filledKeys.add(key);
-        rows.push({
-          logId: `pending:${pid}:${r.checkin}:${r.checkout}`,
-          propertyId: pid,
-          propertyName: p.name,
-          propertyAddress: p.address,
-          mapsUrl: p.maps_url,
-          garageMapsUrl: p.garage_maps_url,
-          hasPasswords: p.hasPasswords,
-          openedCheckin: false,
-          viewedPasswords: false,
-          guestName: "Hóspede pendente",
-          guestPhone: null,
-          guestPhoneCountry: null,
-          guestArrivalTime: null,
-          standardTime: data.kind === "checkin" ? p.checkin_time : p.checkout_time,
-          standardTimeMax: data.kind === "checkin" ? p.checkin_time_max : p.checkout_time_min,
-          date: rd,
-          guestCheckin: r.checkin,
-          guestCheckout: r.checkout,
-          reservationCode: null,
-          createdAt: new Date().toISOString(),
-          status: "pending",
-          note: null,
-          arrivalTimeOverride: null,
-          doneAt: null,
-          pendingFill: true,
-          ical: { hasIcal: true, matched: true, icalCheckin: r.checkin, icalCheckout: r.checkout },
-        });
-      }
-    }
+    // NOTE: We intentionally do NOT append synthetic "pending fill" rows here.
+    // The top KPI cards already count iCal reservations without a filled form;
+    // the kanban list stays limited to actual guide_access_logs entries.
 
     rows.sort((a, b) => a.date.localeCompare(b.date));
 
