@@ -460,6 +460,7 @@ export function GuideAiChat({ slug, propertyName, guestName }: { slug: string; p
         transition: dragOffset ? "none" : "transform 200ms ease",
         touchAction: "none",
         zIndex: 2147483600,
+        pointerEvents: "auto",
       } as React.CSSProperties}
     >
       {/* Popup preview when AI replies while chat is closed */}
