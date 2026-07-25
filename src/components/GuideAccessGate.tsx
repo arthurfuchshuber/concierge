@@ -203,6 +203,15 @@ export function GuideAccessGate({ slug, propertyId, propertyName, requireReserva
     return set;
   }, [calendarAvailability, reservationMap]);
 
+  const availableCheckinDates = useMemo(() => {
+    const dates: Date[] = [];
+    for (const checkin of reservationMap.keys()) {
+      const date = dateFromISODate(checkin);
+      if (date) dates.push(date);
+    }
+    return dates;
+  }, [reservationMap]);
+
 
   const isDateDisabled = (date: Date): boolean => {
     const today = new Date();
@@ -508,7 +517,14 @@ export function GuideAccessGate({ slug, propertyId, propertyName, requireReserva
                         initialFocus
                         locale={ptBR}
                         disabled={isDateDisabled}
-                        className="p-3 pointer-events-auto"
+                        modifiers={{ availableCheckin: availableCheckinDates }}
+                        modifiersClassNames={{ availableCheckin: "guide-available-checkin" }}
+                        classNames={{
+                          today: "rdp-today",
+                          disabled: "rdp-disabled text-muted-foreground/35 opacity-25",
+                          outside: "rdp-outside text-muted-foreground/20",
+                        }}
+                        className="guide-access-calendar p-3 pointer-events-auto"
                       />
                     }
                   />

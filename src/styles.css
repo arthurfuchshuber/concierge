@@ -204,6 +204,30 @@
       linear-gradient(180deg, oklch(0.982 0.012 286), oklch(0.956 0.015 286));
   }
 
+  .guide-access-calendar [data-today][data-disabled="true"] {
+    background: transparent !important;
+    color: var(--color-muted-foreground) !important;
+    opacity: 0.25 !important;
+  }
+
+  .guide-access-calendar [data-today][data-disabled="true"] button {
+    background: transparent !important;
+    color: inherit !important;
+  }
+
+  .guide-access-calendar .guide-available-checkin:not([data-disabled="true"]) button {
+    background: var(--color-accent);
+    color: var(--color-accent-foreground);
+    font-weight: 800;
+    box-shadow: 0 0 0 1px color-mix(in oklab, var(--color-accent) 55%, transparent), 0 8px 22px color-mix(in oklab, var(--color-accent) 26%, transparent);
+  }
+
+  .guide-access-calendar [data-selected="true"] button,
+  .guide-access-calendar button[data-selected-single="true"] {
+    background: var(--color-primary) !important;
+    color: var(--color-primary-foreground) !important;
+  }
+
   .font-mono {
     font-family: var(--font-mono);
   }
