@@ -1125,14 +1125,15 @@ function RangeButton({ label, value, popover, locked = false, themeClass, open, 
       <PopoverContent
         className={cn(
           themeClass,
-          "w-auto p-0 rounded-2xl border border-white/60 text-neutral-900",
-          "bg-[rgba(248,250,252,0.94)] backdrop-blur-2xl backdrop-saturate-150",
-          "shadow-[0_24px_60px_-18px_rgba(0,0,0,0.35),0_0_0_1px_rgba(255,255,255,0.7)_inset]",
+          "w-auto p-0 rounded-2xl border-0 text-neutral-900",
+          "bg-[rgba(248,250,252,0.96)] backdrop-blur-2xl backdrop-saturate-150",
+          "shadow-[0_0_0_1px_rgba(232,45,174,0.35),0_18px_50px_-12px_rgba(124,26,216,0.55),0_0_60px_-10px_rgba(232,45,174,0.45)]",
         )}
         align="start"
       >
         {popover}
       </PopoverContent>
+
     </Popover>
   );
 }
