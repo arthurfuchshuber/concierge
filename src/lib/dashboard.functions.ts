@@ -151,14 +151,33 @@ export const getGuideEngagement = createServerFn({ method: "GET" })
       from = today;
       to = addDaysISO(today, 29);
     }
-    // Guests with check-in in [from, to]
-    const { data: logs } = await context.supabase
-      .from("guide_access_logs")
-      .select("id, property_id, guest_name, guest_phone, checkin_date")
-      .in("property_id", propIds)
-      .gte("checkin_date", from)
-      .lte("checkin_date", to)
-      .limit(2000);
+    const [{ data: props }, { data: reservations }, { data: logs }] = await Promise.all([
+      context.supabase
+        .from("properties")
+        .select("id, airbnb_ical_url")
+        .in("id", propIds),
+      context.supabase
+        .from("property_reservations")
+        .select("id, property_id, checkin_date, checkout_date, status, raw_summary")
+        .in("property_id", propIds)
+        .eq("source", "airbnb")
+        .gte("checkin_date", from)
+        .lte("checkin_date", to)
+        .limit(5000),
+      context.supabase
+        .from("guide_access_logs")
+        .select("id, property_id, guest_name, guest_phone, checkin_date")
+        .in("property_id", propIds)
+        .gte("checkin_date", from)
+        .lte("checkin_date", to)
+        .limit(2000),
+    ]);
+
+    const icalProps = new Set(
+      ((props ?? []) as Array<{ id: string; airbnb_ical_url: string | null }>)
+        .filter((p) => !!p.airbnb_ical_url?.trim())
+        .map((p) => p.id),
+    );
 
     const dedupKey = (r: { property_id: string; guest_name?: string | null; guest_phone?: string | null }) =>
       `${r.property_id}|${(r.guest_name || "").trim().toLowerCase()}|${(r.guest_phone || "").replace(/\D/g, "")}`;
@@ -168,7 +187,18 @@ export const getGuideEngagement = createServerFn({ method: "GET" })
       const r = row as { property_id: string; guest_name: string | null; guest_phone: string | null };
       guests.add(dedupKey(r));
     }
-    const checkinsInPeriod = guests.size;
+    const icalCheckins = new Set<string>();
+    for (const r of (reservations ?? []) as Array<{ id: string; property_id: string; status: string | null; raw_summary: string | null }>) {
+      if (!icalProps.has(r.property_id) || !isRealReservation(r)) continue;
+      icalCheckins.add(r.id);
+    }
+    const fallbackLogs = new Set<string>();
+    for (const row of logs ?? []) {
+      const r = row as { property_id: string; guest_name: string | null; guest_phone: string | null };
+      if (icalProps.has(r.property_id) || isPlaceholderGuest(r.guest_name)) continue;
+      fallbackLogs.add(dedupKey(r));
+    }
+    const checkinsInPeriod = icalCheckins.size + fallbackLogs.size;
     // Every filled log implies a guide open — the form is the entry point.
     const guideOpens = guests.size;
 
@@ -272,7 +302,6 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
       if (!prev || new Date(l.created_at) > new Date(prev.created_at)) dedupMap.set(key, l);
     }
     const uniqueLogs = Array.from(dedupMap.values());
-    const statusLogIds = [...uniqueLogs, ...placeholderLogs].map((l) => l.id);
 
     const [{ data: props }, { data: statuses }, { data: reservations }, { data: sectionEvents }] = await Promise.all([
       context.supabase
