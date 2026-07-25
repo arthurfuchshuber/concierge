@@ -533,9 +533,10 @@ export function GuideAccessGate({ slug, propertyId, propertyName, requireReserva
                         modifiersClassNames={{ availableCheckin: "guide-available-checkin" }}
                         classNames={{
                           today: "rdp-today",
-                          disabled: "rdp-disabled text-muted-foreground/35 opacity-25",
-                          outside: "rdp-outside text-muted-foreground/20",
+                          disabled: "rdp-disabled text-neutral-400",
+                          outside: "rdp-outside text-neutral-300",
                         }}
+
                         className="guide-access-calendar p-3 pointer-events-auto"
                       />
                     }
@@ -1101,16 +1102,15 @@ function RangeButton({ label, value, popover, locked = false, themeClass, open, 
       type="button"
       disabled={locked}
       className={cn(
-        "relative w-full h-[54px] rounded-[12px] border border-white/70 bg-[#f4f6f8] px-3 text-left text-neutral-900",
-        "transition-all hover:bg-white focus:outline-none focus-visible:border-accent",
-        "flex flex-col justify-center disabled:cursor-default disabled:hover:bg-[#f4f6f8]",
-        "shadow-[0_1px_0_rgba(255,255,255,0.6)_inset,0_2px_8px_-4px_rgba(0,0,0,0.15)]",
+        "relative w-full h-[54px] rounded-[12px] border border-border bg-foreground/[0.04] px-3 text-left text-foreground",
+        "transition-colors hover:bg-foreground/[0.06] focus:outline-none focus-visible:border-accent/60",
+        "flex flex-col justify-center disabled:cursor-default disabled:hover:bg-foreground/[0.04]",
       )}
     >
-      <span className="text-[9.5px] uppercase tracking-[0.2em] text-neutral-500 font-semibold whitespace-nowrap">{label}</span>
-      <span className="text-[14px] font-medium flex items-center gap-1.5 mt-0.5 text-neutral-900">
+      <span className="text-[9.5px] uppercase tracking-[0.2em] text-muted-foreground font-semibold whitespace-nowrap">{label}</span>
+      <span className="text-[14px] font-medium flex items-center gap-1.5 mt-0.5 text-foreground">
         {value}
-        {!locked && <ChevronDown className="size-3 text-neutral-500 ml-auto" />}
+        {!locked && <ChevronDown className="size-3 text-muted-foreground ml-auto" />}
       </span>
     </button>
   );
@@ -1125,10 +1125,9 @@ function RangeButton({ label, value, popover, locked = false, themeClass, open, 
       <PopoverContent
         className={cn(
           themeClass,
-          "w-auto p-0 rounded-2xl border border-white/10 text-foreground",
-          "bg-[color-mix(in_oklab,hsl(var(--background))_72%,transparent)]",
-          "backdrop-blur-2xl backdrop-saturate-150",
-          "shadow-[0_24px_60px_-18px_rgba(0,0,0,0.55),0_0_0_1px_rgba(255,255,255,0.06)_inset]",
+          "w-auto p-0 rounded-2xl border border-white/60 text-neutral-900",
+          "bg-[rgba(248,250,252,0.94)] backdrop-blur-2xl backdrop-saturate-150",
+          "shadow-[0_24px_60px_-18px_rgba(0,0,0,0.35),0_0_0_1px_rgba(255,255,255,0.7)_inset]",
         )}
         align="start"
       >
@@ -1137,6 +1136,7 @@ function RangeButton({ label, value, popover, locked = false, themeClass, open, 
     </Popover>
   );
 }
+
 
 function PrimaryButton({ loading, onClick, children }: { loading: boolean; onClick?: () => void; children: React.ReactNode }) {
   return (
