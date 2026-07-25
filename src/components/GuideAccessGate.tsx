@@ -451,24 +451,26 @@ export function GuideAccessGate({ slug, propertyId, propertyName, requireReserva
   return (
     <Dialog open modal>
       <DialogPortal>
-        <DialogOverlay className="bg-black/70 backdrop-blur-md data-[state=open]:duration-300 data-[state=closed]:duration-200" />
+        <DialogOverlay className="bg-black/75 backdrop-blur-md data-[state=open]:duration-300 data-[state=closed]:duration-200" />
         <DialogPrimitive.Content
           onPointerDownOutside={(e) => e.preventDefault()}
           onEscapeKeyDown={(e) => e.preventDefault()}
           onOpenAutoFocus={(e) => e.preventDefault()}
           className={cn(
+            themeClass,
             "fixed left-1/2 top-1/2 z-50 w-[calc(100%-1.25rem)] max-w-[440px]",
             "-translate-x-1/2 -translate-y-1/2",
             "max-h-[92vh] overflow-y-auto",
-            "rounded-[26px] border border-white/[0.09]",
-            "bg-[color-mix(in_oklab,hsl(var(--background))_78%,transparent)]",
+            "rounded-[26px] border border-border",
+            "bg-card/95 text-card-foreground",
             "backdrop-blur-2xl backdrop-saturate-150",
-            "shadow-[0_28px_70px_-18px_rgba(0,0,0,0.65),0_0_0_1px_rgba(255,255,255,0.05)_inset]",
+            "shadow-[0_28px_70px_-18px_rgba(0,0,0,0.65)]",
             "p-6 sm:p-7",
             "data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-[0.97] data-[state=open]:duration-300",
             "focus:outline-none",
           )}
         >
+
           {/* Progress dots (só quando há step 2) */}
           {hasOptionals && (
             <div className="mb-4 flex items-center gap-1.5">
