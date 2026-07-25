@@ -235,6 +235,7 @@ export function FloatingHandoffDock() {
           className="fixed right-4 lg:right-6 size-14 rounded-full bg-primary text-primary-foreground shadow-xl grid place-items-center hover:scale-105 transition-transform cursor-grab active:cursor-grabbing touch-none select-none"
           style={{
             zIndex: 2147483000,
+            pointerEvents: "auto",
             bottom: `calc(env(safe-area-inset-bottom,0px) + ${dockBottom}px)`,
             transform: dragY === null ? undefined : `translateY(${dragY}px)`,
             transition: dragY === null ? undefined : "none",
@@ -255,7 +256,7 @@ export function FloatingHandoffDock() {
       {state.open && (
         <div
           className={`hidden lg:flex fixed bottom-6 right-6 flex-col bg-surface border border-border rounded-2xl shadow-2xl overflow-hidden ${state.minimized ? "w-80 h-14" : "w-[520px] h-[560px]"}`}
-          style={{ zIndex: 2147483000 }}
+          style={{ zIndex: 2147483000, pointerEvents: "auto" }}
         >
           <div className="shrink-0 flex items-center justify-between gap-2 px-3 h-12 border-b border-border bg-secondary/40">
             <div className="flex items-center gap-2 min-w-0">
@@ -315,7 +316,7 @@ export function FloatingHandoffDock() {
 
       {/* Widget mobile */}
       {state.open && (
-        <div className="lg:hidden fixed inset-0" style={{ zIndex: 2147483000 }}>
+        <div className="lg:hidden fixed inset-0" style={{ zIndex: 2147483000, pointerEvents: "auto" }}>
           <button
             type="button"
             className="absolute inset-0 bg-black/55 backdrop-blur-sm"
