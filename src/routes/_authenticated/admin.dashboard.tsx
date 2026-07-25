@@ -364,15 +364,11 @@ function DashboardPage() {
       {/* Arrivals */}
       <section className="rounded-2xl border border-border bg-card p-4 sm:p-5 space-y-4 shadow-sm">
         <div className="flex flex-wrap items-start gap-3">
-          <div className="flex flex-col gap-2">
-            <div className="inline-flex rounded-lg border border-primary/20 bg-primary/[0.04] p-0.5 text-xs">
-              <SegBtn active={mode === "checkin"} onClick={() => setMode("checkin")} icon={CalendarCheck}>Check-ins</SegBtn>
-              <SegBtn active={mode === "checkout"} onClick={() => setMode("checkout")} icon={CalendarX}>Check-outs</SegBtn>
-            </div>
-            <div className="inline-flex rounded-lg border border-primary/20 bg-primary/[0.04] p-0.5 text-xs">
-              <SegBtn active={mode === "stay"} onClick={() => setMode("stay")} icon={BedDouble}>Em Estadia</SegBtn>
-              <SegBtn active={mode === "cleaning"} onClick={() => setMode("cleaning")} icon={Sparkles}>Em Limpeza</SegBtn>
-            </div>
+          <div className="grid grid-cols-2 gap-1.5 w-full max-w-md">
+            <SegBtn active={mode === "checkin"} onClick={() => setMode("checkin")} icon={CalendarCheck} count={counts.checkin}>Check-ins</SegBtn>
+            <SegBtn active={mode === "checkout"} onClick={() => setMode("checkout")} icon={CalendarX} count={counts.checkout}>Check-outs</SegBtn>
+            <SegBtn active={mode === "stay"} onClick={() => setMode("stay")} icon={BedDouble} count={counts.stay}>Em Estadia</SegBtn>
+            <SegBtn active={mode === "cleaning"} onClick={() => setMode("cleaning")} icon={Sparkles} count={counts.cleaning}>Em Limpeza</SegBtn>
           </div>
           <div className="ml-auto">
             <RangeDropdown
@@ -382,6 +378,7 @@ function DashboardPage() {
             />
           </div>
         </div>
+
 
         {listQ.isLoading ? (
           <div className="py-12 grid place-items-center text-muted-foreground text-sm">
