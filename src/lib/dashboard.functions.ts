@@ -492,7 +492,8 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
 // ----- Mutations -----
 
 const UpsertInput = z.object({
-  logId: z.string().uuid(),
+  logId: z.string().uuid().optional(),
+  reservationId: z.string().uuid().optional(),
   kind: z.enum(["checkin", "checkout"]),
   status: z.enum(["pending", "done"]).optional(),
   note: z.string().max(500).nullable().optional(),
@@ -501,22 +502,35 @@ const UpsertInput = z.object({
     .regex(/^\d{2}:\d{2}$/)
     .nullable()
     .optional(),
-});
+}).refine((v) => !!v.logId || !!v.reservationId, { message: "Informe a reserva ou o registro do hóspede." });
 
 export const upsertArrivalStatus = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((i: unknown) => UpsertInput.parse(i))
   .handler(async ({ data, context }) => {
-    // Resolve property_id via the log (RLS on guide_access_logs will scope it)
-    const { data: log, error: logErr } = await context.supabase
-      .from("guide_access_logs")
-      .select("id, property_id")
-      .eq("id", data.logId)
-      .maybeSingle();
-    if (logErr || !log) throw new Error("Registro não encontrado.");
+    let propertyId: string | null = null;
+    if (data.reservationId) {
+      const { data: reservation, error: reservationErr } = await context.supabase
+        .from("property_reservations")
+        .select("id, property_id")
+        .eq("id", data.reservationId)
+        .maybeSingle();
+      if (reservationErr || !reservation) throw new Error("Reserva não encontrada.");
+      propertyId = (reservation as { property_id: string }).property_id;
+    } else if (data.logId) {
+      const { data: log, error: logErr } = await context.supabase
+        .from("guide_access_logs")
+        .select("id, property_id")
+        .eq("id", data.logId)
+        .maybeSingle();
+      if (logErr || !log) throw new Error("Registro não encontrado.");
+      propertyId = (log as { property_id: string }).property_id;
+    }
+    if (!propertyId) throw new Error("Registro não encontrado.");
 
     const patch: {
-      log_id: string;
+      log_id?: string;
+      reservation_id?: string;
       property_id: string;
       kind: "checkin" | "checkout";
       status?: "pending" | "done";
@@ -524,10 +538,11 @@ export const upsertArrivalStatus = createServerFn({ method: "POST" })
       note?: string | null;
       arrival_time_override?: string | null;
     } = {
-      log_id: data.logId,
-      property_id: (log as { property_id: string }).property_id,
+      property_id: propertyId,
       kind: data.kind,
     };
+    if (data.logId) patch.log_id = data.logId;
+    if (data.reservationId) patch.reservation_id = data.reservationId;
     if (typeof data.status !== "undefined") {
       patch.status = data.status;
       patch.done_at = data.status === "done" ? new Date().toISOString() : null;
@@ -535,9 +550,18 @@ export const upsertArrivalStatus = createServerFn({ method: "POST" })
     if (typeof data.note !== "undefined") patch.note = data.note;
     if (typeof data.arrivalTimeOverride !== "undefined") patch.arrival_time_override = data.arrivalTimeOverride;
 
-    const { error } = await context.supabase
+    const existingQuery = context.supabase
       .from("guest_arrival_status")
-      .upsert(patch, { onConflict: "log_id,kind" });
+      .select("id")
+      .eq("kind", data.kind)
+      .limit(1);
+    const { data: existing } = data.reservationId
+      ? await existingQuery.eq("reservation_id", data.reservationId)
+      : await existingQuery.eq("log_id", data.logId as string);
+    const existingId = (existing?.[0] as { id: string } | undefined)?.id;
+    const { error } = existingId
+      ? await context.supabase.from("guest_arrival_status").update(patch).eq("id", existingId)
+      : await context.supabase.from("guest_arrival_status").insert(patch);
     if (error) throw new Error(error.message);
     return { ok: true };
   });
@@ -594,6 +618,7 @@ export const updateGuestArrivalTime = createServerFn({ method: "POST" })
 // ----- Mark a pending iCal reservation as done (no guest form yet) -----
 
 const MarkPendingInput = z.object({
+  reservationId: z.string().uuid().optional(),
   propertyId: z.string().uuid(),
   kind: z.enum(["checkin", "checkout"]),
   checkinDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
@@ -613,47 +638,42 @@ export const markPendingReservationStatus = createServerFn({ method: "POST" })
       .maybeSingle();
     if (propErr || !prop) throw new Error("Propriedade não encontrada.");
 
-    // Look for an existing placeholder log for the same date so we don't duplicate.
-    const { data: existing } = await context.supabase
-      .from("guide_access_logs")
-      .select("id")
-      .eq("property_id", data.propertyId)
-      .eq("checkin_date", data.checkinDate)
-      .ilike("guest_name", "Hóspede pendente")
-      .limit(1);
-
-    let logId = (existing?.[0] as { id: string } | undefined)?.id;
-
-    if (!logId) {
-      // Client insert is blocked by RLS; use the admin client to create the placeholder.
-      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-      const { data: created, error: insErr } = await supabaseAdmin
-        .from("guide_access_logs")
-        .insert({
-          property_id: data.propertyId,
-          guest_name: "Hóspede pendente",
-          checkin_date: data.checkinDate,
-          checkout_date: data.checkoutDate ?? null,
-        })
+    let reservationId = data.reservationId ?? null;
+    if (!reservationId) {
+      const query = context.supabase
+        .from("property_reservations")
         .select("id")
-        .single();
-      if (insErr || !created) throw new Error(insErr?.message || "Falha ao criar registro.");
-      logId = (created as { id: string }).id;
+        .eq("property_id", data.propertyId)
+        .eq("checkin_date", data.checkinDate)
+        .eq("source", "airbnb")
+        .limit(1);
+      const { data: matches } = data.checkoutDate
+        ? await query.eq("checkout_date", data.checkoutDate)
+        : await query;
+      reservationId = (matches?.[0] as { id: string } | undefined)?.id ?? null;
     }
+    if (!reservationId) throw new Error("Reserva iCal não encontrada.");
 
-    const { error: upErr } = await context.supabase
+    const { data: existing } = await context.supabase
       .from("guest_arrival_status")
-      .upsert(
+      .select("id")
+      .eq("reservation_id", reservationId)
+      .eq("kind", data.kind)
+      .limit(1);
+    const existingId = (existing?.[0] as { id: string } | undefined)?.id;
+
+    const patch =
         {
-          log_id: logId,
+          reservation_id: reservationId,
           property_id: data.propertyId,
           kind: data.kind,
           status: data.status,
           done_at: data.status === "done" ? new Date().toISOString() : null,
-        },
-        { onConflict: "log_id,kind" },
-      );
+        };
+    const { error: upErr } = existingId
+      ? await context.supabase.from("guest_arrival_status").update(patch).eq("id", existingId)
+      : await context.supabase.from("guest_arrival_status").insert(patch);
     if (upErr) throw new Error(upErr.message);
-    return { ok: true, logId };
+    return { ok: true, reservationId };
   });
 
