@@ -76,6 +76,7 @@ function DashboardPage() {
   const upsertFn = useServerFn(upsertArrivalStatus);
   const updateDatesFn = useServerFn(updateGuestStayDates);
   const updateTimeFn = useServerFn(updateGuestArrivalTime);
+  const markPendingFn = useServerFn(markPendingReservationStatus);
   const qc = useQueryClient();
 
   const [kind, setKind] = useState<"checkin" | "checkout">("checkin");
