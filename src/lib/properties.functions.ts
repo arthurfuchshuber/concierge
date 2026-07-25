@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
+import { isAllowedIcalUrl } from "@/lib/airbnb-ical-url";
 
 const slugRe = /^[a-z0-9](?:[a-z0-9-]{1,60}[a-z0-9])?$/;
 
@@ -109,7 +110,15 @@ const PropertyInput = z.object({
   document_scope: z.enum(["main", "all"]).default("main"),
   airbnb_ical_url: z.preprocess(
     (v) => (typeof v === "string" && v.trim() === "" ? null : v),
-    z.string().trim().url().max(2048).refine(isHttpsUrl, "Use um link HTTPS válido").optional().nullable(),
+    z
+      .string()
+      .trim()
+      .url()
+      .max(2048)
+      .refine(isHttpsUrl, "Use um link HTTPS válido")
+      .refine(isAllowedIcalUrl, "Use um link iCal oficial do Airbnb")
+      .optional()
+      .nullable(),
   ),
 });
 

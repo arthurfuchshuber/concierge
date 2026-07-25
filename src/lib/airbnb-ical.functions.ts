@@ -1,10 +1,17 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
+import { isAllowedIcalUrl } from "@/lib/airbnb-ical-url";
 
 const SyncInput = z.object({
   propertyId: z.string().uuid(),
-  icalUrl: z.string().trim().url().max(2048).optional(),
+  icalUrl: z
+    .string()
+    .trim()
+    .url()
+    .max(2048)
+    .refine(isAllowedIcalUrl, "Use um link iCal oficial do Airbnb (https://...airbnb.*)")
+    .optional(),
 });
 
 export const syncPropertyAirbnbIcal = createServerFn({ method: "POST" })
@@ -32,6 +39,9 @@ export const syncPropertyAirbnbIcal = createServerFn({ method: "POST" })
     }
 
     if (!effectiveUrl) throw new Error("Nenhum link iCal cadastrado neste guia.");
+    if (!isAllowedIcalUrl(effectiveUrl)) {
+      throw new Error("Link iCal fora da lista permitida. Use um link oficial do Airbnb.");
+    }
 
     const { syncPropertyIcal } = await import("@/lib/airbnb-ical.server");
     const out = await syncPropertyIcal(prop.id, effectiveUrl);
