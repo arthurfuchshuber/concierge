@@ -382,7 +382,7 @@ function DashboardPage() {
                 title={`Realizados (${done.length})`}
                 rows={done}
                 kind={kind}
-                onMark={(row) => upsert.mutate({ logId: row.logId, kind, status: "pending" })}
+                onMark={(row) => handleMark(row, "pending")}
                 onSyncIcal={() => {}}
                 onNote={(row, note) => upsert.mutate({ logId: row.logId, kind, note })}
                 onEditDates={(row, dates) => updateDates.mutate({ logId: row.logId, ...dates })}
