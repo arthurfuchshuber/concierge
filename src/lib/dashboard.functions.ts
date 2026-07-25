@@ -514,7 +514,15 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
       rows.push(rowFromLog(l));
     }
 
-    rows.sort((a, b) => a.date.localeCompare(b.date));
+    const effTime = (r: ArrivalRow): string =>
+      r.arrivalTimeOverride ?? r.guestArrivalTime ?? r.standardTime ?? "99:99";
+    rows.sort((a, b) => {
+      const d = a.date.localeCompare(b.date);
+      if (d !== 0) return d;
+      const t = effTime(a).localeCompare(effTime(b));
+      if (t !== 0) return t;
+      return (a.propertyName ?? "").localeCompare(b.propertyName ?? "", "pt-BR");
+    });
 
     return { rows };
   });
