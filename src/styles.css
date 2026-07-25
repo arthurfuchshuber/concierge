@@ -230,7 +230,7 @@
   /* Disabled dates — dark gray, visible but clearly non-interactive */
   .guide-access-calendar [data-today][data-disabled="true"] {
     background: transparent !important;
-    color: #4b4b52 !important;
+    color: #3a3a40 !important;
     opacity: 1 !important;
   }
   .guide-access-calendar [data-today][data-disabled="true"] button {
@@ -238,7 +238,7 @@
     color: inherit !important;
   }
   .guide-access-calendar [data-disabled="true"] button {
-    color: #4b4b52 !important;
+    color: #3a3a40 !important;
     opacity: 1 !important;
     font-weight: 400 !important;
   }
