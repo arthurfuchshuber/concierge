@@ -712,32 +712,14 @@ function ArrivalCard({ row, kind, onMark, onSyncIcal, onNote, onEditDates, onEdi
         <div className={`rounded-lg p-2 backdrop-blur-sm ${divergent ? "bg-amber-500/10 border border-amber-500/30" : "bg-background/50 border border-border/40"}`}>
           <div className="text-[10px] uppercase tracking-wider text-muted-foreground flex items-center justify-between">
             <span>Previsto</span>
-            <InfoHint title="Horário previsto">Clique no horário para ajustar. A correção atualiza todas as demais telas.</InfoHint>
+            <InfoHint title="Horário previsto">Selecione o horário (30 em 30 min). A alteração reordena o kanban imediatamente.</InfoHint>
           </div>
-          <div className="mt-0.5 tabular-nums flex items-center gap-1">
-            <Clock className="size-3" />
-            {editingTime && !isPendingFill ? (
-              <input
-                type="time"
-                step={1800}
-                autoFocus
-                value={timeVal}
-                onChange={(e) => setTimeVal(e.target.value)}
-                onBlur={commitTime}
-                onKeyDown={(e) => { if (e.key === "Enter") commitTime(); if (e.key === "Escape") setEditingTime(false); }}
-                className="bg-transparent border-b border-primary/40 focus:outline-none w-16 tabular-nums"
-              />
-            ) : (
-              <button
-                type="button"
-                disabled={busy || isPendingFill}
-                onClick={() => { setTimeVal(guestTime ?? ""); setEditingTime(true); }}
-                className="tabular-nums hover:text-primary disabled:cursor-not-allowed disabled:hover:text-inherit"
-                title={isPendingFill ? "Aguarde o hóspede preencher" : "Clique para editar"}
-              >
-                {guestTime ?? "—"}
-              </button>
-            )}
+          <div className="mt-0.5">
+            <TimeDropdown
+              value={guestTime ?? null}
+              disabled={busy}
+              onChange={(v) => onEditTime(row, v)}
+            />
           </div>
         </div>
       </div>
