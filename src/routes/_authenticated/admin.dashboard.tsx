@@ -711,15 +711,7 @@ function ArrivalCard({ row, kind, onMark, onSyncIcal, onNote, onEditDates, onEdi
                 <span className="truncate font-semibold not-italic text-foreground">{row.guestName}</span>
               )
             ) : (
-              <>
-                <span className="truncate">{row.guestName}</span>
-                {row.reservationCode && (
-                  <span className="inline-flex items-center gap-0.5 text-xs text-muted-foreground font-normal not-italic shrink-0">
-                    <span className="truncate max-w-[110px]">{row.reservationCode}</span>
-                    <CopyButton value={row.reservationCode} size={11} className="p-0.5" />
-                  </span>
-                )}
-              </>
+              <span className="truncate">{row.guestName}</span>
             )}
           </div>
           <div className="text-xs text-muted-foreground truncate flex items-center gap-1">
@@ -743,8 +735,16 @@ function ArrivalCard({ row, kind, onMark, onSyncIcal, onNote, onEditDates, onEdi
               </>
             )}
           </div>
+          {/* Código da reserva abaixo do período quando há nome do hóspede */}
+          {!isPendingFill && row.guestName && row.guestName !== row.reservationCode && row.reservationCode && (
+            <div className="mt-0.5 inline-flex items-center gap-0.5 text-[11px] text-muted-foreground font-normal tabular-nums">
+              <span className="truncate max-w-[160px]">{row.reservationCode}</span>
+              <CopyButton value={row.reservationCode} size={10} className="p-0.5" />
+            </div>
+          )}
         </div>
       </div>
+
 
       {/* Engagement — só mostra pendências (fatos negativos). Estados positivos são omitidos. */}
       {!isPendingFill && (!row.openedCheckin || (row.hasPasswords && !row.viewedPasswords)) && (
