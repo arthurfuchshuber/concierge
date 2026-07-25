@@ -3,6 +3,8 @@
 // - Fetches remote calendar with timeout
 // - Upserts into public.property_reservations
 
+import { classifyCalendarPeriod } from "@/lib/reservations.server";
+
 export type ParsedEvent = {
   uid: string;
   checkin: string; // YYYY-MM-DD
@@ -12,8 +14,6 @@ export type ParsedEvent = {
   url: string | null;
   status: string | null;
 };
-
-import { classifyCalendarPeriod } from "@/lib/reservations.server";
 
 function unfold(ics: string): string[] {
   // RFC5545 line unfolding: any CRLF/LF followed by space or tab continues the previous line.

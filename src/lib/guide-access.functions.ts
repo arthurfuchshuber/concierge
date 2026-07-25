@@ -135,10 +135,11 @@ export const getGuideCalendarAvailability = createServerFn({ method: "POST" })
       .order("checkin_date", { ascending: true })
       .limit(500);
 
-    const periods = ((rows ?? []) as Array<{ checkin_date: string; checkout_date: string; raw_summary: string | null; status: string | null }>)
-      .map((row) => ({ row, type: classifyCalendarPeriod(row) }))
-      .filter((item): item is { row: { checkin_date: string; checkout_date: string }; type: "reservation" | "block" } => !!item.type)
-      .map(({ row, type }) => ({ checkin: row.checkin_date, checkout: row.checkout_date, type }));
+    const periods: Array<{ checkin: string; checkout: string; type: "reservation" | "block" }> = [];
+    for (const row of (rows ?? []) as Array<{ checkin_date: string; checkout_date: string; raw_summary: string | null; status: string | null }>) {
+      const type = classifyCalendarPeriod(row);
+      if (type) periods.push({ checkin: row.checkin_date, checkout: row.checkout_date, type });
+    }
 
     return { hasIcal: true as const, periods };
   });
