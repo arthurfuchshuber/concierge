@@ -109,7 +109,23 @@ const PropertyInput = z.object({
   document_scope: z.enum(["main", "all"]).default("main"),
   airbnb_ical_url: z.preprocess(
     (v) => (typeof v === "string" && v.trim() === "" ? null : v),
-    z.string().trim().url().max(2048).refine(isHttpsUrl, "Use um link HTTPS válido").optional().nullable(),
+    z
+      .string()
+      .trim()
+      .url()
+      .max(2048)
+      .refine(isHttpsUrl, "Use um link HTTPS válido")
+      .refine(
+        (u) => {
+          // Lazy require to avoid circular import cost; validation is synchronous.
+          // eslint-disable-next-line @typescript-eslint/no-require-imports
+          const { isAllowedIcalUrl } = require("@/lib/airbnb-ical-url");
+          return isAllowedIcalUrl(u);
+        },
+        "Use um link iCal oficial do Airbnb",
+      )
+      .optional()
+      .nullable(),
   ),
 });
 
