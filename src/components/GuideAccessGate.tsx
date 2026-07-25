@@ -226,6 +226,7 @@ export function GuideAccessGate({ slug, propertyId, propertyName, requireReserva
   };
 
   // Auto-pair check-out when the user picks a known reservation check-in.
+  const [checkinPopoverOpen, setCheckinPopoverOpen] = useState(false);
   const handleCheckinSelect = (selected: Date | undefined) => {
     if (!selected) {
       setRange(undefined);
@@ -236,9 +237,10 @@ export function GuideAccessGate({ slug, propertyId, propertyName, requireReserva
     const checkoutDate = pairedCheckout ? dateFromISODate(pairedCheckout) : null;
     if (checkoutDate) {
       setRange({ from: selected, to: checkoutDate });
-      return;
+    } else {
+      setRange({ from: selected });
     }
-    setRange({ from: selected });
+    setCheckinPopoverOpen(false);
   };
 
 
