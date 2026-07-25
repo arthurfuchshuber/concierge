@@ -514,8 +514,11 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
       rows.push(rowFromLog(l));
     }
 
+    // Prioridade: data → horário previsto (override do anfitrião ou informado pelo
+    // hóspede) → ordem alfabética da residência. O horário padrão da propriedade
+    // NÃO entra na chave de ordenação — só o previsto/manual manda.
     const effTime = (r: ArrivalRow): string =>
-      r.arrivalTimeOverride ?? r.guestArrivalTime ?? r.standardTime ?? "99:99";
+      r.arrivalTimeOverride ?? r.guestArrivalTime ?? "99:99";
     rows.sort((a, b) => {
       const d = a.date.localeCompare(b.date);
       if (d !== 0) return d;

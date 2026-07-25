@@ -1,7 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
 import {
   CalendarCheck, CalendarX, LogIn, LogOut, MessageCircle, StickyNote, Check,
   AlertTriangle, Clock, Loader2, Home, Info, Sparkles, TrendingUp, Bell,
@@ -170,6 +171,23 @@ function DashboardPage() {
   function handleEditTime(row: ArrivalRow, k: "checkin" | "checkout", time: string | null) {
     upsert.mutate({ ...statusTarget(row), kind: k, arrivalTimeOverride: time });
   }
+
+  // Realtime — sincroniza kanban e KPIs sem precisar recarregar a página quando
+  // horários, notas ou reservas mudam (via outro membro da equipe, iCal etc).
+  useEffect(() => {
+    const invalidate = () => {
+      qc.invalidateQueries({ queryKey: ["dash-list"] });
+      qc.invalidateQueries({ queryKey: ["dash-kpis"] });
+      qc.invalidateQueries({ queryKey: ["dash-eng"] });
+    };
+    const ch = supabase
+      .channel("dash-live")
+      .on("postgres_changes", { event: "*", schema: "public", table: "guide_access_logs" }, invalidate)
+      .on("postgres_changes", { event: "*", schema: "public", table: "property_reservations" }, invalidate)
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [qc]);
+
 
 
   const rows = listQ.data?.rows ?? [];
