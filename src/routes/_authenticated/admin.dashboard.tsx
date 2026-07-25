@@ -391,7 +391,7 @@ function DashboardPage() {
         ) : (
           <div className="relative space-y-6">
             <ArrivalGroup
-              title={boardTitle}
+              title=""
               rows={boardRows}
               kind={kind}
               onMark={(row) => handleMark(row, mode === "stay" || mode === "cleaning" ? "pending" : "done")}
