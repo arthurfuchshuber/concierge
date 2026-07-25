@@ -204,7 +204,7 @@ function HospedesPage() {
                           <div className="flex items-center gap-2"><Phone className="size-3.5" /> Telefone: <span className="text-foreground">{r.guest_phone_country ?? ""} {r.guest_phone}</span></div>
                         )}
                         {r.reservation_code && (
-                          <div>Reserva: <span className="text-foreground">{r.reservation_code}</span></div>
+                          <div className="flex items-center gap-1">Reserva: <span className="text-foreground">{r.reservation_code}</span><CopyButton value={r.reservation_code} size={11} /></div>
                         )}
                       </div>
 
