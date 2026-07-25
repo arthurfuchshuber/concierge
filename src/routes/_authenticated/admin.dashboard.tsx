@@ -665,7 +665,15 @@ function ArrivalCard({ row, kind, onMark, onSyncIcal, onNote, onEditDates, onEdi
           {isPendingFill ? <UserPlus className="size-5" /> : initials(row.guestName)}
         </div>
         <div className="flex-1 min-w-0">
-          <div className={`font-semibold truncate ${isPendingFill ? "italic text-foreground/80" : ""}`}>{row.guestName}</div>
+          <div className={`font-semibold truncate flex items-center gap-2 ${isPendingFill ? "italic text-foreground/80" : ""}`}>
+            <span className="truncate">{row.guestName}</span>
+            {row.reservationCode && (
+              <span className="inline-flex items-center gap-0.5 text-xs text-muted-foreground font-normal not-italic shrink-0">
+                <span className="truncate max-w-[110px]">{row.reservationCode}</span>
+                <CopyButton value={row.reservationCode} size={11} className="p-0.5" />
+              </span>
+            )}
+          </div>
           <div className="text-xs text-muted-foreground truncate flex items-center gap-1">
             <Home className="size-3 shrink-0" /> {row.propertyName ?? "Sem nome"}
           </div>
