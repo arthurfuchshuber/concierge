@@ -602,9 +602,10 @@ export type Database = {
           done_at: string | null
           id: string
           kind: string
-          log_id: string
+          log_id: string | null
           note: string | null
           property_id: string
+          reservation_id: string | null
           status: string
           updated_at: string
         }
@@ -614,9 +615,10 @@ export type Database = {
           done_at?: string | null
           id?: string
           kind: string
-          log_id: string
+          log_id?: string | null
           note?: string | null
           property_id: string
+          reservation_id?: string | null
           status?: string
           updated_at?: string
         }
@@ -626,9 +628,10 @@ export type Database = {
           done_at?: string | null
           id?: string
           kind?: string
-          log_id?: string
+          log_id?: string | null
           note?: string | null
           property_id?: string
+          reservation_id?: string | null
           status?: string
           updated_at?: string
         }
@@ -645,6 +648,13 @@ export type Database = {
             columns: ["property_id"]
             isOneToOne: false
             referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "guest_arrival_status_reservation_id_fkey"
+            columns: ["reservation_id"]
+            isOneToOne: false
+            referencedRelation: "property_reservations"
             referencedColumns: ["id"]
           },
         ]
