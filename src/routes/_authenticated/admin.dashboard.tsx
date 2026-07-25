@@ -166,6 +166,10 @@ function DashboardPage() {
     upsert.mutate({ ...statusTarget(row), kind, status: nextStatus });
   }
 
+  function handleEditTime(row: ArrivalRow, k: "checkin" | "checkout", time: string | null) {
+    upsert.mutate({ ...statusTarget(row), kind: k, arrivalTimeOverride: time });
+  }
+
 
   const rows = listQ.data?.rows ?? [];
   const pending = useMemo(() => rows.filter((r) => r.status === "pending"), [rows]);
@@ -266,6 +270,7 @@ function DashboardPage() {
           listQuery={kpiTodayQ} kind="checkin"
           rangeLabel="Hoje"
           shadowTone="emerald"
+          onEditTime={handleEditTime}
         />
         <KpiCard
           label="Check-outs hoje" value={kpisQ.data?.checkoutsToday} icon={LogOut} tone="primary"
@@ -273,20 +278,24 @@ function DashboardPage() {
           listQuery={kpiCoTodayQ} kind="checkout"
           rangeLabel="Hoje"
           shadowTone="amber"
+          onEditTime={handleEditTime}
         />
         <KpiCard
           label="Check-ins amanhã" value={kpisQ.data?.checkinsTomorrow} icon={LogIn} tone="primary-soft"
           loading={kpisQ.isLoading}
           listQuery={kpiTomorrowQ} kind="checkin"
           rangeLabel="Amanhã"
+          onEditTime={handleEditTime}
         />
         <KpiCard
           label="Check-outs amanhã" value={kpisQ.data?.checkoutsTomorrow} icon={LogOut} tone="primary-soft"
           loading={kpisQ.isLoading}
           listQuery={kpiCoTomorrowQ} kind="checkout"
           rangeLabel="Amanhã"
+          onEditTime={handleEditTime}
         />
       </section>
+
 
       {/* Engagement */}
       <section className="rounded-2xl border border-border bg-card p-4 sm:p-5 space-y-4 shadow-sm">
@@ -354,7 +363,7 @@ function DashboardPage() {
               }}
               onNote={(row, note) => upsert.mutate({ ...statusTarget(row), kind, note })}
               onEditDates={(row, dates) => updateDates.mutate({ logId: row.logId, ...dates })}
-              onEditTime={(row, time) => updateTime.mutate({ logId: row.logId, time })}
+              onEditTime={(row, time) => handleEditTime(row, kind, time)}
               busy={upsert.isPending || updateDates.isPending || updateTime.isPending}
             />
             {done.length > 0 && (
@@ -366,7 +375,7 @@ function DashboardPage() {
                 onSyncIcal={() => {}}
                 onNote={(row, note) => upsert.mutate({ ...statusTarget(row), kind, note })}
                 onEditDates={(row, dates) => updateDates.mutate({ logId: row.logId, ...dates })}
-                onEditTime={(row, time) => updateTime.mutate({ logId: row.logId, time })}
+                onEditTime={(row, time) => handleEditTime(row, kind, time)}
                 busy={upsert.isPending || updateDates.isPending || updateTime.isPending}
                 muted
               />
@@ -380,12 +389,13 @@ function DashboardPage() {
 
 /* ------------------------- UI Building Blocks ------------------------- */
 
-function KpiCard({ label, value, icon: Icon, tone, loading, listQuery, kind, rangeLabel, shadowTone }: {
+function KpiCard({ label, value, icon: Icon, tone, loading, listQuery, kind, rangeLabel, shadowTone, onEditTime }: {
   label: string; value: number | undefined; icon: React.ElementType;
   tone: "primary" | "primary-soft"; loading: boolean;
   listQuery: ReturnType<typeof useQuery<{ rows: ArrivalRow[] } | undefined>>;
   kind: "checkin" | "checkout"; rangeLabel: string;
   shadowTone?: "emerald" | "amber";
+  onEditTime: (row: ArrivalRow, kind: "checkin" | "checkout", time: string | null) => void;
 }) {
   const [open, setOpen] = useState(false);
   const valueTone = tone === "primary" ? "text-primary" : "text-foreground";
@@ -416,7 +426,7 @@ function KpiCard({ label, value, icon: Icon, tone, loading, listQuery, kind, ran
           </div>
         </button>
       </DialogTrigger>
-      <DialogContent className="max-w-md p-0 overflow-hidden rounded-2xl border-border/60 bg-card/95 backdrop-blur-xl shadow-2xl">
+      <DialogContent className="w-[calc(100vw-1.5rem)] sm:w-full sm:max-w-md p-0 overflow-hidden rounded-2xl border-border/60 bg-card/95 backdrop-blur-xl shadow-2xl">
         <div className={`absolute inset-x-0 top-0 h-px ${shadowTone === "emerald" ? "bg-gradient-to-r from-transparent via-emerald-500/60 to-transparent" : shadowTone === "amber" ? "bg-gradient-to-r from-transparent via-amber-500/60 to-transparent" : "bg-gradient-to-r from-transparent via-primary/50 to-transparent"}`} />
         <DialogHeader className="px-5 pt-5 pb-4">
           <div className="flex items-center gap-3">
@@ -446,30 +456,28 @@ function KpiCard({ label, value, icon: Icon, tone, loading, listQuery, kind, ran
                 return (
                   <li
                     key={r.logId}
-                    className="group flex items-center gap-3 rounded-xl border border-border/50 bg-background/40 px-3 py-2.5 transition hover:border-border hover:bg-secondary/40"
+                    className="group flex items-center gap-2 rounded-xl border border-border/50 bg-background/40 px-2.5 py-2 transition hover:border-border hover:bg-secondary/40"
                   >
-                    <div className={`grid place-items-center size-9 rounded-full text-xs font-semibold shrink-0 ${r.pendingFill ? "bg-muted text-muted-foreground" : "bg-primary/10 text-primary"}`}>
+                    <div className={`grid place-items-center size-8 rounded-full text-xs font-semibold shrink-0 ${r.pendingFill ? "bg-muted text-muted-foreground" : "bg-primary/10 text-primary"}`}>
                       {r.pendingFill ? <UserPlus className="size-4" /> : initials}
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className={`text-sm font-medium leading-tight truncate ${r.pendingFill ? "text-muted-foreground italic" : ""}`}>
                         {r.guestName}
                       </div>
-                      <div className="text-xs text-muted-foreground truncate mt-0.5">
+                      <div className="text-[11px] text-muted-foreground truncate mt-0.5">
                         {r.propertyName ?? "—"}
                       </div>
                     </div>
-                    <div className="flex flex-col items-end gap-1 shrink-0">
-                      {time ? (
-                        <span className="inline-flex items-center gap-1 text-xs tabular-nums text-foreground/80">
-                          <Clock className="size-3" /> {time}
-                        </span>
-                      ) : (
-                        <span className="text-xs text-muted-foreground/60">sem horário</span>
-                      )}
+                    <div className="flex flex-col items-end gap-0.5 shrink-0">
+                      <TimeDropdown
+                        value={time}
+                        onChange={(v) => onEditTime(r, kind, v)}
+                        size="xs"
+                      />
                       {done ? (
                         <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
-                          <Check className="size-3" /> Realizado
+                          <Check className="size-3" /> Feito
                         </span>
                       ) : r.pendingFill ? (
                         <span className="text-[10px] uppercase tracking-wider text-amber-600 dark:text-amber-400">Pendente</span>
@@ -603,8 +611,6 @@ function ArrivalCard({ row, kind, onMark, onSyncIcal, onNote, onEditDates, onEdi
 }) {
   const [noteOpen, setNoteOpen] = useState(false);
   const [noteText, setNoteText] = useState(row.note ?? "");
-  const [editingTime, setEditingTime] = useState(false);
-  const [timeVal, setTimeVal] = useState(row.arrivalTimeOverride ?? row.guestArrivalTime ?? "");
   const guestTime = row.arrivalTimeOverride ?? row.guestArrivalTime;
   const stdWindow = row.standardTime
     ? row.standardTimeMax ? `${row.standardTime} – ${row.standardTimeMax}` : row.standardTime
@@ -625,14 +631,6 @@ function ArrivalCard({ row, kind, onMark, onSyncIcal, onNote, onEditDates, onEdi
     if (!copyText) return;
     try { await navigator.clipboard.writeText(copyText); toast.success("Link copiado."); }
     catch { toast.error("Não foi possível copiar."); }
-  };
-
-  const commitTime = () => {
-    setEditingTime(false);
-    const v = timeVal.trim();
-    if (!v) { onEditTime(row, null); return; }
-    if (!/^\d{2}:\d{2}$/.test(v)) { toast.error("Use o formato HH:mm."); return; }
-    if (v !== (row.arrivalTimeOverride ?? row.guestArrivalTime ?? "")) onEditTime(row, v);
   };
 
   return (
@@ -712,32 +710,14 @@ function ArrivalCard({ row, kind, onMark, onSyncIcal, onNote, onEditDates, onEdi
         <div className={`rounded-lg p-2 backdrop-blur-sm ${divergent ? "bg-amber-500/10 border border-amber-500/30" : "bg-background/50 border border-border/40"}`}>
           <div className="text-[10px] uppercase tracking-wider text-muted-foreground flex items-center justify-between">
             <span>Previsto</span>
-            <InfoHint title="Horário previsto">Clique no horário para ajustar. A correção atualiza todas as demais telas.</InfoHint>
+            <InfoHint title="Horário previsto">Selecione o horário (30 em 30 min). A alteração reordena o kanban imediatamente.</InfoHint>
           </div>
-          <div className="mt-0.5 tabular-nums flex items-center gap-1">
-            <Clock className="size-3" />
-            {editingTime && !isPendingFill ? (
-              <input
-                type="time"
-                step={1800}
-                autoFocus
-                value={timeVal}
-                onChange={(e) => setTimeVal(e.target.value)}
-                onBlur={commitTime}
-                onKeyDown={(e) => { if (e.key === "Enter") commitTime(); if (e.key === "Escape") setEditingTime(false); }}
-                className="bg-transparent border-b border-primary/40 focus:outline-none w-16 tabular-nums"
-              />
-            ) : (
-              <button
-                type="button"
-                disabled={busy || isPendingFill}
-                onClick={() => { setTimeVal(guestTime ?? ""); setEditingTime(true); }}
-                className="tabular-nums hover:text-primary disabled:cursor-not-allowed disabled:hover:text-inherit"
-                title={isPendingFill ? "Aguarde o hóspede preencher" : "Clique para editar"}
-              >
-                {guestTime ?? "—"}
-              </button>
-            )}
+          <div className="mt-0.5">
+            <TimeDropdown
+              value={guestTime ?? null}
+              disabled={busy}
+              onChange={(v) => onEditTime(row, v)}
+            />
           </div>
         </div>
       </div>
@@ -929,6 +909,57 @@ function DateEditor({ value, disabled, onChange }: {
     </button>
   );
 }
+
+export const TIME_SLOTS = Array.from({ length: 48 }, (_, i) => {
+  const h = String(Math.floor(i / 2)).padStart(2, "0");
+  const m = i % 2 === 0 ? "00" : "30";
+  return `${h}:${m}`;
+});
+
+function TimeDropdown({ value, disabled, onChange, size = "sm" }: {
+  value: string | null;
+  disabled?: boolean;
+  onChange: (v: string | null) => void;
+  size?: "sm" | "xs";
+}) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          type="button"
+          disabled={disabled}
+          onClick={(e) => e.stopPropagation()}
+          title={disabled ? "Indisponível" : "Selecionar horário previsto"}
+          className={`inline-flex items-center gap-1 tabular-nums rounded hover:text-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 disabled:cursor-not-allowed disabled:hover:text-inherit ${size === "xs" ? "text-xs" : "text-sm"}`}
+        >
+          <Clock className="size-3" />
+          <span>{value ?? "—"}</span>
+          <ChevronDown className="size-3 opacity-50" />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="max-h-64 overflow-y-auto min-w-[6rem] p-1">
+        {value && (
+          <DropdownMenuItem
+            onClick={(e) => { e.stopPropagation(); onChange(null); }}
+            className="text-xs text-muted-foreground justify-center"
+          >
+            Limpar
+          </DropdownMenuItem>
+        )}
+        {TIME_SLOTS.map((t) => (
+          <DropdownMenuItem
+            key={t}
+            onClick={(e) => { e.stopPropagation(); onChange(t); }}
+            className={`tabular-nums text-xs justify-center ${value === t ? "bg-primary/10 text-primary font-medium" : ""}`}
+          >
+            {t}
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
 
 
 function isTimeWithin(t: string, min: string, max: string | null): boolean {

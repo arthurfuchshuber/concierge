@@ -1,4 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
+import { createSyncStoragePersister } from "@tanstack/query-sync-storage-persister";
 import {
   Outlet,
   createRootRouteWithContext,
@@ -178,12 +180,25 @@ function RootComponent() {
 
 
 
-  return (
-    <QueryClientProvider client={queryClient}>
-      <I18nProvider>
-        <Outlet />
-        <Toaster position="top-center" />
-      </I18nProvider>
-    </QueryClientProvider>
+  const persister = typeof window !== "undefined"
+    ? createSyncStoragePersister({ storage: window.localStorage, key: "cia-cache-v1", throttleTime: 1000 })
+    : null;
+
+  const content = (
+    <I18nProvider>
+      <Outlet />
+      <Toaster position="top-center" />
+    </I18nProvider>
+  );
+
+  return persister ? (
+    <PersistQueryClientProvider
+      client={queryClient}
+      persistOptions={{ persister, maxAge: 1000 * 60 * 60 * 24 * 7 /* 7 dias */ }}
+    >
+      {content}
+    </PersistQueryClientProvider>
+  ) : (
+    <QueryClientProvider client={queryClient}>{content}</QueryClientProvider>
   );
 }
