@@ -463,8 +463,14 @@ function KpiCard({ label, value, icon: Icon, tone, loading, listQuery, kind, ran
                       {r.pendingFill ? <UserPlus className="size-4" /> : initials}
                     </div>
                     <div className="min-w-0 flex-1">
-                      <div className={`text-sm font-medium leading-tight truncate ${r.pendingFill ? "text-muted-foreground italic" : ""}`}>
-                        {r.guestName}
+                      <div className={`text-sm font-medium leading-tight truncate flex items-center gap-1.5 ${r.pendingFill ? "text-muted-foreground italic" : ""}`}>
+                        <span className="truncate">{r.guestName}</span>
+                        {r.reservationCode && (
+                          <span className="inline-flex items-center gap-0.5 text-[11px] text-muted-foreground font-normal not-italic shrink-0">
+                            <span className="truncate max-w-[90px]">{r.reservationCode}</span>
+                            <CopyButton value={r.reservationCode} size={10} className="p-0.5" />
+                          </span>
+                        )}
                       </div>
                       <div className="text-[11px] text-muted-foreground truncate mt-0.5">
                         {r.propertyName ?? "—"}
