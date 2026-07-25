@@ -154,6 +154,31 @@ function DashboardPage() {
     onError: (e) => toast.error(e instanceof Error ? e.message : "Falha ao atualizar horário."),
   });
 
+  const markPending = useMutation({
+    mutationFn: (v: { propertyId: string; kind: "checkin" | "checkout"; checkinDate: string; checkoutDate: string | null; status: "pending" | "done" }) =>
+      markPendingFn({ data: v }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["dash-list"] });
+      qc.invalidateQueries({ queryKey: ["dash-kpis"] });
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Falha ao atualizar."),
+  });
+
+  function handleMark(row: ArrivalRow, nextStatus: "pending" | "done") {
+    if (row.pendingFill || !isUuid(row.logId)) {
+      markPending.mutate({
+        propertyId: row.propertyId,
+        kind,
+        checkinDate: row.guestCheckin,
+        checkoutDate: row.guestCheckout ?? null,
+        status: nextStatus,
+      });
+    } else {
+      upsert.mutate({ logId: row.logId, kind, status: nextStatus });
+    }
+  }
+
+
   const rows = listQ.data?.rows ?? [];
   const pending = useMemo(() => rows.filter((r) => r.status === "pending"), [rows]);
   const done = useMemo(() => rows.filter((r) => r.status === "done"), [rows]);
