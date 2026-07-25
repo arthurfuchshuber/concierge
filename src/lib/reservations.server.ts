@@ -7,6 +7,17 @@ export type CalendarPeriodRow = {
   status?: string | null;
 };
 
+export function operationalTodayISO(): string {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Sao_Paulo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date());
+  const pick = (type: string) => parts.find((p) => p.type === type)?.value ?? "";
+  return `${pick("year")}-${pick("month")}-${pick("day")}`;
+}
+
 export function classifyCalendarPeriod(row: CalendarPeriodRow): CalendarPeriodType | null {
   const status = (row.status ?? "").toLowerCase();
   const summary = (row.raw_summary ?? "").toLowerCase();
