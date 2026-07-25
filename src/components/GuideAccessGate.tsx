@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { recordGuideAccess, checkReservationBySlug } from "@/lib/guide-access.functions";
+import { recordGuideAccess, checkReservationBySlug, getGuideCalendarAvailability } from "@/lib/guide-access.functions";
 import { Dialog, DialogPortal, DialogOverlay } from "@/components/ui/dialog";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { Button } from "@/components/ui/button";
@@ -44,6 +44,8 @@ export type AccessRecord = {
   phone: string | null;
   phoneCountry: string | null;
 };
+
+type CalendarPeriod = { checkin: string; checkout: string; type: "reservation" | "block" };
 
 function isExpired(checkoutDate: string): boolean {
   const [y, m, d] = checkoutDate.split("-").map(Number);
@@ -105,6 +107,7 @@ type Props = {
 export function GuideAccessGate({ slug, propertyName, requireReservationCode, collection, onUnlock }: Props) {
   const submit = useServerFn(recordGuideAccess);
   const checkReservation = useServerFn(checkReservationBySlug);
+  const loadAvailability = useServerFn(getGuideCalendarAvailability);
   const [step, setStep] = useState<1 | 2>(1);
   const [name, setName] = useState("");
   const [code, setCode] = useState("");
@@ -115,10 +118,15 @@ export function GuideAccessGate({ slug, propertyName, requireReservationCode, co
   const [resCheck, setResCheck] = useState<
     | { state: "idle" }
     | { state: "checking" }
-    | { state: "matched" }
+    | { state: "matched"; matchType?: "reservation" | "block" }
     | { state: "no-ical" }
     | { state: "no-match"; suggestedCheckout?: string }
   >({ state: "idle" });
+  const [calendarAvailability, setCalendarAvailability] = useState<
+    | { state: "loading" }
+    | { state: "ready"; hasIcal: boolean; periods: CalendarPeriod[] }
+    | { state: "unavailable" }
+  >({ state: "loading" });
 
 
 
@@ -148,10 +156,50 @@ export function GuideAccessGate({ slug, propertyName, requireReservationCode, co
     if (existing) onUnlock(existing);
   }, [slug, onUnlock]);
 
+  useEffect(() => {
+    let cancelled = false;
+    setCalendarAvailability({ state: "loading" });
+    loadAvailability({ data: { slug } })
+      .then((r) => {
+        if (cancelled) return;
+        setCalendarAvailability({ state: "ready", hasIcal: r.hasIcal, periods: r.periods });
+      })
+      .catch(() => {
+        if (!cancelled) setCalendarAvailability({ state: "unavailable" });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [slug, loadAvailability]);
+
+  const selectableDateSet = useMemo(() => {
+    if (calendarAvailability.state !== "ready" || !calendarAvailability.hasIcal) return null;
+    const set = new Set<string>();
+    for (const period of calendarAvailability.periods) {
+      if (period.type === "reservation") {
+        set.add(period.checkin);
+        set.add(period.checkout);
+        continue;
+      }
+      const [y, m, d] = period.checkin.split("-").map(Number);
+      const [endY, endM, endD] = period.checkout.split("-").map(Number);
+      if (!y || !m || !d || !endY || !endM || !endD) continue;
+      const cursor = new Date(y, m - 1, d, 12, 0, 0, 0);
+      const end = new Date(endY, endM - 1, endD, 12, 0, 0, 0);
+      for (let i = 0; cursor <= end && i < 370; i += 1) {
+        set.add(format(cursor, "yyyy-MM-dd"));
+        cursor.setDate(cursor.getDate() + 1);
+      }
+    }
+    return set;
+  }, [calendarAvailability]);
+
   const isDateDisabled = (date: Date): boolean => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    return date < today;
+    if (date < today) return true;
+    if (selectableDateSet) return !selectableDateSet.has(format(date, "yyyy-MM-dd"));
+    return false;
   };
 
   // Cross-check with Airbnb iCal reservations (soft warning)
@@ -169,7 +217,7 @@ export function GuideAccessGate({ slug, propertyName, requireReservationCode, co
         .then((r) => {
           if (cancelled) return;
           if (!r.hasIcal) return setResCheck({ state: "no-ical" });
-          if (r.matched) return setResCheck({ state: "matched" });
+          if (r.matched) return setResCheck({ state: "matched", matchType: "matchType" in r ? r.matchType : "reservation" });
           setResCheck({
             state: "no-match",
             suggestedCheckout: "suggestedCheckout" in r ? r.suggestedCheckout : undefined,
@@ -241,7 +289,7 @@ export function GuideAccessGate({ slug, propertyName, requireReservationCode, co
       return false;
     }
     if (resCheck.state === "no-match") {
-      toast.error("As datas informadas não correspondem a nenhuma reserva ativa no Airbnb. Confira e ajuste.");
+      toast.error("As datas informadas não correspondem a uma reserva ou bloqueio liberado no calendário. Confira e ajuste.");
       return false;
     }
     return true;
@@ -257,7 +305,7 @@ export function GuideAccessGate({ slug, propertyName, requireReservationCode, co
       return;
     }
     if (resCheck.state === "no-match") {
-      toast.error("As datas informadas não correspondem a nenhuma reserva ativa no Airbnb. Volte e ajuste.");
+      toast.error("As datas informadas não correspondem a uma reserva ou bloqueio liberado no calendário. Volte e ajuste.");
       return;
     }
 
@@ -329,7 +377,7 @@ export function GuideAccessGate({ slug, propertyName, requireReservationCode, co
         },
       });
       if (!res.ok) {
-        toast.error("Não foi possível registrar seu acesso.");
+        toast.error("reason" in res && res.reason === "no_match" ? "As datas não correspondem ao calendário do anfitrião." : "Não foi possível registrar seu acesso.");
         return;
       }
       const rec: AccessRecord = {
@@ -457,7 +505,7 @@ export function GuideAccessGate({ slug, propertyName, requireReservationCode, co
                 {resCheck.state === "matched" && (
                   <div className="flex items-center gap-2 text-[12px] text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2">
                     <CheckCircle2 className="size-4 shrink-0" />
-                    <span>Reserva Airbnb encontrada para estas datas.</span>
+                    <span>{resCheck.matchType === "block" ? "Período liberado no calendário do anfitrião." : "Reserva Airbnb encontrada para estas datas."}</span>
                   </div>
                 )}
                 {resCheck.state === "no-match" && (
@@ -477,7 +525,7 @@ export function GuideAccessGate({ slug, propertyName, requireReservationCode, co
                           . Confira se digitou corretamente.
                         </>
                       )}
-                      {!resCheck.suggestedCheckout && " Confira as datas ou siga se sua reserva foi feita por outro canal."}
+                      {!resCheck.suggestedCheckout && " Confira se selecionou exatamente a entrada e saída liberadas no calendário."}
                     </span>
                   </div>
                 )}

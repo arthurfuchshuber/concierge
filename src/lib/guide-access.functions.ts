@@ -38,12 +38,26 @@ export const recordGuideAccess = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: prop, error: propErr } = await supabaseAdmin
       .from("properties")
-      .select("id, checkin_time")
+      .select("id, checkin_time, airbnb_ical_url")
       .eq("slug", data.slug)
       .eq("published", true)
       .maybeSingle();
     if (propErr) throw (await import("@/lib/db-errors.server")).safeDbError("guide_access_logs", propErr);
     if (!prop) return { ok: false as const, reason: "not_found" };
+
+    const hasIcal = !!((prop as { airbnb_ical_url?: string | null }).airbnb_ical_url ?? "").trim();
+    if (hasIcal && data.checkout_date) {
+      const { isAllowedGuidePeriod } = await import("@/lib/reservations.server");
+      const { data: periods } = await supabaseAdmin
+        .from("property_reservations")
+        .select("checkin_date, checkout_date, raw_summary, status")
+        .eq("property_id", prop.id)
+        .lte("checkin_date", data.checkin_date)
+        .gte("checkout_date", data.checkout_date)
+        .limit(20);
+      const allowed = isAllowedGuidePeriod((periods ?? []) as never, data.checkin_date, data.checkout_date);
+      if (!allowed.matched) return { ok: false as const, reason: "no_match" };
+    }
 
     const userAgent = getRequestHeader("user-agent")?.slice(0, 500) ?? null;
     const { error } = await supabaseAdmin.from("guide_access_logs").insert({
@@ -95,6 +109,40 @@ const CheckReservationInput = z.object({
   checkout_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
 });
 
+const AvailabilityInput = z.object({ slug: z.string().regex(/^[a-z0-9-]{1,64}$/) });
+
+export const getGuideCalendarAvailability = createServerFn({ method: "POST" })
+  .inputValidator((i: unknown) => AvailabilityInput.parse(i))
+  .handler(async ({ data }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { classifyCalendarPeriod } = await import("@/lib/reservations.server");
+    const { data: prop } = await supabaseAdmin
+      .from("properties")
+      .select("id, airbnb_ical_url")
+      .eq("slug", data.slug)
+      .eq("published", true)
+      .maybeSingle();
+    if (!prop) return { hasIcal: false as const, periods: [] as Array<{ checkin: string; checkout: string; type: "reservation" | "block" }> };
+    const hasIcal = !!((prop.airbnb_ical_url as string | null) ?? "").trim();
+    if (!hasIcal) return { hasIcal: false as const, periods: [] as Array<{ checkin: string; checkout: string; type: "reservation" | "block" }> };
+
+    const today = new Date().toISOString().slice(0, 10);
+    const { data: rows } = await supabaseAdmin
+      .from("property_reservations")
+      .select("checkin_date, checkout_date, raw_summary, status")
+      .eq("property_id", prop.id)
+      .gte("checkout_date", today)
+      .order("checkin_date", { ascending: true })
+      .limit(500);
+
+    const periods = ((rows ?? []) as Array<{ checkin_date: string; checkout_date: string; raw_summary: string | null; status: string | null }>)
+      .map((row) => ({ row, type: classifyCalendarPeriod(row) }))
+      .filter((item): item is { row: { checkin_date: string; checkout_date: string }; type: "reservation" | "block" } => !!item.type)
+      .map(({ row, type }) => ({ checkin: row.checkin_date, checkout: row.checkout_date, type }));
+
+    return { hasIcal: true as const, periods };
+  });
+
 /**
  * Public reservation match check for the guest access gate.
  * Returns only booleans + a single hint date — never guest names or codes.
@@ -113,15 +161,17 @@ export const checkReservationBySlug = createServerFn({ method: "POST" })
     const hasIcal = !!(prop.airbnb_ical_url as string | null);
     if (!hasIcal) return { hasIcal: false as const, matched: false as const };
 
+    const { isAllowedGuidePeriod } = await import("@/lib/reservations.server");
     const { data: exact } = await supabaseAdmin
       .from("property_reservations")
-      .select("id")
+      .select("id, checkin_date, checkout_date, raw_summary, status")
       .eq("property_id", prop.id)
-      .eq("checkin_date", data.checkin_date)
-      .eq("checkout_date", data.checkout_date)
+      .lte("checkin_date", data.checkin_date)
+      .gte("checkout_date", data.checkout_date)
       .limit(1);
-    if ((exact ?? []).length > 0) {
-      return { hasIcal: true as const, matched: true as const };
+    const allowed = isAllowedGuidePeriod((exact ?? []) as never, data.checkin_date, data.checkout_date);
+    if (allowed.matched) {
+      return { hasIcal: true as const, matched: true as const, matchType: allowed.type };
     }
     // Loose match: same check-in date, any check-out
     const { data: loose } = await supabaseAdmin
