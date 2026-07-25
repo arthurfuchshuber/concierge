@@ -289,6 +289,7 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
                 {guest?.reservationCode && (
                   <span className="inline-flex items-center gap-1">
                     <Hash className="size-3" /> {guest.reservationCode}
+                    <CopyButton value={guest.reservationCode} size={11} />
                   </span>
                 )}
               </div>
