@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { CopyButton } from "@/components/CopyButton";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -289,6 +290,7 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
                 {guest?.reservationCode && (
                   <span className="inline-flex items-center gap-1">
                     <Hash className="size-3" /> {guest.reservationCode}
+                    <CopyButton value={guest.reservationCode} size={11} />
                   </span>
                 )}
               </div>
@@ -658,6 +660,7 @@ export function ConversationList({
                 {d?.reservationCode && (
                   <span className="inline-flex items-center gap-1">
                     <Hash className="size-3" /> {d.reservationCode}
+                    <CopyButton value={d.reservationCode} size={11} />
                   </span>
                 )}
               </div>

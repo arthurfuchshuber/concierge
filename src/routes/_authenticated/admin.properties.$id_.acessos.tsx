@@ -1,4 +1,5 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
+import { CopyButton } from "@/components/CopyButton";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { ArrowLeft, ShieldCheck, Loader2, Users } from "lucide-react";
@@ -91,8 +92,11 @@ function AccessLogsPage() {
                     {showRes && (
                       <div className="hidden sm:block text-xs text-muted-foreground truncate">
                         {log.reservation_code ? (
-                          <span className="font-mono text-[11px] px-1.5 py-0.5 rounded bg-muted/60 border border-border/60 text-foreground">
-                            {log.reservation_code}
+                          <span className="inline-flex items-center gap-1">
+                            <span className="font-mono text-[11px] px-1.5 py-0.5 rounded bg-muted/60 border border-border/60 text-foreground">
+                              {log.reservation_code}
+                            </span>
+                            <CopyButton value={log.reservation_code} size={11} />
                           </span>
                         ) : <span>—</span>}
                       </div>

@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import { ChevronDown, ChevronRight, Download, Loader2, Mail, Search, Users, FileText, Car, Clock, Phone } from "lucide-react";
 import { listOwnerGuestForms, savePortariaEmail } from "@/lib/guide-access-admin.functions";
 import { toast } from "sonner";
+import { CopyButton } from "@/components/CopyButton";
 
 export const Route = createFileRoute("/_authenticated/admin/hospedes")({
   component: HospedesPage,
@@ -177,8 +178,11 @@ function HospedesPage() {
                         <div className="text-[11px] text-muted-foreground truncate flex items-center gap-1.5">
                           <span className="truncate">{r.property_name ?? "—"}</span>
                           {r.reservation_code && (
-                            <span className="font-mono text-[10.5px] px-1.5 py-0.5 rounded bg-muted/60 border border-border/60 shrink-0">
-                              {r.reservation_code}
+                            <span className="inline-flex items-center gap-0.5 shrink-0">
+                              <span className="font-mono text-[10.5px] px-1.5 py-0.5 rounded bg-muted/60 border border-border/60">
+                                {r.reservation_code}
+                              </span>
+                              <CopyButton value={r.reservation_code} size={11} />
                             </span>
                           )}
                         </div>
@@ -200,7 +204,7 @@ function HospedesPage() {
                           <div className="flex items-center gap-2"><Phone className="size-3.5" /> Telefone: <span className="text-foreground">{r.guest_phone_country ?? ""} {r.guest_phone}</span></div>
                         )}
                         {r.reservation_code && (
-                          <div>Reserva: <span className="text-foreground">{r.reservation_code}</span></div>
+                          <div className="flex items-center gap-1">Reserva: <span className="text-foreground">{r.reservation_code}</span><CopyButton value={r.reservation_code} size={11} /></div>
                         )}
                       </div>
 

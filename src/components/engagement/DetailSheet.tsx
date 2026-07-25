@@ -1,4 +1,5 @@
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
+import { CopyButton } from "@/components/CopyButton";
 import { Link } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import { Home as HomeIcon, ExternalLink, User, Clock, Layers, MessageSquare, AlertCircle, Activity } from "lucide-react";
@@ -134,7 +135,7 @@ function GuestDetail({ guestKey, accountId }: { guestKey: string; accountId: str
             )}
             <span>{g.propertyName}</span>
             {g.propertyCity && <span>{g.propertyCity}</span>}
-            {g.reservationCode && <span className="text-[11px] opacity-70">Reserva {g.reservationCode}</span>}
+            {g.reservationCode && <span className="inline-flex items-center gap-1 text-[11px] opacity-70">Reserva {g.reservationCode}<CopyButton value={g.reservationCode} size={11} /></span>}
           </div>
         </SheetDescription>
       </SheetHeader>
