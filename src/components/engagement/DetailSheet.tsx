@@ -1,4 +1,5 @@
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
+import { CopyButton } from "@/components/CopyButton";
 import { Link } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import { Home as HomeIcon, ExternalLink, User, Clock, Layers, MessageSquare, AlertCircle, Activity } from "lucide-react";
