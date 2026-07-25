@@ -16,6 +16,7 @@ import {
   getDashboardKpis, getGuideEngagement, listDashboardArrivals, upsertArrivalStatus, updateGuestStayDates, updateGuestArrivalTime, markPendingReservationStatus,
   type ArrivalRow,
 } from "@/lib/dashboard.functions";
+import { useImpersonation } from "@/hooks/useImpersonation";
 
 export const Route = createFileRoute("/_authenticated/admin/dashboard")({
   head: () => ({
@@ -78,6 +79,8 @@ function DashboardPage() {
   const updateTimeFn = useServerFn(updateGuestArrivalTime);
   const markPendingFn = useServerFn(markPendingReservationStatus);
   const qc = useQueryClient();
+  const { impersonation } = useImpersonation();
+  const activeOwnerId = impersonation?.userId ?? null;
 
   const [kind, setKind] = useState<"checkin" | "checkout">("checkin");
   const [range, setRange] = useState<"today" | "tomorrow" | "7d" | "all">("today");
@@ -85,37 +88,37 @@ function DashboardPage() {
   const engRange: "today" | "7d" | "30d" =
     range === "today" ? "today" : range === "all" ? "30d" : "7d";
 
-  const kpisQ = useQuery({ queryKey: ["dash-kpis"], queryFn: () => kpisFn(), staleTime: 60_000 });
+  const kpisQ = useQuery({ queryKey: ["dash-kpis", activeOwnerId ?? "self"], queryFn: () => kpisFn({ data: { ownerId: activeOwnerId } }), staleTime: 60_000 });
   const engQ = useQuery({
-    queryKey: ["dash-eng", engRange],
-    queryFn: () => engFn({ data: { range: engRange } }),
+    queryKey: ["dash-eng", engRange, activeOwnerId ?? "self"],
+    queryFn: () => engFn({ data: { range: engRange, ownerId: activeOwnerId } }),
     staleTime: 60_000,
   });
   const listQ = useQuery({
-    queryKey: ["dash-list", kind, range],
-    queryFn: () => listFn({ data: { kind, range } }),
+    queryKey: ["dash-list", kind, range, activeOwnerId ?? "self"],
+    queryFn: () => listFn({ data: { kind, range, ownerId: activeOwnerId } }),
     staleTime: 30_000,
   });
 
   // KPI drill-down data (loaded on demand)
   const kpiTodayQ = useQuery({
-    queryKey: ["dash-list", "checkin", "today"],
-    queryFn: () => listFn({ data: { kind: "checkin", range: "today" } }),
+    queryKey: ["dash-list", "checkin", "today", activeOwnerId ?? "self"],
+    queryFn: () => listFn({ data: { kind: "checkin", range: "today", ownerId: activeOwnerId } }),
     enabled: false, staleTime: 30_000,
   });
   const kpiTomorrowQ = useQuery({
-    queryKey: ["dash-list", "checkin", "tomorrow"],
-    queryFn: () => listFn({ data: { kind: "checkin", range: "tomorrow" } }),
+    queryKey: ["dash-list", "checkin", "tomorrow", activeOwnerId ?? "self"],
+    queryFn: () => listFn({ data: { kind: "checkin", range: "tomorrow", ownerId: activeOwnerId } }),
     enabled: false, staleTime: 30_000,
   });
   const kpiCoTodayQ = useQuery({
-    queryKey: ["dash-list", "checkout", "today"],
-    queryFn: () => listFn({ data: { kind: "checkout", range: "today" } }),
+    queryKey: ["dash-list", "checkout", "today", activeOwnerId ?? "self"],
+    queryFn: () => listFn({ data: { kind: "checkout", range: "today", ownerId: activeOwnerId } }),
     enabled: false, staleTime: 30_000,
   });
   const kpiCoTomorrowQ = useQuery({
-    queryKey: ["dash-list", "checkout", "tomorrow"],
-    queryFn: () => listFn({ data: { kind: "checkout", range: "tomorrow" } }),
+    queryKey: ["dash-list", "checkout", "tomorrow", activeOwnerId ?? "self"],
+    queryFn: () => listFn({ data: { kind: "checkout", range: "tomorrow", ownerId: activeOwnerId } }),
     enabled: false, staleTime: 30_000,
   });
 

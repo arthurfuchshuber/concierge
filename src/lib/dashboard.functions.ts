@@ -15,19 +15,34 @@ function addDaysISO(iso: string, n: number): string {
   return dt.toISOString().slice(0, 10);
 }
 
+const ScopeInput = z.object({ ownerId: z.string().uuid().nullable().optional() }).optional();
+
+function isPlaceholderGuest(name: string | null | undefined): boolean {
+  return (name ?? "").trim().toLowerCase() === "hóspede pendente";
+}
+
+function isRealReservation(row: { status?: string | null; raw_summary?: string | null }): boolean {
+  const status = (row.status ?? "").toLowerCase();
+  const summary = (row.raw_summary ?? "").toLowerCase();
+  if (status.includes("cancel")) return false;
+  if (summary.includes("not available") || summary.includes("unavailable") || summary.includes("bloqueado")) return false;
+  return true;
+}
+
 async function accessiblePropertyIds(supabase: {
-  from: (t: string) => {
-    select: (s: string) => {
-      order?: (c: string, o: { ascending: boolean }) => Promise<{ data: unknown[] | null }>;
-    };
-  };
-}): Promise<string[]> {
+  from: (t: string) => unknown;
+}, ownerId?: string | null): Promise<string[]> {
   // RLS on properties already scopes to owner + active account members.
-  const { data } = await (supabase as unknown as {
-    from: (t: string) => { select: (s: string) => Promise<{ data: Array<{ id: string }> | null }> };
+  const query = (supabase as unknown as {
+    from: (t: string) => {
+      select: (s: string) => {
+        eq: (c: string, v: string) => Promise<{ data: Array<{ id: string }> | null }>;
+      } & Promise<{ data: Array<{ id: string }> | null }>;
+    };
   })
     .from("properties")
     .select("id");
+  const { data } = ownerId ? await query.eq("owner_id", ownerId) : await query;
   return (data ?? []).map((r) => r.id);
 }
 
@@ -35,17 +50,23 @@ async function accessiblePropertyIds(supabase: {
 
 export const getDashboardKpis = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
-    const propIds = await accessiblePropertyIds(context.supabase as never);
+  .inputValidator((i: unknown) => ScopeInput.parse(i) ?? {})
+  .handler(async ({ data, context }) => {
+    const propIds = await accessiblePropertyIds(context.supabase as never, data.ownerId ?? null);
     if (propIds.length === 0) {
       return { checkinsToday: 0, checkinsTomorrow: 0, checkoutsToday: 0, checkoutsTomorrow: 0 };
     }
     const today = todayISO();
     const tomorrow = addDaysISO(today, 1);
 
-    // Filled logs + iCal reservations in parallel. Both feed the KPI counts so
-    // reservations that the guest has NOT accessed yet still surface up top.
-    const [{ data: logs }, { data: reservations }] = await Promise.all([
+    // Airbnb/iCal is the canonical operational source when connected. Guest
+    // forms are only a fallback for properties without iCal to avoid inflated
+    // counts from duplicate or mistyped forms.
+    const [{ data: props }, { data: logs }, { data: reservations }] = await Promise.all([
+      context.supabase
+        .from("properties")
+        .select("id, airbnb_ical_url")
+        .in("id", propIds),
       context.supabase
         .from("guide_access_logs")
         .select("property_id, guest_name, checkin_date, checkout_date")
@@ -56,32 +77,36 @@ export const getDashboardKpis = createServerFn({ method: "GET" })
         .limit(2000),
       context.supabase
         .from("property_reservations")
-        .select("property_id, checkin_date, checkout_date")
+        .select("id, property_id, checkin_date, checkout_date, status, raw_summary")
         .in("property_id", propIds)
         .eq("source", "airbnb")
         .or(
           `checkin_date.in.(${today},${tomorrow}),checkout_date.in.(${today},${tomorrow})`,
-        ),
+        )
+        .limit(5000),
     ]);
 
     type LogRow = { property_id: string; guest_name: string; checkin_date: string; checkout_date: string | null };
-    type ResRow = { property_id: string; checkin_date: string; checkout_date: string };
+    type ResRow = { id: string; property_id: string; checkin_date: string; checkout_date: string; status: string | null; raw_summary: string | null };
+    const icalProps = new Set(
+      ((props ?? []) as Array<{ id: string; airbnb_ical_url: string | null }>)
+        .filter((p) => !!p.airbnb_ical_url?.trim())
+        .map((p) => p.id),
+    );
     const logRows = (logs ?? []) as LogRow[];
     const resRows = (reservations ?? []) as ResRow[];
 
     function countFor(col: "checkin_date" | "checkout_date", date: string) {
       const seen = new Set<string>();
-      const filledPropDates = new Set<string>();
-      for (const row of logRows) {
-        if (row[col] !== date) continue;
-        filledPropDates.add(`${row.property_id}|${date}`);
-        seen.add(`${row.property_id}|${(row.guest_name || "").trim().toLowerCase()}|${date}`);
-      }
       for (const r of resRows) {
         if (r[col] !== date) continue;
-        const pk = `${r.property_id}|${date}`;
-        if (filledPropDates.has(pk)) continue;
-        seen.add(`ical|${pk}`);
+        if (!icalProps.has(r.property_id) || !isRealReservation(r)) continue;
+        seen.add(`ical|${r.id}`);
+      }
+      for (const row of logRows) {
+        if (row[col] !== date) continue;
+        if (icalProps.has(row.property_id) || isPlaceholderGuest(row.guest_name)) continue;
+        seen.add(`log|${row.property_id}|${(row.guest_name || "").trim().toLowerCase()}|${date}`);
       }
       return seen.size;
     }
@@ -102,9 +127,9 @@ const EngagementInput = z.object({
 
 export const getGuideEngagement = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((i: unknown) => EngagementInput.parse(i))
+  .inputValidator((i: unknown) => EngagementInput.merge(ScopeInput.unwrap()).parse(i))
   .handler(async ({ data, context }) => {
-    const propIds = await accessiblePropertyIds(context.supabase as never);
+    const propIds = await accessiblePropertyIds(context.supabase as never, data.ownerId ?? null);
     if (propIds.length === 0) {
       return { guideOpens: 0, checkinTabOpens: 0, checkinsInPeriod: 0 };
     }
@@ -160,6 +185,7 @@ export const getGuideEngagement = createServerFn({ method: "GET" })
 const ListInput = z.object({
   kind: z.enum(["checkin", "checkout"]).default("checkin"),
   range: z.enum(["today", "tomorrow", "7d", "all"]).default("today"),
+  ownerId: z.string().uuid().nullable().optional(),
 });
 
 export type ArrivalRow = {
@@ -195,7 +221,7 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((i: unknown) => ListInput.parse(i))
   .handler(async ({ data, context }): Promise<{ rows: ArrivalRow[] }> => {
-    const propIds = await accessiblePropertyIds(context.supabase as never);
+    const propIds = await accessiblePropertyIds(context.supabase as never, data.ownerId ?? null);
     if (propIds.length === 0) return { rows: [] };
 
     const dateCol = data.kind === "checkin" ? "checkin_date" : "checkout_date";
@@ -227,32 +253,36 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
       checkin_date: string; checkout_date: string | null;
       reservation_code: string | null; created_at: string;
     }>;
+    const placeholderLogs = rawLogs.filter((l) => isPlaceholderGuest(l.guest_name));
+    const formLogs = rawLogs.filter((l) => !isPlaceholderGuest(l.guest_name));
     // Dedupe per (property_id + guest_name + date) — keep the most recent log
     const dedupMap = new Map<string, typeof rawLogs[number]>();
-    for (const l of rawLogs) {
+    for (const l of formLogs) {
       const key = `${l.property_id}|${(l.guest_name || "").trim().toLowerCase()}|${data.kind === "checkin" ? l.checkin_date : l.checkout_date}`;
       const prev = dedupMap.get(key);
       if (!prev || new Date(l.created_at) > new Date(prev.created_at)) dedupMap.set(key, l);
     }
     const uniqueLogs = Array.from(dedupMap.values());
+    const statusLogIds = [...uniqueLogs, ...placeholderLogs].map((l) => l.id);
 
     const [{ data: props }, { data: statuses }, { data: reservations }, { data: sectionEvents }] = await Promise.all([
       context.supabase
         .from("properties")
         .select("id, name, address, maps_url, garage_maps_url, wifi_password, lock_code, gate_code, checkin_time, checkin_time_max, checkout_time, checkout_time_min, airbnb_ical_url")
         .in("id", propIds),
-      uniqueLogs.length > 0
+      statusLogIds.length > 0
         ? context.supabase
             .from("guest_arrival_status")
             .select("log_id, kind, status, note, arrival_time_override, done_at")
-            .in("log_id", uniqueLogs.map((l) => l.id))
+            .in("log_id", statusLogIds)
             .eq("kind", data.kind)
         : Promise.resolve({ data: [] as Array<{ log_id: string; kind: string; status: "pending" | "done"; note: string | null; arrival_time_override: string | null; done_at: string | null }> }),
       context.supabase
         .from("property_reservations")
-        .select("property_id, checkin_date, checkout_date")
+        .select("id, property_id, checkin_date, checkout_date, raw_summary, guest_hint, reservation_url, status, synced_at")
         .in("property_id", propIds)
-        .eq("source", "airbnb"),
+        .eq("source", "airbnb")
+        .limit(5000),
       uniqueLogs.length > 0
         ? context.supabase
             .from("guide_section_events")
@@ -285,19 +315,48 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
       else if (ev.section === "senhas") viewedPasswordsSet.add(k);
     }
 
-    const statusMap = new Map<string, { status: "pending" | "done"; note: string | null; arrival_time_override: string | null; done_at: string | null }>();
-    for (const s of (statuses ?? []) as Array<{ log_id: string; status: "pending" | "done"; note: string | null; arrival_time_override: string | null; done_at: string | null }>) {
-      statusMap.set(s.log_id, { status: s.status, note: s.note, arrival_time_override: s.arrival_time_override, done_at: s.done_at });
+    const statusMap = new Map<string, { kind: "checkin" | "checkout"; status: "pending" | "done"; note: string | null; arrival_time_override: string | null; done_at: string | null }>();
+    for (const s of (statuses ?? []) as Array<{ log_id: string; kind: "checkin" | "checkout"; status: "pending" | "done"; note: string | null; arrival_time_override: string | null; done_at: string | null }>) {
+      statusMap.set(s.log_id, { kind: s.kind, status: s.status, note: s.note, arrival_time_override: s.arrival_time_override, done_at: s.done_at });
     }
 
-    const resByProp = new Map<string, Array<{ checkin: string; checkout: string }>>();
-    for (const r of (reservations ?? []) as Array<{ property_id: string; checkin_date: string; checkout_date: string }>) {
+    const placeholderStatus = new Map<string, { status: "pending" | "done"; note: string | null; arrival_time_override: string | null; done_at: string | null }>();
+    const placeholderKey = (propertyId: string, checkin: string, checkout: string | null, kind: "checkin" | "checkout") =>
+      `${propertyId}|${checkin}|${checkout ?? ""}|${kind}`;
+    for (const l of placeholderLogs) {
+      const s = statusMap.get(l.id);
+      if (!s) continue;
+      placeholderStatus.set(placeholderKey(l.property_id, l.checkin_date, l.checkout_date, s.kind), s);
+    }
+
+    type ReservationRow = { id: string; property_id: string; checkin_date: string; checkout_date: string; raw_summary: string | null; guest_hint: string | null; reservation_url: string | null; status: string | null; synced_at: string | null };
+    const resByProp = new Map<string, Array<{ id: string; checkin: string; checkout: string; raw_summary: string | null; status: string | null }>>();
+    const reservationRows = ((reservations ?? []) as ReservationRow[]).filter(isRealReservation);
+    for (const r of reservationRows) {
       const arr = resByProp.get(r.property_id) ?? [];
-      arr.push({ checkin: r.checkin_date, checkout: r.checkout_date });
+      arr.push({ id: r.id, checkin: r.checkin_date, checkout: r.checkout_date, raw_summary: r.raw_summary, status: r.status });
       resByProp.set(r.property_id, arr);
     }
 
-    const rows: ArrivalRow[] = uniqueLogs.map((l) => {
+    function reservationInRange(r: ReservationRow): boolean {
+      const date = data.kind === "checkin" ? r.checkin_date : r.checkout_date;
+      if (date < (from ?? today)) return false;
+      if (to && date > to) return false;
+      return true;
+    }
+
+    function findBestLogForReservation(r: ReservationRow) {
+      const exactStay = uniqueLogs.find((l) =>
+        l.property_id === r.property_id && l.checkin_date === r.checkin_date && l.checkout_date === r.checkout_date,
+      );
+      if (exactStay) return exactStay;
+      if (data.kind === "checkin") {
+        return uniqueLogs.find((l) => l.property_id === r.property_id && l.checkin_date === r.checkin_date) ?? null;
+      }
+      return uniqueLogs.find((l) => l.property_id === r.property_id && l.checkout_date === r.checkout_date) ?? null;
+    }
+
+    function rowFromLog(l: typeof uniqueLogs[number], forceIcal?: { hasIcal: boolean; matched: boolean; icalCheckin: string | null; icalCheckout: string | null }): ArrivalRow {
       const p = propMap.get(l.property_id);
       const s = statusMap.get(l.id);
       const date = data.kind === "checkin" ? l.checkin_date : (l.checkout_date ?? l.checkin_date);
@@ -349,13 +408,61 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
         arrivalTimeOverride: s?.arrival_time_override ?? null,
         doneAt: s?.done_at ?? null,
         pendingFill: false,
-        ical: { hasIcal, matched, icalCheckin, icalCheckout },
+        ical: forceIcal ?? { hasIcal, matched, icalCheckin, icalCheckout },
       };
-    });
+    }
 
-    // NOTE: We intentionally do NOT append synthetic "pending fill" rows here.
-    // The top KPI cards already count iCal reservations without a filled form;
-    // the kanban list stays limited to actual guide_access_logs entries.
+    const rows: ArrivalRow[] = [];
+    const usedLogIds = new Set<string>();
+
+    for (const r of reservationRows.filter(reservationInRange)) {
+      const p = propMap.get(r.property_id);
+      if (!p?.airbnb_ical_url) continue;
+      const matchedLog = findBestLogForReservation(r);
+      if (matchedLog) {
+        usedLogIds.add(matchedLog.id);
+        rows.push(rowFromLog(matchedLog, { hasIcal: true, matched: true, icalCheckin: r.checkin_date, icalCheckout: r.checkout_date }));
+        continue;
+      }
+
+      const s = placeholderStatus.get(placeholderKey(r.property_id, r.checkin_date, r.checkout_date, data.kind));
+      const date = data.kind === "checkin" ? r.checkin_date : r.checkout_date;
+      rows.push({
+        logId: `ical:${r.id}`,
+        propertyId: r.property_id,
+        propertyName: p.name ?? null,
+        propertyAddress: p.address ?? null,
+        mapsUrl: p.maps_url ?? null,
+        garageMapsUrl: p.garage_maps_url ?? null,
+        hasPasswords: !!p.hasPasswords,
+        openedCheckin: false,
+        viewedPasswords: false,
+        guestName: r.guest_hint || "Reserva Airbnb",
+        guestPhone: null,
+        guestPhoneCountry: null,
+        guestArrivalTime: null,
+        standardTime: data.kind === "checkin" ? (p.checkin_time ?? null) : (p.checkout_time ?? null),
+        standardTimeMax: data.kind === "checkin" ? (p.checkin_time_max ?? null) : (p.checkout_time_min ?? null),
+        date,
+        guestCheckin: r.checkin_date,
+        guestCheckout: r.checkout_date,
+        reservationCode: r.guest_hint ?? null,
+        createdAt: r.synced_at ?? new Date().toISOString(),
+        status: s?.status ?? "pending",
+        note: s?.note ?? null,
+        arrivalTimeOverride: s?.arrival_time_override ?? null,
+        doneAt: s?.done_at ?? null,
+        pendingFill: true,
+        ical: { hasIcal: true, matched: true, icalCheckin: r.checkin_date, icalCheckout: r.checkout_date },
+      });
+    }
+
+    for (const l of uniqueLogs) {
+      if (usedLogIds.has(l.id)) continue;
+      const p = propMap.get(l.property_id);
+      if (p?.airbnb_ical_url) continue;
+      rows.push(rowFromLog(l));
+    }
 
     rows.sort((a, b) => a.date.localeCompare(b.date));
 
