@@ -169,9 +169,9 @@ export const checkReservationBySlug = createServerFn({ method: "POST" })
       .from("property_reservations")
       .select("id, checkin_date, checkout_date, raw_summary, status")
       .eq("property_id", prop.id)
-      .lte("checkin_date", data.checkin_date)
-      .gte("checkout_date", data.checkout_date)
-      .limit(1);
+      .lt("checkin_date", data.checkout_date)
+      .gt("checkout_date", data.checkin_date)
+      .limit(50);
     const allowed = isAllowedGuidePeriod((exact ?? []) as never, data.checkin_date, data.checkout_date);
     if (allowed.matched) {
       return { hasIcal: true as const, matched: true as const, matchType: allowed.type };
