@@ -98,6 +98,7 @@ type UploadedDoc = {
 
 type Props = {
   slug: string;
+  propertyId: string;
   propertyName: string;
   requireReservationCode: boolean;
   collection?: CollectionConfig;
@@ -110,7 +111,7 @@ function dateFromISODate(value: string): Date | null {
   return new Date(y, m - 1, d, 12, 0, 0, 0);
 }
 
-export function GuideAccessGate({ slug, propertyName, requireReservationCode, collection, onUnlock }: Props) {
+export function GuideAccessGate({ slug, propertyId, propertyName, requireReservationCode, collection, onUnlock }: Props) {
   const submit = useServerFn(recordGuideAccess);
   const checkReservation = useServerFn(checkReservationBySlug);
   const loadAvailability = useServerFn(getGuideCalendarAvailability);
@@ -165,7 +166,7 @@ export function GuideAccessGate({ slug, propertyName, requireReservationCode, co
   useEffect(() => {
     let cancelled = false;
     setCalendarAvailability({ state: "loading" });
-    loadAvailability({ data: { slug } })
+    loadAvailability({ data: { slug, property_id: propertyId } })
       .then((r) => {
         if (cancelled) return;
         setCalendarAvailability({ state: "ready", hasIcal: r.hasIcal, periods: r.periods });
@@ -176,7 +177,7 @@ export function GuideAccessGate({ slug, propertyName, requireReservationCode, co
     return () => {
       cancelled = true;
     };
-  }, [slug, loadAvailability]);
+  }, [slug, propertyId, loadAvailability]);
 
   // Map every real reservation check-in date → its check-out date. Blocks,
   // checkout dates and intermediate dates are ignored on purpose: the guest
@@ -239,7 +240,7 @@ export function GuideAccessGate({ slug, propertyName, requireReservationCode, co
     let cancelled = false;
     setResCheck({ state: "checking" });
     const t = setTimeout(() => {
-      checkReservation({ data: { slug, checkin_date: checkin, checkout_date: checkout } })
+      checkReservation({ data: { slug, property_id: propertyId, checkin_date: checkin, checkout_date: checkout } })
         .then((r) => {
           if (cancelled) return;
           if (!r.hasIcal) return setResCheck({ state: "no-ical" });
@@ -257,7 +258,7 @@ export function GuideAccessGate({ slug, propertyName, requireReservationCode, co
       cancelled = true;
       clearTimeout(t);
     };
-  }, [range?.from, range?.to, slug, checkReservation]);
+  }, [range?.from, range?.to, slug, propertyId, checkReservation]);
 
 
 
@@ -379,6 +380,7 @@ export function GuideAccessGate({ slug, propertyName, requireReservationCode, co
       const res = await submit({
         data: {
           slug,
+          property_id: propertyId,
           guest_name: titleCaseName(name),
           reservation_code: requireReservationCode && code.trim() ? code.trim() : null,
           checkin_date: checkinDate,
