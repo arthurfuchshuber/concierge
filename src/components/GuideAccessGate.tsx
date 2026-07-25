@@ -172,38 +172,28 @@ export function GuideAccessGate({ slug, propertyName, requireReservationCode, co
     };
   }, [slug, loadAvailability]);
 
+  // Map every reservation check-in date → its check-out date. Blocks are
+  // ignored on purpose: the picker should only offer real Airbnb stays.
+  const reservationMap = useMemo(() => {
+    const map = new Map<string, string>();
+    if (calendarAvailability.state !== "ready" || !calendarAvailability.hasIcal) return map;
+    for (const p of calendarAvailability.periods) {
+      if (p.type !== "reservation") continue;
+      if (p.checkout <= p.checkin) continue;
+      map.set(p.checkin, p.checkout);
+    }
+    return map;
+  }, [calendarAvailability]);
+
   const selectableDateSet = useMemo(() => {
     if (calendarAvailability.state !== "ready" || !calendarAvailability.hasIcal) return null;
     const set = new Set<string>();
-    // Merge contiguous events (reservations + blocks) so multi-event stays
-    // (e.g. Airbnb splits 25-01 into 23-29 + 29-30 block + 30-02) become one
-    // window whose interior dates are all selectable.
-    const spans = calendarAvailability.periods
-      .map((p) => ({ start: p.checkin, end: p.checkout }))
-      .filter((p) => p.end > p.start)
-      .sort((a, b) => (a.start < b.start ? -1 : a.start > b.start ? 1 : 0));
-    const merged: Array<{ start: string; end: string }> = [];
-    for (const s of spans) {
-      const last = merged[merged.length - 1];
-      if (last && s.start <= last.end) {
-        if (s.end > last.end) last.end = s.end;
-      } else {
-        merged.push({ ...s });
-      }
-    }
-    for (const w of merged) {
-      const [y, m, d] = w.start.split("-").map(Number);
-      const [endY, endM, endD] = w.end.split("-").map(Number);
-      if (!y || !m || !d || !endY || !endM || !endD) continue;
-      const cursor = new Date(y, m - 1, d, 12, 0, 0, 0);
-      const end = new Date(endY, endM - 1, endD, 12, 0, 0, 0);
-      for (let i = 0; cursor <= end && i < 370; i += 1) {
-        set.add(format(cursor, "yyyy-MM-dd"));
-        cursor.setDate(cursor.getDate() + 1);
-      }
+    for (const [checkin, checkout] of reservationMap) {
+      set.add(checkin);
+      set.add(checkout);
     }
     return set;
-  }, [calendarAvailability]);
+  }, [calendarAvailability, reservationMap]);
 
   const isDateDisabled = (date: Date): boolean => {
     const today = new Date();
@@ -212,6 +202,21 @@ export function GuideAccessGate({ slug, propertyName, requireReservationCode, co
     if (selectableDateSet) return !selectableDateSet.has(format(date, "yyyy-MM-dd"));
     return false;
   };
+
+  // Auto-pair check-out when the user picks a known reservation check-in.
+  const handleRangeSelect = (r: { from?: Date; to?: Date } | undefined) => {
+    if (r?.from) {
+      const key = format(r.from, "yyyy-MM-dd");
+      const pairedCheckout = reservationMap.get(key);
+      if (pairedCheckout) {
+        const [y, m, d] = pairedCheckout.split("-").map(Number);
+        setRange({ from: r.from, to: new Date(y, m - 1, d, 12, 0, 0, 0) });
+        return;
+      }
+    }
+    setRange(r);
+  };
+
 
   // Cross-check with Airbnb iCal reservations (soft warning)
   useEffect(() => {
