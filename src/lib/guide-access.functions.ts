@@ -57,10 +57,12 @@ export const recordGuideAccess = createServerFn({ method: "POST" })
         .select("checkin_date, checkout_date, raw_summary, status")
         .eq("property_id", prop.id)
         .eq("source", "airbnb")
-        .eq("checkin_date", data.checkin_date)
+        .lte("checkin_date", data.checkin_date)
         .eq("checkout_date", data.checkout_date)
+        .gt("checkout_date", data.checkin_date)
         .limit(50);
-      const allowed = isAllowedGuidePeriod((periods ?? []) as never, data.checkin_date, data.checkout_date);
+      const normalized = (periods ?? []).map((p) => ({ ...(p as object), checkin_date: data.checkin_date }));
+      const allowed = isAllowedGuidePeriod(normalized as never, data.checkin_date, data.checkout_date);
       if (!allowed.matched) return { ok: false as const, reason: "no_match" };
     }
 
@@ -143,14 +145,15 @@ export const getGuideCalendarAvailability = createServerFn({ method: "POST" })
       .select("checkin_date, checkout_date, raw_summary, status")
       .eq("property_id", prop.id)
       .eq("source", "airbnb")
-      .eq("checkin_date", today)
+      .lte("checkin_date", today)
+      .gt("checkout_date", today)
       .order("checkin_date", { ascending: true })
       .limit(500);
 
     const periods: Array<{ checkin: string; checkout: string; type: "reservation" | "block" }> = [];
     for (const row of (rows ?? []) as Array<{ checkin_date: string; checkout_date: string; raw_summary: string | null; status: string | null }>) {
       const type = classifyCalendarPeriod(row);
-      if (type) periods.push({ checkin: row.checkin_date, checkout: row.checkout_date, type });
+      if (type) periods.push({ checkin: today, checkout: row.checkout_date, type });
     }
 
     return { hasIcal: true as const, periods };
@@ -183,10 +186,12 @@ export const checkReservationBySlug = createServerFn({ method: "POST" })
       .select("id, checkin_date, checkout_date, raw_summary, status")
       .eq("property_id", prop.id)
       .eq("source", "airbnb")
-      .eq("checkin_date", data.checkin_date)
+      .lte("checkin_date", data.checkin_date)
       .eq("checkout_date", data.checkout_date)
+      .gt("checkout_date", data.checkin_date)
       .limit(50);
-    const allowed = isAllowedGuidePeriod((exact ?? []) as never, data.checkin_date, data.checkout_date);
+    const normalized = (exact ?? []).map((p) => ({ ...(p as object), checkin_date: data.checkin_date }));
+    const allowed = isAllowedGuidePeriod(normalized as never, data.checkin_date, data.checkout_date);
     if (allowed.matched) {
       return { hasIcal: true as const, matched: true as const, matchType: allowed.type };
     }
@@ -196,7 +201,8 @@ export const checkReservationBySlug = createServerFn({ method: "POST" })
       .select("checkin_date, checkout_date")
       .eq("property_id", prop.id)
       .eq("source", "airbnb")
-      .eq("checkin_date", data.checkin_date)
+      .lte("checkin_date", data.checkin_date)
+      .gt("checkout_date", data.checkin_date)
       .limit(1);
     if ((loose ?? []).length > 0) {
       return {
