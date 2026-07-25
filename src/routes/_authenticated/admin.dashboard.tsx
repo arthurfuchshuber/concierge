@@ -483,12 +483,12 @@ function KpiCard({ label, value, icon: Icon, tone, loading, listQuery, kind, ran
                       <div className={`text-sm font-medium leading-tight truncate flex items-center gap-1.5 ${r.pendingFill ? "text-muted-foreground italic" : ""}`}>
                         {r.pendingFill || !r.guestName || r.guestName === r.reservationCode ? (
                           r.reservationCode ? (
-                            <span className="inline-flex items-center gap-0.5 text-muted-foreground font-normal not-italic shrink-0">
+                            <span className="inline-flex items-center gap-0.5 text-foreground font-semibold not-italic shrink-0">
                               <span className="truncate max-w-[140px]">{r.reservationCode}</span>
                               <CopyButton value={r.reservationCode} size={11} className="p-0.5" />
                             </span>
                           ) : (
-                            <span className="truncate">{r.guestName}</span>
+                            <span className="truncate font-semibold not-italic text-foreground">{r.guestName}</span>
                           )
                         ) : (
                           <>
@@ -516,8 +516,6 @@ function KpiCard({ label, value, icon: Icon, tone, loading, listQuery, kind, ran
                         <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
                           <Check className="size-3" /> Feito
                         </span>
-                      ) : r.pendingFill ? (
-                        <span className="text-[10px] uppercase tracking-wider text-amber-600 dark:text-amber-400">Pendente</span>
                       ) : (
                         <span className="text-[10px] uppercase tracking-wider text-muted-foreground">Aguardando</span>
                       )}
@@ -698,12 +696,12 @@ function ArrivalCard({ row, kind, onMark, onSyncIcal, onNote, onEditDates, onEdi
           <div className={`font-semibold truncate flex items-center gap-2 ${isPendingFill ? "italic text-foreground/80" : ""}`}>
             {isPendingFill || !row.guestName || row.guestName === row.reservationCode ? (
               row.reservationCode ? (
-                <span className="inline-flex items-center gap-1 text-muted-foreground font-normal not-italic shrink-0">
+                <span className="inline-flex items-center gap-1 text-foreground font-semibold not-italic shrink-0">
                   <span className="truncate max-w-[180px]">{row.reservationCode}</span>
                   <CopyButton value={row.reservationCode} size={12} className="p-0.5" />
                 </span>
               ) : (
-                <span className="truncate">{row.guestName}</span>
+                <span className="truncate font-semibold not-italic text-foreground">{row.guestName}</span>
               )
             ) : (
               <>
