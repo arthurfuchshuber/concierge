@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
+import { isAllowedIcalUrl } from "@/lib/airbnb-ical-url";
 
 const slugRe = /^[a-z0-9](?:[a-z0-9-]{1,60}[a-z0-9])?$/;
 
@@ -115,15 +116,7 @@ const PropertyInput = z.object({
       .url()
       .max(2048)
       .refine(isHttpsUrl, "Use um link HTTPS válido")
-      .refine(
-        (u) => {
-          // Lazy require to avoid circular import cost; validation is synchronous.
-          // eslint-disable-next-line @typescript-eslint/no-require-imports
-          const { isAllowedIcalUrl } = require("@/lib/airbnb-ical-url");
-          return isAllowedIcalUrl(u);
-        },
-        "Use um link iCal oficial do Airbnb",
-      )
+      .refine(isAllowedIcalUrl, "Use um link iCal oficial do Airbnb")
       .optional()
       .nullable(),
   ),
