@@ -485,12 +485,13 @@ export function GuideAccessGate({ slug, propertyId, propertyName, requireReserva
           {step === 1 ? (
             <>
               <div className="mb-5 space-y-1.5">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-primary/85">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-accent">
                   Boas-vindas
                 </p>
-                <DialogPrimitive.Title className="font-serif text-[24px] leading-[1.1] tracking-tight">
+                <DialogPrimitive.Title className="font-serif text-[24px] leading-[1.1] tracking-tight text-foreground">
                   {propertyName}
                 </DialogPrimitive.Title>
+
                 <DialogPrimitive.Description className="text-[13px] leading-relaxed text-muted-foreground">
                   Rápido preenchimento para liberar o guia.
                 </DialogPrimitive.Description>
