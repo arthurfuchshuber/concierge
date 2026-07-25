@@ -205,33 +205,32 @@
   }
 
   .guide-access-calendar {
-    color: #171717;
+    color: #ffffff;
   }
 
-  /* Weekday header (dom, seg, ter...) — dark strong for contrast on the icy popover */
+  /* Weekday header + month/year caption — WHITE for contrast on the dark popover */
   .guide-access-calendar [role="columnheader"],
   .guide-access-calendar .rdp-weekday {
-    color: #0a0a0a !important;
+    color: #ffffff !important;
     font-weight: 700;
     text-transform: lowercase;
   }
 
-  /* Month/year caption + nav chevrons */
   .guide-access-calendar .rdp-caption_label,
   .guide-access-calendar .rdp-month_caption {
-    color: #0a0a0a !important;
+    color: #ffffff !important;
     font-weight: 700;
   }
   .guide-access-calendar .rdp-button_previous svg,
   .guide-access-calendar .rdp-button_next svg,
   .guide-access-calendar [class*="chevron"] svg {
-    color: #0a0a0a !important;
+    color: #ffffff !important;
   }
 
-  /* Disabled dates — very faded, visible but clearly non-interactive */
+  /* Disabled dates — dark gray, visible but clearly non-interactive */
   .guide-access-calendar [data-today][data-disabled="true"] {
     background: transparent !important;
-    color: #d4d4d8 !important;
+    color: #4b4b52 !important;
     opacity: 1 !important;
   }
   .guide-access-calendar [data-today][data-disabled="true"] button {
@@ -239,10 +238,11 @@
     color: inherit !important;
   }
   .guide-access-calendar [data-disabled="true"] button {
-    color: #d4d4d8 !important;
+    color: #4b4b52 !important;
     opacity: 1 !important;
     font-weight: 400 !important;
   }
+
 
 
   .guide-access-calendar .guide-available-checkin:not([data-disabled="true"]) button {
