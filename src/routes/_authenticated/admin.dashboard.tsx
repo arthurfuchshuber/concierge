@@ -363,13 +363,17 @@ function DashboardPage() {
 
       {/* Arrivals */}
       <section className="rounded-2xl border border-border bg-card p-4 sm:p-5 space-y-4 shadow-sm">
-        <div className="flex flex-wrap items-start gap-3">
-          <div className="grid grid-cols-2 gap-1.5 w-full max-w-md">
-            <SegBtn active={mode === "checkin"} onClick={() => setMode("checkin")} icon={CalendarCheck} count={counts.checkin}>Check-ins</SegBtn>
-            <SegBtn active={mode === "checkout"} onClick={() => setMode("checkout")} icon={CalendarX} count={counts.checkout}>Check-outs</SegBtn>
-            <SegBtn active={mode === "stay"} onClick={() => setMode("stay")} icon={BedDouble} count={counts.stay}>Em Estadia</SegBtn>
-            <SegBtn active={mode === "cleaning"} onClick={() => setMode("cleaning")} icon={Sparkles} count={counts.cleaning}>Em Limpeza</SegBtn>
-          </div>
+        <div className="flex items-center gap-3">
+          <ModeDropdown
+            value={mode}
+            onChange={setMode}
+            options={[
+              { value: "checkin", label: "Check-ins", icon: CalendarCheck, count: counts.checkin },
+              { value: "checkout", label: "Check-outs", icon: CalendarX, count: counts.checkout },
+              { value: "stay", label: "Em Estadia", icon: BedDouble, count: counts.stay },
+              { value: "cleaning", label: "Em Limpeza", icon: Sparkles, count: counts.cleaning },
+            ]}
+          />
           <div className="ml-auto">
             <RangeDropdown
               value={range}
@@ -564,6 +568,47 @@ function RangeDropdown<T extends string>({ value, onChange, options }: {
             {label}
           </DropdownMenuItem>
         ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+function ModeDropdown<T extends string>({ value, onChange, options }: {
+  value: T;
+  onChange: (v: T) => void;
+  options: Array<{ value: T; label: string; icon: React.ElementType; count: number }>;
+}) {
+  const current = options.find((o) => o.value === value) ?? options[0];
+  const CurrentIcon = current.icon;
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          type="button"
+          className="inline-flex items-center gap-1.5 rounded-lg border border-primary/20 bg-primary/[0.04] px-3 py-2 text-xs font-medium text-foreground/80 hover:bg-primary/[0.08] transition-colors"
+        >
+          <CurrentIcon className="size-3.5 shrink-0" />
+          <span>{current.label}</span>
+          <span className="tabular-nums text-muted-foreground">({current.count})</span>
+          <ChevronDown className="size-3.5 opacity-60" />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="min-w-[12rem]">
+        {options.map((o) => {
+          const Icon = o.icon;
+          const active = o.value === value;
+          return (
+            <DropdownMenuItem
+              key={o.value}
+              onClick={() => onChange(o.value)}
+              className={active ? "bg-primary/10 text-primary font-medium" : ""}
+            >
+              <Icon className="size-3.5 shrink-0" />
+              <span className="flex-1">{o.label}</span>
+              <span className="tabular-nums text-muted-foreground">({o.count})</span>
+            </DropdownMenuItem>
+          );
+        })}
       </DropdownMenuContent>
     </DropdownMenu>
   );
