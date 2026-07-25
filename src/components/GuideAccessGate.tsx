@@ -214,10 +214,10 @@ export function GuideAccessGate({ slug, propertyId, propertyName, requireReserva
 
 
   const isDateDisabled = (date: Date): boolean => {
+    if (selectableDateSet) return !selectableDateSet.has(format(date, "yyyy-MM-dd"));
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     if (date < today) return true;
-    if (selectableDateSet) return !selectableDateSet.has(format(date, "yyyy-MM-dd"));
     return false;
   };
 
