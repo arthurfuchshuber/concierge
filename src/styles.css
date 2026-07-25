@@ -208,19 +208,38 @@
     color: #171717;
   }
 
-  .guide-access-calendar [data-today][data-disabled="true"] {
-    background: transparent !important;
-    color: #a3a3a3 !important;
-    opacity: 1 !important;
+  /* Weekday header (dom, seg, ter...) */
+  .guide-access-calendar [role="columnheader"],
+  .guide-access-calendar .rdp-weekday {
+    color: #52525b !important;
+    font-weight: 600;
+    text-transform: lowercase;
   }
 
+  /* Month/year caption + nav chevrons */
+  .guide-access-calendar .rdp-caption_label,
+  .guide-access-calendar .rdp-month_caption {
+    color: #171717 !important;
+    font-weight: 600;
+  }
+  .guide-access-calendar .rdp-button_previous svg,
+  .guide-access-calendar .rdp-button_next svg,
+  .guide-access-calendar [class*="chevron"] svg {
+    color: #171717 !important;
+  }
+
+  /* Disabled dates — faded but still readable */
+  .guide-access-calendar [data-today][data-disabled="true"] {
+    background: transparent !important;
+    color: #bdbdbd !important;
+    opacity: 1 !important;
+  }
   .guide-access-calendar [data-today][data-disabled="true"] button {
     background: transparent !important;
     color: inherit !important;
   }
-
   .guide-access-calendar [data-disabled="true"] button {
-    color: #a3a3a3 !important;
+    color: #bdbdbd !important;
     opacity: 1 !important;
   }
 
@@ -236,6 +255,7 @@
     background: #0a0a0a !important;
     color: #ffffff !important;
   }
+
 
 
   .font-mono {
