@@ -104,6 +104,12 @@ type Props = {
   onUnlock: (rec: AccessRecord) => void;
 };
 
+function dateFromISODate(value: string): Date | null {
+  const [y, m, d] = value.split("-").map(Number);
+  if (!y || !m || !d) return null;
+  return new Date(y, m - 1, d, 12, 0, 0, 0);
+}
+
 export function GuideAccessGate({ slug, propertyName, requireReservationCode, collection, onUnlock }: Props) {
   const submit = useServerFn(recordGuideAccess);
   const checkReservation = useServerFn(checkReservationBySlug);
@@ -172,8 +178,9 @@ export function GuideAccessGate({ slug, propertyName, requireReservationCode, co
     };
   }, [slug, loadAvailability]);
 
-  // Map every reservation check-in date → its check-out date. Blocks are
-  // ignored on purpose: the picker should only offer real Airbnb stays.
+  // Map every real reservation check-in date → its check-out date. Blocks,
+  // checkout dates and intermediate dates are ignored on purpose: the guest
+  // chooses only the arrival day, and the iCal pair fills the departure.
   const reservationMap = useMemo(() => {
     const map = new Map<string, string>();
     if (calendarAvailability.state !== "ready" || !calendarAvailability.hasIcal) return map;
@@ -205,17 +212,19 @@ export function GuideAccessGate({ slug, propertyName, requireReservationCode, co
   };
 
   // Auto-pair check-out when the user picks a known reservation check-in.
-  const handleRangeSelect = (r: { from?: Date; to?: Date } | undefined) => {
-    if (r?.from) {
-      const key = format(r.from, "yyyy-MM-dd");
-      const pairedCheckout = reservationMap.get(key);
-      if (pairedCheckout) {
-        const [y, m, d] = pairedCheckout.split("-").map(Number);
-        setRange({ from: r.from, to: new Date(y, m - 1, d, 12, 0, 0, 0) });
-        return;
-      }
+  const handleCheckinSelect = (selected: Date | undefined) => {
+    if (!selected) {
+      setRange(undefined);
+      return;
     }
-    setRange(r);
+    const key = format(selected, "yyyy-MM-dd");
+    const pairedCheckout = reservationMap.get(key);
+    const checkoutDate = pairedCheckout ? dateFromISODate(pairedCheckout) : null;
+    if (checkoutDate) {
+      setRange({ from: selected, to: checkoutDate });
+      return;
+    }
+    setRange({ from: selected });
   };
 
 
@@ -306,7 +315,7 @@ export function GuideAccessGate({ slug, propertyName, requireReservationCode, co
       return false;
     }
     if (resCheck.state === "no-match") {
-      toast.error("As datas informadas não correspondem a uma reserva ou bloqueio liberado no calendário. Confira e ajuste.");
+      toast.error("As datas informadas não correspondem a uma reserva do Airbnb. Confira e ajuste.");
       return false;
     }
     return true;
@@ -322,7 +331,7 @@ export function GuideAccessGate({ slug, propertyName, requireReservationCode, co
       return;
     }
     if (resCheck.state === "no-match") {
-      toast.error("As datas informadas não correspondem a uma reserva ou bloqueio liberado no calendário. Volte e ajuste.");
+      toast.error("As datas informadas não correspondem a uma reserva do Airbnb. Volte e ajuste.");
       return;
     }
 
@@ -490,9 +499,9 @@ export function GuideAccessGate({ slug, propertyName, requireReservationCode, co
                     value={range?.from ? format(range.from, "dd MMM", { locale: ptBR }) : "—"}
                     popover={
                       <Calendar
-                        mode="range"
-                        selected={range as never}
-                        onSelect={(r) => handleRangeSelect(r as { from?: Date; to?: Date } | undefined)}
+                        mode="single"
+                        selected={range?.from}
+                        onSelect={handleCheckinSelect}
                         numberOfMonths={1}
                         initialFocus
                         locale={ptBR}
@@ -504,25 +513,14 @@ export function GuideAccessGate({ slug, propertyName, requireReservationCode, co
                   <RangeButton
                     label="Saída"
                     value={range?.to ? format(range.to, "dd MMM", { locale: ptBR }) : "—"}
-                    popover={
-                      <Calendar
-                        mode="range"
-                        selected={range as never}
-                        onSelect={(r) => handleRangeSelect(r as { from?: Date; to?: Date } | undefined)}
-                        numberOfMonths={1}
-                        initialFocus
-                        locale={ptBR}
-                        disabled={isDateDisabled}
-                        className="p-3 pointer-events-auto"
-                      />
-                    }
+                    locked
                   />
                 </div>
 
                 {resCheck.state === "matched" && (
                   <div className="flex items-center gap-2 text-[12px] text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2">
                     <CheckCircle2 className="size-4 shrink-0" />
-                    <span>{resCheck.matchType === "block" ? "Período liberado no calendário do anfitrião." : "Reserva Airbnb encontrada para estas datas."}</span>
+                    <span>Reserva Airbnb encontrada para estas datas.</span>
                   </div>
                 )}
                 {resCheck.state === "no-match" && (
