@@ -165,7 +165,7 @@ function DashboardPage() {
   });
 
   function handleMark(row: ArrivalRow, nextStatus: "pending" | "done") {
-    if (row.pendingFill || !isUuid(row.logId)) {
+    if (row.pendingFill || !/^[0-9a-f-]{36}$/i.test(row.logId)) {
       markPending.mutate({
         propertyId: row.propertyId,
         kind,
