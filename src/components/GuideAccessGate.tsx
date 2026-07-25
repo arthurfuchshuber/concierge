@@ -113,7 +113,9 @@ function dateFromISODate(value: string): Date | null {
   return new Date(y, m - 1, d, 12, 0, 0, 0);
 }
 
-export function GuideAccessGate({ slug, propertyId, propertyName, requireReservationCode, collection, onUnlock }: Props) {
+export function GuideAccessGate({ slug, propertyId, propertyName, requireReservationCode, collection, onUnlock, theme = "dark" }: Props) {
+  const themeClass = cn("sigma-public-guide", theme === "light" && "theme-light");
+
   const submit = useServerFn(recordGuideAccess);
   const checkReservation = useServerFn(checkReservationBySlug);
   const loadAvailability = useServerFn(getGuideCalendarAvailability);
