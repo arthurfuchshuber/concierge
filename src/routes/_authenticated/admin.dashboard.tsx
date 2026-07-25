@@ -96,11 +96,17 @@ function DashboardPage() {
     queryFn: () => engFn({ data: { range: engRange, ownerId: activeOwnerId } }),
     staleTime: 60_000,
   });
-  const listQ = useQuery({
-    queryKey: ["dash-list", kind, range, activeOwnerId ?? "self"],
-    queryFn: () => listFn({ data: { kind, range, ownerId: activeOwnerId } }),
+  const checkinListQ = useQuery({
+    queryKey: ["dash-list", "checkin", range, activeOwnerId ?? "self"],
+    queryFn: () => listFn({ data: { kind: "checkin", range, ownerId: activeOwnerId } }),
     staleTime: 30_000,
   });
+  const checkoutListQ = useQuery({
+    queryKey: ["dash-list", "checkout", range, activeOwnerId ?? "self"],
+    queryFn: () => listFn({ data: { kind: "checkout", range, ownerId: activeOwnerId } }),
+    staleTime: 30_000,
+  });
+  const listQ = kind === "checkin" ? checkinListQ : checkoutListQ;
 
   // KPI drill-down data (loaded on demand)
   const kpiTodayQ = useQuery({
