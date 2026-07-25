@@ -103,7 +103,9 @@ type Props = {
   requireReservationCode: boolean;
   collection?: CollectionConfig;
   onUnlock: (rec: AccessRecord) => void;
+  theme?: "dark" | "light";
 };
+
 
 function dateFromISODate(value: string): Date | null {
   const [y, m, d] = value.split("-").map(Number);
@@ -111,7 +113,9 @@ function dateFromISODate(value: string): Date | null {
   return new Date(y, m - 1, d, 12, 0, 0, 0);
 }
 
-export function GuideAccessGate({ slug, propertyId, propertyName, requireReservationCode, collection, onUnlock }: Props) {
+export function GuideAccessGate({ slug, propertyId, propertyName, requireReservationCode, collection, onUnlock, theme = "dark" }: Props) {
+  const themeClass = cn("sigma-public-guide", theme === "light" && "theme-light");
+
   const submit = useServerFn(recordGuideAccess);
   const checkReservation = useServerFn(checkReservationBySlug);
   const loadAvailability = useServerFn(getGuideCalendarAvailability);
@@ -447,24 +451,26 @@ export function GuideAccessGate({ slug, propertyId, propertyName, requireReserva
   return (
     <Dialog open modal>
       <DialogPortal>
-        <DialogOverlay className="bg-black/70 backdrop-blur-md data-[state=open]:duration-300 data-[state=closed]:duration-200" />
+        <DialogOverlay className="bg-black/75 backdrop-blur-md data-[state=open]:duration-300 data-[state=closed]:duration-200" />
         <DialogPrimitive.Content
           onPointerDownOutside={(e) => e.preventDefault()}
           onEscapeKeyDown={(e) => e.preventDefault()}
           onOpenAutoFocus={(e) => e.preventDefault()}
           className={cn(
+            themeClass,
             "fixed left-1/2 top-1/2 z-50 w-[calc(100%-1.25rem)] max-w-[440px]",
             "-translate-x-1/2 -translate-y-1/2",
             "max-h-[92vh] overflow-y-auto",
-            "rounded-[26px] border border-white/[0.09]",
-            "bg-[color-mix(in_oklab,hsl(var(--background))_78%,transparent)]",
+            "rounded-[26px] border border-border",
+            "bg-card/95 text-card-foreground",
             "backdrop-blur-2xl backdrop-saturate-150",
-            "shadow-[0_28px_70px_-18px_rgba(0,0,0,0.65),0_0_0_1px_rgba(255,255,255,0.05)_inset]",
+            "shadow-[0_28px_70px_-18px_rgba(0,0,0,0.65)]",
             "p-6 sm:p-7",
             "data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-[0.97] data-[state=open]:duration-300",
             "focus:outline-none",
           )}
         >
+
           {/* Progress dots (só quando há step 2) */}
           {hasOptionals && (
             <div className="mb-4 flex items-center gap-1.5">
@@ -479,12 +485,13 @@ export function GuideAccessGate({ slug, propertyId, propertyName, requireReserva
           {step === 1 ? (
             <>
               <div className="mb-5 space-y-1.5">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-primary/85">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-accent">
                   Boas-vindas
                 </p>
-                <DialogPrimitive.Title className="font-serif text-[24px] leading-[1.1] tracking-tight">
+                <DialogPrimitive.Title className="font-serif text-[24px] leading-[1.1] tracking-tight text-foreground">
                   {propertyName}
                 </DialogPrimitive.Title>
+
                 <DialogPrimitive.Description className="text-[13px] leading-relaxed text-muted-foreground">
                   Rápido preenchimento para liberar o guia.
                 </DialogPrimitive.Description>
@@ -506,7 +513,9 @@ export function GuideAccessGate({ slug, propertyId, propertyName, requireReserva
 
                 <div className="grid grid-cols-2 gap-2">
                   <RangeButton
+                    themeClass={themeClass}
                     label="Chegada"
+
                     value={range?.from ? format(range.from, "dd MMM", { locale: ptBR }) : "—"}
                     popover={
                       <Calendar
@@ -668,12 +677,13 @@ function Step2(props: {
   return (
     <>
       <div className="mb-5 space-y-1.5">
-        <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-primary/85">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-accent">
           Últimos detalhes
         </p>
-        <DialogPrimitive.Title className="font-serif text-[24px] leading-[1.1] tracking-tight">
+        <DialogPrimitive.Title className="font-serif text-[24px] leading-[1.1] tracking-tight text-foreground">
           Só mais algumas perguntas
         </DialogPrimitive.Title>
+
         <DialogPrimitive.Description className="text-[13px] leading-relaxed text-muted-foreground">
           Isso ajuda o anfitrião a preparar sua chegada.
         </DialogPrimitive.Description>
@@ -1073,29 +1083,29 @@ function DocUploadCard({
 
 function FieldShell({ icon, children }: { icon?: React.ReactNode; children: React.ReactNode }) {
   return (
-    <div className="relative rounded-[12px] border border-white/10 bg-white/[0.03] transition-colors focus-within:border-primary/50 focus-within:bg-white/[0.05]">
+    <div className="relative rounded-[12px] border border-border bg-foreground/[0.04] transition-colors focus-within:border-accent/60 focus-within:bg-foreground/[0.06]">
       {icon && (
-        <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-primary/80">{icon}</span>
+        <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-accent">{icon}</span>
       )}
       {children}
     </div>
   );
 }
 
-function RangeButton({ label, value, popover, locked = false }: { label: string; value: string; popover?: React.ReactNode; locked?: boolean }) {
+function RangeButton({ label, value, popover, locked = false, themeClass }: { label: string; value: string; popover?: React.ReactNode; locked?: boolean; themeClass?: string }) {
   const button = (
     <button
       type="button"
       disabled={locked}
       className={cn(
-        "relative w-full h-[54px] rounded-[12px] border border-white/10 bg-white/[0.03] px-3 text-left",
-        "transition-all hover:bg-white/[0.06] focus:outline-none focus-visible:border-primary/50",
-        "flex flex-col justify-center disabled:cursor-default disabled:hover:bg-white/[0.03]",
+        "relative w-full h-[54px] rounded-[12px] border border-border bg-foreground/[0.04] px-3 text-left text-foreground",
+        "transition-all hover:bg-foreground/[0.07] focus:outline-none focus-visible:border-accent/60",
+        "flex flex-col justify-center disabled:cursor-default disabled:hover:bg-foreground/[0.04]",
       )}
     >
-      <span className="text-[9.5px] uppercase tracking-[0.2em] text-muted-foreground/85 font-semibold whitespace-nowrap">{label}</span>
-      <span className="text-[14px] font-medium flex items-center gap-1.5 mt-0.5">
-        <CalendarIcon className="size-3.5 text-primary/70" />
+      <span className="text-[9.5px] uppercase tracking-[0.2em] text-muted-foreground font-semibold whitespace-nowrap">{label}</span>
+      <span className="text-[14px] font-medium flex items-center gap-1.5 mt-0.5 text-foreground">
+        <CalendarIcon className="size-3.5 text-accent" />
         {value}
         {!locked && <ChevronDown className="size-3 text-muted-foreground ml-auto" />}
       </span>
@@ -1109,7 +1119,7 @@ function RangeButton({ label, value, popover, locked = false }: { label: string;
       <PopoverTrigger asChild>
         {button}
       </PopoverTrigger>
-      <PopoverContent className="w-auto p-0 rounded-2xl" align="start">
+      <PopoverContent className={cn(themeClass, "w-auto p-0 rounded-2xl bg-card text-card-foreground border border-border")} align="start">
         {popover}
       </PopoverContent>
     </Popover>
@@ -1124,9 +1134,8 @@ function PrimaryButton({ loading, onClick, children }: { loading: boolean; onCli
       disabled={loading}
       className={cn(
         "group relative w-full h-[52px] rounded-full text-[14.5px] font-semibold",
-        "bg-gradient-to-b from-primary to-[color-mix(in_oklab,hsl(var(--primary))_86%,#000)]",
-        "text-primary-foreground",
-        "shadow-[0_10px_28px_-8px_color-mix(in_oklab,hsl(var(--primary))_55%,transparent),0_1px_0_0_rgba(255,255,255,0.25)_inset]",
+        "bg-accent text-accent-foreground hover:bg-accent/90",
+        "shadow-[0_10px_28px_-8px_color-mix(in_oklab,var(--accent)_55%,transparent)]",
         "transition-all duration-200 hover:translate-y-[-1px]",
         "active:translate-y-0 active:scale-[0.99]",
         "disabled:opacity-80 disabled:cursor-wait",
@@ -1139,3 +1148,4 @@ function PrimaryButton({ loading, onClick, children }: { loading: boolean; onCli
     </Button>
   );
 }
+

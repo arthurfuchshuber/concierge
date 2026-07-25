@@ -625,6 +625,8 @@ function Guide({ data }: { data: GuideOk }) {
             documentScope: ((p as unknown as { document_scope?: string }).document_scope as "main" | "all") ?? "main",
           }}
           onUnlock={setAccessRec}
+          theme={theme === "light" ? "light" : "dark"}
+
         />
       )}
       <div className="relative z-10 mx-auto w-full max-w-[490px] md:max-w-[520px]">
