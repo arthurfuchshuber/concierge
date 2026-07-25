@@ -533,9 +533,10 @@ export function GuideAccessGate({ slug, propertyId, propertyName, requireReserva
                         modifiersClassNames={{ availableCheckin: "guide-available-checkin" }}
                         classNames={{
                           today: "rdp-today",
-                          disabled: "rdp-disabled text-muted-foreground/35 opacity-25",
-                          outside: "rdp-outside text-muted-foreground/20",
+                          disabled: "rdp-disabled text-neutral-400",
+                          outside: "rdp-outside text-neutral-300",
                         }}
+
                         className="guide-access-calendar p-3 pointer-events-auto"
                       />
                     }
