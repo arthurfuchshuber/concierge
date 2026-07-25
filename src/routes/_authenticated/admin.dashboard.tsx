@@ -363,13 +363,17 @@ function DashboardPage() {
 
       {/* Arrivals */}
       <section className="rounded-2xl border border-border bg-card p-4 sm:p-5 space-y-4 shadow-sm">
-        <div className="flex flex-wrap items-start gap-3">
-          <div className="grid grid-cols-2 gap-1.5 w-full max-w-md">
-            <SegBtn active={mode === "checkin"} onClick={() => setMode("checkin")} icon={CalendarCheck} count={counts.checkin}>Check-ins</SegBtn>
-            <SegBtn active={mode === "checkout"} onClick={() => setMode("checkout")} icon={CalendarX} count={counts.checkout}>Check-outs</SegBtn>
-            <SegBtn active={mode === "stay"} onClick={() => setMode("stay")} icon={BedDouble} count={counts.stay}>Em Estadia</SegBtn>
-            <SegBtn active={mode === "cleaning"} onClick={() => setMode("cleaning")} icon={Sparkles} count={counts.cleaning}>Em Limpeza</SegBtn>
-          </div>
+        <div className="flex items-center gap-3">
+          <ModeDropdown
+            value={mode}
+            onChange={setMode}
+            options={[
+              { value: "checkin", label: "Check-ins", icon: CalendarCheck, count: counts.checkin },
+              { value: "checkout", label: "Check-outs", icon: CalendarX, count: counts.checkout },
+              { value: "stay", label: "Em Estadia", icon: BedDouble, count: counts.stay },
+              { value: "cleaning", label: "Em Limpeza", icon: Sparkles, count: counts.cleaning },
+            ]}
+          />
           <div className="ml-auto">
             <RangeDropdown
               value={range}
