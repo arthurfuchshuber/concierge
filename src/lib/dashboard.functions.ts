@@ -5,8 +5,16 @@ import { z } from "zod";
 // ----- helpers -----
 
 function todayISO(): string {
-  const d = new Date();
-  return d.toISOString().slice(0, 10);
+  // Operational day follows the properties' business timezone. Near midnight
+  // UTC this avoids showing tomorrow's iCal reservations as "today" in Brazil.
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Sao_Paulo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date());
+  const pick = (type: string) => parts.find((p) => p.type === type)?.value ?? "";
+  return `${pick("year")}-${pick("month")}-${pick("day")}`;
 }
 function addDaysISO(iso: string, n: number): string {
   const [y, m, d] = iso.split("-").map(Number);
@@ -143,24 +151,55 @@ export const getGuideEngagement = createServerFn({ method: "GET" })
       from = today;
       to = addDaysISO(today, 29);
     }
-    // Guests with check-in in [from, to]
-    const { data: logs } = await context.supabase
-      .from("guide_access_logs")
-      .select("id, property_id, guest_name, guest_phone, checkin_date")
-      .in("property_id", propIds)
-      .gte("checkin_date", from)
-      .lte("checkin_date", to)
-      .limit(2000);
+    const [{ data: props }, { data: reservations }, { data: logs }] = await Promise.all([
+      context.supabase
+        .from("properties")
+        .select("id, airbnb_ical_url")
+        .in("id", propIds),
+      context.supabase
+        .from("property_reservations")
+        .select("id, property_id, checkin_date, checkout_date, status, raw_summary")
+        .in("property_id", propIds)
+        .eq("source", "airbnb")
+        .gte("checkin_date", from)
+        .lte("checkin_date", to)
+        .limit(5000),
+      context.supabase
+        .from("guide_access_logs")
+        .select("id, property_id, guest_name, guest_phone, checkin_date")
+        .in("property_id", propIds)
+        .gte("checkin_date", from)
+        .lte("checkin_date", to)
+        .limit(2000),
+    ]);
 
-    const dedupKey = (r: { property_id: string; guest_name?: string | null; guest_phone?: string | null }) =>
-      `${r.property_id}|${(r.guest_name || "").trim().toLowerCase()}|${(r.guest_phone || "").replace(/\D/g, "")}`;
+    const icalProps = new Set(
+      ((props ?? []) as Array<{ id: string; airbnb_ical_url: string | null }>)
+        .filter((p) => !!p.airbnb_ical_url?.trim())
+        .map((p) => p.id),
+    );
+
+    const dedupKey = (r: { property_id: string; guest_name?: string | null; guest_phone?: string | null; checkin_date?: string | null }) =>
+      `${r.property_id}|${(r.guest_name || "").trim().toLowerCase()}|${(r.guest_phone || "").replace(/\D/g, "")}|${r.checkin_date ?? ""}`;
 
     const guests = new Set<string>();
     for (const row of logs ?? []) {
       const r = row as { property_id: string; guest_name: string | null; guest_phone: string | null };
+      if (isPlaceholderGuest(r.guest_name)) continue;
       guests.add(dedupKey(r));
     }
-    const checkinsInPeriod = guests.size;
+    const icalCheckins = new Set<string>();
+    for (const r of (reservations ?? []) as Array<{ id: string; property_id: string; status: string | null; raw_summary: string | null }>) {
+      if (!icalProps.has(r.property_id) || !isRealReservation(r)) continue;
+      icalCheckins.add(r.id);
+    }
+    const fallbackLogs = new Set<string>();
+    for (const row of logs ?? []) {
+      const r = row as { property_id: string; guest_name: string | null; guest_phone: string | null };
+      if (icalProps.has(r.property_id) || isPlaceholderGuest(r.guest_name)) continue;
+      fallbackLogs.add(dedupKey(r));
+    }
+    const checkinsInPeriod = icalCheckins.size + fallbackLogs.size;
     // Every filled log implies a guide open — the form is the entry point.
     const guideOpens = guests.size;
 
@@ -190,6 +229,7 @@ const ListInput = z.object({
 
 export type ArrivalRow = {
   logId: string;
+  reservationId: string | null;
   propertyId: string;
   propertyName: string | null;
   propertyAddress: string | null;
@@ -263,20 +303,18 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
       if (!prev || new Date(l.created_at) > new Date(prev.created_at)) dedupMap.set(key, l);
     }
     const uniqueLogs = Array.from(dedupMap.values());
-    const statusLogIds = [...uniqueLogs, ...placeholderLogs].map((l) => l.id);
 
     const [{ data: props }, { data: statuses }, { data: reservations }, { data: sectionEvents }] = await Promise.all([
       context.supabase
         .from("properties")
         .select("id, name, address, maps_url, garage_maps_url, wifi_password, lock_code, gate_code, checkin_time, checkin_time_max, checkout_time, checkout_time_min, airbnb_ical_url")
         .in("id", propIds),
-      statusLogIds.length > 0
-        ? context.supabase
-            .from("guest_arrival_status")
-            .select("log_id, kind, status, note, arrival_time_override, done_at")
-            .in("log_id", statusLogIds)
-            .eq("kind", data.kind)
-        : Promise.resolve({ data: [] as Array<{ log_id: string; kind: string; status: "pending" | "done"; note: string | null; arrival_time_override: string | null; done_at: string | null }> }),
+      context.supabase
+        .from("guest_arrival_status")
+        .select("log_id, reservation_id, kind, status, note, arrival_time_override, done_at")
+        .in("property_id", propIds)
+        .eq("kind", data.kind)
+        .limit(5000),
       context.supabase
         .from("property_reservations")
         .select("id, property_id, checkin_date, checkout_date, raw_summary, guest_hint, reservation_url, status, synced_at")
@@ -315,9 +353,13 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
       else if (ev.section === "senhas") viewedPasswordsSet.add(k);
     }
 
-    const statusMap = new Map<string, { kind: "checkin" | "checkout"; status: "pending" | "done"; note: string | null; arrival_time_override: string | null; done_at: string | null }>();
-    for (const s of (statuses ?? []) as Array<{ log_id: string; kind: "checkin" | "checkout"; status: "pending" | "done"; note: string | null; arrival_time_override: string | null; done_at: string | null }>) {
-      statusMap.set(s.log_id, { kind: s.kind, status: s.status, note: s.note, arrival_time_override: s.arrival_time_override, done_at: s.done_at });
+    type StatusRow = { log_id: string | null; reservation_id: string | null; kind: "checkin" | "checkout"; status: "pending" | "done"; note: string | null; arrival_time_override: string | null; done_at: string | null };
+    const statusMap = new Map<string, Omit<StatusRow, "log_id" | "reservation_id">>();
+    const reservationStatusMap = new Map<string, Omit<StatusRow, "log_id" | "reservation_id">>();
+    for (const s of (statuses ?? []) as StatusRow[]) {
+      const value = { kind: s.kind, status: s.status, note: s.note, arrival_time_override: s.arrival_time_override, done_at: s.done_at };
+      if (s.log_id) statusMap.set(s.log_id, value);
+      if (s.reservation_id) reservationStatusMap.set(s.reservation_id, value);
     }
 
     const placeholderStatus = new Map<string, { status: "pending" | "done"; note: string | null; arrival_time_override: string | null; done_at: string | null }>();
@@ -384,6 +426,7 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
       const evK = eventKey(l.property_id, l.guest_name, l.guest_phone);
       return {
         logId: l.id,
+        reservationId: null,
         propertyId: l.property_id,
         propertyName: p?.name ?? null,
         propertyAddress: p?.address ?? null,
@@ -412,6 +455,45 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
       };
     }
 
+    function rowFromReservation(r: ReservationRow, matchedLog: typeof uniqueLogs[number] | null): ArrivalRow {
+      const p = propMap.get(r.property_id);
+      const legacy = placeholderStatus.get(placeholderKey(r.property_id, r.checkin_date, r.checkout_date, data.kind));
+      const logStatus = matchedLog ? statusMap.get(matchedLog.id) : undefined;
+      const s = reservationStatusMap.get(r.id) ?? legacy ?? logStatus;
+      const date = data.kind === "checkin" ? r.checkin_date : r.checkout_date;
+      const evK = matchedLog ? eventKey(matchedLog.property_id, matchedLog.guest_name, matchedLog.guest_phone) : "";
+
+      return {
+        logId: matchedLog?.id ?? `ical:${r.id}`,
+        reservationId: r.id,
+        propertyId: r.property_id,
+        propertyName: p?.name ?? null,
+        propertyAddress: p?.address ?? null,
+        mapsUrl: p?.maps_url ?? null,
+        garageMapsUrl: p?.garage_maps_url ?? null,
+        hasPasswords: !!p?.hasPasswords,
+        openedCheckin: matchedLog ? openedCheckinSet.has(evK) : false,
+        viewedPasswords: matchedLog ? viewedPasswordsSet.has(evK) : false,
+        guestName: matchedLog?.guest_name ?? r.guest_hint ?? "Reserva Airbnb",
+        guestPhone: matchedLog?.guest_phone ?? null,
+        guestPhoneCountry: matchedLog?.guest_phone_country ?? null,
+        guestArrivalTime: matchedLog?.guest_arrival_time ?? null,
+        standardTime: data.kind === "checkin" ? (p?.checkin_time ?? null) : (p?.checkout_time ?? null),
+        standardTimeMax: data.kind === "checkin" ? (p?.checkin_time_max ?? null) : (p?.checkout_time_min ?? null),
+        date,
+        guestCheckin: matchedLog?.checkin_date ?? r.checkin_date,
+        guestCheckout: matchedLog?.checkout_date ?? r.checkout_date,
+        reservationCode: matchedLog?.reservation_code ?? r.guest_hint ?? null,
+        createdAt: matchedLog?.created_at ?? r.synced_at ?? new Date().toISOString(),
+        status: s?.status ?? "pending",
+        note: s?.note ?? null,
+        arrivalTimeOverride: s?.arrival_time_override ?? null,
+        doneAt: s?.done_at ?? null,
+        pendingFill: !matchedLog,
+        ical: { hasIcal: true, matched: true, icalCheckin: r.checkin_date, icalCheckout: r.checkout_date },
+      };
+    }
+
     const rows: ArrivalRow[] = [];
     const usedLogIds = new Set<string>();
 
@@ -421,40 +503,8 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
       const matchedLog = findBestLogForReservation(r);
       if (matchedLog) {
         usedLogIds.add(matchedLog.id);
-        rows.push(rowFromLog(matchedLog, { hasIcal: true, matched: true, icalCheckin: r.checkin_date, icalCheckout: r.checkout_date }));
-        continue;
       }
-
-      const s = placeholderStatus.get(placeholderKey(r.property_id, r.checkin_date, r.checkout_date, data.kind));
-      const date = data.kind === "checkin" ? r.checkin_date : r.checkout_date;
-      rows.push({
-        logId: `ical:${r.id}`,
-        propertyId: r.property_id,
-        propertyName: p.name ?? null,
-        propertyAddress: p.address ?? null,
-        mapsUrl: p.maps_url ?? null,
-        garageMapsUrl: p.garage_maps_url ?? null,
-        hasPasswords: !!p.hasPasswords,
-        openedCheckin: false,
-        viewedPasswords: false,
-        guestName: r.guest_hint || "Reserva Airbnb",
-        guestPhone: null,
-        guestPhoneCountry: null,
-        guestArrivalTime: null,
-        standardTime: data.kind === "checkin" ? (p.checkin_time ?? null) : (p.checkout_time ?? null),
-        standardTimeMax: data.kind === "checkin" ? (p.checkin_time_max ?? null) : (p.checkout_time_min ?? null),
-        date,
-        guestCheckin: r.checkin_date,
-        guestCheckout: r.checkout_date,
-        reservationCode: r.guest_hint ?? null,
-        createdAt: r.synced_at ?? new Date().toISOString(),
-        status: s?.status ?? "pending",
-        note: s?.note ?? null,
-        arrivalTimeOverride: s?.arrival_time_override ?? null,
-        doneAt: s?.done_at ?? null,
-        pendingFill: true,
-        ical: { hasIcal: true, matched: true, icalCheckin: r.checkin_date, icalCheckout: r.checkout_date },
-      });
+      rows.push(rowFromReservation(r, matchedLog));
     }
 
     for (const l of uniqueLogs) {
@@ -472,7 +522,8 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
 // ----- Mutations -----
 
 const UpsertInput = z.object({
-  logId: z.string().uuid(),
+  logId: z.string().uuid().optional(),
+  reservationId: z.string().uuid().optional(),
   kind: z.enum(["checkin", "checkout"]),
   status: z.enum(["pending", "done"]).optional(),
   note: z.string().max(500).nullable().optional(),
@@ -481,22 +532,35 @@ const UpsertInput = z.object({
     .regex(/^\d{2}:\d{2}$/)
     .nullable()
     .optional(),
-});
+}).refine((v) => !!v.logId || !!v.reservationId, { message: "Informe a reserva ou o registro do hóspede." });
 
 export const upsertArrivalStatus = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((i: unknown) => UpsertInput.parse(i))
   .handler(async ({ data, context }) => {
-    // Resolve property_id via the log (RLS on guide_access_logs will scope it)
-    const { data: log, error: logErr } = await context.supabase
-      .from("guide_access_logs")
-      .select("id, property_id")
-      .eq("id", data.logId)
-      .maybeSingle();
-    if (logErr || !log) throw new Error("Registro não encontrado.");
+    let propertyId: string | null = null;
+    if (data.reservationId) {
+      const { data: reservation, error: reservationErr } = await context.supabase
+        .from("property_reservations")
+        .select("id, property_id")
+        .eq("id", data.reservationId)
+        .maybeSingle();
+      if (reservationErr || !reservation) throw new Error("Reserva não encontrada.");
+      propertyId = (reservation as { property_id: string }).property_id;
+    } else if (data.logId) {
+      const { data: log, error: logErr } = await context.supabase
+        .from("guide_access_logs")
+        .select("id, property_id")
+        .eq("id", data.logId)
+        .maybeSingle();
+      if (logErr || !log) throw new Error("Registro não encontrado.");
+      propertyId = (log as { property_id: string }).property_id;
+    }
+    if (!propertyId) throw new Error("Registro não encontrado.");
 
     const patch: {
-      log_id: string;
+      log_id?: string;
+      reservation_id?: string;
       property_id: string;
       kind: "checkin" | "checkout";
       status?: "pending" | "done";
@@ -504,10 +568,11 @@ export const upsertArrivalStatus = createServerFn({ method: "POST" })
       note?: string | null;
       arrival_time_override?: string | null;
     } = {
-      log_id: data.logId,
-      property_id: (log as { property_id: string }).property_id,
+      property_id: propertyId,
       kind: data.kind,
     };
+    if (data.logId) patch.log_id = data.logId;
+    if (data.reservationId) patch.reservation_id = data.reservationId;
     if (typeof data.status !== "undefined") {
       patch.status = data.status;
       patch.done_at = data.status === "done" ? new Date().toISOString() : null;
@@ -515,9 +580,28 @@ export const upsertArrivalStatus = createServerFn({ method: "POST" })
     if (typeof data.note !== "undefined") patch.note = data.note;
     if (typeof data.arrivalTimeOverride !== "undefined") patch.arrival_time_override = data.arrivalTimeOverride;
 
-    const { error } = await context.supabase
-      .from("guest_arrival_status")
-      .upsert(patch, { onConflict: "log_id,kind" });
+    let existingId: string | undefined;
+    if (data.reservationId) {
+      const { data: existingByReservation } = await context.supabase
+        .from("guest_arrival_status")
+        .select("id")
+        .eq("reservation_id", data.reservationId)
+        .eq("kind", data.kind)
+        .limit(1);
+      existingId = (existingByReservation?.[0] as { id: string } | undefined)?.id;
+    }
+    if (!existingId && data.logId) {
+      const { data: existingByLog } = await context.supabase
+        .from("guest_arrival_status")
+        .select("id")
+        .eq("log_id", data.logId)
+        .eq("kind", data.kind)
+        .limit(1);
+      existingId = (existingByLog?.[0] as { id: string } | undefined)?.id;
+    }
+    const { error } = existingId
+      ? await context.supabase.from("guest_arrival_status").update(patch).eq("id", existingId)
+      : await context.supabase.from("guest_arrival_status").insert(patch);
     if (error) throw new Error(error.message);
     return { ok: true };
   });
@@ -574,6 +658,7 @@ export const updateGuestArrivalTime = createServerFn({ method: "POST" })
 // ----- Mark a pending iCal reservation as done (no guest form yet) -----
 
 const MarkPendingInput = z.object({
+  reservationId: z.string().uuid().optional(),
   propertyId: z.string().uuid(),
   kind: z.enum(["checkin", "checkout"]),
   checkinDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
@@ -593,47 +678,42 @@ export const markPendingReservationStatus = createServerFn({ method: "POST" })
       .maybeSingle();
     if (propErr || !prop) throw new Error("Propriedade não encontrada.");
 
-    // Look for an existing placeholder log for the same date so we don't duplicate.
-    const { data: existing } = await context.supabase
-      .from("guide_access_logs")
-      .select("id")
-      .eq("property_id", data.propertyId)
-      .eq("checkin_date", data.checkinDate)
-      .ilike("guest_name", "Hóspede pendente")
-      .limit(1);
-
-    let logId = (existing?.[0] as { id: string } | undefined)?.id;
-
-    if (!logId) {
-      // Client insert is blocked by RLS; use the admin client to create the placeholder.
-      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-      const { data: created, error: insErr } = await supabaseAdmin
-        .from("guide_access_logs")
-        .insert({
-          property_id: data.propertyId,
-          guest_name: "Hóspede pendente",
-          checkin_date: data.checkinDate,
-          checkout_date: data.checkoutDate ?? null,
-        })
+    let reservationId = data.reservationId ?? null;
+    if (!reservationId) {
+      const query = context.supabase
+        .from("property_reservations")
         .select("id")
-        .single();
-      if (insErr || !created) throw new Error(insErr?.message || "Falha ao criar registro.");
-      logId = (created as { id: string }).id;
+        .eq("property_id", data.propertyId)
+        .eq("checkin_date", data.checkinDate)
+        .eq("source", "airbnb")
+        .limit(1);
+      const { data: matches } = data.checkoutDate
+        ? await query.eq("checkout_date", data.checkoutDate)
+        : await query;
+      reservationId = (matches?.[0] as { id: string } | undefined)?.id ?? null;
     }
+    if (!reservationId) throw new Error("Reserva iCal não encontrada.");
 
-    const { error: upErr } = await context.supabase
+    const { data: existing } = await context.supabase
       .from("guest_arrival_status")
-      .upsert(
+      .select("id")
+      .eq("reservation_id", reservationId)
+      .eq("kind", data.kind)
+      .limit(1);
+    const existingId = (existing?.[0] as { id: string } | undefined)?.id;
+
+    const patch =
         {
-          log_id: logId,
+          reservation_id: reservationId,
           property_id: data.propertyId,
           kind: data.kind,
           status: data.status,
           done_at: data.status === "done" ? new Date().toISOString() : null,
-        },
-        { onConflict: "log_id,kind" },
-      );
+        };
+    const { error: upErr } = existingId
+      ? await context.supabase.from("guest_arrival_status").update(patch).eq("id", existingId)
+      : await context.supabase.from("guest_arrival_status").insert(patch);
     if (upErr) throw new Error(upErr.message);
-    return { ok: true, logId };
+    return { ok: true, reservationId };
   });
 
