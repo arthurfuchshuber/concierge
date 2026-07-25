@@ -20,6 +20,7 @@ const DocumentSchema = z.object({
 
 const AccessInput = z.object({
   slug: z.string().regex(/^[a-z0-9-]{1,64}$/),
+  property_id: z.string().uuid().optional(),
   guest_name: z.string().trim().min(2).max(200),
   reservation_code: z.string().trim().max(100).optional().nullable(),
   checkin_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
@@ -36,24 +37,25 @@ export const recordGuideAccess = createServerFn({ method: "POST" })
   .inputValidator((i: unknown) => AccessInput.parse(i))
   .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data: prop, error: propErr } = await supabaseAdmin
+    const propQuery = supabaseAdmin
       .from("properties")
       .select("id, checkin_time, airbnb_ical_url")
       .eq("slug", data.slug)
-      .eq("published", true)
-      .maybeSingle();
+      .eq("published", true);
+    const { data: prop, error: propErr } = data.property_id
+      ? await propQuery.eq("id", data.property_id).maybeSingle()
+      : await propQuery.maybeSingle();
     if (propErr) throw (await import("@/lib/db-errors.server")).safeDbError("guide_access_logs", propErr);
     if (!prop) return { ok: false as const, reason: "not_found" };
 
     const hasIcal = !!((prop as { airbnb_ical_url?: string | null }).airbnb_ical_url ?? "").trim();
     if (hasIcal && data.checkout_date) {
       const { isAllowedGuidePeriod } = await import("@/lib/reservations.server");
-      // Fetch every event that OVERLAPS the requested range so merged
-      // reservation+block sequences can cover the stay.
       const { data: periods } = await supabaseAdmin
         .from("property_reservations")
         .select("checkin_date, checkout_date, raw_summary, status")
         .eq("property_id", prop.id)
+        .eq("source", "airbnb")
         .lt("checkin_date", data.checkout_date)
         .gt("checkout_date", data.checkin_date)
         .limit(50);
@@ -107,23 +109,29 @@ export const recordGuideAccess = createServerFn({ method: "POST" })
 
 const CheckReservationInput = z.object({
   slug: z.string().regex(/^[a-z0-9-]{1,64}$/),
+  property_id: z.string().uuid().optional(),
   checkin_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   checkout_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
 });
 
-const AvailabilityInput = z.object({ slug: z.string().regex(/^[a-z0-9-]{1,64}$/) });
+const AvailabilityInput = z.object({
+  slug: z.string().regex(/^[a-z0-9-]{1,64}$/),
+  property_id: z.string().uuid().optional(),
+});
 
 export const getGuideCalendarAvailability = createServerFn({ method: "POST" })
   .inputValidator((i: unknown) => AvailabilityInput.parse(i))
   .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { classifyCalendarPeriod } = await import("@/lib/reservations.server");
-    const { data: prop } = await supabaseAdmin
+    const propQuery = supabaseAdmin
       .from("properties")
       .select("id, airbnb_ical_url")
       .eq("slug", data.slug)
-      .eq("published", true)
-      .maybeSingle();
+      .eq("published", true);
+    const { data: prop } = data.property_id
+      ? await propQuery.eq("id", data.property_id).maybeSingle()
+      : await propQuery.maybeSingle();
     if (!prop) return { hasIcal: false as const, periods: [] as Array<{ checkin: string; checkout: string; type: "reservation" | "block" }> };
     const hasIcal = !!((prop.airbnb_ical_url as string | null) ?? "").trim();
     if (!hasIcal) return { hasIcal: false as const, periods: [] as Array<{ checkin: string; checkout: string; type: "reservation" | "block" }> };
@@ -133,6 +141,7 @@ export const getGuideCalendarAvailability = createServerFn({ method: "POST" })
       .from("property_reservations")
       .select("checkin_date, checkout_date, raw_summary, status")
       .eq("property_id", prop.id)
+      .eq("source", "airbnb")
       .gte("checkout_date", today)
       .order("checkin_date", { ascending: true })
       .limit(500);
@@ -154,12 +163,14 @@ export const checkReservationBySlug = createServerFn({ method: "POST" })
   .inputValidator((i: unknown) => CheckReservationInput.parse(i))
   .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data: prop } = await supabaseAdmin
+    const propQuery = supabaseAdmin
       .from("properties")
       .select("id, airbnb_ical_url")
       .eq("slug", data.slug)
-      .eq("published", true)
-      .maybeSingle();
+      .eq("published", true);
+    const { data: prop } = data.property_id
+      ? await propQuery.eq("id", data.property_id).maybeSingle()
+      : await propQuery.maybeSingle();
     if (!prop) return { hasIcal: false as const, matched: false as const };
     const hasIcal = !!(prop.airbnb_ical_url as string | null);
     if (!hasIcal) return { hasIcal: false as const, matched: false as const };
@@ -169,6 +180,7 @@ export const checkReservationBySlug = createServerFn({ method: "POST" })
       .from("property_reservations")
       .select("id, checkin_date, checkout_date, raw_summary, status")
       .eq("property_id", prop.id)
+      .eq("source", "airbnb")
       .lt("checkin_date", data.checkout_date)
       .gt("checkout_date", data.checkin_date)
       .limit(50);
@@ -181,6 +193,7 @@ export const checkReservationBySlug = createServerFn({ method: "POST" })
       .from("property_reservations")
       .select("checkin_date, checkout_date")
       .eq("property_id", prop.id)
+      .eq("source", "airbnb")
       .eq("checkin_date", data.checkin_date)
       .limit(1);
     if ((loose ?? []).length > 0) {

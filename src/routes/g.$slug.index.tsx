@@ -614,6 +614,7 @@ function Guide({ data }: { data: GuideOk }) {
       {needsGate && (
         <GuideAccessGate
           slug={slug}
+          propertyId={p.id as string}
           propertyName={p.name as string}
           requireReservationCode={gateEnabled}
           collection={{
