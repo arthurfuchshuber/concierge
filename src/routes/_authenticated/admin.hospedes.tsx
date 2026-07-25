@@ -178,8 +178,11 @@ function HospedesPage() {
                         <div className="text-[11px] text-muted-foreground truncate flex items-center gap-1.5">
                           <span className="truncate">{r.property_name ?? "—"}</span>
                           {r.reservation_code && (
-                            <span className="font-mono text-[10.5px] px-1.5 py-0.5 rounded bg-muted/60 border border-border/60 shrink-0">
-                              {r.reservation_code}
+                            <span className="inline-flex items-center gap-0.5 shrink-0">
+                              <span className="font-mono text-[10.5px] px-1.5 py-0.5 rounded bg-muted/60 border border-border/60">
+                                {r.reservation_code}
+                              </span>
+                              <CopyButton value={r.reservation_code} size={11} />
                             </span>
                           )}
                         </div>
