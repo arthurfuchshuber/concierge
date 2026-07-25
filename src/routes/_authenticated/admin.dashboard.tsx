@@ -569,17 +569,21 @@ function RangeDropdown<T extends string>({ value, onChange, options }: {
   );
 }
 
-function SegBtn({ active, onClick, icon: Icon, children }: { active: boolean; onClick: () => void; icon: React.ElementType; children: React.ReactNode }) {
+function SegBtn({ active, onClick, icon: Icon, count, children }: { active: boolean; onClick: () => void; icon: React.ElementType; count?: number; children: React.ReactNode }) {
   return (
     <button
       onClick={onClick}
-      className={`px-3 py-1.5 inline-flex items-center gap-1.5 rounded-md transition-colors font-medium ${
+      className={`w-full px-3 py-1.5 inline-flex items-center justify-start gap-1.5 rounded-lg border text-xs transition-colors font-medium ${
         active
-          ? "bg-primary text-primary-foreground shadow-sm"
-          : "text-foreground/70 hover:text-foreground hover:bg-primary/[0.06]"
+          ? "bg-primary text-primary-foreground border-primary shadow-sm"
+          : "bg-primary/[0.04] text-foreground/75 border-primary/20 hover:text-foreground hover:bg-primary/[0.08]"
       }`}
     >
-      <Icon className="size-3.5" /> {children}
+      <Icon className="size-3.5 shrink-0" />
+      <span className="truncate">{children}</span>
+      {typeof count === "number" && (
+        <span className={`ml-1 tabular-nums ${active ? "opacity-90" : "text-muted-foreground"}`}>({count})</span>
+      )}
     </button>
   );
 }
