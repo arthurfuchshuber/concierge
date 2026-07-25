@@ -166,6 +166,10 @@ function DashboardPage() {
     upsert.mutate({ ...statusTarget(row), kind, status: nextStatus });
   }
 
+  function handleEditTime(row: ArrivalRow, k: "checkin" | "checkout", time: string | null) {
+    upsert.mutate({ ...statusTarget(row), kind: k, arrivalTimeOverride: time });
+  }
+
 
   const rows = listQ.data?.rows ?? [];
   const pending = useMemo(() => rows.filter((r) => r.status === "pending"), [rows]);
