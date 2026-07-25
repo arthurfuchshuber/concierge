@@ -175,14 +175,25 @@ export function GuideAccessGate({ slug, propertyName, requireReservationCode, co
   const selectableDateSet = useMemo(() => {
     if (calendarAvailability.state !== "ready" || !calendarAvailability.hasIcal) return null;
     const set = new Set<string>();
-    for (const period of calendarAvailability.periods) {
-      if (period.type === "reservation") {
-        set.add(period.checkin);
-        set.add(period.checkout);
-        continue;
+    // Merge contiguous events (reservations + blocks) so multi-event stays
+    // (e.g. Airbnb splits 25-01 into 23-29 + 29-30 block + 30-02) become one
+    // window whose interior dates are all selectable.
+    const spans = calendarAvailability.periods
+      .map((p) => ({ start: p.checkin, end: p.checkout }))
+      .filter((p) => p.end > p.start)
+      .sort((a, b) => (a.start < b.start ? -1 : a.start > b.start ? 1 : 0));
+    const merged: Array<{ start: string; end: string }> = [];
+    for (const s of spans) {
+      const last = merged[merged.length - 1];
+      if (last && s.start <= last.end) {
+        if (s.end > last.end) last.end = s.end;
+      } else {
+        merged.push({ ...s });
       }
-      const [y, m, d] = period.checkin.split("-").map(Number);
-      const [endY, endM, endD] = period.checkout.split("-").map(Number);
+    }
+    for (const w of merged) {
+      const [y, m, d] = w.start.split("-").map(Number);
+      const [endY, endM, endD] = w.end.split("-").map(Number);
       if (!y || !m || !d || !endY || !endM || !endD) continue;
       const cursor = new Date(y, m - 1, d, 12, 0, 0, 0);
       const end = new Date(endY, endM - 1, endD, 12, 0, 0, 0);
