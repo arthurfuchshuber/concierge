@@ -172,6 +172,23 @@ function DashboardPage() {
     upsert.mutate({ ...statusTarget(row), kind: k, arrivalTimeOverride: time });
   }
 
+  // Realtime — sincroniza kanban e KPIs sem precisar recarregar a página quando
+  // horários, notas ou reservas mudam (via outro membro da equipe, iCal etc).
+  useEffect(() => {
+    const invalidate = () => {
+      qc.invalidateQueries({ queryKey: ["dash-list"] });
+      qc.invalidateQueries({ queryKey: ["dash-kpis"] });
+      qc.invalidateQueries({ queryKey: ["dash-eng"] });
+    };
+    const ch = supabase
+      .channel("dash-live")
+      .on("postgres_changes", { event: "*", schema: "public", table: "guide_access_logs" }, invalidate)
+      .on("postgres_changes", { event: "*", schema: "public", table: "property_reservations" }, invalidate)
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [qc]);
+
+
 
   const rows = listQ.data?.rows ?? [];
   const pending = useMemo(() => rows.filter((r) => r.status === "pending"), [rows]);
