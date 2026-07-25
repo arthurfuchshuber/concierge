@@ -517,7 +517,8 @@ export function GuideAccessGate({ slug, propertyId, propertyName, requireReserva
                   <RangeButton
                     themeClass={themeClass}
                     label="Chegada"
-
+                    open={checkinPopoverOpen}
+                    onOpenChange={setCheckinPopoverOpen}
                     value={range?.from ? format(range.from, "dd MMM", { locale: ptBR }) : "—"}
                     popover={
                       <Calendar
