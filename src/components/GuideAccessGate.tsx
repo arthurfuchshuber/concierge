@@ -1064,25 +1064,32 @@ function FieldShell({ icon, children }: { icon?: React.ReactNode; children: Reac
   );
 }
 
-function RangeButton({ label, value, popover }: { label: string; value: string; popover: React.ReactNode }) {
+function RangeButton({ label, value, popover, locked = false }: { label: string; value: string; popover?: React.ReactNode; locked?: boolean }) {
+  const button = (
+    <button
+      type="button"
+      disabled={locked}
+      className={cn(
+        "relative w-full h-[54px] rounded-[12px] border border-white/10 bg-white/[0.03] px-3 text-left",
+        "transition-all hover:bg-white/[0.06] focus:outline-none focus-visible:border-primary/50",
+        "flex flex-col justify-center disabled:cursor-default disabled:hover:bg-white/[0.03]",
+      )}
+    >
+      <span className="text-[9.5px] uppercase tracking-[0.2em] text-muted-foreground/85 font-semibold whitespace-nowrap">{label}</span>
+      <span className="text-[14px] font-medium flex items-center gap-1.5 mt-0.5">
+        <CalendarIcon className="size-3.5 text-primary/70" />
+        {value}
+        {!locked && <ChevronDown className="size-3 text-muted-foreground ml-auto" />}
+      </span>
+    </button>
+  );
+
+  if (locked || !popover) return button;
+
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <button
-          type="button"
-          className={cn(
-            "relative w-full h-[54px] rounded-[12px] border border-white/10 bg-white/[0.03] px-3 text-left",
-            "transition-all hover:bg-white/[0.06] focus:outline-none focus-visible:border-primary/50",
-            "flex flex-col justify-center",
-          )}
-        >
-          <span className="text-[9.5px] uppercase tracking-[0.2em] text-muted-foreground/85 font-semibold whitespace-nowrap">{label}</span>
-          <span className="text-[14px] font-medium flex items-center gap-1.5 mt-0.5">
-            <CalendarIcon className="size-3.5 text-primary/70" />
-            {value}
-            <ChevronDown className="size-3 text-muted-foreground ml-auto" />
-          </span>
-        </button>
+        {button}
       </PopoverTrigger>
       <PopoverContent className="w-auto p-0 rounded-2xl" align="start">
         {popover}
