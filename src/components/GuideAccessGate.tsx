@@ -1081,29 +1081,29 @@ function DocUploadCard({
 
 function FieldShell({ icon, children }: { icon?: React.ReactNode; children: React.ReactNode }) {
   return (
-    <div className="relative rounded-[12px] border border-white/10 bg-white/[0.03] transition-colors focus-within:border-primary/50 focus-within:bg-white/[0.05]">
+    <div className="relative rounded-[12px] border border-border bg-foreground/[0.04] transition-colors focus-within:border-accent/60 focus-within:bg-foreground/[0.06]">
       {icon && (
-        <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-primary/80">{icon}</span>
+        <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-accent">{icon}</span>
       )}
       {children}
     </div>
   );
 }
 
-function RangeButton({ label, value, popover, locked = false }: { label: string; value: string; popover?: React.ReactNode; locked?: boolean }) {
+function RangeButton({ label, value, popover, locked = false, themeClass }: { label: string; value: string; popover?: React.ReactNode; locked?: boolean; themeClass?: string }) {
   const button = (
     <button
       type="button"
       disabled={locked}
       className={cn(
-        "relative w-full h-[54px] rounded-[12px] border border-white/10 bg-white/[0.03] px-3 text-left",
-        "transition-all hover:bg-white/[0.06] focus:outline-none focus-visible:border-primary/50",
-        "flex flex-col justify-center disabled:cursor-default disabled:hover:bg-white/[0.03]",
+        "relative w-full h-[54px] rounded-[12px] border border-border bg-foreground/[0.04] px-3 text-left text-foreground",
+        "transition-all hover:bg-foreground/[0.07] focus:outline-none focus-visible:border-accent/60",
+        "flex flex-col justify-center disabled:cursor-default disabled:hover:bg-foreground/[0.04]",
       )}
     >
-      <span className="text-[9.5px] uppercase tracking-[0.2em] text-muted-foreground/85 font-semibold whitespace-nowrap">{label}</span>
-      <span className="text-[14px] font-medium flex items-center gap-1.5 mt-0.5">
-        <CalendarIcon className="size-3.5 text-primary/70" />
+      <span className="text-[9.5px] uppercase tracking-[0.2em] text-muted-foreground font-semibold whitespace-nowrap">{label}</span>
+      <span className="text-[14px] font-medium flex items-center gap-1.5 mt-0.5 text-foreground">
+        <CalendarIcon className="size-3.5 text-accent" />
         {value}
         {!locked && <ChevronDown className="size-3 text-muted-foreground ml-auto" />}
       </span>
@@ -1117,7 +1117,7 @@ function RangeButton({ label, value, popover, locked = false }: { label: string;
       <PopoverTrigger asChild>
         {button}
       </PopoverTrigger>
-      <PopoverContent className="w-auto p-0 rounded-2xl" align="start">
+      <PopoverContent className={cn(themeClass, "w-auto p-0 rounded-2xl bg-card text-card-foreground border border-border")} align="start">
         {popover}
       </PopoverContent>
     </Popover>
@@ -1132,9 +1132,8 @@ function PrimaryButton({ loading, onClick, children }: { loading: boolean; onCli
       disabled={loading}
       className={cn(
         "group relative w-full h-[52px] rounded-full text-[14.5px] font-semibold",
-        "bg-gradient-to-b from-primary to-[color-mix(in_oklab,hsl(var(--primary))_86%,#000)]",
-        "text-primary-foreground",
-        "shadow-[0_10px_28px_-8px_color-mix(in_oklab,hsl(var(--primary))_55%,transparent),0_1px_0_0_rgba(255,255,255,0.25)_inset]",
+        "bg-accent text-accent-foreground hover:bg-accent/90",
+        "shadow-[0_10px_28px_-8px_color-mix(in_oklab,var(--accent)_55%,transparent)]",
         "transition-all duration-200 hover:translate-y-[-1px]",
         "active:translate-y-0 active:scale-[0.99]",
         "disabled:opacity-80 disabled:cursor-wait",
@@ -1147,3 +1146,4 @@ function PrimaryButton({ loading, onClick, children }: { loading: boolean; onCli
     </Button>
   );
 }
+
