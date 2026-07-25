@@ -256,7 +256,7 @@ export function FloatingHandoffDock() {
       {state.open && (
         <div
           className={`hidden lg:flex fixed bottom-6 right-6 flex-col bg-surface border border-border rounded-2xl shadow-2xl overflow-hidden ${state.minimized ? "w-80 h-14" : "w-[520px] h-[560px]"}`}
-          style={{ zIndex: 2147483000 }}
+          style={{ zIndex: 2147483000, pointerEvents: "auto" }}
         >
           <div className="shrink-0 flex items-center justify-between gap-2 px-3 h-12 border-b border-border bg-secondary/40">
             <div className="flex items-center gap-2 min-w-0">
