@@ -96,11 +96,17 @@ function DashboardPage() {
     queryFn: () => engFn({ data: { range: engRange, ownerId: activeOwnerId } }),
     staleTime: 60_000,
   });
-  const listQ = useQuery({
-    queryKey: ["dash-list", kind, range, activeOwnerId ?? "self"],
-    queryFn: () => listFn({ data: { kind, range, ownerId: activeOwnerId } }),
+  const checkinListQ = useQuery({
+    queryKey: ["dash-list", "checkin", range, activeOwnerId ?? "self"],
+    queryFn: () => listFn({ data: { kind: "checkin", range, ownerId: activeOwnerId } }),
     staleTime: 30_000,
   });
+  const checkoutListQ = useQuery({
+    queryKey: ["dash-list", "checkout", range, activeOwnerId ?? "self"],
+    queryFn: () => listFn({ data: { kind: "checkout", range, ownerId: activeOwnerId } }),
+    staleTime: 30_000,
+  });
+  const listQ = kind === "checkin" ? checkinListQ : checkoutListQ;
 
   // KPI drill-down data (loaded on demand)
   const kpiTodayQ = useQuery({
@@ -196,10 +202,15 @@ function DashboardPage() {
   const pending = useMemo(() => rows.filter((r) => r.status === "pending"), [rows]);
   const done = useMemo(() => rows.filter((r) => r.status === "done"), [rows]);
   const boardRows = mode === "stay" || mode === "cleaning" ? done : pending;
-  const boardTitle =
-    mode === "stay" ? `Em Estadia (${boardRows.length})`
-      : mode === "cleaning" ? `Em Limpeza (${boardRows.length})`
-      : `A fazer (${boardRows.length})`;
+
+  const ciRows = checkinListQ.data?.rows ?? [];
+  const coRows = checkoutListQ.data?.rows ?? [];
+  const counts = {
+    checkin: ciRows.filter((r) => r.status === "pending").length,
+    checkout: coRows.filter((r) => r.status === "pending").length,
+    stay: ciRows.filter((r) => r.status === "done").length,
+    cleaning: coRows.filter((r) => r.status === "done").length,
+  };
 
   /* ---------- Attention alerts ---------- */
   const alerts = useMemo(() => {
@@ -353,15 +364,11 @@ function DashboardPage() {
       {/* Arrivals */}
       <section className="rounded-2xl border border-border bg-card p-4 sm:p-5 space-y-4 shadow-sm">
         <div className="flex flex-wrap items-start gap-3">
-          <div className="flex flex-col gap-2">
-            <div className="inline-flex rounded-lg border border-primary/20 bg-primary/[0.04] p-0.5 text-xs">
-              <SegBtn active={mode === "checkin"} onClick={() => setMode("checkin")} icon={CalendarCheck}>Check-ins</SegBtn>
-              <SegBtn active={mode === "checkout"} onClick={() => setMode("checkout")} icon={CalendarX}>Check-outs</SegBtn>
-            </div>
-            <div className="inline-flex rounded-lg border border-primary/20 bg-primary/[0.04] p-0.5 text-xs">
-              <SegBtn active={mode === "stay"} onClick={() => setMode("stay")} icon={BedDouble}>Em Estadia</SegBtn>
-              <SegBtn active={mode === "cleaning"} onClick={() => setMode("cleaning")} icon={Sparkles}>Em Limpeza</SegBtn>
-            </div>
+          <div className="grid grid-cols-2 gap-1.5 w-full max-w-md">
+            <SegBtn active={mode === "checkin"} onClick={() => setMode("checkin")} icon={CalendarCheck} count={counts.checkin}>Check-ins</SegBtn>
+            <SegBtn active={mode === "checkout"} onClick={() => setMode("checkout")} icon={CalendarX} count={counts.checkout}>Check-outs</SegBtn>
+            <SegBtn active={mode === "stay"} onClick={() => setMode("stay")} icon={BedDouble} count={counts.stay}>Em Estadia</SegBtn>
+            <SegBtn active={mode === "cleaning"} onClick={() => setMode("cleaning")} icon={Sparkles} count={counts.cleaning}>Em Limpeza</SegBtn>
           </div>
           <div className="ml-auto">
             <RangeDropdown
@@ -371,6 +378,7 @@ function DashboardPage() {
             />
           </div>
         </div>
+
 
         {listQ.isLoading ? (
           <div className="py-12 grid place-items-center text-muted-foreground text-sm">
@@ -383,7 +391,7 @@ function DashboardPage() {
         ) : (
           <div className="relative space-y-6">
             <ArrivalGroup
-              title={boardTitle}
+              title=""
               rows={boardRows}
               kind={kind}
               onMark={(row) => handleMark(row, mode === "stay" || mode === "cleaning" ? "pending" : "done")}
@@ -561,17 +569,21 @@ function RangeDropdown<T extends string>({ value, onChange, options }: {
   );
 }
 
-function SegBtn({ active, onClick, icon: Icon, children }: { active: boolean; onClick: () => void; icon: React.ElementType; children: React.ReactNode }) {
+function SegBtn({ active, onClick, icon: Icon, count, children }: { active: boolean; onClick: () => void; icon: React.ElementType; count?: number; children: React.ReactNode }) {
   return (
     <button
       onClick={onClick}
-      className={`px-3 py-1.5 inline-flex items-center gap-1.5 rounded-md transition-colors font-medium ${
+      className={`w-full px-3 py-1.5 inline-flex items-center justify-start gap-1.5 rounded-lg border text-xs transition-colors font-medium ${
         active
-          ? "bg-primary text-primary-foreground shadow-sm"
-          : "text-foreground/70 hover:text-foreground hover:bg-primary/[0.06]"
+          ? "bg-primary text-primary-foreground border-primary shadow-sm"
+          : "bg-primary/[0.04] text-foreground/75 border-primary/20 hover:text-foreground hover:bg-primary/[0.08]"
       }`}
     >
-      <Icon className="size-3.5" /> {children}
+      <Icon className="size-3.5 shrink-0" />
+      <span className="truncate">{children}</span>
+      {typeof count === "number" && (
+        <span className={`ml-1 tabular-nums ${active ? "opacity-90" : "text-muted-foreground"}`}>({count})</span>
+      )}
     </button>
   );
 }
@@ -621,16 +633,10 @@ function ArrivalGroup({ title, rows, kind, onMark, onSyncIcal, onNote, onEditDat
 }) {
   if (rows.length === 0) return null;
   return (
-    <div className="space-y-3">
-      <div className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground font-semibold flex items-center gap-2">
-        <span className="h-px w-6 bg-border" />
-        {title}
-      </div>
-      <div className={`grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 ${muted ? "opacity-70" : ""}`}>
-        {rows.map((r) => (
-          <ArrivalCard key={r.logId} row={r} kind={kind} onMark={onMark} onSyncIcal={onSyncIcal} onNote={onNote} onEditDates={onEditDates} onEditTime={onEditTime} busy={busy} />
-        ))}
-      </div>
+    <div className={`grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 items-stretch ${muted ? "opacity-70" : ""}`}>
+      {rows.map((r) => (
+        <ArrivalCard key={r.logId} row={r} kind={kind} onMark={onMark} onSyncIcal={onSyncIcal} onNote={onNote} onEditDates={onEditDates} onEditTime={onEditTime} busy={busy} />
+      ))}
     </div>
   );
 }
@@ -669,13 +675,14 @@ function ArrivalCard({ row, kind, onMark, onSyncIcal, onNote, onEditDates, onEdi
   };
 
   return (
-    <div className={`group relative overflow-hidden rounded-2xl border p-4 space-y-3 transition-all ${
+    <div className={`group relative h-full flex flex-col overflow-hidden rounded-2xl border p-4 gap-3 transition-all ${
       done
         ? "bg-secondary/30 border-border/50"
         : isToday
         ? "bg-[linear-gradient(135deg,color-mix(in_oklab,var(--primary)_7%,transparent),color-mix(in_oklab,var(--primary)_2%,transparent))] border-primary/25 shadow-[0_10px_28px_-16px_color-mix(in_oklab,var(--primary)_28%,transparent),0_1px_4px_-2px_color-mix(in_oklab,var(--primary)_14%,transparent)] hover:shadow-[0_12px_32px_-16px_color-mix(in_oklab,var(--primary)_36%,transparent)] hover:-translate-y-0.5"
         : "bg-[linear-gradient(135deg,color-mix(in_oklab,var(--primary)_5%,transparent),color-mix(in_oklab,var(--primary)_1%,transparent))] border-primary/15 shadow-sm hover:shadow-md hover:-translate-y-0.5"
     }`}>
+
       {!done && (
         <>
           <span aria-hidden className="absolute left-0 top-4 bottom-4 w-0.5 rounded-r bg-gradient-to-b from-primary/70 to-primary/30" />
@@ -704,15 +711,7 @@ function ArrivalCard({ row, kind, onMark, onSyncIcal, onNote, onEditDates, onEdi
                 <span className="truncate font-semibold not-italic text-foreground">{row.guestName}</span>
               )
             ) : (
-              <>
-                <span className="truncate">{row.guestName}</span>
-                {row.reservationCode && (
-                  <span className="inline-flex items-center gap-0.5 text-xs text-muted-foreground font-normal not-italic shrink-0">
-                    <span className="truncate max-w-[110px]">{row.reservationCode}</span>
-                    <CopyButton value={row.reservationCode} size={11} className="p-0.5" />
-                  </span>
-                )}
-              </>
+              <span className="truncate">{row.guestName}</span>
             )}
           </div>
           <div className="text-xs text-muted-foreground truncate flex items-center gap-1">
@@ -736,8 +735,16 @@ function ArrivalCard({ row, kind, onMark, onSyncIcal, onNote, onEditDates, onEdi
               </>
             )}
           </div>
+          {/* Código da reserva abaixo do período quando há nome do hóspede */}
+          {!isPendingFill && row.guestName && row.guestName !== row.reservationCode && row.reservationCode && (
+            <div className="mt-0.5 inline-flex items-center gap-0.5 text-[11px] text-muted-foreground font-normal tabular-nums">
+              <span className="truncate max-w-[160px]">{row.reservationCode}</span>
+              <CopyButton value={row.reservationCode} size={10} className="p-0.5" />
+            </div>
+          )}
         </div>
       </div>
+
 
       {/* Engagement — só mostra pendências (fatos negativos). Estados positivos são omitidos. */}
       {!isPendingFill && (!row.openedCheckin || (row.hasPasswords && !row.viewedPasswords)) && (
@@ -788,7 +795,7 @@ function ArrivalCard({ row, kind, onMark, onSyncIcal, onNote, onEditDates, onEdi
         const fmtRange = (a: string | null, b: string | null) =>
           `${a ? fmtDateBR(a) : "?"} a ${b ? fmtDateBR(b) : "?"}`;
         return (
-          <div className="w-full text-xs rounded-lg px-2 py-1.5 flex items-start gap-2 bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/30">
+          <div className="w-full text-xs rounded-lg px-2 py-1.5 flex items-start gap-2 bg-red-500/10 text-red-700 dark:text-red-400 border border-red-500/40">
             <AlertTriangle className="size-3.5 shrink-0 mt-0.5" />
             <div className="min-w-0 flex-1 leading-snug">
               {anyDivergent ? (
@@ -878,7 +885,7 @@ function ArrivalCard({ row, kind, onMark, onSyncIcal, onNote, onEditDates, onEdi
       )}
 
       {/* Action row: ícones à esquerda; Copiar + Maps agrupados à direita */}
-      <div className="flex flex-wrap items-center gap-2 pt-1">
+      <div className="mt-auto flex flex-wrap items-center gap-2 pt-1">
         <button
           onClick={() => onMark(row)}
           disabled={busy}
