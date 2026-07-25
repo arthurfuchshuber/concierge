@@ -629,16 +629,10 @@ function ArrivalGroup({ title, rows, kind, onMark, onSyncIcal, onNote, onEditDat
 }) {
   if (rows.length === 0) return null;
   return (
-    <div className="space-y-3">
-      <div className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground font-semibold flex items-center gap-2">
-        <span className="h-px w-6 bg-border" />
-        {title}
-      </div>
-      <div className={`grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 ${muted ? "opacity-70" : ""}`}>
-        {rows.map((r) => (
-          <ArrivalCard key={r.logId} row={r} kind={kind} onMark={onMark} onSyncIcal={onSyncIcal} onNote={onNote} onEditDates={onEditDates} onEditTime={onEditTime} busy={busy} />
-        ))}
-      </div>
+    <div className={`grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 items-stretch ${muted ? "opacity-70" : ""}`}>
+      {rows.map((r) => (
+        <ArrivalCard key={r.logId} row={r} kind={kind} onMark={onMark} onSyncIcal={onSyncIcal} onNote={onNote} onEditDates={onEditDates} onEditTime={onEditTime} busy={busy} />
+      ))}
     </div>
   );
 }
