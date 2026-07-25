@@ -95,6 +95,17 @@ async function handleSubscriptionCreated(data: any, env: PaddleEnv) {
   if (anchorToDay1) {
     await anchorSubscriptionDay1(env, id, nextBilledAt);
   }
+
+  // Push para admins do SaaS quando um cliente entra em trial (uma vez, no create).
+  if (status === "trialing") {
+    const { notifySaasAdminsTrialStarted } = await import("@/lib/saas-admin-push.server");
+    await notifySaasAdminsTrialStarted({
+      userId,
+      productId,
+      environment: env,
+      trialEndsAt,
+    });
+  }
 }
 
 async function handleSubscriptionUpdated(data: any, env: PaddleEnv) {
