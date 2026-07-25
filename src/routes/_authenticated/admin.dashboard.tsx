@@ -6,7 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   CalendarCheck, CalendarX, LogIn, LogOut, MessageCircle, StickyNote, Check,
   AlertTriangle, Clock, Loader2, Home, Info, Sparkles, TrendingUp, Bell,
-  ChevronDown, UserPlus, MapPin, Link as LinkIcon, KeyRound, Eye, Trash2,
+  ChevronDown, UserPlus, MapPin, Link as LinkIcon, KeyRound, Eye, Trash2, BedDouble,
 } from "lucide-react";
 import { toast } from "sonner";
 import { parsePhoneNumberFromString } from "libphonenumber-js";
@@ -83,7 +83,8 @@ function DashboardPage() {
   const { impersonation } = useImpersonation();
   const activeOwnerId = impersonation?.userId ?? null;
 
-  const [kind, setKind] = useState<"checkin" | "checkout">("checkin");
+  const [mode, setMode] = useState<"checkin" | "checkout" | "stay" | "cleaning">("checkin");
+  const kind: "checkin" | "checkout" = mode === "checkout" || mode === "cleaning" ? "checkout" : "checkin";
   const [range, setRange] = useState<"today" | "tomorrow" | "7d" | "all">("today");
   // Engagement window follows the kanban range: tomorrow/all map to 7d/30d.
   const engRange: "today" | "7d" | "30d" =
@@ -105,22 +106,22 @@ function DashboardPage() {
   const kpiTodayQ = useQuery({
     queryKey: ["dash-list", "checkin", "today", activeOwnerId ?? "self"],
     queryFn: () => listFn({ data: { kind: "checkin", range: "today", ownerId: activeOwnerId } }),
-    enabled: false, staleTime: 30_000,
+    staleTime: 30_000,
   });
   const kpiTomorrowQ = useQuery({
     queryKey: ["dash-list", "checkin", "tomorrow", activeOwnerId ?? "self"],
     queryFn: () => listFn({ data: { kind: "checkin", range: "tomorrow", ownerId: activeOwnerId } }),
-    enabled: false, staleTime: 30_000,
+    staleTime: 30_000,
   });
   const kpiCoTodayQ = useQuery({
     queryKey: ["dash-list", "checkout", "today", activeOwnerId ?? "self"],
     queryFn: () => listFn({ data: { kind: "checkout", range: "today", ownerId: activeOwnerId } }),
-    enabled: false, staleTime: 30_000,
+    staleTime: 30_000,
   });
   const kpiCoTomorrowQ = useQuery({
     queryKey: ["dash-list", "checkout", "tomorrow", activeOwnerId ?? "self"],
     queryFn: () => listFn({ data: { kind: "checkout", range: "tomorrow", ownerId: activeOwnerId } }),
-    enabled: false, staleTime: 30_000,
+    staleTime: 30_000,
   });
 
   type UpsertPayload = {
@@ -183,6 +184,7 @@ function DashboardPage() {
     const ch = supabase
       .channel("dash-live")
       .on("postgres_changes", { event: "*", schema: "public", table: "guide_access_logs" }, invalidate)
+      .on("postgres_changes", { event: "*", schema: "public", table: "guest_arrival_status" }, invalidate)
       .on("postgres_changes", { event: "*", schema: "public", table: "property_reservations" }, invalidate)
       .subscribe();
     return () => { supabase.removeChannel(ch); };
@@ -193,6 +195,11 @@ function DashboardPage() {
   const rows = listQ.data?.rows ?? [];
   const pending = useMemo(() => rows.filter((r) => r.status === "pending"), [rows]);
   const done = useMemo(() => rows.filter((r) => r.status === "done"), [rows]);
+  const boardRows = mode === "stay" || mode === "cleaning" ? done : pending;
+  const boardTitle =
+    mode === "stay" ? `Em Estadia (${boardRows.length})`
+      : mode === "cleaning" ? `Em Limpeza (${boardRows.length})`
+      : `A fazer (${boardRows.length})`;
 
   /* ---------- Attention alerts ---------- */
   const alerts = useMemo(() => {
@@ -345,11 +352,16 @@ function DashboardPage() {
 
       {/* Arrivals */}
       <section className="rounded-2xl border border-border bg-card p-4 sm:p-5 space-y-4 shadow-sm">
-        <div className="flex flex-wrap items-center gap-3">
-
-          <div className="inline-flex rounded-lg border border-primary/20 bg-primary/[0.04] p-0.5 text-xs">
-            <SegBtn active={kind === "checkin"} onClick={() => setKind("checkin")} icon={CalendarCheck}>Check-ins</SegBtn>
-            <SegBtn active={kind === "checkout"} onClick={() => setKind("checkout")} icon={CalendarX}>Check-outs</SegBtn>
+        <div className="flex flex-wrap items-start gap-3">
+          <div className="flex flex-col gap-2">
+            <div className="inline-flex rounded-lg border border-primary/20 bg-primary/[0.04] p-0.5 text-xs">
+              <SegBtn active={mode === "checkin"} onClick={() => setMode("checkin")} icon={CalendarCheck}>Check-ins</SegBtn>
+              <SegBtn active={mode === "checkout"} onClick={() => setMode("checkout")} icon={CalendarX}>Check-outs</SegBtn>
+            </div>
+            <div className="inline-flex rounded-lg border border-primary/20 bg-primary/[0.04] p-0.5 text-xs">
+              <SegBtn active={mode === "stay"} onClick={() => setMode("stay")} icon={BedDouble}>Em Estadia</SegBtn>
+              <SegBtn active={mode === "cleaning"} onClick={() => setMode("cleaning")} icon={Sparkles}>Em Limpeza</SegBtn>
+            </div>
           </div>
           <div className="ml-auto">
             <RangeDropdown
@@ -364,17 +376,17 @@ function DashboardPage() {
           <div className="py-12 grid place-items-center text-muted-foreground text-sm">
             <Loader2 className="size-5 animate-spin" />
           </div>
-        ) : rows.length === 0 ? (
+        ) : boardRows.length === 0 ? (
           <div className="py-12 text-center text-sm text-muted-foreground">
-            Nenhum {kind === "checkin" ? "check-in" : "check-out"} no período.
+            Nenhum registro no período.
           </div>
         ) : (
           <div className="relative space-y-6">
             <ArrivalGroup
-              title={`Pendentes (${pending.length})`}
-              rows={pending}
+              title={boardTitle}
+              rows={boardRows}
               kind={kind}
-              onMark={(row) => handleMark(row, "done")}
+              onMark={(row) => handleMark(row, mode === "stay" || mode === "cleaning" ? "pending" : "done")}
               onSyncIcal={(row) => {
                 const t = kind === "checkin" ? "15:00" : "11:00";
                 upsert.mutate({ ...statusTarget(row), kind, arrivalTimeOverride: t });
@@ -384,21 +396,8 @@ function DashboardPage() {
               onEditDates={(row, dates) => updateDates.mutate({ logId: row.logId, ...dates })}
               onEditTime={(row, time) => handleEditTime(row, kind, time)}
               busy={upsert.isPending || updateDates.isPending || updateTime.isPending}
+              muted={mode === "stay" || mode === "cleaning"}
             />
-            {done.length > 0 && (
-              <ArrivalGroup
-                title={`Realizados (${done.length})`}
-                rows={done}
-                kind={kind}
-                onMark={(row) => handleMark(row, "pending")}
-                onSyncIcal={() => {}}
-                onNote={(row, note) => upsert.mutate({ ...statusTarget(row), kind, note })}
-                onEditDates={(row, dates) => updateDates.mutate({ logId: row.logId, ...dates })}
-                onEditTime={(row, time) => handleEditTime(row, kind, time)}
-                busy={upsert.isPending || updateDates.isPending || updateTime.isPending}
-                muted
-              />
-            )}
           </div>
         )}
       </section>
@@ -484,12 +483,12 @@ function KpiCard({ label, value, icon: Icon, tone, loading, listQuery, kind, ran
                       <div className={`text-sm font-medium leading-tight truncate flex items-center gap-1.5 ${r.pendingFill ? "text-muted-foreground italic" : ""}`}>
                         {r.pendingFill || !r.guestName || r.guestName === r.reservationCode ? (
                           r.reservationCode ? (
-                            <span className="inline-flex items-center gap-0.5 text-muted-foreground font-normal not-italic shrink-0">
+                            <span className="inline-flex items-center gap-0.5 text-foreground font-semibold not-italic shrink-0">
                               <span className="truncate max-w-[140px]">{r.reservationCode}</span>
                               <CopyButton value={r.reservationCode} size={11} className="p-0.5" />
                             </span>
                           ) : (
-                            <span className="truncate">{r.guestName}</span>
+                            <span className="truncate font-semibold not-italic text-foreground">{r.guestName}</span>
                           )
                         ) : (
                           <>
@@ -517,8 +516,6 @@ function KpiCard({ label, value, icon: Icon, tone, loading, listQuery, kind, ran
                         <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
                           <Check className="size-3" /> Feito
                         </span>
-                      ) : r.pendingFill ? (
-                        <span className="text-[10px] uppercase tracking-wider text-amber-600 dark:text-amber-400">Pendente</span>
                       ) : (
                         <span className="text-[10px] uppercase tracking-wider text-muted-foreground">Aguardando</span>
                       )}
@@ -699,12 +696,12 @@ function ArrivalCard({ row, kind, onMark, onSyncIcal, onNote, onEditDates, onEdi
           <div className={`font-semibold truncate flex items-center gap-2 ${isPendingFill ? "italic text-foreground/80" : ""}`}>
             {isPendingFill || !row.guestName || row.guestName === row.reservationCode ? (
               row.reservationCode ? (
-                <span className="inline-flex items-center gap-1 text-muted-foreground font-normal not-italic shrink-0">
+                <span className="inline-flex items-center gap-1 text-foreground font-semibold not-italic shrink-0">
                   <span className="truncate max-w-[180px]">{row.reservationCode}</span>
                   <CopyButton value={row.reservationCode} size={12} className="p-0.5" />
                 </span>
               ) : (
-                <span className="truncate">{row.guestName}</span>
+                <span className="truncate font-semibold not-italic text-foreground">{row.guestName}</span>
               )
             ) : (
               <>
