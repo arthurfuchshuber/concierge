@@ -1,15 +1,16 @@
 import { createFileRoute, useNavigate, useSearch } from "@tanstack/react-router";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { CreditCard, UsersRound, User as UserIcon, ShieldCheck } from "lucide-react";
+import { CreditCard, UsersRound, User as UserIcon, ShieldCheck, MessageCircle } from "lucide-react";
 import { AssinaturaPage } from "@/components/admin-pages/AssinaturaPage";
 import { EquipePage } from "@/components/admin-pages/EquipePage";
 import { MeuPerfilPage } from "@/components/admin-pages/MeuPerfilPage";
 import { PermissoesPage } from "@/components/admin-pages/PermissoesPage";
+import { WhatsappBusinessPage } from "@/components/admin-pages/WhatsappBusinessPage";
 
-type Tab = "perfil" | "assinatura" | "equipe" | "permissoes";
+type Tab = "perfil" | "assinatura" | "equipe" | "permissoes" | "whatsapp";
 
 function coerceTab(v: unknown): Tab {
-  return v === "assinatura" || v === "equipe" || v === "permissoes" ? v : "perfil";
+  return v === "assinatura" || v === "equipe" || v === "permissoes" || v === "whatsapp" ? v : "perfil";
 }
 
 export const Route = createFileRoute("/_authenticated/admin/administrativo")({
