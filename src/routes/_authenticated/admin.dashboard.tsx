@@ -319,29 +319,25 @@ function DashboardPage() {
       </header>
 
 
-      {/* Attention strip — stacked vertically */}
-      {alerts.length > 0 && (
-        <div className="flex flex-col gap-2">
-          {alerts.map((a, i) => {
-            const tone =
-              a.tone === "warn"
-                ? "bg-amber-500/8 text-amber-800 dark:text-amber-300 border-amber-500/20"
-                : a.tone === "success"
-                ? "bg-emerald-500/8 text-emerald-800 dark:text-emerald-300 border-emerald-500/20"
-                : "bg-primary/8 text-primary border-primary/20";
-            const Icon = a.icon;
-            return (
-              <div
-                key={i}
-                className={`flex items-center gap-2.5 rounded-xl border px-3.5 py-2 text-xs sm:text-sm backdrop-blur-sm ${tone}`}
-              >
-                <Icon className="size-4 shrink-0" />
-                <span>{a.text}</span>
-              </div>
-            );
-          })}
-        </div>
-      )}
+      {/* Attention strip — only the single most important alert */}
+      {topAlert && (() => {
+        const tone =
+          topAlert.tone === "warn"
+            ? "bg-amber-500/8 text-amber-800 dark:text-amber-300 border-amber-500/20"
+            : topAlert.tone === "success"
+            ? "bg-emerald-500/8 text-emerald-800 dark:text-emerald-300 border-emerald-500/20"
+            : "bg-primary/8 text-primary border-primary/20";
+        const Icon = topAlert.icon;
+        return (
+          <div
+            className={`flex items-center gap-2.5 rounded-xl border px-3.5 py-2 text-xs sm:text-sm backdrop-blur-sm ${tone}`}
+          >
+            <Icon className="size-4 shrink-0" />
+            <span>{topAlert.text}</span>
+          </div>
+        );
+      })()}
+
 
       {/* KPIs */}
       <section className="grid grid-cols-2 lg:grid-cols-4 gap-3">
