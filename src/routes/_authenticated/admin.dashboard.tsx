@@ -254,40 +254,53 @@ function DashboardPage() {
   /* ---------- Attention alerts (only the single most important) ---------- */
   const topAlert = useMemo(() => {
     const e = engQ.data;
+    const today = new Date().toLocaleDateString("sv-SE");
 
     // Priority 1: cards atrasados
-    const overdueCount = rows.filter((r) => {
-      const today = new Date().toLocaleDateString("sv-SE");
-      return r.date < today;
-    }).length;
-    if (overdueCount > 0) {
-      const plural = overdueCount > 1;
+    const overdueRows = rows.filter((r) => r.date < today);
+    if (overdueRows.length > 0) {
+      const plural = overdueRows.length > 1;
       return {
         tone: "warn" as const, icon: AlertTriangle,
-        text: <><b className="tabular-nums">{overdueCount}</b> {plural ? "cards atrasados" : "card atrasado"} — {plural ? "aguardam" : "aguarda"} check.</>,
+        text: <><b className="tabular-nums">{overdueRows.length}</b> {plural ? "cards atrasados" : "card atrasado"} — {plural ? "aguardam" : "aguarda"} check.</>,
+        items: overdueRows.map((r) => ({
+          propertyName: r.propertyName ?? "Sem nome",
+          guestName: r.pendingFill ? "Hóspede pendente" : (r.guestName || r.reservationCode || "—"),
+          detail: `Previsto ${r.date}${(r.arrivalTimeOverride ?? r.guestArrivalTime) ? ` · ${r.arrivalTimeOverride ?? r.guestArrivalTime}` : ""}`,
+        })),
       };
     }
 
     // Priority 2: horários divergentes do padrão
-    const divergentCount = rows.filter((r) => {
+    const divergentRows = rows.filter((r) => {
       const t = r.arrivalTimeOverride ?? r.guestArrivalTime;
       return t && r.standardTime && !isTimeWithin(t, r.standardTime, r.standardTimeMax);
-    }).length;
-    if (divergentCount > 0) {
-      const plural = divergentCount > 1;
+    });
+    if (divergentRows.length > 0) {
+      const plural = divergentRows.length > 1;
       return {
         tone: "warn" as const, icon: Clock,
-        text: <><b className="tabular-nums">{divergentCount}</b> {plural ? "horários divergentes" : "horário divergente"} do padrão.</>,
+        text: <><b className="tabular-nums">{divergentRows.length}</b> {plural ? "horários divergentes" : "horário divergente"} do padrão.</>,
+        items: divergentRows.map((r) => ({
+          propertyName: r.propertyName ?? "Sem nome",
+          guestName: r.pendingFill ? "Hóspede pendente" : (r.guestName || r.reservationCode || "—"),
+          detail: `Previsto ${r.arrivalTimeOverride ?? r.guestArrivalTime} · Padrão ${r.standardTime}${r.standardTimeMax ? `–${r.standardTimeMax}` : ""}`,
+        })),
       };
     }
 
     // Priority 3: reservas sem formulário
-    const pendingFillCount = rows.filter((r) => r.pendingFill).length;
-    if (pendingFillCount > 0) {
-      const plural = pendingFillCount > 1;
+    const pendingFillRows = rows.filter((r) => r.pendingFill);
+    if (pendingFillRows.length > 0) {
+      const plural = pendingFillRows.length > 1;
       return {
         tone: "warn" as const, icon: UserPlus,
-        text: <><b className="tabular-nums">{pendingFillCount}</b> {plural ? "reservas" : "reserva"} sem {plural ? "formulários preenchidos" : "formulário preenchido"} de acesso.</>,
+        text: <><b className="tabular-nums">{pendingFillRows.length}</b> {plural ? "reservas" : "reserva"} sem {plural ? "formulários preenchidos" : "formulário preenchido"} de acesso.</>,
+        items: pendingFillRows.map((r) => ({
+          propertyName: r.propertyName ?? "Sem nome",
+          guestName: r.reservationCode || "Hóspede pendente",
+          detail: `Check-in ${r.guestCheckin ?? r.date}${r.guestCheckout ? ` · Check-out ${r.guestCheckout}` : ""}`,
+        })),
       };
     }
 
@@ -299,11 +312,13 @@ function DashboardPage() {
         return {
           tone: "warn" as const, icon: AlertTriangle,
           text: <><b className="tabular-nums">{gap}</b> {plural ? "hóspedes ainda não abriram" : "hóspede ainda não abriu"} a aba <i>Chegada</i>.</>,
+          items: [] as { propertyName: string; guestName: string; detail: string }[],
         };
       }
       return {
         tone: "success" as const, icon: Sparkles,
         text: <>Todos os hóspedes do período abriram a aba <i>Chegada</i>.</>,
+        items: [] as { propertyName: string; guestName: string; detail: string }[],
       };
     }
 
@@ -336,13 +351,38 @@ function DashboardPage() {
             ? "bg-emerald-500/8 text-emerald-800 dark:text-emerald-300 border-emerald-500/20"
             : "bg-primary/8 text-primary border-primary/20";
         const Icon = topAlert.icon;
-        return (
+        const hasItems = topAlert.items && topAlert.items.length > 0;
+        const strip = (
           <div
-            className={`flex items-center gap-2.5 rounded-xl border px-3.5 py-2 text-xs sm:text-sm backdrop-blur-sm ${tone}`}
+            className={`flex items-center gap-2.5 rounded-xl border px-3.5 py-2 text-xs sm:text-sm backdrop-blur-sm ${tone} ${hasItems ? "cursor-pointer hover:brightness-105 transition" : ""}`}
           >
             <Icon className="size-4 shrink-0" />
-            <span>{topAlert.text}</span>
+            <span className="flex-1">{topAlert.text}</span>
+            {hasItems && <Info className="size-3.5 shrink-0 opacity-70" />}
           </div>
+        );
+        if (!hasItems) return strip;
+        return (
+          <Popover>
+            <PopoverTrigger asChild>{strip}</PopoverTrigger>
+            <PopoverContent align="start" className="w-[min(92vw,420px)] p-0">
+              <div className="px-3.5 py-2.5 border-b border-border/60">
+                <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Imóveis afetados</div>
+              </div>
+              <ul className="max-h-[60vh] overflow-y-auto divide-y divide-border/60">
+                {topAlert.items!.map((it, i) => (
+                  <li key={i} className="px-3.5 py-2.5 text-sm">
+                    <div className="font-medium flex items-center gap-1.5 min-w-0">
+                      <Home className="size-3.5 shrink-0 text-muted-foreground" />
+                      <span className="truncate">{it.propertyName}</span>
+                    </div>
+                    <div className="text-xs text-muted-foreground mt-0.5 truncate">{it.guestName}</div>
+                    <div className="text-[11px] text-muted-foreground/80 mt-0.5 tabular-nums">{it.detail}</div>
+                  </li>
+                ))}
+              </ul>
+            </PopoverContent>
+          </Popover>
         );
       })()}
 
