@@ -9,7 +9,7 @@ import {
   ChevronDown, UserPlus, MapPin, Link as LinkIcon, KeyRound, Eye, Trash2, BedDouble,
 } from "lucide-react";
 import { toast } from "sonner";
-import { parsePhoneNumberFromString } from "libphonenumber-js";
+
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { CopyButton } from "@/components/CopyButton";
@@ -18,6 +18,7 @@ import {
   getDashboardKpis, getGuideEngagement, listDashboardArrivals, upsertArrivalStatus, updateGuestStayDates, updateGuestArrivalTime, advanceArrival, revertArrival,
   type ArrivalRow,
 } from "@/lib/dashboard.functions";
+import { openHandoffDock } from "@/lib/handoff-dock";
 import { useImpersonation } from "@/hooks/useImpersonation";
 
 export const Route = createFileRoute("/_authenticated/admin/dashboard")({
@@ -35,14 +36,6 @@ function fmtDateBR(iso: string) {
 }
 function initials(name: string) {
   return name.split(/\s+/).filter(Boolean).slice(0, 2).map((p) => p[0]?.toUpperCase() ?? "").join("") || "?";
-}
-function waLink(phone: string | null, country: string | null): string | null {
-  if (!phone) return null;
-  const raw = `${country ?? ""}${phone}`.replace(/[^\d+]/g, "");
-  const p = parsePhoneNumberFromString(raw.startsWith("+") ? raw : `+${raw}`);
-  if (p && p.isValid()) return `https://wa.me/${p.number.replace("+", "")}`;
-  const digits = raw.replace(/\D/g, "");
-  return digits.length >= 8 ? `https://wa.me/${digits}` : null;
 }
 
 /* ---------- Info tooltip ---------- */
@@ -797,7 +790,7 @@ function ArrivalCard({ row, kind, mode, onMark, onSyncIcal, onNote, onEditDates,
   const divergent =
     !!guestTime && !!row.standardTime &&
     !isTimeWithin(guestTime, row.standardTime, row.standardTimeMax);
-  const wa = waLink(row.guestPhone, row.guestPhoneCountry);
+  
   const done = row.status === "done";
   const isPendingFill = row.pendingFill;
   const todayISO = new Date().toLocaleDateString("sv-SE");
@@ -1048,14 +1041,21 @@ function ArrivalCard({ row, kind, mode, onMark, onSyncIcal, onNote, onEditDates,
         >
           <Check className="size-4" />
         </button>
-        {wa && (
-          <a
-            href={wa} target="_blank" rel="noreferrer"
-            aria-label="WhatsApp" title="WhatsApp"
+        {(row.guestPhone || row.guestName) && !isPendingFill && (
+          <button
+            type="button"
+            onClick={() => openHandoffDock({
+              propertyId: row.propertyId,
+              phone: row.guestPhone,
+              reservationCode: row.reservationCode,
+              guestName: row.guestName,
+            })}
+            aria-label="Falar com hóspede"
+            title="Falar com hóspede (chat + WhatsApp integrado)"
             className="size-9 grid place-items-center rounded-lg bg-background/60 border border-border/50 hover:bg-primary/[0.08]"
           >
             <MessageCircle className="size-4" />
-          </a>
+          </button>
         )}
         <button
           onClick={() => setNoteOpen((v) => !v)}
