@@ -157,6 +157,17 @@ function DashboardPage() {
     onError: (e) => toast.error(e instanceof Error ? e.message : "Falha ao avançar card."),
   });
 
+  const revertFn = useServerFn(revertArrival);
+  const revert = useMutation({
+    mutationFn: (v: { logId?: string; reservationId?: string; from: "stay" | "cleaning" }) => revertFn({ data: v }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["dash-list"] });
+      qc.invalidateQueries({ queryKey: ["dash-kpis"] });
+      toast.success("Check desfeito.");
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Falha ao desfazer."),
+  });
+
   const updateDates = useMutation({
     mutationFn: (v: { logId: string; checkinDate?: string; checkoutDate?: string | null }) => updateDatesFn({ data: v }),
     onSuccess: () => {
