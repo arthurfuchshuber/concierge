@@ -1,15 +1,16 @@
 import { createFileRoute, useNavigate, useSearch } from "@tanstack/react-router";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { CreditCard, UsersRound, User as UserIcon, ShieldCheck } from "lucide-react";
+import { CreditCard, UsersRound, User as UserIcon, ShieldCheck, MessageCircle } from "lucide-react";
 import { AssinaturaPage } from "@/components/admin-pages/AssinaturaPage";
 import { EquipePage } from "@/components/admin-pages/EquipePage";
 import { MeuPerfilPage } from "@/components/admin-pages/MeuPerfilPage";
 import { PermissoesPage } from "@/components/admin-pages/PermissoesPage";
+import { WhatsappBusinessPage } from "@/components/admin-pages/WhatsappBusinessPage";
 
-type Tab = "perfil" | "assinatura" | "equipe" | "permissoes";
+type Tab = "perfil" | "assinatura" | "equipe" | "permissoes" | "whatsapp";
 
 function coerceTab(v: unknown): Tab {
-  return v === "assinatura" || v === "equipe" || v === "permissoes" ? v : "perfil";
+  return v === "assinatura" || v === "equipe" || v === "permissoes" || v === "whatsapp" ? v : "perfil";
 }
 
 export const Route = createFileRoute("/_authenticated/admin/administrativo")({
@@ -51,6 +52,9 @@ function AdministrativoPage() {
             <TabsTrigger value="permissoes" className="gap-2 rounded-xl px-4 py-2 text-sm">
               <ShieldCheck className="size-4" /> Permissões
             </TabsTrigger>
+            <TabsTrigger value="whatsapp" className="gap-2 rounded-xl px-4 py-2 text-sm">
+              <MessageCircle className="size-4" /> WhatsApp
+            </TabsTrigger>
           </TabsList>
         </div>
         <div className="px-6 lg:px-10 max-w-7xl mx-auto w-full pt-6 pb-16">
@@ -65,6 +69,9 @@ function AdministrativoPage() {
           </TabsContent>
           <TabsContent value="permissoes" className="mt-0">
             <PermissoesPage />
+          </TabsContent>
+          <TabsContent value="whatsapp" className="mt-0">
+            <WhatsappBusinessPage />
           </TabsContent>
         </div>
       </Tabs>

@@ -15,7 +15,8 @@ import {
   listConversationTransferTargets,
 } from "@/lib/handoff.functions";
 import { attachStaffMessage } from "@/lib/chat-attachments.functions";
-import { Send, UserCheck, RotateCcw, CheckCircle2, Loader2, StickyNote, Phone, Calendar, Hash, Lock, UserPlus2, ArrowRightLeft, X, Sparkles, Paperclip } from "lucide-react";
+import { Send, UserCheck, RotateCcw, CheckCircle2, Loader2, StickyNote, Phone, Calendar, Hash, Lock, UserPlus2, ArrowRightLeft, X, Sparkles, Paperclip, MessageCircle } from "lucide-react";
+import { WhatsappComposerDialog } from "@/components/whatsapp/WhatsappComposerDialog";
 import { TeachAiDialog } from "@/components/handoff/TeachAiDialog";
 import { AudioRecorderButton, type RecordedAudio } from "@/components/handoff/AudioRecorderButton";
 import { AttachmentBubble, type AttachmentInfo } from "@/components/handoff/AttachmentBubble";
@@ -67,6 +68,7 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
   const [text, setText] = useState("");
   const [note, setNote] = useState(false);
   const [transferOpen, setTransferOpen] = useState(false);
+  const [waOpen, setWaOpen] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [teachOpen, setTeachOpen] = useState(false);
   const [teachSource, setTeachSource] = useState<{ id: string; content: string } | null>(null);
@@ -354,6 +356,15 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
                 </button>
               </>
             )}
+            {guest?.phone && canChat && (
+              <button
+                onClick={() => setWaOpen(true)}
+                className="text-xs px-2 py-1.5 rounded-md bg-emerald-600 text-white hover:bg-emerald-700 inline-flex items-center gap-1"
+                title="Enviar mensagem por WhatsApp"
+              >
+                <MessageCircle className="size-3" /> WhatsApp
+              </button>
+            )}
             {status !== "resolved" && (isMine || !conv?.assigned_to) && (
               <button onClick={() => resolve.mutate()} disabled={resolve.isPending} className="text-xs px-2 py-1.5 rounded-md border border-border hover:bg-secondary inline-flex items-center gap-1">
                 <CheckCircle2 className="size-3" /> Resolver
@@ -465,6 +476,14 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
           sourceMessageId={teachSource.id}
         />
       )}
+
+      <WhatsappComposerDialog
+        open={waOpen}
+        onOpenChange={setWaOpen}
+        conversationId={conversationId}
+        guestName={guest?.name ?? conv?.guest_name ?? null}
+      />
+
 
       {status !== "resolved" && !canChat && (
         <div className="shrink-0 border-t border-border p-3 text-center text-xs text-muted-foreground bg-surface flex items-center justify-center gap-2">

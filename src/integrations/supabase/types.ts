@@ -964,6 +964,51 @@ export type Database = {
           },
         ]
       }
+      host_whatsapp_config: {
+        Row: {
+          api_token_encrypted: string | null
+          app_id: string | null
+          created_at: string
+          last_error: string | null
+          last_verified_at: string | null
+          owner_id: string
+          provider: string
+          sender_number: string | null
+          service_plan_id: string | null
+          status: string
+          updated_at: string
+          webhook_secret: string
+        }
+        Insert: {
+          api_token_encrypted?: string | null
+          app_id?: string | null
+          created_at?: string
+          last_error?: string | null
+          last_verified_at?: string | null
+          owner_id: string
+          provider?: string
+          sender_number?: string | null
+          service_plan_id?: string | null
+          status?: string
+          updated_at?: string
+          webhook_secret?: string
+        }
+        Update: {
+          api_token_encrypted?: string | null
+          app_id?: string | null
+          created_at?: string
+          last_error?: string | null
+          last_verified_at?: string | null
+          owner_id?: string
+          provider?: string
+          sender_number?: string | null
+          service_plan_id?: string | null
+          status?: string
+          updated_at?: string
+          webhook_secret?: string
+        }
+        Relationships: []
+      }
       poi_categories: {
         Row: {
           created_at: string
@@ -1413,14 +1458,18 @@ export type Database = {
           attachment_path: string | null
           attachment_size_bytes: number | null
           attachment_type: string | null
+          channel: string
           content: string
           conversation_id: string
           created_at: string
+          delivery_status: string | null
+          external_id: string | null
           id: string
           is_internal_note: boolean
           role: string
           sender_type: Database["public"]["Enums"]["chat_sender_type"]
           sender_user_id: string | null
+          sent_via_number: string | null
         }
         Insert: {
           attachment_duration_ms?: number | null
@@ -1429,14 +1478,18 @@ export type Database = {
           attachment_path?: string | null
           attachment_size_bytes?: number | null
           attachment_type?: string | null
+          channel?: string
           content: string
           conversation_id: string
           created_at?: string
+          delivery_status?: string | null
+          external_id?: string | null
           id?: string
           is_internal_note?: boolean
           role: string
           sender_type?: Database["public"]["Enums"]["chat_sender_type"]
           sender_user_id?: string | null
+          sent_via_number?: string | null
         }
         Update: {
           attachment_duration_ms?: number | null
@@ -1445,14 +1498,18 @@ export type Database = {
           attachment_path?: string | null
           attachment_size_bytes?: number | null
           attachment_type?: string | null
+          channel?: string
           content?: string
           conversation_id?: string
           created_at?: string
+          delivery_status?: string | null
+          external_id?: string | null
           id?: string
           is_internal_note?: boolean
           role?: string
           sender_type?: Database["public"]["Enums"]["chat_sender_type"]
           sender_user_id?: string | null
+          sent_via_number?: string | null
         }
         Relationships: [
           {
@@ -2117,6 +2174,48 @@ export type Database = {
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
           user_id?: string
+        }
+        Relationships: []
+      }
+      whatsapp_templates: {
+        Row: {
+          body: string
+          category: string
+          created_at: string
+          id: string
+          language: string
+          name: string
+          owner_id: string
+          sinch_template_id: string | null
+          status: string
+          updated_at: string
+          variables: Json
+        }
+        Insert: {
+          body: string
+          category?: string
+          created_at?: string
+          id?: string
+          language?: string
+          name: string
+          owner_id: string
+          sinch_template_id?: string | null
+          status?: string
+          updated_at?: string
+          variables?: Json
+        }
+        Update: {
+          body?: string
+          category?: string
+          created_at?: string
+          id?: string
+          language?: string
+          name?: string
+          owner_id?: string
+          sinch_template_id?: string | null
+          status?: string
+          updated_at?: string
+          variables?: Json
         }
         Relationships: []
       }
