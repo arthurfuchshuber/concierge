@@ -243,58 +243,65 @@ function DashboardPage() {
     cleaning: coRows.filter((r) => r.status === "done").length,
   };
 
-  /* ---------- Attention alerts ---------- */
-  const alerts = useMemo(() => {
-    const list: Array<{ tone: "warn" | "info" | "success"; icon: React.ElementType; text: React.ReactNode }> = [];
-    const k = kpisQ.data;
+  /* ---------- Attention alerts (only the single most important) ---------- */
+  const topAlert = useMemo(() => {
     const e = engQ.data;
 
-    if (e && e.checkinsInPeriod > 0) {
-      const gap = e.checkinsInPeriod - e.checkinTabOpens;
-      if (gap > 0) {
-        const plural = gap > 1;
-        list.push({
-          tone: "warn", icon: AlertTriangle,
-          text: <><b className="tabular-nums">{gap}</b> {plural ? "hóspedes" : "hóspede"} ainda {plural ? "não abriram" : "não abriu"} a aba <i>Chegada</i>.</>,
-        });
-      } else {
-        list.push({
-          tone: "success", icon: Sparkles,
-          text: <>Todos os hóspedes do período abriram a aba <i>Chegada</i>.</>,
-        });
-      }
-    }
-    const pendingFillCount = rows.filter((r) => r.pendingFill).length;
-    if (pendingFillCount > 0) {
-      const plural = pendingFillCount > 1;
-      list.push({
-        tone: "warn", icon: UserPlus,
-        text: <><b className="tabular-nums">{pendingFillCount}</b> {plural ? "reservas" : "reserva"} sem {plural ? "formulários preenchidos" : "formulário preenchido"} de acesso.</>,
-      });
-    }
+    // Priority 1: cards atrasados
     const overdueCount = rows.filter((r) => {
       const today = new Date().toLocaleDateString("sv-SE");
       return r.date < today;
     }).length;
     if (overdueCount > 0) {
       const plural = overdueCount > 1;
-      list.push({
-        tone: "warn", icon: AlertTriangle,
+      return {
+        tone: "warn" as const, icon: AlertTriangle,
         text: <><b className="tabular-nums">{overdueCount}</b> {plural ? "cards atrasados" : "card atrasado"} — {plural ? "aguardam" : "aguarda"} check.</>,
-      });
+      };
     }
+
+    // Priority 2: horários divergentes do padrão
     const divergentCount = rows.filter((r) => {
       const t = r.arrivalTimeOverride ?? r.guestArrivalTime;
       return t && r.standardTime && !isTimeWithin(t, r.standardTime, r.standardTimeMax);
     }).length;
     if (divergentCount > 0) {
-      list.push({
-        tone: "warn", icon: Clock,
-        text: <><b className="tabular-nums">{divergentCount}</b> horário{divergentCount > 1 ? "s" : ""} divergente{divergentCount > 1 ? "s" : ""} do padrão.</>,
-      });
+      const plural = divergentCount > 1;
+      return {
+        tone: "warn" as const, icon: Clock,
+        text: <><b className="tabular-nums">{divergentCount}</b> {plural ? "horários divergentes" : "horário divergente"} do padrão.</>,
+      };
     }
-    return list;
-  }, [kpisQ.data, engQ.data, rows]);
+
+    // Priority 3: reservas sem formulário
+    const pendingFillCount = rows.filter((r) => r.pendingFill).length;
+    if (pendingFillCount > 0) {
+      const plural = pendingFillCount > 1;
+      return {
+        tone: "warn" as const, icon: UserPlus,
+        text: <><b className="tabular-nums">{pendingFillCount}</b> {plural ? "reservas" : "reserva"} sem {plural ? "formulários preenchidos" : "formulário preenchido"} de acesso.</>,
+      };
+    }
+
+    // Priority 4: hóspedes que não abriram a aba Chegada
+    if (e && e.checkinsInPeriod > 0) {
+      const gap = e.checkinsInPeriod - e.checkinTabOpens;
+      if (gap > 0) {
+        const plural = gap > 1;
+        return {
+          tone: "warn" as const, icon: AlertTriangle,
+          text: <><b className="tabular-nums">{gap}</b> {plural ? "hóspedes ainda não abriram" : "hóspede ainda não abriu"} a aba <i>Chegada</i>.</>,
+        };
+      }
+      return {
+        tone: "success" as const, icon: Sparkles,
+        text: <>Todos os hóspedes do período abriram a aba <i>Chegada</i>.</>,
+      };
+    }
+
+    return null;
+  }, [engQ.data, rows]);
+
 
   const rangeLabel: Record<typeof range, string> = {
     today: "Hoje", tomorrow: "Amanhã", "7d": "7 dias", all: "Todos",
@@ -312,29 +319,25 @@ function DashboardPage() {
       </header>
 
 
-      {/* Attention strip — stacked vertically */}
-      {alerts.length > 0 && (
-        <div className="flex flex-col gap-2">
-          {alerts.map((a, i) => {
-            const tone =
-              a.tone === "warn"
-                ? "bg-amber-500/8 text-amber-800 dark:text-amber-300 border-amber-500/20"
-                : a.tone === "success"
-                ? "bg-emerald-500/8 text-emerald-800 dark:text-emerald-300 border-emerald-500/20"
-                : "bg-primary/8 text-primary border-primary/20";
-            const Icon = a.icon;
-            return (
-              <div
-                key={i}
-                className={`flex items-center gap-2.5 rounded-xl border px-3.5 py-2 text-xs sm:text-sm backdrop-blur-sm ${tone}`}
-              >
-                <Icon className="size-4 shrink-0" />
-                <span>{a.text}</span>
-              </div>
-            );
-          })}
-        </div>
-      )}
+      {/* Attention strip — only the single most important alert */}
+      {topAlert && (() => {
+        const tone =
+          topAlert.tone === "warn"
+            ? "bg-amber-500/8 text-amber-800 dark:text-amber-300 border-amber-500/20"
+            : topAlert.tone === "success"
+            ? "bg-emerald-500/8 text-emerald-800 dark:text-emerald-300 border-emerald-500/20"
+            : "bg-primary/8 text-primary border-primary/20";
+        const Icon = topAlert.icon;
+        return (
+          <div
+            className={`flex items-center gap-2.5 rounded-xl border px-3.5 py-2 text-xs sm:text-sm backdrop-blur-sm ${tone}`}
+          >
+            <Icon className="size-4 shrink-0" />
+            <span>{topAlert.text}</span>
+          </div>
+        );
+      })()}
+
 
       {/* KPIs */}
       <section className="grid grid-cols-2 lg:grid-cols-4 gap-3">
