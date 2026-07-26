@@ -847,8 +847,8 @@ function ArrivalCard({ row, kind, mode, onMark, onSyncIcal, onNote, onEditDates,
       </div>
 
 
-      {/* Engagement — só mostra pendências (fatos negativos). Estados positivos são omitidos. */}
-      {!isPendingFill && (!row.openedCheckin || (row.hasPasswords && !row.viewedPasswords)) && (
+      {/* Engagement — só mostra pendências (fatos negativos). Estados positivos são omitidos. Ocultos em "Em Limpeza". */}
+      {mode !== "cleaning" && !isPendingFill && (!row.openedCheckin || (row.hasPasswords && !row.viewedPasswords)) && (
         <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
           {!row.openedCheckin && (
             <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 border bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/25">
@@ -863,28 +863,31 @@ function ArrivalCard({ row, kind, mode, onMark, onSyncIcal, onNote, onEditDates,
         </div>
       )}
 
-      <div className="grid grid-cols-2 gap-2 text-xs">
-        <div className="rounded-lg bg-background/50 border border-border/40 p-2 backdrop-blur-sm">
-          <div className="text-[10px] uppercase tracking-wider text-muted-foreground flex items-center justify-between">
-            <span>Padrão</span>
-            <InfoHint title="Horário padrão">Janela configurada na propriedade. Base para detectar divergências.</InfoHint>
+      {mode !== "cleaning" && (
+        <div className="grid grid-cols-2 gap-2 text-xs">
+          <div className="rounded-lg bg-background/50 border border-border/40 p-2 backdrop-blur-sm">
+            <div className="text-[10px] uppercase tracking-wider text-muted-foreground flex items-center justify-between">
+              <span>Padrão</span>
+              <InfoHint title="Horário padrão">Janela configurada na propriedade. Base para detectar divergências.</InfoHint>
+            </div>
+            <div className="mt-0.5 tabular-nums">{stdWindow ?? "—"}</div>
           </div>
-          <div className="mt-0.5 tabular-nums">{stdWindow ?? "—"}</div>
+          <div className={`rounded-lg p-2 backdrop-blur-sm ${divergent ? "bg-amber-500/10 border border-amber-500/30" : "bg-background/50 border border-border/40"}`}>
+            <div className="text-[10px] uppercase tracking-wider text-muted-foreground flex items-center justify-between">
+              <span>Previsto</span>
+              <InfoHint title="Horário previsto">Selecione o horário (30 em 30 min). A alteração reordena o kanban imediatamente.</InfoHint>
+            </div>
+            <div className="mt-0.5">
+              <TimeDropdown
+                value={guestTime ?? null}
+                disabled={busy}
+                onChange={(v) => onEditTime(row, v)}
+              />
+            </div>
+          </div>
         </div>
-        <div className={`rounded-lg p-2 backdrop-blur-sm ${divergent ? "bg-amber-500/10 border border-amber-500/30" : "bg-background/50 border border-border/40"}`}>
-          <div className="text-[10px] uppercase tracking-wider text-muted-foreground flex items-center justify-between">
-            <span>Previsto</span>
-            <InfoHint title="Horário previsto">Selecione o horário (30 em 30 min). A alteração reordena o kanban imediatamente.</InfoHint>
-          </div>
-          <div className="mt-0.5">
-            <TimeDropdown
-              value={guestTime ?? null}
-              disabled={busy}
-              onChange={(v) => onEditTime(row, v)}
-            />
-          </div>
-        </div>
-      </div>
+      )}
+
 
       {row.ical.hasIcal && !isPendingFill && (() => {
         const gIn = row.guestCheckin;
