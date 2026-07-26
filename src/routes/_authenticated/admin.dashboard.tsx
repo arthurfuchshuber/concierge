@@ -790,7 +790,7 @@ function ArrivalCard({ row, kind, mode, onMark, onSyncIcal, onNote, onEditDates,
   const divergent =
     !!guestTime && !!row.standardTime &&
     !isTimeWithin(guestTime, row.standardTime, row.standardTimeMax);
-  void waLink;
+  
   const done = row.status === "done";
   const isPendingFill = row.pendingFill;
   const todayISO = new Date().toLocaleDateString("sv-SE");
