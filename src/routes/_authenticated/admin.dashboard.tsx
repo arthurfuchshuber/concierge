@@ -15,7 +15,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { CopyButton } from "@/components/CopyButton";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import {
-  getDashboardKpis, getGuideEngagement, listDashboardArrivals, upsertArrivalStatus, updateGuestStayDates, updateGuestArrivalTime, advanceArrival,
+  getDashboardKpis, getGuideEngagement, listDashboardArrivals, upsertArrivalStatus, updateGuestStayDates, updateGuestArrivalTime, advanceArrival, revertArrival,
   type ArrivalRow,
 } from "@/lib/dashboard.functions";
 import { useImpersonation } from "@/hooks/useImpersonation";
@@ -157,6 +157,17 @@ function DashboardPage() {
     onError: (e) => toast.error(e instanceof Error ? e.message : "Falha ao avançar card."),
   });
 
+  const revertFn = useServerFn(revertArrival);
+  const revert = useMutation({
+    mutationFn: (v: { logId?: string; reservationId?: string; from: "stay" | "cleaning" }) => revertFn({ data: v }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["dash-list"] });
+      qc.invalidateQueries({ queryKey: ["dash-kpis"] });
+      toast.success("Check desfeito.");
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Falha ao desfazer."),
+  });
+
   const updateDates = useMutation({
     mutationFn: (v: { logId: string; checkinDate?: string; checkoutDate?: string | null }) => updateDatesFn({ data: v }),
     onSuccess: () => {
@@ -184,6 +195,11 @@ function DashboardPage() {
   function handleAdvance(row: ArrivalRow, from: "checkin" | "stay" | "checkout" | "cleaning") {
     const target = statusTarget(row);
     if (!target.logId && !target.reservationId) return;
+    // In destination lists (stay/cleaning) the check button undoes the previous advance.
+    if (from === "stay" || from === "cleaning") {
+      revert.mutate({ ...target, from });
+      return;
+    }
     advance.mutate({ ...target, from });
   }
 

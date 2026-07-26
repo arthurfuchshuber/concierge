@@ -830,31 +830,95 @@ export const advanceArrival = createServerFn({ method: "POST" })
       if (error) throw new Error(error.message);
     }
 
+    // If checkout is more than 1 day past, cleaning window is over → conclude directly.
+    function daysBetween(a: string, b: string) {
+      const da = new Date(a + "T00:00:00Z").getTime();
+      const db = new Date(b + "T00:00:00Z").getTime();
+      return Math.round((da - db) / 86400000);
+    }
+    const cleaningStale = !!(checkoutDate && daysBetween(today, checkoutDate) > 1);
+
     // Bucket-aware progression.
     if (data.from === "checkin") {
-      // Chegadas → mark checkin done. If today is on/after checkout,
-      // fast-forward: also mark checkout done AND conclude the checkin row
-      // so it doesn't linger in Em Estadia.
       await upsertStatus("checkin", { status: "done", done_at: nowIso });
       if (checkoutDate && today >= checkoutDate) {
+        // Guest already left → also mark checkout done and hide checkin from Estadia.
         await upsertStatus("checkout", { status: "done", done_at: nowIso });
         await upsertStatus("checkin", { concluded_at: nowIso });
+        if (cleaningStale) {
+          // Cleaning window (checkout + 1d) is over → go straight to Concluído.
+          await upsertStatus("checkout", { concluded_at: nowIso });
+        }
       }
-    } else if (data.from === "stay") {
-      // Em Estadia → guest is leaving. Mark checkout done (goes to Em Limpeza)
-      // and hide the checkin.done row from Em Estadia.
+    } else if (data.from === "stay" || data.from === "checkout") {
       await upsertStatus("checkout", { status: "done", done_at: nowIso });
       await upsertStatus("checkin", { concluded_at: nowIso });
-    } else if (data.from === "checkout") {
-      // Saídas → mark checkout done. Also hide any lingering checkin.done row
-      // for the same stay so it doesn't stay stuck in Em Estadia.
-      await upsertStatus("checkout", { status: "done", done_at: nowIso });
-      await upsertStatus("checkin", { concluded_at: nowIso });
+      if (cleaningStale) {
+        // Skip Em Limpeza entirely if checkout was more than 1 day ago.
+        await upsertStatus("checkout", { concluded_at: nowIso });
+      }
     } else if (data.from === "cleaning") {
       // Em Limpeza → conclude the stay (hidden from all kanbans).
       await upsertStatus("checkout", { concluded_at: nowIso });
       await upsertStatus("checkin", { concluded_at: nowIso });
     }
 
+    return { ok: true };
+  });
+
+// ----- Undo a check-advance (from destination list) -----
+// Reverts a card one step back in the funnel: stay → Chegadas,
+// cleaning → Saídas.
+const RevertInput = z.object({
+  logId: z.string().uuid().optional(),
+  reservationId: z.string().uuid().optional(),
+  from: z.enum(["stay", "cleaning"]),
+}).refine((v) => !!v.logId || !!v.reservationId, { message: "Informe a reserva ou o registro do hóspede." });
+
+export const revertArrival = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => RevertInput.parse(i))
+  .handler(async ({ data, context }) => {
+    async function findId(kind: "checkin" | "checkout"): Promise<string | undefined> {
+      if (data.reservationId) {
+        const { data: r } = await context.supabase
+          .from("guest_arrival_status").select("id")
+          .eq("reservation_id", data.reservationId).eq("kind", kind).limit(1);
+        const id = (r?.[0] as { id: string } | undefined)?.id;
+        if (id) return id;
+      }
+      if (data.logId) {
+        const { data: r } = await context.supabase
+          .from("guest_arrival_status").select("id")
+          .eq("log_id", data.logId).eq("kind", kind).limit(1);
+        return (r?.[0] as { id: string } | undefined)?.id;
+      }
+      return undefined;
+    }
+
+    if (data.from === "stay") {
+      // Back to Chegadas: undo checkin.done.
+      const id = await findId("checkin");
+      if (id) {
+        const { error } = await context.supabase.from("guest_arrival_status")
+          .update({ status: "pending", done_at: null, concluded_at: null }).eq("id", id);
+        if (error) throw new Error(error.message);
+      }
+    } else if (data.from === "cleaning") {
+      // Back to Saídas: undo checkout.done and un-conclude the checkin row
+      // (which had been hidden when the checkout was marked).
+      const coId = await findId("checkout");
+      if (coId) {
+        const { error } = await context.supabase.from("guest_arrival_status")
+          .update({ status: "pending", done_at: null, concluded_at: null }).eq("id", coId);
+        if (error) throw new Error(error.message);
+      }
+      const ciId = await findId("checkin");
+      if (ciId) {
+        const { error } = await context.supabase.from("guest_arrival_status")
+          .update({ concluded_at: null }).eq("id", ciId);
+        if (error) throw new Error(error.message);
+      }
+    }
     return { ok: true };
   });
