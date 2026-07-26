@@ -416,7 +416,7 @@ function DashboardPage() {
               title=""
               rows={boardRows}
               kind={kind}
-              onMark={(row) => handleMark(row, mode === "stay" || mode === "cleaning" ? "pending" : "done")}
+              onMark={(row) => handleAdvance(row, mode)}
               onSyncIcal={(row) => {
                 const t = kind === "checkin" ? "15:00" : "11:00";
                 upsert.mutate({ ...statusTarget(row), kind, arrivalTimeOverride: t });
@@ -425,7 +425,8 @@ function DashboardPage() {
               onNote={(row, note) => upsert.mutate({ ...statusTarget(row), kind, note })}
               onEditDates={(row, dates) => updateDates.mutate({ logId: row.logId, ...dates })}
               onEditTime={(row, time) => handleEditTime(row, kind, time)}
-              busy={upsert.isPending || updateDates.isPending || updateTime.isPending}
+              busy={upsert.isPending || advance.isPending || updateDates.isPending || updateTime.isPending}
+              muted={mode === "stay" || mode === "cleaning"}
               muted={mode === "stay" || mode === "cleaning"}
             />
           </div>
