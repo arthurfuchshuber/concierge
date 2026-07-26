@@ -52,6 +52,9 @@ function AdministrativoPage() {
             <TabsTrigger value="permissoes" className="gap-2 rounded-xl px-4 py-2 text-sm">
               <ShieldCheck className="size-4" /> Permissões
             </TabsTrigger>
+            <TabsTrigger value="whatsapp" className="gap-2 rounded-xl px-4 py-2 text-sm">
+              <MessageCircle className="size-4" /> WhatsApp
+            </TabsTrigger>
           </TabsList>
         </div>
         <div className="px-6 lg:px-10 max-w-7xl mx-auto w-full pt-6 pb-16">
@@ -66,6 +69,9 @@ function AdministrativoPage() {
           </TabsContent>
           <TabsContent value="permissoes" className="mt-0">
             <PermissoesPage />
+          </TabsContent>
+          <TabsContent value="whatsapp" className="mt-0">
+            <WhatsappBusinessPage />
           </TabsContent>
         </div>
       </Tabs>
