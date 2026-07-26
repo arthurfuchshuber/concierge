@@ -77,6 +77,7 @@ function DashboardPage() {
   const engFn = useServerFn(getGuideEngagement);
   const listFn = useServerFn(listDashboardArrivals);
   const upsertFn = useServerFn(upsertArrivalStatus);
+  const advanceFn = useServerFn(advanceArrival);
   const updateDatesFn = useServerFn(updateGuestStayDates);
   const updateTimeFn = useServerFn(updateGuestArrivalTime);
   const qc = useQueryClient();
