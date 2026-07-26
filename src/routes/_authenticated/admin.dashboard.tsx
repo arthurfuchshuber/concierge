@@ -218,19 +218,13 @@ function DashboardPage() {
     const k = kpisQ.data;
     const e = engQ.data;
 
-    if (k && k.checkinsTomorrow > 0) {
-      list.push({
-        tone: "info",
-        icon: Bell,
-        text: <>Amanhã: <b className="tabular-nums">{k.checkinsTomorrow}</b> check-in{k.checkinsTomorrow > 1 ? "s" : ""} — revise horários e mensagens.</>,
-      });
-    }
     if (e && e.checkinsInPeriod > 0) {
       const gap = e.checkinsInPeriod - e.checkinTabOpens;
       if (gap > 0) {
+        const plural = gap > 1;
         list.push({
           tone: "warn", icon: AlertTriangle,
-          text: <><b className="tabular-nums">{gap}</b> hóspede{gap > 1 ? "s" : ""} ainda não abriu a aba <i>Chegada</i>.</>,
+          text: <><b className="tabular-nums">{gap}</b> {plural ? "hóspedes" : "hóspede"} ainda {plural ? "não abriram" : "não abriu"} a aba <i>Chegada</i>.</>,
         });
       } else {
         list.push({
@@ -241,9 +235,21 @@ function DashboardPage() {
     }
     const pendingFillCount = rows.filter((r) => r.pendingFill).length;
     if (pendingFillCount > 0) {
+      const plural = pendingFillCount > 1;
       list.push({
         tone: "warn", icon: UserPlus,
-        text: <><b className="tabular-nums">{pendingFillCount}</b> reserva{pendingFillCount > 1 ? "s" : ""} sem formulário de acesso preenchido.</>,
+        text: <><b className="tabular-nums">{pendingFillCount}</b> {plural ? "reservas" : "reserva"} sem {plural ? "formulários preenchidos" : "formulário preenchido"} de acesso.</>,
+      });
+    }
+    const overdueCount = rows.filter((r) => {
+      const today = new Date().toLocaleDateString("sv-SE");
+      return r.date < today;
+    }).length;
+    if (overdueCount > 0) {
+      const plural = overdueCount > 1;
+      list.push({
+        tone: "warn", icon: AlertTriangle,
+        text: <><b className="tabular-nums">{overdueCount}</b> {plural ? "cards atrasados" : "card atrasado"} — {plural ? "aguardam" : "aguarda"} check.</>,
       });
     }
     const divergentCount = rows.filter((r) => {
