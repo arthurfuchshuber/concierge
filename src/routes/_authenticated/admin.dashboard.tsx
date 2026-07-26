@@ -927,12 +927,13 @@ function ArrivalCard({ row, kind, mode, onMark, onSyncIcal, onNote, onEditDates,
         );
       })()}
 
-      {isPendingFill && (
+      {isPendingFill && mode !== "cleaning" && (
         <div className="w-full text-xs rounded-lg bg-amber-500/10 border border-amber-500/30 px-2 py-1.5 flex items-center gap-2 text-amber-700 dark:text-amber-400">
           <UserPlus className="size-3.5 shrink-0" />
           <span>Reserva iCal · aguardando preenchimento do formulário de acesso</span>
         </div>
       )}
+
 
       {divergent && !isPendingFill && !done && (
         <div className="w-full text-xs rounded-lg bg-amber-500/10 border border-amber-500/30 px-2 py-1.5 flex items-center justify-between gap-2">
