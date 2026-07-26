@@ -715,6 +715,7 @@ function ArrivalCard({ row, kind, onMark, onSyncIcal, onNote, onEditDates, onEdi
   const isPendingFill = row.pendingFill;
   const todayISO = new Date().toLocaleDateString("sv-SE");
   const isToday = row.date === todayISO;
+  const isOverdue = row.date < todayISO;
 
   // Prefer garage address when available for logistics
   const mapsHref = row.garageMapsUrl ?? row.mapsUrl ?? (row.propertyAddress ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(row.propertyAddress)}` : null);
