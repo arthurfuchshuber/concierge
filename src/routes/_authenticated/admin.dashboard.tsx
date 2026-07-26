@@ -195,6 +195,11 @@ function DashboardPage() {
   function handleAdvance(row: ArrivalRow, from: "checkin" | "stay" | "checkout" | "cleaning") {
     const target = statusTarget(row);
     if (!target.logId && !target.reservationId) return;
+    // In destination lists (stay/cleaning) the check button undoes the previous advance.
+    if (from === "stay" || from === "cleaning") {
+      revert.mutate({ ...target, from });
+      return;
+    }
     advance.mutate({ ...target, from });
   }
 
