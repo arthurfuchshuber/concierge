@@ -477,6 +477,14 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
         />
       )}
 
+      <WhatsappComposerDialog
+        open={waOpen}
+        onOpenChange={setWaOpen}
+        conversationId={conversationId}
+        guestName={guest?.name ?? conv?.guest_name ?? null}
+      />
+
+
       {status !== "resolved" && !canChat && (
         <div className="shrink-0 border-t border-border p-3 text-center text-xs text-muted-foreground bg-surface flex items-center justify-center gap-2">
           <Lock className="size-3" />
