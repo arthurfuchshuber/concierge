@@ -67,23 +67,24 @@ export const saveMyWhatsappConfig = createServerFn({ method: "POST" })
   .inputValidator((raw) => CONFIG_INPUT.parse(raw))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    const patch: Record<string, unknown> = {
-      owner_id: userId,
-      provider: "sinch",
-      sender_number: data.senderNumber.replace(/[^\d+]/g, ""),
-      service_plan_id: data.projectId,
-      app_id: data.appId,
-      status: "testing",
-      last_error: null,
-      updated_at: new Date().toISOString(),
-    };
+    let encrypted: string | undefined;
     if (data.apiToken) {
       const { encryptToken } = await import("@/lib/whatsapp.server");
-      patch.api_token_encrypted = encryptToken(data.apiToken);
+      encrypted = encryptToken(data.apiToken);
     }
     const { error } = await supabase
       .from("host_whatsapp_config")
-      .upsert(patch, { onConflict: "owner_id" });
+      .upsert({
+        owner_id: userId,
+        provider: "sinch",
+        sender_number: data.senderNumber.replace(/[^\d+]/g, ""),
+        service_plan_id: data.projectId,
+        app_id: data.appId,
+        status: "testing",
+        last_error: null,
+        updated_at: new Date().toISOString(),
+        ...(encrypted ? { api_token_encrypted: encrypted } : {}),
+      }, { onConflict: "owner_id" });
     if (error) throw new Error(error.message);
     return { ok: true };
   });
