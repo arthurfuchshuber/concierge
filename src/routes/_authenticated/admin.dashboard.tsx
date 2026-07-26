@@ -91,21 +91,24 @@ function DashboardPage() {
   const engRange: "today" | "7d" | "30d" =
     range === "today" ? "today" : range === "all" ? "30d" : "7d";
 
-  const kpisQ = useQuery({ queryKey: ["dash-kpis", activeOwnerId ?? "self"], queryFn: () => kpisFn({ data: { ownerId: activeOwnerId } }), staleTime: 60_000 });
+  const kpisQ = useQuery({ queryKey: ["dash-kpis", activeOwnerId ?? "self"], queryFn: () => kpisFn({ data: { ownerId: activeOwnerId } }), staleTime: 60_000, placeholderData: keepPreviousData });
   const engQ = useQuery({
     queryKey: ["dash-eng", engRange, activeOwnerId ?? "self"],
     queryFn: () => engFn({ data: { range: engRange, ownerId: activeOwnerId } }),
     staleTime: 60_000,
+    placeholderData: keepPreviousData,
   });
   const checkinListQ = useQuery({
     queryKey: ["dash-list", "checkin", range, activeOwnerId ?? "self"],
     queryFn: () => listFn({ data: { kind: "checkin", range, ownerId: activeOwnerId } }),
     staleTime: 30_000,
+    placeholderData: keepPreviousData,
   });
   const checkoutListQ = useQuery({
     queryKey: ["dash-list", "checkout", range, activeOwnerId ?? "self"],
     queryFn: () => listFn({ data: { kind: "checkout", range, ownerId: activeOwnerId } }),
     staleTime: 30_000,
+    placeholderData: keepPreviousData,
   });
   const listQ = kind === "checkin" ? checkinListQ : checkoutListQ;
 
@@ -114,22 +117,27 @@ function DashboardPage() {
     queryKey: ["dash-list", "checkin", "today", activeOwnerId ?? "self"],
     queryFn: () => listFn({ data: { kind: "checkin", range: "today", ownerId: activeOwnerId } }),
     staleTime: 30_000,
+    placeholderData: keepPreviousData,
   });
   const kpiTomorrowQ = useQuery({
     queryKey: ["dash-list", "checkin", "tomorrow", activeOwnerId ?? "self"],
     queryFn: () => listFn({ data: { kind: "checkin", range: "tomorrow", ownerId: activeOwnerId } }),
     staleTime: 30_000,
+    placeholderData: keepPreviousData,
   });
   const kpiCoTodayQ = useQuery({
     queryKey: ["dash-list", "checkout", "today", activeOwnerId ?? "self"],
     queryFn: () => listFn({ data: { kind: "checkout", range: "today", ownerId: activeOwnerId } }),
     staleTime: 30_000,
+    placeholderData: keepPreviousData,
   });
   const kpiCoTomorrowQ = useQuery({
     queryKey: ["dash-list", "checkout", "tomorrow", activeOwnerId ?? "self"],
     queryFn: () => listFn({ data: { kind: "checkout", range: "tomorrow", ownerId: activeOwnerId } }),
     staleTime: 30_000,
+    placeholderData: keepPreviousData,
   });
+
 
   type UpsertPayload = {
     logId?: string;
