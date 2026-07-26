@@ -1,104 +1,178 @@
-
 ## Objetivo
-Nova página `/admin/dashboard` (adicionada como primeiro item do menu, "Painel operacional") focada no dia a dia do anfitrião: quem chega/sai, engajamento com o guia, e ações rápidas (marcar realizado, notas, ajuste de horário, alerta iCal).
 
-O "Painel" atual (lista de guias) fica como está, renomeado para "Guias" no menu para não colidir semanticamente.
+Habilitar contato proativo do anfitrião com o hóspede via WhatsApp, com espelhamento bidirecional na central de atendimento e IA respondendo pelo WhatsApp quando não pausada. Cada anfitrião conecta o próprio número WhatsApp Business via Sinch (BYO).
 
-## Fontes de dados existentes
-- `guide_access_logs` — hóspede preencheu o formulário (nome, telefone, hora prevista, checkin_date, checkout_date, reservation_code). É a fonte principal de "chegadas/saídas previstas".
-- `property_reservations` — iCal Airbnb (checkin/checkout oficiais). Base para o alerta de divergência.
-- `guide_section_events` — usado para contar aberturas da aba check-in.
-- `properties` — `checkin_time`, `checkin_time_max`, `checkout_time`, `checkout_time_min`.
-
-## Estado operacional (nova tabela)
-`public.guest_arrival_status` — 1 linha por log + tipo:
-- `id uuid pk`, `log_id uuid fk guide_access_logs on delete cascade`
-- `property_id uuid` (para RLS via owner)
-- `kind text check in ('checkin','checkout')`
-- `status text default 'pending'` (`pending`|`done`)
-- `note text`
-- `arrival_time_override text` (HH:mm; null = usa o do hóspede)
-- `done_at timestamptz`, `updated_at timestamptz default now()`
-- unique(`log_id`,`kind`)
-- RLS: owner ou membro ativo da conta pode select/insert/update; deny anon. GRANTs padrão.
-
-## Server functions novas (`src/lib/dashboard.functions.ts`)
-Todas com `requireSupabaseAuth` + escopo pela conta ativa (helper existente `getActiveOwnerId`, mesmo padrão do resto do admin).
-
-- `getDashboardKpis()` → `{ checkinsToday, checkinsTomorrow, checkoutsToday, checkoutsTomorrow }` (contagem em `guide_access_logs`, deduplicado por `guest_name+checkin_date+property_id`, restrito às propriedades do owner ativo).
-- `getGuideEngagement({ range: 'today'|'7d'|'30d' })` →
-  - `guideOpens`: acessos distintos ao guia (logs criados no período) por hóspede/checkin
-  - `checkinTabOpens`: `guide_section_events` com `section='checkin'` (distintos)
-  - `checkinsInPeriod`: check-ins previstos no período
-  - retorna 2 pares (`guideOpens/checkinsInPeriod`, `checkinTabOpens/checkinsInPeriod`).
-- `listDashboardArrivals({ kind: 'checkin'|'checkout', range: 'today'|'tomorrow'|'7d'|'all' })` →
-  join de `guide_access_logs` + reserva iCal casada (mesma propriedade + mesma data ±1 dia) + `guest_arrival_status` + horários padrão da propriedade. Ordenado por data/hora prevista ascendente.
-- `upsertArrivalStatus({ logId, kind, status?, note?, arrivalTimeOverride? })`.
-- `applyIcalTime({ logId, kind })` — copia data do iCal para override (aqui o iCal só traz data; se horário divergir, sobrescreve a data via nota interna). Faz sentido apenas quando há reserva casada.
-
-## Rota nova
-`src/routes/_authenticated/admin.dashboard.tsx` — componente `DashboardPage`.
-
-Menu (`admin.tsx`): substituir `{ to: "/admin", label: "Painel" }` por
-- `{ to: "/admin/dashboard", label: "Painel", icon: LayoutDashboard }`
-- `{ to: "/admin", label: "Guias", icon: BookOpen }`
-
-## Layout (mobile-first)
+## Fluxo end-to-end
 
 ```text
-┌ Painel operacional ───────────────────────────────┐
-│ ┌KPI┐ ┌KPI┐ ┌KPI┐ ┌KPI┐   (grid-cols-2 sm:4)      │
-│ │ 3 │ │ 5 │ │ 1 │ │ 4 │   número grande roxo      │
-│ │Chk│ │Chk│ │Out│ │Out│   ícone + label pequeno   │
-│ │hoj│ │aman│ │hoj│ │aman│                          │
-│ └───┘ └───┘ └───┘ └───┘                            │
-│                                                    │
-│ ┌ Engajamento do guia ─── [hoje|7d|30d] ─┐         │
-│ │ Abriram o guia         12/15  ▓▓▓▓░ 80%│         │
-│ │ Abriram aba check-in    8/15  ▓▓▓░░ 53%│         │
-│ └────────────────────────────────────────┘         │
-│                                                    │
-│ [ Check-ins | Check-outs ]                         │
-│ [ Hoje | Amanhã | 7 dias | Todos ]                 │
-│                                                    │
-│ ┌ Card ────────────────────────────────┐          │
-│ │ Ana Silva          [Pendente]  ⚠ iCal│          │
-│ │ Residência: Loft Vila Madalena         │          │
-│ │ Padrão 15:00 · Chegada 17:30 ⚠         │          │
-│ │  ↳ informado pelo hóspede: 16:00 (t.t) │          │
-│ │ WhatsApp: +55 11 9…  (link)             │          │
-│ │ Nota: [_______________________]        │          │
-│ │ [Editar horário]  [Realizado ✓]        │          │
-│ └────────────────────────────────────────┘          │
-└────────────────────────────────────────────────────┘
+┌ Anfitrião clica "Enviar WhatsApp" ──────────────────────────┐
+│  Dashboard/Operação  |  Atendimento  |  /admin/hospedes     │
+└───────────────┬─────────────────────────────────────────────┘
+                │  server fn sendWhatsappMessage()
+                ▼
+        ┌──────────────────────┐        ┌────────────────────┐
+        │ Grava mensagem em    │───────▶│ Sinch Conversations│───▶ WhatsApp do hóspede
+        │ property_chat_msgs   │        │ API (número BYO)   │
+        │ (channel='whatsapp') │        └────────────────────┘
+        └──────────────────────┘
+                                          Hóspede responde
+                                                ▼
+        ┌──────────────────────┐        ┌────────────────────┐
+        │ Realtime → central   │◀───────│ /api/public/sinch/ │◀──── Sinch webhook
+        │ + push ao anfitrião  │        │ whatsapp-webhook   │
+        └──────────────────────┘        └────────────────────┘
+                                                │
+                              ai_paused? não ──▶ IA responde via mesma pipeline
 ```
 
-### Componentes internos
-- `KpiCard` — número em `text-primary text-4xl font-black`, ícone `ArrowDownToLine`/`ArrowUpFromLine`, link "ver lista" que muda a aba+período abaixo.
-- `EngagementRow` — barra shadcn `Progress` + `X/Y (P%)`.
-- `ArrivalCard` — visual "kanban": borda esquerda colorida (roxo pendente / verde `opacity-70` realizado), badge status, badge amarelo "⚠ diverge do iCal" com `Popover` mostrando os dois valores e botão "Usar valor do iCal".
-- Ordenação: por data prevista asc, com sub-agrupamento por dia (`Hoje`, `Amanhã`, `Sáb 15 mar`, …).
-- Filtro de ordenação extra (dropdown): `Data prevista` / `Recém preenchido` / `Pendentes primeiro`.
+## Cadastro por anfitrião (BYO)
 
-### Edição de horário
-- Botão "Editar horário" abre `Popover` com `<input type="time">`. Salva em `arrival_time_override`.
-- Renderização: valor efetivo em destaque; valor original riscado ou em `title=` tooltip: "informado pelo hóspede: HH:mm".
+Nova aba **WhatsApp Business** em `/admin/administrativo`:
+- Passo-a-passo para criar conta na Sinch, verificar número na Meta, aprovar templates HSM.
+- Formulário com: `service_plan_id`, `api_token` (mascarado), `sender_number` (E.164), `app_id` da Sinch Conversations.
+- Botão "Testar conexão" → server fn faz um `GET /v1/projects/{id}/apps` para validar.
+- Status visual: `pending` (sem credenciais) → `testing` → `active` → `error`.
 
-### Divergência iCal
-- Casamento: mesma `property_id` + `checkin_date` (para aba check-in) ou `checkout_date` (para aba check-out). Divergência quando o iCal existe mas a data no log difere. Horário: o iCal do Airbnb só traz data — a divergência se aplica só a data; se datas batem, mostrar chip verde `iCal ✓` discreto.
-- Botão "Usar valor do iCal" chama `applyIcalTime` (registra nota interna + marca como reconciliado — evita reescrever o input do hóspede).
+Sem credenciais válidas, o botão "Enviar WhatsApp" fica desabilitado com tooltip "Configure WhatsApp em Administrativo".
 
-### WhatsApp
-- Se `guest_phone_country` presente: `https://wa.me/{country}{phoneOnlyDigits}`; caso contrário só dígitos do telefone.
+## Modelo de dados
 
-## Detalhes de execução
-- Tokens do design system existente (roxo Sigma via `bg-primary`, superfícies via `bg-card`, sombra `shadow-elegant`). Nenhum hex hardcoded.
-- Cards com `rounded-2xl`, header com nome grande + badges à direita usando o pattern `grid-cols-[minmax(0,1fr)_auto]` + `min-w-0` + `truncate` para mobile.
-- `useQuery` para KPIs (staleTime 60s), engajamento (chave inclui range), lista (chave inclui aba+range). `useMutation` para status + nota + override + apply ical, com `queryClient.invalidateQueries`.
-- SEO: `head()` com título "Painel operacional — ConciergeIA".
+### Nova tabela `host_whatsapp_config`
+- `owner_id uuid pk` (FK profiles/auth.users)
+- `provider text default 'sinch'`
+- `service_plan_id text`
+- `api_token_encrypted text` (pgsodium)
+- `sender_number text` (E.164)
+- `app_id text` (Sinch Conversations app id)
+- `webhook_secret text` (gerado — para assinar callbacks)
+- `status text` (`pending`|`active`|`error`)
+- `last_verified_at timestamptz`
+- `last_error text`
+- RLS: apenas o próprio `owner_id` e admins.
+
+### Alterações em `property_chat_messages`
+- `channel text default 'web'` (`web`|`whatsapp`)
+- `external_id text` (message id retornado pela Sinch, para dedup)
+- `delivery_status text` (`queued`|`sent`|`delivered`|`read`|`failed`)
+- `sent_via_number text` (número emissor, para auditoria)
+- Índice em `(external_id)` para dedup do webhook.
+
+### Nova tabela `whatsapp_templates`
+Templates HSM aprovados pelo anfitrião (necessários fora da janela 24h):
+- `id uuid pk`, `owner_id uuid`, `name text`, `language text`, `body text`, `variables jsonb`, `sinch_template_id text`, `status text`
+
+Todas com GRANT + RLS + policies scoped por `auth.uid()`.
+
+## Server functions (`src/lib/whatsapp.functions.ts`)
+
+Todas com `requireSupabaseAuth`:
+- `saveWhatsappConfig({...})` — persiste credenciais criptografadas.
+- `testWhatsappConfig()` — hit à API Sinch, atualiza `status`.
+- `sendWhatsappMessage({ logId, body, templateId?, variables? })` — resolve telefone do hóspede via `guide_access_logs.guest_phone`, valida janela de 24h, envia via Sinch, grava em `property_chat_messages`. Retorna dedup key.
+- `listWhatsappTemplates()` / `syncWhatsappTemplates()` — puxa templates aprovados da Sinch.
+
+Helpers server-only em `src/lib/whatsapp.server.ts` (não importar de rotas):
+- `sinchClient(config)` — wrapper fetch com auth.
+- `encryptToken` / `decryptToken` — via pgsodium.
+- `matchConversation(fromNumber, ownerId)` — casa telefone → `property_chat_conversations` ativa (checkin ≤ hoje ≤ checkout+1d).
+
+## Server route pública (webhook)
+
+`src/routes/api/public/whatsapp/sinch-webhook.ts`:
+- POST; valida assinatura HMAC com `webhook_secret` do config do owner (deriva pelo `app_id` do payload).
+- Dedup por `external_id`.
+- Grava mensagem entrante como `role='guest'`, `channel='whatsapp'`.
+- Se conversa tem `ai_paused=false` e mensagem é do hóspede: enfileira chamada à IA (reusa `src/routes/api/public/guide-chat.ts`).
+- Callbacks de status (`delivered`/`read`) atualizam `delivery_status`.
+- Sempre retorna 200 rápido (idempotente).
+
+## UI
+
+### Botão "Enviar WhatsApp"
+Componente compartilhado `<WhatsappComposerButton logId propertyId />` usado em:
+1. `ArrivalCard` do dashboard (ícone WhatsApp verde ao lado do "Realizado ✓").
+2. `ConversationView` da central (barra superior, junto ao "Assumir").
+3. Cards de `/admin/hospedes`.
+
+Ao clicar → `<WhatsappComposerDialog>`:
+- Header: nome do hóspede, número (E.164), residência, código da reserva.
+- Chips com templates aprovados (categoria: Boas-vindas, Check-in, Check-out, Alerta). Chip preenche o textarea substituindo variáveis (`{{guest_name}}`, `{{property}}`, `{{time}}`).
+- Textarea livre (só habilitado se estiver dentro da janela 24h; fora, força seleção de template).
+- Preview do "cabeçalho" (de quem vai, para quem).
+- Botão "Enviar" → `sendWhatsappMessage`.
+- Toast de sucesso + push ao próprio anfitrião de confirmação de entrega quando o callback chegar.
+
+### Central de atendimento (`ConversationView`)
+- Bolhas WhatsApp ganham badge verde `WhatsApp` no rodapé com ícone.
+- Ícones de status (✓ enviado, ✓✓ entregue, ✓✓ azul lido) como no WhatsApp real.
+- Mensagens do WhatsApp e do chat web ficam na mesma timeline unificada.
+
+### Realtime
+`property_chat_messages` já tem canal Supabase Realtime; garantimos que o `channel` novo é replicado.
+
+## Regras de negócio importantes
+
+- **Janela de 24h**: fora dela só template HSM. Backend rejeita texto livre e retorna erro amigável.
+- **`ai_paused`**: se o atendente humano assumiu (mesma regra atual do handoff), a IA **não** responde webhooks entrantes. Já implementado; validamos com teste.
+- **Consentimento**: novo checkbox no `GuideAccessGate` — "Aceito receber mensagens do anfitrião no WhatsApp". Sem opt-in, botão desabilitado com aviso.
+- **Rate limit**: máx. 60 envios/hora por anfitrião, para conter erro operacional.
+- **Auditoria**: cada envio grava em `audit_logs` com `action='whatsapp.sent'`.
+
+## Segurança
+
+- API token da Sinch criptografado em repouso via pgsodium (nova extensão).
+- Webhook valida HMAC + timing-safe compare.
+- Nunca retornar `api_token` ao cliente (apenas máscara `sp_***abc`).
+- URL do webhook usa `project--{id}.lovable.app/api/public/whatsapp/sinch-webhook` (estável).
+
+## Escopo do MVP
+
+Incluso:
+- Cadastro BYO + teste de conexão + status.
+- Envio proativo com templates + texto livre.
+- Recebimento com espelhamento na central.
+- IA responde pelo WhatsApp respeitando `ai_paused`.
+- Delivery/read receipts.
+- Consentimento do hóspede.
+
+Fica para depois (não implementar agora):
+- Templates com mídia/botões interativos.
+- Envio em massa/broadcast.
+- Analytics de engajamento por template.
+- Fallback SMS.
+
+## Ordem de execução
+
+1. Migração: `host_whatsapp_config`, colunas em `property_chat_messages`, `whatsapp_templates`, extensão `pgsodium`, publicação Realtime.
+2. Helpers server-only + server functions + testes via `supabase--read_query`.
+3. Server route pública do webhook (com verificação de assinatura).
+4. UI: aba **WhatsApp Business** em Administrativo (setup + templates).
+5. UI: `<WhatsappComposerDialog>` + botão nos 3 pontos de entrada.
+6. UI: badges de canal + status no `ConversationView`.
+7. Consentimento no `GuideAccessGate`.
+8. Teste end-to-end com número real do usuário via Playwright (envio + recebimento + IA respondendo).
 
 ## Arquivos a criar/editar
-- migration: `guest_arrival_status` (+ GRANT + RLS + policies).
-- `src/lib/dashboard.functions.ts` (novo).
-- `src/routes/_authenticated/admin.dashboard.tsx` (novo) — inclui os subcomponentes locais.
-- `src/routes/_authenticated/admin.tsx` — ajuste no `baseNav`.
+
+**Novos:**
+- Migration `host_whatsapp_config` + alterações `property_chat_messages` + `whatsapp_templates`.
+- `src/lib/whatsapp.functions.ts`, `src/lib/whatsapp.server.ts`, `src/lib/whatsapp-templates.ts`.
+- `src/routes/api/public/whatsapp/sinch-webhook.ts`.
+- `src/components/whatsapp/WhatsappComposerDialog.tsx`, `WhatsappComposerButton.tsx`, `WhatsappStatusIcon.tsx`.
+- `src/components/admin-pages/WhatsappBusinessPage.tsx`.
+
+**Editar:**
+- `src/routes/_authenticated/admin.administrativo.tsx` — adicionar aba.
+- `src/routes/_authenticated/admin.dashboard.tsx` — botão no `ArrivalCard`.
+- `src/components/handoff/ConversationView.tsx` — botão + badges de canal + ícones de status.
+- `src/routes/_authenticated/admin.hospedes.tsx` — botão na linha.
+- `src/components/GuideAccessGate.tsx` — checkbox de opt-in WhatsApp.
+- `src/routes/api/public/guide-chat.ts` — permitir origem `whatsapp` para acionar IA.
+
+## O que vou precisar de você
+
+1. Após aprovar o plano, criarei a estrutura toda. Ao chegar na parte de teste real, você precisará:
+   - Criar conta na Sinch (grátis, aprovação Meta leva 1–7 dias).
+   - Cadastrar 1 template HSM de boas-vindas para o primeiro teste (posso te ajudar com o texto).
+   - Colar as credenciais na aba nova (fica seguro, criptografado).
+2. Você concorda com o rate limit de 60/hora por anfitrião como padrão inicial? (podemos ajustar depois).
