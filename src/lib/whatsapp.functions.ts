@@ -116,22 +116,59 @@ export const sendWhatsappFromConversation = createServerFn({ method: "POST" })
     // Load conversation + property + owner
     const { data: conv, error: convErr } = await supabase
       .from("property_chat_conversations")
-      .select("id, property_id, guest_session_id, properties:property_id(id, owner_id)")
+      .select("id, property_id, guest_session_id, guest_name, properties:property_id(id, owner_id)")
       .eq("id", data.conversationId)
       .maybeSingle();
     if (convErr || !conv) throw new Error("Conversa não encontrada");
     const ownerId = (conv.properties as { owner_id?: string } | null)?.owner_id;
     if (!ownerId) throw new Error("Propriedade sem dono");
 
-    // Locate the guest phone via most recent guide_access_log for this session/property
-    const { data: log } = await supabase
-      .from("guide_access_logs")
-      .select("guest_phone, guest_phone_country, guest_name")
-      .eq("property_id", conv.property_id)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    const phone = (log?.guest_phone as string) ?? null;
+    // Resolve the guest phone for THIS conversation specifically.
+    // Never fall back to "most recent log for the property" — that could address
+    // a different (past/future) guest instead of the one the operator is chatting with.
+    let phone: string | null = null;
+    let phoneCountry: string | null = null;
+
+    const sessionId = (conv.guest_session_id as string | null) ?? null;
+    // 1. Sinch inbound webhook encodes phone in session id as "wa:<digits>".
+    if (sessionId && sessionId.startsWith("wa:")) {
+      const digits = sessionId.slice(3).replace(/[^\d]/g, "");
+      if (digits) phone = digits;
+    }
+
+    // 2. Match guide_section_events by the conversation's session id.
+    if (!phone && sessionId) {
+      const { data: ev } = await supabase
+        .from("guide_section_events")
+        .select("guest_phone")
+        .eq("guest_session_id", sessionId)
+        .not("guest_phone", "is", null)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (ev?.guest_phone) phone = String(ev.guest_phone);
+    }
+
+    // 3. Fallback: guide_access_logs filtered by property AND the conversation's guest name.
+    if (!phone) {
+      const guestName = (conv.guest_name as string | null)?.trim();
+      if (guestName) {
+        const { data: log } = await supabase
+          .from("guide_access_logs")
+          .select("guest_phone, guest_phone_country, guest_name")
+          .eq("property_id", conv.property_id)
+          .ilike("guest_name", guestName)
+          .not("guest_phone", "is", null)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (log?.guest_phone) {
+          phone = String(log.guest_phone);
+          phoneCountry = (log.guest_phone_country as string | null) ?? null;
+        }
+      }
+    }
+
     if (!phone) throw new Error("Este hóspede ainda não informou telefone");
 
     // Load host config
@@ -146,9 +183,7 @@ export const sendWhatsappFromConversation = createServerFn({ method: "POST" })
 
     const { decryptToken, sinchSendText, normalizePhone } = await import("@/lib/whatsapp.server");
     const token = decryptToken(cfg.api_token_encrypted as string);
-    const to = normalizePhone(
-      (log?.guest_phone_country ? String(log.guest_phone_country) : "") + String(phone),
-    );
+    const to = normalizePhone((phoneCountry ?? "") + phone);
 
     let sinchMsgId = "";
     try {
