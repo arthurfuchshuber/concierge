@@ -18,6 +18,7 @@ import {
   getDashboardKpis, getGuideEngagement, listDashboardArrivals, upsertArrivalStatus, updateGuestStayDates, updateGuestArrivalTime, advanceArrival, revertArrival,
   type ArrivalRow,
 } from "@/lib/dashboard.functions";
+import { openHandoffDock } from "@/lib/handoff-dock";
 import { useImpersonation } from "@/hooks/useImpersonation";
 
 export const Route = createFileRoute("/_authenticated/admin/dashboard")({
