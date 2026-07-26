@@ -189,12 +189,16 @@ function DashboardPage() {
 
   function statusTarget(row: ArrivalRow): Pick<UpsertPayload, "logId" | "reservationId"> {
     const logId = /^[0-9a-f-]{36}$/i.test(row.logId) ? row.logId : undefined;
-    return { ...(logId ? { logId } : {}), ...(row.reservationId ? { reservationId: row.reservationId } : {}) };
+    const reservationId = row.reservationId ?? (row.logId.startsWith("ical:") ? row.logId.slice(5) : null);
+    return { ...(logId ? { logId } : {}), ...(reservationId ? { reservationId } : {}) };
   }
 
   function handleAdvance(row: ArrivalRow, from: "checkin" | "stay" | "checkout" | "cleaning") {
     const target = statusTarget(row);
-    if (!target.logId && !target.reservationId) return;
+    if (!target.logId && !target.reservationId) {
+      toast.error("Não foi possível identificar esse card. Atualize a página e tente novamente.");
+      return;
+    }
     if (from === "stay" || from === "cleaning") {
       revert.mutate({ ...target, from });
       return;
