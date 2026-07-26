@@ -2,10 +2,11 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useMemo, useState } from "react";
-import { ChevronDown, ChevronRight, Download, Loader2, Mail, Search, Users, FileText, Car, Clock, Phone } from "lucide-react";
+import { ChevronDown, ChevronRight, Download, Loader2, Mail, MessageCircle, Search, Users, FileText, Car, Clock, Phone } from "lucide-react";
 import { listOwnerGuestForms, savePortariaEmail } from "@/lib/guide-access-admin.functions";
 import { toast } from "sonner";
 import { CopyButton } from "@/components/CopyButton";
+import { openHandoffDock } from "@/lib/handoff-dock";
 
 export const Route = createFileRoute("/_authenticated/admin/hospedes")({
   component: HospedesPage,
@@ -246,6 +247,19 @@ function HospedesPage() {
                       )}
 
                       <div className="pt-2 flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          onClick={() => openHandoffDock({
+                            propertyId: r.property_id,
+                            phone: r.guest_phone,
+                            reservationCode: r.reservation_code,
+                            guestName: r.guest_name,
+                          })}
+                          className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg bg-emerald-600 text-white text-xs font-medium hover:bg-emerald-700"
+                          title="Abrir chat (WhatsApp integrado, quando configurado)"
+                        >
+                          <MessageCircle className="size-3.5" /> Falar com hóspede
+                        </button>
                         <button
                           type="button"
                           onClick={() => openSend(r)}
