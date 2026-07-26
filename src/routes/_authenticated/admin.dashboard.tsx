@@ -37,14 +37,6 @@ function fmtDateBR(iso: string) {
 function initials(name: string) {
   return name.split(/\s+/).filter(Boolean).slice(0, 2).map((p) => p[0]?.toUpperCase() ?? "").join("") || "?";
 }
-function waLink(phone: string | null, country: string | null): string | null {
-  if (!phone) return null;
-  const raw = `${country ?? ""}${phone}`.replace(/[^\d+]/g, "");
-  const p = parsePhoneNumberFromString(raw.startsWith("+") ? raw : `+${raw}`);
-  if (p && p.isValid()) return `https://wa.me/${p.number.replace("+", "")}`;
-  const digits = raw.replace(/\D/g, "");
-  return digits.length >= 8 ? `https://wa.me/${digits}` : null;
-}
 
 /* ---------- Info tooltip ---------- */
 function InfoHint({ title, children }: { title: string; children: React.ReactNode }) {
