@@ -218,19 +218,13 @@ function DashboardPage() {
     const k = kpisQ.data;
     const e = engQ.data;
 
-    if (k && k.checkinsTomorrow > 0) {
-      list.push({
-        tone: "info",
-        icon: Bell,
-        text: <>Amanhã: <b className="tabular-nums">{k.checkinsTomorrow}</b> check-in{k.checkinsTomorrow > 1 ? "s" : ""} — revise horários e mensagens.</>,
-      });
-    }
     if (e && e.checkinsInPeriod > 0) {
       const gap = e.checkinsInPeriod - e.checkinTabOpens;
       if (gap > 0) {
+        const plural = gap > 1;
         list.push({
           tone: "warn", icon: AlertTriangle,
-          text: <><b className="tabular-nums">{gap}</b> hóspede{gap > 1 ? "s" : ""} ainda não abriu a aba <i>Chegada</i>.</>,
+          text: <><b className="tabular-nums">{gap}</b> {plural ? "hóspedes" : "hóspede"} ainda {plural ? "não abriram" : "não abriu"} a aba <i>Chegada</i>.</>,
         });
       } else {
         list.push({
@@ -241,9 +235,21 @@ function DashboardPage() {
     }
     const pendingFillCount = rows.filter((r) => r.pendingFill).length;
     if (pendingFillCount > 0) {
+      const plural = pendingFillCount > 1;
       list.push({
         tone: "warn", icon: UserPlus,
-        text: <><b className="tabular-nums">{pendingFillCount}</b> reserva{pendingFillCount > 1 ? "s" : ""} sem formulário de acesso preenchido.</>,
+        text: <><b className="tabular-nums">{pendingFillCount}</b> {plural ? "reservas" : "reserva"} sem {plural ? "formulários preenchidos" : "formulário preenchido"} de acesso.</>,
+      });
+    }
+    const overdueCount = rows.filter((r) => {
+      const today = new Date().toLocaleDateString("sv-SE");
+      return r.date < today;
+    }).length;
+    if (overdueCount > 0) {
+      const plural = overdueCount > 1;
+      list.push({
+        tone: "warn", icon: AlertTriangle,
+        text: <><b className="tabular-nums">{overdueCount}</b> {plural ? "cards atrasados" : "card atrasado"} — {plural ? "aguardam" : "aguarda"} check.</>,
       });
     }
     const divergentCount = rows.filter((r) => {
@@ -709,6 +715,7 @@ function ArrivalCard({ row, kind, onMark, onSyncIcal, onNote, onEditDates, onEdi
   const isPendingFill = row.pendingFill;
   const todayISO = new Date().toLocaleDateString("sv-SE");
   const isToday = row.date === todayISO;
+  const isOverdue = row.date < todayISO;
 
   // Prefer garage address when available for logistics
   const mapsHref = row.garageMapsUrl ?? row.mapsUrl ?? (row.propertyAddress ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(row.propertyAddress)}` : null);
@@ -723,10 +730,17 @@ function ArrivalCard({ row, kind, onMark, onSyncIcal, onNote, onEditDates, onEdi
     <div className={`group relative h-full flex flex-col overflow-hidden rounded-2xl border p-4 gap-3 transition-all ${
       done
         ? "bg-secondary/30 border-border/50"
+        : isOverdue
+        ? "bg-[linear-gradient(135deg,color-mix(in_oklab,#ef4444_10%,transparent),color-mix(in_oklab,#ef4444_2%,transparent))] border-red-500/40 shadow-[0_10px_28px_-16px_rgba(239,68,68,0.35)]"
         : isToday
         ? "bg-[linear-gradient(135deg,color-mix(in_oklab,var(--primary)_7%,transparent),color-mix(in_oklab,var(--primary)_2%,transparent))] border-primary/25 shadow-[0_10px_28px_-16px_color-mix(in_oklab,var(--primary)_28%,transparent),0_1px_4px_-2px_color-mix(in_oklab,var(--primary)_14%,transparent)] hover:shadow-[0_12px_32px_-16px_color-mix(in_oklab,var(--primary)_36%,transparent)] hover:-translate-y-0.5"
         : "bg-[linear-gradient(135deg,color-mix(in_oklab,var(--primary)_5%,transparent),color-mix(in_oklab,var(--primary)_1%,transparent))] border-primary/15 shadow-sm hover:shadow-md hover:-translate-y-0.5"
     }`}>
+      {isOverdue && !done && (
+        <div className="absolute top-2 right-2 z-10 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider bg-red-500/15 text-red-600 dark:text-red-400 border border-red-500/40">
+          <AlertTriangle className="size-3" /> Atrasado
+        </div>
+      )}
 
       {!done && (
         <>

@@ -279,6 +279,11 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
       from = today;
       to = null;
     }
+    // Para o filtro "Hoje", também trazemos os últimos 30 dias para que cards
+    // atrasados (que ainda não receberam o check) continuem visíveis com alerta.
+    if (data.range === "today") {
+      from = addDaysISO(today, -30);
+    }
 
     let q = context.supabase
       .from("guide_access_logs")
