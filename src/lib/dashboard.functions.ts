@@ -320,7 +320,6 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
         .select("log_id, reservation_id, kind, status, note, arrival_time_override, done_at, concluded_at")
         .in("property_id", propIds)
         .eq("kind", data.kind)
-        .is("concluded_at", null)
         .limit(5000),
       context.supabase
         .from("property_reservations")
@@ -360,16 +359,32 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
       else if (ev.section === "senhas") viewedPasswordsSet.add(k);
     }
 
-    type StatusRow = { log_id: string | null; reservation_id: string | null; kind: "checkin" | "checkout"; status: "pending" | "done"; note: string | null; arrival_time_override: string | null; done_at: string | null };
+    type StatusRow = {
+      log_id: string | null;
+      reservation_id: string | null;
+      kind: "checkin" | "checkout";
+      status: "pending" | "done";
+      note: string | null;
+      arrival_time_override: string | null;
+      done_at: string | null;
+      concluded_at: string | null;
+    };
     const statusMap = new Map<string, Omit<StatusRow, "log_id" | "reservation_id">>();
     const reservationStatusMap = new Map<string, Omit<StatusRow, "log_id" | "reservation_id">>();
     for (const s of (statuses ?? []) as StatusRow[]) {
-      const value = { kind: s.kind, status: s.status, note: s.note, arrival_time_override: s.arrival_time_override, done_at: s.done_at };
+      const value = {
+        kind: s.kind,
+        status: s.status,
+        note: s.note,
+        arrival_time_override: s.arrival_time_override,
+        done_at: s.done_at,
+        concluded_at: s.concluded_at,
+      };
       if (s.log_id) statusMap.set(s.log_id, value);
       if (s.reservation_id) reservationStatusMap.set(s.reservation_id, value);
     }
 
-    const placeholderStatus = new Map<string, { status: "pending" | "done"; note: string | null; arrival_time_override: string | null; done_at: string | null }>();
+    const placeholderStatus = new Map<string, { status: "pending" | "done"; note: string | null; arrival_time_override: string | null; done_at: string | null; concluded_at: string | null }>();
     const placeholderKey = (propertyId: string, checkin: string, checkout: string | null, kind: "checkin" | "checkout") =>
       `${propertyId}|${checkin}|${checkout ?? ""}|${kind}`;
     for (const l of placeholderLogs) {
@@ -405,9 +420,10 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
       return uniqueLogs.find((l) => l.property_id === r.property_id && l.checkout_date === r.checkout_date) ?? null;
     }
 
-    function rowFromLog(l: typeof uniqueLogs[number], forceIcal?: { hasIcal: boolean; matched: boolean; icalCheckin: string | null; icalCheckout: string | null }): ArrivalRow {
+    function rowFromLog(l: typeof uniqueLogs[number], forceIcal?: { hasIcal: boolean; matched: boolean; icalCheckin: string | null; icalCheckout: string | null }): ArrivalRow | null {
       const p = propMap.get(l.property_id);
       const s = statusMap.get(l.id);
+      if (s?.concluded_at) return null;
       const date = data.kind === "checkin" ? l.checkin_date : (l.checkout_date ?? l.checkin_date);
       const hasIcal = !!p?.airbnb_ical_url;
       let matched = false;
@@ -462,11 +478,12 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
       };
     }
 
-    function rowFromReservation(r: ReservationRow, matchedLog: typeof uniqueLogs[number] | null): ArrivalRow {
+    function rowFromReservation(r: ReservationRow, matchedLog: typeof uniqueLogs[number] | null): ArrivalRow | null {
       const p = propMap.get(r.property_id);
       const legacy = placeholderStatus.get(placeholderKey(r.property_id, r.checkin_date, r.checkout_date, data.kind));
       const logStatus = matchedLog ? statusMap.get(matchedLog.id) : undefined;
       const s = reservationStatusMap.get(r.id) ?? legacy ?? logStatus;
+      if (s?.concluded_at) return null;
       const date = data.kind === "checkin" ? r.checkin_date : r.checkout_date;
       const evK = matchedLog ? eventKey(matchedLog.property_id, matchedLog.guest_name, matchedLog.guest_phone) : "";
 
@@ -511,14 +528,16 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
       if (matchedLog) {
         usedLogIds.add(matchedLog.id);
       }
-      rows.push(rowFromReservation(r, matchedLog));
+      const row = rowFromReservation(r, matchedLog);
+      if (row) rows.push(row);
     }
 
     for (const l of uniqueLogs) {
       if (usedLogIds.has(l.id)) continue;
       const p = propMap.get(l.property_id);
       if (p?.airbnb_ical_url) continue;
-      rows.push(rowFromLog(l));
+      const row = rowFromLog(l);
+      if (row) rows.push(row);
     }
 
     // Prioridade: data → horário previsto (override do anfitrião ou informado pelo
