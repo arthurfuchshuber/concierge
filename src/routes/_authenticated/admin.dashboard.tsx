@@ -438,6 +438,7 @@ function DashboardPage() {
               title=""
               rows={boardRows}
               kind={kind}
+              mode={mode}
               onMark={(row) => handleAdvance(row, mode)}
               onSyncIcal={(row) => {
                 const t = kind === "checkin" ? "15:00" : "11:00";
@@ -450,6 +451,7 @@ function DashboardPage() {
               busy={upsert.isPending || advance.isPending || updateDates.isPending || updateTime.isPending}
               muted={mode === "stay" || mode === "cleaning"}
             />
+
           </div>
         )}
       </section>
