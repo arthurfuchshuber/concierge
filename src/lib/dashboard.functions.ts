@@ -812,7 +812,15 @@ export const advanceArrival = createServerFn({ method: "POST" })
         existingId = (existing?.[0] as { id: string } | undefined)?.id;
       }
 
-      const body: Record<string, unknown> = { property_id: propertyId, kind, ...patch };
+      const body: {
+        property_id: string;
+        kind: "checkin" | "checkout";
+        log_id?: string;
+        reservation_id?: string;
+        status?: "pending" | "done";
+        done_at?: string | null;
+        concluded_at?: string | null;
+      } = { property_id: propertyId!, kind, ...patch };
       if (data.logId) body.log_id = data.logId;
       if (data.reservationId) body.reservation_id = data.reservationId;
 
