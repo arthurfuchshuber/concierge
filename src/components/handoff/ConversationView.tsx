@@ -356,6 +356,15 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
                 </button>
               </>
             )}
+            {guest?.phone && canChat && (
+              <button
+                onClick={() => setWaOpen(true)}
+                className="text-xs px-2 py-1.5 rounded-md bg-emerald-600 text-white hover:bg-emerald-700 inline-flex items-center gap-1"
+                title="Enviar mensagem por WhatsApp"
+              >
+                <MessageCircle className="size-3" /> WhatsApp
+              </button>
+            )}
             {status !== "resolved" && (isMine || !conv?.assigned_to) && (
               <button onClick={() => resolve.mutate()} disabled={resolve.isPending} className="text-xs px-2 py-1.5 rounded-md border border-border hover:bg-secondary inline-flex items-center gap-1">
                 <CheckCircle2 className="size-3" /> Resolver
