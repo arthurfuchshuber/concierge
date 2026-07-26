@@ -427,7 +427,6 @@ function DashboardPage() {
               onEditTime={(row, time) => handleEditTime(row, kind, time)}
               busy={upsert.isPending || advance.isPending || updateDates.isPending || updateTime.isPending}
               muted={mode === "stay" || mode === "cleaning"}
-              muted={mode === "stay" || mode === "cleaning"}
             />
           </div>
         )}
