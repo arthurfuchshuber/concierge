@@ -9,7 +9,7 @@ import {
   ChevronDown, UserPlus, MapPin, Link as LinkIcon, KeyRound, Eye, Trash2, BedDouble,
 } from "lucide-react";
 import { toast } from "sonner";
-import { parsePhoneNumberFromString } from "libphonenumber-js";
+
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { CopyButton } from "@/components/CopyButton";
