@@ -15,7 +15,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { CopyButton } from "@/components/CopyButton";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import {
-  getDashboardKpis, getGuideEngagement, listDashboardArrivals, upsertArrivalStatus, updateGuestStayDates, updateGuestArrivalTime,
+  getDashboardKpis, getGuideEngagement, listDashboardArrivals, upsertArrivalStatus, updateGuestStayDates, updateGuestArrivalTime, advanceArrival,
   type ArrivalRow,
 } from "@/lib/dashboard.functions";
 import { useImpersonation } from "@/hooks/useImpersonation";
@@ -77,6 +77,7 @@ function DashboardPage() {
   const engFn = useServerFn(getGuideEngagement);
   const listFn = useServerFn(listDashboardArrivals);
   const upsertFn = useServerFn(upsertArrivalStatus);
+  const advanceFn = useServerFn(advanceArrival);
   const updateDatesFn = useServerFn(updateGuestStayDates);
   const updateTimeFn = useServerFn(updateGuestArrivalTime);
   const qc = useQueryClient();
@@ -147,6 +148,15 @@ function DashboardPage() {
     onError: (e) => toast.error(e instanceof Error ? e.message : "Falha ao atualizar."),
   });
 
+  const advance = useMutation({
+    mutationFn: (v: { logId?: string; reservationId?: string; from: "checkin" | "stay" | "checkout" | "cleaning" }) => advanceFn({ data: v }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["dash-list"] });
+      qc.invalidateQueries({ queryKey: ["dash-kpis"] });
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Falha ao avançar card."),
+  });
+
   const updateDates = useMutation({
     mutationFn: (v: { logId: string; checkinDate?: string; checkoutDate?: string | null }) => updateDatesFn({ data: v }),
     onSuccess: () => {
@@ -171,8 +181,10 @@ function DashboardPage() {
     return { ...(logId ? { logId } : {}), ...(row.reservationId ? { reservationId: row.reservationId } : {}) };
   }
 
-  function handleMark(row: ArrivalRow, nextStatus: "pending" | "done") {
-    upsert.mutate({ ...statusTarget(row), kind, status: nextStatus });
+  function handleAdvance(row: ArrivalRow, from: "checkin" | "stay" | "checkout" | "cleaning") {
+    const target = statusTarget(row);
+    if (!target.logId && !target.reservationId) return;
+    advance.mutate({ ...target, from });
   }
 
   function handleEditTime(row: ArrivalRow, k: "checkin" | "checkout", time: string | null) {
@@ -404,7 +416,7 @@ function DashboardPage() {
               title=""
               rows={boardRows}
               kind={kind}
-              onMark={(row) => handleMark(row, mode === "stay" || mode === "cleaning" ? "pending" : "done")}
+              onMark={(row) => handleAdvance(row, mode)}
               onSyncIcal={(row) => {
                 const t = kind === "checkin" ? "15:00" : "11:00";
                 upsert.mutate({ ...statusTarget(row), kind, arrivalTimeOverride: t });
@@ -413,7 +425,7 @@ function DashboardPage() {
               onNote={(row, note) => upsert.mutate({ ...statusTarget(row), kind, note })}
               onEditDates={(row, dates) => updateDates.mutate({ logId: row.logId, ...dates })}
               onEditTime={(row, time) => handleEditTime(row, kind, time)}
-              busy={upsert.isPending || updateDates.isPending || updateTime.isPending}
+              busy={upsert.isPending || advance.isPending || updateDates.isPending || updateTime.isPending}
               muted={mode === "stay" || mode === "cleaning"}
             />
           </div>

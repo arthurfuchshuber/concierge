@@ -317,9 +317,10 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
         .in("id", propIds),
       context.supabase
         .from("guest_arrival_status")
-        .select("log_id, reservation_id, kind, status, note, arrival_time_override, done_at")
+        .select("log_id, reservation_id, kind, status, note, arrival_time_override, done_at, concluded_at")
         .in("property_id", propIds)
         .eq("kind", data.kind)
+        .is("concluded_at", null)
         .limit(5000),
       context.supabase
         .from("property_reservations")
@@ -734,3 +735,126 @@ export const markPendingReservationStatus = createServerFn({ method: "POST" })
     return { ok: true, reservationId };
   });
 
+
+// ----- Advance an arrival card through the funnel -----
+// Funnel: Checkin -> Em Estadia -> Checkout -> Em Limpeza -> Concluído
+// Given the bucket the card is currently in and its stay dates, the server
+// upserts the correct status rows so late cards jump straight to the funnel
+// stage that matches today's date.
+
+const AdvanceInput = z.object({
+  logId: z.string().uuid().optional(),
+  reservationId: z.string().uuid().optional(),
+  from: z.enum(["checkin", "stay", "checkout", "cleaning"]),
+}).refine((v) => !!v.logId || !!v.reservationId, { message: "Informe a reserva ou o registro do hóspede." });
+
+export const advanceArrival = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => AdvanceInput.parse(i))
+  .handler(async ({ data, context }) => {
+    // Resolve property + stay dates from the source record.
+    let propertyId: string | null = null;
+    let checkinDate: string | null = null;
+    let checkoutDate: string | null = null;
+
+    if (data.logId) {
+      const { data: log } = await context.supabase
+        .from("guide_access_logs")
+        .select("property_id, checkin_date, checkout_date")
+        .eq("id", data.logId)
+        .maybeSingle();
+      if (log) {
+        propertyId = (log as { property_id: string }).property_id;
+        checkinDate = (log as { checkin_date: string }).checkin_date;
+        checkoutDate = (log as { checkout_date: string | null }).checkout_date ?? null;
+      }
+    }
+    if (!propertyId && data.reservationId) {
+      const { data: res } = await context.supabase
+        .from("property_reservations")
+        .select("property_id, checkin_date, checkout_date")
+        .eq("id", data.reservationId)
+        .maybeSingle();
+      if (res) {
+        propertyId = (res as { property_id: string }).property_id;
+        checkinDate = (res as { checkin_date: string }).checkin_date;
+        checkoutDate = (res as { checkout_date: string | null }).checkout_date ?? null;
+      }
+    }
+    if (!propertyId) throw new Error("Registro não encontrado.");
+
+    const nowIso = new Date().toISOString();
+    const today = todayISO();
+
+    async function upsertStatus(kind: "checkin" | "checkout", patch: {
+      status?: "pending" | "done";
+      done_at?: string | null;
+      concluded_at?: string | null;
+    }) {
+      // Find existing row for (log|reservation, kind)
+      let existingId: string | undefined;
+      if (data.reservationId) {
+        const { data: existing } = await context.supabase
+          .from("guest_arrival_status")
+          .select("id")
+          .eq("reservation_id", data.reservationId)
+          .eq("kind", kind)
+          .limit(1);
+        existingId = (existing?.[0] as { id: string } | undefined)?.id;
+      }
+      if (!existingId && data.logId) {
+        const { data: existing } = await context.supabase
+          .from("guest_arrival_status")
+          .select("id")
+          .eq("log_id", data.logId)
+          .eq("kind", kind)
+          .limit(1);
+        existingId = (existing?.[0] as { id: string } | undefined)?.id;
+      }
+
+      const body: {
+        property_id: string;
+        kind: "checkin" | "checkout";
+        log_id?: string;
+        reservation_id?: string;
+        status?: "pending" | "done";
+        done_at?: string | null;
+        concluded_at?: string | null;
+      } = { property_id: propertyId!, kind, ...patch };
+      if (data.logId) body.log_id = data.logId;
+      if (data.reservationId) body.reservation_id = data.reservationId;
+
+      const { error } = existingId
+        ? await context.supabase.from("guest_arrival_status").update(body).eq("id", existingId)
+        : await context.supabase.from("guest_arrival_status").insert(body);
+      if (error) throw new Error(error.message);
+    }
+
+    // Bucket-aware progression.
+    if (data.from === "checkin") {
+      // Chegadas → mark checkin done. If today is on/after checkout,
+      // fast-forward: also mark checkout done AND conclude the checkin row
+      // so it doesn't linger in Em Estadia.
+      await upsertStatus("checkin", { status: "done", done_at: nowIso });
+      if (checkoutDate && today >= checkoutDate) {
+        await upsertStatus("checkout", { status: "done", done_at: nowIso });
+        await upsertStatus("checkin", { concluded_at: nowIso });
+      }
+    } else if (data.from === "stay") {
+      // Em Estadia → guest is leaving. Mark checkout done (goes to Em Limpeza)
+      // and hide the checkin.done row from Em Estadia.
+      await upsertStatus("checkout", { status: "done", done_at: nowIso });
+      await upsertStatus("checkin", { concluded_at: nowIso });
+    } else if (data.from === "checkout") {
+      // Saídas → mark checkout done. Also hide any lingering checkin.done row
+      // for the same stay so it doesn't stay stuck in Em Estadia.
+      await upsertStatus("checkout", { status: "done", done_at: nowIso });
+      await upsertStatus("checkin", { concluded_at: nowIso });
+    } else if (data.from === "cleaning") {
+      // Em Limpeza → conclude the stay (hidden from all kanbans).
+      await upsertStatus("checkout", { concluded_at: nowIso });
+      await upsertStatus("checkin", { concluded_at: nowIso });
+    }
+
+    return { ok: true };
+  });
