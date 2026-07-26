@@ -4,9 +4,10 @@ import { Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { listHandoffConversations, countPendingHandoffs, getAtendimentoAccess } from "@/lib/handoff.functions";
+import { listHandoffConversations, countPendingHandoffs, getAtendimentoAccess, resolveConversationForGuest } from "@/lib/handoff.functions";
 import { ConversationList, ConversationView, useMyUserId } from "@/components/handoff/ConversationView";
 import { listenToPushMessages } from "@/lib/push-client";
+import { HANDOFF_DOCK_OPEN_EVENT, type HandoffDockOpenDetail } from "@/lib/handoff-dock";
 import { Headphones, X, Minimize2, Maximize2 } from "lucide-react";
 
 const DOCK_STATE_KEY = "handoff-dock-state-v1";
@@ -66,6 +67,7 @@ export function FloatingHandoffDock() {
   const accessFn = useServerFn(getAtendimentoAccess);
   const listFn = useServerFn(listHandoffConversations);
   const countFn = useServerFn(countPendingHandoffs);
+  const resolveFn = useServerFn(resolveConversationForGuest);
   const qc = useQueryClient();
   const myUserId = useMyUserId();
   const [mounted, setMounted] = useState(false);
@@ -212,6 +214,31 @@ export function FloatingHandoffDock() {
       }
     });
   }, [qc]);
+
+  // Proactive-contact entry: any card can dispatch `handoff-dock:open` with a
+  // guest hint. We open the dock and try to focus the matching conversation so
+  // the existing chat surface (which already routes to WhatsApp when the
+  // Sinch integration is configured) becomes the single entry point.
+  useEffect(() => {
+    if (!allowed) return;
+    const handler = async (ev: Event) => {
+      const detail = ((ev as CustomEvent<HandoffDockOpenDetail>).detail ?? {}) as HandoffDockOpenDetail;
+      setState({ open: true, minimized: false });
+      if (detail.conversationId) { setActiveId(detail.conversationId); return; }
+      if (!detail.propertyId) return;
+      try {
+        const res = await resolveFn({ data: {
+          propertyId: detail.propertyId,
+          phone: detail.phone ?? null,
+          reservationCode: detail.reservationCode ?? null,
+          guestName: detail.guestName ?? null,
+        } });
+        if (res.conversationId) setActiveId(res.conversationId);
+      } catch { /* silent — dock stays on list */ }
+    };
+    window.addEventListener(HANDOFF_DOCK_OPEN_EVENT, handler as EventListener);
+    return () => window.removeEventListener(HANDOFF_DOCK_OPEN_EVENT, handler as EventListener);
+  }, [allowed, resolveFn]);
 
   if (!allowed || !mounted || typeof document === "undefined") return null;
 

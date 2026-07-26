@@ -913,3 +913,67 @@ export const listConversationTransferTargets = createServerFn({ method: "POST" }
       })),
     };
   });
+
+// -------- Resolve conversation for proactive contact from cards --------
+// Given a property + optional phone/name/reservation, returns the most recent
+// conversation that matches (via guide_section_events -> guest_session_id).
+// The FloatingHandoffDock uses this to focus the correct conversation when a
+// user clicks the chat entry on a dashboard/hospedes card.
+export const resolveConversationForGuest = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((raw: unknown) => {
+    const r = (raw ?? {}) as Record<string, unknown>;
+    const propertyId = String(r.propertyId ?? "");
+    if (!propertyId) throw new Error("propertyId obrigatório");
+    return {
+      propertyId,
+      phone: (r.phone as string | null | undefined) ?? null,
+      reservationCode: (r.reservationCode as string | null | undefined) ?? null,
+      guestName: (r.guestName as string | null | undefined) ?? null,
+    };
+  })
+  .handler(async ({ data, context }) => {
+    const { supabase } = context;
+    const onlyDigits = (s: string | null) => (s ?? "").replace(/\D+/g, "").replace(/^0+/, "");
+    const phone = onlyDigits(data.phone);
+    const nameNorm = (data.guestName ?? "").trim().toLowerCase();
+
+    const sessionIds = new Set<string>();
+    if (phone || nameNorm) {
+      try {
+        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+        const { data: events } = await (supabaseAdmin.from("guide_section_events" as never) as ReturnType<typeof supabaseAdmin.from>)
+          .select("guest_session_id, guest_phone, guest_name, created_at")
+          .eq("property_id", data.propertyId)
+          .not("guest_session_id", "is", null)
+          .order("created_at", { ascending: false })
+          .limit(300);
+        for (const e of (events ?? []) as Array<{ guest_session_id: string | null; guest_phone: string | null; guest_name: string | null }>) {
+          if (!e.guest_session_id) continue;
+          const pMatch = !!phone && onlyDigits(e.guest_phone) === phone;
+          const nMatch = !!nameNorm && (e.guest_name ?? "").trim().toLowerCase() === nameNorm;
+          if (pMatch || nMatch) sessionIds.add(e.guest_session_id);
+        }
+      } catch { /* falls through */ }
+    }
+
+    const { data: convs } = await supabase
+      .from("property_chat_conversations")
+      .select("id, guest_session_id, guest_name, last_message_at, created_at")
+      .eq("property_id", data.propertyId)
+      .order("last_message_at", { ascending: false, nullsFirst: false })
+      .order("created_at", { ascending: false })
+      .limit(50);
+    const rows = (convs ?? []) as Array<{ id: string; guest_session_id: string | null; guest_name: string | null }>;
+    if (rows.length === 0) return { conversationId: null as string | null };
+
+    if (sessionIds.size > 0) {
+      const bySess = rows.find((c) => c.guest_session_id && sessionIds.has(c.guest_session_id));
+      if (bySess) return { conversationId: bySess.id };
+    }
+    if (nameNorm) {
+      const byName = rows.find((c) => (c.guest_name ?? "").trim().toLowerCase() === nameNorm);
+      if (byName) return { conversationId: byName.id };
+    }
+    return { conversationId: null as string | null };
+  });
