@@ -317,9 +317,10 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
         .in("id", propIds),
       context.supabase
         .from("guest_arrival_status")
-        .select("log_id, reservation_id, kind, status, note, arrival_time_override, done_at")
+        .select("log_id, reservation_id, kind, status, note, arrival_time_override, done_at, concluded_at")
         .in("property_id", propIds)
         .eq("kind", data.kind)
+        .is("concluded_at", null)
         .limit(5000),
       context.supabase
         .from("property_reservations")
