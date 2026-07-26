@@ -194,8 +194,7 @@ function DashboardPage() {
 
   function handleAdvance(row: ArrivalRow, from: "checkin" | "stay" | "checkout" | "cleaning") {
     const target = statusTarget(row);
-    console.log("[handleAdvance]", { from, target, rowLogId: row.logId, rowResId: row.reservationId });
-    if (!target.logId && !target.reservationId) { console.log("[handleAdvance] early return"); return; }
+    if (!target.logId && !target.reservationId) return;
     if (from === "stay" || from === "cleaning") {
       revert.mutate({ ...target, from });
       return;
