@@ -706,10 +706,11 @@ function BarRow({ label, value, total, pct }: { label: string; value: number; to
   );
 }
 
-function ArrivalGroup({ title, rows, kind, onMark, onSyncIcal, onNote, onEditDates, onEditTime, busy, muted }: {
+function ArrivalGroup({ title, rows, kind, mode, onMark, onSyncIcal, onNote, onEditDates, onEditTime, busy, muted }: {
   title: string;
   rows: ArrivalRow[];
   kind: "checkin" | "checkout";
+  mode: "checkin" | "checkout" | "stay" | "cleaning";
   onMark: (r: ArrivalRow) => void;
   onSyncIcal: (r: ArrivalRow) => void;
   onNote: (r: ArrivalRow, note: string | null) => void;
@@ -722,14 +723,15 @@ function ArrivalGroup({ title, rows, kind, onMark, onSyncIcal, onNote, onEditDat
   return (
     <div className={`grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 items-stretch ${muted ? "opacity-70" : ""}`}>
       {rows.map((r) => (
-        <ArrivalCard key={r.logId} row={r} kind={kind} onMark={onMark} onSyncIcal={onSyncIcal} onNote={onNote} onEditDates={onEditDates} onEditTime={onEditTime} busy={busy} />
+        <ArrivalCard key={r.logId} row={r} kind={kind} mode={mode} onMark={onMark} onSyncIcal={onSyncIcal} onNote={onNote} onEditDates={onEditDates} onEditTime={onEditTime} busy={busy} />
       ))}
     </div>
   );
 }
 
-function ArrivalCard({ row, kind, onMark, onSyncIcal, onNote, onEditDates, onEditTime, busy }: {
+function ArrivalCard({ row, kind, mode, onMark, onSyncIcal, onNote, onEditDates, onEditTime, busy }: {
   row: ArrivalRow; kind: "checkin" | "checkout";
+  mode: "checkin" | "checkout" | "stay" | "cleaning";
   onMark: (r: ArrivalRow) => void;
   onSyncIcal: (r: ArrivalRow) => void;
   onNote: (r: ArrivalRow, note: string | null) => void;
@@ -737,6 +739,7 @@ function ArrivalCard({ row, kind, onMark, onSyncIcal, onNote, onEditDates, onEdi
   onEditTime: (r: ArrivalRow, time: string | null) => void;
   busy: boolean;
 }) {
+
   const [noteOpen, setNoteOpen] = useState(false);
   const [noteText, setNoteText] = useState(row.note ?? "");
   const guestTime = row.arrivalTimeOverride ?? row.guestArrivalTime;
