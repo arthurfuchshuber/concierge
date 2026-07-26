@@ -799,7 +799,9 @@ function ArrivalCard({ row, kind, mode, onMark, onSyncIcal, onNote, onEditDates,
         </div>
         <div className="flex-1 min-w-0">
           <div className={`font-semibold truncate flex items-center gap-2 ${isPendingFill ? "italic text-foreground/80" : ""}`}>
-            {isPendingFill || !row.guestName || row.guestName === row.reservationCode ? (
+            {isPendingFill ? (
+              <span className="truncate font-semibold not-italic text-foreground">Hóspede Pendente</span>
+            ) : !row.guestName || row.guestName === row.reservationCode ? (
               row.reservationCode ? (
                 <span className="inline-flex items-center gap-1 text-foreground font-semibold not-italic shrink-0">
                   <span className="truncate max-w-[180px]">{row.reservationCode}</span>
@@ -833,14 +835,15 @@ function ArrivalCard({ row, kind, mode, onMark, onSyncIcal, onNote, onEditDates,
               </>
             )}
           </div>
-          {/* Código da reserva abaixo do período quando há nome do hóspede */}
-          {!isPendingFill && row.guestName && row.guestName !== row.reservationCode && row.reservationCode && (
+          {/* Código da reserva abaixo do período: sempre que houver código */}
+          {row.reservationCode && (isPendingFill || (row.guestName && row.guestName !== row.reservationCode)) && (
             <div className="mt-0.5 inline-flex items-center gap-0.5 text-[11px] text-muted-foreground font-normal tabular-nums">
               <span className="truncate max-w-[160px]">{row.reservationCode}</span>
               <CopyButton value={row.reservationCode} size={10} className="p-0.5" />
             </div>
           )}
         </div>
+
       </div>
 
 
