@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -91,21 +91,24 @@ function DashboardPage() {
   const engRange: "today" | "7d" | "30d" =
     range === "today" ? "today" : range === "all" ? "30d" : "7d";
 
-  const kpisQ = useQuery({ queryKey: ["dash-kpis", activeOwnerId ?? "self"], queryFn: () => kpisFn({ data: { ownerId: activeOwnerId } }), staleTime: 60_000 });
+  const kpisQ = useQuery({ queryKey: ["dash-kpis", activeOwnerId ?? "self"], queryFn: () => kpisFn({ data: { ownerId: activeOwnerId } }), staleTime: 60_000, placeholderData: keepPreviousData });
   const engQ = useQuery({
     queryKey: ["dash-eng", engRange, activeOwnerId ?? "self"],
     queryFn: () => engFn({ data: { range: engRange, ownerId: activeOwnerId } }),
     staleTime: 60_000,
+    placeholderData: keepPreviousData,
   });
   const checkinListQ = useQuery({
     queryKey: ["dash-list", "checkin", range, activeOwnerId ?? "self"],
     queryFn: () => listFn({ data: { kind: "checkin", range, ownerId: activeOwnerId } }),
     staleTime: 30_000,
+    placeholderData: keepPreviousData,
   });
   const checkoutListQ = useQuery({
     queryKey: ["dash-list", "checkout", range, activeOwnerId ?? "self"],
     queryFn: () => listFn({ data: { kind: "checkout", range, ownerId: activeOwnerId } }),
     staleTime: 30_000,
+    placeholderData: keepPreviousData,
   });
   const listQ = kind === "checkin" ? checkinListQ : checkoutListQ;
 
@@ -114,22 +117,27 @@ function DashboardPage() {
     queryKey: ["dash-list", "checkin", "today", activeOwnerId ?? "self"],
     queryFn: () => listFn({ data: { kind: "checkin", range: "today", ownerId: activeOwnerId } }),
     staleTime: 30_000,
+    placeholderData: keepPreviousData,
   });
   const kpiTomorrowQ = useQuery({
     queryKey: ["dash-list", "checkin", "tomorrow", activeOwnerId ?? "self"],
     queryFn: () => listFn({ data: { kind: "checkin", range: "tomorrow", ownerId: activeOwnerId } }),
     staleTime: 30_000,
+    placeholderData: keepPreviousData,
   });
   const kpiCoTodayQ = useQuery({
     queryKey: ["dash-list", "checkout", "today", activeOwnerId ?? "self"],
     queryFn: () => listFn({ data: { kind: "checkout", range: "today", ownerId: activeOwnerId } }),
     staleTime: 30_000,
+    placeholderData: keepPreviousData,
   });
   const kpiCoTomorrowQ = useQuery({
     queryKey: ["dash-list", "checkout", "tomorrow", activeOwnerId ?? "self"],
     queryFn: () => listFn({ data: { kind: "checkout", range: "tomorrow", ownerId: activeOwnerId } }),
     staleTime: 30_000,
+    placeholderData: keepPreviousData,
   });
+
 
   type UpsertPayload = {
     logId?: string;
@@ -438,6 +446,7 @@ function DashboardPage() {
               title=""
               rows={boardRows}
               kind={kind}
+              mode={mode}
               onMark={(row) => handleAdvance(row, mode)}
               onSyncIcal={(row) => {
                 const t = kind === "checkin" ? "15:00" : "11:00";
@@ -450,6 +459,7 @@ function DashboardPage() {
               busy={upsert.isPending || advance.isPending || updateDates.isPending || updateTime.isPending}
               muted={mode === "stay" || mode === "cleaning"}
             />
+
           </div>
         )}
       </section>
@@ -704,10 +714,11 @@ function BarRow({ label, value, total, pct }: { label: string; value: number; to
   );
 }
 
-function ArrivalGroup({ title, rows, kind, onMark, onSyncIcal, onNote, onEditDates, onEditTime, busy, muted }: {
+function ArrivalGroup({ title, rows, kind, mode, onMark, onSyncIcal, onNote, onEditDates, onEditTime, busy, muted }: {
   title: string;
   rows: ArrivalRow[];
   kind: "checkin" | "checkout";
+  mode: "checkin" | "checkout" | "stay" | "cleaning";
   onMark: (r: ArrivalRow) => void;
   onSyncIcal: (r: ArrivalRow) => void;
   onNote: (r: ArrivalRow, note: string | null) => void;
@@ -720,14 +731,15 @@ function ArrivalGroup({ title, rows, kind, onMark, onSyncIcal, onNote, onEditDat
   return (
     <div className={`grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 items-stretch ${muted ? "opacity-70" : ""}`}>
       {rows.map((r) => (
-        <ArrivalCard key={r.logId} row={r} kind={kind} onMark={onMark} onSyncIcal={onSyncIcal} onNote={onNote} onEditDates={onEditDates} onEditTime={onEditTime} busy={busy} />
+        <ArrivalCard key={r.logId} row={r} kind={kind} mode={mode} onMark={onMark} onSyncIcal={onSyncIcal} onNote={onNote} onEditDates={onEditDates} onEditTime={onEditTime} busy={busy} />
       ))}
     </div>
   );
 }
 
-function ArrivalCard({ row, kind, onMark, onSyncIcal, onNote, onEditDates, onEditTime, busy }: {
+function ArrivalCard({ row, kind, mode, onMark, onSyncIcal, onNote, onEditDates, onEditTime, busy }: {
   row: ArrivalRow; kind: "checkin" | "checkout";
+  mode: "checkin" | "checkout" | "stay" | "cleaning";
   onMark: (r: ArrivalRow) => void;
   onSyncIcal: (r: ArrivalRow) => void;
   onNote: (r: ArrivalRow, note: string | null) => void;
@@ -735,6 +747,7 @@ function ArrivalCard({ row, kind, onMark, onSyncIcal, onNote, onEditDates, onEdi
   onEditTime: (r: ArrivalRow, time: string | null) => void;
   busy: boolean;
 }) {
+
   const [noteOpen, setNoteOpen] = useState(false);
   const [noteText, setNoteText] = useState(row.note ?? "");
   const guestTime = row.arrivalTimeOverride ?? row.guestArrivalTime;
@@ -794,7 +807,9 @@ function ArrivalCard({ row, kind, onMark, onSyncIcal, onNote, onEditDates, onEdi
         </div>
         <div className="flex-1 min-w-0">
           <div className={`font-semibold truncate flex items-center gap-2 ${isPendingFill ? "italic text-foreground/80" : ""}`}>
-            {isPendingFill || !row.guestName || row.guestName === row.reservationCode ? (
+            {isPendingFill ? (
+              <span className="truncate font-semibold not-italic text-foreground">Hóspede Pendente</span>
+            ) : !row.guestName || row.guestName === row.reservationCode ? (
               row.reservationCode ? (
                 <span className="inline-flex items-center gap-1 text-foreground font-semibold not-italic shrink-0">
                   <span className="truncate max-w-[180px]">{row.reservationCode}</span>
@@ -828,19 +843,20 @@ function ArrivalCard({ row, kind, onMark, onSyncIcal, onNote, onEditDates, onEdi
               </>
             )}
           </div>
-          {/* Código da reserva abaixo do período quando há nome do hóspede */}
-          {!isPendingFill && row.guestName && row.guestName !== row.reservationCode && row.reservationCode && (
+          {/* Código da reserva abaixo do período: sempre que houver código */}
+          {row.reservationCode && (isPendingFill || (row.guestName && row.guestName !== row.reservationCode)) && (
             <div className="mt-0.5 inline-flex items-center gap-0.5 text-[11px] text-muted-foreground font-normal tabular-nums">
               <span className="truncate max-w-[160px]">{row.reservationCode}</span>
               <CopyButton value={row.reservationCode} size={10} className="p-0.5" />
             </div>
           )}
         </div>
+
       </div>
 
 
-      {/* Engagement — só mostra pendências (fatos negativos). Estados positivos são omitidos. */}
-      {!isPendingFill && (!row.openedCheckin || (row.hasPasswords && !row.viewedPasswords)) && (
+      {/* Engagement — só mostra pendências (fatos negativos). Estados positivos são omitidos. Ocultos em "Em Limpeza". */}
+      {mode !== "cleaning" && !isPendingFill && (!row.openedCheckin || (row.hasPasswords && !row.viewedPasswords)) && (
         <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
           {!row.openedCheckin && (
             <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 border bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/25">
@@ -855,28 +871,31 @@ function ArrivalCard({ row, kind, onMark, onSyncIcal, onNote, onEditDates, onEdi
         </div>
       )}
 
-      <div className="grid grid-cols-2 gap-2 text-xs">
-        <div className="rounded-lg bg-background/50 border border-border/40 p-2 backdrop-blur-sm">
-          <div className="text-[10px] uppercase tracking-wider text-muted-foreground flex items-center justify-between">
-            <span>Padrão</span>
-            <InfoHint title="Horário padrão">Janela configurada na propriedade. Base para detectar divergências.</InfoHint>
+      {mode !== "cleaning" && (
+        <div className="grid grid-cols-2 gap-2 text-xs">
+          <div className="rounded-lg bg-background/50 border border-border/40 p-2 backdrop-blur-sm">
+            <div className="text-[10px] uppercase tracking-wider text-muted-foreground flex items-center justify-between">
+              <span>Padrão</span>
+              <InfoHint title="Horário padrão">Janela configurada na propriedade. Base para detectar divergências.</InfoHint>
+            </div>
+            <div className="mt-0.5 tabular-nums">{stdWindow ?? "—"}</div>
           </div>
-          <div className="mt-0.5 tabular-nums">{stdWindow ?? "—"}</div>
+          <div className={`rounded-lg p-2 backdrop-blur-sm ${divergent ? "bg-amber-500/10 border border-amber-500/30" : "bg-background/50 border border-border/40"}`}>
+            <div className="text-[10px] uppercase tracking-wider text-muted-foreground flex items-center justify-between">
+              <span>Previsto</span>
+              <InfoHint title="Horário previsto">Selecione o horário (30 em 30 min). A alteração reordena o kanban imediatamente.</InfoHint>
+            </div>
+            <div className="mt-0.5">
+              <TimeDropdown
+                value={guestTime ?? null}
+                disabled={busy}
+                onChange={(v) => onEditTime(row, v)}
+              />
+            </div>
+          </div>
         </div>
-        <div className={`rounded-lg p-2 backdrop-blur-sm ${divergent ? "bg-amber-500/10 border border-amber-500/30" : "bg-background/50 border border-border/40"}`}>
-          <div className="text-[10px] uppercase tracking-wider text-muted-foreground flex items-center justify-between">
-            <span>Previsto</span>
-            <InfoHint title="Horário previsto">Selecione o horário (30 em 30 min). A alteração reordena o kanban imediatamente.</InfoHint>
-          </div>
-          <div className="mt-0.5">
-            <TimeDropdown
-              value={guestTime ?? null}
-              disabled={busy}
-              onChange={(v) => onEditTime(row, v)}
-            />
-          </div>
-        </div>
-      </div>
+      )}
+
 
       {row.ical.hasIcal && !isPendingFill && (() => {
         const gIn = row.guestCheckin;
@@ -916,12 +935,13 @@ function ArrivalCard({ row, kind, onMark, onSyncIcal, onNote, onEditDates, onEdi
         );
       })()}
 
-      {isPendingFill && (
+      {isPendingFill && mode !== "cleaning" && (
         <div className="w-full text-xs rounded-lg bg-amber-500/10 border border-amber-500/30 px-2 py-1.5 flex items-center gap-2 text-amber-700 dark:text-amber-400">
           <UserPlus className="size-3.5 shrink-0" />
           <span>Reserva iCal · aguardando preenchimento do formulário de acesso</span>
         </div>
       )}
+
 
       {divergent && !isPendingFill && !done && (
         <div className="w-full text-xs rounded-lg bg-amber-500/10 border border-amber-500/30 px-2 py-1.5 flex items-center justify-between gap-2">
