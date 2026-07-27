@@ -212,7 +212,7 @@ function DashboardPage() {
       toast.error("Não foi possível identificar esse card. Atualize a página e tente novamente.");
       return;
     }
-    if (from === "stay" || from === "cleaning") {
+    if (from === "stay") {
       revert.mutate({ ...target, from });
       return;
     }
