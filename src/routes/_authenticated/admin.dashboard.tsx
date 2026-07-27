@@ -733,6 +733,7 @@ function ArrivalCard({ row, kind, mode, onMark, onSyncIcal, onNote, onEditDates,
     !isTimeWithin(guestTime, row.standardTime, row.standardTimeMax);
 
   const done = row.status === "done";
+  const visualDone = done && mode !== "cleaning";
   const isPendingFill = row.pendingFill;
   const todayISO = todayISOSaoPaulo();
   const isToday = row.date === todayISO;
