@@ -887,7 +887,10 @@ export const advanceArrival = createServerFn({ method: "POST" })
     // Bucket-aware progression.
     if (data.from === "checkin") {
       await upsertStatus("checkin", { status: "done", done_at: nowIso });
-      if (checkoutDate && today >= checkoutDate) {
+      // Só pula estadia/limpeza quando o checkout já ficou no PASSADO
+      // (today > checkoutDate). Quando checkout é hoje, o hóspede ainda
+      // está no imóvel — precisa aparecer em Check-outs como pendente.
+      if (checkoutDate && today > checkoutDate) {
         // Guest already left → also mark checkout done and hide checkin from Estadia.
         await upsertStatus("checkout", { status: "done", done_at: nowIso });
         await upsertStatus("checkin", { concluded_at: nowIso });
