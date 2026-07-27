@@ -841,22 +841,7 @@ function ArrivalCard({ row, kind, mode, onMark, onSyncIcal, onNote, onEditDates,
       </div>
 
 
-      {/* Engagement — só mostra pendências (fatos negativos). Estados positivos são omitidos. Ocultos em "Em Limpeza". */}
-      {mode !== "cleaning" && !isPendingFill && (!row.openedCheckin || (row.hasPasswords && !row.viewedPasswords)) && (
-        <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
-          {!row.openedCheckin && (
-            <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 border bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/25">
-              <Eye className="size-3" /> Não abriu Chegada
-            </span>
-          )}
-          {row.hasPasswords && !row.viewedPasswords && (
-            <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 border bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/25">
-              <KeyRound className="size-3" /> Não viu senhas
-            </span>
-          )}
-        </div>
-      )}
-
+      {/* Padrão / Previsto — sempre no topo para manter alinhamento entre cards */}
       {mode !== "cleaning" && (
         <div className="grid grid-cols-2 gap-2 text-xs">
           <div className="rounded-lg bg-background/50 border border-border/40 p-2 backdrop-blur-sm">
@@ -879,6 +864,22 @@ function ArrivalCard({ row, kind, mode, onMark, onSyncIcal, onNote, onEditDates,
               />
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Engagement — só mostra pendências (fatos negativos). Estados positivos são omitidos. Ocultos em "Em Limpeza". */}
+      {mode !== "cleaning" && !isPendingFill && (!row.openedCheckin || (row.hasPasswords && !row.viewedPasswords)) && (
+        <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
+          {!row.openedCheckin && (
+            <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 border bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/25">
+              <Eye className="size-3" /> Não abriu Chegada
+            </span>
+          )}
+          {row.hasPasswords && !row.viewedPasswords && (
+            <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 border bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/25">
+              <KeyRound className="size-3" /> Não viu senhas
+            </span>
+          )}
         </div>
       )}
 
