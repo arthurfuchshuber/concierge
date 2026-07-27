@@ -244,79 +244,56 @@ function DashboardPage() {
     cleaning: coRows.filter((r) => r.status === "done").length,
   };
 
-  /* ---------- Attention alerts (only the single most important) ---------- */
-  const topAlert = useMemo(() => {
-    const e = engQ.data;
+  /* ---------- Attention alerts (stacked, uma por categoria) ---------- */
+  type AlertStrip = {
+    key: string;
+    tone: "warn" | "success" | "info";
+    icon: typeof AlertTriangle;
+    text: React.ReactNode;
+    items: { propertyName: string; guestName: string; detail: string }[];
+  };
+  const alertStrips = useMemo<AlertStrip[]>(() => {
     const today = new Date().toLocaleDateString("sv-SE");
+    const strips: AlertStrip[] = [];
 
-    // Priority 1: cards atrasados
-    const overdueRows = rows.filter((r) => r.date < today);
-    if (overdueRows.length > 0) {
-      const plural = overdueRows.length > 1;
-      return {
-        tone: "warn" as const, icon: AlertTriangle,
-        text: <><b className="tabular-nums">{overdueRows.length}</b> {plural ? "cards atrasados" : "card atrasado"} — {plural ? "aguardam" : "aguarda"} check.</>,
-        items: overdueRows.map((r) => ({
+    // Fonte de verdade: as listas de "hoje" (que já incluem -30d de lookback)
+    const allCheckins = kpiTodayQ.data?.rows ?? [];
+    const allCheckouts = kpiCoTodayQ.data?.rows ?? [];
+
+    // 1) Check-ins atrasados: pendentes com data anterior a hoje
+    const checkinOverdue = allCheckins.filter((r) => r.status === "pending" && r.date < today);
+    if (checkinOverdue.length > 0) {
+      const plural = checkinOverdue.length > 1;
+      strips.push({
+        key: "checkin-overdue",
+        tone: "warn", icon: AlertTriangle,
+        text: <><b className="tabular-nums">{checkinOverdue.length}</b> {plural ? "check-ins atrasados" : "check-in atrasado"} — {plural ? "aguardam" : "aguarda"} check.</>,
+        items: checkinOverdue.map((r) => ({
           propertyName: r.propertyName ?? "Sem nome",
           guestName: r.pendingFill ? "Hóspede pendente" : (r.guestName || r.reservationCode || "—"),
-          detail: `Previsto ${r.date}${(r.arrivalTimeOverride ?? r.guestArrivalTime) ? ` · ${r.arrivalTimeOverride ?? r.guestArrivalTime}` : ""}`,
+          detail: `Previsto ${fmtDateBR(r.date)}${(r.arrivalTimeOverride ?? r.guestArrivalTime) ? ` · ${r.arrivalTimeOverride ?? r.guestArrivalTime}` : ""}`,
         })),
-      };
+      });
     }
 
-    // Priority 2: horários divergentes do padrão
-    const divergentRows = rows.filter((r) => {
-      const t = r.arrivalTimeOverride ?? r.guestArrivalTime;
-      return t && r.standardTime && !isTimeWithin(t, r.standardTime, r.standardTimeMax);
-    });
-    if (divergentRows.length > 0) {
-      const plural = divergentRows.length > 1;
-      return {
-        tone: "warn" as const, icon: Clock,
-        text: <><b className="tabular-nums">{divergentRows.length}</b> {plural ? "horários divergentes" : "horário divergente"} do padrão.</>,
-        items: divergentRows.map((r) => ({
+    // 2) Limpezas atrasadas: checkouts em limpeza (done) com data anterior a hoje
+    const cleaningOverdue = allCheckouts.filter((r) => r.status === "done" && r.date < today);
+    if (cleaningOverdue.length > 0) {
+      const plural = cleaningOverdue.length > 1;
+      strips.push({
+        key: "cleaning-overdue",
+        tone: "warn", icon: AlertTriangle,
+        text: <><b className="tabular-nums">{cleaningOverdue.length}</b> {plural ? "limpezas atrasadas" : "limpeza atrasada"} — {plural ? "aguardam" : "aguarda"} conclusão.</>,
+        items: cleaningOverdue.map((r) => ({
           propertyName: r.propertyName ?? "Sem nome",
           guestName: r.pendingFill ? "Hóspede pendente" : (r.guestName || r.reservationCode || "—"),
-          detail: `Previsto ${r.arrivalTimeOverride ?? r.guestArrivalTime} · Padrão ${r.standardTime}${r.standardTimeMax ? `–${r.standardTimeMax}` : ""}`,
+          detail: `Checkout ${fmtDateBR(r.date)}`,
         })),
-      };
+      });
     }
 
-    // Priority 3: reservas sem formulário
-    const pendingFillRows = rows.filter((r) => r.pendingFill);
-    if (pendingFillRows.length > 0) {
-      const plural = pendingFillRows.length > 1;
-      return {
-        tone: "warn" as const, icon: UserPlus,
-        text: <><b className="tabular-nums">{pendingFillRows.length}</b> {plural ? "reservas" : "reserva"} sem {plural ? "formulários preenchidos" : "formulário preenchido"} de acesso.</>,
-        items: pendingFillRows.map((r) => ({
-          propertyName: r.propertyName ?? "Sem nome",
-          guestName: r.reservationCode || "Hóspede pendente",
-          detail: `Check-in ${r.guestCheckin ?? r.date}${r.guestCheckout ? ` · Check-out ${r.guestCheckout}` : ""}`,
-        })),
-      };
-    }
-
-    // Priority 4: hóspedes que não abriram a aba Chegada
-    if (e && e.checkinsInPeriod > 0) {
-      const gap = e.checkinsInPeriod - e.checkinTabOpens;
-      if (gap > 0) {
-        const plural = gap > 1;
-        return {
-          tone: "warn" as const, icon: AlertTriangle,
-          text: <><b className="tabular-nums">{gap}</b> {plural ? "hóspedes ainda não abriram" : "hóspede ainda não abriu"} a aba <i>Chegada</i>.</>,
-          items: [] as { propertyName: string; guestName: string; detail: string }[],
-        };
-      }
-      return {
-        tone: "success" as const, icon: Sparkles,
-        text: <>Todos os hóspedes do período abriram a aba <i>Chegada</i>.</>,
-        items: [] as { propertyName: string; guestName: string; detail: string }[],
-      };
-    }
-
-    return null;
-  }, [engQ.data, rows]);
+    return strips;
+  }, [kpiTodayQ.data, kpiCoTodayQ.data]);
 
 
   const rangeLabel: Record<typeof range, string> = {
@@ -335,49 +312,53 @@ function DashboardPage() {
       </header>
 
 
-      {/* Attention strip — only the single most important alert */}
-      {topAlert && (() => {
-        const tone =
-          topAlert.tone === "warn"
-            ? "bg-amber-500/8 text-amber-800 dark:text-amber-300 border-amber-500/20"
-            : topAlert.tone === "success"
-            ? "bg-emerald-500/8 text-emerald-800 dark:text-emerald-300 border-emerald-500/20"
-            : "bg-primary/8 text-primary border-primary/20";
-        const Icon = topAlert.icon;
-        const hasItems = topAlert.items && topAlert.items.length > 0;
-        const strip = (
-          <div
-            className={`flex items-center gap-2.5 rounded-xl border px-3.5 py-2 text-xs sm:text-sm backdrop-blur-sm ${tone} ${hasItems ? "cursor-pointer hover:brightness-105 transition" : ""}`}
-          >
-            <Icon className="size-4 shrink-0" />
-            <span className="flex-1">{topAlert.text}</span>
-            {hasItems && <Info className="size-3.5 shrink-0 opacity-70" />}
-          </div>
-        );
-        if (!hasItems) return strip;
-        return (
-          <Popover>
-            <PopoverTrigger asChild>{strip}</PopoverTrigger>
-            <PopoverContent align="start" className="w-[min(92vw,420px)] p-0">
-              <div className="px-3.5 py-2.5 border-b border-border/60">
-                <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Imóveis afetados</div>
+      {/* Attention strips — uma faixa por categoria, empilhadas */}
+      {alertStrips.length > 0 && (
+        <div className="space-y-2">
+          {alertStrips.map((a) => {
+            const tone =
+              a.tone === "warn"
+                ? "bg-amber-500/8 text-amber-800 dark:text-amber-300 border-amber-500/20"
+                : a.tone === "success"
+                ? "bg-emerald-500/8 text-emerald-800 dark:text-emerald-300 border-emerald-500/20"
+                : "bg-primary/8 text-primary border-primary/20";
+            const Icon = a.icon;
+            const hasItems = a.items.length > 0;
+            const strip = (
+              <div
+                className={`flex items-center gap-2.5 rounded-xl border px-3.5 py-2 text-xs sm:text-sm backdrop-blur-sm ${tone} ${hasItems ? "cursor-pointer hover:brightness-105 transition" : ""}`}
+              >
+                <Icon className="size-4 shrink-0" />
+                <span className="flex-1">{a.text}</span>
+                {hasItems && <Info className="size-3.5 shrink-0 opacity-70" />}
               </div>
-              <ul className="max-h-[60vh] overflow-y-auto divide-y divide-border/60">
-                {topAlert.items!.map((it, i) => (
-                  <li key={i} className="px-3.5 py-2.5 text-sm">
-                    <div className="font-medium flex items-center gap-1.5 min-w-0">
-                      <Home className="size-3.5 shrink-0 text-muted-foreground" />
-                      <span className="truncate">{it.propertyName}</span>
-                    </div>
-                    <div className="text-xs text-muted-foreground mt-0.5 truncate">{it.guestName}</div>
-                    <div className="text-[11px] text-muted-foreground/80 mt-0.5 tabular-nums">{it.detail}</div>
-                  </li>
-                ))}
-              </ul>
-            </PopoverContent>
-          </Popover>
-        );
-      })()}
+            );
+            if (!hasItems) return <div key={a.key}>{strip}</div>;
+            return (
+              <Popover key={a.key}>
+                <PopoverTrigger asChild>{strip}</PopoverTrigger>
+                <PopoverContent align="start" className="w-[min(92vw,420px)] p-0">
+                  <div className="px-3.5 py-2.5 border-b border-border/60">
+                    <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Imóveis afetados</div>
+                  </div>
+                  <ul className="max-h-[60vh] overflow-y-auto divide-y divide-border/60">
+                    {a.items.map((it, i) => (
+                      <li key={i} className="px-3.5 py-2.5 text-sm">
+                        <div className="font-medium flex items-center gap-1.5 min-w-0">
+                          <Home className="size-3.5 shrink-0 text-muted-foreground" />
+                          <span className="truncate">{it.propertyName}</span>
+                        </div>
+                        <div className="text-xs text-muted-foreground mt-0.5 truncate">{it.guestName}</div>
+                        <div className="text-[11px] text-muted-foreground/80 mt-0.5 tabular-nums">{it.detail}</div>
+                      </li>
+                    ))}
+                  </ul>
+                </PopoverContent>
+              </Popover>
+            );
+          })}
+        </div>
+      )}
 
 
       {/* KPIs */}
