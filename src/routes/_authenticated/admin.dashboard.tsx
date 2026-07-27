@@ -530,10 +530,10 @@ function KpiCard({ label, value, icon: Icon, tone, loading, listQuery, kind, ran
                       />
                       {done ? (
                         <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
-                          <Check className="size-3" /> Feito
+                          <Check className="size-3" /> Concluído
                         </span>
                       ) : (
-                        <span className="text-[10px] uppercase tracking-wider text-muted-foreground">Aguardando</span>
+                        <span className="text-[10px] uppercase tracking-wider text-muted-foreground">Pendente</span>
                       )}
                     </div>
                   </li>
@@ -994,12 +994,12 @@ function ArrivalCard({ row, kind, mode, onMark, onSyncIcal, onNote, onEditDates,
           aria-label={
             cleaningBlock ? "Limpeza pendente neste imóvel"
               : blockCheck ? "Check-in em data futura"
-              : done ? "Reabrir" : "Marcar como realizado"
+              : done ? "Reabrir (marcar pendente)" : "Marcar como concluído"
           }
           title={
             cleaningBlock ? "Limpeza ainda em andamento — check-in bloqueado"
               : blockCheck ? `Só é possível marcar a partir de ${fmtDateBR(row.date)}`
-              : done ? "Reabrir" : "Marcar como realizado"
+              : done ? "Reabrir (voltar para Pendente)" : "Marcar como Concluído"
           }
           className={`size-9 grid place-items-center rounded-lg transition-colors ${
             cleaningBlock
