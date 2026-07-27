@@ -4,18 +4,51 @@ import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import {
-  CalendarCheck, CalendarX, LogIn, LogOut, MessageCircle, StickyNote, Check,
-  AlertTriangle, Clock, Loader2, Home, Info, Sparkles, TrendingUp, Bell,
-  ChevronDown, UserPlus, MapPin, Link as LinkIcon, KeyRound, Eye, Trash2, BedDouble, CheckCircle2,
+  CalendarCheck,
+  CalendarX,
+  LogIn,
+  LogOut,
+  MessageCircle,
+  StickyNote,
+  Check,
+  AlertTriangle,
+  Clock,
+  Loader2,
+  Home,
+  Info,
+  Sparkles,
+  TrendingUp,
+  Bell,
+  ChevronDown,
+  UserPlus,
+  MapPin,
+  Link as LinkIcon,
+  KeyRound,
+  Eye,
+  Trash2,
+  BedDouble,
+  CheckCircle2,
 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { CopyButton } from "@/components/CopyButton";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import {
-  getDashboardKpis, getGuideEngagement, listDashboardArrivals, upsertArrivalStatus, updateGuestStayDates, updateGuestArrivalTime, advanceArrival, revertArrival,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  getDashboardKpis,
+  getGuideEngagement,
+  listDashboardArrivals,
+  upsertArrivalStatus,
+  updateGuestStayDates,
+  updateGuestArrivalTime,
+  advanceArrival,
+  revertArrival,
   type ArrivalRow,
 } from "@/lib/dashboard.functions";
 import { openHandoffDock } from "@/lib/handoff-dock";
@@ -25,18 +58,29 @@ export const Route = createFileRoute("/_authenticated/admin/dashboard")({
   head: () => ({
     meta: [
       { title: "Operação — ConciergeIA" },
-      { name: "description", content: "Painel operacional diário do anfitrião: check-ins, check-outs e engajamento do guia." },
+      {
+        name: "description",
+        content: "Painel operacional diário do anfitrião: check-ins, checkouts e engajamento do guia.",
+      },
     ],
   }),
   component: DashboardPage,
 });
 
 function fmtDateBR(iso: string) {
-  try { const [y, m, d] = iso.split("-"); return `${d}/${m}/${y}`; } catch { return iso; }
+  try {
+    const [y, m, d] = iso.split("-");
+    return `${d}/${m}/${y}`;
+  } catch {
+    return iso;
+  }
 }
 function todayISOSaoPaulo(): string {
   const parts = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "America/Sao_Paulo", year: "numeric", month: "2-digit", day: "2-digit",
+    timeZone: "America/Sao_Paulo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
   }).formatToParts(new Date());
   const pick = (t: string) => parts.find((p) => p.type === t)?.value ?? "";
   return `${pick("year")}-${pick("month")}-${pick("day")}`;
@@ -47,7 +91,14 @@ function addDaysISOLocal(iso: string, days: number): string {
   return d.toISOString().slice(0, 10);
 }
 function initials(name: string) {
-  return name.split(/\s+/).filter(Boolean).slice(0, 2).map((p) => p[0]?.toUpperCase() ?? "").join("") || "?";
+  return (
+    name
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((p) => p[0]?.toUpperCase() ?? "")
+      .join("") || "?"
+  );
 }
 
 /* ---------- Info tooltip ---------- */
@@ -93,10 +144,14 @@ function DashboardPage() {
   const kind: "checkin" | "checkout" = mode === "checkout" || mode === "cleaning" ? "checkout" : "checkin";
   const [range, setRange] = useState<"today" | "tomorrow" | "7d" | "all">("today");
   // Engagement window follows the kanban range: tomorrow/all map to 7d/30d.
-  const engRange: "today" | "7d" | "30d" =
-    range === "today" ? "today" : range === "all" ? "30d" : "7d";
+  const engRange: "today" | "7d" | "30d" = range === "today" ? "today" : range === "all" ? "30d" : "7d";
 
-  const kpisQ = useQuery({ queryKey: ["dash-kpis", activeOwnerId ?? "self"], queryFn: () => kpisFn({ data: { ownerId: activeOwnerId } }), staleTime: 60_000, placeholderData: keepPreviousData });
+  const kpisQ = useQuery({
+    queryKey: ["dash-kpis", activeOwnerId ?? "self"],
+    queryFn: () => kpisFn({ data: { ownerId: activeOwnerId } }),
+    staleTime: 60_000,
+    placeholderData: keepPreviousData,
+  });
   const engQ = useQuery({
     queryKey: ["dash-eng", engRange, activeOwnerId ?? "self"],
     queryFn: () => engFn({ data: { range: engRange, ownerId: activeOwnerId } }),
@@ -143,7 +198,6 @@ function DashboardPage() {
     placeholderData: keepPreviousData,
   });
 
-
   type UpsertPayload = {
     logId?: string;
     reservationId?: string;
@@ -162,7 +216,8 @@ function DashboardPage() {
   });
 
   const advance = useMutation({
-    mutationFn: (v: { logId?: string; reservationId?: string; from: "checkin" | "stay" | "checkout" | "cleaning" }) => advanceFn({ data: v }),
+    mutationFn: (v: { logId?: string; reservationId?: string; from: "checkin" | "stay" | "checkout" | "cleaning" }) =>
+      advanceFn({ data: v }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["dash-list"] });
       qc.invalidateQueries({ queryKey: ["dash-kpis"] });
@@ -182,7 +237,8 @@ function DashboardPage() {
   });
 
   const updateDates = useMutation({
-    mutationFn: (v: { logId: string; checkinDate?: string; checkoutDate?: string | null }) => updateDatesFn({ data: v }),
+    mutationFn: (v: { logId: string; checkinDate?: string; checkoutDate?: string | null }) =>
+      updateDatesFn({ data: v }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["dash-list"] });
       qc.invalidateQueries({ queryKey: ["dash-kpis"] });
@@ -237,15 +293,15 @@ function DashboardPage() {
       .on("postgres_changes", { event: "*", schema: "public", table: "guest_arrival_status" }, invalidate)
       .on("postgres_changes", { event: "*", schema: "public", table: "property_reservations" }, invalidate)
       .subscribe();
-    return () => { supabase.removeChannel(ch); };
+    return () => {
+      supabase.removeChannel(ch);
+    };
   }, [qc]);
-
-
 
   const todayISO = todayISOSaoPaulo();
   const ciRows = checkinListQ.data?.rows ?? [];
   const coRows = checkoutListQ.data?.rows ?? [];
-  // Em Estadia → o hóspede sai automaticamente daqui e entra em Check-outs
+  // Em Estadia → o hóspede sai automaticamente daqui e entra em Checkouts
   // quando a data de checkout chega (ordenação padrão: data → horário → nome).
   const stayRows = useMemo(
     () => ciRows.filter((r) => r.status === "done" && (!r.guestCheckout || r.guestCheckout > todayISO)),
@@ -275,10 +331,11 @@ function DashboardPage() {
     return coRows.filter((r) => r.status === "done");
   }, [mode, ciRows, coRows, stayRows]);
 
-
-
   const rangeLabel: Record<typeof range, string> = {
-    today: "Hoje", tomorrow: "Amanhã", "7d": "7 dias", all: "Todos",
+    today: "Hoje",
+    tomorrow: "Amanhã",
+    "7d": "7 dias",
+    all: "Todos",
   };
 
   return (
@@ -288,61 +345,69 @@ function DashboardPage() {
           <TrendingUp className="size-7 text-muted-foreground" /> Operação
         </h1>
         <p className="text-sm text-muted-foreground mt-1.5">
-          Sua rotina diária: check-ins, check-outs e engajamento do guia.
+          Sua rotina diária: check-ins, checkouts e engajamento do guia.
         </p>
       </header>
-
-
-
-
 
       {/* KPIs */}
       <section className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <KpiCard
-          label="Check-ins hoje" value={kpisQ.data?.checkinsToday} icon={LogIn} tone="primary"
+          label="Check-ins Pendentes"
+          value={kpisQ.data?.checkinsToday}
+          icon={LogIn}
+          tone="primary"
           loading={kpisQ.isLoading}
-          listQuery={kpiTodayQ} kind="checkin"
+          listQuery={kpiTodayQ}
+          kind="checkin"
           rangeLabel="Hoje"
           shadowTone="emerald"
           onEditTime={handleEditTime}
         />
         <KpiCard
-          label="Check-outs hoje" value={kpisQ.data?.checkoutsToday} icon={LogOut} tone="primary"
+          label="Checkouts Pendentes"
+          value={kpisQ.data?.checkoutsToday}
+          icon={LogOut}
+          tone="primary"
           loading={kpisQ.isLoading}
-          listQuery={kpiCoTodayQ} kind="checkout"
+          listQuery={kpiCoTodayQ}
+          kind="checkout"
           rangeLabel="Hoje"
           shadowTone="amber"
           onEditTime={handleEditTime}
         />
         <KpiCard
-          label="Check-ins amanhã" value={kpisQ.data?.checkinsTomorrow} icon={LogIn} tone="primary-soft"
+          label="Check-ins amanhã"
+          value={kpisQ.data?.checkinsTomorrow}
+          icon={LogIn}
+          tone="primary-soft"
           loading={kpisQ.isLoading}
-          listQuery={kpiTomorrowQ} kind="checkin"
+          listQuery={kpiTomorrowQ}
+          kind="checkin"
           rangeLabel="Amanhã"
           onEditTime={handleEditTime}
         />
         <KpiCard
-          label="Check-outs amanhã" value={kpisQ.data?.checkoutsTomorrow} icon={LogOut} tone="primary-soft"
+          label="Checkouts amanhã"
+          value={kpisQ.data?.checkoutsTomorrow}
+          icon={LogOut}
+          tone="primary-soft"
           loading={kpisQ.isLoading}
-          listQuery={kpiCoTomorrowQ} kind="checkout"
+          listQuery={kpiCoTomorrowQ}
+          kind="checkout"
           rangeLabel="Amanhã"
           onEditTime={handleEditTime}
         />
       </section>
 
-
       {/* Engagement */}
       <section className="rounded-2xl border border-border bg-card p-4 sm:p-5 space-y-4 shadow-sm">
-
         <div className="relative flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-start gap-2 min-w-0">
             <div className="size-9 rounded-xl bg-primary/10 text-primary grid place-items-center shrink-0 ring-1 ring-primary/15">
               <TrendingUp className="size-4" />
             </div>
             <div className="min-w-0">
-              <div className="text-sm font-semibold">
-                Engajamento do guia
-              </div>
+              <div className="text-sm font-semibold">Engajamento do guia</div>
               <div className="text-xs text-muted-foreground">Comparativo com os check-ins do período</div>
             </div>
           </div>
@@ -366,7 +431,7 @@ function DashboardPage() {
             onChange={setMode}
             options={[
               { value: "checkin", label: "Check-ins", icon: CalendarCheck, count: counts.checkin },
-              { value: "checkout", label: "Check-outs", icon: CalendarX, count: counts.checkout },
+              { value: "checkout", label: "Checkouts", icon: CalendarX, count: counts.checkout },
               { value: "stay", label: "Em Estadia", icon: BedDouble, count: counts.stay },
               { value: "cleaning", label: "Em Limpeza", icon: Sparkles, count: counts.cleaning },
             ]}
@@ -375,20 +440,22 @@ function DashboardPage() {
             <RangeDropdown
               value={range}
               onChange={setRange}
-              options={[["today", "Hoje"], ["tomorrow", "Amanhã"], ["7d", "7 dias"], ["all", "Todos"]]}
+              options={[
+                ["today", "Hoje"],
+                ["tomorrow", "Amanhã"],
+                ["7d", "7 dias"],
+                ["all", "Todos"],
+              ]}
             />
           </div>
         </div>
-
 
         {listQ.isLoading ? (
           <div className="py-12 grid place-items-center text-muted-foreground text-sm">
             <Loader2 className="size-5 animate-spin" />
           </div>
         ) : boardRows.length === 0 ? (
-          <div className="py-12 text-center text-sm text-muted-foreground">
-            Nenhum registro no período.
-          </div>
+          <div className="py-12 text-center text-sm text-muted-foreground">Nenhum registro no período.</div>
         ) : (
           <div className="relative space-y-6">
             <ArrivalGroup
@@ -409,7 +476,6 @@ function DashboardPage() {
               muted={mode === "stay" || mode === "cleaning"}
               cleaningPendingPropIds={cleaningPendingPropIds}
             />
-
           </div>
         )}
       </section>
@@ -419,39 +485,59 @@ function DashboardPage() {
 
 /* ------------------------- UI Building Blocks ------------------------- */
 
-function KpiCard({ label, value, icon: Icon, tone, loading, listQuery, kind, rangeLabel, shadowTone, onEditTime }: {
-  label: string; value: number | undefined; icon: React.ElementType;
-  tone: "primary" | "primary-soft"; loading: boolean;
+function KpiCard({
+  label,
+  value,
+  icon: Icon,
+  tone,
+  loading,
+  listQuery,
+  kind,
+  rangeLabel,
+  shadowTone,
+  onEditTime,
+}: {
+  label: string;
+  value: number | undefined;
+  icon: React.ElementType;
+  tone: "primary" | "primary-soft";
+  loading: boolean;
   listQuery: ReturnType<typeof useQuery<{ rows: ArrivalRow[] } | undefined>>;
-  kind: "checkin" | "checkout"; rangeLabel: string;
+  kind: "checkin" | "checkout";
+  rangeLabel: string;
   shadowTone?: "emerald" | "amber";
   onEditTime: (row: ArrivalRow, kind: "checkin" | "checkout", time: string | null) => void;
 }) {
   const [open, setOpen] = useState(false);
   const valueTone = tone === "primary" ? "text-primary" : "text-foreground";
-  // O popover deve refletir exatamente o KPI acima (ex.: "Check-outs hoje = 2"
+  // O popover deve refletir exatamente o KPI acima (ex.: "Checkouts Pendentes = 2"
   // não pode listar checkouts de dias anteriores já feitos). A query traz -30d
   // para alimentar o kanban; aqui filtramos pela data-alvo do card.
   const _todayISO = todayISOSaoPaulo();
-  const targetDate =
-    rangeLabel === "Hoje" ? _todayISO
-      : rangeLabel === "Amanhã" ? addDaysISOLocal(_todayISO, 1)
-      : null;
+  const targetDate = rangeLabel === "Hoje" ? _todayISO : rangeLabel === "Amanhã" ? addDaysISOLocal(_todayISO, 1) : null;
   const allRows = listQuery.data?.rows ?? [];
   const rows = targetDate ? allRows.filter((r) => r.date === targetDate) : allRows;
   const valueColor =
-    shadowTone === "emerald" ? "text-emerald-600 dark:text-emerald-400"
-      : shadowTone === "amber" ? "text-amber-600 dark:text-amber-400"
-      : valueTone;
+    shadowTone === "emerald"
+      ? "text-emerald-600 dark:text-emerald-400"
+      : shadowTone === "amber"
+        ? "text-amber-600 dark:text-amber-400"
+        : valueTone;
   const shadowClass =
     shadowTone === "emerald"
       ? "shadow-[0_18px_42px_-18px_rgba(16,185,129,0.85),0_0_0_1px_rgba(16,185,129,0.10)] hover:shadow-[0_22px_52px_-18px_rgba(16,185,129,0.95),0_0_0_1px_rgba(16,185,129,0.16)]"
       : shadowTone === "amber"
-      ? "shadow-[0_18px_42px_-18px_rgba(245,158,11,0.85),0_0_0_1px_rgba(245,158,11,0.10)] hover:shadow-[0_22px_52px_-18px_rgba(245,158,11,0.95),0_0_0_1px_rgba(245,158,11,0.16)]"
-      : "shadow-sm hover:shadow-md";
+        ? "shadow-[0_18px_42px_-18px_rgba(245,158,11,0.85),0_0_0_1px_rgba(245,158,11,0.10)] hover:shadow-[0_22px_52px_-18px_rgba(245,158,11,0.95),0_0_0_1px_rgba(245,158,11,0.16)]"
+        : "shadow-sm hover:shadow-md";
 
   return (
-    <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (v) listQuery.refetch(); }}>
+    <Dialog
+      open={open}
+      onOpenChange={(v) => {
+        setOpen(v);
+        if (v) listQuery.refetch();
+      }}
+    >
       <DialogTrigger asChild>
         <button
           type="button"
@@ -460,16 +546,18 @@ function KpiCard({ label, value, icon: Icon, tone, loading, listQuery, kind, ran
           <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.16em] text-muted-foreground font-semibold">
             <Icon className="size-3.5" /> <span className="truncate">{label}</span>
           </div>
-          <div className={`text-2xl font-display mt-1 tabular-nums ${valueColor}`}>
-            {loading ? "—" : value ?? 0}
-          </div>
+          <div className={`text-2xl font-display mt-1 tabular-nums ${valueColor}`}>{loading ? "—" : (value ?? 0)}</div>
         </button>
       </DialogTrigger>
       <DialogContent className="w-[calc(100vw-1.5rem)] sm:w-full sm:max-w-md p-0 overflow-hidden rounded-2xl border-border/60 bg-card/95 backdrop-blur-xl shadow-2xl">
-        <div className={`absolute inset-x-0 top-0 h-px ${shadowTone === "emerald" ? "bg-gradient-to-r from-transparent via-emerald-500/60 to-transparent" : shadowTone === "amber" ? "bg-gradient-to-r from-transparent via-amber-500/60 to-transparent" : "bg-gradient-to-r from-transparent via-primary/50 to-transparent"}`} />
+        <div
+          className={`absolute inset-x-0 top-0 h-px ${shadowTone === "emerald" ? "bg-gradient-to-r from-transparent via-emerald-500/60 to-transparent" : shadowTone === "amber" ? "bg-gradient-to-r from-transparent via-amber-500/60 to-transparent" : "bg-gradient-to-r from-transparent via-primary/50 to-transparent"}`}
+        />
         <DialogHeader className="px-5 pt-5 pb-4">
           <div className="flex items-center gap-3">
-            <div className={`grid place-items-center size-10 rounded-xl ${shadowTone === "emerald" ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" : shadowTone === "amber" ? "bg-amber-500/10 text-amber-600 dark:text-amber-400" : "bg-primary/10 text-primary"}`}>
+            <div
+              className={`grid place-items-center size-10 rounded-xl ${shadowTone === "emerald" ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" : shadowTone === "amber" ? "bg-amber-500/10 text-amber-600 dark:text-amber-400" : "bg-primary/10 text-primary"}`}
+            >
               <Icon className="size-5" />
             </div>
             <div className="min-w-0">
@@ -482,7 +570,9 @@ function KpiCard({ label, value, icon: Icon, tone, loading, listQuery, kind, ran
         </DialogHeader>
         <div className="max-h-[70vh] overflow-y-auto px-3 pb-4">
           {listQuery.isFetching ? (
-            <div className="py-14 grid place-items-center text-muted-foreground"><Loader2 className="size-5 animate-spin" /></div>
+            <div className="py-14 grid place-items-center text-muted-foreground">
+              <Loader2 className="size-5 animate-spin" />
+            </div>
           ) : rows.length === 0 ? (
             <div className="py-12 text-center text-sm text-muted-foreground">Nenhum registro no período.</div>
           ) : (
@@ -490,18 +580,27 @@ function KpiCard({ label, value, icon: Icon, tone, loading, listQuery, kind, ran
               {rows.map((r) => {
                 const time = r.arrivalTimeOverride ?? r.guestArrivalTime ?? null;
                 const done = r.status === "done";
-                const initials = (r.guestName || "?")
-                  .split(/\s+/).filter(Boolean).slice(0, 2).map((s) => s[0]?.toUpperCase() ?? "").join("") || "?";
+                const initials =
+                  (r.guestName || "?")
+                    .split(/\s+/)
+                    .filter(Boolean)
+                    .slice(0, 2)
+                    .map((s) => s[0]?.toUpperCase() ?? "")
+                    .join("") || "?";
                 return (
                   <li
                     key={r.logId}
                     className="group flex items-center gap-2 rounded-xl border border-border/50 bg-background/40 px-2.5 py-2 transition hover:border-border hover:bg-secondary/40"
                   >
-                    <div className={`grid place-items-center size-8 rounded-full text-xs font-semibold shrink-0 ${r.pendingFill ? "bg-muted text-muted-foreground" : "bg-primary/10 text-primary"}`}>
+                    <div
+                      className={`grid place-items-center size-8 rounded-full text-xs font-semibold shrink-0 ${r.pendingFill ? "bg-muted text-muted-foreground" : "bg-primary/10 text-primary"}`}
+                    >
                       {r.pendingFill ? <UserPlus className="size-4" /> : initials}
                     </div>
                     <div className="min-w-0 flex-1">
-                      <div className={`text-sm font-medium leading-tight truncate flex items-center gap-1.5 ${r.pendingFill ? "text-muted-foreground italic" : ""}`}>
+                      <div
+                        className={`text-sm font-medium leading-tight truncate flex items-center gap-1.5 ${r.pendingFill ? "text-muted-foreground italic" : ""}`}
+                      >
                         {r.pendingFill || !r.guestName || r.guestName === r.reservationCode ? (
                           r.reservationCode ? (
                             <span className="inline-flex items-center gap-0.5 text-foreground font-semibold not-italic shrink-0">
@@ -523,16 +622,10 @@ function KpiCard({ label, value, icon: Icon, tone, loading, listQuery, kind, ran
                           </>
                         )}
                       </div>
-                      <div className="text-[11px] text-muted-foreground truncate mt-0.5">
-                        {r.propertyName ?? "—"}
-                      </div>
+                      <div className="text-[11px] text-muted-foreground truncate mt-0.5">{r.propertyName ?? "—"}</div>
                     </div>
                     <div className="flex flex-col items-end gap-0.5 shrink-0">
-                      <TimeDropdown
-                        value={time}
-                        onChange={(v) => onEditTime(r, kind, v)}
-                        size="xs"
-                      />
+                      <TimeDropdown value={time} onChange={(v) => onEditTime(r, kind, v)} size="xs" />
                       {done ? (
                         <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
                           <Check className="size-3" /> Concluído
@@ -549,12 +642,17 @@ function KpiCard({ label, value, icon: Icon, tone, loading, listQuery, kind, ran
         </div>
       </DialogContent>
     </Dialog>
-
   );
 }
 
-function RangeDropdown<T extends string>({ value, onChange, options }: {
-  value: T; onChange: (v: T) => void; options: Array<[T, string]>;
+function RangeDropdown<T extends string>({
+  value,
+  onChange,
+  options,
+}: {
+  value: T;
+  onChange: (v: T) => void;
+  options: Array<[T, string]>;
 }) {
   const current = options.find((o) => o[0] === value)?.[1] ?? "";
   return (
@@ -582,7 +680,11 @@ function RangeDropdown<T extends string>({ value, onChange, options }: {
   );
 }
 
-function ModeDropdown<T extends string>({ value, onChange, options }: {
+function ModeDropdown<T extends string>({
+  value,
+  onChange,
+  options,
+}: {
   value: T;
   onChange: (v: T) => void;
   options: Array<{ value: T; label: string; icon: React.ElementType; count: number }>;
@@ -623,7 +725,19 @@ function ModeDropdown<T extends string>({ value, onChange, options }: {
   );
 }
 
-function SegBtn({ active, onClick, icon: Icon, count, children }: { active: boolean; onClick: () => void; icon: React.ElementType; count?: number; children: React.ReactNode }) {
+function SegBtn({
+  active,
+  onClick,
+  icon: Icon,
+  count,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  icon: React.ElementType;
+  count?: number;
+  children: React.ReactNode;
+}) {
   return (
     <button
       onClick={onClick}
@@ -642,12 +756,25 @@ function SegBtn({ active, onClick, icon: Icon, count, children }: { active: bool
   );
 }
 
-function EngagementBars({ loading, checkins, guideOpens, checkinTabOpens }: {
-  loading: boolean; checkins: number; guideOpens: number; checkinTabOpens: number;
+function EngagementBars({
+  loading,
+  checkins,
+  guideOpens,
+  checkinTabOpens,
+}: {
+  loading: boolean;
+  checkins: number;
+  guideOpens: number;
+  checkinTabOpens: number;
 }) {
   const base = Math.max(checkins, 1);
   const bar = (num: number) => Math.min(100, Math.round((num / base) * 100));
-  if (loading) return <div className="py-6 text-center text-sm text-muted-foreground"><Loader2 className="size-4 inline animate-spin" /></div>;
+  if (loading)
+    return (
+      <div className="py-6 text-center text-sm text-muted-foreground">
+        <Loader2 className="size-4 inline animate-spin" />
+      </div>
+    );
   return (
     <div className="relative space-y-4">
       <BarRow label="Acessos ao guia" value={guideOpens} total={checkins} pct={bar(guideOpens)} />
@@ -660,7 +787,9 @@ function BarRow({ label, value, total, pct }: { label: string; value: number; to
     <div className="space-y-1.5">
       <div className="flex items-center justify-between text-sm">
         <span className="font-medium">{label}</span>
-        <span className="tabular-nums text-muted-foreground text-xs">{value} / {total} check-ins</span>
+        <span className="tabular-nums text-muted-foreground text-xs">
+          {value} / {total} check-ins
+        </span>
       </div>
       {/* Battery: red base, green fill overlay */}
       <div className="h-2.5 rounded-full bg-rose-500/70 overflow-hidden ring-1 ring-rose-500/20">
@@ -673,7 +802,20 @@ function BarRow({ label, value, total, pct }: { label: string; value: number; to
   );
 }
 
-function ArrivalGroup({ title, rows, kind, mode, onMark, onSyncIcal, onNote, onEditDates, onEditTime, busy, muted, cleaningPendingPropIds }: {
+function ArrivalGroup({
+  title,
+  rows,
+  kind,
+  mode,
+  onMark,
+  onSyncIcal,
+  onNote,
+  onEditDates,
+  onEditTime,
+  busy,
+  muted,
+  cleaningPendingPropIds,
+}: {
   title: string;
   rows: ArrivalRow[];
   kind: "checkin" | "checkout";
@@ -709,9 +851,20 @@ function ArrivalGroup({ title, rows, kind, mode, onMark, onSyncIcal, onNote, onE
   );
 }
 
-
-function ArrivalCard({ row, kind, mode, onMark, onSyncIcal, onNote, onEditDates, onEditTime, busy, cleaningBlocked }: {
-  row: ArrivalRow; kind: "checkin" | "checkout";
+function ArrivalCard({
+  row,
+  kind,
+  mode,
+  onMark,
+  onSyncIcal,
+  onNote,
+  onEditDates,
+  onEditTime,
+  busy,
+  cleaningBlocked,
+}: {
+  row: ArrivalRow;
+  kind: "checkin" | "checkout";
   mode: "checkin" | "checkout" | "stay" | "cleaning";
   onMark: (r: ArrivalRow) => void;
   onSyncIcal: (r: ArrivalRow) => void;
@@ -721,16 +874,16 @@ function ArrivalCard({ row, kind, mode, onMark, onSyncIcal, onNote, onEditDates,
   busy: boolean;
   cleaningBlocked?: "checkout" | "cleaning" | null;
 }) {
-
   const [noteOpen, setNoteOpen] = useState(false);
   const [noteText, setNoteText] = useState(row.note ?? "");
   const guestTime = row.arrivalTimeOverride ?? row.guestArrivalTime;
   const stdWindow = row.standardTime
-    ? row.standardTimeMax ? `${row.standardTime} – ${row.standardTimeMax}` : row.standardTime
+    ? row.standardTimeMax
+      ? `${row.standardTime} – ${row.standardTimeMax}`
+      : row.standardTime
     : null;
   const divergent =
-    !!guestTime && !!row.standardTime &&
-    !isTimeWithin(guestTime, row.standardTime, row.standardTimeMax);
+    !!guestTime && !!row.standardTime && !isTimeWithin(guestTime, row.standardTime, row.standardTimeMax);
 
   const done = row.status === "done";
   const visualDone = done && mode !== "cleaning";
@@ -744,26 +897,37 @@ function ArrivalCard({ row, kind, mode, onMark, onSyncIcal, onNote, onEditDates,
   const blockCheck = (kind === "checkin" && !done && isFuture) || cleaningBlock;
 
   // Prefer garage address when available for logistics
-  const mapsHref = row.garageMapsUrl ?? row.mapsUrl ?? (row.propertyAddress ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(row.propertyAddress)}` : null);
+  const mapsHref =
+    row.garageMapsUrl ??
+    row.mapsUrl ??
+    (row.propertyAddress
+      ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(row.propertyAddress)}`
+      : null);
   const copyText = mapsHref ?? row.propertyAddress ?? "";
   const copyLink = async () => {
     if (!copyText) return;
-    try { await navigator.clipboard.writeText(copyText); toast.success("Link copiado."); }
-    catch { toast.error("Não foi possível copiar."); }
+    try {
+      await navigator.clipboard.writeText(copyText);
+      toast.success("Link copiado.");
+    } catch {
+      toast.error("Não foi possível copiar.");
+    }
   };
 
   return (
-    <div className={`group relative h-full flex flex-col overflow-hidden rounded-2xl border p-4 gap-3 transition-all ${
-      visualDone
-        ? "bg-secondary/30 border-border/50"
-        : isOverdue
-        ? "bg-[linear-gradient(135deg,color-mix(in_oklab,#ef4444_28%,transparent),color-mix(in_oklab,#ef4444_12%,transparent))] border-red-500/70 shadow-[0_12px_32px_-14px_rgba(239,68,68,0.55)] ring-1 ring-red-500/30"
-        : isFuture
-        ? "bg-[linear-gradient(135deg,color-mix(in_oklab,#f59e0b_22%,transparent),color-mix(in_oklab,#f59e0b_8%,transparent))] border-amber-500/60 shadow-[0_10px_28px_-16px_rgba(245,158,11,0.55)] ring-1 ring-amber-500/25"
-        : isToday
-        ? "bg-[linear-gradient(135deg,color-mix(in_oklab,var(--primary)_7%,transparent),color-mix(in_oklab,var(--primary)_2%,transparent))] border-primary/25 shadow-[0_10px_28px_-16px_color-mix(in_oklab,var(--primary)_28%,transparent),0_1px_4px_-2px_color-mix(in_oklab,var(--primary)_14%,transparent)] hover:shadow-[0_12px_32px_-16px_color-mix(in_oklab,var(--primary)_36%,transparent)] hover:-translate-y-0.5"
-        : "bg-[linear-gradient(135deg,color-mix(in_oklab,var(--primary)_5%,transparent),color-mix(in_oklab,var(--primary)_1%,transparent))] border-primary/15 shadow-sm hover:shadow-md hover:-translate-y-0.5"
-    }`}>
+    <div
+      className={`group relative h-full flex flex-col overflow-hidden rounded-2xl border p-4 gap-3 transition-all ${
+        visualDone
+          ? "bg-secondary/30 border-border/50"
+          : isOverdue
+            ? "bg-[linear-gradient(135deg,color-mix(in_oklab,#ef4444_28%,transparent),color-mix(in_oklab,#ef4444_12%,transparent))] border-red-500/70 shadow-[0_12px_32px_-14px_rgba(239,68,68,0.55)] ring-1 ring-red-500/30"
+            : isFuture
+              ? "bg-[linear-gradient(135deg,color-mix(in_oklab,#f59e0b_22%,transparent),color-mix(in_oklab,#f59e0b_8%,transparent))] border-amber-500/60 shadow-[0_10px_28px_-16px_rgba(245,158,11,0.55)] ring-1 ring-amber-500/25"
+              : isToday
+                ? "bg-[linear-gradient(135deg,color-mix(in_oklab,var(--primary)_7%,transparent),color-mix(in_oklab,var(--primary)_2%,transparent))] border-primary/25 shadow-[0_10px_28px_-16px_color-mix(in_oklab,var(--primary)_28%,transparent),0_1px_4px_-2px_color-mix(in_oklab,var(--primary)_14%,transparent)] hover:shadow-[0_12px_32px_-16px_color-mix(in_oklab,var(--primary)_36%,transparent)] hover:-translate-y-0.5"
+                : "bg-[linear-gradient(135deg,color-mix(in_oklab,var(--primary)_5%,transparent),color-mix(in_oklab,var(--primary)_1%,transparent))] border-primary/15 shadow-sm hover:shadow-md hover:-translate-y-0.5"
+      }`}
+    >
       {isOverdue && !visualDone && (
         <div className="absolute top-2 right-2 z-10 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider bg-red-500/15 text-red-600 dark:text-red-400 border border-red-500/40">
           <AlertTriangle className="size-3" /> Atrasado
@@ -777,28 +941,35 @@ function ArrivalCard({ row, kind, mode, onMark, onSyncIcal, onNote, onEditDates,
 
       {!done && (
         <>
-          <span aria-hidden className="absolute left-0 top-4 bottom-4 w-0.5 rounded-r bg-gradient-to-b from-primary/70 to-primary/30" />
-          <span aria-hidden className={`pointer-events-none absolute top-0 right-0 -translate-y-1/3 translate-x-1/3 rounded-full blur-2xl ${isToday ? "size-40 bg-primary/[0.14]" : "size-32 bg-primary/[0.07]"}`} />
+          <span
+            aria-hidden
+            className="absolute left-0 top-4 bottom-4 w-0.5 rounded-r bg-gradient-to-b from-primary/70 to-primary/30"
+          />
+          <span
+            aria-hidden
+            className={`pointer-events-none absolute top-0 right-0 -translate-y-1/3 translate-x-1/3 rounded-full blur-2xl ${isToday ? "size-40 bg-primary/[0.14]" : "size-32 bg-primary/[0.07]"}`}
+          />
         </>
       )}
 
       {/* Header: avatar + name + property + inline date range */}
       <div className="flex items-center gap-3">
-        <div className={`size-11 rounded-xl grid place-items-center font-semibold shrink-0 ring-1 ${
-          isPendingFill
-            ? "bg-primary/5 text-primary/70 ring-primary/10"
-            : "bg-gradient-to-br from-primary/25 to-primary/5 text-primary ring-primary/15"
-        }`}>
+        <div
+          className={`size-11 rounded-xl grid place-items-center font-semibold shrink-0 ring-1 ${
+            isPendingFill
+              ? "bg-primary/5 text-primary/70 ring-primary/10"
+              : "bg-gradient-to-br from-primary/25 to-primary/5 text-primary ring-primary/15"
+          }`}
+        >
           {isPendingFill ? <UserPlus className="size-5" /> : initials(row.guestName)}
         </div>
         <div className="flex-1 min-w-0">
-          <div
-            className="font-semibold truncate text-foreground"
-            title={row.propertyName ?? undefined}
-          >
+          <div className="font-semibold truncate text-foreground" title={row.propertyName ?? undefined}>
             {row.propertyName ?? "Sem nome"}
           </div>
-          <div className={`text-xs truncate flex items-center gap-1 ${isPendingFill ? "text-orange-500 font-medium" : "text-muted-foreground"}`}>
+          <div
+            className={`text-xs truncate flex items-center gap-1 ${isPendingFill ? "text-orange-500 font-medium" : "text-muted-foreground"}`}
+          >
             {isPendingFill ? (
               <>
                 <UserPlus className="size-3 shrink-0" />
@@ -843,9 +1014,7 @@ function ArrivalCard({ row, kind, mode, onMark, onSyncIcal, onNote, onEditDates,
             </div>
           )}
         </div>
-
       </div>
-
 
       {/* Padrão / Previsto — sempre no topo para manter alinhamento entre cards */}
       {mode !== "cleaning" && (
@@ -853,21 +1022,23 @@ function ArrivalCard({ row, kind, mode, onMark, onSyncIcal, onNote, onEditDates,
           <div className="rounded-lg bg-background/50 border border-border/40 p-2 backdrop-blur-sm">
             <div className="text-[10px] uppercase tracking-wider text-muted-foreground flex items-center justify-between">
               <span>Padrão</span>
-              <InfoHint title="Horário padrão">Janela configurada na propriedade. Base para detectar divergências.</InfoHint>
+              <InfoHint title="Horário padrão">
+                Janela configurada na propriedade. Base para detectar divergências.
+              </InfoHint>
             </div>
             <div className="mt-0.5 tabular-nums">{stdWindow ?? "—"}</div>
           </div>
-          <div className={`rounded-lg p-2 backdrop-blur-sm ${divergent ? "bg-amber-500/10 border border-amber-500/30" : "bg-background/50 border border-border/40"}`}>
+          <div
+            className={`rounded-lg p-2 backdrop-blur-sm ${divergent ? "bg-amber-500/10 border border-amber-500/30" : "bg-background/50 border border-border/40"}`}
+          >
             <div className="text-[10px] uppercase tracking-wider text-muted-foreground flex items-center justify-between">
               <span>Previsto</span>
-              <InfoHint title="Horário previsto">Selecione o horário (30 em 30 min). A alteração reordena o kanban imediatamente.</InfoHint>
+              <InfoHint title="Horário previsto">
+                Selecione o horário (30 em 30 min). A alteração reordena o kanban imediatamente.
+              </InfoHint>
             </div>
             <div className="mt-0.5">
-              <TimeDropdown
-                value={guestTime ?? null}
-                disabled={busy}
-                onChange={(v) => onEditTime(row, v)}
-              />
+              <TimeDropdown value={guestTime ?? null} disabled={busy} onChange={(v) => onEditTime(row, v)} />
             </div>
           </div>
         </div>
@@ -889,69 +1060,79 @@ function ArrivalCard({ row, kind, mode, onMark, onSyncIcal, onNote, onEditDates,
         </div>
       )}
 
-
-      {row.ical.hasIcal && !isPendingFill && (() => {
-        const gIn = row.guestCheckin;
-        const gOut = row.guestCheckout;
-        const iIn = row.ical.icalCheckin;
-        const iOut = row.ical.icalCheckout;
-        const anyDivergent = row.ical.matched && ((iIn && iIn !== gIn) || (iOut && gOut && iOut !== gOut));
-        if (!anyDivergent && row.ical.matched) {
+      {row.ical.hasIcal &&
+        !isPendingFill &&
+        (() => {
+          const gIn = row.guestCheckin;
+          const gOut = row.guestCheckout;
+          const iIn = row.ical.icalCheckin;
+          const iOut = row.ical.icalCheckout;
+          const anyDivergent = row.ical.matched && ((iIn && iIn !== gIn) || (iOut && gOut && iOut !== gOut));
+          if (!anyDivergent && row.ical.matched) {
+            return (
+              <div className="w-full text-xs rounded-lg bg-emerald-500/10 border border-emerald-500/30 px-2 py-1.5 flex items-center gap-2 text-emerald-700 dark:text-emerald-400">
+                <CheckCircle2 className="size-3.5 shrink-0" />
+                <span>Confirmado via Airbnb</span>
+              </div>
+            );
+          }
+          const fmtRange = (a: string | null, b: string | null) =>
+            `${a ? fmtDateBR(a) : "?"} a ${b ? fmtDateBR(b) : "?"}`;
           return (
-            <div className="w-full text-xs rounded-lg bg-emerald-500/10 border border-emerald-500/30 px-2 py-1.5 flex items-center gap-2 text-emerald-700 dark:text-emerald-400">
-              <CheckCircle2 className="size-3.5 shrink-0" />
-              <span>Confirmado via Airbnb</span>
-            </div>
-          );
-        }
-        const fmtRange = (a: string | null, b: string | null) =>
-          `${a ? fmtDateBR(a) : "?"} a ${b ? fmtDateBR(b) : "?"}`;
-        return (
-          <div className="w-full text-xs rounded-lg px-2 py-1.5 flex items-start gap-2 bg-red-500/10 text-red-700 dark:text-red-400 border border-red-500/40">
-            <AlertTriangle className="size-3.5 shrink-0 mt-0.5" />
-            <div className="min-w-0 flex-1 leading-snug">
-              {anyDivergent ? (
-                <>
-                  <div className="font-semibold">Data Divergente Hóspede-Airbnb</div>
-                  <div className="tabular-nums">Informada: {fmtRange(gIn, gOut)}</div>
-                  <div className="tabular-nums">Correta: {fmtRange(iIn, iOut)}</div>
-                </>
-              ) : (
-                <div>Sem reserva correspondente no iCal Airbnb</div>
+            <div className="w-full text-xs rounded-lg px-2 py-1.5 flex items-start gap-2 bg-red-500/10 text-red-700 dark:text-red-400 border border-red-500/40">
+              <AlertTriangle className="size-3.5 shrink-0 mt-0.5" />
+              <div className="min-w-0 flex-1 leading-snug">
+                {anyDivergent ? (
+                  <>
+                    <div className="font-semibold">Data Divergente Hóspede-Airbnb</div>
+                    <div className="tabular-nums">Informada: {fmtRange(gIn, gOut)}</div>
+                    <div className="tabular-nums">Correta: {fmtRange(iIn, iOut)}</div>
+                  </>
+                ) : (
+                  <div>Sem reserva correspondente no iCal Airbnb</div>
+                )}
+              </div>
+              {anyDivergent && (
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() =>
+                    onEditDates(row, {
+                      ...(iIn && iIn !== gIn ? { checkinDate: iIn } : {}),
+                      ...(iOut && gOut && iOut !== gOut ? { checkoutDate: iOut } : {}),
+                    })
+                  }
+                  className="text-xs underline underline-offset-2 hover:no-underline shrink-0 mt-0.5"
+                >
+                  Usar Airbnb
+                </button>
               )}
             </div>
-            {anyDivergent && (
-              <button
-                type="button"
-                disabled={busy}
-                onClick={() => onEditDates(row, {
-                  ...(iIn && iIn !== gIn ? { checkinDate: iIn } : {}),
-                  ...(iOut && gOut && iOut !== gOut ? { checkoutDate: iOut } : {}),
-                })}
-                className="text-xs underline underline-offset-2 hover:no-underline shrink-0 mt-0.5"
-              >Usar Airbnb</button>
-            )}
-          </div>
-        );
-      })()}
-
-
+          );
+        })()}
 
       {divergent && !isPendingFill && !done && (
         <div className="w-full text-xs rounded-lg bg-amber-500/10 border border-amber-500/30 px-2 py-1.5 flex items-center justify-between gap-2">
-          <span className="flex items-center gap-1.5"><AlertTriangle className="size-3.5" /> Horário divergente do padrão</span>
+          <span className="flex items-center gap-1.5">
+            <AlertTriangle className="size-3.5" /> Horário divergente do padrão
+          </span>
           <button
             onClick={() => onSyncIcal(row)}
             className="text-xs underline underline-offset-2 hover:no-underline"
             disabled={busy}
-          >Alinhar</button>
+          >
+            Alinhar
+          </button>
         </div>
       )}
 
       {row.note && !noteOpen && (
         <button
           type="button"
-          onClick={() => { setNoteText(row.note ?? ""); setNoteOpen(true); }}
+          onClick={() => {
+            setNoteText(row.note ?? "");
+            setNoteOpen(true);
+          }}
           className="w-full text-left text-xs rounded-lg bg-secondary/40 hover:bg-secondary/60 px-2 py-1.5 flex items-start gap-1.5 transition-colors"
           title="Clique para editar a nota"
         >
@@ -973,19 +1154,34 @@ function ArrivalCard({ row, kind, mode, onMark, onSyncIcal, onNote, onEditDates,
           <div className="flex items-center justify-between gap-2">
             {row.note ? (
               <button
-                onClick={() => { onNote(row, null); setNoteOpen(false); setNoteText(""); }}
+                onClick={() => {
+                  onNote(row, null);
+                  setNoteOpen(false);
+                  setNoteText("");
+                }}
                 className="text-xs px-2 py-1 rounded-md text-rose-600 hover:bg-rose-500/10 inline-flex items-center gap-1"
                 disabled={busy}
                 title="Excluir nota"
-              ><Trash2 className="size-3.5" /> Excluir</button>
-            ) : <span />}
+              >
+                <Trash2 className="size-3.5" /> Excluir
+              </button>
+            ) : (
+              <span />
+            )}
             <div className="flex gap-2">
-              <button onClick={() => setNoteOpen(false)} className="text-xs px-2 py-1 rounded-md hover:bg-secondary">Cancelar</button>
+              <button onClick={() => setNoteOpen(false)} className="text-xs px-2 py-1 rounded-md hover:bg-secondary">
+                Cancelar
+              </button>
               <button
-                onClick={() => { onNote(row, noteText.trim() || null); setNoteOpen(false); }}
+                onClick={() => {
+                  onNote(row, noteText.trim() || null);
+                  setNoteOpen(false);
+                }}
                 className="text-xs px-3 py-1 rounded-md bg-primary text-primary-foreground"
                 disabled={busy}
-              >Salvar</button>
+              >
+                Salvar
+              </button>
             </div>
           </div>
         </div>
@@ -996,14 +1192,17 @@ function ArrivalCard({ row, kind, mode, onMark, onSyncIcal, onNote, onEditDates,
         <button
           onClick={() => {
             if (cleaningBlock) {
-              const msg = blockReason === "checkout"
-                ? "Hóspede anterior ainda não fez check-out. Conclua o check-out e a limpeza para liberar o novo check-in."
-                : "Limpeza deste imóvel ainda não foi concluída. Finalize a limpeza para liberar o check-in.";
+              const msg =
+                blockReason === "checkout"
+                  ? "Hóspede anterior ainda não fez check-out. Conclua o check-out e a limpeza para liberar o novo check-in."
+                  : "Limpeza deste imóvel ainda não foi concluída. Finalize a limpeza para liberar o check-in.";
               toast.warning(msg);
               return;
             }
             if (blockCheck) {
-              toast.warning(`Check-in previsto para ${fmtDateBR(row.date)}. Só é possível marcar a partir do dia da chegada.`);
+              toast.warning(
+                `Check-in previsto para ${fmtDateBR(row.date)}. Só é possível marcar a partir do dia da chegada.`,
+              );
               return;
             }
             onMark(row);
@@ -1011,30 +1210,40 @@ function ArrivalCard({ row, kind, mode, onMark, onSyncIcal, onNote, onEditDates,
           disabled={busy || blockCheck}
           aria-label={
             cleaningBlock
-              ? (blockReason === "checkout" ? "Check-out anterior pendente neste imóvel" : "Limpeza pendente neste imóvel")
-              : blockCheck ? "Check-in em data futura"
-              : mode === "cleaning" ? "Concluir limpeza"
-              : done ? "Reabrir (marcar pendente)" : "Marcar como concluído"
+              ? blockReason === "checkout"
+                ? "Check-out anterior pendente neste imóvel"
+                : "Limpeza pendente neste imóvel"
+              : blockCheck
+                ? "Check-in em data futura"
+                : mode === "cleaning"
+                  ? "Concluir limpeza"
+                  : done
+                    ? "Reabrir (marcar pendente)"
+                    : "Marcar como concluído"
           }
           title={
             cleaningBlock
-              ? (blockReason === "checkout"
-                  ? "Check-out anterior pendente — limpeza precisa ser concluída antes de liberar o check-in"
-                  : "Limpeza ainda em andamento — check-in bloqueado")
-              : blockCheck ? `Só é possível marcar a partir de ${fmtDateBR(row.date)}`
-              : mode === "cleaning" ? "Concluir limpeza (finaliza a estadia)"
-              : done ? "Reabrir (voltar para Pendente)" : "Marcar como Concluído"
+              ? blockReason === "checkout"
+                ? "Check-out anterior pendente — limpeza precisa ser concluída antes de liberar o check-in"
+                : "Limpeza ainda em andamento — check-in bloqueado"
+              : blockCheck
+                ? `Só é possível marcar a partir de ${fmtDateBR(row.date)}`
+                : mode === "cleaning"
+                  ? "Concluir limpeza (finaliza a estadia)"
+                  : done
+                    ? "Reabrir (voltar para Pendente)"
+                    : "Marcar como Concluído"
           }
           className={`size-9 grid place-items-center rounded-lg transition-colors ${
             cleaningBlock
               ? "bg-orange-500/25 text-orange-700 dark:text-orange-400 border border-orange-500/50 cursor-not-allowed"
               : blockCheck
-              ? "bg-amber-500/20 text-amber-700 dark:text-amber-400 border border-amber-500/40 cursor-not-allowed"
-              : mode === "cleaning"
-              ? "bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm shadow-emerald-600/20"
-              : done
-              ? "bg-secondary hover:bg-secondary/80"
-              : "bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm shadow-emerald-600/20"
+                ? "bg-amber-500/20 text-amber-700 dark:text-amber-400 border border-amber-500/40 cursor-not-allowed"
+                : mode === "cleaning"
+                  ? "bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm shadow-emerald-600/20"
+                  : done
+                    ? "bg-secondary hover:bg-secondary/80"
+                    : "bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm shadow-emerald-600/20"
           }`}
         >
           <Check className="size-4" />
@@ -1042,12 +1251,14 @@ function ArrivalCard({ row, kind, mode, onMark, onSyncIcal, onNote, onEditDates,
         {(row.guestPhone || row.guestName) && !isPendingFill && (
           <button
             type="button"
-            onClick={() => openHandoffDock({
-              propertyId: row.propertyId,
-              phone: row.guestPhone,
-              reservationCode: row.reservationCode,
-              guestName: row.guestName,
-            })}
+            onClick={() =>
+              openHandoffDock({
+                propertyId: row.propertyId,
+                phone: row.guestPhone,
+                reservationCode: row.reservationCode,
+                guestName: row.guestName,
+              })
+            }
             aria-label="Falar com hóspede"
             title="Falar com hóspede (chat + WhatsApp integrado)"
             className="size-9 grid place-items-center rounded-lg bg-background/60 border border-border/50 hover:bg-primary/[0.08]"
@@ -1077,7 +1288,9 @@ function ArrivalCard({ row, kind, mode, onMark, onSyncIcal, onNote, onEditDates,
               </button>
             )}
             <a
-              href={mapsHref} target="_blank" rel="noreferrer"
+              href={mapsHref}
+              target="_blank"
+              rel="noreferrer"
               aria-label="Abrir no Google Maps"
               title={row.garageMapsUrl ? "Ver garagem no Maps" : "Ver endereço no Maps"}
               className="h-9 px-3 inline-flex items-center gap-1.5 rounded-lg bg-background/60 border border-border/50 hover:bg-primary/[0.08] text-sm font-medium"
@@ -1091,8 +1304,14 @@ function ArrivalCard({ row, kind, mode, onMark, onSyncIcal, onNote, onEditDates,
   );
 }
 
-function DateEditor({ value, disabled, onChange }: {
-  value: string; disabled: boolean; onChange: (v: string) => void;
+function DateEditor({
+  value,
+  disabled,
+  onChange,
+}: {
+  value: string;
+  disabled: boolean;
+  onChange: (v: string) => void;
 }) {
   return (
     <button
@@ -1130,7 +1349,12 @@ export const TIME_SLOTS = Array.from({ length: 48 }, (_, i) => {
   return `${h}:${m}`;
 });
 
-function TimeDropdown({ value, disabled, onChange, size = "sm" }: {
+function TimeDropdown({
+  value,
+  disabled,
+  onChange,
+  size = "sm",
+}: {
   value: string | null;
   disabled?: boolean;
   onChange: (v: string | null) => void;
@@ -1154,7 +1378,10 @@ function TimeDropdown({ value, disabled, onChange, size = "sm" }: {
       <DropdownMenuContent align="end" className="max-h-64 overflow-y-auto min-w-[6rem] p-1">
         {value && (
           <DropdownMenuItem
-            onClick={(e) => { e.stopPropagation(); onChange(null); }}
+            onClick={(e) => {
+              e.stopPropagation();
+              onChange(null);
+            }}
             className="text-xs text-muted-foreground justify-center"
           >
             Limpar
@@ -1163,7 +1390,10 @@ function TimeDropdown({ value, disabled, onChange, size = "sm" }: {
         {TIME_SLOTS.map((t) => (
           <DropdownMenuItem
             key={t}
-            onClick={(e) => { e.stopPropagation(); onChange(t); }}
+            onClick={(e) => {
+              e.stopPropagation();
+              onChange(t);
+            }}
             className={`tabular-nums text-xs justify-center ${value === t ? "bg-primary/10 text-primary font-medium" : ""}`}
           >
             {t}
@@ -1173,8 +1403,6 @@ function TimeDropdown({ value, disabled, onChange, size = "sm" }: {
     </DropdownMenu>
   );
 }
-
-
 
 function isTimeWithin(t: string, min: string, max: string | null): boolean {
   const toMin = (s: string) => {
