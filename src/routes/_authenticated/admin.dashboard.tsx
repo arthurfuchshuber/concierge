@@ -733,6 +733,7 @@ function ArrivalCard({ row, kind, mode, onMark, onSyncIcal, onNote, onEditDates,
     !isTimeWithin(guestTime, row.standardTime, row.standardTimeMax);
 
   const done = row.status === "done";
+  const visualDone = done && mode !== "cleaning";
   const isPendingFill = row.pendingFill;
   const todayISO = todayISOSaoPaulo();
   const isToday = row.date === todayISO;
@@ -753,7 +754,7 @@ function ArrivalCard({ row, kind, mode, onMark, onSyncIcal, onNote, onEditDates,
 
   return (
     <div className={`group relative h-full flex flex-col overflow-hidden rounded-2xl border p-4 gap-3 transition-all ${
-      done
+      visualDone
         ? "bg-secondary/30 border-border/50"
         : isOverdue
         ? "bg-[linear-gradient(135deg,color-mix(in_oklab,#ef4444_28%,transparent),color-mix(in_oklab,#ef4444_12%,transparent))] border-red-500/70 shadow-[0_12px_32px_-14px_rgba(239,68,68,0.55)] ring-1 ring-red-500/30"
@@ -763,7 +764,7 @@ function ArrivalCard({ row, kind, mode, onMark, onSyncIcal, onNote, onEditDates,
         ? "bg-[linear-gradient(135deg,color-mix(in_oklab,var(--primary)_7%,transparent),color-mix(in_oklab,var(--primary)_2%,transparent))] border-primary/25 shadow-[0_10px_28px_-16px_color-mix(in_oklab,var(--primary)_28%,transparent),0_1px_4px_-2px_color-mix(in_oklab,var(--primary)_14%,transparent)] hover:shadow-[0_12px_32px_-16px_color-mix(in_oklab,var(--primary)_36%,transparent)] hover:-translate-y-0.5"
         : "bg-[linear-gradient(135deg,color-mix(in_oklab,var(--primary)_5%,transparent),color-mix(in_oklab,var(--primary)_1%,transparent))] border-primary/15 shadow-sm hover:shadow-md hover:-translate-y-0.5"
     }`}>
-      {isOverdue && !done && (
+      {isOverdue && !visualDone && (
         <div className="absolute top-2 right-2 z-10 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider bg-red-500/15 text-red-600 dark:text-red-400 border border-red-500/40">
           <AlertTriangle className="size-3" /> Atrasado
         </div>
@@ -888,7 +889,14 @@ function ArrivalCard({ row, kind, mode, onMark, onSyncIcal, onNote, onEditDates,
         const iIn = row.ical.icalCheckin;
         const iOut = row.ical.icalCheckout;
         const anyDivergent = row.ical.matched && ((iIn && iIn !== gIn) || (iOut && gOut && iOut !== gOut));
-        if (!anyDivergent && row.ical.matched) return null;
+        if (!anyDivergent && row.ical.matched) {
+          return (
+            <div className="w-full text-xs rounded-lg bg-emerald-500/10 border border-emerald-500/30 px-2 py-1.5 flex items-center gap-2 text-emerald-700 dark:text-emerald-400">
+              <CheckCircle2 className="size-3.5 shrink-0" />
+              <span>Confirmado via Airbnb</span>
+            </div>
+          );
+        }
         const fmtRange = (a: string | null, b: string | null) =>
           `${a ? fmtDateBR(a) : "?"} a ${b ? fmtDateBR(b) : "?"}`;
         return (
@@ -920,12 +928,6 @@ function ArrivalCard({ row, kind, mode, onMark, onSyncIcal, onNote, onEditDates,
         );
       })()}
 
-      {isPendingFill && mode !== "cleaning" && (
-        <div className="w-full text-xs rounded-lg bg-emerald-500/10 border border-emerald-500/30 px-2 py-1.5 flex items-center gap-2 text-emerald-700 dark:text-emerald-400">
-          <CheckCircle2 className="size-3.5 shrink-0" />
-          <span>Confirmado via Airbnb</span>
-        </div>
-      )}
 
 
       {divergent && !isPendingFill && !done && (
