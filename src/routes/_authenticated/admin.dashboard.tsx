@@ -719,7 +719,7 @@ function ArrivalCard({ row, kind, mode, onMark, onSyncIcal, onNote, onEditDates,
   onEditDates: (r: ArrivalRow, dates: { checkinDate?: string; checkoutDate?: string | null }) => void;
   onEditTime: (r: ArrivalRow, time: string | null) => void;
   busy: boolean;
-  cleaningBlocked?: boolean;
+  cleaningBlocked?: "checkout" | "cleaning" | null;
 }) {
 
   const [noteOpen, setNoteOpen] = useState(false);
@@ -738,7 +738,8 @@ function ArrivalCard({ row, kind, mode, onMark, onSyncIcal, onNote, onEditDates,
   const isToday = row.date === todayISO;
   const isOverdue = row.date < todayISO;
   const isFuture = row.date > todayISO;
-  const cleaningBlock = kind === "checkin" && !done && !isFuture && !!cleaningBlocked;
+  const blockReason = kind === "checkin" && !done && !isFuture ? (cleaningBlocked ?? null) : null;
+  const cleaningBlock = blockReason !== null;
   const blockCheck = (kind === "checkin" && !done && isFuture) || cleaningBlock;
 
   // Prefer garage address when available for logistics
