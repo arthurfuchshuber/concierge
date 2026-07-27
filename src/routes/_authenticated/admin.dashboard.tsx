@@ -244,79 +244,56 @@ function DashboardPage() {
     cleaning: coRows.filter((r) => r.status === "done").length,
   };
 
-  /* ---------- Attention alerts (only the single most important) ---------- */
-  const topAlert = useMemo(() => {
-    const e = engQ.data;
+  /* ---------- Attention alerts (stacked, uma por categoria) ---------- */
+  type AlertStrip = {
+    key: string;
+    tone: "warn" | "success" | "info";
+    icon: typeof AlertTriangle;
+    text: React.ReactNode;
+    items: { propertyName: string; guestName: string; detail: string }[];
+  };
+  const alertStrips = useMemo<AlertStrip[]>(() => {
     const today = new Date().toLocaleDateString("sv-SE");
+    const strips: AlertStrip[] = [];
 
-    // Priority 1: cards atrasados
-    const overdueRows = rows.filter((r) => r.date < today);
-    if (overdueRows.length > 0) {
-      const plural = overdueRows.length > 1;
-      return {
-        tone: "warn" as const, icon: AlertTriangle,
-        text: <><b className="tabular-nums">{overdueRows.length}</b> {plural ? "cards atrasados" : "card atrasado"} — {plural ? "aguardam" : "aguarda"} check.</>,
-        items: overdueRows.map((r) => ({
+    // Fonte de verdade: as listas de "hoje" (que já incluem -30d de lookback)
+    const allCheckins = kpiTodayQ.data?.rows ?? [];
+    const allCheckouts = kpiCoTodayQ.data?.rows ?? [];
+
+    // 1) Check-ins atrasados: pendentes com data anterior a hoje
+    const checkinOverdue = allCheckins.filter((r) => r.status === "pending" && r.date < today);
+    if (checkinOverdue.length > 0) {
+      const plural = checkinOverdue.length > 1;
+      strips.push({
+        key: "checkin-overdue",
+        tone: "warn", icon: AlertTriangle,
+        text: <><b className="tabular-nums">{checkinOverdue.length}</b> {plural ? "check-ins atrasados" : "check-in atrasado"} — {plural ? "aguardam" : "aguarda"} check.</>,
+        items: checkinOverdue.map((r) => ({
           propertyName: r.propertyName ?? "Sem nome",
           guestName: r.pendingFill ? "Hóspede pendente" : (r.guestName || r.reservationCode || "—"),
-          detail: `Previsto ${r.date}${(r.arrivalTimeOverride ?? r.guestArrivalTime) ? ` · ${r.arrivalTimeOverride ?? r.guestArrivalTime}` : ""}`,
+          detail: `Previsto ${fmtDateBR(r.date)}${(r.arrivalTimeOverride ?? r.guestArrivalTime) ? ` · ${r.arrivalTimeOverride ?? r.guestArrivalTime}` : ""}`,
         })),
-      };
+      });
     }
 
-    // Priority 2: horários divergentes do padrão
-    const divergentRows = rows.filter((r) => {
-      const t = r.arrivalTimeOverride ?? r.guestArrivalTime;
-      return t && r.standardTime && !isTimeWithin(t, r.standardTime, r.standardTimeMax);
-    });
-    if (divergentRows.length > 0) {
-      const plural = divergentRows.length > 1;
-      return {
-        tone: "warn" as const, icon: Clock,
-        text: <><b className="tabular-nums">{divergentRows.length}</b> {plural ? "horários divergentes" : "horário divergente"} do padrão.</>,
-        items: divergentRows.map((r) => ({
+    // 2) Limpezas atrasadas: checkouts em limpeza (done) com data anterior a hoje
+    const cleaningOverdue = allCheckouts.filter((r) => r.status === "done" && r.date < today);
+    if (cleaningOverdue.length > 0) {
+      const plural = cleaningOverdue.length > 1;
+      strips.push({
+        key: "cleaning-overdue",
+        tone: "warn", icon: AlertTriangle,
+        text: <><b className="tabular-nums">{cleaningOverdue.length}</b> {plural ? "limpezas atrasadas" : "limpeza atrasada"} — {plural ? "aguardam" : "aguarda"} conclusão.</>,
+        items: cleaningOverdue.map((r) => ({
           propertyName: r.propertyName ?? "Sem nome",
           guestName: r.pendingFill ? "Hóspede pendente" : (r.guestName || r.reservationCode || "—"),
-          detail: `Previsto ${r.arrivalTimeOverride ?? r.guestArrivalTime} · Padrão ${r.standardTime}${r.standardTimeMax ? `–${r.standardTimeMax}` : ""}`,
+          detail: `Checkout ${fmtDateBR(r.date)}`,
         })),
-      };
+      });
     }
 
-    // Priority 3: reservas sem formulário
-    const pendingFillRows = rows.filter((r) => r.pendingFill);
-    if (pendingFillRows.length > 0) {
-      const plural = pendingFillRows.length > 1;
-      return {
-        tone: "warn" as const, icon: UserPlus,
-        text: <><b className="tabular-nums">{pendingFillRows.length}</b> {plural ? "reservas" : "reserva"} sem {plural ? "formulários preenchidos" : "formulário preenchido"} de acesso.</>,
-        items: pendingFillRows.map((r) => ({
-          propertyName: r.propertyName ?? "Sem nome",
-          guestName: r.reservationCode || "Hóspede pendente",
-          detail: `Check-in ${r.guestCheckin ?? r.date}${r.guestCheckout ? ` · Check-out ${r.guestCheckout}` : ""}`,
-        })),
-      };
-    }
-
-    // Priority 4: hóspedes que não abriram a aba Chegada
-    if (e && e.checkinsInPeriod > 0) {
-      const gap = e.checkinsInPeriod - e.checkinTabOpens;
-      if (gap > 0) {
-        const plural = gap > 1;
-        return {
-          tone: "warn" as const, icon: AlertTriangle,
-          text: <><b className="tabular-nums">{gap}</b> {plural ? "hóspedes ainda não abriram" : "hóspede ainda não abriu"} a aba <i>Chegada</i>.</>,
-          items: [] as { propertyName: string; guestName: string; detail: string }[],
-        };
-      }
-      return {
-        tone: "success" as const, icon: Sparkles,
-        text: <>Todos os hóspedes do período abriram a aba <i>Chegada</i>.</>,
-        items: [] as { propertyName: string; guestName: string; detail: string }[],
-      };
-    }
-
-    return null;
-  }, [engQ.data, rows]);
+    return strips;
+  }, [kpiTodayQ.data, kpiCoTodayQ.data]);
 
 
   const rangeLabel: Record<typeof range, string> = {
