@@ -6,7 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   CalendarCheck, CalendarX, LogIn, LogOut, MessageCircle, StickyNote, Check,
   AlertTriangle, Clock, Loader2, Home, Info, Sparkles, TrendingUp, Bell,
-  ChevronDown, UserPlus, MapPin, Link as LinkIcon, KeyRound, Eye, Trash2, BedDouble,
+  ChevronDown, UserPlus, MapPin, Link as LinkIcon, KeyRound, Eye, Trash2, BedDouble, CheckCircle2,
 } from "lucide-react";
 import { toast } from "sonner";
 
