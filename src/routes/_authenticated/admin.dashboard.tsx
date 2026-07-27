@@ -784,6 +784,8 @@ function ArrivalCard({ row, kind, mode, onMark, onSyncIcal, onNote, onEditDates,
   const todayISO = todayISOSaoPaulo();
   const isToday = row.date === todayISO;
   const isOverdue = row.date < todayISO;
+  const isFuture = row.date > todayISO;
+  const blockCheck = kind === "checkin" && !done && isFuture;
 
   // Prefer garage address when available for logistics
   const mapsHref = row.garageMapsUrl ?? row.mapsUrl ?? (row.propertyAddress ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(row.propertyAddress)}` : null);
