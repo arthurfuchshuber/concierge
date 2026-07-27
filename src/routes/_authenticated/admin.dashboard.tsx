@@ -980,6 +980,10 @@ function ArrivalCard({ row, kind, mode, onMark, onSyncIcal, onNote, onEditDates,
       <div className="mt-auto flex flex-wrap items-center gap-2 pt-1">
         <button
           onClick={() => {
+            if (cleaningBlock) {
+              toast.warning("Limpeza deste imóvel ainda não foi concluída. Finalize a limpeza para liberar o check-in.");
+              return;
+            }
             if (blockCheck) {
               toast.warning(`Check-in previsto para ${fmtDateBR(row.date)}. Só é possível marcar a partir do dia da chegada.`);
               return;
@@ -987,10 +991,20 @@ function ArrivalCard({ row, kind, mode, onMark, onSyncIcal, onNote, onEditDates,
             onMark(row);
           }}
           disabled={busy || blockCheck}
-          aria-label={blockCheck ? "Check-in em data futura" : done ? "Reabrir" : "Marcar como realizado"}
-          title={blockCheck ? `Só é possível marcar a partir de ${fmtDateBR(row.date)}` : done ? "Reabrir" : "Marcar como realizado"}
+          aria-label={
+            cleaningBlock ? "Limpeza pendente neste imóvel"
+              : blockCheck ? "Check-in em data futura"
+              : done ? "Reabrir" : "Marcar como realizado"
+          }
+          title={
+            cleaningBlock ? "Limpeza ainda em andamento — check-in bloqueado"
+              : blockCheck ? `Só é possível marcar a partir de ${fmtDateBR(row.date)}`
+              : done ? "Reabrir" : "Marcar como realizado"
+          }
           className={`size-9 grid place-items-center rounded-lg transition-colors ${
-            blockCheck
+            cleaningBlock
+              ? "bg-orange-500/25 text-orange-700 dark:text-orange-400 border border-orange-500/50 cursor-not-allowed"
+              : blockCheck
               ? "bg-amber-500/20 text-amber-700 dark:text-amber-400 border border-amber-500/40 cursor-not-allowed"
               : done
               ? "bg-secondary hover:bg-secondary/80"
