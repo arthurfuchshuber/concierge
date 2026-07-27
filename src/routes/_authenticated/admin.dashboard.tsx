@@ -423,7 +423,16 @@ function KpiCard({ label, value, icon: Icon, tone, loading, listQuery, kind, ran
 }) {
   const [open, setOpen] = useState(false);
   const valueTone = tone === "primary" ? "text-primary" : "text-foreground";
-  const rows = listQuery.data?.rows ?? [];
+  // O popover deve refletir exatamente o KPI acima (ex.: "Check-outs hoje = 2"
+  // não pode listar checkouts de dias anteriores já feitos). A query traz -30d
+  // para alimentar o kanban; aqui filtramos pela data-alvo do card.
+  const _todayISO = todayISOSaoPaulo();
+  const targetDate =
+    rangeLabel === "Hoje" ? _todayISO
+      : rangeLabel === "Amanhã" ? addDaysISOLocal(_todayISO, 1)
+      : null;
+  const allRows = listQuery.data?.rows ?? [];
+  const rows = targetDate ? allRows.filter((r) => r.date === targetDate) : allRows;
   const valueColor =
     shadowTone === "emerald" ? "text-emerald-600 dark:text-emerald-400"
       : shadowTone === "amber" ? "text-amber-600 dark:text-amber-400"
