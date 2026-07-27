@@ -242,70 +242,34 @@ function DashboardPage() {
 
 
 
-  const rows = listQ.data?.rows ?? [];
-  const pending = useMemo(() => rows.filter((r) => r.status === "pending"), [rows]);
-  const done = useMemo(() => rows.filter((r) => r.status === "done"), [rows]);
-  const boardRows = mode === "stay" || mode === "cleaning" ? done : pending;
-
+  const todayISO = todayISOSaoPaulo();
   const ciRows = checkinListQ.data?.rows ?? [];
   const coRows = checkoutListQ.data?.rows ?? [];
+  // Em Estadia → o hóspede sai automaticamente daqui e entra em Check-outs
+  // quando a data de checkout chega (ordenação padrão: data → horário → nome).
+  const stayRows = useMemo(
+    () => ciRows.filter((r) => r.status === "done" && (!r.guestCheckout || r.guestCheckout > todayISO)),
+    [ciRows, todayISO],
+  );
   const counts = {
     checkin: ciRows.filter((r) => r.status === "pending").length,
     checkout: coRows.filter((r) => r.status === "pending").length,
-    stay: ciRows.filter((r) => r.status === "done").length,
+    stay: stayRows.length,
     cleaning: coRows.filter((r) => r.status === "done").length,
   };
+  // Imóveis com limpeza pendente bloqueiam novos check-ins até a limpeza
+  // ser concluída (evita liberar hóspede em imóvel ainda sujo).
+  const cleaningPendingPropIds = useMemo(
+    () => new Set(coRows.filter((r) => r.status === "done").map((r) => r.propertyId)),
+    [coRows],
+  );
+  const boardRows = useMemo(() => {
+    if (mode === "checkin") return ciRows.filter((r) => r.status === "pending");
+    if (mode === "checkout") return coRows.filter((r) => r.status === "pending");
+    if (mode === "stay") return stayRows;
+    return coRows.filter((r) => r.status === "done");
+  }, [mode, ciRows, coRows, stayRows]);
 
-  /* ---------- Attention alerts (stacked, uma por categoria) ---------- */
-  type AlertStrip = {
-    key: string;
-    tone: "warn" | "success" | "info";
-    icon: typeof AlertTriangle;
-    text: React.ReactNode;
-    items: { propertyName: string; guestName: string; detail: string }[];
-  };
-  const alertStrips = useMemo<AlertStrip[]>(() => {
-    const today = todayISOSaoPaulo();
-    const strips: AlertStrip[] = [];
-
-    // Fonte de verdade: as listas de "hoje" (que já incluem -30d de lookback)
-    const allCheckins = kpiTodayQ.data?.rows ?? [];
-    const allCheckouts = kpiCoTodayQ.data?.rows ?? [];
-
-    // 1) Check-ins atrasados: pendentes com data anterior a hoje
-    const checkinOverdue = allCheckins.filter((r) => r.status === "pending" && r.date < today);
-    if (checkinOverdue.length > 0) {
-      const plural = checkinOverdue.length > 1;
-      strips.push({
-        key: "checkin-overdue",
-        tone: "warn", icon: AlertTriangle,
-        text: <><b className="tabular-nums">{checkinOverdue.length}</b> {plural ? "check-ins atrasados" : "check-in atrasado"} — {plural ? "aguardam" : "aguarda"} check.</>,
-        items: checkinOverdue.map((r) => ({
-          propertyName: r.propertyName ?? "Sem nome",
-          guestName: r.pendingFill ? "Hóspede pendente" : (r.guestName || r.reservationCode || "—"),
-          detail: `Previsto ${fmtDateBR(r.date)}${(r.arrivalTimeOverride ?? r.guestArrivalTime) ? ` · ${r.arrivalTimeOverride ?? r.guestArrivalTime}` : ""}`,
-        })),
-      });
-    }
-
-    // 2) Limpezas atrasadas: checkouts em limpeza (done) com data anterior a hoje
-    const cleaningOverdue = allCheckouts.filter((r) => r.status === "done" && r.date < today);
-    if (cleaningOverdue.length > 0) {
-      const plural = cleaningOverdue.length > 1;
-      strips.push({
-        key: "cleaning-overdue",
-        tone: "warn", icon: AlertTriangle,
-        text: <><b className="tabular-nums">{cleaningOverdue.length}</b> {plural ? "limpezas atrasadas" : "limpeza atrasada"} — {plural ? "aguardam" : "aguarda"} conclusão.</>,
-        items: cleaningOverdue.map((r) => ({
-          propertyName: r.propertyName ?? "Sem nome",
-          guestName: r.pendingFill ? "Hóspede pendente" : (r.guestName || r.reservationCode || "—"),
-          detail: `Checkout ${fmtDateBR(r.date)}`,
-        })),
-      });
-    }
-
-    return strips;
-  }, [kpiTodayQ.data, kpiCoTodayQ.data]);
 
 
   const rangeLabel: Record<typeof range, string> = {
