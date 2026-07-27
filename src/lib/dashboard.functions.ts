@@ -908,8 +908,10 @@ export const advanceArrival = createServerFn({ method: "POST" })
       }
     } else if (data.from === "cleaning") {
       // Em Limpeza → conclude the stay (hidden from all kanbans).
-      await upsertStatus("checkout", { concluded_at: nowIso });
-      await upsertStatus("checkin", { concluded_at: nowIso });
+      // status:'done' evita que um upsert-insert (sem linha prévia) grave
+      // 'pending' e faça o card reaparecer em Check-outs.
+      await upsertStatus("checkout", { status: "done", done_at: nowIso, concluded_at: nowIso });
+      await upsertStatus("checkin", { status: "done", concluded_at: nowIso });
     }
 
     return { ok: true };
