@@ -668,7 +668,7 @@ function BarRow({ label, value, total, pct }: { label: string; value: number; to
   );
 }
 
-function ArrivalGroup({ title, rows, kind, mode, onMark, onSyncIcal, onNote, onEditDates, onEditTime, busy, muted }: {
+function ArrivalGroup({ title, rows, kind, mode, onMark, onSyncIcal, onNote, onEditDates, onEditTime, busy, muted, cleaningPendingPropIds }: {
   title: string;
   rows: ArrivalRow[];
   kind: "checkin" | "checkout";
@@ -680,16 +680,30 @@ function ArrivalGroup({ title, rows, kind, mode, onMark, onSyncIcal, onNote, onE
   onEditTime: (r: ArrivalRow, time: string | null) => void;
   busy: boolean;
   muted?: boolean;
+  cleaningPendingPropIds?: Set<string>;
 }) {
   if (rows.length === 0) return null;
   return (
     <div className={`grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 items-stretch ${muted ? "opacity-70" : ""}`}>
       {rows.map((r) => (
-        <ArrivalCard key={r.logId} row={r} kind={kind} mode={mode} onMark={onMark} onSyncIcal={onSyncIcal} onNote={onNote} onEditDates={onEditDates} onEditTime={onEditTime} busy={busy} />
+        <ArrivalCard
+          key={r.logId}
+          row={r}
+          kind={kind}
+          mode={mode}
+          onMark={onMark}
+          onSyncIcal={onSyncIcal}
+          onNote={onNote}
+          onEditDates={onEditDates}
+          onEditTime={onEditTime}
+          busy={busy}
+          cleaningBlocked={mode === "checkin" && (cleaningPendingPropIds?.has(r.propertyId) ?? false)}
+        />
       ))}
     </div>
   );
 }
+
 
 function ArrivalCard({ row, kind, mode, onMark, onSyncIcal, onNote, onEditDates, onEditTime, busy }: {
   row: ArrivalRow; kind: "checkin" | "checkout";
