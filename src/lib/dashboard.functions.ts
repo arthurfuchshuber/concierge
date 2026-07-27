@@ -71,14 +71,14 @@ export const getDashboardKpis = createServerFn({ method: "GET" })
     // Airbnb/iCal is the canonical operational source when connected. Guest
     // forms are only a fallback for properties without iCal to avoid inflated
     // counts from duplicate or mistyped forms.
-    const [{ data: props }, { data: logs }, { data: reservations }] = await Promise.all([
+    const [{ data: props }, { data: logs }, { data: reservations }, { data: statuses }] = await Promise.all([
       context.supabase
         .from("properties")
         .select("id, airbnb_ical_url")
         .in("id", propIds),
       context.supabase
         .from("guide_access_logs")
-        .select("property_id, guest_name, checkin_date, checkout_date")
+        .select("id, property_id, guest_name, checkin_date, checkout_date")
         .in("property_id", propIds)
         .or(
           `checkin_date.in.(${today},${tomorrow}),checkout_date.in.(${today},${tomorrow})`,
@@ -93,10 +93,16 @@ export const getDashboardKpis = createServerFn({ method: "GET" })
           `checkin_date.in.(${today},${tomorrow}),checkout_date.in.(${today},${tomorrow})`,
         )
         .limit(5000),
+      context.supabase
+        .from("guest_arrival_status")
+        .select("log_id, reservation_id, kind, status")
+        .in("property_id", propIds)
+        .limit(5000),
     ]);
 
-    type LogRow = { property_id: string; guest_name: string; checkin_date: string; checkout_date: string | null };
+    type LogRow = { id: string; property_id: string; guest_name: string; checkin_date: string; checkout_date: string | null };
     type ResRow = { id: string; property_id: string; checkin_date: string; checkout_date: string; status: string | null; raw_summary: string | null };
+    type StatusRow = { log_id: string | null; reservation_id: string | null; kind: "checkin" | "checkout"; status: "pending" | "done" };
     const icalProps = new Set(
       ((props ?? []) as Array<{ id: string; airbnb_ical_url: string | null }>)
         .filter((p) => !!p.airbnb_ical_url?.trim())
@@ -104,17 +110,27 @@ export const getDashboardKpis = createServerFn({ method: "GET" })
     );
     const logRows = (logs ?? []) as LogRow[];
     const resRows = (reservations ?? []) as ResRow[];
+    const doneLog = new Set<string>();   // key: `${kind}|${log_id}`
+    const doneRes = new Set<string>();   // key: `${kind}|${reservation_id}`
+    for (const s of (statuses ?? []) as StatusRow[]) {
+      if (s.status !== "done") continue;
+      if (s.log_id) doneLog.add(`${s.kind}|${s.log_id}`);
+      if (s.reservation_id) doneRes.add(`${s.kind}|${s.reservation_id}`);
+    }
 
     function countFor(col: "checkin_date" | "checkout_date", date: string) {
+      const kind: "checkin" | "checkout" = col === "checkin_date" ? "checkin" : "checkout";
       const seen = new Set<string>();
       for (const r of resRows) {
         if (r[col] !== date) continue;
         if (!icalProps.has(r.property_id) || !isRealReservation(r)) continue;
+        if (doneRes.has(`${kind}|${r.id}`)) continue;
         seen.add(`ical|${r.id}`);
       }
       for (const row of logRows) {
         if (row[col] !== date) continue;
         if (icalProps.has(row.property_id) || isPlaceholderGuest(row.guest_name)) continue;
+        if (doneLog.has(`${kind}|${row.id}`)) continue;
         seen.add(`log|${row.property_id}|${(row.guest_name || "").trim().toLowerCase()}|${date}`);
       }
       return seen.size;
