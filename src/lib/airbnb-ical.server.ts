@@ -4,6 +4,7 @@
 // - Upserts into public.property_reservations
 
 import { classifyCalendarPeriod } from "@/lib/reservations.server";
+import { isAllowedIcalUrl } from "@/lib/airbnb-ical-url";
 
 export type ParsedEvent = {
   uid: string;
@@ -133,6 +134,30 @@ export type SyncOutcome = {
   removed: number;
   error?: string;
 };
+
+export async function ensurePropertyIcalFresh(
+  propertyId: string,
+  icalUrl: string | null | undefined,
+  lastSyncAt?: string | null,
+  maxAgeMs = 10 * 60 * 1000,
+): Promise<SyncOutcome | null> {
+  const url = icalUrl?.trim();
+  if (!url || !isAllowedIcalUrl(url)) return null;
+  let currentLastSync = lastSyncAt ?? null;
+  if (typeof lastSyncAt === "undefined") {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data } = await supabaseAdmin
+      .from("properties")
+      .select("airbnb_ical_last_sync_at")
+      .eq("id", propertyId)
+      .maybeSingle();
+    currentLastSync = (data as { airbnb_ical_last_sync_at?: string | null } | null)?.airbnb_ical_last_sync_at ?? null;
+  }
+  if (currentLastSync && Date.now() - new Date(currentLastSync).getTime() <= maxAgeMs) {
+    return null;
+  }
+  return syncPropertyIcal(propertyId, url);
+}
 
 export async function syncPropertyIcal(propertyId: string, icalUrl: string): Promise<SyncOutcome> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
