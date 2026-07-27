@@ -288,53 +288,7 @@ function DashboardPage() {
       </header>
 
 
-      {/* Attention strips — uma faixa por categoria, empilhadas */}
-      {alertStrips.length > 0 && (
-        <div className="space-y-2">
-          {alertStrips.map((a) => {
-            const tone =
-              a.tone === "warn"
-                ? "bg-amber-500/8 text-amber-800 dark:text-amber-300 border-amber-500/20"
-                : a.tone === "success"
-                ? "bg-emerald-500/8 text-emerald-800 dark:text-emerald-300 border-emerald-500/20"
-                : "bg-primary/8 text-primary border-primary/20";
-            const Icon = a.icon;
-            const hasItems = a.items.length > 0;
-            const strip = (
-              <div
-                className={`flex items-center gap-2.5 rounded-xl border px-3.5 py-2 text-xs sm:text-sm backdrop-blur-sm ${tone} ${hasItems ? "cursor-pointer hover:brightness-105 transition" : ""}`}
-              >
-                <Icon className="size-4 shrink-0" />
-                <span className="flex-1">{a.text}</span>
-                {hasItems && <Info className="size-3.5 shrink-0 opacity-70" />}
-              </div>
-            );
-            if (!hasItems) return <div key={a.key}>{strip}</div>;
-            return (
-              <Popover key={a.key}>
-                <PopoverTrigger asChild>{strip}</PopoverTrigger>
-                <PopoverContent align="start" className="w-[min(92vw,420px)] p-0">
-                  <div className="px-3.5 py-2.5 border-b border-border/60">
-                    <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Imóveis afetados</div>
-                  </div>
-                  <ul className="max-h-[60vh] overflow-y-auto divide-y divide-border/60">
-                    {a.items.map((it, i) => (
-                      <li key={i} className="px-3.5 py-2.5 text-sm">
-                        <div className="font-medium flex items-center gap-1.5 min-w-0">
-                          <Home className="size-3.5 shrink-0 text-muted-foreground" />
-                          <span className="truncate">{it.propertyName}</span>
-                        </div>
-                        <div className="text-xs text-muted-foreground mt-0.5 truncate">{it.guestName}</div>
-                        <div className="text-[11px] text-muted-foreground/80 mt-0.5 tabular-nums">{it.detail}</div>
-                      </li>
-                    ))}
-                  </ul>
-                </PopoverContent>
-              </Popover>
-            );
-          })}
-        </div>
-      )}
+
 
 
       {/* KPIs */}
