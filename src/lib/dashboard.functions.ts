@@ -285,30 +285,32 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
       from = addDaysISO(today, -30);
     }
 
-    const { data: syncProps } = await context.supabase
-      .from("properties")
-      .select("id, airbnb_ical_url, airbnb_ical_last_sync_at")
-      .in("id", propIds)
-      .not("airbnb_ical_url", "is", null);
-    const staleIcalProps = ((syncProps ?? []) as Array<{ id: string; airbnb_ical_url: string | null; airbnb_ical_last_sync_at: string | null }>)
-      .filter((p) => {
-        const url = p.airbnb_ical_url?.trim();
-        if (!url) return false;
-        if (!p.airbnb_ical_last_sync_at) return true;
-        return Date.now() - new Date(p.airbnb_ical_last_sync_at).getTime() > 30 * 60 * 1000;
-      })
-      .slice(0, 8);
-    if (staleIcalProps.length > 0) {
-      const { isAllowedIcalUrl } = await import("@/lib/airbnb-ical-url");
-      const { syncPropertyIcal } = await import("@/lib/airbnb-ical.server");
-      await Promise.allSettled(
-        staleIcalProps.map((p) => {
+    if (data.kind === "checkin" && data.range === "today") {
+      const { data: syncProps } = await context.supabase
+        .from("properties")
+        .select("id, airbnb_ical_url, airbnb_ical_last_sync_at")
+        .in("id", propIds)
+        .not("airbnb_ical_url", "is", null);
+      const staleIcalProps = ((syncProps ?? []) as Array<{ id: string; airbnb_ical_url: string | null; airbnb_ical_last_sync_at: string | null }>)
+        .filter((p) => {
           const url = p.airbnb_ical_url?.trim();
-          return url && isAllowedIcalUrl(url)
-            ? syncPropertyIcal(p.id, url)
-            : Promise.resolve(null);
-        }),
-      );
+          if (!url) return false;
+          if (!p.airbnb_ical_last_sync_at) return true;
+          return Date.now() - new Date(p.airbnb_ical_last_sync_at).getTime() > 10 * 60 * 1000;
+        })
+        .slice(0, 8);
+      if (staleIcalProps.length > 0) {
+        const { isAllowedIcalUrl } = await import("@/lib/airbnb-ical-url");
+        const { syncPropertyIcal } = await import("@/lib/airbnb-ical.server");
+        await Promise.allSettled(
+          staleIcalProps.map((p) => {
+            const url = p.airbnb_ical_url?.trim();
+            return url && isAllowedIcalUrl(url)
+              ? syncPropertyIcal(p.id, url)
+              : Promise.resolve(null);
+          }),
+        );
+      }
     }
 
     let q = context.supabase
