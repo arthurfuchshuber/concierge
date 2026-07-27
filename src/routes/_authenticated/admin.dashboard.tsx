@@ -889,7 +889,14 @@ function ArrivalCard({ row, kind, mode, onMark, onSyncIcal, onNote, onEditDates,
         const iIn = row.ical.icalCheckin;
         const iOut = row.ical.icalCheckout;
         const anyDivergent = row.ical.matched && ((iIn && iIn !== gIn) || (iOut && gOut && iOut !== gOut));
-        if (!anyDivergent && row.ical.matched) return null;
+        if (!anyDivergent && row.ical.matched) {
+          return (
+            <div className="w-full text-xs rounded-lg bg-emerald-500/10 border border-emerald-500/30 px-2 py-1.5 flex items-center gap-2 text-emerald-700 dark:text-emerald-400">
+              <CheckCircle2 className="size-3.5 shrink-0" />
+              <span>Confirmado via Airbnb</span>
+            </div>
+          );
+        }
         const fmtRange = (a: string | null, b: string | null) =>
           `${a ? fmtDateBR(a) : "?"} a ${b ? fmtDateBR(b) : "?"}`;
         return (
@@ -921,12 +928,6 @@ function ArrivalCard({ row, kind, mode, onMark, onSyncIcal, onNote, onEditDates,
         );
       })()}
 
-      {isPendingFill && mode !== "cleaning" && (
-        <div className="w-full text-xs rounded-lg bg-emerald-500/10 border border-emerald-500/30 px-2 py-1.5 flex items-center gap-2 text-emerald-700 dark:text-emerald-400">
-          <CheckCircle2 className="size-3.5 shrink-0" />
-          <span>Confirmado via Airbnb</span>
-        </div>
-      )}
 
 
       {divergent && !isPendingFill && !done && (
