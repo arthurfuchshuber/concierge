@@ -257,12 +257,17 @@ function DashboardPage() {
     stay: stayRows.length,
     cleaning: coRows.filter((r) => r.status === "done").length,
   };
-  // Imóveis com limpeza pendente bloqueiam novos check-ins até a limpeza
-  // ser concluída (evita liberar hóspede em imóvel ainda sujo).
-  const cleaningPendingPropIds = useMemo(
-    () => new Set(coRows.filter((r) => r.status === "done").map((r) => r.propertyId)),
-    [coRows],
-  );
+  // Imóveis com check-out pendente OU limpeza em andamento bloqueiam novos
+  // check-ins até serem concluídos (evita liberar hóspede em imóvel ainda
+  // ocupado pelo hóspede anterior ou ainda sujo).
+  const cleaningPendingPropIds = useMemo(() => {
+    const blocked = new Map<string, "checkout" | "cleaning">();
+    for (const r of coRows) {
+      if (r.status === "pending") blocked.set(r.propertyId, "checkout");
+      else if (r.status === "done" && !blocked.has(r.propertyId)) blocked.set(r.propertyId, "cleaning");
+    }
+    return blocked;
+  }, [coRows]);
   const boardRows = useMemo(() => {
     if (mode === "checkin") return ciRows.filter((r) => r.status === "pending");
     if (mode === "checkout") return coRows.filter((r) => r.status === "pending");
@@ -680,7 +685,7 @@ function ArrivalGroup({ title, rows, kind, mode, onMark, onSyncIcal, onNote, onE
   onEditTime: (r: ArrivalRow, time: string | null) => void;
   busy: boolean;
   muted?: boolean;
-  cleaningPendingPropIds?: Set<string>;
+  cleaningPendingPropIds?: Map<string, "checkout" | "cleaning">;
 }) {
   if (rows.length === 0) return null;
   return (
@@ -697,7 +702,7 @@ function ArrivalGroup({ title, rows, kind, mode, onMark, onSyncIcal, onNote, onE
           onEditDates={onEditDates}
           onEditTime={onEditTime}
           busy={busy}
-          cleaningBlocked={mode === "checkin" && (cleaningPendingPropIds?.has(r.propertyId) ?? false)}
+          cleaningBlocked={mode === "checkin" ? (cleaningPendingPropIds?.get(r.propertyId) ?? null) : null}
         />
       ))}
     </div>
@@ -714,7 +719,7 @@ function ArrivalCard({ row, kind, mode, onMark, onSyncIcal, onNote, onEditDates,
   onEditDates: (r: ArrivalRow, dates: { checkinDate?: string; checkoutDate?: string | null }) => void;
   onEditTime: (r: ArrivalRow, time: string | null) => void;
   busy: boolean;
-  cleaningBlocked?: boolean;
+  cleaningBlocked?: "checkout" | "cleaning" | null;
 }) {
 
   const [noteOpen, setNoteOpen] = useState(false);
@@ -733,7 +738,8 @@ function ArrivalCard({ row, kind, mode, onMark, onSyncIcal, onNote, onEditDates,
   const isToday = row.date === todayISO;
   const isOverdue = row.date < todayISO;
   const isFuture = row.date > todayISO;
-  const cleaningBlock = kind === "checkin" && !done && !isFuture && !!cleaningBlocked;
+  const blockReason = kind === "checkin" && !done && !isFuture ? (cleaningBlocked ?? null) : null;
+  const cleaningBlock = blockReason !== null;
   const blockCheck = (kind === "checkin" && !done && isFuture) || cleaningBlock;
 
   // Prefer garage address when available for logistics
@@ -981,7 +987,10 @@ function ArrivalCard({ row, kind, mode, onMark, onSyncIcal, onNote, onEditDates,
         <button
           onClick={() => {
             if (cleaningBlock) {
-              toast.warning("Limpeza deste imóvel ainda não foi concluída. Finalize a limpeza para liberar o check-in.");
+              const msg = blockReason === "checkout"
+                ? "Hóspede anterior ainda não fez check-out neste imóvel. Conclua o check-out para liberar o novo check-in."
+                : "Limpeza deste imóvel ainda não foi concluída. Finalize a limpeza para liberar o check-in.";
+              toast.warning(msg);
               return;
             }
             if (blockCheck) {
@@ -992,12 +1001,16 @@ function ArrivalCard({ row, kind, mode, onMark, onSyncIcal, onNote, onEditDates,
           }}
           disabled={busy || blockCheck}
           aria-label={
-            cleaningBlock ? "Limpeza pendente neste imóvel"
+            cleaningBlock
+              ? (blockReason === "checkout" ? "Check-out anterior pendente neste imóvel" : "Limpeza pendente neste imóvel")
               : blockCheck ? "Check-in em data futura"
               : done ? "Reabrir (marcar pendente)" : "Marcar como concluído"
           }
           title={
-            cleaningBlock ? "Limpeza ainda em andamento — check-in bloqueado"
+            cleaningBlock
+              ? (blockReason === "checkout"
+                  ? "Check-out do hóspede anterior ainda pendente — check-in bloqueado"
+                  : "Limpeza ainda em andamento — check-in bloqueado")
               : blockCheck ? `Só é possível marcar a partir de ${fmtDateBR(row.date)}`
               : done ? "Reabrir (voltar para Pendente)" : "Marcar como Concluído"
           }
