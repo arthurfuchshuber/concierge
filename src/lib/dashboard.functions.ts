@@ -494,7 +494,9 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
         guestCheckout: l.checkout_date ?? null,
         reservationCode: l.reservation_code,
         createdAt: l.created_at,
-        status: s?.status ?? "pending",
+        // Segurança: check-ins com data futura NUNCA podem estar como "done" no kanban.
+        // Se por engano foram marcados, voltam a aparecer como pendentes.
+        status: (data.kind === "checkin" && l.checkin_date > today && s?.status === "done") ? "pending" : (s?.status ?? "pending"),
         note: s?.note ?? null,
         arrivalTimeOverride: s?.arrival_time_override ?? null,
         doneAt: s?.done_at ?? null,
@@ -534,7 +536,7 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
         guestCheckout: matchedLog?.checkout_date ?? r.checkout_date,
         reservationCode: matchedLog?.reservation_code ?? r.guest_hint ?? null,
         createdAt: matchedLog?.created_at ?? r.synced_at ?? new Date().toISOString(),
-        status: s?.status ?? "pending",
+        status: (data.kind === "checkin" && r.checkin_date > today && s?.status === "done") ? "pending" : (s?.status ?? "pending"),
         note: s?.note ?? null,
         arrivalTimeOverride: s?.arrival_time_override ?? null,
         doneAt: s?.done_at ?? null,
