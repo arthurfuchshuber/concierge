@@ -781,7 +781,7 @@ function ArrivalCard({ row, kind, mode, onMark, onSyncIcal, onNote, onEditDates,
   
   const done = row.status === "done";
   const isPendingFill = row.pendingFill;
-  const todayISO = new Date().toLocaleDateString("sv-SE");
+  const todayISO = todayISOSaoPaulo();
   const isToday = row.date === todayISO;
   const isOverdue = row.date < todayISO;
 
