@@ -39,7 +39,7 @@ export const recordGuideAccess = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const propQuery = supabaseAdmin
       .from("properties")
-      .select("id, checkin_time, airbnb_ical_url")
+      .select("id, checkin_time, airbnb_ical_url, airbnb_ical_last_sync_at")
       .eq("slug", data.slug)
       .eq("published", true);
     const { data: prop, error: propErr } = data.property_id
@@ -50,6 +50,12 @@ export const recordGuideAccess = createServerFn({ method: "POST" })
 
     const hasIcal = !!((prop as { airbnb_ical_url?: string | null }).airbnb_ical_url ?? "").trim();
     if (hasIcal && data.checkout_date) {
+      const { ensurePropertyIcalFresh } = await import("@/lib/airbnb-ical.server");
+      await ensurePropertyIcalFresh(
+        prop.id,
+        (prop as { airbnb_ical_url?: string | null }).airbnb_ical_url,
+        (prop as { airbnb_ical_last_sync_at?: string | null }).airbnb_ical_last_sync_at,
+      );
       const { isAllowedGuidePeriod } = await import("@/lib/reservations.server");
       const { data: periods } = await supabaseAdmin
         .from("property_reservations")
@@ -126,7 +132,7 @@ export const getGuideCalendarAvailability = createServerFn({ method: "POST" })
     const { classifyCalendarPeriod, operationalTodayISO } = await import("@/lib/reservations.server");
     const propQuery = supabaseAdmin
       .from("properties")
-      .select("id, airbnb_ical_url")
+      .select("id, airbnb_ical_url, airbnb_ical_last_sync_at")
       .eq("slug", data.slug)
       .eq("published", true);
     const { data: prop } = data.property_id
@@ -135,6 +141,12 @@ export const getGuideCalendarAvailability = createServerFn({ method: "POST" })
     if (!prop) return { hasIcal: false as const, periods: [] as Array<{ checkin: string; checkout: string; type: "reservation" | "block" }> };
     const hasIcal = !!((prop.airbnb_ical_url as string | null) ?? "").trim();
     if (!hasIcal) return { hasIcal: false as const, periods: [] as Array<{ checkin: string; checkout: string; type: "reservation" | "block" }> };
+    const { ensurePropertyIcalFresh } = await import("@/lib/airbnb-ical.server");
+    await ensurePropertyIcalFresh(
+      prop.id,
+      prop.airbnb_ical_url as string | null,
+      (prop as { airbnb_ical_last_sync_at?: string | null }).airbnb_ical_last_sync_at,
+    );
 
     const today = operationalTodayISO();
     const { data: rows } = await supabaseAdmin
@@ -165,7 +177,7 @@ export const checkReservationBySlug = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const propQuery = supabaseAdmin
       .from("properties")
-      .select("id, airbnb_ical_url")
+      .select("id, airbnb_ical_url, airbnb_ical_last_sync_at")
       .eq("slug", data.slug)
       .eq("published", true);
     const { data: prop } = data.property_id
@@ -174,6 +186,12 @@ export const checkReservationBySlug = createServerFn({ method: "POST" })
     if (!prop) return { hasIcal: false as const, matched: false as const };
     const hasIcal = !!(prop.airbnb_ical_url as string | null);
     if (!hasIcal) return { hasIcal: false as const, matched: false as const };
+    const { ensurePropertyIcalFresh } = await import("@/lib/airbnb-ical.server");
+    await ensurePropertyIcalFresh(
+      prop.id,
+      prop.airbnb_ical_url as string | null,
+      (prop as { airbnb_ical_last_sync_at?: string | null }).airbnb_ical_last_sync_at,
+    );
 
     const { isAllowedGuidePeriod } = await import("@/lib/reservations.server");
     const { data: exact } = await supabaseAdmin
