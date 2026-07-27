@@ -987,7 +987,10 @@ function ArrivalCard({ row, kind, mode, onMark, onSyncIcal, onNote, onEditDates,
         <button
           onClick={() => {
             if (cleaningBlock) {
-              toast.warning("Limpeza deste imóvel ainda não foi concluída. Finalize a limpeza para liberar o check-in.");
+              const msg = blockReason === "checkout"
+                ? "Hóspede anterior ainda não fez check-out neste imóvel. Conclua o check-out para liberar o novo check-in."
+                : "Limpeza deste imóvel ainda não foi concluída. Finalize a limpeza para liberar o check-in.";
+              toast.warning(msg);
               return;
             }
             if (blockCheck) {
@@ -998,12 +1001,16 @@ function ArrivalCard({ row, kind, mode, onMark, onSyncIcal, onNote, onEditDates,
           }}
           disabled={busy || blockCheck}
           aria-label={
-            cleaningBlock ? "Limpeza pendente neste imóvel"
+            cleaningBlock
+              ? (blockReason === "checkout" ? "Check-out anterior pendente neste imóvel" : "Limpeza pendente neste imóvel")
               : blockCheck ? "Check-in em data futura"
               : done ? "Reabrir (marcar pendente)" : "Marcar como concluído"
           }
           title={
-            cleaningBlock ? "Limpeza ainda em andamento — check-in bloqueado"
+            cleaningBlock
+              ? (blockReason === "checkout"
+                  ? "Check-out do hóspede anterior ainda pendente — check-in bloqueado"
+                  : "Limpeza ainda em andamento — check-in bloqueado")
               : blockCheck ? `Só é possível marcar a partir de ${fmtDateBR(row.date)}`
               : done ? "Reabrir (voltar para Pendente)" : "Marcar como Concluído"
           }
