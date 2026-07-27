@@ -41,6 +41,11 @@ function todayISOSaoPaulo(): string {
   const pick = (t: string) => parts.find((p) => p.type === t)?.value ?? "";
   return `${pick("year")}-${pick("month")}-${pick("day")}`;
 }
+function addDaysISOLocal(iso: string, days: number): string {
+  const d = new Date(`${iso}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
 function initials(name: string) {
   return name.split(/\s+/).filter(Boolean).slice(0, 2).map((p) => p[0]?.toUpperCase() ?? "").join("") || "?";
 }
@@ -237,70 +242,34 @@ function DashboardPage() {
 
 
 
-  const rows = listQ.data?.rows ?? [];
-  const pending = useMemo(() => rows.filter((r) => r.status === "pending"), [rows]);
-  const done = useMemo(() => rows.filter((r) => r.status === "done"), [rows]);
-  const boardRows = mode === "stay" || mode === "cleaning" ? done : pending;
-
+  const todayISO = todayISOSaoPaulo();
   const ciRows = checkinListQ.data?.rows ?? [];
   const coRows = checkoutListQ.data?.rows ?? [];
+  // Em Estadia → o hóspede sai automaticamente daqui e entra em Check-outs
+  // quando a data de checkout chega (ordenação padrão: data → horário → nome).
+  const stayRows = useMemo(
+    () => ciRows.filter((r) => r.status === "done" && (!r.guestCheckout || r.guestCheckout > todayISO)),
+    [ciRows, todayISO],
+  );
   const counts = {
     checkin: ciRows.filter((r) => r.status === "pending").length,
     checkout: coRows.filter((r) => r.status === "pending").length,
-    stay: ciRows.filter((r) => r.status === "done").length,
+    stay: stayRows.length,
     cleaning: coRows.filter((r) => r.status === "done").length,
   };
+  // Imóveis com limpeza pendente bloqueiam novos check-ins até a limpeza
+  // ser concluída (evita liberar hóspede em imóvel ainda sujo).
+  const cleaningPendingPropIds = useMemo(
+    () => new Set(coRows.filter((r) => r.status === "done").map((r) => r.propertyId)),
+    [coRows],
+  );
+  const boardRows = useMemo(() => {
+    if (mode === "checkin") return ciRows.filter((r) => r.status === "pending");
+    if (mode === "checkout") return coRows.filter((r) => r.status === "pending");
+    if (mode === "stay") return stayRows;
+    return coRows.filter((r) => r.status === "done");
+  }, [mode, ciRows, coRows, stayRows]);
 
-  /* ---------- Attention alerts (stacked, uma por categoria) ---------- */
-  type AlertStrip = {
-    key: string;
-    tone: "warn" | "success" | "info";
-    icon: typeof AlertTriangle;
-    text: React.ReactNode;
-    items: { propertyName: string; guestName: string; detail: string }[];
-  };
-  const alertStrips = useMemo<AlertStrip[]>(() => {
-    const today = todayISOSaoPaulo();
-    const strips: AlertStrip[] = [];
-
-    // Fonte de verdade: as listas de "hoje" (que já incluem -30d de lookback)
-    const allCheckins = kpiTodayQ.data?.rows ?? [];
-    const allCheckouts = kpiCoTodayQ.data?.rows ?? [];
-
-    // 1) Check-ins atrasados: pendentes com data anterior a hoje
-    const checkinOverdue = allCheckins.filter((r) => r.status === "pending" && r.date < today);
-    if (checkinOverdue.length > 0) {
-      const plural = checkinOverdue.length > 1;
-      strips.push({
-        key: "checkin-overdue",
-        tone: "warn", icon: AlertTriangle,
-        text: <><b className="tabular-nums">{checkinOverdue.length}</b> {plural ? "check-ins atrasados" : "check-in atrasado"} — {plural ? "aguardam" : "aguarda"} check.</>,
-        items: checkinOverdue.map((r) => ({
-          propertyName: r.propertyName ?? "Sem nome",
-          guestName: r.pendingFill ? "Hóspede pendente" : (r.guestName || r.reservationCode || "—"),
-          detail: `Previsto ${fmtDateBR(r.date)}${(r.arrivalTimeOverride ?? r.guestArrivalTime) ? ` · ${r.arrivalTimeOverride ?? r.guestArrivalTime}` : ""}`,
-        })),
-      });
-    }
-
-    // 2) Limpezas atrasadas: checkouts em limpeza (done) com data anterior a hoje
-    const cleaningOverdue = allCheckouts.filter((r) => r.status === "done" && r.date < today);
-    if (cleaningOverdue.length > 0) {
-      const plural = cleaningOverdue.length > 1;
-      strips.push({
-        key: "cleaning-overdue",
-        tone: "warn", icon: AlertTriangle,
-        text: <><b className="tabular-nums">{cleaningOverdue.length}</b> {plural ? "limpezas atrasadas" : "limpeza atrasada"} — {plural ? "aguardam" : "aguarda"} conclusão.</>,
-        items: cleaningOverdue.map((r) => ({
-          propertyName: r.propertyName ?? "Sem nome",
-          guestName: r.pendingFill ? "Hóspede pendente" : (r.guestName || r.reservationCode || "—"),
-          detail: `Checkout ${fmtDateBR(r.date)}`,
-        })),
-      });
-    }
-
-    return strips;
-  }, [kpiTodayQ.data, kpiCoTodayQ.data]);
 
 
   const rangeLabel: Record<typeof range, string> = {
@@ -319,53 +288,7 @@ function DashboardPage() {
       </header>
 
 
-      {/* Attention strips — uma faixa por categoria, empilhadas */}
-      {alertStrips.length > 0 && (
-        <div className="space-y-2">
-          {alertStrips.map((a) => {
-            const tone =
-              a.tone === "warn"
-                ? "bg-amber-500/8 text-amber-800 dark:text-amber-300 border-amber-500/20"
-                : a.tone === "success"
-                ? "bg-emerald-500/8 text-emerald-800 dark:text-emerald-300 border-emerald-500/20"
-                : "bg-primary/8 text-primary border-primary/20";
-            const Icon = a.icon;
-            const hasItems = a.items.length > 0;
-            const strip = (
-              <div
-                className={`flex items-center gap-2.5 rounded-xl border px-3.5 py-2 text-xs sm:text-sm backdrop-blur-sm ${tone} ${hasItems ? "cursor-pointer hover:brightness-105 transition" : ""}`}
-              >
-                <Icon className="size-4 shrink-0" />
-                <span className="flex-1">{a.text}</span>
-                {hasItems && <Info className="size-3.5 shrink-0 opacity-70" />}
-              </div>
-            );
-            if (!hasItems) return <div key={a.key}>{strip}</div>;
-            return (
-              <Popover key={a.key}>
-                <PopoverTrigger asChild>{strip}</PopoverTrigger>
-                <PopoverContent align="start" className="w-[min(92vw,420px)] p-0">
-                  <div className="px-3.5 py-2.5 border-b border-border/60">
-                    <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Imóveis afetados</div>
-                  </div>
-                  <ul className="max-h-[60vh] overflow-y-auto divide-y divide-border/60">
-                    {a.items.map((it, i) => (
-                      <li key={i} className="px-3.5 py-2.5 text-sm">
-                        <div className="font-medium flex items-center gap-1.5 min-w-0">
-                          <Home className="size-3.5 shrink-0 text-muted-foreground" />
-                          <span className="truncate">{it.propertyName}</span>
-                        </div>
-                        <div className="text-xs text-muted-foreground mt-0.5 truncate">{it.guestName}</div>
-                        <div className="text-[11px] text-muted-foreground/80 mt-0.5 tabular-nums">{it.detail}</div>
-                      </li>
-                    ))}
-                  </ul>
-                </PopoverContent>
-              </Popover>
-            );
-          })}
-        </div>
-      )}
+
 
 
       {/* KPIs */}
@@ -479,6 +402,7 @@ function DashboardPage() {
               onEditTime={(row, time) => handleEditTime(row, kind, time)}
               busy={upsert.isPending || advance.isPending || updateDates.isPending || updateTime.isPending}
               muted={mode === "stay" || mode === "cleaning"}
+              cleaningPendingPropIds={cleaningPendingPropIds}
             />
 
           </div>
@@ -500,7 +424,16 @@ function KpiCard({ label, value, icon: Icon, tone, loading, listQuery, kind, ran
 }) {
   const [open, setOpen] = useState(false);
   const valueTone = tone === "primary" ? "text-primary" : "text-foreground";
-  const rows = listQuery.data?.rows ?? [];
+  // O popover deve refletir exatamente o KPI acima (ex.: "Check-outs hoje = 2"
+  // não pode listar checkouts de dias anteriores já feitos). A query traz -30d
+  // para alimentar o kanban; aqui filtramos pela data-alvo do card.
+  const _todayISO = todayISOSaoPaulo();
+  const targetDate =
+    rangeLabel === "Hoje" ? _todayISO
+      : rangeLabel === "Amanhã" ? addDaysISOLocal(_todayISO, 1)
+      : null;
+  const allRows = listQuery.data?.rows ?? [];
+  const rows = targetDate ? allRows.filter((r) => r.date === targetDate) : allRows;
   const valueColor =
     shadowTone === "emerald" ? "text-emerald-600 dark:text-emerald-400"
       : shadowTone === "amber" ? "text-amber-600 dark:text-amber-400"
@@ -735,7 +668,7 @@ function BarRow({ label, value, total, pct }: { label: string; value: number; to
   );
 }
 
-function ArrivalGroup({ title, rows, kind, mode, onMark, onSyncIcal, onNote, onEditDates, onEditTime, busy, muted }: {
+function ArrivalGroup({ title, rows, kind, mode, onMark, onSyncIcal, onNote, onEditDates, onEditTime, busy, muted, cleaningPendingPropIds }: {
   title: string;
   rows: ArrivalRow[];
   kind: "checkin" | "checkout";
@@ -747,18 +680,32 @@ function ArrivalGroup({ title, rows, kind, mode, onMark, onSyncIcal, onNote, onE
   onEditTime: (r: ArrivalRow, time: string | null) => void;
   busy: boolean;
   muted?: boolean;
+  cleaningPendingPropIds?: Set<string>;
 }) {
   if (rows.length === 0) return null;
   return (
     <div className={`grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 items-stretch ${muted ? "opacity-70" : ""}`}>
       {rows.map((r) => (
-        <ArrivalCard key={r.logId} row={r} kind={kind} mode={mode} onMark={onMark} onSyncIcal={onSyncIcal} onNote={onNote} onEditDates={onEditDates} onEditTime={onEditTime} busy={busy} />
+        <ArrivalCard
+          key={r.logId}
+          row={r}
+          kind={kind}
+          mode={mode}
+          onMark={onMark}
+          onSyncIcal={onSyncIcal}
+          onNote={onNote}
+          onEditDates={onEditDates}
+          onEditTime={onEditTime}
+          busy={busy}
+          cleaningBlocked={mode === "checkin" && (cleaningPendingPropIds?.has(r.propertyId) ?? false)}
+        />
       ))}
     </div>
   );
 }
 
-function ArrivalCard({ row, kind, mode, onMark, onSyncIcal, onNote, onEditDates, onEditTime, busy }: {
+
+function ArrivalCard({ row, kind, mode, onMark, onSyncIcal, onNote, onEditDates, onEditTime, busy, cleaningBlocked }: {
   row: ArrivalRow; kind: "checkin" | "checkout";
   mode: "checkin" | "checkout" | "stay" | "cleaning";
   onMark: (r: ArrivalRow) => void;
@@ -767,6 +714,7 @@ function ArrivalCard({ row, kind, mode, onMark, onSyncIcal, onNote, onEditDates,
   onEditDates: (r: ArrivalRow, dates: { checkinDate?: string; checkoutDate?: string | null }) => void;
   onEditTime: (r: ArrivalRow, time: string | null) => void;
   busy: boolean;
+  cleaningBlocked?: boolean;
 }) {
 
   const [noteOpen, setNoteOpen] = useState(false);
@@ -778,14 +726,15 @@ function ArrivalCard({ row, kind, mode, onMark, onSyncIcal, onNote, onEditDates,
   const divergent =
     !!guestTime && !!row.standardTime &&
     !isTimeWithin(guestTime, row.standardTime, row.standardTimeMax);
-  
+
   const done = row.status === "done";
   const isPendingFill = row.pendingFill;
   const todayISO = todayISOSaoPaulo();
   const isToday = row.date === todayISO;
   const isOverdue = row.date < todayISO;
   const isFuture = row.date > todayISO;
-  const blockCheck = kind === "checkin" && !done && isFuture;
+  const cleaningBlock = kind === "checkin" && !done && !isFuture && !!cleaningBlocked;
+  const blockCheck = (kind === "checkin" && !done && isFuture) || cleaningBlock;
 
   // Prefer garage address when available for logistics
   const mapsHref = row.garageMapsUrl ?? row.mapsUrl ?? (row.propertyAddress ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(row.propertyAddress)}` : null);
@@ -1031,6 +980,10 @@ function ArrivalCard({ row, kind, mode, onMark, onSyncIcal, onNote, onEditDates,
       <div className="mt-auto flex flex-wrap items-center gap-2 pt-1">
         <button
           onClick={() => {
+            if (cleaningBlock) {
+              toast.warning("Limpeza deste imóvel ainda não foi concluída. Finalize a limpeza para liberar o check-in.");
+              return;
+            }
             if (blockCheck) {
               toast.warning(`Check-in previsto para ${fmtDateBR(row.date)}. Só é possível marcar a partir do dia da chegada.`);
               return;
@@ -1038,10 +991,20 @@ function ArrivalCard({ row, kind, mode, onMark, onSyncIcal, onNote, onEditDates,
             onMark(row);
           }}
           disabled={busy || blockCheck}
-          aria-label={blockCheck ? "Check-in em data futura" : done ? "Reabrir" : "Marcar como realizado"}
-          title={blockCheck ? `Só é possível marcar a partir de ${fmtDateBR(row.date)}` : done ? "Reabrir" : "Marcar como realizado"}
+          aria-label={
+            cleaningBlock ? "Limpeza pendente neste imóvel"
+              : blockCheck ? "Check-in em data futura"
+              : done ? "Reabrir" : "Marcar como realizado"
+          }
+          title={
+            cleaningBlock ? "Limpeza ainda em andamento — check-in bloqueado"
+              : blockCheck ? `Só é possível marcar a partir de ${fmtDateBR(row.date)}`
+              : done ? "Reabrir" : "Marcar como realizado"
+          }
           className={`size-9 grid place-items-center rounded-lg transition-colors ${
-            blockCheck
+            cleaningBlock
+              ? "bg-orange-500/25 text-orange-700 dark:text-orange-400 border border-orange-500/50 cursor-not-allowed"
+              : blockCheck
               ? "bg-amber-500/20 text-amber-700 dark:text-amber-400 border border-amber-500/40 cursor-not-allowed"
               : done
               ? "bg-secondary hover:bg-secondary/80"
