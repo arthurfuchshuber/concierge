@@ -41,6 +41,11 @@ function todayISOSaoPaulo(): string {
   const pick = (t: string) => parts.find((p) => p.type === t)?.value ?? "";
   return `${pick("year")}-${pick("month")}-${pick("day")}`;
 }
+function addDaysISOLocal(iso: string, days: number): string {
+  const d = new Date(`${iso}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
 function initials(name: string) {
   return name.split(/\s+/).filter(Boolean).slice(0, 2).map((p) => p[0]?.toUpperCase() ?? "").join("") || "?";
 }
