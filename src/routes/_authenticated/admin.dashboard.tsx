@@ -792,24 +792,30 @@ function ArrivalCard({ row, kind, mode, onMark, onSyncIcal, onNote, onEditDates,
           {isPendingFill ? <UserPlus className="size-5" /> : initials(row.guestName)}
         </div>
         <div className="flex-1 min-w-0">
-          <div className={`font-semibold truncate flex items-center gap-2 ${isPendingFill ? "italic text-foreground/80" : ""}`}>
+          <div
+            className="font-semibold truncate text-foreground"
+            title={row.propertyName ?? undefined}
+          >
+            {row.propertyName ?? "Sem nome"}
+          </div>
+          <div className={`text-xs truncate flex items-center gap-1 ${isPendingFill ? "text-orange-500 font-medium" : "text-muted-foreground"}`}>
             {isPendingFill ? (
-              <span className="truncate font-semibold not-italic text-foreground">Hóspede Pendente</span>
+              <>
+                <UserPlus className="size-3 shrink-0" />
+                <span className="truncate">Hóspede Pendente</span>
+              </>
             ) : !row.guestName || row.guestName === row.reservationCode ? (
               row.reservationCode ? (
-                <span className="inline-flex items-center gap-1 text-foreground font-semibold not-italic shrink-0">
-                  <span className="truncate max-w-[180px]">{row.reservationCode}</span>
-                  <CopyButton value={row.reservationCode} size={12} className="p-0.5" />
+                <span className="inline-flex items-center gap-1 min-w-0">
+                  <span className="truncate">{row.reservationCode}</span>
+                  <CopyButton value={row.reservationCode} size={10} className="p-0.5" />
                 </span>
               ) : (
-                <span className="truncate font-semibold not-italic text-foreground">{row.guestName}</span>
+                <span className="truncate">{row.guestName}</span>
               )
             ) : (
               <span className="truncate">{row.guestName}</span>
             )}
-          </div>
-          <div className="text-xs text-muted-foreground truncate flex items-center gap-1">
-            <Home className="size-3 shrink-0" /> {row.propertyName ?? "Sem nome"}
           </div>
           {/* Período: "dd/mm/aaaa a dd/mm/aaaa", editável inline, alinhado à esquerda */}
           <div className="mt-1 flex items-center gap-1 text-xs tabular-nums text-foreground/80">
