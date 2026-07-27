@@ -705,7 +705,7 @@ function ArrivalGroup({ title, rows, kind, mode, onMark, onSyncIcal, onNote, onE
 }
 
 
-function ArrivalCard({ row, kind, mode, onMark, onSyncIcal, onNote, onEditDates, onEditTime, busy }: {
+function ArrivalCard({ row, kind, mode, onMark, onSyncIcal, onNote, onEditDates, onEditTime, busy, cleaningBlocked }: {
   row: ArrivalRow; kind: "checkin" | "checkout";
   mode: "checkin" | "checkout" | "stay" | "cleaning";
   onMark: (r: ArrivalRow) => void;
@@ -714,6 +714,7 @@ function ArrivalCard({ row, kind, mode, onMark, onSyncIcal, onNote, onEditDates,
   onEditDates: (r: ArrivalRow, dates: { checkinDate?: string; checkoutDate?: string | null }) => void;
   onEditTime: (r: ArrivalRow, time: string | null) => void;
   busy: boolean;
+  cleaningBlocked?: boolean;
 }) {
 
   const [noteOpen, setNoteOpen] = useState(false);
@@ -725,14 +726,15 @@ function ArrivalCard({ row, kind, mode, onMark, onSyncIcal, onNote, onEditDates,
   const divergent =
     !!guestTime && !!row.standardTime &&
     !isTimeWithin(guestTime, row.standardTime, row.standardTimeMax);
-  
+
   const done = row.status === "done";
   const isPendingFill = row.pendingFill;
   const todayISO = todayISOSaoPaulo();
   const isToday = row.date === todayISO;
   const isOverdue = row.date < todayISO;
   const isFuture = row.date > todayISO;
-  const blockCheck = kind === "checkin" && !done && isFuture;
+  const cleaningBlock = kind === "checkin" && !done && !isFuture && !!cleaningBlocked;
+  const blockCheck = (kind === "checkin" && !done && isFuture) || cleaningBlock;
 
   // Prefer garage address when available for logistics
   const mapsHref = row.garageMapsUrl ?? row.mapsUrl ?? (row.propertyAddress ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(row.propertyAddress)}` : null);
