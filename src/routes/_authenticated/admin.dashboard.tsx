@@ -1030,11 +1030,23 @@ function ArrivalCard({ row, kind, mode, onMark, onSyncIcal, onNote, onEditDates,
       {/* Action row: ícones à esquerda; Copiar + Maps agrupados à direita */}
       <div className="mt-auto flex flex-wrap items-center gap-2 pt-1">
         <button
-          onClick={() => onMark(row)}
-          disabled={busy}
-          aria-label={done ? "Reabrir" : "Marcar como realizado"}
-          title={done ? "Reabrir" : "Marcar como realizado"}
-          className={`size-9 grid place-items-center rounded-lg transition-colors ${done ? "bg-secondary hover:bg-secondary/80" : "bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm shadow-emerald-600/20"}`}
+          onClick={() => {
+            if (blockCheck) {
+              toast.warning(`Check-in previsto para ${fmtDateBR(row.date)}. Só é possível marcar a partir do dia da chegada.`);
+              return;
+            }
+            onMark(row);
+          }}
+          disabled={busy || blockCheck}
+          aria-label={blockCheck ? "Check-in em data futura" : done ? "Reabrir" : "Marcar como realizado"}
+          title={blockCheck ? `Só é possível marcar a partir de ${fmtDateBR(row.date)}` : done ? "Reabrir" : "Marcar como realizado"}
+          className={`size-9 grid place-items-center rounded-lg transition-colors ${
+            blockCheck
+              ? "bg-amber-500/20 text-amber-700 dark:text-amber-400 border border-amber-500/40 cursor-not-allowed"
+              : done
+              ? "bg-secondary hover:bg-secondary/80"
+              : "bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm shadow-emerald-600/20"
+          }`}
         >
           <Check className="size-4" />
         </button>
