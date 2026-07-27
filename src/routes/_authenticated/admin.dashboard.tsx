@@ -34,6 +34,13 @@ export const Route = createFileRoute("/_authenticated/admin/dashboard")({
 function fmtDateBR(iso: string) {
   try { const [y, m, d] = iso.split("-"); return `${d}/${m}/${y}`; } catch { return iso; }
 }
+function todayISOSaoPaulo(): string {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Sao_Paulo", year: "numeric", month: "2-digit", day: "2-digit",
+  }).formatToParts(new Date());
+  const pick = (t: string) => parts.find((p) => p.type === t)?.value ?? "";
+  return `${pick("year")}-${pick("month")}-${pick("day")}`;
+}
 function initials(name: string) {
   return name.split(/\s+/).filter(Boolean).slice(0, 2).map((p) => p[0]?.toUpperCase() ?? "").join("") || "?";
 }
