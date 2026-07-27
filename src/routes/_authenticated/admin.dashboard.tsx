@@ -685,7 +685,7 @@ function ArrivalGroup({ title, rows, kind, mode, onMark, onSyncIcal, onNote, onE
   onEditTime: (r: ArrivalRow, time: string | null) => void;
   busy: boolean;
   muted?: boolean;
-  cleaningPendingPropIds?: Set<string>;
+  cleaningPendingPropIds?: Map<string, "checkout" | "cleaning">;
 }) {
   if (rows.length === 0) return null;
   return (
@@ -702,7 +702,7 @@ function ArrivalGroup({ title, rows, kind, mode, onMark, onSyncIcal, onNote, onE
           onEditDates={onEditDates}
           onEditTime={onEditTime}
           busy={busy}
-          cleaningBlocked={mode === "checkin" && (cleaningPendingPropIds?.has(r.propertyId) ?? false)}
+          cleaningBlocked={mode === "checkin" ? (cleaningPendingPropIds?.get(r.propertyId) ?? null) : null}
         />
       ))}
     </div>
