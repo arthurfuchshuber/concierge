@@ -34,6 +34,13 @@ export const Route = createFileRoute("/_authenticated/admin/dashboard")({
 function fmtDateBR(iso: string) {
   try { const [y, m, d] = iso.split("-"); return `${d}/${m}/${y}`; } catch { return iso; }
 }
+function todayISOSaoPaulo(): string {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Sao_Paulo", year: "numeric", month: "2-digit", day: "2-digit",
+  }).formatToParts(new Date());
+  const pick = (t: string) => parts.find((p) => p.type === t)?.value ?? "";
+  return `${pick("year")}-${pick("month")}-${pick("day")}`;
+}
 function initials(name: string) {
   return name.split(/\s+/).filter(Boolean).slice(0, 2).map((p) => p[0]?.toUpperCase() ?? "").join("") || "?";
 }
@@ -253,7 +260,7 @@ function DashboardPage() {
     items: { propertyName: string; guestName: string; detail: string }[];
   };
   const alertStrips = useMemo<AlertStrip[]>(() => {
-    const today = new Date().toLocaleDateString("sv-SE");
+    const today = todayISOSaoPaulo();
     const strips: AlertStrip[] = [];
 
     // Fonte de verdade: as listas de "hoje" (que já incluem -30d de lookback)
@@ -774,7 +781,7 @@ function ArrivalCard({ row, kind, mode, onMark, onSyncIcal, onNote, onEditDates,
   
   const done = row.status === "done";
   const isPendingFill = row.pendingFill;
-  const todayISO = new Date().toLocaleDateString("sv-SE");
+  const todayISO = todayISOSaoPaulo();
   const isToday = row.date === todayISO;
   const isOverdue = row.date < todayISO;
 
@@ -792,7 +799,7 @@ function ArrivalCard({ row, kind, mode, onMark, onSyncIcal, onNote, onEditDates,
       done
         ? "bg-secondary/30 border-border/50"
         : isOverdue
-        ? "bg-[linear-gradient(135deg,color-mix(in_oklab,#ef4444_10%,transparent),color-mix(in_oklab,#ef4444_2%,transparent))] border-red-500/40 shadow-[0_10px_28px_-16px_rgba(239,68,68,0.35)]"
+        ? "bg-[linear-gradient(135deg,color-mix(in_oklab,#ef4444_28%,transparent),color-mix(in_oklab,#ef4444_12%,transparent))] border-red-500/70 shadow-[0_12px_32px_-14px_rgba(239,68,68,0.55)] ring-1 ring-red-500/30"
         : isToday
         ? "bg-[linear-gradient(135deg,color-mix(in_oklab,var(--primary)_7%,transparent),color-mix(in_oklab,var(--primary)_2%,transparent))] border-primary/25 shadow-[0_10px_28px_-16px_color-mix(in_oklab,var(--primary)_28%,transparent),0_1px_4px_-2px_color-mix(in_oklab,var(--primary)_14%,transparent)] hover:shadow-[0_12px_32px_-16px_color-mix(in_oklab,var(--primary)_36%,transparent)] hover:-translate-y-0.5"
         : "bg-[linear-gradient(135deg,color-mix(in_oklab,var(--primary)_5%,transparent),color-mix(in_oklab,var(--primary)_1%,transparent))] border-primary/15 shadow-sm hover:shadow-md hover:-translate-y-0.5"
