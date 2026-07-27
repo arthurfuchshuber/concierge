@@ -257,12 +257,17 @@ function DashboardPage() {
     stay: stayRows.length,
     cleaning: coRows.filter((r) => r.status === "done").length,
   };
-  // Imóveis com limpeza pendente bloqueiam novos check-ins até a limpeza
-  // ser concluída (evita liberar hóspede em imóvel ainda sujo).
-  const cleaningPendingPropIds = useMemo(
-    () => new Set(coRows.filter((r) => r.status === "done").map((r) => r.propertyId)),
-    [coRows],
-  );
+  // Imóveis com check-out pendente OU limpeza em andamento bloqueiam novos
+  // check-ins até serem concluídos (evita liberar hóspede em imóvel ainda
+  // ocupado pelo hóspede anterior ou ainda sujo).
+  const cleaningPendingPropIds = useMemo(() => {
+    const blocked = new Map<string, "checkout" | "cleaning">();
+    for (const r of coRows) {
+      if (r.status === "pending") blocked.set(r.propertyId, "checkout");
+      else if (r.status === "done" && !blocked.has(r.propertyId)) blocked.set(r.propertyId, "cleaning");
+    }
+    return blocked;
+  }, [coRows]);
   const boardRows = useMemo(() => {
     if (mode === "checkin") return ciRows.filter((r) => r.status === "pending");
     if (mode === "checkout") return coRows.filter((r) => r.status === "pending");
