@@ -285,6 +285,32 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
       from = addDaysISO(today, -30);
     }
 
+    const { data: syncProps } = await context.supabase
+      .from("properties")
+      .select("id, airbnb_ical_url, airbnb_ical_last_sync_at")
+      .in("id", propIds)
+      .not("airbnb_ical_url", "is", null);
+    const staleIcalProps = ((syncProps ?? []) as Array<{ id: string; airbnb_ical_url: string | null; airbnb_ical_last_sync_at: string | null }>)
+      .filter((p) => {
+        const url = p.airbnb_ical_url?.trim();
+        if (!url) return false;
+        if (!p.airbnb_ical_last_sync_at) return true;
+        return Date.now() - new Date(p.airbnb_ical_last_sync_at).getTime() > 30 * 60 * 1000;
+      })
+      .slice(0, 8);
+    if (staleIcalProps.length > 0) {
+      const { isAllowedIcalUrl } = await import("@/lib/airbnb-ical-url");
+      const { syncPropertyIcal } = await import("@/lib/airbnb-ical.server");
+      await Promise.allSettled(
+        staleIcalProps.map((p) => {
+          const url = p.airbnb_ical_url?.trim();
+          return url && isAllowedIcalUrl(url)
+            ? syncPropertyIcal(p.id, url)
+            : Promise.resolve(null);
+        }),
+      );
+    }
+
     let q = context.supabase
       .from("guide_access_logs")
       .select("id, property_id, guest_name, guest_phone, guest_phone_country, guest_arrival_time, checkin_date, checkout_date, reservation_code, created_at")
@@ -301,10 +327,12 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
     }>;
     const placeholderLogs = rawLogs.filter((l) => isPlaceholderGuest(l.guest_name));
     const formLogs = rawLogs.filter((l) => !isPlaceholderGuest(l.guest_name));
-    // Dedupe per (property_id + guest_name + date) — keep the most recent log
+    // Dedupe only truly repeated form submissions for the same stay. Never merge
+    // adjacent back-to-back reservations in the same unit: checkout is part of
+    // the identity, because one guest can leave on the same day another enters.
     const dedupMap = new Map<string, typeof rawLogs[number]>();
     for (const l of formLogs) {
-      const key = `${l.property_id}|${(l.guest_name || "").trim().toLowerCase()}|${data.kind === "checkin" ? l.checkin_date : l.checkout_date}`;
+      const key = `${l.property_id}|${(l.guest_name || "").trim().toLowerCase()}|${(l.guest_phone || "").replace(/\D/g, "")}|${l.checkin_date}|${l.checkout_date ?? ""}|${l.reservation_code ?? ""}`;
       const prev = dedupMap.get(key);
       if (!prev || new Date(l.created_at) > new Date(prev.created_at)) dedupMap.set(key, l);
     }
@@ -410,14 +438,9 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
     }
 
     function findBestLogForReservation(r: ReservationRow) {
-      const exactStay = uniqueLogs.find((l) =>
+      return uniqueLogs.find((l) =>
         l.property_id === r.property_id && l.checkin_date === r.checkin_date && l.checkout_date === r.checkout_date,
-      );
-      if (exactStay) return exactStay;
-      if (data.kind === "checkin") {
-        return uniqueLogs.find((l) => l.property_id === r.property_id && l.checkin_date === r.checkin_date) ?? null;
-      }
-      return uniqueLogs.find((l) => l.property_id === r.property_id && l.checkout_date === r.checkout_date) ?? null;
+      ) ?? null;
     }
 
     function rowFromLog(l: typeof uniqueLogs[number], forceIcal?: { hasIcal: boolean; matched: boolean; icalCheckin: string | null; icalCheckout: string | null }): ArrivalRow | null {
