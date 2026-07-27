@@ -802,6 +802,8 @@ function ArrivalCard({ row, kind, mode, onMark, onSyncIcal, onNote, onEditDates,
         ? "bg-secondary/30 border-border/50"
         : isOverdue
         ? "bg-[linear-gradient(135deg,color-mix(in_oklab,#ef4444_28%,transparent),color-mix(in_oklab,#ef4444_12%,transparent))] border-red-500/70 shadow-[0_12px_32px_-14px_rgba(239,68,68,0.55)] ring-1 ring-red-500/30"
+        : isFuture
+        ? "bg-[linear-gradient(135deg,color-mix(in_oklab,#f59e0b_22%,transparent),color-mix(in_oklab,#f59e0b_8%,transparent))] border-amber-500/60 shadow-[0_10px_28px_-16px_rgba(245,158,11,0.55)] ring-1 ring-amber-500/25"
         : isToday
         ? "bg-[linear-gradient(135deg,color-mix(in_oklab,var(--primary)_7%,transparent),color-mix(in_oklab,var(--primary)_2%,transparent))] border-primary/25 shadow-[0_10px_28px_-16px_color-mix(in_oklab,var(--primary)_28%,transparent),0_1px_4px_-2px_color-mix(in_oklab,var(--primary)_14%,transparent)] hover:shadow-[0_12px_32px_-16px_color-mix(in_oklab,var(--primary)_36%,transparent)] hover:-translate-y-0.5"
         : "bg-[linear-gradient(135deg,color-mix(in_oklab,var(--primary)_5%,transparent),color-mix(in_oklab,var(--primary)_1%,transparent))] border-primary/15 shadow-sm hover:shadow-md hover:-translate-y-0.5"
@@ -809,6 +811,11 @@ function ArrivalCard({ row, kind, mode, onMark, onSyncIcal, onNote, onEditDates,
       {isOverdue && !done && (
         <div className="absolute top-2 right-2 z-10 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider bg-red-500/15 text-red-600 dark:text-red-400 border border-red-500/40">
           <AlertTriangle className="size-3" /> Atrasado
+        </div>
+      )}
+      {isFuture && !done && (
+        <div className="absolute top-2 right-2 z-10 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/40">
+          <AlertTriangle className="size-3" /> Data Futura
         </div>
       )}
 
