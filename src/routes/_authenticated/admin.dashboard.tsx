@@ -260,7 +260,7 @@ function DashboardPage() {
     items: { propertyName: string; guestName: string; detail: string }[];
   };
   const alertStrips = useMemo<AlertStrip[]>(() => {
-    const today = new Date().toLocaleDateString("sv-SE");
+    const today = todayISOSaoPaulo();
     const strips: AlertStrip[] = [];
 
     // Fonte de verdade: as listas de "hoje" (que já incluem -30d de lookback)
