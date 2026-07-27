@@ -530,10 +530,10 @@ function KpiCard({ label, value, icon: Icon, tone, loading, listQuery, kind, ran
                       />
                       {done ? (
                         <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
-                          <Check className="size-3" /> Feito
+                          <Check className="size-3" /> Concluído
                         </span>
                       ) : (
-                        <span className="text-[10px] uppercase tracking-wider text-muted-foreground">Aguardando</span>
+                        <span className="text-[10px] uppercase tracking-wider text-muted-foreground">Pendente</span>
                       )}
                     </div>
                   </li>
