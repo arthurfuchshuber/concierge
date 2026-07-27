@@ -988,7 +988,7 @@ function ArrivalCard({ row, kind, mode, onMark, onSyncIcal, onNote, onEditDates,
           onClick={() => {
             if (cleaningBlock) {
               const msg = blockReason === "checkout"
-                ? "Hóspede anterior ainda não fez check-out neste imóvel. Conclua o check-out para liberar o novo check-in."
+                ? "Hóspede anterior ainda não fez check-out. Conclua o check-out e a limpeza para liberar o novo check-in."
                 : "Limpeza deste imóvel ainda não foi concluída. Finalize a limpeza para liberar o check-in.";
               toast.warning(msg);
               return;
@@ -1004,14 +1004,16 @@ function ArrivalCard({ row, kind, mode, onMark, onSyncIcal, onNote, onEditDates,
             cleaningBlock
               ? (blockReason === "checkout" ? "Check-out anterior pendente neste imóvel" : "Limpeza pendente neste imóvel")
               : blockCheck ? "Check-in em data futura"
+              : mode === "cleaning" ? "Concluir limpeza"
               : done ? "Reabrir (marcar pendente)" : "Marcar como concluído"
           }
           title={
             cleaningBlock
               ? (blockReason === "checkout"
-                  ? "Check-out do hóspede anterior ainda pendente — check-in bloqueado"
+                  ? "Check-out anterior pendente — limpeza precisa ser concluída antes de liberar o check-in"
                   : "Limpeza ainda em andamento — check-in bloqueado")
               : blockCheck ? `Só é possível marcar a partir de ${fmtDateBR(row.date)}`
+              : mode === "cleaning" ? "Concluir limpeza (finaliza a estadia)"
               : done ? "Reabrir (voltar para Pendente)" : "Marcar como Concluído"
           }
           className={`size-9 grid place-items-center rounded-lg transition-colors ${
@@ -1019,6 +1021,8 @@ function ArrivalCard({ row, kind, mode, onMark, onSyncIcal, onNote, onEditDates,
               ? "bg-orange-500/25 text-orange-700 dark:text-orange-400 border border-orange-500/50 cursor-not-allowed"
               : blockCheck
               ? "bg-amber-500/20 text-amber-700 dark:text-amber-400 border border-amber-500/40 cursor-not-allowed"
+              : mode === "cleaning"
+              ? "bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm shadow-emerald-600/20"
               : done
               ? "bg-secondary hover:bg-secondary/80"
               : "bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm shadow-emerald-600/20"
