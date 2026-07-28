@@ -676,6 +676,9 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
         }
       }
       const virtualStay = autoStayDone(l.checkin_date, l.checkout_date ?? null, p?.checkin_time ?? null);
+      if (data.kind === "checkin" && belongsToCheckoutStage(l.checkin_date, l.checkout_date ?? null)) {
+        return null;
+      }
       if (data.kind === "checkin" && !isCurrentStay(l.checkin_date, l.checkout_date ?? null) && date < (from ?? today)) {
         return null;
       }
