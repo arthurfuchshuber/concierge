@@ -1568,11 +1568,14 @@ function Guide({ data }: { data: GuideOk }) {
                         </h3>
                       </div>
                       <Accordion type="single" collapsible className="space-y-1.5">
-                        {data.faqs.map((f: any, idx: number) => (
+                        {data.faqs.map((f: any, idx: number) => {
+                          const anchor = `faq-${slugForTag(String(f.question ?? ""))}`;
+                          return (
                           <AccordionItem
                             key={f.id}
+                            id={anchor}
                             value={f.id}
-                            className="border border-border/70 rounded-xl px-3.5 bg-card/30 hover:bg-card/60 transition-colors data-[state=open]:bg-card data-[state=open]:border-accent/40"
+                            className="border border-border/70 rounded-xl px-3.5 bg-card/30 hover:bg-card/60 transition-colors data-[state=open]:bg-card data-[state=open]:border-accent/40 scroll-mt-24"
                           >
                             <AccordionTrigger className="text-left hover:no-underline py-2.5 gap-3">
                               <span className="flex items-center gap-2.5 min-w-0">
@@ -1583,10 +1586,10 @@ function Guide({ data }: { data: GuideOk }) {
                               </span>
                             </AccordionTrigger>
                             <AccordionContent className="text-[13.5px] leading-relaxed whitespace-pre-line text-foreground/80 pl-6 pr-1 pb-3.5 max-w-prose">
-                              {f.answer}
+                              <InlineTagText text={String(f.answer ?? "")} onNavigate={(k, p) => navigateGuideTag(k, p)} />
                             </AccordionContent>
                           </AccordionItem>
-                        ))}
+                        );})}
                       </Accordion>
                     </div>
                   )}
