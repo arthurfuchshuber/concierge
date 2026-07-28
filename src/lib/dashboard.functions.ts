@@ -431,6 +431,7 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
         // active stays whose check-in happened before today are not silently
         // dropped; reservationInRange below still decides the exact stage.
         reservationsQuery = reservationsQuery.gte("checkout_date", today);
+        if (data.range !== "all") reservationsQuery = reservationsQuery.lte("checkin_date", reservationWindowEnd ?? today);
         if (reservationWindowEnd) reservationsQuery = reservationsQuery.lte("checkin_date", reservationWindowEnd);
       }
     } else {
@@ -894,6 +895,7 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
             const resDone = !!(r.reservationId && checkinDoneReservations.has(r.reservationId));
             const logExplicitlyPending = !!(r.logId && !r.logId.startsWith("ical:") && checkinPendingLogs.has(r.logId));
             const resExplicitlyPending = !!(r.reservationId && checkinPendingReservations.has(r.reservationId));
+            if (data.range === "tomorrow") return true;
             if (!logDone && !resDone && (logExplicitlyPending || resExplicitlyPending)) return false;
             return logDone || resDone || virtualCheckinDone(r);
           })
