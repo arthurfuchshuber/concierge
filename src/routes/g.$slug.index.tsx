@@ -1278,7 +1278,7 @@ function Guide({ data }: { data: GuideOk }) {
                               <div className="space-y-4">
                                 {p.checkin_instructions && (
                                   <div className="rounded-2xl border border-border/60 bg-background/40 px-4 py-4">
-                                    <StepList text={String(p.checkin_instructions)} dense />
+                                    <StepList text={expandInfoTags(String(p.checkin_instructions), p as never)} dense />
                                   </div>
                                 )}
                                 {Array.isArray(p.checkin_media) && p.checkin_media.length > 0 && (
