@@ -334,10 +334,10 @@ function EquipePage() {
 
                       {!isSelf && (
                         <div>
-                          <h3 className="text-[11px] uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-1.5">
-                            <ShieldCheck className="size-3.5" /> Permissões por área
+                          <h3 className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2 flex items-center gap-1.5">
+                            <ShieldCheck className="size-3" /> Permissões por área
                           </h3>
-                          <ul className="space-y-3">
+                          <ul className="divide-y divide-border/60 rounded-lg border border-border/60 overflow-hidden">
                             {PERMISSION_AREAS.map((area) => {
                               const viewVal = !!perms[area.view];
                               const editVal = !!perms[area.edit];
@@ -346,52 +346,39 @@ function EquipePage() {
                               return (
                                 <li
                                   key={area.area}
-                                  className={`rounded-xl border border-border bg-background/40 p-3 ${locked ? "opacity-60" : ""}`}
-                                  title={locked ? `Disponível em planos superiores ao ${planName}` : undefined}
+                                  className={`flex items-center gap-3 px-3 py-2 ${locked ? "opacity-60" : ""}`}
+                                  title={locked ? `Disponível em planos superiores ao ${planName}` : area.description}
                                 >
-                                  <div className="flex items-start justify-between gap-3 mb-2">
-                                    <div className="flex-1 min-w-0">
-                                      <div className="text-sm font-medium flex items-center gap-2 flex-wrap">
-                                        {area.label}
-                                        {locked && (
-                                          <span className="text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded bg-secondary border border-border text-muted-foreground">
-                                            Indisponível no plano
-                                          </span>
-                                        )}
-                                      </div>
-                                      <div className="text-[12px] text-muted-foreground">{area.description}</div>
+                                  <div className="flex-1 min-w-0">
+                                    <div className="text-[13px] font-medium truncate flex items-center gap-1.5">
+                                      {area.label}
+                                      {locked && (
+                                        <span className="text-[9px] uppercase tracking-wide px-1 py-px rounded bg-secondary border border-border text-muted-foreground">
+                                          Indisponível
+                                        </span>
+                                      )}
                                     </div>
                                   </div>
-                                  <div className="grid grid-cols-2 gap-2">
-                                    <label className="flex items-center justify-between gap-2 rounded-lg border border-border/60 px-2.5 py-1.5">
-                                      <span className="text-xs">Visualizar</span>
-                                      <Switch
-                                        checked={locked ? false : viewVal}
-                                        disabled={updPerm.isPending || locked}
-                                        onCheckedChange={(checked) =>
-                                          updPerm.mutate({
-                                            memberUserId: id,
-                                            permission: area.view,
-                                            granted: checked,
-                                          })
-                                        }
-                                      />
-                                    </label>
-                                    <label className="flex items-center justify-between gap-2 rounded-lg border border-border/60 px-2.5 py-1.5">
-                                      <span className="text-xs">{area.editLabel}</span>
-                                      <Switch
-                                        checked={locked ? false : editVal}
-                                        disabled={updPerm.isPending || locked}
-                                        onCheckedChange={(checked) =>
-                                          updPerm.mutate({
-                                            memberUserId: id,
-                                            permission: area.edit,
-                                            granted: checked,
-                                          })
-                                        }
-                                      />
-                                    </label>
-                                  </div>
+                                  <label className="flex items-center gap-1.5 shrink-0">
+                                    <span className="text-[11px] text-muted-foreground">Ver</span>
+                                    <Switch
+                                      checked={locked ? false : viewVal}
+                                      disabled={updPerm.isPending || locked}
+                                      onCheckedChange={(checked) =>
+                                        updPerm.mutate({ memberUserId: id, permission: area.view, granted: checked })
+                                      }
+                                    />
+                                  </label>
+                                  <label className="flex items-center gap-1.5 shrink-0 pl-2 border-l border-border/60">
+                                    <span className="text-[11px] text-muted-foreground">Editar</span>
+                                    <Switch
+                                      checked={locked ? false : editVal}
+                                      disabled={updPerm.isPending || locked}
+                                      onCheckedChange={(checked) =>
+                                        updPerm.mutate({ memberUserId: id, permission: area.edit, granted: checked })
+                                      }
+                                    />
+                                  </label>
                                 </li>
                               );
                             })}
