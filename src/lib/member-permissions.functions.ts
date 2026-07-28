@@ -59,6 +59,22 @@ export const PERMISSION_META: Record<
   },
 };
 
+/**
+ * Mapa permissão → feature do plano. Quando a feature não está presente no
+ * plano do dono, o toggle é ocultado/desabilitado e o servidor recusa gravar.
+ * Permissões sem mapeamento (null) são liberadas em qualquer plano.
+ */
+export const PERMISSION_FEATURE: Record<MemberPermission, keyof PlanFeatures | null> = {
+  chat_respond: "humanHandoff",
+  ai_train: "ai",
+  library_edit: null,
+  clients_manage: null,
+  trial_manage: null,
+  pricing_override: null,
+};
+
+
+
 // Owner lists team members + full permission matrix
 export const listMemberPermissions = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
