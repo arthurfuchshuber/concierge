@@ -413,24 +413,6 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
     }
     const uniqueLogs = Array.from(dedupMap.values());
 
-    const reservationSelect =
-      "id, property_id, checkin_date, checkout_date, raw_summary, guest_hint, reservation_url, status, synced_at";
-    let reservationQuery = context.supabase
-      .from("property_reservations")
-      .select(reservationSelect)
-      .in("property_id", propIds)
-      .eq("source", "airbnb");
-    const reservationRangeStart = from ?? today;
-    if (data.kind === "checkin" && data.range !== "tomorrow") {
-      const currentStayFilter = `and(checkin_date.lt.${reservationRangeStart},checkout_date.gt.${today})`;
-      reservationQuery = to
-        ? reservationQuery.or(`and(checkin_date.gte.${reservationRangeStart},checkin_date.lte.${to}),${currentStayFilter}`)
-        : reservationQuery.or(`checkin_date.gte.${reservationRangeStart},${currentStayFilter}`);
-    } else {
-      reservationQuery = reservationQuery.gte(dateCol, reservationRangeStart);
-      if (to) reservationQuery = reservationQuery.lte(dateCol, to);
-    }
-
     const [{ data: props }, { data: statuses }, { data: reservations }, { data: sectionEvents }] = await Promise.all([
       context.supabase
         .from("properties")
@@ -443,7 +425,16 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
         .select("log_id, reservation_id, kind, status, note, arrival_time_override, done_at, concluded_at")
         .in("property_id", propIds)
         .limit(5000),
-      reservationQuery.order(dateCol, { ascending: true }).limit(10000),
+      context.supabase
+        .from("property_reservations")
+        .select(
+          "id, property_id, checkin_date, checkout_date, raw_summary, guest_hint, reservation_url, status, synced_at",
+        )
+        .in("property_id", propIds)
+        .eq("source", "airbnb")
+        .gte(data.kind === "checkin" ? "checkout_date" : "checkout_date", today)
+        .order(dateCol, { ascending: true })
+        .limit(10000),
       uniqueLogs.length > 0
         ? context.supabase
             .from("guide_section_events")
