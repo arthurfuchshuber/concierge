@@ -766,47 +766,16 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
 
     const rows: ArrivalRow[] = [];
     const usedLogIds = new Set<string>();
-    if (data.kind === "checkin" && data.range === "today") {
-      console.log(
-        "[dashboard-checkin-debug:start] " +
-          JSON.stringify({
-            today,
-            from,
-            to,
-            propIds: propIds.length,
-            reservations: reservationRows.length,
-            currentStays: reservationRows.filter((r) => isCurrentStay(r.checkin_date, r.checkout_date)).length,
-            inRange: reservationRows.filter(reservationInRange).length,
-          }),
-      );
-    }
 
-    let debugNoProp = 0;
-    let debugNoIcal = 0;
-    let debugRowBuilt = 0;
-    let debugRowNull = 0;
     for (const r of reservationRows.filter(reservationInRange)) {
       const p = propMap.get(r.property_id);
-      if (!p) debugNoProp += 1;
-      if (p && !p.airbnb_ical_url) debugNoIcal += 1;
       if (!p?.airbnb_ical_url) continue;
       const matchedLog = findBestLogForReservation(r);
       if (matchedLog) {
         usedLogIds.add(matchedLog.id);
       }
       const row = rowFromReservation(r, matchedLog);
-      if (row) {
-        debugRowBuilt += 1;
-        rows.push(row);
-      } else {
-        debugRowNull += 1;
-      }
-    }
-    if (data.kind === "checkin" && data.range === "today") {
-      console.log(
-        "[dashboard-checkin-debug:loop] " +
-          JSON.stringify({ debugNoProp, debugNoIcal, debugRowBuilt, debugRowNull, rowsBeforeLogs: rows.length }),
-      );
+      if (row) rows.push(row);
     }
 
     for (const l of uniqueLogs) {
@@ -847,26 +816,10 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
             return logDone || resDone || virtualCheckinDone(r);
           })
         : rows;
-    const finalRows = gatedRows;
+    const finalRows = [...gatedRows];
     finalRows.length; // keep var used below
     rows.length = 0;
     rows.push(...finalRows);
-    if (data.kind === "checkin" && data.range === "today") {
-      console.log(
-        "[dashboard-checkin-debug:end] " +
-          JSON.stringify({
-            rows: rows.length,
-            pending: rows.filter((r) => r.status === "pending").length,
-            done: rows.filter((r) => r.status === "done").length,
-            sample: rows.slice(0, 5).map((r) => ({
-              code: r.reservationCode,
-              date: r.date,
-              checkout: r.guestCheckout,
-              status: r.status,
-            })),
-          }),
-      );
-    }
 
     // Prioridade: data → horário previsto (override do anfitrião ou informado pelo
     // hóspede) → ordem alfabética da residência. O horário padrão da propriedade
