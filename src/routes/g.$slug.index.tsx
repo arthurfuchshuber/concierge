@@ -64,7 +64,7 @@ import waterfallImg from "@/assets/rec-waterfall.jpg";
 import conciergeLogo from "@/assets/concierge-logo.png";
 import { GuideAccessGate, readAccessRecord, type AccessRecord } from "@/components/GuideAccessGate";
 import { InlineTagText } from "@/components/tags/InlineTagText";
-import { slugForTag, type GuideTagKey } from "@/lib/guide-tags";
+import { slugForTag, expandInfoTags, type GuideTagKey } from "@/lib/guide-tags";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -479,6 +479,16 @@ function Guide({ data }: { data: GuideOk }) {
     setPinDialog({ open: true, cb: cb ?? null });
   };
 
+  // Contexto compartilhado para renderizar [[tag:...]] e [[info:...]] inline.
+  const infoCtx = {
+    snapshot: p as never,
+    unlocked,
+    hasAccessPin,
+    checkinLocked,
+    onRequestUnlock: () => requestUnlock(),
+  };
+
+
   // Theme: admin default, override per-visitor via localStorage
   const adminTheme: "dark" | "light" = p.guide_theme === "light" ? "light" : "dark";
   const [theme, setTheme] = useState<"dark" | "light">(() => {
@@ -834,7 +844,7 @@ function Guide({ data }: { data: GuideOk }) {
                             Importante · Check-in
                           </p>
                           <p className="text-[13px] leading-relaxed font-medium mt-1 whitespace-pre-line">
-                            {String(p.checkin_note)}
+                            <InlineTagText text={String(p.checkin_note)} onNavigate={navigateGuideTag} info={infoCtx} />
                           </p>
                         </div>
                       </div>
@@ -856,7 +866,7 @@ function Guide({ data }: { data: GuideOk }) {
                           </p>
                           {p.checkout_note && (
                             <p className="text-[13px] leading-relaxed font-medium mt-1 whitespace-pre-line">
-                              {String(p.checkout_note)}
+                              <InlineTagText text={String(p.checkout_note)} onNavigate={navigateGuideTag} info={infoCtx} />
                             </p>
                           )}
                         </div>
@@ -1139,7 +1149,7 @@ function Guide({ data }: { data: GuideOk }) {
                                       Observação
                                     </p>
                                     <p className="text-[14px] text-foreground/85 leading-relaxed whitespace-pre-line">
-                                      {String(p.checkin_note)}
+                                      <InlineTagText text={String(p.checkin_note)} onNavigate={navigateGuideTag} info={infoCtx} />
                                     </p>
                                   </div>
                                 )}
@@ -1160,7 +1170,7 @@ function Guide({ data }: { data: GuideOk }) {
                                     .split(/\n\s*\n/)
                                     .map((para: string, i: number) => (
                                       <p key={i} className="whitespace-pre-line">
-                                        {para}
+                                        <InlineTagText text={para} onNavigate={navigateGuideTag} info={infoCtx} />
                                       </p>
                                     ))}
                                 </div>
@@ -1268,7 +1278,7 @@ function Guide({ data }: { data: GuideOk }) {
                               <div className="space-y-4">
                                 {p.checkin_instructions && (
                                   <div className="rounded-2xl border border-border/60 bg-background/40 px-4 py-4">
-                                    <StepList text={String(p.checkin_instructions)} dense />
+                                    <StepList text={expandInfoTags(String(p.checkin_instructions), p as never)} dense />
                                   </div>
                                 )}
                                 {Array.isArray(p.checkin_media) && p.checkin_media.length > 0 && (
@@ -1401,7 +1411,7 @@ function Guide({ data }: { data: GuideOk }) {
                             label="Proibido Neste Espaço"
                             hint="O que não é permitido durante a estadia"
                           >
-                            <RulesGrid text={String((p as Record<string, unknown>).house_rules)} />
+                            <RulesGrid text={expandInfoTags(String((p as Record<string, unknown>).house_rules), p as never)} />
                           </SubItem>
                         ) : null}
                       </SubList>
@@ -1479,7 +1489,7 @@ function Guide({ data }: { data: GuideOk }) {
                                       Observação
                                     </p>
                                     <p className="text-[14px] text-foreground/85 leading-relaxed whitespace-pre-line">
-                                      {String(p.checkout_note)}
+                                      <InlineTagText text={String(p.checkout_note)} onNavigate={navigateGuideTag} info={infoCtx} />
                                     </p>
                                   </div>
                                 )}
@@ -1494,7 +1504,7 @@ function Guide({ data }: { data: GuideOk }) {
                             hint="Passo a passo da saída"
                           >
                             <div className="rounded-2xl border border-border/60 bg-background/40 px-4 py-4">
-                              <StepList text={p.checkout_instructions as string} dense />
+                              <StepList text={expandInfoTags(String(p.checkout_instructions ?? ""), p as never)} dense />
                             </div>
                           </SubItem>
                         )}
