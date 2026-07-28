@@ -1463,7 +1463,7 @@ function PropertyEditor() {
               <Field label="Check-out até"><TimePicker value={form.property.checkout_time} onChange={(v) => update("checkout_time", v)} placeholder="11:00" /></Field>
             </div>
             <Field label="Observação do check-out (opcional)" hint="Aparece abaixo dos horários no guia. Deixe em branco para ocultar.">
-              <Textarea value={form.property.checkout_note} maxLength={1000} rows={3} onChange={(e) => update("checkout_note", e.target.value)} placeholder="Ex.: Late check-out mediante disponibilidade — consulte o anfitrião." />
+              <TagMentionTextarea items={tagItems} value={form.property.checkout_note} maxLength={1000} rows={3} onChange={(e) => update("checkout_note", e.target.value)} placeholder="Ex.: Late check-out mediante disponibilidade — consulte o anfitrião." />
             </Field>
           </Section>
 
