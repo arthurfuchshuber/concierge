@@ -413,6 +413,20 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
     }
     const uniqueLogs = Array.from(dedupMap.values());
 
+    const reservationWindowStart = data.range === "tomorrow" ? addDaysISO(today, 1) : today;
+    const reservationWindowEnd =
+      data.range === "tomorrow" ? reservationWindowStart : data.range === "7d" ? addDaysISO(today, 6) : null;
+    const reservationDateCol = data.kind === "checkin" ? "checkin_date" : "checkout_date";
+    let reservationsQuery = context.supabase
+      .from("property_reservations")
+      .select(
+        "id, property_id, checkin_date, checkout_date, raw_summary, guest_hint, reservation_url, status, synced_at",
+      )
+      .in("property_id", propIds)
+      .eq("source", "airbnb")
+      .gte(reservationDateCol, reservationWindowStart);
+    if (reservationWindowEnd) reservationsQuery = reservationsQuery.lte(reservationDateCol, reservationWindowEnd);
+
     const [{ data: props }, { data: statuses }, { data: reservations }, { data: sectionEvents }] = await Promise.all([
       context.supabase
         .from("properties")
@@ -425,14 +439,7 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
         .select("log_id, reservation_id, kind, status, note, arrival_time_override, done_at, concluded_at")
         .in("property_id", propIds)
         .limit(5000),
-      context.supabase
-        .from("property_reservations")
-        .select(
-          "id, property_id, checkin_date, checkout_date, raw_summary, guest_hint, reservation_url, status, synced_at",
-        )
-        .in("property_id", propIds)
-        .eq("source", "airbnb")
-        .limit(5000),
+      reservationsQuery.order(reservationDateCol, { ascending: true }).limit(10000),
       uniqueLogs.length > 0
         ? context.supabase
             .from("guide_section_events")
@@ -634,31 +641,36 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
     function findBestLogForReservation(r: ReservationRow) {
       const resCode = normalizeCode(r.guest_hint);
       // 1) Match forte por código de reserva (HM…): identidade real do hóspede,
-      // imune a datas erradas digitadas no formulário.
+      // imune a datas erradas digitadas no formulário. A data operacional exibida
+      // continua vindo do iCal; o log só empresta nome/telefone/status.
       if (resCode) {
-        const codeMatch = uniqueLogs.find(
+        const codeMatches = uniqueLogs.filter(
           (l) => l.property_id === r.property_id && normalizeCode(l.reservation_code) === resCode,
         );
+        const codeMatch =
+          codeMatches.find((l) => l.checkin_date === r.checkin_date && l.checkout_date === r.checkout_date) ??
+          codeMatches.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0];
         if (codeMatch) return codeMatch;
       }
-      // 2) Match por datas exatas, mas rejeita quando o log carrega um código
-      // DIFERENTE do código do iCal — evita atribuir o log de outro hóspede.
-      const dateMatch =
-        uniqueLogs.find(
-          (l) =>
-            l.property_id === r.property_id &&
-            l.checkin_date === r.checkin_date &&
-            l.checkout_date === r.checkout_date,
-        ) ?? null;
-      if (dateMatch) {
-        const logCode = normalizeCode(dateMatch.reservation_code);
-        // Se o iCal trouxe código HM, ele é a identidade forte da reserva.
-        // Não podemos colar um formulário sem código apenas por datas: se o
-        // hóspede escolheu o período errado, o nome dele aparece na reserva de
-        // outro hóspede. Nesse caso, mantemos o card como "Hóspede Pendente".
-        if (resCode && logCode !== resCode) return null;
-      }
-      return dateMatch;
+      // 2) Match por datas exatas, apenas quando é único e seguro. Para check-in
+      // futuro com código HM no iCal, não colamos log sem código por datas — isso
+      // foi a causa de nomes de hóspedes antigos aparecerem em reservas futuras.
+      // Para checkout, o mesmo par exato imóvel+entrada+saída é seguro para
+      // recuperar o nome já preenchido pelo hóspede que está saindo.
+      const exactMatches = uniqueLogs.filter(
+        (l) =>
+          l.property_id === r.property_id &&
+          l.checkin_date === r.checkin_date &&
+          l.checkout_date === r.checkout_date,
+      );
+      const safeExactMatches = exactMatches.filter((l) => {
+        const logCode = normalizeCode(l.reservation_code);
+        if (resCode && logCode && logCode !== resCode) return false;
+        if (resCode && !logCode && data.kind === "checkin") return false;
+        return true;
+      });
+      if (safeExactMatches.length !== 1) return null;
+      return safeExactMatches[0];
     }
 
     // Auto-promoção para "Em Estadia": quando uma reserva é importada (ou
@@ -794,9 +806,9 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
         standardTime: data.kind === "checkin" ? (p?.checkin_time ?? null) : (p?.checkout_time ?? null),
         standardTimeMax: data.kind === "checkin" ? (p?.checkin_time_max ?? null) : (p?.checkout_time_min ?? null),
         date,
-        guestCheckin: matchedLog?.checkin_date ?? r.checkin_date,
-        guestCheckout: matchedLog?.checkout_date ?? r.checkout_date,
-        reservationCode: matchedLog?.reservation_code ?? r.guest_hint ?? null,
+        guestCheckin: r.checkin_date,
+        guestCheckout: r.checkout_date,
+        reservationCode: r.guest_hint ?? matchedLog?.reservation_code ?? null,
         createdAt: matchedLog?.created_at ?? r.synced_at ?? new Date().toISOString(),
         status:
           data.kind === "checkin" && r.checkin_date > today && s?.status === "done"
