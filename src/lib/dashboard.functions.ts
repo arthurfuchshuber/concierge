@@ -74,7 +74,7 @@ export const getDashboardKpis = createServerFn({ method: "GET" })
     const today = todayISO();
     const tomorrow = addDaysISO(today, 1);
     // "Hoje" = tudo que ainda está pendente até hoje (inclui atrasados dos últimos 30 dias).
-    const overdueFrom = addDaysISO(today, -30);
+    const overdueFrom = "1970-01-01";
 
     const [{ data: props }, { data: logs }, { data: reservations }, { data: statuses }] = await Promise.all([
       context.supabase.from("properties").select("id, airbnb_ical_url").in("id", propIds),
@@ -323,10 +323,10 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
       from = today;
       to = null;
     }
-    // Para o filtro "Hoje", também trazemos os últimos 30 dias para que cards
-    // atrasados (que ainda não receberam o check) continuem visíveis com alerta.
+    // Para o filtro "Hoje", trazemos todos os atrasados (sem limite) para que
+    // cards pendentes anteriores continuem visíveis com alerta.
     if (data.range === "today") {
-      from = addDaysISO(today, -30);
+      from = "1970-01-01";
     }
 
     if (data.kind === "checkin" && data.range === "today") {
