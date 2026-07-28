@@ -185,9 +185,11 @@ export const listPropertiesForAccount = createServerFn({ method: "POST" })
 export const listMyPropertiesBrief = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
+    const { userId } = context;
     const { data, error } = await context.supabase
       .from("properties")
       .select("id, name, city, published")
+      .eq("owner_id", userId)
       .order("name", { ascending: true });
     if (error) throw (await import("@/lib/db-errors.server")).safeDbError("properties", error);
     return (data ?? []) as Array<{ id: string; name: string; city: string | null; published: boolean }>;
