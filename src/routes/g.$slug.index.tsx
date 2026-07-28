@@ -1170,7 +1170,7 @@ function Guide({ data }: { data: GuideOk }) {
                                     .split(/\n\s*\n/)
                                     .map((para: string, i: number) => (
                                       <p key={i} className="whitespace-pre-line">
-                                        {para}
+                                        <InlineTagText text={para} onNavigate={navigateGuideTag} info={infoCtx} />
                                       </p>
                                     ))}
                                 </div>
