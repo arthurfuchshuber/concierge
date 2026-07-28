@@ -7,6 +7,12 @@ export type CalendarPeriodRow = {
   status?: string | null;
 };
 
+export function normalizeReservationCode(value: string | null | undefined): string | null {
+  if (!value) return null;
+  const match = String(value).match(/\bHM[A-Z0-9]{6,}\b/i);
+  return match ? match[0].toUpperCase() : null;
+}
+
 export function operationalTodayISO(): string {
   const parts = new Intl.DateTimeFormat("en-US", {
     timeZone: "America/Sao_Paulo",
