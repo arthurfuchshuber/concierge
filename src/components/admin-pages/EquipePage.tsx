@@ -212,7 +212,7 @@ function EquipePage() {
         <h1 className="font-display text-2xl">Equipe & Permissões</h1>
       </div>
       <p className="text-sm text-muted-foreground -mt-4">
-        Dados, cargo e recursos que cada membro pode acessar. Recursos operacionais respeitam os limites do seu plano.
+        Dados e recursos que cada membro pode acessar. Recursos operacionais respeitam os limites do seu plano.
       </p>
 
       <section className="glass rounded-2xl p-4 lg:p-6 border border-border">
