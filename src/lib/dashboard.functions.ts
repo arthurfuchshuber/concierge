@@ -317,6 +317,14 @@ export type ArrivalRow = {
   doneAt: string | null;
   pendingFill: boolean; // true = reserva iCal sem formulário preenchido
   ical: { hasIcal: boolean; matched: boolean; icalCheckin: string | null; icalCheckout: string | null };
+  additionalGuests: Array<{
+    logId: string;
+    name: string;
+    phone: string | null;
+    phoneCountry: string | null;
+    reservationCode: string | null;
+    arrivalTime: string | null;
+  }>;
 };
 
 export const listDashboardArrivals = createServerFn({ method: "GET" })
