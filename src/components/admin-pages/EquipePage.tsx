@@ -303,7 +303,7 @@ function EquipePage() {
                       </div>
                       {!isSelf && (
                         <span className="text-[11px] px-2 py-0.5 rounded-full bg-secondary border border-border">
-                          {activeCount}/{OPERATIONAL_PERMS.length} permissões
+                          {activeCount}/{TOTAL_TOGGLES} permissões
                         </span>
                       )}
                     </div>
