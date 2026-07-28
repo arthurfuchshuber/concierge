@@ -1,6 +1,6 @@
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   listMyTeam,
   inviteTeamMember,
@@ -9,17 +9,37 @@ import {
   removeTeamMember,
   updateTeamMemberRole,
 } from "@/lib/team.functions";
+import {
+  listMemberPermissions,
+  updateMemberPermission,
+  MEMBER_PERMISSIONS,
+  PERMISSION_META,
+  type MemberPermission,
+} from "@/lib/member-permissions.functions";
 import { getAtendimentoAccess } from "@/lib/handoff.functions";
 import { enablePush, disablePush, isPushSupported, currentPushSubscription } from "@/lib/push-client";
 import { supabase } from "@/integrations/supabase/client";
-import { Users, Bell, BellOff, Loader2, Trash2, Mail, Send as SendIcon } from "lucide-react";
+import {
+  Accordion,
+  AccordionItem,
+  AccordionTrigger,
+  AccordionContent,
+} from "@/components/ui/accordion";
+import { Switch } from "@/components/ui/switch";
+import { Users, Bell, BellOff, Loader2, Trash2, Mail, Send as SendIcon, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 
 export { EquipePage };
 
+const OPERATIONAL_PERMS = MEMBER_PERMISSIONS.filter(
+  (p) => PERMISSION_META[p].group === "operational",
+);
+
 function EquipePage() {
   const accessFn = useServerFn(getAtendimentoAccess);
   const listFn = useServerFn(listMyTeam);
+  const permsFn = useServerFn(listMemberPermissions);
+  const updPermFn = useServerFn(updateMemberPermission);
   const inviteFn = useServerFn(inviteTeamMember);
   const revokeFn = useServerFn(revokeTeamInvite);
   const resendFn = useServerFn(resendTeamInvite);
@@ -29,6 +49,11 @@ function EquipePage() {
 
   const access = useQuery({ queryKey: ["handoff-access"], queryFn: () => accessFn(), staleTime: 5 * 60_000 });
   const team = useQuery({ queryKey: ["my-team"], queryFn: () => listFn(), enabled: access.data?.allowed === true });
+  const perms = useQuery({
+    queryKey: ["member-permissions"],
+    queryFn: () => permsFn(),
+    enabled: access.data?.allowed === true,
+  });
 
   const [myUserId, setMyUserId] = useState<string | null>(null);
   useEffect(() => {
@@ -38,6 +63,7 @@ function EquipePage() {
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<"owner" | "agent" | "viewer">("agent");
   const [feedback, setFeedback] = useState<string | null>(null);
+  const [openMemberId, setOpenMemberId] = useState<string>("");
 
   const invite = useMutation({
     mutationFn: async () => inviteFn({ data: { email: email.trim().toLowerCase(), role } }),
@@ -75,6 +101,30 @@ function EquipePage() {
       toast.success("Permissão atualizada");
     },
     onError: (e) => toast.error("Falha ao atualizar: " + (e as Error).message),
+  });
+
+  const updPerm = useMutation({
+    mutationFn: (v: { memberUserId: string; permission: MemberPermission; granted: boolean }) =>
+      updPermFn({ data: v }),
+    onMutate: async (v) => {
+      await qc.cancelQueries({ queryKey: ["member-permissions"] });
+      const prev = qc.getQueryData<any>(["member-permissions"]);
+      if (prev?.matrix?.[v.memberUserId]) {
+        qc.setQueryData(["member-permissions"], {
+          ...prev,
+          matrix: {
+            ...prev.matrix,
+            [v.memberUserId]: { ...prev.matrix[v.memberUserId], [v.permission]: v.granted },
+          },
+        });
+      }
+      return { prev };
+    },
+    onError: (_e, _v, ctx) => {
+      if (ctx?.prev) qc.setQueryData(["member-permissions"], ctx.prev);
+      toast.error("Não foi possível salvar a permissão.");
+    },
+    onSettled: () => qc.invalidateQueries({ queryKey: ["my-permissions"] }),
   });
 
   const [pushOn, setPushOn] = useState<boolean | null>(null);
@@ -125,6 +175,15 @@ function EquipePage() {
     }
   }
 
+  const members = team.data?.members ?? [];
+  const profiles = team.data?.profiles ?? {};
+  const permMatrix = perms.data?.matrix ?? {};
+
+  const membersWithPerms = useMemo(
+    () => members.filter((m) => (m.member_user_id as string) !== myUserId),
+    [members, myUserId],
+  );
+
   if (access.data?.allowed !== true) {
     return (
       <div className="p-6 max-w-3xl mx-auto">
@@ -145,8 +204,11 @@ function EquipePage() {
     <div className="w-full space-y-6">
       <div className="flex items-center gap-2">
         <Users className="size-5 text-primary" />
-        <h1 className="font-display text-2xl">Equipe de atendimento</h1>
+        <h1 className="font-display text-2xl">Equipe & Permissões</h1>
       </div>
+      <p className="text-sm text-muted-foreground -mt-4">
+        Dados, cargo e recursos que cada membro pode acessar. Recursos operacionais respeitam os limites do seu plano.
+      </p>
 
       <section className="glass rounded-2xl p-4 lg:p-6 border border-border">
         <h2 className="font-display text-lg mb-1 flex items-center gap-2">
@@ -205,44 +267,115 @@ function EquipePage() {
       </section>
 
       <section className="glass rounded-2xl p-4 lg:p-6 border border-border">
-        <h2 className="font-display text-lg mb-3">Membros ativos</h2>
-        <div className="divide-y divide-border">
-          {team.data?.members?.length === 0 && <div className="text-sm text-muted-foreground py-2">Nenhum membro ainda.</div>}
-          {(team.data?.members ?? []).map((m) => {
-            const prof = team.data?.profiles[m.member_user_id as string];
-            const isSelf = !!(myUserId && m.member_user_id === myUserId);
-            return (
-              <div key={m.id} className="py-3 flex items-center gap-3 flex-wrap">
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm font-medium truncate">
-                    {prof?.full_name || prof?.email || m.member_user_id}
-                    {isSelf && <span className="ml-2 text-[10px] uppercase tracking-wide text-muted-foreground">(você · criador)</span>}
-                  </div>
-                  {prof?.email && <div className="text-[11px] text-muted-foreground truncate">{prof.email}</div>}
-                </div>
-                <select
-                  value={m.role as string}
-                  onChange={(e) => changeRole.mutate({ id: m.id as string, r: e.target.value as any })}
-                  disabled={isSelf || (m.role as string) === "owner"}
-                  className="text-xs rounded-md border border-border bg-background px-2 py-1 disabled:opacity-50 disabled:cursor-not-allowed"
+        <h2 className="font-display text-lg mb-3">Membros da equipe</h2>
+        {members.length === 0 ? (
+          <div className="text-sm text-muted-foreground py-2">Nenhum membro ainda. Envie um convite acima.</div>
+        ) : (
+          <Accordion type="single" collapsible value={openMemberId} onValueChange={setOpenMemberId} className="space-y-3">
+            {members.map((m) => {
+              const id = m.member_user_id as string;
+              const prof = profiles[id];
+              const isSelf = !!(myUserId && id === myUserId);
+              const perms = permMatrix[id] ?? {};
+              const activeCount = OPERATIONAL_PERMS.filter((p) => !!perms[p]).length;
+              return (
+                <AccordionItem
+                  key={m.id as string}
+                  value={id}
+                  className="rounded-2xl border border-border overflow-hidden bg-background/60 data-[state=open]:border-primary/40"
                 >
-                  {(m.role as string) === "owner" && <option value="owner">Titular</option>}
-                  <option value="agent">Atendente</option>
-                  <option value="viewer">Somente leitura</option>
-                </select>
-                {!isSelf && (
-                  <button
-                    onClick={() => { if (confirm("Remover este atendente?")) remove.mutate(m.id as string); }}
-                    className="size-8 grid place-items-center rounded-md text-red-500 hover:bg-red-500/10"
-                    aria-label="Remover"
-                  >
-                    <Trash2 className="size-4" />
-                  </button>
-                )}
-              </div>
-            );
-          })}
-        </div>
+                  <AccordionTrigger className="px-4 py-3 hover:no-underline">
+                    <div className="flex-1 min-w-0 text-left flex items-center gap-3">
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-medium truncate">
+                          {prof?.full_name || prof?.email || id}
+                          {isSelf && <span className="ml-2 text-[10px] uppercase tracking-wide text-muted-foreground">(você · titular)</span>}
+                        </div>
+                        {prof?.email && <div className="text-[11px] text-muted-foreground truncate">{prof.email}</div>}
+                      </div>
+                      {!isSelf && (
+                        <span className="text-[11px] px-2 py-0.5 rounded-full bg-secondary border border-border">
+                          {activeCount}/{OPERATIONAL_PERMS.length} permissões
+                        </span>
+                      )}
+                      <span className="text-[11px] px-2 py-0.5 rounded-full bg-secondary border border-border capitalize">
+                        {m.role as string}
+                      </span>
+                    </div>
+                  </AccordionTrigger>
+                  <AccordionContent className="pb-0">
+                    <div className="p-5 border-t border-border space-y-6">
+                      <div className="flex items-center gap-3 flex-wrap">
+                        <label className="text-xs text-muted-foreground">Cargo</label>
+                        <select
+                          value={m.role as string}
+                          onChange={(e) => changeRole.mutate({ id: m.id as string, r: e.target.value as any })}
+                          disabled={isSelf || (m.role as string) === "owner"}
+                          className="text-xs rounded-md border border-border bg-background px-2 py-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {(m.role as string) === "owner" && <option value="owner">Titular</option>}
+                          <option value="agent">Atendente</option>
+                          <option value="viewer">Somente leitura</option>
+                        </select>
+                        {!isSelf && (
+                          <button
+                            onClick={() => { if (confirm("Remover este atendente?")) remove.mutate(m.id as string); }}
+                            className="ml-auto inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-md text-red-500 hover:bg-red-500/10 border border-transparent hover:border-red-500/30"
+                          >
+                            <Trash2 className="size-3.5" /> Remover
+                          </button>
+                        )}
+                      </div>
+
+                      {!isSelf && (
+                        <div>
+                          <h3 className="text-[11px] uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-1.5">
+                            <ShieldCheck className="size-3.5" /> Permissões
+                          </h3>
+                          <ul className="space-y-3">
+                            {OPERATIONAL_PERMS.map((p) => {
+                              const meta = PERMISSION_META[p];
+                              const val = !!perms[p];
+                              return (
+                                <li key={p} className="flex items-start gap-3">
+                                  <div className="flex-1 min-w-0">
+                                    <div className="text-sm font-medium">{meta.label}</div>
+                                    <div className="text-[12px] text-muted-foreground">{meta.description}</div>
+                                  </div>
+                                  <Switch
+                                    checked={val}
+                                    disabled={updPerm.isPending}
+                                    onCheckedChange={(checked) =>
+                                      updPerm.mutate({
+                                        memberUserId: id,
+                                        permission: p,
+                                        granted: checked,
+                                      })
+                                    }
+                                  />
+                                </li>
+                              );
+                            })}
+                          </ul>
+                        </div>
+                      )}
+                      {isSelf && (
+                        <p className="text-xs text-muted-foreground">
+                          Como titular da conta, você tem acesso total. Permissões são configuradas por membro convidado.
+                        </p>
+                      )}
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
+              );
+            })}
+          </Accordion>
+        )}
+        {membersWithPerms.length > 0 && perms.isLoading && (
+          <div className="mt-3 text-xs text-muted-foreground flex items-center gap-2">
+            <Loader2 className="size-3 animate-spin" /> Carregando permissões…
+          </div>
+        )}
       </section>
 
       <section className="glass rounded-2xl p-4 lg:p-6 border border-border">
