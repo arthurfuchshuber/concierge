@@ -613,6 +613,24 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
       );
     }
 
+    // Auto-promoção para "Em Estadia": quando uma reserva é importada (ou
+    // criada manualmente) e o período de estadia já está em andamento — ou
+    // seja, a data de check-in já passou, OU é hoje mas o horário padrão de
+    // entrada da propriedade já chegou — e o checkout ainda é no futuro,
+    // consideramos o check-in como concluído virtualmente. Isso evita que o
+    // hóspede apareça em "Check-ins" quando na verdade já está hospedado.
+    const nowHM = nowHHMMSaoPaulo();
+    function autoStayDone(checkinDate: string, checkoutDate: string | null, standardCheckinTime: string | null): boolean {
+      if (data.kind !== "checkin") return false;
+      if (!checkoutDate || checkoutDate <= today) return false; // precisa estar em estadia (checkout no futuro)
+      if (checkinDate < today) return true;
+      if (checkinDate === today) {
+        if (!standardCheckinTime) return false;
+        return nowHM >= standardCheckinTime;
+      }
+      return false;
+    }
+
     function rowFromLog(
       l: (typeof uniqueLogs)[number],
       forceIcal?: { hasIcal: boolean; matched: boolean; icalCheckin: string | null; icalCheckout: string | null },
