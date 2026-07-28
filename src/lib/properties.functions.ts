@@ -547,7 +547,8 @@ export const upsertProperty = createServerFn({ method: "POST" })
     }
 
     // Replace child tables wholesale (simpler than diff).
-    const id = propertyId!;
+    if (!propertyId) throw new Error("Não foi possível salvar o guia.");
+    const id = propertyId;
     await Promise.all([
       writeClient.from("property_recommendations").delete().eq("property_id", id),
       writeClient.from("property_manual_items").delete().eq("property_id", id),
