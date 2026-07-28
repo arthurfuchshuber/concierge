@@ -416,16 +416,28 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
     const reservationWindowStart = data.range === "tomorrow" ? addDaysISO(today, 1) : today;
     const reservationWindowEnd =
       data.range === "tomorrow" ? reservationWindowStart : data.range === "7d" ? addDaysISO(today, 6) : null;
-    const reservationDateCol = data.kind === "checkin" ? "checkin_date" : "checkout_date";
     let reservationsQuery = context.supabase
       .from("property_reservations")
       .select(
         "id, property_id, checkin_date, checkout_date, raw_summary, guest_hint, reservation_url, status, synced_at",
       )
       .in("property_id", propIds)
-      .eq("source", "airbnb")
-      .gte(reservationDateCol, reservationWindowStart);
-    if (reservationWindowEnd) reservationsQuery = reservationsQuery.lte(reservationDateCol, reservationWindowEnd);
+      .eq("source", "airbnb");
+    if (data.kind === "checkin") {
+      if (data.range === "tomorrow") {
+        reservationsQuery = reservationsQuery.gte("checkin_date", reservationWindowStart).lte("checkin_date", reservationWindowStart);
+      } else {
+        // Check-in lists also feed "Em Estadia". Fetch by interval overlap so
+        // active stays whose check-in happened before today are not silently
+        // dropped; reservationInRange below still decides the exact stage.
+        reservationsQuery = reservationsQuery.gte("checkout_date", today);
+        if (data.range !== "all") reservationsQuery = reservationsQuery.lte("checkin_date", reservationWindowEnd ?? today);
+        if (reservationWindowEnd) reservationsQuery = reservationsQuery.lte("checkin_date", reservationWindowEnd);
+      }
+    } else {
+      reservationsQuery = reservationsQuery.gte("checkout_date", reservationWindowStart);
+      if (reservationWindowEnd) reservationsQuery = reservationsQuery.lte("checkout_date", reservationWindowEnd);
+    }
 
     const [{ data: props }, { data: statuses }, { data: reservations }, { data: sectionEvents }] = await Promise.all([
       context.supabase
@@ -439,7 +451,7 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
         .select("log_id, reservation_id, kind, status, note, arrival_time_override, done_at, concluded_at")
         .in("property_id", propIds)
         .limit(5000),
-      reservationsQuery.order(reservationDateCol, { ascending: true }).limit(10000),
+      reservationsQuery.order(data.kind === "checkin" ? "checkin_date" : "checkout_date", { ascending: true }).limit(10000),
       uniqueLogs.length > 0
         ? context.supabase
             .from("guide_section_events")
@@ -535,10 +547,16 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
     // marcado como feito, o card fica retido em Check-ins (mesmo atrasado).
     const checkinDoneLogs = new Set<string>();
     const checkinDoneReservations = new Set<string>();
+    const checkinPendingLogs = new Set<string>();
+    const checkinPendingReservations = new Set<string>();
     for (const s of (statuses ?? []) as StatusRow[]) {
       if (s.kind === "checkin" && (s.status === "done" || !!s.done_at)) {
         if (s.log_id) checkinDoneLogs.add(s.log_id);
         if (s.reservation_id) checkinDoneReservations.add(s.reservation_id);
+      }
+      if (s.kind === "checkin" && s.status === "pending" && !s.done_at) {
+        if (s.log_id) checkinPendingLogs.add(s.log_id);
+        if (s.reservation_id) checkinPendingReservations.add(s.reservation_id);
       }
       if (s.kind !== data.kind) continue;
       const value = {
@@ -875,6 +893,10 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
         ? rows.filter((r) => {
             const logDone = !!(r.logId && !r.logId.startsWith("ical:") && checkinDoneLogs.has(r.logId));
             const resDone = !!(r.reservationId && checkinDoneReservations.has(r.reservationId));
+            const logExplicitlyPending = !!(r.logId && !r.logId.startsWith("ical:") && checkinPendingLogs.has(r.logId));
+            const resExplicitlyPending = !!(r.reservationId && checkinPendingReservations.has(r.reservationId));
+            if (data.range === "tomorrow") return true;
+            if (!logDone && !resDone && (logExplicitlyPending || resExplicitlyPending)) return false;
             return logDone || resDone || virtualCheckinDone(r);
           })
         : rows;
@@ -896,12 +918,13 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
 
     function dedupeCheckoutRows(input: ArrivalRow[]): ArrivalRow[] {
       if (data.kind !== "checkout") return input;
-      // Um imóvel físico não pode ter dois check-outs operacionais no mesmo dia.
-      // Quando o iCal/log trouxe duplicidade, mantém o card mais avançado/mais
-      // completo para a esteira não exibir duas saídas iguais.
+      // Deduplica apenas a MESMA reserva quando ela chegou por caminhos
+      // diferentes (status por log legado + status por reservation_id). Não
+      // deduplicamos por imóvel+data: back-to-back e correções do iCal precisam
+      // continuar fiéis à identidade da reserva HM….
       const byPropertyAndCheckout = new Map<string, ArrivalRow>();
       for (const row of input) {
-        const key = `${row.propertyId}|${row.date}`;
+        const key = `${row.reservationCode ?? row.reservationId ?? row.logId}|${row.propertyId}|${row.guestCheckin}|${row.guestCheckout ?? ""}|${row.date}`;
         const current = byPropertyAndCheckout.get(key);
         if (!current || isBetterOperationalRow(row, current)) {
           byPropertyAndCheckout.set(key, row);
