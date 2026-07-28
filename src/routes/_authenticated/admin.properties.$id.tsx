@@ -1102,7 +1102,7 @@ function PropertyEditor() {
 
           <Section id="house-rules" icon={ClipboardCheck} title="Regras do espaço" desc="Uma regra por linha — cada linha vira um item numerado no guia." collapsible>
             <Field label="Regras (opcional)" hint="Uma regra por linha. Linhas em branco são ignoradas.">
-              <Textarea value={form.property.house_rules} maxLength={3000} rows={6} onChange={(e) => update("house_rules", e.target.value)} placeholder={"Não é permitido fumar dentro do imóvel.\nFestas e eventos não são permitidos.\nRespeite o silêncio das 22h às 8h."} />
+              <TagMentionTextarea items={tagItems} value={form.property.house_rules} maxLength={3000} rows={6} onChange={(e) => update("house_rules", e.target.value)} placeholder={"Não é permitido fumar dentro do imóvel.\nFestas e eventos não são permitidos.\nRespeite o silêncio das 22h às 8h."} />
             </Field>
           </Section>
 
