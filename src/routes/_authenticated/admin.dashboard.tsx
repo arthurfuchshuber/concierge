@@ -42,7 +42,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
-  getDashboardKpis,
   getGuideEngagement,
   listDashboardArrivals,
   upsertArrivalStatus,
@@ -130,7 +129,7 @@ function InfoHint({ title, children }: { title: string; children: React.ReactNod
 }
 
 function DashboardPage() {
-  const kpisFn = useServerFn(getDashboardKpis);
+  
   const engFn = useServerFn(getGuideEngagement);
   const listFn = useServerFn(listDashboardArrivals);
   const upsertFn = useServerFn(upsertArrivalStatus);
@@ -147,12 +146,8 @@ function DashboardPage() {
   // Engagement window follows the kanban range: tomorrow/all map to 7d/30d.
   const engRange: "today" | "7d" | "30d" = range === "today" ? "today" : range === "all" ? "30d" : "7d";
 
-  const kpisQ = useQuery({
-    queryKey: ["dash-kpis", activeOwnerId ?? "self"],
-    queryFn: () => kpisFn({ data: { ownerId: activeOwnerId } }),
-    staleTime: 60_000,
-    placeholderData: keepPreviousData,
-  });
+  // KPIs derivam das mesmas listas do kanban para garantir sincronia visual.
+
   const engQ = useQuery({
     queryKey: ["dash-eng", engRange, activeOwnerId ?? "self"],
     queryFn: () => engFn({ data: { range: engRange, ownerId: activeOwnerId } }),
@@ -354,10 +349,10 @@ function DashboardPage() {
       <section className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <KpiCard
           label="Check-ins Pendentes"
-          value={kpisQ.data?.checkinsToday}
+          value={(kpiTodayQ.data?.rows ?? []).filter((r) => r.status === "pending").length}
           icon={LogIn}
           tone="primary"
-          loading={kpisQ.isLoading}
+          loading={kpiTodayQ.isLoading}
           listQuery={kpiTodayQ}
           kind="checkin"
           rangeLabel="Hoje"
@@ -366,10 +361,10 @@ function DashboardPage() {
         />
         <KpiCard
           label="Checkouts Pendentes"
-          value={kpisQ.data?.checkoutsToday}
+          value={(kpiCoTodayQ.data?.rows ?? []).filter((r) => r.status === "pending").length}
           icon={LogOut}
           tone="primary"
-          loading={kpisQ.isLoading}
+          loading={kpiCoTodayQ.isLoading}
           listQuery={kpiCoTodayQ}
           kind="checkout"
           rangeLabel="Hoje"
@@ -378,10 +373,10 @@ function DashboardPage() {
         />
         <KpiCard
           label="Check-ins amanhã"
-          value={kpisQ.data?.checkinsTomorrow}
+          value={(kpiTomorrowQ.data?.rows ?? []).filter((r) => r.status === "pending").length}
           icon={LogIn}
           tone="primary-soft"
-          loading={kpisQ.isLoading}
+          loading={kpiTomorrowQ.isLoading}
           listQuery={kpiTomorrowQ}
           kind="checkin"
           rangeLabel="Amanhã"
@@ -389,10 +384,10 @@ function DashboardPage() {
         />
         <KpiCard
           label="Checkouts amanhã"
-          value={kpisQ.data?.checkoutsTomorrow}
+          value={(kpiCoTomorrowQ.data?.rows ?? []).filter((r) => r.status === "pending").length}
           icon={LogOut}
           tone="primary-soft"
-          loading={kpisQ.isLoading}
+          loading={kpiCoTomorrowQ.isLoading}
           listQuery={kpiCoTomorrowQ}
           kind="checkout"
           rangeLabel="Amanhã"
