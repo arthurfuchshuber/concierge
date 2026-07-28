@@ -660,6 +660,9 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
       const s = reservationStatusMap.get(r.id) ?? legacy ?? logStatus;
       if (s?.concluded_at) return null;
       const date = data.kind === "checkin" ? r.checkin_date : r.checkout_date;
+      // Datas passadas só entram no kanban se já houver interação (status row);
+      // reservas iCal recém-importadas para o passado ficam de fora.
+      if (date < today && !s) return null;
       const evK = matchedLog ? eventKey(matchedLog.property_id, matchedLog.guest_name, matchedLog.guest_phone) : "";
 
       return {
