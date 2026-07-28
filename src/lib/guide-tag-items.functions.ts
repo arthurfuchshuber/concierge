@@ -4,20 +4,34 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { slugForTag } from "@/lib/guide-tags";
 
 export type GuideTagItemPayload = {
-  key: "faq" | "local";
+  key: "faq" | "local" | "marketplace";
   param: string;
   label: string;
   hint?: string;
+  /** "tag" = link para seção/item · "info" = valor concreto (ex.: URL do marketplace). */
+  kind?: "tag" | "info";
 };
 
 async function loadItemsForProperty(
   supabase: { from: (t: string) => unknown },
   propertyId: string,
 ): Promise<GuideTagItemPayload[]> {
-  const sb = supabase as { from: (t: string) => { select: (c: string) => { eq: (k: string, v: string) => { limit: (n: number) => Promise<{ data: unknown[] | null }> } } } };
-  const [{ data: faqs }, { data: recs }] = await Promise.all([
+  const sb = supabase as {
+    from: (t: string) => {
+      select: (c: string) => {
+        eq: (k: string, v: string) => {
+          limit: (n: number) => Promise<{ data: unknown[] | null }>;
+          maybeSingle?: () => Promise<{ data: unknown }>;
+        };
+      };
+    };
+  };
+  const [{ data: faqs }, { data: recs }, propRes] = await Promise.all([
     sb.from("property_faqs").select("id, question").eq("property_id", propertyId).limit(100),
     sb.from("property_recommendations").select("id, name, category").eq("property_id", propertyId).limit(100),
+    (sb.from("properties").select("marketplace_links").eq("id", propertyId) as unknown as {
+      maybeSingle: () => Promise<{ data: { marketplace_links?: unknown } | null }>;
+    }).maybeSingle(),
   ]);
   const out: GuideTagItemPayload[] = [];
   const seen = new Set<string>();
@@ -30,7 +44,7 @@ async function loadItemsForProperty(
     let n = 1;
     while (seen.has(`faq:${s}`)) s = `${base}-${++n}`;
     seen.add(`faq:${s}`);
-    out.push({ key: "faq", param: s, label: q.length > 80 ? q.slice(0, 77) + "…" : q, hint: "FAQ do imóvel" });
+    out.push({ key: "faq", param: s, label: q.length > 80 ? q.slice(0, 77) + "…" : q, hint: "FAQ do imóvel", kind: "tag" });
   }
   for (const r of ((recs ?? []) as Array<{ name?: string; category?: string }>)) {
     const nm = String(r.name ?? "").trim();
@@ -42,7 +56,21 @@ async function loadItemsForProperty(
     let n = 1;
     while (seen.has(`local:${s}`)) s = `${base}-${++n}`;
     seen.add(`local:${s}`);
-    out.push({ key: "local", param: s, label: nm, hint: cat || "Recomendação" });
+    out.push({ key: "local", param: s, label: nm, hint: cat || "Recomendação", kind: "tag" });
+  }
+  const mkList = Array.isArray(propRes?.data?.marketplace_links)
+    ? (propRes.data.marketplace_links as Array<Record<string, unknown>>)
+    : [];
+  for (const l of mkList) {
+    const label = String(l.label ?? l.name ?? "").trim();
+    if (!label) continue;
+    const base = slugForTag(label);
+    if (!base) continue;
+    let s = base;
+    let n = 1;
+    while (seen.has(`marketplace:${s}`)) s = `${base}-${++n}`;
+    seen.add(`marketplace:${s}`);
+    out.push({ key: "marketplace", param: s, label, hint: "Link do marketplace", kind: "info" });
   }
   return out;
 }
