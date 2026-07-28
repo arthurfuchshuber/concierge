@@ -38,6 +38,8 @@ export { EquipePage };
 const OPERATIONAL_PERMS = MEMBER_PERMISSIONS.filter(
   (p) => PERMISSION_META[p].group === "operational",
 );
+const TOTAL_TOGGLES = PERMISSION_AREAS.length * 2;
+
 
 function EquipePage() {
   const accessFn = useServerFn(getAtendimentoAccess);
