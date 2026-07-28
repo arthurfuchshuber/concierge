@@ -101,11 +101,23 @@ export async function resolveEffectivePlan(
   }
   if (ownerId && ownerId !== userId) {
     // Verifica membership antes de usar o admin client (evita leak entre contas).
-    const { data: isMember } = await supabase.rpc("is_account_member", {
+    const { data: isMember, error: memberRpcError } = await supabase.rpc("is_account_member", {
       _user_id: userId,
       _owner_id: ownerId,
     });
-    if (isMember) {
+    let memberAllowed = !!isMember;
+    if (memberRpcError) {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const { data: member } = await supabaseAdmin
+        .from("account_members")
+        .select("id")
+        .eq("member_user_id", userId)
+        .eq("owner_id", ownerId)
+        .eq("status", "active")
+        .maybeSingle();
+      memberAllowed = !!member;
+    }
+    if (memberAllowed) {
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
       return await resolveOwnerPlanAdmin(supabaseAdmin, ownerId);
     }
