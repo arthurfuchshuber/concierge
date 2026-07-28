@@ -325,49 +325,70 @@ function EquipePage() {
                       {!isSelf && (
                         <div>
                           <h3 className="text-[11px] uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-1.5">
-                            <ShieldCheck className="size-3.5" /> Permissões
+                            <ShieldCheck className="size-3.5" /> Permissões por área
                           </h3>
                           <ul className="space-y-3">
-                            {OPERATIONAL_PERMS.map((p) => {
-                              const meta = PERMISSION_META[p];
-                              const val = !!perms[p];
-                              const feature = PERMISSION_FEATURE[p];
+                            {PERMISSION_AREAS.map((area) => {
+                              const viewVal = !!perms[area.view];
+                              const editVal = !!perms[area.edit];
+                              const feature = PERMISSION_FEATURE[area.edit] ?? PERMISSION_FEATURE[area.view];
                               const locked = !!feature && !planFeatures[feature];
                               return (
                                 <li
-                                  key={p}
-                                  className={`flex items-start gap-3 ${locked ? "opacity-60" : ""}`}
+                                  key={area.area}
+                                  className={`rounded-xl border border-border bg-background/40 p-3 ${locked ? "opacity-60" : ""}`}
                                   title={locked ? `Disponível em planos superiores ao ${planName}` : undefined}
                                 >
-                                  <div className="flex-1 min-w-0">
-                                    <div className="text-sm font-medium flex items-center gap-2 flex-wrap">
-                                      {meta.label}
-                                      {locked && (
-                                        <span className="text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded bg-secondary border border-border text-muted-foreground">
-                                          Indisponível no plano
-                                        </span>
-                                      )}
+                                  <div className="flex items-start justify-between gap-3 mb-2">
+                                    <div className="flex-1 min-w-0">
+                                      <div className="text-sm font-medium flex items-center gap-2 flex-wrap">
+                                        {area.label}
+                                        {locked && (
+                                          <span className="text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded bg-secondary border border-border text-muted-foreground">
+                                            Indisponível no plano
+                                          </span>
+                                        )}
+                                      </div>
+                                      <div className="text-[12px] text-muted-foreground">{area.description}</div>
                                     </div>
-                                    <div className="text-[12px] text-muted-foreground">{meta.description}</div>
                                   </div>
-                                  <Switch
-                                    checked={locked ? false : val}
-                                    disabled={updPerm.isPending || locked}
-                                    onCheckedChange={(checked) =>
-                                      updPerm.mutate({
-                                        memberUserId: id,
-                                        permission: p,
-                                        granted: checked,
-                                      })
-                                    }
-                                  />
+                                  <div className="grid grid-cols-2 gap-2">
+                                    <label className="flex items-center justify-between gap-2 rounded-lg border border-border/60 px-2.5 py-1.5">
+                                      <span className="text-xs">Visualizar</span>
+                                      <Switch
+                                        checked={locked ? false : viewVal}
+                                        disabled={updPerm.isPending || locked}
+                                        onCheckedChange={(checked) =>
+                                          updPerm.mutate({
+                                            memberUserId: id,
+                                            permission: area.view,
+                                            granted: checked,
+                                          })
+                                        }
+                                      />
+                                    </label>
+                                    <label className="flex items-center justify-between gap-2 rounded-lg border border-border/60 px-2.5 py-1.5">
+                                      <span className="text-xs">{area.editLabel}</span>
+                                      <Switch
+                                        checked={locked ? false : editVal}
+                                        disabled={updPerm.isPending || locked}
+                                        onCheckedChange={(checked) =>
+                                          updPerm.mutate({
+                                            memberUserId: id,
+                                            permission: area.edit,
+                                            granted: checked,
+                                          })
+                                        }
+                                      />
+                                    </label>
+                                  </div>
                                 </li>
                               );
                             })}
-
                           </ul>
                         </div>
                       )}
+
                       {isSelf && (
                         <p className="text-xs text-muted-foreground">
                           Como titular da conta, você tem acesso total. Permissões são configuradas por membro convidado.
