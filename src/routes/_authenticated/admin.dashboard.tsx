@@ -465,6 +465,18 @@ function DashboardPage() {
               kind={kind}
               mode={mode}
               onMark={(row) => handleAdvance(row, mode)}
+              onRevert={
+                mode === "stay" || mode === "cleaning"
+                  ? (row) => {
+                      const target = statusTarget(row);
+                      if (!target.logId && !target.reservationId) {
+                        toast.error("Não foi possível identificar esse card.");
+                        return;
+                      }
+                      revert.mutate({ ...target, from: mode });
+                    }
+                  : undefined
+              }
               onSyncIcal={(row) => {
                 const t = kind === "checkin" ? "15:00" : "11:00";
                 upsert.mutate({ ...statusTarget(row), kind, arrivalTimeOverride: t });
