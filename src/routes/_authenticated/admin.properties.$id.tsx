@@ -1246,7 +1246,7 @@ function PropertyEditor() {
 
           <Section id="checkin-instr" icon={DoorOpen} title="Instruções de chegada" desc="Passo a passo do check-in. Uma etapa por linha." collapsible>
             <Field label="Passo a passo (opcional)" hint="Uma etapa por linha. Linhas em branco são ignoradas.">
-              <Textarea value={form.property.checkin_instructions} maxLength={3000} rows={6} onChange={(e) => update("checkin_instructions", e.target.value)} placeholder={"Estacione na vaga 12.\nAponte para o portão lateral.\nUse o código de portão e fechadura ao lado."} />
+              <TagMentionTextarea items={tagItems} value={form.property.checkin_instructions} maxLength={3000} rows={6} onChange={(e) => update("checkin_instructions", e.target.value)} placeholder={"Estacione na vaga 12.\nAponte para o portão lateral.\nUse o código de portão e fechadura ao lado."} />
             </Field>
             <Field label="Fotos e vídeos do check-in" hint="Até 8 itens. Imagens (máx 10MB) ou vídeos (máx 60MB).">
               <MediaUpload value={form.property.checkin_media} onChange={(next) => update("checkin_media", next)} folder="checkin" max={8} />
