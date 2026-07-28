@@ -1453,7 +1453,7 @@ function PropertyEditor() {
 
           <Section id="checkout-instr" icon={LogOut} title="Instruções de saída" desc="Passo a passo do check-out. Uma etapa por linha." collapsible>
             <Field label="Passo a passo (opcional)" hint="Uma etapa por linha. Linhas em branco são ignoradas.">
-              <Textarea value={form.property.checkout_instructions} maxLength={3000} rows={6} onChange={(e) => update("checkout_instructions", e.target.value)} placeholder={"Deixe as chaves sobre a mesa de jantar.\nFeche todas as janelas.\nTranque a porta principal ao sair."} />
+              <TagMentionTextarea items={tagItems} value={form.property.checkout_instructions} maxLength={3000} rows={6} onChange={(e) => update("checkout_instructions", e.target.value)} placeholder={"Deixe as chaves sobre a mesa de jantar.\nFeche todas as janelas.\nTranque a porta principal ao sair."} />
             </Field>
           </Section>
 
