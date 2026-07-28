@@ -467,6 +467,32 @@ export const upsertProperty = createServerFn({ method: "POST" })
       if (existing?.owner_id) effectiveOwnerId = existing.owner_id as string;
     } else if (data.ownerId && data.ownerId !== userId) {
       effectiveOwnerId = data.ownerId;
+    } else if (!data.ownerId) {
+      // Fallback para membros puros de equipe: se o usuário não possui guias
+      // próprios e tem permissão explícita de criar/editar em exatamente uma
+      // conta, a criação deve cair nessa conta. Isso evita que um admin SaaS
+      // que também é membro fique preso na regra global de somente leitura.
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const [{ data: ownedProps }, { data: memberships }] = await Promise.all([
+        supabaseAdmin.from("properties").select("id").eq("owner_id", userId).limit(1),
+        supabaseAdmin
+          .from("account_members")
+          .select("owner_id")
+          .eq("member_user_id", userId)
+          .eq("status", "active"),
+      ]);
+      const ownerIds = Array.from(new Set((memberships ?? []).map((m) => m.owner_id as string)));
+      if ((ownedProps ?? []).length === 0 && ownerIds.length > 0) {
+        const { data: editRows } = await supabaseAdmin
+          .from("account_member_permissions")
+          .select("owner_id")
+          .eq("member_user_id", userId)
+          .eq("permission", "library_edit")
+          .eq("granted", true)
+          .in("owner_id", ownerIds);
+        const editableOwnerIds = Array.from(new Set((editRows ?? []).map((r) => r.owner_id as string)));
+        if (editableOwnerIds.length === 1) effectiveOwnerId = editableOwnerIds[0];
+      }
     }
 
     const plan = await resolveEffectivePlan(supabase, userId, { ownerId: effectiveOwnerId });
