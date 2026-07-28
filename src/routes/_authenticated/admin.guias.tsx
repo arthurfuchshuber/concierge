@@ -78,7 +78,7 @@ function Dashboard() {
   });
   const isMemberOfImpersonated = !!(
     impersonation &&
-    (myAccountsData?.accounts ?? []).some((a) => a.ownerId === impersonation.userId)
+    (myAccountsData?.accounts ?? []).some((a: { ownerId: string }) => a.ownerId === impersonation.userId)
   );
   // Read-only apenas quando um admin SaaS acessa um cliente do qual NÃO é membro.
   const readOnly = !!impersonation && isSaasAdmin && !isMemberOfImpersonated;
