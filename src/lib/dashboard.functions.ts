@@ -597,7 +597,12 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
       resByProp.set(r.property_id, arr);
     }
 
+    function isCurrentStay(checkinDate: string, checkoutDate: string | null): boolean {
+      return !!checkoutDate && checkinDate <= today && checkoutDate > today;
+    }
+
     function reservationInRange(r: ReservationRow): boolean {
+      if (data.kind === "checkin" && isCurrentStay(r.checkin_date, r.checkout_date)) return true;
       const date = data.kind === "checkin" ? r.checkin_date : r.checkout_date;
       if (date < (from ?? today)) return false;
       if (to && date > to) return false;
@@ -639,9 +644,6 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
       const s = statusMap.get(l.id);
       if (s?.concluded_at) return null;
       const date = data.kind === "checkin" ? l.checkin_date : (l.checkout_date ?? l.checkin_date);
-      // Cards com data anterior a hoje só aparecem se houver interação registrada
-      // (status row). Importações novas de datas passadas nunca criam cards.
-      if (date < today && !s) return null;
       const hasIcal = !!p?.airbnb_ical_url;
       let matched = false;
       let icalCheckin: string | null = null;
@@ -662,6 +664,14 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
           icalCheckout = near.checkout;
         }
       }
+      const virtualStay = autoStayDone(l.checkin_date, l.checkout_date ?? null, p?.checkin_time ?? null);
+      if (data.kind === "checkin" && !isCurrentStay(l.checkin_date, l.checkout_date ?? null) && date < (from ?? today)) {
+        return null;
+      }
+      // Cards com data anterior a hoje só aparecem sem interação quando a estadia
+      // ainda está em andamento. Isso preserva a regra de não importar histórico,
+      // mas permite que reservas já hospedadas apareçam em "Em Estadia".
+      if (date < today && !s && !virtualStay) return null;
       const evK = eventKey(l.property_id, l.guest_name, l.guest_phone);
       return {
         logId: l.id,
@@ -692,7 +702,7 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
             ? "pending"
             : s
               ? s.status
-              : autoStayDone(l.checkin_date, l.checkout_date ?? null, p?.checkin_time ?? null)
+                : virtualStay
                 ? "done"
                 : "pending",
         note: s?.note ?? null,
@@ -710,9 +720,10 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
       const s = reservationStatusMap.get(r.id) ?? legacy ?? logStatus;
       if (s?.concluded_at) return null;
       const date = data.kind === "checkin" ? r.checkin_date : r.checkout_date;
-      // Datas passadas só entram no kanban se já houver interação (status row);
-      // reservas iCal recém-importadas para o passado ficam de fora.
-      if (date < today && !s) return null;
+      const virtualStay = autoStayDone(r.checkin_date, r.checkout_date, p?.checkin_time ?? null);
+      // Datas passadas só entram sem interação quando representam uma estadia
+      // vigente. Reservas encerradas no passado continuam fora do kanban.
+      if (date < today && !s && !virtualStay) return null;
       const evK = matchedLog ? eventKey(matchedLog.property_id, matchedLog.guest_name, matchedLog.guest_phone) : "";
 
       return {
@@ -742,7 +753,7 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
             ? "pending"
             : s
               ? s.status
-              : autoStayDone(r.checkin_date, r.checkout_date, p?.checkin_time ?? null)
+              : virtualStay
                 ? "done"
                 : "pending",
         note: s?.note ?? null,
@@ -805,7 +816,7 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
             return logDone || resDone || virtualCheckinDone(r);
           })
         : rows;
-    const finalRows = gatedRows;
+    const finalRows = [...gatedRows];
     finalRows.length; // keep var used below
     rows.length = 0;
     rows.push(...finalRows);
