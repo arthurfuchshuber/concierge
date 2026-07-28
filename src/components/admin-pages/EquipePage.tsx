@@ -285,6 +285,7 @@ function EquipePage() {
               const isSelf = !!(myUserId && id === myUserId);
               const perms = permMatrix[id] ?? {};
               const activeCount = OPERATIONAL_PERMS.filter((p) => !!perms[p]).length;
+
               return (
                 <AccordionItem
                   key={m.id as string}
