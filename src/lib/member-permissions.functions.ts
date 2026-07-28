@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
+import type { PlanFeatures } from "@/lib/payments.shared";
 
 export const MEMBER_PERMISSIONS = [
   "chat_respond",
