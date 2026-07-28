@@ -13,15 +13,24 @@ function isHttpsUrl(value: string): boolean {
   }
 }
 
+function normalizeHttpsInput(value: unknown): unknown {
+  if (typeof value !== "string") return value;
+  const s = value.trim();
+  if (!s) return null;
+  if (/^https?:\/\//i.test(s)) return s.replace(/^http:\/\//i, "https://");
+  if (s.startsWith("/")) return s;
+  return `https://${s.replace(/^\/+/, "")}`;
+}
+
 const HttpsUrl = z.preprocess(
-  (value) => (typeof value === "string" && value.trim() === "" ? null : value),
+  normalizeHttpsInput,
   z.string().trim().url().max(2048).refine(isHttpsUrl, "Use um link HTTPS válido").optional().nullable(),
 );
 
 // Aceita URL HTTPS absoluta OU caminho relativo interno (ex.: /api/public/place-photo?...)
 // usado para fotos do Google Places servidas via proxy do próprio app.
 const ImageUrl = z.preprocess(
-  (value) => (typeof value === "string" && value.trim() === "" ? null : value),
+  normalizeHttpsInput,
   z
     .string()
     .trim()
@@ -33,6 +42,12 @@ const ImageUrl = z.preprocess(
     .optional()
     .nullable(),
 );
+
+const HttpsUrlRequired = z.preprocess(
+  normalizeHttpsInput,
+  z.string().trim().url().max(2048).refine(isHttpsUrl, "Use um link HTTPS válido"),
+);
+
 
 const PropertyInput = z.object({
   name: z.string().trim().min(1).max(120),
