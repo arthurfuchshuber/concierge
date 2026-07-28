@@ -260,7 +260,7 @@ export function BulkEditDialog({
             <Loader2 className="size-5 animate-spin" />
           </div>
         ) : (
-        <Tabs defaultValue="basics" className="w-full">
+        <Tabs defaultValue="house" className="w-full">
           <TabsList className="w-full grid grid-cols-5 h-auto">
             {TEXT_TABS.map((t) => (
               <TabsTrigger key={t.id} value={t.id} className="text-xs whitespace-nowrap">{t.label}</TabsTrigger>
