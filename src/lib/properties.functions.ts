@@ -465,6 +465,8 @@ export const upsertProperty = createServerFn({ method: "POST" })
         .eq("id", propertyId)
         .maybeSingle();
       if (existing?.owner_id) effectiveOwnerId = existing.owner_id as string;
+    } else if (data.ownerId && data.ownerId !== userId) {
+      effectiveOwnerId = data.ownerId;
     }
 
     const plan = await resolveEffectivePlan(supabase, userId, { ownerId: effectiveOwnerId });
@@ -476,37 +478,32 @@ export const upsertProperty = createServerFn({ method: "POST" })
       propertyData.brand_logo_url = null;
     }
 
+    // Quando o operador é membro atuando dentro de outra conta, valida a
+    // permissão `library_edit` e escreve com o cliente admin (as policies
+    // RLS de properties/child tables permitem apenas o titular ou admin).
+    const actingAsMember = effectiveOwnerId !== userId;
+    let writeClient: typeof supabase = supabase;
+    if (actingAsMember) {
+      const { requireMemberPermission } = await import("@/lib/member-permissions.server");
+      await requireMemberPermission(supabase, userId, effectiveOwnerId, "library_edit");
+      writeClient = (await import("@/integrations/supabase/client.server")).supabaseAdmin as unknown as typeof supabase;
+    }
 
     if (propertyId) {
-      const { error } = await supabase
+      const { error } = await writeClient
         .from("properties")
         .update(propertyData)
         .eq("id", propertyId);
       if (error) throw (await import("@/lib/db-errors.server")).safeDbError("properties", error);
     } else {
-      // Determine the target owner for a new guide. If the caller passes an
-      // explicit ownerId (team-member acting inside another account), verify
-      // membership + library_edit permission and create as that owner via the
-      // admin client (RLS on properties only allows self-insert).
-      let targetOwner: string = userId;
-      if (data.ownerId && data.ownerId !== userId) {
-        const { requireMemberPermission } = await import("@/lib/member-permissions.server");
-        await requireMemberPermission(supabase, userId, data.ownerId, "library_edit");
-        targetOwner = data.ownerId;
-      }
-      await assertCanCreateGuide(supabase, userId, { ownerId: targetOwner });
-      const insertClient =
-        targetOwner !== userId
-          ? (await import("@/integrations/supabase/client.server")).supabaseAdmin
-          : supabase;
-      const { data: inserted, error } = await insertClient
+      await assertCanCreateGuide(supabase, userId, { ownerId: effectiveOwnerId });
+      const { data: inserted, error } = await writeClient
         .from("properties")
-        .insert({ ...propertyData, owner_id: targetOwner })
+        .insert({ ...propertyData, owner_id: effectiveOwnerId })
         .select("id")
         .single();
       if (error) throw (await import("@/lib/db-errors.server")).safeDbError("properties", error);
       propertyId = inserted.id;
-
 
       // Auto-generate default FAQs on first creation when the user didn't
       // provide any. Only fields that are actually filled produce a question.
@@ -523,45 +520,44 @@ export const upsertProperty = createServerFn({ method: "POST" })
       }
     }
 
-
-
-    // Replace child tables wholesale (simpler than diff). All scoped via RLS.
+    // Replace child tables wholesale (simpler than diff).
     const id = propertyId!;
     await Promise.all([
-      supabase.from("property_recommendations").delete().eq("property_id", id),
-      supabase.from("property_manual_items").delete().eq("property_id", id),
-      supabase.from("property_emergency_contacts").delete().eq("property_id", id),
-      supabase.from("property_faqs").delete().eq("property_id", id),
-      supabase.from("property_checkout_items").delete().eq("property_id", id),
+      writeClient.from("property_recommendations").delete().eq("property_id", id),
+      writeClient.from("property_manual_items").delete().eq("property_id", id),
+      writeClient.from("property_emergency_contacts").delete().eq("property_id", id),
+      writeClient.from("property_faqs").delete().eq("property_id", id),
+      writeClient.from("property_checkout_items").delete().eq("property_id", id),
     ]);
 
     if (data.recommendations.length) {
       const rows = data.recommendations.map((r, i) => ({ ...r, property_id: id, position: i }));
-      const { error } = await supabase.from("property_recommendations").insert(rows);
+      const { error } = await writeClient.from("property_recommendations").insert(rows);
       if (error) throw (await import("@/lib/db-errors.server")).safeDbError("properties", error);
     }
     if (data.manual.length) {
       const rows = data.manual.map((m, i) => ({ ...m, property_id: id, position: i }));
-      const { error } = await supabase.from("property_manual_items").insert(rows);
+      const { error } = await writeClient.from("property_manual_items").insert(rows);
       if (error) throw (await import("@/lib/db-errors.server")).safeDbError("properties", error);
     }
     if (data.emergency.length) {
       const rows = data.emergency.map((m, i) => ({ ...m, property_id: id, position: i }));
-      const { error } = await supabase.from("property_emergency_contacts").insert(rows);
+      const { error } = await writeClient.from("property_emergency_contacts").insert(rows);
       if (error) throw (await import("@/lib/db-errors.server")).safeDbError("properties", error);
     }
     if (data.faqs.length) {
       const rows = data.faqs.map((m, i) => ({ ...m, property_id: id, position: i }));
-      const { error } = await supabase.from("property_faqs").insert(rows);
+      const { error } = await writeClient.from("property_faqs").insert(rows);
       if (error) throw (await import("@/lib/db-errors.server")).safeDbError("properties", error);
     }
     if (data.checkout.length) {
       const rows = data.checkout.map((m, i) => ({ ...m, property_id: id, position: i }));
-      const { error } = await supabase.from("property_checkout_items").insert(rows);
+      const { error } = await writeClient.from("property_checkout_items").insert(rows);
       if (error) throw (await import("@/lib/db-errors.server")).safeDbError("properties", error);
     }
     return { id };
   });
+
 
 export const deleteProperty = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])

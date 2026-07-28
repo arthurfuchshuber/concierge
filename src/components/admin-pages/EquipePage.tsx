@@ -212,7 +212,7 @@ function EquipePage() {
         <h1 className="font-display text-2xl">Equipe & Permissões</h1>
       </div>
       <p className="text-sm text-muted-foreground -mt-4">
-        Dados, cargo e recursos que cada membro pode acessar. Recursos operacionais respeitam os limites do seu plano.
+        Dados e recursos que cada membro pode acessar. Recursos operacionais respeitam os limites do seu plano.
       </p>
 
       <section className="glass rounded-2xl p-4 lg:p-6 border border-border">
@@ -252,10 +252,8 @@ function EquipePage() {
             placeholder="email@atendente.com"
             className="flex-1 rounded-md border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/40"
           />
-          <select value={role} onChange={(e) => setRole(e.target.value as any)} className="rounded-md border border-border bg-background px-3 py-2 text-sm">
-            <option value="agent">Atendente</option>
-            <option value="viewer">Somente leitura</option>
-          </select>
+
+
           <button
             type="submit"
             disabled={invite.isPending || !email.trim()}
@@ -303,34 +301,21 @@ function EquipePage() {
                           {activeCount}/{OPERATIONAL_PERMS.length} permissões
                         </span>
                       )}
-                      <span className="text-[11px] px-2 py-0.5 rounded-full bg-secondary border border-border capitalize">
-                        {m.role as string}
-                      </span>
                     </div>
                   </AccordionTrigger>
                   <AccordionContent className="pb-0">
                     <div className="p-5 border-t border-border space-y-6">
-                      <div className="flex items-center gap-3 flex-wrap">
-                        <label className="text-xs text-muted-foreground">Cargo</label>
-                        <select
-                          value={m.role as string}
-                          onChange={(e) => changeRole.mutate({ id: m.id as string, r: e.target.value as any })}
-                          disabled={isSelf || (m.role as string) === "owner"}
-                          className="text-xs rounded-md border border-border bg-background px-2 py-1 disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          {(m.role as string) === "owner" && <option value="owner">Titular</option>}
-                          <option value="agent">Atendente</option>
-                          <option value="viewer">Somente leitura</option>
-                        </select>
-                        {!isSelf && (
+                      {!isSelf && (
+                        <div className="flex items-center justify-end">
                           <button
                             onClick={() => { if (confirm("Remover este atendente?")) remove.mutate(m.id as string); }}
-                            className="ml-auto inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-md text-red-500 hover:bg-red-500/10 border border-transparent hover:border-red-500/30"
+                            className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-md text-red-500 hover:bg-red-500/10 border border-transparent hover:border-red-500/30"
                           >
                             <Trash2 className="size-3.5" /> Remover
                           </button>
-                        )}
-                      </div>
+                        </div>
+                      )}
+
 
                       {!isSelf && (
                         <div>
@@ -409,7 +394,7 @@ function EquipePage() {
                   <div className="text-sm font-medium truncate">{i.email as string}</div>
                   <div className="text-[11px] text-muted-foreground">Expira {new Date(i.expires_at as string).toLocaleDateString("pt-BR")}</div>
                 </div>
-                <span className="text-[11px] px-2 py-0.5 rounded-full bg-secondary">{i.role as string}</span>
+                
                 <button
                   onClick={() => resend.mutate(i.id as string)}
                   disabled={isResending}
