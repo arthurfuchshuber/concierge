@@ -39,29 +39,40 @@ type ListKey = "manual" | "checkout" | "emergency" | "faqs";
 
 const TEXT_TABS: { id: string; label: string; fields: FieldDef[] }[] = [
   {
-    id: "basics", label: "Básico",
+    id: "house", label: "A casa",
     fields: [
-      { key: "brand_name", label: "Nome da marca", kind: "text" },
-      { key: "brand_logo_url", label: "URL do logo (https://)", kind: "text" },
-      { key: "guide_theme", label: "Tema do guia", kind: "theme" },
-      { key: "default_language", label: "Idioma padrão", kind: "language" },
-      { key: "published", label: "Publicado", kind: "boolean" },
-      { key: "host_name", label: "Nome do anfitrião", kind: "text" },
-      { key: "host_phone", label: "Telefone do anfitrião", kind: "text" },
       { key: "address", label: "Endereço completo", kind: "textarea" },
       { key: "maps_url", label: "Link do Google Maps", kind: "text" },
       { key: "garage_maps_url", label: "Link do Maps (garagem)", kind: "text" },
       { key: "city", label: "Cidade", kind: "text" },
       { key: "state", label: "Estado", kind: "text" },
       { key: "country", label: "País", kind: "text" },
+      { key: "address_note", label: "Como chegar", kind: "textarea" },
+      { key: "house_rules", label: "Regras do espaço", kind: "textarea" },
+      { key: "host_name", label: "Nome do anfitrião", kind: "text" },
+      { key: "host_phone", label: "Telefone do anfitrião", kind: "text" },
     ],
   },
   {
-    id: "access", label: "Acesso",
+    id: "guide", label: "O guia",
     fields: [
+      { key: "brand_name", label: "Nome da marca", kind: "text" },
+      { key: "brand_logo_url", label: "URL do logo (https://)", kind: "text" },
+      { key: "guide_theme", label: "Tema do guia", kind: "theme" },
+      { key: "default_language", label: "Idioma padrão", kind: "language" },
+      { key: "published", label: "Publicado", kind: "boolean" },
       { key: "access_mode", label: "Modo de acesso do guia", kind: "access_mode" },
       { key: "pin_code", label: "PIN (quando modo = PIN)", kind: "text" },
       { key: "require_access_gate", label: "Exigir formulário de primeiro acesso", kind: "boolean" },
+    ],
+  },
+  {
+    id: "checkin", label: "Checkin",
+    fields: [
+      { key: "checkin_instructions", label: "Instruções de check-in", kind: "textarea" },
+      { key: "checkin_time", label: "Check-in a partir", kind: "text", placeholder: "15:00" },
+      { key: "checkin_time_max", label: "Check-in até", kind: "text", placeholder: "20:00" },
+      { key: "checkin_note", label: "Observação de check-in", kind: "textarea" },
       { key: "gate_code", label: "Código do portão", kind: "text" },
       { key: "gate_label", label: "Nome do portão", kind: "text" },
       { key: "gate_instructions", label: "Instruções do portão", kind: "textarea" },
@@ -71,27 +82,6 @@ const TEXT_TABS: { id: string; label: string; fields: FieldDef[] }[] = [
       { key: "access_codes_pin", label: "Senha para liberar códigos e Wi-Fi", kind: "text" },
       { key: "wifi_ssid", label: "Rede Wi-Fi", kind: "text" },
       { key: "wifi_password", label: "Senha do Wi-Fi", kind: "text" },
-    ],
-  },
-  {
-    id: "house", label: "A casa",
-    fields: [
-      { key: "checkin_time", label: "Check-in a partir", kind: "text", placeholder: "15:00" },
-      { key: "checkin_time_max", label: "Check-in até", kind: "text", placeholder: "20:00" },
-      { key: "checkin_note", label: "Observação de check-in", kind: "textarea" },
-      { key: "address_note", label: "Como chegar", kind: "textarea" },
-      { key: "checkin_instructions", label: "Instruções de check-in", kind: "textarea" },
-      { key: "checkout_time", label: "Check-out até", kind: "text", placeholder: "11:00" },
-      { key: "checkout_time_min", label: "Check-out a partir", kind: "text" },
-      { key: "checkout_note", label: "Observação de check-out", kind: "textarea" },
-      { key: "checkout_instructions", label: "Instruções de check-out", kind: "textarea" },
-      { key: "house_rules", label: "Regras do espaço", kind: "textarea" },
-    ],
-  },
-  { id: "extras", label: "Extras", fields: [] },
-  {
-    id: "capture", label: "Captação",
-    fields: [
       { key: "collect_arrival_time", label: "Horário previsto de chegada", kind: "collect" },
       { key: "collect_vehicles", label: "Veículos", kind: "collect" },
       { key: "vehicles_max", label: "Qtd. máxima de veículos", kind: "number" },
@@ -99,12 +89,24 @@ const TEXT_TABS: { id: string; label: string; fields: FieldDef[] }[] = [
       { key: "document_scope", label: "Documentos: hóspedes", kind: "docscope" },
     ],
   },
+  {
+    id: "checkout", label: "Checkout",
+    fields: [
+      { key: "checkout_instructions", label: "Instruções de check-out", kind: "textarea" },
+      { key: "checkout_time", label: "Check-out até", kind: "text", placeholder: "11:00" },
+      { key: "checkout_time_min", label: "Check-out a partir", kind: "text" },
+      { key: "checkout_note", label: "Observação de check-out", kind: "textarea" },
+    ],
+  },
+  { id: "faq", label: "FAQ & Contatos", fields: [] },
 ];
 
 const TAB_LISTS: Record<string, ListKey[]> = {
-  house: ["manual", "checkout"],
-  extras: ["emergency", "faqs"],
+  house: ["manual"],
+  checkout: ["checkout"],
+  faq: ["emergency", "faqs"],
 };
+
 
 type State = {
   enabled: Partial<Record<FieldKey, boolean>>;
