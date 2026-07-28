@@ -187,12 +187,13 @@ export const sendWhatsappFromConversation = createServerFn({ method: "POST" })
     const token = decryptToken(cfg.api_token_encrypted as string);
     const to = normalizePhone((phoneCountry ?? "") + phone);
 
-    // Expande [[tag:...]] para URLs de deep-link no guia deste imóvel.
-    const { expandTagsForWhatsapp } = await import("@/lib/guide-tags");
+    // Expande [[info:...]] com valores da propriedade e [[tag:...]] para deep-links do guia.
+    const { expandTagsForWhatsapp, expandInfoTags } = await import("@/lib/guide-tags");
     const origin = siteOrigin();
+    const withInfo = expandInfoTags(data.text, propRow as never);
     const finalText = propertySlug
-      ? expandTagsForWhatsapp(data.text, { origin, slug: propertySlug })
-      : data.text;
+      ? expandTagsForWhatsapp(withInfo, { origin, slug: propertySlug })
+      : withInfo;
 
 
     let sinchMsgId = "";
