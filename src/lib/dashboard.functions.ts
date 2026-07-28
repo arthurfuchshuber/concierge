@@ -597,7 +597,12 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
       resByProp.set(r.property_id, arr);
     }
 
+    function isCurrentStay(checkinDate: string, checkoutDate: string | null): boolean {
+      return !!checkoutDate && checkinDate <= today && checkoutDate > today;
+    }
+
     function reservationInRange(r: ReservationRow): boolean {
+      if (data.kind === "checkin" && isCurrentStay(r.checkin_date, r.checkout_date)) return true;
       const date = data.kind === "checkin" ? r.checkin_date : r.checkout_date;
       if (date < (from ?? today)) return false;
       if (to && date > to) return false;
@@ -660,6 +665,9 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
         }
       }
       const virtualStay = autoStayDone(l.checkin_date, l.checkout_date ?? null, p?.checkin_time ?? null);
+      if (data.kind === "checkin" && !isCurrentStay(l.checkin_date, l.checkout_date ?? null) && date < (from ?? today)) {
+        return null;
+      }
       // Cards com data anterior a hoje só aparecem sem interação quando a estadia
       // ainda está em andamento. Isso preserva a regra de não importar histórico,
       // mas permite que reservas já hospedadas apareçam em "Em Estadia".
