@@ -278,7 +278,7 @@ function Guide({ data }: { data: GuideOk }) {
     return "home";
   });
   // Ao trocar de seção, persiste no hash para que o refresh mantenha a página atual.
-  const setSection = React.useCallback((s: Section) => {
+  const setSection = useCallback((s: Section) => {
     setSectionRaw(s);
     if (typeof window !== "undefined") {
       try { window.history.replaceState(null, "", `#${s}`); } catch {}
