@@ -414,7 +414,6 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
         .from("guest_arrival_status")
         .select("log_id, reservation_id, kind, status, note, arrival_time_override, done_at, concluded_at")
         .in("property_id", propIds)
-        .eq("kind", data.kind)
         .limit(5000),
       context.supabase
         .from("property_reservations")
@@ -513,7 +512,18 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
     };
     const statusMap = new Map<string, Omit<StatusRow, "log_id" | "reservation_id">>();
     const reservationStatusMap = new Map<string, Omit<StatusRow, "log_id" | "reservation_id">>();
+    // Regra da esteira: um card só pode existir em UMA coluna por vez.
+    // Para saber se um checkout já pode "entrar" (Checkouts/Em Limpeza) precisamos
+    // conhecer o status do check-in correspondente — se check-in ainda não foi
+    // marcado como feito, o card fica retido em Check-ins (mesmo atrasado).
+    const checkinDoneLogs = new Set<string>();
+    const checkinDoneReservations = new Set<string>();
     for (const s of (statuses ?? []) as StatusRow[]) {
+      if (s.kind === "checkin" && (s.status === "done" || !!s.done_at)) {
+        if (s.log_id) checkinDoneLogs.add(s.log_id);
+        if (s.reservation_id) checkinDoneReservations.add(s.reservation_id);
+      }
+      if (s.kind !== data.kind) continue;
       const value = {
         kind: s.kind,
         status: s.status,
@@ -525,6 +535,7 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
       if (s.log_id) statusMap.set(s.log_id, value);
       if (s.reservation_id) reservationStatusMap.set(s.reservation_id, value);
     }
+
 
     const placeholderStatus = new Map<
       string,
@@ -727,6 +738,22 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
       const row = rowFromLog(l);
       if (row) rows.push(row);
     }
+
+    // Esteira: um card só pode aparecer em Checkouts/Em Limpeza depois que o
+    // check-in correspondente foi marcado como feito. Enquanto o check-in
+    // estiver pendente (mesmo atrasado), o card fica retido em Check-ins.
+    const gatedRows =
+      data.kind === "checkout"
+        ? rows.filter((r) => {
+            const logDone = !!(r.logId && !r.logId.startsWith("ical:") && checkinDoneLogs.has(r.logId));
+            const resDone = !!(r.reservationId && checkinDoneReservations.has(r.reservationId));
+            return logDone || resDone;
+          })
+        : rows;
+    const finalRows = gatedRows;
+    finalRows.length; // keep var used below
+    rows.length = 0;
+    rows.push(...finalRows);
 
     // Prioridade: data → horário previsto (override do anfitrião ou informado pelo
     // hóspede) → ordem alfabética da residência. O horário padrão da propriedade
