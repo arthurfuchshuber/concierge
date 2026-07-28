@@ -1835,7 +1835,7 @@ function PropertyEditor() {
                     </div>
                   </div>
                   <iframe
-                    src={`/g/${previewSlug}`}
+                    src={`/g/${previewSlug}?preview=1`}
                     title="Pré-visualização do guia"
                     className="w-full flex-1 border-0 bg-background"
                   />
