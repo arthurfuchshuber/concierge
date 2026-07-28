@@ -126,7 +126,7 @@ const PropertyInput = z.object({
   collect_document: z.enum(["off", "optional", "required"]).default("off"),
   document_scope: z.enum(["main", "all"]).default("main"),
   airbnb_ical_url: z.preprocess(
-    (v) => (typeof v === "string" && v.trim() === "" ? null : v),
+    normalizeHttpsInput,
     z
       .string()
       .trim()
@@ -137,16 +137,7 @@ const PropertyInput = z.object({
       .optional()
       .nullable(),
   ),
-  airbnb_listing_url: z.preprocess(
-    (v) => {
-      if (typeof v !== "string") return v;
-      const s = v.trim();
-      if (!s) return null;
-      if (/^https?:\/\//i.test(s)) return s;
-      return `https://${s.replace(/^\/+/, "")}`;
-    },
-    z.string().trim().url().max(2048).optional().nullable(),
-  ),
+  airbnb_listing_url: HttpsUrl,
 });
 
 
