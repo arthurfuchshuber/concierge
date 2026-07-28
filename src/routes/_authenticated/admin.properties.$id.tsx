@@ -967,158 +967,96 @@ function PropertyEditor() {
         />
 
 
-        <TabsContent value="basics" className="space-y-5 mt-6">
+        {/* ================= A CASA ================= */}
+        <TabsContent value="house" className="space-y-4 mt-6">
           <SectionGroup>
-          <Section
-            icon={Sparkles}
-            tone="accent"
-            title="Importar do Airbnb"
-            desc="Cole o link público do anúncio e preencha nome, fotos, localização e horários automaticamente. Também sincronize o calendário (iCal) para trazer reservas."
-            collapsible
-          >
+
+          <Section id="import-airbnb" icon={Sparkles} tone="accent" title="Importar do Airbnb" desc="Cole o link do anúncio e sincronize o calendário do Airbnb." collapsible>
             {!canAirbnb && (
               <div className="mb-3 rounded-xl border border-border bg-secondary/40 p-3 text-xs text-muted-foreground flex items-start gap-2">
                 <Lock className="size-3.5 shrink-0 mt-0.5" />
                 <span>
-                  Importação automática é exclusiva dos planos <strong>Pro</strong>,{" "}
-                  <strong>Business</strong> e <strong>Enterprise</strong>. Faça upgrade em{" "}
-                  <Link to="/precos" className="underline font-medium">Planos</Link> para usar este recurso.
+                  Importação automática é exclusiva dos planos <strong>Pro</strong>, <strong>Business</strong> e <strong>Enterprise</strong>. Faça upgrade em{" "}
+                  <Link to="/precos" className="underline font-medium">Planos</Link>.
                 </span>
               </div>
             )}
-            <Field label="Link do anúncio">
-              <div className="flex gap-2">
-                <Input
-                  value={airbnbUrl}
-                  onChange={(e) => setAirbnbUrl(e.target.value)}
-                  placeholder="https://airbnb.com.br/h/seu-anuncio"
-                  disabled={!canAirbnb}
-                />
-                <Button onClick={handleImportAirbnb} disabled={importingAirbnb || !canAirbnb} variant="secondary" className="shrink-0">
-                  {importingAirbnb ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
-                  <span className="ml-1.5 hidden sm:inline">{importingAirbnb ? "Importando…" : "Importar"}</span>
-                </Button>
-              </div>
-            </Field>
 
-            <div className="mt-5 pt-5 border-t border-border/60 space-y-3">
-              <div className="flex items-center gap-2 text-sm font-medium">
-                <RefreshCw className="size-4 text-muted-foreground" />
-                Calendário Airbnb (iCal)
-              </div>
-              <Field
-                label="URL do calendário Airbnb"
-                hint="No Airbnb: Anúncio → Calendário → Disponibilidade → Exportar calendário. Sincroniza a cada 30 minutos."
-              >
+            <details className="group rounded-xl border border-border bg-muted/30" open>
+              <summary className="list-none cursor-pointer select-none px-3 py-2.5 flex items-center justify-between text-xs font-semibold">
+                <span className="inline-flex items-center gap-2"><Sparkles className="size-3.5 text-muted-foreground" /> Link do anúncio</span>
+                <ChevronDown className="size-4 text-muted-foreground transition-transform group-open:rotate-180" />
+              </summary>
+              <div className="px-3 pb-3 pt-1">
                 <div className="flex gap-2">
-                  <Input
-                    value={form.property.airbnb_ical_url ?? ""}
-                    onChange={(e) => {
-                      const next = e.target.value.trim() || null;
-                      const prev = form.property.airbnb_ical_url;
-                      if (!next && prev) {
-                        setPendingIcalClear(true);
-                        return;
-                      }
-                      update("airbnb_ical_url", next);
-                    }}
-                    placeholder="https://www.airbnb.com/calendar/ical/12345.ics?s=..."
-                  />
-                  <Button
-                    onClick={handleSyncIcal}
-                    disabled={syncingIcal || isNew || !(form.property.airbnb_ical_url ?? "").trim()}
-                    variant="secondary"
-                    className="shrink-0"
-                    title={isNew ? "Salve o guia antes de sincronizar" : "Sincronizar agora"}
-                  >
-                    {syncingIcal ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}
-                    <span className="ml-1.5 hidden sm:inline">{syncingIcal ? "Sincronizando…" : "Sincronizar"}</span>
+                  <Input value={airbnbUrl} onChange={(e) => setAirbnbUrl(e.target.value)} placeholder="https://airbnb.com.br/h/seu-anuncio" disabled={!canAirbnb} />
+                  <Button onClick={handleImportAirbnb} disabled={importingAirbnb || !canAirbnb} variant="secondary" className="shrink-0">
+                    {importingAirbnb ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
+                    <span className="ml-1.5 hidden sm:inline">{importingAirbnb ? "Importando…" : "Importar"}</span>
                   </Button>
                 </div>
-              </Field>
+              </div>
+            </details>
 
-              {(form.property.airbnb_ical_last_sync_at || form.property.airbnb_ical_last_error) && (
-                <div className="text-[11px] text-muted-foreground flex items-center gap-2 flex-wrap">
-                  {form.property.airbnb_ical_last_sync_at && (
-                    <span>Última sincronização: {new Date(form.property.airbnb_ical_last_sync_at).toLocaleString("pt-BR")}</span>
-                  )}
-                  {form.property.airbnb_ical_last_error && (
-                    <span className="text-destructive">Erro: {form.property.airbnb_ical_last_error}</span>
-                  )}
-                </div>
-              )}
+            <details className="group rounded-xl border border-border bg-muted/30 mt-3" open>
+              <summary className="list-none cursor-pointer select-none px-3 py-2.5 flex items-center justify-between text-xs font-semibold">
+                <span className="inline-flex items-center gap-2"><RefreshCw className="size-3.5 text-muted-foreground" /> Calendário Airbnb (iCal)</span>
+                <ChevronDown className="size-4 text-muted-foreground transition-transform group-open:rotate-180" />
+              </summary>
+              <div className="px-3 pb-3 pt-1 space-y-3">
+                <Field label="URL do calendário Airbnb" hint="No Airbnb: Anúncio → Calendário → Disponibilidade → Exportar calendário. Sincroniza a cada 30 minutos.">
+                  <div className="flex gap-2">
+                    <Input
+                      value={form.property.airbnb_ical_url ?? ""}
+                      onChange={(e) => {
+                        const next = e.target.value.trim() || null;
+                        const prev = form.property.airbnb_ical_url;
+                        if (!next && prev) { setPendingIcalClear(true); return; }
+                        update("airbnb_ical_url", next);
+                      }}
+                      placeholder="https://www.airbnb.com/calendar/ical/12345.ics?s=..."
+                    />
+                    <Button onClick={handleSyncIcal} disabled={syncingIcal || isNew || !(form.property.airbnb_ical_url ?? "").trim()} variant="secondary" className="shrink-0" title={isNew ? "Salve o guia antes de sincronizar" : "Sincronizar agora"}>
+                      {syncingIcal ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}
+                      <span className="ml-1.5 hidden sm:inline">{syncingIcal ? "Sincronizando…" : "Sincronizar"}</span>
+                    </Button>
+                  </div>
+                </Field>
 
-              {reservationsQuery.data?.reservations && reservationsQuery.data.reservations.length > 0 && (
-                <details className="group rounded-xl border border-border bg-muted/30">
-                  <summary className="list-none cursor-pointer select-none px-3 py-2.5 flex items-center justify-between text-xs font-semibold">
-                    <span>Próximas reservas ({reservationsQuery.data.reservations.length})</span>
-                    <ChevronDown className="size-4 text-muted-foreground transition-transform group-open:rotate-180" />
-                  </summary>
-                  <ul className="px-3 pb-3 space-y-1.5 max-h-56 overflow-y-auto">
-                    {reservationsQuery.data.reservations.map((r) => (
-                      <li key={r.id} className="text-xs flex items-center justify-between gap-2 py-1 border-b border-border/50 last:border-0">
-                        <span className="font-medium">
-                          {new Date(r.checkin_date).toLocaleDateString("pt-BR")} → {new Date(r.checkout_date).toLocaleDateString("pt-BR")}
-                        </span>
-                        {r.guest_hint && (
-                          <span className="text-muted-foreground font-mono text-[10px]">{r.guest_hint}</span>
-                        )}
-                      </li>
-                    ))}
-                  </ul>
-                </details>
-              )}
-            </div>
+                {(form.property.airbnb_ical_last_sync_at || form.property.airbnb_ical_last_error) && (
+                  <div className="text-[11px] text-muted-foreground flex items-center gap-2 flex-wrap">
+                    {form.property.airbnb_ical_last_sync_at && (
+                      <span>Última sincronização: {new Date(form.property.airbnb_ical_last_sync_at).toLocaleString("pt-BR")}</span>
+                    )}
+                    {form.property.airbnb_ical_last_error && (
+                      <span className="text-destructive">Erro: {form.property.airbnb_ical_last_error}</span>
+                    )}
+                  </div>
+                )}
+
+                {reservationsQuery.data?.reservations && reservationsQuery.data.reservations.length > 0 && (
+                  <details className="group rounded-xl border border-border bg-muted/30">
+                    <summary className="list-none cursor-pointer select-none px-3 py-2.5 flex items-center justify-between text-xs font-semibold">
+                      <span>Próximas reservas ({reservationsQuery.data.reservations.length})</span>
+                      <ChevronDown className="size-4 text-muted-foreground transition-transform group-open:rotate-180" />
+                    </summary>
+                    <ul className="px-3 pb-3 space-y-1.5 max-h-56 overflow-y-auto">
+                      {reservationsQuery.data.reservations.map((r) => (
+                        <li key={r.id} className="text-xs flex items-center justify-between gap-2 py-1 border-b border-border/50 last:border-0">
+                          <span className="font-medium">
+                            {new Date(r.checkin_date).toLocaleDateString("pt-BR")} → {new Date(r.checkout_date).toLocaleDateString("pt-BR")}
+                          </span>
+                          {r.guest_hint && (<span className="text-muted-foreground font-mono text-[10px]">{r.guest_hint}</span>)}
+                        </li>
+                      ))}
+                    </ul>
+                  </details>
+                )}
+              </div>
+            </details>
           </Section>
 
-
-
-
-
-
-          <Section icon={FileText} title="Identidade do guia" desc="Como o guia se apresenta aos hóspedes." collapsible>
-            <Field label="Nome do imóvel" required hint={`Máx. 80 caracteres — ${form.property.name.length}/80. Curto e memorável funciona melhor no cabeçalho do guia.`}>
-              <Input value={form.property.name} maxLength={80}
-                onChange={(e) => {
-                  const v = e.target.value.slice(0, 80);
-                  if (e.target.value.length > 80) {
-                    toast.info("O nome do guia tem limite de 80 caracteres — algo curto e marcante funciona melhor no topo do guia.", { id: "name-cap" });
-                  }
-                  update("name", v);
-                  if (isNew && !form.property.slug) update("slug", slugify(v));
-                }} />
-            </Field>
-            <Field label="URL pública (slug)" hint="Aparece em /g/seu-slug">
-              <Input value={form.property.slug} maxLength={60} onChange={(e) => update("slug", slugify(e.target.value))} />
-            </Field>
-            <Field label="Tipo do guia" hint="Aparece abaixo do título no guia público.">
-              <EtiquetaSelect value={form.property.tagline} onChange={(v) => update("tagline", v)} />
-            </Field>
-          </Section>
-
-
-          <Section icon={ImageIcon} title="Fotos da residência" desc="Até 4 fotos. A primeira será usada como capa." collapsible>
-            <GalleryEditor
-              value={form.property.gallery_images}
-              onChange={(next) => {
-                setForm((f) => ({
-                  ...f,
-                  property: {
-                    ...f.property,
-                    gallery_images: next,
-                    hero_image_url: next[0] ?? "",
-                  },
-                }));
-              }}
-            />
-          </Section>
-
-          <Section
-            icon={MapPinned}
-            title="Endereço e localização"
-            desc="Cole o link do Google Maps e use Auto-preencher para obter endereço, coordenadas e pontos de interesse."
-            collapsible
-          >
+          <Section id="address" icon={MapPinned} title="Endereço e localização" desc="Cole o link do Google Maps e use Auto-preencher." collapsible>
             <Field label="Link do Google Maps — Entrada principal" required>
               <div className="flex gap-2">
                 <Input value={form.property.maps_url} onChange={(e) => update("maps_url", e.target.value)} placeholder="https://maps.app.goo.gl/..." />
@@ -1143,72 +1081,91 @@ function PropertyEditor() {
             </Field>
           </Section>
 
-          <Section
-            icon={DoorOpen}
-            title="Instruções de check-in"
-            desc="Passo a passo da chegada. Escreva uma instrução por linha — cada linha vira uma etapa numerada no guia."
-            collapsible
-          >
-            <Field label="Passo a passo (opcional)" hint="Uma etapa por linha. Linhas em branco são ignoradas.">
-              <Textarea
-                value={form.property.checkin_instructions}
-                maxLength={3000}
-                rows={6}
-                onChange={(e) => update("checkin_instructions", e.target.value)}
-                placeholder={"Estacione na vaga 12.\nAponte para o portão lateral.\nUse o código de portão e fechadura ao lado."}
-              />
-            </Field>
-            <Field label="Fotos e vídeos do check-in" hint="Até 8 itens. Imagens (máx 10MB) ou vídeos (máx 60MB).">
-              <MediaUpload
-                value={form.property.checkin_media}
-                onChange={(next) => update("checkin_media", next)}
-                folder="checkin"
-                max={8}
-              />
-            </Field>
-          </Section>
-
-          <Section
-            icon={LogOut}
-            title="Instruções de check-out"
-            desc="Passo a passo da saída. Mesmo formato: uma instrução por linha."
-            collapsible
-          >
-            <Field label="Passo a passo (opcional)" hint="Uma etapa por linha. Linhas em branco são ignoradas.">
-              <Textarea
-                value={form.property.checkout_instructions}
-                maxLength={3000}
-                rows={6}
-                onChange={(e) => update("checkout_instructions", e.target.value)}
-                placeholder={"Deixe as chaves sobre a mesa de jantar.\nFeche todas as janelas.\nTranque a porta principal ao sair."}
-              />
-            </Field>
-          </Section>
-
-          <Section
-            icon={ClipboardCheck}
-            title="Regras do espaço"
-            desc="O que os hóspedes precisam respeitar durante a estadia. Uma regra por linha — cada linha vira um item numerado no guia."
-            collapsible
-          >
+          <Section id="house-rules" icon={ClipboardCheck} title="Regras do espaço" desc="Uma regra por linha — cada linha vira um item numerado no guia." collapsible>
             <Field label="Regras (opcional)" hint="Uma regra por linha. Linhas em branco são ignoradas.">
-              <Textarea
-                value={form.property.house_rules}
-                maxLength={3000}
-                rows={6}
-                onChange={(e) => update("house_rules", e.target.value)}
-                placeholder={"Não é permitido fumar dentro do imóvel.\nFestas e eventos não são permitidos.\nRespeite o silêncio das 22h às 8h."}
-              />
+              <Textarea value={form.property.house_rules} maxLength={3000} rows={6} onChange={(e) => update("house_rules", e.target.value)} placeholder={"Não é permitido fumar dentro do imóvel.\nFestas e eventos não são permitidos.\nRespeite o silêncio das 22h às 8h."} />
             </Field>
+          </Section>
+
+          <Section id="manual" icon={BookOpen} title="Manual da casa" desc="Instruções de equipamentos e funcionamento." collapsible action={<AddBtn onClick={() => setForm((f) => ({ ...f, manual: [...f.manual, { title: "", description: "", body: "" }] }))} />}>
+            {form.manual.length === 0 ? (
+              <EmptyHint text="Nenhum item ainda. Adicione instruções para ar-condicionado, TV, fechadura, etc." />
+            ) : form.manual.map((m, i) => (
+              <ItemCard key={i} onRemove={() => setForm((f) => ({ ...f, manual: f.manual.filter((_, j) => j !== i) }))}>
+                <Input placeholder="Título (ex: Ar-condicionado)" value={m.title} maxLength={120} onChange={(e) => setForm((f) => ({ ...f, manual: f.manual.map((x, j) => j === i ? { ...x, title: e.target.value } : x) }))} />
+                <Input placeholder="Descrição curta" value={m.description} maxLength={300} onChange={(e) => setForm((f) => ({ ...f, manual: f.manual.map((x, j) => j === i ? { ...x, description: e.target.value } : x) }))} />
+                <Textarea placeholder="Instruções detalhadas" value={m.body} maxLength={4000} onChange={(e) => setForm((f) => ({ ...f, manual: f.manual.map((x, j) => j === i ? { ...x, body: e.target.value } : x) }))} />
+              </ItemCard>
+            ))}
+          </Section>
+
+          <Section id="host-house" icon={UserRound} title="Contato do anfitrião" desc="Nome e WhatsApp para o hóspede te encontrar." collapsible>
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Nome"><Input value={form.property.host_name} maxLength={120} onChange={(e) => update("host_name", e.target.value)} /></Field>
+              <Field label="Telefone (WhatsApp)"><Input value={form.property.host_phone} maxLength={40} onChange={(e) => update("host_phone", e.target.value)} /></Field>
+            </div>
           </Section>
 
           </SectionGroup>
         </TabsContent>
 
-        <TabsContent value="access" className="space-y-5 mt-6">
+        {/* ================= O GUIA ================= */}
+        <TabsContent value="guide" className="space-y-4 mt-6">
           <SectionGroup>
-          <Section icon={Shield} title="Modo de acesso" desc="Quem pode visualizar este guia." collapsible>
 
+          <Section id="identity" icon={FileText} title="Identidade visual" desc="Como o guia se apresenta e sua marca no rodapé." collapsible>
+            <Field label="Nome do imóvel" required hint={`Máx. 80 caracteres — ${form.property.name.length}/80. Curto e memorável funciona melhor no cabeçalho do guia.`}>
+              <Input value={form.property.name} maxLength={80} onChange={(e) => {
+                const v = e.target.value.slice(0, 80);
+                if (e.target.value.length > 80) toast.info("O nome do guia tem limite de 80 caracteres — algo curto e marcante funciona melhor no topo do guia.", { id: "name-cap" });
+                update("name", v);
+                if (isNew && !form.property.slug) update("slug", slugify(v));
+              }} />
+            </Field>
+            <Field label="URL pública (slug)" hint="Aparece em /g/seu-slug">
+              <Input value={form.property.slug} maxLength={60} onChange={(e) => update("slug", slugify(e.target.value))} />
+            </Field>
+            <Field label="Tipo do guia" hint="Aparece abaixo do título no guia público.">
+              <EtiquetaSelect value={form.property.tagline} onChange={(v) => update("tagline", v)} />
+            </Field>
+
+            <div className="pt-3 mt-1 border-t border-border/60 space-y-3">
+              <div className="flex items-center gap-2 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+                <Palette className="size-3.5" /> Marca personalizada
+                {!canBrand && <span className="inline-flex items-center gap-1 text-[10px] text-amber-400/90 normal-case"><Lock className="size-3" /> Enterprise</span>}
+              </div>
+              {!canBrand && (
+                <p className="text-[11px] text-muted-foreground">
+                  Exclusivo do plano <strong>Enterprise</strong>. <Link to="/precos" className="underline font-medium">Ver planos</Link>.
+                </p>
+              )}
+              <Field label="Nome da marca">
+                <Input value={form.property.brand_name} maxLength={120} placeholder="Ex: Casa Maré Hospitality" onChange={(e) => update("brand_name", e.target.value)} disabled={!canBrand} />
+              </Field>
+              <Field label="Logomarca">
+                {canBrand ? (
+                  <ImageUpload value={form.property.brand_logo_url} folder="brand" aspect="square" placeholder="Enviar logomarca" onChange={(v) => update("brand_logo_url", v)} />
+                ) : (
+                  <Input value="" placeholder="Disponível em planos com marca própria" disabled />
+                )}
+              </Field>
+            </div>
+          </Section>
+
+          <Section id="gallery" icon={ImageIcon} title="Fotos da residência" desc="Até 4 fotos — a primeira será a capa." collapsible>
+            <GalleryEditor
+              compact
+              value={form.property.gallery_images}
+              onChange={(next) => {
+                setForm((f) => ({
+                  ...f,
+                  property: { ...f.property, gallery_images: next, hero_image_url: next[0] ?? "" },
+                }));
+              }}
+            />
+          </Section>
+
+          <Section id="access-mode" icon={Shield} title="Modo de acesso" desc="Quem pode visualizar este guia." collapsible>
             <Field label="Modo de acesso do Guia">
               <Select value={form.property.access_mode} onValueChange={(v) => update("access_mode", v as "public" | "pin")}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
@@ -1218,7 +1175,6 @@ function PropertyEditor() {
                 </SelectContent>
               </Select>
             </Field>
-
             {form.property.access_mode === "pin" && (
               <div className="grid grid-cols-2 gap-3 rounded-xl bg-muted/40 p-3 border border-border/60">
                 <Field label="Código de acesso" required>
@@ -1231,21 +1187,25 @@ function PropertyEditor() {
             )}
           </Section>
 
-
-
-          <Section icon={Globe} title="Idioma" collapsible>
-            <Field label="Idioma padrão">
-              <Select value={form.property.default_language} onValueChange={(v) => update("default_language", v as "pt" | "en")}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="pt">Português</SelectItem>
-                  <SelectItem value="en">English</SelectItem>
-                </SelectContent>
-              </Select>
-            </Field>
+          <Section id="language" icon={Globe} title="Idioma padrão" collapsible>
+            <div className="flex items-center gap-2">
+              {([{ v: "pt", label: "Português" }, { v: "en", label: "English" }] as const).map((o) => (
+                <button
+                  key={o.v}
+                  type="button"
+                  onClick={() => update("default_language", o.v)}
+                  className={cn(
+                    "px-4 py-2 rounded-full text-sm border transition-colors",
+                    form.property.default_language === o.v
+                      ? "bg-accent text-accent-foreground border-accent"
+                      : "border-border text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  {o.label}
+                </button>
+              ))}
+            </div>
           </Section>
-
-
 
           <div className="flex items-center justify-between rounded-xl bg-muted/40 px-4 py-3.5 border border-border/60">
             <div className="flex items-center gap-2.5 min-w-0">
@@ -1257,196 +1217,131 @@ function PropertyEditor() {
             </div>
             <Switch checked={form.property.published} onCheckedChange={(v) => update("published", v)} />
           </div>
+
           </SectionGroup>
         </TabsContent>
 
-        <TabsContent value="house" className="space-y-5 mt-6">
+        {/* ================= CHECKIN ================= */}
+        <TabsContent value="checkin" className="space-y-4 mt-6">
           <SectionGroup>
-          <Section icon={Clock} title="Horários" desc="Janelas de check-in e check-out." collapsible>
 
+          <Section id="checkin-instr" icon={DoorOpen} title="Instruções de chegada" desc="Passo a passo do check-in. Uma etapa por linha." collapsible>
+            <Field label="Passo a passo (opcional)" hint="Uma etapa por linha. Linhas em branco são ignoradas.">
+              <Textarea value={form.property.checkin_instructions} maxLength={3000} rows={6} onChange={(e) => update("checkin_instructions", e.target.value)} placeholder={"Estacione na vaga 12.\nAponte para o portão lateral.\nUse o código de portão e fechadura ao lado."} />
+            </Field>
+            <Field label="Fotos e vídeos do check-in" hint="Até 8 itens. Imagens (máx 10MB) ou vídeos (máx 60MB).">
+              <MediaUpload value={form.property.checkin_media} onChange={(next) => update("checkin_media", next)} folder="checkin" max={8} />
+            </Field>
+          </Section>
+
+          <Section id="checkin-times" icon={Clock} title="Horários de check-in" desc="Janela de chegada." collapsible>
             <div className="grid grid-cols-2 gap-3">
               <Field label="Check-in a partir de"><TimePicker value={form.property.checkin_time} onChange={(v) => update("checkin_time", v)} placeholder="15:00" /></Field>
               <Field label="Check-in até" hint="opcional"><TimePicker value={form.property.checkin_time_max} onChange={(v) => update("checkin_time_max", v)} placeholder="22:00" /></Field>
-              <Field label="Check-out a partir de" hint="opcional"><TimePicker value={form.property.checkout_time_min} onChange={(v) => update("checkout_time_min", v)} placeholder="08:00" /></Field>
-              <Field label="Check-out até"><TimePicker value={form.property.checkout_time} onChange={(v) => update("checkout_time", v)} placeholder="11:00" /></Field>
             </div>
-            <div className="grid grid-cols-1 gap-3 mt-3">
-              <Field label="Observação do check-in (opcional)" hint="Aparece abaixo dos horários no guia. Deixe em branco para ocultar.">
-                <Textarea
-                  value={form.property.checkin_note}
-                  maxLength={1000}
-                  rows={3}
-                  onChange={(e) => update("checkin_note", e.target.value)}
-                  placeholder="Ex.: Após às 22h, avise pelo WhatsApp com 1h de antecedência."
-                />
-              </Field>
-              <Field label="Observação do check-out (opcional)" hint="Aparece abaixo dos horários no guia. Deixe em branco para ocultar.">
-                <Textarea
-                  value={form.property.checkout_note}
-                  maxLength={1000}
-                  rows={3}
-                  onChange={(e) => update("checkout_note", e.target.value)}
-                  placeholder="Ex.: Late check-out mediante disponibilidade — consulte o anfitrião."
-                />
-              </Field>
-            </div>
+            <Field label="Observação do check-in (opcional)" hint="Aparece abaixo dos horários no guia. Deixe em branco para ocultar.">
+              <Textarea value={form.property.checkin_note} maxLength={1000} rows={3} onChange={(e) => update("checkin_note", e.target.value)} placeholder="Ex.: Após às 22h, avise pelo WhatsApp com 1h de antecedência." />
+            </Field>
           </Section>
 
-          <Section icon={DoorOpen} title="Entrada" desc="Ative apenas os tipos de acesso que existem na propriedade." collapsible>
-            <div className="space-y-3">
-              {/* Portão */}
-              <div className={`rounded-2xl border ${gateOpen ? "border-primary/40 bg-primary/[0.04]" : "border-border/60 bg-card/30"} transition-colors`}>
-                <button
-                  type="button"
-                  onClick={() => {
-                    const next = !gateOpen;
-                    setGateOpen(next);
-                    if (!next) {
-                      setForm((f) => ({
-                        ...f,
-                        property: { ...f.property, gate_code: "", gate_instructions: "", gate_video_url: "", gate_media: [] },
-                      }));
-                    }
-                  }}
-                  className="w-full flex items-center gap-3 px-4 py-3.5 text-left"
+          <Section id="access-codes" icon={KeyRound} title="Senhas de Acesso" desc="Códigos de portão e fechadura, mais o código que libera as senhas no Guia." collapsible>
+            {/* Campo inline — Código para visualizar as senhas no Guia */}
+            <div className="flex items-center justify-between gap-3 rounded-xl border border-border/60 bg-muted/40 px-3.5 py-2.5">
+              <div className="min-w-0">
+                <p className="text-sm font-medium leading-tight">Código para visualizar as senhas de acesso no Guia</p>
+                <p className="text-[11px] text-muted-foreground mt-0.5">Opcional. Deixe em branco para liberar apenas pela janela de horário.</p>
+              </div>
+              <Input
+                className="w-32 shrink-0 tabular-nums text-center"
+                value={form.property.access_codes_pin}
+                maxLength={20}
+                onChange={(e) => update("access_codes_pin", e.target.value)}
+                placeholder="Ex.: 8421"
+              />
+            </div>
+
+            <div className="space-y-3 mt-3">
+              {/* Portão — sempre recolhido por padrão */}
+              <details className="group rounded-2xl border border-border/60 bg-card/30" open={gateOpen}>
+                <summary
+                  className="list-none cursor-pointer select-none w-full flex items-center gap-3 px-4 py-3.5"
+                  onClick={(e) => { e.preventDefault(); setGateOpen((v) => !v); }}
                 >
                   <div className={`size-9 rounded-lg grid place-items-center shrink-0 ${gateOpen ? "bg-primary/15 text-primary" : "bg-muted/40 text-muted-foreground"}`}>
                     <KeyRound className="size-[18px]" strokeWidth={1.75} />
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-[14px] font-semibold leading-tight">Portão com código</p>
-                    <p className="text-[11.5px] text-muted-foreground mt-0.5">
-                      {gateOpen ? "Configure abaixo o código e as instruções." : "Ative se a entrada tem portão com senha."}
-                    </p>
+                    <p className="text-[11.5px] text-muted-foreground mt-0.5">{gateOpen ? "Configure abaixo o código e as instruções." : "Ative se a entrada tem portão com senha."}</p>
                   </div>
                   <Switch
                     checked={gateOpen}
-                    onCheckedChange={(v) => {
-                      setGateOpen(v);
-                      if (!v) {
-                        setForm((f) => ({
-                          ...f,
-                          property: { ...f.property, gate_code: "", gate_instructions: "", gate_video_url: "", gate_media: [] },
-                        }));
-                      }
-                    }}
+                    onCheckedChange={(v) => { setGateOpen(v); if (!v) setForm((f) => ({ ...f, property: { ...f.property, gate_code: "", gate_instructions: "", gate_video_url: "", gate_media: [] } })); }}
                     onClick={(e) => e.stopPropagation()}
                   />
                   <ChevronDown className={`size-4 text-muted-foreground transition-transform ${gateOpen ? "rotate-180" : ""}`} />
-                </button>
-                {gateOpen ? (
+                </summary>
+                {gateOpen && (
                   <div className="px-4 pb-4 pt-1 space-y-4 border-t border-border/40">
-                    <Field label="Código do portão" required hint="Digite a senha que o hóspede vai usar.">
+                    <Field label="Código do portão" required>
                       <Input value={form.property.gate_code} maxLength={40} onChange={(e) => update("gate_code", e.target.value)} placeholder="Ex.: 1212" />
                     </Field>
                     <Field label="Defina um nome" required hint="Como esse acesso aparece no guia. Ex.: Portão, Garagem, Cancela.">
                       <Input value={form.property.gate_label} maxLength={40} onChange={(e) => update("gate_label", e.target.value)} placeholder="Portão" />
                     </Field>
                     <Field label="Passo a passo (opcional)" hint="Cada linha vira uma etapa numerada no guia.">
-                      <Textarea
-                        value={form.property.gate_instructions}
-                        maxLength={3000}
-                        rows={5}
-                        onChange={(e) => update("gate_instructions", e.target.value)}
-                        placeholder={"Ex.: 1) Digite o código no teclado do portão e aperte #.\n2) Aguarde o clique e empurre.\n3) Se travar, gire a maçaneta enquanto digita."}
-                      />
+                      <Textarea value={form.property.gate_instructions} maxLength={3000} rows={5} onChange={(e) => update("gate_instructions", e.target.value)} placeholder={"Ex.: 1) Digite o código no teclado do portão e aperte #."} />
                     </Field>
-                    <Field label="Link de vídeo tutorial (opcional)" hint="YouTube, Vimeo ou MP4 (https).">
-                      <Input
-                        value={form.property.gate_video_url}
-                        maxLength={2048}
-                        onChange={(e) => update("gate_video_url", e.target.value)}
-                        placeholder="https://youtu.be/…"
-                      />
+                    <Field label="Link de vídeo tutorial (opcional)">
+                      <Input value={form.property.gate_video_url} maxLength={2048} onChange={(e) => update("gate_video_url", e.target.value)} placeholder="https://youtu.be/…" />
                     </Field>
-                    <Field label="Fotos e vídeos do portão (opcional)" hint="Até 8 itens. Mostre o teclado, o caminho.">
-                      <MediaUpload
-                        value={form.property.gate_media}
-                        onChange={(next) => update("gate_media", next)}
-                        folder="access"
-                        max={8}
-                      />
+                    <Field label="Fotos e vídeos do portão (opcional)">
+                      <MediaUpload value={form.property.gate_media} onChange={(next) => update("gate_media", next)} folder="access" max={8} />
                     </Field>
                   </div>
-                ) : null}
-              </div>
+                )}
+              </details>
 
-              {/* Fechadura */}
-              <div className={`rounded-2xl border ${lockOpen ? "border-primary/40 bg-primary/[0.04]" : "border-border/60 bg-card/30"} transition-colors`}>
-                <button
-                  type="button"
-                  onClick={() => {
-                    const next = !lockOpen;
-                    setLockOpen(next);
-                    if (!next) {
-                      setForm((f) => ({
-                        ...f,
-                        property: { ...f.property, lock_code: "", lock_instructions: "", lock_video_url: "", lock_media: [] },
-                      }));
-                    }
-                  }}
-                  className="w-full flex items-center gap-3 px-4 py-3.5 text-left"
+              {/* Fechadura — sempre recolhido por padrão */}
+              <details className="group rounded-2xl border border-border/60 bg-card/30" open={lockOpen}>
+                <summary
+                  className="list-none cursor-pointer select-none w-full flex items-center gap-3 px-4 py-3.5"
+                  onClick={(e) => { e.preventDefault(); setLockOpen((v) => !v); }}
                 >
                   <div className={`size-9 rounded-lg grid place-items-center shrink-0 ${lockOpen ? "bg-primary/15 text-primary" : "bg-muted/40 text-muted-foreground"}`}>
                     <Lock className="size-[18px]" strokeWidth={1.75} />
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-[14px] font-semibold leading-tight">Fechadura com código</p>
-                    <p className="text-[11.5px] text-muted-foreground mt-0.5">
-                      {lockOpen ? "Configure abaixo o código e as instruções." : "Ative se a porta tem fechadura eletrônica."}
-                    </p>
+                    <p className="text-[11.5px] text-muted-foreground mt-0.5">{lockOpen ? "Configure abaixo o código e as instruções." : "Ative se a porta tem fechadura eletrônica."}</p>
                   </div>
                   <Switch
                     checked={lockOpen}
-                    onCheckedChange={(v) => {
-                      setLockOpen(v);
-                      if (!v) {
-                        setForm((f) => ({
-                          ...f,
-                          property: { ...f.property, lock_code: "", lock_instructions: "", lock_video_url: "", lock_media: [] },
-                        }));
-                      }
-                    }}
+                    onCheckedChange={(v) => { setLockOpen(v); if (!v) setForm((f) => ({ ...f, property: { ...f.property, lock_code: "", lock_instructions: "", lock_video_url: "", lock_media: [] } })); }}
                     onClick={(e) => e.stopPropagation()}
                   />
                   <ChevronDown className={`size-4 text-muted-foreground transition-transform ${lockOpen ? "rotate-180" : ""}`} />
-                </button>
-                {lockOpen ? (
+                </summary>
+                {lockOpen && (
                   <div className="px-4 pb-4 pt-1 space-y-4 border-t border-border/40">
-                    <Field label="Código da fechadura" required hint="Digite a senha que o hóspede vai usar.">
+                    <Field label="Código da fechadura" required>
                       <Input value={form.property.lock_code} maxLength={40} onChange={(e) => update("lock_code", e.target.value)} placeholder="Ex.: 3333" />
                     </Field>
                     <Field label="Defina um nome" required hint="Como esse acesso aparece no guia. Ex.: Fechadura, Porta principal, Smart lock.">
                       <Input value={form.property.lock_label} maxLength={40} onChange={(e) => update("lock_label", e.target.value)} placeholder="Fechadura" />
                     </Field>
                     <Field label="Passo a passo (opcional)" hint="Cada linha vira uma etapa numerada no guia.">
-                      <Textarea
-                        value={form.property.lock_instructions}
-                        maxLength={3000}
-                        rows={5}
-                        onChange={(e) => update("lock_instructions", e.target.value)}
-                        placeholder={"Ex.: 1) Digite o código na fechadura e pressione #.\n2) Empurre a porta enquanto o motor gira.\n3) Tranque novamente apertando o botão de cadeado."}
-                      />
+                      <Textarea value={form.property.lock_instructions} maxLength={3000} rows={5} onChange={(e) => update("lock_instructions", e.target.value)} placeholder={"Ex.: 1) Digite o código na fechadura e pressione #."} />
                     </Field>
-                    <Field label="Link de vídeo tutorial (opcional)" hint="YouTube, Vimeo ou MP4 (https).">
-                      <Input
-                        value={form.property.lock_video_url}
-                        maxLength={2048}
-                        onChange={(e) => update("lock_video_url", e.target.value)}
-                        placeholder="https://youtu.be/…"
-                      />
+                    <Field label="Link de vídeo tutorial (opcional)">
+                      <Input value={form.property.lock_video_url} maxLength={2048} onChange={(e) => update("lock_video_url", e.target.value)} placeholder="https://youtu.be/…" />
                     </Field>
-                    <Field label="Fotos e vídeos da fechadura (opcional)" hint="Até 8 itens. Mostre a porta, a fechadura por dentro e por fora.">
-                      <MediaUpload
-                        value={form.property.lock_media}
-                        onChange={(next) => update("lock_media", next)}
-                        folder="access"
-                        max={8}
-                      />
+                    <Field label="Fotos e vídeos da fechadura (opcional)">
+                      <MediaUpload value={form.property.lock_media} onChange={(next) => update("lock_media", next)} folder="access" max={8} />
                     </Field>
                   </div>
-                ) : null}
-              </div>
+                )}
+              </details>
 
               {!gateOpen && !lockOpen ? (
                 <p className="text-[12px] text-muted-foreground rounded-xl border border-dashed border-border/60 bg-background/30 px-4 py-3">
@@ -1456,129 +1351,222 @@ function PropertyEditor() {
             </div>
           </Section>
 
-          <Section icon={Wifi} title="Wi-Fi" desc="Rede e senha exibidas no card de Wi-Fi do guia público." collapsible>
+          <Section id="wifi" icon={Wifi} title="Wi-Fi" desc="Rede e senha exibidas no card de Wi-Fi do guia público." collapsible>
             <div className="grid grid-cols-2 gap-3">
               <Field label="Rede (SSID)"><Input value={form.property.wifi_ssid} maxLength={64} onChange={(e) => update("wifi_ssid", e.target.value)} /></Field>
               <Field label="Senha"><Input value={form.property.wifi_password} maxLength={64} onChange={(e) => update("wifi_password", e.target.value)} /></Field>
             </div>
           </Section>
 
-          <Section
-            icon={Lock}
-            title="Senha para liberar os códigos na home"
-            desc="Opcional. Quando preenchida, o hóspede precisa digitá-la para visualizar Wi-Fi e códigos de acesso, tanto nas faixas da página inicial quanto dentro da seção Chegada. Deixe em branco para liberar apenas pela janela de horário."
-            collapsible
-          >
-            <Field label="Senha (PIN)" hint="4 a 20 caracteres. A IA também solicitará essa senha quando o hóspede pedir dados sensíveis pelo chat.">
-              <Input
-                value={form.property.access_codes_pin}
-                maxLength={20}
-                onChange={(e) => update("access_codes_pin", e.target.value)}
-                placeholder="Ex.: 8421"
-              />
+          <Section id="guest-data" icon={ClipboardList} title="Dados do hóspede" desc="O que é coletado no formulário de primeiro acesso." collapsible>
+            <div className="space-y-2">
+              <p className="text-[11px] uppercase tracking-widest text-muted-foreground font-semibold">Obrigatoriamente coletados</p>
+              <div className="grid gap-1.5">
+                {[
+                  { label: "Nome cadastrado na plataforma", icon: UserRound },
+                  { label: "Período da viagem (chegada e saída)", icon: Clock },
+                  { label: "Telefone", icon: Phone },
+                ].map((it) => (
+                  <div key={it.label} className="flex items-center justify-between rounded-xl border border-border/60 bg-muted/40 px-3.5 py-2">
+                    <div className="flex items-center gap-2.5">
+                      <span className="grid place-items-center size-7 rounded-lg bg-accent/10 text-accent"><it.icon className="size-3.5" /></span>
+                      <span className="text-sm font-medium">{it.label}</span>
+                    </div>
+                    <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">
+                      <Lock className="size-3" /> obrigatório
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-2 pt-3 mt-3 border-t border-border/60">
+              <p className="text-[11px] uppercase tracking-widest text-muted-foreground font-semibold">Você também pode solicitar</p>
+              <CaptureRow icon={Clock} title="Horário previsto de chegada" desc="Ajuda a preparar o check-in no horário certo."
+                mode={form.property.collect_arrival_time}
+                onModeChange={(m) => setForm((f) => ({ ...f, property: { ...f.property, collect_arrival_time: m } }))} />
+              <CaptureRow icon={Car} title="Veículo(s)" desc="Quantos veículos e para cada um: placa, modelo, cor."
+                mode={form.property.collect_vehicles}
+                onModeChange={(m) => setForm((f) => ({ ...f, property: { ...f.property, collect_vehicles: m } }))}>
+                {form.property.collect_vehicles !== "off" && (
+                  <div className="flex items-center justify-between rounded-lg bg-muted/40 border border-border/50 px-3 py-2 mt-1">
+                    <div className="text-[12.5px] text-muted-foreground">
+                      <span className="font-medium text-foreground">Quantidade máxima permitida</span>
+                      <span className="block text-[11px]">Define o teto que o hóspede pode escolher.</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      {[1, 2, 3, 4, 5].map((n) => (
+                        <button key={n} type="button" onClick={() => setForm((f) => ({ ...f, property: { ...f.property, vehicles_max: n } }))}
+                          className={cn("size-8 rounded-full text-[12px] font-semibold border transition-colors", form.property.vehicles_max === n ? "bg-accent text-accent-foreground border-accent" : "border-border text-muted-foreground hover:text-foreground")}>
+                          {n}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </CaptureRow>
+              <CaptureRow icon={IdCard} title="Documento pessoal" desc="Nome completo + número (CPF, RG, passaporte…)."
+                mode={form.property.collect_document}
+                onModeChange={(m) => setForm((f) => ({ ...f, property: { ...f.property, collect_document: m } }))}>
+                {form.property.collect_document !== "off" && (
+                  <div className="rounded-lg bg-muted/40 border border-border/50 px-3 py-2 mt-1">
+                    <div className="text-[12px] font-medium mb-1.5">De quem coletar?</div>
+                    <div className="flex gap-1.5">
+                      {([{ v: "main", label: "Só do hóspede principal" }, { v: "all", label: "De todos os hóspedes" }] as const).map((o) => (
+                        <button key={o.v} type="button" onClick={() => setForm((f) => ({ ...f, property: { ...f.property, document_scope: o.v } }))}
+                          className={cn("px-3 py-1.5 rounded-full text-[11.5px] border transition-colors", form.property.document_scope === o.v ? "bg-accent text-accent-foreground border-accent" : "border-border text-muted-foreground hover:text-foreground")}>
+                          {o.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </CaptureRow>
+            </div>
+          </Section>
+
+          </SectionGroup>
+        </TabsContent>
+
+        {/* ================= CHECKOUT ================= */}
+        <TabsContent value="checkout" className="space-y-4 mt-6">
+          <SectionGroup>
+
+          <Section id="checkout-instr" icon={LogOut} title="Instruções de saída" desc="Passo a passo do check-out. Uma etapa por linha." collapsible>
+            <Field label="Passo a passo (opcional)" hint="Uma etapa por linha. Linhas em branco são ignoradas.">
+              <Textarea value={form.property.checkout_instructions} maxLength={3000} rows={6} onChange={(e) => update("checkout_instructions", e.target.value)} placeholder={"Deixe as chaves sobre a mesa de jantar.\nFeche todas as janelas.\nTranque a porta principal ao sair."} />
             </Field>
           </Section>
 
-          <Section icon={UserRound} title="Contato do anfitrião" desc="Nome e WhatsApp para que o hóspede possa falar com você." collapsible>
+          <Section id="checkout-times" icon={Clock} title="Horários de check-out" desc="Janela de saída." collapsible>
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Check-out a partir de" hint="opcional"><TimePicker value={form.property.checkout_time_min} onChange={(v) => update("checkout_time_min", v)} placeholder="08:00" /></Field>
+              <Field label="Check-out até"><TimePicker value={form.property.checkout_time} onChange={(v) => update("checkout_time", v)} placeholder="11:00" /></Field>
+            </div>
+            <Field label="Observação do check-out (opcional)" hint="Aparece abaixo dos horários no guia. Deixe em branco para ocultar.">
+              <Textarea value={form.property.checkout_note} maxLength={1000} rows={3} onChange={(e) => update("checkout_note", e.target.value)} placeholder="Ex.: Late check-out mediante disponibilidade — consulte o anfitrião." />
+            </Field>
+          </Section>
+
+          <Section id="checkout-list" icon={ClipboardCheck} title="Checklist de check-out" desc="O que o hóspede deve fazer antes de sair." collapsible action={<AddBtn onClick={() => setForm((f) => ({ ...f, checkout: [...f.checkout, { label: "" }] }))} />}>
+            {form.checkout.length === 0 ? (
+              <EmptyHint text="Ex: trancar a porta, deixar a chave na mesa, fechar janelas." />
+            ) : form.checkout.map((c, i) => (
+              <ItemCard key={i} onRemove={() => setForm((f) => ({ ...f, checkout: f.checkout.filter((_, j) => j !== i) }))}>
+                <Input placeholder="ex: Trancar a porta" value={c.label} maxLength={200} onChange={(e) => setForm((f) => ({ ...f, checkout: f.checkout.map((x, j) => j === i ? { label: e.target.value } : x) }))} />
+              </ItemCard>
+            ))}
+          </Section>
+
+          </SectionGroup>
+        </TabsContent>
+
+        {/* ================= FAQ & CONTATOS ================= */}
+        <TabsContent value="faq" className="space-y-4 mt-6">
+          <SectionGroup>
+
+          <Section id="emergency" icon={Phone} title="Emergências" desc="Telefones úteis em caso de urgência." collapsible action={<AddBtn onClick={() => setForm((f) => ({ ...f, emergency: [...f.emergency, { label: "", number: "" }] }))} />}>
+            {form.emergency.length === 0 ? (
+              <EmptyHint text="Adicione contatos como polícia, bombeiros, médico de plantão." />
+            ) : form.emergency.map((m, i) => (
+              <ItemCard key={i} onRemove={() => setForm((f) => ({ ...f, emergency: f.emergency.filter((_, j) => j !== i) }))}>
+                <div className="grid grid-cols-2 gap-2">
+                  <Input placeholder="Rótulo" value={m.label} maxLength={120} onChange={(e) => setForm((f) => ({ ...f, emergency: f.emergency.map((x, j) => j === i ? { ...x, label: e.target.value } : x) }))} />
+                  <Input placeholder="Número" value={m.number} maxLength={40} onChange={(e) => setForm((f) => ({ ...f, emergency: f.emergency.map((x, j) => j === i ? { ...x, number: e.target.value } : x) }))} />
+                </div>
+              </ItemCard>
+            ))}
+          </Section>
+
+          <Section id="faqs" icon={HelpCircle} title="Perguntas frequentes" desc="Antecipe dúvidas comuns dos hóspedes." collapsible action={
+            <div className="flex items-center gap-1.5">
+              <button type="button" onClick={() => {
+                const defaults = buildDefaultFaqs(form.property);
+                if (defaults.length === 0) { toast.info("Preencha campos como horários, endereço, Wi-Fi ou contato para gerar perguntas."); return; }
+                setForm((f) => {
+                  const { merged, added } = mergeDefaultFaqs(f.faqs, defaults);
+                  if (added === 0) { toast.info("Todas as perguntas padrão já estão na sua FAQ."); return f; }
+                  toast.success(`${added} pergunta${added > 1 ? "s" : ""} gerada${added > 1 ? "s" : ""} a partir dos campos.`);
+                  return { ...f, faqs: merged };
+                });
+              }} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-border bg-background text-xs text-muted-foreground hover:text-foreground hover:border-accent/50 transition-colors">
+                <Sparkles className="size-3.5" /> Gerar dos campos
+              </button>
+              <button type="button" onClick={() => { setFaqLibSelected({}); setFaqLibOpen(true); }} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-border bg-background text-xs text-muted-foreground hover:text-foreground hover:border-accent/50 transition-colors">
+                <BookOpen className="size-3.5" /> Importar da biblioteca
+              </button>
+              <AddBtn onClick={() => setForm((f) => ({ ...f, faqs: [...f.faqs, { question: "", answer: "", tags: [] }] }))} />
+            </div>
+          }>
+            {form.faqs.length === 0 ? (
+              <EmptyHint text="Ex: posso fumar? tem estacionamento? aceita pets?" />
+            ) : form.faqs.map((m, i) => {
+              const FAQ_TAGS: { value: "chegada" | "saida" | "residencia" | "explore"; label: string }[] = [
+                { value: "chegada", label: "Chegada (Check-In)" },
+                { value: "saida", label: "Saída (Check-Out)" },
+                { value: "residencia", label: "Residência" },
+                { value: "explore", label: "Explore" },
+              ];
+              const toggleTag = (tag: "chegada" | "saida" | "residencia" | "explore") => {
+                setForm((f) => ({ ...f, faqs: f.faqs.map((x, j) => j === i ? { ...x, tags: x.tags.includes(tag) ? x.tags.filter((t) => t !== tag) : [...x.tags, tag] } : x) }));
+              };
+              const isOpen = openFaqIdx === i;
+              const isSigma = m.tags.includes("sigma");
+              return (
+                <div key={i} className={`group bg-background border rounded-xl overflow-hidden transition-colors ${isSigma ? "border-amber-400/40" : "border-border/60 hover:border-border"}`}>
+                  <div className="flex items-center gap-2 px-3.5 py-3">
+                    <button type="button" onClick={() => setOpenFaqIdx(isOpen ? null : i)} className="flex-1 flex items-center gap-2 min-w-0 text-left" aria-expanded={isOpen}>
+                      {isSigma && <Lock className="size-3.5 text-amber-300 shrink-0" />}
+                      <span className="text-sm font-medium truncate flex-1">
+                        {m.question || <span className="text-muted-foreground italic">Sem pergunta</span>}
+                      </span>
+                      <ChevronDown className={`size-4 text-muted-foreground transition-transform shrink-0 ${isOpen ? "rotate-180" : ""}`} />
+                    </button>
+                    {!isSigma && (
+                      <button onClick={() => { setForm((f) => ({ ...f, faqs: f.faqs.filter((_, j) => j !== i) })); if (openFaqIdx === i) setOpenFaqIdx(null); }} aria-label="Remover" className="p-1.5 rounded-md text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors opacity-60 group-hover:opacity-100">
+                        <Trash2 className="size-3.5" />
+                      </button>
+                    )}
+                  </div>
+                  {isOpen && (
+                    <fieldset disabled={isSigma} className={`px-3.5 pb-3.5 pt-1 space-y-2.5 border-t border-border/40 m-0 min-w-0 ${isSigma ? "opacity-70" : ""}`}>
+                      {isSigma && (<p className="text-[11px] text-amber-300/90 inline-flex items-center gap-1"><Lock className="size-3" /> Pergunta do ConciergeIA — leitura somente.</p>)}
+                      <Input placeholder="Pergunta" value={m.question} maxLength={200} onChange={(e) => setForm((f) => ({ ...f, faqs: f.faqs.map((x, j) => j === i ? { ...x, question: e.target.value } : x) }))} />
+                      <Textarea placeholder="Resposta" value={m.answer} maxLength={2000} onChange={(e) => setForm((f) => ({ ...f, faqs: f.faqs.map((x, j) => j === i ? { ...x, answer: e.target.value } : x) }))} />
+                      <div className="space-y-1.5">
+                        <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Exibir também em</p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {FAQ_TAGS.map((t) => {
+                            const active = m.tags.includes(t.value);
+                            return (
+                              <button key={t.value} type="button" onClick={() => toggleTag(t.value)} className={`px-2.5 py-1 rounded-full text-xs border transition-colors ${active ? "bg-accent text-accent-foreground border-accent" : "bg-background border-border text-muted-foreground hover:border-accent/50"}`}>
+                                {t.label}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </fieldset>
+                  )}
+                </div>
+              );
+            })}
+          </Section>
+
+          <Section id="host-faq" icon={UserRound} title="Contato do anfitrião" desc="Nome e WhatsApp para o hóspede te encontrar." collapsible>
             <div className="grid grid-cols-2 gap-3">
               <Field label="Nome"><Input value={form.property.host_name} maxLength={120} onChange={(e) => update("host_name", e.target.value)} /></Field>
               <Field label="Telefone (WhatsApp)"><Input value={form.property.host_phone} maxLength={40} onChange={(e) => update("host_phone", e.target.value)} /></Field>
             </div>
           </Section>
 
-          <Section
-            icon={Palette}
-            title="Marca personalizada"
-            desc={canBrand
-              ? "Substitua a marca exibida no rodapé do guia público pela sua. Logomarca e nome aparecerão para os hóspedes."
-              : "Disponível exclusivamente no plano Enterprise. Faça upgrade para exibir sua própria marca no rodapé do guia."}
-            collapsible
-          >
-
-            {!canBrand && (
-              <div className="mb-3 rounded-xl border border-border bg-secondary/40 p-3 text-xs text-muted-foreground flex items-start gap-2">
-                <Lock className="size-3.5 shrink-0 mt-0.5" />
-                <span>
-                  Exclusivo do plano <strong>Enterprise</strong>.{" "}
-                  <Link to="/precos" className="underline font-medium">Ver planos</Link>.
-                </span>
-              </div>
-            )}
-            <Field label="Nome da marca">
-              <Input
-                value={form.property.brand_name}
-                maxLength={120}
-                placeholder="Ex: Casa Maré Hospitality"
-                onChange={(e) => update("brand_name", e.target.value)}
-                disabled={!canBrand}
-              />
-            </Field>
-            <Field label="Logomarca">
-              {canBrand ? (
-                <ImageUpload
-                  value={form.property.brand_logo_url}
-                  folder="brand"
-                  aspect="square"
-                  placeholder="Enviar logomarca"
-                  onChange={(v) => update("brand_logo_url", v)}
-                />
-              ) : (
-                <Input value="" placeholder="Disponível em planos com marca própria" disabled />
-              )}
-            </Field>
-          </Section>
-
-
-
-          <Section
-            icon={BookOpen}
-            title="Manual da casa"
-            desc="Instruções de equipamentos e funcionamento."
-            collapsible
-            action={<AddBtn onClick={() => setForm((f) => ({ ...f, manual: [...f.manual, { title: "", description: "", body: "" }] }))} />}
-          >
-
-            {form.manual.length === 0 ? (
-              <EmptyHint text="Nenhum item ainda. Adicione instruções para ar-condicionado, TV, fechadura, etc." />
-            ) : form.manual.map((m, i) => (
-              <ItemCard key={i} onRemove={() => setForm((f) => ({ ...f, manual: f.manual.filter((_, j) => j !== i) }))}>
-                <Input placeholder="Título (ex: Ar-condicionado)" value={m.title} maxLength={120}
-                  onChange={(e) => setForm((f) => ({ ...f, manual: f.manual.map((x, j) => j === i ? { ...x, title: e.target.value } : x) }))} />
-                <Input placeholder="Descrição curta" value={m.description} maxLength={300}
-                  onChange={(e) => setForm((f) => ({ ...f, manual: f.manual.map((x, j) => j === i ? { ...x, description: e.target.value } : x) }))} />
-                <Textarea placeholder="Instruções detalhadas" value={m.body} maxLength={4000}
-                  onChange={(e) => setForm((f) => ({ ...f, manual: f.manual.map((x, j) => j === i ? { ...x, body: e.target.value } : x) }))} />
-              </ItemCard>
-            ))}
-          </Section>
-
-          <Section
-            icon={ClipboardCheck}
-            title="Checklist de check-out"
-            desc="O que o hóspede deve fazer antes de sair."
-            collapsible
-            action={<AddBtn onClick={() => setForm((f) => ({ ...f, checkout: [...f.checkout, { label: "" }] }))} />}
-          >
-
-            {form.checkout.length === 0 ? (
-              <EmptyHint text="Ex: trancar a porta, deixar a chave na mesa, fechar janelas." />
-            ) : form.checkout.map((c, i) => (
-              <ItemCard key={i} onRemove={() => setForm((f) => ({ ...f, checkout: f.checkout.filter((_, j) => j !== i) }))}>
-                <Input placeholder="ex: Trancar a porta" value={c.label} maxLength={200}
-                  onChange={(e) => setForm((f) => ({ ...f, checkout: f.checkout.map((x, j) => j === i ? { label: e.target.value } : x) }))} />
-              </ItemCard>
-            ))}
-          </Section>
           </SectionGroup>
         </TabsContent>
 
-        <TabsContent value="recs" className="space-y-5 mt-6">
+        {/* ================= RECOMENDAÇÕES ================= */}
+        <TabsContent value="recs" className="space-y-4 mt-6">
           {!isNew && <SigmaActiveBanner propertyId={id} />}
           <SectionGroup>
-          {/* "Aqui pertinho" é por imóvel; "Pela cidade" mora em city_references
-              (compartilhado entre todos os guias da mesma cidade).
-              Busca unificada: o sistema decide o quadrante pela distância
-              (≤1,5 km ou ≤20 min a pé → Aqui pertinho; senão → Pela cidade). */}
 
           <div className="rounded-xl border border-border/60 bg-background/40 p-3.5 space-y-2">
             <div className="flex items-center justify-between gap-2">
@@ -1597,26 +1585,24 @@ function PropertyEditor() {
                 } else {
                   const city = (form.property.city || "").trim();
                   if (!city) { toast.error("Defina a cidade do imóvel antes."); return; }
-                  addCityRefFn({
-                    data: {
-                      city_label: city,
-                      state: form.property.state || null,
-                      country: form.property.country || "BR",
-                      type: rec.type || "other",
-                      category: rec.category || "Outros",
-                      name: rec.name,
-                      place_id: rec.place_id!,
-                      note: rec.note ?? null,
-                      rating: rec.rating ?? null,
-                      user_ratings_total: rec.user_ratings_total ?? null,
-                      image_url: rec.image_url ?? null,
-                      maps_url: rec.maps_url ?? null,
-                      opening_hours: rec.opening_hours ?? null,
-                      lat: rec.lat ?? null,
-                      lng: rec.lng ?? null,
-                      propertyId: id,
-                    },
-                  })
+                  addCityRefFn({ data: {
+                    city_label: city,
+                    state: form.property.state || null,
+                    country: form.property.country || "BR",
+                    type: rec.type || "other",
+                    category: rec.category || "Outros",
+                    name: rec.name,
+                    place_id: rec.place_id!,
+                    note: rec.note ?? null,
+                    rating: rec.rating ?? null,
+                    user_ratings_total: rec.user_ratings_total ?? null,
+                    image_url: rec.image_url ?? null,
+                    maps_url: rec.maps_url ?? null,
+                    opening_hours: rec.opening_hours ?? null,
+                    lat: rec.lat ?? null,
+                    lng: rec.lng ?? null,
+                    propertyId: id,
+                  } })
                     .then(() => invalidateCityRefs())
                     .catch((e) => toast.error(friendlyErrorMessage(e, "Não conseguimos adicionar este ponto. Tente outro lugar.")));
                 }
@@ -1636,8 +1622,6 @@ function PropertyEditor() {
             headerExtra={<LinkGuidesButton propertyId={id} />}
             metricsCounts={poiCounts}
           />
-
-
 
           <CityRefsGroup
             cityLabel={form.property.city}
@@ -1660,24 +1644,11 @@ function PropertyEditor() {
             <GenerateModeDialog
               hasExisting={true}
               onClose={() => setGenCityModeOpen(false)}
-              onPick={(mode) => {
-                setGenCityModeOpen(false);
-                void handleGenerateCityRecommendations(mode);
-              }}
+              onPick={(mode) => { setGenCityModeOpen(false); void handleGenerateCityRecommendations(mode); }}
             />
           )}
 
-
-
-
-
-          <Section
-            icon={Ticket}
-            title="Reservas & marketplace"
-            desc="Links para venda de ingressos, passeios, transfers, produtos ou qualquer experiência que você queira oferecer ao hóspede."
-            collapsible
-            action={sigmaLocked ? null : <AddBtn onClick={() => setForm((f) => ({ ...f, property: { ...f.property, marketplace_links: [...f.property.marketplace_links, { label: "", url: "", description: "" }] } }))} />}
-          >
+          <Section id="marketplace" icon={Ticket} title="Reservas & marketplace" desc="Links para venda de ingressos, passeios, transfers, produtos ou qualquer experiência que você queira oferecer ao hóspede." collapsible action={sigmaLocked ? null : <AddBtn onClick={() => setForm((f) => ({ ...f, property: { ...f.property, marketplace_links: [...f.property.marketplace_links, { label: "", url: "", description: "" }] } }))} />}>
             {sigmaLocked && (
               <div className="flex items-center gap-1.5 rounded-lg border border-amber-400/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
                 <Lock className="size-3.5" /> Links gerenciados pelo ConciergeIA — edição bloqueada.
@@ -1687,32 +1658,11 @@ function PropertyEditor() {
             {form.property.marketplace_links.length === 0 ? (
               <EmptyHint text="Ex: tour de barco, transfer do aeroporto, kit de boas-vindas." />
             ) : form.property.marketplace_links.map((m, i) => (
-              <ItemCard
-                key={i}
-                onRemove={() => setForm((f) => ({ ...f, property: { ...f.property, marketplace_links: f.property.marketplace_links.filter((_, j) => j !== i) } }))}
-              >
-                <Input
-                  placeholder="Título (ex: Tour de barco)"
-                  value={m.label}
-                  maxLength={120}
-                  onChange={(e) => setForm((f) => ({ ...f, property: { ...f.property, marketplace_links: f.property.marketplace_links.map((x, j) => j === i ? { ...x, label: e.target.value } : x) } }))}
-                />
-                <Input
-                  placeholder="https://link-de-venda.com"
-                  value={m.url}
-                  maxLength={2048}
-                  onChange={(e) => setForm((f) => ({ ...f, property: { ...f.property, marketplace_links: f.property.marketplace_links.map((x, j) => j === i ? { ...x, url: e.target.value } : x) } }))}
-                />
+              <ItemCard key={i} onRemove={() => setForm((f) => ({ ...f, property: { ...f.property, marketplace_links: f.property.marketplace_links.filter((_, j) => j !== i) } }))}>
+                <Input placeholder="Título (ex: Tour de barco)" value={m.label} maxLength={120} onChange={(e) => setForm((f) => ({ ...f, property: { ...f.property, marketplace_links: f.property.marketplace_links.map((x, j) => j === i ? { ...x, label: e.target.value } : x) } }))} />
+                <Input placeholder="https://link-de-venda.com" value={m.url} maxLength={2048} onChange={(e) => setForm((f) => ({ ...f, property: { ...f.property, marketplace_links: f.property.marketplace_links.map((x, j) => j === i ? { ...x, url: e.target.value } : x) } }))} />
                 <div className="space-y-1">
-                  <Textarea
-                    placeholder="Descrição curta (obrigatória — entre 100 e 200 caracteres)"
-                    value={m.description}
-                    minLength={100}
-                    maxLength={200}
-                    required
-                    aria-invalid={m.description.trim().length > 0 && (m.description.trim().length < 100 || m.description.trim().length > 200)}
-                    onChange={(e) => setForm((f) => ({ ...f, property: { ...f.property, marketplace_links: f.property.marketplace_links.map((x, j) => j === i ? { ...x, description: e.target.value.slice(0, 200) } : x) } }))}
-                  />
+                  <Textarea placeholder="Descrição curta (obrigatória — entre 100 e 200 caracteres)" value={m.description} minLength={100} maxLength={200} required aria-invalid={m.description.trim().length > 0 && (m.description.trim().length < 100 || m.description.trim().length > 200)} onChange={(e) => setForm((f) => ({ ...f, property: { ...f.property, marketplace_links: f.property.marketplace_links.map((x, j) => j === i ? { ...x, description: e.target.value.slice(0, 200) } : x) } }))} />
                   <div className={`text-[11px] tabular-nums text-right ${m.description.trim().length < 100 || m.description.trim().length > 200 ? "text-rose-500" : "text-muted-foreground"}`}>
                     {m.description.trim().length}/200 {m.description.trim().length < 100 ? `· faltam ${100 - m.description.trim().length} para o mínimo` : ""}
                   </div>
@@ -1726,267 +1676,10 @@ function PropertyEditor() {
             ))}
             </fieldset>
           </Section>
+
           </SectionGroup>
         </TabsContent>
 
-        <TabsContent value="extras" className="space-y-5 mt-6">
-          <SectionGroup>
-          <Section
-            icon={Phone}
-            title="Emergências"
-
-            desc="Telefones úteis em caso de urgência."
-            collapsible
-            action={<AddBtn onClick={() => setForm((f) => ({ ...f, emergency: [...f.emergency, { label: "", number: "" }] }))} />}
-          >
-            {form.emergency.length === 0 ? (
-              <EmptyHint text="Adicione contatos como polícia, bombeiros, médico de plantão." />
-            ) : form.emergency.map((m, i) => (
-              <ItemCard key={i} onRemove={() => setForm((f) => ({ ...f, emergency: f.emergency.filter((_, j) => j !== i) }))}>
-                <div className="grid grid-cols-2 gap-2">
-                  <Input placeholder="Rótulo" value={m.label} maxLength={120} onChange={(e) => setForm((f) => ({ ...f, emergency: f.emergency.map((x, j) => j === i ? { ...x, label: e.target.value } : x) }))} />
-                  <Input placeholder="Número" value={m.number} maxLength={40} onChange={(e) => setForm((f) => ({ ...f, emergency: f.emergency.map((x, j) => j === i ? { ...x, number: e.target.value } : x) }))} />
-                </div>
-              </ItemCard>
-            ))}
-          </Section>
-
-          <Section
-            icon={HelpCircle}
-            title="Perguntas frequentes"
-            desc="Antecipe dúvidas comuns dos hóspedes."
-            collapsible
-            action={
-              <div className="flex items-center gap-1.5">
-                <button
-                  type="button"
-                  onClick={() => {
-                    const defaults = buildDefaultFaqs(form.property);
-                    if (defaults.length === 0) {
-                      toast.info("Preencha campos como horários, endereço, Wi-Fi ou contato para gerar perguntas.");
-                      return;
-                    }
-                    setForm((f) => {
-                      const { merged, added } = mergeDefaultFaqs(f.faqs, defaults);
-                      if (added === 0) {
-                        toast.info("Todas as perguntas padrão já estão na sua FAQ.");
-                        return f;
-                      }
-                      toast.success(`${added} pergunta${added > 1 ? "s" : ""} gerada${added > 1 ? "s" : ""} a partir dos campos.`);
-                      return { ...f, faqs: merged };
-                    });
-                  }}
-                  className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-border bg-background text-xs text-muted-foreground hover:text-foreground hover:border-accent/50 transition-colors"
-                >
-                  <Sparkles className="size-3.5" /> Gerar dos campos
-                </button>
-                <button
-                  type="button"
-                  onClick={() => { setFaqLibSelected({}); setFaqLibOpen(true); }}
-                  className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-border bg-background text-xs text-muted-foreground hover:text-foreground hover:border-accent/50 transition-colors"
-                >
-                  <BookOpen className="size-3.5" /> Importar da biblioteca
-                </button>
-                <AddBtn onClick={() => setForm((f) => ({ ...f, faqs: [...f.faqs, { question: "", answer: "", tags: [] }] }))} />
-              </div>
-            }
-          >
-            {form.faqs.length === 0 ? (
-              <EmptyHint text="Ex: posso fumar? tem estacionamento? aceita pets?" />
-            ) : form.faqs.map((m, i) => {
-              const FAQ_TAGS: { value: "chegada" | "saida" | "residencia" | "explore"; label: string }[] = [
-                { value: "chegada", label: "Chegada (Check-In)" },
-                { value: "saida", label: "Saída (Check-Out)" },
-                { value: "residencia", label: "Residência" },
-                { value: "explore", label: "Explore" },
-              ];
-              const toggleTag = (tag: "chegada" | "saida" | "residencia" | "explore") => {
-                setForm((f) => ({
-                  ...f,
-                  faqs: f.faqs.map((x, j) => j === i ? { ...x, tags: x.tags.includes(tag) ? x.tags.filter((t) => t !== tag) : [...x.tags, tag] } : x),
-                }));
-              };
-              const isOpen = openFaqIdx === i;
-              const isSigma = m.tags.includes("sigma");
-              return (
-                <div key={i} className={`group bg-background border rounded-xl overflow-hidden transition-colors ${isSigma ? "border-amber-400/40" : "border-border/60 hover:border-border"}`}>
-                  <div className="flex items-center gap-2 px-3.5 py-3">
-                    <button
-                      type="button"
-                      onClick={() => setOpenFaqIdx(isOpen ? null : i)}
-                      className="flex-1 flex items-center gap-2 min-w-0 text-left"
-                      aria-expanded={isOpen}
-                    >
-                      {isSigma && <Lock className="size-3.5 text-amber-300 shrink-0" />}
-                      <span className="text-sm font-medium truncate flex-1">
-                        {m.question || <span className="text-muted-foreground italic">Sem pergunta</span>}
-                      </span>
-                      <ChevronDown className={`size-4 text-muted-foreground transition-transform shrink-0 ${isOpen ? "rotate-180" : ""}`} />
-                    </button>
-                    {!isSigma && (
-                      <button
-                        onClick={() => {
-                          setForm((f) => ({ ...f, faqs: f.faqs.filter((_, j) => j !== i) }));
-                          if (openFaqIdx === i) setOpenFaqIdx(null);
-                        }}
-                        aria-label="Remover"
-                        className="p-1.5 rounded-md text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors opacity-60 group-hover:opacity-100"
-                      >
-                        <Trash2 className="size-3.5" />
-                      </button>
-                    )}
-                  </div>
-                  {isOpen && (
-                    <fieldset disabled={isSigma} className={`px-3.5 pb-3.5 pt-1 space-y-2.5 border-t border-border/40 m-0 min-w-0 ${isSigma ? "opacity-70" : ""}`}>
-                      {isSigma && (
-                        <p className="text-[11px] text-amber-300/90 inline-flex items-center gap-1">
-                          <Lock className="size-3" /> Pergunta do ConciergeIA — leitura somente.
-                        </p>
-                      )}
-                      <Input placeholder="Pergunta" value={m.question} maxLength={200} onChange={(e) => setForm((f) => ({ ...f, faqs: f.faqs.map((x, j) => j === i ? { ...x, question: e.target.value } : x) }))} />
-                      <Textarea placeholder="Resposta" value={m.answer} maxLength={2000} onChange={(e) => setForm((f) => ({ ...f, faqs: f.faqs.map((x, j) => j === i ? { ...x, answer: e.target.value } : x) }))} />
-                      <div className="space-y-1.5">
-                        <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Exibir também em</p>
-                        <div className="flex flex-wrap gap-1.5">
-                          {FAQ_TAGS.map((t) => {
-                            const active = m.tags.includes(t.value);
-                            return (
-                              <button
-                                key={t.value}
-                                type="button"
-                                onClick={() => toggleTag(t.value)}
-                                className={`px-2.5 py-1 rounded-full text-xs border transition-colors ${active ? "bg-accent text-accent-foreground border-accent" : "bg-background border-border text-muted-foreground hover:border-accent/50"}`}
-                              >
-                                {t.label}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    </fieldset>
-                  )}
-                </div>
-              );
-            })}
-          </Section>
-          </SectionGroup>
-        </TabsContent>
-
-        <TabsContent value="capture" className="space-y-5 mt-6">
-          <SectionGroup>
-            <Section
-              icon={Lock}
-              title="Sempre coletado"
-              desc="Perguntas obrigatórias no formulário de primeiro acesso. Não podem ser desativadas."
-              collapsible
-            >
-              <div className="grid gap-2">
-                {[
-                  { label: "Nome cadastrado na plataforma", icon: UserRound },
-                  { label: "Período da viagem (chegada e saída)", icon: Clock },
-                  { label: "Telefone", icon: Phone },
-                ].map((it) => (
-                  <div key={it.label} className="flex items-center justify-between rounded-xl border border-border/60 bg-muted/40 px-3.5 py-2.5">
-                    <div className="flex items-center gap-2.5">
-                      <span className="grid place-items-center size-8 rounded-lg bg-accent/10 text-accent">
-                        <it.icon className="size-4" />
-                      </span>
-                      <span className="text-sm font-medium">{it.label}</span>
-                    </div>
-                    <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">
-                      <Lock className="size-3" /> obrigatório
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </Section>
-
-            <Section
-              icon={ClipboardList}
-              title="Você pode pedir também"
-              desc="Ative apenas o que faz sentido para seu imóvel. Para cada um, decida se será opcional ou obrigatório para o hóspede."
-              collapsible
-            >
-              <div className="space-y-3">
-                <CaptureRow
-                  icon={Clock}
-                  title="Horário previsto de chegada"
-                  desc="Ajuda a preparar o check-in no horário certo."
-                  mode={form.property.collect_arrival_time}
-                  onModeChange={(m) => setForm((f) => ({ ...f, property: { ...f.property, collect_arrival_time: m } }))}
-                />
-
-                <CaptureRow
-                  icon={Car}
-                  title="Veículo(s)"
-                  desc="O hóspede informa quantos veículos vai levar, e para cada um preenche placa, modelo e cor."
-                  mode={form.property.collect_vehicles}
-                  onModeChange={(m) => setForm((f) => ({ ...f, property: { ...f.property, collect_vehicles: m } }))}
-                >
-                  {form.property.collect_vehicles !== "off" && (
-                    <div className="flex items-center justify-between rounded-lg bg-muted/40 border border-border/50 px-3 py-2 mt-1">
-                      <div className="text-[12.5px] text-muted-foreground">
-                        <span className="font-medium text-foreground">Quantidade máxima permitida</span>
-                        <span className="block text-[11px]">Define o teto que o hóspede pode escolher.</span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        {[1, 2, 3, 4, 5].map((n) => (
-                          <button
-                            key={n}
-                            type="button"
-                            onClick={() => setForm((f) => ({ ...f, property: { ...f.property, vehicles_max: n } }))}
-                            className={cn(
-                              "size-8 rounded-full text-[12px] font-semibold border transition-colors",
-                              form.property.vehicles_max === n
-                                ? "bg-accent text-accent-foreground border-accent"
-                                : "border-border text-muted-foreground hover:text-foreground",
-                            )}
-                          >
-                            {n}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </CaptureRow>
-
-                <CaptureRow
-                  icon={IdCard}
-                  title="Documento pessoal"
-                  desc="Nome completo + número (CPF, RG, passaporte…)."
-                  mode={form.property.collect_document}
-                  onModeChange={(m) => setForm((f) => ({ ...f, property: { ...f.property, collect_document: m } }))}
-                >
-                  {form.property.collect_document !== "off" && (
-                    <div className="rounded-lg bg-muted/40 border border-border/50 px-3 py-2 mt-1">
-                      <div className="text-[12px] font-medium mb-1.5">De quem coletar?</div>
-                      <div className="flex gap-1.5">
-                        {([
-                          { v: "main", label: "Só do hóspede principal" },
-                          { v: "all", label: "De todos os hóspedes" },
-                        ] as const).map((o) => (
-                          <button
-                            key={o.v}
-                            type="button"
-                            onClick={() => setForm((f) => ({ ...f, property: { ...f.property, document_scope: o.v } }))}
-                            className={cn(
-                              "px-3 py-1.5 rounded-full text-[11.5px] border transition-colors",
-                              form.property.document_scope === o.v
-                                ? "bg-accent text-accent-foreground border-accent"
-                                : "border-border text-muted-foreground hover:text-foreground",
-                            )}
-                          >
-                            {o.label}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </CaptureRow>
-              </div>
-            </Section>
-          </SectionGroup>
-        </TabsContent>
 
       </Tabs>
 
