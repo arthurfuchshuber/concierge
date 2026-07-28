@@ -1618,7 +1618,17 @@ function Guide({ data }: { data: GuideOk }) {
                               </span>
                             </AccordionTrigger>
                             <AccordionContent className="text-[13.5px] leading-relaxed whitespace-pre-line text-foreground/80 pl-6 pr-1 pb-3.5 max-w-prose">
-                              <InlineTagText text={String(f.answer ?? "")} onNavigate={(k, p) => navigateGuideTag(k, p)} />
+                              <InlineTagText
+                                text={String(f.answer ?? "")}
+                                onNavigate={(k, pp) => navigateGuideTag(k, pp)}
+                                info={{
+                                  snapshot: p as never,
+                                  unlocked,
+                                  hasAccessPin,
+                                  checkinLocked,
+                                  onRequestUnlock: () => requestUnlock(),
+                                }}
+                              />
                             </AccordionContent>
                           </AccordionItem>
                         );})}
