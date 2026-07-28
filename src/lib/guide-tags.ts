@@ -281,6 +281,18 @@ export function resolveInfoValue(
 
 const INFO_RE = /\[\[info:([a-z0-9-]+)(?::([^\]|]+))?(?:\|([^\]]+))?\]\]/gi;
 
+/** Chaves cujo valor é sensível — deve ser mascarado antes do check-in ou sem PIN. */
+export const PROTECTED_INFO_KEYS: ReadonlySet<GuideInfoKey> = new Set<GuideInfoKey>([
+  "wifi",
+  "wifi-password",
+  "gate-code",
+  "lock-code",
+]);
+
+export function isProtectedInfoKey(k: string): k is GuideInfoKey {
+  return isGuideInfoKey(k) && PROTECTED_INFO_KEYS.has(k as GuideInfoKey);
+}
+
 /** Substitui todas as `[[info:...]]` pelos valores atuais da propriedade. */
 export function expandInfoTags(text: string, prop: GuideInfoSnapshot | null | undefined): string {
   if (!text) return text;
@@ -291,4 +303,43 @@ export function expandInfoTags(text: string, prop: GuideInfoSnapshot | null | un
     if (!val) return "";
     return rawLabel?.trim() ? `${rawLabel.trim()} (${val})` : val;
   });
+}
+
+// ---- Combined tokenizer (tag + info) for inline rendering ---------------------
+
+export type AnyToken =
+  | { kind: "text"; value: string }
+  | { kind: "tag"; key: GuideTagKey; label: string; param: string | null }
+  | { kind: "info"; key: GuideInfoKey; label: string | null; param: string | null };
+
+/** Percorre o texto uma vez, extraindo tags e infos em ordem. */
+export function tokenizeAll(text: string): AnyToken[] {
+  const src = text ?? "";
+  const matches: Array<{ idx: number; len: number; tok: AnyToken }> = [];
+  for (const m of src.matchAll(TAG_RE)) {
+    const key = m[1].toLowerCase();
+    if (!isGuideTagKey(key)) continue;
+    const tag = TAG_BY_KEY[key];
+    const label = (m[3] ?? tag.label).trim() || tag.label;
+    const param = (m[2] ?? "").toLowerCase() || null;
+    matches.push({ idx: m.index ?? 0, len: m[0].length, tok: { kind: "tag", key: key as GuideTagKey, label, param } });
+  }
+  for (const m of src.matchAll(INFO_RE)) {
+    const key = m[1].toLowerCase();
+    if (!isGuideInfoKey(key)) continue;
+    const label = (m[3] ?? "").trim() || null;
+    const param = (m[2] ?? "").trim() || null;
+    matches.push({ idx: m.index ?? 0, len: m[0].length, tok: { kind: "info", key: key as GuideInfoKey, label, param } });
+  }
+  matches.sort((a, b) => a.idx - b.idx);
+  const out: AnyToken[] = [];
+  let last = 0;
+  for (const m of matches) {
+    if (m.idx < last) continue; // overlap safety
+    if (m.idx > last) out.push({ kind: "text", value: src.slice(last, m.idx) });
+    out.push(m.tok);
+    last = m.idx + m.len;
+  }
+  if (last < src.length) out.push({ kind: "text", value: src.slice(last) });
+  return out;
 }
