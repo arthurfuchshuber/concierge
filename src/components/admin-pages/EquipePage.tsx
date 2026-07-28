@@ -394,7 +394,7 @@ function EquipePage() {
                   <div className="text-sm font-medium truncate">{i.email as string}</div>
                   <div className="text-[11px] text-muted-foreground">Expira {new Date(i.expires_at as string).toLocaleDateString("pt-BR")}</div>
                 </div>
-                <span className="text-[11px] px-2 py-0.5 rounded-full bg-secondary">{i.role as string}</span>
+                
                 <button
                   onClick={() => resend.mutate(i.id as string)}
                   disabled={isResending}
