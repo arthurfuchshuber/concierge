@@ -372,7 +372,6 @@ function DashboardPage() {
           onRefresh={() => tomorrowCheckinListQ.refetch()}
           kind="checkin"
           rangeLabel="Amanhã"
-          shadowTone="emerald"
           onEditTime={handleEditTime}
         />
         <KpiCard
@@ -384,7 +383,6 @@ function DashboardPage() {
           onRefresh={() => tomorrowCheckoutListQ.refetch()}
           kind="checkout"
           rangeLabel="Amanhã"
-          shadowTone="amber"
           onEditTime={handleEditTime}
         />
         <KpiCard
