@@ -119,11 +119,18 @@ function EquipePage() {
       await qc.cancelQueries({ queryKey: ["member-permissions"] });
       const prev = qc.getQueryData<any>(["member-permissions"]);
       if (prev?.matrix?.[v.memberUserId]) {
+        // Cascade espelho do servidor: ligar EDIT liga VIEW; desligar VIEW desliga EDIT.
+        const area = PERMISSION_AREAS.find((a) => a.view === v.permission || a.edit === v.permission);
+        const patch: Record<string, boolean> = { [v.permission]: v.granted };
+        if (area) {
+          if (v.permission === area.edit && v.granted) patch[area.view] = true;
+          else if (v.permission === area.view && !v.granted) patch[area.edit] = false;
+        }
         qc.setQueryData(["member-permissions"], {
           ...prev,
           matrix: {
             ...prev.matrix,
-            [v.memberUserId]: { ...prev.matrix[v.memberUserId], [v.permission]: v.granted },
+            [v.memberUserId]: { ...prev.matrix[v.memberUserId], ...patch },
           },
         });
       }
@@ -133,7 +140,10 @@ function EquipePage() {
       if (ctx?.prev) qc.setQueryData(["member-permissions"], ctx.prev);
       toast.error("Não foi possível salvar a permissão.");
     },
-    onSettled: () => qc.invalidateQueries({ queryKey: ["my-permissions"] }),
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: ["member-permissions"] });
+      qc.invalidateQueries({ queryKey: ["my-permissions"] });
+    },
   });
 
   const [pushOn, setPushOn] = useState<boolean | null>(null);
