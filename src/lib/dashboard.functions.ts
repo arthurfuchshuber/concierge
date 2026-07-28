@@ -601,8 +601,19 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
       return !!checkoutDate && checkinDate <= today && checkoutDate > today;
     }
 
+    // Regra da esteira (dedupe): uma reserva só pode aparecer em UM estágio.
+    // Se o dia de checkout já chegou (ou passou), o card pertence a Checkouts
+    // / Em Limpeza — nunca deve continuar em Check-ins mesmo estando atrasado.
+    function belongsToCheckoutStage(checkinDate: string, checkoutDate: string | null): boolean {
+      if (!checkoutDate) return false;
+      return checkinDate <= today && checkoutDate <= today;
+    }
+
     function reservationInRange(r: ReservationRow): boolean {
-      if (data.kind === "checkin" && isCurrentStay(r.checkin_date, r.checkout_date)) return true;
+      if (data.kind === "checkin") {
+        if (belongsToCheckoutStage(r.checkin_date, r.checkout_date)) return false;
+        if (isCurrentStay(r.checkin_date, r.checkout_date)) return true;
+      }
       const date = data.kind === "checkin" ? r.checkin_date : r.checkout_date;
       if (date < (from ?? today)) return false;
       if (to && date > to) return false;
@@ -665,6 +676,9 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
         }
       }
       const virtualStay = autoStayDone(l.checkin_date, l.checkout_date ?? null, p?.checkin_time ?? null);
+      if (data.kind === "checkin" && belongsToCheckoutStage(l.checkin_date, l.checkout_date ?? null)) {
+        return null;
+      }
       if (data.kind === "checkin" && !isCurrentStay(l.checkin_date, l.checkout_date ?? null) && date < (from ?? today)) {
         return null;
       }
