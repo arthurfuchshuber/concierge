@@ -50,7 +50,7 @@ export const PERMISSION_AREAS: {
 }[] = [
   {
     area: "library",
-    label: "Biblioteca / Guias",
+    label: "Biblioteca & Guias",
     description: "Imóveis, manual da casa, recomendações, FAQs e checkout.",
     view: "library_view",
     edit: "library_edit",
@@ -66,7 +66,7 @@ export const PERMISSION_AREAS: {
   },
   {
     area: "chat",
-    label: "Chat / Atendimento",
+    label: "Atendimento",
     description: "Conversas com hóspedes no atendimento humano.",
     view: "chat_view",
     edit: "chat_respond",
@@ -82,7 +82,7 @@ export const PERMISSION_AREAS: {
   },
   {
     area: "guests",
-    label: "Hóspedes / Captação",
+    label: "Hóspedes",
     description: "Lista de hóspedes e dados coletados no primeiro acesso.",
     view: "guests_view",
     edit: "guests_edit",
@@ -94,19 +94,43 @@ export const PERMISSION_META: Record<
   MemberPermission,
   { label: string; description: string; group: "operational" | "admin" }
 > = {
-  library_view: { label: "Ver biblioteca", description: "Ver guias, manual, recomendações, FAQs.", group: "operational" },
+  library_view: {
+    label: "Ver biblioteca",
+    description: "Ver guias, manual, recomendações, FAQs.",
+    group: "operational",
+  },
   library_edit: { label: "Editar biblioteca", description: "Criar/editar guias e conteúdo.", group: "operational" },
   ai_view: { label: "Ver IA", description: "Consultar base de conhecimento e comportamento.", group: "operational" },
   ai_train: { label: "Treinar IA", description: "Editar base, FAQs e comportamento.", group: "operational" },
   chat_view: { label: "Ver chat", description: "Ver conversas e histórico.", group: "operational" },
-  chat_respond: { label: "Responder no chat", description: "Assumir e responder no atendimento humano.", group: "operational" },
+  chat_respond: {
+    label: "Responder no chat",
+    description: "Assumir e responder no atendimento humano.",
+    group: "operational",
+  },
   operation_view: { label: "Ver operação", description: "Ver dashboard, KPIs e Kanban.", group: "operational" },
-  operation_edit: { label: "Agir na operação", description: "Marcar check-in/out/limpeza e editar horários.", group: "operational" },
+  operation_edit: {
+    label: "Agir na operação",
+    description: "Marcar check-in/out/limpeza e editar horários.",
+    group: "operational",
+  },
   guests_view: { label: "Ver hóspedes", description: "Ver lista de hóspedes e captação.", group: "operational" },
   guests_edit: { label: "Editar hóspedes", description: "Editar e exportar dados de captação.", group: "operational" },
-  clients_manage: { label: "Gerenciar clientes", description: "Alterar planos e informações de clientes.", group: "admin" },
-  trial_manage: { label: "Alterar trial", description: "Alterar o período de trial free dos clientes.", group: "admin" },
-  pricing_override: { label: "Personalizar recorrência", description: "Personalizar o valor da recorrência.", group: "admin" },
+  clients_manage: {
+    label: "Gerenciar clientes",
+    description: "Alterar planos e informações de clientes.",
+    group: "admin",
+  },
+  trial_manage: {
+    label: "Alterar trial",
+    description: "Alterar o período de trial free dos clientes.",
+    group: "admin",
+  },
+  pricing_override: {
+    label: "Personalizar recorrência",
+    description: "Personalizar o valor da recorrência.",
+    group: "admin",
+  },
 };
 
 /**
@@ -130,9 +154,6 @@ export const PERMISSION_FEATURE: Record<MemberPermission, keyof PlanFeatures | n
   pricing_override: null,
 };
 
-
-
-
 // Owner lists team members + full permission matrix
 export const listMemberPermissions = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -154,14 +175,13 @@ export const listMemberPermissions = createServerFn({ method: "GET" })
     let profiles: Record<string, { email: string | null; full_name: string | null }> = {};
     if (ids.length) {
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-      const { data: profs } = await supabaseAdmin
-        .from("profiles")
-        .select("id, full_name")
-        .in("id", ids);
-      for (const p of profs ?? []) profiles[p.id as string] = { email: null, full_name: (p.full_name as string) ?? null };
+      const { data: profs } = await supabaseAdmin.from("profiles").select("id, full_name").in("id", ids);
+      for (const p of profs ?? [])
+        profiles[p.id as string] = { email: null, full_name: (p.full_name as string) ?? null };
       const { data: users } = await supabaseAdmin.auth.admin.listUsers({ perPage: 200 });
       for (const u of users?.users ?? []) {
-        if (ids.includes(u.id)) profiles[u.id] = { email: u.email ?? null, full_name: profiles[u.id]?.full_name ?? null };
+        if (ids.includes(u.id))
+          profiles[u.id] = { email: u.email ?? null, full_name: profiles[u.id]?.full_name ?? null };
       }
     }
 
@@ -212,12 +232,9 @@ export const updateMemberPermission = createServerFn({ method: "POST" })
       }
     }
 
-
     // Cascata view↔edit: ligar EDIT liga o VIEW correspondente;
     // desligar VIEW desliga o EDIT correspondente. Mantém coerência.
-    const area = PERMISSION_AREAS.find(
-      (a) => a.view === data.permission || a.edit === data.permission,
-    );
+    const area = PERMISSION_AREAS.find((a) => a.view === data.permission || a.edit === data.permission);
     const rowsToUpsert: {
       owner_id: string;
       member_user_id: string;
@@ -263,7 +280,6 @@ export const updateMemberPermission = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return { ok: true };
   });
-
 
 // Any signed-in user: what can I do inside a given account?
 const MyPermsInput = z.object({ ownerId: z.string().uuid() });
