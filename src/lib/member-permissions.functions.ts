@@ -213,22 +213,57 @@ export const updateMemberPermission = createServerFn({ method: "POST" })
     }
 
 
-    const { error } = await supabase
-      .from("account_member_permissions")
-      .upsert(
-        {
+    // Cascata view↔edit: ligar EDIT liga o VIEW correspondente;
+    // desligar VIEW desliga o EDIT correspondente. Mantém coerência.
+    const area = PERMISSION_AREAS.find(
+      (a) => a.view === data.permission || a.edit === data.permission,
+    );
+    const rowsToUpsert: {
+      owner_id: string;
+      member_user_id: string;
+      permission: MemberPermission;
+      granted: boolean;
+      updated_by: string;
+      updated_at: string;
+    }[] = [
+      {
+        owner_id: userId,
+        member_user_id: data.memberUserId,
+        permission: data.permission,
+        granted: data.granted,
+        updated_by: userId,
+        updated_at: new Date().toISOString(),
+      },
+    ];
+    if (area) {
+      if (data.permission === area.edit && data.granted) {
+        rowsToUpsert.push({
           owner_id: userId,
           member_user_id: data.memberUserId,
-          permission: data.permission,
-          granted: data.granted,
+          permission: area.view,
+          granted: true,
           updated_by: userId,
           updated_at: new Date().toISOString(),
-        },
-        { onConflict: "owner_id,member_user_id,permission" },
-      );
+        });
+      } else if (data.permission === area.view && !data.granted) {
+        rowsToUpsert.push({
+          owner_id: userId,
+          member_user_id: data.memberUserId,
+          permission: area.edit,
+          granted: false,
+          updated_by: userId,
+          updated_at: new Date().toISOString(),
+        });
+      }
+    }
+
+    const { error } = await supabase
+      .from("account_member_permissions")
+      .upsert(rowsToUpsert, { onConflict: "owner_id,member_user_id,permission" });
     if (error) throw new Error(error.message);
     return { ok: true };
   });
+
 
 // Any signed-in user: what can I do inside a given account?
 const MyPermsInput = z.object({ ownerId: z.string().uuid() });
