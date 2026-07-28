@@ -413,6 +413,20 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
     }
     const uniqueLogs = Array.from(dedupMap.values());
 
+    const reservationWindowStart = data.range === "tomorrow" ? addDaysISO(today, 1) : today;
+    const reservationWindowEnd =
+      data.range === "tomorrow" ? reservationWindowStart : data.range === "7d" ? addDaysISO(today, 6) : null;
+    const reservationDateCol = data.kind === "checkin" ? "checkin_date" : "checkout_date";
+    let reservationsQuery = context.supabase
+      .from("property_reservations")
+      .select(
+        "id, property_id, checkin_date, checkout_date, raw_summary, guest_hint, reservation_url, status, synced_at",
+      )
+      .in("property_id", propIds)
+      .eq("source", "airbnb")
+      .gte(reservationDateCol, reservationWindowStart);
+    if (reservationWindowEnd) reservationsQuery = reservationsQuery.lte(reservationDateCol, reservationWindowEnd);
+
     const [{ data: props }, { data: statuses }, { data: reservations }, { data: sectionEvents }] = await Promise.all([
       context.supabase
         .from("properties")
@@ -425,16 +439,7 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
         .select("log_id, reservation_id, kind, status, note, arrival_time_override, done_at, concluded_at")
         .in("property_id", propIds)
         .limit(5000),
-      context.supabase
-        .from("property_reservations")
-        .select(
-          "id, property_id, checkin_date, checkout_date, raw_summary, guest_hint, reservation_url, status, synced_at",
-        )
-        .in("property_id", propIds)
-        .eq("source", "airbnb")
-        .gte(data.kind === "checkin" ? "checkout_date" : "checkout_date", today)
-        .order(dateCol, { ascending: true })
-        .limit(10000),
+      reservationsQuery.order(reservationDateCol, { ascending: true }).limit(10000),
       uniqueLogs.length > 0
         ? context.supabase
             .from("guide_section_events")
