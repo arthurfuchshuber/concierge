@@ -14,9 +14,10 @@ async function loadItemsForProperty(
   supabase: { from: (t: string) => unknown },
   propertyId: string,
 ): Promise<GuideTagItemPayload[]> {
+  const sb = supabase as { from: (t: string) => { select: (c: string) => { eq: (k: string, v: string) => { limit: (n: number) => Promise<{ data: unknown[] | null }> } } } };
   const [{ data: faqs }, { data: recs }] = await Promise.all([
-    supabase.from("property_faqs").select("id, question").eq("property_id", propertyId).limit(100),
-    supabase.from("property_recommendations").select("id, name, category").eq("property_id", propertyId).limit(100),
+    sb.from("property_faqs").select("id, question").eq("property_id", propertyId).limit(100),
+    sb.from("property_recommendations").select("id, name, category").eq("property_id", propertyId).limit(100),
   ]);
   const out: GuideTagItemPayload[] = [];
   const seen = new Set<string>();
