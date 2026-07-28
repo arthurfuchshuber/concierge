@@ -74,7 +74,7 @@ export const getDashboardKpis = createServerFn({ method: "GET" })
     const today = todayISO();
     const tomorrow = addDaysISO(today, 1);
     // "Hoje" = tudo que ainda está pendente até hoje (inclui atrasados dos últimos 30 dias).
-    const overdueFrom = addDaysISO(today, -30);
+    const overdueFrom = "1970-01-01";
 
     const [{ data: props }, { data: logs }, { data: reservations }, { data: statuses }] = await Promise.all([
       context.supabase.from("properties").select("id, airbnb_ical_url").in("id", propIds),
