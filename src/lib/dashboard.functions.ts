@@ -16,6 +16,16 @@ function todayISO(): string {
   const pick = (type: string) => parts.find((p) => p.type === type)?.value ?? "";
   return `${pick("year")}-${pick("month")}-${pick("day")}`;
 }
+function nowHHMMSaoPaulo(): string {
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "America/Sao_Paulo",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).formatToParts(new Date());
+  const pick = (type: string) => parts.find((p) => p.type === type)?.value ?? "00";
+  return `${pick("hour")}:${pick("minute")}`;
+}
 function addDaysISO(iso: string, n: number): string {
   const [y, m, d] = iso.split("-").map(Number);
   const dt = new Date(Date.UTC(y, m - 1, d));
@@ -603,6 +613,24 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
       );
     }
 
+    // Auto-promoção para "Em Estadia": quando uma reserva é importada (ou
+    // criada manualmente) e o período de estadia já está em andamento — ou
+    // seja, a data de check-in já passou, OU é hoje mas o horário padrão de
+    // entrada da propriedade já chegou — e o checkout ainda é no futuro,
+    // consideramos o check-in como concluído virtualmente. Isso evita que o
+    // hóspede apareça em "Check-ins" quando na verdade já está hospedado.
+    const nowHM = nowHHMMSaoPaulo();
+    function autoStayDone(checkinDate: string, checkoutDate: string | null, standardCheckinTime: string | null): boolean {
+      if (data.kind !== "checkin") return false;
+      if (!checkoutDate || checkoutDate <= today) return false; // precisa estar em estadia (checkout no futuro)
+      if (checkinDate < today) return true;
+      if (checkinDate === today) {
+        if (!standardCheckinTime) return false;
+        return nowHM >= standardCheckinTime;
+      }
+      return false;
+    }
+
     function rowFromLog(
       l: (typeof uniqueLogs)[number],
       forceIcal?: { hasIcal: boolean; matched: boolean; icalCheckin: string | null; icalCheckout: string | null },
@@ -662,7 +690,11 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
         status:
           data.kind === "checkin" && l.checkin_date > today && s?.status === "done"
             ? "pending"
-            : (s?.status ?? "pending"),
+            : s
+              ? s.status
+              : autoStayDone(l.checkin_date, l.checkout_date ?? null, p?.checkin_time ?? null)
+                ? "done"
+                : "pending",
         note: s?.note ?? null,
         arrivalTimeOverride: s?.arrival_time_override ?? null,
         doneAt: s?.done_at ?? null,
@@ -708,7 +740,11 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
         status:
           data.kind === "checkin" && r.checkin_date > today && s?.status === "done"
             ? "pending"
-            : (s?.status ?? "pending"),
+            : s
+              ? s.status
+              : autoStayDone(r.checkin_date, r.checkout_date, p?.checkin_time ?? null)
+                ? "done"
+                : "pending",
         note: s?.note ?? null,
         arrivalTimeOverride: s?.arrival_time_override ?? null,
         doneAt: s?.done_at ?? null,
@@ -1166,6 +1202,41 @@ export const revertArrival = createServerFn({ method: "POST" })
           .update({ status: "pending", done_at: null, concluded_at: null })
           .eq("id", id);
         if (error) throw new Error(error.message);
+      } else {
+        // Sem status persistido (o card foi promovido virtualmente a "Em Estadia"
+        // porque a estadia já estava em andamento na importação). Grava uma
+        // linha pending para que o "voltar" fique efetivo e não seja
+        // sobrescrito pela auto-promoção na próxima leitura.
+        let propertyId: string | null = null;
+        if (data.reservationId) {
+          const { data: res } = await context.supabase
+            .from("property_reservations")
+            .select("property_id")
+            .eq("id", data.reservationId)
+            .maybeSingle();
+          propertyId = (res as { property_id: string } | null)?.property_id ?? null;
+        }
+        if (!propertyId && data.logId) {
+          const { data: log } = await context.supabase
+            .from("guide_access_logs")
+            .select("property_id")
+            .eq("id", data.logId)
+            .maybeSingle();
+          propertyId = (log as { property_id: string } | null)?.property_id ?? null;
+        }
+        if (propertyId) {
+          const body: {
+            property_id: string;
+            kind: "checkin";
+            status: "pending";
+            log_id?: string;
+            reservation_id?: string;
+          } = { property_id: propertyId, kind: "checkin", status: "pending" };
+          if (data.logId) body.log_id = data.logId;
+          if (data.reservationId) body.reservation_id = data.reservationId;
+          const { error } = await context.supabase.from("guest_arrival_status").insert(body);
+          if (error) throw new Error(error.message);
+        }
       }
     } else if (data.from === "cleaning") {
       // Back to Saídas: undo checkout.done and un-conclude the checkin row
