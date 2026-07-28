@@ -607,30 +607,29 @@ function KpiCard({
                     </div>
                     <div className="min-w-0 flex-1">
                       <div
-                        className={`text-sm font-medium leading-tight truncate flex items-center gap-1.5 ${r.pendingFill ? "text-muted-foreground italic" : ""}`}
+                        className="text-sm font-semibold leading-tight truncate text-foreground"
+                        title={r.propertyName ?? undefined}
+                      >
+                        {r.propertyName ?? "Sem nome"}
+                      </div>
+                      <div
+                        className={`text-xs truncate flex items-center gap-1 mt-0.5 ${r.pendingFill || !r.guestName || r.guestName === r.reservationCode ? "text-orange-500 font-medium" : "text-muted-foreground"}`}
                       >
                         {r.pendingFill || !r.guestName || r.guestName === r.reservationCode ? (
-                          r.reservationCode ? (
-                            <span className="inline-flex items-center gap-0.5 text-foreground font-semibold not-italic shrink-0">
-                              <span className="truncate max-w-[140px]">{r.reservationCode}</span>
-                              <CopyButton value={r.reservationCode} size={11} className="p-0.5" />
-                            </span>
-                          ) : (
-                            <span className="truncate font-semibold not-italic text-foreground">{r.guestName}</span>
-                          )
-                        ) : (
                           <>
-                            <span className="truncate">{r.guestName}</span>
-                            {r.reservationCode && (
-                              <span className="inline-flex items-center gap-0.5 text-[11px] text-muted-foreground font-normal not-italic shrink-0">
-                                <span className="truncate max-w-[90px]">{r.reservationCode}</span>
-                                <CopyButton value={r.reservationCode} size={10} className="p-0.5" />
-                              </span>
-                            )}
+                            <UserPlus className="size-3 shrink-0" />
+                            <span className="truncate">Hóspede Pendente</span>
                           </>
+                        ) : (
+                          <span className="truncate">{r.guestName}</span>
                         )}
                       </div>
-                      <div className="text-[11px] text-muted-foreground truncate mt-0.5">{r.propertyName ?? "—"}</div>
+                      {r.reservationCode && (
+                        <div className="mt-0.5 inline-flex items-center gap-0.5 text-[11px] text-muted-foreground font-normal tabular-nums">
+                          <span className="truncate max-w-[160px]">{r.reservationCode}</span>
+                          <CopyButton value={r.reservationCode} size={10} className="p-0.5" />
+                        </div>
+                      )}
                     </div>
                     <div className="flex flex-col items-end gap-0.5 shrink-0">
                       <TimeDropdown value={time} onChange={(v) => onEditTime(r, kind, v)} size="xs" />
