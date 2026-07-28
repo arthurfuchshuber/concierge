@@ -64,7 +64,7 @@ import waterfallImg from "@/assets/rec-waterfall.jpg";
 import conciergeLogo from "@/assets/concierge-logo.png";
 import { GuideAccessGate, readAccessRecord, type AccessRecord } from "@/components/GuideAccessGate";
 import { InlineTagText } from "@/components/tags/InlineTagText";
-import { slugForTag, type GuideTagKey } from "@/lib/guide-tags";
+import { slugForTag, expandInfoTags, type GuideTagKey } from "@/lib/guide-tags";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
