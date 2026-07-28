@@ -1,7 +1,8 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useQuery } from "@tanstack/react-query";
-import { listMyProperties, deleteProperty, duplicateProperty, listPropertiesForAccount } from "@/lib/properties.functions";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { listMyProperties, deleteProperty, duplicateProperty, listPropertiesForAccount, bulkUpdateProperties } from "@/lib/properties.functions";
+import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle, DialogDescription, DialogFooter, DialogHeader } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -136,6 +137,48 @@ function Dashboard() {
         : listForAccount({ data: { ownerId: impersonation.userId } });
     },
   });
+  const qc = useQueryClient();
+  const bulkUpdate = useServerFn(bulkUpdateProperties);
+  const [togglingId, setTogglingId] = useState<string | null>(null);
+  const [bulkPubBusy, setBulkPubBusy] = useState(false);
+
+  async function togglePublished(id: string, next: boolean) {
+    setTogglingId(id);
+    // Otimista: reflete imediatamente no cache antes da resposta.
+    qc.setQueryData<any[]>(
+      ["my-properties", impersonation?.userId ?? "self", isSaasAdmin ? "admin" : "member"],
+      (rows) => (rows ?? []).map((r) => (r.id === id ? { ...r, published: next } : r)),
+    );
+    try {
+      await bulkUpdate({ data: { ids: [id], patch: { published: next }, mode: "overwrite" } });
+      qc.invalidateQueries({ queryKey: ["property", id] });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erro ao atualizar status");
+      refetch();
+    } finally {
+      setTogglingId(null);
+    }
+  }
+
+  async function bulkTogglePublished(next: boolean) {
+    if (!selected.size) return;
+    setBulkPubBusy(true);
+    const ids = Array.from(selected);
+    qc.setQueryData<any[]>(
+      ["my-properties", impersonation?.userId ?? "self", isSaasAdmin ? "admin" : "member"],
+      (rows) => (rows ?? []).map((r) => (ids.includes(r.id) ? { ...r, published: next } : r)),
+    );
+    try {
+      await bulkUpdate({ data: { ids, patch: { published: next }, mode: "overwrite" } });
+      toast.success(next ? `${ids.length} guia(s) publicado(s)` : `${ids.length} guia(s) despublicado(s)`);
+      ids.forEach((id) => qc.invalidateQueries({ queryKey: ["property", id] }));
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erro ao atualizar em massa");
+      refetch();
+    } finally {
+      setBulkPubBusy(false);
+    }
+  }
   const { info: sub } = useSubscription({ impersonateUserId: impersonation && isSaasAdmin ? impersonation.userId : null });
 
   // Admin sem guias próprios e SEM impersonação: nada de auto-redirect agora —
@@ -616,9 +659,22 @@ function Dashboard() {
                 <span className="absolute top-3 left-3 glass rounded-full px-2.5 py-1 text-[10px] uppercase tracking-wider font-semibold inline-flex items-center gap-1">
                   {p.access_mode === "pin" ? <><Lock className="size-2.5" /> PIN</> : <><Globe className="size-2.5" /> Público</>}
                 </span>
-                {!p.published && (
-                  <span className="absolute top-3 right-3 bg-yellow-500/90 text-black rounded-full px-2.5 py-1 text-[10px] uppercase tracking-wider font-semibold">Rascunho</span>
-                )}
+                <div
+                  className="absolute top-3 right-3 glass rounded-full pl-2.5 pr-1 py-1 flex items-center gap-2"
+                  title={p.published ? "Publicado — clique para despublicar" : "Rascunho — clique para publicar"}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <span className={`text-[10px] uppercase tracking-wider font-semibold ${p.published ? "text-emerald-600" : "text-yellow-600"}`}>
+                    {p.published ? "Publicado" : "Rascunho"}
+                  </span>
+                  <Switch
+                    checked={!!p.published}
+                    disabled={togglingId === p.id}
+                    onCheckedChange={(v) => togglePublished(p.id, v)}
+                    className="scale-75 origin-right"
+                    aria-label="Alternar publicação"
+                  />
+                </div>
               </div>
               <div className="p-4">
                 <h3 className="font-semibold leading-tight truncate">{p.name}</h3>
@@ -735,6 +791,26 @@ function Dashboard() {
                     >
                       Limpar
                     </button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="rounded-full"
+                      disabled={bulkPubBusy}
+                      onClick={() => bulkTogglePublished(true)}
+                      title="Publicar todos os selecionados"
+                    >
+                      <Globe className="size-3.5 mr-1.5" /> Publicar
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="rounded-full"
+                      disabled={bulkPubBusy}
+                      onClick={() => bulkTogglePublished(false)}
+                      title="Despublicar todos os selecionados"
+                    >
+                      <Lock className="size-3.5 mr-1.5" /> Despublicar
+                    </Button>
                     <Button size="sm" className="rounded-full" onClick={() => setBulkOpen(true)}>
                       <PenSquare className="size-3.5 mr-1.5" /> Editar selecionados
                     </Button>
