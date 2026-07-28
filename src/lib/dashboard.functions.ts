@@ -1202,6 +1202,41 @@ export const revertArrival = createServerFn({ method: "POST" })
           .update({ status: "pending", done_at: null, concluded_at: null })
           .eq("id", id);
         if (error) throw new Error(error.message);
+      } else {
+        // Sem status persistido (o card foi promovido virtualmente a "Em Estadia"
+        // porque a estadia já estava em andamento na importação). Grava uma
+        // linha pending para que o "voltar" fique efetivo e não seja
+        // sobrescrito pela auto-promoção na próxima leitura.
+        let propertyId: string | null = null;
+        if (data.reservationId) {
+          const { data: res } = await context.supabase
+            .from("property_reservations")
+            .select("property_id")
+            .eq("id", data.reservationId)
+            .maybeSingle();
+          propertyId = (res as { property_id: string } | null)?.property_id ?? null;
+        }
+        if (!propertyId && data.logId) {
+          const { data: log } = await context.supabase
+            .from("guide_access_logs")
+            .select("property_id")
+            .eq("id", data.logId)
+            .maybeSingle();
+          propertyId = (log as { property_id: string } | null)?.property_id ?? null;
+        }
+        if (propertyId) {
+          const body: {
+            property_id: string;
+            kind: "checkin";
+            status: "pending";
+            log_id?: string;
+            reservation_id?: string;
+          } = { property_id: propertyId, kind: "checkin", status: "pending" };
+          if (data.logId) body.log_id = data.logId;
+          if (data.reservationId) body.reservation_id = data.reservationId;
+          const { error } = await context.supabase.from("guest_arrival_status").insert(body);
+          if (error) throw new Error(error.message);
+        }
       }
     } else if (data.from === "cleaning") {
       // Back to Saídas: undo checkout.done and un-conclude the checkin row
