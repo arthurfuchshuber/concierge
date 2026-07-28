@@ -238,7 +238,7 @@ function PropertyEditor() {
   const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastSavedRecsRef = useRef<string>("");
   const [autoSaving, setAutoSaving] = useState(false);
-  const [step, setStep] = useState<string>("basics");
+  const [step, setStep] = useState<string>("house");
   const [enriching, setEnriching] = useState(false);
   const [generatingCityRecs, setGeneratingCityRecs] = useState(false);
   const [saving, setSaving] = useState(false);
