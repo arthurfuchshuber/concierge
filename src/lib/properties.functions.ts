@@ -24,7 +24,7 @@ function normalizeHttpsInput(value: unknown): unknown {
 
 const HttpsUrl = z.preprocess(
   normalizeHttpsInput,
-  z.string().trim().url().max(2048).refine(isHttpsUrl, "Use um link HTTPS válido").optional().nullable(),
+  HttpsUrlRequired.optional().nullable(),
 );
 
 // Aceita URL HTTPS absoluta OU caminho relativo interno (ex.: /api/public/place-photo?...)
@@ -45,7 +45,7 @@ const ImageUrl = z.preprocess(
 
 const HttpsUrlRequired = z.preprocess(
   normalizeHttpsInput,
-  z.string().trim().url().max(2048).refine(isHttpsUrl, "Use um link HTTPS válido"),
+  HttpsUrlRequired,
 );
 
 
@@ -54,7 +54,7 @@ const PropertyInput = z.object({
   tagline: z.string().trim().max(200).optional().nullable(),
   slug: z.string().regex(slugRe, "Slug inválido (use letras minúsculas, números e hífens)"),
   hero_image_url: HttpsUrl,
-  gallery_images: z.array(z.string().trim().url().max(2048).refine(isHttpsUrl, "Use um link HTTPS válido")).max(4).default([]),
+  gallery_images: z.array(HttpsUrlRequired).max(4).default([]),
   theme_images: z.object({
     checkin: HttpsUrl,
     residencia: HttpsUrl,
@@ -63,7 +63,7 @@ const PropertyInput = z.object({
   }).partial().default({}),
   marketplace_links: z.array(z.object({
     label: z.string().trim().min(1).max(120),
-    url: z.string().trim().url().max(2048).refine(isHttpsUrl, "Use um link HTTPS válido"),
+    url: HttpsUrlRequired,
     description: z.string().trim().max(280).optional().nullable(),
   })).max(20).default([]),
   address: z.string().max(500).optional().nullable(),
@@ -90,18 +90,18 @@ const PropertyInput = z.object({
   checkout_instructions: z.string().max(3000).optional().nullable(),
   house_rules: z.string().max(3000).optional().nullable(),
   checkin_media: z.array(z.object({
-    url: z.string().trim().url().max(2048).refine(isHttpsUrl, "Use um link HTTPS válido"),
+    url: HttpsUrlRequired,
     type: z.enum(["image", "video"]),
   })).max(8).default([]),
   gate_instructions: z.string().max(3000).optional().nullable(),
   gate_media: z.array(z.object({
-    url: z.string().trim().url().max(2048).refine(isHttpsUrl, "Use um link HTTPS válido"),
+    url: HttpsUrlRequired,
     type: z.enum(["image", "video"]),
   })).max(8).default([]),
   gate_video_url: HttpsUrl,
   lock_instructions: z.string().max(3000).optional().nullable(),
   lock_media: z.array(z.object({
-    url: z.string().trim().url().max(2048).refine(isHttpsUrl, "Use um link HTTPS válido"),
+    url: HttpsUrlRequired,
     type: z.enum(["image", "video"]),
   })).max(8).default([]),
   lock_video_url: HttpsUrl,
