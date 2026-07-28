@@ -847,7 +847,18 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
     const rows: ArrivalRow[] = [];
     const usedLogIds = new Set<string>();
 
-    for (const r of reservationRows.filter(reservationInRange)) {
+    const _filtered = reservationRows.filter(reservationInRange);
+    if (data.kind === "checkin") {
+      console.info("[dash-debug]", {
+        range: data.range, today, from, to,
+        propIds: propIds.length,
+        reservationsRaw: (reservations ?? []).length,
+        reservationRowsReal: reservationRows.length,
+        afterRange: _filtered.length,
+        withIcalUrl: _filtered.filter((rr) => !!propMap.get(rr.property_id)?.airbnb_ical_url).length,
+      });
+    }
+    for (const r of _filtered) {
       const p = propMap.get(r.property_id);
       if (!p?.airbnb_ical_url) continue;
       const matchedLog = findBestLogForReservation(r);
@@ -856,6 +867,9 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
       }
       const row = rowFromReservation(r, matchedLog);
       if (row) rows.push(row);
+    }
+    if (data.kind === "checkin") {
+      console.info("[dash-debug] rowsAfterReservations", rows.length);
     }
 
     for (const l of uniqueLogs) {
