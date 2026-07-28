@@ -1551,7 +1551,7 @@ function PropertyEditor() {
                     <fieldset disabled={isSigma} className={`px-3.5 pb-3.5 pt-1 space-y-2.5 border-t border-border/40 m-0 min-w-0 ${isSigma ? "opacity-70" : ""}`}>
                       {isSigma && (<p className="text-[11px] text-amber-300/90 inline-flex items-center gap-1"><Lock className="size-3" /> Pergunta do ConciergeIA — leitura somente.</p>)}
                       <Input placeholder="Pergunta" value={m.question} maxLength={200} onChange={(e) => setForm((f) => ({ ...f, faqs: f.faqs.map((x, j) => j === i ? { ...x, question: e.target.value } : x) }))} />
-                      <Textarea placeholder="Resposta" value={m.answer} maxLength={2000} onChange={(e) => setForm((f) => ({ ...f, faqs: f.faqs.map((x, j) => j === i ? { ...x, answer: e.target.value } : x) }))} />
+                      <TagMentionTextarea items={tagItems} placeholder="Resposta" value={m.answer} maxLength={2000} onChange={(e) => setForm((f) => ({ ...f, faqs: f.faqs.map((x, j) => j === i ? { ...x, answer: e.target.value } : x) }))} />
                       <div className="space-y-1.5">
                         <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Exibir também em</p>
                         <div className="flex flex-wrap gap-1.5">
