@@ -740,7 +740,11 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
         status:
           data.kind === "checkin" && r.checkin_date > today && s?.status === "done"
             ? "pending"
-            : (s?.status ?? "pending"),
+            : s
+              ? s.status
+              : autoStayDone(r.checkin_date, r.checkout_date, p?.checkin_time ?? null)
+                ? "done"
+                : "pending",
         note: s?.note ?? null,
         arrivalTimeOverride: s?.arrival_time_override ?? null,
         doneAt: s?.done_at ?? null,
