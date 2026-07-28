@@ -11,7 +11,7 @@ export type GuideTagItemPayload = {
 };
 
 async function loadItemsForProperty(
-  supabase: { from: (t: string) => { select: (c: string) => { eq: (k: string, v: string) => { limit: (n: number) => Promise<{ data: unknown[] | null }> } } } },
+  supabase: { from: (t: string) => unknown },
   propertyId: string,
 ): Promise<GuideTagItemPayload[]> {
   const [{ data: faqs }, { data: recs }] = await Promise.all([
