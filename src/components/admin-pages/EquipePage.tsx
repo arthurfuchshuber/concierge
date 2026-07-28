@@ -303,34 +303,21 @@ function EquipePage() {
                           {activeCount}/{OPERATIONAL_PERMS.length} permissões
                         </span>
                       )}
-                      <span className="text-[11px] px-2 py-0.5 rounded-full bg-secondary border border-border capitalize">
-                        {m.role as string}
-                      </span>
                     </div>
                   </AccordionTrigger>
                   <AccordionContent className="pb-0">
                     <div className="p-5 border-t border-border space-y-6">
-                      <div className="flex items-center gap-3 flex-wrap">
-                        <label className="text-xs text-muted-foreground">Cargo</label>
-                        <select
-                          value={m.role as string}
-                          onChange={(e) => changeRole.mutate({ id: m.id as string, r: e.target.value as any })}
-                          disabled={isSelf || (m.role as string) === "owner"}
-                          className="text-xs rounded-md border border-border bg-background px-2 py-1 disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          {(m.role as string) === "owner" && <option value="owner">Titular</option>}
-                          <option value="agent">Atendente</option>
-                          <option value="viewer">Somente leitura</option>
-                        </select>
-                        {!isSelf && (
+                      {!isSelf && (
+                        <div className="flex items-center justify-end">
                           <button
                             onClick={() => { if (confirm("Remover este atendente?")) remove.mutate(m.id as string); }}
-                            className="ml-auto inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-md text-red-500 hover:bg-red-500/10 border border-transparent hover:border-red-500/30"
+                            className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-md text-red-500 hover:bg-red-500/10 border border-transparent hover:border-red-500/30"
                           >
                             <Trash2 className="size-3.5" /> Remover
                           </button>
-                        )}
-                      </div>
+                        </div>
+                      )}
+
 
                       {!isSelf && (
                         <div>
