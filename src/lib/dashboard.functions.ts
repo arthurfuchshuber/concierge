@@ -778,12 +778,31 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
     // Esteira: um card só pode aparecer em Checkouts/Em Limpeza depois que o
     // check-in correspondente foi marcado como feito. Enquanto o check-in
     // estiver pendente (mesmo atrasado), o card fica retido em Check-ins.
+    // Auto-promoção virtual: se a estadia já está em andamento (checkin no
+    // passado, ou hoje após o horário padrão de entrada), o check-in é
+    // considerado feito virtualmente para efeito da esteira — assim o card
+    // avança para Checkouts/Em Limpeza sem precisar de clique manual.
+    function virtualCheckinDone(r: ArrivalRow): boolean {
+      const ci = r.guestCheckin;
+      if (!ci) return false;
+      if (ci < today) return true;
+      if (ci === today) {
+        const std = r.standardTime; // checkout std for checkout kind — não usamos
+        // Para checkout, standardTime é o horário de checkout. Precisamos do
+        // horário de check-in da propriedade — buscamos direto no propMap.
+        const p = propMap.get(r.propertyId);
+        const ciStd = p?.checkin_time ?? null;
+        if (ciStd && nowHM >= ciStd) return true;
+        void std;
+      }
+      return false;
+    }
     const gatedRows =
       data.kind === "checkout"
         ? rows.filter((r) => {
             const logDone = !!(r.logId && !r.logId.startsWith("ical:") && checkinDoneLogs.has(r.logId));
             const resDone = !!(r.reservationId && checkinDoneReservations.has(r.reservationId));
-            return logDone || resDone;
+            return logDone || resDone || virtualCheckinDone(r);
           })
         : rows;
     const finalRows = gatedRows;
