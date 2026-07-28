@@ -120,6 +120,10 @@ const PropertyInput = z.object({
       .optional()
       .nullable(),
   ),
+  airbnb_listing_url: z.preprocess(
+    (v) => (typeof v === "string" && v.trim() === "" ? null : v),
+    z.string().trim().url().max(2048).optional().nullable(),
+  ),
 });
 
 
