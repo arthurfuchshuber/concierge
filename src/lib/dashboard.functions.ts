@@ -132,7 +132,11 @@ export const getDashboardKpis = createServerFn({ method: "GET" })
     const resRows = (reservations ?? []) as ResRow[];
     const doneLog = new Set<string>();
     const doneRes = new Set<string>();
+    const touchedLog = new Set<string>();
+    const touchedRes = new Set<string>();
     for (const s of (statuses ?? []) as StatusRow[]) {
+      if (s.log_id) touchedLog.add(`${s.kind}|${s.log_id}`);
+      if (s.reservation_id) touchedRes.add(`${s.kind}|${s.reservation_id}`);
       if (s.status !== "done") continue;
       if (s.log_id) doneLog.add(`${s.kind}|${s.log_id}`);
       if (s.reservation_id) doneRes.add(`${s.kind}|${s.reservation_id}`);
@@ -145,6 +149,8 @@ export const getDashboardKpis = createServerFn({ method: "GET" })
         if (r[col] < from || r[col] > to) continue;
         if (!icalProps.has(r.property_id) || !isRealReservation(r)) continue;
         if (doneRes.has(`${kind}|${r.id}`)) continue;
+        // Datas passadas só contam se já houve interação registrada.
+        if (r[col] < today && !touchedRes.has(`${kind}|${r.id}`)) continue;
         seen.add(`ical|${r.id}`);
       }
       for (const row of logRows) {
@@ -152,6 +158,7 @@ export const getDashboardKpis = createServerFn({ method: "GET" })
         if (!v || v < from || v > to) continue;
         if (icalProps.has(row.property_id) || isPlaceholderGuest(row.guest_name)) continue;
         if (doneLog.has(`${kind}|${row.id}`)) continue;
+        if (v < today && !touchedLog.has(`${kind}|${row.id}`)) continue;
         seen.add(`log|${row.property_id}|${(row.guest_name || "").trim().toLowerCase()}|${v}`);
       }
       return seen.size;
@@ -593,6 +600,9 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
       const s = statusMap.get(l.id);
       if (s?.concluded_at) return null;
       const date = data.kind === "checkin" ? l.checkin_date : (l.checkout_date ?? l.checkin_date);
+      // Cards com data anterior a hoje só aparecem se houver interação registrada
+      // (status row). Importações novas de datas passadas nunca criam cards.
+      if (date < today && !s) return null;
       const hasIcal = !!p?.airbnb_ical_url;
       let matched = false;
       let icalCheckin: string | null = null;
@@ -657,6 +667,9 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
       const s = reservationStatusMap.get(r.id) ?? legacy ?? logStatus;
       if (s?.concluded_at) return null;
       const date = data.kind === "checkin" ? r.checkin_date : r.checkout_date;
+      // Datas passadas só entram no kanban se já houver interação (status row);
+      // reservas iCal recém-importadas para o passado ficam de fora.
+      if (date < today && !s) return null;
       const evK = matchedLog ? eventKey(matchedLog.property_id, matchedLog.guest_name, matchedLog.guest_phone) : "";
 
       return {
