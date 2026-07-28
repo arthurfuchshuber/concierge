@@ -1174,7 +1174,9 @@ function PropertyEditor() {
               </Field>
               <Field label="Logomarca">
                 {canBrand ? (
-                  <ImageUpload value={form.property.brand_logo_url} folder="brand" aspect="square" placeholder="Enviar logomarca" onChange={(v) => update("brand_logo_url", v)} />
+                  <div className="w-24">
+                    <ImageUpload value={form.property.brand_logo_url} folder="brand" aspect="square" placeholder="Logo" onChange={(v) => update("brand_logo_url", v)} />
+                  </div>
                 ) : (
                   <Input value="" placeholder="Disponível em planos com marca própria" disabled />
                 )}
