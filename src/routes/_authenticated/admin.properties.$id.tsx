@@ -131,6 +131,7 @@ type FormState = {
     airbnb_ical_url: string | null;
     airbnb_ical_last_sync_at: string | null;
     airbnb_ical_last_error: string | null;
+    airbnb_listing_url: string | null;
   };
   manual: { title: string; description: string; body: string }[];
   emergency: { label: string; number: string }[];
