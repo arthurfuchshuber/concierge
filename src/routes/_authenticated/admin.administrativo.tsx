@@ -1,16 +1,17 @@
 import { createFileRoute, useNavigate, useSearch } from "@tanstack/react-router";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { CreditCard, UsersRound, User as UserIcon, ShieldCheck, MessageCircle } from "lucide-react";
+import { CreditCard, UsersRound, User as UserIcon, MessageCircle } from "lucide-react";
 import { AssinaturaPage } from "@/components/admin-pages/AssinaturaPage";
 import { EquipePage } from "@/components/admin-pages/EquipePage";
 import { MeuPerfilPage } from "@/components/admin-pages/MeuPerfilPage";
-import { PermissoesPage } from "@/components/admin-pages/PermissoesPage";
 import { WhatsappBusinessPage } from "@/components/admin-pages/WhatsappBusinessPage";
 
-type Tab = "perfil" | "assinatura" | "equipe" | "permissoes" | "whatsapp";
+type Tab = "perfil" | "assinatura" | "equipe" | "whatsapp";
 
 function coerceTab(v: unknown): Tab {
-  return v === "assinatura" || v === "equipe" || v === "permissoes" || v === "whatsapp" ? v : "perfil";
+  // "permissoes" (legacy) redireciona para "equipe" — as duas abas foram unificadas.
+  if (v === "permissoes") return "equipe";
+  return v === "assinatura" || v === "equipe" || v === "whatsapp" ? v : "perfil";
 }
 
 export const Route = createFileRoute("/_authenticated/admin/administrativo")({
@@ -47,10 +48,7 @@ function AdministrativoPage() {
               <CreditCard className="size-4" /> Assinatura
             </TabsTrigger>
             <TabsTrigger value="equipe" className="gap-2 rounded-xl px-4 py-2 text-sm">
-              <UsersRound className="size-4" /> Equipe
-            </TabsTrigger>
-            <TabsTrigger value="permissoes" className="gap-2 rounded-xl px-4 py-2 text-sm">
-              <ShieldCheck className="size-4" /> Permissões
+              <UsersRound className="size-4" /> Equipe & Permissões
             </TabsTrigger>
             <TabsTrigger value="whatsapp" className="gap-2 rounded-xl px-4 py-2 text-sm">
               <MessageCircle className="size-4" /> WhatsApp
@@ -67,9 +65,6 @@ function AdministrativoPage() {
           <TabsContent value="equipe" className="mt-0">
             <EquipePage />
           </TabsContent>
-          <TabsContent value="permissoes" className="mt-0">
-            <PermissoesPage />
-          </TabsContent>
           <TabsContent value="whatsapp" className="mt-0">
             <WhatsappBusinessPage />
           </TabsContent>
@@ -78,3 +73,4 @@ function AdministrativoPage() {
     </div>
   );
 }
+
