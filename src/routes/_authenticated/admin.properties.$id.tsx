@@ -3627,9 +3627,11 @@ function Stepper({
 function GalleryEditor({
   value,
   onChange,
+  compact = false,
 }: {
   value: string[];
   onChange: (next: string[]) => void;
+  compact?: boolean;
 }) {
   const slots: string[] = [0, 1, 2, 3].map((i) => value[i] ?? "");
   function setAt(i: number, v: string) {
@@ -3638,7 +3640,7 @@ function GalleryEditor({
     onChange(next.filter((x) => x.trim()));
   }
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+    <div className={compact ? "grid grid-cols-4 gap-1.5 max-w-sm" : "grid grid-cols-2 sm:grid-cols-4 gap-2"}>
       {slots.map((url, i) => (
         <div key={i} className="relative">
           <ImageUpload
