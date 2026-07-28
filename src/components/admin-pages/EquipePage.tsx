@@ -15,8 +15,10 @@ import {
   MEMBER_PERMISSIONS,
   PERMISSION_META,
   PERMISSION_FEATURE,
+  PERMISSION_AREAS,
   type MemberPermission,
 } from "@/lib/member-permissions.functions";
+
 import { getAtendimentoAccess } from "@/lib/handoff.functions";
 import { useSubscription } from "@/hooks/useSubscription";
 import { enablePush, disablePush, isPushSupported, currentPushSubscription } from "@/lib/push-client";
