@@ -85,11 +85,6 @@ function todayISOSaoPaulo(): string {
   const pick = (t: string) => parts.find((p) => p.type === t)?.value ?? "";
   return `${pick("year")}-${pick("month")}-${pick("day")}`;
 }
-function addDaysISOLocal(iso: string, days: number): string {
-  const d = new Date(`${iso}T00:00:00Z`);
-  d.setUTCDate(d.getUTCDate() + days);
-  return d.toISOString().slice(0, 10);
-}
 function initials(name: string) {
   return (
     name
@@ -167,32 +162,6 @@ function DashboardPage() {
     placeholderData: keepPreviousData,
   });
   const listQ = kind === "checkin" ? checkinListQ : checkoutListQ;
-
-  // KPI drill-down data (loaded on demand)
-  const kpiTodayQ = useQuery({
-    queryKey: ["dash-list", "checkin", "today", activeOwnerId ?? "self"],
-    queryFn: () => listFn({ data: { kind: "checkin", range: "today", ownerId: activeOwnerId } }),
-    staleTime: 30_000,
-    placeholderData: keepPreviousData,
-  });
-  const kpiTomorrowQ = useQuery({
-    queryKey: ["dash-list", "checkin", "tomorrow", activeOwnerId ?? "self"],
-    queryFn: () => listFn({ data: { kind: "checkin", range: "tomorrow", ownerId: activeOwnerId } }),
-    staleTime: 30_000,
-    placeholderData: keepPreviousData,
-  });
-  const kpiCoTodayQ = useQuery({
-    queryKey: ["dash-list", "checkout", "today", activeOwnerId ?? "self"],
-    queryFn: () => listFn({ data: { kind: "checkout", range: "today", ownerId: activeOwnerId } }),
-    staleTime: 30_000,
-    placeholderData: keepPreviousData,
-  });
-  const kpiCoTomorrowQ = useQuery({
-    queryKey: ["dash-list", "checkout", "tomorrow", activeOwnerId ?? "self"],
-    queryFn: () => listFn({ data: { kind: "checkout", range: "tomorrow", ownerId: activeOwnerId } }),
-    staleTime: 30_000,
-    placeholderData: keepPreviousData,
-  });
 
   type UpsertPayload = {
     logId?: string;
@@ -303,11 +272,14 @@ function DashboardPage() {
     () => ciRows.filter((r) => r.status === "done" && (!r.guestCheckout || r.guestCheckout > todayISO)),
     [ciRows, todayISO],
   );
+  const checkinPendingRows = useMemo(() => ciRows.filter((r) => r.status === "pending"), [ciRows]);
+  const checkoutPendingRows = useMemo(() => coRows.filter((r) => r.status === "pending"), [coRows]);
+  const cleaningRows = useMemo(() => coRows.filter((r) => r.status === "done"), [coRows]);
   const counts = {
-    checkin: ciRows.filter((r) => r.status === "pending").length,
-    checkout: coRows.filter((r) => r.status === "pending").length,
+    checkin: checkinPendingRows.length,
+    checkout: checkoutPendingRows.length,
     stay: stayRows.length,
-    cleaning: coRows.filter((r) => r.status === "done").length,
+    cleaning: cleaningRows.length,
   };
   // Imóveis com check-out pendente OU limpeza em andamento bloqueiam novos
   // check-ins até serem concluídos (evita liberar hóspede em imóvel ainda
@@ -321,11 +293,11 @@ function DashboardPage() {
     return blocked;
   }, [coRows]);
   const boardRows = useMemo(() => {
-    if (mode === "checkin") return ciRows.filter((r) => r.status === "pending");
-    if (mode === "checkout") return coRows.filter((r) => r.status === "pending");
+    if (mode === "checkin") return checkinPendingRows;
+    if (mode === "checkout") return checkoutPendingRows;
     if (mode === "stay") return stayRows;
-    return coRows.filter((r) => r.status === "done");
-  }, [mode, ciRows, coRows, stayRows]);
+    return cleaningRows;
+  }, [mode, checkinPendingRows, checkoutPendingRows, stayRows, cleaningRows]);
 
   const rangeLabel: Record<typeof range, string> = {
     today: "Hoje",
@@ -349,54 +321,48 @@ function DashboardPage() {
       <section className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <KpiCard
           label="Check-ins Pendentes"
-          value={(kpiTodayQ.data?.rows ?? []).filter((r) => r.status === "pending").length}
+          rows={checkinPendingRows}
           icon={LogIn}
           tone="primary"
-          loading={kpiTodayQ.isLoading}
-          listQuery={kpiTodayQ}
+          loading={checkinListQ.isLoading}
+          onRefresh={() => checkinListQ.refetch()}
           kind="checkin"
-          rangeLabel="Hoje"
+          rangeLabel={rangeLabel[range]}
           shadowTone="emerald"
           onEditTime={handleEditTime}
         />
         <KpiCard
           label="Checkouts Pendentes"
-          value={(kpiCoTodayQ.data?.rows ?? []).filter((r) => r.status === "pending").length}
+          rows={checkoutPendingRows}
           icon={LogOut}
           tone="primary"
-          loading={kpiCoTodayQ.isLoading}
-          listQuery={kpiCoTodayQ}
+          loading={checkoutListQ.isLoading}
+          onRefresh={() => checkoutListQ.refetch()}
           kind="checkout"
-          rangeLabel="Hoje"
+          rangeLabel={rangeLabel[range]}
           shadowTone="amber"
           onEditTime={handleEditTime}
         />
         <KpiCard
-          label="Check-ins amanhã"
-          value={(() => {
-            const t = addDaysISOLocal(todayISOSaoPaulo(), 1);
-            return (kpiTomorrowQ.data?.rows ?? []).filter((r) => r.status === "pending" && r.date === t).length;
-          })()}
-          icon={LogIn}
+          label="Em Estadia"
+          rows={stayRows}
+          icon={BedDouble}
           tone="primary-soft"
-          loading={kpiTomorrowQ.isLoading}
-          listQuery={kpiTomorrowQ}
+          loading={checkinListQ.isLoading}
+          onRefresh={() => checkinListQ.refetch()}
           kind="checkin"
-          rangeLabel="Amanhã"
+          rangeLabel={rangeLabel[range]}
           onEditTime={handleEditTime}
         />
         <KpiCard
-          label="Checkouts amanhã"
-          value={(() => {
-            const t = addDaysISOLocal(todayISOSaoPaulo(), 1);
-            return (kpiCoTomorrowQ.data?.rows ?? []).filter((r) => r.status === "pending" && r.date === t).length;
-          })()}
-          icon={LogOut}
+          label="Em Limpeza"
+          rows={cleaningRows}
+          icon={Sparkles}
           tone="primary-soft"
-          loading={kpiCoTomorrowQ.isLoading}
-          listQuery={kpiCoTomorrowQ}
+          loading={checkoutListQ.isLoading}
+          onRefresh={() => checkoutListQ.refetch()}
           kind="checkout"
-          rangeLabel="Amanhã"
+          rangeLabel={rangeLabel[range]}
           onEditTime={handleEditTime}
         />
       </section>
@@ -501,22 +467,22 @@ function DashboardPage() {
 
 function KpiCard({
   label,
-  value,
+  rows,
   icon: Icon,
   tone,
   loading,
-  listQuery,
+  onRefresh,
   kind,
   rangeLabel,
   shadowTone,
   onEditTime,
 }: {
   label: string;
-  value: number | undefined;
+  rows: ArrivalRow[];
   icon: React.ElementType;
   tone: "primary" | "primary-soft";
   loading: boolean;
-  listQuery: ReturnType<typeof useQuery<{ rows: ArrivalRow[] } | undefined>>;
+  onRefresh: () => void;
   kind: "checkin" | "checkout";
   rangeLabel: string;
   shadowTone?: "emerald" | "amber";
@@ -524,13 +490,6 @@ function KpiCard({
 }) {
   const [open, setOpen] = useState(false);
   const valueTone = tone === "primary" ? "text-primary" : "text-foreground";
-  // O popover deve refletir exatamente o KPI acima (ex.: "Checkouts Pendentes = 2"
-  // não pode listar checkouts de dias anteriores já feitos). A query traz -30d
-  // para alimentar o kanban; aqui filtramos pela data-alvo do card.
-  const _todayISO = todayISOSaoPaulo();
-  const targetDate = rangeLabel === "Hoje" ? _todayISO : rangeLabel === "Amanhã" ? addDaysISOLocal(_todayISO, 1) : null;
-  const allRows = listQuery.data?.rows ?? [];
-  const rows = targetDate ? allRows.filter((r) => r.date === targetDate) : allRows;
   const valueColor =
     shadowTone === "emerald"
       ? "text-emerald-600 dark:text-emerald-400"
@@ -549,7 +508,7 @@ function KpiCard({
       open={open}
       onOpenChange={(v) => {
         setOpen(v);
-        if (v) listQuery.refetch();
+        if (v) onRefresh();
       }}
     >
       <DialogTrigger asChild>
@@ -560,7 +519,7 @@ function KpiCard({
           <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.16em] text-muted-foreground font-semibold">
             <Icon className="size-3.5" /> <span className="truncate">{label}</span>
           </div>
-          <div className={`text-2xl font-display mt-1 tabular-nums ${valueColor}`}>{loading ? "—" : (value ?? 0)}</div>
+          <div className={`text-2xl font-display mt-1 tabular-nums ${valueColor}`}>{loading ? "—" : rows.length}</div>
         </button>
       </DialogTrigger>
       <DialogContent className="w-[calc(100vw-1.5rem)] sm:w-full sm:max-w-md p-0 overflow-hidden rounded-2xl border-border/60 bg-card/95 backdrop-blur-xl shadow-2xl">
@@ -583,7 +542,7 @@ function KpiCard({
           </div>
         </DialogHeader>
         <div className="max-h-[70vh] overflow-y-auto px-3 pb-4">
-          {listQuery.isFetching ? (
+          {loading ? (
             <div className="py-14 grid place-items-center text-muted-foreground">
               <Loader2 className="size-5 animate-spin" />
             </div>
