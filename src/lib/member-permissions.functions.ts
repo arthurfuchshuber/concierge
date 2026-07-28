@@ -143,6 +143,18 @@ export const updateMemberPermission = createServerFn({ method: "POST" })
       .maybeSingle();
     if (!m) throw new Error("Membro não encontrado nesta conta.");
 
+    // Trava por plano: só permite ligar a permissão se a feature correspondente
+    // estiver liberada no plano do dono. Desligar é sempre permitido.
+    const requiredFeature = PERMISSION_FEATURE[data.permission];
+    if (data.granted && requiredFeature) {
+      const { resolveUserPlan } = await import("@/lib/plan-guard.server");
+      const plan = await resolveUserPlan(supabase, userId);
+      if (!plan.features[requiredFeature]) {
+        throw new Error("Esta permissão não está disponível no seu plano atual.");
+      }
+    }
+
+
     const { error } = await supabase
       .from("account_member_permissions")
       .upsert(
