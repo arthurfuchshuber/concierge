@@ -265,15 +265,44 @@ function Guide({ data }: { data: GuideOk }) {
   const [section, setSection] = useState<Section>("home");
   const trackEvent = useServerFn(trackGuideEvent);
 
-  // Suporta navegação por hash (#checkin, #saida, #residencia) vinda de outras páginas.
+  // Suporta navegação por hash. Sintaxe:
+  //   #home | #checkin | #saida | #residencia | #faq  → apenas troca de seção
+  //   #wifi | #senhas-acesso | #endereco | #checkin-instrucoes → seção checkin + scroll no bloco
+  //   #manual-casa | #regras-casa → seção residencia + scroll
+  //   #checkout-instrucoes → seção saida + scroll
+  //   #faq-<slug> → seção faq + scroll na FAQ correspondente
+  //   #local-<slug> → seção explorar / recomendações
   useEffect(() => {
     if (typeof window === "undefined") return;
+    const SECTION_ALIASES: Record<string, Section> = {
+      home: "home", checkin: "checkin", saida: "saida", residencia: "residencia", faq: "faq",
+      wifi: "checkin", "senhas-acesso": "checkin", endereco: "checkin", "checkin-instrucoes": "checkin",
+      "manual-casa": "residencia", "regras-casa": "residencia",
+      "checkout-instrucoes": "saida",
+      emergencias: "faq", "contato-anfitriao": "faq",
+    };
     const apply = () => {
-      const h = window.location.hash.replace("#", "");
-      const valid: Section[] = ["home", "checkin", "saida", "residencia", "faq"] as unknown as Section[];
-      if ((valid as string[]).includes(h)) {
-        setSection(h as Section);
-        window.scrollTo({ top: 0, behavior: "auto" });
+      const raw = window.location.hash.replace("#", "");
+      if (!raw) return;
+      // Tenta match direto
+      let target: Section | null = SECTION_ALIASES[raw] ?? null;
+      let scrollToId: string | null = null;
+      if (!target) {
+        if (raw.startsWith("faq-")) { target = "faq"; scrollToId = raw; }
+        else if (raw.startsWith("local-")) { target = "faq"; scrollToId = raw; /* fallback quando /explorar não é rota separada */ }
+      } else if (SECTION_ALIASES[raw] && raw !== "home" && raw !== "checkin" && raw !== "saida" && raw !== "residencia" && raw !== "faq") {
+        scrollToId = raw;
+      }
+      if (target) {
+        setSection(target);
+        // Aguarda o próximo frame para o DOM da nova seção existir antes do scroll
+        requestAnimationFrame(() => {
+          if (scrollToId) {
+            const el = document.getElementById(scrollToId);
+            if (el) { el.scrollIntoView({ behavior: "smooth", block: "start" }); return; }
+          }
+          window.scrollTo({ top: 0, behavior: "auto" });
+        });
       }
     };
     apply();
