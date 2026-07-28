@@ -1013,9 +1013,9 @@ function ArrivalCard({
               <span className="truncate">{row.guestName}</span>
             )}
           </div>
-          {row.additionalGuests.length > 0 && (
+          {(row.additionalGuests?.length ?? 0) > 0 && (
             <ul className="mt-1 space-y-0.5">
-              {row.additionalGuests.map((g) => (
+              {row.additionalGuests!.map((g) => (
                 <li
                   key={g.logId}
                   className="text-xs text-muted-foreground truncate flex items-center gap-1"
