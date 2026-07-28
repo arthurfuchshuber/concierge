@@ -844,7 +844,7 @@ function Guide({ data }: { data: GuideOk }) {
                             Importante · Check-in
                           </p>
                           <p className="text-[13px] leading-relaxed font-medium mt-1 whitespace-pre-line">
-                            {String(p.checkin_note)}
+                            <InlineTagText text={String(p.checkin_note)} onNavigate={navigateGuideTag} info={infoCtx} />
                           </p>
                         </div>
                       </div>
