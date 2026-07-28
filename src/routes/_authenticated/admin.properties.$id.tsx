@@ -17,6 +17,8 @@ import { getPropertyPoiCounts, getMarketplaceClicks } from "@/lib/poi-engagement
 
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { TagMentionTextarea, type TagMentionItem } from "@/components/tags/TagMentionTextarea";
+import { slugForTag } from "@/lib/guide-tags";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
