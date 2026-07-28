@@ -43,10 +43,6 @@ const ImageUrl = z.preprocess(
     .nullable(),
 );
 
-const HttpsUrlRequired = z.preprocess(
-  normalizeHttpsInput,
-  HttpsUrlRequired,
-);
 
 
 const PropertyInput = z.object({
