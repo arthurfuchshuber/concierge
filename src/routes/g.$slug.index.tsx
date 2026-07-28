@@ -312,6 +312,19 @@ function Guide({ data }: { data: GuideOk }) {
     return () => window.removeEventListener("hashchange", apply);
   }, []);
 
+  // Navega para uma tag do guia (usada por links inline `[[tag:...]]`).
+  function navigateGuideTag(key: GuideTagKey, param: string | null) {
+    const hash = param ? `#${key}-${param}` : `#${key}`;
+    // Se o hash já for o atual, força re-aplicação disparando hashchange manual
+    if (window.location.hash === hash) {
+      window.dispatchEvent(new HashChangeEvent("hashchange"));
+    } else {
+      window.location.hash = hash;
+    }
+  }
+
+
+
 
   function gotoSection(s: Section) {
     setSection(s);
