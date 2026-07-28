@@ -137,6 +137,48 @@ function Dashboard() {
         : listForAccount({ data: { ownerId: impersonation.userId } });
     },
   });
+  const qc = useQueryClient();
+  const bulkUpdate = useServerFn(bulkUpdateProperties);
+  const [togglingId, setTogglingId] = useState<string | null>(null);
+  const [bulkPubBusy, setBulkPubBusy] = useState(false);
+
+  async function togglePublished(id: string, next: boolean) {
+    setTogglingId(id);
+    // Otimista: reflete imediatamente no cache antes da resposta.
+    qc.setQueryData<any[]>(
+      ["my-properties", impersonation?.userId ?? "self", isSaasAdmin ? "admin" : "member"],
+      (rows) => (rows ?? []).map((r) => (r.id === id ? { ...r, published: next } : r)),
+    );
+    try {
+      await bulkUpdate({ data: { ids: [id], patch: { published: next }, mode: "overwrite" } });
+      qc.invalidateQueries({ queryKey: ["property", id] });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erro ao atualizar status");
+      refetch();
+    } finally {
+      setTogglingId(null);
+    }
+  }
+
+  async function bulkTogglePublished(next: boolean) {
+    if (!selected.size) return;
+    setBulkPubBusy(true);
+    const ids = Array.from(selected);
+    qc.setQueryData<any[]>(
+      ["my-properties", impersonation?.userId ?? "self", isSaasAdmin ? "admin" : "member"],
+      (rows) => (rows ?? []).map((r) => (ids.includes(r.id) ? { ...r, published: next } : r)),
+    );
+    try {
+      await bulkUpdate({ data: { ids, patch: { published: next }, mode: "overwrite" } });
+      toast.success(next ? `${ids.length} guia(s) publicado(s)` : `${ids.length} guia(s) despublicado(s)`);
+      ids.forEach((id) => qc.invalidateQueries({ queryKey: ["property", id] }));
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erro ao atualizar em massa");
+      refetch();
+    } finally {
+      setBulkPubBusy(false);
+    }
+  }
   const { info: sub } = useSubscription({ impersonateUserId: impersonation && isSaasAdmin ? impersonation.userId : null });
 
   // Admin sem guias próprios e SEM impersonação: nada de auto-redirect agora —
