@@ -620,13 +620,35 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
       return true;
     }
 
+    function normalizeCode(s: string | null | undefined): string | null {
+      if (!s) return null;
+      const m = String(s).match(/HM[A-Z0-9]{6,}/i);
+      return m ? m[0].toUpperCase() : null;
+    }
     function findBestLogForReservation(r: ReservationRow) {
-      return (
+      const resCode = normalizeCode(r.guest_hint);
+      // 1) Match forte por código de reserva (HM…): identidade real do hóspede,
+      // imune a datas erradas digitadas no formulário.
+      if (resCode) {
+        const codeMatch = uniqueLogs.find(
+          (l) => l.property_id === r.property_id && normalizeCode(l.reservation_code) === resCode,
+        );
+        if (codeMatch) return codeMatch;
+      }
+      // 2) Match por datas exatas, mas rejeita quando o log carrega um código
+      // DIFERENTE do código do iCal — evita atribuir o log de outro hóspede.
+      const dateMatch =
         uniqueLogs.find(
           (l) =>
-            l.property_id === r.property_id && l.checkin_date === r.checkin_date && l.checkout_date === r.checkout_date,
-        ) ?? null
-      );
+            l.property_id === r.property_id &&
+            l.checkin_date === r.checkin_date &&
+            l.checkout_date === r.checkout_date,
+        ) ?? null;
+      if (dateMatch) {
+        const logCode = normalizeCode(dateMatch.reservation_code);
+        if (resCode && logCode && logCode !== resCode) return null;
+      }
+      return dateMatch;
     }
 
     // Auto-promoção para "Em Estadia": quando uma reserva é importada (ou
