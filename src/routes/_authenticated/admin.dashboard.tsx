@@ -631,9 +631,9 @@ function KpiCard({
                           <span className="truncate">{r.guestName}</span>
                         )}
                       </div>
-                      {r.additionalGuests.length > 0 && (
+                      {(r.additionalGuests?.length ?? 0) > 0 && (
                         <div className="mt-0.5 text-[11px] text-muted-foreground truncate">
-                          + {r.additionalGuests.map((g) => g.name).join(", ")}
+                          + {r.additionalGuests!.map((g) => g.name).join(", ")}
                         </div>
                       )}
                       {r.reservationCode && (
