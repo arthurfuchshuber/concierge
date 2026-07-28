@@ -48,6 +48,9 @@ function EquipePage() {
   const removeFn = useServerFn(removeTeamMember);
   const updateRoleFn = useServerFn(updateTeamMemberRole);
   const qc = useQueryClient();
+  const { info: sub } = useSubscription();
+  const planFeatures = sub.features;
+  const planName = sub.plan ? sub.plan.charAt(0).toUpperCase() + sub.plan.slice(1) : "atual";
 
   const access = useQuery({ queryKey: ["handoff-access"], queryFn: () => accessFn(), staleTime: 5 * 60_000 });
   const team = useQuery({ queryKey: ["my-team"], queryFn: () => listFn(), enabled: access.data?.allowed === true });
