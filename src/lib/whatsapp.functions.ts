@@ -116,11 +116,12 @@ export const sendWhatsappFromConversation = createServerFn({ method: "POST" })
     // Load conversation + property + owner
     const { data: conv, error: convErr } = await supabase
       .from("property_chat_conversations")
-      .select("id, property_id, guest_session_id, guest_name, properties:property_id(id, owner_id)")
+      .select("id, property_id, guest_session_id, guest_name, properties:property_id(id, owner_id, slug)")
       .eq("id", data.conversationId)
       .maybeSingle();
     if (convErr || !conv) throw new Error("Conversa não encontrada");
     const ownerId = (conv.properties as { owner_id?: string } | null)?.owner_id;
+    const propertySlug = (conv.properties as { slug?: string } | null)?.slug ?? null;
     if (!ownerId) throw new Error("Propriedade sem dono");
 
     // Resolve the guest phone for THIS conversation specifically.
