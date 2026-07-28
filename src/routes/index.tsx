@@ -43,7 +43,75 @@ export const Route = createFileRoute("/")({
       { property: "og:url", content: "https://guia.anfitriaosigma.com.br/" },
     ],
     links: [{ rel: "canonical", href: "https://guia.anfitriaosigma.com.br/" }],
+    scripts: [
+      {
+        type: "application/ld+json",
+        children: JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "FAQPage",
+          mainEntity: [
+            {
+              "@type": "Question",
+              name: "A IA fala com o hóspede como se fosse eu?",
+              acceptedAnswer: {
+                "@type": "Answer",
+                text: "Sim. Você define o tom (formal, próximo, descontraído), configura assinatura e ela usa seu vocabulário, suas indicações e seus favoritos. Nada de robô genérico.",
+              },
+            },
+            {
+              "@type": "Question",
+              name: "Preciso saber programar ou ter conhecimento técnico?",
+              acceptedAnswer: {
+                "@type": "Answer",
+                text: "Não. O onboarding é guiado — você cola o link do Google Maps do imóvel e a IA já entende endereço, vizinhança e cidade. Preenche o resto em minutos.",
+              },
+            },
+            {
+              "@type": "Question",
+              name: "Funciona no WhatsApp?",
+              acceptedAnswer: {
+                "@type": "Answer",
+                text: "Hoje o ConciergeIA funciona via link direto do guia e QR code no imóvel — o hóspede acessa pelo navegador, sem instalar nada. A integração nativa com WhatsApp Business API está no nosso roadmap para 2026; anfitriões dos planos Pro e Business terão acesso antecipado quando disponível.",
+              },
+            },
+            {
+              "@type": "Question",
+              name: "E se a IA não souber responder?",
+              acceptedAnswer: {
+                "@type": "Answer",
+                text: "Ela nunca inventa. Se não tem certeza, chama você imediatamente por notificação. Você aprova, ela aprende e responde por conta na próxima.",
+              },
+            },
+            {
+              "@type": "Question",
+              name: "Meus dados e dos meus hóspedes estão seguros?",
+              acceptedAnswer: {
+                "@type": "Answer",
+                text: "Totalmente. Somos LGPD-compliant, criptografia ponta-a-ponta e nunca coletamos dados de reserva ou pagamento. Só o necessário pra atender bem.",
+              },
+            },
+            {
+              "@type": "Question",
+              name: "Posso cancelar quando quiser?",
+              acceptedAnswer: {
+                "@type": "Answer",
+                text: "Sim. Assinatura mensal, sem multa, sem burocracia. Cancela pelo painel em 2 cliques.",
+              },
+            },
+            {
+              "@type": "Question",
+              name: "Quanto tempo até estar funcionando?",
+              acceptedAnswer: {
+                "@type": "Answer",
+                text: "Em média 15 minutos do cadastro até a primeira resposta automática. Sério.",
+              },
+            },
+          ],
+        }),
+      },
+    ],
   }),
+
   component: LandingPage,
 });
 
