@@ -889,18 +889,31 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
     for (const r of _filtered) {
       const p = propMap.get(r.property_id);
       if (!p?.airbnb_ical_url) continue;
-      const matchedLog = findBestLogForReservation(r);
-      if (matchedLog) {
-        usedLogIds.add(matchedLog.id);
-      }
-      const row = rowFromReservation(r, matchedLog);
+      const { primary: matchedLog, extras } = findLogsForReservation(r);
+      if (matchedLog) usedLogIds.add(matchedLog.id);
+      for (const e of extras) usedLogIds.add(e.id);
+      const row = rowFromReservation(r, matchedLog, extras);
       if (row) rows.push(row);
     }
+    // Não-iCal: agrupa logs manuais do mesmo grupo (mesmo imóvel + período +
+    // código) num único card, com os demais como acompanhantes.
+    const nonIcalGroups = new Map<string, (typeof uniqueLogs)[number][]>();
     for (const l of uniqueLogs) {
       if (usedLogIds.has(l.id)) continue;
       const p = propMap.get(l.property_id);
       if (p?.airbnb_ical_url) continue;
-      const row = rowFromLog(l);
+      const code = normalizeCode(l.reservation_code);
+      const key = code
+        ? `${l.property_id}|code|${code}`
+        : `${l.property_id}|dates|${l.checkin_date}|${l.checkout_date ?? ""}`;
+      const arr = nonIcalGroups.get(key) ?? [];
+      arr.push(l);
+      nonIcalGroups.set(key, arr);
+    }
+    for (const group of nonIcalGroups.values()) {
+      group.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+      const [primary, ...extras] = group;
+      const row = rowFromLog(primary, undefined, extras);
       if (row) rows.push(row);
     }
 
