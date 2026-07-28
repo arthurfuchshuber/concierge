@@ -85,11 +85,6 @@ function todayISOSaoPaulo(): string {
   const pick = (t: string) => parts.find((p) => p.type === t)?.value ?? "";
   return `${pick("year")}-${pick("month")}-${pick("day")}`;
 }
-function addDaysISOLocal(iso: string, days: number): string {
-  const d = new Date(`${iso}T00:00:00Z`);
-  d.setUTCDate(d.getUTCDate() + days);
-  return d.toISOString().slice(0, 10);
-}
 function initials(name: string) {
   return (
     name
@@ -167,32 +162,6 @@ function DashboardPage() {
     placeholderData: keepPreviousData,
   });
   const listQ = kind === "checkin" ? checkinListQ : checkoutListQ;
-
-  // KPI drill-down data (loaded on demand)
-  const kpiTodayQ = useQuery({
-    queryKey: ["dash-list", "checkin", "today", activeOwnerId ?? "self"],
-    queryFn: () => listFn({ data: { kind: "checkin", range: "today", ownerId: activeOwnerId } }),
-    staleTime: 30_000,
-    placeholderData: keepPreviousData,
-  });
-  const kpiTomorrowQ = useQuery({
-    queryKey: ["dash-list", "checkin", "tomorrow", activeOwnerId ?? "self"],
-    queryFn: () => listFn({ data: { kind: "checkin", range: "tomorrow", ownerId: activeOwnerId } }),
-    staleTime: 30_000,
-    placeholderData: keepPreviousData,
-  });
-  const kpiCoTodayQ = useQuery({
-    queryKey: ["dash-list", "checkout", "today", activeOwnerId ?? "self"],
-    queryFn: () => listFn({ data: { kind: "checkout", range: "today", ownerId: activeOwnerId } }),
-    staleTime: 30_000,
-    placeholderData: keepPreviousData,
-  });
-  const kpiCoTomorrowQ = useQuery({
-    queryKey: ["dash-list", "checkout", "tomorrow", activeOwnerId ?? "self"],
-    queryFn: () => listFn({ data: { kind: "checkout", range: "tomorrow", ownerId: activeOwnerId } }),
-    staleTime: 30_000,
-    placeholderData: keepPreviousData,
-  });
 
   type UpsertPayload = {
     logId?: string;
