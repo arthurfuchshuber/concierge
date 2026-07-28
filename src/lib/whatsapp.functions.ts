@@ -198,7 +198,7 @@ export const sendWhatsappFromConversation = createServerFn({ method: "POST" })
     try {
       const res = await sinchSendText(
         { projectId: cfg.service_plan_id as string, appId: cfg.app_id as string, token, senderNumber: cfg.sender_number as string },
-        { toE164: to, text: data.text },
+        { toE164: to, text: finalText },
       );
       sinchMsgId = res.messageId;
     } catch (e) {
@@ -207,7 +207,7 @@ export const sendWhatsappFromConversation = createServerFn({ method: "POST" })
       await supabase.from("property_chat_messages").insert({
         conversation_id: data.conversationId,
         role: "assistant",
-        content: data.text,
+        content: finalText,
         sender_type: "human",
         sender_user_id: userId,
         channel: "whatsapp",
@@ -225,7 +225,7 @@ export const sendWhatsappFromConversation = createServerFn({ method: "POST" })
     const { error } = await supabase.from("property_chat_messages").insert({
       conversation_id: data.conversationId,
       role: "assistant",
-      content: data.text,
+      content: finalText,
       sender_type: "human",
       sender_user_id: userId,
       channel: "whatsapp",
