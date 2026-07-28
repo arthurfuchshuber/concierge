@@ -479,6 +479,16 @@ function Guide({ data }: { data: GuideOk }) {
     setPinDialog({ open: true, cb: cb ?? null });
   };
 
+  // Contexto compartilhado para renderizar [[tag:...]] e [[info:...]] inline.
+  const infoCtx = {
+    snapshot: p as never,
+    unlocked,
+    hasAccessPin,
+    checkinLocked,
+    onRequestUnlock: () => requestUnlock(),
+  };
+
+
   // Theme: admin default, override per-visitor via localStorage
   const adminTheme: "dark" | "light" = p.guide_theme === "light" ? "light" : "dark";
   const [theme, setTheme] = useState<"dark" | "light">(() => {
