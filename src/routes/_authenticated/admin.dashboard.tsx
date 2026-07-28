@@ -372,7 +372,6 @@ function DashboardPage() {
           onRefresh={() => tomorrowCheckinListQ.refetch()}
           kind="checkin"
           rangeLabel="Amanhã"
-          shadowTone="emerald"
           onEditTime={handleEditTime}
         />
         <KpiCard
