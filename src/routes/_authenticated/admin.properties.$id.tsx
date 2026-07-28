@@ -176,6 +176,7 @@ function PropertyEditor() {
   const navigate = useNavigate();
   const fetchProp = useServerFn(getMyProperty);
   const save = useServerFn(upsertProperty);
+  const { impersonation } = useImpersonation();
   const enrich = useServerFn(enrichFromMapsLink);
   const generateCityRefs = useServerFn(generateCityReferences);
   const listGeneratedCityRefs = useServerFn(listCityReferences);
