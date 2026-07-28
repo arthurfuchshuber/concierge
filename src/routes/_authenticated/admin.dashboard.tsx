@@ -147,12 +147,8 @@ function DashboardPage() {
   // Engagement window follows the kanban range: tomorrow/all map to 7d/30d.
   const engRange: "today" | "7d" | "30d" = range === "today" ? "today" : range === "all" ? "30d" : "7d";
 
-  const kpisQ = useQuery({
-    queryKey: ["dash-kpis", activeOwnerId ?? "self"],
-    queryFn: () => kpisFn({ data: { ownerId: activeOwnerId } }),
-    staleTime: 60_000,
-    placeholderData: keepPreviousData,
-  });
+  // KPIs derivam das mesmas listas do kanban para garantir sincronia visual.
+
   const engQ = useQuery({
     queryKey: ["dash-eng", engRange, activeOwnerId ?? "self"],
     queryFn: () => engFn({ data: { range: engRange, ownerId: activeOwnerId } }),
