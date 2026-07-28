@@ -821,6 +821,7 @@ function ArrivalGroup({
   kind,
   mode,
   onMark,
+  onRevert,
   onSyncIcal,
   onNote,
   onEditDates,
@@ -834,6 +835,7 @@ function ArrivalGroup({
   kind: "checkin" | "checkout";
   mode: "checkin" | "checkout" | "stay" | "cleaning";
   onMark: (r: ArrivalRow) => void;
+  onRevert?: (r: ArrivalRow) => void;
   onSyncIcal: (r: ArrivalRow) => void;
   onNote: (r: ArrivalRow, note: string | null) => void;
   onEditDates: (r: ArrivalRow, dates: { checkinDate?: string; checkoutDate?: string | null }) => void;
@@ -852,6 +854,7 @@ function ArrivalGroup({
           kind={kind}
           mode={mode}
           onMark={onMark}
+          onRevert={onRevert}
           onSyncIcal={onSyncIcal}
           onNote={onNote}
           onEditDates={onEditDates}
