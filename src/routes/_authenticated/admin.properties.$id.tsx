@@ -881,6 +881,10 @@ function PropertyEditor() {
       };
       const r = await save({ data: payload });
       toast.success("Guia salvo");
+      // Invalida caches para que o próximo mount reflita o estado salvo
+      // (published, campos alterados, etc.) em vez de servir cache stale.
+      queryClient.invalidateQueries({ queryKey: ["property", id] });
+      queryClient.invalidateQueries({ queryKey: ["my-properties"] });
       if (isNew) navigate({ to: "/admin/properties/$id", params: { id: r.id } });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Erro ao salvar");
