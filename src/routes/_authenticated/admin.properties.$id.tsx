@@ -414,6 +414,7 @@ function PropertyEditor() {
         airbnb_ical_url: (p.airbnb_ical_url as string | null) ?? null,
         airbnb_ical_last_sync_at: (p.airbnb_ical_last_sync_at as string | null) ?? null,
         airbnb_ical_last_error: (p.airbnb_ical_last_error as string | null) ?? null,
+        airbnb_listing_url: ((p as Record<string, unknown>).airbnb_listing_url as string | null) ?? null,
       },
       manual: (data.manual ?? []).map((m: Record<string, unknown>) => ({
         title: (m.title as string) ?? "",
