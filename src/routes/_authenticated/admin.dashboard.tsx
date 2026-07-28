@@ -916,7 +916,7 @@ function ArrivalCard({
 
   return (
     <div
-      className={`group relative h-full flex flex-col overflow-hidden rounded-2xl border p-4 gap-3 transition-all ${
+      className={`group relative h-full flex flex-col rounded-2xl border p-4 gap-3 transition-all ${
         visualDone
           ? "bg-secondary/30 border-border/50"
           : isOverdue
@@ -929,28 +929,29 @@ function ArrivalCard({
       }`}
     >
       {isOverdue && !visualDone && (
-        <div className="absolute top-2 right-2 z-10 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider bg-red-500/15 text-red-600 dark:text-red-400 border border-red-500/40">
+        <div className="absolute -top-2.5 right-3 z-20 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider bg-red-500 text-white border border-red-600 shadow-md">
           <AlertTriangle className="size-3" /> Atrasado
         </div>
       )}
       {isFuture && !done && (
-        <div className="absolute top-2 right-2 z-10 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/40">
+        <div className="absolute -top-2.5 right-3 z-20 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider bg-amber-500 text-white border border-amber-600 shadow-md">
           <AlertTriangle className="size-3" /> Data Futura
         </div>
       )}
 
       {!done && (
-        <>
+        <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-2xl">
           <span
             aria-hidden
             className="absolute left-0 top-4 bottom-4 w-0.5 rounded-r bg-gradient-to-b from-primary/70 to-primary/30"
           />
           <span
             aria-hidden
-            className={`pointer-events-none absolute top-0 right-0 -translate-y-1/3 translate-x-1/3 rounded-full blur-2xl ${isToday ? "size-40 bg-primary/[0.14]" : "size-32 bg-primary/[0.07]"}`}
+            className={`absolute top-0 right-0 -translate-y-1/3 translate-x-1/3 rounded-full blur-2xl ${isToday ? "size-40 bg-primary/[0.14]" : "size-32 bg-primary/[0.07]"}`}
           />
-        </>
+        </div>
       )}
+
 
       {/* Header: avatar + name + property + inline date range */}
       <div className="flex items-center gap-3">
