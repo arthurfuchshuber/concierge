@@ -467,7 +467,7 @@ function DashboardPage() {
               onMark={(row) => handleAdvance(row, mode)}
               onRevert={
                 mode === "stay" || mode === "cleaning"
-                  ? (row) => {
+                  ? (row: ArrivalRow) => {
                       const target = statusTarget(row);
                       if (!target.logId && !target.reservationId) {
                         toast.error("Não foi possível identificar esse card.");
