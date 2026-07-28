@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
+import type { PlanFeatures } from "@/lib/payments.shared";
 
 export const MEMBER_PERMISSIONS = [
   "chat_respond",
@@ -57,6 +58,22 @@ export const PERMISSION_META: Record<
     group: "admin",
   },
 };
+
+/**
+ * Mapa permissão → feature do plano. Quando a feature não está presente no
+ * plano do dono, o toggle é ocultado/desabilitado e o servidor recusa gravar.
+ * Permissões sem mapeamento (null) são liberadas em qualquer plano.
+ */
+export const PERMISSION_FEATURE: Record<MemberPermission, keyof PlanFeatures | null> = {
+  chat_respond: "humanHandoff",
+  ai_train: "ai",
+  library_edit: null,
+  clients_manage: null,
+  trial_manage: null,
+  pricing_override: null,
+};
+
+
 
 // Owner lists team members + full permission matrix
 export const listMemberPermissions = createServerFn({ method: "GET" })
@@ -125,6 +142,18 @@ export const updateMemberPermission = createServerFn({ method: "POST" })
       .eq("status", "active")
       .maybeSingle();
     if (!m) throw new Error("Membro não encontrado nesta conta.");
+
+    // Trava por plano: só permite ligar a permissão se a feature correspondente
+    // estiver liberada no plano do dono. Desligar é sempre permitido.
+    const requiredFeature = PERMISSION_FEATURE[data.permission];
+    if (data.granted && requiredFeature) {
+      const { resolveUserPlan } = await import("@/lib/plan-guard.server");
+      const plan = await resolveUserPlan(supabase, userId);
+      if (!plan.features[requiredFeature]) {
+        throw new Error("Esta permissão não está disponível no seu plano atual.");
+      }
+    }
+
 
     const { error } = await supabase
       .from("account_member_permissions")

@@ -14,9 +14,11 @@ import {
   updateMemberPermission,
   MEMBER_PERMISSIONS,
   PERMISSION_META,
+  PERMISSION_FEATURE,
   type MemberPermission,
 } from "@/lib/member-permissions.functions";
 import { getAtendimentoAccess } from "@/lib/handoff.functions";
+import { useSubscription } from "@/hooks/useSubscription";
 import { enablePush, disablePush, isPushSupported, currentPushSubscription } from "@/lib/push-client";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -46,6 +48,9 @@ function EquipePage() {
   const removeFn = useServerFn(removeTeamMember);
   const updateRoleFn = useServerFn(updateTeamMemberRole);
   const qc = useQueryClient();
+  const { info: sub } = useSubscription();
+  const planFeatures = sub.features;
+  const planName = sub.plan ? sub.plan.charAt(0).toUpperCase() + sub.plan.slice(1) : "atual";
 
   const access = useQuery({ queryKey: ["handoff-access"], queryFn: () => accessFn(), staleTime: 5 * 60_000 });
   const team = useQuery({ queryKey: ["my-team"], queryFn: () => listFn(), enabled: access.data?.allowed === true });
@@ -336,15 +341,28 @@ function EquipePage() {
                             {OPERATIONAL_PERMS.map((p) => {
                               const meta = PERMISSION_META[p];
                               const val = !!perms[p];
+                              const feature = PERMISSION_FEATURE[p];
+                              const locked = !!feature && !planFeatures[feature];
                               return (
-                                <li key={p} className="flex items-start gap-3">
+                                <li
+                                  key={p}
+                                  className={`flex items-start gap-3 ${locked ? "opacity-60" : ""}`}
+                                  title={locked ? `Disponível em planos superiores ao ${planName}` : undefined}
+                                >
                                   <div className="flex-1 min-w-0">
-                                    <div className="text-sm font-medium">{meta.label}</div>
+                                    <div className="text-sm font-medium flex items-center gap-2 flex-wrap">
+                                      {meta.label}
+                                      {locked && (
+                                        <span className="text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded bg-secondary border border-border text-muted-foreground">
+                                          Indisponível no plano
+                                        </span>
+                                      )}
+                                    </div>
                                     <div className="text-[12px] text-muted-foreground">{meta.description}</div>
                                   </div>
                                   <Switch
-                                    checked={val}
-                                    disabled={updPerm.isPending}
+                                    checked={locked ? false : val}
+                                    disabled={updPerm.isPending || locked}
                                     onCheckedChange={(checked) =>
                                       updPerm.mutate({
                                         memberUserId: id,
@@ -356,6 +374,7 @@ function EquipePage() {
                                 </li>
                               );
                             })}
+
                           </ul>
                         </div>
                       )}
