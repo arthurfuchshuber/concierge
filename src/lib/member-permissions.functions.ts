@@ -4,59 +4,109 @@ import { z } from "zod";
 import type { PlanFeatures } from "@/lib/payments.shared";
 
 export const MEMBER_PERMISSIONS = [
-  "chat_respond",
-  "ai_train",
+  "library_view",
   "library_edit",
+  "ai_view",
+  "ai_train",
+  "chat_view",
+  "chat_respond",
+  "operation_view",
+  "operation_edit",
+  "guests_view",
+  "guests_edit",
   "clients_manage",
   "trial_manage",
   "pricing_override",
 ] as const;
 export type MemberPermission = (typeof MEMBER_PERMISSIONS)[number];
 
-// Defaults mirror the SQL function
+// Defaults mirror the SQL function `has_member_permission`.
+// New members entram com tudo em VIEW e nada em EDIT.
 const DEFAULTS: Record<MemberPermission, boolean> = {
-  chat_respond: true,
-  ai_train: true,
-  library_edit: true,
+  library_view: true,
+  library_edit: false,
+  ai_view: true,
+  ai_train: false,
+  chat_view: true,
+  chat_respond: false,
+  operation_view: true,
+  operation_edit: false,
+  guests_view: true,
+  guests_edit: false,
   clients_manage: false,
   trial_manage: false,
   pricing_override: false,
 };
 
+export type PermissionArea = "library" | "ai" | "chat" | "operation" | "guests";
+
+export const PERMISSION_AREAS: {
+  area: PermissionArea;
+  label: string;
+  description: string;
+  view: MemberPermission;
+  edit: MemberPermission;
+  editLabel: string;
+}[] = [
+  {
+    area: "library",
+    label: "Biblioteca / Guias",
+    description: "Imóveis, manual da casa, recomendações, FAQs e checkout.",
+    view: "library_view",
+    edit: "library_edit",
+    editLabel: "Criar e editar",
+  },
+  {
+    area: "ai",
+    label: "IA",
+    description: "Comportamento, base de conhecimento e feedback de mensagens.",
+    view: "ai_view",
+    edit: "ai_train",
+    editLabel: "Treinar e editar",
+  },
+  {
+    area: "chat",
+    label: "Chat / Atendimento",
+    description: "Conversas com hóspedes no atendimento humano.",
+    view: "chat_view",
+    edit: "chat_respond",
+    editLabel: "Assumir e responder",
+  },
+  {
+    area: "operation",
+    label: "Operação (Kanban)",
+    description: "Dashboard, KPIs e cards de check-in, check-out e limpeza.",
+    view: "operation_view",
+    edit: "operation_edit",
+    editLabel: "Marcar checks e editar horários",
+  },
+  {
+    area: "guests",
+    label: "Hóspedes / Captação",
+    description: "Lista de hóspedes e dados coletados no primeiro acesso.",
+    view: "guests_view",
+    edit: "guests_edit",
+    editLabel: "Editar e exportar",
+  },
+];
+
 export const PERMISSION_META: Record<
   MemberPermission,
   { label: string; description: string; group: "operational" | "admin" }
 > = {
-  chat_respond: {
-    label: "Conversar no chat",
-    description: "Responder mensagens no chat de atendimento humano.",
-    group: "operational",
-  },
-  ai_train: {
-    label: "Ensinar a IA",
-    description: "Editar base de conhecimento, FAQs e comportamento da IA.",
-    group: "operational",
-  },
-  library_edit: {
-    label: "Alterar biblioteca",
-    description: "Editar abas da biblioteca (manual da casa, recomendações etc.).",
-    group: "operational",
-  },
-  clients_manage: {
-    label: "Gerenciar clientes",
-    description: "Alterar planos e informações de clientes.",
-    group: "admin",
-  },
-  trial_manage: {
-    label: "Alterar trial",
-    description: "Alterar o período de trial free dos clientes.",
-    group: "admin",
-  },
-  pricing_override: {
-    label: "Personalizar recorrência",
-    description: "Personalizar o valor da recorrência.",
-    group: "admin",
-  },
+  library_view: { label: "Ver biblioteca", description: "Ver guias, manual, recomendações, FAQs.", group: "operational" },
+  library_edit: { label: "Editar biblioteca", description: "Criar/editar guias e conteúdo.", group: "operational" },
+  ai_view: { label: "Ver IA", description: "Consultar base de conhecimento e comportamento.", group: "operational" },
+  ai_train: { label: "Treinar IA", description: "Editar base, FAQs e comportamento.", group: "operational" },
+  chat_view: { label: "Ver chat", description: "Ver conversas e histórico.", group: "operational" },
+  chat_respond: { label: "Responder no chat", description: "Assumir e responder no atendimento humano.", group: "operational" },
+  operation_view: { label: "Ver operação", description: "Ver dashboard, KPIs e Kanban.", group: "operational" },
+  operation_edit: { label: "Agir na operação", description: "Marcar check-in/out/limpeza e editar horários.", group: "operational" },
+  guests_view: { label: "Ver hóspedes", description: "Ver lista de hóspedes e captação.", group: "operational" },
+  guests_edit: { label: "Editar hóspedes", description: "Editar e exportar dados de captação.", group: "operational" },
+  clients_manage: { label: "Gerenciar clientes", description: "Alterar planos e informações de clientes.", group: "admin" },
+  trial_manage: { label: "Alterar trial", description: "Alterar o período de trial free dos clientes.", group: "admin" },
+  pricing_override: { label: "Personalizar recorrência", description: "Personalizar o valor da recorrência.", group: "admin" },
 };
 
 /**
@@ -65,13 +115,21 @@ export const PERMISSION_META: Record<
  * Permissões sem mapeamento (null) são liberadas em qualquer plano.
  */
 export const PERMISSION_FEATURE: Record<MemberPermission, keyof PlanFeatures | null> = {
-  chat_respond: "humanHandoff",
-  ai_train: "ai",
+  library_view: null,
   library_edit: null,
+  ai_view: "ai",
+  ai_train: "ai",
+  chat_view: "humanHandoff",
+  chat_respond: "humanHandoff",
+  operation_view: null,
+  operation_edit: null,
+  guests_view: null,
+  guests_edit: null,
   clients_manage: null,
   trial_manage: null,
   pricing_override: null,
 };
+
 
 
 
