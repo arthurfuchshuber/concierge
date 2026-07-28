@@ -11,7 +11,7 @@ export type GuideTagItemPayload = {
 };
 
 async function loadItemsForProperty(
-  supabase: ReturnType<typeof getAdmin>,
+  supabase: { from: (t: string) => { select: (c: string) => { eq: (k: string, v: string) => { limit: (n: number) => Promise<{ data: unknown[] | null }> } } } },
   propertyId: string,
 ): Promise<GuideTagItemPayload[]> {
   const [{ data: faqs }, { data: recs }] = await Promise.all([
@@ -20,10 +20,10 @@ async function loadItemsForProperty(
   ]);
   const out: GuideTagItemPayload[] = [];
   const seen = new Set<string>();
-  for (const f of (faqs ?? [])) {
-    const q = String((f as { question?: string }).question ?? "").trim();
+  for (const f of ((faqs ?? []) as Array<{ question?: string }>)) {
+    const q = String(f.question ?? "").trim();
     if (!q) continue;
-    let base = slugForTag(q);
+    const base = slugForTag(q);
     if (!base) continue;
     let s = base;
     let n = 1;
@@ -31,11 +31,11 @@ async function loadItemsForProperty(
     seen.add(`faq:${s}`);
     out.push({ key: "faq", param: s, label: q.length > 80 ? q.slice(0, 77) + "…" : q, hint: "FAQ do imóvel" });
   }
-  for (const r of (recs ?? [])) {
-    const nm = String((r as { name?: string }).name ?? "").trim();
+  for (const r of ((recs ?? []) as Array<{ name?: string; category?: string }>)) {
+    const nm = String(r.name ?? "").trim();
     if (!nm) continue;
-    const cat = String((r as { category?: string }).category ?? "").trim();
-    let base = slugForTag(nm);
+    const cat = String(r.category ?? "").trim();
+    const base = slugForTag(nm);
     if (!base) continue;
     let s = base;
     let n = 1;
@@ -44,10 +44,6 @@ async function loadItemsForProperty(
     out.push({ key: "local", param: s, label: nm, hint: cat || "Recomendação" });
   }
   return out;
-}
-
-function getAdmin(supabase: unknown): typeof supabase extends { from: (...args: unknown[]) => unknown } ? typeof supabase : never {
-  return supabase as never;
 }
 
 /** Itens de tag (FAQs, recomendações) para um imóvel específico. */
