@@ -1,12 +1,14 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useMutation } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { sendWhatsappFromConversation } from "@/lib/whatsapp.functions";
-import { Loader2, MessageCircle } from "lucide-react";
+import { GUIDE_TAGS, type GuideTagKey } from "@/lib/guide-tags";
+import { Loader2, MessageCircle, Tag as TagIcon } from "lucide-react";
 import { toast } from "sonner";
 
 type Props = {
@@ -18,14 +20,36 @@ type Props = {
 };
 
 const QUICK_TEMPLATES: Array<{ label: string; text: (name: string) => string }> = [
-  { label: "Boas-vindas", text: (n) => `Olá ${n || "!"} Aqui é o anfitrião. Estou passando para desejar uma ótima estadia. Qualquer coisa que precisar, é só me chamar por aqui.` },
-  { label: "Lembrete de check-in", text: (n) => `Oi ${n || ""}! Só passando para confirmar que está tudo certo com sua chegada. Precisa de alguma orientação?` },
-  { label: "Instruções de saída", text: (n) => `Oi ${n || ""}! Amanhã é o dia do seu check-out. Quando estiver saindo, é só fechar a porta. Muito obrigado pela estadia!` },
+  { label: "Boas-vindas", text: (n) => `Olá ${n || "!"} Aqui é o anfitrião. Estou passando para desejar uma ótima estadia. Qualquer coisa que precisar, é só me chamar por aqui. Se quiser conferir o Wi-Fi e as senhas, é só abrir: [[tag:senhas-acesso]].` },
+  { label: "Lembrete de check-in", text: (n) => `Oi ${n || ""}! Só passando para confirmar sua chegada. Passo a passo completo aqui: [[tag:checkin-instrucoes]].` },
+  { label: "Instruções de saída", text: (n) => `Oi ${n || ""}! Amanhã é o dia do seu check-out. Deixei o passo a passo aqui: [[tag:checkout-instrucoes]]. Muito obrigado pela estadia!` },
 ];
 
 export function WhatsappComposerDialog({ open, onOpenChange, conversationId, guestName, suggestedText }: Props) {
   const [text, setText] = useState(suggestedText ?? "");
+  const [tagOpen, setTagOpen] = useState(false);
+  const taRef = useRef<HTMLTextAreaElement>(null);
   const sendFn = useServerFn(sendWhatsappFromConversation);
+
+  function insertTag(key: GuideTagKey) {
+    const snippet = `[[tag:${key}]]`;
+    const el = taRef.current;
+    if (!el) {
+      setText((t) => (t ? `${t} ${snippet}` : snippet));
+    } else {
+      const start = el.selectionStart ?? el.value.length;
+      const end = el.selectionEnd ?? el.value.length;
+      const next = text.slice(0, start) + snippet + text.slice(end);
+      setText(next);
+      // Restaura o cursor após a tag inserida
+      requestAnimationFrame(() => {
+        el.focus();
+        const pos = start + snippet.length;
+        el.setSelectionRange(pos, pos);
+      });
+    }
+    setTagOpen(false);
+  }
 
   const m = useMutation({
     mutationFn: async () => sendFn({ data: { conversationId, text: text.trim() } }),
@@ -56,16 +80,46 @@ export function WhatsappComposerDialog({ open, onOpenChange, conversationId, gue
             ))}
           </div>
           <div>
-            <Label className="text-xs text-muted-foreground">Mensagem</Label>
+            <div className="flex items-center justify-between mb-1">
+              <Label className="text-xs text-muted-foreground">Mensagem</Label>
+              <Popover open={tagOpen} onOpenChange={setTagOpen}>
+                <PopoverTrigger asChild>
+                  <Button type="button" variant="ghost" size="sm" className="h-7 gap-1 text-xs">
+                    <TagIcon className="size-3.5" />
+                    Inserir tag
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent align="end" className="p-0 w-72">
+                  <div className="p-2 border-b">
+                    <p className="text-xs font-medium">Atalhos para seções do guia</p>
+                    <p className="text-[11px] text-muted-foreground">O hóspede recebe o link e vai direto ao local.</p>
+                  </div>
+                  <div className="max-h-72 overflow-y-auto py-1">
+                    {GUIDE_TAGS.map((t) => (
+                      <button
+                        key={t.key}
+                        type="button"
+                        onClick={() => insertTag(t.key)}
+                        className="w-full text-left px-3 py-1.5 hover:bg-muted/60 focus:bg-muted/60 focus:outline-none"
+                      >
+                        <div className="text-sm font-medium leading-tight">{t.label}</div>
+                        <div className="text-[11px] text-muted-foreground leading-tight">{t.description}</div>
+                      </button>
+                    ))}
+                  </div>
+                </PopoverContent>
+              </Popover>
+            </div>
             <Textarea
+              ref={taRef}
               rows={6}
               value={text}
               onChange={(e) => setText(e.target.value)}
-              placeholder="Digite sua mensagem…"
+              placeholder="Digite sua mensagem… Use ‘Inserir tag’ para linkar direto uma seção do guia."
               maxLength={4000}
             />
             <div className="mt-1 text-[11px] text-muted-foreground">
-              Fora da janela de 24h desde a última resposta do hóspede, apenas templates HSM aprovados serão entregues pela Meta.
+              Tags como <code className="text-[10px]">[[tag:senhas-acesso]]</code> são substituídas pelo link do guia no envio. Fora da janela de 24h desde a última resposta do hóspede, apenas templates HSM aprovados serão entregues pela Meta.
             </div>
           </div>
         </div>

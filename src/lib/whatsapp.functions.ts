@@ -116,11 +116,12 @@ export const sendWhatsappFromConversation = createServerFn({ method: "POST" })
     // Load conversation + property + owner
     const { data: conv, error: convErr } = await supabase
       .from("property_chat_conversations")
-      .select("id, property_id, guest_session_id, guest_name, properties:property_id(id, owner_id)")
+      .select("id, property_id, guest_session_id, guest_name, properties:property_id(id, owner_id, slug)")
       .eq("id", data.conversationId)
       .maybeSingle();
     if (convErr || !conv) throw new Error("Conversa não encontrada");
     const ownerId = (conv.properties as { owner_id?: string } | null)?.owner_id;
+    const propertySlug = (conv.properties as { slug?: string } | null)?.slug ?? null;
     if (!ownerId) throw new Error("Propriedade sem dono");
 
     // Resolve the guest phone for THIS conversation specifically.
@@ -185,11 +186,19 @@ export const sendWhatsappFromConversation = createServerFn({ method: "POST" })
     const token = decryptToken(cfg.api_token_encrypted as string);
     const to = normalizePhone((phoneCountry ?? "") + phone);
 
+    // Expande [[tag:...]] para URLs de deep-link no guia deste imóvel.
+    const { expandTagsForWhatsapp } = await import("@/lib/guide-tags");
+    const origin = siteOrigin();
+    const finalText = propertySlug
+      ? expandTagsForWhatsapp(data.text, { origin, slug: propertySlug })
+      : data.text;
+
+
     let sinchMsgId = "";
     try {
       const res = await sinchSendText(
         { projectId: cfg.service_plan_id as string, appId: cfg.app_id as string, token, senderNumber: cfg.sender_number as string },
-        { toE164: to, text: data.text },
+        { toE164: to, text: finalText },
       );
       sinchMsgId = res.messageId;
     } catch (e) {
@@ -198,7 +207,7 @@ export const sendWhatsappFromConversation = createServerFn({ method: "POST" })
       await supabase.from("property_chat_messages").insert({
         conversation_id: data.conversationId,
         role: "assistant",
-        content: data.text,
+        content: finalText,
         sender_type: "human",
         sender_user_id: userId,
         channel: "whatsapp",
@@ -216,7 +225,7 @@ export const sendWhatsappFromConversation = createServerFn({ method: "POST" })
     const { error } = await supabase.from("property_chat_messages").insert({
       conversation_id: data.conversationId,
       role: "assistant",
-      content: data.text,
+      content: finalText,
       sender_type: "human",
       sender_user_id: userId,
       channel: "whatsapp",
