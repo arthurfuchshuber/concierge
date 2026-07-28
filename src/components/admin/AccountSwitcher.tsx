@@ -30,13 +30,15 @@ export function AccountSwitcher() {
   const accounts = useMemo(() => q.data?.accounts ?? [], [q.data]);
   const hasOwn = q.data?.hasOwnProperties ?? true;
 
-  // Auto-select: pure team member (no own properties) + exactly one account.
+  // Auto-select: se o usuário NÃO tem propriedades próprias, sempre garantimos
+  // uma conta ativa — usa a primeira membership disponível. Isso evita que a
+  // UI opere "sem conta" e vaze/oculte dados de forma inconsistente.
   useEffect(() => {
     if (isAdmin) return;
     if (!q.data) return;
     if (impersonation) return;
     if (hasOwn) return;
-    if (accounts.length === 1) {
+    if (accounts.length >= 1) {
       const a = accounts[0];
       setImpersonation({ userId: a.ownerId, name: a.name || a.email || "Conta", email: a.email });
     }

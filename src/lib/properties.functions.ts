@@ -147,9 +147,15 @@ const RecInput = z.object({
 export const listMyProperties = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
+    const { userId } = context;
+    // CRÍTICO: filtrar explicitamente por owner_id do próprio usuário.
+    // Sem este filtro, a RLS `user_can_access_property` também autoriza
+    // propriedades de contas onde ele é membro — vazando guias de outras
+    // contas quando nenhum "cliente" está selecionado no switcher.
     const { data, error } = await context.supabase
       .from("properties")
       .select("id, slug, name, tagline, hero_image_url, gallery_images, access_mode, pin_expires_at, published, city, country, address, lat, lng, updated_at, wifi_ssid, checkin_time, checkout_time")
+      .eq("owner_id", userId)
       .order("updated_at", { ascending: false });
     if (error) throw (await import("@/lib/db-errors.server")).safeDbError("properties", error);
     const { signPropertyImages } = await import("@/lib/storage.server");
@@ -179,9 +185,11 @@ export const listPropertiesForAccount = createServerFn({ method: "POST" })
 export const listMyPropertiesBrief = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
+    const { userId } = context;
     const { data, error } = await context.supabase
       .from("properties")
       .select("id, name, city, published")
+      .eq("owner_id", userId)
       .order("name", { ascending: true });
     if (error) throw (await import("@/lib/db-errors.server")).safeDbError("properties", error);
     return (data ?? []) as Array<{ id: string; name: string; city: string | null; published: boolean }>;
