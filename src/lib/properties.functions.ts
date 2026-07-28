@@ -13,15 +13,24 @@ function isHttpsUrl(value: string): boolean {
   }
 }
 
+function normalizeHttpsInput(value: unknown): unknown {
+  if (typeof value !== "string") return value;
+  const s = value.trim();
+  if (!s) return null;
+  if (/^https?:\/\//i.test(s)) return s.replace(/^http:\/\//i, "https://");
+  if (s.startsWith("/")) return s;
+  return `https://${s.replace(/^\/+/, "")}`;
+}
+
 const HttpsUrl = z.preprocess(
-  (value) => (typeof value === "string" && value.trim() === "" ? null : value),
-  z.string().trim().url().max(2048).refine(isHttpsUrl, "Use um link HTTPS válido").optional().nullable(),
+  normalizeHttpsInput,
+  HttpsUrlRequired.optional().nullable(),
 );
 
 // Aceita URL HTTPS absoluta OU caminho relativo interno (ex.: /api/public/place-photo?...)
 // usado para fotos do Google Places servidas via proxy do próprio app.
 const ImageUrl = z.preprocess(
-  (value) => (typeof value === "string" && value.trim() === "" ? null : value),
+  normalizeHttpsInput,
   z
     .string()
     .trim()
@@ -34,12 +43,18 @@ const ImageUrl = z.preprocess(
     .nullable(),
 );
 
+const HttpsUrlRequired = z.preprocess(
+  normalizeHttpsInput,
+  HttpsUrlRequired,
+);
+
+
 const PropertyInput = z.object({
   name: z.string().trim().min(1).max(120),
   tagline: z.string().trim().max(200).optional().nullable(),
   slug: z.string().regex(slugRe, "Slug inválido (use letras minúsculas, números e hífens)"),
   hero_image_url: HttpsUrl,
-  gallery_images: z.array(z.string().trim().url().max(2048).refine(isHttpsUrl, "Use um link HTTPS válido")).max(4).default([]),
+  gallery_images: z.array(HttpsUrlRequired).max(4).default([]),
   theme_images: z.object({
     checkin: HttpsUrl,
     residencia: HttpsUrl,
@@ -48,7 +63,7 @@ const PropertyInput = z.object({
   }).partial().default({}),
   marketplace_links: z.array(z.object({
     label: z.string().trim().min(1).max(120),
-    url: z.string().trim().url().max(2048).refine(isHttpsUrl, "Use um link HTTPS válido"),
+    url: HttpsUrlRequired,
     description: z.string().trim().max(280).optional().nullable(),
   })).max(20).default([]),
   address: z.string().max(500).optional().nullable(),
@@ -75,18 +90,18 @@ const PropertyInput = z.object({
   checkout_instructions: z.string().max(3000).optional().nullable(),
   house_rules: z.string().max(3000).optional().nullable(),
   checkin_media: z.array(z.object({
-    url: z.string().trim().url().max(2048).refine(isHttpsUrl, "Use um link HTTPS válido"),
+    url: HttpsUrlRequired,
     type: z.enum(["image", "video"]),
   })).max(8).default([]),
   gate_instructions: z.string().max(3000).optional().nullable(),
   gate_media: z.array(z.object({
-    url: z.string().trim().url().max(2048).refine(isHttpsUrl, "Use um link HTTPS válido"),
+    url: HttpsUrlRequired,
     type: z.enum(["image", "video"]),
   })).max(8).default([]),
   gate_video_url: HttpsUrl,
   lock_instructions: z.string().max(3000).optional().nullable(),
   lock_media: z.array(z.object({
-    url: z.string().trim().url().max(2048).refine(isHttpsUrl, "Use um link HTTPS válido"),
+    url: HttpsUrlRequired,
     type: z.enum(["image", "video"]),
   })).max(8).default([]),
   lock_video_url: HttpsUrl,
