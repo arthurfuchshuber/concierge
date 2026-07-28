@@ -664,40 +664,49 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
       const m = String(s).match(/HM[A-Z0-9]{6,}/i);
       return m ? m[0].toUpperCase() : null;
     }
-    function findBestLogForReservation(r: ReservationRow) {
+    // Retorna todos os logs que representam hóspedes da MESMA reserva iCal
+    // (primário + acompanhantes). Ordenados por prioridade (código HM bate mais
+    // forte que datas), o primeiro vira o hóspede exibido; os demais ficam como
+    // "additionalGuests" no mesmo card — grupos que digitaram o formulário no
+    // mesmo período para a mesma residência.
+    function findLogsForReservation(r: ReservationRow): { primary: (typeof uniqueLogs)[number] | null; extras: (typeof uniqueLogs)[number][] } {
       const resCode = normalizeCode(r.guest_hint);
-      // 1) Match forte por código de reserva (HM…): identidade real do hóspede,
-      // imune a datas erradas digitadas no formulário. A data operacional exibida
-      // continua vindo do iCal; o log só empresta nome/telefone/status.
+      const matched: (typeof uniqueLogs)[number][] = [];
+      const seen = new Set<string>();
+      const push = (l: (typeof uniqueLogs)[number]) => {
+        if (seen.has(l.id)) return;
+        seen.add(l.id);
+        matched.push(l);
+      };
       if (resCode) {
-        const codeMatches = uniqueLogs.filter(
-          (l) => l.property_id === r.property_id && normalizeCode(l.reservation_code) === resCode,
-        );
-        const codeMatch =
-          codeMatches.find((l) => l.checkin_date === r.checkin_date && l.checkout_date === r.checkout_date) ??
-          codeMatches.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0];
-        if (codeMatch) return codeMatch;
+        for (const l of uniqueLogs) {
+          if (l.property_id !== r.property_id) continue;
+          if (normalizeCode(l.reservation_code) === resCode) push(l);
+        }
       }
-      // 2) Match por datas exatas, apenas quando é único e seguro. Para check-in
-      // futuro com código HM no iCal, não colamos log sem código por datas — isso
-      // foi a causa de nomes de hóspedes antigos aparecerem em reservas futuras.
-      // Para checkout, o mesmo par exato imóvel+entrada+saída é seguro para
-      // recuperar o nome já preenchido pelo hóspede que está saindo.
-      const exactMatches = uniqueLogs.filter(
-        (l) =>
-          l.property_id === r.property_id &&
-          l.checkin_date === r.checkin_date &&
-          l.checkout_date === r.checkout_date,
-      );
-      const safeExactMatches = exactMatches.filter((l) => {
+      // Datas exatas — só quando é seguro (mesma trava do antigo findBest).
+      for (const l of uniqueLogs) {
+        if (l.property_id !== r.property_id) continue;
+        if (l.checkin_date !== r.checkin_date || l.checkout_date !== r.checkout_date) continue;
         const logCode = normalizeCode(l.reservation_code);
-        if (resCode && logCode && logCode !== resCode) return false;
-        if (resCode && !logCode && data.kind === "checkin") return false;
-        return true;
+        if (resCode && logCode && logCode !== resCode) continue;
+        if (resCode && !logCode && data.kind === "checkin") continue;
+        push(l);
+      }
+      if (matched.length === 0) return { primary: null, extras: [] };
+      // Ordena: com código HM primeiro, depois datas exatas, depois created_at desc.
+      matched.sort((a, b) => {
+        const aCode = resCode && normalizeCode(a.reservation_code) === resCode ? 1 : 0;
+        const bCode = resCode && normalizeCode(b.reservation_code) === resCode ? 1 : 0;
+        if (aCode !== bCode) return bCode - aCode;
+        const aExact = a.checkin_date === r.checkin_date && a.checkout_date === r.checkout_date ? 1 : 0;
+        const bExact = b.checkin_date === r.checkin_date && b.checkout_date === r.checkout_date ? 1 : 0;
+        if (aExact !== bExact) return bExact - aExact;
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
       });
-      if (safeExactMatches.length !== 1) return null;
-      return safeExactMatches[0];
+      return { primary: matched[0], extras: matched.slice(1) };
     }
+
 
     // Auto-promoção para "Em Estadia": quando uma reserva é importada (ou
     // criada manualmente) e o período de estadia já está em andamento — ou
