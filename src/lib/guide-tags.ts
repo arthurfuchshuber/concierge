@@ -142,3 +142,153 @@ export function tokenizeTags(text: string): TagToken[] {
   if (last < src.length) out.push({ kind: "text", value: src.slice(last) });
   return out;
 }
+
+// =====================================================================
+// [[info:...]] — expande para valor concreto vindo da propriedade.
+// Ex.: [[info:checkin-time]] → "15:00"
+//      [[info:wifi]]         → "SSID · senha ..."
+//      [[info:marketplace:mercado]] → URL do link do marketplace com label "mercado"
+// =====================================================================
+
+export type GuideInfoKey =
+  | "checkin-time"
+  | "checkin-time-max"
+  | "checkout-time"
+  | "checkout-time-min"
+  | "wifi"
+  | "wifi-ssid"
+  | "wifi-password"
+  | "gate-code"
+  | "lock-code"
+  | "pin-code"
+  | "address"
+  | "host-name"
+  | "host-phone"
+  | "house-rules"
+  | "checkin-instructions"
+  | "checkout-instructions"
+  | "gate-instructions"
+  | "lock-instructions"
+  | "marketplace";
+
+export type GuideInfoDef = {
+  key: GuideInfoKey;
+  label: string;
+  description: string;
+  parameterized?: boolean;
+};
+
+export const GUIDE_INFOS: readonly GuideInfoDef[] = [
+  { key: "checkin-time",           label: "Horário de check-in",        description: "Ex.: 15:00" },
+  { key: "checkin-time-max",       label: "Check-in até",               description: "Horário limite de chegada" },
+  { key: "checkout-time",          label: "Horário de check-out",       description: "Ex.: 11:00" },
+  { key: "checkout-time-min",      label: "Check-out a partir de",      description: "Horário inicial de saída" },
+  { key: "wifi",                   label: "Wi-Fi (rede + senha)",       description: "Rede e senha em uma linha" },
+  { key: "wifi-ssid",              label: "Wi-Fi — rede",               description: "Somente o nome da rede" },
+  { key: "wifi-password",          label: "Wi-Fi — senha",              description: "Somente a senha" },
+  { key: "gate-code",              label: "Código do portão",           description: "Código de acesso ao portão" },
+  { key: "lock-code",              label: "Código da fechadura",        description: "Código da fechadura" },
+  { key: "pin-code",               label: "PIN do guia",                description: "PIN para acessar o guia" },
+  { key: "address",                label: "Endereço",                   description: "Endereço completo do imóvel" },
+  { key: "host-name",              label: "Nome do anfitrião",          description: "Nome exibido no guia" },
+  { key: "host-phone",             label: "Telefone do anfitrião",      description: "Contato do anfitrião" },
+  { key: "house-rules",            label: "Regras da casa",             description: "Texto das regras" },
+  { key: "checkin-instructions",   label: "Instruções de chegada",      description: "Texto das instruções" },
+  { key: "checkout-instructions",  label: "Instruções de saída",        description: "Texto das instruções" },
+  { key: "gate-instructions",      label: "Instruções do portão",       description: "Texto das instruções" },
+  { key: "lock-instructions",      label: "Instruções da fechadura",    description: "Texto das instruções" },
+  { key: "marketplace",            label: "Link do marketplace",        description: "Use [[info:marketplace:rótulo]]", parameterized: true },
+] as const;
+
+const INFO_BY_KEY: Record<string, GuideInfoDef> = Object.fromEntries(
+  GUIDE_INFOS.map((i) => [i.key, i]),
+);
+
+export function isGuideInfoKey(k: string): k is GuideInfoKey {
+  return Object.prototype.hasOwnProperty.call(INFO_BY_KEY, k);
+}
+
+/** Snapshot dos campos do imóvel usados por `[[info:...]]`. */
+export type GuideInfoSnapshot = {
+  checkin_time?: string | null;
+  checkin_time_max?: string | null;
+  checkout_time?: string | null;
+  checkout_time_min?: string | null;
+  wifi_ssid?: string | null;
+  wifi_password?: string | null;
+  gate_code?: string | null;
+  lock_code?: string | null;
+  pin_code?: string | null;
+  address?: string | null;
+  host_name?: string | null;
+  host_phone?: string | null;
+  house_rules?: string | null;
+  checkin_instructions?: string | null;
+  checkout_instructions?: string | null;
+  gate_instructions?: string | null;
+  lock_instructions?: string | null;
+  marketplace_links?: unknown;
+};
+
+function normalizeInfoLabel(s: string): string {
+  return s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+}
+
+/** Resolve `[[info:key(:param)?]]` para uma string exibível. */
+export function resolveInfoValue(
+  key: GuideInfoKey,
+  param: string | null,
+  p: GuideInfoSnapshot | null | undefined,
+): string {
+  if (!p) return "";
+  const v = (x: unknown) => (x == null ? "" : String(x).trim());
+  switch (key) {
+    case "checkin-time":          return v(p.checkin_time);
+    case "checkin-time-max":      return v(p.checkin_time_max);
+    case "checkout-time":         return v(p.checkout_time);
+    case "checkout-time-min":     return v(p.checkout_time_min);
+    case "wifi": {
+      const s = v(p.wifi_ssid), pw = v(p.wifi_password);
+      if (!s && !pw) return "";
+      if (s && pw) return `${s} · senha ${pw}`;
+      return s || pw;
+    }
+    case "wifi-ssid":             return v(p.wifi_ssid);
+    case "wifi-password":         return v(p.wifi_password);
+    case "gate-code":             return v(p.gate_code);
+    case "lock-code":             return v(p.lock_code);
+    case "pin-code":              return v(p.pin_code);
+    case "address":               return v(p.address);
+    case "host-name":             return v(p.host_name);
+    case "host-phone":            return v(p.host_phone);
+    case "house-rules":           return v(p.house_rules);
+    case "checkin-instructions":  return v(p.checkin_instructions);
+    case "checkout-instructions": return v(p.checkout_instructions);
+    case "gate-instructions":     return v(p.gate_instructions);
+    case "lock-instructions":     return v(p.lock_instructions);
+    case "marketplace": {
+      const list = Array.isArray(p.marketplace_links) ? (p.marketplace_links as Array<Record<string, unknown>>) : [];
+      if (!list.length) return "";
+      const want = param ? normalizeInfoLabel(param) : "";
+      const hit = want
+        ? list.find((l) => normalizeInfoLabel(String(l.label ?? l.name ?? "")) === want) ??
+          list.find((l) => normalizeInfoLabel(String(l.label ?? l.name ?? "")).includes(want))
+        : list[0];
+      return v(hit?.url);
+    }
+  }
+}
+
+const INFO_RE = /\[\[info:([a-z0-9-]+)(?::([^\]|]+))?(?:\|([^\]]+))?\]\]/gi;
+
+/** Substitui todas as `[[info:...]]` pelos valores atuais da propriedade. */
+export function expandInfoTags(text: string, prop: GuideInfoSnapshot | null | undefined): string {
+  if (!text) return text;
+  return text.replace(INFO_RE, (_m, rawKey: string, rawParam?: string, rawLabel?: string) => {
+    const key = rawKey.toLowerCase();
+    if (!isGuideInfoKey(key)) return "";
+    const val = resolveInfoValue(key as GuideInfoKey, (rawParam ?? "").trim() || null, prop);
+    if (!val) return "";
+    return rawLabel?.trim() ? `${rawLabel.trim()} (${val})` : val;
+  });
+}
