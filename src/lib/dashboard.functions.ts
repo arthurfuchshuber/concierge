@@ -512,7 +512,18 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
     };
     const statusMap = new Map<string, Omit<StatusRow, "log_id" | "reservation_id">>();
     const reservationStatusMap = new Map<string, Omit<StatusRow, "log_id" | "reservation_id">>();
+    // Regra da esteira: um card só pode existir em UMA coluna por vez.
+    // Para saber se um checkout já pode "entrar" (Checkouts/Em Limpeza) precisamos
+    // conhecer o status do check-in correspondente — se check-in ainda não foi
+    // marcado como feito, o card fica retido em Check-ins (mesmo atrasado).
+    const checkinDoneLogs = new Set<string>();
+    const checkinDoneReservations = new Set<string>();
     for (const s of (statuses ?? []) as StatusRow[]) {
+      if (s.kind === "checkin" && (s.status === "done" || !!s.done_at)) {
+        if (s.log_id) checkinDoneLogs.add(s.log_id);
+        if (s.reservation_id) checkinDoneReservations.add(s.reservation_id);
+      }
+      if (s.kind !== data.kind) continue;
       const value = {
         kind: s.kind,
         status: s.status,
@@ -524,6 +535,7 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
       if (s.log_id) statusMap.set(s.log_id, value);
       if (s.reservation_id) reservationStatusMap.set(s.reservation_id, value);
     }
+
 
     const placeholderStatus = new Map<
       string,
