@@ -1,6 +1,9 @@
-// Catálogo de tags do guia (Fase 1).
-// Sintaxe: [[tag:key]] ou [[tag:key|rótulo customizado]]
-// Ao renderizar/enviar, expandimos para uma URL de deep-link do guia.
+// Catálogo de tags do guia.
+// Sintaxe suportada:
+//   [[tag:key]]                      → link para a seção
+//   [[tag:key|rótulo]]               → rótulo customizado
+//   [[tag:key:param]]                → link para um item específico (ex.: faq:como-usar-piscina)
+//   [[tag:key:param|rótulo]]         → item específico com rótulo custom
 
 export type GuideTagKey =
   | "home"
@@ -17,14 +20,19 @@ export type GuideTagKey =
   | "endereco"
   | "checkin-instrucoes"
   | "checkout-instrucoes"
-  | "regras-casa";
+  | "regras-casa"
+  // Chaves que aceitam um parâmetro para item específico:
+  | "local"      // uma recomendação/lugar específico
+  ;
 
 export type GuideTag = {
   key: GuideTagKey;
-  label: string;      // rótulo padrão exibido/enviado
-  description: string; // mostrado no picker
-  /** Caminho final no guia (relativo ao /g/{slug}). Inclui hash se aplicável. */
+  label: string;
+  description: string;
+  /** Caminho base no guia (relativo a /g/{slug}). */
   path: string;
+  /** Aceita parâmetro (item específico). */
+  parameterized?: boolean;
 };
 
 export const GUIDE_TAGS: readonly GuideTag[] = [
@@ -40,7 +48,8 @@ export const GUIDE_TAGS: readonly GuideTag[] = [
   { key: "saida",                label: "Saída",                 description: "Aba de check-out",                      path: "#saida" },
   { key: "checkout-instrucoes",  label: "Instruções de saída",   description: "Passo a passo do check-out",            path: "#saida" },
   { key: "explorar",             label: "Explorar a cidade",     description: "Recomendações pela cidade",             path: "/explorar" },
-  { key: "faq",                  label: "Perguntas frequentes",  description: "FAQ do imóvel",                         path: "#faq" },
+  { key: "local",                label: "Recomendação (lugar)",  description: "Um lugar específico das recomendações", path: "/explorar", parameterized: true },
+  { key: "faq",                  label: "Perguntas frequentes",  description: "FAQ do imóvel — todas as perguntas",    path: "#faq", parameterized: true },
   { key: "emergencias",          label: "Emergências",           description: "Contatos de emergência",                path: "#faq" },
   { key: "contato-anfitriao",    label: "Contato do anfitrião",  description: "Fale com o anfitrião",                  path: "#faq" },
 ] as const;
@@ -57,56 +66,79 @@ export function getGuideTag(k: string): GuideTag | null {
   return TAG_BY_KEY[k] ?? null;
 }
 
-/** Constrói a URL absoluta do deep-link. */
-export function buildTagUrl(origin: string, slug: string, key: GuideTagKey): string {
-  const t = TAG_BY_KEY[key];
-  if (!t) return `${origin}/g/${slug}`;
-  // path começa com "#..." ou "/..."
-  if (t.path.startsWith("#")) return `${origin}/g/${slug}${t.path}`;
-  return `${origin}/g/${slug}${t.path}`;
+/** Slugifica texto para uso em parâmetro de tag (FAQ, recomendação). */
+export function slugForTag(input: string): string {
+  return (input ?? "")
+    .toString()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)+/g, "")
+    .slice(0, 64);
 }
 
-// Casa [[tag:key]] e [[tag:key|rótulo]]
-const TAG_RE = /\[\[tag:([a-z0-9-]+)(?:\|([^\]]+))?\]\]/gi;
+/** Constrói a URL absoluta do deep-link, com sub-âncora quando houver param. */
+export function buildTagUrl(
+  origin: string,
+  slug: string,
+  key: GuideTagKey,
+  param?: string | null,
+): string {
+  const t = TAG_BY_KEY[key];
+  if (!t) return `${origin}/g/${slug}`;
+  const base = `${origin}/g/${slug}`;
+  if (t.path.startsWith("#")) {
+    if (param && t.parameterized) {
+      // Ex.: #faq-como-usar-piscina — o guia procura por esse id.
+      return `${base}${t.path}-${param}`;
+    }
+    return `${base}${t.path}`;
+  }
+  // Caminho absoluto (ex.: /explorar).
+  if (param && t.parameterized) return `${base}${t.path}#item-${param}`;
+  return `${base}${t.path}`;
+}
 
-/**
- * Substitui todos os `[[tag:...]]` por texto pronto para WhatsApp:
- * "rótulo (URL)". Tags desconhecidas são removidas silenciosamente.
- */
+/** Casa [[tag:key]], [[tag:key|rótulo]], [[tag:key:param]] e [[tag:key:param|rótulo]]. */
+const TAG_RE = /\[\[tag:([a-z0-9-]+)(?::([a-z0-9-]+))?(?:\|([^\]]+))?\]\]/gi;
+
+/** Expande todas as tags para "rótulo (URL)" — para envio via WhatsApp. */
 export function expandTagsForWhatsapp(
   text: string,
   ctx: { origin: string; slug: string },
 ): string {
-  return text.replace(TAG_RE, (_m, rawKey: string, rawLabel?: string) => {
+  return text.replace(TAG_RE, (_m, rawKey: string, rawParam?: string, rawLabel?: string) => {
     const key = rawKey.toLowerCase();
     if (!isGuideTagKey(key)) return "";
     const tag = TAG_BY_KEY[key];
     const label = (rawLabel ?? tag.label).trim() || tag.label;
-    const url = buildTagUrl(ctx.origin, ctx.slug, key as GuideTagKey);
+    const url = buildTagUrl(ctx.origin, ctx.slug, key as GuideTagKey, rawParam ?? null);
     return `${label} (${url})`;
   });
 }
 
-/** Percorre o texto separando trechos "texto" e "tag" — útil para renderizar
- * links no editor / respostas da IA (Fase 2). */
+/** Token separando trechos de texto e tags — para renderização inline. */
 export type TagToken =
   | { kind: "text"; value: string }
-  | { kind: "tag"; key: GuideTagKey; label: string };
+  | { kind: "tag"; key: GuideTagKey; label: string; param: string | null };
 
 export function tokenizeTags(text: string): TagToken[] {
   const out: TagToken[] = [];
   let last = 0;
-  for (const m of text.matchAll(TAG_RE)) {
+  const src = text ?? "";
+  for (const m of src.matchAll(TAG_RE)) {
     const idx = m.index ?? 0;
-    if (idx > last) out.push({ kind: "text", value: text.slice(last, idx) });
+    if (idx > last) out.push({ kind: "text", value: src.slice(last, idx) });
     const key = m[1].toLowerCase();
+    const param = (m[2] ?? "").toLowerCase() || null;
     if (isGuideTagKey(key)) {
       const tag = TAG_BY_KEY[key];
-      const label = (m[2] ?? tag.label).trim() || tag.label;
-      out.push({ kind: "tag", key: key as GuideTagKey, label });
+      const label = (m[3] ?? tag.label).trim() || tag.label;
+      out.push({ kind: "tag", key: key as GuideTagKey, label, param });
     }
     last = idx + m[0].length;
   }
-  if (last < text.length) out.push({ kind: "text", value: text.slice(last) });
+  if (last < src.length) out.push({ kind: "text", value: src.slice(last) });
   return out;
 }
