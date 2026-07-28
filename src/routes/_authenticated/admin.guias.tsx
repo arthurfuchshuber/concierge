@@ -659,9 +659,22 @@ function Dashboard() {
                 <span className="absolute top-3 left-3 glass rounded-full px-2.5 py-1 text-[10px] uppercase tracking-wider font-semibold inline-flex items-center gap-1">
                   {p.access_mode === "pin" ? <><Lock className="size-2.5" /> PIN</> : <><Globe className="size-2.5" /> Público</>}
                 </span>
-                {!p.published && (
-                  <span className="absolute top-3 right-3 bg-yellow-500/90 text-black rounded-full px-2.5 py-1 text-[10px] uppercase tracking-wider font-semibold">Rascunho</span>
-                )}
+                <div
+                  className="absolute top-3 right-3 glass rounded-full pl-2.5 pr-1 py-1 flex items-center gap-2"
+                  title={p.published ? "Publicado — clique para despublicar" : "Rascunho — clique para publicar"}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <span className={`text-[10px] uppercase tracking-wider font-semibold ${p.published ? "text-emerald-600" : "text-yellow-600"}`}>
+                    {p.published ? "Publicado" : "Rascunho"}
+                  </span>
+                  <Switch
+                    checked={!!p.published}
+                    disabled={togglingId === p.id}
+                    onCheckedChange={(v) => togglePublished(p.id, v)}
+                    className="scale-75 origin-right"
+                    aria-label="Alternar publicação"
+                  />
+                </div>
               </div>
               <div className="p-4">
                 <h3 className="font-semibold leading-tight truncate">{p.name}</h3>
