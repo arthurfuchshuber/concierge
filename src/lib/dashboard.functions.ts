@@ -729,6 +729,7 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
     function rowFromLog(
       l: (typeof uniqueLogs)[number],
       forceIcal?: { hasIcal: boolean; matched: boolean; icalCheckin: string | null; icalCheckout: string | null },
+      extras: (typeof uniqueLogs)[number][] = [],
     ): ArrivalRow | null {
       const p = propMap.get(l.property_id);
       const s = statusMap.get(l.id);
