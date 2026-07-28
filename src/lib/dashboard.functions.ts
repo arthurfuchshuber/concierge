@@ -766,6 +766,17 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
 
     const rows: ArrivalRow[] = [];
     const usedLogIds = new Set<string>();
+    if (data.kind === "checkin" && data.range === "today") {
+      console.log("[dashboard-checkin-debug:start]", {
+        today,
+        from,
+        to,
+        propIds: propIds.length,
+        reservations: reservationRows.length,
+        currentStays: reservationRows.filter((r) => isCurrentStay(r.checkin_date, r.checkout_date)).length,
+        inRange: reservationRows.filter(reservationInRange).length,
+      });
+    }
 
     for (const r of reservationRows.filter(reservationInRange)) {
       const p = propMap.get(r.property_id);
@@ -820,6 +831,14 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
     finalRows.length; // keep var used below
     rows.length = 0;
     rows.push(...finalRows);
+    if (data.kind === "checkin" && data.range === "today") {
+      console.log("[dashboard-checkin-debug:end]", {
+        rows: rows.length,
+        pending: rows.filter((r) => r.status === "pending").length,
+        done: rows.filter((r) => r.status === "done").length,
+        sample: rows.slice(0, 5).map((r) => ({ code: r.reservationCode, date: r.date, checkout: r.guestCheckout, status: r.status })),
+      });
+    }
 
     // Prioridade: data → horário previsto (override do anfitrião ou informado pelo
     // hóspede) → ordem alfabética da residência. O horário padrão da propriedade
