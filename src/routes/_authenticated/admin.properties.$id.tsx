@@ -1113,7 +1113,7 @@ function PropertyEditor() {
               <ItemCard key={i} onRemove={() => setForm((f) => ({ ...f, manual: f.manual.filter((_, j) => j !== i) }))}>
                 <Input placeholder="Título (ex: Ar-condicionado)" value={m.title} maxLength={120} onChange={(e) => setForm((f) => ({ ...f, manual: f.manual.map((x, j) => j === i ? { ...x, title: e.target.value } : x) }))} />
                 <Input placeholder="Descrição curta" value={m.description} maxLength={300} onChange={(e) => setForm((f) => ({ ...f, manual: f.manual.map((x, j) => j === i ? { ...x, description: e.target.value } : x) }))} />
-                <Textarea placeholder="Instruções detalhadas" value={m.body} maxLength={4000} onChange={(e) => setForm((f) => ({ ...f, manual: f.manual.map((x, j) => j === i ? { ...x, body: e.target.value } : x) }))} />
+                <TagMentionTextarea items={tagItems} placeholder="Instruções detalhadas" value={m.body} maxLength={4000} onChange={(e) => setForm((f) => ({ ...f, manual: f.manual.map((x, j) => j === i ? { ...x, body: e.target.value } : x) }))} />
               </ItemCard>
             ))}
           </Section>
