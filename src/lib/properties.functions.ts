@@ -423,6 +423,7 @@ export const getMyProperty = createServerFn({ method: "POST" })
 
 const SavePropertyInput = z.object({
   id: z.string().uuid().optional().nullable(),
+  ownerId: z.string().uuid().optional().nullable(),
   property: PropertyInput,
   recommendations: z.array(RecInput).max(2000).default([]),
   manual: z.array(z.object({
@@ -443,6 +444,7 @@ const SavePropertyInput = z.object({
     label: z.string().min(1).max(200),
   })).max(40).default([]),
 });
+
 
 export const upsertProperty = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -482,11 +484,24 @@ export const upsertProperty = createServerFn({ method: "POST" })
         .eq("id", propertyId);
       if (error) throw (await import("@/lib/db-errors.server")).safeDbError("properties", error);
     } else {
-      // Enforce per-plan quota on creation (uses caller as new-guide owner).
-      await assertCanCreateGuide(supabase, userId, { ownerId: userId });
-      const { data: inserted, error } = await supabase
+      // Determine the target owner for a new guide. If the caller passes an
+      // explicit ownerId (team-member acting inside another account), verify
+      // membership + library_edit permission and create as that owner via the
+      // admin client (RLS on properties only allows self-insert).
+      let targetOwner: string = userId;
+      if (data.ownerId && data.ownerId !== userId) {
+        const { requireMemberPermission } = await import("@/lib/member-permissions.server");
+        await requireMemberPermission(supabase, userId, data.ownerId, "library_edit");
+        targetOwner = data.ownerId;
+      }
+      await assertCanCreateGuide(supabase, userId, { ownerId: targetOwner });
+      const insertClient =
+        targetOwner !== userId
+          ? (await import("@/integrations/supabase/client.server")).supabaseAdmin
+          : supabase;
+      const { data: inserted, error } = await insertClient
         .from("properties")
-        .insert({ ...propertyData, owner_id: userId })
+        .insert({ ...propertyData, owner_id: targetOwner })
         .select("id")
         .single();
       if (error) throw (await import("@/lib/db-errors.server")).safeDbError("properties", error);
@@ -507,6 +522,7 @@ export const upsertProperty = createServerFn({ method: "POST" })
         }
       }
     }
+
 
 
     // Replace child tables wholesale (simpler than diff). All scoped via RLS.
