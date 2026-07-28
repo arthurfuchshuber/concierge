@@ -19,6 +19,8 @@ import { BulkEditDialog } from "@/components/BulkEditDialog";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { adminListUserPropertiesFull } from "@/lib/admin-subs.functions";
 import { useImpersonation } from "@/hooks/useImpersonation";
+import { listMyAccounts } from "@/lib/active-account.functions";
+
 import { Eye } from "lucide-react";
 
 
@@ -65,9 +67,22 @@ function Dashboard() {
   const [dupBusy, setDupBusy] = useState(false);
   const navigate = useNavigate();
   const { impersonation, clear: clearImpersonation } = useImpersonation();
-  // Read-only banner apenas quando um admin SaaS está visualizando um cliente.
-  // Membros de conta (atendentes/owners convidados) têm acesso de edição.
-  const readOnly = !!impersonation && isSaasAdmin;
+  // Hierarquia: a instância mais próxima (membership na conta) prevalece sobre a
+  // regra global de "admin SaaS = leitura". Se o admin também for membro ativo
+  // desta conta, ele edita com as permissões que o titular concedeu.
+  const accountsFn = useServerFn(listMyAccounts);
+  const { data: myAccountsData } = useQuery({
+    queryKey: ["my-accounts-membership"],
+    queryFn: () => accountsFn(),
+    staleTime: 60_000,
+  });
+  const isMemberOfImpersonated = !!(
+    impersonation &&
+    (myAccountsData?.accounts ?? []).some((a: { ownerId: string }) => a.ownerId === impersonation.userId)
+  );
+  // Read-only apenas quando um admin SaaS acessa um cliente do qual NÃO é membro.
+  const readOnly = !!impersonation && isSaasAdmin && !isMemberOfImpersonated;
+
 
   const [view, setView] = useState<"grid" | "list">("grid");
   const [statCardsOpen, setStatCardsOpen] = useState(false);
