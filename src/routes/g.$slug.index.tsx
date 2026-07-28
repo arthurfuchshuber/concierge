@@ -866,7 +866,7 @@ function Guide({ data }: { data: GuideOk }) {
                           </p>
                           {p.checkout_note && (
                             <p className="text-[13px] leading-relaxed font-medium mt-1 whitespace-pre-line">
-                              {String(p.checkout_note)}
+                              <InlineTagText text={String(p.checkout_note)} onNavigate={navigateGuideTag} info={infoCtx} />
                             </p>
                           )}
                         </div>
