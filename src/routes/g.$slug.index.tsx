@@ -1411,7 +1411,7 @@ function Guide({ data }: { data: GuideOk }) {
                             label="Proibido Neste Espaço"
                             hint="O que não é permitido durante a estadia"
                           >
-                            <RulesGrid text={String((p as Record<string, unknown>).house_rules)} />
+                            <RulesGrid text={expandInfoTags(String((p as Record<string, unknown>).house_rules), p as never)} />
                           </SubItem>
                         ) : null}
                       </SubList>
