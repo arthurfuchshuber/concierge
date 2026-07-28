@@ -63,6 +63,8 @@ import { BottomNav, type BottomNavKey } from "@/components/guide/BottomNav";
 import waterfallImg from "@/assets/rec-waterfall.jpg";
 import conciergeLogo from "@/assets/concierge-logo.png";
 import { GuideAccessGate, readAccessRecord, type AccessRecord } from "@/components/GuideAccessGate";
+import { InlineTagText } from "@/components/tags/InlineTagText";
+import { slugForTag, type GuideTagKey } from "@/lib/guide-tags";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -265,21 +267,63 @@ function Guide({ data }: { data: GuideOk }) {
   const [section, setSection] = useState<Section>("home");
   const trackEvent = useServerFn(trackGuideEvent);
 
-  // Suporta navegação por hash (#checkin, #saida, #residencia) vinda de outras páginas.
+  // Suporta navegação por hash. Sintaxe:
+  //   #home | #checkin | #saida | #residencia | #faq  → apenas troca de seção
+  //   #wifi | #senhas-acesso | #endereco | #checkin-instrucoes → seção checkin + scroll no bloco
+  //   #manual-casa | #regras-casa → seção residencia + scroll
+  //   #checkout-instrucoes → seção saida + scroll
+  //   #faq-<slug> → seção faq + scroll na FAQ correspondente
+  //   #local-<slug> → seção explorar / recomendações
   useEffect(() => {
     if (typeof window === "undefined") return;
+    const SECTION_ALIASES: Record<string, Section> = {
+      home: "home", checkin: "checkin", saida: "saida", residencia: "residencia", faq: "faq",
+      wifi: "checkin", "senhas-acesso": "checkin", endereco: "checkin", "checkin-instrucoes": "checkin",
+      "manual-casa": "residencia", "regras-casa": "residencia",
+      "checkout-instrucoes": "saida",
+      emergencias: "faq", "contato-anfitriao": "faq",
+    };
     const apply = () => {
-      const h = window.location.hash.replace("#", "");
-      const valid: Section[] = ["home", "checkin", "saida", "residencia", "faq"] as unknown as Section[];
-      if ((valid as string[]).includes(h)) {
-        setSection(h as Section);
-        window.scrollTo({ top: 0, behavior: "auto" });
+      const raw = window.location.hash.replace("#", "");
+      if (!raw) return;
+      // Tenta match direto
+      let target: Section | null = SECTION_ALIASES[raw] ?? null;
+      let scrollToId: string | null = null;
+      if (!target) {
+        if (raw.startsWith("faq-")) { target = "faq"; scrollToId = raw; }
+        else if (raw.startsWith("local-")) { target = "faq"; scrollToId = raw; /* fallback quando /explorar não é rota separada */ }
+      } else if (SECTION_ALIASES[raw] && raw !== "home" && raw !== "checkin" && raw !== "saida" && raw !== "residencia" && raw !== "faq") {
+        scrollToId = raw;
+      }
+      if (target) {
+        setSection(target);
+        // Aguarda o próximo frame para o DOM da nova seção existir antes do scroll
+        requestAnimationFrame(() => {
+          if (scrollToId) {
+            const el = document.getElementById(scrollToId);
+            if (el) { el.scrollIntoView({ behavior: "smooth", block: "start" }); return; }
+          }
+          window.scrollTo({ top: 0, behavior: "auto" });
+        });
       }
     };
     apply();
     window.addEventListener("hashchange", apply);
     return () => window.removeEventListener("hashchange", apply);
   }, []);
+
+  // Navega para uma tag do guia (usada por links inline `[[tag:...]]`).
+  function navigateGuideTag(key: GuideTagKey, param: string | null) {
+    const hash = param ? `#${key}-${param}` : `#${key}`;
+    // Se o hash já for o atual, força re-aplicação disparando hashchange manual
+    if (window.location.hash === hash) {
+      window.dispatchEvent(new HashChangeEvent("hashchange"));
+    } else {
+      window.location.hash = hash;
+    }
+  }
+
+
 
 
   function gotoSection(s: Section) {
@@ -1537,11 +1581,14 @@ function Guide({ data }: { data: GuideOk }) {
                         </h3>
                       </div>
                       <Accordion type="single" collapsible className="space-y-1.5">
-                        {data.faqs.map((f: any, idx: number) => (
+                        {data.faqs.map((f: any, idx: number) => {
+                          const anchor = `faq-${slugForTag(String(f.question ?? ""))}`;
+                          return (
                           <AccordionItem
                             key={f.id}
+                            id={anchor}
                             value={f.id}
-                            className="border border-border/70 rounded-xl px-3.5 bg-card/30 hover:bg-card/60 transition-colors data-[state=open]:bg-card data-[state=open]:border-accent/40"
+                            className="border border-border/70 rounded-xl px-3.5 bg-card/30 hover:bg-card/60 transition-colors data-[state=open]:bg-card data-[state=open]:border-accent/40 scroll-mt-24"
                           >
                             <AccordionTrigger className="text-left hover:no-underline py-2.5 gap-3">
                               <span className="flex items-center gap-2.5 min-w-0">
@@ -1552,10 +1599,10 @@ function Guide({ data }: { data: GuideOk }) {
                               </span>
                             </AccordionTrigger>
                             <AccordionContent className="text-[13.5px] leading-relaxed whitespace-pre-line text-foreground/80 pl-6 pr-1 pb-3.5 max-w-prose">
-                              {f.answer}
+                              <InlineTagText text={String(f.answer ?? "")} onNavigate={(k, p) => navigateGuideTag(k, p)} />
                             </AccordionContent>
                           </AccordionItem>
-                        ))}
+                        );})}
                       </Accordion>
                     </div>
                   )}

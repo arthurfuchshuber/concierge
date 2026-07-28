@@ -17,6 +17,8 @@ import { getPropertyPoiCounts, getMarketplaceClicks } from "@/lib/poi-engagement
 
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { TagMentionTextarea, type TagMentionItem } from "@/components/tags/TagMentionTextarea";
+import { slugForTag } from "@/lib/guide-tags";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -242,6 +244,23 @@ function PropertyEditor() {
   const [enriching, setEnriching] = useState(false);
   const [generatingCityRecs, setGeneratingCityRecs] = useState(false);
   const [saving, setSaving] = useState(false);
+  // Itens para o picker @mention (FAQs do imóvel; recomendações são carregadas em outro fluxo).
+  const tagItems = React.useMemo<TagMentionItem[]>(() => {
+    const out: TagMentionItem[] = [];
+    const seen = new Set<string>();
+    for (const f of form.faqs) {
+      const q = (f.question ?? "").trim();
+      if (!q) continue;
+      const base = slugForTag(q);
+      if (!base) continue;
+      let s = base;
+      let n = 1;
+      while (seen.has(s)) s = `${base}-${++n}`;
+      seen.add(s);
+      out.push({ key: "faq", param: s, label: q.length > 80 ? q.slice(0, 77) + "…" : q, hint: "FAQ deste guia" });
+    }
+    return out;
+  }, [form.faqs]);
   const [airbnbUrl, setAirbnbUrl] = useState("");
   // Rehidrata o campo do anúncio a partir do que ficou salvo no imóvel.
   useEffect(() => {
@@ -1083,7 +1102,7 @@ function PropertyEditor() {
 
           <Section id="house-rules" icon={ClipboardCheck} title="Regras do espaço" desc="Uma regra por linha — cada linha vira um item numerado no guia." collapsible>
             <Field label="Regras (opcional)" hint="Uma regra por linha. Linhas em branco são ignoradas.">
-              <Textarea value={form.property.house_rules} maxLength={3000} rows={6} onChange={(e) => update("house_rules", e.target.value)} placeholder={"Não é permitido fumar dentro do imóvel.\nFestas e eventos não são permitidos.\nRespeite o silêncio das 22h às 8h."} />
+              <TagMentionTextarea items={tagItems} value={form.property.house_rules} maxLength={3000} rows={6} onChange={(e) => update("house_rules", e.target.value)} placeholder={"Não é permitido fumar dentro do imóvel.\nFestas e eventos não são permitidos.\nRespeite o silêncio das 22h às 8h."} />
             </Field>
           </Section>
 
@@ -1094,7 +1113,7 @@ function PropertyEditor() {
               <ItemCard key={i} onRemove={() => setForm((f) => ({ ...f, manual: f.manual.filter((_, j) => j !== i) }))}>
                 <Input placeholder="Título (ex: Ar-condicionado)" value={m.title} maxLength={120} onChange={(e) => setForm((f) => ({ ...f, manual: f.manual.map((x, j) => j === i ? { ...x, title: e.target.value } : x) }))} />
                 <Input placeholder="Descrição curta" value={m.description} maxLength={300} onChange={(e) => setForm((f) => ({ ...f, manual: f.manual.map((x, j) => j === i ? { ...x, description: e.target.value } : x) }))} />
-                <Textarea placeholder="Instruções detalhadas" value={m.body} maxLength={4000} onChange={(e) => setForm((f) => ({ ...f, manual: f.manual.map((x, j) => j === i ? { ...x, body: e.target.value } : x) }))} />
+                <TagMentionTextarea items={tagItems} placeholder="Instruções detalhadas" value={m.body} maxLength={4000} onChange={(e) => setForm((f) => ({ ...f, manual: f.manual.map((x, j) => j === i ? { ...x, body: e.target.value } : x) }))} />
               </ItemCard>
             ))}
           </Section>
@@ -1227,7 +1246,7 @@ function PropertyEditor() {
 
           <Section id="checkin-instr" icon={DoorOpen} title="Instruções de chegada" desc="Passo a passo do check-in. Uma etapa por linha." collapsible>
             <Field label="Passo a passo (opcional)" hint="Uma etapa por linha. Linhas em branco são ignoradas.">
-              <Textarea value={form.property.checkin_instructions} maxLength={3000} rows={6} onChange={(e) => update("checkin_instructions", e.target.value)} placeholder={"Estacione na vaga 12.\nAponte para o portão lateral.\nUse o código de portão e fechadura ao lado."} />
+              <TagMentionTextarea items={tagItems} value={form.property.checkin_instructions} maxLength={3000} rows={6} onChange={(e) => update("checkin_instructions", e.target.value)} placeholder={"Estacione na vaga 12.\nAponte para o portão lateral.\nUse o código de portão e fechadura ao lado."} />
             </Field>
             <Field label="Fotos e vídeos do check-in" hint="Até 8 itens. Imagens (máx 10MB) ou vídeos (máx 60MB).">
               <MediaUpload value={form.property.checkin_media} onChange={(next) => update("checkin_media", next)} folder="checkin" max={8} />
@@ -1240,7 +1259,7 @@ function PropertyEditor() {
               <Field label="Check-in até" hint="opcional"><TimePicker value={form.property.checkin_time_max} onChange={(v) => update("checkin_time_max", v)} placeholder="22:00" /></Field>
             </div>
             <Field label="Observação do check-in (opcional)" hint="Aparece abaixo dos horários no guia. Deixe em branco para ocultar.">
-              <Textarea value={form.property.checkin_note} maxLength={1000} rows={3} onChange={(e) => update("checkin_note", e.target.value)} placeholder="Ex.: Após às 22h, avise pelo WhatsApp com 1h de antecedência." />
+              <TagMentionTextarea items={tagItems} value={form.property.checkin_note} maxLength={1000} rows={3} onChange={(e) => update("checkin_note", e.target.value)} placeholder="Ex.: Após às 22h, avise pelo WhatsApp com 1h de antecedência." />
             </Field>
           </Section>
 
@@ -1434,7 +1453,7 @@ function PropertyEditor() {
 
           <Section id="checkout-instr" icon={LogOut} title="Instruções de saída" desc="Passo a passo do check-out. Uma etapa por linha." collapsible>
             <Field label="Passo a passo (opcional)" hint="Uma etapa por linha. Linhas em branco são ignoradas.">
-              <Textarea value={form.property.checkout_instructions} maxLength={3000} rows={6} onChange={(e) => update("checkout_instructions", e.target.value)} placeholder={"Deixe as chaves sobre a mesa de jantar.\nFeche todas as janelas.\nTranque a porta principal ao sair."} />
+              <TagMentionTextarea items={tagItems} value={form.property.checkout_instructions} maxLength={3000} rows={6} onChange={(e) => update("checkout_instructions", e.target.value)} placeholder={"Deixe as chaves sobre a mesa de jantar.\nFeche todas as janelas.\nTranque a porta principal ao sair."} />
             </Field>
           </Section>
 
@@ -1444,7 +1463,7 @@ function PropertyEditor() {
               <Field label="Check-out até"><TimePicker value={form.property.checkout_time} onChange={(v) => update("checkout_time", v)} placeholder="11:00" /></Field>
             </div>
             <Field label="Observação do check-out (opcional)" hint="Aparece abaixo dos horários no guia. Deixe em branco para ocultar.">
-              <Textarea value={form.property.checkout_note} maxLength={1000} rows={3} onChange={(e) => update("checkout_note", e.target.value)} placeholder="Ex.: Late check-out mediante disponibilidade — consulte o anfitrião." />
+              <TagMentionTextarea items={tagItems} value={form.property.checkout_note} maxLength={1000} rows={3} onChange={(e) => update("checkout_note", e.target.value)} placeholder="Ex.: Late check-out mediante disponibilidade — consulte o anfitrião." />
             </Field>
           </Section>
 
@@ -1532,7 +1551,7 @@ function PropertyEditor() {
                     <fieldset disabled={isSigma} className={`px-3.5 pb-3.5 pt-1 space-y-2.5 border-t border-border/40 m-0 min-w-0 ${isSigma ? "opacity-70" : ""}`}>
                       {isSigma && (<p className="text-[11px] text-amber-300/90 inline-flex items-center gap-1"><Lock className="size-3" /> Pergunta do ConciergeIA — leitura somente.</p>)}
                       <Input placeholder="Pergunta" value={m.question} maxLength={200} onChange={(e) => setForm((f) => ({ ...f, faqs: f.faqs.map((x, j) => j === i ? { ...x, question: e.target.value } : x) }))} />
-                      <Textarea placeholder="Resposta" value={m.answer} maxLength={2000} onChange={(e) => setForm((f) => ({ ...f, faqs: f.faqs.map((x, j) => j === i ? { ...x, answer: e.target.value } : x) }))} />
+                      <TagMentionTextarea items={tagItems} placeholder="Resposta" value={m.answer} maxLength={2000} onChange={(e) => setForm((f) => ({ ...f, faqs: f.faqs.map((x, j) => j === i ? { ...x, answer: e.target.value } : x) }))} />
                       <div className="space-y-1.5">
                         <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Exibir também em</p>
                         <div className="flex flex-wrap gap-1.5">

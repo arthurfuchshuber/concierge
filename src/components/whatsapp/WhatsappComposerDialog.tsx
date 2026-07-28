@@ -1,14 +1,13 @@
-import { useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { sendWhatsappFromConversation } from "@/lib/whatsapp.functions";
-import { GUIDE_TAGS, type GuideTagKey } from "@/lib/guide-tags";
-import { Loader2, MessageCircle, Tag as TagIcon } from "lucide-react";
+import { getTagItemsForConversation } from "@/lib/guide-tag-items.functions";
+import { TagMentionTextarea, type TagMentionItem } from "@/components/tags/TagMentionTextarea";
+import { Loader2, MessageCircle } from "lucide-react";
 import { toast } from "sonner";
 
 type Props = {
@@ -27,29 +26,18 @@ const QUICK_TEMPLATES: Array<{ label: string; text: (name: string) => string }> 
 
 export function WhatsappComposerDialog({ open, onOpenChange, conversationId, guestName, suggestedText }: Props) {
   const [text, setText] = useState(suggestedText ?? "");
-  const [tagOpen, setTagOpen] = useState(false);
-  const taRef = useRef<HTMLTextAreaElement>(null);
   const sendFn = useServerFn(sendWhatsappFromConversation);
+  const fetchItems = useServerFn(getTagItemsForConversation);
 
-  function insertTag(key: GuideTagKey) {
-    const snippet = `[[tag:${key}]]`;
-    const el = taRef.current;
-    if (!el) {
-      setText((t) => (t ? `${t} ${snippet}` : snippet));
-    } else {
-      const start = el.selectionStart ?? el.value.length;
-      const end = el.selectionEnd ?? el.value.length;
-      const next = text.slice(0, start) + snippet + text.slice(end);
-      setText(next);
-      // Restaura o cursor após a tag inserida
-      requestAnimationFrame(() => {
-        el.focus();
-        const pos = start + snippet.length;
-        el.setSelectionRange(pos, pos);
-      });
-    }
-    setTagOpen(false);
-  }
+  const { data: itemsData } = useQuery({
+    queryKey: ["tag-items", "conv", conversationId],
+    queryFn: () => fetchItems({ data: { conversationId } }),
+    enabled: open,
+    staleTime: 60_000,
+  });
+  const items = useMemo<TagMentionItem[]>(() => (itemsData?.items ?? []).map((i) => ({
+    key: i.key, param: i.param, label: i.label, hint: i.hint,
+  })), [itemsData]);
 
   const m = useMutation({
     mutationFn: async () => sendFn({ data: { conversationId, text: text.trim() } }),
@@ -80,46 +68,17 @@ export function WhatsappComposerDialog({ open, onOpenChange, conversationId, gue
             ))}
           </div>
           <div>
-            <div className="flex items-center justify-between mb-1">
-              <Label className="text-xs text-muted-foreground">Mensagem</Label>
-              <Popover open={tagOpen} onOpenChange={setTagOpen}>
-                <PopoverTrigger asChild>
-                  <Button type="button" variant="ghost" size="sm" className="h-7 gap-1 text-xs">
-                    <TagIcon className="size-3.5" />
-                    Inserir tag
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent align="end" className="p-0 w-72">
-                  <div className="p-2 border-b">
-                    <p className="text-xs font-medium">Atalhos para seções do guia</p>
-                    <p className="text-[11px] text-muted-foreground">O hóspede recebe o link e vai direto ao local.</p>
-                  </div>
-                  <div className="max-h-72 overflow-y-auto py-1">
-                    {GUIDE_TAGS.map((t) => (
-                      <button
-                        key={t.key}
-                        type="button"
-                        onClick={() => insertTag(t.key)}
-                        className="w-full text-left px-3 py-1.5 hover:bg-muted/60 focus:bg-muted/60 focus:outline-none"
-                      >
-                        <div className="text-sm font-medium leading-tight">{t.label}</div>
-                        <div className="text-[11px] text-muted-foreground leading-tight">{t.description}</div>
-                      </button>
-                    ))}
-                  </div>
-                </PopoverContent>
-              </Popover>
-            </div>
-            <Textarea
-              ref={taRef}
+            <Label className="text-xs text-muted-foreground">Mensagem</Label>
+            <TagMentionTextarea
               rows={6}
               value={text}
               onChange={(e) => setText(e.target.value)}
-              placeholder="Digite sua mensagem… Use ‘Inserir tag’ para linkar direto uma seção do guia."
+              placeholder="Digite sua mensagem… Use @ para linkar uma seção do guia (Wi-Fi, senhas, chegada) ou um item específico (FAQ, recomendação)."
               maxLength={4000}
+              items={items}
             />
             <div className="mt-1 text-[11px] text-muted-foreground">
-              Tags como <code className="text-[10px]">[[tag:senhas-acesso]]</code> são substituídas pelo link do guia no envio. Fora da janela de 24h desde a última resposta do hóspede, apenas templates HSM aprovados serão entregues pela Meta.
+              Tags como <code className="text-[10px]">[[tag:senhas-acesso]]</code> viram links do guia no envio. Fora da janela de 24h desde a última resposta do hóspede, só templates HSM aprovados são entregues pela Meta.
             </div>
           </div>
         </div>
