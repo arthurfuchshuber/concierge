@@ -161,6 +161,18 @@ function DashboardPage() {
     staleTime: 30_000,
     placeholderData: keepPreviousData,
   });
+  const tomorrowCheckinListQ = useQuery({
+    queryKey: ["dash-list", "checkin", "tomorrow", activeOwnerId ?? "self", "top-card"],
+    queryFn: () => listFn({ data: { kind: "checkin", range: "tomorrow", ownerId: activeOwnerId } }),
+    staleTime: 30_000,
+    placeholderData: keepPreviousData,
+  });
+  const tomorrowCheckoutListQ = useQuery({
+    queryKey: ["dash-list", "checkout", "tomorrow", activeOwnerId ?? "self", "top-card"],
+    queryFn: () => listFn({ data: { kind: "checkout", range: "tomorrow", ownerId: activeOwnerId } }),
+    staleTime: 30_000,
+    placeholderData: keepPreviousData,
+  });
   const listQ = kind === "checkin" ? checkinListQ : checkoutListQ;
 
   type UpsertPayload = {
@@ -274,6 +286,14 @@ function DashboardPage() {
   );
   const checkinPendingRows = useMemo(() => ciRows.filter((r) => r.status === "pending"), [ciRows]);
   const checkoutPendingRows = useMemo(() => coRows.filter((r) => r.status === "pending"), [coRows]);
+  const tomorrowCheckinPendingRows = useMemo(
+    () => (tomorrowCheckinListQ.data?.rows ?? []).filter((r) => r.status === "pending"),
+    [tomorrowCheckinListQ.data?.rows],
+  );
+  const tomorrowCheckoutPendingRows = useMemo(
+    () => (tomorrowCheckoutListQ.data?.rows ?? []).filter((r) => r.status === "pending"),
+    [tomorrowCheckoutListQ.data?.rows],
+  );
   const cleaningRows = useMemo(() => coRows.filter((r) => r.status === "done"), [coRows]);
   const counts = {
     checkin: checkinPendingRows.length,
@@ -318,7 +338,7 @@ function DashboardPage() {
       </header>
 
       {/* KPIs */}
-      <section className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <section className="grid grid-cols-2 lg:grid-cols-6 gap-3">
         <KpiCard
           label="Check-ins Pendentes"
           rows={checkinPendingRows}
@@ -340,6 +360,30 @@ function DashboardPage() {
           onRefresh={() => checkoutListQ.refetch()}
           kind="checkout"
           rangeLabel={rangeLabel[range]}
+          shadowTone="amber"
+          onEditTime={handleEditTime}
+        />
+        <KpiCard
+          label="Check-ins amanhã"
+          rows={tomorrowCheckinPendingRows}
+          icon={CalendarCheck}
+          tone="primary-soft"
+          loading={tomorrowCheckinListQ.isLoading}
+          onRefresh={() => tomorrowCheckinListQ.refetch()}
+          kind="checkin"
+          rangeLabel="Amanhã"
+          shadowTone="emerald"
+          onEditTime={handleEditTime}
+        />
+        <KpiCard
+          label="Checkouts amanhã"
+          rows={tomorrowCheckoutPendingRows}
+          icon={CalendarX}
+          tone="primary-soft"
+          loading={tomorrowCheckoutListQ.isLoading}
+          onRefresh={() => tomorrowCheckoutListQ.refetch()}
+          kind="checkout"
+          rangeLabel="Amanhã"
           shadowTone="amber"
           onEditTime={handleEditTime}
         />
