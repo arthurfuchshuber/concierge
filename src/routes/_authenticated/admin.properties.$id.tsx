@@ -40,6 +40,7 @@ import { friendlyErrorMessage } from "@/lib/friendly-error";
 import { SigmaImportButton, SigmaActiveBanner, SaveAsSigmaPackButton } from "@/components/admin/SigmaImportButton";
 import { getMyPropertySigmaState } from "@/lib/sigma-recommendations.functions";
 import { supabase } from "@/integrations/supabase/client";
+import { useImpersonation } from "@/hooks/useImpersonation";
 
 export const Route = createFileRoute("/_authenticated/admin/properties/$id")({
   component: PropertyEditor,
@@ -769,6 +770,7 @@ function PropertyEditor() {
       const galleryImages = form.property.gallery_images.filter((u) => u.trim()).slice(0, 4);
       const payload = {
         id: isNew ? null : id,
+        ownerId: isNew ? (impersonation?.userId ?? null) : null,
         property: {
           ...form.property,
           slug: form.property.slug || slugify(form.property.name),
