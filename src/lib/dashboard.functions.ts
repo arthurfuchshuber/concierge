@@ -593,6 +593,9 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
       const s = statusMap.get(l.id);
       if (s?.concluded_at) return null;
       const date = data.kind === "checkin" ? l.checkin_date : (l.checkout_date ?? l.checkin_date);
+      // Cards com data anterior a hoje só aparecem se houver interação registrada
+      // (status row). Importações novas de datas passadas nunca criam cards.
+      if (date < today && !s) return null;
       const hasIcal = !!p?.airbnb_ical_url;
       let matched = false;
       let icalCheckin: string | null = null;
