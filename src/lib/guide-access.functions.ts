@@ -49,6 +49,7 @@ export const recordGuideAccess = createServerFn({ method: "POST" })
     if (!prop) return { ok: false as const, reason: "not_found" };
 
     const hasIcal = !!((prop as { airbnb_ical_url?: string | null }).airbnb_ical_url ?? "").trim();
+    let icalReservationCode: string | null = null;
     if (hasIcal && data.checkout_date) {
       const { ensurePropertyIcalFresh } = await import("@/lib/airbnb-ical.server");
       await ensurePropertyIcalFresh(
@@ -59,7 +60,7 @@ export const recordGuideAccess = createServerFn({ method: "POST" })
       const { isAllowedGuidePeriod } = await import("@/lib/reservations.server");
       const { data: periods } = await supabaseAdmin
         .from("property_reservations")
-        .select("checkin_date, checkout_date, raw_summary, status")
+        .select("checkin_date, checkout_date, raw_summary, status, guest_hint")
         .eq("property_id", prop.id)
         .eq("source", "airbnb")
         .eq("checkin_date", data.checkin_date)
@@ -67,13 +68,19 @@ export const recordGuideAccess = createServerFn({ method: "POST" })
         .limit(50);
       const allowed = isAllowedGuidePeriod(periods as never, data.checkin_date, data.checkout_date);
       if (!allowed.matched) return { ok: false as const, reason: "no_match" };
+      // Captura o código HM… do iCal quando o par (imóvel, entrada, saída) é
+      // único — assim o dashboard mapeia o log ao card certo mesmo quando o
+      // formulário público não expõe o campo de código.
+      const rows = ((periods ?? []) as Array<{ guest_hint: string | null }>).filter((r) => !!r.guest_hint);
+      const codes = Array.from(new Set(rows.map((r) => (r.guest_hint ?? "").toUpperCase())));
+      if (codes.length === 1) icalReservationCode = codes[0];
     }
 
     const userAgent = getRequestHeader("user-agent")?.slice(0, 500) ?? null;
     const { error } = await supabaseAdmin.from("guide_access_logs").insert({
       property_id: prop.id,
       guest_name: data.guest_name,
-      reservation_code: data.reservation_code?.trim() || null,
+      reservation_code: (data.reservation_code?.trim() || icalReservationCode) || null,
       checkin_date: data.checkin_date,
       checkout_date: data.checkout_date ?? null,
       guest_phone: data.guest_phone?.trim() || null,
@@ -85,6 +92,7 @@ export const recordGuideAccess = createServerFn({ method: "POST" })
       user_agent: userAgent,
     } as never);
     if (error) throw (await import("@/lib/db-errors.server")).safeDbError("guide_access_logs", error);
+
 
     try {
       const { data: fullProp } = await supabaseAdmin
