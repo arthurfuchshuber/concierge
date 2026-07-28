@@ -1187,6 +1187,7 @@ export type Database = {
           airbnb_ical_last_error: string | null
           airbnb_ical_last_sync_at: string | null
           airbnb_ical_url: string | null
+          airbnb_listing_url: string | null
           brand_logo_url: string | null
           brand_name: string | null
           checkin_instructions: string | null
@@ -1255,6 +1256,7 @@ export type Database = {
           airbnb_ical_last_error?: string | null
           airbnb_ical_last_sync_at?: string | null
           airbnb_ical_url?: string | null
+          airbnb_listing_url?: string | null
           brand_logo_url?: string | null
           brand_name?: string | null
           checkin_instructions?: string | null
@@ -1323,6 +1325,7 @@ export type Database = {
           airbnb_ical_last_error?: string | null
           airbnb_ical_last_sync_at?: string | null
           airbnb_ical_url?: string | null
+          airbnb_listing_url?: string | null
           brand_logo_url?: string | null
           brand_name?: string | null
           checkin_instructions?: string | null
