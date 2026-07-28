@@ -1267,6 +1267,22 @@ function ArrivalCard({
         >
           <Check className="size-4" />
         </button>
+        {onRevert && (mode === "stay" || mode === "cleaning") && (
+          <button
+            type="button"
+            onClick={() => onRevert(row)}
+            disabled={busy}
+            aria-label={mode === "stay" ? "Voltar para Check-ins" : "Voltar para Checkouts"}
+            title={
+              mode === "stay"
+                ? "Desfazer check-in (voltar para a lista de Check-ins)"
+                : "Desfazer conclusão de check-out (voltar para a lista de Checkouts)"
+            }
+            className="size-9 grid place-items-center rounded-lg bg-secondary hover:bg-secondary/80 border border-border/60 transition-colors"
+          >
+            <Undo2 className="size-4" />
+          </button>
+        )}
         {(row.guestPhone || row.guestName) && !isPendingFill && (
           <button
             type="button"
