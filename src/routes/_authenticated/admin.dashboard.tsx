@@ -129,7 +129,7 @@ function InfoHint({ title, children }: { title: string; children: React.ReactNod
 }
 
 function DashboardPage() {
-  const kpisFn = useServerFn(getDashboardKpis);
+  
   const engFn = useServerFn(getGuideEngagement);
   const listFn = useServerFn(listDashboardArrivals);
   const upsertFn = useServerFn(upsertArrivalStatus);
