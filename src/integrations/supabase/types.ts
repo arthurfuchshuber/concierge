@@ -2313,6 +2313,13 @@ export type Database = {
         | "clients_manage"
         | "trial_manage"
         | "pricing_override"
+        | "library_view"
+        | "ai_view"
+        | "chat_view"
+        | "operation_view"
+        | "operation_edit"
+        | "guests_view"
+        | "guests_edit"
       rec_scope: "nearby" | "city"
       rec_type:
         | "restaurant"
@@ -2467,6 +2474,13 @@ export const Constants = {
         "clients_manage",
         "trial_manage",
         "pricing_override",
+        "library_view",
+        "ai_view",
+        "chat_view",
+        "operation_view",
+        "operation_edit",
+        "guests_view",
+        "guests_edit",
       ],
       rec_scope: ["nearby", "city"],
       rec_type: [
