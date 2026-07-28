@@ -414,7 +414,6 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
         .from("guest_arrival_status")
         .select("log_id, reservation_id, kind, status, note, arrival_time_override, done_at, concluded_at")
         .in("property_id", propIds)
-        .eq("kind", data.kind)
         .limit(5000),
       context.supabase
         .from("property_reservations")
