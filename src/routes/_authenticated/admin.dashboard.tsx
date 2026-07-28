@@ -631,9 +631,9 @@ function KpiCard({
                           <span className="truncate">{r.guestName}</span>
                         )}
                       </div>
-                      {r.additionalGuests.length > 0 && (
+                      {(r.additionalGuests?.length ?? 0) > 0 && (
                         <div className="mt-0.5 text-[11px] text-muted-foreground truncate">
-                          + {r.additionalGuests.map((g) => g.name).join(", ")}
+                          + {r.additionalGuests!.map((g) => g.name).join(", ")}
                         </div>
                       )}
                       {r.reservationCode && (
@@ -1013,9 +1013,9 @@ function ArrivalCard({
               <span className="truncate">{row.guestName}</span>
             )}
           </div>
-          {row.additionalGuests.length > 0 && (
+          {(row.additionalGuests?.length ?? 0) > 0 && (
             <ul className="mt-1 space-y-0.5">
-              {row.additionalGuests.map((g) => (
+              {row.additionalGuests!.map((g) => (
                 <li
                   key={g.logId}
                   className="text-xs text-muted-foreground truncate flex items-center gap-1"
