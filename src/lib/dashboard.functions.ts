@@ -73,24 +73,27 @@ export const getDashboardKpis = createServerFn({ method: "GET" })
     }
     const today = todayISO();
     const tomorrow = addDaysISO(today, 1);
+    // "Hoje" = tudo que ainda está pendente até hoje (inclui atrasados dos últimos 30 dias).
+    const overdueFrom = addDaysISO(today, -30);
 
-    // Airbnb/iCal is the canonical operational source when connected. Guest
-    // forms are only a fallback for properties without iCal to avoid inflated
-    // counts from duplicate or mistyped forms.
     const [{ data: props }, { data: logs }, { data: reservations }, { data: statuses }] = await Promise.all([
       context.supabase.from("properties").select("id, airbnb_ical_url").in("id", propIds),
       context.supabase
         .from("guide_access_logs")
         .select("id, property_id, guest_name, checkin_date, checkout_date")
         .in("property_id", propIds)
-        .or(`checkin_date.in.(${today},${tomorrow}),checkout_date.in.(${today},${tomorrow})`)
+        .or(
+          `and(checkin_date.gte.${overdueFrom},checkin_date.lte.${tomorrow}),and(checkout_date.gte.${overdueFrom},checkout_date.lte.${tomorrow})`,
+        )
         .limit(2000),
       context.supabase
         .from("property_reservations")
         .select("id, property_id, checkin_date, checkout_date, status, raw_summary")
         .in("property_id", propIds)
         .eq("source", "airbnb")
-        .or(`checkin_date.in.(${today},${tomorrow}),checkout_date.in.(${today},${tomorrow})`)
+        .or(
+          `and(checkin_date.gte.${overdueFrom},checkin_date.lte.${tomorrow}),and(checkout_date.gte.${overdueFrom},checkout_date.lte.${tomorrow})`,
+        )
         .limit(5000),
       context.supabase
         .from("guest_arrival_status")
@@ -127,37 +130,38 @@ export const getDashboardKpis = createServerFn({ method: "GET" })
     );
     const logRows = (logs ?? []) as LogRow[];
     const resRows = (reservations ?? []) as ResRow[];
-    const doneLog = new Set<string>(); // key: `${kind}|${log_id}`
-    const doneRes = new Set<string>(); // key: `${kind}|${reservation_id}`
+    const doneLog = new Set<string>();
+    const doneRes = new Set<string>();
     for (const s of (statuses ?? []) as StatusRow[]) {
       if (s.status !== "done") continue;
       if (s.log_id) doneLog.add(`${s.kind}|${s.log_id}`);
       if (s.reservation_id) doneRes.add(`${s.kind}|${s.reservation_id}`);
     }
 
-    function countFor(col: "checkin_date" | "checkout_date", date: string) {
+    function countFor(col: "checkin_date" | "checkout_date", from: string, to: string) {
       const kind: "checkin" | "checkout" = col === "checkin_date" ? "checkin" : "checkout";
       const seen = new Set<string>();
       for (const r of resRows) {
-        if (r[col] !== date) continue;
+        if (r[col] < from || r[col] > to) continue;
         if (!icalProps.has(r.property_id) || !isRealReservation(r)) continue;
         if (doneRes.has(`${kind}|${r.id}`)) continue;
         seen.add(`ical|${r.id}`);
       }
       for (const row of logRows) {
-        if (row[col] !== date) continue;
+        const v = row[col];
+        if (!v || v < from || v > to) continue;
         if (icalProps.has(row.property_id) || isPlaceholderGuest(row.guest_name)) continue;
         if (doneLog.has(`${kind}|${row.id}`)) continue;
-        seen.add(`log|${row.property_id}|${(row.guest_name || "").trim().toLowerCase()}|${date}`);
+        seen.add(`log|${row.property_id}|${(row.guest_name || "").trim().toLowerCase()}|${v}`);
       }
       return seen.size;
     }
 
     return {
-      checkinsToday: countFor("checkin_date", today),
-      checkinsTomorrow: countFor("checkin_date", tomorrow),
-      checkoutsToday: countFor("checkout_date", today),
-      checkoutsTomorrow: countFor("checkout_date", tomorrow),
+      checkinsToday: countFor("checkin_date", overdueFrom, today),
+      checkinsTomorrow: countFor("checkin_date", tomorrow, tomorrow),
+      checkoutsToday: countFor("checkout_date", overdueFrom, today),
+      checkoutsTomorrow: countFor("checkout_date", tomorrow, tomorrow),
     };
   });
 
