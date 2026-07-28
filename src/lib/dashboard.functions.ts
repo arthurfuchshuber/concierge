@@ -716,9 +716,10 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
     // NÃO entra na chave de ordenação — só o previsto/manual manda.
     const effTime = (r: ArrivalRow): string => r.arrivalTimeOverride ?? r.guestArrivalTime ?? "99:99";
     rows.sort((a, b) => {
-      const d = a.date.localeCompare(b.date);
+      // Mais recente primeiro (data DESC). Empate: horário previsto DESC → residência A→Z.
+      const d = b.date.localeCompare(a.date);
       if (d !== 0) return d;
-      const t = effTime(a).localeCompare(effTime(b));
+      const t = effTime(b).localeCompare(effTime(a));
       if (t !== 0) return t;
       return (a.propertyName ?? "").localeCompare(b.propertyName ?? "", "pt-BR");
     });
