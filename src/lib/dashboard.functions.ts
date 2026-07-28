@@ -781,15 +781,32 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
       );
     }
 
+    let debugNoProp = 0;
+    let debugNoIcal = 0;
+    let debugRowBuilt = 0;
+    let debugRowNull = 0;
     for (const r of reservationRows.filter(reservationInRange)) {
       const p = propMap.get(r.property_id);
+      if (!p) debugNoProp += 1;
+      if (p && !p.airbnb_ical_url) debugNoIcal += 1;
       if (!p?.airbnb_ical_url) continue;
       const matchedLog = findBestLogForReservation(r);
       if (matchedLog) {
         usedLogIds.add(matchedLog.id);
       }
       const row = rowFromReservation(r, matchedLog);
-      if (row) rows.push(row);
+      if (row) {
+        debugRowBuilt += 1;
+        rows.push(row);
+      } else {
+        debugRowNull += 1;
+      }
+    }
+    if (data.kind === "checkin" && data.range === "today") {
+      console.log(
+        "[dashboard-checkin-debug:loop] " +
+          JSON.stringify({ debugNoProp, debugNoIcal, debugRowBuilt, debugRowNull, rowsBeforeLogs: rows.length }),
+      );
     }
 
     for (const l of uniqueLogs) {
