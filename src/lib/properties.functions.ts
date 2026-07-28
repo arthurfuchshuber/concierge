@@ -121,7 +121,13 @@ const PropertyInput = z.object({
       .nullable(),
   ),
   airbnb_listing_url: z.preprocess(
-    (v) => (typeof v === "string" && v.trim() === "" ? null : v),
+    (v) => {
+      if (typeof v !== "string") return v;
+      const s = v.trim();
+      if (!s) return null;
+      if (/^https?:\/\//i.test(s)) return s;
+      return `https://${s.replace(/^\/+/, "")}`;
+    },
     z.string().trim().url().max(2048).optional().nullable(),
   ),
 });
