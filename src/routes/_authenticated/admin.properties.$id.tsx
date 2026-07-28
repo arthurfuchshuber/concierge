@@ -1259,7 +1259,7 @@ function PropertyEditor() {
               <Field label="Check-in até" hint="opcional"><TimePicker value={form.property.checkin_time_max} onChange={(v) => update("checkin_time_max", v)} placeholder="22:00" /></Field>
             </div>
             <Field label="Observação do check-in (opcional)" hint="Aparece abaixo dos horários no guia. Deixe em branco para ocultar.">
-              <Textarea value={form.property.checkin_note} maxLength={1000} rows={3} onChange={(e) => update("checkin_note", e.target.value)} placeholder="Ex.: Após às 22h, avise pelo WhatsApp com 1h de antecedência." />
+              <TagMentionTextarea items={tagItems} value={form.property.checkin_note} maxLength={1000} rows={3} onChange={(e) => update("checkin_note", e.target.value)} placeholder="Ex.: Após às 22h, avise pelo WhatsApp com 1h de antecedência." />
             </Field>
           </Section>
 
