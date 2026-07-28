@@ -323,10 +323,10 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
       from = today;
       to = null;
     }
-    // Para o filtro "Hoje", também trazemos os últimos 30 dias para que cards
-    // atrasados (que ainda não receberam o check) continuem visíveis com alerta.
+    // Para o filtro "Hoje", trazemos todos os atrasados (sem limite) para que
+    // cards pendentes anteriores continuem visíveis com alerta.
     if (data.range === "today") {
-      from = addDaysISO(today, -30);
+      from = "1970-01-01";
     }
 
     if (data.kind === "checkin" && data.range === "today") {
