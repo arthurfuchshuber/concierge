@@ -28,6 +28,7 @@ import {
   Trash2,
   BedDouble,
   CheckCircle2,
+  Undo2,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -464,6 +465,18 @@ function DashboardPage() {
               kind={kind}
               mode={mode}
               onMark={(row) => handleAdvance(row, mode)}
+              onRevert={
+                mode === "stay" || mode === "cleaning"
+                  ? (row: ArrivalRow) => {
+                      const target = statusTarget(row);
+                      if (!target.logId && !target.reservationId) {
+                        toast.error("Não foi possível identificar esse card.");
+                        return;
+                      }
+                      revert.mutate({ ...target, from: mode });
+                    }
+                  : undefined
+              }
               onSyncIcal={(row) => {
                 const t = kind === "checkin" ? "15:00" : "11:00";
                 upsert.mutate({ ...statusTarget(row), kind, arrivalTimeOverride: t });
@@ -808,6 +821,7 @@ function ArrivalGroup({
   kind,
   mode,
   onMark,
+  onRevert,
   onSyncIcal,
   onNote,
   onEditDates,
@@ -821,6 +835,7 @@ function ArrivalGroup({
   kind: "checkin" | "checkout";
   mode: "checkin" | "checkout" | "stay" | "cleaning";
   onMark: (r: ArrivalRow) => void;
+  onRevert?: (r: ArrivalRow) => void;
   onSyncIcal: (r: ArrivalRow) => void;
   onNote: (r: ArrivalRow, note: string | null) => void;
   onEditDates: (r: ArrivalRow, dates: { checkinDate?: string; checkoutDate?: string | null }) => void;
@@ -839,6 +854,7 @@ function ArrivalGroup({
           kind={kind}
           mode={mode}
           onMark={onMark}
+          onRevert={onRevert}
           onSyncIcal={onSyncIcal}
           onNote={onNote}
           onEditDates={onEditDates}
@@ -856,6 +872,7 @@ function ArrivalCard({
   kind,
   mode,
   onMark,
+  onRevert,
   onSyncIcal,
   onNote,
   onEditDates,
@@ -867,6 +884,7 @@ function ArrivalCard({
   kind: "checkin" | "checkout";
   mode: "checkin" | "checkout" | "stay" | "cleaning";
   onMark: (r: ArrivalRow) => void;
+  onRevert?: (r: ArrivalRow) => void;
   onSyncIcal: (r: ArrivalRow) => void;
   onNote: (r: ArrivalRow, note: string | null) => void;
   onEditDates: (r: ArrivalRow, dates: { checkinDate?: string; checkoutDate?: string | null }) => void;
@@ -1249,6 +1267,22 @@ function ArrivalCard({
         >
           <Check className="size-4" />
         </button>
+        {onRevert && (mode === "stay" || mode === "cleaning") && (
+          <button
+            type="button"
+            onClick={() => onRevert(row)}
+            disabled={busy}
+            aria-label={mode === "stay" ? "Voltar para Check-ins" : "Voltar para Checkouts"}
+            title={
+              mode === "stay"
+                ? "Desfazer check-in (voltar para a lista de Check-ins)"
+                : "Desfazer conclusão de check-out (voltar para a lista de Checkouts)"
+            }
+            className="size-9 grid place-items-center rounded-lg bg-secondary hover:bg-secondary/80 border border-border/60 transition-colors"
+          >
+            <Undo2 className="size-4" />
+          </button>
+        )}
         {(row.guestPhone || row.guestName) && !isPendingFill && (
           <button
             type="button"
