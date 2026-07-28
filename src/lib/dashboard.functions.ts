@@ -808,10 +808,22 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
         doneAt: s?.done_at ?? null,
         pendingFill: false,
         ical: forceIcal ?? { hasIcal, matched, icalCheckin, icalCheckout },
+        additionalGuests: extras.map((e) => ({
+          logId: e.id,
+          name: e.guest_name,
+          phone: e.guest_phone,
+          phoneCountry: e.guest_phone_country,
+          reservationCode: e.reservation_code,
+          arrivalTime: e.guest_arrival_time,
+        })),
       };
     }
 
-    function rowFromReservation(r: ReservationRow, matchedLog: (typeof uniqueLogs)[number] | null): ArrivalRow | null {
+    function rowFromReservation(
+      r: ReservationRow,
+      matchedLog: (typeof uniqueLogs)[number] | null,
+      extras: (typeof uniqueLogs)[number][] = [],
+    ): ArrivalRow | null {
       const p = propMap.get(r.property_id);
       const legacy = placeholderStatus.get(placeholderKey(r.property_id, r.checkin_date, r.checkout_date, data.kind));
       const logStatus = matchedLog ? statusMap.get(matchedLog.id) : undefined;
