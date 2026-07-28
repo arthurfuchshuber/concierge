@@ -244,6 +244,23 @@ function PropertyEditor() {
   const [enriching, setEnriching] = useState(false);
   const [generatingCityRecs, setGeneratingCityRecs] = useState(false);
   const [saving, setSaving] = useState(false);
+  // Itens para o picker @mention (FAQs do imóvel; recomendações são carregadas em outro fluxo).
+  const tagItems = React.useMemo<TagMentionItem[]>(() => {
+    const out: TagMentionItem[] = [];
+    const seen = new Set<string>();
+    for (const f of form.faqs) {
+      const q = (f.question ?? "").trim();
+      if (!q) continue;
+      const base = slugForTag(q);
+      if (!base) continue;
+      let s = base;
+      let n = 1;
+      while (seen.has(s)) s = `${base}-${++n}`;
+      seen.add(s);
+      out.push({ key: "faq", param: s, label: q.length > 80 ? q.slice(0, 77) + "…" : q, hint: "FAQ deste guia" });
+    }
+    return out;
+  }, [form.faqs]);
   const [airbnbUrl, setAirbnbUrl] = useState("");
   // Rehidrata o campo do anúncio a partir do que ficou salvo no imóvel.
   useEffect(() => {
