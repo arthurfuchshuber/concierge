@@ -27,9 +27,9 @@ export const listMyTeam = createServerFn({ method: "GET" })
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
       const { data: profs } = await supabaseAdmin
         .from("profiles")
-        .select("id, full_name")
+        .select("id, full_name, trade_name")
         .in("id", ids);
-      for (const p of profs ?? []) emails[p.id as string] = { email: null, full_name: (p.full_name as string) ?? null };
+      for (const p of profs ?? []) emails[p.id as string] = { email: null, full_name: ((p.trade_name as string) || (p.full_name as string)) ?? null };
       // Fetch emails
       const { data: users } = await supabaseAdmin.auth.admin.listUsers({ perPage: 200 });
       for (const u of users?.users ?? []) {
@@ -103,7 +103,7 @@ export const inviteTeamMember = createServerFn({ method: "POST" })
     // Look up inviter's name for a nicer email
     const { data: inviter } = await supabase
       .from("profiles")
-      .select("full_name")
+      .select("full_name, trade_name")
       .eq("id", userId)
       .maybeSingle();
 
@@ -118,7 +118,7 @@ export const inviteTeamMember = createServerFn({ method: "POST" })
 
 
     try {
-      await sendAccountInviteEmail(data.email, (inviter?.full_name as string) ?? null);
+      await sendAccountInviteEmail(data.email, ((inviter?.trade_name as string) || (inviter?.full_name as string)) ?? null);
       return { ok: true, id: inserted.id, emailSent: true, autoAccepted: false };
     } catch (e) {
       // Convite ficou registrado mesmo se o envio falhar — o titular pode
@@ -167,7 +167,7 @@ export const resendTeamInvite = createServerFn({ method: "POST" })
       .eq("owner_id", userId);
     const { data: inviter } = await supabase
       .from("profiles")
-      .select("full_name")
+      .select("full_name, trade_name")
       .eq("id", userId)
       .maybeSingle();
     // Recipient must accept explicitly via the PendingInviteDialog — even if
@@ -177,7 +177,7 @@ export const resendTeamInvite = createServerFn({ method: "POST" })
     if (existingUserId) {
       return { ok: true, autoAccepted: false, existingUser: true };
     }
-    await sendAccountInviteEmail(inv.email as string, (inviter?.full_name as string) ?? null);
+    await sendAccountInviteEmail(inv.email as string, ((inviter?.trade_name as string) || (inviter?.full_name as string)) ?? null);
     return { ok: true, autoAccepted: false };
 
 
