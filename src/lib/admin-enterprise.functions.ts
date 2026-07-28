@@ -137,7 +137,7 @@ export const adminCreateEnterpriseSubscription = createServerFn({ method: "POST"
     // Pegar nome do profile
     const { data: profile } = await supabaseAdmin
       .from("profiles")
-      .select("full_name")
+      .select("full_name, trade_name")
       .eq("id", user.id)
       .maybeSingle();
 
@@ -145,7 +145,7 @@ export const adminCreateEnterpriseSubscription = createServerFn({ method: "POST"
     const customer = await findOrCreatePaddleCustomer(
       data.environment,
       targetEmail,
-      profile?.full_name ?? null,
+      (profile?.trade_name || profile?.full_name) ?? null,
     );
     if (!customer.hasPaymentMethod) {
       throw new Error(

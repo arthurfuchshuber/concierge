@@ -318,7 +318,7 @@ export const listHandoffConversations = createServerFn({ method: "POST" })
           .in("id", assignedIds);
         const byId = new Map<string, string>();
         for (const p of (profs ?? []) as Array<{ id: string; full_name: string | null; trade_name: string | null }>) {
-          const name = (p.full_name || p.trade_name || "").trim();
+          const name = (p.trade_name || p.full_name || "").trim();
           if (name) byId.set(p.id, name);
         }
 
@@ -517,22 +517,22 @@ export const getHandoffConversation = createServerFn({ method: "POST" })
     if (conv.claim_requested_by) {
       const { data: prof } = await supabase
         .from("profiles")
-        .select("id, full_name")
+        .select("id, full_name, trade_name")
         .eq("id", conv.claim_requested_by)
         .maybeSingle();
       claimRequester = {
         userId: conv.claim_requested_by,
-        displayName: prof?.full_name ?? null,
+        displayName: (prof?.trade_name || prof?.full_name) ?? null,
       };
     }
     let assignedProfile: { userId: string; displayName: string | null } | null = null;
     if (conv.assigned_to) {
       const { data: prof } = await supabase
         .from("profiles")
-        .select("id, full_name")
+        .select("id, full_name, trade_name")
         .eq("id", conv.assigned_to)
         .maybeSingle();
-      assignedProfile = { userId: conv.assigned_to, displayName: prof?.full_name ?? null };
+      assignedProfile = { userId: conv.assigned_to, displayName: (prof?.trade_name || prof?.full_name) ?? null };
     }
 
     // Perfis de todos os remetentes humanos (para exibir o nome em negrito nas mensagens).
@@ -547,10 +547,10 @@ export const getHandoffConversation = createServerFn({ method: "POST" })
     if (senderIds.length > 0) {
       const { data: profs } = await supabase
         .from("profiles")
-        .select("id, full_name")
+        .select("id, full_name, trade_name")
         .in("id", senderIds);
       for (const p of profs ?? []) {
-        senderProfiles[p.id as string] = { displayName: (p.full_name as string) ?? null };
+        senderProfiles[p.id as string] = { displayName: ((p.trade_name as string) || (p.full_name as string)) ?? null };
       }
     }
 
@@ -598,8 +598,8 @@ export const claimHandoffConversation = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
 
     if (takingOver) {
-      const { data: prof } = await supabase.from("profiles").select("full_name").eq("id", userId).maybeSingle();
-      const who = prof?.full_name ?? "Um membro da equipe";
+      const { data: prof } = await supabase.from("profiles").select("full_name, trade_name").eq("id", userId).maybeSingle();
+      const who = (prof?.trade_name || prof?.full_name) ?? "Um membro da equipe";
       await supabase.from("property_chat_messages").insert({
         conversation_id: data.conversationId,
         role: "assistant",
@@ -636,8 +636,8 @@ export const requestHandoffClaim = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
 
     // Registra nota interna para o atendente atual visualizar o pedido.
-    const { data: prof } = await supabase.from("profiles").select("full_name").eq("id", userId).maybeSingle();
-    const who = prof?.full_name ?? "Um membro da equipe";
+    const { data: prof } = await supabase.from("profiles").select("full_name, trade_name").eq("id", userId).maybeSingle();
+    const who = (prof?.trade_name || prof?.full_name) ?? "Um membro da equipe";
     await supabase.from("property_chat_messages").insert({
       conversation_id: data.conversationId,
       role: "assistant",
@@ -678,8 +678,8 @@ export const transferHandoffConversation = createServerFn({ method: "POST" })
       .eq("id", data.conversationId);
     if (error) throw new Error(error.message);
 
-    const { data: prof } = await supabase.from("profiles").select("full_name").eq("id", data.toUserId).maybeSingle();
-    const who = prof?.full_name ?? "outro membro";
+    const { data: prof } = await supabase.from("profiles").select("full_name, trade_name").eq("id", data.toUserId).maybeSingle();
+    const who = (prof?.trade_name || prof?.full_name) ?? "outro membro";
     await supabase.from("property_chat_messages").insert({
       conversation_id: data.conversationId,
       role: "assistant",
@@ -896,10 +896,10 @@ export const listConversationTransferTargets = createServerFn({ method: "POST" }
 
     const { data: profs } = await supabaseAdmin
       .from("profiles")
-      .select("id, full_name")
+      .select("id, full_name, trade_name")
       .in("id", idList);
     const nameById = new Map<string, string | null>();
-    for (const p of profs ?? []) nameById.set(p.id as string, (p.full_name as string) ?? null);
+    for (const p of profs ?? []) nameById.set(p.id as string, ((p.trade_name as string) || (p.full_name as string)) ?? null);
 
     const roleById = new Map<string, string>();
     roleById.set(ownerId, "owner");

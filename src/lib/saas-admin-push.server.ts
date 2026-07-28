@@ -47,12 +47,12 @@ export async function notifySaasAdminsTrialStarted(opts: {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     const [{ data: profile }, { data: userRes }] = await Promise.all([
-      supabaseAdmin.from("profiles").select("full_name, phone").eq("id", opts.userId).maybeSingle(),
+      supabaseAdmin.from("profiles").select("full_name, trade_name, phone").eq("id", opts.userId).maybeSingle(),
       supabaseAdmin.auth.admin.getUserById(opts.userId),
     ]);
 
     const email = userRes?.user?.email ?? null;
-    const name = (profile?.full_name as string | null)?.trim() || email || "Novo cliente";
+    const name = ((profile?.trade_name as string | null)?.trim() || (profile?.full_name as string | null)?.trim()) || email || "Novo cliente";
     const planLabel = opts.productId.replace(/_plan$/, "").replace(/^\w/, (c) => c.toUpperCase());
 
     let trialLabel = "";

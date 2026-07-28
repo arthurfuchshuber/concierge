@@ -92,7 +92,7 @@ export const adminListCustomers = createServerFn({ method: "GET" })
 
     const { data: profiles } = await supabaseAdmin
       .from("profiles")
-      .select("id, full_name, cpf, phone, phone_country");
+      .select("id, full_name, trade_name, cpf, phone, phone_country");
 
 
     const { data: subs } = await supabaseAdmin
@@ -187,7 +187,7 @@ export const adminListCustomers = createServerFn({ method: "GET" })
       return {
         userId: u.id,
         email: u.email ?? null,
-        fullName: (prof as { full_name?: string | null } | undefined)?.full_name ?? null,
+        fullName: ((prof as { trade_name?: string | null } | undefined)?.trade_name) || (prof as { full_name?: string | null } | undefined)?.full_name || null,
         cpf: (prof as { cpf?: string | null } | undefined)?.cpf ?? null,
         phone: (prof as { phone?: string | null } | undefined)?.phone ?? null,
         phoneCountry: (prof as { phone_country?: string | null } | undefined)?.phone_country ?? null,
@@ -532,9 +532,9 @@ export const adminListSaasAdmins = createServerFn({ method: "GET" })
 
     const { data: profiles } = await supabaseAdmin
       .from("profiles")
-      .select("id, full_name")
+      .select("id, full_name, trade_name")
       .in("id", ids);
-    const profileMap = new Map((profiles ?? []).map((p) => [p.id, p.full_name]));
+    const profileMap = new Map((profiles ?? []).map((p) => [p.id, ((p as { trade_name?: string | null }).trade_name) || p.full_name]));
 
     const { data: usersData } = await supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 1000 });
     const userMap = new Map((usersData?.users ?? []).map((u) => [u.id, u]));

@@ -24,12 +24,12 @@ export const listMyAccounts = createServerFn({ method: "GET" })
     if (ownerIds.length > 0) {
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
       const [{ data: profs }, { data: users }] = await Promise.all([
-        supabaseAdmin.from("profiles").select("id, full_name").in("id", ownerIds),
+        supabaseAdmin.from("profiles").select("id, full_name, trade_name").in("id", ownerIds),
         // fetch emails via admin auth listUsers isn't ideal; use profiles only for name; email optional
         Promise.resolve({ data: [] as Array<{ id: string; email: string | null }> }),
       ]);
       const nameById = new Map<string, string | null>();
-      for (const p of profs ?? []) nameById.set(p.id as string, (p.full_name as string) ?? null);
+      for (const p of profs ?? []) nameById.set(p.id as string, ((p.trade_name as string) || (p.full_name as string)) ?? null);
       const emailById = new Map<string, string | null>();
       for (const u of users) emailById.set(u.id, u.email);
       const roleById = new Map<string, string>();

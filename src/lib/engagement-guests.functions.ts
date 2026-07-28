@@ -119,10 +119,10 @@ async function loadCommon(
   const accountNameById = new Map<string, string>();
   if (ownerIds.length > 0) {
     const { data: profiles } = await (supabaseAdmin.from("profiles") as ReturnType<typeof supabaseAdmin.from>)
-      .select("id, full_name")
+      .select("id, full_name, trade_name")
       .in("id", ownerIds);
-    for (const p of ((profiles ?? []) as Array<{ id: string; full_name: string | null }>)) {
-      accountNameById.set(p.id, p.full_name ?? "");
+    for (const p of ((profiles ?? []) as Array<{ id: string; full_name: string | null; trade_name: string | null }>)) {
+      accountNameById.set(p.id, (p.trade_name || p.full_name) ?? "");
     }
   }
 
