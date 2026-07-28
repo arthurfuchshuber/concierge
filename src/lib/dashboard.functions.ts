@@ -871,6 +871,14 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
         doneAt: s?.done_at ?? null,
         pendingFill: !matchedLog,
         ical: { hasIcal: true, matched: true, icalCheckin: r.checkin_date, icalCheckout: r.checkout_date },
+        additionalGuests: extras.map((e) => ({
+          logId: e.id,
+          name: e.guest_name,
+          phone: e.guest_phone,
+          phoneCountry: e.guest_phone_country,
+          reservationCode: e.reservation_code,
+          arrivalTime: e.guest_arrival_time,
+        })),
       };
     }
 
