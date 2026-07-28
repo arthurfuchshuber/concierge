@@ -373,7 +373,10 @@ function DashboardPage() {
         />
         <KpiCard
           label="Check-ins amanhã"
-          value={(kpiTomorrowQ.data?.rows ?? []).filter((r) => r.status === "pending").length}
+          value={(() => {
+            const t = addDaysISOLocal(todayISOSaoPaulo(), 1);
+            return (kpiTomorrowQ.data?.rows ?? []).filter((r) => r.status === "pending" && r.date === t).length;
+          })()}
           icon={LogIn}
           tone="primary-soft"
           loading={kpiTomorrowQ.isLoading}
@@ -384,7 +387,10 @@ function DashboardPage() {
         />
         <KpiCard
           label="Checkouts amanhã"
-          value={(kpiCoTomorrowQ.data?.rows ?? []).filter((r) => r.status === "pending").length}
+          value={(() => {
+            const t = addDaysISOLocal(todayISOSaoPaulo(), 1);
+            return (kpiCoTomorrowQ.data?.rows ?? []).filter((r) => r.status === "pending" && r.date === t).length;
+          })()}
           icon={LogOut}
           tone="primary-soft"
           loading={kpiCoTomorrowQ.isLoading}
