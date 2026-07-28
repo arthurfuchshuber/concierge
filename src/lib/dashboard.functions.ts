@@ -739,6 +739,22 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
       if (row) rows.push(row);
     }
 
+    // Esteira: um card só pode aparecer em Checkouts/Em Limpeza depois que o
+    // check-in correspondente foi marcado como feito. Enquanto o check-in
+    // estiver pendente (mesmo atrasado), o card fica retido em Check-ins.
+    const gatedRows =
+      data.kind === "checkout"
+        ? rows.filter((r) => {
+            const logDone = !!(r.logId && !r.logId.startsWith("ical:") && checkinDoneLogs.has(r.logId));
+            const resDone = !!(r.reservationId && checkinDoneReservations.has(r.reservationId));
+            return logDone || resDone;
+          })
+        : rows;
+    const finalRows = gatedRows;
+    finalRows.length; // keep var used below
+    rows.length = 0;
+    rows.push(...finalRows);
+
     // Prioridade: data → horário previsto (override do anfitrião ou informado pelo
     // hóspede) → ordem alfabética da residência. O horário padrão da propriedade
     // NÃO entra na chave de ordenação — só o previsto/manual manda.
