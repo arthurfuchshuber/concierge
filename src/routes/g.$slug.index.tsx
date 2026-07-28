@@ -1,6 +1,6 @@
 import { createFileRoute, notFound, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useState, useRef, useEffect, useMemo } from "react";
+import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { getPublicGuide, submitPin, submitAccessPin } from "@/lib/guide.functions";
 import { trackGuideEvent } from "@/lib/guide-analytics.functions";
@@ -264,7 +264,26 @@ function Guide({ data }: { data: GuideOk }) {
     return { ...baseProp, ...revealedCodes };
   }, [baseProp, revealedCodes]);
   const { slug } = Route.useParams();
-  const [section, setSection] = useState<Section>("home");
+  const [section, setSectionRaw] = useState<Section>(() => {
+    if (typeof window === "undefined") return "home";
+    const raw = window.location.hash.replace("#", "");
+    const map: Record<string, Section> = {
+      home: "home", checkin: "checkin", saida: "saida", residencia: "residencia", faq: "faq",
+      wifi: "checkin", "senhas-acesso": "checkin", endereco: "checkin", "checkin-instrucoes": "checkin",
+      "manual-casa": "residencia", "regras-casa": "residencia",
+      "checkout-instrucoes": "saida", emergencias: "faq", "contato-anfitriao": "faq",
+    };
+    if (map[raw]) return map[raw];
+    if (raw.startsWith("faq-") || raw.startsWith("local-")) return "faq";
+    return "home";
+  });
+  // Ao trocar de seção, persiste no hash para que o refresh mantenha a página atual.
+  const setSection = useCallback((s: Section) => {
+    setSectionRaw(s);
+    if (typeof window !== "undefined") {
+      try { window.history.replaceState(null, "", `#${s}`); } catch {}
+    }
+  }, []);
   const trackEvent = useServerFn(trackGuideEvent);
 
   // Suporta navegação por hash. Sintaxe:

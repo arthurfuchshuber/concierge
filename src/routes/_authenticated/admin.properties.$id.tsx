@@ -240,7 +240,18 @@ function PropertyEditor() {
   const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastSavedRecsRef = useRef<string>("");
   const [autoSaving, setAutoSaving] = useState(false);
-  const [step, setStep] = useState<string>("house");
+  const [step, setStepRaw] = useState<string>(() => {
+    if (typeof window === "undefined") return "house";
+    const raw = window.location.hash.replace("#tab-", "");
+    const valid = ["house", "guide", "checkin", "checkout", "faq", "recs"];
+    return valid.includes(raw) ? raw : "house";
+  });
+  const setStep = React.useCallback((s: string) => {
+    setStepRaw(s);
+    if (typeof window !== "undefined") {
+      try { window.history.replaceState(null, "", `#tab-${s}`); } catch {}
+    }
+  }, []);
   const [enriching, setEnriching] = useState(false);
   const [generatingCityRecs, setGeneratingCityRecs] = useState(false);
   const [saving, setSaving] = useState(false);
