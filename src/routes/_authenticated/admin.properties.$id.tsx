@@ -243,6 +243,12 @@ function PropertyEditor() {
   const [generatingCityRecs, setGeneratingCityRecs] = useState(false);
   const [saving, setSaving] = useState(false);
   const [airbnbUrl, setAirbnbUrl] = useState("");
+  // Rehidrata o campo do anúncio a partir do que ficou salvo no imóvel.
+  useEffect(() => {
+    const saved = form.property.airbnb_listing_url;
+    if (saved && !airbnbUrl) setAirbnbUrl(saved);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.property.airbnb_listing_url]);
   const [importingAirbnb, setImportingAirbnb] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewMode, setPreviewMode] = useState<"mobile" | "desktop" | null>(null);
