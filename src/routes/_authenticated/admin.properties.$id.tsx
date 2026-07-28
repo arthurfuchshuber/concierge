@@ -957,12 +957,12 @@ function PropertyEditor() {
           current={step}
           onChange={setStep}
           steps={[
-            { value: "basics", label: "Básico", icon: FileText },
-            { value: "access", label: "Acesso", icon: KeyRound },
             { value: "house", label: "A casa", icon: Home },
+            { value: "guide", label: "O guia", icon: FileText },
+            { value: "checkin", label: "Checkin", icon: DoorOpen },
+            { value: "checkout", label: "Checkout", icon: LogOut },
+            { value: "faq", label: "FAQ & Contatos", icon: LifeBuoy },
             { value: "recs", label: "Recomendações", icon: Compass },
-            { value: "extras", label: "Extras", icon: LifeBuoy },
-            { value: "capture", label: "Captação", icon: ClipboardList },
           ]}
         />
 
