@@ -28,6 +28,7 @@ import {
   Trash2,
   BedDouble,
   CheckCircle2,
+  Undo2,
 } from "lucide-react";
 import { toast } from "sonner";
 
