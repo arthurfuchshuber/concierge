@@ -1504,7 +1504,7 @@ function Guide({ data }: { data: GuideOk }) {
                             hint="Passo a passo da saída"
                           >
                             <div className="rounded-2xl border border-border/60 bg-background/40 px-4 py-4">
-                              <StepList text={p.checkout_instructions as string} dense />
+                              <StepList text={expandInfoTags(String(p.checkout_instructions ?? ""), p as never)} dense />
                             </div>
                           </SubItem>
                         )}
