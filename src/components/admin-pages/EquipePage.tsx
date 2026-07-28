@@ -14,9 +14,11 @@ import {
   updateMemberPermission,
   MEMBER_PERMISSIONS,
   PERMISSION_META,
+  PERMISSION_FEATURE,
   type MemberPermission,
 } from "@/lib/member-permissions.functions";
 import { getAtendimentoAccess } from "@/lib/handoff.functions";
+import { useSubscription } from "@/hooks/useSubscription";
 import { enablePush, disablePush, isPushSupported, currentPushSubscription } from "@/lib/push-client";
 import { supabase } from "@/integrations/supabase/client";
 import {
