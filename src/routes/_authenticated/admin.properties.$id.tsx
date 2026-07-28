@@ -839,6 +839,7 @@ function PropertyEditor() {
           pin_expires_at: form.property.access_mode === "pin" && form.property.pin_expires_at
             ? new Date(form.property.pin_expires_at).toISOString()
             : null,
+          airbnb_listing_url: (form.property.airbnb_listing_url || airbnbUrl.trim() || null),
         },
         // Apenas "Aqui pertinho" é por imóvel; "Pela cidade" mora em city_references.
         // Só persiste pontos vindos do Google (com place_id).
