@@ -724,6 +724,7 @@ function PropertyEditor() {
           checkout_time: r.checkout_time ?? f.property.checkout_time,
           gallery_images: importedGallery.length ? importedGallery : f.property.gallery_images,
           hero_image_url: importedGallery[0] ?? r.hero_image_url ?? f.property.hero_image_url,
+          airbnb_listing_url: airbnbUrl.trim(),
         },
       }));
       const bits: string[] = [];
