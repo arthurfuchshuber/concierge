@@ -848,16 +848,6 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
     const usedLogIds = new Set<string>();
 
     const _filtered = reservationRows.filter(reservationInRange);
-    if (data.kind === "checkin") {
-      console.info("[dash-debug]", {
-        range: data.range, today, from, to,
-        propIds: propIds.length,
-        reservationsRaw: (reservations ?? []).length,
-        reservationRowsReal: reservationRows.length,
-        afterRange: _filtered.length,
-        withIcalUrl: _filtered.filter((rr) => !!propMap.get(rr.property_id)?.airbnb_ical_url).length,
-      });
-    }
     for (const r of _filtered) {
       const p = propMap.get(r.property_id);
       if (!p?.airbnb_ical_url) continue;
@@ -868,10 +858,6 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
       const row = rowFromReservation(r, matchedLog);
       if (row) rows.push(row);
     }
-    if (data.kind === "checkin") {
-      console.info("[dash-debug] rowsAfterReservations", rows.length);
-    }
-
     for (const l of uniqueLogs) {
       if (usedLogIds.has(l.id)) continue;
       const p = propMap.get(l.property_id);
@@ -931,7 +917,7 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
     }
 
     function dedupeCheckoutRows(input: ArrivalRow[]): ArrivalRow[] {
-      if (data.kind !== "checkout") return input;
+      if (data.kind !== "checkout") return [...input];
       // Deduplica apenas a MESMA reserva quando ela chegou por caminhos
       // diferentes (status por log legado + status por reservation_id). Não
       // deduplicamos por imóvel+data: back-to-back e correções do iCal precisam
@@ -948,7 +934,6 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
     }
 
     const finalRows = dedupeCheckoutRows(gatedRows);
-    finalRows.length; // keep var used below
     rows.length = 0;
     rows.push(...finalRows);
 
