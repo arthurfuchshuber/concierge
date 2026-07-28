@@ -612,10 +612,16 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
     function reservationInRange(r: ReservationRow): boolean {
       if (data.kind === "checkin") {
         if (belongsToCheckoutStage(r.checkin_date, r.checkout_date)) return false;
-        if (isCurrentStay(r.checkin_date, r.checkout_date)) return true;
       }
       const date = data.kind === "checkin" ? r.checkin_date : r.checkout_date;
-      if (date < (from ?? today)) return false;
+      if (date < (from ?? today)) {
+        // Estadia em andamento deve continuar visível em Hoje/7 dias/Todos para
+        // alimentar "Em Estadia", mas NUNCA pode vazar para "Amanhã".
+        if (data.kind === "checkin" && data.range !== "tomorrow" && isCurrentStay(r.checkin_date, r.checkout_date)) {
+          return true;
+        }
+        return false;
+      }
       if (to && date > to) return false;
       return true;
     }
@@ -701,7 +707,11 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
       if (data.kind === "checkin" && belongsToCheckoutStage(l.checkin_date, l.checkout_date ?? null)) {
         return null;
       }
-      if (data.kind === "checkin" && !isCurrentStay(l.checkin_date, l.checkout_date ?? null) && date < (from ?? today)) {
+      if (
+        data.kind === "checkin" &&
+        date < (from ?? today) &&
+        !(data.range !== "tomorrow" && isCurrentStay(l.checkin_date, l.checkout_date ?? null))
+      ) {
         return null;
       }
       // Cards com data anterior a hoje só aparecem sem interação quando a estadia
@@ -852,7 +862,39 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
             return logDone || resDone || virtualCheckinDone(r);
           })
         : rows;
-    const finalRows = [...gatedRows];
+    function isBetterOperationalRow(candidate: ArrivalRow, current: ArrivalRow): boolean {
+      const score = (r: ArrivalRow) => {
+        let v = 0;
+        if (r.status === "done") v += 100;
+        if (!r.pendingFill && r.guestName && r.guestName !== r.reservationCode) v += 40;
+        if (r.reservationCode) v += 20;
+        if (r.ical.matched) v += 10;
+        if (r.openedCheckin) v += 4;
+        if (r.viewedPasswords) v += 2;
+        return v;
+      };
+      const scoreDiff = score(candidate) - score(current);
+      if (scoreDiff !== 0) return scoreDiff > 0;
+      return new Date(candidate.createdAt).getTime() > new Date(current.createdAt).getTime();
+    }
+
+    function dedupeCheckoutRows(input: ArrivalRow[]): ArrivalRow[] {
+      if (data.kind !== "checkout") return input;
+      // Um imóvel físico não pode ter dois check-outs operacionais no mesmo dia.
+      // Quando o iCal/log trouxe duplicidade, mantém o card mais avançado/mais
+      // completo para a esteira não exibir duas saídas iguais.
+      const byPropertyAndCheckout = new Map<string, ArrivalRow>();
+      for (const row of input) {
+        const key = `${row.propertyId}|${row.date}`;
+        const current = byPropertyAndCheckout.get(key);
+        if (!current || isBetterOperationalRow(row, current)) {
+          byPropertyAndCheckout.set(key, row);
+        }
+      }
+      return Array.from(byPropertyAndCheckout.values());
+    }
+
+    const finalRows = dedupeCheckoutRows(gatedRows);
     finalRows.length; // keep var used below
     rows.length = 0;
     rows.push(...finalRows);
