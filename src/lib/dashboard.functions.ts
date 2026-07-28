@@ -652,7 +652,11 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
         ) ?? null;
       if (dateMatch) {
         const logCode = normalizeCode(dateMatch.reservation_code);
-        if (resCode && logCode && logCode !== resCode) return null;
+        // Se o iCal trouxe código HM, ele é a identidade forte da reserva.
+        // Não podemos colar um formulário sem código apenas por datas: se o
+        // hóspede escolheu o período errado, o nome dele aparece na reserva de
+        // outro hóspede. Nesse caso, mantemos o card como "Hóspede Pendente".
+        if (resCode && logCode !== resCode) return null;
       }
       return dateMatch;
     }
