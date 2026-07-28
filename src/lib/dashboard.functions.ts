@@ -896,8 +896,12 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
             const logExplicitlyPending = !!(r.logId && !r.logId.startsWith("ical:") && checkinPendingLogs.has(r.logId));
             const resExplicitlyPending = !!(r.reservationId && checkinPendingReservations.has(r.reservationId));
             if (data.range === "tomorrow") return true;
-            if (!logDone && !resDone && (logExplicitlyPending || resExplicitlyPending)) return false;
-            return logDone || resDone || virtualCheckinDone(r);
+            const vDone = virtualCheckinDone(r);
+            // Estadia com check-in no passado (ou hoje após o horário padrão) já
+            // está em curso fisicamente — o card precisa aparecer em Checkouts
+            // mesmo que exista um status de check-in "pending" legado.
+            if (!logDone && !resDone && !vDone && (logExplicitlyPending || resExplicitlyPending)) return false;
+            return logDone || resDone || vDone;
           })
         : rows;
     function isBetterOperationalRow(candidate: ArrivalRow, current: ArrivalRow): boolean {
