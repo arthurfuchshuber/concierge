@@ -354,10 +354,10 @@ function DashboardPage() {
       <section className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <KpiCard
           label="Check-ins Pendentes"
-          value={kpisQ.data?.checkinsToday}
+          value={(kpiTodayQ.data?.rows ?? []).filter((r) => r.status === "pending").length}
           icon={LogIn}
           tone="primary"
-          loading={kpisQ.isLoading}
+          loading={kpiTodayQ.isLoading}
           listQuery={kpiTodayQ}
           kind="checkin"
           rangeLabel="Hoje"
@@ -366,10 +366,10 @@ function DashboardPage() {
         />
         <KpiCard
           label="Checkouts Pendentes"
-          value={kpisQ.data?.checkoutsToday}
+          value={(kpiCoTodayQ.data?.rows ?? []).filter((r) => r.status === "pending").length}
           icon={LogOut}
           tone="primary"
-          loading={kpisQ.isLoading}
+          loading={kpiCoTodayQ.isLoading}
           listQuery={kpiCoTodayQ}
           kind="checkout"
           rangeLabel="Hoje"
@@ -378,10 +378,10 @@ function DashboardPage() {
         />
         <KpiCard
           label="Check-ins amanhã"
-          value={kpisQ.data?.checkinsTomorrow}
+          value={(kpiTomorrowQ.data?.rows ?? []).filter((r) => r.status === "pending").length}
           icon={LogIn}
           tone="primary-soft"
-          loading={kpisQ.isLoading}
+          loading={kpiTomorrowQ.isLoading}
           listQuery={kpiTomorrowQ}
           kind="checkin"
           rangeLabel="Amanhã"
@@ -389,10 +389,10 @@ function DashboardPage() {
         />
         <KpiCard
           label="Checkouts amanhã"
-          value={kpisQ.data?.checkoutsTomorrow}
+          value={(kpiCoTomorrowQ.data?.rows ?? []).filter((r) => r.status === "pending").length}
           icon={LogOut}
           tone="primary-soft"
-          loading={kpisQ.isLoading}
+          loading={kpiCoTomorrowQ.isLoading}
           listQuery={kpiCoTomorrowQ}
           kind="checkout"
           rangeLabel="Amanhã"
