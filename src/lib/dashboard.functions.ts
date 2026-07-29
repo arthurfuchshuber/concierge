@@ -194,7 +194,7 @@ export const getGuideEngagement = createServerFn({ method: "GET" })
   .handler(async ({ data, context }) => {
     const propIds = await accessiblePropertyIds(context.supabase as never, data.ownerId ?? null);
     if (propIds.length === 0) {
-      return { guideOpens: 0, checkinTabOpens: 0, checkinsInPeriod: 0 };
+      return { guideOpens: 0, checkinTabOpens: 0, checkinsInPeriod: 0, codesTabOpens: 0, checkinsWithCodes: 0 };
     }
     const today = todayISO();
     let from = today;
