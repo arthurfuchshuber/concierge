@@ -810,23 +810,33 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
     }
 
 
-    // Auto-promoção para "Em Estadia": quando uma reserva é importada (ou
-    // criada manualmente) e o período de estadia já está em andamento — ou
-    // seja, a data de check-in já passou, OU é hoje mas o horário padrão de
-    // entrada da propriedade já chegou — e o checkout ainda é no futuro,
-    // consideramos o check-in como concluído virtualmente. Isso evita que o
-    // hóspede apareça em "Check-ins" quando na verdade já está hospedado.
-    const nowHM = nowHHMMSaoPaulo();
-    function autoStayDone(checkinDate: string, checkoutDate: string | null, standardCheckinTime: string | null): boolean {
+    // Auto-distribuição APENAS na importação: quando uma reserva/registro é
+    // criado DEPOIS que a estadia já começou (integração nova sincronizando o
+    // histórico corrente), o card já nasce em "Em Estadia". Cards que já
+    // existiam quando o check-in chegou NUNCA mudam de lista sozinhos — só
+    // saem de "Check-ins" quando o usuário marca o check manualmente.
+    function isoDateSP(ts: string | null | undefined): string | null {
+      if (!ts) return null;
+      const d = new Date(ts);
+      if (Number.isNaN(d.getTime())) return null;
+      const parts = new Intl.DateTimeFormat("en-CA", {
+        timeZone: "America/Sao_Paulo",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      }).formatToParts(d);
+      const pick = (t: string) => parts.find((p) => p.type === t)?.value ?? "";
+      return `${pick("year")}-${pick("month")}-${pick("day")}`;
+    }
+    function autoStayDone(checkinDate: string, checkoutDate: string | null, createdAt: string | null): boolean {
       if (data.kind !== "checkin") return false;
       if (!checkoutDate || checkoutDate <= today) return false; // precisa estar em estadia (checkout no futuro)
-      if (checkinDate < today) return true;
-      if (checkinDate === today) {
-        if (!standardCheckinTime) return false;
-        return nowHM >= standardCheckinTime;
-      }
-      return false;
+      if (checkinDate >= today) return false; // estadia precisa já ter começado
+      const created = isoDateSP(createdAt);
+      // Só promove automaticamente se o card foi criado depois do início da estadia.
+      return !!created && created > checkinDate;
     }
+
 
     function rowFromLog(
       l: (typeof uniqueLogs)[number],
