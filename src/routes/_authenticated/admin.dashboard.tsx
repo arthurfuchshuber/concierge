@@ -428,8 +428,9 @@ function DashboardPage() {
         <EngagementBars
           loading={engQ.isLoading}
           checkins={engQ.data?.checkinsInPeriod ?? 0}
-          guideOpens={engQ.data?.guideOpens ?? 0}
           checkinTabOpens={engQ.data?.checkinTabOpens ?? 0}
+          codesTabOpens={engQ.data?.codesTabOpens ?? 0}
+          checkinsWithCodes={engQ.data?.checkinsWithCodes ?? 0}
         />
       </section>
 
@@ -778,16 +779,17 @@ function SegBtn({
 function EngagementBars({
   loading,
   checkins,
-  guideOpens,
   checkinTabOpens,
+  codesTabOpens,
+  checkinsWithCodes,
 }: {
   loading: boolean;
   checkins: number;
-  guideOpens: number;
   checkinTabOpens: number;
+  codesTabOpens: number;
+  checkinsWithCodes: number;
 }) {
-  const base = Math.max(checkins, 1);
-  const bar = (num: number) => Math.min(100, Math.round((num / base) * 100));
+  const pctOf = (num: number, total: number) => Math.min(100, Math.round((num / Math.max(total, 1)) * 100));
   if (loading)
     return (
       <div className="py-6 text-center text-sm text-muted-foreground">
@@ -796,11 +798,22 @@ function EngagementBars({
     );
   return (
     <div className="relative space-y-4">
-      <BarRow label="Acessos ao guia" value={guideOpens} total={checkins} pct={bar(guideOpens)} />
-      <BarRow label="Abriram aba Chegada" value={checkinTabOpens} total={checkins} pct={bar(checkinTabOpens)} />
+      <BarRow
+        label="Viram instruções de check-in"
+        value={checkinTabOpens}
+        total={checkins}
+        pct={pctOf(checkinTabOpens, checkins)}
+      />
+      <BarRow
+        label="Viram senha de acesso (fechadura/portão)"
+        value={codesTabOpens}
+        total={checkinsWithCodes}
+        pct={pctOf(codesTabOpens, checkinsWithCodes)}
+      />
     </div>
   );
 }
+
 function BarRow({ label, value, total, pct }: { label: string; value: number; total: number; pct: number }) {
   return (
     <div className="space-y-1.5">
