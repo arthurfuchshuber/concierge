@@ -409,32 +409,35 @@ function DashboardPage() {
         />
       </section>
 
-      {/* Engagement */}
-      <section className="rounded-2xl border border-border bg-card p-4 sm:p-5 space-y-4 shadow-sm">
-        <div className="relative flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-start gap-2 min-w-0">
-            <div className="size-9 rounded-xl bg-primary/10 text-primary grid place-items-center shrink-0 ring-1 ring-primary/15">
-              <TrendingUp className="size-4" />
+      {/* Engagement — oculto quando não há check-ins no período */}
+      {(engQ.isLoading || (engQ.data?.checkinsInPeriod ?? 0) > 0 || (engQ.data?.checkinsWithCodes ?? 0) > 0) && (
+        <section className="rounded-2xl border border-border bg-card p-4 sm:p-5 space-y-4 shadow-sm">
+          <div className="relative flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-start gap-2 min-w-0">
+              <div className="size-9 rounded-xl bg-primary/10 text-primary grid place-items-center shrink-0 ring-1 ring-primary/15">
+                <TrendingUp className="size-4" />
+              </div>
+              <div className="min-w-0">
+                <div className="text-sm font-semibold">Engajamento do guia</div>
+                <div className="text-xs text-muted-foreground">Comparativo com os check-ins do período</div>
+              </div>
             </div>
-            <div className="min-w-0">
-              <div className="text-sm font-semibold">Engajamento do guia</div>
-              <div className="text-xs text-muted-foreground">Comparativo com os check-ins do período</div>
+            <div className="text-xs text-muted-foreground tabular-nums">
+              {engRange === "today" ? "Hoje" : engRange === "7d" ? "7 dias" : "30 dias"}
             </div>
           </div>
-          <div className="text-xs text-muted-foreground tabular-nums">
-            {engRange === "today" ? "Hoje" : engRange === "7d" ? "7 dias" : "30 dias"}
-          </div>
-        </div>
-        <EngagementBars
-          loading={engQ.isLoading}
-          checkins={engQ.data?.checkinsInPeriod ?? 0}
-          checkinTabOpens={engQ.data?.checkinTabOpens ?? 0}
-          codesTabOpens={engQ.data?.codesTabOpens ?? 0}
-          checkinsWithCodes={engQ.data?.checkinsWithCodes ?? 0}
-          checkinBreakdown={engQ.data?.checkinBreakdown}
-          codesBreakdown={engQ.data?.codesBreakdown}
-        />
-      </section>
+          <EngagementBars
+            loading={engQ.isLoading}
+            checkins={engQ.data?.checkinsInPeriod ?? 0}
+            checkinTabOpens={engQ.data?.checkinTabOpens ?? 0}
+            codesTabOpens={engQ.data?.codesTabOpens ?? 0}
+            checkinsWithCodes={engQ.data?.checkinsWithCodes ?? 0}
+            checkinBreakdown={engQ.data?.checkinBreakdown}
+            codesBreakdown={engQ.data?.codesBreakdown}
+          />
+        </section>
+      )}
+
 
       {/* Arrivals */}
       <section className="rounded-2xl border border-border bg-card p-4 sm:p-5 space-y-4 shadow-sm">
