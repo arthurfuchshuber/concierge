@@ -265,21 +265,57 @@ export const getGuideEngagement = createServerFn({ method: "GET" })
     // Every filled log implies a guide open — the form is the entry point.
     const guideOpens = guests.size;
 
-    // Check-in tab opens: count events registered in the window (created_at).
+    // Guias com senha de acesso (fechadura ou portão) configurada.
+    const codesProps = new Set(
+      ((props ?? []) as Array<{ id: string; lock_code: string | null; gate_code: string | null }>)
+        .filter((p) => !!(p.lock_code?.trim() || p.gate_code?.trim()))
+        .map((p) => p.id),
+    );
+    let checkinsWithCodes = 0;
+    for (const r of (reservations ?? []) as Array<{
+      id: string;
+      property_id: string;
+      status: string | null;
+      raw_summary: string | null;
+    }>) {
+      if (!icalProps.has(r.property_id) || !isRealReservation(r)) continue;
+      if (codesProps.has(r.property_id)) checkinsWithCodes += 1;
+    }
+    for (const row of logs ?? []) {
+      const r = row as { property_id: string; guest_name: string | null; guest_phone: string | null };
+      if (icalProps.has(r.property_id) || isPlaceholderGuest(r.guest_name)) continue;
+      if (codesProps.has(r.property_id)) checkinsWithCodes += 1;
+    }
+
+    // Aberturas por seção no período (created_at).
     const fromTs = `${from}T00:00:00.000Z`;
     const toTs = `${addDaysISO(to, 1)}T00:00:00.000Z`;
-    const { data: evs } = await context.supabase
-      .from("guide_section_events")
-      .select("id")
-      .in("property_id", propIds)
-      .eq("section", "checkin")
-      .gte("created_at", fromTs)
-      .lt("created_at", toTs)
-      .limit(5000);
+    const [{ data: evs }, { data: codeEvs }] = await Promise.all([
+      context.supabase
+        .from("guide_section_events")
+        .select("id")
+        .in("property_id", propIds)
+        .eq("section", "checkin")
+        .gte("created_at", fromTs)
+        .lt("created_at", toTs)
+        .limit(5000),
+      codesProps.size
+        ? context.supabase
+            .from("guide_section_events")
+            .select("id")
+            .in("property_id", Array.from(codesProps))
+            .eq("section", "senhas")
+            .gte("created_at", fromTs)
+            .lt("created_at", toTs)
+            .limit(5000)
+        : Promise.resolve({ data: [] as Array<{ id: string }> }),
+    ]);
     const checkinTabOpens = (evs ?? []).length;
+    const codesTabOpens = (codeEvs ?? []).length;
 
-    return { guideOpens, checkinTabOpens, checkinsInPeriod };
+    return { guideOpens, checkinTabOpens, checkinsInPeriod, codesTabOpens, checkinsWithCodes };
   });
+
 
 // ----- Arrivals list -----
 
