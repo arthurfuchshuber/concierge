@@ -431,6 +431,8 @@ function DashboardPage() {
           checkinTabOpens={engQ.data?.checkinTabOpens ?? 0}
           codesTabOpens={engQ.data?.codesTabOpens ?? 0}
           checkinsWithCodes={engQ.data?.checkinsWithCodes ?? 0}
+          checkinBreakdown={engQ.data?.checkinBreakdown}
+          codesBreakdown={engQ.data?.codesBreakdown}
         />
       </section>
 
