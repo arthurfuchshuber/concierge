@@ -810,6 +810,7 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
     }
 
 
+    const nowHM = nowHHMMSaoPaulo();
     // Auto-distribuição APENAS na importação: quando uma reserva/registro é
     // criado DEPOIS que a estadia já começou (integração nova sincronizando o
     // histórico corrente), o card já nasce em "Em Estadia". Cards que já
@@ -867,7 +868,7 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
           icalCheckout = near.checkout;
         }
       }
-      const virtualStay = autoStayDone(l.checkin_date, l.checkout_date ?? null, p?.checkin_time ?? null);
+      const virtualStay = autoStayDone(l.checkin_date, l.checkout_date ?? null, l.created_at ?? null);
       if (data.kind === "checkin" && belongsToCheckoutStage(l.checkin_date, l.checkout_date ?? null)) {
         return null;
       }
@@ -942,7 +943,7 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
       const s = reservationStatusMap.get(r.id) ?? legacy ?? logStatus;
       if (s?.concluded_at) return null;
       const date = data.kind === "checkin" ? r.checkin_date : r.checkout_date;
-      const virtualStay = autoStayDone(r.checkin_date, r.checkout_date, p?.checkin_time ?? null);
+      const virtualStay = autoStayDone(r.checkin_date, r.checkout_date, matchedLog?.created_at ?? r.synced_at ?? null);
       // Datas passadas só entram sem interação quando representam uma estadia
       // vigente. Reservas encerradas no passado continuam fora do kanban.
       if (date < today && !s && !virtualStay) return null;
