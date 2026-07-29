@@ -443,7 +443,13 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
         if (reservationWindowEnd) reservationsQuery = reservationsQuery.lte("checkin_date", reservationWindowEnd);
       }
     } else {
-      reservationsQuery = reservationsQuery.gte("checkout_date", reservationWindowStart);
+      // Check-outs pendentes anteriores (atrasados) precisam continuar visíveis
+      // no dashboard e no KPI "Checkouts Pendentes". Para tomorrow mantemos a
+      // janela exata; nos demais casos removemos o piso para não descartar
+      // reservas de dias anteriores que ainda não foram concluídas.
+      if (data.range === "tomorrow") {
+        reservationsQuery = reservationsQuery.gte("checkout_date", reservationWindowStart);
+      }
       if (reservationWindowEnd) reservationsQuery = reservationsQuery.lte("checkout_date", reservationWindowEnd);
     }
 
