@@ -428,8 +428,9 @@ function DashboardPage() {
         <EngagementBars
           loading={engQ.isLoading}
           checkins={engQ.data?.checkinsInPeriod ?? 0}
-          guideOpens={engQ.data?.guideOpens ?? 0}
           checkinTabOpens={engQ.data?.checkinTabOpens ?? 0}
+          codesTabOpens={engQ.data?.codesTabOpens ?? 0}
+          checkinsWithCodes={engQ.data?.checkinsWithCodes ?? 0}
         />
       </section>
 
