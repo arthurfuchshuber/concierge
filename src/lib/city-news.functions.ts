@@ -151,28 +151,37 @@ async function attachPlacePhotos(items: NewsItem[], cityLabel: string, country: 
 
   const regionCode = (country ?? "BR").toUpperCase().slice(0, 2);
 
+  const { throttledFetch } = await import("@/lib/places-throttle.server");
+
   await Promise.all(
     items.map(async (it, idx) => {
       // Query robusta: título curto + cidade. Para categorias mais genéricas
       // (gastronomia, evento), incluímos a categoria pra guiar o Places.
       const q = `${it.title} ${cityLabel}`.slice(0, 120);
       try {
-        const res = await fetch("https://connector-gateway.lovable.dev/google_maps/places/v1/places:searchText", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${apiKey}`,
-            "X-Connection-Api-Key": mapsKey,
-            "Content-Type": "application/json",
-            "X-Goog-FieldMask": "places.photos.name",
-          },
-          body: JSON.stringify({
-            textQuery: q,
-            maxResultCount: 1,
-            languageCode: "pt-BR",
-            regionCode,
-          }),
-          signal: AbortSignal.timeout(6000),
+        const body = JSON.stringify({
+          textQuery: q,
+          maxResultCount: 1,
+          languageCode: "pt-BR",
+          regionCode,
         });
+        const fieldMask = "places.photos.name";
+        const url = "https://connector-gateway.lovable.dev/google_maps/places/v1/places:searchText";
+        const res = await throttledFetch(
+          url,
+          {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${apiKey}`,
+              "X-Connection-Api-Key": mapsKey,
+              "Content-Type": "application/json",
+              "X-Goog-FieldMask": fieldMask,
+            },
+            body,
+            signal: AbortSignal.timeout(6000),
+          },
+          `city-news::${regionCode}::${fieldMask}::${body}`,
+        );
         if (!res.ok) return;
         const j = (await res.json()) as { places?: Array<{ photos?: Array<{ name?: string }> }> };
         const photoName = j.places?.[0]?.photos?.[0]?.name;
