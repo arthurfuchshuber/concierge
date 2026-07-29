@@ -431,6 +431,8 @@ function DashboardPage() {
           checkinTabOpens={engQ.data?.checkinTabOpens ?? 0}
           codesTabOpens={engQ.data?.codesTabOpens ?? 0}
           checkinsWithCodes={engQ.data?.checkinsWithCodes ?? 0}
+          checkinBreakdown={engQ.data?.checkinBreakdown}
+          codesBreakdown={engQ.data?.codesBreakdown}
         />
       </section>
 
@@ -776,18 +778,25 @@ function SegBtn({
   );
 }
 
+type GuestMark = { name: string; property: string };
+type Breakdown = { viewed: GuestMark[]; notViewed: GuestMark[] };
+
 function EngagementBars({
   loading,
   checkins,
   checkinTabOpens,
   codesTabOpens,
   checkinsWithCodes,
+  checkinBreakdown,
+  codesBreakdown,
 }: {
   loading: boolean;
   checkins: number;
   checkinTabOpens: number;
   codesTabOpens: number;
   checkinsWithCodes: number;
+  checkinBreakdown?: Breakdown;
+  codesBreakdown?: Breakdown;
 }) {
   const pctOf = (num: number, total: number) => Math.min(100, Math.round((num / Math.max(total, 1)) * 100));
   if (loading)
@@ -803,6 +812,8 @@ function EngagementBars({
         value={checkinTabOpens}
         total={checkins}
         pct={pctOf(checkinTabOpens, checkins)}
+        breakdown={checkinBreakdown}
+        hintTitle="Instruções de check-in"
       />
       {checkinsWithCodes > 0 && (
         <BarRow
@@ -810,17 +821,73 @@ function EngagementBars({
           value={codesTabOpens}
           total={checkinsWithCodes}
           pct={pctOf(codesTabOpens, checkinsWithCodes)}
+          breakdown={codesBreakdown}
+          hintTitle="Senha de acesso"
         />
       )}
     </div>
   );
 }
 
-function BarRow({ label, value, total, pct }: { label: string; value: number; total: number; pct: number }) {
+function GuestMarkList({ items, tone }: { items: GuestMark[]; tone: "ok" | "off" }) {
+  if (items.length === 0) return <div className="text-muted-foreground text-[11px]">Ninguém</div>;
+  return (
+    <ul className="space-y-0.5">
+      {items.slice(0, 12).map((g, i) => (
+        <li key={`${g.name}-${i}`} className="flex items-start gap-1.5">
+          <span className={`mt-1 size-1.5 shrink-0 rounded-full ${tone === "ok" ? "bg-emerald-500" : "bg-rose-500"}`} />
+          <span className="min-w-0">
+            <span className="font-medium text-foreground/90">{g.name}</span>
+            {g.property ? <span className="text-muted-foreground"> · {g.property}</span> : null}
+          </span>
+        </li>
+      ))}
+      {items.length > 12 && (
+        <li className="text-muted-foreground text-[11px]">+{items.length - 12} outros</li>
+      )}
+    </ul>
+  );
+}
+
+function BarRow({
+  label,
+  value,
+  total,
+  pct,
+  breakdown,
+  hintTitle,
+}: {
+  label: string;
+  value: number;
+  total: number;
+  pct: number;
+  breakdown?: Breakdown;
+  hintTitle?: string;
+}) {
   return (
     <div className="space-y-1.5">
       <div className="flex items-center justify-between text-sm">
-        <span className="font-medium">{label}</span>
+        <span className="flex items-center gap-1 font-medium">
+          {label}
+          {breakdown && (
+            <InfoHint title={hintTitle ?? label}>
+              <div className="space-y-2">
+                <div>
+                  <div className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+                    Viram ({breakdown.viewed.length})
+                  </div>
+                  <GuestMarkList items={breakdown.viewed} tone="ok" />
+                </div>
+                <div>
+                  <div className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-rose-600 dark:text-rose-400">
+                    Não viram ({breakdown.notViewed.length})
+                  </div>
+                  <GuestMarkList items={breakdown.notViewed} tone="off" />
+                </div>
+              </div>
+            </InfoHint>
+          )}
+        </span>
         <span className="tabular-nums text-muted-foreground text-xs">
           {value} / {total} check-ins
         </span>
@@ -835,6 +902,7 @@ function BarRow({ label, value, total, pct }: { label: string; value: number; to
     </div>
   );
 }
+
 
 function ArrivalGroup({
   title,

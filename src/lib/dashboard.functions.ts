@@ -184,6 +184,9 @@ export const getDashboardKpis = createServerFn({ method: "GET" })
 
 // ----- Engagement -----
 
+type EventRow = { property_id: string; guest_name: string | null; guest_phone: string | null };
+type GuestMark = { name: string; property: string };
+
 const EngagementInput = z.object({
   range: z.enum(["today", "7d", "30d"]).default("today"),
 });
@@ -194,7 +197,7 @@ export const getGuideEngagement = createServerFn({ method: "GET" })
   .handler(async ({ data, context }) => {
     const propIds = await accessiblePropertyIds(context.supabase as never, data.ownerId ?? null);
     if (propIds.length === 0) {
-      return { guideOpens: 0, checkinTabOpens: 0, checkinsInPeriod: 0, codesTabOpens: 0, checkinsWithCodes: 0 };
+      return { guideOpens: 0, checkinTabOpens: 0, checkinsInPeriod: 0, codesTabOpens: 0, checkinsWithCodes: 0, checkinBreakdown: { viewed: [] as GuestMark[], notViewed: [] as GuestMark[] }, codesBreakdown: { viewed: [] as GuestMark[], notViewed: [] as GuestMark[] } };
     }
     const today = todayISO();
     let from = today;
@@ -207,7 +210,7 @@ export const getGuideEngagement = createServerFn({ method: "GET" })
       to = addDaysISO(today, 29);
     }
     const [{ data: props }, { data: reservations }, { data: logs }] = await Promise.all([
-      context.supabase.from("properties").select("id, airbnb_ical_url, lock_code, gate_code").in("id", propIds),
+      context.supabase.from("properties").select("id, name, airbnb_ical_url, lock_code, gate_code").in("id", propIds),
       context.supabase
         .from("property_reservations")
         .select("id, property_id, checkin_date, checkout_date, status, raw_summary")
@@ -293,7 +296,7 @@ export const getGuideEngagement = createServerFn({ method: "GET" })
     const [{ data: evs }, { data: codeEvs }] = await Promise.all([
       context.supabase
         .from("guide_section_events")
-        .select("id")
+        .select("id, property_id, guest_name, guest_phone")
         .in("property_id", propIds)
         .eq("section", "checkin")
         .gte("created_at", fromTs)
@@ -302,19 +305,76 @@ export const getGuideEngagement = createServerFn({ method: "GET" })
       codesProps.size
         ? context.supabase
             .from("guide_section_events")
-            .select("id")
+            .select("id, property_id, guest_name, guest_phone")
             .in("property_id", Array.from(codesProps))
             .eq("section", "senhas")
             .gte("created_at", fromTs)
             .lt("created_at", toTs)
             .limit(5000)
-        : Promise.resolve({ data: [] as Array<{ id: string }> }),
+        : Promise.resolve({ data: [] as Array<EventRow> }),
     ]);
     const checkinTabOpens = (evs ?? []).length;
     const codesTabOpens = (codeEvs ?? []).length;
 
-    return { guideOpens, checkinTabOpens, checkinsInPeriod, codesTabOpens, checkinsWithCodes };
+    // Quem viu / quem não viu (apenas hóspedes identificados nos logs de acesso).
+    const propName = new Map(
+      ((props ?? []) as Array<{ id: string; name?: string | null }>).map((p) => [p.id, p.name ?? ""]),
+    );
+    const identity = (propertyId: string, name?: string | null, phone?: string | null) =>
+      `${propertyId}|${(name || "").trim().toLowerCase()}|${(phone || "").replace(/\D/g, "")}`;
+    const looseIdentity = (propertyId: string, name?: string | null) =>
+      `${propertyId}|${(name || "").trim().toLowerCase()}`;
+
+    function seenSets(rows: EventRow[] | null | undefined) {
+      const strict = new Set<string>();
+      const loose = new Set<string>();
+      for (const e of (rows ?? []) as EventRow[]) {
+        if (!e.property_id) continue;
+        strict.add(identity(e.property_id, e.guest_name, e.guest_phone));
+        loose.add(looseIdentity(e.property_id, e.guest_name));
+      }
+      return { strict, loose };
+    }
+    const checkinSeen = seenSets(evs as EventRow[] | null);
+    const codesSeen = seenSets(codeEvs as EventRow[] | null);
+
+    const guestRows = ((logs ?? []) as Array<{
+      property_id: string;
+      guest_name: string | null;
+      guest_phone: string | null;
+    }>).filter((r) => !isPlaceholderGuest(r.guest_name) && (r.guest_name || "").trim());
+
+    function breakdown(seen: { strict: Set<string>; loose: Set<string> }, onlyCodeProps: boolean) {
+      const viewed: GuestMark[] = [];
+      const notViewed: GuestMark[] = [];
+      const done = new Set<string>();
+      for (const r of guestRows) {
+        if (onlyCodeProps && !codesProps.has(r.property_id)) continue;
+        const key = identity(r.property_id, r.guest_name, r.guest_phone);
+        if (done.has(key)) continue;
+        done.add(key);
+        const mark: GuestMark = {
+          name: (r.guest_name || "").trim(),
+          property: propName.get(r.property_id) || "",
+        };
+        const hit = seen.strict.has(key) || seen.loose.has(looseIdentity(r.property_id, r.guest_name));
+        (hit ? viewed : notViewed).push(mark);
+      }
+      const byName = (a: GuestMark, b: GuestMark) => a.name.localeCompare(b.name, "pt-BR");
+      return { viewed: viewed.sort(byName), notViewed: notViewed.sort(byName) };
+    }
+
+    return {
+      guideOpens,
+      checkinTabOpens,
+      checkinsInPeriod,
+      codesTabOpens,
+      checkinsWithCodes,
+      checkinBreakdown: breakdown(checkinSeen, false),
+      codesBreakdown: breakdown(codesSeen, true),
+    };
   });
+
 
 
 // ----- Arrivals list -----
