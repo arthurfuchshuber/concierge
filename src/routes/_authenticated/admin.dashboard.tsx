@@ -882,8 +882,8 @@ function BarRow({
   );
   if (!breakdown) return bar;
   return (
-    <Popover>
-      <PopoverTrigger asChild>
+    <Dialog>
+      <DialogTrigger asChild>
         <button
           type="button"
           aria-label={`Detalhes: ${label}`}
@@ -891,32 +891,41 @@ function BarRow({
         >
           {bar}
         </button>
-      </PopoverTrigger>
-      <PopoverContent
-        side="bottom"
-        align="start"
-        sideOffset={6}
-        className="w-72 max-w-[calc(100vw-2rem)] rounded-xl border-border/70 bg-popover/95 backdrop-blur p-3 text-xs leading-relaxed shadow-xl"
-      >
-        <div className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold mb-2">{label}</div>
-        <div className="space-y-2">
+      </DialogTrigger>
+      <DialogContent className="w-[calc(100vw-1.5rem)] sm:w-full sm:max-w-md p-0 overflow-hidden rounded-2xl border-border/60 bg-card/95 backdrop-blur-xl shadow-2xl">
+        <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-emerald-500/60 to-transparent" />
+        <DialogHeader className="px-5 pt-5 pb-4">
+          <div className="flex items-center gap-3">
+            <div className="grid place-items-center size-10 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+              <TrendingUp className="size-5" />
+            </div>
+            <div className="min-w-0">
+              <DialogTitle className="text-base font-display leading-tight">{label}</DialogTitle>
+              <div className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground mt-0.5">
+                {value} / {total} check-ins
+              </div>
+            </div>
+          </div>
+        </DialogHeader>
+        <div className="max-h-[70vh] overflow-y-auto px-5 pb-5 space-y-4 text-sm">
           <div>
-            <div className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+            <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-emerald-600 dark:text-emerald-400">
               Viram ({breakdown.viewed.length})
             </div>
             <GuestMarkList items={breakdown.viewed} tone="ok" />
           </div>
           <div>
-            <div className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-rose-600 dark:text-rose-400">
+            <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-rose-600 dark:text-rose-400">
               Não viram ({breakdown.notViewed.length})
             </div>
             <GuestMarkList items={breakdown.notViewed} tone="off" />
           </div>
         </div>
-      </PopoverContent>
-    </Popover>
+      </DialogContent>
+    </Dialog>
   );
 }
+
 
 
 function ArrivalGroup({
