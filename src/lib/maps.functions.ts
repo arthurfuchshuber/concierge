@@ -217,9 +217,9 @@ async function gatewayFetch(path: string, init: RequestInit = {}) {
     const fieldMask = headers.get("X-Goog-FieldMask") ?? "";
     cacheKey = `${path}::${fieldMask}::${init.body}`;
   }
-  const { throttledFetch } = await import("@/lib/places-throttle.server");
-  const doFetch = isPlaces ? throttledFetch : (u: string, i: RequestInit) => fetch(u, i);
-  const res = await doFetch(url, { ...init, headers }, cacheKey);
+  const res = isPlaces
+    ? await (await import("@/lib/places-throttle.server")).throttledFetch(url, { ...init, headers }, cacheKey)
+    : await fetch(url, { ...init, headers });
   if (!res.ok) {
     const body = await res.clone().text().catch(() => "");
     console.error(`[Maps Gateway] ${res.status} ${path}`, body.slice(0, 300));
