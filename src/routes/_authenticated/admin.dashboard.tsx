@@ -810,14 +810,15 @@ function EngagementBars({
     );
   return (
     <div className="relative space-y-4">
-      <BarRow
-        label="Viram instruções de check-in"
-        value={checkinTabOpens}
-        total={checkins}
-        pct={pctOf(checkinTabOpens, checkins)}
-        breakdown={checkinBreakdown}
-        hintTitle="Instruções de check-in"
-      />
+      {checkins > 0 && (
+        <BarRow
+          label="Viram instruções de check-in"
+          value={checkinTabOpens}
+          total={checkins}
+          pct={pctOf(checkinTabOpens, checkins)}
+          breakdown={checkinBreakdown}
+        />
+      )}
       {checkinsWithCodes > 0 && (
         <BarRow
           label="Viram senha de acesso (fechadura/portão)"
@@ -825,7 +826,6 @@ function EngagementBars({
           total={checkinsWithCodes}
           pct={pctOf(codesTabOpens, checkinsWithCodes)}
           breakdown={codesBreakdown}
-          hintTitle="Senha de acesso"
         />
       )}
     </div>
@@ -845,9 +845,7 @@ function GuestMarkList({ items, tone }: { items: GuestMark[]; tone: "ok" | "off"
           </span>
         </li>
       ))}
-      {items.length > 12 && (
-        <li className="text-muted-foreground text-[11px]">+{items.length - 12} outros</li>
-      )}
+      {items.length > 12 && <li className="text-muted-foreground text-[11px]">+{items.length - 12} outros</li>}
     </ul>
   );
 }
@@ -858,39 +856,17 @@ function BarRow({
   total,
   pct,
   breakdown,
-  hintTitle,
 }: {
   label: string;
   value: number;
   total: number;
   pct: number;
   breakdown?: Breakdown;
-  hintTitle?: string;
 }) {
-  return (
+  const bar = (
     <div className="space-y-1.5">
       <div className="flex items-center justify-between text-sm">
-        <span className="flex items-center gap-1 font-medium">
-          {label}
-          {breakdown && (
-            <InfoHint title={hintTitle ?? label}>
-              <div className="space-y-2">
-                <div>
-                  <div className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
-                    Viram ({breakdown.viewed.length})
-                  </div>
-                  <GuestMarkList items={breakdown.viewed} tone="ok" />
-                </div>
-                <div>
-                  <div className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-rose-600 dark:text-rose-400">
-                    Não viram ({breakdown.notViewed.length})
-                  </div>
-                  <GuestMarkList items={breakdown.notViewed} tone="off" />
-                </div>
-              </div>
-            </InfoHint>
-          )}
-        </span>
+        <span className="font-medium">{label}</span>
         <span className="tabular-nums text-muted-foreground text-xs">
           {value} / {total} check-ins
         </span>
@@ -903,6 +879,42 @@ function BarRow({
         />
       </div>
     </div>
+  );
+  if (!breakdown) return bar;
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          aria-label={`Detalhes: ${label}`}
+          className="w-full text-left rounded-lg transition-colors hover:bg-muted/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring px-1 -mx-1 py-1"
+        >
+          {bar}
+        </button>
+      </PopoverTrigger>
+      <PopoverContent
+        side="bottom"
+        align="start"
+        sideOffset={6}
+        className="w-72 max-w-[calc(100vw-2rem)] rounded-xl border-border/70 bg-popover/95 backdrop-blur p-3 text-xs leading-relaxed shadow-xl"
+      >
+        <div className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold mb-2">{label}</div>
+        <div className="space-y-2">
+          <div>
+            <div className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+              Viram ({breakdown.viewed.length})
+            </div>
+            <GuestMarkList items={breakdown.viewed} tone="ok" />
+          </div>
+          <div>
+            <div className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-rose-600 dark:text-rose-400">
+              Não viram ({breakdown.notViewed.length})
+            </div>
+            <GuestMarkList items={breakdown.notViewed} tone="off" />
+          </div>
+        </div>
+      </PopoverContent>
+    </Popover>
   );
 }
 
