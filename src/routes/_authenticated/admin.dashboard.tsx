@@ -804,12 +804,14 @@ function EngagementBars({
         total={checkins}
         pct={pctOf(checkinTabOpens, checkins)}
       />
-      <BarRow
-        label="Viram senha de acesso (fechadura/portão)"
-        value={codesTabOpens}
-        total={checkinsWithCodes}
-        pct={pctOf(codesTabOpens, checkinsWithCodes)}
-      />
+      {checkinsWithCodes > 0 && (
+        <BarRow
+          label="Viram senha de acesso (fechadura/portão)"
+          value={codesTabOpens}
+          total={checkinsWithCodes}
+          pct={pctOf(codesTabOpens, checkinsWithCodes)}
+        />
+      )}
     </div>
   );
 }
