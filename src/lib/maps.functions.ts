@@ -208,13 +208,25 @@ async function gatewayFetch(path: string, init: RequestInit = {}) {
   const headers = new Headers(init.headers);
   headers.set("Authorization", `Bearer ${apiKey}`);
   headers.set("X-Connection-Api-Key", mapsKey);
-  const res = await fetch(`${GATEWAY}${path}`, { ...init, headers });
+  const url = `${GATEWAY}${path}`;
+  // Throttle Places API calls (searchText / searchNearby) — cache identical
+  // POST bodies for 24h and cap parallelism to avoid quota bursts (HTTP 429).
+  const isPlaces = path.startsWith("/places/v1/places:");
+  let cacheKey: string | undefined;
+  if (isPlaces && typeof init.body === "string") {
+    const fieldMask = headers.get("X-Goog-FieldMask") ?? "";
+    cacheKey = `${path}::${fieldMask}::${init.body}`;
+  }
+  const { throttledFetch } = await import("@/lib/places-throttle.server");
+  const doFetch = isPlaces ? throttledFetch : (u: string, i: RequestInit) => fetch(u, i);
+  const res = await doFetch(url, { ...init, headers }, cacheKey);
   if (!res.ok) {
-    const body = await res.text().catch(() => "");
+    const body = await res.clone().text().catch(() => "");
     console.error(`[Maps Gateway] ${res.status} ${path}`, body.slice(0, 300));
   }
   return res;
 }
+
 
 type GeoComponent = { types: string[]; long_name: string; short_name?: string };
 
