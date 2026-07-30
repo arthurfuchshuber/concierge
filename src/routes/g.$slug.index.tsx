@@ -444,10 +444,11 @@ function Guide({ data }: { data: GuideOk }) {
   const hasAccessPin = !!(p as any).hasAccessPin;
   const initialUnlocked = !!(p as any).accessUnlocked;
   const [unlocked, setUnlocked] = useState(initialUnlocked);
-  // Track when the guest actually reveals credentials (unlocked flips to true)
+  // Só registramos "viu a senha de acesso" quando o código foi de fato
+  // exibido na tela (não basta abrir a seção ou destravar o PIN).
   const passwordsTrackedRef = useRef(false);
-  useEffect(() => {
-    if (!unlocked || passwordsTrackedRef.current) return;
+  const markPasswordsSeen = () => {
+    if (passwordsTrackedRef.current || checkinLocked) return;
     passwordsTrackedRef.current = true;
     const sid = typeof window !== "undefined" ? (localStorage.getItem(`guide-chat-session:${slug}`) ?? "anon") : "anon";
     const pagePath = typeof window !== "undefined" ? window.location.pathname : null;
@@ -461,8 +462,8 @@ function Guide({ data }: { data: GuideOk }) {
         pagePath,
       },
     }).catch(() => {});
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [unlocked]);
+  };
+
 
 
   // Expansividade da barra "check-in libera em" — abre wi-fi/senhas
