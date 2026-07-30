@@ -944,7 +944,10 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
       const s = reservationStatusMap.get(r.id) ?? legacy ?? logStatus;
       if (s?.concluded_at) return null;
       const date = data.kind === "checkin" ? r.checkin_date : r.checkout_date;
-      const virtualStay = autoStayDone(r.checkin_date, r.checkout_date, matchedLog?.created_at ?? r.synced_at ?? null);
+      // IMPORTANTE: nunca usar `synced_at` aqui — ele é reescrito a cada sync do iCal,
+      // o que promoveria toda estadia em curso automaticamente. Só a data real de
+      // criação do registro (integração nova) pode disparar a auto-distribuição.
+      const virtualStay = autoStayDone(r.checkin_date, r.checkout_date, matchedLog?.created_at ?? r.created_at ?? null);
       // Datas passadas só entram sem interação quando representam uma estadia
       // vigente. Reservas encerradas no passado continuam fora do kanban.
       if (date < today && !s && !virtualStay) return null;
