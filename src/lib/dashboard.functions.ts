@@ -237,39 +237,60 @@ export const getGuideEngagement = createServerFn({ method: "GET" })
         .map((p) => p.id),
     );
 
-    const dedupKey = (r: {
+    type LogRow = {
       property_id: string;
-      guest_name?: string | null;
-      guest_phone?: string | null;
-      checkin_date?: string | null;
-    }) =>
-      `${r.property_id}|${(r.guest_name || "").trim().toLowerCase()}|${(r.guest_phone || "").replace(/\D/g, "")}|${r.checkin_date ?? ""}`;
+      guest_name: string | null;
+      guest_phone: string | null;
+      checkin_date: string | null;
+    };
+    const allLogs = ((logs ?? []) as LogRow[]).filter((r) => !isPlaceholderGuest(r.guest_name));
 
-    const guests = new Set<string>();
-    for (const row of logs ?? []) {
-      const r = row as { property_id: string; guest_name: string | null; guest_phone: string | null };
-      if (isPlaceholderGuest(r.guest_name)) continue;
-      guests.add(dedupKey(r));
-    }
-    const icalCheckins = new Set<string>();
+    // Uma entrada por check-in do período (mesma base usada no contador).
+    type Entry = { property_id: string; name: string; phone: string | null };
+    const entries: Entry[] = [];
+    const usedLog = new Set<number>();
+
     for (const r of (reservations ?? []) as Array<{
       id: string;
       property_id: string;
+      checkin_date: string | null;
       status: string | null;
       raw_summary: string | null;
     }>) {
       if (!icalProps.has(r.property_id) || !isRealReservation(r)) continue;
-      icalCheckins.add(r.id);
+      let matched: LogRow | null = null;
+      for (let i = 0; i < allLogs.length; i++) {
+        if (usedLog.has(i)) continue;
+        const l = allLogs[i];
+        if (l.property_id !== r.property_id) continue;
+        if (l.checkin_date && r.checkin_date && l.checkin_date !== r.checkin_date) continue;
+        usedLog.add(i);
+        matched = l;
+        break;
+      }
+      entries.push({
+        property_id: r.property_id,
+        name: (matched?.guest_name || "").trim() || "Hóspede pendente",
+        phone: matched?.guest_phone ?? null,
+      });
     }
-    const fallbackLogs = new Set<string>();
-    for (const row of logs ?? []) {
-      const r = row as { property_id: string; guest_name: string | null; guest_phone: string | null };
-      if (icalProps.has(r.property_id) || isPlaceholderGuest(r.guest_name)) continue;
-      fallbackLogs.add(dedupKey(r));
+
+    // Check-ins sem iCal (apenas logs de acesso), deduplicados.
+    const seenFallback = new Set<string>();
+    for (const l of allLogs) {
+      if (icalProps.has(l.property_id)) continue;
+      const key = `${l.property_id}|${(l.guest_name || "").trim().toLowerCase()}|${(l.guest_phone || "").replace(/\D/g, "")}|${l.checkin_date ?? ""}`;
+      if (seenFallback.has(key)) continue;
+      seenFallback.add(key);
+      entries.push({
+        property_id: l.property_id,
+        name: (l.guest_name || "").trim() || "Hóspede pendente",
+        phone: l.guest_phone,
+      });
     }
-    const checkinsInPeriod = icalCheckins.size + fallbackLogs.size;
-    // Every filled log implies a guide open — the form is the entry point.
-    const guideOpens = guests.size;
+
+    const checkinsInPeriod = entries.length;
+    const guideOpens = allLogs.length;
 
     // Guias com senha de acesso (fechadura ou portão) configurada.
     const codesProps = new Set(
@@ -277,21 +298,8 @@ export const getGuideEngagement = createServerFn({ method: "GET" })
         .filter((p) => !!(p.lock_code?.trim() || p.gate_code?.trim()))
         .map((p) => p.id),
     );
-    let checkinsWithCodes = 0;
-    for (const r of (reservations ?? []) as Array<{
-      id: string;
-      property_id: string;
-      status: string | null;
-      raw_summary: string | null;
-    }>) {
-      if (!icalProps.has(r.property_id) || !isRealReservation(r)) continue;
-      if (codesProps.has(r.property_id)) checkinsWithCodes += 1;
-    }
-    for (const row of logs ?? []) {
-      const r = row as { property_id: string; guest_name: string | null; guest_phone: string | null };
-      if (icalProps.has(r.property_id) || isPlaceholderGuest(r.guest_name)) continue;
-      if (codesProps.has(r.property_id)) checkinsWithCodes += 1;
-    }
+    const codeEntries = entries.filter((e) => codesProps.has(e.property_id));
+    const checkinsWithCodes = codeEntries.length;
 
     // Aberturas por seção no período (created_at).
     const fromTs = `${from}T00:00:00.000Z`;
@@ -319,7 +327,7 @@ export const getGuideEngagement = createServerFn({ method: "GET" })
     const checkinTabOpens = (evs ?? []).length;
     const codesTabOpens = (codeEvs ?? []).length;
 
-    // Quem viu / quem não viu (apenas hóspedes identificados nos logs de acesso).
+    // Quem viu / quem não viu.
     const propName = new Map(
       ((props ?? []) as Array<{ id: string; name?: string | null }>).map((p) => [p.id, p.name ?? ""]),
     );
@@ -341,26 +349,15 @@ export const getGuideEngagement = createServerFn({ method: "GET" })
     const checkinSeen = seenSets(evs as EventRow[] | null);
     const codesSeen = seenSets(codeEvs as EventRow[] | null);
 
-    const guestRows = ((logs ?? []) as Array<{
-      property_id: string;
-      guest_name: string | null;
-      guest_phone: string | null;
-    }>).filter((r) => !isPlaceholderGuest(r.guest_name) && (r.guest_name || "").trim());
-
-    function breakdown(seen: { strict: Set<string>; loose: Set<string> }, onlyCodeProps: boolean) {
+    function breakdown(seen: { strict: Set<string>; loose: Set<string> }, list: Entry[]) {
       const viewed: GuestMark[] = [];
       const notViewed: GuestMark[] = [];
-      const done = new Set<string>();
-      for (const r of guestRows) {
-        if (onlyCodeProps && !codesProps.has(r.property_id)) continue;
-        const key = identity(r.property_id, r.guest_name, r.guest_phone);
-        if (done.has(key)) continue;
-        done.add(key);
-        const mark: GuestMark = {
-          name: (r.guest_name || "").trim(),
-          property: propName.get(r.property_id) || "",
-        };
-        const hit = seen.strict.has(key) || seen.loose.has(looseIdentity(r.property_id, r.guest_name));
+      for (const e of list) {
+        const mark: GuestMark = { name: e.name, property: propName.get(e.property_id) || "" };
+        const hit =
+          e.name !== "Hóspede pendente" &&
+          (seen.strict.has(identity(e.property_id, e.name, e.phone)) ||
+            seen.loose.has(looseIdentity(e.property_id, e.name)));
         (hit ? viewed : notViewed).push(mark);
       }
       const byName = (a: GuestMark, b: GuestMark) => a.name.localeCompare(b.name, "pt-BR");
@@ -373,10 +370,11 @@ export const getGuideEngagement = createServerFn({ method: "GET" })
       checkinsInPeriod,
       codesTabOpens,
       checkinsWithCodes,
-      checkinBreakdown: breakdown(checkinSeen, false),
-      codesBreakdown: breakdown(codesSeen, true),
+      checkinBreakdown: breakdown(checkinSeen, entries),
+      codesBreakdown: breakdown(codesSeen, codeEntries),
     };
   });
+
 
 
 
