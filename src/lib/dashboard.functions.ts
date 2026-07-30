@@ -714,6 +714,7 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
       reservation_url: string | null;
       status: string | null;
       synced_at: string | null;
+      created_at: string | null;
     };
     const resByProp = new Map<
       string,
