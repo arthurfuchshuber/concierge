@@ -861,12 +861,13 @@ function BarRow({
 }) {
   const bar = (
     <div className="space-y-1.5">
-      <div className="flex items-center justify-between text-sm">
-        <span className="font-medium">{label}</span>
-        <span className="tabular-nums text-muted-foreground text-xs">
-          {value} / {total} check-ins
+      <div className="flex items-center justify-between gap-2 text-sm">
+        <span className="font-medium truncate whitespace-nowrap min-w-0">{label}</span>
+        <span className="tabular-nums text-muted-foreground text-xs whitespace-nowrap shrink-0">
+          {total} check-ins
         </span>
       </div>
+
       {/* Battery: red base, green fill overlay */}
       <div className="h-2.5 rounded-full bg-rose-500/70 overflow-hidden ring-1 ring-rose-500/20">
         <div
