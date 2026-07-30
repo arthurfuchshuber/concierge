@@ -974,7 +974,7 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
         guestCheckin: r.checkin_date,
         guestCheckout: r.checkout_date,
         reservationCode: r.guest_hint ?? matchedLog?.reservation_code ?? null,
-        createdAt: matchedLog?.created_at ?? r.synced_at ?? new Date().toISOString(),
+        createdAt: matchedLog?.created_at ?? r.created_at ?? r.synced_at ?? new Date().toISOString(),
         status:
           data.kind === "checkin" && r.checkin_date > today && s?.status === "done"
             ? "pending"
