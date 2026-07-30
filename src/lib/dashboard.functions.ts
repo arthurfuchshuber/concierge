@@ -523,7 +523,7 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
     let reservationsQuery = context.supabase
       .from("property_reservations")
       .select(
-        "id, property_id, checkin_date, checkout_date, raw_summary, guest_hint, reservation_url, status, synced_at",
+        "id, property_id, checkin_date, checkout_date, raw_summary, guest_hint, reservation_url, status, synced_at, created_at",
       )
       .in("property_id", propIds)
       .eq("source", "airbnb");
@@ -714,6 +714,7 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
       reservation_url: string | null;
       status: string | null;
       synced_at: string | null;
+      created_at: string | null;
     };
     const resByProp = new Map<
       string,
@@ -943,7 +944,10 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
       const s = reservationStatusMap.get(r.id) ?? legacy ?? logStatus;
       if (s?.concluded_at) return null;
       const date = data.kind === "checkin" ? r.checkin_date : r.checkout_date;
-      const virtualStay = autoStayDone(r.checkin_date, r.checkout_date, matchedLog?.created_at ?? r.synced_at ?? null);
+      // IMPORTANTE: nunca usar `synced_at` aqui — ele é reescrito a cada sync do iCal,
+      // o que promoveria toda estadia em curso automaticamente. Só a data real de
+      // criação do registro (integração nova) pode disparar a auto-distribuição.
+      const virtualStay = autoStayDone(r.checkin_date, r.checkout_date, matchedLog?.created_at ?? r.created_at ?? null);
       // Datas passadas só entram sem interação quando representam uma estadia
       // vigente. Reservas encerradas no passado continuam fora do kanban.
       if (date < today && !s && !virtualStay) return null;
@@ -970,7 +974,7 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
         guestCheckin: r.checkin_date,
         guestCheckout: r.checkout_date,
         reservationCode: r.guest_hint ?? matchedLog?.reservation_code ?? null,
-        createdAt: matchedLog?.created_at ?? r.synced_at ?? new Date().toISOString(),
+        createdAt: matchedLog?.created_at ?? r.created_at ?? r.synced_at ?? new Date().toISOString(),
         status:
           data.kind === "checkin" && r.checkin_date > today && s?.status === "done"
             ? "pending"
