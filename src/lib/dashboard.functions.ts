@@ -301,31 +301,24 @@ export const getGuideEngagement = createServerFn({ method: "GET" })
     const codeEntries = entries.filter((e) => codesProps.has(e.property_id));
     const checkinsWithCodes = codeEntries.length;
 
-    // Aberturas por seção no período (created_at).
-    const fromTs = `${from}T00:00:00.000Z`;
-    const toTs = `${addDaysISO(to, 1)}T00:00:00.000Z`;
+    // Aberturas por seção — sem janela de tempo: o hóspede costuma abrir o guia
+    // dias antes do check-in, então filtrar por created_at zerava o engajamento.
     const [{ data: evs }, { data: codeEvs }] = await Promise.all([
       context.supabase
         .from("guide_section_events")
         .select("id, property_id, guest_name, guest_phone")
         .in("property_id", propIds)
         .eq("section", "checkin")
-        .gte("created_at", fromTs)
-        .lt("created_at", toTs)
-        .limit(5000),
+        .limit(20000),
       codesProps.size
         ? context.supabase
             .from("guide_section_events")
             .select("id, property_id, guest_name, guest_phone")
             .in("property_id", Array.from(codesProps))
             .eq("section", "senhas")
-            .gte("created_at", fromTs)
-            .lt("created_at", toTs)
-            .limit(5000)
+            .limit(20000)
         : Promise.resolve({ data: [] as Array<EventRow> }),
     ]);
-    const checkinTabOpens = (evs ?? []).length;
-    const codesTabOpens = (codeEvs ?? []).length;
 
     // Quem viu / quem não viu.
     const propName = new Map(
@@ -339,39 +332,50 @@ export const getGuideEngagement = createServerFn({ method: "GET" })
     function seenSets(rows: EventRow[] | null | undefined) {
       const strict = new Set<string>();
       const loose = new Set<string>();
+      const phones = new Set<string>();
       for (const e of (rows ?? []) as EventRow[]) {
         if (!e.property_id) continue;
         strict.add(identity(e.property_id, e.guest_name, e.guest_phone));
-        loose.add(looseIdentity(e.property_id, e.guest_name));
+        if ((e.guest_name || "").trim()) loose.add(looseIdentity(e.property_id, e.guest_name));
+        const digits = (e.guest_phone || "").replace(/\D/g, "");
+        if (digits.length >= 8) phones.add(`${e.property_id}|${digits.slice(-8)}`);
       }
-      return { strict, loose };
+      return { strict, loose, phones };
     }
     const checkinSeen = seenSets(evs as EventRow[] | null);
     const codesSeen = seenSets(codeEvs as EventRow[] | null);
 
-    function breakdown(seen: { strict: Set<string>; loose: Set<string> }, list: Entry[]) {
+    function breakdown(
+      seen: { strict: Set<string>; loose: Set<string>; phones: Set<string> },
+      list: Entry[],
+    ) {
       const viewed: GuestMark[] = [];
       const notViewed: GuestMark[] = [];
       for (const e of list) {
         const mark: GuestMark = { name: e.name, property: propName.get(e.property_id) || "" };
+        const digits = (e.phone || "").replace(/\D/g, "");
         const hit =
           e.name !== "Hóspede pendente" &&
           (seen.strict.has(identity(e.property_id, e.name, e.phone)) ||
-            seen.loose.has(looseIdentity(e.property_id, e.name)));
+            seen.loose.has(looseIdentity(e.property_id, e.name)) ||
+            (digits.length >= 8 && seen.phones.has(`${e.property_id}|${digits.slice(-8)}`)));
         (hit ? viewed : notViewed).push(mark);
       }
       const byName = (a: GuestMark, b: GuestMark) => a.name.localeCompare(b.name, "pt-BR");
       return { viewed: viewed.sort(byName), notViewed: notViewed.sort(byName) };
     }
 
+    const checkinBreakdown = breakdown(checkinSeen, entries);
+    const codesBreakdown = breakdown(codesSeen, codeEntries);
+
     return {
       guideOpens,
-      checkinTabOpens,
+      checkinTabOpens: checkinBreakdown.viewed.length,
       checkinsInPeriod,
-      codesTabOpens,
+      codesTabOpens: codesBreakdown.viewed.length,
       checkinsWithCodes,
-      checkinBreakdown: breakdown(checkinSeen, entries),
-      codesBreakdown: breakdown(codesSeen, codeEntries),
+      checkinBreakdown,
+      codesBreakdown,
     };
   });
 
