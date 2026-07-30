@@ -341,30 +341,66 @@ export const getGuideEngagement = createServerFn({ method: "GET" })
     const checkinSeen = seenSets(evs as EventRow[] | null);
     const codesSeen = seenSets(codeEvs as EventRow[] | null);
 
-    // Reservas reais do iCal (property + data) para validar hóspedes auto-declarados.
-    const icalResKeys = new Set<string>();
+    // Reservas reais do iCal: quantas vagas por imóvel/data e quais códigos (HM...) existem.
+    const slotCount = new Map<string, number>();
+    const validCodes = new Set<string>();
     for (const r of (reservations ?? []) as Array<{
       id: string;
       property_id: string;
       status: string | null;
       raw_summary: string | null;
       checkin_date: string | null;
+      guest_hint: string | null;
     }>) {
       if (!icalProps.has(r.property_id) || !isRealReservation(r)) continue;
-      icalResKeys.add(`${r.property_id}|${r.checkin_date ?? ""}`);
+      const slot = `${r.property_id}|${r.checkin_date ?? ""}`;
+      slotCount.set(slot, (slotCount.get(slot) ?? 0) + 1);
+      const code = (r.guest_hint || "").trim().toUpperCase();
+      if (code) validCodes.add(`${r.property_id}|${code}`);
     }
 
-    const guestRows = ((logs ?? []) as Array<{
+    type LogRow = {
       property_id: string;
       guest_name: string | null;
       guest_phone: string | null;
       checkin_date: string | null;
-    }>).filter((r) => {
-      if (isPlaceholderGuest(r.guest_name) || !(r.guest_name || "").trim()) return false;
-      // Em imóveis com iCal, só considera hóspedes cuja data casa com uma reserva confirmada.
-      if (icalProps.has(r.property_id) && !icalResKeys.has(`${r.property_id}|${r.checkin_date ?? ""}`)) return false;
-      return true;
-    });
+      reservation_code: string | null;
+      created_at?: string | null;
+    };
+    const namedLogs = ((logs ?? []) as LogRow[]).filter(
+      (r) => !isPlaceholderGuest(r.guest_name) && (r.guest_name || "").trim(),
+    );
+
+    // Em imóveis com iCal: aceita o hóspede se o código da reserva casa com o iCal.
+    // Registros antigos sem código só entram nas vagas ainda não reivindicadas do dia.
+    const claimed = new Map<string, number>();
+    const accepted: LogRow[] = [];
+    const pending: LogRow[] = [];
+    for (const r of namedLogs) {
+      if (!icalProps.has(r.property_id)) {
+        accepted.push(r);
+        continue;
+      }
+      const slot = `${r.property_id}|${r.checkin_date ?? ""}`;
+      if (!slotCount.has(slot)) continue; // data sem reserva confirmada
+      const code = (r.reservation_code || "").trim().toUpperCase();
+      if (code) {
+        if (!validCodes.has(`${r.property_id}|${code}`)) continue; // código não bate com o iCal
+        claimed.set(slot, (claimed.get(slot) ?? 0) + 1);
+        accepted.push(r);
+      } else {
+        pending.push(r);
+      }
+    }
+    pending.sort((a, b) => (a.created_at ?? "").localeCompare(b.created_at ?? ""));
+    for (const r of pending) {
+      const slot = `${r.property_id}|${r.checkin_date ?? ""}`;
+      const used = claimed.get(slot) ?? 0;
+      if (used >= (slotCount.get(slot) ?? 0)) continue; // sem vaga livre: não confirmado
+      claimed.set(slot, used + 1);
+      accepted.push(r);
+    }
+    const guestRows = accepted;
 
     function breakdown(seen: { strict: Set<string>; loose: Set<string> }, onlyCodeProps: boolean) {
       const viewed: GuestMark[] = [];
