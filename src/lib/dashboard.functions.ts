@@ -216,7 +216,7 @@ export const getGuideEngagement = createServerFn({ method: "GET" })
       context.supabase.from("properties").select("id, name, airbnb_ical_url, lock_code, gate_code").in("id", propIds),
       context.supabase
         .from("property_reservations")
-        .select("id, property_id, checkin_date, checkout_date, status, raw_summary")
+        .select("id, property_id, checkin_date, checkout_date, status, raw_summary, guest_hint")
         .in("property_id", propIds)
         .eq("source", "airbnb")
         .gte("checkin_date", from)
@@ -224,7 +224,7 @@ export const getGuideEngagement = createServerFn({ method: "GET" })
         .limit(5000),
       context.supabase
         .from("guide_access_logs")
-        .select("id, property_id, guest_name, guest_phone, checkin_date")
+        .select("id, property_id, guest_name, guest_phone, checkin_date, reservation_code, created_at")
         .in("property_id", propIds)
         .gte("checkin_date", from)
         .lte("checkin_date", to)
