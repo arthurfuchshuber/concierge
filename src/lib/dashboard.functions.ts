@@ -341,11 +341,30 @@ export const getGuideEngagement = createServerFn({ method: "GET" })
     const checkinSeen = seenSets(evs as EventRow[] | null);
     const codesSeen = seenSets(codeEvs as EventRow[] | null);
 
+    // Reservas reais do iCal (property + data) para validar hóspedes auto-declarados.
+    const icalResKeys = new Set<string>();
+    for (const r of (reservations ?? []) as Array<{
+      id: string;
+      property_id: string;
+      status: string | null;
+      raw_summary: string | null;
+      checkin_date: string | null;
+    }>) {
+      if (!icalProps.has(r.property_id) || !isRealReservation(r)) continue;
+      icalResKeys.add(`${r.property_id}|${r.checkin_date ?? ""}`);
+    }
+
     const guestRows = ((logs ?? []) as Array<{
       property_id: string;
       guest_name: string | null;
       guest_phone: string | null;
-    }>).filter((r) => !isPlaceholderGuest(r.guest_name) && (r.guest_name || "").trim());
+      checkin_date: string | null;
+    }>).filter((r) => {
+      if (isPlaceholderGuest(r.guest_name) || !(r.guest_name || "").trim()) return false;
+      // Em imóveis com iCal, só considera hóspedes cuja data casa com uma reserva confirmada.
+      if (icalProps.has(r.property_id) && !icalResKeys.has(`${r.property_id}|${r.checkin_date ?? ""}`)) return false;
+      return true;
+    });
 
     function breakdown(seen: { strict: Set<string>; loose: Set<string> }, onlyCodeProps: boolean) {
       const viewed: GuestMark[] = [];
