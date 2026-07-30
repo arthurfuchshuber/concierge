@@ -188,7 +188,7 @@ type EventRow = { property_id: string; guest_name: string | null; guest_phone: s
 type GuestMark = { name: string; property: string };
 
 const EngagementInput = z.object({
-  range: z.enum(["today", "7d", "30d"]).default("today"),
+  range: z.enum(["today", "tomorrow", "7d", "30d"]).default("today"),
 });
 
 export const getGuideEngagement = createServerFn({ method: "GET" })
@@ -202,7 +202,10 @@ export const getGuideEngagement = createServerFn({ method: "GET" })
     const today = todayISO();
     let from = today;
     let to = today;
-    if (data.range === "7d") {
+    if (data.range === "tomorrow") {
+      from = addDaysISO(today, 1);
+      to = from;
+    } else if (data.range === "7d") {
       from = today;
       to = addDaysISO(today, 6);
     } else if (data.range === "30d") {

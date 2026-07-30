@@ -139,7 +139,8 @@ function DashboardPage() {
   const kind: "checkin" | "checkout" = mode === "checkout" || mode === "cleaning" ? "checkout" : "checkin";
   const [range, setRange] = useState<"today" | "tomorrow" | "7d" | "all">("today");
   // Engagement window follows the kanban range: tomorrow/all map to 7d/30d.
-  const engRange: "today" | "7d" | "30d" = range === "today" ? "today" : range === "all" ? "30d" : "7d";
+  const engRange: "today" | "tomorrow" | "7d" | "30d" =
+    range === "today" ? "today" : range === "tomorrow" ? "tomorrow" : range === "all" ? "30d" : "7d";
 
   // KPIs derivam das mesmas listas do kanban para garantir sincronia visual.
 
@@ -409,8 +410,8 @@ function DashboardPage() {
         />
       </section>
 
-      {/* Engagement — oculto quando não há check-ins no período */}
-      {(engQ.isLoading || (engQ.data?.checkinsInPeriod ?? 0) > 0 || (engQ.data?.checkinsWithCodes ?? 0) > 0) && (
+      {/* Engajamento — segue os check-ins PENDENTES do filtro atual; some quando zera */}
+      {counts.checkin > 0 && (
         <section className="rounded-2xl border border-border bg-card p-4 sm:p-5 space-y-4 shadow-sm">
           <div className="relative flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-start gap-2 min-w-0">
@@ -422,21 +423,18 @@ function DashboardPage() {
                 <div className="text-xs text-muted-foreground">Comparativo com os check-ins do período</div>
               </div>
             </div>
-            <div className="text-xs text-muted-foreground tabular-nums">
-              {engRange === "today" ? "Hoje" : engRange === "7d" ? "7 dias" : "30 dias"}
-            </div>
+            <div className="text-xs text-muted-foreground tabular-nums">{rangeLabel[range]}</div>
           </div>
           <EngagementBars
             loading={engQ.isLoading}
-            checkins={engQ.data?.checkinsInPeriod ?? 0}
-            checkinTabOpens={engQ.data?.checkinTabOpens ?? 0}
-            codesTabOpens={engQ.data?.codesTabOpens ?? 0}
-            checkinsWithCodes={engQ.data?.checkinsWithCodes ?? 0}
+            checkins={counts.checkin}
+            checkinsWithCodes={Math.min(engQ.data?.checkinsWithCodes ?? 0, counts.checkin)}
             checkinBreakdown={engQ.data?.checkinBreakdown}
             codesBreakdown={engQ.data?.codesBreakdown}
           />
         </section>
       )}
+
 
 
       {/* Arrivals */}
@@ -787,16 +785,12 @@ type Breakdown = { viewed: GuestMark[]; notViewed: GuestMark[] };
 function EngagementBars({
   loading,
   checkins,
-  checkinTabOpens,
-  codesTabOpens,
   checkinsWithCodes,
   checkinBreakdown,
   codesBreakdown,
 }: {
   loading: boolean;
   checkins: number;
-  checkinTabOpens: number;
-  codesTabOpens: number;
   checkinsWithCodes: number;
   checkinBreakdown?: Breakdown;
   codesBreakdown?: Breakdown;
@@ -808,29 +802,32 @@ function EngagementBars({
         <Loader2 className="size-4 inline animate-spin" />
       </div>
     );
+  const checkinViewed = Math.min(checkinBreakdown?.viewed.length ?? 0, checkins);
+  const codesViewed = Math.min(codesBreakdown?.viewed.length ?? 0, checkinsWithCodes);
   return (
     <div className="relative space-y-4">
       {checkins > 0 && (
         <BarRow
           label="Viram instruções de check-in"
-          value={checkinTabOpens}
+          value={checkinViewed}
           total={checkins}
-          pct={pctOf(checkinTabOpens, checkins)}
+          pct={pctOf(checkinViewed, checkins)}
           breakdown={checkinBreakdown}
         />
       )}
       {checkinsWithCodes > 0 && (
         <BarRow
-          label="Viram senha de acesso (fechadura/portão)"
-          value={codesTabOpens}
+          label="Viram senha de acesso"
+          value={codesViewed}
           total={checkinsWithCodes}
-          pct={pctOf(codesTabOpens, checkinsWithCodes)}
+          pct={pctOf(codesViewed, checkinsWithCodes)}
           breakdown={codesBreakdown}
         />
       )}
     </div>
   );
 }
+
 
 function GuestMarkList({ items, tone }: { items: GuestMark[]; tone: "ok" | "off" }) {
   if (items.length === 0) return <div className="text-muted-foreground text-[11px]">Ninguém</div>;
@@ -865,12 +862,13 @@ function BarRow({
 }) {
   const bar = (
     <div className="space-y-1.5">
-      <div className="flex items-center justify-between text-sm">
-        <span className="font-medium">{label}</span>
-        <span className="tabular-nums text-muted-foreground text-xs">
-          {value} / {total} check-ins
+      <div className="flex items-center justify-between gap-2 text-sm">
+        <span className="font-medium truncate whitespace-nowrap min-w-0">{label}</span>
+        <span className="tabular-nums text-muted-foreground text-xs whitespace-nowrap shrink-0">
+          {total} check-ins
         </span>
       </div>
+
       {/* Battery: red base, green fill overlay */}
       <div className="h-2.5 rounded-full bg-rose-500/70 overflow-hidden ring-1 ring-rose-500/20">
         <div
@@ -902,8 +900,9 @@ function BarRow({
             <div className="min-w-0">
               <DialogTitle className="text-base font-display leading-tight">{label}</DialogTitle>
               <div className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground mt-0.5">
-                {value} / {total} check-ins
+                {value} de {total} check-ins
               </div>
+
             </div>
           </div>
         </DialogHeader>
