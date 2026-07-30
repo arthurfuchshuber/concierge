@@ -139,7 +139,8 @@ function DashboardPage() {
   const kind: "checkin" | "checkout" = mode === "checkout" || mode === "cleaning" ? "checkout" : "checkin";
   const [range, setRange] = useState<"today" | "tomorrow" | "7d" | "all">("today");
   // Engagement window follows the kanban range: tomorrow/all map to 7d/30d.
-  const engRange: "today" | "7d" | "30d" = range === "today" ? "today" : range === "all" ? "30d" : "7d";
+  const engRange: "today" | "tomorrow" | "7d" | "30d" =
+    range === "today" ? "today" : range === "tomorrow" ? "tomorrow" : range === "all" ? "30d" : "7d";
 
   // KPIs derivam das mesmas listas do kanban para garantir sincronia visual.
 
