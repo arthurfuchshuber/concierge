@@ -409,8 +409,8 @@ function DashboardPage() {
         />
       </section>
 
-      {/* Engagement — oculto quando não há check-ins no período */}
-      {(engQ.isLoading || (engQ.data?.checkinsInPeriod ?? 0) > 0 || (engQ.data?.checkinsWithCodes ?? 0) > 0) && (
+      {/* Engajamento — segue os check-ins PENDENTES do filtro atual; some quando zera */}
+      {counts.checkin > 0 && (
         <section className="rounded-2xl border border-border bg-card p-4 sm:p-5 space-y-4 shadow-sm">
           <div className="relative flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-start gap-2 min-w-0">
@@ -422,21 +422,18 @@ function DashboardPage() {
                 <div className="text-xs text-muted-foreground">Comparativo com os check-ins do período</div>
               </div>
             </div>
-            <div className="text-xs text-muted-foreground tabular-nums">
-              {engRange === "today" ? "Hoje" : engRange === "7d" ? "7 dias" : "30 dias"}
-            </div>
+            <div className="text-xs text-muted-foreground tabular-nums">{rangeLabel[range]}</div>
           </div>
           <EngagementBars
             loading={engQ.isLoading}
-            checkins={engQ.data?.checkinsInPeriod ?? 0}
-            checkinTabOpens={engQ.data?.checkinTabOpens ?? 0}
-            codesTabOpens={engQ.data?.codesTabOpens ?? 0}
-            checkinsWithCodes={engQ.data?.checkinsWithCodes ?? 0}
+            checkins={counts.checkin}
+            checkinsWithCodes={Math.min(engQ.data?.checkinsWithCodes ?? 0, counts.checkin)}
             checkinBreakdown={engQ.data?.checkinBreakdown}
             codesBreakdown={engQ.data?.codesBreakdown}
           />
         </section>
       )}
+
 
 
       {/* Arrivals */}
