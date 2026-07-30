@@ -523,7 +523,7 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
     let reservationsQuery = context.supabase
       .from("property_reservations")
       .select(
-        "id, property_id, checkin_date, checkout_date, raw_summary, guest_hint, reservation_url, status, synced_at",
+        "id, property_id, checkin_date, checkout_date, raw_summary, guest_hint, reservation_url, status, synced_at, created_at",
       )
       .in("property_id", propIds)
       .eq("source", "airbnb");
