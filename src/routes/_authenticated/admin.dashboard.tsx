@@ -784,16 +784,12 @@ type Breakdown = { viewed: GuestMark[]; notViewed: GuestMark[] };
 function EngagementBars({
   loading,
   checkins,
-  checkinTabOpens,
-  codesTabOpens,
   checkinsWithCodes,
   checkinBreakdown,
   codesBreakdown,
 }: {
   loading: boolean;
   checkins: number;
-  checkinTabOpens: number;
-  codesTabOpens: number;
   checkinsWithCodes: number;
   checkinBreakdown?: Breakdown;
   codesBreakdown?: Breakdown;
@@ -805,29 +801,32 @@ function EngagementBars({
         <Loader2 className="size-4 inline animate-spin" />
       </div>
     );
+  const checkinViewed = Math.min(checkinBreakdown?.viewed.length ?? 0, checkins);
+  const codesViewed = Math.min(codesBreakdown?.viewed.length ?? 0, checkinsWithCodes);
   return (
     <div className="relative space-y-4">
       {checkins > 0 && (
         <BarRow
           label="Viram instruções de check-in"
-          value={checkinTabOpens}
+          value={checkinViewed}
           total={checkins}
-          pct={pctOf(checkinTabOpens, checkins)}
+          pct={pctOf(checkinViewed, checkins)}
           breakdown={checkinBreakdown}
         />
       )}
       {checkinsWithCodes > 0 && (
         <BarRow
-          label="Viram senha de acesso (fechadura/portão)"
-          value={codesTabOpens}
+          label="Viram senha de acesso"
+          value={codesViewed}
           total={checkinsWithCodes}
-          pct={pctOf(codesTabOpens, checkinsWithCodes)}
+          pct={pctOf(codesViewed, checkinsWithCodes)}
           breakdown={codesBreakdown}
         />
       )}
     </div>
   );
 }
+
 
 function GuestMarkList({ items, tone }: { items: GuestMark[]; tone: "ok" | "off" }) {
   if (items.length === 0) return <div className="text-muted-foreground text-[11px]">Ninguém</div>;
