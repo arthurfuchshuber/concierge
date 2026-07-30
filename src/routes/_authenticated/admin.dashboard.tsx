@@ -865,7 +865,7 @@ function BarRow({
       <div className="flex items-center justify-between gap-2 text-sm">
         <span className="font-medium truncate whitespace-nowrap min-w-0">{label}</span>
         <span className="tabular-nums text-muted-foreground text-xs whitespace-nowrap shrink-0">
-          {total} check-ins
+          {value} de {total} check-ins
         </span>
       </div>
 
