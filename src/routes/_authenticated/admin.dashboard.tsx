@@ -899,8 +899,9 @@ function BarRow({
             <div className="min-w-0">
               <DialogTitle className="text-base font-display leading-tight">{label}</DialogTitle>
               <div className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground mt-0.5">
-                {value} / {total} check-ins
+                {value} de {total} check-ins
               </div>
+
             </div>
           </div>
         </DialogHeader>
