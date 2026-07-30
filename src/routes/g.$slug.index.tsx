@@ -444,10 +444,11 @@ function Guide({ data }: { data: GuideOk }) {
   const hasAccessPin = !!(p as any).hasAccessPin;
   const initialUnlocked = !!(p as any).accessUnlocked;
   const [unlocked, setUnlocked] = useState(initialUnlocked);
-  // Track when the guest actually reveals credentials (unlocked flips to true)
+  // Só registramos "viu a senha de acesso" quando o código foi de fato
+  // exibido na tela (não basta abrir a seção ou destravar o PIN).
   const passwordsTrackedRef = useRef(false);
-  useEffect(() => {
-    if (!unlocked || passwordsTrackedRef.current) return;
+  const markPasswordsSeen = () => {
+    if (passwordsTrackedRef.current || checkinLocked) return;
     passwordsTrackedRef.current = true;
     const sid = typeof window !== "undefined" ? (localStorage.getItem(`guide-chat-session:${slug}`) ?? "anon") : "anon";
     const pagePath = typeof window !== "undefined" ? window.location.pathname : null;
@@ -461,8 +462,8 @@ function Guide({ data }: { data: GuideOk }) {
         pagePath,
       },
     }).catch(() => {});
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [unlocked]);
+  };
+
 
 
   // Expansividade da barra "check-in libera em" — abre wi-fi/senhas
@@ -805,6 +806,7 @@ function Guide({ data }: { data: GuideOk }) {
                                   hasAccessRec={!!accessRec}
                                   gateEnabled={gateEnabled}
                                   theme={theme}
+                                  onShown={markPasswordsSeen}
                                   gateInstructions={p.gate_instructions as string | null}
                                   lockInstructions={p.lock_instructions as string | null}
                                   gateVideoUrl={p.gate_video_url as string | null}
@@ -1348,6 +1350,7 @@ function Guide({ data }: { data: GuideOk }) {
                                         unlocked={unlocked}
                                         requestUnlock={requestUnlock}
                                         hasPin={hasAccessPin}
+                                        onShown={markPasswordsSeen}
                                       />
                                     )}
                                     {lockCodeSet && (
@@ -1361,6 +1364,7 @@ function Guide({ data }: { data: GuideOk }) {
                                         unlocked={unlocked}
                                         requestUnlock={requestUnlock}
                                         hasPin={hasAccessPin}
+                                        onShown={markPasswordsSeen}
                                       />
                                     )}
                                   </div>
@@ -2645,6 +2649,7 @@ function AccessBlock({
   unlocked,
   requestUnlock,
   hasPin,
+  onShown,
 }: {
   kind: "gate" | "lock";
   label?: string;
@@ -2655,6 +2660,7 @@ function AccessBlock({
   unlocked: boolean;
   requestUnlock: (cb?: () => void) => void;
   hasPin: boolean;
+  onShown?: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const [revealed, setRevealed] = useState(false);
@@ -2665,6 +2671,10 @@ function AccessBlock({
   const hasMore = !!(instructions || videoUrl || media.length > 0);
   const showing = !hasPin || (unlocked && revealed);
   const masked = "•".repeat(Math.max(4, Math.min(code.length, 10)));
+  useEffect(() => {
+    if (showing && code) onShown?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showing, code]);
 
   function handleEye(e: React.MouseEvent) {
     e.stopPropagation();
@@ -3245,6 +3255,7 @@ function AccessCodesStrip({
   lockVideoUrl,
   gateMedia,
   lockMedia,
+  onShown,
 }: {
   gateCode: string | null;
   lockCode: string | null;
@@ -3264,6 +3275,7 @@ function AccessCodesStrip({
   lockVideoUrl?: string | null;
   gateMedia?: Array<{ url: string; type: "image" | "video" }>;
   lockMedia?: Array<{ url: string; type: "image" | "video" }>;
+  onShown?: () => void;
 }) {
   const [revealed, setRevealed] = useState(false);
   const [instrOpen, setInstrOpen] = useState(false);
@@ -3273,6 +3285,10 @@ function AccessCodesStrip({
   const hasGate = !!gateCode || !!gateCodeSet;
   const hasLock = !!lockCode || !!lockCodeSet;
   const showing = unlocked && revealed && (!!gateCode || !!lockCode);
+  useEffect(() => {
+    if (showing) onShown?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showing]);
   const gateInstr = (gateInstructions || "").trim();
   const lockInstr = (lockInstructions || "").trim();
   const gateVid = (gateVideoUrl || "").trim();
