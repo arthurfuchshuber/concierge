@@ -22,7 +22,7 @@ import { Send, UserCheck, RotateCcw, CheckCircle2, Loader2, StickyNote, Phone, C
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { reopenHandoffConversation } from "@/lib/handoff.functions";
-import { sendWhatsappFromConversation } from "@/lib/whatsapp.functions";
+import { sendWhatsappFromConversation, getMyWhatsappConfig } from "@/lib/whatsapp.functions";
 import { translateMessage } from "@/lib/translate.functions";
 import { detectLanguage, userLanguage, LANG_NAMES } from "@/lib/lang-detect";
 import { TagMentionTextarea, type TagMentionItem } from "@/components/tags/TagMentionTextarea";
@@ -111,6 +111,14 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
   const deleteFn = useServerFn(deleteHandoffMessage);
   const reopenFn = useServerFn(reopenHandoffConversation);
   const sendWaFn = useServerFn(sendWhatsappFromConversation);
+  const waCfgFn = useServerFn(getMyWhatsappConfig);
+  const waCfgQ = useQuery({
+    queryKey: ["my-whatsapp-config"],
+    queryFn: async () => { try { return await waCfgFn(); } catch { return null; } },
+    staleTime: 5 * 60_000,
+    retry: false,
+  });
+  const waIntegrated = waCfgQ.data?.status === "active";
 
   // Tradução de mensagens do hóspede para o idioma do sistema do atendente.
   const myLang = useMemo(() => userLanguage(), []);
@@ -432,7 +440,7 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
 
                 <DropdownMenuLabel className="text-[11px]">Ações</DropdownMenuLabel>
                 {status === "resolved" && canChat && (
-                  <DropdownMenuItem onSelect={() => setReopenOpen(true)}>
+                  <DropdownMenuItem onSelect={() => { if (waIntegrated && guest?.phone) setReopenOpen(true); else reopen.mutate("chat"); }}>
                     <RotateCcw className="size-3.5 mr-2" /> Reabrir conversa
                   </DropdownMenuItem>
                 )}
@@ -650,7 +658,7 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
 
       {/* Ações da mensagem (segurar para abrir, como no WhatsApp) */}
       <Dialog open={!!actionMsg} onOpenChange={(v) => { if (!v) setActionMsg(null); }}>
-        <DialogContent className="max-w-xs">
+        <DialogContent className="max-w-xs z-[2147483600]">
           <DialogHeader>
             <DialogTitle className="text-sm">Opções da mensagem</DialogTitle>
           </DialogHeader>
@@ -695,7 +703,7 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
 
       {/* Reabrir conversa */}
       <Dialog open={reopenOpen} onOpenChange={setReopenOpen}>
-        <DialogContent className="max-w-sm">
+        <DialogContent className="max-w-sm z-[2147483600]">
           <DialogHeader>
             <DialogTitle className="text-base">Reabrir conversa</DialogTitle>
           </DialogHeader>
