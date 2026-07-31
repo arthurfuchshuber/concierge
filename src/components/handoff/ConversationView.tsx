@@ -22,7 +22,7 @@ import { Send, UserCheck, RotateCcw, CheckCircle2, Loader2, StickyNote, Phone, C
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { reopenHandoffConversation } from "@/lib/handoff.functions";
-import { sendWhatsappFromConversation } from "@/lib/whatsapp.functions";
+import { sendWhatsappFromConversation, getMyWhatsappConfig } from "@/lib/whatsapp.functions";
 import { translateMessage } from "@/lib/translate.functions";
 import { detectLanguage, userLanguage, LANG_NAMES } from "@/lib/lang-detect";
 import { TagMentionTextarea, type TagMentionItem } from "@/components/tags/TagMentionTextarea";
@@ -93,6 +93,7 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
   const [transferOpen, setTransferOpen] = useState(false);
   const [channel, setChannel] = useState<"chat" | "whatsapp">("chat");
   const [reopenOpen, setReopenOpen] = useState(false);
+  const [inputFocused, setInputFocused] = useState(false);
   const [actionMsg, setActionMsg] = useState<{ id: string; content: string; mine: boolean } | null>(null);
   const longPressRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const startLongPress = (m: { id: string; content: string; mine: boolean }) => {
@@ -111,6 +112,14 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
   const deleteFn = useServerFn(deleteHandoffMessage);
   const reopenFn = useServerFn(reopenHandoffConversation);
   const sendWaFn = useServerFn(sendWhatsappFromConversation);
+  const waCfgFn = useServerFn(getMyWhatsappConfig);
+  const waCfgQ = useQuery({
+    queryKey: ["my-whatsapp-config"],
+    queryFn: async () => { try { return await waCfgFn(); } catch { return null; } },
+    staleTime: 5 * 60_000,
+    retry: false,
+  });
+  const waIntegrated = waCfgQ.data?.status === "active";
 
   // Tradução de mensagens do hóspede para o idioma do sistema do atendente.
   const myLang = useMemo(() => userLanguage(), []);
@@ -346,16 +355,23 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
         ["--popover-foreground" as never]: "#18181b",
       }}
     >
-      <div className="border-b border-zinc-200 p-3 space-y-2 shrink-0 bg-zinc-50">
-        <div className="flex items-start justify-between gap-2">
+      <div className={`border-b border-zinc-200 shrink-0 bg-zinc-50 ${inputFocused ? "px-3 py-1.5" : "p-3 space-y-2"}`}>
+        <div className={`flex gap-2 ${inputFocused ? "items-center" : "items-start justify-between"}`}>
           <div className="min-w-0 flex-1">
-            <div className="text-sm font-medium truncate">{guestName}</div>
+            <div className="text-sm font-medium truncate">
+              {guestName}
+              {inputFocused && guest?.reservationCode && (
+                <span className="ml-2 text-[11px] font-normal text-muted-foreground">{guest.reservationCode}</span>
+              )}
+            </div>
             <div className="text-[11px] text-muted-foreground truncate">
               {propertyName}
-              {conv?.handoff_at ? ` · ${formatDistanceToNow(new Date(conv.handoff_at), { locale: ptBR, addSuffix: true })}` : ""}
+              {!inputFocused && conv?.handoff_at ? ` · ${formatDistanceToNow(new Date(conv.handoff_at), { locale: ptBR, addSuffix: true })}` : ""}
+              {inputFocused && checkinFmt ? ` · In ${checkinFmt}` : ""}
+              {inputFocused && checkoutFmt ? ` · Out ${checkoutFmt}` : ""}
             </div>
 
-            {(waHref || checkinFmt || checkoutFmt || guest?.reservationCode) && (
+            {!inputFocused && (waHref || checkinFmt || checkoutFmt || guest?.reservationCode) && (
               <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
                 {waHref && (
                   <a href={waHref} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-emerald-600 hover:underline">
@@ -382,18 +398,18 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
               </div>
             )}
 
-            {conv?.handoff_reason && (
+            {!inputFocused && conv?.handoff_reason && (
               <div className="text-[11px] mt-2 px-2 py-1 rounded bg-amber-500/10 text-amber-700 border border-amber-500/30 line-clamp-2">
                 {conv.handoff_reason}
               </div>
             )}
 
-            {isLockedByOther && (
+            {!inputFocused && isLockedByOther && (
               <div className="text-[11px] mt-2 px-2 py-1 rounded bg-secondary text-foreground/80 border border-border inline-flex items-center gap-1">
                 <Lock className="size-3" /> Em atendimento por {assignedProfile?.displayName ?? "outro membro"}
               </div>
             )}
-            {someoneRequestedFromMe && (
+            {!inputFocused && someoneRequestedFromMe && (
               <div className="text-[11px] mt-2 px-2 py-1 rounded bg-primary/10 text-primary border border-primary/30 flex items-center justify-between gap-2">
                 <span className="inline-flex items-center gap-1"><UserPlus2 className="size-3" /> {claimReq?.displayName ?? "Um membro"} pediu acesso</span>
                 <button
@@ -406,7 +422,18 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
             )}
           </div>
 
-          <div className="shrink-0">
+          <div className="shrink-0 flex items-center gap-1">
+            {canChat && isMine && status !== "resolved" && (
+              <button
+                type="button"
+                onClick={() => setNote((v) => !v)}
+                title="Nota interna"
+                aria-label="Nota interna"
+                className={`size-9 grid place-items-center rounded-full border transition-colors ${note ? "bg-yellow-500/20 text-yellow-700 border-yellow-500/40" : "border-border text-muted-foreground hover:bg-secondary"}`}
+              >
+                <StickyNote className="size-4" />
+              </button>
+            )}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button
@@ -417,10 +444,11 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
                   <MoreVertical className="size-4" />
                 </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuContent align="end" className="w-56 z-[2147483600]">
+
                 <DropdownMenuLabel className="text-[11px]">Ações</DropdownMenuLabel>
                 {status === "resolved" && canChat && (
-                  <DropdownMenuItem onSelect={() => setReopenOpen(true)}>
+                  <DropdownMenuItem onSelect={() => { if (waIntegrated && guest?.phone) setReopenOpen(true); else reopen.mutate("chat"); }}>
                     <RotateCcw className="size-3.5 mr-2" /> Reabrir conversa
                   </DropdownMenuItem>
                 )}
@@ -449,20 +477,8 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
                     </DropdownMenuItem>
                   </>
                 )}
-                {guest?.phone && canChat && (
-                  <>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuLabel className="text-[11px]">Canal de envio</DropdownMenuLabel>
-                    <DropdownMenuItem onSelect={() => setChannel("chat")}>
-                      <MessageSquare className="size-3.5 mr-2" /> Chat do navegador
-                      {channel === "chat" && <CheckCircle2 className="size-3.5 ml-auto text-emerald-600" />}
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onSelect={() => setChannel("whatsapp")}>
-                      <MessageCircle className="size-3.5 mr-2 text-emerald-600" /> WhatsApp
-                      {channel === "whatsapp" && <CheckCircle2 className="size-3.5 ml-auto text-emerald-600" />}
-                    </DropdownMenuItem>
-                  </>
-                )}
+                {/* Canal de envio é escolhido ao reabrir a conversa. */}
+
                 {status !== "resolved" && (isMine || !conv?.assigned_to) && (
                   <>
                     <DropdownMenuSeparator />
@@ -650,7 +666,7 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
 
       {/* Ações da mensagem (segurar para abrir, como no WhatsApp) */}
       <Dialog open={!!actionMsg} onOpenChange={(v) => { if (!v) setActionMsg(null); }}>
-        <DialogContent className="max-w-xs">
+        <DialogContent className="max-w-xs z-[2147483600]">
           <DialogHeader>
             <DialogTitle className="text-sm">Opções da mensagem</DialogTitle>
           </DialogHeader>
@@ -695,7 +711,7 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
 
       {/* Reabrir conversa */}
       <Dialog open={reopenOpen} onOpenChange={setReopenOpen}>
-        <DialogContent className="max-w-sm">
+        <DialogContent className="max-w-sm z-[2147483600]">
           <DialogHeader>
             <DialogTitle className="text-base">Reabrir conversa</DialogTitle>
           </DialogHeader>
@@ -774,7 +790,12 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
                 <Loader2 className="size-3 animate-spin" /> enviando anexo…
               </div>
             )}
-            <div className="flex items-end gap-1">
+            {note && (
+              <div className="px-2 pb-1 text-[10px] text-yellow-700 inline-flex items-center gap-1">
+                <StickyNote className="size-3" /> nota interna (só a equipe vê)
+              </div>
+            )}
+            <div className="flex items-end gap-2">
               <input
                 ref={fileInputRef}
                 type="file"
@@ -790,39 +811,12 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
                 className="hidden"
                 onChange={onFilePicked}
               />
-              <div className="flex-1 min-w-0 flex items-end gap-0.5 rounded-full border border-border bg-background pl-2 pr-1 py-0.5">
-                <button
-                  type="button"
-                  onClick={() => setNote((v) => !v)}
-                  title="Nota interna"
-                  aria-label="Nota interna"
-                  className={`grid size-8 place-items-center rounded-full shrink-0 ${note ? "bg-yellow-500/20 text-yellow-700" : "text-muted-foreground hover:text-foreground hover:bg-muted"}`}
-                >
-                  <StickyNote className="size-4" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={uploading}
-                  title="Anexar arquivo"
-                  aria-label="Anexar arquivo"
-                  className="grid size-8 place-items-center rounded-full hover:bg-muted text-muted-foreground hover:text-foreground shrink-0 disabled:opacity-40"
-                >
-                  <Paperclip className="size-4" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => cameraInputRef.current?.click()}
-                  disabled={uploading}
-                  title="Tirar foto ou vídeo"
-                  aria-label="Tirar foto ou vídeo"
-                  className="grid size-8 place-items-center rounded-full hover:bg-muted text-muted-foreground hover:text-foreground shrink-0 disabled:opacity-40"
-                >
-                  <Camera className="size-4" />
-                </button>
+              <div className={`flex-1 min-w-0 flex items-end gap-1 rounded-3xl border bg-background pl-3 pr-1.5 py-1 ${note ? "border-yellow-500/50" : "border-border"}`}>
                 <TagMentionTextarea
                   value={text}
                   onChange={(e) => setText(e.target.value)}
+                  onFocus={() => setInputFocused(true)}
+                  onBlur={() => setInputFocused(false)}
                   onKeyDown={(e) => {
                     if (e.key === "Enter" && !e.shiftKey) {
                       e.preventDefault();
@@ -833,23 +827,49 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
                   placeholder={note ? "Nota interna…" : channel === "whatsapp" ? "Mensagem via WhatsApp…" : "Mensagem… (@ linka o guia)"}
                   rows={1}
                   containerClassName="flex-1 min-w-0"
-                  className="w-full resize-none bg-transparent border-0 px-1 py-2 text-sm outline-none focus:ring-0 min-w-0 max-h-28"
+                  className="w-full resize-none bg-transparent border-0 px-0 py-2 text-sm leading-5 outline-none focus:ring-0 min-w-0 max-h-28"
                 />
-                <AudioRecorderButton
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
                   disabled={uploading}
-                  maxSeconds={60}
-                  onRecorded={onAudioRecorded}
-                />
+                  title="Anexar arquivo"
+                  aria-label="Anexar arquivo"
+                  className="grid size-9 place-items-center rounded-full hover:bg-muted text-muted-foreground hover:text-foreground shrink-0 disabled:opacity-40"
+                >
+                  <Paperclip className="size-5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => cameraInputRef.current?.click()}
+                  disabled={uploading}
+                  title="Tirar foto ou vídeo"
+                  aria-label="Tirar foto ou vídeo"
+                  className="grid size-9 place-items-center rounded-full hover:bg-muted text-muted-foreground hover:text-foreground shrink-0 disabled:opacity-40"
+                >
+                  <Camera className="size-5" />
+                </button>
               </div>
 
-              <button
-                type="submit"
-                disabled={!text.trim() || send.isPending}
-                className={`size-10 grid place-items-center rounded-full text-white disabled:opacity-40 shrink-0 ${channel === "whatsapp" && !note ? "bg-emerald-600" : "bg-primary"}`}
-              >
-                {send.isPending ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
-              </button>
+              {text.trim() ? (
+                <button
+                  type="submit"
+                  disabled={send.isPending}
+                  className={`size-11 grid place-items-center rounded-full text-white disabled:opacity-40 shrink-0 ${channel === "whatsapp" && !note ? "bg-emerald-600" : "bg-primary"}`}
+                >
+                  {send.isPending ? <Loader2 className="size-5 animate-spin" /> : <Send className="size-5" />}
+                </button>
+              ) : (
+                <div className="shrink-0">
+                  <AudioRecorderButton
+                    disabled={uploading}
+                    maxSeconds={60}
+                    onRecorded={onAudioRecorded}
+                  />
+                </div>
+              )}
             </div>
+
           </form>
         )
       )}
