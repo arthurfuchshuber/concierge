@@ -506,7 +506,35 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
                     <AttachmentBubble attachment={attachment} />
                   </div>
                 )}
-                {m.content && <>{tr?.showing && tr.text ? tr.text : m.content}</>}
+                {editingId === m.id ? (
+                  <div className="space-y-1">
+                    <textarea
+                      value={editingText}
+                      onChange={(e) => setEditingText(e.target.value)}
+                      rows={3}
+                      className="w-full min-w-[220px] rounded-lg bg-background text-foreground border border-border p-2 text-sm"
+                    />
+                    <div className="flex items-center gap-2 justify-end">
+                      <button
+                        type="button"
+                        className="text-[11px] opacity-70 hover:opacity-100"
+                        onClick={() => { setEditingId(null); setEditingText(""); }}
+                      >
+                        Cancelar
+                      </button>
+                      <button
+                        type="button"
+                        disabled={editMsg.isPending || !editingText.trim()}
+                        className="text-[11px] px-2 py-1 rounded bg-foreground text-background disabled:opacity-50"
+                        onClick={() => editMsg.mutate({ messageId: m.id, content: editingText })}
+                      >
+                        {editMsg.isPending ? "Salvando…" : "Salvar"}
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  m.content && <MessageText text={tr?.showing && tr.text ? tr.text : m.content} />
+                )}
                 {tr?.showing && tr.text && (
                   <div className="text-[10px] opacity-60 mt-1 flex items-center gap-1">
                     <Languages className="size-3" /> Traduzido automaticamente
@@ -514,7 +542,9 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
                 )}
                 <div className="text-[10px] opacity-60 mt-1">
                   {formatDistanceToNow(new Date(m.created_at), { locale: ptBR, addSuffix: true })}
+                  {m.edited_at ? " · editada" : ""}
                 </div>
+
               </div>
               <div className="flex items-center gap-2">
                 {canTranslate && (
