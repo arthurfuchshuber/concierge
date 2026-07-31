@@ -264,7 +264,8 @@ export function findMarketplaceLink(
   const hit = want
     ? list.find((l) => normalizeInfoLabel(labelOf(l)) === want) ??
       list.find((l) => normalizeInfoLabel(labelOf(l)).includes(want)) ??
-      list.find((l) => want.includes(normalizeInfoLabel(labelOf(l))))
+      list.find((l) => want.includes(normalizeInfoLabel(labelOf(l)))) ??
+      (list.length === 1 ? list[0] : undefined)
     : list[0];
   const url = hit?.url == null ? "" : String(hit.url).trim();
   if (!hit || !url) return null;
@@ -340,7 +341,10 @@ export function expandInfoTags(
     const param = (rawParam ?? "").trim() || null;
     if (key === "marketplace") {
       const hit = findMarketplaceLink(prop, param);
-      if (!hit) return "";
+      // Nunca transforme uma menção válida em uma bolha vazia. O rótulo
+      // inserido pelo seletor continua visível mesmo se o link foi removido
+      // ou alterado entre a composição e o envio.
+      if (!hit) return rawLabel?.trim() || param || "Link do marketplace";
       const label = rawLabel?.trim() || hit.label;
       return opts?.markdownLinks ? `[${label}](${hit.url})` : `${label} (${hit.url})`;
     }

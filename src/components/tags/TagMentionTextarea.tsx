@@ -94,7 +94,9 @@ export const TagMentionTextarea = forwardRef<TagMentionTextareaHandle, Props>(fu
       param: it.param,
       label: it.label,
       hint: it.hint ?? (it.key === "faq" ? "Pergunta específica" : it.kind === "info" ? "Valor específico" : "Item específico"),
-      snippet: it.kind === "info" ? `[[info:${it.key}:${it.param}]]` : `[[tag:${it.key}:${it.param}]]`,
+      snippet: it.kind === "info"
+        ? `[[info:${it.key}:${it.param}|${it.label.replace(/\]/g, "")}]]`
+        : `[[tag:${it.key}:${it.param}|${it.label.replace(/\]/g, "")}]]`,
       search: normalize(`${it.label} ${it.key} ${it.hint ?? ""}`),
     }));
     return [...sections, ...infos, ...itemOpts];
