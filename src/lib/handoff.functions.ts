@@ -770,10 +770,26 @@ export const sendHandoffMessage = createServerFn({ method: "POST" })
     if (cur?.assigned_to && cur.assigned_to !== userId) {
       throw new Error("Esta conversa está sendo atendida por outro membro. Solicite acesso ou peça uma transferência.");
     }
+    // Expande [[info:...]] com valores da propriedade e [[tag:...]] em links do guia.
+    let content = data.content;
+    try {
+      const { data: propConv } = await supabase
+        .from("property_chat_conversations")
+        .select("properties:property_id(slug, checkin_time, checkin_time_max, checkout_time, checkout_time_min, wifi_ssid, wifi_password, gate_code, lock_code, pin_code, address, host_name, host_phone, house_rules, checkin_instructions, checkout_instructions, gate_instructions, lock_instructions, marketplace_links)")
+        .eq("id", data.conversationId)
+        .maybeSingle();
+      const propRow = (propConv?.properties as Record<string, unknown> | null) ?? null;
+      const slug = (propRow?.slug as string | undefined) ?? null;
+      const { expandInfoTags, expandTagsAsMarkdown } = await import("@/lib/guide-tags");
+      content = expandInfoTags(content, propRow as never);
+      if (slug) content = expandTagsAsMarkdown(content, { slug });
+    } catch {
+      // Se algo falhar, envia o texto original.
+    }
     const { error } = await supabase.from("property_chat_messages").insert({
       conversation_id: data.conversationId,
       role: data.internalNote ? "assistant" : "assistant",
-      content: data.content,
+      content,
       sender_type: "human",
       sender_user_id: userId,
       is_internal_note: data.internalNote,
