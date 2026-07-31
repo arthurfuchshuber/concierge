@@ -137,16 +137,24 @@ function AtendimentoPage() {
 
         {/* Lista */}
         <div className="w-full md:w-80 border-r border-border overflow-y-auto shrink-0">
-          <div className="md:hidden p-2 flex gap-1 overflow-x-auto border-b border-border">
-            {QUEUES.map((q) => (
-              <button
-                key={q.key}
-                onClick={() => setQueue(q.key)}
-                className={`whitespace-nowrap text-xs px-3 py-1.5 rounded-full ${queue === q.key ? "bg-primary text-primary-foreground" : "bg-secondary"}`}
-              >
-                {q.label}
-              </button>
-            ))}
+          <div className="md:hidden p-2 border-b border-border">
+            <div className="flex w-full items-center gap-1 overflow-x-auto whitespace-nowrap rounded-xl border border-border bg-muted/40 p-1 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+              {QUEUES.map((q) => {
+                const Icon = q.icon;
+                const active = queue === q.key;
+                return (
+                  <button
+                    key={q.key}
+                    onClick={() => setQueue(q.key)}
+                    className={`inline-flex flex-1 min-w-fit items-center justify-center gap-1 rounded-lg px-2 py-1.5 text-[11px] font-medium transition-all ${
+                      active ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    <Icon className="size-3" /> {q.short}
+                  </button>
+                );
+              })}
+            </div>
           </div>
           <div className="p-2 border-b border-border">
             <div className="relative">
