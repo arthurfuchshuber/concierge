@@ -92,6 +92,10 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [teachOpen, setTeachOpen] = useState(false);
   const [teachSource, setTeachSource] = useState<{ id: string; content: string } | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingText, setEditingText] = useState("");
+  const editFn = useServerFn(editHandoffMessage);
+  const deleteFn = useServerFn(deleteHandoffMessage);
 
   // Tradução de mensagens do hóspede para o idioma do sistema do atendente.
   const myLang = useMemo(() => userLanguage(), []);
