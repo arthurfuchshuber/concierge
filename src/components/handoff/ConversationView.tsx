@@ -523,7 +523,15 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
           return (
             <div key={m.id} className={`flex flex-col ${isGuest ? "items-start" : "items-end"}`}>
               <div
-                className={`max-w-[85%] rounded-2xl px-3 py-2 text-sm whitespace-pre-wrap break-words ${
+                onPointerDown={() => startLongPress({ id: m.id, content: m.content ?? "", mine: !isGuest })}
+                onPointerUp={cancelLongPress}
+                onPointerLeave={cancelLongPress}
+                onPointerCancel={cancelLongPress}
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  setActionMsg({ id: m.id, content: m.content ?? "", mine: !isGuest });
+                }}
+                className={`max-w-[85%] rounded-2xl px-3 py-2 text-sm whitespace-pre-wrap break-words select-none ${
                   isNote
                     ? "bg-yellow-500/15 border border-yellow-500/30 text-foreground"
                     : isGuest
