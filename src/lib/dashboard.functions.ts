@@ -254,6 +254,7 @@ export const getGuideEngagement = createServerFn({ method: "GET" })
     );
 
     type LogRow = {
+      id: string;
       property_id: string;
       guest_name: string | null;
       guest_phone: string | null;
@@ -261,7 +262,7 @@ export const getGuideEngagement = createServerFn({ method: "GET" })
     };
     const allLogs = ((logs ?? []) as LogRow[]).filter((r) => !isPlaceholderGuest(r.guest_name));
 
-    // Uma entrada por check-in do período (mesma base usada no contador).
+    // Uma entrada por check-in PENDENTE do período (mesma base usada no contador).
     type Entry = { property_id: string; name: string; phone: string | null };
     const entries: Entry[] = [];
     const usedLog = new Set<number>();
@@ -284,6 +285,7 @@ export const getGuideEngagement = createServerFn({ method: "GET" })
         matched = l;
         break;
       }
+      if (doneReservations.has(r.id) || (matched && doneLogs.has(matched.id))) continue;
       entries.push({
         property_id: r.property_id,
         name: (matched?.guest_name || "").trim() || "Hóspede pendente",
@@ -295,6 +297,7 @@ export const getGuideEngagement = createServerFn({ method: "GET" })
     const seenFallback = new Set<string>();
     for (const l of allLogs) {
       if (icalProps.has(l.property_id)) continue;
+      if (doneLogs.has(l.id)) continue;
       const key = `${l.property_id}|${(l.guest_name || "").trim().toLowerCase()}|${(l.guest_phone || "").replace(/\D/g, "")}|${l.checkin_date ?? ""}`;
       if (seenFallback.has(key)) continue;
       seenFallback.add(key);
