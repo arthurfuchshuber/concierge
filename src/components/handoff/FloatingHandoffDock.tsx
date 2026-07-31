@@ -9,6 +9,7 @@ import { ConversationList, ConversationView, useMyUserId } from "@/components/ha
 import { listenToPushMessages } from "@/lib/push-client";
 import { HANDOFF_DOCK_OPEN_EVENT, type HandoffDockOpenDetail } from "@/lib/handoff-dock";
 import { Headphones, X, Minimize2, Maximize2 } from "lucide-react";
+import { QUEUES, type Queue } from "@/lib/handoff-queues";
 
 const DOCK_STATE_KEY = "handoff-dock-state-v1";
 const DOCK_POSITION_KEY = "handoff-dock-position-v1";
