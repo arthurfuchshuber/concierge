@@ -778,7 +778,8 @@ export const sendHandoffMessage = createServerFn({ method: "POST" })
         .select("properties:property_id(slug, checkin_time, checkin_time_max, checkout_time, checkout_time_min, wifi_ssid, wifi_password, gate_code, lock_code, pin_code, address, host_name, host_phone, house_rules, checkin_instructions, checkout_instructions, gate_instructions, lock_instructions, marketplace_links)")
         .eq("id", data.conversationId)
         .maybeSingle();
-      const propRow = (propConv?.properties as Record<string, unknown> | null) ?? null;
+      const joinedProperties = propConv?.properties as Record<string, unknown> | Record<string, unknown>[] | null;
+      const propRow = Array.isArray(joinedProperties) ? (joinedProperties[0] ?? null) : joinedProperties;
       const slug = (propRow?.slug as string | undefined) ?? null;
       const { expandInfoTags, expandTagsAsMarkdown } = await import("@/lib/guide-tags");
       content = expandInfoTags(content, propRow as never, { markdownLinks: true });
