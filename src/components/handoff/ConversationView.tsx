@@ -569,6 +569,32 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
                     <Sparkles className="size-3" /> Ensinar IA
                   </button>
                 )}
+                {!isGuest && editingId !== m.id && (
+                  <>
+                    {m.content && (
+                      <button
+                        type="button"
+                        onClick={() => { setEditingId(m.id); setEditingText(m.content ?? ""); }}
+                        className="mt-1 inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+                        title="Editar mensagem"
+                      >
+                        <Pencil className="size-3" /> Editar
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      disabled={deleteMsg.isPending}
+                      onClick={() => {
+                        if (window.confirm("Apagar esta mensagem definitivamente?")) deleteMsg.mutate(m.id);
+                      }}
+                      className="mt-1 inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-60"
+                      title="Apagar mensagem"
+                    >
+                      <Trash2 className="size-3" /> Apagar
+                    </button>
+                  </>
+                )}
+
               </div>
             </div>
           );
