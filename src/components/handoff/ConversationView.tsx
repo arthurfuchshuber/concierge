@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { CopyButton } from "@/components/CopyButton";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -17,6 +17,8 @@ import {
 import { attachStaffMessage } from "@/lib/chat-attachments.functions";
 import { Send, UserCheck, RotateCcw, CheckCircle2, Loader2, StickyNote, Phone, Calendar, Hash, Lock, UserPlus2, ArrowRightLeft, X, Sparkles, Paperclip, MessageCircle } from "lucide-react";
 import { WhatsappComposerDialog } from "@/components/whatsapp/WhatsappComposerDialog";
+import { TagMentionTextarea, type TagMentionItem } from "@/components/tags/TagMentionTextarea";
+import { getTagItemsForConversation } from "@/lib/guide-tag-items.functions";
 import { TeachAiDialog } from "@/components/handoff/TeachAiDialog";
 import { AudioRecorderButton, type RecordedAudio } from "@/components/handoff/AudioRecorderButton";
 import { AttachmentBubble, type AttachmentInfo } from "@/components/handoff/AttachmentBubble";
@@ -62,8 +64,21 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
   const q = useQuery({
     queryKey: ["handoff-conv", conversationId],
     queryFn: () => getFn({ data: { conversationId } }),
-    refetchInterval: 8000,
+    // Todos os membros acompanham em tempo real, mesmo sem assumir a conversa.
+    refetchInterval: 4000,
+    refetchOnWindowFocus: true,
   });
+
+  const tagItemsFn = useServerFn(getTagItemsForConversation);
+  const { data: tagItemsData } = useQuery({
+    queryKey: ["tag-items", "conv", conversationId],
+    queryFn: () => tagItemsFn({ data: { conversationId } }),
+    staleTime: 60_000,
+  });
+  const tagItems = useMemo<TagMentionItem[]>(
+    () => (tagItemsData?.items ?? []).map((i) => ({ key: i.key, param: i.param, label: i.label, hint: i.hint, kind: i.kind })),
+    [tagItemsData],
+  );
 
   const [text, setText] = useState("");
   const [note, setNote] = useState(false);
@@ -505,7 +520,7 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
             <Lock className="size-3" />
             <span>
               {isLockedByOther
-                ? <>Somente <strong>{assignedProfile?.displayName ?? "o atendente responsável"}</strong> pode responder.</>
+                ? <>Somente <strong>{assignedProfile?.displayName ?? "o atendente responsável"}</strong> pode responder — você acompanha em tempo real.</>
                 : "Assuma a conversa para poder responder ao hóspede."}
             </span>
             <button
@@ -561,7 +576,7 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
                 maxSeconds={60}
                 onRecorded={onAudioRecorded}
               />
-              <textarea
+              <TagMentionTextarea
                 value={text}
                 onChange={(e) => setText(e.target.value)}
                 onKeyDown={(e) => {
@@ -570,10 +585,13 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
                     if (text.trim()) send.mutate();
                   }
                 }}
-                placeholder={note ? "Nota interna (não visível ao hóspede)…" : "Escrever para o hóspede…"}
+                items={tagItems}
+                placeholder={note ? "Nota interna (não visível ao hóspede)…" : "Escrever para o hóspede… (@ para linkar o guia)"}
                 rows={compact ? 1 : 2}
-                className="flex-1 resize-none rounded-md border border-border bg-background px-2 py-1.5 text-sm outline-none focus:ring-2 focus:ring-primary/40 min-w-0"
+                containerClassName="flex-1 min-w-0"
+                className="w-full resize-none rounded-md border border-border bg-background px-2 py-1.5 text-sm outline-none focus:ring-2 focus:ring-primary/40 min-w-0"
               />
+
               <button
                 type="submit"
                 disabled={!text.trim() || send.isPending}

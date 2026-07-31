@@ -118,6 +118,22 @@ export function expandTagsForWhatsapp(
   });
 }
 
+/** Expande todas as tags para links markdown — para o chat in-app do hóspede. */
+export function expandTagsAsMarkdown(
+  text: string,
+  ctx: { origin?: string; slug: string },
+): string {
+  const origin = ctx.origin ?? "";
+  return text.replace(TAG_RE, (_m, rawKey: string, rawParam?: string, rawLabel?: string) => {
+    const key = rawKey.toLowerCase();
+    if (!isGuideTagKey(key)) return "";
+    const tag = TAG_BY_KEY[key];
+    const label = (rawLabel ?? tag.label).trim() || tag.label;
+    const url = buildTagUrl(origin, ctx.slug, key as GuideTagKey, rawParam ?? null);
+    return `[${label}](${url})`;
+  });
+}
+
 /** Token separando trechos de texto e tags — para renderização inline. */
 export type TagToken =
   | { kind: "text"; value: string }
