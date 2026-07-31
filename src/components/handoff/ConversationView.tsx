@@ -91,7 +91,9 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
   const [text, setText] = useState("");
   const [note, setNote] = useState(false);
   const [transferOpen, setTransferOpen] = useState(false);
-  const [waOpen, setWaOpen] = useState(false);
+  const [channel, setChannel] = useState<"chat" | "whatsapp">("chat");
+  const [reopenOpen, setReopenOpen] = useState(false);
+  const [actionMsg, setActionMsg] = useState<{ id: string; content: string; mine: boolean } | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [teachOpen, setTeachOpen] = useState(false);
   const [teachSource, setTeachSource] = useState<{ id: string; content: string } | null>(null);
@@ -99,6 +101,8 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
   const [editingText, setEditingText] = useState("");
   const editFn = useServerFn(editHandoffMessage);
   const deleteFn = useServerFn(deleteHandoffMessage);
+  const reopenFn = useServerFn(reopenHandoffConversation);
+  const sendWaFn = useServerFn(sendWhatsappFromConversation);
 
   // Tradução de mensagens do hóspede para o idioma do sistema do atendente.
   const myLang = useMemo(() => userLanguage(), []);
