@@ -423,17 +423,46 @@ export const getGuestDetail = createServerFn({ method: "POST" })
     }));
     const conversations: Array<{
       id: string; startedAt: string; lastMessageAt: string;
-      messages: Array<{ id: string; role: string; content: string; createdAt: string; feedback?: { reason: string | null; resolved: boolean } | null }>;
+      messages: Array<{ id: string; role: string; content: string; createdAt: string; senderName?: string | null; feedback?: { reason: string | null; resolved: boolean } | null }>;
     }> = [];
+
+    // Nomes dos atendentes humanos que participaram das conversas deste hóspede.
+    const staffIds = Array.from(
+      new Set(
+        built.msgs
+          .filter((m) => m.sender_type === "human" && m.sender_user_id)
+          .map((m) => m.sender_user_id as string),
+      ),
+    );
+    const staffNameById = new Map<string, string>();
+    if (staffIds.length > 0) {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const { data: profs } = await (supabaseAdmin.from("profiles") as ReturnType<typeof supabaseAdmin.from>)
+        .select("id, full_name, trade_name")
+        .in("id", staffIds);
+      for (const p of ((profs ?? []) as Array<{ id: string; full_name: string | null; trade_name: string | null }>)) {
+        const n = (p.trade_name || p.full_name || "").trim();
+        if (n) staffNameById.set(p.id, n);
+      }
+    }
+    const mapMsg = (m: { id: string; role: string; content: string | null; created_at: string; sender_type?: string | null; sender_user_id?: string | null }) => ({
+      id: m.id,
+      role: m.role,
+      content: m.content ?? "",
+      createdAt: m.created_at,
+      senderName:
+        m.sender_type === "human"
+          ? (m.sender_user_id ? staffNameById.get(m.sender_user_id) ?? "Atendente" : "Atendente")
+          : null,
+    });
+
     const seen = new Set<string>();
     // 1) Conversas atribuídas ao hóspede pela resolução por identidade/nome/tempo
     for (const c of built.convs) {
       if (built.convGuestKey.get(c.id) !== g.key) continue;
       if (seen.has(c.id)) continue;
       seen.add(c.id);
-      const msgs = (built.msgsByConv.get(c.id) ?? []).map((m) => ({
-        id: m.id, role: m.role, content: m.content ?? "", createdAt: m.created_at,
-      }));
+      const msgs = (built.msgsByConv.get(c.id) ?? []).map(mapMsg);
       conversations.push({ id: c.id, startedAt: c.created_at, lastMessageAt: c.last_message_at, messages: msgs });
     }
     // 2) Fallback: conversas ligadas às sessões deste hóspede por session_id
@@ -442,9 +471,7 @@ export const getGuestDetail = createServerFn({ method: "POST" })
       for (const c of cs) {
         if (seen.has(c.id)) continue;
         seen.add(c.id);
-        const msgs = (built.msgsByConv.get(c.id) ?? []).map((m) => ({
-          id: m.id, role: m.role, content: m.content ?? "", createdAt: m.created_at,
-        }));
+        const msgs = (built.msgsByConv.get(c.id) ?? []).map(mapMsg);
         conversations.push({ id: c.id, startedAt: c.created_at, lastMessageAt: c.last_message_at, messages: msgs });
       }
     }
