@@ -265,7 +265,11 @@ function GuestDetail({ guestKey, accountId }: { guestKey: string; accountId: str
                         : "rounded-md bg-primary/5 border border-primary/10 px-2.5 py-1.5 text-[12px]"}
                     >
                       <div className="text-[9px] uppercase tracking-wider text-muted-foreground mb-0.5">
-                        {m.role === "user" ? "Hóspede" : m.role === "assistant" ? "IA" : m.role}
+                        {m.role === "user"
+                          ? "Hóspede"
+                          : (m as { senderName?: string | null }).senderName
+                            ? (m as { senderName?: string | null }).senderName
+                            : m.role === "assistant" ? "IA" : m.role}
                       </div>
                       <div className="whitespace-pre-wrap">{m.content}</div>
                       {m.feedback && !m.feedback.resolved && (
