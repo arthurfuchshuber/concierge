@@ -155,8 +155,19 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
   };
 
   const send = useMutation({
-    mutationFn: async () => sendFn({ data: { conversationId, content: text.trim(), internalNote: note } }),
+    mutationFn: async () =>
+      channel === "whatsapp" && !note
+        ? sendWaFn({ data: { conversationId, text: text.trim() } })
+        : sendFn({ data: { conversationId, content: text.trim(), internalNote: note } }),
     onSuccess: () => { setText(""); invalidateAll(); },
+    onError: (e) => setErrorMsg((e as Error).message),
+  });
+  const reopen = useMutation({
+    mutationFn: async (ch: "chat" | "whatsapp") => {
+      await reopenFn({ data: { conversationId } });
+      return ch;
+    },
+    onSuccess: (ch) => { setChannel(ch); setReopenOpen(false); invalidateAll(); },
     onError: (e) => setErrorMsg((e as Error).message),
   });
   const claim = useMutation({
