@@ -379,56 +379,82 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
             )}
           </div>
 
-          <div className="flex flex-col gap-1 shrink-0 items-end">
-            {/* Livre → assumir */}
-            {(isUnassigned && status !== "resolved") && (
-              <button onClick={handleClaim} disabled={claim.isPending} className="text-xs px-2 py-1.5 rounded-md bg-primary text-primary-foreground hover:opacity-90 inline-flex items-center gap-1">
-                <UserCheck className="size-3" /> Assumir
-              </button>
-            )}
-            {/* Travada por outro → assumir (com confirmação) + pedir acesso */}
-            {isLockedByOther && status !== "resolved" && (
-              <button onClick={handleClaim} disabled={claim.isPending} className="text-xs px-2 py-1.5 rounded-md bg-primary text-primary-foreground hover:opacity-90 inline-flex items-center gap-1">
-                <UserCheck className="size-3" /> Assumir
-              </button>
-            )}
-            {isLockedByOther && !iRequested && status !== "resolved" && (
-              <button onClick={() => requestClaim.mutate()} disabled={requestClaim.isPending} className="text-xs px-2 py-1.5 rounded-md border border-border hover:bg-secondary inline-flex items-center gap-1">
-                <UserPlus2 className="size-3" /> Solicitar acesso
-              </button>
-            )}
-            {isLockedByOther && iRequested && (
-              <button onClick={() => cancelRequest.mutate()} disabled={cancelRequest.isPending} className="text-xs px-2 py-1.5 rounded-md border border-border hover:bg-secondary inline-flex items-center gap-1">
-                <X className="size-3" /> Cancelar solicitação
-              </button>
-            )}
-            {/* É minha → transferir / devolver IA */}
-            {isMine && status !== "resolved" && (
-              <>
-                <button onClick={() => setTransferOpen((v) => !v)} className="text-xs px-2 py-1.5 rounded-md border border-border hover:bg-secondary inline-flex items-center gap-1">
-                  <ArrowRightLeft className="size-3" /> Transferir
+          <div className="shrink-0">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  className="size-9 grid place-items-center rounded-full border border-border hover:bg-secondary"
+                  aria-label="Ações da conversa"
+                  title="Ações da conversa"
+                >
+                  <MoreVertical className="size-4" />
                 </button>
-                <button onClick={() => release.mutate()} disabled={release.isPending} className="text-xs px-2 py-1.5 rounded-md border border-border hover:bg-secondary inline-flex items-center gap-1" title="Devolver à IA">
-                  <RotateCcw className="size-3" /> IA
-                </button>
-              </>
-            )}
-            {guest?.phone && canChat && (
-              <button
-                onClick={() => setWaOpen(true)}
-                className="text-xs px-2 py-1.5 rounded-md bg-emerald-600 text-white hover:bg-emerald-700 inline-flex items-center gap-1"
-                title="Enviar mensagem por WhatsApp"
-              >
-                <MessageCircle className="size-3" /> WhatsApp
-              </button>
-            )}
-            {status !== "resolved" && (isMine || !conv?.assigned_to) && (
-              <button onClick={() => resolve.mutate()} disabled={resolve.isPending} className="text-xs px-2 py-1.5 rounded-md border border-border hover:bg-secondary inline-flex items-center gap-1">
-                <CheckCircle2 className="size-3" /> Resolver
-              </button>
-            )}
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuLabel className="text-[11px]">Ações</DropdownMenuLabel>
+                {status === "resolved" && canChat && (
+                  <DropdownMenuItem onSelect={() => setReopenOpen(true)}>
+                    <RotateCcw className="size-3.5 mr-2" /> Reabrir conversa
+                  </DropdownMenuItem>
+                )}
+                {(isUnassigned || isLockedByOther) && status !== "resolved" && (
+                  <DropdownMenuItem onSelect={() => handleClaim()}>
+                    <UserCheck className="size-3.5 mr-2" /> Assumir
+                  </DropdownMenuItem>
+                )}
+                {isLockedByOther && !iRequested && status !== "resolved" && (
+                  <DropdownMenuItem onSelect={() => requestClaim.mutate()}>
+                    <UserPlus2 className="size-3.5 mr-2" /> Solicitar acesso
+                  </DropdownMenuItem>
+                )}
+                {isLockedByOther && iRequested && (
+                  <DropdownMenuItem onSelect={() => cancelRequest.mutate()}>
+                    <X className="size-3.5 mr-2" /> Cancelar solicitação
+                  </DropdownMenuItem>
+                )}
+                {isMine && status !== "resolved" && (
+                  <>
+                    <DropdownMenuItem onSelect={(e) => { e.preventDefault(); setTransferOpen((v) => !v); }}>
+                      <ArrowRightLeft className="size-3.5 mr-2" /> Transferir
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onSelect={() => release.mutate()}>
+                      <RotateCcw className="size-3.5 mr-2" /> Devolver à IA
+                    </DropdownMenuItem>
+                  </>
+                )}
+                {guest?.phone && canChat && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuLabel className="text-[11px]">Canal de envio</DropdownMenuLabel>
+                    <DropdownMenuItem onSelect={() => setChannel("chat")}>
+                      <MessageSquare className="size-3.5 mr-2" /> Chat do navegador
+                      {channel === "chat" && <CheckCircle2 className="size-3.5 ml-auto text-emerald-600" />}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onSelect={() => setChannel("whatsapp")}>
+                      <MessageCircle className="size-3.5 mr-2 text-emerald-600" /> WhatsApp
+                      {channel === "whatsapp" && <CheckCircle2 className="size-3.5 ml-auto text-emerald-600" />}
+                    </DropdownMenuItem>
+                  </>
+                )}
+                {status !== "resolved" && (isMine || !conv?.assigned_to) && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onSelect={() => resolve.mutate()}>
+                      <CheckCircle2 className="size-3.5 mr-2" /> Resolver
+                    </DropdownMenuItem>
+                  </>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
+
+        {channel === "whatsapp" && (
+          <div className="text-[11px] px-2 py-1 rounded bg-emerald-500/10 text-emerald-700 border border-emerald-500/30 flex items-center justify-between gap-2">
+            <span className="inline-flex items-center gap-1"><MessageCircle className="size-3" /> Enviando pelo WhatsApp do hóspede</span>
+            <button onClick={() => setChannel("chat")} className="underline">usar chat</button>
+          </div>
+        )}
 
         {transferOpen && isMine && (
           <div className="rounded-md border border-border bg-background p-2 space-y-1">
