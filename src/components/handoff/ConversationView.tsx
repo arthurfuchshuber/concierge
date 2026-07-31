@@ -355,16 +355,23 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
         ["--popover-foreground" as never]: "#18181b",
       }}
     >
-      <div className="border-b border-zinc-200 p-3 space-y-2 shrink-0 bg-zinc-50">
-        <div className="flex items-start justify-between gap-2">
+      <div className={`border-b border-zinc-200 shrink-0 bg-zinc-50 ${inputFocused ? "px-3 py-1.5" : "p-3 space-y-2"}`}>
+        <div className={`flex gap-2 ${inputFocused ? "items-center" : "items-start justify-between"}`}>
           <div className="min-w-0 flex-1">
-            <div className="text-sm font-medium truncate">{guestName}</div>
+            <div className="text-sm font-medium truncate">
+              {guestName}
+              {inputFocused && guest?.reservationCode && (
+                <span className="ml-2 text-[11px] font-normal text-muted-foreground">{guest.reservationCode}</span>
+              )}
+            </div>
             <div className="text-[11px] text-muted-foreground truncate">
               {propertyName}
-              {conv?.handoff_at ? ` · ${formatDistanceToNow(new Date(conv.handoff_at), { locale: ptBR, addSuffix: true })}` : ""}
+              {!inputFocused && conv?.handoff_at ? ` · ${formatDistanceToNow(new Date(conv.handoff_at), { locale: ptBR, addSuffix: true })}` : ""}
+              {inputFocused && checkinFmt ? ` · In ${checkinFmt}` : ""}
+              {inputFocused && checkoutFmt ? ` · Out ${checkoutFmt}` : ""}
             </div>
 
-            {(waHref || checkinFmt || checkoutFmt || guest?.reservationCode) && (
+            {!inputFocused && (waHref || checkinFmt || checkoutFmt || guest?.reservationCode) && (
               <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
                 {waHref && (
                   <a href={waHref} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-emerald-600 hover:underline">
@@ -391,18 +398,18 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
               </div>
             )}
 
-            {conv?.handoff_reason && (
+            {!inputFocused && conv?.handoff_reason && (
               <div className="text-[11px] mt-2 px-2 py-1 rounded bg-amber-500/10 text-amber-700 border border-amber-500/30 line-clamp-2">
                 {conv.handoff_reason}
               </div>
             )}
 
-            {isLockedByOther && (
+            {!inputFocused && isLockedByOther && (
               <div className="text-[11px] mt-2 px-2 py-1 rounded bg-secondary text-foreground/80 border border-border inline-flex items-center gap-1">
                 <Lock className="size-3" /> Em atendimento por {assignedProfile?.displayName ?? "outro membro"}
               </div>
             )}
-            {someoneRequestedFromMe && (
+            {!inputFocused && someoneRequestedFromMe && (
               <div className="text-[11px] mt-2 px-2 py-1 rounded bg-primary/10 text-primary border border-primary/30 flex items-center justify-between gap-2">
                 <span className="inline-flex items-center gap-1"><UserPlus2 className="size-3" /> {claimReq?.displayName ?? "Um membro"} pediu acesso</span>
                 <button
