@@ -449,20 +449,8 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
                     </DropdownMenuItem>
                   </>
                 )}
-                {guest?.phone && canChat && (
-                  <>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuLabel className="text-[11px]">Canal de envio</DropdownMenuLabel>
-                    <DropdownMenuItem onSelect={() => setChannel("chat")}>
-                      <MessageSquare className="size-3.5 mr-2" /> Chat do navegador
-                      {channel === "chat" && <CheckCircle2 className="size-3.5 ml-auto text-emerald-600" />}
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onSelect={() => setChannel("whatsapp")}>
-                      <MessageCircle className="size-3.5 mr-2 text-emerald-600" /> WhatsApp
-                      {channel === "whatsapp" && <CheckCircle2 className="size-3.5 ml-auto text-emerald-600" />}
-                    </DropdownMenuItem>
-                  </>
-                )}
+                {/* Canal de envio é escolhido ao reabrir a conversa. */}
+
                 {status !== "resolved" && (isMine || !conv?.assigned_to) && (
                   <>
                     <DropdownMenuSeparator />
