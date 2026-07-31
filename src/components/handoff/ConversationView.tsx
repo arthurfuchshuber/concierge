@@ -93,6 +93,7 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
   const [transferOpen, setTransferOpen] = useState(false);
   const [channel, setChannel] = useState<"chat" | "whatsapp">("chat");
   const [reopenOpen, setReopenOpen] = useState(false);
+  const [inputFocused, setInputFocused] = useState(false);
   const [actionMsg, setActionMsg] = useState<{ id: string; content: string; mine: boolean } | null>(null);
   const longPressRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const startLongPress = (m: { id: string; content: string; mine: boolean }) => {
