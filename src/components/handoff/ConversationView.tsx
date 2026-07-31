@@ -15,7 +15,9 @@ import {
   listConversationTransferTargets,
 } from "@/lib/handoff.functions";
 import { attachStaffMessage } from "@/lib/chat-attachments.functions";
-import { Send, UserCheck, RotateCcw, CheckCircle2, Loader2, StickyNote, Phone, Calendar, Hash, Lock, UserPlus2, ArrowRightLeft, X, Sparkles, Paperclip, MessageCircle } from "lucide-react";
+import { Send, UserCheck, RotateCcw, CheckCircle2, Loader2, StickyNote, Phone, Calendar, Hash, Lock, UserPlus2, ArrowRightLeft, X, Sparkles, Paperclip, MessageCircle, Languages } from "lucide-react";
+import { translateMessage } from "@/lib/translate.functions";
+import { detectLanguage, userLanguage, LANG_NAMES } from "@/lib/lang-detect";
 import { WhatsappComposerDialog } from "@/components/whatsapp/WhatsappComposerDialog";
 import { TagMentionTextarea, type TagMentionItem } from "@/components/tags/TagMentionTextarea";
 import { getTagItemsForConversation } from "@/lib/guide-tag-items.functions";
