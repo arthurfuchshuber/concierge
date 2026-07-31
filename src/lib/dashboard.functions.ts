@@ -921,20 +921,25 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
         }
       }
       const virtualStay = autoStayDone(l.checkin_date, l.checkout_date ?? null, l.created_at ?? null);
-      if (data.kind === "checkin" && belongsToCheckoutStage(l.checkin_date, l.checkout_date ?? null)) {
+      const logDone = logCheckinDone(l.id) || virtualStay;
+      const overduePending = data.kind === "checkin" && !logDone && withinOverdueWindow(l.checkin_date);
+      if (data.kind === "checkin" && belongsToCheckoutStage(l.checkin_date, l.checkout_date ?? null, logDone)) {
         return null;
       }
       if (
         data.kind === "checkin" &&
         date < (from ?? today) &&
-        !(data.range !== "tomorrow" && isCurrentStay(l.checkin_date, l.checkout_date ?? null))
+        !(
+          data.range !== "tomorrow" &&
+          (isCurrentStay(l.checkin_date, l.checkout_date ?? null) || overduePending)
+        )
       ) {
         return null;
       }
       // Cards com data anterior a hoje só aparecem sem interação quando a estadia
-      // ainda está em andamento. Isso preserva a regra de não importar histórico,
-      // mas permite que reservas já hospedadas apareçam em "Em Estadia".
-      if (date < today && !s && !virtualStay) return null;
+      // ainda está em andamento ou quando o check-in continua pendente (atrasado).
+      if (date < today && !s && !virtualStay && !(overduePending && data.range !== "tomorrow")) return null;
+
       const evK = eventKey(l.property_id, l.guest_name, l.guest_phone);
       return {
         logId: l.id,
