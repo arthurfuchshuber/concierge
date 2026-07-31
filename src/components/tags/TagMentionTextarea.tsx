@@ -30,6 +30,8 @@ type Props = React.ComponentProps<typeof Textarea> & {
   onChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void;
   /** Itens específicos (FAQs, recomendações, marketplaces) que aparecem junto das seções fixas. */
   items?: TagMentionItem[];
+  /** Classe do wrapper posicional (o popup é ancorado nele). */
+  containerClassName?: string;
 };
 
 type OptionKind = "section" | "item" | "info";
@@ -53,7 +55,7 @@ function normalize(s: string): string {
 const POPUP_MAX_HEIGHT = 288; // ≈ max-h-72
 
 export const TagMentionTextarea = forwardRef<TagMentionTextareaHandle, Props>(function TagMentionTextarea(
-  { value, onChange, items = [], className, ...rest },
+  { value, onChange, items = [], className, containerClassName, onKeyDown: onKeyDownProp, ...rest },
   ref,
 ) {
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -179,7 +181,10 @@ export const TagMentionTextarea = forwardRef<TagMentionTextareaHandle, Props>(fu
   }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
-    if (!open || filtered.length === 0) return;
+    if (!open || filtered.length === 0) {
+      onKeyDownProp?.(e);
+      return;
+    }
     if (e.key === "ArrowDown") {
       e.preventDefault();
       setHighlight((h) => (h + 1) % filtered.length);
@@ -203,7 +208,7 @@ export const TagMentionTextarea = forwardRef<TagMentionTextareaHandle, Props>(fu
       : "bg-sky-100 text-sky-800 dark:bg-sky-900/40 dark:text-sky-200";
 
   return (
-    <div ref={wrapperRef} className="relative">
+    <div ref={wrapperRef} className={cn("relative", containerClassName)}>
       <Textarea
         ref={taRef}
         value={value}
