@@ -212,7 +212,7 @@ export const getGuideEngagement = createServerFn({ method: "GET" })
       from = today;
       to = addDaysISO(today, 29);
     }
-    const [{ data: props }, { data: reservations }, { data: logs }] = await Promise.all([
+    const [{ data: props }, { data: reservations }, { data: logs }, { data: doneStatuses }] = await Promise.all([
       context.supabase.from("properties").select("id, name, airbnb_ical_url, lock_code, gate_code").in("id", propIds),
       context.supabase
         .from("property_reservations")
@@ -229,7 +229,23 @@ export const getGuideEngagement = createServerFn({ method: "GET" })
         .gte("checkin_date", from)
         .lte("checkin_date", to)
         .limit(2000),
+      context.supabase
+        .from("guest_arrival_status")
+        .select("reservation_id, log_id, kind, status")
+        .in("property_id", propIds)
+        .eq("kind", "checkin")
+        .eq("status", "done")
+        .limit(5000),
     ]);
+
+    // Check-ins já concluídos saem da base de engajamento — o quadrante segue
+    // apenas os check-ins PENDENTES, igual aos cards do Kanban.
+    const doneReservations = new Set<string>();
+    const doneLogs = new Set<string>();
+    for (const s of (doneStatuses ?? []) as Array<{ reservation_id: string | null; log_id: string | null }>) {
+      if (s.reservation_id) doneReservations.add(s.reservation_id);
+      if (s.log_id) doneLogs.add(s.log_id);
+    }
 
     const icalProps = new Set(
       ((props ?? []) as Array<{ id: string; airbnb_ical_url: string | null }>)
@@ -238,6 +254,7 @@ export const getGuideEngagement = createServerFn({ method: "GET" })
     );
 
     type LogRow = {
+      id: string;
       property_id: string;
       guest_name: string | null;
       guest_phone: string | null;
@@ -245,7 +262,7 @@ export const getGuideEngagement = createServerFn({ method: "GET" })
     };
     const allLogs = ((logs ?? []) as LogRow[]).filter((r) => !isPlaceholderGuest(r.guest_name));
 
-    // Uma entrada por check-in do período (mesma base usada no contador).
+    // Uma entrada por check-in PENDENTE do período (mesma base usada no contador).
     type Entry = { property_id: string; name: string; phone: string | null };
     const entries: Entry[] = [];
     const usedLog = new Set<number>();
@@ -268,6 +285,7 @@ export const getGuideEngagement = createServerFn({ method: "GET" })
         matched = l;
         break;
       }
+      if (doneReservations.has(r.id) || (matched && doneLogs.has(matched.id))) continue;
       entries.push({
         property_id: r.property_id,
         name: (matched?.guest_name || "").trim() || "Hóspede pendente",
@@ -279,6 +297,7 @@ export const getGuideEngagement = createServerFn({ method: "GET" })
     const seenFallback = new Set<string>();
     for (const l of allLogs) {
       if (icalProps.has(l.property_id)) continue;
+      if (doneLogs.has(l.id)) continue;
       const key = `${l.property_id}|${(l.guest_name || "").trim().toLowerCase()}|${(l.guest_phone || "").replace(/\D/g, "")}|${l.checkin_date ?? ""}`;
       if (seenFallback.has(key)) continue;
       seenFallback.add(key);

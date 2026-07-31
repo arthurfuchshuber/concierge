@@ -427,11 +427,12 @@ function DashboardPage() {
           </div>
           <EngagementBars
             loading={engQ.isLoading}
-            checkins={counts.checkin}
-            checkinsWithCodes={Math.min(engQ.data?.checkinsWithCodes ?? 0, counts.checkin)}
+            checkins={engQ.data?.checkinsInPeriod ?? 0}
+            checkinsWithCodes={engQ.data?.checkinsWithCodes ?? 0}
             checkinBreakdown={engQ.data?.checkinBreakdown}
             codesBreakdown={engQ.data?.codesBreakdown}
           />
+
         </section>
       )}
 
@@ -802,8 +803,8 @@ function EngagementBars({
         <Loader2 className="size-4 inline animate-spin" />
       </div>
     );
-  const checkinViewed = Math.min(checkinBreakdown?.viewed.length ?? 0, checkins);
-  const codesViewed = Math.min(codesBreakdown?.viewed.length ?? 0, checkinsWithCodes);
+  const checkinViewed = checkinBreakdown?.viewed.length ?? 0;
+  const codesViewed = codesBreakdown?.viewed.length ?? 0;
   return (
     <div className="relative space-y-4">
       {checkins > 0 && (
