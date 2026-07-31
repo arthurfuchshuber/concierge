@@ -1466,6 +1466,7 @@ export type Database = {
           conversation_id: string
           created_at: string
           delivery_status: string | null
+          edited_at: string | null
           external_id: string | null
           id: string
           is_internal_note: boolean
@@ -1486,6 +1487,7 @@ export type Database = {
           conversation_id: string
           created_at?: string
           delivery_status?: string | null
+          edited_at?: string | null
           external_id?: string | null
           id?: string
           is_internal_note?: boolean
@@ -1506,6 +1508,7 @@ export type Database = {
           conversation_id?: string
           created_at?: string
           delivery_status?: string | null
+          edited_at?: string | null
           external_id?: string | null
           id?: string
           is_internal_note?: boolean
