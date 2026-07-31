@@ -212,7 +212,7 @@ export const getGuideEngagement = createServerFn({ method: "GET" })
       from = today;
       to = addDaysISO(today, 29);
     }
-    const [{ data: props }, { data: reservations }, { data: logs }] = await Promise.all([
+    const [{ data: props }, { data: reservations }, { data: logs }, { data: doneStatuses }] = await Promise.all([
       context.supabase.from("properties").select("id, name, airbnb_ical_url, lock_code, gate_code").in("id", propIds),
       context.supabase
         .from("property_reservations")
@@ -229,7 +229,23 @@ export const getGuideEngagement = createServerFn({ method: "GET" })
         .gte("checkin_date", from)
         .lte("checkin_date", to)
         .limit(2000),
+      context.supabase
+        .from("guest_arrival_status")
+        .select("reservation_id, log_id, kind, status")
+        .in("property_id", propIds)
+        .eq("kind", "checkin")
+        .eq("status", "done")
+        .limit(5000),
     ]);
+
+    // Check-ins já concluídos saem da base de engajamento — o quadrante segue
+    // apenas os check-ins PENDENTES, igual aos cards do Kanban.
+    const doneReservations = new Set<string>();
+    const doneLogs = new Set<string>();
+    for (const s of (doneStatuses ?? []) as Array<{ reservation_id: string | null; log_id: string | null }>) {
+      if (s.reservation_id) doneReservations.add(s.reservation_id);
+      if (s.log_id) doneLogs.add(s.log_id);
+    }
 
     const icalProps = new Set(
       ((props ?? []) as Array<{ id: string; airbnb_ical_url: string | null }>)
