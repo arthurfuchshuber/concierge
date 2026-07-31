@@ -781,7 +781,7 @@ export const sendHandoffMessage = createServerFn({ method: "POST" })
       const propRow = (propConv?.properties as Record<string, unknown> | null) ?? null;
       const slug = (propRow?.slug as string | undefined) ?? null;
       const { expandInfoTags, expandTagsAsMarkdown } = await import("@/lib/guide-tags");
-      content = expandInfoTags(content, propRow as never);
+      content = expandInfoTags(content, propRow as never, { markdownLinks: true });
       if (slug) content = expandTagsAsMarkdown(content, { slug });
     } catch {
       // Se algo falhar, envia o texto original.

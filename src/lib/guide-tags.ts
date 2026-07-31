@@ -247,8 +247,30 @@ export type GuideInfoSnapshot = {
 };
 
 function normalizeInfoLabel(s: string): string {
-  return s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+  return slugForTag(s);
 }
+
+/** Acha o link do marketplace pelo slug/rótulo do parâmetro da tag. */
+export function findMarketplaceLink(
+  p: GuideInfoSnapshot | null | undefined,
+  param: string | null,
+): { label: string; url: string } | null {
+  const list = Array.isArray(p?.marketplace_links)
+    ? (p!.marketplace_links as Array<Record<string, unknown>>)
+    : [];
+  if (!list.length) return null;
+  const want = param ? normalizeInfoLabel(param) : "";
+  const labelOf = (l: Record<string, unknown>) => String(l.label ?? l.name ?? "").trim();
+  const hit = want
+    ? list.find((l) => normalizeInfoLabel(labelOf(l)) === want) ??
+      list.find((l) => normalizeInfoLabel(labelOf(l)).includes(want)) ??
+      list.find((l) => want.includes(normalizeInfoLabel(labelOf(l))))
+    : list[0];
+  const url = hit?.url == null ? "" : String(hit.url).trim();
+  if (!hit || !url) return null;
+  return { label: labelOf(hit) || "Link", url };
+}
+
 
 /** Resolve `[[info:key(:param)?]]` para uma string exibível. */
 export function resolveInfoValue(
@@ -283,15 +305,10 @@ export function resolveInfoValue(
     case "gate-instructions":     return v(p.gate_instructions);
     case "lock-instructions":     return v(p.lock_instructions);
     case "marketplace": {
-      const list = Array.isArray(p.marketplace_links) ? (p.marketplace_links as Array<Record<string, unknown>>) : [];
-      if (!list.length) return "";
-      const want = param ? normalizeInfoLabel(param) : "";
-      const hit = want
-        ? list.find((l) => normalizeInfoLabel(String(l.label ?? l.name ?? "")) === want) ??
-          list.find((l) => normalizeInfoLabel(String(l.label ?? l.name ?? "")).includes(want))
-        : list[0];
+      const hit = findMarketplaceLink(p, param);
       return v(hit?.url);
     }
+
   }
 }
 
@@ -309,17 +326,30 @@ export function isProtectedInfoKey(k: string): k is GuideInfoKey {
   return isGuideInfoKey(k) && PROTECTED_INFO_KEYS.has(k as GuideInfoKey);
 }
 
-/** Substitui todas as `[[info:...]]` pelos valores atuais da propriedade. */
-export function expandInfoTags(text: string, prop: GuideInfoSnapshot | null | undefined): string {
+/** Substitui todas as `[[info:...]]` pelos valores atuais da propriedade.
+ *  `markdownLinks` transforma links do marketplace em `[Rótulo](url)`. */
+export function expandInfoTags(
+  text: string,
+  prop: GuideInfoSnapshot | null | undefined,
+  opts?: { markdownLinks?: boolean },
+): string {
   if (!text) return text;
   return text.replace(INFO_RE, (_m, rawKey: string, rawParam?: string, rawLabel?: string) => {
     const key = rawKey.toLowerCase();
     if (!isGuideInfoKey(key)) return "";
-    const val = resolveInfoValue(key as GuideInfoKey, (rawParam ?? "").trim() || null, prop);
+    const param = (rawParam ?? "").trim() || null;
+    if (key === "marketplace") {
+      const hit = findMarketplaceLink(prop, param);
+      if (!hit) return "";
+      const label = rawLabel?.trim() || hit.label;
+      return opts?.markdownLinks ? `[${label}](${hit.url})` : `${label} (${hit.url})`;
+    }
+    const val = resolveInfoValue(key as GuideInfoKey, param, prop);
     if (!val) return "";
     return rawLabel?.trim() ? `${rawLabel.trim()} (${val})` : val;
   });
 }
+
 
 // ---- Combined tokenizer (tag + info) for inline rendering ---------------------
 
