@@ -21,14 +21,6 @@ export const Route = createFileRoute("/_authenticated/admin/atendimento")({
   component: AtendimentoPage,
 });
 
-type Queue = "needs_human" | "assigned_to_me" | "all_active" | "ai_only" | "all" | "resolved";
-
-const QUEUES: Array<{ key: Queue; label: string; icon: typeof Inbox }> = [
-  { key: "needs_human", label: "Precisa humano", icon: Inbox },
-  { key: "assigned_to_me", label: "Meus", icon: User },
-  { key: "ai_only", label: "Com a IA", icon: Bot },
-  { key: "resolved", label: "Resolvidas", icon: CheckCircle2 },
-];
 
 function AtendimentoPage() {
   const { conv } = useSearch({ from: "/_authenticated/admin/atendimento" });
