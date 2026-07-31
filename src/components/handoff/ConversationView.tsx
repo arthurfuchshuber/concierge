@@ -782,7 +782,12 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
                 <Loader2 className="size-3 animate-spin" /> enviando anexo…
               </div>
             )}
-            <div className="flex items-end gap-1">
+            {note && (
+              <div className="px-2 pb-1 text-[10px] text-yellow-700 inline-flex items-center gap-1">
+                <StickyNote className="size-3" /> nota interna (só a equipe vê)
+              </div>
+            )}
+            <div className="flex items-end gap-2">
               <input
                 ref={fileInputRef}
                 type="file"
@@ -798,39 +803,12 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
                 className="hidden"
                 onChange={onFilePicked}
               />
-              <div className="flex-1 min-w-0 flex items-end gap-0.5 rounded-full border border-border bg-background pl-2 pr-1 py-0.5">
-                <button
-                  type="button"
-                  onClick={() => setNote((v) => !v)}
-                  title="Nota interna"
-                  aria-label="Nota interna"
-                  className={`grid size-8 place-items-center rounded-full shrink-0 ${note ? "bg-yellow-500/20 text-yellow-700" : "text-muted-foreground hover:text-foreground hover:bg-muted"}`}
-                >
-                  <StickyNote className="size-4" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={uploading}
-                  title="Anexar arquivo"
-                  aria-label="Anexar arquivo"
-                  className="grid size-8 place-items-center rounded-full hover:bg-muted text-muted-foreground hover:text-foreground shrink-0 disabled:opacity-40"
-                >
-                  <Paperclip className="size-4" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => cameraInputRef.current?.click()}
-                  disabled={uploading}
-                  title="Tirar foto ou vídeo"
-                  aria-label="Tirar foto ou vídeo"
-                  className="grid size-8 place-items-center rounded-full hover:bg-muted text-muted-foreground hover:text-foreground shrink-0 disabled:opacity-40"
-                >
-                  <Camera className="size-4" />
-                </button>
+              <div className={`flex-1 min-w-0 flex items-end gap-1 rounded-3xl border bg-background pl-3 pr-1.5 py-1 ${note ? "border-yellow-500/50" : "border-border"}`}>
                 <TagMentionTextarea
                   value={text}
                   onChange={(e) => setText(e.target.value)}
+                  onFocus={() => setInputFocused(true)}
+                  onBlur={() => setInputFocused(false)}
                   onKeyDown={(e) => {
                     if (e.key === "Enter" && !e.shiftKey) {
                       e.preventDefault();
@@ -841,23 +819,49 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
                   placeholder={note ? "Nota interna…" : channel === "whatsapp" ? "Mensagem via WhatsApp…" : "Mensagem… (@ linka o guia)"}
                   rows={1}
                   containerClassName="flex-1 min-w-0"
-                  className="w-full resize-none bg-transparent border-0 px-1 py-2 text-sm outline-none focus:ring-0 min-w-0 max-h-28"
+                  className="w-full resize-none bg-transparent border-0 px-0 py-2 text-sm leading-5 outline-none focus:ring-0 min-w-0 max-h-28"
                 />
-                <AudioRecorderButton
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
                   disabled={uploading}
-                  maxSeconds={60}
-                  onRecorded={onAudioRecorded}
-                />
+                  title="Anexar arquivo"
+                  aria-label="Anexar arquivo"
+                  className="grid size-9 place-items-center rounded-full hover:bg-muted text-muted-foreground hover:text-foreground shrink-0 disabled:opacity-40"
+                >
+                  <Paperclip className="size-5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => cameraInputRef.current?.click()}
+                  disabled={uploading}
+                  title="Tirar foto ou vídeo"
+                  aria-label="Tirar foto ou vídeo"
+                  className="grid size-9 place-items-center rounded-full hover:bg-muted text-muted-foreground hover:text-foreground shrink-0 disabled:opacity-40"
+                >
+                  <Camera className="size-5" />
+                </button>
               </div>
 
-              <button
-                type="submit"
-                disabled={!text.trim() || send.isPending}
-                className={`size-10 grid place-items-center rounded-full text-white disabled:opacity-40 shrink-0 ${channel === "whatsapp" && !note ? "bg-emerald-600" : "bg-primary"}`}
-              >
-                {send.isPending ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
-              </button>
+              {text.trim() ? (
+                <button
+                  type="submit"
+                  disabled={send.isPending}
+                  className={`size-11 grid place-items-center rounded-full text-white disabled:opacity-40 shrink-0 ${channel === "whatsapp" && !note ? "bg-emerald-600" : "bg-primary"}`}
+                >
+                  {send.isPending ? <Loader2 className="size-5 animate-spin" /> : <Send className="size-5" />}
+                </button>
+              ) : (
+                <div className="shrink-0">
+                  <AudioRecorderButton
+                    disabled={uploading}
+                    maxSeconds={60}
+                    onRecorded={onAudioRecorded}
+                  />
+                </div>
+              )}
             </div>
+
           </form>
         )
       )}
