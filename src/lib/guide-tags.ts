@@ -247,8 +247,30 @@ export type GuideInfoSnapshot = {
 };
 
 function normalizeInfoLabel(s: string): string {
-  return s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+  return slugForTag(s);
 }
+
+/** Acha o link do marketplace pelo slug/rótulo do parâmetro da tag. */
+export function findMarketplaceLink(
+  p: GuideInfoSnapshot | null | undefined,
+  param: string | null,
+): { label: string; url: string } | null {
+  const list = Array.isArray(p?.marketplace_links)
+    ? (p!.marketplace_links as Array<Record<string, unknown>>)
+    : [];
+  if (!list.length) return null;
+  const want = param ? normalizeInfoLabel(param) : "";
+  const labelOf = (l: Record<string, unknown>) => String(l.label ?? l.name ?? "").trim();
+  const hit = want
+    ? list.find((l) => normalizeInfoLabel(labelOf(l)) === want) ??
+      list.find((l) => normalizeInfoLabel(labelOf(l)).includes(want)) ??
+      list.find((l) => want.includes(normalizeInfoLabel(labelOf(l))))
+    : list[0];
+  const url = hit?.url == null ? "" : String(hit.url).trim();
+  if (!hit || !url) return null;
+  return { label: labelOf(hit) || "Link", url };
+}
+
 
 /** Resolve `[[info:key(:param)?]]` para uma string exibível. */
 export function resolveInfoValue(
