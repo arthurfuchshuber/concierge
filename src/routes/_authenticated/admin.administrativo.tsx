@@ -40,17 +40,17 @@ function AdministrativoPage() {
         className="w-full"
       >
         <div className="px-6 lg:px-10 max-w-7xl mx-auto w-full">
-          <TabsList className="h-auto p-1 bg-secondary/60 rounded-2xl">
-            <TabsTrigger value="perfil" className="gap-2 rounded-xl px-4 py-2 text-sm">
+          <TabsList>
+            <TabsTrigger value="perfil">
               <UserIcon className="size-4" /> Meu perfil
             </TabsTrigger>
-            <TabsTrigger value="assinatura" className="gap-2 rounded-xl px-4 py-2 text-sm">
+            <TabsTrigger value="assinatura">
               <CreditCard className="size-4" /> Assinatura
             </TabsTrigger>
-            <TabsTrigger value="equipe" className="gap-2 rounded-xl px-4 py-2 text-sm">
+            <TabsTrigger value="equipe">
               <UsersRound className="size-4" /> Equipe & Permissões
             </TabsTrigger>
-            <TabsTrigger value="whatsapp" className="gap-2 rounded-xl px-4 py-2 text-sm">
+            <TabsTrigger value="whatsapp">
               <MessageCircle className="size-4" /> WhatsApp
             </TabsTrigger>
           </TabsList>
