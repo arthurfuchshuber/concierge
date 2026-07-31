@@ -8,6 +8,8 @@ import { AudioRecorderButton, type RecordedAudio } from "@/components/handoff/Au
 import { AttachmentBubble, type AttachmentInfo } from "@/components/handoff/AttachmentBubble";
 import { readAccessRecord } from "@/components/GuideAccessGate";
 import { metaPixelTrackCustom } from "@/lib/meta-pixel";
+import { translateMessage } from "@/lib/translate.functions";
+import { detectLanguage, userLanguage } from "@/lib/lang-detect";
 
 type Msg = {
   role: "user" | "assistant" | "system";
@@ -71,6 +73,36 @@ export function GuideAiChat({ slug, propertyName, guestName }: { slug: string; p
   const [sessionId, setSessionId] = useState<string>("");
   const [conversationId, setConversationId] = useState<string | undefined>();
   const [messages, setMessages] = useState<Msg[]>([]);
+  // Mensagens do atendente sempre no idioma do hóspede.
+  const [autoTranslated, setAutoTranslated] = useState<Record<string, string>>({});
+  const translatingRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    const myLang = userLanguage();
+    const pending = messages.filter(
+      (m) =>
+        m.id &&
+        m.senderType === "human" &&
+        (m.content ?? "").trim().length > 2 &&
+        !autoTranslated[m.id] &&
+        !translatingRef.current.has(m.id) &&
+        (() => {
+          const d = detectLanguage(m.content);
+          return Boolean(d && d !== myLang);
+        })(),
+    );
+    if (!pending.length) return;
+    pending.forEach(async (m) => {
+      const id = m.id as string;
+      translatingRef.current.add(id);
+      try {
+        const r = await translateMessage({ data: { text: m.content.slice(0, 4000), targetLang: myLang } });
+        setAutoTranslated((p) => ({ ...p, [id]: r.translated }));
+      } catch {
+        /* mantém o original */
+      }
+    });
+  }, [messages, autoTranslated]);
+
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [pendingPreview, setPendingPreview] = useState<string | null>(null);
@@ -650,7 +682,7 @@ export function GuideAiChat({ slug, propertyName, guestName }: { slug: string; p
                         ),
                       }}
                     >
-                      {m.content}
+                      {(m.id && autoTranslated[m.id]) || m.content}
                     </ReactMarkdown>
                   )}
                 </div>

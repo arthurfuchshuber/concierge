@@ -15,7 +15,9 @@ import {
   listConversationTransferTargets,
 } from "@/lib/handoff.functions";
 import { attachStaffMessage } from "@/lib/chat-attachments.functions";
-import { Send, UserCheck, RotateCcw, CheckCircle2, Loader2, StickyNote, Phone, Calendar, Hash, Lock, UserPlus2, ArrowRightLeft, X, Sparkles, Paperclip, MessageCircle } from "lucide-react";
+import { Send, UserCheck, RotateCcw, CheckCircle2, Loader2, StickyNote, Phone, Calendar, Hash, Lock, UserPlus2, ArrowRightLeft, X, Sparkles, Paperclip, MessageCircle, Languages } from "lucide-react";
+import { translateMessage } from "@/lib/translate.functions";
+import { detectLanguage, userLanguage, LANG_NAMES } from "@/lib/lang-detect";
 import { WhatsappComposerDialog } from "@/components/whatsapp/WhatsappComposerDialog";
 import { TagMentionTextarea, type TagMentionItem } from "@/components/tags/TagMentionTextarea";
 import { getTagItemsForConversation } from "@/lib/guide-tag-items.functions";
@@ -87,6 +89,27 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [teachOpen, setTeachOpen] = useState(false);
   const [teachSource, setTeachSource] = useState<{ id: string; content: string } | null>(null);
+
+  // Tradução de mensagens do hóspede para o idioma do sistema do atendente.
+  const myLang = useMemo(() => userLanguage(), []);
+  const translateFn = useServerFn(translateMessage);
+  const [translations, setTranslations] = useState<Record<string, { text: string | null; loading: boolean; showing: boolean }>>({});
+  const toggleTranslation = async (id: string, content: string) => {
+    const current = translations[id];
+    if (current?.text) {
+      setTranslations((p) => ({ ...p, [id]: { ...current, showing: !current.showing } }));
+      return;
+    }
+    setTranslations((p) => ({ ...p, [id]: { text: null, loading: true, showing: false } }));
+    try {
+      const r = await translateFn({ data: { text: content.slice(0, 4000), targetLang: myLang } });
+      setTranslations((p) => ({ ...p, [id]: { text: r.translated, loading: false, showing: true } }));
+    } catch (e) {
+      setTranslations((p) => ({ ...p, [id]: { text: null, loading: false, showing: false } }));
+      setErrorMsg(e instanceof Error ? e.message : "Não consegui traduzir agora.");
+    }
+  };
+
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -421,6 +444,9 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
           const isGuest = m.sender_type === "guest";
           const isNote = m.is_internal_note;
           const canTeach = !isNote && typeof m.content === "string" && m.content.trim().length > 2;
+          const detected = isGuest && m.content ? detectLanguage(m.content) : null;
+          const canTranslate = Boolean(detected && detected !== myLang);
+          const tr = translations[m.id];
           const attachment: AttachmentInfo | null = m.attachment_path
             ? {
                 type: m.attachment_type as AttachmentInfo["type"],
@@ -461,25 +487,45 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
                     <AttachmentBubble attachment={attachment} />
                   </div>
                 )}
-                {m.content && <>{m.content}</>}
+                {m.content && <>{tr?.showing && tr.text ? tr.text : m.content}</>}
+                {tr?.showing && tr.text && (
+                  <div className="text-[10px] opacity-60 mt-1 flex items-center gap-1">
+                    <Languages className="size-3" /> Traduzido automaticamente
+                  </div>
+                )}
                 <div className="text-[10px] opacity-60 mt-1">
                   {formatDistanceToNow(new Date(m.created_at), { locale: ptBR, addSuffix: true })}
                 </div>
               </div>
-              {canTeach && conv?.property_id && (
-                <button
-                  type="button"
-                  onClick={() => { setTeachSource({ id: m.id, content: m.content }); setTeachOpen(true); }}
-                  className="mt-1 inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
-                  title="Adicionar este conteúdo à base de conhecimento da IA"
-                >
-                  <Sparkles className="size-3" /> Ensinar IA
-                </button>
-              )}
+              <div className="flex items-center gap-2">
+                {canTranslate && (
+                  <button
+                    type="button"
+                    onClick={() => toggleTranslation(m.id, m.content ?? "")}
+                    disabled={tr?.loading}
+                    className="mt-1 inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors disabled:opacity-60"
+                    title={`Mensagem em ${LANG_NAMES[detected as string] ?? detected}`}
+                  >
+                    {tr?.loading ? <Loader2 className="size-3 animate-spin" /> : <Languages className="size-3" />}
+                    {tr?.showing ? "Ver original" : "Traduzir"}
+                  </button>
+                )}
+                {canTeach && conv?.property_id && (
+                  <button
+                    type="button"
+                    onClick={() => { setTeachSource({ id: m.id, content: m.content }); setTeachOpen(true); }}
+                    className="mt-1 inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+                    title="Adicionar este conteúdo à base de conhecimento da IA"
+                  >
+                    <Sparkles className="size-3" /> Ensinar IA
+                  </button>
+                )}
+              </div>
             </div>
           );
         })}
       </div>
+
 
       {conv?.property_id && teachSource && (
         <TeachAiDialog
