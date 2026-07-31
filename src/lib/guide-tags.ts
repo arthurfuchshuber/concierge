@@ -326,17 +326,30 @@ export function isProtectedInfoKey(k: string): k is GuideInfoKey {
   return isGuideInfoKey(k) && PROTECTED_INFO_KEYS.has(k as GuideInfoKey);
 }
 
-/** Substitui todas as `[[info:...]]` pelos valores atuais da propriedade. */
-export function expandInfoTags(text: string, prop: GuideInfoSnapshot | null | undefined): string {
+/** Substitui todas as `[[info:...]]` pelos valores atuais da propriedade.
+ *  `markdownLinks` transforma links do marketplace em `[Rótulo](url)`. */
+export function expandInfoTags(
+  text: string,
+  prop: GuideInfoSnapshot | null | undefined,
+  opts?: { markdownLinks?: boolean },
+): string {
   if (!text) return text;
   return text.replace(INFO_RE, (_m, rawKey: string, rawParam?: string, rawLabel?: string) => {
     const key = rawKey.toLowerCase();
     if (!isGuideInfoKey(key)) return "";
-    const val = resolveInfoValue(key as GuideInfoKey, (rawParam ?? "").trim() || null, prop);
+    const param = (rawParam ?? "").trim() || null;
+    if (key === "marketplace") {
+      const hit = findMarketplaceLink(prop, param);
+      if (!hit) return "";
+      const label = rawLabel?.trim() || hit.label;
+      return opts?.markdownLinks ? `[${label}](${hit.url})` : `${label} (${hit.url})`;
+    }
+    const val = resolveInfoValue(key as GuideInfoKey, param, prop);
     if (!val) return "";
     return rawLabel?.trim() ? `${rawLabel.trim()} (${val})` : val;
   });
 }
+
 
 // ---- Combined tokenizer (tag + info) for inline rendering ---------------------
 
