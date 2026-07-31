@@ -406,7 +406,18 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
             )}
           </div>
 
-          <div className="shrink-0">
+          <div className="shrink-0 flex items-center gap-1">
+            {canChat && isMine && status !== "resolved" && (
+              <button
+                type="button"
+                onClick={() => setNote((v) => !v)}
+                title="Nota interna"
+                aria-label="Nota interna"
+                className={`size-9 grid place-items-center rounded-full border transition-colors ${note ? "bg-yellow-500/20 text-yellow-700 border-yellow-500/40" : "border-border text-muted-foreground hover:bg-secondary"}`}
+              >
+                <StickyNote className="size-4" />
+              </button>
+            )}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button
@@ -417,7 +428,8 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
                   <MoreVertical className="size-4" />
                 </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuContent align="end" className="w-56 z-[2147483600]">
+
                 <DropdownMenuLabel className="text-[11px]">Ações</DropdownMenuLabel>
                 {status === "resolved" && canChat && (
                   <DropdownMenuItem onSelect={() => setReopenOpen(true)}>
