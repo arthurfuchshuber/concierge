@@ -768,14 +768,12 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
               paddingRight: "max(0.5rem, env(safe-area-inset-right))",
             }}
           >
-            <div className="flex items-center gap-2 mb-1">
-              <label className="flex items-center gap-1 text-[11px] text-muted-foreground shrink-0 select-none">
-                <input type="checkbox" checked={note} onChange={(e) => setNote(e.target.checked)} className="size-3" />
-                nota
-              </label>
-              {uploading && <span className="text-[10px] text-muted-foreground inline-flex items-center gap-1"><Loader2 className="size-3 animate-spin" /> enviando anexo…</span>}
-            </div>
-            <div className="flex items-end gap-1.5">
+            {uploading && (
+              <div className="px-2 pb-1 text-[10px] text-muted-foreground inline-flex items-center gap-1">
+                <Loader2 className="size-3 animate-spin" /> enviando anexo…
+              </div>
+            )}
+            <div className="flex items-end gap-1">
               <input
                 ref={fileInputRef}
                 type="file"
@@ -783,41 +781,70 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
                 className="hidden"
                 onChange={onFilePicked}
               />
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={uploading}
-                title="Anexar arquivo"
-                aria-label="Anexar arquivo"
-                className="grid size-9 place-items-center rounded-full hover:bg-muted text-muted-foreground hover:text-foreground shrink-0 disabled:opacity-40"
-              >
-                <Paperclip className="size-4" />
-              </button>
-              <AudioRecorderButton
-                disabled={uploading}
-                maxSeconds={60}
-                onRecorded={onAudioRecorded}
+              <input
+                ref={cameraInputRef}
+                type="file"
+                accept="image/*,video/*"
+                capture="environment"
+                className="hidden"
+                onChange={onFilePicked}
               />
-              <TagMentionTextarea
-                value={text}
-                onChange={(e) => setText(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !e.shiftKey) {
-                    e.preventDefault();
-                    if (text.trim()) send.mutate();
-                  }
-                }}
-                items={tagItems}
-                placeholder={note ? "Nota interna (não visível ao hóspede)…" : "Escrever para o hóspede… (@ para linkar o guia)"}
-                rows={compact ? 1 : 2}
-                containerClassName="flex-1 min-w-0"
-                className="w-full resize-none rounded-md border border-border bg-background px-2 py-1.5 text-sm outline-none focus:ring-2 focus:ring-primary/40 min-w-0"
-              />
+              <div className="flex-1 min-w-0 flex items-end gap-0.5 rounded-full border border-border bg-background pl-2 pr-1 py-0.5">
+                <button
+                  type="button"
+                  onClick={() => setNote((v) => !v)}
+                  title="Nota interna"
+                  aria-label="Nota interna"
+                  className={`grid size-8 place-items-center rounded-full shrink-0 ${note ? "bg-yellow-500/20 text-yellow-700" : "text-muted-foreground hover:text-foreground hover:bg-muted"}`}
+                >
+                  <StickyNote className="size-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploading}
+                  title="Anexar arquivo"
+                  aria-label="Anexar arquivo"
+                  className="grid size-8 place-items-center rounded-full hover:bg-muted text-muted-foreground hover:text-foreground shrink-0 disabled:opacity-40"
+                >
+                  <Paperclip className="size-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => cameraInputRef.current?.click()}
+                  disabled={uploading}
+                  title="Tirar foto ou vídeo"
+                  aria-label="Tirar foto ou vídeo"
+                  className="grid size-8 place-items-center rounded-full hover:bg-muted text-muted-foreground hover:text-foreground shrink-0 disabled:opacity-40"
+                >
+                  <Camera className="size-4" />
+                </button>
+                <TagMentionTextarea
+                  value={text}
+                  onChange={(e) => setText(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      if (text.trim()) send.mutate();
+                    }
+                  }}
+                  items={tagItems}
+                  placeholder={note ? "Nota interna…" : channel === "whatsapp" ? "Mensagem via WhatsApp…" : "Mensagem… (@ linka o guia)"}
+                  rows={1}
+                  containerClassName="flex-1 min-w-0"
+                  className="w-full resize-none bg-transparent border-0 px-1 py-2 text-sm outline-none focus:ring-0 min-w-0 max-h-28"
+                />
+                <AudioRecorderButton
+                  disabled={uploading}
+                  maxSeconds={60}
+                  onRecorded={onAudioRecorded}
+                />
+              </div>
 
               <button
                 type="submit"
                 disabled={!text.trim() || send.isPending}
-                className="size-9 grid place-items-center rounded-md bg-primary text-primary-foreground disabled:opacity-40 shrink-0"
+                className={`size-10 grid place-items-center rounded-full text-white disabled:opacity-40 shrink-0 ${channel === "whatsapp" && !note ? "bg-emerald-600" : "bg-primary"}`}
               >
                 {send.isPending ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
               </button>
