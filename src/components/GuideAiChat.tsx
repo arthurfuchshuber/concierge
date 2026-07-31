@@ -682,7 +682,7 @@ export function GuideAiChat({ slug, propertyName, guestName }: { slug: string; p
                         ),
                       }}
                     >
-                      {m.content}
+                      {(m.id && autoTranslated[m.id]) || m.content}
                     </ReactMarkdown>
                   )}
                 </div>
