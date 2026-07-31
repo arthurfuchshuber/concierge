@@ -421,6 +421,9 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
           const isGuest = m.sender_type === "guest";
           const isNote = m.is_internal_note;
           const canTeach = !isNote && typeof m.content === "string" && m.content.trim().length > 2;
+          const detected = isGuest && m.content ? detectLanguage(m.content) : null;
+          const canTranslate = Boolean(detected && detected !== myLang);
+          const tr = translations[m.id];
           const attachment: AttachmentInfo | null = m.attachment_path
             ? {
                 type: m.attachment_type as AttachmentInfo["type"],
@@ -461,25 +464,45 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
                     <AttachmentBubble attachment={attachment} />
                   </div>
                 )}
-                {m.content && <>{m.content}</>}
+                {m.content && <>{tr?.showing && tr.text ? tr.text : m.content}</>}
+                {tr?.showing && tr.text && (
+                  <div className="text-[10px] opacity-60 mt-1 flex items-center gap-1">
+                    <Languages className="size-3" /> Traduzido automaticamente
+                  </div>
+                )}
                 <div className="text-[10px] opacity-60 mt-1">
                   {formatDistanceToNow(new Date(m.created_at), { locale: ptBR, addSuffix: true })}
                 </div>
               </div>
-              {canTeach && conv?.property_id && (
-                <button
-                  type="button"
-                  onClick={() => { setTeachSource({ id: m.id, content: m.content }); setTeachOpen(true); }}
-                  className="mt-1 inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
-                  title="Adicionar este conteúdo à base de conhecimento da IA"
-                >
-                  <Sparkles className="size-3" /> Ensinar IA
-                </button>
-              )}
+              <div className="flex items-center gap-2">
+                {canTranslate && (
+                  <button
+                    type="button"
+                    onClick={() => toggleTranslation(m.id, m.content ?? "")}
+                    disabled={tr?.loading}
+                    className="mt-1 inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors disabled:opacity-60"
+                    title={`Mensagem em ${LANG_NAMES[detected as string] ?? detected}`}
+                  >
+                    {tr?.loading ? <Loader2 className="size-3 animate-spin" /> : <Languages className="size-3" />}
+                    {tr?.showing ? "Ver original" : "Traduzir"}
+                  </button>
+                )}
+                {canTeach && conv?.property_id && (
+                  <button
+                    type="button"
+                    onClick={() => { setTeachSource({ id: m.id, content: m.content }); setTeachOpen(true); }}
+                    className="mt-1 inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+                    title="Adicionar este conteúdo à base de conhecimento da IA"
+                  >
+                    <Sparkles className="size-3" /> Ensinar IA
+                  </button>
+                )}
+              </div>
             </div>
           );
         })}
       </div>
+
 
       {conv?.property_id && teachSource && (
         <TeachAiDialog
