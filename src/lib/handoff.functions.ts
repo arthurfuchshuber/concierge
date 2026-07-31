@@ -830,6 +830,75 @@ export const sendHandoffMessage = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+// -------- Edit / delete a staff message --------
+
+export const editHandoffMessage = createServerFn({ method: "POST" })
+  .inputValidator((d: { conversationId: string; messageId: string; content: string }) => {
+    if (!d?.conversationId || !d?.messageId) throw new Error("Mensagem inválida.");
+    const content = (d.content ?? "").trim();
+    if (!content) throw new Error("A mensagem não pode ficar vazia.");
+    return { conversationId: d.conversationId, messageId: d.messageId, content: content.slice(0, 4000) };
+  })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    await requireChatRespondForConversation(supabase, userId, data.conversationId);
+
+    const { data: msg } = await supabase
+      .from("property_chat_messages")
+      .select("id, sender_type, conversation_id")
+      .eq("id", data.messageId)
+      .maybeSingle();
+    if (!msg || msg.conversation_id !== data.conversationId) throw new Error("Mensagem não encontrada.");
+    if (msg.sender_type === "guest") throw new Error("Não é possível editar mensagens do hóspede.");
+
+    let content = data.content;
+    try {
+      const { data: propConv } = await supabase
+        .from("property_chat_conversations")
+        .select("properties:property_id(slug, checkin_time, checkin_time_max, checkout_time, checkout_time_min, wifi_ssid, wifi_password, gate_code, lock_code, pin_code, address, host_name, host_phone, house_rules, checkin_instructions, checkout_instructions, gate_instructions, lock_instructions, marketplace_links)")
+        .eq("id", data.conversationId)
+        .maybeSingle();
+      const joined = propConv?.properties as Record<string, unknown> | Record<string, unknown>[] | null;
+      const propRow = Array.isArray(joined) ? (joined[0] ?? null) : joined;
+      const slug = (propRow?.slug as string | undefined) ?? null;
+      const { expandInfoTags, expandTagsAsMarkdown } = await import("@/lib/guide-tags");
+      content = expandInfoTags(content, propRow as never, { markdownLinks: true });
+      if (slug) content = expandTagsAsMarkdown(content, { slug });
+    } catch {
+      // mantém o texto original
+    }
+
+    const { error } = await supabase
+      .from("property_chat_messages")
+      .update({ content, edited_at: new Date().toISOString() })
+      .eq("id", data.messageId);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+export const deleteHandoffMessage = createServerFn({ method: "POST" })
+  .inputValidator((d: { conversationId: string; messageId: string }) => {
+    if (!d?.conversationId || !d?.messageId) throw new Error("Mensagem inválida.");
+    return { conversationId: d.conversationId, messageId: d.messageId };
+  })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    await requireChatRespondForConversation(supabase, userId, data.conversationId);
+    const { data: msg } = await supabase
+      .from("property_chat_messages")
+      .select("id, sender_type, conversation_id")
+      .eq("id", data.messageId)
+      .maybeSingle();
+    if (!msg || msg.conversation_id !== data.conversationId) throw new Error("Mensagem não encontrada.");
+    if (msg.sender_type === "guest") throw new Error("Não é possível apagar mensagens do hóspede.");
+    const { error } = await supabase.from("property_chat_messages").delete().eq("id", data.messageId);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+
 // -------- Count of pending handoffs (for badge/dock) --------
 
 export const countPendingHandoffs = createServerFn({ method: "GET" })
