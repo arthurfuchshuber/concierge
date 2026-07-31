@@ -18,10 +18,13 @@ import {
 } from "@/lib/handoff.functions";
 import { MessageText } from "@/components/handoff/MessageText";
 import { attachStaffMessage } from "@/lib/chat-attachments.functions";
-import { Send, UserCheck, RotateCcw, CheckCircle2, Loader2, StickyNote, Phone, Calendar, Hash, Lock, UserPlus2, ArrowRightLeft, X, Sparkles, Paperclip, MessageCircle, Languages, Pencil, Trash2 } from "lucide-react";
+import { Send, UserCheck, RotateCcw, CheckCircle2, Loader2, StickyNote, Phone, Calendar, Hash, Lock, UserPlus2, ArrowRightLeft, X, Sparkles, Paperclip, MessageCircle, MessageSquare, Languages, Pencil, Trash2, MoreVertical, Copy, Camera } from "lucide-react";
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { reopenHandoffConversation } from "@/lib/handoff.functions";
+import { sendWhatsappFromConversation } from "@/lib/whatsapp.functions";
 import { translateMessage } from "@/lib/translate.functions";
 import { detectLanguage, userLanguage, LANG_NAMES } from "@/lib/lang-detect";
-import { WhatsappComposerDialog } from "@/components/whatsapp/WhatsappComposerDialog";
 import { TagMentionTextarea, type TagMentionItem } from "@/components/tags/TagMentionTextarea";
 import { getTagItemsForConversation } from "@/lib/guide-tag-items.functions";
 import { TeachAiDialog } from "@/components/handoff/TeachAiDialog";
