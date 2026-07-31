@@ -1105,20 +1105,15 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
     // considerado feito virtualmente para efeito da esteira — assim o card
     // avança para Checkouts/Em Limpeza sem precisar de clique manual.
     function virtualCheckinDone(r: ArrivalRow): boolean {
+      // Só há promoção automática quando o registro nasceu DEPOIS do início da
+      // estadia (integração nova importando histórico corrente). Cards que já
+      // existiam quando a data chegou exigem o check manual.
       const ci = r.guestCheckin;
       if (!ci) return false;
-      if (ci < today) return true;
-      if (ci === today) {
-        const std = r.standardTime; // checkout std for checkout kind — não usamos
-        // Para checkout, standardTime é o horário de checkout. Precisamos do
-        // horário de check-in da propriedade — buscamos direto no propMap.
-        const p = propMap.get(r.propertyId);
-        const ciStd = p?.checkin_time ?? null;
-        if (ciStd && nowHM >= ciStd) return true;
-        void std;
-      }
-      return false;
+      const created = isoDateSP(r.createdAt);
+      return !!created && created > ci;
     }
+
     const gatedRows =
       data.kind === "checkout"
         ? rows.filter((r) => {
