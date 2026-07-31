@@ -18,10 +18,13 @@ import {
 } from "@/lib/handoff.functions";
 import { MessageText } from "@/components/handoff/MessageText";
 import { attachStaffMessage } from "@/lib/chat-attachments.functions";
-import { Send, UserCheck, RotateCcw, CheckCircle2, Loader2, StickyNote, Phone, Calendar, Hash, Lock, UserPlus2, ArrowRightLeft, X, Sparkles, Paperclip, MessageCircle, Languages, Pencil, Trash2 } from "lucide-react";
+import { Send, UserCheck, RotateCcw, CheckCircle2, Loader2, StickyNote, Phone, Calendar, Hash, Lock, UserPlus2, ArrowRightLeft, X, Sparkles, Paperclip, MessageCircle, MessageSquare, Languages, Pencil, Trash2, MoreVertical, Copy, Camera } from "lucide-react";
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { reopenHandoffConversation } from "@/lib/handoff.functions";
+import { sendWhatsappFromConversation } from "@/lib/whatsapp.functions";
 import { translateMessage } from "@/lib/translate.functions";
 import { detectLanguage, userLanguage, LANG_NAMES } from "@/lib/lang-detect";
-import { WhatsappComposerDialog } from "@/components/whatsapp/WhatsappComposerDialog";
 import { TagMentionTextarea, type TagMentionItem } from "@/components/tags/TagMentionTextarea";
 import { getTagItemsForConversation } from "@/lib/guide-tag-items.functions";
 import { TeachAiDialog } from "@/components/handoff/TeachAiDialog";
@@ -88,7 +91,17 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
   const [text, setText] = useState("");
   const [note, setNote] = useState(false);
   const [transferOpen, setTransferOpen] = useState(false);
-  const [waOpen, setWaOpen] = useState(false);
+  const [channel, setChannel] = useState<"chat" | "whatsapp">("chat");
+  const [reopenOpen, setReopenOpen] = useState(false);
+  const [actionMsg, setActionMsg] = useState<{ id: string; content: string; mine: boolean } | null>(null);
+  const longPressRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const startLongPress = (m: { id: string; content: string; mine: boolean }) => {
+    if (longPressRef.current) clearTimeout(longPressRef.current);
+    longPressRef.current = setTimeout(() => setActionMsg(m), 450);
+  };
+  const cancelLongPress = () => {
+    if (longPressRef.current) { clearTimeout(longPressRef.current); longPressRef.current = null; }
+  };
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [teachOpen, setTeachOpen] = useState(false);
   const [teachSource, setTeachSource] = useState<{ id: string; content: string } | null>(null);
@@ -96,6 +109,8 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
   const [editingText, setEditingText] = useState("");
   const editFn = useServerFn(editHandoffMessage);
   const deleteFn = useServerFn(deleteHandoffMessage);
+  const reopenFn = useServerFn(reopenHandoffConversation);
+  const sendWaFn = useServerFn(sendWhatsappFromConversation);
 
   // Tradução de mensagens do hóspede para o idioma do sistema do atendente.
   const myLang = useMemo(() => userLanguage(), []);
@@ -119,6 +134,7 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
 
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -148,8 +164,19 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
   };
 
   const send = useMutation({
-    mutationFn: async () => sendFn({ data: { conversationId, content: text.trim(), internalNote: note } }),
+    mutationFn: async () =>
+      channel === "whatsapp" && !note
+        ? sendWaFn({ data: { conversationId, text: text.trim() } })
+        : sendFn({ data: { conversationId, content: text.trim(), internalNote: note } }),
     onSuccess: () => { setText(""); invalidateAll(); },
+    onError: (e) => setErrorMsg((e as Error).message),
+  });
+  const reopen = useMutation({
+    mutationFn: async (ch: "chat" | "whatsapp") => {
+      await reopenFn({ data: { conversationId } });
+      return ch;
+    },
+    onSuccess: (ch) => { setChannel(ch); setReopenOpen(false); invalidateAll(); },
     onError: (e) => setErrorMsg((e as Error).message),
   });
   const claim = useMutation({
@@ -379,56 +406,82 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
             )}
           </div>
 
-          <div className="flex flex-col gap-1 shrink-0 items-end">
-            {/* Livre → assumir */}
-            {(isUnassigned && status !== "resolved") && (
-              <button onClick={handleClaim} disabled={claim.isPending} className="text-xs px-2 py-1.5 rounded-md bg-primary text-primary-foreground hover:opacity-90 inline-flex items-center gap-1">
-                <UserCheck className="size-3" /> Assumir
-              </button>
-            )}
-            {/* Travada por outro → assumir (com confirmação) + pedir acesso */}
-            {isLockedByOther && status !== "resolved" && (
-              <button onClick={handleClaim} disabled={claim.isPending} className="text-xs px-2 py-1.5 rounded-md bg-primary text-primary-foreground hover:opacity-90 inline-flex items-center gap-1">
-                <UserCheck className="size-3" /> Assumir
-              </button>
-            )}
-            {isLockedByOther && !iRequested && status !== "resolved" && (
-              <button onClick={() => requestClaim.mutate()} disabled={requestClaim.isPending} className="text-xs px-2 py-1.5 rounded-md border border-border hover:bg-secondary inline-flex items-center gap-1">
-                <UserPlus2 className="size-3" /> Solicitar acesso
-              </button>
-            )}
-            {isLockedByOther && iRequested && (
-              <button onClick={() => cancelRequest.mutate()} disabled={cancelRequest.isPending} className="text-xs px-2 py-1.5 rounded-md border border-border hover:bg-secondary inline-flex items-center gap-1">
-                <X className="size-3" /> Cancelar solicitação
-              </button>
-            )}
-            {/* É minha → transferir / devolver IA */}
-            {isMine && status !== "resolved" && (
-              <>
-                <button onClick={() => setTransferOpen((v) => !v)} className="text-xs px-2 py-1.5 rounded-md border border-border hover:bg-secondary inline-flex items-center gap-1">
-                  <ArrowRightLeft className="size-3" /> Transferir
+          <div className="shrink-0">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  className="size-9 grid place-items-center rounded-full border border-border hover:bg-secondary"
+                  aria-label="Ações da conversa"
+                  title="Ações da conversa"
+                >
+                  <MoreVertical className="size-4" />
                 </button>
-                <button onClick={() => release.mutate()} disabled={release.isPending} className="text-xs px-2 py-1.5 rounded-md border border-border hover:bg-secondary inline-flex items-center gap-1" title="Devolver à IA">
-                  <RotateCcw className="size-3" /> IA
-                </button>
-              </>
-            )}
-            {guest?.phone && canChat && (
-              <button
-                onClick={() => setWaOpen(true)}
-                className="text-xs px-2 py-1.5 rounded-md bg-emerald-600 text-white hover:bg-emerald-700 inline-flex items-center gap-1"
-                title="Enviar mensagem por WhatsApp"
-              >
-                <MessageCircle className="size-3" /> WhatsApp
-              </button>
-            )}
-            {status !== "resolved" && (isMine || !conv?.assigned_to) && (
-              <button onClick={() => resolve.mutate()} disabled={resolve.isPending} className="text-xs px-2 py-1.5 rounded-md border border-border hover:bg-secondary inline-flex items-center gap-1">
-                <CheckCircle2 className="size-3" /> Resolver
-              </button>
-            )}
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuLabel className="text-[11px]">Ações</DropdownMenuLabel>
+                {status === "resolved" && canChat && (
+                  <DropdownMenuItem onSelect={() => setReopenOpen(true)}>
+                    <RotateCcw className="size-3.5 mr-2" /> Reabrir conversa
+                  </DropdownMenuItem>
+                )}
+                {(isUnassigned || isLockedByOther) && status !== "resolved" && (
+                  <DropdownMenuItem onSelect={() => handleClaim()}>
+                    <UserCheck className="size-3.5 mr-2" /> Assumir
+                  </DropdownMenuItem>
+                )}
+                {isLockedByOther && !iRequested && status !== "resolved" && (
+                  <DropdownMenuItem onSelect={() => requestClaim.mutate()}>
+                    <UserPlus2 className="size-3.5 mr-2" /> Solicitar acesso
+                  </DropdownMenuItem>
+                )}
+                {isLockedByOther && iRequested && (
+                  <DropdownMenuItem onSelect={() => cancelRequest.mutate()}>
+                    <X className="size-3.5 mr-2" /> Cancelar solicitação
+                  </DropdownMenuItem>
+                )}
+                {isMine && status !== "resolved" && (
+                  <>
+                    <DropdownMenuItem onSelect={(e) => { e.preventDefault(); setTransferOpen((v) => !v); }}>
+                      <ArrowRightLeft className="size-3.5 mr-2" /> Transferir
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onSelect={() => release.mutate()}>
+                      <RotateCcw className="size-3.5 mr-2" /> Devolver à IA
+                    </DropdownMenuItem>
+                  </>
+                )}
+                {guest?.phone && canChat && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuLabel className="text-[11px]">Canal de envio</DropdownMenuLabel>
+                    <DropdownMenuItem onSelect={() => setChannel("chat")}>
+                      <MessageSquare className="size-3.5 mr-2" /> Chat do navegador
+                      {channel === "chat" && <CheckCircle2 className="size-3.5 ml-auto text-emerald-600" />}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onSelect={() => setChannel("whatsapp")}>
+                      <MessageCircle className="size-3.5 mr-2 text-emerald-600" /> WhatsApp
+                      {channel === "whatsapp" && <CheckCircle2 className="size-3.5 ml-auto text-emerald-600" />}
+                    </DropdownMenuItem>
+                  </>
+                )}
+                {status !== "resolved" && (isMine || !conv?.assigned_to) && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onSelect={() => resolve.mutate()}>
+                      <CheckCircle2 className="size-3.5 mr-2" /> Resolver
+                    </DropdownMenuItem>
+                  </>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
+
+        {channel === "whatsapp" && (
+          <div className="text-[11px] px-2 py-1 rounded bg-emerald-500/10 text-emerald-700 border border-emerald-500/30 flex items-center justify-between gap-2">
+            <span className="inline-flex items-center gap-1"><MessageCircle className="size-3" /> Enviando pelo WhatsApp do hóspede</span>
+            <button onClick={() => setChannel("chat")} className="underline">usar chat</button>
+          </div>
+        )}
 
         {transferOpen && isMine && (
           <div className="rounded-md border border-border bg-background p-2 space-y-1">
@@ -479,7 +532,15 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
           return (
             <div key={m.id} className={`flex flex-col ${isGuest ? "items-start" : "items-end"}`}>
               <div
-                className={`max-w-[85%] rounded-2xl px-3 py-2 text-sm whitespace-pre-wrap break-words ${
+                onPointerDown={() => startLongPress({ id: m.id, content: m.content ?? "", mine: !isGuest })}
+                onPointerUp={cancelLongPress}
+                onPointerLeave={cancelLongPress}
+                onPointerCancel={cancelLongPress}
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  setActionMsg({ id: m.id, content: m.content ?? "", mine: !isGuest });
+                }}
+                className={`max-w-[85%] rounded-2xl px-3 py-2 text-sm whitespace-pre-wrap break-words select-none ${
                   isNote
                     ? "bg-yellow-500/15 border border-yellow-500/30 text-foreground"
                     : isGuest
@@ -569,32 +630,6 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
                     <Sparkles className="size-3" /> Ensinar IA
                   </button>
                 )}
-                {!isGuest && editingId !== m.id && (
-                  <>
-                    {m.content && (
-                      <button
-                        type="button"
-                        onClick={() => { setEditingId(m.id); setEditingText(m.content ?? ""); }}
-                        className="mt-1 inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
-                        title="Editar mensagem"
-                      >
-                        <Pencil className="size-3" /> Editar
-                      </button>
-                    )}
-                    <button
-                      type="button"
-                      disabled={deleteMsg.isPending}
-                      onClick={() => {
-                        if (window.confirm("Apagar esta mensagem definitivamente?")) deleteMsg.mutate(m.id);
-                      }}
-                      className="mt-1 inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-60"
-                      title="Apagar mensagem"
-                    >
-                      <Trash2 className="size-3" /> Apagar
-                    </button>
-                  </>
-                )}
-
               </div>
             </div>
           );
@@ -613,12 +648,79 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
         />
       )}
 
-      <WhatsappComposerDialog
-        open={waOpen}
-        onOpenChange={setWaOpen}
-        conversationId={conversationId}
-        guestName={guest?.name ?? conv?.guest_name ?? null}
-      />
+      {/* Ações da mensagem (segurar para abrir, como no WhatsApp) */}
+      <Dialog open={!!actionMsg} onOpenChange={(v) => { if (!v) setActionMsg(null); }}>
+        <DialogContent className="max-w-xs">
+          <DialogHeader>
+            <DialogTitle className="text-sm">Opções da mensagem</DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col">
+            <button
+              type="button"
+              className="flex items-center gap-2 px-2 py-2.5 rounded-lg text-sm hover:bg-secondary text-left"
+              onClick={() => {
+                if (actionMsg) navigator.clipboard?.writeText(actionMsg.content);
+                setActionMsg(null);
+              }}
+            >
+              <Copy className="size-4" /> Copiar
+            </button>
+            {actionMsg?.mine && (
+              <>
+                <button
+                  type="button"
+                  className="flex items-center gap-2 px-2 py-2.5 rounded-lg text-sm hover:bg-secondary text-left"
+                  onClick={() => {
+                    if (actionMsg) { setEditingId(actionMsg.id); setEditingText(actionMsg.content); }
+                    setActionMsg(null);
+                  }}
+                >
+                  <Pencil className="size-4" /> Editar
+                </button>
+                <button
+                  type="button"
+                  className="flex items-center gap-2 px-2 py-2.5 rounded-lg text-sm text-destructive hover:bg-destructive/10 text-left"
+                  onClick={() => {
+                    if (actionMsg) deleteMsg.mutate(actionMsg.id);
+                    setActionMsg(null);
+                  }}
+                >
+                  <Trash2 className="size-4" /> Apagar
+                </button>
+              </>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Reabrir conversa */}
+      <Dialog open={reopenOpen} onOpenChange={setReopenOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-base">Reabrir conversa</DialogTitle>
+          </DialogHeader>
+          <p className="text-xs text-muted-foreground">Por onde você quer falar com o hóspede?</p>
+          <div className="flex flex-col gap-2 mt-2">
+            <button
+              type="button"
+              disabled={reopen.isPending}
+              onClick={() => reopen.mutate("chat")}
+              className="flex items-center gap-2 px-3 py-2.5 rounded-xl border border-border hover:bg-secondary text-sm"
+            >
+              <MessageSquare className="size-4" /> Chat do navegador
+            </button>
+            <button
+              type="button"
+              disabled={reopen.isPending || !guest?.phone}
+              onClick={() => reopen.mutate("whatsapp")}
+              className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 text-sm disabled:opacity-50"
+            >
+              <MessageCircle className="size-4" /> WhatsApp {guest?.phone ? "" : "(sem telefone)"}
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
 
 
       {status !== "resolved" && !canChat && (
@@ -667,14 +769,12 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
               paddingRight: "max(0.5rem, env(safe-area-inset-right))",
             }}
           >
-            <div className="flex items-center gap-2 mb-1">
-              <label className="flex items-center gap-1 text-[11px] text-muted-foreground shrink-0 select-none">
-                <input type="checkbox" checked={note} onChange={(e) => setNote(e.target.checked)} className="size-3" />
-                nota
-              </label>
-              {uploading && <span className="text-[10px] text-muted-foreground inline-flex items-center gap-1"><Loader2 className="size-3 animate-spin" /> enviando anexo…</span>}
-            </div>
-            <div className="flex items-end gap-1.5">
+            {uploading && (
+              <div className="px-2 pb-1 text-[10px] text-muted-foreground inline-flex items-center gap-1">
+                <Loader2 className="size-3 animate-spin" /> enviando anexo…
+              </div>
+            )}
+            <div className="flex items-end gap-1">
               <input
                 ref={fileInputRef}
                 type="file"
@@ -682,41 +782,70 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
                 className="hidden"
                 onChange={onFilePicked}
               />
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={uploading}
-                title="Anexar arquivo"
-                aria-label="Anexar arquivo"
-                className="grid size-9 place-items-center rounded-full hover:bg-muted text-muted-foreground hover:text-foreground shrink-0 disabled:opacity-40"
-              >
-                <Paperclip className="size-4" />
-              </button>
-              <AudioRecorderButton
-                disabled={uploading}
-                maxSeconds={60}
-                onRecorded={onAudioRecorded}
+              <input
+                ref={cameraInputRef}
+                type="file"
+                accept="image/*,video/*"
+                capture="environment"
+                className="hidden"
+                onChange={onFilePicked}
               />
-              <TagMentionTextarea
-                value={text}
-                onChange={(e) => setText(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !e.shiftKey) {
-                    e.preventDefault();
-                    if (text.trim()) send.mutate();
-                  }
-                }}
-                items={tagItems}
-                placeholder={note ? "Nota interna (não visível ao hóspede)…" : "Escrever para o hóspede… (@ para linkar o guia)"}
-                rows={compact ? 1 : 2}
-                containerClassName="flex-1 min-w-0"
-                className="w-full resize-none rounded-md border border-border bg-background px-2 py-1.5 text-sm outline-none focus:ring-2 focus:ring-primary/40 min-w-0"
-              />
+              <div className="flex-1 min-w-0 flex items-end gap-0.5 rounded-full border border-border bg-background pl-2 pr-1 py-0.5">
+                <button
+                  type="button"
+                  onClick={() => setNote((v) => !v)}
+                  title="Nota interna"
+                  aria-label="Nota interna"
+                  className={`grid size-8 place-items-center rounded-full shrink-0 ${note ? "bg-yellow-500/20 text-yellow-700" : "text-muted-foreground hover:text-foreground hover:bg-muted"}`}
+                >
+                  <StickyNote className="size-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploading}
+                  title="Anexar arquivo"
+                  aria-label="Anexar arquivo"
+                  className="grid size-8 place-items-center rounded-full hover:bg-muted text-muted-foreground hover:text-foreground shrink-0 disabled:opacity-40"
+                >
+                  <Paperclip className="size-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => cameraInputRef.current?.click()}
+                  disabled={uploading}
+                  title="Tirar foto ou vídeo"
+                  aria-label="Tirar foto ou vídeo"
+                  className="grid size-8 place-items-center rounded-full hover:bg-muted text-muted-foreground hover:text-foreground shrink-0 disabled:opacity-40"
+                >
+                  <Camera className="size-4" />
+                </button>
+                <TagMentionTextarea
+                  value={text}
+                  onChange={(e) => setText(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      if (text.trim()) send.mutate();
+                    }
+                  }}
+                  items={tagItems}
+                  placeholder={note ? "Nota interna…" : channel === "whatsapp" ? "Mensagem via WhatsApp…" : "Mensagem… (@ linka o guia)"}
+                  rows={1}
+                  containerClassName="flex-1 min-w-0"
+                  className="w-full resize-none bg-transparent border-0 px-1 py-2 text-sm outline-none focus:ring-0 min-w-0 max-h-28"
+                />
+                <AudioRecorderButton
+                  disabled={uploading}
+                  maxSeconds={60}
+                  onRecorded={onAudioRecorded}
+                />
+              </div>
 
               <button
                 type="submit"
                 disabled={!text.trim() || send.isPending}
-                className="size-9 grid place-items-center rounded-md bg-primary text-primary-foreground disabled:opacity-40 shrink-0"
+                className={`size-10 grid place-items-center rounded-full text-white disabled:opacity-40 shrink-0 ${channel === "whatsapp" && !note ? "bg-emerald-600" : "bg-primary"}`}
               >
                 {send.isPending ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
               </button>

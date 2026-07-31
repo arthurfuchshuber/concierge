@@ -752,6 +752,30 @@ export const resolveHandoffConversation = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+// -------- Reabrir conversa resolvida --------
+
+export const reopenHandoffConversation = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(parseHandoffConversationInput)
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    await requireChatRespondForConversation(supabase, userId, data.conversationId);
+    const { error } = await supabase
+      .from("property_chat_conversations")
+      .update({
+        status: "assigned",
+        assigned_to: userId,
+        ai_paused: true,
+        resolved_at: null,
+        last_message_at: new Date().toISOString(),
+      })
+      .eq("id", data.conversationId);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+
+
 
 // -------- Send a human/agent message --------
 

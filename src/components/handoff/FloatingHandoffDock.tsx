@@ -9,6 +9,7 @@ import { ConversationList, ConversationView, useMyUserId } from "@/components/ha
 import { listenToPushMessages } from "@/lib/push-client";
 import { HANDOFF_DOCK_OPEN_EVENT, type HandoffDockOpenDetail } from "@/lib/handoff-dock";
 import { Headphones, X, Minimize2, Maximize2 } from "lucide-react";
+import { QUEUES, type Queue } from "@/lib/handoff-queues";
 
 const DOCK_STATE_KEY = "handoff-dock-state-v1";
 const DOCK_POSITION_KEY = "handoff-dock-position-v1";
@@ -161,10 +162,11 @@ export function FloatingHandoffDock() {
     refetchInterval: 15_000,
     retry: false,
   });
+  const [queue, setQueue] = useState<Queue>("needs_human");
   const list = useQuery({
-    queryKey: ["handoff-list", "dock"],
+    queryKey: ["handoff-list", "dock", queue],
     queryFn: async () => {
-      try { return await listFn({ data: { queue: "needs_human", limit: 30 } }); }
+      try { return await listFn({ data: { queue, limit: 30 } }); }
       catch { return { conversations: [], details: {} }; }
     },
     enabled: allowed,
@@ -388,8 +390,24 @@ export function FloatingHandoffDock() {
                 <ConversationView conversationId={activeId} compact myUserId={myUserId} />
               ) : (
                 <>
-                  <div className="px-3 py-2 text-xs font-semibold text-muted-foreground border-b border-border">
-                    Conversas aguardando atendimento
+                  <div className="px-2 py-2 border-b border-border">
+                    <div className="flex w-full items-center gap-1 overflow-x-auto whitespace-nowrap rounded-xl border border-border bg-muted/40 p-1 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+                      {QUEUES.map((q) => {
+                        const Icon = q.icon;
+                        const active = queue === q.key;
+                        return (
+                          <button
+                            key={q.key}
+                            onClick={() => setQueue(q.key)}
+                            className={`inline-flex flex-1 min-w-fit items-center justify-center gap-1 rounded-lg px-2 py-1.5 text-[11px] font-medium transition-all ${
+                              active ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                            }`}
+                          >
+                            <Icon className="size-3" /> {q.short}
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
                   <div className="flex-1 min-h-0 overflow-y-auto">
                     <ConversationList
