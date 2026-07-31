@@ -8,8 +8,9 @@ import {
   getAtendimentoAccess,
 } from "@/lib/handoff.functions";
 import { ConversationList, ConversationView, useMyUserId } from "@/components/handoff/ConversationView";
-import { Headphones, Inbox, User, CheckCircle2, Bot, MessagesSquare, Search } from "lucide-react";
+import { Headphones, MessagesSquare, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { QUEUES, type Queue } from "@/lib/handoff-queues";
 
 
 const searchSchema = z.object({
