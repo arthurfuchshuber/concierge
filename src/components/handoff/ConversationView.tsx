@@ -179,6 +179,18 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
     onSuccess: () => { setTransferOpen(false); invalidateAll(); },
     onError: (e) => setErrorMsg((e as Error).message),
   });
+  const editMsg = useMutation({
+    mutationFn: async (v: { messageId: string; content: string }) =>
+      editFn({ data: { conversationId, messageId: v.messageId, content: v.content } }),
+    onSuccess: () => { setEditingId(null); setEditingText(""); invalidateAll(); },
+    onError: (e) => setErrorMsg((e as Error).message),
+  });
+  const deleteMsg = useMutation({
+    mutationFn: async (messageId: string) => deleteFn({ data: { conversationId, messageId } }),
+    onSuccess: invalidateAll,
+    onError: (e) => setErrorMsg((e as Error).message),
+  });
+
 
   function inferAttachmentType(mime: string): "image" | "audio" | "video" | "document" | null {
     if (mime.startsWith("image/")) return "image";
