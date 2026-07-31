@@ -283,15 +283,10 @@ export function resolveInfoValue(
     case "gate-instructions":     return v(p.gate_instructions);
     case "lock-instructions":     return v(p.lock_instructions);
     case "marketplace": {
-      const list = Array.isArray(p.marketplace_links) ? (p.marketplace_links as Array<Record<string, unknown>>) : [];
-      if (!list.length) return "";
-      const want = param ? normalizeInfoLabel(param) : "";
-      const hit = want
-        ? list.find((l) => normalizeInfoLabel(String(l.label ?? l.name ?? "")) === want) ??
-          list.find((l) => normalizeInfoLabel(String(l.label ?? l.name ?? "")).includes(want))
-        : list[0];
+      const hit = findMarketplaceLink(p, param);
       return v(hit?.url);
     }
+
   }
 }
 
