@@ -761,30 +761,57 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
       return !!checkoutDate && checkinDate <= today && checkoutDate > today;
     }
 
-    // Regra da esteira (dedupe): uma reserva só pode aparecer em UM estágio.
-    // Se o dia de checkout já chegou (ou passou), o card pertence a Checkouts
-    // / Em Limpeza — nunca deve continuar em Check-ins mesmo estando atrasado.
-    function belongsToCheckoutStage(checkinDate: string, checkoutDate: string | null): boolean {
+    // Janela máxima para manter um check-in atrasado visível (evita reimportar
+    // histórico antigo, mas nunca "some" com pendências recentes).
+    const OVERDUE_WINDOW_DAYS = 30;
+    function withinOverdueWindow(checkinDate: string): boolean {
+      return checkinDate >= addDaysISO(today, -OVERDUE_WINDOW_DAYS);
+    }
+
+    function logCheckinDone(logId: string | null | undefined): boolean {
+      return !!logId && checkinDoneLogs.has(logId);
+    }
+    function reservationCheckinDone(r: ReservationRow): boolean {
+      if (checkinDoneReservations.has(r.id)) return true;
+      const legacy = placeholderStatus.get(placeholderKey(r.property_id, r.checkin_date, r.checkout_date, "checkin"));
+      if (legacy && (legacy.status === "done" || !!legacy.done_at)) return true;
+      const { primary, extras } = findLogsForReservation(r);
+      return [primary, ...extras].some((l) => logCheckinDone(l?.id));
+    }
+
+    // Regra da esteira: uma reserva só pode aparecer em UM estágio, mas a
+    // passagem de Check-ins para Checkouts/Em Limpeza SÓ acontece depois do
+    // check manual. Enquanto o check-in estiver pendente, o card fica retido em
+    // Check-ins (como atrasado), mesmo que a data de checkout já tenha chegado.
+    function belongsToCheckoutStage(
+      checkinDate: string,
+      checkoutDate: string | null,
+      checkinDone: boolean,
+    ): boolean {
       if (!checkoutDate) return false;
+      if (!checkinDone) return false;
       return checkinDate <= today && checkoutDate <= today;
     }
 
     function reservationInRange(r: ReservationRow): boolean {
+      const resCheckinDone = data.kind === "checkin" ? reservationCheckinDone(r) : false;
       if (data.kind === "checkin") {
-        if (belongsToCheckoutStage(r.checkin_date, r.checkout_date)) return false;
+        if (belongsToCheckoutStage(r.checkin_date, r.checkout_date, resCheckinDone)) return false;
       }
       const date = data.kind === "checkin" ? r.checkin_date : r.checkout_date;
       if (date < (from ?? today)) {
-        // Estadia em andamento deve continuar visível em Hoje/7 dias/Todos para
-        // alimentar "Em Estadia", mas NUNCA pode vazar para "Amanhã".
-        if (data.kind === "checkin" && data.range !== "tomorrow" && isCurrentStay(r.checkin_date, r.checkout_date)) {
-          return true;
+        if (data.kind === "checkin" && data.range !== "tomorrow") {
+          // Estadia em andamento continua visível para alimentar "Em Estadia".
+          if (isCurrentStay(r.checkin_date, r.checkout_date)) return true;
+          // Check-in atrasado sem check permanece na lista de Check-ins.
+          if (!resCheckinDone && withinOverdueWindow(r.checkin_date)) return true;
         }
         return false;
       }
       if (to && date > to) return false;
       return true;
     }
+
 
     function normalizeCode(s: string | null | undefined): string | null {
       if (!s) return null;
