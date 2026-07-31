@@ -13,9 +13,12 @@ import {
   cancelHandoffClaimRequest,
   transferHandoffConversation,
   listConversationTransferTargets,
+  editHandoffMessage,
+  deleteHandoffMessage,
 } from "@/lib/handoff.functions";
+import { MessageText } from "@/components/handoff/MessageText";
 import { attachStaffMessage } from "@/lib/chat-attachments.functions";
-import { Send, UserCheck, RotateCcw, CheckCircle2, Loader2, StickyNote, Phone, Calendar, Hash, Lock, UserPlus2, ArrowRightLeft, X, Sparkles, Paperclip, MessageCircle, Languages } from "lucide-react";
+import { Send, UserCheck, RotateCcw, CheckCircle2, Loader2, StickyNote, Phone, Calendar, Hash, Lock, UserPlus2, ArrowRightLeft, X, Sparkles, Paperclip, MessageCircle, Languages, Pencil, Trash2 } from "lucide-react";
 import { translateMessage } from "@/lib/translate.functions";
 import { detectLanguage, userLanguage, LANG_NAMES } from "@/lib/lang-detect";
 import { WhatsappComposerDialog } from "@/components/whatsapp/WhatsappComposerDialog";
@@ -89,6 +92,10 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [teachOpen, setTeachOpen] = useState(false);
   const [teachSource, setTeachSource] = useState<{ id: string; content: string } | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingText, setEditingText] = useState("");
+  const editFn = useServerFn(editHandoffMessage);
+  const deleteFn = useServerFn(deleteHandoffMessage);
 
   // Tradução de mensagens do hóspede para o idioma do sistema do atendente.
   const myLang = useMemo(() => userLanguage(), []);
@@ -172,6 +179,18 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
     onSuccess: () => { setTransferOpen(false); invalidateAll(); },
     onError: (e) => setErrorMsg((e as Error).message),
   });
+  const editMsg = useMutation({
+    mutationFn: async (v: { messageId: string; content: string }) =>
+      editFn({ data: { conversationId, messageId: v.messageId, content: v.content } }),
+    onSuccess: () => { setEditingId(null); setEditingText(""); invalidateAll(); },
+    onError: (e) => setErrorMsg((e as Error).message),
+  });
+  const deleteMsg = useMutation({
+    mutationFn: async (messageId: string) => deleteFn({ data: { conversationId, messageId } }),
+    onSuccess: invalidateAll,
+    onError: (e) => setErrorMsg((e as Error).message),
+  });
+
 
   function inferAttachmentType(mime: string): "image" | "audio" | "video" | "document" | null {
     if (mime.startsWith("image/")) return "image";
@@ -487,7 +506,35 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
                     <AttachmentBubble attachment={attachment} />
                   </div>
                 )}
-                {m.content && <>{tr?.showing && tr.text ? tr.text : m.content}</>}
+                {editingId === m.id ? (
+                  <div className="space-y-1">
+                    <textarea
+                      value={editingText}
+                      onChange={(e) => setEditingText(e.target.value)}
+                      rows={3}
+                      className="w-full min-w-[220px] rounded-lg bg-background text-foreground border border-border p-2 text-sm"
+                    />
+                    <div className="flex items-center gap-2 justify-end">
+                      <button
+                        type="button"
+                        className="text-[11px] opacity-70 hover:opacity-100"
+                        onClick={() => { setEditingId(null); setEditingText(""); }}
+                      >
+                        Cancelar
+                      </button>
+                      <button
+                        type="button"
+                        disabled={editMsg.isPending || !editingText.trim()}
+                        className="text-[11px] px-2 py-1 rounded bg-foreground text-background disabled:opacity-50"
+                        onClick={() => editMsg.mutate({ messageId: m.id, content: editingText })}
+                      >
+                        {editMsg.isPending ? "Salvando…" : "Salvar"}
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  m.content && <MessageText text={tr?.showing && tr.text ? tr.text : m.content} />
+                )}
                 {tr?.showing && tr.text && (
                   <div className="text-[10px] opacity-60 mt-1 flex items-center gap-1">
                     <Languages className="size-3" /> Traduzido automaticamente
@@ -495,7 +542,9 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
                 )}
                 <div className="text-[10px] opacity-60 mt-1">
                   {formatDistanceToNow(new Date(m.created_at), { locale: ptBR, addSuffix: true })}
+                  {m.edited_at ? " · editada" : ""}
                 </div>
+
               </div>
               <div className="flex items-center gap-2">
                 {canTranslate && (
@@ -520,6 +569,32 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
                     <Sparkles className="size-3" /> Ensinar IA
                   </button>
                 )}
+                {!isGuest && editingId !== m.id && (
+                  <>
+                    {m.content && (
+                      <button
+                        type="button"
+                        onClick={() => { setEditingId(m.id); setEditingText(m.content ?? ""); }}
+                        className="mt-1 inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+                        title="Editar mensagem"
+                      >
+                        <Pencil className="size-3" /> Editar
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      disabled={deleteMsg.isPending}
+                      onClick={() => {
+                        if (window.confirm("Apagar esta mensagem definitivamente?")) deleteMsg.mutate(m.id);
+                      }}
+                      className="mt-1 inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-60"
+                      title="Apagar mensagem"
+                    >
+                      <Trash2 className="size-3" /> Apagar
+                    </button>
+                  </>
+                )}
+
               </div>
             </div>
           );
