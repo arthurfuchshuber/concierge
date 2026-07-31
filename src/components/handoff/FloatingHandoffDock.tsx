@@ -388,8 +388,24 @@ export function FloatingHandoffDock() {
                 <ConversationView conversationId={activeId} compact myUserId={myUserId} />
               ) : (
                 <>
-                  <div className="px-3 py-2 text-xs font-semibold text-muted-foreground border-b border-border">
-                    Conversas aguardando atendimento
+                  <div className="px-2 py-2 border-b border-border">
+                    <div className="flex w-full items-center gap-1 overflow-x-auto whitespace-nowrap rounded-xl border border-border bg-muted/40 p-1 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+                      {QUEUES.map((q) => {
+                        const Icon = q.icon;
+                        const active = queue === q.key;
+                        return (
+                          <button
+                            key={q.key}
+                            onClick={() => setQueue(q.key)}
+                            className={`inline-flex flex-1 min-w-fit items-center justify-center gap-1 rounded-lg px-2 py-1.5 text-[11px] font-medium transition-all ${
+                              active ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                            }`}
+                          >
+                            <Icon className="size-3" /> {q.short}
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
                   <div className="flex-1 min-h-0 overflow-y-auto">
                     <ConversationList
