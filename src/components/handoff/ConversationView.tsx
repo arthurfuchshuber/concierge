@@ -520,7 +520,7 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
             <Lock className="size-3" />
             <span>
               {isLockedByOther
-                ? <>Somente <strong>{assignedProfile?.displayName ?? "o atendente responsável"}</strong> pode responder.</>
+                ? <>Somente <strong>{assignedProfile?.displayName ?? "o atendente responsável"}</strong> pode responder — você acompanha em tempo real.</>
                 : "Assuma a conversa para poder responder ao hóspede."}
             </span>
             <button
