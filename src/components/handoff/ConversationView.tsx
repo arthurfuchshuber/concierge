@@ -561,7 +561,7 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
                 maxSeconds={60}
                 onRecorded={onAudioRecorded}
               />
-              <textarea
+              <TagMentionTextarea
                 value={text}
                 onChange={(e) => setText(e.target.value)}
                 onKeyDown={(e) => {
@@ -570,10 +570,13 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
                     if (text.trim()) send.mutate();
                   }
                 }}
-                placeholder={note ? "Nota interna (não visível ao hóspede)…" : "Escrever para o hóspede…"}
+                items={tagItems}
+                placeholder={note ? "Nota interna (não visível ao hóspede)…" : "Escrever para o hóspede… (@ para linkar o guia)"}
                 rows={compact ? 1 : 2}
-                className="flex-1 resize-none rounded-md border border-border bg-background px-2 py-1.5 text-sm outline-none focus:ring-2 focus:ring-primary/40 min-w-0"
+                containerClassName="flex-1 min-w-0"
+                className="w-full resize-none rounded-md border border-border bg-background px-2 py-1.5 text-sm outline-none focus:ring-2 focus:ring-primary/40 min-w-0"
               />
+
               <button
                 type="submit"
                 disabled={!text.trim() || send.isPending}
