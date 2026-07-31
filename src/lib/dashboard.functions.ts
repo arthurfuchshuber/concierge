@@ -1004,9 +1004,16 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
       // o que promoveria toda estadia em curso automaticamente. Só a data real de
       // criação do registro (integração nova) pode disparar a auto-distribuição.
       const virtualStay = autoStayDone(r.checkin_date, r.checkout_date, matchedLog?.created_at ?? r.created_at ?? null);
+      const overduePending =
+        data.kind === "checkin" &&
+        data.range !== "tomorrow" &&
+        !reservationCheckinDone(r) &&
+        !virtualStay &&
+        withinOverdueWindow(r.checkin_date);
       // Datas passadas só entram sem interação quando representam uma estadia
-      // vigente. Reservas encerradas no passado continuam fora do kanban.
-      if (date < today && !s && !virtualStay) return null;
+      // vigente ou um check-in ainda pendente (atrasado).
+      if (date < today && !s && !virtualStay && !overduePending) return null;
+
       const evK = matchedLog ? eventKey(matchedLog.property_id, matchedLog.guest_name, matchedLog.guest_phone) : "";
 
       return {
