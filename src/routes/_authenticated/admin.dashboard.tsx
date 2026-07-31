@@ -427,11 +427,12 @@ function DashboardPage() {
           </div>
           <EngagementBars
             loading={engQ.isLoading}
-            checkins={counts.checkin}
-            checkinsWithCodes={Math.min(engQ.data?.checkinsWithCodes ?? 0, counts.checkin)}
+            checkins={engQ.data?.checkinsInPeriod ?? 0}
+            checkinsWithCodes={engQ.data?.checkinsWithCodes ?? 0}
             checkinBreakdown={engQ.data?.checkinBreakdown}
             codesBreakdown={engQ.data?.codesBreakdown}
           />
+
         </section>
       )}
 
