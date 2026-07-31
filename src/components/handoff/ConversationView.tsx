@@ -613,32 +613,6 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
                     <Sparkles className="size-3" /> Ensinar IA
                   </button>
                 )}
-                {!isGuest && editingId !== m.id && (
-                  <>
-                    {m.content && (
-                      <button
-                        type="button"
-                        onClick={() => { setEditingId(m.id); setEditingText(m.content ?? ""); }}
-                        className="mt-1 inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
-                        title="Editar mensagem"
-                      >
-                        <Pencil className="size-3" /> Editar
-                      </button>
-                    )}
-                    <button
-                      type="button"
-                      disabled={deleteMsg.isPending}
-                      onClick={() => {
-                        if (window.confirm("Apagar esta mensagem definitivamente?")) deleteMsg.mutate(m.id);
-                      }}
-                      className="mt-1 inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-60"
-                      title="Apagar mensagem"
-                    >
-                      <Trash2 className="size-3" /> Apagar
-                    </button>
-                  </>
-                )}
-
               </div>
             </div>
           );
@@ -657,12 +631,79 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
         />
       )}
 
-      <WhatsappComposerDialog
-        open={waOpen}
-        onOpenChange={setWaOpen}
-        conversationId={conversationId}
-        guestName={guest?.name ?? conv?.guest_name ?? null}
-      />
+      {/* Ações da mensagem (segurar para abrir, como no WhatsApp) */}
+      <Dialog open={!!actionMsg} onOpenChange={(v) => { if (!v) setActionMsg(null); }}>
+        <DialogContent className="max-w-xs">
+          <DialogHeader>
+            <DialogTitle className="text-sm">Opções da mensagem</DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col">
+            <button
+              type="button"
+              className="flex items-center gap-2 px-2 py-2.5 rounded-lg text-sm hover:bg-secondary text-left"
+              onClick={() => {
+                if (actionMsg) navigator.clipboard?.writeText(actionMsg.content);
+                setActionMsg(null);
+              }}
+            >
+              <Copy className="size-4" /> Copiar
+            </button>
+            {actionMsg?.mine && (
+              <>
+                <button
+                  type="button"
+                  className="flex items-center gap-2 px-2 py-2.5 rounded-lg text-sm hover:bg-secondary text-left"
+                  onClick={() => {
+                    if (actionMsg) { setEditingId(actionMsg.id); setEditingText(actionMsg.content); }
+                    setActionMsg(null);
+                  }}
+                >
+                  <Pencil className="size-4" /> Editar
+                </button>
+                <button
+                  type="button"
+                  className="flex items-center gap-2 px-2 py-2.5 rounded-lg text-sm text-destructive hover:bg-destructive/10 text-left"
+                  onClick={() => {
+                    if (actionMsg) deleteMsg.mutate(actionMsg.id);
+                    setActionMsg(null);
+                  }}
+                >
+                  <Trash2 className="size-4" /> Apagar
+                </button>
+              </>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Reabrir conversa */}
+      <Dialog open={reopenOpen} onOpenChange={setReopenOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-base">Reabrir conversa</DialogTitle>
+          </DialogHeader>
+          <p className="text-xs text-muted-foreground">Por onde você quer falar com o hóspede?</p>
+          <div className="flex flex-col gap-2 mt-2">
+            <button
+              type="button"
+              disabled={reopen.isPending}
+              onClick={() => reopen.mutate("chat")}
+              className="flex items-center gap-2 px-3 py-2.5 rounded-xl border border-border hover:bg-secondary text-sm"
+            >
+              <MessageSquare className="size-4" /> Chat do navegador
+            </button>
+            <button
+              type="button"
+              disabled={reopen.isPending || !guest?.phone}
+              onClick={() => reopen.mutate("whatsapp")}
+              className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 text-sm disabled:opacity-50"
+            >
+              <MessageCircle className="size-4" /> WhatsApp {guest?.phone ? "" : "(sem telefone)"}
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
 
 
       {status !== "resolved" && !canChat && (
