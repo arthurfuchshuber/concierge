@@ -8,6 +8,8 @@ import { AudioRecorderButton, type RecordedAudio } from "@/components/handoff/Au
 import { AttachmentBubble, type AttachmentInfo } from "@/components/handoff/AttachmentBubble";
 import { readAccessRecord } from "@/components/GuideAccessGate";
 import { metaPixelTrackCustom } from "@/lib/meta-pixel";
+import { translateMessage } from "@/lib/translate.functions";
+import { detectLanguage, userLanguage } from "@/lib/lang-detect";
 
 type Msg = {
   role: "user" | "assistant" | "system";
