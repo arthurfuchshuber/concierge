@@ -145,7 +145,7 @@ async function loadCommon(
       .select("id, property_id, guest_session_id, guest_name, created_at, last_message_at")
       .in("property_id", filteredIds).gte("created_at", since.toISOString()).limit(10000),
     supabase.from("property_chat_messages")
-      .select("id, conversation_id, role, content, created_at, property_chat_conversations!inner(property_id)")
+      .select("id, conversation_id, role, content, created_at, sender_type, sender_user_id, property_chat_conversations!inner(property_id)")
       .in("property_chat_conversations.property_id", filteredIds)
       .gte("created_at", since.toISOString()).order("created_at", { ascending: true }).limit(30000),
     supabase.from("chat_message_feedback")
@@ -157,7 +157,7 @@ async function loadCommon(
     logs: (logsQ.data ?? []) as Array<{ id: string; property_id: string; guest_name: string; reservation_code: string | null; checkin_date: string; guest_phone: string | null; guest_phone_country: string | null; created_at: string }>,
     events: (eventsQ.data ?? []) as Evt[],
     convs: (convsQ.data ?? []) as Array<{ id: string; property_id: string; guest_session_id: string; guest_name: string | null; created_at: string; last_message_at: string }>,
-    msgs: (msgsQ.data ?? []) as Array<{ id: string; conversation_id: string; role: string; content: string | null; created_at: string }>,
+    msgs: (msgsQ.data ?? []) as Array<{ id: string; conversation_id: string; role: string; content: string | null; created_at: string; sender_type?: string | null; sender_user_id?: string | null }>,
     feedback: (feedbackQ.data ?? []) as Array<{ message_id: string; conversation_id: string; resolved: boolean }>,
   };
 }
