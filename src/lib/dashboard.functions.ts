@@ -761,30 +761,57 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
       return !!checkoutDate && checkinDate <= today && checkoutDate > today;
     }
 
-    // Regra da esteira (dedupe): uma reserva só pode aparecer em UM estágio.
-    // Se o dia de checkout já chegou (ou passou), o card pertence a Checkouts
-    // / Em Limpeza — nunca deve continuar em Check-ins mesmo estando atrasado.
-    function belongsToCheckoutStage(checkinDate: string, checkoutDate: string | null): boolean {
+    // Janela máxima para manter um check-in atrasado visível (evita reimportar
+    // histórico antigo, mas nunca "some" com pendências recentes).
+    const OVERDUE_WINDOW_DAYS = 30;
+    function withinOverdueWindow(checkinDate: string): boolean {
+      return checkinDate >= addDaysISO(today, -OVERDUE_WINDOW_DAYS);
+    }
+
+    function logCheckinDone(logId: string | null | undefined): boolean {
+      return !!logId && checkinDoneLogs.has(logId);
+    }
+    function reservationCheckinDone(r: ReservationRow): boolean {
+      if (checkinDoneReservations.has(r.id)) return true;
+      const legacy = placeholderStatus.get(placeholderKey(r.property_id, r.checkin_date, r.checkout_date, "checkin"));
+      if (legacy && (legacy.status === "done" || !!legacy.done_at)) return true;
+      const { primary, extras } = findLogsForReservation(r);
+      return [primary, ...extras].some((l) => logCheckinDone(l?.id));
+    }
+
+    // Regra da esteira: uma reserva só pode aparecer em UM estágio, mas a
+    // passagem de Check-ins para Checkouts/Em Limpeza SÓ acontece depois do
+    // check manual. Enquanto o check-in estiver pendente, o card fica retido em
+    // Check-ins (como atrasado), mesmo que a data de checkout já tenha chegado.
+    function belongsToCheckoutStage(
+      checkinDate: string,
+      checkoutDate: string | null,
+      checkinDone: boolean,
+    ): boolean {
       if (!checkoutDate) return false;
+      if (!checkinDone) return false;
       return checkinDate <= today && checkoutDate <= today;
     }
 
     function reservationInRange(r: ReservationRow): boolean {
+      const resCheckinDone = data.kind === "checkin" ? reservationCheckinDone(r) : false;
       if (data.kind === "checkin") {
-        if (belongsToCheckoutStage(r.checkin_date, r.checkout_date)) return false;
+        if (belongsToCheckoutStage(r.checkin_date, r.checkout_date, resCheckinDone)) return false;
       }
       const date = data.kind === "checkin" ? r.checkin_date : r.checkout_date;
       if (date < (from ?? today)) {
-        // Estadia em andamento deve continuar visível em Hoje/7 dias/Todos para
-        // alimentar "Em Estadia", mas NUNCA pode vazar para "Amanhã".
-        if (data.kind === "checkin" && data.range !== "tomorrow" && isCurrentStay(r.checkin_date, r.checkout_date)) {
-          return true;
+        if (data.kind === "checkin" && data.range !== "tomorrow") {
+          // Estadia em andamento continua visível para alimentar "Em Estadia".
+          if (isCurrentStay(r.checkin_date, r.checkout_date)) return true;
+          // Check-in atrasado sem check permanece na lista de Check-ins.
+          if (!resCheckinDone && withinOverdueWindow(r.checkin_date)) return true;
         }
         return false;
       }
       if (to && date > to) return false;
       return true;
     }
+
 
     function normalizeCode(s: string | null | undefined): string | null {
       if (!s) return null;
@@ -894,20 +921,25 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
         }
       }
       const virtualStay = autoStayDone(l.checkin_date, l.checkout_date ?? null, l.created_at ?? null);
-      if (data.kind === "checkin" && belongsToCheckoutStage(l.checkin_date, l.checkout_date ?? null)) {
+      const logDone = logCheckinDone(l.id) || virtualStay;
+      const overduePending = data.kind === "checkin" && !logDone && withinOverdueWindow(l.checkin_date);
+      if (data.kind === "checkin" && belongsToCheckoutStage(l.checkin_date, l.checkout_date ?? null, logDone)) {
         return null;
       }
       if (
         data.kind === "checkin" &&
         date < (from ?? today) &&
-        !(data.range !== "tomorrow" && isCurrentStay(l.checkin_date, l.checkout_date ?? null))
+        !(
+          data.range !== "tomorrow" &&
+          (isCurrentStay(l.checkin_date, l.checkout_date ?? null) || overduePending)
+        )
       ) {
         return null;
       }
       // Cards com data anterior a hoje só aparecem sem interação quando a estadia
-      // ainda está em andamento. Isso preserva a regra de não importar histórico,
-      // mas permite que reservas já hospedadas apareçam em "Em Estadia".
-      if (date < today && !s && !virtualStay) return null;
+      // ainda está em andamento ou quando o check-in continua pendente (atrasado).
+      if (date < today && !s && !virtualStay && !(overduePending && data.range !== "tomorrow")) return null;
+
       const evK = eventKey(l.property_id, l.guest_name, l.guest_phone);
       return {
         logId: l.id,
@@ -972,9 +1004,16 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
       // o que promoveria toda estadia em curso automaticamente. Só a data real de
       // criação do registro (integração nova) pode disparar a auto-distribuição.
       const virtualStay = autoStayDone(r.checkin_date, r.checkout_date, matchedLog?.created_at ?? r.created_at ?? null);
+      const overduePending =
+        data.kind === "checkin" &&
+        data.range !== "tomorrow" &&
+        !reservationCheckinDone(r) &&
+        !virtualStay &&
+        withinOverdueWindow(r.checkin_date);
       // Datas passadas só entram sem interação quando representam uma estadia
-      // vigente. Reservas encerradas no passado continuam fora do kanban.
-      if (date < today && !s && !virtualStay) return null;
+      // vigente ou um check-in ainda pendente (atrasado).
+      if (date < today && !s && !virtualStay && !overduePending) return null;
+
       const evK = matchedLog ? eventKey(matchedLog.property_id, matchedLog.guest_name, matchedLog.guest_phone) : "";
 
       return {
@@ -1066,20 +1105,15 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
     // considerado feito virtualmente para efeito da esteira — assim o card
     // avança para Checkouts/Em Limpeza sem precisar de clique manual.
     function virtualCheckinDone(r: ArrivalRow): boolean {
+      // Só há promoção automática quando o registro nasceu DEPOIS do início da
+      // estadia (integração nova importando histórico corrente). Cards que já
+      // existiam quando a data chegou exigem o check manual.
       const ci = r.guestCheckin;
       if (!ci) return false;
-      if (ci < today) return true;
-      if (ci === today) {
-        const std = r.standardTime; // checkout std for checkout kind — não usamos
-        // Para checkout, standardTime é o horário de checkout. Precisamos do
-        // horário de check-in da propriedade — buscamos direto no propMap.
-        const p = propMap.get(r.propertyId);
-        const ciStd = p?.checkin_time ?? null;
-        if (ciStd && nowHM >= ciStd) return true;
-        void std;
-      }
-      return false;
+      const created = isoDateSP(r.createdAt);
+      return !!created && created > ci;
     }
+
     const gatedRows =
       data.kind === "checkout"
         ? rows.filter((r) => {
