@@ -803,8 +803,8 @@ function EngagementBars({
         <Loader2 className="size-4 inline animate-spin" />
       </div>
     );
-  const checkinViewed = Math.min(checkinBreakdown?.viewed.length ?? 0, checkins);
-  const codesViewed = Math.min(codesBreakdown?.viewed.length ?? 0, checkinsWithCodes);
+  const checkinViewed = checkinBreakdown?.viewed.length ?? 0;
+  const codesViewed = codesBreakdown?.viewed.length ?? 0;
   return (
     <div className="relative space-y-4">
       {checkins > 0 && (
