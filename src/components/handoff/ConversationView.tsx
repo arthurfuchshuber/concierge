@@ -87,6 +87,27 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [teachOpen, setTeachOpen] = useState(false);
   const [teachSource, setTeachSource] = useState<{ id: string; content: string } | null>(null);
+
+  // Tradução de mensagens do hóspede para o idioma do sistema do atendente.
+  const myLang = useMemo(() => userLanguage(), []);
+  const translateFn = useServerFn(translateMessage);
+  const [translations, setTranslations] = useState<Record<string, { text: string | null; loading: boolean; showing: boolean }>>({});
+  const toggleTranslation = async (id: string, content: string) => {
+    const current = translations[id];
+    if (current?.text) {
+      setTranslations((p) => ({ ...p, [id]: { ...current, showing: !current.showing } }));
+      return;
+    }
+    setTranslations((p) => ({ ...p, [id]: { text: null, loading: true, showing: false } }));
+    try {
+      const r = await translateFn({ data: { text: content.slice(0, 4000), targetLang: myLang } });
+      setTranslations((p) => ({ ...p, [id]: { text: r.translated, loading: false, showing: true } }));
+    } catch (e) {
+      setTranslations((p) => ({ ...p, [id]: { text: null, loading: false, showing: false } }));
+      setErrorMsg(e instanceof Error ? e.message : "Não consegui traduzir agora.");
+    }
+  };
+
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
