@@ -2,7 +2,7 @@ import { Fragment, type ReactNode } from "react";
 
 // Converte markdown simples ([label](url)) e URLs soltas em links clicáveis.
 // Mantém quebras de linha (o container usa whitespace-pre-wrap).
-const MD_LINK = /\[([^\]\n]+)\]\((https?:\/\/[^\s)]+)\)/g;
+const MD_LINK = /\[([^\]\n]+)\]\(((?:https?:\/\/|\/)[^\s)]+)\)/g;
 const BARE_URL = /(https?:\/\/[^\s<>()]+)/g;
 
 function linkify(text: string, keyBase: string): ReactNode[] {
