@@ -1,9 +1,22 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
+// Idiomas suportados pela UI. Restringir o alvo evita que o endpoint seja
+// usado como proxy genérico de LLM com instruções arbitrárias.
+const SUPPORTED_LANGS = [
+  "pt", "en", "es", "fr", "it", "de", "ru", "ar", "ja", "ko", "zh", "nl", "pl", "tr", "he", "hi",
+] as const;
+
 const InputSchema = z.object({
-  text: z.string().min(1).max(4000),
-  targetLang: z.string().min(2).max(10),
+  text: z.string().trim().min(1).max(2000),
+  targetLang: z
+    .string()
+    .min(2)
+    .max(10)
+    .transform((v) => v.toLowerCase().split(/[-_]/)[0])
+    .refine((v): v is (typeof SUPPORTED_LANGS)[number] => (SUPPORTED_LANGS as readonly string[]).includes(v), {
+      message: "Idioma não suportado.",
+    }),
 });
 
 /**
