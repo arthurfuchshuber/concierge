@@ -29,7 +29,7 @@ export const translateMessage = createServerFn({ method: "POST" })
     const apiKey = process.env.LOVABLE_API_KEY;
     if (!apiKey) throw new Error("Tradução indisponível no momento.");
 
-    const target = data.targetLang.toLowerCase().split(/[-_]/)[0];
+    const target = data.targetLang;
 
     const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
