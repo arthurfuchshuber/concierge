@@ -119,7 +119,8 @@ export const syncMyClicksignDocuments = createServerFn({ method: "POST" })
     // 1. Baixa todos os documentos (com detalhes/signatários).
     type Doc = { csDoc: Record<string, unknown>; signers: Array<Record<string, unknown>> };
     const docs: Doc[] = [];
-    for (let page = 1; page <= 20; page++) {
+    // Sem recorte de período: percorre todas as páginas da conta.
+    for (let page = 1; page <= 400; page++) {
       const res = await cs.csFetch(token, env, `/api/v1/documents?page=${page}&per_page=50`);
       const raw = (res["documents"] ?? res["document"] ?? []) as unknown;
       const list = (Array.isArray(raw) ? raw : [raw]) as Array<Record<string, unknown>>;
@@ -145,12 +146,22 @@ export const syncMyClicksignDocuments = createServerFn({ method: "POST" })
       if (list.length < 50) break;
     }
 
-    // 2. Base de stakeholders da conta para o vínculo.
-    const [{ data: owners }, { data: providers }, { data: guests }] = await Promise.all([
-      supabase.from("property_owners").select("id, name, trade_name, email, doc").eq("account_owner_id", userId),
-      supabase.from("service_providers").select("id, name, trade_name, email, doc").eq("account_owner_id", userId),
+    // 2. Base de stakeholders da conta + vínculos aprendidos.
+    const [{ data: owners }, { data: providers }, { data: guests }, { data: aliases }] = await Promise.all([
+      supabase.from("property_owners").select("id, name, trade_name, email, doc, phone").eq("account_owner_id", userId),
+      supabase.from("service_providers").select("id, name, trade_name, email, doc, phone").eq("account_owner_id", userId),
       supabase.from("guide_access_logs").select("guest_name, property_id").not("guest_name", "is", null).limit(1000),
+      supabase
+        .from("stakeholder_link_aliases")
+        .select("alias_kind, alias_value, stakeholder_type, stakeholder_id")
+        .eq("account_owner_id", userId),
     ]);
+    const matching = await import("@/lib/stakeholder-matching.server");
+    const index = matching.buildMatchIndex(
+      (owners ?? []) as never,
+      (providers ?? []) as never,
+      (aliases ?? []) as never,
+    );
     const internal = cs.buildInternalSignerSet(docs);
 
     let inserted = 0;
@@ -167,26 +178,30 @@ export const syncMyClicksignDocuments = createServerFn({ method: "POST" })
       let guestName: string | null = null;
       let propertyId: string | null = null;
 
-      const ownerMatch = cs.matchStakeholder(signer, (owners ?? []) as never);
-      if (ownerMatch) {
-        stakeholderType = "owner";
-        stakeholderId = ownerMatch;
-      } else {
-        const provMatch = cs.matchStakeholder(signer, (providers ?? []) as never);
-        if (provMatch) {
-          stakeholderType = "provider";
-          stakeholderId = provMatch;
-        } else if (signer) {
-          const sName = cs.normalize(signer["name"]);
-          const g = (guests ?? []).find((row) => sName && cs.normalize(row.guest_name) === sName);
-          if (g) {
-            stakeholderType = "guest";
-            guestName = g.guest_name as string;
-            propertyId = (g.property_id as string) ?? null;
-          }
+      const hit = signer
+        ? matching.resolveStakeholder(index, {
+            docs: [cs.signerDoc(signer)],
+            emails: [String(signer["email"] ?? "")],
+            phones: [String(signer["phone_number"] ?? signer["phone"] ?? "")],
+            texts: [String(signer["name"] ?? ""), filename],
+          })
+        : null;
+
+      if (hit) {
+        stakeholderType = hit.type;
+        stakeholderId = hit.id;
+      } else if (signer) {
+        const sName = cs.normalize(signer["name"]);
+        const g = (guests ?? []).find((row) => sName && cs.normalize(row.guest_name) === sName);
+        if (g) {
+          stakeholderType = "guest";
+          guestName = g.guest_name as string;
+          propertyId = (g.property_id as string) ?? null;
         }
       }
       if (stakeholderType) linked++;
+
+
 
       const downloads = (csDoc["downloads"] as Record<string, unknown> | undefined) ?? {};
       const payload = {

@@ -44,7 +44,12 @@ export type GcalEvent = {
   htmlLink: string | null;
   attendees: string[];
   attachments: GcalAttachment[];
+  /** Vínculo automático com proprietário/prestador cadastrado. */
+  link: { type: "owner" | "provider"; id: string; label: string; via: string } | null;
+  /** Melhor identificador externo do evento (para o vínculo manual). */
+  suggestedAlias: { kind: "email" | "domain"; value: string } | null;
 };
+
 
 /** Status da conexão do anfitrião logado com o Google Agenda. */
 export const getMyGoogleCalendarStatus = createServerFn({ method: "GET" })
@@ -180,41 +185,81 @@ function classifyAttachment(title: string, mimeType: string): GcalAttachment["ki
 
 const EVENTS_INPUT = z.object({
   calendarId: z.string().min(1).max(300).default("primary"),
-  days: z.number().int().min(1).max(180).default(30),
-  includePast: z.boolean().default(true),
 });
 
-/** Eventos da agenda, já com gravações e transcrições anexadas pelo Meet. */
+/**
+ * TODOS os eventos da agenda (sem recorte de período), já com gravações e
+ * transcrições do Meet e com o vínculo automático ao proprietário/prestador.
+ */
 export const listMyGoogleCalendarEvents = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((raw) => EVENTS_INPUT.parse(raw ?? {}))
   .handler(async ({ data, context }): Promise<GcalEvent[]> => {
-    const now = Date.now();
-    const timeMin = new Date(now - (data.includePast ? data.days : 0) * 86400000).toISOString();
-    const timeMax = new Date(now + data.days * 86400000).toISOString();
-    const path =
+    const base =
       `/calendar/v3/calendars/${encodeURIComponent(data.calendarId)}/events` +
-      `?singleEvents=true&orderBy=startTime&maxResults=250` +
-      `&timeMin=${encodeURIComponent(timeMin)}&timeMax=${encodeURIComponent(timeMax)}`;
+      `?singleEvents=true&orderBy=startTime&maxResults=2500&showDeleted=false`;
 
-    const json = (await gcal(context.userId, path)) as {
-      items?: Array<Record<string, unknown>>;
-    };
+    const items: Array<Record<string, unknown>> = [];
+    let pageToken: string | null = null;
+    // Sem filtro de data: percorre todas as páginas do histórico da agenda.
+    for (let page = 0; page < 40; page++) {
+      const path: string = pageToken ? `${base}&pageToken=${encodeURIComponent(pageToken)}` : base;
+      const json = (await gcal(context.userId, path)) as {
+        items?: Array<Record<string, unknown>>;
+        nextPageToken?: string;
+      };
+      items.push(...(json.items ?? []));
+      pageToken = json.nextPageToken ?? null;
+      if (!pageToken) break;
+    }
 
-    return (json.items ?? []).map((raw) => {
+    const { supabase, userId } = context;
+    const [{ data: owners }, { data: providers }, { data: aliases }] = await Promise.all([
+      supabase.from("property_owners").select("id, name, trade_name, email, doc, phone").eq("account_owner_id", userId),
+      supabase.from("service_providers").select("id, name, trade_name, email, doc, phone").eq("account_owner_id", userId),
+      supabase
+        .from("stakeholder_link_aliases")
+        .select("alias_kind, alias_value, stakeholder_type, stakeholder_id")
+        .eq("account_owner_id", userId),
+    ]);
+    const matching = await import("@/lib/stakeholder-matching.server");
+    const index = matching.buildMatchIndex(
+      (owners ?? []) as never,
+      (providers ?? []) as never,
+      (aliases ?? []) as never,
+    );
+
+    return items.map((raw) => {
       const start = raw['start'] as { dateTime?: string; date?: string } | undefined;
       const end = raw['end'] as { dateTime?: string; date?: string } | undefined;
-      const attendees = (raw['attendees'] as Array<{ email?: string }> | undefined) ?? [];
+      const attendeeList = (raw['attendees'] as Array<{ email?: string; self?: boolean; organizer?: boolean }> | undefined) ?? [];
+      const organizer = raw['organizer'] as { email?: string; self?: boolean } | undefined;
       const attachments = (raw['attachments'] as Array<{ title?: string; fileUrl?: string; mimeType?: string }> | undefined) ?? [];
+      const summary = String(raw['summary'] ?? "(sem título)");
+
+      // Participantes externos: quem não é a própria conta conectada.
+      const externalEmails = attendeeList
+        .filter((a) => !a.self && a.email)
+        .map((a) => a.email!.toLowerCase());
+      if (organizer?.email && !organizer.self) externalEmails.push(organizer.email.toLowerCase());
+
+      const link = matching.resolveStakeholder(index, {
+        emails: externalEmails,
+        texts: [summary, String(raw['description'] ?? ""), String(raw['location'] ?? "")],
+      });
+
+      const firstEmail = externalEmails[0] ?? null;
+      const domain = firstEmail ? matching.emailDomain(firstEmail) : null;
+
       return {
         id: String(raw['id'] ?? ""),
         calendarId: data.calendarId,
-        summary: String(raw['summary'] ?? "(sem título)"),
+        summary,
         start: start?.dateTime ?? start?.date ?? null,
         end: end?.dateTime ?? end?.date ?? null,
         hangoutLink: (raw['hangoutLink'] as string) ?? null,
         htmlLink: (raw['htmlLink'] as string) ?? null,
-        attendees: attendees.map((a) => a.email ?? "").filter(Boolean),
+        attendees: attendeeList.map((a) => a.email ?? "").filter(Boolean),
         attachments: attachments
           .filter((a) => a.fileUrl)
           .map((a) => ({
@@ -222,6 +267,13 @@ export const listMyGoogleCalendarEvents = createServerFn({ method: "POST" })
             url: a.fileUrl!,
             kind: classifyAttachment(a.title ?? "", a.mimeType ?? ""),
           })),
+        link: link ? { type: link.type, id: link.id, label: link.label, via: link.via } : null,
+        suggestedAlias: domain
+          ? ({ kind: "domain", value: domain } as const)
+          : firstEmail
+            ? ({ kind: "email", value: firstEmail } as const)
+            : null,
       };
     });
   });
+

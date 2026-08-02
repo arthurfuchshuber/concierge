@@ -12,6 +12,8 @@ import {
   listMyGoogleCalendars,
   listMyGoogleCalendarEvents,
 } from "@/lib/google-calendar.functions";
+import { listStakeholderOptions, saveStakeholderAlias } from "@/lib/stakeholder-links.functions";
+
 
 const CONNECTOR_ID = "google_calendar";
 
@@ -53,6 +55,9 @@ export function GoogleCalendarPanel() {
   const discFn = useServerFn(disconnectMyGoogleCalendar);
   const calsFn = useServerFn(listMyGoogleCalendars);
   const eventsFn = useServerFn(listMyGoogleCalendarEvents);
+  const optionsFn = useServerFn(listStakeholderOptions);
+  const aliasFn = useServerFn(saveStakeholderAlias);
+
   const qc = useQueryClient();
 
   const [calendarId, setCalendarId] = useState("primary");
@@ -69,10 +74,40 @@ export function GoogleCalendarPanel() {
 
   const events = useQuery({
     queryKey: ["gcal-events", calendarId],
-    queryFn: () => eventsFn({ data: { calendarId, days: 30, includePast: true } }),
+    queryFn: () => eventsFn({ data: { calendarId } }),
     enabled: connected,
     retry: false,
   });
+
+  const stakeholders = useQuery({
+    queryKey: ["stakeholder-options"],
+    queryFn: () => optionsFn(),
+    enabled: connected,
+    retry: false,
+  });
+
+  const link = useMutation({
+    mutationFn: (vars: {
+      kind: "email" | "domain";
+      value: string;
+      stakeholderType: "owner" | "provider";
+      stakeholderId: string;
+    }) =>
+      aliasFn({
+        data: {
+          aliasKind: vars.kind,
+          aliasValue: vars.value,
+          stakeholderType: vars.stakeholderType,
+          stakeholderId: vars.stakeholderId,
+        },
+      }),
+    onSuccess: () => {
+      toast.success("Vínculo salvo. Eventos futuros com esse contato entram sozinhos.");
+      qc.invalidateQueries({ queryKey: ["gcal-events"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
 
   const connect = useMutation({
     mutationFn: async () => {
@@ -166,7 +201,11 @@ export function GoogleCalendarPanel() {
 
       <div className="rounded-xl border border-border">
         <div className="flex items-center justify-between border-b border-border px-3 py-2">
-          <p className="text-[11px] font-medium">Eventos (últimos e próximos 30 dias)</p>
+          <p className="text-[11px] font-medium">
+            Todos os eventos {events.data ? `· ${events.data.length}` : ""}
+            {events.data ? ` · ${events.data.filter((e) => !e.link).length} sem vínculo` : ""}
+          </p>
+
           <Button
             size="sm"
             variant="ghost"
@@ -185,7 +224,7 @@ export function GoogleCalendarPanel() {
         ) : events.error ? (
           <p className="px-3 py-4 text-[11px] text-destructive">{(events.error as Error).message}</p>
         ) : (events.data?.length ?? 0) === 0 ? (
-          <p className="px-3 py-4 text-[11px] text-muted-foreground">Nenhum evento nesse período.</p>
+          <p className="px-3 py-4 text-[11px] text-muted-foreground">Nenhum evento nesta agenda.</p>
         ) : (
           <ul className="max-h-72 divide-y divide-border overflow-y-auto">
             {events.data!.map((ev) => (
@@ -225,7 +264,45 @@ export function GoogleCalendarPanel() {
                     ))}
                   </div>
                 )}
+                <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                  {ev.link ? (
+                    <Badge className="border-0 bg-emerald-500/15 text-[10px] text-emerald-600 dark:text-emerald-400">
+                      {ev.link.type === "owner" ? "Proprietário" : "Prestador"}: {ev.link.label}
+                    </Badge>
+                  ) : ev.suggestedAlias ? (
+                    <>
+                      <span className="text-[10px] text-muted-foreground">
+                        Sem vínculo ({ev.suggestedAlias.value}) —
+                      </span>
+                      <select
+                        className="h-6 rounded-full border border-border bg-card px-2 text-[10px] text-foreground"
+                        defaultValue=""
+                        disabled={link.isPending}
+                        onChange={(e) => {
+                          const [type, id] = e.target.value.split(":");
+                          if (!type || !id) return;
+                          link.mutate({
+                            kind: ev.suggestedAlias!.kind,
+                            value: ev.suggestedAlias!.value,
+                            stakeholderType: type as "owner" | "provider",
+                            stakeholderId: id,
+                          });
+                        }}
+                      >
+                        <option value="">vincular a…</option>
+                        {(stakeholders.data ?? []).map((s) => (
+                          <option key={`${s.type}:${s.id}`} value={`${s.type}:${s.id}`}>
+                            {s.type === "owner" ? "🏠" : "🛠"} {s.label}
+                          </option>
+                        ))}
+                      </select>
+                    </>
+                  ) : (
+                    <span className="text-[10px] text-muted-foreground">Sem participantes externos</span>
+                  )}
+                </div>
               </li>
+
             ))}
           </ul>
         )}
