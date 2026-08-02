@@ -201,7 +201,11 @@ export function GoogleCalendarPanel() {
 
       <div className="rounded-xl border border-border">
         <div className="flex items-center justify-between border-b border-border px-3 py-2">
-          <p className="text-[11px] font-medium">Eventos (últimos e próximos 30 dias)</p>
+          <p className="text-[11px] font-medium">
+            Todos os eventos {events.data ? `· ${events.data.length}` : ""}
+            {events.data ? ` · ${events.data.filter((e) => !e.link).length} sem vínculo` : ""}
+          </p>
+
           <Button
             size="sm"
             variant="ghost"
@@ -220,7 +224,7 @@ export function GoogleCalendarPanel() {
         ) : events.error ? (
           <p className="px-3 py-4 text-[11px] text-destructive">{(events.error as Error).message}</p>
         ) : (events.data?.length ?? 0) === 0 ? (
-          <p className="px-3 py-4 text-[11px] text-muted-foreground">Nenhum evento nesse período.</p>
+          <p className="px-3 py-4 text-[11px] text-muted-foreground">Nenhum evento nesta agenda.</p>
         ) : (
           <ul className="max-h-72 divide-y divide-border overflow-y-auto">
             {events.data!.map((ev) => (
