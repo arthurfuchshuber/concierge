@@ -131,7 +131,30 @@ export const importClicksignStakeholders = createServerFn({ method: "POST" })
           .update({ stakeholder_type: type, stakeholder_id: id })
           .in("id", targets.map((t) => t.id));
       }
+
+      // Linha do tempo do cadastro: registra a origem e o que foi vinculado.
+      await supabase.from("stakeholder_events").insert({
+        account_owner_id: userId,
+        stakeholder_type: type,
+        stakeholder_id: id,
+        kind: "clicksign",
+        message:
+          d.action === "create"
+            ? `Cadastro criado pela importação do ClickSign${targets.length ? ` · ${targets.length} contrato(s) vinculado(s)` : ""}.`
+            : `Signatário do ClickSign vinculado a este cadastro${targets.length ? ` · ${targets.length} contrato(s) vinculado(s)` : ""}.`,
+        metadata: {
+          source: "clicksign",
+          action: d.action,
+          signer_name: d.name,
+          signer_email: d.email || null,
+          signer_doc: digits || null,
+          documents_linked: targets.length,
+          at: new Date().toISOString(),
+        } as never,
+        created_by: userId,
+      });
     }
+
 
     return { created, linked };
   });
