@@ -56,9 +56,12 @@ export const getMyClicksignConfig = createServerFn({ method: "GET" })
 
 export const rotateMyClicksignWebhookSecret = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
+  .inputValidator((raw) =>
+    z.object({ secret: z.string().trim().min(8).max(200) }).parse(raw ?? {}),
+  )
+  .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    const secret = newWebhookSecret();
+    const secret = data.secret;
     const { error } = await supabase
       .from("host_integration_credentials")
       .update({ webhook_secret: secret })
@@ -67,6 +70,7 @@ export const rotateMyClicksignWebhookSecret = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return { webhookSecret: secret };
   });
+
 
 
 export const saveMyClicksignConfig = createServerFn({ method: "POST" })
