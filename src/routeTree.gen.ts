@@ -26,6 +26,7 @@ import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } fr
 import { Route as Char91DotmcpChar93ListToolsRouteImport } from './routes/[.mcp]/list-tools'
 import { Route as GSlugIndexRouteImport } from './routes/g.$slug.index'
 import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin.index'
+import { Route as OauthGoogleCalendarReturnRouteImport } from './routes/oauth.google-calendar.return'
 import { Route as GSlugExplorarRouteImport } from './routes/g.$slug.explorar'
 import { Route as ApiPublicPlacePhotoRouteImport } from './routes/api/public/place-photo'
 import { Route as ApiPublicLandingChatRouteImport } from './routes/api/public/landing-chat'
@@ -152,6 +153,12 @@ const AuthenticatedAdminIndexRoute = AuthenticatedAdminIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AuthenticatedAdminRoute,
 } as any)
+const OauthGoogleCalendarReturnRoute =
+  OauthGoogleCalendarReturnRouteImport.update({
+    id: '/oauth/google-calendar/return',
+    path: '/oauth/google-calendar/return',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const GSlugExplorarRoute = GSlugExplorarRouteImport.update({
   id: '/explorar',
   path: '/explorar',
@@ -415,6 +422,7 @@ export interface FileRoutesByFullPath {
   '/api/public/landing-chat': typeof ApiPublicLandingChatRoute
   '/api/public/place-photo': typeof ApiPublicPlacePhotoRoute
   '/g/$slug/explorar': typeof GSlugExplorarRoute
+  '/oauth/google-calendar/return': typeof OauthGoogleCalendarReturnRoute
   '/admin/': typeof AuthenticatedAdminIndexRoute
   '/g/$slug/': typeof GSlugIndexRoute
   '/admin/cidades/$cityKey': typeof AuthenticatedAdminCidadesCityKeyRoute
@@ -470,6 +478,7 @@ export interface FileRoutesByTo {
   '/api/public/landing-chat': typeof ApiPublicLandingChatRoute
   '/api/public/place-photo': typeof ApiPublicPlacePhotoRoute
   '/g/$slug/explorar': typeof GSlugExplorarRoute
+  '/oauth/google-calendar/return': typeof OauthGoogleCalendarReturnRoute
   '/admin': typeof AuthenticatedAdminIndexRoute
   '/g/$slug': typeof GSlugIndexRoute
   '/admin/cidades/$cityKey': typeof AuthenticatedAdminCidadesCityKeyRoute
@@ -529,6 +538,7 @@ export interface FileRoutesById {
   '/api/public/landing-chat': typeof ApiPublicLandingChatRoute
   '/api/public/place-photo': typeof ApiPublicPlacePhotoRoute
   '/g/$slug/explorar': typeof GSlugExplorarRoute
+  '/oauth/google-calendar/return': typeof OauthGoogleCalendarReturnRoute
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
   '/g/$slug/': typeof GSlugIndexRoute
   '/_authenticated/admin/cidades/$cityKey': typeof AuthenticatedAdminCidadesCityKeyRoute
@@ -588,6 +598,7 @@ export interface FileRouteTypes {
     | '/api/public/landing-chat'
     | '/api/public/place-photo'
     | '/g/$slug/explorar'
+    | '/oauth/google-calendar/return'
     | '/admin/'
     | '/g/$slug/'
     | '/admin/cidades/$cityKey'
@@ -643,6 +654,7 @@ export interface FileRouteTypes {
     | '/api/public/landing-chat'
     | '/api/public/place-photo'
     | '/g/$slug/explorar'
+    | '/oauth/google-calendar/return'
     | '/admin'
     | '/g/$slug'
     | '/admin/cidades/$cityKey'
@@ -701,6 +713,7 @@ export interface FileRouteTypes {
     | '/api/public/landing-chat'
     | '/api/public/place-photo'
     | '/g/$slug/explorar'
+    | '/oauth/google-calendar/return'
     | '/_authenticated/admin/'
     | '/g/$slug/'
     | '/_authenticated/admin/cidades/$cityKey'
@@ -744,6 +757,7 @@ export interface RootRouteChildren {
   ApiPublicGuideChatUploadRoute: typeof ApiPublicGuideChatUploadRoute
   ApiPublicLandingChatRoute: typeof ApiPublicLandingChatRoute
   ApiPublicPlacePhotoRoute: typeof ApiPublicPlacePhotoRoute
+  OauthGoogleCalendarReturnRoute: typeof OauthGoogleCalendarReturnRoute
   ApiPublicCronRefreshCityNewsRoute: typeof ApiPublicCronRefreshCityNewsRoute
   ApiPublicCronRefreshCityReferencesRoute: typeof ApiPublicCronRefreshCityReferencesRoute
   ApiPublicCronRefreshRecommendationsRoute: typeof ApiPublicCronRefreshRecommendationsRoute
@@ -875,6 +889,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/admin/'
       preLoaderRoute: typeof AuthenticatedAdminIndexRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/oauth/google-calendar/return': {
+      id: '/oauth/google-calendar/return'
+      path: '/oauth/google-calendar/return'
+      fullPath: '/oauth/google-calendar/return'
+      preLoaderRoute: typeof OauthGoogleCalendarReturnRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/g/$slug/explorar': {
       id: '/g/$slug/explorar'
@@ -1256,6 +1277,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicGuideChatUploadRoute: ApiPublicGuideChatUploadRoute,
   ApiPublicLandingChatRoute: ApiPublicLandingChatRoute,
   ApiPublicPlacePhotoRoute: ApiPublicPlacePhotoRoute,
+  OauthGoogleCalendarReturnRoute: OauthGoogleCalendarReturnRoute,
   ApiPublicCronRefreshCityNewsRoute: ApiPublicCronRefreshCityNewsRoute,
   ApiPublicCronRefreshCityReferencesRoute:
     ApiPublicCronRefreshCityReferencesRoute,

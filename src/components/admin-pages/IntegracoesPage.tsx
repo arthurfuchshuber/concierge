@@ -19,6 +19,8 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { WhatsappBusinessPage } from "@/components/admin-pages/WhatsappBusinessPage";
 import { ClicksignPanel } from "@/components/admin-pages/ClicksignPanel";
+import { GoogleCalendarPanel } from "@/components/admin-pages/GoogleCalendarPanel";
+import { getMyGoogleCalendarStatus } from "@/lib/google-calendar.functions";
 import { getMyWhatsappConfig } from "@/lib/whatsapp.functions";
 import { getMyClicksignConfig } from "@/lib/clicksign.functions";
 import { cn } from "@/lib/utils";
@@ -68,11 +70,11 @@ const INTEGRATIONS: IntegrationConfig[] = [
     categoria: "Operação",
     icon: CalendarDays,
     detalhe:
-      "Conexão por conta Google de cada anfitrião (OAuth). A liberação depende da aprovação do cliente OAuth Google no workspace — assim que aprovado, agendas, gravações e transcrições são importadas.",
+      "Conecte a conta Google desta operação (OAuth). Importamos todas as agendas, eventos e os arquivos de gravação e transcrição gerados pelo Google Meet vinculados a cada evento.",
   },
 ];
 
-const COMING_SOON = new Set(["gcal"]);
+const COMING_SOON = new Set<string>([]);
 
 type FilterKey = "todas" | "ativas" | "inativas" | "em_breve";
 
@@ -107,6 +109,14 @@ export function IntegracoesPage() {
   });
   const csActive = !!cs.data?.hasToken;
 
+  const gcalFn = useServerFn(getMyGoogleCalendarStatus);
+  const gcal = useQuery({
+    queryKey: ["gcal-status"],
+    queryFn: () => gcalFn(),
+    retry: false,
+  });
+  const gcalActive = !!gcal.data?.connected;
+
   const items = useMemo(
     () =>
       INTEGRATIONS.map((cfg) => {
@@ -114,12 +124,13 @@ export function IntegracoesPage() {
         if (COMING_SOON.has(cfg.key)) statusKey = "em_breve";
         else if (cfg.key === "whatsapp") statusKey = waActive ? "ativa" : "inativa";
         else if (cfg.key === "clicksign") statusKey = csActive ? "ativa" : "inativa";
+        else if (cfg.key === "gcal") statusKey = gcalActive ? "ativa" : "inativa";
         return { cfg, statusKey };
       }).sort(
         (a, b) =>
           STATUS_ORDER[a.statusKey] - STATUS_ORDER[b.statusKey] || a.cfg.nome.localeCompare(b.cfg.nome, "pt-BR"),
       ),
-    [waActive, csActive],
+    [waActive, csActive, gcalActive],
   );
 
   const counts = useMemo(
@@ -247,6 +258,8 @@ export function IntegracoesPage() {
                         <Plug className="mr-1 size-3.5" />
                         {waActive ? "Gerenciar conexão" : "Conectar"}
                       </Button>
+                    ) : cfg.key === "gcal" ? (
+                      <GoogleCalendarPanel />
                     ) : (
                       <ClicksignPanel />
                     )}
