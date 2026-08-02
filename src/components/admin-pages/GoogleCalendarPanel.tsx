@@ -264,7 +264,45 @@ export function GoogleCalendarPanel() {
                     ))}
                   </div>
                 )}
+                <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                  {ev.link ? (
+                    <Badge className="border-0 bg-emerald-500/15 text-[10px] text-emerald-600 dark:text-emerald-400">
+                      {ev.link.type === "owner" ? "Proprietário" : "Prestador"}: {ev.link.label}
+                    </Badge>
+                  ) : ev.suggestedAlias ? (
+                    <>
+                      <span className="text-[10px] text-muted-foreground">
+                        Sem vínculo ({ev.suggestedAlias.value}) —
+                      </span>
+                      <select
+                        className="h-6 rounded-full border border-border bg-card px-2 text-[10px] text-foreground"
+                        defaultValue=""
+                        disabled={link.isPending}
+                        onChange={(e) => {
+                          const [type, id] = e.target.value.split(":");
+                          if (!type || !id) return;
+                          link.mutate({
+                            kind: ev.suggestedAlias!.kind,
+                            value: ev.suggestedAlias!.value,
+                            stakeholderType: type as "owner" | "provider",
+                            stakeholderId: id,
+                          });
+                        }}
+                      >
+                        <option value="">vincular a…</option>
+                        {(stakeholders.data ?? []).map((s) => (
+                          <option key={`${s.type}:${s.id}`} value={`${s.type}:${s.id}`}>
+                            {s.type === "owner" ? "🏠" : "🛠"} {s.label}
+                          </option>
+                        ))}
+                      </select>
+                    </>
+                  ) : (
+                    <span className="text-[10px] text-muted-foreground">Sem participantes externos</span>
+                  )}
+                </div>
               </li>
+
             ))}
           </ul>
         )}
