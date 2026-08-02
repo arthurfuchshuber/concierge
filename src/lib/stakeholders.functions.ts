@@ -175,18 +175,65 @@ export const getStakeholderDetail = createServerFn({ method: "GET" })
         .eq("stakeholder_id", data.id)
         .order("created_at", { ascending: false }),
     ]);
-    const properties =
-      data.kind === "owner"
-        ? (
-            await supabase
-              .from("properties")
-              .select("id, name, slug, published")
-              .eq("owner_id", accountId)
-              .eq("owner_contact_id", data.id)
-          ).data ?? []
-        : [];
-    return { row: row ?? null, events: events ?? [], activities: activities ?? [], properties };
+    let properties: Array<Record<string, unknown>> = [];
+    let availableProperties: Array<Record<string, unknown>> = [];
+    if (data.kind === "owner") {
+      const { data: all } = await supabase
+        .from("properties")
+        .select("id, name, slug, published, city, state, owner_contact_id")
+        .eq("owner_id", accountId)
+        .order("name");
+      properties = (all ?? []).filter((p) => p.owner_contact_id === data.id);
+      availableProperties = (all ?? []).filter((p) => !p.owner_contact_id);
+    }
+    return {
+      row: row ?? null,
+      events: events ?? [],
+      activities: activities ?? [],
+      properties,
+      availableProperties,
+    };
   });
+
+const LinkInput = z.object({
+  ownerId: z.string().uuid(),
+  propertyId: z.string().uuid(),
+  link: z.boolean(),
+});
+
+// Vincula (ou desvincula) uma residência ao proprietário.
+export const linkPropertyToOwner = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => LinkInput.parse(i))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const accountId = await resolveAccountOwnerId(supabase, userId);
+    const { data: owner } = await supabase
+      .from("property_owners")
+      .select("id, name")
+      .eq("id", data.ownerId)
+      .eq("account_owner_id", accountId)
+      .maybeSingle();
+    if (!owner) throw new Error("Proprietário não encontrado");
+
+    const { error } = await supabase
+      .from("properties")
+      .update({ owner_contact_id: data.link ? data.ownerId : null })
+      .eq("id", data.propertyId)
+      .eq("owner_id", accountId);
+    if (error) throw new Error(error.message);
+
+    await supabase.from("stakeholder_events").insert({
+      account_owner_id: accountId,
+      stakeholder_type: "owner",
+      stakeholder_id: data.ownerId,
+      kind: "property",
+      message: data.link ? "Residência vinculada ao proprietário" : "Residência desvinculada",
+      created_by: userId,
+    });
+    return { ok: true };
+  });
+
 
 const NoteInput = z.object({
   kind: Kind,
