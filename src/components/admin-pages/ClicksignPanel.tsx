@@ -13,6 +13,7 @@ import {
   disconnectMyClicksign,
   syncMyClicksignDocuments,
   listMyClicksignDocuments,
+  rotateMyClicksignWebhookSecret,
 } from "@/lib/clicksign.functions";
 import { ClicksignImportDialog } from "@/components/admin-pages/ClicksignImportDialog";
 import { ClicksignDisconnectDialog } from "@/components/admin-pages/ClicksignDisconnectDialog";
