@@ -200,7 +200,7 @@ export async function fetchEventsForCalendar(
     fetchRawEvents(userId, calendarId),
     loadMatchIndex(supabase, userId),
   ]);
-  return raws.map((r) => mapEvent(r, calendarId, calendarName ?? calendarId, index));
+  return raws.filter(isMeeting).map((r) => mapEvent(r, calendarId, calendarName ?? calendarId, index));
 }
 
 /** Todos os eventos de TODAS as agendas da conta conectada. */
