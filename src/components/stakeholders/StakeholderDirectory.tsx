@@ -1,6 +1,7 @@
 import { useMemo, useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
+import { Link } from "@tanstack/react-router";
 import { toast } from "sonner";
 import {
   Plus,
@@ -15,17 +16,16 @@ import {
   MapPin,
   Trash2,
   Pencil,
+  Home,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogFooter,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import {
@@ -36,42 +36,21 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
-import {
-  listStakeholders,
-  saveStakeholder,
-  deleteStakeholder,
-} from "@/lib/stakeholders.functions";
+import { listStakeholders, deleteStakeholder } from "@/lib/stakeholders.functions";
 import { StakeholderDetailSheet } from "./StakeholderDetailSheet";
+import {
+  StakeholderFormDialog,
+  emptyStakeholderForm,
+  rowToStakeholderForm,
+  type StakeholderFormValues,
+} from "./StakeholderFormDialog";
+import { PROVIDER_CATEGORIES, type StakeholderKind } from "./constants";
 
-export type StakeholderKind = "owner" | "provider";
-
-export const PROVIDER_CATEGORIES = [
-  { value: "limpeza", label: "Limpeza" },
-  { value: "manutencao", label: "Manutenção" },
-  { value: "portaria", label: "Portaria" },
-  { value: "lavanderia", label: "Lavanderia" },
-  { value: "jardinagem", label: "Jardinagem" },
-  { value: "piscina", label: "Piscina" },
-  { value: "outros", label: "Outros" },
-];
+export { PROVIDER_CATEGORIES };
+export type { StakeholderKind };
 
 type Row = Record<string, any>;
 
-const emptyForm = {
-  id: null as string | null,
-  name: "",
-  trade_name: "",
-  category: "outros",
-  doc_type: "cpf" as "cpf" | "cnpj",
-  doc: "",
-  email: "",
-  phone: "",
-  address: "",
-  city: "",
-  state: "",
-  notes: "",
-  status: "active" as "active" | "inactive",
-};
 
 export function StakeholderDirectory({ kind }: { kind: StakeholderKind }) {
   const qc = useQueryClient();
