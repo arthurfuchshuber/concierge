@@ -229,209 +229,260 @@ function EquipePage() {
         Dados e recursos que cada membro pode acessar. Recursos operacionais respeitam os limites do seu plano.
       </p>
 
-      <section className="glass rounded-2xl p-4 lg:p-6 border border-border">
-        <h2 className="font-display text-lg mb-1 flex items-center gap-2">
-          {pushOn ? <Bell className="size-4 text-primary" /> : <BellOff className="size-4 text-muted-foreground" />}
-          Notificações neste dispositivo
-        </h2>
-        <p className="text-sm text-muted-foreground mb-3">
-          Receba um alerta com som e badge no ícone quando um hóspede pedir atendimento humano.
-          {typeof window !== "undefined" && /iPhone|iPad|iPod/.test(navigator.userAgent) && (
-            <> No iPhone/iPad, primeiro adicione o app à tela de início ("Adicionar à Tela de Início") e abra por ali.</>
-          )}
-        </p>
-        <button
-          onClick={togglePush}
-          disabled={pushBusy || pushOn === null}
-          className="inline-flex items-center gap-2 rounded-xl px-4 py-2 border border-border font-medium hover:bg-secondary disabled:opacity-50"
+      <Accordion
+        type="single"
+        collapsible
+        value={openSection}
+        onValueChange={setOpenSection}
+        className="space-y-3"
+      >
+        <AccordionItem
+          value="push"
+          className="glass rounded-2xl border border-border overflow-hidden data-[state=open]:border-primary/40"
         >
-          {pushBusy && <Loader2 className="size-4 animate-spin" />}
-          {pushOn ? "Desativar notificações" : "Ativar notificações"}
-        </button>
-      </section>
+          <AccordionTrigger className="px-4 lg:px-6 py-4 hover:no-underline">
+            <span className="flex items-center gap-2 font-display text-base">
+              {pushOn ? <Bell className="size-4 text-primary" /> : <BellOff className="size-4 text-muted-foreground" />}
+              Notificações neste dispositivo
+            </span>
+          </AccordionTrigger>
+          <AccordionContent className="pb-0">
+            <div className="px-4 lg:px-6 pb-5 pt-1 border-t border-border/60">
+              <p className="text-sm text-muted-foreground mb-3 mt-3">
+                Receba um alerta com som e badge no ícone quando um hóspede pedir atendimento humano.
+                {typeof window !== "undefined" && /iPhone|iPad|iPod/.test(navigator.userAgent) && (
+                  <> No iPhone/iPad, primeiro adicione o app à tela de início ("Adicionar à Tela de Início") e abra por ali.</>
+                )}
+              </p>
+              <button
+                onClick={togglePush}
+                disabled={pushBusy || pushOn === null}
+                className="inline-flex items-center gap-2 rounded-xl px-4 py-2 border border-border font-medium hover:bg-secondary disabled:opacity-50"
+              >
+                {pushBusy && <Loader2 className="size-4 animate-spin" />}
+                {pushOn ? "Desativar notificações" : "Ativar notificações"}
+              </button>
+            </div>
+          </AccordionContent>
+        </AccordionItem>
 
-      <section className="glass rounded-2xl p-4 lg:p-6 border border-border">
-        <h2 className="font-display text-lg mb-3 flex items-center gap-2">
-          <Mail className="size-4 text-primary" /> Convidar atendente
-        </h2>
-        <form
-          onSubmit={(e) => { e.preventDefault(); if (email.trim() && !invite.isPending) invite.mutate(); }}
-          className="flex flex-col sm:flex-row gap-2"
+        <AccordionItem
+          value="invite"
+          className="glass rounded-2xl border border-border overflow-hidden data-[state=open]:border-primary/40"
         >
-          <input
-            type="email"
-            required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="email@atendente.com"
-            className="flex-1 rounded-md border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/40"
-          />
-
-
-          <button
-            type="submit"
-            disabled={invite.isPending || !email.trim()}
-            className="rounded-md bg-primary text-primary-foreground px-4 py-2 text-sm font-medium disabled:opacity-50"
-          >
-            {invite.isPending ? "Enviando…" : "Convidar"}
-          </button>
-        </form>
-        {invite.isError && <p className="text-xs text-red-500 mt-2">{(invite.error as Error).message}</p>}
-        {feedback && <p className="text-xs text-primary mt-2">{feedback}</p>}
-        <p className="text-[11px] text-muted-foreground mt-2">
-          Business: até 2 atendentes além do titular. Enterprise: ilimitado. O convidado precisa se cadastrar com o mesmo e-mail para ativar.
-        </p>
-      </section>
-
-      <section className="glass rounded-2xl p-4 lg:p-6 border border-border">
-        <h2 className="font-display text-lg mb-3">Membros da equipe</h2>
-        {members.length === 0 ? (
-          <div className="text-sm text-muted-foreground py-2">Nenhum membro ainda. Envie um convite acima.</div>
-        ) : (
-          <Accordion type="single" collapsible value={openMemberId} onValueChange={setOpenMemberId} className="space-y-3">
-            {members.map((m) => {
-              const id = m.member_user_id as string;
-              const prof = profiles[id];
-              const isSelf = !!(myUserId && id === myUserId);
-              const perms = permMatrix[id] ?? {};
-              const activeCount = OPERATIONAL_PERMS.filter((p) => !!perms[p]).length;
-
-              return (
-                <AccordionItem
-                  key={m.id as string}
-                  value={id}
-                  className="rounded-2xl border border-border overflow-hidden bg-background/60 data-[state=open]:border-primary/40"
-                >
-                  <AccordionTrigger className="px-4 py-3 hover:no-underline">
-                    <div className="flex-1 min-w-0 text-left flex items-center gap-3">
-                      <div className="flex-1 min-w-0">
-                        <div className="text-sm font-medium truncate">
-                          {prof?.full_name || prof?.email || id}
-                          {isSelf && <span className="ml-2 text-[10px] uppercase tracking-wide text-muted-foreground">(você · titular)</span>}
-                        </div>
-                        {prof?.email && <div className="text-[11px] text-muted-foreground truncate">{prof.email}</div>}
-                      </div>
-                      {!isSelf && (
-                        <span className="text-[11px] px-2 py-0.5 rounded-full bg-secondary border border-border">
-                          {activeCount}/{TOTAL_TOGGLES} permissões
-                        </span>
-                      )}
-                    </div>
-                  </AccordionTrigger>
-                  <AccordionContent className="pb-0">
-                    <div className="p-5 border-t border-border space-y-6">
-                      {!isSelf && (
-                        <div className="flex items-center justify-end">
-                          <button
-                            onClick={() => { if (confirm("Remover este atendente?")) remove.mutate(m.id as string); }}
-                            className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-md text-red-500 hover:bg-red-500/10 border border-transparent hover:border-red-500/30"
-                          >
-                            <Trash2 className="size-3.5" /> Remover
-                          </button>
-                        </div>
-                      )}
-
-
-                      {!isSelf && (
-                        <div>
-                          <h3 className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2 flex items-center gap-1.5">
-                            <ShieldCheck className="size-3" /> Permissões por área
-                          </h3>
-                          <ul className="divide-y divide-border/60 rounded-lg border border-border/60 overflow-hidden">
-                            {PERMISSION_AREAS.map((area) => {
-                              const viewVal = !!perms[area.view];
-                              const editVal = !!perms[area.edit];
-                              const feature = PERMISSION_FEATURE[area.edit] ?? PERMISSION_FEATURE[area.view];
-                              const locked = !!feature && !planFeatures[feature];
-                              return (
-                                <li
-                                  key={area.area}
-                                  className={`flex items-center gap-3 px-3 py-2 ${locked ? "opacity-60" : ""}`}
-                                  title={locked ? `Disponível em planos superiores ao ${planName}` : area.description}
-                                >
-                                  <div className="flex-1 min-w-0">
-                                    <div className="text-[13px] font-medium truncate flex items-center gap-1.5">
-                                      {area.label}
-                                      {locked && (
-                                        <span className="text-[9px] uppercase tracking-wide px-1 py-px rounded bg-secondary border border-border text-muted-foreground">
-                                          Indisponível
-                                        </span>
-                                      )}
-                                    </div>
-                                  </div>
-                                  <label className="flex items-center gap-1.5 shrink-0">
-                                    <span className="text-[11px] text-muted-foreground">Ver</span>
-                                    <Switch
-                                      checked={locked ? false : viewVal}
-                                      disabled={updPerm.isPending || locked}
-                                      onCheckedChange={(checked) =>
-                                        updPerm.mutate({ memberUserId: id, permission: area.view, granted: checked })
-                                      }
-                                    />
-                                  </label>
-                                  <label className="flex items-center gap-1.5 shrink-0 pl-2 border-l border-border/60">
-                                    <span className="text-[11px] text-muted-foreground">Editar</span>
-                                    <Switch
-                                      checked={locked ? false : editVal}
-                                      disabled={updPerm.isPending || locked}
-                                      onCheckedChange={(checked) =>
-                                        updPerm.mutate({ memberUserId: id, permission: area.edit, granted: checked })
-                                      }
-                                    />
-                                  </label>
-                                </li>
-                              );
-                            })}
-                          </ul>
-                        </div>
-                      )}
-
-                      {isSelf && (
-                        <p className="text-xs text-muted-foreground">
-                          Como titular da conta, você tem acesso total. Permissões são configuradas por membro convidado.
-                        </p>
-                      )}
-                    </div>
-                  </AccordionContent>
-                </AccordionItem>
-              );
-            })}
-          </Accordion>
-        )}
-        {membersWithPerms.length > 0 && perms.isLoading && (
-          <div className="mt-3 text-xs text-muted-foreground flex items-center gap-2">
-            <Loader2 className="size-3 animate-spin" /> Carregando permissões…
-          </div>
-        )}
-      </section>
-
-      <section className="glass rounded-2xl p-4 lg:p-6 border border-border">
-        <h2 className="font-display text-lg mb-3">Convites pendentes</h2>
-        <div className="divide-y divide-border">
-          {team.data?.invites?.length === 0 && <div className="text-sm text-muted-foreground py-2">Nenhum convite pendente.</div>}
-          {(team.data?.invites ?? []).map((i) => {
-            const isResending = resend.isPending && resend.variables === (i.id as string);
-            return (
-              <div key={i.id} className="py-3 flex items-center gap-3 flex-wrap">
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm font-medium truncate">{i.email as string}</div>
-                  <div className="text-[11px] text-muted-foreground">Expira {new Date(i.expires_at as string).toLocaleDateString("pt-BR")}</div>
-                </div>
-                
+          <AccordionTrigger className="px-4 lg:px-6 py-4 hover:no-underline">
+            <span className="flex items-center gap-2 font-display text-base">
+              <Mail className="size-4 text-primary" /> Convidar atendente
+            </span>
+          </AccordionTrigger>
+          <AccordionContent className="pb-0">
+            <div className="px-4 lg:px-6 pb-5 pt-4 border-t border-border/60">
+              <form
+                onSubmit={(e) => { e.preventDefault(); if (email.trim() && !invite.isPending) invite.mutate(); }}
+                className="flex flex-col sm:flex-row gap-2"
+              >
+                <input
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="email@atendente.com"
+                  className="flex-1 rounded-md border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/40"
+                />
                 <button
-                  onClick={() => resend.mutate(i.id as string)}
-                  disabled={isResending}
-                  className="text-xs px-2 py-1 rounded-md border border-border hover:bg-secondary inline-flex items-center gap-1 disabled:opacity-60"
+                  type="submit"
+                  disabled={invite.isPending || !email.trim()}
+                  className="rounded-md bg-primary text-primary-foreground px-4 py-2 text-sm font-medium disabled:opacity-50"
                 >
-                  {isResending ? <Loader2 className="size-3 animate-spin" /> : <SendIcon className="size-3" />}
-                  Reenviar
+                  {invite.isPending ? "Enviando…" : "Convidar"}
                 </button>
-                <button onClick={() => revoke.mutate(i.id as string)} className="text-xs px-2 py-1 rounded-md border border-border hover:bg-secondary">Revogar</button>
+              </form>
+              {invite.isError && <p className="text-xs text-red-500 mt-2">{(invite.error as Error).message}</p>}
+              {feedback && <p className="text-xs text-primary mt-2">{feedback}</p>}
+              <p className="text-[11px] text-muted-foreground mt-2">
+                Business: até 2 atendentes além do titular. Enterprise: ilimitado. O convidado precisa se cadastrar com o mesmo e-mail para ativar.
+              </p>
+            </div>
+          </AccordionContent>
+        </AccordionItem>
+
+        <AccordionItem
+          value="members"
+          className="glass rounded-2xl border border-border overflow-hidden data-[state=open]:border-primary/40"
+        >
+          <AccordionTrigger className="px-4 lg:px-6 py-4 hover:no-underline">
+            <span className="flex items-center gap-2 font-display text-base">
+              <Users className="size-4 text-primary" /> Membros da equipe
+              <span className="text-[11px] px-2 py-0.5 rounded-full bg-secondary border border-border text-muted-foreground">
+                {members.length}
+              </span>
+            </span>
+          </AccordionTrigger>
+          <AccordionContent className="pb-0">
+            <div className="px-4 lg:px-6 pb-5 pt-4 border-t border-border/60">
+              {members.length === 0 ? (
+                <div className="text-sm text-muted-foreground py-2">Nenhum membro ainda. Envie um convite acima.</div>
+              ) : (
+                <Accordion type="single" collapsible value={openMemberId} onValueChange={setOpenMemberId} className="space-y-3">
+                  {members.map((m) => {
+                    const id = m.member_user_id as string;
+                    const prof = profiles[id];
+                    const isSelf = !!(myUserId && id === myUserId);
+                    const perms = permMatrix[id] ?? {};
+                    const activeCount = OPERATIONAL_PERMS.filter((p) => !!perms[p]).length;
+
+                    return (
+                      <AccordionItem
+                        key={m.id as string}
+                        value={id}
+                        className="rounded-2xl border border-border overflow-hidden bg-background/60 data-[state=open]:border-primary/40"
+                      >
+                        <AccordionTrigger className="px-4 py-3 hover:no-underline">
+                          <div className="flex-1 min-w-0 text-left flex items-center gap-3">
+                            <div className="flex-1 min-w-0">
+                              <div className="text-sm font-medium truncate">
+                                {prof?.full_name || prof?.email || id}
+                                {isSelf && <span className="ml-2 text-[10px] uppercase tracking-wide text-muted-foreground">(você · titular)</span>}
+                              </div>
+                              {prof?.email && <div className="text-[11px] text-muted-foreground truncate">{prof.email}</div>}
+                            </div>
+                            {!isSelf && (
+                              <span className="text-[11px] px-2 py-0.5 rounded-full bg-secondary border border-border">
+                                {activeCount}/{TOTAL_TOGGLES} permissões
+                              </span>
+                            )}
+                          </div>
+                        </AccordionTrigger>
+                        <AccordionContent className="pb-0">
+                          <div className="p-5 border-t border-border space-y-6">
+                            {!isSelf && (
+                              <div className="flex items-center justify-end">
+                                <button
+                                  onClick={() => { if (confirm("Remover este atendente?")) remove.mutate(m.id as string); }}
+                                  className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-md text-red-500 hover:bg-red-500/10 border border-transparent hover:border-red-500/30"
+                                >
+                                  <Trash2 className="size-3.5" /> Remover
+                                </button>
+                              </div>
+                            )}
+
+                            {!isSelf && (
+                              <div>
+                                <h3 className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2 flex items-center gap-1.5">
+                                  <ShieldCheck className="size-3" /> Permissões por área
+                                </h3>
+                                <ul className="divide-y divide-border/60 rounded-lg border border-border/60 overflow-hidden">
+                                  {PERMISSION_AREAS.map((area) => {
+                                    const viewVal = !!perms[area.view];
+                                    const editVal = !!perms[area.edit];
+                                    const feature = PERMISSION_FEATURE[area.edit] ?? PERMISSION_FEATURE[area.view];
+                                    const locked = !!feature && !planFeatures[feature];
+                                    return (
+                                      <li
+                                        key={area.area}
+                                        className={`flex items-center gap-3 px-3 py-2 ${locked ? "opacity-60" : ""}`}
+                                        title={locked ? `Disponível em planos superiores ao ${planName}` : area.description}
+                                      >
+                                        <div className="flex-1 min-w-0">
+                                          <div className="text-[13px] font-medium truncate flex items-center gap-1.5">
+                                            {area.label}
+                                            {locked && (
+                                              <span className="text-[9px] uppercase tracking-wide px-1 py-px rounded bg-secondary border border-border text-muted-foreground">
+                                                Indisponível
+                                              </span>
+                                            )}
+                                          </div>
+                                        </div>
+                                        <label className="flex items-center gap-1.5 shrink-0">
+                                          <span className="text-[11px] text-muted-foreground">Ver</span>
+                                          <Switch
+                                            checked={locked ? false : viewVal}
+                                            disabled={updPerm.isPending || locked}
+                                            onCheckedChange={(checked) =>
+                                              updPerm.mutate({ memberUserId: id, permission: area.view, granted: checked })
+                                            }
+                                          />
+                                        </label>
+                                        <label className="flex items-center gap-1.5 shrink-0 pl-2 border-l border-border/60">
+                                          <span className="text-[11px] text-muted-foreground">Editar</span>
+                                          <Switch
+                                            checked={locked ? false : editVal}
+                                            disabled={updPerm.isPending || locked}
+                                            onCheckedChange={(checked) =>
+                                              updPerm.mutate({ memberUserId: id, permission: area.edit, granted: checked })
+                                            }
+                                          />
+                                        </label>
+                                      </li>
+                                    );
+                                  })}
+                                </ul>
+                              </div>
+                            )}
+
+                            {isSelf && (
+                              <p className="text-xs text-muted-foreground">
+                                Como titular da conta, você tem acesso total. Permissões são configuradas por membro convidado.
+                              </p>
+                            )}
+                          </div>
+                        </AccordionContent>
+                      </AccordionItem>
+                    );
+                  })}
+                </Accordion>
+              )}
+              {membersWithPerms.length > 0 && perms.isLoading && (
+                <div className="mt-3 text-xs text-muted-foreground flex items-center gap-2">
+                  <Loader2 className="size-3 animate-spin" /> Carregando permissões…
+                </div>
+              )}
+            </div>
+          </AccordionContent>
+        </AccordionItem>
+
+        <AccordionItem
+          value="invites"
+          className="glass rounded-2xl border border-border overflow-hidden data-[state=open]:border-primary/40"
+        >
+          <AccordionTrigger className="px-4 lg:px-6 py-4 hover:no-underline">
+            <span className="flex items-center gap-2 font-display text-base">
+              <SendIcon className="size-4 text-primary" /> Convites pendentes
+              <span className="text-[11px] px-2 py-0.5 rounded-full bg-secondary border border-border text-muted-foreground">
+                {team.data?.invites?.length ?? 0}
+              </span>
+            </span>
+          </AccordionTrigger>
+          <AccordionContent className="pb-0">
+            <div className="px-4 lg:px-6 pb-5 pt-2 border-t border-border/60">
+              <div className="divide-y divide-border">
+                {team.data?.invites?.length === 0 && <div className="text-sm text-muted-foreground py-2">Nenhum convite pendente.</div>}
+                {(team.data?.invites ?? []).map((i) => {
+                  const isResending = resend.isPending && resend.variables === (i.id as string);
+                  return (
+                    <div key={i.id} className="py-3 flex items-center gap-3 flex-wrap">
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-medium truncate">{i.email as string}</div>
+                        <div className="text-[11px] text-muted-foreground">Expira {new Date(i.expires_at as string).toLocaleDateString("pt-BR")}</div>
+                      </div>
+                      <button
+                        onClick={() => resend.mutate(i.id as string)}
+                        disabled={isResending}
+                        className="text-xs px-2 py-1 rounded-md border border-border hover:bg-secondary inline-flex items-center gap-1 disabled:opacity-60"
+                      >
+                        {isResending ? <Loader2 className="size-3 animate-spin" /> : <SendIcon className="size-3" />}
+                        Reenviar
+                      </button>
+                      <button onClick={() => revoke.mutate(i.id as string)} className="text-xs px-2 py-1 rounded-md border border-border hover:bg-secondary">Revogar</button>
+                    </div>
+                  );
+                })}
               </div>
-            );
-          })}
-        </div>
-      </section>
+            </div>
+          </AccordionContent>
+        </AccordionItem>
+      </Accordion>
+
     </div>
   );
 }
