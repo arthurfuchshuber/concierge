@@ -371,28 +371,8 @@ function Dashboard() {
               : "Aqui está o resumo do seu painel hoje."}
           </p>
         </div>
-        <div className="flex items-center gap-2">
-
-          {!readOnly && (
-            <Button
-              onClick={() => navigate({ to: "/admin/properties/$id", params: { id: "new" } })}
-              className="rounded-full"
-              disabled={reachedLimit || !sub.plan || noOwners}
-              title={
-                !sub.plan
-                  ? "Assine um plano para criar guias"
-                  : noOwners
-                  ? "Cadastre um proprietário em Stakeholders antes de criar guias"
-                  : reachedLimit
-                  ? "Limite do seu plano atingido. Faça upgrade."
-                  : undefined
-              }
-            >
-              <Plus className="size-4 mr-1.5" /> Novo guia
-            </Button>
-          )}
-        </div>
       </div>
+
 
 
       {/* Stat cards (collapsible) */}
