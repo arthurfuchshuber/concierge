@@ -1708,15 +1708,19 @@ export type Database = {
         Row: {
           account_owner_id: string
           address: string | null
+          birth_date: string | null
+          cep: string | null
           city: string | null
           created_at: string
           created_by: string | null
+          district: string | null
           doc: string | null
           doc_type: string
           email: string | null
           id: string
           name: string
           notes: string | null
+          person_type: string
           phone: string | null
           phone_country: string | null
           state: string | null
@@ -1727,15 +1731,19 @@ export type Database = {
         Insert: {
           account_owner_id: string
           address?: string | null
+          birth_date?: string | null
+          cep?: string | null
           city?: string | null
           created_at?: string
           created_by?: string | null
+          district?: string | null
           doc?: string | null
           doc_type?: string
           email?: string | null
           id?: string
           name: string
           notes?: string | null
+          person_type?: string
           phone?: string | null
           phone_country?: string | null
           state?: string | null
@@ -1746,15 +1754,19 @@ export type Database = {
         Update: {
           account_owner_id?: string
           address?: string | null
+          birth_date?: string | null
+          cep?: string | null
           city?: string | null
           created_at?: string
           created_by?: string | null
+          district?: string | null
           doc?: string | null
           doc_type?: string
           email?: string | null
           id?: string
           name?: string
           notes?: string | null
+          person_type?: string
           phone?: string | null
           phone_country?: string | null
           state?: string | null
@@ -1949,10 +1961,13 @@ export type Database = {
         Row: {
           account_owner_id: string
           address: string | null
+          birth_date: string | null
           category: string
+          cep: string | null
           city: string | null
           created_at: string
           created_by: string | null
+          district: string | null
           doc: string | null
           doc_type: string
           email: string | null
@@ -1961,6 +1976,7 @@ export type Database = {
           member_user_id: string | null
           name: string
           notes: string | null
+          person_type: string
           phone: string | null
           phone_country: string | null
           state: string | null
@@ -1971,10 +1987,13 @@ export type Database = {
         Insert: {
           account_owner_id: string
           address?: string | null
+          birth_date?: string | null
           category?: string
+          cep?: string | null
           city?: string | null
           created_at?: string
           created_by?: string | null
+          district?: string | null
           doc?: string | null
           doc_type?: string
           email?: string | null
@@ -1983,6 +2002,7 @@ export type Database = {
           member_user_id?: string | null
           name: string
           notes?: string | null
+          person_type?: string
           phone?: string | null
           phone_country?: string | null
           state?: string | null
@@ -1993,10 +2013,13 @@ export type Database = {
         Update: {
           account_owner_id?: string
           address?: string | null
+          birth_date?: string | null
           category?: string
+          cep?: string | null
           city?: string | null
           created_at?: string
           created_by?: string | null
+          district?: string | null
           doc?: string | null
           doc_type?: string
           email?: string | null
@@ -2005,6 +2028,7 @@ export type Database = {
           member_user_id?: string | null
           name?: string
           notes?: string | null
+          person_type?: string
           phone?: string | null
           phone_country?: string | null
           state?: string | null

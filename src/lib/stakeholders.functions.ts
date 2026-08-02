@@ -77,17 +77,51 @@ const SaveInput = z.object({
   name: z.string().trim().min(1).max(160),
   trade_name: z.string().trim().max(160).optional().nullable(),
   category: z.string().trim().max(60).optional().nullable(),
+  person_type: z.enum(["pf", "pj"]).default("pf"),
   doc_type: z.enum(["cpf", "cnpj"]).default("cpf"),
   doc: z.string().trim().max(40).optional().nullable(),
+  birth_date: z.string().trim().max(20).optional().nullable(),
   email: z.string().trim().max(200).optional().nullable(),
   phone: z.string().trim().max(40).optional().nullable(),
   phone_country: z.string().trim().max(4).optional().nullable(),
+  cep: z.string().trim().max(12).optional().nullable(),
   address: z.string().trim().max(300).optional().nullable(),
+  district: z.string().trim().max(120).optional().nullable(),
   city: z.string().trim().max(120).optional().nullable(),
   state: z.string().trim().max(60).optional().nullable(),
   notes: z.string().trim().max(4000).optional().nullable(),
   status: z.enum(["active", "inactive"]).default("active"),
 });
+
+function onlyDigits(v?: string | null) {
+  return (v ?? "").replace(/\D+/g, "");
+}
+
+function isValidCPFDigits(d: string): boolean {
+  if (d.length !== 11 || /^(\d)\1{10}$/.test(d)) return false;
+  const calc = (base: string, factor: number) => {
+    let sum = 0;
+    for (let i = 0; i < base.length; i++) sum += Number(base[i]) * (factor - i);
+    const rest = (sum * 10) % 11;
+    return rest === 10 ? 0 : rest;
+  };
+  return calc(d.slice(0, 9), 10) === Number(d[9]) && calc(d.slice(0, 10), 11) === Number(d[10]);
+}
+
+function isValidCNPJDigits(d: string): boolean {
+  if (d.length !== 14 || /^(\d)\1{13}$/.test(d)) return false;
+  const calc = (base: string) => {
+    const weights =
+      base.length === 12
+        ? [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]
+        : [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2];
+    let sum = 0;
+    for (let i = 0; i < base.length; i++) sum += Number(base[i]) * weights[i];
+    const rest = sum % 11;
+    return rest < 2 ? 0 : 11 - rest;
+  };
+  return calc(d.slice(0, 12)) === Number(d[12]) && calc(d.slice(0, 13)) === Number(d[13]);
+}
 
 export const saveStakeholder = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -96,8 +130,23 @@ export const saveStakeholder = createServerFn({ method: "POST" })
     const { supabase, userId } = context;
     const accountId = await resolveAccountOwnerId(supabase, userId);
     const { kind, id, category, ...rest } = data;
-    const payload: Record<string, unknown> = { ...rest, account_owner_id: accountId };
+
+    // Validação real do documento no servidor (dígitos verificadores oficiais).
+    const doc = onlyDigits(rest.doc);
+    if (doc) {
+      if (rest.doc_type === "cnpj" && !isValidCNPJDigits(doc)) throw new Error("CNPJ inválido.");
+      if (rest.doc_type === "cpf" && !isValidCPFDigits(doc)) throw new Error("CPF inválido.");
+    }
+
+    const payload: Record<string, unknown> = {
+      ...rest,
+      doc: doc || null,
+      phone: onlyDigits(rest.phone) || null,
+      cep: onlyDigits(rest.cep) || null,
+      account_owner_id: accountId,
+    };
     if (kind === "provider") payload.category = category || "outros";
+
 
     if (id) {
       const { error } = await supabase
