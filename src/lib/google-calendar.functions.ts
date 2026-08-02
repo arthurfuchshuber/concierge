@@ -44,7 +44,12 @@ export type GcalEvent = {
   htmlLink: string | null;
   attendees: string[];
   attachments: GcalAttachment[];
+  /** Vínculo automático com proprietário/prestador cadastrado. */
+  link: { type: "owner" | "provider"; id: string; label: string; via: string } | null;
+  /** Melhor identificador externo do evento (para o vínculo manual). */
+  suggestedAlias: { kind: "email" | "domain"; value: string } | null;
 };
+
 
 /** Status da conexão do anfitrião logado com o Google Agenda. */
 export const getMyGoogleCalendarStatus = createServerFn({ method: "GET" })
