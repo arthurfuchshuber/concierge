@@ -55,16 +55,16 @@ type Row = Record<string, any>;
 export function StakeholderDirectory({ kind }: { kind: StakeholderKind }) {
   const qc = useQueryClient();
   const listFn = useServerFn(listStakeholders);
-  const saveFn = useServerFn(saveStakeholder);
   const delFn = useServerFn(deleteStakeholder);
 
   const [view, setView] = useState<"list" | "kanban">("list");
   const [q, setQ] = useState("");
   const [status, setStatus] = useState<"all" | "active" | "inactive">("all");
   const [formOpen, setFormOpen] = useState(false);
-  const [form, setForm] = useState(emptyForm);
-  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState<StakeholderFormValues>(emptyStakeholderForm);
   const [detailId, setDetailId] = useState<string | null>(null);
+  const [createdOwner, setCreatedOwner] = useState<{ id: string; name: string } | null>(null);
+
 
   const queryKey = ["stakeholders", kind];
   const { data, isLoading } = useQuery({
