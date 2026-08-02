@@ -248,10 +248,9 @@ export function IntegracoesPage() {
                         {waActive ? "Gerenciar conexão" : "Conectar"}
                       </Button>
                     ) : (
-                      <Button asChild size="sm" variant="outline" className="h-8 rounded-full text-xs">
-                        <Link to="/admin/guias">Configurar por residência</Link>
-                      </Button>
+                      <ClicksignPanel />
                     )}
+
                   </div>
                 )}
               </div>
