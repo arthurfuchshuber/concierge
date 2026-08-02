@@ -73,6 +73,8 @@ function EquipePage() {
   const [role, setRole] = useState<"owner" | "agent" | "viewer">("agent");
   const [feedback, setFeedback] = useState<string | null>(null);
   const [openMemberId, setOpenMemberId] = useState<string>("");
+  const [openSection, setOpenSection] = useState<string>("");
+
 
   const invite = useMutation({
     mutationFn: async () => inviteFn({ data: { email: email.trim().toLowerCase(), role } }),
