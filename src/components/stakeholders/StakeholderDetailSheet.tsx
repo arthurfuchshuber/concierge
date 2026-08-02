@@ -451,6 +451,33 @@ export function StakeholderDetailSheet({
                     </>
                   ),
                 })),
+                ...feedDocs.map((d) => ({
+                  key: `d:${d.id}`,
+                  at: d.at ?? "",
+                  node: (
+                    <>
+                      <p className="text-sm flex items-center gap-1.5">
+                        <FileText className="size-3.5 text-muted-foreground shrink-0" />
+                        <span className="truncate">{d.name}</span>
+                        {(d.urlSigned || d.urlOriginal) && (
+                          <a
+                            href={(d.urlSigned ?? d.urlOriginal) as string}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-muted-foreground hover:text-foreground"
+                          >
+                            <ExternalLink className="size-3" />
+                          </a>
+                        )}
+                      </p>
+                      <p className="text-[11px] text-muted-foreground">
+                        {d.at ? fmt(d.at) : "Sem data"} · ClickSign
+                        {d.status ? ` · ${d.status}` : ""}
+                        {d.signers.length > 0 ? ` · ${d.signers.length} signatário(s)` : ""}
+                      </p>
+                    </>
+                  ),
+                })),
               ]
                 .sort((a, b) => String(b.at).localeCompare(String(a.at)))
                 .map((item) => (
@@ -459,9 +486,10 @@ export function StakeholderDetailSheet({
                     {item.node}
                   </li>
                 ))}
-              {events.length === 0 && feedEvents.length === 0 && (
+              {events.length === 0 && feedEvents.length === 0 && feedDocs.length === 0 && (
                 <li className="text-xs text-muted-foreground">Sem registros.</li>
               )}
+
             </ol>
           </TabsContent>
 
