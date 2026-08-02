@@ -1005,6 +1005,63 @@ function PropertyEditor() {
         <TabsContent value="house" className="space-y-4 mt-6">
           <SectionGroup>
 
+          <Section id="address" icon={MapPinned} title="Endereço e localização" desc="Cole o link do Google Maps e use Auto-preencher." collapsible>
+            <Field label="Link do Google Maps — Entrada principal" required>
+              <div className="flex gap-2">
+                <Input value={form.property.maps_url} onChange={(e) => update("maps_url", e.target.value)} placeholder="https://maps.app.goo.gl/..." />
+                <Button onClick={handleEnrich} disabled={enriching} variant="secondary" className="shrink-0">
+                  {enriching ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
+                  <span className="ml-1.5 hidden sm:inline">{enriching ? "Buscando…" : "Auto-preencher"}</span>
+                </Button>
+              </div>
+            </Field>
+            <Field label="Link do Google Maps — Garagem (opcional)" hint="Aparece como um segundo botão de localização no guia.">
+              <Input value={form.property.garage_maps_url} onChange={(e) => update("garage_maps_url", e.target.value)} placeholder="https://maps.app.goo.gl/..." />
+            </Field>
+            <Field label="Endereço">
+              <Input value={form.property.address} onChange={(e) => update("address", e.target.value)} />
+            </Field>
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Cidade"><Input value={form.property.city} onChange={(e) => update("city", e.target.value)} /></Field>
+              <Field label="País"><Input value={form.property.country} onChange={(e) => update("country", e.target.value)} /></Field>
+            </div>
+            <Field label="Observação sobre o endereço" hint="Ponto de referência, instruções para o motorista, etc.">
+              <Textarea value={form.property.address_note} maxLength={1000} onChange={(e) => update("address_note", e.target.value)} />
+            </Field>
+          </Section>
+
+          <Section id="house-rules" icon={ClipboardCheck} title="Regras do espaço" desc="Uma regra por linha — cada linha vira um item numerado no guia." collapsible>
+            <Field label="Regras (opcional)" hint="Uma regra por linha. Linhas em branco são ignoradas.">
+              <TagMentionTextarea items={tagItems} value={form.property.house_rules} maxLength={3000} rows={6} onChange={(e) => update("house_rules", e.target.value)} placeholder={"Não é permitido fumar dentro do imóvel.\nFestas e eventos não são permitidos.\nRespeite o silêncio das 22h às 8h."} />
+            </Field>
+          </Section>
+
+          <Section id="manual" icon={BookOpen} title="Manual da casa" desc="Instruções de equipamentos e funcionamento." collapsible action={<AddBtn onClick={() => setForm((f) => ({ ...f, manual: [...f.manual, { title: "", description: "", body: "" }] }))} />}>
+            {form.manual.length === 0 ? (
+              <EmptyHint text="Nenhum item ainda. Adicione instruções para ar-condicionado, TV, fechadura, etc." />
+            ) : form.manual.map((m, i) => (
+              <ItemCard key={i} onRemove={() => setForm((f) => ({ ...f, manual: f.manual.filter((_, j) => j !== i) }))}>
+                <Input placeholder="Título (ex: Ar-condicionado)" value={m.title} maxLength={120} onChange={(e) => setForm((f) => ({ ...f, manual: f.manual.map((x, j) => j === i ? { ...x, title: e.target.value } : x) }))} />
+                <Input placeholder="Descrição curta" value={m.description} maxLength={300} onChange={(e) => setForm((f) => ({ ...f, manual: f.manual.map((x, j) => j === i ? { ...x, description: e.target.value } : x) }))} />
+                <TagMentionTextarea items={tagItems} placeholder="Instruções detalhadas" value={m.body} maxLength={4000} onChange={(e) => setForm((f) => ({ ...f, manual: f.manual.map((x, j) => j === i ? { ...x, body: e.target.value } : x) }))} />
+              </ItemCard>
+            ))}
+          </Section>
+
+          <Section id="host-house" icon={UserRound} title="Contato do anfitrião" desc="Nome e WhatsApp para o hóspede te encontrar." collapsible>
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Nome"><Input value={form.property.host_name} maxLength={120} onChange={(e) => update("host_name", e.target.value)} /></Field>
+              <Field label="Telefone (WhatsApp)"><Input value={form.property.host_phone} maxLength={40} onChange={(e) => update("host_phone", e.target.value)} /></Field>
+            </div>
+          </Section>
+
+          </SectionGroup>
+        </TabsContent>
+
+        {/* ================= O GUIA ================= */}
+        <TabsContent value="guide" className="space-y-4 mt-6">
+          <SectionGroup>
+
           <Section id="import-airbnb" icon={Sparkles} tone="accent" title="Importar do Airbnb" desc="Cole o link do anúncio e sincronize o calendário do Airbnb." collapsible>
             {!canAirbnb && (
               <div className="mb-3 rounded-xl border border-border bg-secondary/40 p-3 text-xs text-muted-foreground flex items-start gap-2">
@@ -1090,62 +1147,6 @@ function PropertyEditor() {
             </details>
           </Section>
 
-          <Section id="address" icon={MapPinned} title="Endereço e localização" desc="Cole o link do Google Maps e use Auto-preencher." collapsible>
-            <Field label="Link do Google Maps — Entrada principal" required>
-              <div className="flex gap-2">
-                <Input value={form.property.maps_url} onChange={(e) => update("maps_url", e.target.value)} placeholder="https://maps.app.goo.gl/..." />
-                <Button onClick={handleEnrich} disabled={enriching} variant="secondary" className="shrink-0">
-                  {enriching ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
-                  <span className="ml-1.5 hidden sm:inline">{enriching ? "Buscando…" : "Auto-preencher"}</span>
-                </Button>
-              </div>
-            </Field>
-            <Field label="Link do Google Maps — Garagem (opcional)" hint="Aparece como um segundo botão de localização no guia.">
-              <Input value={form.property.garage_maps_url} onChange={(e) => update("garage_maps_url", e.target.value)} placeholder="https://maps.app.goo.gl/..." />
-            </Field>
-            <Field label="Endereço">
-              <Input value={form.property.address} onChange={(e) => update("address", e.target.value)} />
-            </Field>
-            <div className="grid grid-cols-2 gap-3">
-              <Field label="Cidade"><Input value={form.property.city} onChange={(e) => update("city", e.target.value)} /></Field>
-              <Field label="País"><Input value={form.property.country} onChange={(e) => update("country", e.target.value)} /></Field>
-            </div>
-            <Field label="Observação sobre o endereço" hint="Ponto de referência, instruções para o motorista, etc.">
-              <Textarea value={form.property.address_note} maxLength={1000} onChange={(e) => update("address_note", e.target.value)} />
-            </Field>
-          </Section>
-
-          <Section id="house-rules" icon={ClipboardCheck} title="Regras do espaço" desc="Uma regra por linha — cada linha vira um item numerado no guia." collapsible>
-            <Field label="Regras (opcional)" hint="Uma regra por linha. Linhas em branco são ignoradas.">
-              <TagMentionTextarea items={tagItems} value={form.property.house_rules} maxLength={3000} rows={6} onChange={(e) => update("house_rules", e.target.value)} placeholder={"Não é permitido fumar dentro do imóvel.\nFestas e eventos não são permitidos.\nRespeite o silêncio das 22h às 8h."} />
-            </Field>
-          </Section>
-
-          <Section id="manual" icon={BookOpen} title="Manual da casa" desc="Instruções de equipamentos e funcionamento." collapsible action={<AddBtn onClick={() => setForm((f) => ({ ...f, manual: [...f.manual, { title: "", description: "", body: "" }] }))} />}>
-            {form.manual.length === 0 ? (
-              <EmptyHint text="Nenhum item ainda. Adicione instruções para ar-condicionado, TV, fechadura, etc." />
-            ) : form.manual.map((m, i) => (
-              <ItemCard key={i} onRemove={() => setForm((f) => ({ ...f, manual: f.manual.filter((_, j) => j !== i) }))}>
-                <Input placeholder="Título (ex: Ar-condicionado)" value={m.title} maxLength={120} onChange={(e) => setForm((f) => ({ ...f, manual: f.manual.map((x, j) => j === i ? { ...x, title: e.target.value } : x) }))} />
-                <Input placeholder="Descrição curta" value={m.description} maxLength={300} onChange={(e) => setForm((f) => ({ ...f, manual: f.manual.map((x, j) => j === i ? { ...x, description: e.target.value } : x) }))} />
-                <TagMentionTextarea items={tagItems} placeholder="Instruções detalhadas" value={m.body} maxLength={4000} onChange={(e) => setForm((f) => ({ ...f, manual: f.manual.map((x, j) => j === i ? { ...x, body: e.target.value } : x) }))} />
-              </ItemCard>
-            ))}
-          </Section>
-
-          <Section id="host-house" icon={UserRound} title="Contato do anfitrião" desc="Nome e WhatsApp para o hóspede te encontrar." collapsible>
-            <div className="grid grid-cols-2 gap-3">
-              <Field label="Nome"><Input value={form.property.host_name} maxLength={120} onChange={(e) => update("host_name", e.target.value)} /></Field>
-              <Field label="Telefone (WhatsApp)"><Input value={form.property.host_phone} maxLength={40} onChange={(e) => update("host_phone", e.target.value)} /></Field>
-            </div>
-          </Section>
-
-          </SectionGroup>
-        </TabsContent>
-
-        {/* ================= O GUIA ================= */}
-        <TabsContent value="guide" className="space-y-4 mt-6">
-          <SectionGroup>
 
           <Section id="identity" icon={FileText} title="Identidade visual" desc="Como o guia se apresenta e sua marca no rodapé." collapsible>
             <Field label="Nome do imóvel" required hint={`Máx. 80 caracteres — ${form.property.name.length}/80. Curto e memorável funciona melhor no cabeçalho do guia.`}>
