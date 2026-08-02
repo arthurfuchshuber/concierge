@@ -32,7 +32,6 @@ export function ClicksignPanel() {
   const qc = useQueryClient();
 
   const [token, setToken] = useState("");
-  const [env, setEnv] = useState<"production" | "sandbox">("production");
   const [importOpen, setImportOpen] = useState(false);
   const [disconnectOpen, setDisconnectOpen] = useState(false);
 
@@ -46,7 +45,7 @@ export function ClicksignPanel() {
   });
 
   const save = useMutation({
-    mutationFn: async () => saveFn({ data: { apiToken: token || undefined, environment: env } }),
+    mutationFn: async () => saveFn({ data: { apiToken: token || undefined, environment: "production" } }),
     onSuccess: () => {
       toast.success("ClickSign conectado.");
       setToken("");
@@ -91,28 +90,15 @@ export function ClicksignPanel() {
 
   return (
     <div className="space-y-3">
-      <div className="grid gap-3 sm:grid-cols-2">
-        <div>
-          <Label className="text-xs">Chave de API</Label>
-          <Input
-            type="password"
-            placeholder={connected ? "•••••••• (salva)" : "access_token do ClickSign"}
-            value={token}
-            onChange={(e) => setToken(e.target.value)}
-            autoComplete="off"
-          />
-        </div>
-        <div>
-          <Label className="text-xs">Ambiente</Label>
-          <select
-            value={env}
-            onChange={(e) => setEnv(e.target.value as "production" | "sandbox")}
-            className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
-          >
-            <option value="production">Produção</option>
-            <option value="sandbox">Sandbox</option>
-          </select>
-        </div>
+      <div>
+        <Label className="text-xs">Chave de API</Label>
+        <Input
+          type="password"
+          placeholder={connected ? "•••••••• (salva)" : "access_token do ClickSign"}
+          value={token}
+          onChange={(e) => setToken(e.target.value)}
+          autoComplete="off"
+        />
       </div>
 
       <p className="text-[11px] text-muted-foreground">

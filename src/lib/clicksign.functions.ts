@@ -14,7 +14,7 @@ export type ClicksignConfigPublic = {
 
 const SAVE_INPUT = z.object({
   apiToken: z.string().trim().min(10).max(500).optional(),
-  environment: z.enum(["production", "sandbox"]).default("production"),
+  environment: z.literal("production").default("production"),
 });
 
 export const getMyClicksignConfig = createServerFn({ method: "GET" })
@@ -64,13 +64,13 @@ export const saveMyClicksignConfig = createServerFn({ method: "POST" })
 
     // ClickSign não tem /me: validamos listando 1 documento.
     try {
-      await csFetch(token, data.environment, "/api/v1/documents?page=1&per_page=1");
+      await csFetch(token, "production", "/api/v1/documents?page=1&per_page=1");
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       await supabase.from("host_integration_credentials").upsert({
         owner_id: userId,
         provider: "clicksign",
-        environment: data.environment,
+        environment: "production",
         status: "error",
         last_error: msg,
       }, { onConflict: "owner_id,provider" });
@@ -80,7 +80,7 @@ export const saveMyClicksignConfig = createServerFn({ method: "POST" })
     const { error } = await supabase.from("host_integration_credentials").upsert({
       owner_id: userId,
       provider: "clicksign",
-      environment: data.environment,
+      environment: "production",
       api_token_encrypted: encryptToken(token),
       status: "active",
       last_error: null,
@@ -144,7 +144,7 @@ export const syncMyClicksignDocuments = createServerFn({ method: "POST" })
       .maybeSingle();
     if (!cred?.api_token_encrypted) throw new Error("Conecte o ClickSign antes de importar.");
     const token = decryptToken(cred.api_token_encrypted as string);
-    const env = (cred.environment as "production" | "sandbox") ?? "production";
+    const env = "production" as const;
 
     // 1. Baixa todos os documentos (com detalhes/signatários).
     type Doc = { csDoc: Record<string, unknown>; signers: Array<Record<string, unknown>> };
