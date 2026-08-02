@@ -52,7 +52,7 @@ function StakeholdersPage() {
             <StakeholderDirectory kind="owner" />
           </TabsContent>
           <TabsContent value="hospedes" className="mt-0">
-            <HospedesPage />
+            <HospedesPage embedded />
           </TabsContent>
           <TabsContent value="prestadores" className="mt-0">
             <StakeholderDirectory kind="provider" />
