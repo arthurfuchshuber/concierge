@@ -1,17 +1,16 @@
 import { createFileRoute, useNavigate, useSearch } from "@tanstack/react-router";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { CreditCard, UsersRound, User as UserIcon, MessageCircle } from "lucide-react";
+import { CreditCard, UsersRound, User as UserIcon } from "lucide-react";
 import { AssinaturaPage } from "@/components/admin-pages/AssinaturaPage";
 import { EquipePage } from "@/components/admin-pages/EquipePage";
 import { MeuPerfilPage } from "@/components/admin-pages/MeuPerfilPage";
-import { WhatsappBusinessPage } from "@/components/admin-pages/WhatsappBusinessPage";
 
-type Tab = "perfil" | "assinatura" | "equipe" | "whatsapp";
+type Tab = "perfil" | "assinatura" | "equipe";
 
 function coerceTab(v: unknown): Tab {
   // "permissoes" (legacy) redireciona para "equipe" — as duas abas foram unificadas.
   if (v === "permissoes") return "equipe";
-  return v === "assinatura" || v === "equipe" || v === "whatsapp" ? v : "perfil";
+  return v === "assinatura" || v === "equipe" ? v : "perfil";
 }
 
 export const Route = createFileRoute("/_authenticated/admin/administrativo")({
@@ -50,9 +49,6 @@ function AdministrativoPage() {
             <TabsTrigger value="equipe">
               <UsersRound className="size-4" /> Equipe & Permissões
             </TabsTrigger>
-            <TabsTrigger value="whatsapp">
-              <MessageCircle className="size-4" /> WhatsApp
-            </TabsTrigger>
           </TabsList>
         </div>
         <div className="px-6 lg:px-10 max-w-7xl mx-auto w-full pt-6 pb-16">
@@ -64,9 +60,6 @@ function AdministrativoPage() {
           </TabsContent>
           <TabsContent value="equipe" className="mt-0">
             <EquipePage />
-          </TabsContent>
-          <TabsContent value="whatsapp" className="mt-0">
-            <WhatsappBusinessPage />
           </TabsContent>
         </div>
       </Tabs>

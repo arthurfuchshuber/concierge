@@ -34,6 +34,8 @@ import { Route as ApiPublicGuideChatRouteImport } from './routes/api/public/guid
 import { Route as ApiPublicGuestPushRouteImport } from './routes/api/public/guest-push'
 import { Route as ApiPublicGuestDocUploadRouteImport } from './routes/api/public/guest-doc-upload'
 import { Route as AuthenticatedAdminTaxonomiaRouteImport } from './routes/_authenticated/admin.taxonomia'
+import { Route as AuthenticatedAdminStakeholdersRouteImport } from './routes/_authenticated/admin.stakeholders'
+import { Route as AuthenticatedAdminIntegracoesRouteImport } from './routes/_authenticated/admin.integracoes'
 import { Route as AuthenticatedAdminHospedesRouteImport } from './routes/_authenticated/admin.hospedes'
 import { Route as AuthenticatedAdminGuiasRouteImport } from './routes/_authenticated/admin.guias'
 import { Route as AuthenticatedAdminEquipeRouteImport } from './routes/_authenticated/admin.equipe'
@@ -190,6 +192,18 @@ const AuthenticatedAdminTaxonomiaRoute =
   AuthenticatedAdminTaxonomiaRouteImport.update({
     id: '/taxonomia',
     path: '/taxonomia',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
+const AuthenticatedAdminStakeholdersRoute =
+  AuthenticatedAdminStakeholdersRouteImport.update({
+    id: '/stakeholders',
+    path: '/stakeholders',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
+const AuthenticatedAdminIntegracoesRoute =
+  AuthenticatedAdminIntegracoesRouteImport.update({
+    id: '/integracoes',
+    path: '/integracoes',
     getParentRoute: () => AuthenticatedAdminRoute,
   } as any)
 const AuthenticatedAdminHospedesRoute =
@@ -391,6 +405,8 @@ export interface FileRoutesByFullPath {
   '/admin/equipe': typeof AuthenticatedAdminEquipeRoute
   '/admin/guias': typeof AuthenticatedAdminGuiasRoute
   '/admin/hospedes': typeof AuthenticatedAdminHospedesRoute
+  '/admin/integracoes': typeof AuthenticatedAdminIntegracoesRoute
+  '/admin/stakeholders': typeof AuthenticatedAdminStakeholdersRoute
   '/admin/taxonomia': typeof AuthenticatedAdminTaxonomiaRoute
   '/api/public/guest-doc-upload': typeof ApiPublicGuestDocUploadRoute
   '/api/public/guest-push': typeof ApiPublicGuestPushRoute
@@ -444,6 +460,8 @@ export interface FileRoutesByTo {
   '/admin/equipe': typeof AuthenticatedAdminEquipeRoute
   '/admin/guias': typeof AuthenticatedAdminGuiasRoute
   '/admin/hospedes': typeof AuthenticatedAdminHospedesRoute
+  '/admin/integracoes': typeof AuthenticatedAdminIntegracoesRoute
+  '/admin/stakeholders': typeof AuthenticatedAdminStakeholdersRoute
   '/admin/taxonomia': typeof AuthenticatedAdminTaxonomiaRoute
   '/api/public/guest-doc-upload': typeof ApiPublicGuestDocUploadRoute
   '/api/public/guest-push': typeof ApiPublicGuestPushRoute
@@ -501,6 +519,8 @@ export interface FileRoutesById {
   '/_authenticated/admin/equipe': typeof AuthenticatedAdminEquipeRoute
   '/_authenticated/admin/guias': typeof AuthenticatedAdminGuiasRoute
   '/_authenticated/admin/hospedes': typeof AuthenticatedAdminHospedesRoute
+  '/_authenticated/admin/integracoes': typeof AuthenticatedAdminIntegracoesRoute
+  '/_authenticated/admin/stakeholders': typeof AuthenticatedAdminStakeholdersRoute
   '/_authenticated/admin/taxonomia': typeof AuthenticatedAdminTaxonomiaRoute
   '/api/public/guest-doc-upload': typeof ApiPublicGuestDocUploadRoute
   '/api/public/guest-push': typeof ApiPublicGuestPushRoute
@@ -558,6 +578,8 @@ export interface FileRouteTypes {
     | '/admin/equipe'
     | '/admin/guias'
     | '/admin/hospedes'
+    | '/admin/integracoes'
+    | '/admin/stakeholders'
     | '/admin/taxonomia'
     | '/api/public/guest-doc-upload'
     | '/api/public/guest-push'
@@ -611,6 +633,8 @@ export interface FileRouteTypes {
     | '/admin/equipe'
     | '/admin/guias'
     | '/admin/hospedes'
+    | '/admin/integracoes'
+    | '/admin/stakeholders'
     | '/admin/taxonomia'
     | '/api/public/guest-doc-upload'
     | '/api/public/guest-push'
@@ -667,6 +691,8 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/equipe'
     | '/_authenticated/admin/guias'
     | '/_authenticated/admin/hospedes'
+    | '/_authenticated/admin/integracoes'
+    | '/_authenticated/admin/stakeholders'
     | '/_authenticated/admin/taxonomia'
     | '/api/public/guest-doc-upload'
     | '/api/public/guest-push'
@@ -906,6 +932,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminTaxonomiaRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
     }
+    '/_authenticated/admin/stakeholders': {
+      id: '/_authenticated/admin/stakeholders'
+      path: '/stakeholders'
+      fullPath: '/admin/stakeholders'
+      preLoaderRoute: typeof AuthenticatedAdminStakeholdersRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/integracoes': {
+      id: '/_authenticated/admin/integracoes'
+      path: '/integracoes'
+      fullPath: '/admin/integracoes'
+      preLoaderRoute: typeof AuthenticatedAdminIntegracoesRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
     '/_authenticated/admin/hospedes': {
       id: '/_authenticated/admin/hospedes'
       path: '/hospedes'
@@ -1124,6 +1164,8 @@ interface AuthenticatedAdminRouteChildren {
   AuthenticatedAdminEquipeRoute: typeof AuthenticatedAdminEquipeRoute
   AuthenticatedAdminGuiasRoute: typeof AuthenticatedAdminGuiasRoute
   AuthenticatedAdminHospedesRoute: typeof AuthenticatedAdminHospedesRoute
+  AuthenticatedAdminIntegracoesRoute: typeof AuthenticatedAdminIntegracoesRoute
+  AuthenticatedAdminStakeholdersRoute: typeof AuthenticatedAdminStakeholdersRoute
   AuthenticatedAdminTaxonomiaRoute: typeof AuthenticatedAdminTaxonomiaRoute
   AuthenticatedAdminIndexRoute: typeof AuthenticatedAdminIndexRoute
   AuthenticatedAdminCidadesCityKeyRoute: typeof AuthenticatedAdminCidadesCityKeyRoute
@@ -1147,6 +1189,8 @@ const AuthenticatedAdminRouteChildren: AuthenticatedAdminRouteChildren = {
   AuthenticatedAdminEquipeRoute: AuthenticatedAdminEquipeRoute,
   AuthenticatedAdminGuiasRoute: AuthenticatedAdminGuiasRoute,
   AuthenticatedAdminHospedesRoute: AuthenticatedAdminHospedesRoute,
+  AuthenticatedAdminIntegracoesRoute: AuthenticatedAdminIntegracoesRoute,
+  AuthenticatedAdminStakeholdersRoute: AuthenticatedAdminStakeholdersRoute,
   AuthenticatedAdminTaxonomiaRoute: AuthenticatedAdminTaxonomiaRoute,
   AuthenticatedAdminIndexRoute: AuthenticatedAdminIndexRoute,
   AuthenticatedAdminCidadesCityKeyRoute: AuthenticatedAdminCidadesCityKeyRoute,

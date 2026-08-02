@@ -1,3 +1,9 @@
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Home, Compass } from "lucide-react";
+import { useSearch } from "@tanstack/react-router";
+import { useServerFn as useServerFnGuias } from "@tanstack/react-start";
+import { useQuery as useQueryGuias } from "@tanstack/react-query";
+import { countPropertyOwners } from "@/lib/stakeholders.functions";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -26,8 +32,14 @@ import { Eye } from "lucide-react";
 
 
 
+function coerceGuiaTab(v: unknown): "imoveis" | "destinos" {
+  return v === "destinos" ? "destinos" : "imoveis";
+}
+
 export const Route = createFileRoute("/_authenticated/admin/guias")({
-  component: Dashboard,
+  validateSearch: (s: Record<string, unknown>): { tab?: "imoveis" | "destinos" } =>
+    s.tab === "destinos" ? { tab: "destinos" } : {},
+  component: GuiasTabs,
 });
 
 
@@ -55,6 +67,42 @@ function guideCompleteness(p: {
   return { score, label: "Incompleto", color: "bg-red-400" };
 }
 
+
+function GuiasTabs() {
+  const search = useSearch({ from: "/_authenticated/admin/guias" });
+  const tab = coerceGuiaTab(search.tab);
+  const navigate = useNavigate();
+  return (
+    <Tabs
+      value={tab}
+      onValueChange={(v) => navigate({ to: "/admin/guias", search: { tab: coerceGuiaTab(v) } })}
+      className="w-full"
+    >
+      <div className="px-6 lg:px-10 pt-8 lg:pt-10 max-w-7xl mx-auto w-full">
+        <TabsList>
+          <TabsTrigger value="imoveis">
+            <Home className="size-4" /> Guias de Imóveis
+          </TabsTrigger>
+          <TabsTrigger value="destinos">
+            <Compass className="size-4" /> Guias de Destinos
+          </TabsTrigger>
+        </TabsList>
+      </div>
+      <TabsContent value="imoveis" className="mt-0">
+        <Dashboard />
+      </TabsContent>
+      <TabsContent value="destinos" className="mt-0">
+        <div className="px-6 lg:px-10 py-24 max-w-7xl mx-auto w-full text-center">
+          <Compass className="size-8 mx-auto text-muted-foreground/60 mb-3" />
+          <p className="font-display text-2xl">Em construção...</p>
+          <p className="text-sm text-muted-foreground mt-1.5">
+            Em breve você poderá criar guias completos por destino.
+          </p>
+        </div>
+      </TabsContent>
+    </Tabs>
+  );
+}
 
 function Dashboard() {
   const list = useServerFn(listMyProperties);
@@ -257,6 +305,19 @@ function Dashboard() {
     });
   }, [data, search, statusFilter, accessFilter]);
 
+  // Trava: nenhum guia pode ser criado sem um proprietário cadastrado em
+  // Stakeholders → Proprietários (fonte da verdade das propriedades).
+  const ownersCountFn = useServerFnGuias(countPropertyOwners);
+  const ownersCount = useQueryGuias({
+    queryKey: ["property-owners-count"],
+    queryFn: async () => {
+      try { return await ownersCountFn(); } catch { return { count: 0 }; }
+    },
+    staleTime: 30_000,
+    retry: false,
+  });
+  const noOwners = (ownersCount.data?.count ?? 0) === 0;
+
   const hasActiveFilters =
     search.trim() !== "" || statusFilter !== "all" || accessFilter !== "all";
   function clearFilters() {
@@ -285,6 +346,19 @@ function Dashboard() {
           </button>
         </div>
       )}
+      {noOwners && !readOnly && (
+        <div className="mb-6 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm flex items-center gap-3">
+          <AlertTriangle className="size-4 text-amber-500 shrink-0" />
+          <span className="flex-1">
+            Cadastre ao menos um proprietário em{" "}
+            <Link to="/admin/stakeholders" search={{ tab: "proprietarios" as const }} className="underline underline-offset-2 font-medium">
+              Stakeholders → Proprietários
+            </Link>{" "}
+            para liberar a criação de novos guias.
+          </span>
+        </div>
+      )}
+
       {/* Welcome */}
       <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-8">
         <div>
@@ -303,10 +377,12 @@ function Dashboard() {
             <Button
               onClick={() => navigate({ to: "/admin/properties/$id", params: { id: "new" } })}
               className="rounded-full"
-              disabled={reachedLimit || !sub.plan}
+              disabled={reachedLimit || !sub.plan || noOwners}
               title={
                 !sub.plan
                   ? "Assine um plano para criar guias"
+                  : noOwners
+                  ? "Cadastre um proprietário em Stakeholders antes de criar guias"
                   : reachedLimit
                   ? "Limite do seu plano atingido. Faça upgrade."
                   : undefined

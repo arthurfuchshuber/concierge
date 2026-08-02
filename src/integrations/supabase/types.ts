@@ -1230,6 +1230,7 @@ export type Database = {
           maps_url: string | null
           marketplace_links: Json
           name: string
+          owner_contact_id: string | null
           owner_id: string
           pin_code: string | null
           pin_expires_at: string | null
@@ -1299,6 +1300,7 @@ export type Database = {
           maps_url?: string | null
           marketplace_links?: Json
           name: string
+          owner_contact_id?: string | null
           owner_id: string
           pin_code?: string | null
           pin_expires_at?: string | null
@@ -1368,6 +1370,7 @@ export type Database = {
           maps_url?: string | null
           marketplace_links?: Json
           name?: string
+          owner_contact_id?: string | null
           owner_id?: string
           pin_code?: string | null
           pin_expires_at?: string | null
@@ -1386,7 +1389,15 @@ export type Database = {
           wifi_password?: string | null
           wifi_ssid?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "properties_owner_contact_id_fkey"
+            columns: ["owner_contact_id"]
+            isOneToOne: false
+            referencedRelation: "property_owners"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       property_chat_conversations: {
         Row: {
@@ -1693,6 +1704,66 @@ export type Database = {
           },
         ]
       }
+      property_owners: {
+        Row: {
+          account_owner_id: string
+          address: string | null
+          city: string | null
+          created_at: string
+          created_by: string | null
+          doc: string | null
+          doc_type: string
+          email: string | null
+          id: string
+          name: string
+          notes: string | null
+          phone: string | null
+          phone_country: string | null
+          state: string | null
+          status: string
+          trade_name: string | null
+          updated_at: string
+        }
+        Insert: {
+          account_owner_id: string
+          address?: string | null
+          city?: string | null
+          created_at?: string
+          created_by?: string | null
+          doc?: string | null
+          doc_type?: string
+          email?: string | null
+          id?: string
+          name: string
+          notes?: string | null
+          phone?: string | null
+          phone_country?: string | null
+          state?: string | null
+          status?: string
+          trade_name?: string | null
+          updated_at?: string
+        }
+        Update: {
+          account_owner_id?: string
+          address?: string | null
+          city?: string | null
+          created_at?: string
+          created_by?: string | null
+          doc?: string | null
+          doc_type?: string
+          email?: string | null
+          id?: string
+          name?: string
+          notes?: string | null
+          phone?: string | null
+          phone_country?: string | null
+          state?: string | null
+          status?: string
+          trade_name?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       property_recommendations: {
         Row: {
           category: string | null
@@ -1871,6 +1942,75 @@ export type Database = {
           updated_at?: string
           user_agent?: string | null
           user_id?: string
+        }
+        Relationships: []
+      }
+      service_providers: {
+        Row: {
+          account_owner_id: string
+          address: string | null
+          category: string
+          city: string | null
+          created_at: string
+          created_by: string | null
+          doc: string | null
+          doc_type: string
+          email: string | null
+          hourly_rate_cents: number | null
+          id: string
+          member_user_id: string | null
+          name: string
+          notes: string | null
+          phone: string | null
+          phone_country: string | null
+          state: string | null
+          status: string
+          trade_name: string | null
+          updated_at: string
+        }
+        Insert: {
+          account_owner_id: string
+          address?: string | null
+          category?: string
+          city?: string | null
+          created_at?: string
+          created_by?: string | null
+          doc?: string | null
+          doc_type?: string
+          email?: string | null
+          hourly_rate_cents?: number | null
+          id?: string
+          member_user_id?: string | null
+          name: string
+          notes?: string | null
+          phone?: string | null
+          phone_country?: string | null
+          state?: string | null
+          status?: string
+          trade_name?: string | null
+          updated_at?: string
+        }
+        Update: {
+          account_owner_id?: string
+          address?: string | null
+          category?: string
+          city?: string | null
+          created_at?: string
+          created_by?: string | null
+          doc?: string | null
+          doc_type?: string
+          email?: string | null
+          hourly_rate_cents?: number | null
+          id?: string
+          member_user_id?: string | null
+          name?: string
+          notes?: string | null
+          phone?: string | null
+          phone_country?: string | null
+          state?: string | null
+          status?: string
+          trade_name?: string | null
+          updated_at?: string
         }
         Relationships: []
       }
@@ -2062,6 +2202,98 @@ export type Database = {
             referencedColumns: ["city_key"]
           },
         ]
+      }
+      stakeholder_activities: {
+        Row: {
+          account_owner_id: string
+          created_at: string
+          created_by: string | null
+          description: string | null
+          due_date: string | null
+          id: string
+          priority: string
+          property_id: string | null
+          stakeholder_id: string
+          stakeholder_type: string
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          account_owner_id: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          priority?: string
+          property_id?: string | null
+          stakeholder_id: string
+          stakeholder_type: string
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          account_owner_id?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          priority?: string
+          property_id?: string | null
+          stakeholder_id?: string
+          stakeholder_type?: string
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stakeholder_activities_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stakeholder_events: {
+        Row: {
+          account_owner_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          kind: string
+          message: string
+          metadata: Json
+          stakeholder_id: string
+          stakeholder_type: string
+        }
+        Insert: {
+          account_owner_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          kind?: string
+          message: string
+          metadata?: Json
+          stakeholder_id: string
+          stakeholder_type: string
+        }
+        Update: {
+          account_owner_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          kind?: string
+          message?: string
+          metadata?: Json
+          stakeholder_id?: string
+          stakeholder_type?: string
+        }
+        Relationships: []
       }
       subscriptions: {
         Row: {
