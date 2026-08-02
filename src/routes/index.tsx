@@ -1248,6 +1248,8 @@ function Footer() {
           <a href="#recursos" className="hover:text-black">Recursos</a>
           <a href="#planos" className="hover:text-black">Planos</a>
           <a href="#faq" className="hover:text-black">FAQ</a>
+          <a href="#sobre" className="hover:text-black">Sobre o app</a>
+
           <Link to="/privacidade" className="hover:text-black">Privacidade</Link>
           <Link to="/termos" className="hover:text-black">Termos</Link>
           <Link to="/reembolso" className="hover:text-black">Reembolso</Link>
