@@ -1,11 +1,9 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Link } from "@tanstack/react-router";
 import {
   Search,
   MessageCircle,
-  CalendarSync,
   CalendarDays,
   FileSignature,
   ChevronDown,
@@ -20,14 +18,17 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { WhatsappBusinessPage } from "@/components/admin-pages/WhatsappBusinessPage";
+import { ClicksignPanel } from "@/components/admin-pages/ClicksignPanel";
 import { getMyWhatsappConfig } from "@/lib/whatsapp.functions";
+import { getMyClicksignConfig } from "@/lib/clicksign.functions";
 import { cn } from "@/lib/utils";
 
 // ---------------------------------------------------------------------------
 // Racional importado do Orks Tech: busca + filtros com contadores, cards
-// compactos com expansividade única (apenas um aberto por vez) e badges de
-// status. Só listamos integrações que o anfitrião conecta — serviços internos
-// da plataforma (mapas, pagamentos, IA, e-mail) não aparecem aqui.
+// compactos com expansividade única (apenas um aberto por vez), badges de
+// status e ordenação Ativas → Não conectadas → Em breve. Só listamos
+// integrações que o anfitrião conecta — módulos internos da plataforma
+// (mapas, pagamentos, IA, e-mail, iCal do Airbnb) não aparecem aqui.
 // ---------------------------------------------------------------------------
 
 type StatusKey = "ativa" | "inativa" | "em_breve";
@@ -36,9 +37,8 @@ type IntegrationConfig = {
   key: string;
   nome: string;
   descricao: string;
-  categoria: "Comunicação" | "Reservas" | "Operação" | "Documentos";
+  categoria: "Comunicação" | "Operação" | "Documentos";
   icon: typeof MessageCircle;
-  docsUrl?: string;
   detalhe: string;
 };
 
@@ -53,33 +53,26 @@ const INTEGRATIONS: IntegrationConfig[] = [
       "Conecte o número oficial da sua operação para centralizar as conversas dos hóspedes no painel de Atendimento.",
   },
   {
-    key: "airbnb",
-    nome: "Airbnb iCal",
-    descricao: "Sincronize reservas e datas de check-in e check-out automaticamente.",
-    categoria: "Reservas",
-    icon: CalendarSync,
+    key: "clicksign",
+    nome: "ClickSign",
+    descricao: "Importe todos os contratos assinados e vincule a proprietários e hóspedes.",
+    categoria: "Documentos",
+    icon: FileSignature,
     detalhe:
-      "Cada residência tem seu próprio link iCal. A sincronização alimenta o painel de Operação com chegadas e saídas reais.",
+      "Informe a chave de API para importar o histórico completo de documentos. Cada contrato é vinculado automaticamente ao proprietário, prestador ou hóspede correspondente pelo CPF/CNPJ, e-mail ou nome do signatário.",
   },
   {
     key: "gcal",
     nome: "Google Agenda",
-    descricao: "Espelhe chegadas, saídas e limpezas na agenda da sua equipe.",
+    descricao: "Espelhe chegadas, saídas, limpezas, gravações e transcrições da equipe.",
     categoria: "Operação",
     icon: CalendarDays,
-    detalhe: "Sincronização bidirecional com a agenda da equipe.",
-  },
-  {
-    key: "clicksign",
-    nome: "ClickSign",
-    descricao: "Contratos e termos de hospedagem assinados digitalmente.",
-    categoria: "Documentos",
-    icon: FileSignature,
-    detalhe: "Envio automático de contratos para assinatura ao confirmar a reserva.",
+    detalhe:
+      "Conexão por conta Google de cada anfitrião (OAuth). A liberação depende da aprovação do cliente OAuth Google no workspace — assim que aprovado, agendas, gravações e transcrições são importadas.",
   },
 ];
 
-const COMING_SOON = new Set(["gcal", "clicksign"]);
+const COMING_SOON = new Set(["gcal"]);
 
 type FilterKey = "todas" | "ativas" | "inativas" | "em_breve";
 
@@ -89,6 +82,8 @@ const FILTERS: Array<{ key: FilterKey; label: string; icon: typeof Plug }> = [
   { key: "inativas", label: "Inativas", icon: XCircle },
   { key: "em_breve", label: "Em breve", icon: Clock },
 ];
+
+const STATUS_ORDER: Record<StatusKey, number> = { ativa: 0, inativa: 1, em_breve: 2 };
 
 export function IntegracoesPage() {
   const [q, setQ] = useState("");
@@ -104,15 +99,27 @@ export function IntegracoesPage() {
   });
   const waActive = !!wa.data?.senderNumber;
 
+  const csFn = useServerFn(getMyClicksignConfig);
+  const cs = useQuery({
+    queryKey: ["clicksign-config"],
+    queryFn: () => csFn(),
+    retry: false,
+  });
+  const csActive = !!cs.data?.hasToken;
+
   const items = useMemo(
     () =>
       INTEGRATIONS.map((cfg) => {
-        let statusKey: StatusKey = "ativa";
+        let statusKey: StatusKey = "inativa";
         if (COMING_SOON.has(cfg.key)) statusKey = "em_breve";
         else if (cfg.key === "whatsapp") statusKey = waActive ? "ativa" : "inativa";
+        else if (cfg.key === "clicksign") statusKey = csActive ? "ativa" : "inativa";
         return { cfg, statusKey };
-      }),
-    [waActive],
+      }).sort(
+        (a, b) =>
+          STATUS_ORDER[a.statusKey] - STATUS_ORDER[b.statusKey] || a.cfg.nome.localeCompare(b.cfg.nome, "pt-BR"),
+      ),
+    [waActive, csActive],
   );
 
   const counts = useMemo(
@@ -133,6 +140,7 @@ export function IntegracoesPage() {
     if (!term) return true;
     return `${cfg.nome} ${cfg.descricao} ${cfg.categoria}`.toLowerCase().includes(term);
   });
+
 
   return (
     <div className="w-full space-y-5">
