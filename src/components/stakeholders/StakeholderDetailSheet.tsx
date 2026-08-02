@@ -22,6 +22,9 @@ import {
   Link2,
   Unlink,
   ExternalLink,
+  CalendarDays,
+  Video,
+  Download,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,6 +38,7 @@ import {
   deleteStakeholderActivity,
   linkPropertyToOwner,
 } from "@/lib/stakeholders.functions";
+import { getStakeholderIntegrationFeed } from "@/lib/stakeholder-feed.functions";
 import type { StakeholderKind } from "./StakeholderDirectory";
 import { PROVIDER_CATEGORIES } from "./StakeholderDirectory";
 
@@ -152,6 +156,8 @@ export function StakeholderDetailSheet({
       ? PROVIDER_CATEGORIES.find((c) => c.value === row.category)?.label ?? "Outros"
       : null;
 
+  const feedEvents = feed.data?.events ?? [];
+  const feedDocs = feed.data?.documents ?? [];
   const activities = data?.activities ?? [];
   const events = data?.events ?? [];
   const properties = data?.properties ?? [];
