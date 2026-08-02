@@ -34,9 +34,31 @@ export function ClicksignPanel() {
   const [token, setToken] = useState("");
   const [importOpen, setImportOpen] = useState(false);
   const [disconnectOpen, setDisconnectOpen] = useState(false);
+  const [showSecret, setShowSecret] = useState(false);
 
   const cfg = useQuery({ queryKey: ["clicksign-config"], queryFn: () => getFn(), retry: false });
   const connected = !!cfg.data?.hasToken;
+
+  const rotateFn = useServerFn(rotateMyClicksignWebhookSecret);
+  const rotate = useMutation({
+    mutationFn: async () => rotateFn(),
+    onSuccess: () => {
+      toast.success("Novo segredo gerado — atualize no ClickSign.");
+      qc.invalidateQueries({ queryKey: ["clicksign-config"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const origin = typeof window !== "undefined" ? window.location.origin : "";
+  const webhookUrl = cfg.data?.ownerId
+    ? `${origin}/api/public/clicksign-webhook?o=${cfg.data.ownerId}`
+    : "";
+
+  const copy = (value: string, msg: string) => {
+    if (!value) return;
+    void navigator.clipboard.writeText(value).then(() => toast.success(msg));
+  };
+
 
   const docs = useQuery({
     queryKey: ["clicksign-docs"],
