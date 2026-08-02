@@ -175,8 +175,18 @@ export const getStakeholderDetail = createServerFn({ method: "GET" })
         .eq("stakeholder_id", data.id)
         .order("created_at", { ascending: false }),
     ]);
-    let properties: Array<Record<string, unknown>> = [];
-    let availableProperties: Array<Record<string, unknown>> = [];
+    type PropRow = {
+      id: string;
+      name: string;
+      slug: string;
+      published: boolean;
+      city: string | null;
+      state: string | null;
+      owner_contact_id: string | null;
+    };
+    let properties: PropRow[] = [];
+    let availableProperties: PropRow[] = [];
+
     if (data.kind === "owner") {
       const { data: all } = await supabase
         .from("properties")
