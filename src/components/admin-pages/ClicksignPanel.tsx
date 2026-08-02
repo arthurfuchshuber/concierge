@@ -113,6 +113,83 @@ export function ClicksignPanel() {
         </a>
       </p>
 
+      {connected && (
+        <div className="space-y-2 rounded-xl border border-border bg-secondary/30 p-3">
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-xs font-medium">Webhook</p>
+            {cfg.data?.webhookLastEventAt ? (
+              <span className="text-[10px] text-muted-foreground">
+                último evento {new Date(cfg.data.webhookLastEventAt).toLocaleString("pt-BR")}
+              </span>
+            ) : (
+              <span className="text-[10px] text-muted-foreground">nenhum evento recebido</span>
+            )}
+          </div>
+          <p className="text-[11px] text-muted-foreground">
+            Em Configurações → API → Webhooks no ClickSign, adicione a URL abaixo e cole o segredo
+            no campo de HMAC para receber assinaturas em tempo real.
+          </p>
+          <div>
+            <Label className="text-[10px] uppercase tracking-wide text-muted-foreground">URL</Label>
+            <div className="flex items-center gap-1.5">
+              <Input readOnly value={webhookUrl} className="h-8 font-mono text-[11px]" />
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="h-8 shrink-0 rounded-full px-2"
+                onClick={() => copy(webhookUrl, "URL copiada.")}
+              >
+                <Copy className="size-3.5" />
+              </Button>
+            </div>
+          </div>
+          <div>
+            <Label className="text-[10px] uppercase tracking-wide text-muted-foreground">
+              Segredo (HMAC-SHA256)
+            </Label>
+            <div className="flex items-center gap-1.5">
+              <Input
+                readOnly
+                value={cfg.data?.webhookSecret ?? ""}
+                type={showSecret ? "text" : "password"}
+                className="h-8 font-mono text-[11px]"
+              />
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="h-8 shrink-0 rounded-full px-2"
+                onClick={() => setShowSecret((v) => !v)}
+              >
+                {showSecret ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="h-8 shrink-0 rounded-full px-2"
+                onClick={() => copy(cfg.data?.webhookSecret ?? "", "Segredo copiado.")}
+              >
+                <Copy className="size-3.5" />
+              </Button>
+            </div>
+          </div>
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            className="h-7 rounded-full text-[11px]"
+            onClick={() => rotate.mutate()}
+            disabled={rotate.isPending}
+          >
+            {rotate.isPending ? <Loader2 className="mr-1 size-3 animate-spin" /> : null}
+            Gerar novo segredo
+          </Button>
+        </div>
+      )}
+
+
       {cfg.data?.lastError && (
         <p className="rounded-lg border border-red-500/30 bg-red-500/5 px-3 py-2 text-[11px] text-red-600 dark:text-red-400">
           {cfg.data.lastError}
