@@ -344,9 +344,14 @@ export function ClicksignPanel() {
           onClick={() => save.mutate()}
           disabled={save.isPending}
         >
-          {save.isPending ? <Loader2 className="mr-1 size-3.5 animate-spin" /> : null}
-          {connected ? "Reconectar" : "Conectar"}
+          {save.isPending ? (
+            <Loader2 className="mr-1 size-3.5 animate-spin" />
+          ) : (
+            <Save className="mr-1 size-3.5" />
+          )}
+          {connected ? "Salvar" : "Conectar"}
         </Button>
+
         {connected && (
           <DropdownMenu modal={false}>
 
