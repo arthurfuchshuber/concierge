@@ -133,7 +133,7 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
     }
     setTranslations((p) => ({ ...p, [id]: { text: null, loading: true, showing: false } }));
     try {
-      const r = await translateFn({ data: { text: content.slice(0, 4000), targetLang: myLang } });
+      const r = await translateFn({ data: { text: content.slice(0, 2000), targetLang: myLang } });
       setTranslations((p) => ({ ...p, [id]: { text: r.translated, loading: false, showing: true } }));
     } catch (e) {
       setTranslations((p) => ({ ...p, [id]: { text: null, loading: false, showing: false } }));
