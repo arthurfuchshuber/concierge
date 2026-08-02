@@ -164,6 +164,44 @@ export function LinkEventDialog({
               ))}
           </div>
 
+          {scope === "keyword" ? (
+            <div className="space-y-2 rounded-xl border border-border bg-muted/30 p-2.5">
+              <Input
+                value={keywords}
+                onChange={(e) => setKeywords(e.target.value)}
+                placeholder="Ex.: reforma, pintura, vistoria"
+                className="h-9 text-xs"
+              />
+              <p className="text-[10px] leading-snug text-muted-foreground">
+                Separe por vírgula. Vale se <strong>qualquer</strong> termo aparecer no título ou na descrição do
+                evento (não diferencia maiúsculas nem acentos).
+              </p>
+              {suggestions.length > 0 ? (
+                <div className="flex flex-wrap gap-1">
+                  {suggestions.map((s) => (
+                    <button
+                      key={s}
+                      type="button"
+                      onClick={() =>
+                        setKeywords((prev) => {
+                          const list = prev.split(",").map((k) => k.trim()).filter(Boolean);
+                          return list.includes(s)
+                            ? list.filter((k) => k !== s).join(", ")
+                            : [...list, s].join(", ");
+                        })
+                      }
+                      className="rounded-full border border-border bg-card px-2 py-0.5 text-[10px] text-muted-foreground hover:text-foreground"
+                    >
+                      + {s}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+
+
+
           <div className="relative">
             <Search className="absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
             <Input
