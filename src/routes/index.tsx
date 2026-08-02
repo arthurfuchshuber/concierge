@@ -1128,7 +1128,80 @@ function FAQ() {
 }
 
 /* ---------- FINAL CTA ---------- */
+/* ---------- PURPOSE / SOBRE O APLICATIVO ---------- */
+function Purpose() {
+  return (
+    <section id="sobre" className="py-20 sm:py-24 border-t border-black/5">
+      <div className="max-w-4xl mx-auto px-5 sm:px-8">
+        <div className="inline-flex items-center gap-2 rounded-full bg-white border border-black/5 px-3.5 py-1.5 text-[11px] font-semibold uppercase tracking-widest text-black/70 shadow-sm">
+          <ShieldCheck className="size-3.5" style={{ color: "#7C1AD8" }} />
+          Sobre o aplicativo
+        </div>
+
+        <h2 className="mt-5 font-display font-extrabold text-[26px] sm:text-4xl leading-tight tracking-tight text-balance">
+          O que é o ConciergeIA
+        </h2>
+
+        <p className="mt-4 text-[15px] sm:text-lg text-black/70 leading-relaxed text-pretty">
+          O <strong>ConciergeIA</strong> é um aplicativo web de gestão e atendimento para
+          anfitriões de aluguel por temporada, desenvolvido e operado pela{" "}
+          <strong>Anfitrião Sigma</strong> (Brasil). Ele centraliza o guia digital do imóvel,
+          o atendimento automatizado por IA aos hóspedes, o controle operacional de check-in
+          e check-out e o relacionamento com proprietários e prestadores de serviço.
+        </p>
+
+        <h3 className="mt-10 font-display font-bold text-xl">Para que serve</h3>
+        <ul className="mt-4 space-y-3 text-[15px] text-black/70">
+          {[
+            "Publicar um guia digital por residência (acesso, Wi-Fi, regras, recomendações da cidade).",
+            "Responder dúvidas dos hóspedes 24/7 por IA, com transferência para atendimento humano quando necessário.",
+            "Organizar chegadas, saídas e limpezas em um painel operacional com sincronização de reservas.",
+            "Gerenciar cadastros de proprietários, hóspedes e prestadores de serviço.",
+          ].map((t) => (
+            <li key={t} className="flex gap-3">
+              <Check className="size-5 shrink-0" style={{ color: "#7C1AD8" }} />
+              <span>{t}</span>
+            </li>
+          ))}
+        </ul>
+
+        <h3 className="mt-10 font-display font-bold text-xl">
+          Como o ConciergeIA usa os serviços do Google
+        </h3>
+        <p className="mt-4 text-[15px] text-black/70 leading-relaxed text-pretty">
+          A integração com o <strong>Google Agenda</strong> é opcional e só é ativada quando o
+          próprio anfitrião autoriza sua conta Google dentro do painel. Com a autorização, o
+          ConciergeIA lê os eventos da agenda do usuário para exibir, em uma linha do tempo
+          única, os compromissos relacionados a cada imóvel, proprietário ou prestador de
+          serviço (visitas, manutenções, vistorias e limpezas). Os dados obtidos são usados
+          exclusivamente para essa finalidade dentro da conta do usuário, não são vendidos,
+          não são usados para publicidade e podem ser revogados a qualquer momento
+          desconectando a integração no painel.
+        </p>
+
+        <div className="mt-8 flex flex-wrap gap-4 text-sm font-semibold">
+          <Link to="/privacidade" className="underline underline-offset-4 hover:opacity-70">
+            Política de Privacidade
+          </Link>
+          <Link to="/termos" className="underline underline-offset-4 hover:opacity-70">
+            Termos de Serviço
+          </Link>
+          <a
+            href="https://www.anfitriaosigma.com.br"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline underline-offset-4 hover:opacity-70"
+          >
+            Anfitrião Sigma
+          </a>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function FinalCTA() {
+
   return (
     <section className="py-20 sm:py-28">
       <div className="max-w-5xl mx-auto px-5 sm:px-8">
