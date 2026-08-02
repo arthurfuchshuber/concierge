@@ -19,6 +19,8 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { WhatsappBusinessPage } from "@/components/admin-pages/WhatsappBusinessPage";
 import { ClicksignPanel } from "@/components/admin-pages/ClicksignPanel";
+import { GoogleCalendarPanel } from "@/components/admin-pages/GoogleCalendarPanel";
+import { getMyGoogleCalendarStatus } from "@/lib/google-calendar.functions";
 import { getMyWhatsappConfig } from "@/lib/whatsapp.functions";
 import { getMyClicksignConfig } from "@/lib/clicksign.functions";
 import { cn } from "@/lib/utils";
