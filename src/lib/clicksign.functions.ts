@@ -92,11 +92,41 @@ export const saveMyClicksignConfig = createServerFn({ method: "POST" })
 
 export const disconnectMyClicksign = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
+  .inputValidator((raw) => z.object({ purge: z.boolean().default(false) }).parse(raw ?? {}))
+  .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
+
+    if (data.purge) {
+      // Remove tudo que a integração criou: contratos importados e os cadastros
+      // gerados automaticamente (os manuais permanecem intactos).
+      const [{ data: owners }, { data: providers }] = await Promise.all([
+        supabase.from("property_owners").select("id")
+          .eq("account_owner_id", userId).eq("created_via", "clicksign"),
+        supabase.from("service_providers").select("id")
+          .eq("account_owner_id", userId).eq("created_via", "clicksign"),
+      ]);
+      const ids = [
+        ...(owners ?? []).map((r) => r.id),
+        ...(providers ?? []).map((r) => r.id),
+      ];
+      if (ids.length) {
+        await supabase.from("stakeholder_link_aliases").delete()
+          .eq("account_owner_id", userId).in("stakeholder_id", ids);
+      }
+      await supabase.from("clicksign_documents").delete().eq("account_owner_id", userId);
+      if (owners?.length) {
+        await supabase.from("property_owners").delete()
+          .eq("account_owner_id", userId).eq("created_via", "clicksign");
+      }
+      if (providers?.length) {
+        await supabase.from("service_providers").delete()
+          .eq("account_owner_id", userId).eq("created_via", "clicksign");
+      }
+    }
+
     await supabase.from("host_integration_credentials").delete()
       .eq("owner_id", userId).eq("provider", "clicksign");
-    return { ok: true };
+    return { ok: true, purged: data.purge };
   });
 
 export const syncMyClicksignDocuments = createServerFn({ method: "POST" })
