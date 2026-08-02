@@ -2453,6 +2453,42 @@ export type Database = {
         }
         Relationships: []
       }
+      stakeholder_link_aliases: {
+        Row: {
+          account_owner_id: string
+          alias_kind: string
+          alias_value: string
+          created_at: string
+          created_by: string | null
+          id: string
+          stakeholder_id: string
+          stakeholder_type: string
+          updated_at: string
+        }
+        Insert: {
+          account_owner_id: string
+          alias_kind: string
+          alias_value: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          stakeholder_id: string
+          stakeholder_type: string
+          updated_at?: string
+        }
+        Update: {
+          account_owner_id?: string
+          alias_kind?: string
+          alias_value?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          stakeholder_id?: string
+          stakeholder_type?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       subscriptions: {
         Row: {
           admin_notes: string | null
