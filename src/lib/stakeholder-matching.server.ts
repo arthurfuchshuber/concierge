@@ -91,6 +91,7 @@ export function buildMatchIndex(
   const idx: MatchIndex = {
     byAlias: new Map(), byDoc: new Map(), byEmail: new Map(),
     byDomain: new Map(), byPhone: new Map(), byName: new Map(),
+    keywords: [],
   };
 
   const feed = (rows: StakeholderRow[], type: StakeholderKind) => {
