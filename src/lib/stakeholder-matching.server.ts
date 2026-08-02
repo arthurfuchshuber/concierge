@@ -64,6 +64,8 @@ export type MatchIndex = {
   byDomain: Map<string, StakeholderRef>;
   byPhone: Map<string, StakeholderRef>;
   byName: Map<string, StakeholderRef>;
+  /** Vínculos por palavra-chave: casam quando o termo aparece no título/descrição. */
+  keywords: Array<{ terms: string[]; ref: StakeholderRef }>;
 };
 
 function label(row: StakeholderRow): string {
