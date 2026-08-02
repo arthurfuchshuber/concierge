@@ -6,13 +6,12 @@ import {
   saveMyWhatsappConfig,
   disconnectMyWhatsappConfig,
 } from "@/lib/whatsapp.functions";
-import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { CopyButton } from "@/components/CopyButton";
-import { MessageCircle, ExternalLink, Loader2, Trash2 } from "lucide-react";
+import { ExternalLink, Loader2, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 export function WhatsappBusinessPage() {
