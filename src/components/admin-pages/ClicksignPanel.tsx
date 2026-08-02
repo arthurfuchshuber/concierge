@@ -249,20 +249,10 @@ export function ClicksignPanel() {
                   </Button>
                 </div>
               </div>
-              <Button
-                type="button"
-                size="sm"
-                className="h-8 rounded-full text-xs"
-                onClick={() => saveSecret.mutate()}
-                disabled={saveSecret.isPending || secret.trim().length < 8}
-              >
-                {saveSecret.isPending ? (
-                  <Loader2 className="mr-1 size-3.5 animate-spin" />
-                ) : (
-                  <Save className="mr-1 size-3.5" />
-                )}
-                Salvar segredo
-              </Button>
+              <p className="text-[10px] text-muted-foreground">
+                O segredo é salvo junto com a chave de API ao clicar em “Salvar”.
+              </p>
+
             </AccordionContent>
           </AccordionItem>
         )}
