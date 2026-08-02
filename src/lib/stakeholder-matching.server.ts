@@ -22,7 +22,7 @@ export type StakeholderRow = {
 };
 
 export type AliasRow = {
-  alias_kind: "email" | "domain" | "doc" | "name";
+  alias_kind: "email" | "domain" | "doc" | "name" | "event" | "title";
   alias_value: string;
   stakeholder_type: StakeholderKind;
   stakeholder_id: string;
@@ -140,13 +140,30 @@ function valid(ref: StakeholderRef | undefined): StakeholderRef | null {
  */
 export function resolveStakeholder(
   idx: MatchIndex,
-  signals: { emails?: string[]; docs?: string[]; phones?: string[]; texts?: string[] },
+  signals: {
+    emails?: string[];
+    docs?: string[];
+    phones?: string[];
+    texts?: string[];
+    /** IDs de eventos da agenda (vínculo manual pontual). */
+    eventIds?: string[];
+    /** Títulos de eventos (vínculo manual recorrente). */
+    titles?: string[];
+  },
 ): StakeholderRef | null {
   const emails = (signals.emails ?? []).map(norm).filter((e) => e.includes("@"));
   const docs = (signals.docs ?? []).map(digits).filter((d) => d.length === 11 || d.length === 14);
   const phones = (signals.phones ?? []).map((p) => digits(p).slice(-11)).filter((p) => p.length >= 10);
   const texts = (signals.texts ?? []).map(norm).filter(Boolean);
 
+  for (const id of signals.eventIds ?? []) {
+    const hit = valid(idx.byAlias.get(`event:${String(id).toLowerCase().trim()}`));
+    if (hit) return hit;
+  }
+  for (const t of signals.titles ?? []) {
+    const hit = valid(idx.byAlias.get(`title:${norm(t)}`));
+    if (hit) return hit;
+  }
   for (const d of docs) {
     const hit = valid(idx.byAlias.get(`doc:${d}`)) ?? valid(idx.byDoc.get(d));
     if (hit) return hit;

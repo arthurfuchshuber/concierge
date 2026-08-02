@@ -12,7 +12,7 @@ import {
   listMyGoogleCalendars,
   listMyGoogleCalendarEvents,
 } from "@/lib/google-calendar.functions";
-import { listStakeholderOptions, saveStakeholderAlias } from "@/lib/stakeholder-links.functions";
+import { LinkEventDialog, type LinkTarget } from "@/components/stakeholders/LinkEventDialog";
 
 
 const CONNECTOR_ID = "google_calendar";
@@ -55,12 +55,10 @@ export function GoogleCalendarPanel() {
   const discFn = useServerFn(disconnectMyGoogleCalendar);
   const calsFn = useServerFn(listMyGoogleCalendars);
   const eventsFn = useServerFn(listMyGoogleCalendarEvents);
-  const optionsFn = useServerFn(listStakeholderOptions);
-  const aliasFn = useServerFn(saveStakeholderAlias);
-
   const qc = useQueryClient();
 
-  const [calendarId, setCalendarId] = useState("primary");
+  const [calendarId, setCalendarId] = useState("all");
+  const [linkTarget, setLinkTarget] = useState<LinkTarget | null>(null);
 
   const status = useQuery({ queryKey: ["gcal-status"], queryFn: () => statusFn(), retry: false });
   const connected = !!status.data?.connected;
@@ -78,36 +76,6 @@ export function GoogleCalendarPanel() {
     enabled: connected,
     retry: false,
   });
-
-  const stakeholders = useQuery({
-    queryKey: ["stakeholder-options"],
-    queryFn: () => optionsFn(),
-    enabled: connected,
-    retry: false,
-  });
-
-  const link = useMutation({
-    mutationFn: (vars: {
-      kind: "email" | "domain";
-      value: string;
-      stakeholderType: "owner" | "provider";
-      stakeholderId: string;
-    }) =>
-      aliasFn({
-        data: {
-          aliasKind: vars.kind,
-          aliasValue: vars.value,
-          stakeholderType: vars.stakeholderType,
-          stakeholderId: vars.stakeholderId,
-        },
-      }),
-    onSuccess: () => {
-      toast.success("Vínculo salvo. Eventos futuros com esse contato entram sozinhos.");
-      qc.invalidateQueries({ queryKey: ["gcal-events"] });
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
-
 
   const connect = useMutation({
     mutationFn: async () => {
@@ -182,13 +150,24 @@ export function GoogleCalendarPanel() {
 
       {(cals.data?.length ?? 0) > 0 && (
         <div className="flex flex-wrap gap-1.5">
+          <button
+            type="button"
+            onClick={() => setCalendarId("all")}
+            className={`rounded-full border px-2.5 py-1 text-[11px] transition-colors ${
+              calendarId === "all"
+                ? "border-primary bg-primary text-primary-foreground"
+                : "border-border bg-card text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            Todas as agendas
+          </button>
           {cals.data!.map((c) => (
             <button
               key={c.id}
               type="button"
               onClick={() => setCalendarId(c.id)}
               className={`rounded-full border px-2.5 py-1 text-[11px] transition-colors ${
-                calendarId === c.id || (calendarId === "primary" && c.primary)
+                calendarId === c.id
                   ? "border-primary bg-primary text-primary-foreground"
                   : "border-border bg-card text-muted-foreground hover:text-foreground"
               }`}
@@ -269,36 +248,26 @@ export function GoogleCalendarPanel() {
                     <Badge className="border-0 bg-emerald-500/15 text-[10px] text-emerald-600 dark:text-emerald-400">
                       {ev.link.type === "owner" ? "Proprietário" : "Prestador"}: {ev.link.label}
                     </Badge>
-                  ) : ev.suggestedAlias ? (
+                  ) : (
                     <>
                       <span className="text-[10px] text-muted-foreground">
-                        Sem vínculo ({ev.suggestedAlias.value}) —
+                        Sem vínculo{ev.suggestedAlias ? ` (${ev.suggestedAlias.value})` : " (sem e-mail no convite)"}
                       </span>
-                      <select
-                        className="h-6 rounded-full border border-border bg-card px-2 text-[10px] text-foreground"
-                        defaultValue=""
-                        disabled={link.isPending}
-                        onChange={(e) => {
-                          const [type, id] = e.target.value.split(":");
-                          if (!type || !id) return;
-                          link.mutate({
-                            kind: ev.suggestedAlias!.kind,
-                            value: ev.suggestedAlias!.value,
-                            stakeholderType: type as "owner" | "provider",
-                            stakeholderId: id,
-                          });
-                        }}
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-6 rounded-full px-2 text-[10px]"
+                        onClick={() =>
+                          setLinkTarget({
+                            eventId: ev.id,
+                            title: ev.summary,
+                            suggested: ev.suggestedAlias,
+                          })
+                        }
                       >
-                        <option value="">vincular a…</option>
-                        {(stakeholders.data ?? []).map((s) => (
-                          <option key={`${s.type}:${s.id}`} value={`${s.type}:${s.id}`}>
-                            {s.type === "owner" ? "🏠" : "🛠"} {s.label}
-                          </option>
-                        ))}
-                      </select>
+                        Vincular a…
+                      </Button>
                     </>
-                  ) : (
-                    <span className="text-[10px] text-muted-foreground">Sem participantes externos</span>
                   )}
                 </div>
               </li>
@@ -317,6 +286,8 @@ export function GoogleCalendarPanel() {
       >
         <Trash2 className="mr-1 size-3" /> Desconectar
       </Button>
+
+      <LinkEventDialog target={linkTarget} onOpenChange={(o) => !o && setLinkTarget(null)} />
     </div>
   );
 }

@@ -22,6 +22,9 @@ import {
   Link2,
   Unlink,
   ExternalLink,
+  CalendarDays,
+  Video,
+  Download,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,6 +38,7 @@ import {
   deleteStakeholderActivity,
   linkPropertyToOwner,
 } from "@/lib/stakeholders.functions";
+import { getStakeholderIntegrationFeed } from "@/lib/stakeholder-feed.functions";
 import type { StakeholderKind } from "./StakeholderDirectory";
 import { PROVIDER_CATEGORIES } from "./StakeholderDirectory";
 
@@ -80,7 +84,16 @@ export function StakeholderDetailSheet({
     refetchInterval: 20_000,
   });
 
+  const feedFn = useServerFn(getStakeholderIntegrationFeed);
+  const feed = useQuery({
+    queryKey: ["stakeholder-feed", kind, id],
+    queryFn: () => feedFn({ data: { type: kind, id } }),
+    staleTime: 5 * 60_000,
+    retry: false,
+  });
+
   const row = data?.row as Record<string, any> | null | undefined;
+
 
   async function submitNote() {
     if (!note.trim()) return;
@@ -152,6 +165,8 @@ export function StakeholderDetailSheet({
       ? PROVIDER_CATEGORIES.find((c) => c.value === row.category)?.label ?? "Outros"
       : null;
 
+  const feedEvents = feed.data?.events ?? [];
+  const feedDocs = feed.data?.documents ?? [];
   const activities = data?.activities ?? [];
   const events = data?.events ?? [];
   const properties = data?.properties ?? [];
@@ -379,15 +394,74 @@ export function StakeholderDetailSheet({
                 <Plus className="size-4" />
               </Button>
             </div>
+            {feed.isLoading && (
+              <p className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                <Loader2 className="size-3 animate-spin" /> Importando agenda e documentos…
+              </p>
+            )}
+            {feed.data?.calendarError && (
+              <p className="text-[11px] text-destructive">Google Agenda: {feed.data.calendarError}</p>
+            )}
             <ol className="relative border-l border-border pl-4 space-y-3">
-              {events.map((ev: any) => (
-                <li key={ev.id} className="relative">
-                  <span className="absolute -left-[21px] top-1.5 size-2 rounded-full bg-primary/70" />
-                  <p className="text-sm">{ev.message}</p>
-                  <p className="text-[11px] text-muted-foreground">{fmt(ev.created_at)}</p>
-                </li>
-              ))}
-              {events.length === 0 && <li className="text-xs text-muted-foreground">Sem registros.</li>}
+              {[
+                ...events.map((ev: any) => ({
+                  key: `n:${ev.id}`,
+                  at: ev.created_at as string,
+                  node: (
+                    <>
+                      <p className="text-sm">{ev.message}</p>
+                      <p className="text-[11px] text-muted-foreground">{fmt(ev.created_at)}</p>
+                    </>
+                  ),
+                })),
+                ...feedEvents.map((ev) => ({
+                  key: `g:${ev.id}`,
+                  at: ev.at ?? "",
+                  node: (
+                    <>
+                      <p className="text-sm flex items-center gap-1.5">
+                        <CalendarDays className="size-3.5 text-muted-foreground shrink-0" />
+                        <span className="truncate">{ev.title}</span>
+                        {ev.htmlLink && (
+                          <a href={ev.htmlLink} target="_blank" rel="noreferrer" className="text-muted-foreground hover:text-foreground">
+                            <ExternalLink className="size-3" />
+                          </a>
+                        )}
+                      </p>
+                      <p className="text-[11px] text-muted-foreground">
+                        {ev.at ? fmt(ev.at) : "Sem data"} · {ev.calendarName}
+                        {ev.attendees.length > 0 ? ` · ${ev.attendees.length} participantes` : ""}
+                      </p>
+                      {ev.attachments.length > 0 && (
+                        <div className="mt-1 flex flex-wrap gap-1.5">
+                          {ev.attachments.map((a) => (
+                            <a
+                              key={a.url}
+                              href={a.url}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[10px] text-muted-foreground hover:text-foreground"
+                            >
+                              {a.kind === "transcript" ? <FileText className="size-2.5" /> : <Video className="size-2.5" />}
+                              {a.kind === "transcript" ? "Transcrição" : a.kind === "recording" ? "Gravação" : a.title}
+                            </a>
+                          ))}
+                        </div>
+                      )}
+                    </>
+                  ),
+                })),
+              ]
+                .sort((a, b) => String(b.at).localeCompare(String(a.at)))
+                .map((item) => (
+                  <li key={item.key} className="relative">
+                    <span className="absolute -left-[21px] top-1.5 size-2 rounded-full bg-primary/70" />
+                    {item.node}
+                  </li>
+                ))}
+              {events.length === 0 && feedEvents.length === 0 && (
+                <li className="text-xs text-muted-foreground">Sem registros.</li>
+              )}
             </ol>
           </TabsContent>
 
@@ -399,13 +473,45 @@ export function StakeholderDetailSheet({
             />
           </TabsContent>
 
-          <TabsContent value="documentos" className="mt-5">
-            <Placeholder
-              icon={Paperclip}
-              title="Documentos em construção"
-              desc="Contratos, procurações e anexos ficarão centralizados nesta aba."
-            />
+          <TabsContent value="documentos" className="mt-5 space-y-3">
+            {feed.isLoading ? (
+              <p className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                <Loader2 className="size-3 animate-spin" /> Buscando documentos…
+              </p>
+            ) : feedDocs.length === 0 ? (
+              <Placeholder
+                icon={Paperclip}
+                title="Nenhum documento vinculado"
+                desc="Contratos importados do ClickSign com este CPF/CNPJ, e-mail ou nome aparecem aqui automaticamente."
+              />
+            ) : (
+              <ul className="divide-y divide-border rounded-xl border border-border">
+                {feedDocs.map((d) => (
+                  <li key={d.id} className="flex items-start justify-between gap-2 px-3 py-2">
+                    <div className="min-w-0">
+                      <p className="truncate text-xs font-medium">{d.name}</p>
+                      <p className="text-[11px] text-muted-foreground">
+                        {d.status ?? "—"}
+                        {d.at ? ` · ${fmt(d.at)}` : ""}
+                        {d.signers.length > 0 ? ` · ${d.signers.length} signatários` : ""}
+                      </p>
+                    </div>
+                    {(d.urlSigned || d.urlOriginal) && (
+                      <a
+                        href={(d.urlSigned || d.urlOriginal) as string}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="shrink-0 text-muted-foreground hover:text-foreground"
+                      >
+                        <Download className="size-3.5" />
+                      </a>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
           </TabsContent>
+
         </Tabs>
       </div>
     </div>
