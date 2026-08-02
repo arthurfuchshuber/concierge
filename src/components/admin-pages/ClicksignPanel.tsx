@@ -348,7 +348,8 @@ export function ClicksignPanel() {
           {connected ? "Reconectar" : "Conectar"}
         </Button>
         {connected && (
-          <DropdownMenu>
+          <DropdownMenu modal={false}>
+
             <DropdownMenuTrigger asChild>
               <Button size="sm" variant="outline" className="h-8 shrink-0 rounded-full text-xs">
                 <MoreHorizontal className="mr-1 size-3.5" /> Ações
