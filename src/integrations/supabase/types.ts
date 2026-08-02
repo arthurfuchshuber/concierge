@@ -508,6 +508,74 @@ export type Database = {
           },
         ]
       }
+      clicksign_documents: {
+        Row: {
+          account_owner_id: string
+          created_at: string
+          document_key: string
+          finished_at: string | null
+          guest_name: string | null
+          id: string
+          name: string | null
+          property_id: string | null
+          raw: Json | null
+          signers: Json
+          stakeholder_id: string | null
+          stakeholder_type: string | null
+          status: string | null
+          synced_at: string
+          updated_at: string
+          url_original: string | null
+          url_signed: string | null
+        }
+        Insert: {
+          account_owner_id: string
+          created_at?: string
+          document_key: string
+          finished_at?: string | null
+          guest_name?: string | null
+          id?: string
+          name?: string | null
+          property_id?: string | null
+          raw?: Json | null
+          signers?: Json
+          stakeholder_id?: string | null
+          stakeholder_type?: string | null
+          status?: string | null
+          synced_at?: string
+          updated_at?: string
+          url_original?: string | null
+          url_signed?: string | null
+        }
+        Update: {
+          account_owner_id?: string
+          created_at?: string
+          document_key?: string
+          finished_at?: string | null
+          guest_name?: string | null
+          id?: string
+          name?: string | null
+          property_id?: string | null
+          raw?: Json | null
+          signers?: Json
+          stakeholder_id?: string | null
+          stakeholder_type?: string | null
+          status?: string | null
+          synced_at?: string
+          updated_at?: string
+          url_original?: string | null
+          url_signed?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "clicksign_documents_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       email_send_log: {
         Row: {
           created_at: string
@@ -919,6 +987,45 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      host_integration_credentials: {
+        Row: {
+          api_token_encrypted: string | null
+          created_at: string
+          environment: string
+          last_error: string | null
+          last_sync_at: string | null
+          last_verified_at: string | null
+          owner_id: string
+          provider: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          api_token_encrypted?: string | null
+          created_at?: string
+          environment?: string
+          last_error?: string | null
+          last_sync_at?: string | null
+          last_verified_at?: string | null
+          owner_id: string
+          provider: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          api_token_encrypted?: string | null
+          created_at?: string
+          environment?: string
+          last_error?: string | null
+          last_sync_at?: string | null
+          last_verified_at?: string | null
+          owner_id?: string
+          provider?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       host_knowledge: {
         Row: {
