@@ -1,5 +1,5 @@
 import { createFileRoute, Outlet, Link, useNavigate, useRouterState } from "@tanstack/react-router";
-import { LogOut, LayoutDashboard, Settings2, Menu, Users, Shield, Library, ShieldCheck, Activity, Star, Headphones, Home, Contact, Plug } from "lucide-react";
+import { LogOut, LayoutDashboard, Settings2, Menu, Users, Shield, Library, ShieldCheck, Activity, Star, Headphones, Home, Contact } from "lucide-react";
 import conciergeLogo from "@/assets/concierge-logo.png";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
@@ -68,12 +68,10 @@ function AdminLayout() {
     ? ([
         ...baseNav,
         { to: "/admin/atendimento", label: "Atendimento", icon: Headphones, exact: false, badge: pending.data?.count ?? 0 },
-        { to: "/admin/integracoes", label: "Integrações", icon: Plug, exact: false },
         { to: "/admin/administrativo", label: "Administrativo", icon: Settings2, exact: false },
       ] as const)
     : ([
         ...baseNav,
-        { to: "/admin/integracoes", label: "Integrações", icon: Plug, exact: false },
         { to: "/admin/administrativo", label: "Administrativo", icon: Settings2, exact: false },
       ] as const);
 
