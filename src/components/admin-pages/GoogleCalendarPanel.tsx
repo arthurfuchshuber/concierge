@@ -12,6 +12,8 @@ import {
   listMyGoogleCalendars,
   listMyGoogleCalendarEvents,
 } from "@/lib/google-calendar.functions";
+import { listStakeholderOptions, saveStakeholderAlias } from "@/lib/stakeholder-links.functions";
+
 
 const CONNECTOR_ID = "google_calendar";
 
@@ -53,6 +55,9 @@ export function GoogleCalendarPanel() {
   const discFn = useServerFn(disconnectMyGoogleCalendar);
   const calsFn = useServerFn(listMyGoogleCalendars);
   const eventsFn = useServerFn(listMyGoogleCalendarEvents);
+  const optionsFn = useServerFn(listStakeholderOptions);
+  const aliasFn = useServerFn(saveStakeholderAlias);
+
   const qc = useQueryClient();
 
   const [calendarId, setCalendarId] = useState("primary");
