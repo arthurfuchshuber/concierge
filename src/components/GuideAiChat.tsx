@@ -95,7 +95,7 @@ export function GuideAiChat({ slug, propertyName, guestName }: { slug: string; p
       const id = m.id as string;
       translatingRef.current.add(id);
       try {
-        const r = await translateMessage({ data: { text: m.content.slice(0, 4000), targetLang: myLang } });
+        const r = await translateMessage({ data: { text: m.content.slice(0, 2000), targetLang: myLang } });
         setAutoTranslated((p) => ({ ...p, [id]: r.translated }));
       } catch {
         /* mantém o original */
