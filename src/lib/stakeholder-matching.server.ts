@@ -22,7 +22,7 @@ export type StakeholderRow = {
 };
 
 export type AliasRow = {
-  alias_kind: "email" | "domain" | "doc" | "name" | "event" | "title";
+  alias_kind: "email" | "domain" | "doc" | "name" | "event" | "title" | "keyword";
   alias_value: string;
   stakeholder_type: StakeholderKind;
   stakeholder_id: string;
