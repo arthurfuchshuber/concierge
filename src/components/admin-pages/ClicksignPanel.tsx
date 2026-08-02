@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Loader2, RefreshCw, Trash2, FileSignature, ExternalLink, UserPlus } from "lucide-react";
+import { Loader2, RefreshCw, Trash2, FileSignature, ExternalLink, UserPlus, Copy, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,6 +13,7 @@ import {
   disconnectMyClicksign,
   syncMyClicksignDocuments,
   listMyClicksignDocuments,
+  rotateMyClicksignWebhookSecret,
 } from "@/lib/clicksign.functions";
 import { ClicksignImportDialog } from "@/components/admin-pages/ClicksignImportDialog";
 import { ClicksignDisconnectDialog } from "@/components/admin-pages/ClicksignDisconnectDialog";
@@ -34,9 +35,31 @@ export function ClicksignPanel() {
   const [token, setToken] = useState("");
   const [importOpen, setImportOpen] = useState(false);
   const [disconnectOpen, setDisconnectOpen] = useState(false);
+  const [showSecret, setShowSecret] = useState(false);
 
   const cfg = useQuery({ queryKey: ["clicksign-config"], queryFn: () => getFn(), retry: false });
   const connected = !!cfg.data?.hasToken;
+
+  const rotateFn = useServerFn(rotateMyClicksignWebhookSecret);
+  const rotate = useMutation({
+    mutationFn: async () => rotateFn(),
+    onSuccess: () => {
+      toast.success("Novo segredo gerado — atualize no ClickSign.");
+      qc.invalidateQueries({ queryKey: ["clicksign-config"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const origin = typeof window !== "undefined" ? window.location.origin : "";
+  const webhookUrl = cfg.data?.ownerId
+    ? `${origin}/api/public/clicksign-webhook?o=${cfg.data.ownerId}`
+    : "";
+
+  const copy = (value: string, msg: string) => {
+    if (!value) return;
+    void navigator.clipboard.writeText(value).then(() => toast.success(msg));
+  };
+
 
   const docs = useQuery({
     queryKey: ["clicksign-docs"],
@@ -112,6 +135,83 @@ export function ClicksignPanel() {
           Abrir ClickSign <ExternalLink className="size-3" />
         </a>
       </p>
+
+      {connected && (
+        <div className="space-y-2 rounded-xl border border-border bg-secondary/30 p-3">
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-xs font-medium">Webhook</p>
+            {cfg.data?.webhookLastEventAt ? (
+              <span className="text-[10px] text-muted-foreground">
+                último evento {new Date(cfg.data.webhookLastEventAt).toLocaleString("pt-BR")}
+              </span>
+            ) : (
+              <span className="text-[10px] text-muted-foreground">nenhum evento recebido</span>
+            )}
+          </div>
+          <p className="text-[11px] text-muted-foreground">
+            Em Configurações → API → Webhooks no ClickSign, adicione a URL abaixo e cole o segredo
+            no campo de HMAC para receber assinaturas em tempo real.
+          </p>
+          <div>
+            <Label className="text-[10px] uppercase tracking-wide text-muted-foreground">URL</Label>
+            <div className="flex items-center gap-1.5">
+              <Input readOnly value={webhookUrl} className="h-8 font-mono text-[11px]" />
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="h-8 shrink-0 rounded-full px-2"
+                onClick={() => copy(webhookUrl, "URL copiada.")}
+              >
+                <Copy className="size-3.5" />
+              </Button>
+            </div>
+          </div>
+          <div>
+            <Label className="text-[10px] uppercase tracking-wide text-muted-foreground">
+              Segredo (HMAC-SHA256)
+            </Label>
+            <div className="flex items-center gap-1.5">
+              <Input
+                readOnly
+                value={cfg.data?.webhookSecret ?? ""}
+                type={showSecret ? "text" : "password"}
+                className="h-8 font-mono text-[11px]"
+              />
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="h-8 shrink-0 rounded-full px-2"
+                onClick={() => setShowSecret((v) => !v)}
+              >
+                {showSecret ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="h-8 shrink-0 rounded-full px-2"
+                onClick={() => copy(cfg.data?.webhookSecret ?? "", "Segredo copiado.")}
+              >
+                <Copy className="size-3.5" />
+              </Button>
+            </div>
+          </div>
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            className="h-7 rounded-full text-[11px]"
+            onClick={() => rotate.mutate()}
+            disabled={rotate.isPending}
+          >
+            {rotate.isPending ? <Loader2 className="mr-1 size-3 animate-spin" /> : null}
+            Gerar novo segredo
+          </Button>
+        </div>
+      )}
+
 
       {cfg.data?.lastError && (
         <p className="rounded-lg border border-red-500/30 bg-red-500/5 px-3 py-2 text-[11px] text-red-600 dark:text-red-400">

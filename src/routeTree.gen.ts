@@ -34,6 +34,7 @@ import { Route as ApiPublicGuideChatUploadRouteImport } from './routes/api/publi
 import { Route as ApiPublicGuideChatRouteImport } from './routes/api/public/guide-chat'
 import { Route as ApiPublicGuestPushRouteImport } from './routes/api/public/guest-push'
 import { Route as ApiPublicGuestDocUploadRouteImport } from './routes/api/public/guest-doc-upload'
+import { Route as ApiPublicClicksignWebhookRouteImport } from './routes/api/public/clicksign-webhook'
 import { Route as AuthenticatedAdminTaxonomiaRouteImport } from './routes/_authenticated/admin.taxonomia'
 import { Route as AuthenticatedAdminStakeholdersRouteImport } from './routes/_authenticated/admin.stakeholders'
 import { Route as AuthenticatedAdminIntegracoesRouteImport } from './routes/_authenticated/admin.integracoes'
@@ -195,6 +196,12 @@ const ApiPublicGuestDocUploadRoute = ApiPublicGuestDocUploadRouteImport.update({
   path: '/api/public/guest-doc-upload',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicClicksignWebhookRoute =
+  ApiPublicClicksignWebhookRouteImport.update({
+    id: '/api/public/clicksign-webhook',
+    path: '/api/public/clicksign-webhook',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const AuthenticatedAdminTaxonomiaRoute =
   AuthenticatedAdminTaxonomiaRouteImport.update({
     id: '/taxonomia',
@@ -415,6 +422,7 @@ export interface FileRoutesByFullPath {
   '/admin/integracoes': typeof AuthenticatedAdminIntegracoesRoute
   '/admin/stakeholders': typeof AuthenticatedAdminStakeholdersRoute
   '/admin/taxonomia': typeof AuthenticatedAdminTaxonomiaRoute
+  '/api/public/clicksign-webhook': typeof ApiPublicClicksignWebhookRoute
   '/api/public/guest-doc-upload': typeof ApiPublicGuestDocUploadRoute
   '/api/public/guest-push': typeof ApiPublicGuestPushRoute
   '/api/public/guide-chat': typeof ApiPublicGuideChatRoute
@@ -471,6 +479,7 @@ export interface FileRoutesByTo {
   '/admin/integracoes': typeof AuthenticatedAdminIntegracoesRoute
   '/admin/stakeholders': typeof AuthenticatedAdminStakeholdersRoute
   '/admin/taxonomia': typeof AuthenticatedAdminTaxonomiaRoute
+  '/api/public/clicksign-webhook': typeof ApiPublicClicksignWebhookRoute
   '/api/public/guest-doc-upload': typeof ApiPublicGuestDocUploadRoute
   '/api/public/guest-push': typeof ApiPublicGuestPushRoute
   '/api/public/guide-chat': typeof ApiPublicGuideChatRoute
@@ -531,6 +540,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/integracoes': typeof AuthenticatedAdminIntegracoesRoute
   '/_authenticated/admin/stakeholders': typeof AuthenticatedAdminStakeholdersRoute
   '/_authenticated/admin/taxonomia': typeof AuthenticatedAdminTaxonomiaRoute
+  '/api/public/clicksign-webhook': typeof ApiPublicClicksignWebhookRoute
   '/api/public/guest-doc-upload': typeof ApiPublicGuestDocUploadRoute
   '/api/public/guest-push': typeof ApiPublicGuestPushRoute
   '/api/public/guide-chat': typeof ApiPublicGuideChatRoute
@@ -591,6 +601,7 @@ export interface FileRouteTypes {
     | '/admin/integracoes'
     | '/admin/stakeholders'
     | '/admin/taxonomia'
+    | '/api/public/clicksign-webhook'
     | '/api/public/guest-doc-upload'
     | '/api/public/guest-push'
     | '/api/public/guide-chat'
@@ -647,6 +658,7 @@ export interface FileRouteTypes {
     | '/admin/integracoes'
     | '/admin/stakeholders'
     | '/admin/taxonomia'
+    | '/api/public/clicksign-webhook'
     | '/api/public/guest-doc-upload'
     | '/api/public/guest-push'
     | '/api/public/guide-chat'
@@ -706,6 +718,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/integracoes'
     | '/_authenticated/admin/stakeholders'
     | '/_authenticated/admin/taxonomia'
+    | '/api/public/clicksign-webhook'
     | '/api/public/guest-doc-upload'
     | '/api/public/guest-push'
     | '/api/public/guide-chat'
@@ -751,6 +764,7 @@ export interface RootRouteChildren {
   GSlugRoute: typeof GSlugRouteWithChildren
   DotlovableOauthConsentRoute: typeof DotlovableOauthConsentRoute
   Char91DotmcpChar93InvokeToolToolRoute: typeof Char91DotmcpChar93InvokeToolToolRoute
+  ApiPublicClicksignWebhookRoute: typeof ApiPublicClicksignWebhookRoute
   ApiPublicGuestDocUploadRoute: typeof ApiPublicGuestDocUploadRoute
   ApiPublicGuestPushRoute: typeof ApiPublicGuestPushRoute
   ApiPublicGuideChatRoute: typeof ApiPublicGuideChatRoute
@@ -944,6 +958,13 @@ declare module '@tanstack/react-router' {
       path: '/api/public/guest-doc-upload'
       fullPath: '/api/public/guest-doc-upload'
       preLoaderRoute: typeof ApiPublicGuestDocUploadRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/clicksign-webhook': {
+      id: '/api/public/clicksign-webhook'
+      path: '/api/public/clicksign-webhook'
+      fullPath: '/api/public/clicksign-webhook'
+      preLoaderRoute: typeof ApiPublicClicksignWebhookRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/admin/taxonomia': {
@@ -1271,6 +1292,7 @@ const rootRouteChildren: RootRouteChildren = {
   GSlugRoute: GSlugRouteWithChildren,
   DotlovableOauthConsentRoute: DotlovableOauthConsentRoute,
   Char91DotmcpChar93InvokeToolToolRoute: Char91DotmcpChar93InvokeToolToolRoute,
+  ApiPublicClicksignWebhookRoute: ApiPublicClicksignWebhookRoute,
   ApiPublicGuestDocUploadRoute: ApiPublicGuestDocUploadRoute,
   ApiPublicGuestPushRoute: ApiPublicGuestPushRoute,
   ApiPublicGuideChatRoute: ApiPublicGuideChatRoute,

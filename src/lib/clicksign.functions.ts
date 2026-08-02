@@ -10,6 +10,9 @@ export type ClicksignConfigPublic = {
   lastSyncAt: string | null;
   lastError: string | null;
   documentsCount: number;
+  ownerId: string;
+  webhookSecret: string | null;
+  webhookLastEventAt: string | null;
 };
 
 const SAVE_INPUT = z.object({
@@ -17,13 +20,19 @@ const SAVE_INPUT = z.object({
   environment: z.literal("production").default("production"),
 });
 
+function newWebhookSecret(): string {
+  const bytes = new Uint8Array(24);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
+}
+
 export const getMyClicksignConfig = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<ClicksignConfigPublic> => {
     const { supabase, userId } = context;
     const { data } = await supabase
       .from("host_integration_credentials")
-      .select("environment, status, api_token_encrypted, last_verified_at, last_sync_at, last_error")
+      .select("environment, status, api_token_encrypted, last_verified_at, last_sync_at, last_error, webhook_secret, webhook_last_event_at")
       .eq("owner_id", userId)
       .eq("provider", "clicksign")
       .maybeSingle();
@@ -39,8 +48,26 @@ export const getMyClicksignConfig = createServerFn({ method: "GET" })
       lastSyncAt: (data?.last_sync_at as string) ?? null,
       lastError: (data?.last_error as string) ?? null,
       documentsCount: count ?? 0,
+      ownerId: userId,
+      webhookSecret: (data?.webhook_secret as string) ?? null,
+      webhookLastEventAt: (data?.webhook_last_event_at as string) ?? null,
     };
   });
+
+export const rotateMyClicksignWebhookSecret = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase, userId } = context;
+    const secret = newWebhookSecret();
+    const { error } = await supabase
+      .from("host_integration_credentials")
+      .update({ webhook_secret: secret })
+      .eq("owner_id", userId)
+      .eq("provider", "clicksign");
+    if (error) throw new Error(error.message);
+    return { webhookSecret: secret };
+  });
+
 
 export const saveMyClicksignConfig = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -77,6 +104,13 @@ export const saveMyClicksignConfig = createServerFn({ method: "POST" })
       throw new Error(`Chave inválida: ${msg}`);
     }
 
+    const { data: prev } = await supabase
+      .from("host_integration_credentials")
+      .select("webhook_secret")
+      .eq("owner_id", userId)
+      .eq("provider", "clicksign")
+      .maybeSingle();
+
     const { error } = await supabase.from("host_integration_credentials").upsert({
       owner_id: userId,
       provider: "clicksign",
@@ -85,6 +119,7 @@ export const saveMyClicksignConfig = createServerFn({ method: "POST" })
       status: "active",
       last_error: null,
       last_verified_at: new Date().toISOString(),
+      webhook_secret: (prev?.webhook_secret as string) ?? newWebhookSecret(),
     }, { onConflict: "owner_id,provider" });
     if (error) throw new Error(error.message);
     return { ok: true };
