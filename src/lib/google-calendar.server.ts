@@ -98,6 +98,38 @@ async function fetchRawEvents(userId: string, calendarId: string) {
   return items;
 }
 
+const CONFERENCE_URL_RE =
+  /(meet\.google\.com|zoom\.us\/j\/|teams\.microsoft\.com\/l\/meetup-join|whereby\.com|meet\.jit\.si|webex\.com\/meet)/i;
+
+/** Extrai o link de conferência de um evento (Meet nativo ou link em outros campos). */
+function extractConferenceLink(raw: Record<string, unknown>): string | null {
+  const hangout = raw['hangoutLink'] as string | undefined;
+  if (hangout) return hangout;
+
+  const conference = raw['conferenceData'] as
+    | { entryPoints?: Array<{ entryPointType?: string; uri?: string }> }
+    | undefined;
+  const video = conference?.entryPoints?.find((e) => e.entryPointType === "video" && e.uri);
+  if (video?.uri) return video.uri;
+
+  for (const field of ["location", "description"] as const) {
+    const value = raw[field] as string | undefined;
+    if (!value) continue;
+    const match = value.match(/https?:\/\/[^\s<>"')]+/g)?.find((u) => CONFERENCE_URL_RE.test(u));
+    if (match) return match;
+  }
+  return null;
+}
+
+/** Somente reuniões reais: precisam ter um link de conferência ativo. */
+function isMeeting(raw: Record<string, unknown>): boolean {
+  if (raw['status'] === "cancelled") return false;
+  // Feriados / aniversários e afins nunca têm conferência, mas descartamos explicitamente.
+  const type = raw['eventType'] as string | undefined;
+  if (type && type !== "default" && type !== "outOfOffice" && type !== "focusTime") return false;
+  return extractConferenceLink(raw) !== null;
+}
+
 function mapEvent(
   raw: Record<string, unknown>,
   calendarId: string,
@@ -138,7 +170,7 @@ function mapEvent(
     location,
     start: start?.dateTime ?? start?.date ?? null,
     end: end?.dateTime ?? end?.date ?? null,
-    hangoutLink: (raw['hangoutLink'] as string) ?? null,
+    hangoutLink: extractConferenceLink(raw),
     htmlLink: (raw['htmlLink'] as string) ?? null,
     attendees: attendeeList.map((a) => a.email ?? "").filter(Boolean),
     attachments: attachments
@@ -168,7 +200,7 @@ export async function fetchEventsForCalendar(
     fetchRawEvents(userId, calendarId),
     loadMatchIndex(supabase, userId),
   ]);
-  return raws.map((r) => mapEvent(r, calendarId, calendarName ?? calendarId, index));
+  return raws.filter(isMeeting).map((r) => mapEvent(r, calendarId, calendarName ?? calendarId, index));
 }
 
 /** Todos os eventos de TODAS as agendas da conta conectada. */
@@ -178,7 +210,7 @@ export async function fetchAllEvents(supabase: SupabaseClient, userId: string): 
   for (const cal of calendars) {
     try {
       const raws = await fetchRawEvents(userId, cal.id);
-      out.push(...raws.map((r) => mapEvent(r, cal.id, cal.summary, index)));
+      out.push(...raws.filter(isMeeting).map((r) => mapEvent(r, cal.id, cal.summary, index)));
     } catch {
       // Uma agenda inacessível não pode derrubar a importação inteira.
     }
