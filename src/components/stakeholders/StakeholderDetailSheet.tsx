@@ -16,15 +16,16 @@ import {
   CircleDot,
   Trash2,
   Home,
-  Wallet,
-  Paperclip,
-  LayoutGrid,
   Link2,
   Unlink,
   ExternalLink,
   CalendarDays,
   Video,
   Download,
+  TrendingUp,
+  AlertTriangle,
+  Pin,
+  Upload,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -93,7 +94,6 @@ export function StakeholderDetailSheet({
   });
 
   const row = data?.row as Record<string, any> | null | undefined;
-
 
   async function submitNote() {
     if (!note.trim()) return;
@@ -172,27 +172,119 @@ export function StakeholderDetailSheet({
   const properties = data?.properties ?? [];
   const available = data?.availableProperties ?? [];
   const openCount = activities.filter((a: any) => a.status !== "done").length;
+  const displayName = row.trade_name || row.name;
+  const initial = String(displayName ?? "?").trim().charAt(0).toUpperCase();
+
+  const timeline = [
+    ...events.map((ev: any) => ({
+      key: `n:${ev.id}`,
+      at: ev.created_at as string,
+      icon: Pin,
+      title: ev.message as string,
+      badge: "Registro",
+      body: null as React.ReactNode,
+    })),
+    ...feedEvents.map((ev) => ({
+      key: `g:${ev.id}`,
+      at: ev.at ?? "",
+      icon: CalendarDays,
+      title: ev.title,
+      badge: ev.calendarName || "Agenda",
+      body: (
+        <>
+          {ev.htmlLink && (
+            <a
+              href={ev.htmlLink}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+            >
+              Abrir convite <ExternalLink className="size-3" />
+            </a>
+          )}
+          {ev.attendees.length > 0 && (
+            <p className="text-xs text-muted-foreground">{ev.attendees.length} participante(s)</p>
+          )}
+          {ev.attachments.length > 0 && (
+            <div className="mt-1 flex flex-wrap gap-1.5">
+              {ev.attachments.map((a) => (
+                <a
+                  key={a.url}
+                  href={a.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[10px] text-muted-foreground hover:text-foreground"
+                >
+                  {a.kind === "transcript" ? <FileText className="size-2.5" /> : <Video className="size-2.5" />}
+                  {a.kind === "transcript" ? "Transcrição" : a.kind === "recording" ? "Gravação" : a.title}
+                </a>
+              ))}
+            </div>
+          )}
+        </>
+      ),
+    })),
+    ...feedDocs.map((d) => ({
+      key: `d:${d.id}`,
+      at: d.at ?? "",
+      icon: FileText,
+      title: d.name,
+      badge: "ClickSign",
+      body: (
+        <>
+          <p className="text-xs text-muted-foreground">
+            {d.status ?? "—"}
+            {d.signers.length > 0 ? ` · ${d.signers.length} signatário(s)` : ""}
+          </p>
+          {(d.urlSigned || d.urlOriginal) && (
+            <a
+              href={(d.urlSigned ?? d.urlOriginal) as string}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+            >
+              Abrir documento <ExternalLink className="size-3" />
+            </a>
+          )}
+        </>
+      ),
+    })),
+  ].sort((a, b) => String(b.at).localeCompare(String(a.at)));
 
   return (
-    <div className="flex flex-col">
-      {/* Header */}
-      <div className="relative overflow-hidden border-b border-border bg-gradient-to-br from-primary/10 via-transparent to-transparent px-6 py-7">
-        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
-          <div className="min-w-0">
-            <h2 className="font-display text-2xl leading-tight truncate">
-              {row.trade_name || row.name}
-            </h2>
-            <p className="text-xs text-muted-foreground mt-1 truncate">
-              {categoryLabel ? `${categoryLabel} · ` : ""}
-              {row.status === "active" ? "Ativo" : "Inativo"}
-              {row.doc ? ` · ${String(row.doc_type).toUpperCase()} ${row.doc}` : ""}
-            </p>
+    <div className="flex flex-col gap-5 px-5 py-6 sm:px-6">
+      {/* Header card */}
+      <section className="rounded-2xl border border-border bg-card p-5">
+        <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-4">
+          <div className="grid size-14 shrink-0 place-items-center rounded-2xl bg-primary/15 font-display text-2xl text-primary">
+            {initial}
           </div>
-          <Button variant="outline" size="sm" className="rounded-full shrink-0" onClick={onEdit}>
-            <Pencil className="size-3.5 mr-1.5" /> Editar
-          </Button>
+          <div className="min-w-0">
+            <h2 className="font-display text-2xl leading-tight truncate">{displayName}</h2>
+            {row.doc && (
+              <p className="font-mono text-xs text-muted-foreground mt-1 truncate">{row.doc}</p>
+            )}
+          </div>
+          <div className="flex shrink-0 items-center gap-2">
+            <span
+              className={`rounded-full border px-3 py-1 text-xs ${
+                row.status === "active"
+                  ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-500"
+                  : "border-border text-muted-foreground"
+              }`}
+            >
+              {row.status === "active" ? "Ativo" : "Inativo"}
+            </span>
+            <span className="rounded-full border border-border px-3 py-1 text-xs text-muted-foreground uppercase">
+              {String(row.person_type ?? "pf")}
+            </span>
+            <Button variant="outline" size="sm" className="rounded-full" onClick={onEdit}>
+              <Pencil className="size-3.5 mr-1.5" /> Editar
+            </Button>
+          </div>
         </div>
-        <div className="mt-4 flex flex-wrap gap-x-4 gap-y-1.5 text-[11px] text-muted-foreground">
+        <div className="mt-4 flex flex-wrap gap-x-4 gap-y-1.5 text-xs text-muted-foreground">
+          {categoryLabel && <span>{categoryLabel}</span>}
           {row.email && (
             <span className="flex items-center gap-1.5"><Mail className="size-3" /> {row.email}</span>
           )}
@@ -205,98 +297,115 @@ export function StakeholderDetailSheet({
             </span>
           )}
         </div>
+      </section>
 
-        {/* KPIs */}
-        <div className="mt-5 grid grid-cols-3 gap-2">
-          <Kpi label={kind === "owner" ? "Residências" : "Atendimentos"} value={kind === "owner" ? properties.length : events.length} icon={kind === "owner" ? Home : LayoutGrid} />
-          <Kpi label="Pendências" value={openCount} icon={CircleDot} tone="amber" />
-          <Kpi label="Registros" value={events.length} icon={FileText} />
-        </div>
-      </div>
-
-      <div className="px-6 py-5">
-        <Tabs defaultValue="resumo">
-          <TabsList className="w-full">
-            <TabsTrigger value="resumo">Resumo</TabsTrigger>
-            {kind === "owner" && <TabsTrigger value="imoveis">Residências</TabsTrigger>}
-            <TabsTrigger value="atividades">Atividades</TabsTrigger>
-            <TabsTrigger value="timeline">Linha do tempo</TabsTrigger>
+      <Tabs defaultValue="visao">
+        <div className="rounded-2xl border border-border bg-card p-2">
+          <TabsList className="w-full bg-transparent gap-1">
+            <TabsTrigger value="visao">Visão Geral</TabsTrigger>
             <TabsTrigger value="financeiro">Financeiro</TabsTrigger>
             <TabsTrigger value="documentos">Documentos</TabsTrigger>
           </TabsList>
+        </div>
 
-          {/* Resumo */}
-          <TabsContent value="resumo" className="mt-5 space-y-3">
-            <div className="grid gap-3 sm:grid-cols-2">
-              <InfoCard label="Nome completo" value={row.name} />
-              <InfoCard label="Nome fantasia" value={row.trade_name} />
-              <InfoCard label={String(row.doc_type ?? "cpf").toUpperCase()} value={row.doc} />
-              <InfoCard label="E-mail" value={row.email} />
-              <InfoCard label="Telefone" value={row.phone} />
-              <InfoCard label="Endereço" value={row.address} />
-              <InfoCard label="Cidade" value={[row.city, row.state].filter(Boolean).join(" / ")} />
-              {kind === "provider" && (
-                <InfoCard
-                  label="Valor / hora"
-                  value={
-                    row.hourly_rate_cents
-                      ? (row.hourly_rate_cents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
-                      : null
-                  }
-                />
+        {/* -------------------- Visão Geral -------------------- */}
+        <TabsContent value="visao" className="mt-5 space-y-5">
+          <section className="rounded-2xl border border-border bg-card p-5">
+            <h3 className="flex items-center gap-2 text-sm font-semibold">
+              <TrendingUp className="size-4 text-muted-foreground" /> Visão Macro
+            </h3>
+            <ul className="mt-3 space-y-2 text-sm">
+              {kind === "owner" && (
+                <li className="flex items-start gap-2">
+                  <Home className="size-4 mt-0.5 shrink-0 text-muted-foreground" />
+                  {properties.length > 0
+                    ? `${properties.length} residência(s) vinculada(s).`
+                    : "Nenhuma residência vinculada."}
+                </li>
               )}
-            </div>
-            {row.notes && (
-              <div className="rounded-xl border border-border bg-card p-4">
-                <p className="text-[11px] uppercase tracking-wide text-muted-foreground mb-1.5">Observações</p>
-                <p className="text-sm whitespace-pre-wrap">{row.notes}</p>
-              </div>
-            )}
-          </TabsContent>
-
-          {/* Residências */}
-          {kind === "owner" && (
-            <TabsContent value="imoveis" className="mt-5 space-y-4">
-              <div className="space-y-2">
-                {properties.length === 0 && (
-                  <p className="text-xs text-muted-foreground">Nenhuma residência vinculada ainda.</p>
+              <li className="flex items-start gap-2">
+                {openCount > 0 ? (
+                  <AlertTriangle className="size-4 mt-0.5 shrink-0 text-amber-500" />
+                ) : (
+                  <CheckCircle2 className="size-4 mt-0.5 shrink-0 text-emerald-500" />
                 )}
-                {properties.map((p: any) => (
-                  <div
-                    key={p.id}
-                    className="flex items-center justify-between gap-3 rounded-xl border border-border bg-card px-4 py-3"
-                  >
-                    <div className="min-w-0">
-                      <p className="text-sm truncate">{p.name}</p>
-                      <p className="text-[11px] text-muted-foreground truncate">
-                        {p.published ? "Publicado" : "Rascunho"}
-                        {p.city ? ` · ${p.city}` : ""}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-1 shrink-0">
-                      <Link
-                        to="/admin/properties/$id"
-                        params={{ id: p.id }}
-                        className="grid size-8 place-items-center rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
-                        title="Abrir residência"
-                      >
-                        <ExternalLink className="size-3.5" />
-                      </Link>
-                      <button
-                        type="button"
-                        disabled={busy}
-                        onClick={() => toggleLink(p.id, false)}
-                        className="grid size-8 place-items-center rounded-full text-muted-foreground hover:text-destructive transition-colors"
-                        title="Desvincular"
-                      >
-                        <Unlink className="size-3.5" />
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
+                {openCount > 0 ? `${openCount} atividade(s) em aberto.` : "Nenhuma atividade em aberto."}
+              </li>
+              <li className="flex items-start gap-2">
+                <FileText className="size-4 mt-0.5 shrink-0 text-muted-foreground" />
+                {timeline.length} registro(s) na linha do tempo.
+              </li>
+            </ul>
+          </section>
 
-              <div className="rounded-xl border border-dashed border-border p-4 space-y-3">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <InfoCard label="Nome completo" value={row.name} />
+            <InfoCard label="Nome fantasia" value={row.trade_name} />
+            <InfoCard label={String(row.doc_type ?? "cpf").toUpperCase()} value={row.doc} />
+            <InfoCard label="E-mail" value={row.email} />
+            <InfoCard label="Telefone" value={row.phone} />
+            <InfoCard label="Endereço" value={row.address} />
+            <InfoCard label="Cidade" value={[row.city, row.state].filter(Boolean).join(" / ")} />
+            {kind === "provider" && (
+              <InfoCard
+                label="Valor / hora"
+                value={
+                  row.hourly_rate_cents
+                    ? (row.hourly_rate_cents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
+                    : null
+                }
+              />
+            )}
+          </div>
+
+          {row.notes && (
+            <section className="rounded-2xl border border-border bg-card p-5">
+              <p className="text-[11px] uppercase tracking-wide text-muted-foreground mb-1.5">Observações</p>
+              <p className="text-sm whitespace-pre-wrap">{row.notes}</p>
+            </section>
+          )}
+
+          {kind === "owner" && (
+            <section className="rounded-2xl border border-border bg-card p-5 space-y-3">
+              <h3 className="text-sm font-semibold">Residências</h3>
+              {properties.length === 0 && (
+                <p className="text-xs text-muted-foreground">Nenhuma residência vinculada ainda.</p>
+              )}
+              {properties.map((p: any) => (
+                <div
+                  key={p.id}
+                  className="flex items-center justify-between gap-3 rounded-xl border border-border bg-background/40 px-4 py-3"
+                >
+                  <div className="min-w-0">
+                    <p className="text-sm truncate">{p.name}</p>
+                    <p className="text-[11px] text-muted-foreground truncate">
+                      {p.published ? "Publicado" : "Rascunho"}
+                      {p.city ? ` · ${p.city}` : ""}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <Link
+                      to="/admin/properties/$id"
+                      params={{ id: p.id }}
+                      className="grid size-8 place-items-center rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+                      title="Abrir residência"
+                    >
+                      <ExternalLink className="size-3.5" />
+                    </Link>
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => toggleLink(p.id, false)}
+                      className="grid size-8 place-items-center rounded-full text-muted-foreground hover:text-destructive transition-colors"
+                      title="Desvincular"
+                    >
+                      <Unlink className="size-3.5" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+
+              <div className="rounded-xl border border-dashed border-border p-4 space-y-2">
                 <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
                   Vincular residência existente
                 </p>
@@ -326,11 +435,14 @@ export function StakeholderDetailSheet({
                   <Plus className="size-3.5" /> Criar nova residência
                 </Link>
               </div>
-            </TabsContent>
+            </section>
           )}
 
-          {/* Atividades */}
-          <TabsContent value="atividades" className="mt-5 space-y-3">
+          <section className="rounded-2xl border border-border bg-card p-5 space-y-3">
+            <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
+              <h3 className="text-sm font-semibold truncate">Atividades</h3>
+              <span className="text-[11px] text-muted-foreground shrink-0">{openCount} em aberto</span>
+            </div>
             <div className="flex items-center gap-2">
               <Input
                 value={newActivity}
@@ -347,7 +459,10 @@ export function StakeholderDetailSheet({
               const meta = STATUS_META[a.status] ?? STATUS_META.todo;
               const StatusIcon = meta.icon;
               return (
-                <div key={a.id} className="group flex items-start gap-2.5 rounded-xl border border-border bg-card px-3 py-2.5">
+                <div
+                  key={a.id}
+                  className="group flex items-start gap-2.5 rounded-xl border border-border bg-background/40 px-3 py-2.5"
+                >
                   <button
                     type="button"
                     onClick={() => cycleStatus(a.id, a.status)}
@@ -378,10 +493,19 @@ export function StakeholderDetailSheet({
             {activities.length === 0 && (
               <p className="text-xs text-muted-foreground">Nenhuma atividade registrada.</p>
             )}
-          </TabsContent>
+          </section>
 
           {/* Linha do tempo */}
-          <TabsContent value="timeline" className="mt-5 space-y-4">
+          <section className="space-y-4">
+            <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
+              <h3 className="font-display text-xl truncate">Linha do Tempo</h3>
+              {feed.isLoading && (
+                <span className="flex items-center gap-1.5 text-[11px] text-muted-foreground shrink-0">
+                  <Loader2 className="size-3 animate-spin" /> Sincronizando…
+                </span>
+              )}
+            </div>
+
             <div className="flex items-start gap-2">
               <Textarea
                 rows={2}
@@ -394,130 +518,88 @@ export function StakeholderDetailSheet({
                 <Plus className="size-4" />
               </Button>
             </div>
-            {feed.isLoading && (
-              <p className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                <Loader2 className="size-3 animate-spin" /> Importando agenda e documentos…
-              </p>
-            )}
+
             {feed.data?.calendarError && (
               <p className="text-[11px] text-destructive">Google Agenda: {feed.data.calendarError}</p>
             )}
-            <ol className="relative border-l border-border pl-4 space-y-3">
-              {[
-                ...events.map((ev: any) => ({
-                  key: `n:${ev.id}`,
-                  at: ev.created_at as string,
-                  node: (
-                    <>
-                      <p className="text-sm">{ev.message}</p>
-                      <p className="text-[11px] text-muted-foreground">{fmt(ev.created_at)}</p>
-                    </>
-                  ),
-                })),
-                ...feedEvents.map((ev) => ({
-                  key: `g:${ev.id}`,
-                  at: ev.at ?? "",
-                  node: (
-                    <>
-                      <p className="text-sm flex items-center gap-1.5">
-                        <CalendarDays className="size-3.5 text-muted-foreground shrink-0" />
-                        <span className="truncate">{ev.title}</span>
-                        {ev.htmlLink && (
-                          <a href={ev.htmlLink} target="_blank" rel="noreferrer" className="text-muted-foreground hover:text-foreground">
-                            <ExternalLink className="size-3" />
-                          </a>
-                        )}
-                      </p>
-                      <p className="text-[11px] text-muted-foreground">
-                        {ev.at ? fmt(ev.at) : "Sem data"} · {ev.calendarName}
-                        {ev.attendees.length > 0 ? ` · ${ev.attendees.length} participantes` : ""}
-                      </p>
-                      {ev.attachments.length > 0 && (
-                        <div className="mt-1 flex flex-wrap gap-1.5">
-                          {ev.attachments.map((a) => (
-                            <a
-                              key={a.url}
-                              href={a.url}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[10px] text-muted-foreground hover:text-foreground"
-                            >
-                              {a.kind === "transcript" ? <FileText className="size-2.5" /> : <Video className="size-2.5" />}
-                              {a.kind === "transcript" ? "Transcrição" : a.kind === "recording" ? "Gravação" : a.title}
-                            </a>
-                          ))}
+
+            {timeline.length === 0 ? (
+              <Placeholder
+                icon={Pin}
+                title="Sem registros ainda"
+                desc="Notas, convites de agenda e documentos aparecem aqui automaticamente."
+              />
+            ) : (
+              <ol className="relative space-y-3 border-l border-border pl-6">
+                {timeline.map((item) => {
+                  const Icon = item.icon;
+                  return (
+                    <li key={item.key} className="relative">
+                      <span className="absolute -left-[29px] top-4 size-2.5 rounded-full bg-primary/70 ring-4 ring-background" />
+                      <div className="rounded-2xl border border-border bg-card px-4 py-3">
+                        <div className="flex items-start gap-2.5">
+                          <Icon className="size-4 mt-0.5 shrink-0 text-muted-foreground" />
+                          <div className="min-w-0 flex-1 space-y-1">
+                            <p className="text-sm font-medium break-words">{item.title}</p>
+                            <p className="text-[11px] text-muted-foreground">{item.badge}</p>
+                            {item.body}
+                            <p className="text-[11px] text-muted-foreground/80">
+                              {item.at ? fmt(item.at) : "Sem data"}
+                            </p>
+                          </div>
                         </div>
-                      )}
-                    </>
-                  ),
-                })),
-                ...feedDocs.map((d) => ({
-                  key: `d:${d.id}`,
-                  at: d.at ?? "",
-                  node: (
-                    <>
-                      <p className="text-sm flex items-center gap-1.5">
-                        <FileText className="size-3.5 text-muted-foreground shrink-0" />
-                        <span className="truncate">{d.name}</span>
-                        {(d.urlSigned || d.urlOriginal) && (
-                          <a
-                            href={(d.urlSigned ?? d.urlOriginal) as string}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="text-muted-foreground hover:text-foreground"
-                          >
-                            <ExternalLink className="size-3" />
-                          </a>
-                        )}
-                      </p>
-                      <p className="text-[11px] text-muted-foreground">
-                        {d.at ? fmt(d.at) : "Sem data"} · ClickSign
-                        {d.status ? ` · ${d.status}` : ""}
-                        {d.signers.length > 0 ? ` · ${d.signers.length} signatário(s)` : ""}
-                      </p>
-                    </>
-                  ),
-                })),
-              ]
-                .sort((a, b) => String(b.at).localeCompare(String(a.at)))
-                .map((item) => (
-                  <li key={item.key} className="relative">
-                    <span className="absolute -left-[21px] top-1.5 size-2 rounded-full bg-primary/70" />
-                    {item.node}
-                  </li>
-                ))}
-              {events.length === 0 && feedEvents.length === 0 && feedDocs.length === 0 && (
-                <li className="text-xs text-muted-foreground">Sem registros.</li>
-              )}
+                      </div>
+                    </li>
+                  );
+                })}
+              </ol>
+            )}
+          </section>
+        </TabsContent>
 
-            </ol>
-          </TabsContent>
+        {/* -------------------- Financeiro -------------------- */}
+        <TabsContent value="financeiro" className="mt-5 space-y-4">
+          <div className="grid gap-3 sm:grid-cols-3">
+            <MoneyCard label="A receber" value={0} tone="emerald" />
+            <MoneyCard label="Recebido" value={0} tone="primary" />
+            <MoneyCard label="A pagar" value={0} tone="amber" />
+          </div>
+          <div className="rounded-2xl border border-border bg-card overflow-hidden">
+            <div className="grid grid-cols-4 gap-3 border-b border-border px-4 py-3 text-[11px] uppercase tracking-wide text-muted-foreground">
+              <span>Tipo</span>
+              <span>Descrição</span>
+              <span>Vencimento</span>
+              <span className="text-right">Valor</span>
+            </div>
+            <p className="px-4 py-10 text-center text-sm text-muted-foreground">
+              Nenhum lançamento financeiro para este cadastro.
+            </p>
+          </div>
+        </TabsContent>
 
-          <TabsContent value="financeiro" className="mt-5">
-            <Placeholder
-              icon={Wallet}
-              title="Financeiro em construção"
-              desc="Repasses, comissões e histórico de pagamentos deste cadastro aparecerão aqui."
-            />
-          </TabsContent>
-
-          <TabsContent value="documentos" className="mt-5 space-y-3">
+        {/* -------------------- Documentos -------------------- */}
+        <TabsContent value="documentos" className="mt-5 space-y-6">
+          <section className="space-y-3">
+            <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
+              <h3 className="font-display text-xl truncate">Contratos e aditivos</h3>
+              <span className="text-[11px] text-muted-foreground shrink-0">{feedDocs.length} documento(s)</span>
+            </div>
             {feed.isLoading ? (
               <p className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
                 <Loader2 className="size-3 animate-spin" /> Buscando documentos…
               </p>
             ) : feedDocs.length === 0 ? (
               <Placeholder
-                icon={Paperclip}
-                title="Nenhum documento vinculado"
+                icon={Upload}
+                title="Nenhum contrato vinculado"
                 desc="Contratos importados do ClickSign com este CPF/CNPJ, e-mail ou nome aparecem aqui automaticamente."
               />
             ) : (
-              <ul className="divide-y divide-border rounded-xl border border-border">
+              <ul className="divide-y divide-border rounded-2xl border border-border bg-card">
                 {feedDocs.map((d) => (
-                  <li key={d.id} className="flex items-start justify-between gap-2 px-3 py-2">
+                  <li key={d.id} className="flex items-start justify-between gap-3 px-4 py-3">
                     <div className="min-w-0">
-                      <p className="truncate text-xs font-medium">{d.name}</p>
+                      <p className="truncate text-sm font-medium">{d.name}</p>
                       <p className="text-[11px] text-muted-foreground">
                         {d.status ?? "—"}
                         {d.at ? ` · ${fmt(d.at)}` : ""}
@@ -530,39 +612,39 @@ export function StakeholderDetailSheet({
                         target="_blank"
                         rel="noreferrer"
                         className="shrink-0 text-muted-foreground hover:text-foreground"
+                        title="Baixar"
                       >
-                        <Download className="size-3.5" />
+                        <Download className="size-4" />
                       </a>
                     )}
                   </li>
                 ))}
               </ul>
             )}
-          </TabsContent>
-
-        </Tabs>
-      </div>
+          </section>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
 
-function Kpi({
+function MoneyCard({
   label,
   value,
-  icon: Icon,
   tone,
 }: {
   label: string;
   value: number;
-  icon: typeof Home;
-  tone?: "amber";
+  tone: "emerald" | "primary" | "amber";
 }) {
+  const toneCls =
+    tone === "emerald" ? "text-emerald-500" : tone === "amber" ? "text-amber-500" : "text-primary";
   return (
-    <div className="rounded-xl border border-border bg-card/70 backdrop-blur px-3 py-2.5">
-      <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wide text-muted-foreground">
-        <Icon className={`size-3 ${tone === "amber" ? "text-amber-500" : ""}`} /> {label}
-      </div>
-      <p className="font-display text-xl tabular-nums mt-0.5">{value}</p>
+    <div className="rounded-2xl border border-border bg-card px-4 py-4">
+      <p className={`text-[11px] uppercase tracking-wide ${toneCls}`}>{label}</p>
+      <p className="font-display text-2xl tabular-nums mt-1">
+        {(value / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+      </p>
     </div>
   );
 }
@@ -570,7 +652,7 @@ function Kpi({
 function InfoCard({ label, value }: { label: string; value?: string | null }) {
   if (!value) return null;
   return (
-    <div className="rounded-xl border border-border bg-card px-4 py-3 min-w-0">
+    <div className="rounded-2xl border border-border bg-card px-4 py-3 min-w-0">
       <p className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</p>
       <p className="text-sm mt-0.5 break-words">{value}</p>
     </div>
@@ -582,7 +664,7 @@ function Placeholder({
   title,
   desc,
 }: {
-  icon: typeof Wallet;
+  icon: typeof Home;
   title: string;
   desc: string;
 }) {
