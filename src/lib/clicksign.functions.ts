@@ -104,6 +104,13 @@ export const saveMyClicksignConfig = createServerFn({ method: "POST" })
       throw new Error(`Chave inválida: ${msg}`);
     }
 
+    const { data: prev } = await supabase
+      .from("host_integration_credentials")
+      .select("webhook_secret")
+      .eq("owner_id", userId)
+      .eq("provider", "clicksign")
+      .maybeSingle();
+
     const { error } = await supabase.from("host_integration_credentials").upsert({
       owner_id: userId,
       provider: "clicksign",
@@ -112,6 +119,7 @@ export const saveMyClicksignConfig = createServerFn({ method: "POST" })
       status: "active",
       last_error: null,
       last_verified_at: new Date().toISOString(),
+      webhook_secret: (prev?.webhook_secret as string) ?? newWebhookSecret(),
     }, { onConflict: "owner_id,provider" });
     if (error) throw new Error(error.message);
     return { ok: true };
