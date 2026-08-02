@@ -121,12 +121,19 @@ export function buildMatchIndex(
     return row ? label(row) : "Vínculo manual";
   };
   for (const a of aliases) {
-    idx.byAlias.set(`${a.alias_kind}:${a.alias_value}`, {
+    const ref: StakeholderRef = {
       type: a.stakeholder_type,
       id: a.stakeholder_id,
       label: nameOf(a.stakeholder_type, a.stakeholder_id),
       via: "alias",
-    });
+    };
+    if (a.alias_kind === "keyword") {
+      // "reforma, pintura" → casa se QUALQUER termo aparecer no texto do evento.
+      const terms = a.alias_value.split(",").map(norm).filter(Boolean);
+      if (terms.length) idx.keywords.push({ terms, ref });
+      continue;
+    }
+    idx.byAlias.set(`${a.alias_kind}:${a.alias_value}`, ref);
   }
   return idx;
 }
