@@ -1027,6 +1027,8 @@ export type Database = {
           provider: string
           status: string
           updated_at: string
+          webhook_last_event_at: string | null
+          webhook_secret: string | null
         }
         Insert: {
           api_token_encrypted?: string | null
@@ -1039,6 +1041,8 @@ export type Database = {
           provider: string
           status?: string
           updated_at?: string
+          webhook_last_event_at?: string | null
+          webhook_secret?: string | null
         }
         Update: {
           api_token_encrypted?: string | null
@@ -1051,6 +1055,8 @@ export type Database = {
           provider?: string
           status?: string
           updated_at?: string
+          webhook_last_event_at?: string | null
+          webhook_secret?: string | null
         }
         Relationships: []
       }
