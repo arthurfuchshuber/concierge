@@ -11,12 +11,14 @@ function coerceTab(v: unknown): Tab {
 }
 
 export const Route = createFileRoute("/_authenticated/admin/stakeholders")({
-  validateSearch: (s: Record<string, unknown>) => ({ tab: coerceTab(s.tab) }),
+  validateSearch: (s: Record<string, unknown>): { tab?: Tab } =>
+    s.tab === "hospedes" || s.tab === "prestadores" ? { tab: s.tab } : {},
   component: StakeholdersPage,
 });
 
 function StakeholdersPage() {
-  const { tab } = useSearch({ from: "/_authenticated/admin/stakeholders" });
+  const search = useSearch({ from: "/_authenticated/admin/stakeholders" });
+  const tab = coerceTab(search.tab);
   const navigate = useNavigate();
 
   return (

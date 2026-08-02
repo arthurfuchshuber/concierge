@@ -37,7 +37,8 @@ function coerceGuiaTab(v: unknown): "imoveis" | "destinos" {
 }
 
 export const Route = createFileRoute("/_authenticated/admin/guias")({
-  validateSearch: (s: Record<string, unknown>) => ({ tab: coerceGuiaTab(s.tab) }),
+  validateSearch: (s: Record<string, unknown>): { tab?: "imoveis" | "destinos" } =>
+    s.tab === "destinos" ? { tab: "destinos" } : {},
   component: GuiasTabs,
 });
 
@@ -68,7 +69,8 @@ function guideCompleteness(p: {
 
 
 function GuiasTabs() {
-  const { tab } = useSearch({ from: "/_authenticated/admin/guias" });
+  const search = useSearch({ from: "/_authenticated/admin/guias" });
+  const tab = coerceGuiaTab(search.tab);
   const navigate = useNavigate();
   return (
     <Tabs
