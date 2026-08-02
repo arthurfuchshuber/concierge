@@ -521,7 +521,7 @@ function Dashboard() {
               <PopoverTrigger asChild>
                 <button
                   type="button"
-                  className="relative size-9 grid place-items-center rounded-full border border-border bg-card hover:bg-secondary/60 transition-colors"
+                  className="relative size-10 grid place-items-center rounded-full border border-border bg-card hover:bg-secondary/60 transition-colors"
                   aria-label="Filtros"
                 >
                   <Filter className="size-4" />
