@@ -2715,6 +2715,10 @@ export type Database = {
         }
         Returns: number
       }
+      property_is_published: {
+        Args: { _property_id: string }
+        Returns: boolean
+      }
       read_email_batch: {
         Args: { batch_size: number; queue_name: string; vt: number }
         Returns: {
