@@ -72,14 +72,7 @@ export function ClicksignPanel() {
   }, [cfg.data?.webhookSecret]);
 
   const saveSecretFn = useServerFn(rotateMyClicksignWebhookSecret);
-  const saveSecret = useMutation({
-    mutationFn: async () => saveSecretFn({ data: { secret: secret.trim() } }),
-    onSuccess: () => {
-      toast.success("Segredo do webhook salvo.");
-      qc.invalidateQueries({ queryKey: ["clicksign-config"] });
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
+
 
   const origin = typeof window !== "undefined" ? window.location.origin : "";
   const webhookUrl = cfg.data?.ownerId
@@ -97,15 +90,24 @@ export function ClicksignPanel() {
     enabled: connected,
   });
 
+  // Um único "Salvar": grava a chave de API (revalidando a conexão) e o
+  // segredo do webhook na mesma ação.
   const save = useMutation({
-    mutationFn: async () => saveFn({ data: { apiToken: token || undefined, environment: "production" } }),
+    mutationFn: async () => {
+      await saveFn({ data: { apiToken: token || undefined, environment: "production" } });
+      const s = secret.trim();
+      if (s.length >= 8 && s !== (cfg.data?.webhookSecret ?? "")) {
+        await saveSecretFn({ data: { secret: s } });
+      }
+    },
     onSuccess: () => {
-      toast.success("ClickSign conectado.");
+      toast.success("Integração salva e reconectada.");
       setToken("");
       qc.invalidateQueries({ queryKey: ["clicksign-config"] });
     },
     onError: (e: Error) => toast.error(e.message),
   });
+
 
   const sync = useMutation({
     mutationFn: async () => syncFn(),
@@ -249,20 +251,10 @@ export function ClicksignPanel() {
                   </Button>
                 </div>
               </div>
-              <Button
-                type="button"
-                size="sm"
-                className="h-8 rounded-full text-xs"
-                onClick={() => saveSecret.mutate()}
-                disabled={saveSecret.isPending || secret.trim().length < 8}
-              >
-                {saveSecret.isPending ? (
-                  <Loader2 className="mr-1 size-3.5 animate-spin" />
-                ) : (
-                  <Save className="mr-1 size-3.5" />
-                )}
-                Salvar segredo
-              </Button>
+              <p className="text-[10px] text-muted-foreground">
+                O segredo é salvo junto com a chave de API ao clicar em “Salvar”.
+              </p>
+
             </AccordionContent>
           </AccordionItem>
         )}
@@ -344,11 +336,17 @@ export function ClicksignPanel() {
           onClick={() => save.mutate()}
           disabled={save.isPending}
         >
-          {save.isPending ? <Loader2 className="mr-1 size-3.5 animate-spin" /> : null}
-          {connected ? "Reconectar" : "Conectar"}
+          {save.isPending ? (
+            <Loader2 className="mr-1 size-3.5 animate-spin" />
+          ) : (
+            <Save className="mr-1 size-3.5" />
+          )}
+          {connected ? "Salvar" : "Conectar"}
         </Button>
+
         {connected && (
-          <DropdownMenu>
+          <DropdownMenu modal={false}>
+
             <DropdownMenuTrigger asChild>
               <Button size="sm" variant="outline" className="h-8 shrink-0 rounded-full text-xs">
                 <MoreHorizontal className="mr-1 size-3.5" /> Ações

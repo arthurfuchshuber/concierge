@@ -292,7 +292,7 @@ export const syncMyClicksignDocuments = createServerFn({ method: "POST" })
 
       const { data: existing } = await supabase
         .from("clicksign_documents")
-        .select("id")
+        .select("id, status")
         .eq("account_owner_id", userId)
         .eq("document_key", key)
         .maybeSingle();
@@ -304,6 +304,35 @@ export const syncMyClicksignDocuments = createServerFn({ method: "POST" })
         await supabase.from("clicksign_documents").insert(payload);
         inserted++;
       }
+
+      // Linha do tempo: todo documento novo ou com mudança de status vira um
+      // registro datado na ficha do proprietário/prestador vinculado.
+      const prevStatus = (existing?.status as string | null) ?? null;
+      const newStatus = payload.status;
+      if (stakeholderId && stakeholderType !== "guest" && (!existing || prevStatus !== newStatus)) {
+        await supabase.from("stakeholder_events").insert({
+          account_owner_id: userId,
+          stakeholder_type: stakeholderType as string,
+          stakeholder_id: stakeholderId,
+          kind: "clicksign",
+          message: existing
+            ? `Contrato "${filename}" mudou de status: ${prevStatus ?? "—"} → ${newStatus}.`
+            : `Contrato "${filename}" importado do ClickSign (status: ${newStatus}).`,
+          metadata: {
+            source: "clicksign",
+            document_key: key,
+            document_name: filename,
+            status: newStatus,
+            previous_status: prevStatus,
+            signed_url: payload.url_signed,
+            original_url: payload.url_original,
+            finished_at: payload.finished_at,
+            at: new Date().toISOString(),
+          } as never,
+          created_by: userId,
+        });
+      }
+
     }
 
     await supabase.from("host_integration_credentials").update({

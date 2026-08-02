@@ -62,7 +62,7 @@ export const Route = createFileRoute("/api/public/clicksign-webhook")({
 
           const { data: existing } = await supabaseAdmin
             .from("clicksign_documents")
-            .select("id")
+            .select("id, status, stakeholder_type, stakeholder_id")
             .eq("account_owner_id", ownerId)
             .eq("document_key", key)
             .maybeSingle();
@@ -85,7 +85,32 @@ export const Route = createFileRoute("/api/public/clicksign-webhook")({
           } else {
             await supabaseAdmin.from("clicksign_documents").insert(values);
           }
+
+          // Registra o evento na linha do tempo do cadastro vinculado.
+          const stType = existing?.stakeholder_type as string | null;
+          const stId = existing?.stakeholder_id as string | null;
+          const prevStatus = (existing?.status as string | null) ?? null;
+          if (stId && stType && stType !== "guest" && prevStatus !== values.status) {
+            await supabaseAdmin.from("stakeholder_events").insert({
+              account_owner_id: ownerId,
+              stakeholder_type: stType,
+              stakeholder_id: stId,
+              kind: "clicksign",
+              message: `Contrato "${values.name}" atualizado pelo ClickSign: ${prevStatus ?? "—"} → ${values.status}.`,
+              metadata: {
+                source: "clicksign_webhook",
+                document_key: key,
+                document_name: values.name,
+                status: values.status,
+                previous_status: prevStatus,
+                signed_url: values.url_signed,
+                finished_at: values.finished_at,
+                at: new Date().toISOString(),
+              } as never,
+            });
+          }
         }
+
 
         await supabaseAdmin
           .from("host_integration_credentials")
