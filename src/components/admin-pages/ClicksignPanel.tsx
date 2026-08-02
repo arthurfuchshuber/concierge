@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Loader2, RefreshCw, Trash2, FileSignature, ExternalLink } from "lucide-react";
+import { Loader2, RefreshCw, Trash2, FileSignature, ExternalLink, UserPlus } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,6 +14,8 @@ import {
   syncMyClicksignDocuments,
   listMyClicksignDocuments,
 } from "@/lib/clicksign.functions";
+import { ClicksignImportDialog } from "@/components/admin-pages/ClicksignImportDialog";
+import { ClicksignDisconnectDialog } from "@/components/admin-pages/ClicksignDisconnectDialog";
 
 const VINCULO: Record<string, string> = {
   owner: "Proprietário",
@@ -31,6 +33,8 @@ export function ClicksignPanel() {
 
   const [token, setToken] = useState("");
   const [env, setEnv] = useState<"production" | "sandbox">("production");
+  const [importOpen, setImportOpen] = useState(false);
+  const [disconnectOpen, setDisconnectOpen] = useState(false);
 
   const cfg = useQuery({ queryKey: ["clicksign-config"], queryFn: () => getFn(), retry: false });
   const connected = !!cfg.data?.hasToken;
@@ -62,11 +66,19 @@ export function ClicksignPanel() {
   });
 
   const disconnect = useMutation({
-    mutationFn: async () => discFn(),
-    onSuccess: () => {
-      toast.success("ClickSign desconectado.");
+    mutationFn: async (purge: boolean) => discFn({ data: { purge } }),
+    onSuccess: (r) => {
+      toast.success(
+        r.purged
+          ? "ClickSign desconectado e dados da integração removidos."
+          : "ClickSign desconectado. Os dados importados foram mantidos.",
+      );
+      setDisconnectOpen(false);
       qc.invalidateQueries({ queryKey: ["clicksign-config"] });
+      qc.invalidateQueries({ queryKey: ["clicksign-docs"] });
+      qc.invalidateQueries({ queryKey: ["stakeholders"] });
     },
+    onError: (e: Error) => toast.error(e.message),
   });
 
   if (cfg.isLoading) {
@@ -144,11 +156,17 @@ export function ClicksignPanel() {
             </Button>
             <Button
               size="sm"
+              variant="outline"
+              className="h-8 rounded-full text-xs"
+              onClick={() => setImportOpen(true)}
+            >
+              <UserPlus className="mr-1 size-3.5" /> Importar cadastros
+            </Button>
+            <Button
+              size="sm"
               variant="ghost"
               className="h-8 rounded-full text-xs text-red-600 hover:bg-red-500/10"
-              onClick={() => {
-                if (confirm("Remover a conexão com o ClickSign?")) disconnect.mutate();
-              }}
+              onClick={() => setDisconnectOpen(true)}
               disabled={disconnect.isPending}
             >
               <Trash2 className="mr-1 size-3.5" /> Desconectar
@@ -210,6 +228,14 @@ export function ClicksignPanel() {
           )}
         </div>
       )}
+
+      <ClicksignImportDialog open={importOpen} onOpenChange={setImportOpen} />
+      <ClicksignDisconnectDialog
+        open={disconnectOpen}
+        onOpenChange={setDisconnectOpen}
+        pending={disconnect.isPending}
+        onConfirm={(purge) => disconnect.mutate(purge)}
+      />
     </div>
   );
 }
