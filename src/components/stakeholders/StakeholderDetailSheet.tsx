@@ -84,7 +84,16 @@ export function StakeholderDetailSheet({
     refetchInterval: 20_000,
   });
 
+  const feedFn = useServerFn(getStakeholderIntegrationFeed);
+  const feed = useQuery({
+    queryKey: ["stakeholder-feed", kind, id],
+    queryFn: () => feedFn({ data: { type: kind, id } }),
+    staleTime: 5 * 60_000,
+    retry: false,
+  });
+
   const row = data?.row as Record<string, any> | null | undefined;
+
 
   async function submitNote() {
     if (!note.trim()) return;
