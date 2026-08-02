@@ -1,5 +1,5 @@
 import { createFileRoute, Outlet, Link, useNavigate, useRouterState } from "@tanstack/react-router";
-import { LogOut, LayoutDashboard, Settings2, Menu, Users, Shield, Library, ShieldCheck, Activity, Star, Headphones, Home } from "lucide-react";
+import { LogOut, LayoutDashboard, Settings2, Menu, Users, Shield, Library, ShieldCheck, Activity, Star, Headphones, Home, Contact, Plug } from "lucide-react";
 import conciergeLogo from "@/assets/concierge-logo.png";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
@@ -26,7 +26,7 @@ export const Route = createFileRoute("/_authenticated/admin")({
 const baseNav = [
   { to: "/admin/dashboard", label: "Dashboard", icon: LayoutDashboard, exact: false },
   { to: "/admin/guias", label: "Guias", icon: Home, exact: false },
-  { to: "/admin/hospedes", label: "Hóspedes", icon: Users, exact: false },
+  { to: "/admin/stakeholders", label: "Stakeholders", icon: Contact, exact: false },
   { to: "/admin/biblioteca", label: "Biblioteca", icon: Library, exact: false },
 ] as const;
 const adminOnlyNav = [
@@ -68,10 +68,12 @@ function AdminLayout() {
     ? ([
         ...baseNav,
         { to: "/admin/atendimento", label: "Atendimento", icon: Headphones, exact: false, badge: pending.data?.count ?? 0 },
+        { to: "/admin/integracoes", label: "Integrações", icon: Plug, exact: false },
         { to: "/admin/administrativo", label: "Administrativo", icon: Settings2, exact: false },
       ] as const)
     : ([
         ...baseNav,
+        { to: "/admin/integracoes", label: "Integrações", icon: Plug, exact: false },
         { to: "/admin/administrativo", label: "Administrativo", icon: Settings2, exact: false },
       ] as const);
 
@@ -121,6 +123,7 @@ function AdminLayout() {
   const allowedWithoutPlan =
     pathname.startsWith("/admin/engajamento") ||
     pathname.startsWith("/admin/hospedes") ||
+    pathname.startsWith("/admin/stakeholders") ||
     pathname.startsWith("/admin/clientes") ||
     pathname.startsWith("/admin/taxonomia") ||
     pathname.startsWith("/admin/recomendacoes-sigma") ||
