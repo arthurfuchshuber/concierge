@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { Loader2, Link2, Search } from "lucide-react";
@@ -16,12 +16,30 @@ export type LinkTarget = {
   suggested: { kind: "email" | "domain"; value: string } | null;
 };
 
-type Scope = "event" | "title" | "suggested";
+type Scope = "event" | "keyword" | "suggested";
+
+/** Sugere palavras-chave a partir do título, ignorando conectivos e datas. */
+const STOP = new Set([
+  "de","da","do","das","dos","com","para","por","no","na","nos","nas","e","a","o","as","os",
+  "em","um","uma","reuniao","reunião","call","meet","google","sem","titulo","título","novo","nova",
+]);
+function suggestKeywords(title: string): string[] {
+  return Array.from(
+    new Set(
+      String(title ?? "")
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .split(/[^a-z0-9]+/)
+        .filter((w) => w.length >= 4 && !STOP.has(w) && !/^\d+$/.test(w)),
+    ),
+  ).slice(0, 6);
+}
 
 /**
  * Popup para vincular manualmente um evento da agenda a um proprietário/prestador.
  * Funciona inclusive para convites sem e-mail — nesse caso o vínculo é gravado
- * pelo próprio evento ou pelo título recorrente.
+ * pelo próprio evento ou por palavras-chave que aparecem no título.
  */
 export function LinkEventDialog({
   target,
@@ -36,6 +54,17 @@ export function LinkEventDialog({
 
   const [q, setQ] = useState("");
   const [scope, setScope] = useState<Scope>("event");
+  const [keywords, setKeywords] = useState("");
+
+  const suggestions = useMemo(() => suggestKeywords(target?.title ?? ""), [target?.title]);
+
+  useEffect(() => {
+    if (target) {
+      setScope("event");
+      setQ("");
+      setKeywords("");
+    }
+  }, [target?.eventId]);
 
   const options = useQuery({
     queryKey: ["stakeholder-options"],
@@ -51,14 +80,23 @@ export function LinkEventDialog({
     return rows.filter((r) => `${r.label} ${r.email ?? ""} ${r.doc ?? ""}`.toLowerCase().includes(term));
   }, [options.data, q]);
 
+  const cleanKeywords = keywords
+    .split(",")
+    .map((k) => k.trim())
+    .filter((k) => k.length >= 3)
+    .join(", ");
+
   const save = useMutation({
     mutationFn: async (vars: { type: "owner" | "provider"; id: string }) => {
       if (!target) return;
+      if (scope === "keyword" && !cleanKeywords) {
+        throw new Error("Informe ao menos uma palavra-chave com 3+ letras.");
+      }
       const alias =
         scope === "suggested" && target.suggested
           ? target.suggested
-          : scope === "title"
-            ? ({ kind: "title", value: target.title } as const)
+          : scope === "keyword"
+            ? ({ kind: "keyword", value: cleanKeywords } as const)
             : ({ kind: "event", value: target.eventId } as const);
       await aliasFn({
         data: {
@@ -81,9 +119,9 @@ export function LinkEventDialog({
   const scopes: Array<{ value: Scope; label: string; hint: string; enabled: boolean }> = [
     { value: "event", label: "Só este evento", hint: "Vincula apenas este convite.", enabled: true },
     {
-      value: "title",
-      label: "Todos com este título",
-      hint: `Eventos chamados "${target?.title ?? ""}" entram sozinhos.`,
+      value: "keyword",
+      label: "Por palavras-chave",
+      hint: "Qualquer evento cujo título/descrição contenha um dos termos.",
       enabled: true,
     },
     {
@@ -125,6 +163,44 @@ export function LinkEventDialog({
                 </button>
               ))}
           </div>
+
+          {scope === "keyword" ? (
+            <div className="space-y-2 rounded-xl border border-border bg-muted/30 p-2.5">
+              <Input
+                value={keywords}
+                onChange={(e) => setKeywords(e.target.value)}
+                placeholder="Ex.: reforma, pintura, vistoria"
+                className="h-9 text-xs"
+              />
+              <p className="text-[10px] leading-snug text-muted-foreground">
+                Separe por vírgula. Vale se <strong>qualquer</strong> termo aparecer no título ou na descrição do
+                evento (não diferencia maiúsculas nem acentos).
+              </p>
+              {suggestions.length > 0 ? (
+                <div className="flex flex-wrap gap-1">
+                  {suggestions.map((s) => (
+                    <button
+                      key={s}
+                      type="button"
+                      onClick={() =>
+                        setKeywords((prev) => {
+                          const list = prev.split(",").map((k) => k.trim()).filter(Boolean);
+                          return list.includes(s)
+                            ? list.filter((k) => k !== s).join(", ")
+                            : [...list, s].join(", ");
+                        })
+                      }
+                      className="rounded-full border border-border bg-card px-2 py-0.5 text-[10px] text-muted-foreground hover:text-foreground"
+                    >
+                      + {s}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+
+
 
           <div className="relative">
             <Search className="absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />

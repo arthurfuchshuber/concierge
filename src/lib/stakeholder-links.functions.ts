@@ -33,7 +33,7 @@ export const listStakeholderOptions = createServerFn({ method: "GET" })
   });
 
 const ALIAS_INPUT = z.object({
-  aliasKind: z.enum(["email", "domain", "doc", "name", "event", "title"]),
+  aliasKind: z.enum(["email", "domain", "doc", "name", "event", "title", "keyword"]),
   aliasValue: z.string().trim().min(2).max(200),
   stakeholderType: z.enum(["owner", "provider"]),
   stakeholderId: z.string().uuid(),
