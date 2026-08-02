@@ -72,14 +72,7 @@ export function ClicksignPanel() {
   }, [cfg.data?.webhookSecret]);
 
   const saveSecretFn = useServerFn(rotateMyClicksignWebhookSecret);
-  const saveSecret = useMutation({
-    mutationFn: async () => saveSecretFn({ data: { secret: secret.trim() } }),
-    onSuccess: () => {
-      toast.success("Segredo do webhook salvo.");
-      qc.invalidateQueries({ queryKey: ["clicksign-config"] });
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
+
 
   const origin = typeof window !== "undefined" ? window.location.origin : "";
   const webhookUrl = cfg.data?.ownerId
