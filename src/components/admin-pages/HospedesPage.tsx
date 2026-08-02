@@ -64,7 +64,7 @@ function buildEmailBody(r: Row) {
   return lines.join("\n");
 }
 
-export function HospedesPage() {
+export function HospedesPage({ embedded = false }: { embedded?: boolean } = {}) {
   const listFn = useServerFn(listOwnerGuestForms);
   const saveFn = useServerFn(savePortariaEmail);
   const { data, isLoading, refetch } = useQuery({
@@ -118,16 +118,19 @@ export function HospedesPage() {
   }
 
   return (
-    <div className="px-6 lg:px-10 py-8 lg:py-10 max-w-7xl mx-auto w-full">
-      <div className="mb-6 pb-5 border-b border-border/60">
-        <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground font-semibold mb-2">
-          Formulários de primeiro acesso
-        </p>
-        <h1 className="font-display text-2xl sm:text-3xl">Hóspedes</h1>
-        <p className="text-sm text-muted-foreground mt-2">
-          Todos os dados enviados pelos hóspedes ao abrirem o guia. Baixe documentos e envie tudo para a portaria em 1 clique.
-        </p>
-      </div>
+    <div className={embedded ? "w-full" : "px-6 lg:px-10 py-8 lg:py-10 max-w-7xl mx-auto w-full"}>
+      {!embedded && (
+        <div className="mb-6 pb-5 border-b border-border/60">
+          <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground font-semibold mb-2">
+            Formulários de primeiro acesso
+          </p>
+          <h1 className="font-display text-2xl sm:text-3xl">Hóspedes</h1>
+          <p className="text-sm text-muted-foreground mt-2">
+            Todos os dados enviados pelos hóspedes ao abrirem o guia. Baixe documentos e envie tudo para a portaria em 1 clique.
+          </p>
+        </div>
+      )}
+
 
       <div className="mb-4 relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />

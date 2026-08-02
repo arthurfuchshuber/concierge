@@ -6,13 +6,12 @@ import {
   saveMyWhatsappConfig,
   disconnectMyWhatsappConfig,
 } from "@/lib/whatsapp.functions";
-import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { CopyButton } from "@/components/CopyButton";
-import { MessageCircle, ExternalLink, Loader2, Trash2 } from "lucide-react";
+import { ExternalLink, Loader2, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 export function WhatsappBusinessPage() {
@@ -69,115 +68,101 @@ export function WhatsappBusinessPage() {
     "bg-muted text-muted-foreground border-border";
 
   return (
-    <div className="space-y-6">
-      <Card className="p-6 space-y-4">
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="size-10 rounded-full bg-emerald-500/15 text-emerald-600 grid place-items-center">
-              <MessageCircle className="size-5" />
-            </div>
-            <div>
-              <h2 className="text-lg font-medium">WhatsApp Business (via Sinch)</h2>
-              <p className="text-sm text-muted-foreground">
-                Contate hóspedes proativamente e receba respostas na central de atendimento.
-              </p>
-            </div>
-          </div>
-          <Badge variant="outline" className={`capitalize ${statusColor}`}>
-            {cfg?.status ?? "pending"}
-          </Badge>
+    <div className="space-y-4">
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-xs text-muted-foreground">
+          Conecte sua conta Sinch para conversar com hóspedes pelo WhatsApp.
+        </p>
+        <Badge variant="outline" className={`capitalize shrink-0 ${statusColor}`}>
+          {cfg?.status ?? "pendente"}
+        </Badge>
+      </div>
+
+      {cfg?.lastError && (
+        <p className="rounded-xl border border-red-500/30 bg-red-500/5 px-3 py-2 text-xs text-red-600 dark:text-red-400">
+          {cfg.lastError}
+        </p>
+      )}
+
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div>
+          <Label className="text-xs">Número emissor</Label>
+          <Input
+            placeholder="+5511999999999"
+            value={form.senderNumber || cfg?.senderNumber || ""}
+            onChange={(e) => setForm((f) => ({ ...f, senderNumber: e.target.value }))}
+          />
         </div>
+        <div>
+          <Label className="text-xs">Project ID</Label>
+          <Input
+            placeholder="12345678-abcd-…"
+            value={form.projectId || cfg?.projectId || ""}
+            onChange={(e) => setForm((f) => ({ ...f, projectId: e.target.value }))}
+          />
+        </div>
+        <div>
+          <Label className="text-xs">App ID</Label>
+          <Input
+            placeholder="01H…"
+            value={form.appId || cfg?.appId || ""}
+            onChange={(e) => setForm((f) => ({ ...f, appId: e.target.value }))}
+          />
+        </div>
+        <div>
+          <Label className="text-xs">API Token</Label>
+          <Input
+            type="password"
+            placeholder={cfg?.hasToken ? "•••••••• (salvo)" : "Token da Sinch"}
+            value={form.apiToken}
+            onChange={(e) => setForm((f) => ({ ...f, apiToken: e.target.value }))}
+          />
+        </div>
+      </div>
 
-        {cfg?.lastError && (
-          <div className="rounded-md border border-red-500/30 bg-red-500/5 p-3 text-sm text-red-700 dark:text-red-400">
-            Último erro: {cfg.lastError}
+      <details className="rounded-xl border border-border bg-secondary/30 px-3 py-2 group">
+        <summary className="text-xs cursor-pointer text-muted-foreground list-none flex items-center justify-between">
+          Webhook e ajuda
+          <ExternalLink className="size-3 opacity-60" />
+        </summary>
+        <div className="mt-3 space-y-2">
+          <div className="flex items-center gap-2">
+            <Input readOnly value={cfg?.webhookUrl ?? ""} className="font-mono text-[11px] h-8" />
+            <CopyButton value={cfg?.webhookUrl ?? ""} />
           </div>
-        )}
-
-        <div className="rounded-lg bg-secondary/40 p-4 space-y-3 text-sm">
-          <div className="font-medium">1. Configure o webhook na Sinch</div>
-          <p className="text-muted-foreground">
-            No Conversations API Dashboard da Sinch, cadastre o webhook abaixo (evento <code>message_inbound</code> e <code>message_delivery</code>) usando este segredo como assinatura HMAC-SHA256.
+          <p className="text-[11px] text-muted-foreground">
+            Cadastre essa URL na Sinch (eventos <code>message_inbound</code> e <code>message_delivery</code>). O segredo
+            HMAC ({cfg?.webhookSecretMasked ?? "—"}) só aparece uma vez; para trocar, desconecte e reconfigure.
+            Credenciais em{" "}
+            <a
+              href="https://dashboard.sinch.com"
+              target="_blank"
+              rel="noreferrer"
+              className="text-primary underline"
+            >
+              dashboard.sinch.com
+            </a>
+            .
           </p>
-          <div className="grid gap-2">
-            <div className="flex items-center gap-2">
-              <Label className="w-24 text-xs text-muted-foreground">URL</Label>
-              <Input readOnly value={cfg?.webhookUrl ?? ""} className="font-mono text-xs" />
-              <CopyButton value={cfg?.webhookUrl ?? ""} />
-            </div>
-            <div className="flex items-center gap-2">
-              <Label className="w-24 text-xs text-muted-foreground">Segredo</Label>
-              <Input readOnly value={cfg?.webhookSecretMasked ?? ""} className="font-mono text-xs" />
-            </div>
-            <p className="text-xs text-muted-foreground">
-              O segredo completo é gerado uma vez e nunca exibido. Se precisar rotacionar, desconecte e reconfigure.
-            </p>
-          </div>
         </div>
+      </details>
 
-        <div className="rounded-lg bg-secondary/40 p-4 space-y-3 text-sm">
-          <div className="font-medium">2. Credenciais Sinch</div>
-          <p className="text-muted-foreground">
-            Encontre em <a href="https://dashboard.sinch.com" target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-primary underline">Sinch Dashboard <ExternalLink className="size-3" /></a> → Conversations API.
-          </p>
-
-          <div className="grid gap-3 md:grid-cols-2">
-            <div>
-              <Label>Número emissor (E.164)</Label>
-              <Input
-                placeholder="+5511999999999"
-                value={form.senderNumber || cfg?.senderNumber || ""}
-                onChange={(e) => setForm((f) => ({ ...f, senderNumber: e.target.value }))}
-              />
-            </div>
-            <div>
-              <Label>Project ID</Label>
-              <Input
-                placeholder="Ex: 12345678-abcd-…"
-                value={form.projectId || cfg?.projectId || ""}
-                onChange={(e) => setForm((f) => ({ ...f, projectId: e.target.value }))}
-              />
-            </div>
-            <div>
-              <Label>App ID</Label>
-              <Input
-                placeholder="Ex: 01H…"
-                value={form.appId || cfg?.appId || ""}
-                onChange={(e) => setForm((f) => ({ ...f, appId: e.target.value }))}
-              />
-            </div>
-            <div>
-              <Label>API Token {cfg?.hasToken ? <span className="text-xs text-muted-foreground">(deixe em branco para manter)</span> : null}</Label>
-              <Input
-                type="password"
-                placeholder={cfg?.hasToken ? "•••••••• (salvo)" : "Bearer token da Sinch"}
-                value={form.apiToken}
-                onChange={(e) => setForm((f) => ({ ...f, apiToken: e.target.value }))}
-              />
-            </div>
-          </div>
-        </div>
-
-        <div className="flex items-center justify-between gap-3 pt-2">
-          <Button
-            variant="outline"
-            size="sm"
-            className="text-red-600 border-red-500/30 hover:bg-red-500/10"
-            onClick={() => { if (confirm("Remover configuração de WhatsApp Business?")) disconnect.mutate(); }}
-            disabled={!cfg?.hasToken || disconnect.isPending}
-          >
-            <Trash2 className="size-4 mr-1" /> Desconectar
-          </Button>
-          <Button onClick={() => save.mutate()} disabled={save.isPending || (!showForm)}>
-            {save.isPending ? <Loader2 className="size-4 mr-2 animate-spin" /> : null}
-            Salvar configuração
-          </Button>
-        </div>
-      </Card>
-
-      <div className="text-xs text-muted-foreground px-1">
-        Observação: fora da janela de 24h desde a última resposta do hóspede, a Meta permite apenas <b>templates HSM pré-aprovados</b>. Gerencie seus templates diretamente no dashboard da Sinch e aguarde aprovação antes de enviar.
+      <div className="flex items-center justify-between gap-3">
+        <Button
+          variant="ghost"
+          size="sm"
+          className="rounded-full text-red-600 hover:bg-red-500/10"
+          onClick={() => { if (confirm("Remover configuração de WhatsApp Business?")) disconnect.mutate(); }}
+          disabled={!cfg?.hasToken || disconnect.isPending}
+        >
+          <Trash2 className="size-4 mr-1" /> Desconectar
+        </Button>
+        <Button className="rounded-full" onClick={() => save.mutate()} disabled={save.isPending || !showForm}>
+          {save.isPending ? <Loader2 className="size-4 mr-2 animate-spin" /> : null}
+          Salvar
+        </Button>
       </div>
     </div>
   );
 }
+

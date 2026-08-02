@@ -371,28 +371,8 @@ function Dashboard() {
               : "Aqui está o resumo do seu painel hoje."}
           </p>
         </div>
-        <div className="flex items-center gap-2">
-
-          {!readOnly && (
-            <Button
-              onClick={() => navigate({ to: "/admin/properties/$id", params: { id: "new" } })}
-              className="rounded-full"
-              disabled={reachedLimit || !sub.plan || noOwners}
-              title={
-                !sub.plan
-                  ? "Assine um plano para criar guias"
-                  : noOwners
-                  ? "Cadastre um proprietário em Stakeholders antes de criar guias"
-                  : reachedLimit
-                  ? "Limite do seu plano atingido. Faça upgrade."
-                  : undefined
-              }
-            >
-              <Plus className="size-4 mr-1.5" /> Novo guia
-            </Button>
-          )}
-        </div>
       </div>
+
 
 
       {/* Stat cards (collapsible) */}
@@ -541,7 +521,7 @@ function Dashboard() {
               <PopoverTrigger asChild>
                 <button
                   type="button"
-                  className="relative size-9 grid place-items-center rounded-full border border-border bg-card hover:bg-secondary/60 transition-colors"
+                  className="relative size-10 grid place-items-center rounded-full border border-border bg-card hover:bg-secondary/60 transition-colors"
                   aria-label="Filtros"
                 >
                   <Filter className="size-4" />
@@ -616,7 +596,28 @@ function Dashboard() {
                 <List className="size-3.5" />
               </button>
             </div>
+            {!readOnly && (
+              <button
+                type="button"
+                onClick={() => navigate({ to: "/admin/properties/$id", params: { id: "new" } })}
+                disabled={reachedLimit || !sub.plan || noOwners}
+                aria-label="Novo guia"
+                title={
+                  !sub.plan
+                    ? "Assine um plano para criar guias"
+                    : noOwners
+                    ? "Cadastre um proprietário em Stakeholders antes de criar guias"
+                    : reachedLimit
+                    ? "Limite do seu plano atingido. Faça upgrade."
+                    : "Novo guia"
+                }
+                className="size-10 grid place-items-center rounded-full bg-secondary text-foreground border border-border hover:bg-secondary/70 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <Plus className="size-4" />
+              </button>
+            )}
           </div>
+
         </div>
 
         {data && data.length > 0 && (
