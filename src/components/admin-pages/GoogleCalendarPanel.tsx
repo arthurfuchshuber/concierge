@@ -69,10 +69,40 @@ export function GoogleCalendarPanel() {
 
   const events = useQuery({
     queryKey: ["gcal-events", calendarId],
-    queryFn: () => eventsFn({ data: { calendarId, days: 30, includePast: true } }),
+    queryFn: () => eventsFn({ data: { calendarId } }),
     enabled: connected,
     retry: false,
   });
+
+  const stakeholders = useQuery({
+    queryKey: ["stakeholder-options"],
+    queryFn: () => optionsFn(),
+    enabled: connected,
+    retry: false,
+  });
+
+  const link = useMutation({
+    mutationFn: (vars: {
+      kind: "email" | "domain";
+      value: string;
+      stakeholderType: "owner" | "provider";
+      stakeholderId: string;
+    }) =>
+      aliasFn({
+        data: {
+          aliasKind: vars.kind,
+          aliasValue: vars.value,
+          stakeholderType: vars.stakeholderType,
+          stakeholderId: vars.stakeholderId,
+        },
+      }),
+    onSuccess: () => {
+      toast.success("Vínculo salvo. Eventos futuros com esse contato entram sozinhos.");
+      qc.invalidateQueries({ queryKey: ["gcal-events"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
 
   const connect = useMutation({
     mutationFn: async () => {
