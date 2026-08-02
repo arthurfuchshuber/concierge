@@ -1847,6 +1847,7 @@ export type Database = {
           city: string | null
           created_at: string
           created_by: string | null
+          created_via: string
           district: string | null
           doc: string | null
           doc_type: string
@@ -1870,6 +1871,7 @@ export type Database = {
           city?: string | null
           created_at?: string
           created_by?: string | null
+          created_via?: string
           district?: string | null
           doc?: string | null
           doc_type?: string
@@ -1893,6 +1895,7 @@ export type Database = {
           city?: string | null
           created_at?: string
           created_by?: string | null
+          created_via?: string
           district?: string | null
           doc?: string | null
           doc_type?: string
@@ -2101,6 +2104,7 @@ export type Database = {
           city: string | null
           created_at: string
           created_by: string | null
+          created_via: string
           district: string | null
           doc: string | null
           doc_type: string
@@ -2127,6 +2131,7 @@ export type Database = {
           city?: string | null
           created_at?: string
           created_by?: string | null
+          created_via?: string
           district?: string | null
           doc?: string | null
           doc_type?: string
@@ -2153,6 +2158,7 @@ export type Database = {
           city?: string | null
           created_at?: string
           created_by?: string | null
+          created_via?: string
           district?: string | null
           doc?: string | null
           doc_type?: string
