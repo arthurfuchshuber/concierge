@@ -64,7 +64,7 @@ function buildEmailBody(r: Row) {
   return lines.join("\n");
 }
 
-export function HospedesPage() {
+export function HospedesPage({ embedded = false }: { embedded?: boolean } = {}) {
   const listFn = useServerFn(listOwnerGuestForms);
   const saveFn = useServerFn(savePortariaEmail);
   const { data, isLoading, refetch } = useQuery({
