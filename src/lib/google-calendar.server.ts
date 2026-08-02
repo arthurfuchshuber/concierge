@@ -170,7 +170,7 @@ function mapEvent(
     location,
     start: start?.dateTime ?? start?.date ?? null,
     end: end?.dateTime ?? end?.date ?? null,
-    hangoutLink: (raw['hangoutLink'] as string) ?? null,
+    hangoutLink: extractConferenceLink(raw),
     htmlLink: (raw['htmlLink'] as string) ?? null,
     attendees: attendeeList.map((a) => a.email ?? "").filter(Boolean),
     attachments: attachments
