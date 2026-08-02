@@ -273,123 +273,49 @@ export function StakeholderDirectory({ kind }: { kind: StakeholderKind }) {
       )}
 
       {/* Form */}
-      <Dialog open={formOpen} onOpenChange={setFormOpen}>
-        <DialogContent className="max-w-2xl">
+      <StakeholderFormDialog
+        kind={kind}
+        open={formOpen}
+        onOpenChange={setFormOpen}
+        initial={form}
+        onSaved={afterSaved}
+      />
+
+      {/* Próximo passo: criar a residência dentro do proprietário recém-criado */}
+      <Dialog open={!!createdOwner} onOpenChange={(o) => !o && setCreatedOwner(null)}>
+        <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle className="font-display text-2xl">
-              {form.id ? `Editar ${labelSingular.toLowerCase()}` : `Novo ${labelSingular.toLowerCase()}`}
-            </DialogTitle>
+            <DialogTitle className="font-display text-2xl">Proprietário criado</DialogTitle>
+            <DialogDescription>
+              {createdOwner?.name} já está cadastrado. Quer criar a primeira residência dele agora?
+            </DialogDescription>
           </DialogHeader>
-          <div className="grid gap-4 sm:grid-cols-2 max-h-[65vh] overflow-y-auto pr-1">
-            <div className="sm:col-span-2">
-              <Label>Nome completo *</Label>
-              <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-            </div>
-            <div>
-              <Label>Nome fantasia</Label>
-              <Input
-                value={form.trade_name}
-                onChange={(e) => setForm({ ...form, trade_name: e.target.value })}
-              />
-            </div>
-            {kind === "provider" ? (
-              <div>
-                <Label>Categoria</Label>
-                <Select value={form.category} onValueChange={(v) => setForm({ ...form, category: v })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {PROVIDER_CATEGORIES.map((c) => (
-                      <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            ) : (
-              <div>
-                <Label>Situação</Label>
-                <Select
-                  value={form.status}
-                  onValueChange={(v) => setForm({ ...form, status: v as "active" | "inactive" })}
-                >
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="active">Ativo</SelectItem>
-                    <SelectItem value="inactive">Inativo</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-            <div>
-              <Label>Tipo de documento</Label>
-              <Select
-                value={form.doc_type}
-                onValueChange={(v) => setForm({ ...form, doc_type: v as "cpf" | "cnpj" })}
+          <div className="flex flex-col gap-2 pt-2 sm:flex-row sm:justify-end">
+            <Button
+              variant="ghost"
+              className="rounded-full"
+              onClick={() => {
+                const id = createdOwner?.id;
+                setCreatedOwner(null);
+                if (id) setDetailId(id);
+              }}
+            >
+              Abrir ficha
+            </Button>
+            <Button asChild className="rounded-full">
+              <Link
+                to="/admin/properties/$id"
+                params={{ id: "new" }}
+                search={{ owner: createdOwner?.id }}
+                onClick={() => setCreatedOwner(null)}
               >
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="cpf">CPF</SelectItem>
-                  <SelectItem value="cnpj">CNPJ</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label>Documento</Label>
-              <Input value={form.doc} onChange={(e) => setForm({ ...form, doc: e.target.value })} />
-            </div>
-            <div>
-              <Label>E-mail</Label>
-              <Input value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
-            </div>
-            <div>
-              <Label>Telefone / WhatsApp</Label>
-              <Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
-            </div>
-            <div className="sm:col-span-2">
-              <Label>Endereço</Label>
-              <Input value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} />
-            </div>
-            <div>
-              <Label>Cidade</Label>
-              <Input value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} />
-            </div>
-            <div>
-              <Label>Estado</Label>
-              <Input value={form.state} onChange={(e) => setForm({ ...form, state: e.target.value })} />
-            </div>
-            {kind === "provider" && (
-              <div className="sm:col-span-2">
-                <Label>Situação</Label>
-                <Select
-                  value={form.status}
-                  onValueChange={(v) => setForm({ ...form, status: v as "active" | "inactive" })}
-                >
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="active">Ativo</SelectItem>
-                    <SelectItem value="inactive">Inativo</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-            <div className="sm:col-span-2">
-              <Label>Observações</Label>
-              <Textarea
-                rows={3}
-                value={form.notes}
-                onChange={(e) => setForm({ ...form, notes: e.target.value })}
-              />
-            </div>
+                <Home className="size-4 mr-1.5" /> Criar residência
+              </Link>
+            </Button>
           </div>
-          <DialogFooter>
-            <Button variant="ghost" onClick={() => setFormOpen(false)} className="rounded-full">
-              Cancelar
-            </Button>
-            <Button onClick={submit} disabled={saving} className="rounded-full">
-              {saving && <Loader2 className="size-4 mr-1.5 animate-spin" />} Salvar
-            </Button>
-          </DialogFooter>
         </DialogContent>
       </Dialog>
+
 
       {/* Detail */}
       <Sheet open={!!detailId} onOpenChange={(o) => !o && setDetailId(null)}>
