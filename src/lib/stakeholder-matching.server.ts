@@ -157,7 +157,7 @@ export function resolveStakeholder(
     texts?: string[];
     /** IDs de eventos da agenda (vínculo manual pontual). */
     eventIds?: string[];
-    /** Títulos de eventos (vínculo manual recorrente). */
+    /** Títulos de eventos — usados para o vínculo por palavras-chave. */
     titles?: string[];
   },
 ): StakeholderRef | null {
@@ -170,9 +170,15 @@ export function resolveStakeholder(
     const hit = valid(idx.byAlias.get(`event:${String(id).toLowerCase().trim()}`));
     if (hit) return hit;
   }
-  for (const t of signals.titles ?? []) {
-    const hit = valid(idx.byAlias.get(`title:${norm(t)}`));
-    if (hit) return hit;
+  // Palavras-chave: basta o termo aparecer no título/descrição do evento.
+  const haystack = [...(signals.titles ?? []).map(norm), ...texts].filter(Boolean);
+  if (haystack.length && idx.keywords.length) {
+    for (const { terms, ref } of idx.keywords) {
+      if (terms.some((t) => haystack.some((h) => h.includes(t)))) {
+        const hit = valid(ref);
+        if (hit) return hit;
+      }
+    }
   }
   for (const d of docs) {
     const hit = valid(idx.byAlias.get(`doc:${d}`)) ?? valid(idx.byDoc.get(d));
