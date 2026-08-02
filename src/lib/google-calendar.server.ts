@@ -210,7 +210,7 @@ export async function fetchAllEvents(supabase: SupabaseClient, userId: string): 
   for (const cal of calendars) {
     try {
       const raws = await fetchRawEvents(userId, cal.id);
-      out.push(...raws.map((r) => mapEvent(r, cal.id, cal.summary, index)));
+      out.push(...raws.filter(isMeeting).map((r) => mapEvent(r, cal.id, cal.summary, index)));
     } catch {
       // Uma agenda inacessível não pode derrubar a importação inteira.
     }
