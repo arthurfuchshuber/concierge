@@ -143,11 +143,8 @@ export function ClicksignImportDialog({
                         <Badge variant="outline" className="shrink-0 gap-1 text-[10px]">
                           <AlertTriangle className="size-3" /> Possível duplicado
                         </Badge>
-                      ) : (
-                        <Badge variant="outline" className="shrink-0 gap-1 text-[10px]">
-                          <UserPlus className="size-3" /> Novo
-                        </Badge>
-                      )}
+                      ) : null}
+
                     </div>
 
                     {c.matches.length > 0 ? (
