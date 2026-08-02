@@ -117,47 +117,23 @@ export function StakeholderDirectory({ kind }: { kind: StakeholderKind }) {
   }, [activities]);
 
   function openNew() {
-    setForm({ ...emptyForm });
+    setForm({ ...emptyStakeholderForm });
     setFormOpen(true);
   }
 
   function openEdit(row: Row) {
-    setForm({
-      id: row.id,
-      name: row.name ?? "",
-      trade_name: row.trade_name ?? "",
-      category: row.category ?? "outros",
-      doc_type: (row.doc_type as "cpf" | "cnpj") ?? "cpf",
-      doc: row.doc ?? "",
-      email: row.email ?? "",
-      phone: row.phone ?? "",
-      address: row.address ?? "",
-      city: row.city ?? "",
-      state: row.state ?? "",
-      notes: row.notes ?? "",
-      status: (row.status as "active" | "inactive") ?? "active",
-    });
+    setForm(rowToStakeholderForm(row));
     setFormOpen(true);
   }
 
-  async function submit() {
-    if (!form.name.trim()) {
-      toast.error("Informe o nome.");
-      return;
-    }
-    setSaving(true);
-    try {
-      await saveFn({ data: { ...form, kind, id: form.id ?? undefined } });
-      toast.success(form.id ? "Cadastro atualizado." : "Cadastro criado.");
-      setFormOpen(false);
-      qc.invalidateQueries({ queryKey });
-      qc.invalidateQueries({ queryKey: ["property-owners-count"] });
-    } catch (e) {
-      toast.error((e as Error).message);
-    } finally {
-      setSaving(false);
+  function afterSaved(id: string, isNew: boolean, saved: StakeholderFormValues) {
+    qc.invalidateQueries({ queryKey });
+    qc.invalidateQueries({ queryKey: ["property-owners-count"] });
+    if (isNew && kind === "owner") {
+      setCreatedOwner({ id, name: saved.trade_name || saved.name });
     }
   }
+
 
   async function remove(id: string) {
     try {
