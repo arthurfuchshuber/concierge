@@ -131,6 +131,8 @@ function LandingPage() {
         <Testimonials />
         <Pricing />
         <FAQ />
+        <Purpose />
+
         <FinalCTA />
       </main>
       <Footer />
