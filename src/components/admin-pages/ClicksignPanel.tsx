@@ -90,15 +90,24 @@ export function ClicksignPanel() {
     enabled: connected,
   });
 
+  // Um único "Salvar": grava a chave de API (revalidando a conexão) e o
+  // segredo do webhook na mesma ação.
   const save = useMutation({
-    mutationFn: async () => saveFn({ data: { apiToken: token || undefined, environment: "production" } }),
+    mutationFn: async () => {
+      await saveFn({ data: { apiToken: token || undefined, environment: "production" } });
+      const s = secret.trim();
+      if (s.length >= 8 && s !== (cfg.data?.webhookSecret ?? "")) {
+        await saveSecretFn({ data: { secret: s } });
+      }
+    },
     onSuccess: () => {
-      toast.success("ClickSign conectado.");
+      toast.success("Integração salva e reconectada.");
       setToken("");
       qc.invalidateQueries({ queryKey: ["clicksign-config"] });
     },
     onError: (e: Error) => toast.error(e.message),
   });
+
 
   const sync = useMutation({
     mutationFn: async () => syncFn(),
