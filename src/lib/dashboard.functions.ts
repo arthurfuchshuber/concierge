@@ -414,9 +414,11 @@ export type ArrivalRow = {
   reservationId: string | null;
   propertyId: string;
   propertyName: string | null;
+  ownerName: string | null;
   propertyAddress: string | null;
   mapsUrl: string | null;
   garageMapsUrl: string | null;
+
   hasPasswords: boolean;
   openedCheckin: boolean;
   viewedPasswords: boolean;
@@ -436,6 +438,7 @@ export type ArrivalRow = {
   arrivalTimeOverride: string | null;
   doneAt: string | null;
   pendingFill: boolean; // true = reserva iCal sem formulário preenchido
+  concludedAt?: string | null;
   ical: { hasIcal: boolean; matched: boolean; icalCheckin: string | null; icalCheckout: string | null };
   additionalGuests: Array<{
     logId: string;
@@ -577,8 +580,9 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
       context.supabase
         .from("properties")
         .select(
-          "id, name, address, maps_url, garage_maps_url, wifi_password, lock_code, gate_code, checkin_time, checkin_time_max, checkout_time, checkout_time_min, airbnb_ical_url",
+          "id, name, address, owner_contact_id, maps_url, garage_maps_url, wifi_password, lock_code, gate_code, checkin_time, checkin_time_max, checkout_time, checkout_time_min, airbnb_ical_url",
         )
+
         .in("id", propIds),
       context.supabase
         .from("guest_arrival_status")
@@ -603,10 +607,30 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
           }),
     ]);
 
+    const ownerIdsForProps = Array.from(
+      new Set(
+        ((props ?? []) as Array<{ owner_contact_id: string | null }>)
+          .map((p) => p.owner_contact_id)
+          .filter((v): v is string => !!v),
+      ),
+    );
+    const ownerNameById = new Map<string, string>();
+    if (ownerIdsForProps.length > 0) {
+      const { data: owners } = await context.supabase
+        .from("property_owners")
+        .select("id, name, trade_name")
+        .in("id", ownerIdsForProps);
+      for (const o of (owners ?? []) as Array<{ id: string; name: string | null; trade_name: string | null }>) {
+        const label = (o.trade_name || o.name || "").trim();
+        if (label) ownerNameById.set(o.id, label);
+      }
+    }
+
     const propMap = new Map<
       string,
       {
         name: string | null;
+        ownerName: string | null;
         address: string | null;
         maps_url: string | null;
         garage_maps_url: string | null;
@@ -622,6 +646,7 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
       id: string;
       name: string | null;
       address: string | null;
+      owner_contact_id: string | null;
       maps_url: string | null;
       garage_maps_url: string | null;
       wifi_password: string | null;
@@ -635,6 +660,7 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
     }>) {
       propMap.set(p.id, {
         name: p.name,
+        ownerName: p.owner_contact_id ? (ownerNameById.get(p.owner_contact_id) ?? null) : null,
         address: p.address,
         maps_url: p.maps_url,
         garage_maps_url: p.garage_maps_url,
@@ -646,6 +672,7 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
         airbnb_ical_url: p.airbnb_ical_url,
       });
     }
+
 
     // Index section events by property_id + normalized guest identity
     const eventKey = (pid: string, name: string | null, phone: string | null) =>
@@ -946,6 +973,7 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
         reservationId: null,
         propertyId: l.property_id,
         propertyName: p?.name ?? null,
+        ownerName: p?.ownerName ?? null,
         propertyAddress: p?.address ?? null,
         mapsUrl: p?.maps_url ?? null,
         garageMapsUrl: p?.garage_maps_url ?? null,
@@ -1021,6 +1049,7 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
         reservationId: r.id,
         propertyId: r.property_id,
         propertyName: p?.name ?? null,
+        ownerName: p?.ownerName ?? null,
         propertyAddress: p?.address ?? null,
         mapsUrl: p?.maps_url ?? null,
         garageMapsUrl: p?.garage_maps_url ?? null,
@@ -1635,4 +1664,128 @@ export const revertArrival = createServerFn({ method: "POST" })
       }
     }
     return { ok: true };
+  });
+
+// ----- Concluídos: cards que já percorreram toda a esteira -----
+
+export const listConcludedArrivals = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => ScopeInput.parse(i))
+  .handler(async ({ data, context }): Promise<{ rows: ArrivalRow[] }> => {
+    const propIds = await accessiblePropertyIds(context.supabase as never, data?.ownerId ?? null);
+    if (propIds.length === 0) return { rows: [] };
+
+    const { data: statuses } = await context.supabase
+      .from("guest_arrival_status")
+      .select("log_id, reservation_id, property_id, note, arrival_time_override, done_at, concluded_at")
+      .in("property_id", propIds)
+      .eq("kind", "checkout")
+      .not("concluded_at", "is", null)
+      .order("concluded_at", { ascending: false })
+      .limit(200);
+
+    const rowsIn = (statuses ?? []) as Array<{
+      log_id: string | null;
+      reservation_id: string | null;
+      property_id: string;
+      note: string | null;
+      arrival_time_override: string | null;
+      done_at: string | null;
+      concluded_at: string | null;
+    }>;
+    if (rowsIn.length === 0) return { rows: [] };
+
+    const logIds = rowsIn.map((r) => r.log_id).filter((v): v is string => !!v);
+    const resIds = rowsIn.map((r) => r.reservation_id).filter((v): v is string => !!v);
+
+    const [{ data: props }, logsRes, resRes] = await Promise.all([
+      context.supabase.from("properties").select("id, name, address, owner_contact_id, maps_url, garage_maps_url").in("id", propIds),
+      logIds.length
+        ? context.supabase
+            .from("guide_access_logs")
+            .select("id, property_id, guest_name, guest_phone, guest_phone_country, guest_arrival_time, checkin_date, checkout_date, reservation_code, created_at")
+            .in("id", logIds)
+        : Promise.resolve({ data: [] as never[] }),
+      resIds.length
+        ? context.supabase
+            .from("property_reservations")
+            .select("id, property_id, checkin_date, checkout_date, guest_hint, created_at")
+            .in("id", resIds)
+        : Promise.resolve({ data: [] as never[] }),
+    ]);
+
+    const propArr = (props ?? []) as Array<{
+      id: string;
+      name: string | null;
+      address: string | null;
+      owner_contact_id: string | null;
+      maps_url: string | null;
+      garage_maps_url: string | null;
+    }>;
+    const ownerIds = Array.from(new Set(propArr.map((p) => p.owner_contact_id).filter((v): v is string => !!v)));
+    const ownerNameById = new Map<string, string>();
+    if (ownerIds.length > 0) {
+      const { data: owners } = await context.supabase
+        .from("property_owners")
+        .select("id, name, trade_name")
+        .in("id", ownerIds);
+      for (const o of (owners ?? []) as Array<{ id: string; name: string | null; trade_name: string | null }>) {
+        const label = (o.trade_name || o.name || "").trim();
+        if (label) ownerNameById.set(o.id, label);
+      }
+    }
+    const propById = new Map(propArr.map((p) => [p.id, p]));
+    const logById = new Map(
+      ((logsRes.data ?? []) as Array<Record<string, unknown>>).map((l) => [l["id"] as string, l]),
+    );
+    const resById = new Map(
+      ((resRes.data ?? []) as Array<Record<string, unknown>>).map((r) => [r["id"] as string, r]),
+    );
+
+    const out: ArrivalRow[] = [];
+    const seen = new Set<string>();
+    for (const s of rowsIn) {
+      const log = s.log_id ? logById.get(s.log_id) : undefined;
+      const res = s.reservation_id ? resById.get(s.reservation_id) : undefined;
+      if (!log && !res) continue;
+      const p = propById.get(s.property_id);
+      const checkin = (log?.["checkin_date"] as string) ?? (res?.["checkin_date"] as string) ?? "";
+      const checkout = (log?.["checkout_date"] as string) ?? (res?.["checkout_date"] as string) ?? null;
+      const key = `${s.property_id}|${checkin}|${checkout ?? ""}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push({
+        logId: (log?.["id"] as string) ?? `ical:${s.reservation_id}`,
+        reservationId: s.reservation_id,
+        propertyId: s.property_id,
+        propertyName: p?.name ?? null,
+        ownerName: p?.owner_contact_id ? (ownerNameById.get(p.owner_contact_id) ?? null) : null,
+        propertyAddress: p?.address ?? null,
+        mapsUrl: p?.maps_url ?? null,
+        garageMapsUrl: p?.garage_maps_url ?? null,
+        hasPasswords: false,
+        openedCheckin: true,
+        viewedPasswords: true,
+        guestName: (log?.["guest_name"] as string) ?? (res?.["guest_hint"] as string) ?? "Reserva Airbnb",
+        guestPhone: (log?.["guest_phone"] as string) ?? null,
+        guestPhoneCountry: (log?.["guest_phone_country"] as string) ?? null,
+        guestArrivalTime: (log?.["guest_arrival_time"] as string) ?? null,
+        standardTime: null,
+        standardTimeMax: null,
+        date: checkout ?? checkin,
+        guestCheckin: checkin,
+        guestCheckout: checkout,
+        reservationCode: (log?.["reservation_code"] as string) ?? (res?.["guest_hint"] as string) ?? null,
+        createdAt: (log?.["created_at"] as string) ?? (res?.["created_at"] as string) ?? new Date().toISOString(),
+        status: "done",
+        note: s.note,
+        arrivalTimeOverride: s.arrival_time_override,
+        doneAt: s.done_at,
+        pendingFill: false,
+        ical: { hasIcal: !!res, matched: !!res, icalCheckin: null, icalCheckout: null },
+        additionalGuests: [],
+        concludedAt: s.concluded_at,
+      });
+    }
+    return { rows: out };
   });

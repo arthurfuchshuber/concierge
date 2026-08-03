@@ -36,11 +36,18 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { CopyButton } from "@/components/CopyButton";
 import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+
 import {
   getGuideEngagement,
   listDashboardArrivals,
@@ -49,6 +56,7 @@ import {
   updateGuestArrivalTime,
   advanceArrival,
   revertArrival,
+  listConcludedArrivals,
   type ArrivalRow,
 } from "@/lib/dashboard.functions";
 import { openHandoffDock } from "@/lib/handoff-dock";
@@ -135,8 +143,11 @@ function DashboardPage() {
   const { impersonation } = useImpersonation();
   const activeOwnerId = impersonation?.userId ?? null;
 
-  const [mode, setMode] = useState<"checkin" | "checkout" | "stay" | "cleaning">("checkin");
-  const kind: "checkin" | "checkout" = mode === "checkout" || mode === "cleaning" ? "checkout" : "checkin";
+  const concludedFn = useServerFn(listConcludedArrivals);
+  const [mode, setMode] = useState<BoardMode>("checkin");
+  const kind: "checkin" | "checkout" =
+    mode === "checkout" || mode === "cleaning" || mode === "done" ? "checkout" : "checkin";
+
   const [range, setRange] = useState<"today" | "tomorrow" | "7d" | "all">("today");
   // Engagement window follows the kanban range: tomorrow/all map to 7d/30d.
   const engRange: "today" | "tomorrow" | "7d" | "30d" =
@@ -174,7 +185,14 @@ function DashboardPage() {
     staleTime: 30_000,
     placeholderData: keepPreviousData,
   });
-  const listQ = kind === "checkin" ? checkinListQ : checkoutListQ;
+  const concludedQ = useQuery({
+    queryKey: ["dash-list", "concluded", activeOwnerId ?? "self"],
+    queryFn: () => concludedFn({ data: { ownerId: activeOwnerId } }),
+    staleTime: 30_000,
+    placeholderData: keepPreviousData,
+  });
+  const listQ = mode === "done" ? concludedQ : kind === "checkin" ? checkinListQ : checkoutListQ;
+
 
   type UpsertPayload = {
     logId?: string;
@@ -296,11 +314,13 @@ function DashboardPage() {
     [tomorrowCheckoutListQ.data?.rows],
   );
   const cleaningRows = useMemo(() => coRows.filter((r) => r.status === "done"), [coRows]);
+  const concludedRows = concludedQ.data?.rows ?? [];
   const counts = {
     checkin: checkinPendingRows.length,
     checkout: checkoutPendingRows.length,
     stay: stayRows.length,
     cleaning: cleaningRows.length,
+    done: concludedRows.length,
   };
   // Imóveis com check-out pendente OU limpeza em andamento bloqueiam novos
   // check-ins até serem concluídos (evita liberar hóspede em imóvel ainda
@@ -317,8 +337,10 @@ function DashboardPage() {
     if (mode === "checkin") return checkinPendingRows;
     if (mode === "checkout") return checkoutPendingRows;
     if (mode === "stay") return stayRows;
+    if (mode === "done") return concludedRows;
     return cleaningRows;
-  }, [mode, checkinPendingRows, checkoutPendingRows, stayRows, cleaningRows]);
+  }, [mode, checkinPendingRows, checkoutPendingRows, stayRows, cleaningRows, concludedRows]);
+
 
   const rangeLabel: Record<typeof range, string> = {
     today: "Hoje",
@@ -449,6 +471,8 @@ function DashboardPage() {
               { value: "checkout", label: "Checkouts", icon: CalendarX, count: counts.checkout },
               { value: "stay", label: "Em Estadia", icon: BedDouble, count: counts.stay },
               { value: "cleaning", label: "Em Limpeza", icon: Sparkles, count: counts.cleaning },
+              { value: "done", label: "Concluídos", icon: CheckCircle2, count: counts.done },
+
             ]}
           />
           <div className="ml-auto">
@@ -478,7 +502,11 @@ function DashboardPage() {
               rows={boardRows}
               kind={kind}
               mode={mode}
-              onMark={(row) => handleAdvance(row, mode)}
+              onMark={(row) => {
+                if (mode === "done") return;
+                handleAdvance(row, mode);
+              }}
+
               onRevert={
                 mode === "stay" || mode === "cleaning"
                   ? (row: ArrivalRow) => {
@@ -618,12 +646,18 @@ function KpiCard({
                       {r.pendingFill ? <UserPlus className="size-4" /> : initials}
                     </div>
                     <div className="min-w-0 flex-1">
+                      {r.ownerName && (
+                        <div className="text-xs font-bold text-primary truncate" title={r.ownerName}>
+                          {r.ownerName}
+                        </div>
+                      )}
                       <div
                         className="text-sm font-semibold leading-tight truncate text-foreground"
                         title={r.propertyName ?? undefined}
                       >
                         {r.propertyName ?? "Sem nome"}
                       </div>
+
                       <div
                         className={`text-xs truncate flex items-center gap-1 mt-0.5 ${r.pendingFill || !r.guestName || r.guestName === r.reservationCode ? "text-orange-500 font-medium" : "text-muted-foreground"}`}
                       >
@@ -946,7 +980,7 @@ function ArrivalGroup({
   title: string;
   rows: ArrivalRow[];
   kind: "checkin" | "checkout";
-  mode: "checkin" | "checkout" | "stay" | "cleaning";
+  mode: BoardMode;
   onMark: (r: ArrivalRow) => void;
   onRevert?: (r: ArrivalRow) => void;
   onSyncIcal: (r: ArrivalRow) => void;
@@ -957,6 +991,8 @@ function ArrivalGroup({
   muted?: boolean;
   cleaningPendingPropIds?: Map<string, "checkout" | "cleaning">;
 }) {
+  // Somente UM card pode ficar com o quadro de detalhes aberto por vez.
+  const [openId, setOpenId] = useState<string | null>(null);
   if (rows.length === 0) return null;
   return (
     <div className={`grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 items-stretch ${muted ? "opacity-70" : ""}`}>
@@ -973,12 +1009,17 @@ function ArrivalGroup({
           onEditDates={onEditDates}
           onEditTime={onEditTime}
           busy={busy}
+          expanded={openId === r.logId}
+          onToggleExpanded={(open) => setOpenId(open ? r.logId : null)}
           cleaningBlocked={mode === "checkin" ? (cleaningPendingPropIds?.get(r.propertyId) ?? null) : null}
         />
       ))}
     </div>
   );
 }
+
+
+type BoardMode = "checkin" | "checkout" | "stay" | "cleaning" | "done";
 
 function ArrivalCard({
   row,
@@ -991,11 +1032,13 @@ function ArrivalCard({
   onEditDates,
   onEditTime,
   busy,
+  expanded,
+  onToggleExpanded,
   cleaningBlocked,
 }: {
   row: ArrivalRow;
   kind: "checkin" | "checkout";
-  mode: "checkin" | "checkout" | "stay" | "cleaning";
+  mode: BoardMode;
   onMark: (r: ArrivalRow) => void;
   onRevert?: (r: ArrivalRow) => void;
   onSyncIcal: (r: ArrivalRow) => void;
@@ -1003,8 +1046,11 @@ function ArrivalCard({
   onEditDates: (r: ArrivalRow, dates: { checkinDate?: string; checkoutDate?: string | null }) => void;
   onEditTime: (r: ArrivalRow, time: string | null) => void;
   busy: boolean;
+  expanded?: boolean;
+  onToggleExpanded?: (open: boolean) => void;
   cleaningBlocked?: "checkout" | "cleaning" | null;
 }) {
+
   const [noteOpen, setNoteOpen] = useState(false);
   const [noteText, setNoteText] = useState(row.note ?? "");
   const guestTime = row.arrivalTimeOverride ?? row.guestArrivalTime;
@@ -1044,6 +1090,30 @@ function ArrivalCard({
       toast.error("Não foi possível copiar.");
     }
   };
+
+  // Confirmação quando o check acontece fora do horário/data comum da esteira.
+  const [confirmMsg, setConfirmMsg] = useState<string | null>(null);
+  function earlyCheckMessage(): string | null {
+    if (mode === "stay" && row.guestCheckout && row.guestCheckout > todayISO) {
+      return `O checkout desta reserva está previsto para ${fmtDateBR(row.guestCheckout)}. Tem certeza que deseja antecipar o checkout?`;
+    }
+    if (mode === "checkout" && row.date > todayISO) {
+      return `Este checkout está previsto para ${fmtDateBR(row.date)}. Tem certeza que deseja antecipá-lo?`;
+    }
+    if (mode === "cleaning" && row.guestCheckout && row.guestCheckout > todayISO) {
+      return `A estadia só termina em ${fmtDateBR(row.guestCheckout)}. Confirma concluir a limpeza agora?`;
+    }
+    return null;
+  }
+  function runMark() {
+    const msg = earlyCheckMessage();
+    if (msg) {
+      setConfirmMsg(msg);
+      return;
+    }
+    onMark(row);
+  }
+
 
   return (
     <div
@@ -1096,9 +1166,15 @@ function ArrivalCard({
           {isPendingFill ? <UserPlus className="size-5" /> : initials(row.guestName)}
         </div>
         <div className="flex-1 min-w-0">
+          {row.ownerName && (
+            <div className="text-xs font-bold text-primary truncate" title={row.ownerName}>
+              {row.ownerName}
+            </div>
+          )}
           <div className="font-semibold truncate text-foreground" title={row.propertyName ?? undefined}>
             {row.propertyName ?? "Sem nome"}
           </div>
+
           <div
             className={`text-xs truncate flex items-center gap-1 ${isPendingFill ? "text-orange-500 font-medium" : "text-muted-foreground"}`}
           >
@@ -1162,115 +1238,135 @@ function ArrivalCard({
         </div>
       </div>
 
-      {/* Padrão / Previsto — sempre no topo para manter alinhamento entre cards */}
-      {mode !== "cleaning" && (
-        <div className="grid grid-cols-2 gap-2 text-xs">
-          <div className="rounded-lg bg-background/50 border border-border/40 p-2 backdrop-blur-sm">
-            <div className="text-[10px] uppercase tracking-wider text-muted-foreground flex items-center justify-between">
-              <span>Padrão</span>
-              <InfoHint title="Horário padrão">
-                Janela configurada na propriedade. Base para detectar divergências.
-              </InfoHint>
-            </div>
-            <div className="mt-0.5 tabular-nums">{stdWindow ?? "—"}</div>
-          </div>
-          <div
-            className={`rounded-lg p-2 backdrop-blur-sm ${divergent ? "bg-amber-500/10 border border-amber-500/30" : "bg-background/50 border border-border/40"}`}
-          >
-            <div className="text-[10px] uppercase tracking-wider text-muted-foreground flex items-center justify-between">
-              <span>Previsto</span>
-              <InfoHint title="Horário previsto">
-                Selecione o horário (30 em 30 min). A alteração reordena o kanban imediatamente.
-              </InfoHint>
-            </div>
-            <div className="mt-0.5">
-              <TimeDropdown value={guestTime ?? null} disabled={busy} onChange={(v) => onEditTime(row, v)} />
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Detalhes operacionais — expansivo, começa recolhido e só um card por vez */}
+      <Accordion
+        type="single"
+        collapsible
+        value={expanded ? "details" : ""}
+        onValueChange={(v) => onToggleExpanded?.(v === "details")}
+      >
+        <AccordionItem value="details" className="border-0">
+          <AccordionTrigger className="py-1.5 text-xs text-muted-foreground hover:no-underline">
+            Detalhes da operação
+          </AccordionTrigger>
+          <AccordionContent className="pb-0">
+            <div className="flex flex-col gap-3 pt-1">
+              {/* Padrão / Previsto */}
+              {mode !== "cleaning" && (
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div className="rounded-lg bg-background/50 border border-border/40 p-2 backdrop-blur-sm">
+                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground flex items-center justify-between">
+                      <span>Padrão</span>
+                      <InfoHint title="Horário padrão">
+                        Janela configurada na propriedade. Base para detectar divergências.
+                      </InfoHint>
+                    </div>
+                    <div className="mt-0.5 tabular-nums">{stdWindow ?? "—"}</div>
+                  </div>
+                  <div
+                    className={`rounded-lg p-2 backdrop-blur-sm ${divergent ? "bg-amber-500/10 border border-amber-500/30" : "bg-background/50 border border-border/40"}`}
+                  >
+                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground flex items-center justify-between">
+                      <span>Previsto</span>
+                      <InfoHint title="Horário previsto">
+                        Selecione o horário (30 em 30 min). A alteração reordena o kanban imediatamente.
+                      </InfoHint>
+                    </div>
+                    <div className="mt-0.5">
+                      <TimeDropdown value={guestTime ?? null} disabled={busy} onChange={(v) => onEditTime(row, v)} />
+                    </div>
+                  </div>
+                </div>
+              )}
 
-      {/* Engagement — só mostra pendências (fatos negativos). Estados positivos são omitidos. Ocultos em "Em Limpeza". */}
-      {mode !== "cleaning" && !isPendingFill && (!row.openedCheckin || (row.hasPasswords && !row.viewedPasswords)) && (
-        <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
-          {!row.openedCheckin && (
-            <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 border bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/25">
-              <Eye className="size-3" /> Não abriu Chegada
-            </span>
-          )}
-          {row.hasPasswords && !row.viewedPasswords && (
-            <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 border bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/25">
-              <KeyRound className="size-3" /> Não viu senhas
-            </span>
-          )}
-        </div>
-      )}
-
-      {row.ical.hasIcal &&
-        !isPendingFill &&
-        (() => {
-          const gIn = row.guestCheckin;
-          const gOut = row.guestCheckout;
-          const iIn = row.ical.icalCheckin;
-          const iOut = row.ical.icalCheckout;
-          const anyDivergent = row.ical.matched && ((iIn && iIn !== gIn) || (iOut && gOut && iOut !== gOut));
-          if (!anyDivergent && row.ical.matched) {
-            return (
-              <div className="w-full text-xs rounded-lg bg-emerald-500/10 border border-emerald-500/30 px-2 py-1.5 flex items-center gap-2 text-emerald-700 dark:text-emerald-400">
-                <CheckCircle2 className="size-3.5 shrink-0" />
-                <span>Confirmado via Airbnb</span>
-              </div>
-            );
-          }
-          const fmtRange = (a: string | null, b: string | null) =>
-            `${a ? fmtDateBR(a) : "?"} a ${b ? fmtDateBR(b) : "?"}`;
-          return (
-            <div className="w-full text-xs rounded-lg px-2 py-1.5 flex items-start gap-2 bg-red-500/10 text-red-700 dark:text-red-400 border border-red-500/40">
-              <AlertTriangle className="size-3.5 shrink-0 mt-0.5" />
-              <div className="min-w-0 flex-1 leading-snug">
-                {anyDivergent ? (
-                  <>
-                    <div className="font-semibold">Data Divergente Hóspede-Airbnb</div>
-                    <div className="tabular-nums">Informada: {fmtRange(gIn, gOut)}</div>
-                    <div className="tabular-nums">Correta: {fmtRange(iIn, iOut)}</div>
-                  </>
-                ) : (
-                  <div>Sem reserva correspondente no iCal Airbnb</div>
+              {/* Engagement — só mostra pendências (fatos negativos). */}
+              {mode !== "cleaning" &&
+                !isPendingFill &&
+                (!row.openedCheckin || (row.hasPasswords && !row.viewedPasswords)) && (
+                  <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
+                    {!row.openedCheckin && (
+                      <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 border bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/25">
+                        <Eye className="size-3" /> Não abriu Chegada
+                      </span>
+                    )}
+                    {row.hasPasswords && !row.viewedPasswords && (
+                      <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 border bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/25">
+                        <KeyRound className="size-3" /> Não viu senhas
+                      </span>
+                    )}
+                  </div>
                 )}
-              </div>
-              {anyDivergent && (
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={() =>
-                    onEditDates(row, {
-                      ...(iIn && iIn !== gIn ? { checkinDate: iIn } : {}),
-                      ...(iOut && gOut && iOut !== gOut ? { checkoutDate: iOut } : {}),
-                    })
+
+              {row.ical.hasIcal &&
+                !isPendingFill &&
+                (() => {
+                  const gIn = row.guestCheckin;
+                  const gOut = row.guestCheckout;
+                  const iIn = row.ical.icalCheckin;
+                  const iOut = row.ical.icalCheckout;
+                  const anyDivergent = row.ical.matched && ((iIn && iIn !== gIn) || (iOut && gOut && iOut !== gOut));
+                  if (!anyDivergent && row.ical.matched) {
+                    return (
+                      <div className="w-full text-xs rounded-lg bg-emerald-500/10 border border-emerald-500/30 px-2 py-1.5 flex items-center gap-2 text-emerald-700 dark:text-emerald-400">
+                        <CheckCircle2 className="size-3.5 shrink-0" />
+                        <span>Confirmado via Airbnb</span>
+                      </div>
+                    );
                   }
-                  className="text-xs underline underline-offset-2 hover:no-underline shrink-0 mt-0.5"
-                >
-                  Usar Airbnb
-                </button>
+                  const fmtRange = (a: string | null, b: string | null) =>
+                    `${a ? fmtDateBR(a) : "?"} a ${b ? fmtDateBR(b) : "?"}`;
+                  return (
+                    <div className="w-full text-xs rounded-lg px-2 py-1.5 flex items-start gap-2 bg-red-500/10 text-red-700 dark:text-red-400 border border-red-500/40">
+                      <AlertTriangle className="size-3.5 shrink-0 mt-0.5" />
+                      <div className="min-w-0 flex-1 leading-snug">
+                        {anyDivergent ? (
+                          <>
+                            <div className="font-semibold">Data Divergente Hóspede-Airbnb</div>
+                            <div className="tabular-nums">Informada: {fmtRange(gIn, gOut)}</div>
+                            <div className="tabular-nums">Correta: {fmtRange(iIn, iOut)}</div>
+                          </>
+                        ) : (
+                          <div>Sem reserva correspondente no iCal Airbnb</div>
+                        )}
+                      </div>
+                      {anyDivergent && (
+                        <button
+                          type="button"
+                          disabled={busy}
+                          onClick={() =>
+                            onEditDates(row, {
+                              ...(iIn && iIn !== gIn ? { checkinDate: iIn } : {}),
+                              ...(iOut && gOut && iOut !== gOut ? { checkoutDate: iOut } : {}),
+                            })
+                          }
+                          className="text-xs underline underline-offset-2 hover:no-underline shrink-0 mt-0.5"
+                        >
+                          Usar Airbnb
+                        </button>
+                      )}
+                    </div>
+                  );
+                })()}
+
+              {divergent && !isPendingFill && !done && (
+                <div className="w-full text-xs rounded-lg bg-amber-500/10 border border-amber-500/30 px-2 py-1.5 flex items-center justify-between gap-2">
+                  <span className="flex items-center gap-1.5">
+                    <AlertTriangle className="size-3.5" /> Horário divergente do padrão
+                  </span>
+                  <button
+                    onClick={() => onSyncIcal(row)}
+                    className="text-xs underline underline-offset-2 hover:no-underline"
+                    disabled={busy}
+                  >
+                    Alinhar
+                  </button>
+                </div>
               )}
             </div>
-          );
-        })()}
+          </AccordionContent>
+        </AccordionItem>
+      </Accordion>
 
-      {divergent && !isPendingFill && !done && (
-        <div className="w-full text-xs rounded-lg bg-amber-500/10 border border-amber-500/30 px-2 py-1.5 flex items-center justify-between gap-2">
-          <span className="flex items-center gap-1.5">
-            <AlertTriangle className="size-3.5" /> Horário divergente do padrão
-          </span>
-          <button
-            onClick={() => onSyncIcal(row)}
-            className="text-xs underline underline-offset-2 hover:no-underline"
-            disabled={busy}
-          >
-            Alinhar
-          </button>
-        </div>
-      )}
 
       {row.note && !noteOpen && (
         <button
@@ -1335,7 +1431,13 @@ function ArrivalCard({
 
       {/* Action row: ícones à esquerda; Copiar + Maps agrupados à direita */}
       <div className="mt-auto flex flex-wrap items-center gap-2 pt-1">
+        {mode === "done" ? (
+          <span className="inline-flex items-center gap-1.5 text-xs rounded-lg bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30 px-2.5 h-9">
+            <CheckCircle2 className="size-3.5" /> Esteira concluída
+          </span>
+        ) : (
         <button
+
           onClick={() => {
             if (cleaningBlock) {
               const msg =
@@ -1351,7 +1453,8 @@ function ArrivalCard({
               );
               return;
             }
-            onMark(row);
+            runMark();
+
           }}
           disabled={busy || blockCheck}
           aria-label={
@@ -1394,6 +1497,8 @@ function ArrivalCard({
         >
           <Check className="size-4" />
         </button>
+        )}
+
         {onRevert && (mode === "stay" || mode === "cleaning") && (
           <button
             type="button"
@@ -1438,33 +1543,63 @@ function ArrivalCard({
         </button>
         {mapsHref && (
           <div className="ml-auto flex items-center gap-1.5">
-            {copyText && (
-              <button
-                type="button"
-                onClick={copyLink}
-                aria-label="Copiar link do endereço"
-                title="Copiar link do endereço"
-                className="size-9 grid place-items-center rounded-lg bg-background/60 border border-border/50 hover:bg-primary/[0.08]"
-              >
-                <LinkIcon className="size-4" />
-              </button>
-            )}
-            <a
-              href={mapsHref}
-              target="_blank"
-              rel="noreferrer"
-              aria-label="Abrir no Google Maps"
-              title={row.garageMapsUrl ? "Ver garagem no Maps" : "Ver endereço no Maps"}
-              className="h-9 px-3 inline-flex items-center gap-1.5 rounded-lg bg-background/60 border border-border/50 hover:bg-primary/[0.08] text-sm font-medium"
-            >
-              <MapPin className="size-4" /> Maps
-            </a>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  aria-label="Opções do Maps"
+                  title={row.garageMapsUrl ? "Garagem no Maps" : "Endereço no Maps"}
+                  className="h-9 px-3 inline-flex items-center gap-1.5 rounded-lg bg-background/60 border border-border/50 hover:bg-primary/[0.08] text-sm font-medium"
+                >
+                  <MapPin className="size-4" /> Maps
+                  <ChevronDown className="size-3.5 opacity-60" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="min-w-[12rem]">
+                <DropdownMenuItem onClick={copyLink} disabled={!copyText}>
+                  <LinkIcon className="size-3.5 shrink-0" /> Copiar Link do Maps
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => window.open(mapsHref, "_blank", "noopener,noreferrer")}>
+                  <MapPin className="size-3.5 shrink-0" /> Abrir o Google Maps
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         )}
       </div>
+
+      {/* Confirmação de check antecipado */}
+      <Dialog open={!!confirmMsg} onOpenChange={(o) => !o && setConfirmMsg(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="font-display text-xl">Confirmar antecipação</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">{confirmMsg}</p>
+          <div className="flex justify-end gap-2 pt-2">
+            <button
+              type="button"
+              onClick={() => setConfirmMsg(null)}
+              className="text-xs px-3 py-2 rounded-lg hover:bg-secondary"
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setConfirmMsg(null);
+                onMark(row);
+              }}
+              className="text-xs px-3 py-2 rounded-lg bg-primary text-primary-foreground"
+            >
+              Confirmar
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
+
 
 function DateEditor({
   value,
