@@ -775,23 +775,33 @@ function DocPreviewDialog({
 }
 
 
-function InfoRow({
+function Field({
   label,
   value,
   mono,
+  copy,
+  children,
 }: {
   label: string;
   value?: string | null;
   mono?: boolean;
+  copy?: string | null;
+  children?: React.ReactNode;
 }) {
-  if (!value) return null;
+  if (!children && !value) return null;
   return (
-    <div className="grid grid-cols-[minmax(0,110px)_minmax(0,1fr)] items-baseline gap-3">
-      <dt className="text-[11px] uppercase tracking-wide text-muted-foreground">{label}</dt>
-      <dd className={`text-sm break-words ${mono ? "font-mono" : ""}`}>{value}</dd>
+    <div className="min-w-0">
+      <div className="flex items-center gap-1.5">
+        <dt className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground">{label}</dt>
+        {copy && <CopyButton value={copy} size={11} />}
+      </div>
+      <dd className={`mt-0.5 text-sm break-words ${mono ? "font-mono tabular-nums" : ""}`}>
+        {children ?? value}
+      </dd>
     </div>
   );
 }
+
 
 function WhatsAppLink({ phone, country }: { phone?: string | null; country?: string | null }) {
   if (!phone) return null;
