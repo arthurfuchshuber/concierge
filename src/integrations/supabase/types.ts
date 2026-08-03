@@ -152,6 +152,7 @@ export type Database = {
       ai_agent_logs: {
         Row: {
           confidence: number | null
+          confidence_tier: string | null
           context_keys: Json | null
           conversation_id: string | null
           cost_estimate: number | null
@@ -163,7 +164,11 @@ export type Database = {
           models: Json | null
           needs_human: boolean
           owner_id: string | null
+          plan: Json | null
+          prompt_versions: Json | null
           property_id: string | null
+          reflection: Json | null
+          source_weight: number | null
           sources: Json | null
           surface: string
           tokens: Json | null
@@ -172,6 +177,7 @@ export type Database = {
         }
         Insert: {
           confidence?: number | null
+          confidence_tier?: string | null
           context_keys?: Json | null
           conversation_id?: string | null
           cost_estimate?: number | null
@@ -183,7 +189,11 @@ export type Database = {
           models?: Json | null
           needs_human?: boolean
           owner_id?: string | null
+          plan?: Json | null
+          prompt_versions?: Json | null
           property_id?: string | null
+          reflection?: Json | null
+          source_weight?: number | null
           sources?: Json | null
           surface?: string
           tokens?: Json | null
@@ -192,6 +202,7 @@ export type Database = {
         }
         Update: {
           confidence?: number | null
+          confidence_tier?: string | null
           context_keys?: Json | null
           conversation_id?: string | null
           cost_estimate?: number | null
@@ -203,7 +214,11 @@ export type Database = {
           models?: Json | null
           needs_human?: boolean
           owner_id?: string | null
+          plan?: Json | null
+          prompt_versions?: Json | null
           property_id?: string | null
+          reflection?: Json | null
+          source_weight?: number | null
           sources?: Json | null
           surface?: string
           tokens?: Json | null
