@@ -872,7 +872,7 @@ function Dashboard() {
                     <Button
                       size="sm"
                       variant="outline"
-                      className="rounded-full"
+                      className="rounded-full shrink-0"
                       disabled={bulkPubBusy}
                       onClick={() => bulkTogglePublished(true)}
                       title="Publicar todos os selecionados"
@@ -882,14 +882,14 @@ function Dashboard() {
                     <Button
                       size="sm"
                       variant="outline"
-                      className="rounded-full"
+                      className="rounded-full shrink-0"
                       disabled={bulkPubBusy}
                       onClick={() => bulkTogglePublished(false)}
                       title="Despublicar todos os selecionados"
                     >
                       <Lock className="size-3.5 mr-1.5" /> Despublicar
                     </Button>
-                    <Button size="sm" className="rounded-full" onClick={() => setBulkOpen(true)}>
+                    <Button size="sm" className="rounded-full shrink-0" onClick={() => setBulkOpen(true)}>
                       <PenSquare className="size-3.5 mr-1.5" /> Editar selecionados
                     </Button>
                   </>
