@@ -113,10 +113,11 @@ export const importClicksignStakeholders = createServerFn({ method: "POST" })
       // Vincula os contratos desse signatário imediatamente.
       const { data: docs } = await supabase
         .from("clicksign_documents")
-        .select("id, signers")
+        .select("id, signers, finished_at, created_at")
         .eq("account_owner_id", userId)
         .is("stakeholder_id", null)
         .limit(2000);
+
       const norm = (s: unknown) => String(s ?? "").toLowerCase().trim();
       const targets = (docs ?? []).filter((row) => {
         const signers = (Array.isArray(row.signers) ? row.signers : []) as Array<Record<string, unknown>>;
