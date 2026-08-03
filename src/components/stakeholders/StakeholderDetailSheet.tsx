@@ -506,6 +506,101 @@ export function StakeholderDetailSheet({
           </section>
         </TabsContent>
 
+        {/* -------------------- Imóveis -------------------- */}
+        {kind === "owner" && (
+          <TabsContent value="imoveis" className="mt-5 space-y-5">
+            <section className="space-y-3">
+              <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
+                <h3 className="font-display text-xl truncate">Imóveis vinculados</h3>
+                <span className="text-[11px] text-muted-foreground shrink-0">
+                  {properties.length} residência(s)
+                </span>
+              </div>
+
+              {properties.length === 0 ? (
+                <Placeholder
+                  icon={Home}
+                  title="Nenhuma residência vinculada"
+                  desc="Vincule uma residência existente abaixo ou crie uma nova para este proprietário."
+                />
+              ) : (
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {properties.map((p: any) => (
+                    <div
+                      key={p.id}
+                      className="rounded-2xl border border-border bg-card p-4 space-y-2"
+                    >
+                      <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-2">
+                        <p className="text-sm font-medium break-words">{p.name}</p>
+                        <span
+                          className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] ${
+                            p.published
+                              ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-500"
+                              : "border-border text-muted-foreground"
+                          }`}
+                        >
+                          {p.published ? "Publicado" : "Rascunho"}
+                        </span>
+                      </div>
+                      <p className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                        <MapPin className="size-3 shrink-0" />
+                        {[p.city, p.state].filter(Boolean).join(" / ") || "Sem localização"}
+                      </p>
+                      <div className="flex items-center gap-1 pt-1">
+                        <Link
+                          to="/admin/properties/$id"
+                          params={{ id: p.id }}
+                          className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1 text-xs text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+                        >
+                          <ExternalLink className="size-3" /> Abrir
+                        </Link>
+                        <button
+                          type="button"
+                          disabled={busy}
+                          onClick={() => toggleLink(p.id, false)}
+                          className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1 text-xs text-muted-foreground hover:text-destructive transition-colors"
+                        >
+                          <Unlink className="size-3" /> Desvincular
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
+
+            {available.length > 0 && (
+              <section className="rounded-2xl border border-dashed border-border p-5 space-y-2">
+                <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                  Vincular residência existente
+                </p>
+                {available.map((p: any) => (
+                  <button
+                    key={p.id}
+                    type="button"
+                    disabled={busy}
+                    onClick={() => toggleLink(p.id, true)}
+                    className="w-full flex items-center justify-between gap-3 rounded-lg px-3 py-2 text-left text-sm hover:bg-secondary transition-colors"
+                  >
+                    <span className="truncate">{p.name}</span>
+                    <Link2 className="size-3.5 shrink-0 text-muted-foreground" />
+                  </button>
+                ))}
+              </section>
+            )}
+
+            <Link
+              to="/admin/properties/$id"
+              params={{ id: "new" }}
+              className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline"
+            >
+              <Plus className="size-3.5" /> Criar nova residência
+            </Link>
+          </TabsContent>
+        )}
+
+
+
         {/* -------------------- Financeiro -------------------- */}
         <TabsContent value="financeiro" className="mt-5 space-y-4">
           <div className="grid gap-3 sm:grid-cols-3">
