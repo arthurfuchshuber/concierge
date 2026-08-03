@@ -661,43 +661,30 @@ export function StakeholderDetailSheet({
               />
             ) : (
               <ul className="divide-y divide-border rounded-2xl border border-border bg-card">
-                {feedDocs.map((d) => {
-                  const url = (d.urlSigned || d.urlOriginal) as string | null;
-                  return (
-                    <li key={d.id} className="flex items-start justify-between gap-3 px-4 py-3">
-                      <div className="min-w-0">
-                        <p className="truncate text-sm font-medium">{d.name}</p>
-                        <p className="text-[11px] text-muted-foreground">
-                          {d.status ?? "—"}
-                          {d.at ? ` · ${fmt(d.at)}` : ""}
-                          {d.signers.length > 0 ? ` · ${d.signers.length} signatários` : ""}
-                        </p>
-                      </div>
-                      {url && (
-                        <div className="flex shrink-0 items-center gap-1">
-                          <button
-                            type="button"
-                            onClick={() => setPreview({ name: d.name, url })}
-                            className="grid size-8 place-items-center rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
-                            title="Visualizar"
-                          >
-                            <Eye className="size-4" />
-                          </button>
-                          <a
-                            href={url}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="grid size-8 place-items-center rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
-                            title="Baixar"
-                          >
-                            <Download className="size-4" />
-                          </a>
-                        </div>
-                      )}
-                    </li>
-                  );
-                })}
+                {feedDocs.map((d) => (
+                  <li key={d.id} className="flex items-start justify-between gap-3 px-4 py-3">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium">{d.name}</p>
+                      <p className="text-[11px] text-muted-foreground">
+                        {d.status ?? "—"}
+                        {d.at ? ` · ${fmt(d.at)}` : ""}
+                        {d.signers.length > 0 ? ` · ${d.signers.length} signatários` : ""}
+                      </p>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => setPreview({ name: d.name, docId: d.id })}
+                        className="grid size-8 place-items-center rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+                        title="Visualizar"
+                      >
+                        <Eye className="size-4" />
+                      </button>
+                    </div>
+                  </li>
+                ))}
               </ul>
+
             )}
           </section>
         </TabsContent>
