@@ -49,8 +49,12 @@ import {
   linkPropertyToOwner,
 } from "@/lib/stakeholders.functions";
 import { getStakeholderIntegrationFeed } from "@/lib/stakeholder-feed.functions";
+import { getClicksignDocumentUrl } from "@/lib/clicksign.functions";
+import { CopyButton } from "@/components/CopyButton";
 import type { StakeholderKind } from "./StakeholderDirectory";
 import { PROVIDER_CATEGORIES } from "./StakeholderDirectory";
+
+type PreviewTarget = { name: string; url?: string | null; docId?: string } | null;
 
 function fmt(iso: string) {
   try {
@@ -59,6 +63,7 @@ function fmt(iso: string) {
     return iso;
   }
 }
+
 
 const STATUS_META: Record<string, { label: string; icon: typeof Circle; cls: string }> = {
   todo: { label: "A fazer", icon: Circle, cls: "text-muted-foreground" },
