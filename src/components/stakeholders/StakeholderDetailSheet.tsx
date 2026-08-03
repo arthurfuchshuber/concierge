@@ -367,25 +367,17 @@ export function StakeholderDetailSheet({
             </ul>
           </section>
 
-          <div className="grid gap-3 sm:grid-cols-2">
-            <InfoCard label="Nome completo" value={row.name} />
-            <InfoCard label="Nome fantasia" value={row.trade_name} />
-            <InfoCard label={String(row.doc_type ?? "cpf").toUpperCase()} value={row.doc} />
-            <InfoCard label="E-mail" value={row.email} />
-            <InfoCard label="Telefone" value={row.phone} />
-            <InfoCard label="Endereço" value={row.address} />
-            <InfoCard label="Cidade" value={[row.city, row.state].filter(Boolean).join(" / ")} />
-            {kind === "provider" && (
+          {kind === "provider" && row.hourly_rate_cents ? (
+            <div className="grid gap-3 sm:grid-cols-2">
               <InfoCard
                 label="Valor / hora"
-                value={
-                  row.hourly_rate_cents
-                    ? (row.hourly_rate_cents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
-                    : null
-                }
+                value={(row.hourly_rate_cents / 100).toLocaleString("pt-BR", {
+                  style: "currency",
+                  currency: "BRL",
+                })}
               />
-            )}
-          </div>
+            </div>
+          ) : null}
 
           {row.notes && (
             <section className="rounded-2xl border border-border bg-card p-5">
@@ -394,78 +386,6 @@ export function StakeholderDetailSheet({
             </section>
           )}
 
-          {kind === "owner" && (
-            <section className="rounded-2xl border border-border bg-card p-5 space-y-3">
-              <h3 className="text-sm font-semibold">Residências</h3>
-              {properties.length === 0 && (
-                <p className="text-xs text-muted-foreground">Nenhuma residência vinculada ainda.</p>
-              )}
-              {properties.map((p: any) => (
-                <div
-                  key={p.id}
-                  className="flex items-center justify-between gap-3 rounded-xl border border-border bg-background/40 px-4 py-3"
-                >
-                  <div className="min-w-0">
-                    <p className="text-sm truncate">{p.name}</p>
-                    <p className="text-[11px] text-muted-foreground truncate">
-                      {p.published ? "Publicado" : "Rascunho"}
-                      {p.city ? ` · ${p.city}` : ""}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-1 shrink-0">
-                    <Link
-                      to="/admin/properties/$id"
-                      params={{ id: p.id }}
-                      className="grid size-8 place-items-center rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
-                      title="Abrir residência"
-                    >
-                      <ExternalLink className="size-3.5" />
-                    </Link>
-                    <button
-                      type="button"
-                      disabled={busy}
-                      onClick={() => toggleLink(p.id, false)}
-                      className="grid size-8 place-items-center rounded-full text-muted-foreground hover:text-destructive transition-colors"
-                      title="Desvincular"
-                    >
-                      <Unlink className="size-3.5" />
-                    </button>
-                  </div>
-                </div>
-              ))}
-
-              <div className="rounded-xl border border-dashed border-border p-4 space-y-2">
-                <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
-                  Vincular residência existente
-                </p>
-                {available.length === 0 ? (
-                  <p className="text-xs text-muted-foreground">
-                    Todas as residências da conta já estão vinculadas a um proprietário.
-                  </p>
-                ) : (
-                  available.map((p: any) => (
-                    <button
-                      key={p.id}
-                      type="button"
-                      disabled={busy}
-                      onClick={() => toggleLink(p.id, true)}
-                      className="w-full flex items-center justify-between gap-3 rounded-lg px-3 py-2 text-left text-sm hover:bg-secondary transition-colors"
-                    >
-                      <span className="truncate">{p.name}</span>
-                      <Link2 className="size-3.5 shrink-0 text-muted-foreground" />
-                    </button>
-                  ))
-                )}
-                <Link
-                  to="/admin/properties/$id"
-                  params={{ id: "new" }}
-                  className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline"
-                >
-                  <Plus className="size-3.5" /> Criar nova residência
-                </Link>
-              </div>
-            </section>
-          )}
 
           <section className="rounded-2xl border border-border bg-card p-5 space-y-3">
             <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
