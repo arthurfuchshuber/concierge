@@ -49,8 +49,12 @@ import {
   linkPropertyToOwner,
 } from "@/lib/stakeholders.functions";
 import { getStakeholderIntegrationFeed } from "@/lib/stakeholder-feed.functions";
+import { getClicksignDocumentUrl } from "@/lib/clicksign.functions";
+import { CopyButton } from "@/components/CopyButton";
 import type { StakeholderKind } from "./StakeholderDirectory";
 import { PROVIDER_CATEGORIES } from "./StakeholderDirectory";
+
+type PreviewTarget = { name: string; url?: string | null; docId?: string } | null;
 
 function fmt(iso: string) {
   try {
@@ -59,6 +63,7 @@ function fmt(iso: string) {
     return iso;
   }
 }
+
 
 const STATUS_META: Record<string, { label: string; icon: typeof Circle; cls: string }> = {
   todo: { label: "A fazer", icon: Circle, cls: "text-muted-foreground" },
@@ -86,7 +91,7 @@ export function StakeholderDetailSheet({
   const [note, setNote] = useState("");
   const [newActivity, setNewActivity] = useState("");
   const [busy, setBusy] = useState(false);
-  const [preview, setPreview] = useState<{ name: string; url: string } | null>(null);
+  const [preview, setPreview] = useState<PreviewTarget>(null);
 
   const queryKey = ["stakeholder-detail", kind, id];
   const { data, isLoading } = useQuery({
@@ -203,14 +208,13 @@ export function StakeholderDetailSheet({
       body: (
         <>
           {ev.htmlLink && (
-            <a
-              href={ev.htmlLink}
-              target="_blank"
-              rel="noreferrer"
+            <button
+              type="button"
+              onClick={() => setPreview({ name: ev.title, url: ev.htmlLink as string })}
               className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
             >
-              Abrir convite <ExternalLink className="size-3" />
-            </a>
+              <Eye className="size-3" /> Abrir convite
+            </button>
           )}
           {ev.attendees.length > 0 && (
             <p className="text-xs text-muted-foreground">{ev.attendees.length} participante(s)</p>
@@ -218,21 +222,21 @@ export function StakeholderDetailSheet({
           {ev.attachments.length > 0 && (
             <div className="mt-1 flex flex-wrap gap-1.5">
               {ev.attachments.map((a) => (
-                <a
+                <button
                   key={a.url}
-                  href={a.url}
-                  target="_blank"
-                  rel="noreferrer"
+                  type="button"
+                  onClick={() => setPreview({ name: a.title || ev.title, url: a.url })}
                   className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[10px] text-muted-foreground hover:text-foreground"
                 >
                   {a.kind === "transcript" ? <FileText className="size-2.5" /> : <Video className="size-2.5" />}
                   {a.kind === "transcript" ? "Transcrição" : a.kind === "recording" ? "Gravação" : a.title}
-                </a>
+                </button>
               ))}
             </div>
           )}
         </>
       ),
+
     })),
     ...feedDocs.map((d) => ({
       key: `d:${d.id}`,
@@ -246,38 +250,25 @@ export function StakeholderDetailSheet({
             {d.status ?? "—"}
             {d.signers.length > 0 ? ` · ${d.signers.length} signatário(s)` : ""}
           </p>
-          {(d.urlSigned || d.urlOriginal) && (
-            <div className="flex flex-wrap items-center gap-3">
-              <button
-                type="button"
-                onClick={() =>
-                  setPreview({ name: d.name, url: (d.urlSigned ?? d.urlOriginal) as string })
-                }
-                className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
-              >
-                <Eye className="size-3" /> Visualizar
-              </button>
-              <a
-                href={(d.urlSigned ?? d.urlOriginal) as string}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
-              >
-                Abrir documento <ExternalLink className="size-3" />
-              </a>
-            </div>
-          )}
+          <button
+            type="button"
+            onClick={() => setPreview({ name: d.name, docId: d.id })}
+            className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+          >
+            <Eye className="size-3" /> Visualizar documento
+          </button>
         </>
       ),
     })),
+
   ].sort((a, b) => String(b.at).localeCompare(String(a.at)));
 
   return (
     <div className="flex flex-col gap-5 px-5 py-6 sm:px-6">
       {/* Header card */}
-      <section className="rounded-2xl border border-border bg-card p-5">
+      <section className="rounded-3xl border border-border bg-gradient-to-b from-card to-card/60 p-5 sm:p-6 shadow-sm">
         <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-4">
-          <div className="grid size-14 shrink-0 place-items-center rounded-2xl bg-primary/15 font-display text-2xl text-primary">
+          <div className="grid size-16 shrink-0 place-items-center rounded-full bg-primary/15 font-display text-2xl text-primary">
             {initial}
           </div>
           <div className="min-w-0">
@@ -287,7 +278,7 @@ export function StakeholderDetailSheet({
             >
               {displayName}
             </h2>
-            <div className="mt-1.5 flex flex-wrap items-center gap-2">
+            <div className="mt-2 flex flex-wrap items-center gap-1.5">
               <span
                 className={`rounded-full border px-2.5 py-0.5 text-[11px] ${
                   row.status === "active"
@@ -305,47 +296,61 @@ export function StakeholderDetailSheet({
                   {categoryLabel}
                 </span>
               )}
-              <Button variant="outline" size="sm" className="rounded-full ml-auto" onClick={onEdit}>
-                <Pencil className="size-3.5 mr-1.5" /> Editar
-              </Button>
             </div>
           </div>
         </div>
 
-        <dl className="mt-4 space-y-2 border-t border-border pt-4 text-sm">
-          <InfoRow label="Nome completo" value={row.name} />
-          {row.trade_name && <InfoRow label="Nome fantasia" value={row.trade_name} />}
+        <Button
+          variant="outline"
+          className="mt-4 w-full rounded-full"
+          onClick={onEdit}
+        >
+          <Pencil className="size-3.5 mr-1.5" /> Editar cadastro
+        </Button>
+
+        <dl className="mt-4 grid gap-4 border-t border-border pt-4 sm:grid-cols-2">
+          {row.trade_name && <Field label="Nome fantasia" value={row.trade_name} />}
           {row.doc && (
-            <InfoRow label={String(row.doc_type ?? "cpf").toUpperCase()} value={formatTaxId(row.doc)} mono />
+            <Field
+              label={String(row.doc_type ?? "cpf").toUpperCase()}
+              value={formatTaxId(row.doc)}
+              mono
+              copy={formatTaxId(row.doc)}
+            />
           )}
-          {(row.email || row.phone) && (
-            <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
-              {row.email ? (
-                <a
-                  href={`mailto:${row.email}`}
-                  className="inline-flex min-w-0 items-center gap-2 text-sm text-foreground hover:underline"
-                >
-                  <Mail className="size-3.5 shrink-0 text-muted-foreground" />
-                  <span className="truncate">{row.email}</span>
-                </a>
-              ) : (
-                <span />
-              )}
+          {row.email && (
+            <Field label="E-mail" copy={row.email}>
+              <a
+                href={`mailto:${row.email}`}
+                className="inline-flex min-w-0 items-center gap-2 text-sm hover:underline"
+              >
+                <Mail className="size-3.5 shrink-0 text-muted-foreground" />
+                <span className="truncate">{row.email}</span>
+              </a>
+            </Field>
+          )}
+          {row.phone && (
+            <Field label="Telefone">
               <WhatsAppLink phone={row.phone} country={row.phone_country} />
-            </div>
+            </Field>
           )}
           {(row.address || row.city || row.state) && (
-            <p className="flex items-start gap-2 text-sm text-muted-foreground">
-              <MapPin className="size-3.5 mt-0.5 shrink-0" />
-              <span className="min-w-0 break-words">
-                {[row.address, row.district, [row.city, row.state].filter(Boolean).join(" / ")]
-                  .filter(Boolean)
-                  .join(" · ")}
-              </span>
-            </p>
+            <div className="sm:col-span-2">
+              <Field label="Endereço">
+                <p className="flex items-start gap-2 text-sm">
+                  <MapPin className="size-3.5 mt-0.5 shrink-0 text-muted-foreground" />
+                  <span className="min-w-0 break-words">
+                    {[row.address, row.district, [row.city, row.state].filter(Boolean).join(" / ")]
+                      .filter(Boolean)
+                      .join(" · ")}
+                  </span>
+                </p>
+              </Field>
+            </div>
           )}
         </dl>
       </section>
+
 
       <Tabs defaultValue="visao">
         <div className="rounded-2xl border border-border bg-card p-2">
@@ -400,12 +405,8 @@ export function StakeholderDetailSheet({
             </div>
           ) : null}
 
-          {row.notes && (
-            <section className="rounded-2xl border border-border bg-card p-5">
-              <p className="text-[11px] uppercase tracking-wide text-muted-foreground mb-1.5">Observações</p>
-              <p className="text-sm whitespace-pre-wrap">{row.notes}</p>
-            </section>
-          )}
+
+
 
 
           <section className="rounded-2xl border border-border bg-card p-5 space-y-3">
@@ -413,18 +414,27 @@ export function StakeholderDetailSheet({
               <h3 className="text-sm font-semibold truncate">Atividades</h3>
               <span className="text-[11px] text-muted-foreground shrink-0">{openCount} em aberto</span>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="relative">
               <Input
                 value={newActivity}
                 onChange={(e) => setNewActivity(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && addActivity()}
                 placeholder="Nova atividade..."
-                className="rounded-full text-sm"
+                className="rounded-full text-sm pr-11"
               />
-              <Button size="sm" className="rounded-full shrink-0" onClick={addActivity} disabled={busy}>
-                <Plus className="size-4" />
-              </Button>
+              {newActivity.trim().length > 0 && (
+                <Button
+                  size="icon"
+                  className="absolute top-1/2 right-1 size-8 -translate-y-1/2 rounded-full"
+                  onClick={addActivity}
+                  disabled={busy}
+                  aria-label="Adicionar atividade"
+                >
+                  <Plus className="size-4" />
+                </Button>
+              )}
             </div>
+
             {activities.map((a: any) => {
               const meta = STATUS_META[a.status] ?? STATUS_META.todo;
               const StatusIcon = meta.icon;
@@ -476,18 +486,27 @@ export function StakeholderDetailSheet({
               )}
             </div>
 
-            <div className="flex items-start gap-2">
+            <div className="relative">
               <Textarea
                 rows={2}
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
                 placeholder="Adicionar nota..."
-                className="text-sm"
+                className="text-sm pr-12"
               />
-              <Button size="sm" className="rounded-full shrink-0" onClick={submitNote} disabled={busy}>
-                <Plus className="size-4" />
-              </Button>
+              {note.trim().length > 0 && (
+                <Button
+                  size="icon"
+                  className="absolute bottom-2 right-2 size-8 rounded-full"
+                  onClick={submitNote}
+                  disabled={busy}
+                  aria-label="Adicionar nota"
+                >
+                  <Plus className="size-4" />
+                </Button>
+              )}
             </div>
+
 
             {feed.data?.calendarError && (
               <p className="text-[11px] text-destructive">Google Agenda: {feed.data.calendarError}</p>
@@ -661,43 +680,30 @@ export function StakeholderDetailSheet({
               />
             ) : (
               <ul className="divide-y divide-border rounded-2xl border border-border bg-card">
-                {feedDocs.map((d) => {
-                  const url = (d.urlSigned || d.urlOriginal) as string | null;
-                  return (
-                    <li key={d.id} className="flex items-start justify-between gap-3 px-4 py-3">
-                      <div className="min-w-0">
-                        <p className="truncate text-sm font-medium">{d.name}</p>
-                        <p className="text-[11px] text-muted-foreground">
-                          {d.status ?? "—"}
-                          {d.at ? ` · ${fmt(d.at)}` : ""}
-                          {d.signers.length > 0 ? ` · ${d.signers.length} signatários` : ""}
-                        </p>
-                      </div>
-                      {url && (
-                        <div className="flex shrink-0 items-center gap-1">
-                          <button
-                            type="button"
-                            onClick={() => setPreview({ name: d.name, url })}
-                            className="grid size-8 place-items-center rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
-                            title="Visualizar"
-                          >
-                            <Eye className="size-4" />
-                          </button>
-                          <a
-                            href={url}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="grid size-8 place-items-center rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
-                            title="Baixar"
-                          >
-                            <Download className="size-4" />
-                          </a>
-                        </div>
-                      )}
-                    </li>
-                  );
-                })}
+                {feedDocs.map((d) => (
+                  <li key={d.id} className="flex items-start justify-between gap-3 px-4 py-3">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium">{d.name}</p>
+                      <p className="text-[11px] text-muted-foreground">
+                        {d.status ?? "—"}
+                        {d.at ? ` · ${fmt(d.at)}` : ""}
+                        {d.signers.length > 0 ? ` · ${d.signers.length} signatários` : ""}
+                      </p>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => setPreview({ name: d.name, docId: d.id })}
+                        className="grid size-8 place-items-center rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+                        title="Visualizar"
+                      >
+                        <Eye className="size-4" />
+                      </button>
+                    </div>
+                  </li>
+                ))}
               </ul>
+
             )}
           </section>
         </TabsContent>
@@ -712,9 +718,18 @@ function DocPreviewDialog({
   doc,
   onClose,
 }: {
-  doc: { name: string; url: string } | null;
+  doc: PreviewTarget;
   onClose: () => void;
 }) {
+  const urlFn = useServerFn(getClicksignDocumentUrl);
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ["clicksign-doc-url", doc?.docId],
+    queryFn: () => urlFn({ data: { id: doc!.docId! } }),
+    enabled: !!doc?.docId,
+    staleTime: 60_000,
+  });
+  const url = doc?.docId ? data?.url ?? null : doc?.url ?? null;
+
   return (
     <Dialog open={!!doc} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-w-4xl p-0 overflow-hidden">
@@ -723,21 +738,35 @@ function DocPreviewDialog({
         </DialogHeader>
         {doc && (
           <>
-            <iframe
-              src={doc.url}
-              title={doc.name}
-              className="h-[70vh] w-full border-t border-border bg-muted"
-            />
-            <div className="flex justify-end gap-2 px-5 py-3">
-              <a
-                href={doc.url}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
-              >
-                <ExternalLink className="size-3.5" /> Abrir em nova aba
-              </a>
-            </div>
+            {isLoading ? (
+              <div className="flex h-[70vh] items-center justify-center gap-2 border-t border-border bg-muted text-sm text-muted-foreground">
+                <Loader2 className="size-4 animate-spin" /> Gerando link seguro…
+              </div>
+            ) : url ? (
+              <iframe
+                src={url}
+                title={doc.name}
+                className="h-[70vh] w-full border-t border-border bg-muted"
+              />
+            ) : (
+              <div className="flex h-[40vh] items-center justify-center border-t border-border bg-muted px-6 text-center text-sm text-muted-foreground">
+                {isError
+                  ? "Não foi possível gerar o link do documento."
+                  : "Documento sem arquivo disponível."}
+              </div>
+            )}
+            {url && (
+              <div className="flex justify-end gap-2 px-5 py-3">
+                <a
+                  href={url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <ExternalLink className="size-3.5" /> Abrir em nova aba
+                </a>
+              </div>
+            )}
           </>
         )}
       </DialogContent>
@@ -745,23 +774,34 @@ function DocPreviewDialog({
   );
 }
 
-function InfoRow({
+
+function Field({
   label,
   value,
   mono,
+  copy,
+  children,
 }: {
   label: string;
   value?: string | null;
   mono?: boolean;
+  copy?: string | null;
+  children?: React.ReactNode;
 }) {
-  if (!value) return null;
+  if (!children && !value) return null;
   return (
-    <div className="grid grid-cols-[minmax(0,110px)_minmax(0,1fr)] items-baseline gap-3">
-      <dt className="text-[11px] uppercase tracking-wide text-muted-foreground">{label}</dt>
-      <dd className={`text-sm break-words ${mono ? "font-mono" : ""}`}>{value}</dd>
+    <div className="min-w-0">
+      <div className="flex items-center gap-1.5">
+        <dt className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground">{label}</dt>
+        {copy && <CopyButton value={copy} size={11} />}
+      </div>
+      <dd className={`mt-0.5 text-sm break-words ${mono ? "font-mono tabular-nums" : ""}`}>
+        {children ?? value}
+      </dd>
     </div>
   );
 }
+
 
 function WhatsAppLink({ phone, country }: { phone?: string | null; country?: string | null }) {
   if (!phone) return null;
