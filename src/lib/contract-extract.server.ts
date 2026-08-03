@@ -73,30 +73,24 @@ export async function parseContratante(block: string): Promise<ContractParty> {
   const key = process.env["LOVABLE_API_KEY"];
   if (!key || !block.trim()) return { ...EMPTY };
 
-  const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model: "google/gemini-2.5-flash",
-      messages: [
-        {
-          role: "system",
-          content:
-            "Você extrai dados cadastrais do CONTRATANTE de contratos brasileiros. " +
-            "Responda SOMENTE com JSON válido, sem markdown, no formato " +
-            '{"name":"","doc":"","birth_date":"DD/MM/AAAA","email":"","phone":"","cep":"","address":"","district":"","city":"","state":""}. ' +
-            "Use string vazia quando o dado não estiver no texto. Nunca invente informação. " +
-            "address deve conter logradouro, número e complemento. state é a sigla (2 letras).",
-        },
-        { role: "user", content: block },
-      ],
-      temperature: 0,
-    }),
-    signal: AbortSignal.timeout(45_000),
-  });
-  if (!res.ok) throw new Error(`Falha na análise do contrato (${res.status}).`);
-  const json = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
-  const raw = json.choices?.[0]?.message?.content ?? "";
+  const { chatText } = await import("@/lib/ai/gateway.server");
+  const { text: raw } = await chatText(
+    "contracts",
+    [
+      {
+        role: "system",
+        content:
+          "Você extrai dados cadastrais do CONTRATANTE de contratos brasileiros. " +
+          "Responda SOMENTE com JSON válido, sem markdown, no formato " +
+          '{"name":"","doc":"","birth_date":"DD/MM/AAAA","email":"","phone":"","cep":"","address":"","district":"","city":"","state":""}. ' +
+          "Use string vazia quando o dado não estiver no texto. Nunca invente informação. " +
+          "address deve conter logradouro, número e complemento. state é a sigla (2 letras).",
+      },
+      { role: "user", content: block },
+    ],
+    { json: true, signal: AbortSignal.timeout(120_000) },
+  );
+
   const match = raw.match(/\{[\s\S]*\}/);
   if (!match) return { ...EMPTY };
 

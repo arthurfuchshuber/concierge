@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
+import { AI_MODELS } from "@/lib/ai/models";
 
 const MessageSchema = z.object({
   role: z.enum(["user", "assistant"]),
@@ -83,7 +84,7 @@ export const askConcierge = createServerFn({ method: "POST" })
         "Lovable-API-Key": apiKey,
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: AI_MODELS.internal,
         messages: [
           { role: "system", content: systemPrompt },
           ...data.messages,

@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { AI_MODELS } from "@/lib/ai/models";
 
 const Input = z.object({ propertyId: z.string().uuid(), lang: z.enum(["pt", "en", "es", "fr"]).default("pt") });
 
@@ -75,7 +76,7 @@ Retorne JSON estrito no formato: {"greeting":"...","title":"...","body":"..."}.
     method: "POST",
     headers: { "Content-Type": "application/json", "Lovable-API-Key": key },
     body: JSON.stringify({
-      model: "google/gemini-2.5-flash",
+      model: AI_MODELS.content,
       messages: [
         { role: "system", content: sys },
         { role: "user", content: user },

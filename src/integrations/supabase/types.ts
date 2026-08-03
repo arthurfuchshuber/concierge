@@ -149,6 +149,208 @@ export type Database = {
         }
         Relationships: []
       }
+      ai_agent_logs: {
+        Row: {
+          confidence: number | null
+          context_keys: Json | null
+          conversation_id: string | null
+          cost_estimate: number | null
+          created_at: string
+          error: string | null
+          id: string
+          intent: Json | null
+          latency_ms: number | null
+          models: Json | null
+          needs_human: boolean
+          owner_id: string | null
+          property_id: string | null
+          sources: Json | null
+          surface: string
+          tokens: Json | null
+          tools_used: Json | null
+          validation: Json | null
+        }
+        Insert: {
+          confidence?: number | null
+          context_keys?: Json | null
+          conversation_id?: string | null
+          cost_estimate?: number | null
+          created_at?: string
+          error?: string | null
+          id?: string
+          intent?: Json | null
+          latency_ms?: number | null
+          models?: Json | null
+          needs_human?: boolean
+          owner_id?: string | null
+          property_id?: string | null
+          sources?: Json | null
+          surface?: string
+          tokens?: Json | null
+          tools_used?: Json | null
+          validation?: Json | null
+        }
+        Update: {
+          confidence?: number | null
+          context_keys?: Json | null
+          conversation_id?: string | null
+          cost_estimate?: number | null
+          created_at?: string
+          error?: string | null
+          id?: string
+          intent?: Json | null
+          latency_ms?: number | null
+          models?: Json | null
+          needs_human?: boolean
+          owner_id?: string | null
+          property_id?: string | null
+          sources?: Json | null
+          surface?: string
+          tokens?: Json | null
+          tools_used?: Json | null
+          validation?: Json | null
+        }
+        Relationships: []
+      }
+      ai_conversation_summaries: {
+        Row: {
+          conversation_id: string
+          created_at: string
+          language: string | null
+          owner_id: string | null
+          property_id: string | null
+          risk: string | null
+          sentiment: string | null
+          summary: string | null
+          updated_at: string
+        }
+        Insert: {
+          conversation_id: string
+          created_at?: string
+          language?: string | null
+          owner_id?: string | null
+          property_id?: string | null
+          risk?: string | null
+          sentiment?: string | null
+          summary?: string | null
+          updated_at?: string
+        }
+        Update: {
+          conversation_id?: string
+          created_at?: string
+          language?: string | null
+          owner_id?: string | null
+          property_id?: string | null
+          risk?: string | null
+          sentiment?: string | null
+          summary?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      ai_guest_memory: {
+        Row: {
+          created_at: string
+          guest_key: string
+          guest_name: string | null
+          id: string
+          language: string | null
+          owner_id: string
+          preferences: Json
+          property_id: string | null
+          summary: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          guest_key: string
+          guest_name?: string | null
+          id?: string
+          language?: string | null
+          owner_id: string
+          preferences?: Json
+          property_id?: string | null
+          summary?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          guest_key?: string
+          guest_name?: string | null
+          id?: string
+          language?: string | null
+          owner_id?: string
+          preferences?: Json
+          property_id?: string | null
+          summary?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_guest_memory_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ai_kb_chunks: {
+        Row: {
+          confidence: number
+          content: string
+          content_hash: string | null
+          created_at: string
+          embedding: string | null
+          id: string
+          owner_id: string
+          property_id: string | null
+          source: string
+          source_id: string | null
+          title: string | null
+          tsv: unknown
+          updated_at: string
+        }
+        Insert: {
+          confidence?: number
+          content: string
+          content_hash?: string | null
+          created_at?: string
+          embedding?: string | null
+          id?: string
+          owner_id: string
+          property_id?: string | null
+          source: string
+          source_id?: string | null
+          title?: string | null
+          tsv?: unknown
+          updated_at?: string
+        }
+        Update: {
+          confidence?: number
+          content?: string
+          content_hash?: string | null
+          created_at?: string
+          embedding?: string | null
+          id?: string
+          owner_id?: string
+          property_id?: string | null
+          source?: string
+          source_id?: string | null
+          title?: string | null
+          tsv?: unknown
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_kb_chunks_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       app_user_connections: {
         Row: {
           connection_key_ciphertext: string
@@ -2718,6 +2920,23 @@ export type Database = {
         Args: { _owner_id: string; _user_id: string }
         Returns: boolean
       }
+      match_ai_kb_chunks: {
+        Args: {
+          _owner_id: string
+          _property_id?: string
+          match_count?: number
+          query_embedding: string
+        }
+        Returns: {
+          confidence: number
+          content: string
+          id: string
+          similarity: number
+          source: string
+          source_id: string
+          title: string
+        }[]
+      }
       move_to_dlq: {
         Args: {
           dlq_name: string
@@ -2737,6 +2956,23 @@ export type Database = {
           message: Json
           msg_id: number
           read_ct: number
+        }[]
+      }
+      search_ai_kb_chunks_text: {
+        Args: {
+          _owner_id: string
+          _property_id?: string
+          _query: string
+          match_count?: number
+        }
+        Returns: {
+          confidence: number
+          content: string
+          id: string
+          rank: number
+          source: string
+          source_id: string
+          title: string
         }[]
       }
       user_can_access_property: {

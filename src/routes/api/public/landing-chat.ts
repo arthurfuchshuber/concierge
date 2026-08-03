@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
+import { AI_MODELS } from "@/lib/ai/models";
 
 // In-process rate limiter (reset on deploy).
 const ipMessageTimes = new Map<string, number[]>();
@@ -122,7 +123,7 @@ export const Route = createFileRoute("/api/public/landing-chat")({
           method: "POST",
           headers: { "Content-Type": "application/json", "Lovable-API-Key": apiKey },
           body: JSON.stringify({
-            model: "google/gemini-2.5-flash",
+            model: AI_MODELS.content,
             messages: [
               { role: "system", content: SYSTEM_PROMPT },
               ...userMessages,
