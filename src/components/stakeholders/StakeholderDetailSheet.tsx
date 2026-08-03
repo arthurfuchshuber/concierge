@@ -400,12 +400,8 @@ export function StakeholderDetailSheet({
             </div>
           ) : null}
 
-          {row.notes && (
-            <section className="rounded-2xl border border-border bg-card p-5">
-              <p className="text-[11px] uppercase tracking-wide text-muted-foreground mb-1.5">Observações</p>
-              <p className="text-sm whitespace-pre-wrap">{row.notes}</p>
-            </section>
-          )}
+
+
 
 
           <section className="rounded-2xl border border-border bg-card p-5 space-y-3">
