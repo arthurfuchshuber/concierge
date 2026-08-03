@@ -13,6 +13,7 @@ import {
   EyeOff,
   MoreHorizontal,
   Save,
+  DatabaseZap,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -38,6 +39,7 @@ import {
   syncMyClicksignDocuments,
   listMyClicksignDocuments,
   rotateMyClicksignWebhookSecret,
+  refreshClicksignStakeholderData,
 } from "@/lib/clicksign.functions";
 import { ClicksignImportDialog } from "@/components/admin-pages/ClicksignImportDialog";
 import { ClicksignDisconnectDialog } from "@/components/admin-pages/ClicksignDisconnectDialog";
@@ -54,6 +56,7 @@ export function ClicksignPanel() {
   const discFn = useServerFn(disconnectMyClicksign);
   const syncFn = useServerFn(syncMyClicksignDocuments);
   const listFn = useServerFn(listMyClicksignDocuments);
+  const refreshDataFn = useServerFn(refreshClicksignStakeholderData);
   const qc = useQueryClient();
 
   const [token, setToken] = useState("");
@@ -66,6 +69,21 @@ export function ClicksignPanel() {
 
   const cfg = useQuery({ queryKey: ["clicksign-config"], queryFn: () => getFn(), retry: false });
   const connected = !!cfg.data?.hasToken;
+
+  const refreshData = useMutation({
+    mutationFn: () => refreshDataFn(),
+    onSuccess: (r) => {
+      if (r.updated > 0) {
+        toast.success(`${r.updated} cadastro(s) atualizado(s) com dados dos contratos.`);
+      } else {
+        toast.info("Nenhum campo vazio para preencher nos cadastros vinculados.");
+      }
+      if (r.failed > 0) toast.warning(`${r.failed} contrato(s) não puderam ser lidos.`);
+      qc.invalidateQueries({ queryKey: ["stakeholders"] });
+    },
+    onError: (e: unknown) =>
+      toast.error(e instanceof Error ? e.message : "Erro ao atualizar dados"),
+  });
 
   useEffect(() => {
     setSecret(cfg.data?.webhookSecret ?? "");
@@ -343,6 +361,23 @@ export function ClicksignPanel() {
           )}
           {connected ? "Salvar" : "Conectar"}
         </Button>
+
+        {connected && (
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-8 shrink-0 rounded-full text-xs"
+            onClick={() => refreshData.mutate()}
+            disabled={refreshData.isPending}
+          >
+            {refreshData.isPending ? (
+              <Loader2 className="mr-1 size-3.5 animate-spin" />
+            ) : (
+              <DatabaseZap className="mr-1 size-3.5" />
+            )}
+            Atualizar Dados
+          </Button>
+        )}
 
         {connected && (
           <DropdownMenu modal={false}>
