@@ -413,18 +413,27 @@ export function StakeholderDetailSheet({
               <h3 className="text-sm font-semibold truncate">Atividades</h3>
               <span className="text-[11px] text-muted-foreground shrink-0">{openCount} em aberto</span>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="relative">
               <Input
                 value={newActivity}
                 onChange={(e) => setNewActivity(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && addActivity()}
                 placeholder="Nova atividade..."
-                className="rounded-full text-sm"
+                className="rounded-full text-sm pr-11"
               />
-              <Button size="sm" className="rounded-full shrink-0" onClick={addActivity} disabled={busy}>
-                <Plus className="size-4" />
-              </Button>
+              {newActivity.trim().length > 0 && (
+                <Button
+                  size="icon"
+                  className="absolute top-1/2 right-1 size-8 -translate-y-1/2 rounded-full"
+                  onClick={addActivity}
+                  disabled={busy}
+                  aria-label="Adicionar atividade"
+                >
+                  <Plus className="size-4" />
+                </Button>
+              )}
             </div>
+
             {activities.map((a: any) => {
               const meta = STATUS_META[a.status] ?? STATUS_META.todo;
               const StatusIcon = meta.icon;
