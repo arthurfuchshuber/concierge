@@ -28,6 +28,7 @@ import {
   Upload,
   Eye,
   MessageCircle,
+  ChevronDown,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -39,6 +40,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Label } from "@/components/ui/label";
 import { formatTaxId, formatIntlPhone, toWhatsappNumber } from "@/lib/masks";
 import {
   getStakeholderDetail,
@@ -47,9 +55,10 @@ import {
   setStakeholderActivityStatus,
   deleteStakeholderActivity,
   linkPropertyToOwner,
+  setStakeholderStatus,
 } from "@/lib/stakeholders.functions";
 import { getStakeholderIntegrationFeed } from "@/lib/stakeholder-feed.functions";
-import { getClicksignDocumentUrl } from "@/lib/clicksign.functions";
+import { getClicksignDocumentUrl, extractClicksignPartyData } from "@/lib/clicksign.functions";
 import { CopyButton } from "@/components/CopyButton";
 import type { StakeholderKind } from "./StakeholderDirectory";
 import { PROVIDER_CATEGORIES } from "./StakeholderDirectory";
@@ -64,6 +73,22 @@ function fmt(iso: string) {
   }
 }
 
+
+type StatusValue = "active" | "paused" | "canceled";
+
+const STATUS_LABEL: Record<string, string> = {
+  active: "Ativo",
+  paused: "Pausado",
+  canceled: "Cancelado",
+  inactive: "Inativo",
+};
+
+const STATUS_STYLE: Record<string, string> = {
+  active: "border-emerald-500/30 bg-emerald-500/10 text-emerald-500",
+  paused: "border-amber-500/30 bg-amber-500/10 text-amber-500",
+  canceled: "border-destructive/30 bg-destructive/10 text-destructive",
+  inactive: "border-border text-muted-foreground",
+};
 
 const STATUS_META: Record<string, { label: string; icon: typeof Circle; cls: string }> = {
   todo: { label: "A fazer", icon: Circle, cls: "text-muted-foreground" },
@@ -92,6 +117,49 @@ export function StakeholderDetailSheet({
   const [newActivity, setNewActivity] = useState("");
   const [busy, setBusy] = useState(false);
   const [preview, setPreview] = useState<PreviewTarget>(null);
+  const [extracting, setExtracting] = useState(false);
+  const [statusDraft, setStatusDraft] = useState<{ status: StatusValue; date: string } | null>(null);
+
+  const statusFn = useServerFn(setStakeholderStatus);
+  const extractFn = useServerFn(extractClicksignPartyData);
+
+  function openStatusDialog(status: StatusValue) {
+    setStatusDraft({ status, date: new Date().toISOString().slice(0, 10) });
+  }
+
+  async function confirmStatus() {
+    if (!statusDraft) return;
+    setBusy(true);
+    try {
+      await statusFn({ data: { kind, id, status: statusDraft.status, changed_at: statusDraft.date } });
+      setStatusDraft(null);
+      qc.invalidateQueries({ queryKey });
+      qc.invalidateQueries({ queryKey: ["stakeholders", kind] });
+      toast.success("Situação atualizada.");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Não foi possível alterar a situação.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function runExtract() {
+    setExtracting(true);
+    try {
+      const res = await extractFn({ data: { kind, id } });
+      if (res.updated > 0) {
+        toast.success(`Dados preenchidos a partir do contrato: ${res.fields.join(", ")}.`);
+        qc.invalidateQueries({ queryKey });
+        qc.invalidateQueries({ queryKey: ["stakeholders", kind] });
+      } else {
+        toast.info("Nada novo encontrado no quadro CONTRATANTE do contrato.");
+      }
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Não foi possível ler o contrato.");
+    } finally {
+      setExtracting(false);
+    }
+  }
 
   const queryKey = ["stakeholder-detail", kind, id];
   const { data, isLoading } = useQuery({
@@ -736,6 +804,39 @@ export function StakeholderDetailSheet({
       </Tabs>
 
       <DocPreviewDialog doc={preview} onClose={() => setPreview(null)} />
+
+      <Dialog open={!!statusDraft} onOpenChange={(o) => !o && setStatusDraft(null)}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>
+              Marcar como {statusDraft ? STATUS_LABEL[statusDraft.status] : ""}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="status-date">Data da alteração</Label>
+            <Input
+              id="status-date"
+              type="date"
+              value={statusDraft?.date ?? ""}
+              onChange={(e) =>
+                setStatusDraft((d) => (d ? { ...d, date: e.target.value } : d))
+              }
+            />
+            <p className="text-xs text-muted-foreground">
+              Pode ser uma data futura, se a mudança ainda vai acontecer.
+            </p>
+          </div>
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="ghost" onClick={() => setStatusDraft(null)}>
+              Cancelar
+            </Button>
+            <Button onClick={confirmStatus} disabled={busy || !statusDraft?.date}>
+              {busy && <Loader2 className="size-3.5 mr-1.5 animate-spin" />}
+              Confirmar
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
