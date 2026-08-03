@@ -222,7 +222,15 @@ async function postResponses(body: unknown, signal?: AbortSignal): Promise<Respo
   return { output: [], output_text: textFallback };
 }
 
-export type AgentToolCall = { name: string; args: Record<string, unknown>; result: unknown };
+export type AgentToolCall = {
+  name: string;
+  args: Record<string, unknown>;
+  result: unknown;
+  durationMs?: number;
+  /** Quantas ferramentas rodaram em paralelo nesta rodada. */
+  parallelBatch?: number;
+};
+
 
 export type AgentRun = {
   text: string;
