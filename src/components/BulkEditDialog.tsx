@@ -12,7 +12,11 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, Plus, Trash2 } from "lucide-react";
+import { Section, SectionGroup, type SectionIcon } from "@/components/editor/Section";
+import {
+  Loader2, Plus, Trash2, MapPinned, ClipboardCheck, BookOpen, UserRound, FileText, Shield,
+  Globe, DoorOpen, Clock, KeyRound, Wifi, ClipboardList, LogOut, Phone, HelpCircle,
+} from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { bulkUpdateProperties, bulkFetchProperties } from "@/lib/properties.functions";
 import { toast } from "sonner";
@@ -37,7 +41,14 @@ type FieldDef = { key: FieldKey; label: string; kind: FieldKind; placeholder?: s
 
 type ListKey = "manual" | "checkout" | "emergency" | "faqs";
 
-type Group = { title: string; fields?: FieldDef[]; lists?: ListKey[] };
+type Group = {
+  id: string;
+  title: string;
+  desc?: string;
+  icon?: SectionIcon;
+  fields?: FieldDef[];
+  lists?: ListKey[];
+};
 
 /** Mesma organização (abas + quadrantes) do editor individual do guia. */
 const TEXT_TABS: { id: string; label: string; groups: Group[] }[] = [
@@ -45,7 +56,8 @@ const TEXT_TABS: { id: string; label: string; groups: Group[] }[] = [
     id: "house", label: "A casa",
     groups: [
       {
-        title: "Endereço e localização",
+        id: "address", title: "Endereço e localização", icon: MapPinned,
+        desc: "Endereço, links do Maps e orientações de chegada.",
         fields: [
           { key: "address", label: "Endereço completo", kind: "textarea" },
           { key: "maps_url", label: "Link do Google Maps", kind: "text" },
@@ -56,10 +68,19 @@ const TEXT_TABS: { id: string; label: string; groups: Group[] }[] = [
           { key: "address_note", label: "Como chegar", kind: "textarea" },
         ],
       },
-      { title: "Regras do espaço", fields: [{ key: "house_rules", label: "Regras do espaço", kind: "textarea" }] },
-      { title: "Manual da casa", lists: ["manual"] },
       {
-        title: "Contato do anfitrião",
+        id: "house-rules", title: "Regras do espaço", icon: ClipboardCheck,
+        desc: "Uma regra por linha — cada linha vira um item numerado no guia.",
+        fields: [{ key: "house_rules", label: "Regras do espaço", kind: "textarea" }],
+      },
+      {
+        id: "manual", title: "Manual da casa", icon: BookOpen,
+        desc: "Instruções de equipamentos e funcionamento.",
+        lists: ["manual"],
+      },
+      {
+        id: "host-house", title: "Contato do anfitrião", icon: UserRound,
+        desc: "Nome e WhatsApp para o hóspede te encontrar.",
         fields: [
           { key: "host_name", label: "Nome do anfitrião", kind: "text" },
           { key: "host_phone", label: "Telefone do anfitrião", kind: "text" },
@@ -71,7 +92,8 @@ const TEXT_TABS: { id: string; label: string; groups: Group[] }[] = [
     id: "guide", label: "O guia",
     groups: [
       {
-        title: "Identidade visual",
+        id: "identity", title: "Identidade visual", icon: FileText,
+        desc: "Como o guia se apresenta e sua marca no rodapé.",
         fields: [
           { key: "brand_name", label: "Nome da marca", kind: "text" },
           { key: "brand_logo_url", label: "URL do logo (https://)", kind: "text" },
@@ -79,7 +101,8 @@ const TEXT_TABS: { id: string; label: string; groups: Group[] }[] = [
         ],
       },
       {
-        title: "Modo de acesso",
+        id: "access-mode", title: "Modo de acesso", icon: Shield,
+        desc: "Quem pode visualizar este guia.",
         fields: [
           { key: "published", label: "Publicado", kind: "boolean" },
           { key: "access_mode", label: "Modo de acesso do guia", kind: "access_mode" },
@@ -87,18 +110,23 @@ const TEXT_TABS: { id: string; label: string; groups: Group[] }[] = [
           { key: "require_access_gate", label: "Exigir formulário de primeiro acesso", kind: "boolean" },
         ],
       },
-      { title: "Idioma padrão", fields: [{ key: "default_language", label: "Idioma padrão", kind: "language" }] },
+      {
+        id: "language", title: "Idioma padrão", icon: Globe,
+        fields: [{ key: "default_language", label: "Idioma padrão", kind: "language" }],
+      },
     ],
   },
   {
     id: "checkin", label: "Checkin",
     groups: [
       {
-        title: "Instruções de chegada",
+        id: "checkin-instr", title: "Instruções de chegada", icon: DoorOpen,
+        desc: "Passo a passo do check-in. Uma etapa por linha.",
         fields: [{ key: "checkin_instructions", label: "Instruções de check-in", kind: "textarea" }],
       },
       {
-        title: "Horários de check-in",
+        id: "checkin-times", title: "Horários de check-in", icon: Clock,
+        desc: "Janela de chegada.",
         fields: [
           { key: "checkin_time", label: "Check-in a partir", kind: "text", placeholder: "15:00" },
           { key: "checkin_time_max", label: "Check-in até", kind: "text", placeholder: "20:00" },
@@ -106,7 +134,8 @@ const TEXT_TABS: { id: string; label: string; groups: Group[] }[] = [
         ],
       },
       {
-        title: "Senhas de acesso",
+        id: "access-codes", title: "Senhas de Acesso", icon: KeyRound,
+        desc: "Códigos de portão e fechadura, mais o código que libera as senhas no Guia.",
         fields: [
           { key: "gate_label", label: "Nome do portão", kind: "text" },
           { key: "gate_code", label: "Código do portão", kind: "text" },
@@ -118,14 +147,16 @@ const TEXT_TABS: { id: string; label: string; groups: Group[] }[] = [
         ],
       },
       {
-        title: "Wi-Fi",
+        id: "wifi", title: "Wi-Fi", icon: Wifi,
+        desc: "Rede e senha exibidas no card de Wi-Fi do guia público.",
         fields: [
           { key: "wifi_ssid", label: "Rede Wi-Fi", kind: "text" },
           { key: "wifi_password", label: "Senha do Wi-Fi", kind: "text" },
         ],
       },
       {
-        title: "Dados do hóspede",
+        id: "guest-data", title: "Dados do hóspede", icon: ClipboardList,
+        desc: "O que é coletado no formulário de primeiro acesso.",
         fields: [
           { key: "collect_arrival_time", label: "Horário previsto de chegada", kind: "collect" },
           { key: "collect_vehicles", label: "Veículo(s)", kind: "collect" },
@@ -140,27 +171,42 @@ const TEXT_TABS: { id: string; label: string; groups: Group[] }[] = [
     id: "checkout", label: "Checkout",
     groups: [
       {
-        title: "Instruções de saída",
+        id: "checkout-instr", title: "Instruções de saída", icon: LogOut,
+        desc: "Passo a passo do check-out. Uma etapa por linha.",
         fields: [{ key: "checkout_instructions", label: "Instruções de check-out", kind: "textarea" }],
       },
       {
-        title: "Horários de check-out",
+        id: "checkout-times", title: "Horários de check-out", icon: Clock,
+        desc: "Janela de saída.",
         fields: [
           { key: "checkout_time", label: "Check-out até", kind: "text", placeholder: "11:00" },
           { key: "checkout_time_min", label: "Check-out a partir", kind: "text" },
           { key: "checkout_note", label: "Observação de check-out", kind: "textarea" },
         ],
       },
-      { title: "Checklist de check-out", lists: ["checkout"] },
+      {
+        id: "checkout-list", title: "Checklist de check-out", icon: ClipboardCheck,
+        desc: "O que o hóspede deve fazer antes de sair.",
+        lists: ["checkout"],
+      },
     ],
   },
   {
     id: "faq", label: "FAQ & Contatos",
     groups: [
-      { title: "Emergências", lists: ["emergency"] },
-      { title: "Perguntas frequentes", lists: ["faqs"] },
       {
-        title: "Contato do anfitrião",
+        id: "emergency", title: "Emergências", icon: Phone,
+        desc: "Telefones úteis em caso de urgência.",
+        lists: ["emergency"],
+      },
+      {
+        id: "faqs", title: "Perguntas frequentes", icon: HelpCircle,
+        desc: "Antecipe dúvidas comuns dos hóspedes.",
+        lists: ["faqs"],
+      },
+      {
+        id: "host-faq", title: "Contato do anfitrião", icon: UserRound,
+        desc: "Nome e WhatsApp para o hóspede te encontrar.",
         fields: [
           { key: "host_name", label: "Nome do anfitrião", kind: "text" },
           { key: "host_phone", label: "Telefone do anfitrião", kind: "text" },
@@ -170,6 +216,7 @@ const TEXT_TABS: { id: string; label: string; groups: Group[] }[] = [
   },
   { id: "recs", label: "Recomendações", groups: [] },
 ];
+
 
 type State = {
   enabled: Partial<Record<FieldKey, boolean>>;
@@ -335,7 +382,7 @@ export function BulkEditDialog({
           </div>
 
           {TEXT_TABS.map((tab) => (
-            <TabsContent key={tab.id} value={tab.id} className="space-y-5 pt-3 min-w-0">
+            <TabsContent key={tab.id} value={tab.id} className="space-y-4 pt-4 min-w-0">
               {tab.groups.length === 0 && (
                 <p className="rounded-xl border border-border bg-card/40 p-4 text-sm text-muted-foreground">
                   As recomendações são específicas de cada residência (endereço, distância e horários) e por isso
@@ -343,10 +390,28 @@ export function BulkEditDialog({
                 </p>
               )}
 
-              {tab.groups.map((group) => (
-                <section key={group.title} className="space-y-2 min-w-0">
-                  <h3 className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground/80">{group.title}</h3>
-
+              <SectionGroup>
+                <div className="space-y-4">
+                {tab.groups.map((group) => {
+                  const activeCount =
+                    (group.fields ?? []).filter((f) => state.enabled[f.key]).length +
+                    (group.lists ?? []).filter((lk) => state.listsEnabled[lk]).length;
+                  return (
+                  <Section
+                    key={group.id}
+                    id={`${tab.id}-${group.id}`}
+                    icon={group.icon}
+                    title={group.title}
+                    desc={group.desc}
+                    collapsible
+                    action={
+                      activeCount > 0 ? (
+                        <span className="rounded-full bg-accent/15 text-accent-foreground border border-accent/40 px-2 py-0.5 text-[11px]">
+                          {activeCount} ativo{activeCount > 1 ? "s" : ""}
+                        </span>
+                      ) : null
+                    }
+                  >
                   {(group.fields ?? []).map((f) => {
                     const enabled = !!state.enabled[f.key];
                     const value = state.values[f.key];
@@ -388,8 +453,12 @@ export function BulkEditDialog({
                       </div>
                     );
                   })}
-                </section>
-              ))}
+                  </Section>
+                  );
+                })}
+                </div>
+              </SectionGroup>
+
             </TabsContent>
           ))}
         </Tabs>
