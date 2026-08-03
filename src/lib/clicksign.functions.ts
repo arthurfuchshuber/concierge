@@ -407,3 +407,112 @@ export const getClicksignDocumentUrl = createServerFn({ method: "POST" })
     }
     return { url: fallback };
   });
+
+/**
+ * Lê o contrato mais recente vinculado ao cadastro e preenche os campos que
+ * ainda estão vazios (nascimento, telefone, CEP e endereço completo) a partir
+ * do quadro "CONTRATANTE" da primeira página do documento.
+ */
+export const extractClicksignPartyData = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((raw) =>
+    z.object({ kind: z.enum(["owner", "provider"]), id: z.string().uuid() }).parse(raw),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const table = data.kind === "provider" ? "service_providers" : "property_owners";
+
+    const { data: row } = await supabase
+      .from(table)
+      .select("*")
+      .eq("id", data.id)
+      .eq("account_owner_id", userId)
+      .maybeSingle();
+    if (!row) throw new Error("Cadastro não encontrado.");
+
+    const { data: docs } = await supabase
+      .from("clicksign_documents")
+      .select("id, name, document_key, url_signed, url_original, finished_at, created_at")
+      .eq("account_owner_id", userId)
+      .eq("stakeholder_type", data.kind)
+      .eq("stakeholder_id", data.id)
+      .order("finished_at", { ascending: false, nullsFirst: false })
+      .limit(1);
+    const doc = (docs ?? [])[0];
+    if (!doc) throw new Error("Nenhum contrato vinculado a este cadastro.");
+
+    // URL recém-assinada (as salvas expiram).
+    let url = (doc.url_signed as string) ?? (doc.url_original as string) ?? null;
+    try {
+      const { decryptToken } = await import("@/lib/whatsapp.server");
+      const cs = await import("@/lib/clicksign.server");
+      const { data: cred } = await supabase
+        .from("host_integration_credentials")
+        .select("api_token_encrypted")
+        .eq("owner_id", userId)
+        .eq("provider", "clicksign")
+        .maybeSingle();
+      if (cred?.api_token_encrypted) {
+        const token = decryptToken(cred.api_token_encrypted as string);
+        const detail = await cs.csFetch(token, "production", `/api/v1/documents/${String(doc.document_key)}`);
+        const d = (detail["document"] ?? detail) as Record<string, unknown>;
+        const dl = (d["downloads"] as Record<string, unknown> | undefined) ?? {};
+        url = (dl["signed_file_url"] as string) ?? (dl["original_file_url"] as string) ?? url;
+      }
+    } catch {
+      /* usa a URL salva */
+    }
+    if (!url) throw new Error("Documento sem arquivo disponível para leitura.");
+
+    const ex = await import("@/lib/contract-extract.server");
+    const page = await ex.firstPageText(url);
+    const party = await ex.parseContratante(ex.contratanteBlock(page));
+
+    const fields = ["birth_date", "phone", "cep", "address", "district", "city", "state", "email", "doc"] as const;
+    const patch: Record<string, unknown> = {};
+    for (const f of fields) {
+      const current = (row as Record<string, unknown>)[f];
+      const next = party[f as keyof typeof party];
+      if (next && !String(current ?? "").trim()) patch[f] = next;
+    }
+    if (patch["phone"] && !String((row as Record<string, unknown>)["phone_country"] ?? "").trim()) {
+      patch["phone_country"] = "55";
+    }
+
+    if (Object.keys(patch).length === 0) {
+      return { updated: 0, fields: [] as string[], found: party };
+    }
+
+    const { error } = await supabase
+      .from(table)
+      .update(patch as never)
+      .eq("id", data.id)
+      .eq("account_owner_id", userId);
+    if (error) throw new Error(error.message);
+
+    const labels: Record<string, string> = {
+      birth_date: "data de nascimento",
+      phone: "telefone",
+      cep: "CEP",
+      address: "endereço",
+      district: "bairro",
+      city: "cidade",
+      state: "estado",
+      email: "e-mail",
+      doc: "documento",
+    };
+    const filled = Object.keys(patch).filter((k) => labels[k]);
+    await supabase.from("stakeholder_events").insert({
+      account_owner_id: userId,
+      stakeholder_type: data.kind,
+      stakeholder_id: data.id,
+      kind: "clicksign",
+      message: `Dados extraídos do contrato "${doc.name ?? "ClickSign"}": ${filled
+        .map((k) => labels[k])
+        .join(", ")}.`,
+      metadata: { source: "clicksign_contract_extract", document_id: doc.id, fields: filled } as never,
+      created_by: userId,
+    });
+
+    return { updated: filled.length, fields: filled, found: party };
+  });
