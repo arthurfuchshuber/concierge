@@ -382,7 +382,7 @@ export function BulkEditDialog({
           </div>
 
           {TEXT_TABS.map((tab) => (
-            <TabsContent key={tab.id} value={tab.id} className="space-y-5 pt-3 min-w-0">
+            <TabsContent key={tab.id} value={tab.id} className="space-y-4 pt-4 min-w-0">
               {tab.groups.length === 0 && (
                 <p className="rounded-xl border border-border bg-card/40 p-4 text-sm text-muted-foreground">
                   As recomendações são específicas de cada residência (endereço, distância e horários) e por isso
@@ -390,10 +390,28 @@ export function BulkEditDialog({
                 </p>
               )}
 
-              {tab.groups.map((group) => (
-                <section key={group.title} className="space-y-2 min-w-0">
-                  <h3 className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground/80">{group.title}</h3>
-
+              <SectionGroup>
+                <div className="space-y-4">
+                {tab.groups.map((group) => {
+                  const activeCount =
+                    (group.fields ?? []).filter((f) => state.enabled[f.key]).length +
+                    (group.lists ?? []).filter((lk) => state.listsEnabled[lk]).length;
+                  return (
+                  <Section
+                    key={group.id}
+                    id={`${tab.id}-${group.id}`}
+                    icon={group.icon}
+                    title={group.title}
+                    desc={group.desc}
+                    collapsible
+                    action={
+                      activeCount > 0 ? (
+                        <span className="rounded-full bg-accent/15 text-accent-foreground border border-accent/40 px-2 py-0.5 text-[11px]">
+                          {activeCount} ativo{activeCount > 1 ? "s" : ""}
+                        </span>
+                      ) : null
+                    }
+                  >
                   {(group.fields ?? []).map((f) => {
                     const enabled = !!state.enabled[f.key];
                     const value = state.values[f.key];
@@ -435,8 +453,12 @@ export function BulkEditDialog({
                       </div>
                     );
                   })}
-                </section>
-              ))}
+                  </Section>
+                  );
+                })}
+                </div>
+              </SectionGroup>
+
             </TabsContent>
           ))}
         </Tabs>
