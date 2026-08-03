@@ -26,11 +26,20 @@ import {
   AlertTriangle,
   Pin,
   Upload,
+  Eye,
+  MessageCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { formatTaxId, formatIntlPhone, toWhatsappNumber } from "@/lib/masks";
 import {
   getStakeholderDetail,
   addStakeholderNote,
@@ -77,6 +86,7 @@ export function StakeholderDetailSheet({
   const [note, setNote] = useState("");
   const [newActivity, setNewActivity] = useState("");
   const [busy, setBusy] = useState(false);
+  const [preview, setPreview] = useState<{ name: string; url: string } | null>(null);
 
   const queryKey = ["stakeholder-detail", kind, id];
   const { data, isLoading } = useQuery({
