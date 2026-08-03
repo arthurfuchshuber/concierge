@@ -1866,6 +1866,7 @@ export type Database = {
           phone_country: string | null
           state: string | null
           status: string
+          status_changed_at: string | null
           trade_name: string | null
           updated_at: string
         }
@@ -1890,6 +1891,7 @@ export type Database = {
           phone_country?: string | null
           state?: string | null
           status?: string
+          status_changed_at?: string | null
           trade_name?: string | null
           updated_at?: string
         }
@@ -1914,6 +1916,7 @@ export type Database = {
           phone_country?: string | null
           state?: string | null
           status?: string
+          status_changed_at?: string | null
           trade_name?: string | null
           updated_at?: string
         }
@@ -2125,6 +2128,7 @@ export type Database = {
           phone_country: string | null
           state: string | null
           status: string
+          status_changed_at: string | null
           trade_name: string | null
           updated_at: string
         }
@@ -2152,6 +2156,7 @@ export type Database = {
           phone_country?: string | null
           state?: string | null
           status?: string
+          status_changed_at?: string | null
           trade_name?: string | null
           updated_at?: string
         }
@@ -2179,6 +2184,7 @@ export type Database = {
           phone_country?: string | null
           state?: string | null
           status?: string
+          status_changed_at?: string | null
           trade_name?: string | null
           updated_at?: string
         }
