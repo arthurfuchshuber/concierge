@@ -134,11 +134,19 @@ export const importClicksignStakeholders = createServerFn({ method: "POST" })
       }
 
       // Linha do tempo do cadastro: registra a origem e o que foi vinculado.
+      // A data usada é a do documento que originou o cadastro (não a de hoje).
+      const docDates = targets
+        .map((t) => (t.finished_at as string) ?? (t.created_at as string) ?? null)
+        .filter(Boolean)
+        .sort() as string[];
+      const originAt = docDates[0] ?? new Date().toISOString();
+
       await supabase.from("stakeholder_events").insert({
         account_owner_id: userId,
         stakeholder_type: type,
         stakeholder_id: id,
         kind: "clicksign",
+        created_at: originAt,
         message:
           d.action === "create"
             ? `Cadastro criado pela importação do ClickSign${targets.length ? ` · ${targets.length} contrato(s) vinculado(s)` : ""}.`
@@ -150,10 +158,11 @@ export const importClicksignStakeholders = createServerFn({ method: "POST" })
           signer_email: d.email || null,
           signer_doc: digits || null,
           documents_linked: targets.length,
-          at: new Date().toISOString(),
+          at: originAt,
         } as never,
         created_by: userId,
       });
+
     }
 
 
