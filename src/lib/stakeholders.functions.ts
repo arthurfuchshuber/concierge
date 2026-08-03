@@ -90,7 +90,7 @@ const SaveInput = z.object({
   city: z.string().trim().max(120).optional().nullable(),
   state: z.string().trim().max(60).optional().nullable(),
   notes: z.string().trim().max(4000).optional().nullable(),
-  status: z.enum(["active", "inactive"]).default("active"),
+  status: z.enum(["active", "inactive", "paused", "canceled"]).default("active"),
 });
 
 function onlyDigits(v?: string | null) {
@@ -418,4 +418,46 @@ export const countPropertyOwners = createServerFn({ method: "GET" })
       .eq("account_owner_id", accountId)
       .eq("status", "active");
     return { count: count ?? 0 };
+  });
+
+/** Situação do cadastro (Ativo/Pausado/Cancelado) com a data informada pelo usuário. */
+export const setStakeholderStatus = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) =>
+    z
+      .object({
+        kind: Kind,
+        id: z.string().uuid(),
+        status: z.enum(["active", "paused", "canceled"]),
+        changed_at: z.string().trim().min(4).max(40),
+      })
+      .parse(i),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const accountId = await resolveAccountOwnerId(supabase, userId);
+    const when = new Date(
+      /^\d{4}-\d{2}-\d{2}$/.test(data.changed_at) ? `${data.changed_at}T12:00:00` : data.changed_at,
+    );
+    if (Number.isNaN(when.getTime())) throw new Error("Data inválida.");
+
+    const { error } = await supabase
+      .from(TABLE[data.kind])
+      .update({ status: data.status, status_changed_at: when.toISOString() } as never)
+      .eq("id", data.id)
+      .eq("account_owner_id", accountId);
+    if (error) throw new Error(error.message);
+
+    const LABEL: Record<string, string> = { active: "Ativo", paused: "Pausado", canceled: "Cancelado" };
+    await supabase.from("stakeholder_events").insert({
+      account_owner_id: accountId,
+      stakeholder_type: data.kind,
+      stakeholder_id: data.id,
+      kind: "update",
+      created_at: when.toISOString(),
+      message: `Situação alterada para ${LABEL[data.status]} em ${when.toLocaleDateString("pt-BR")}.`,
+      metadata: { source: "status", status: data.status, at: when.toISOString() } as never,
+      created_by: userId,
+    });
+    return { ok: true };
   });
