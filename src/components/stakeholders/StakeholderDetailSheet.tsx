@@ -255,58 +255,87 @@ export function StakeholderDetailSheet({
     <div className="flex flex-col gap-5 px-5 py-6 sm:px-6">
       {/* Header card */}
       <section className="rounded-2xl border border-border bg-card p-5">
-        <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-4">
+        <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-4">
           <div className="grid size-14 shrink-0 place-items-center rounded-2xl bg-primary/15 font-display text-2xl text-primary">
             {initial}
           </div>
           <div className="min-w-0">
-            <h2 className="font-display text-2xl leading-tight truncate">{displayName}</h2>
-            {row.doc && (
-              <p className="font-mono text-xs text-muted-foreground mt-1 truncate">{row.doc}</p>
-            )}
-          </div>
-          <div className="flex shrink-0 items-center gap-2">
-            <span
-              className={`rounded-full border px-3 py-1 text-xs ${
-                row.status === "active"
-                  ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-500"
-                  : "border-border text-muted-foreground"
-              }`}
+            <h2
+              className="font-display text-xl sm:text-2xl leading-tight truncate"
+              title={displayName}
             >
-              {row.status === "active" ? "Ativo" : "Inativo"}
-            </span>
-            <span className="rounded-full border border-border px-3 py-1 text-xs text-muted-foreground uppercase">
-              {String(row.person_type ?? "pf")}
-            </span>
-            <Button variant="outline" size="sm" className="rounded-full" onClick={onEdit}>
-              <Pencil className="size-3.5 mr-1.5" /> Editar
-            </Button>
+              {displayName}
+            </h2>
+            <div className="mt-1.5 flex flex-wrap items-center gap-2">
+              <span
+                className={`rounded-full border px-2.5 py-0.5 text-[11px] ${
+                  row.status === "active"
+                    ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-500"
+                    : "border-border text-muted-foreground"
+                }`}
+              >
+                {row.status === "active" ? "Ativo" : "Inativo"}
+              </span>
+              <span className="rounded-full border border-border px-2.5 py-0.5 text-[11px] text-muted-foreground uppercase">
+                {String(row.person_type ?? "pf")}
+              </span>
+              {categoryLabel && (
+                <span className="rounded-full border border-border px-2.5 py-0.5 text-[11px] text-muted-foreground">
+                  {categoryLabel}
+                </span>
+              )}
+              <Button variant="outline" size="sm" className="rounded-full ml-auto" onClick={onEdit}>
+                <Pencil className="size-3.5 mr-1.5" /> Editar
+              </Button>
+            </div>
           </div>
         </div>
-        <div className="mt-4 flex flex-wrap gap-x-4 gap-y-1.5 text-xs text-muted-foreground">
-          {categoryLabel && <span>{categoryLabel}</span>}
-          {row.email && (
-            <span className="flex items-center gap-1.5"><Mail className="size-3" /> {row.email}</span>
+
+        <dl className="mt-4 space-y-2 border-t border-border pt-4 text-sm">
+          <InfoRow label="Nome completo" value={row.name} />
+          {row.trade_name && <InfoRow label="Nome fantasia" value={row.trade_name} />}
+          {row.doc && (
+            <InfoRow label={String(row.doc_type ?? "cpf").toUpperCase()} value={formatTaxId(row.doc)} mono />
           )}
-          {row.phone && (
-            <span className="flex items-center gap-1.5"><Phone className="size-3" /> {row.phone}</span>
+          {(row.email || row.phone) && (
+            <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+              {row.email ? (
+                <a
+                  href={`mailto:${row.email}`}
+                  className="inline-flex min-w-0 items-center gap-2 text-sm text-foreground hover:underline"
+                >
+                  <Mail className="size-3.5 shrink-0 text-muted-foreground" />
+                  <span className="truncate">{row.email}</span>
+                </a>
+              ) : (
+                <span />
+              )}
+              <WhatsAppLink phone={row.phone} country={row.phone_country} />
+            </div>
           )}
-          {(row.city || row.state) && (
-            <span className="flex items-center gap-1.5">
-              <MapPin className="size-3" /> {[row.city, row.state].filter(Boolean).join(" / ")}
-            </span>
+          {(row.address || row.city || row.state) && (
+            <p className="flex items-start gap-2 text-sm text-muted-foreground">
+              <MapPin className="size-3.5 mt-0.5 shrink-0" />
+              <span className="min-w-0 break-words">
+                {[row.address, row.district, [row.city, row.state].filter(Boolean).join(" / ")]
+                  .filter(Boolean)
+                  .join(" · ")}
+              </span>
+            </p>
           )}
-        </div>
+        </dl>
       </section>
 
       <Tabs defaultValue="visao">
         <div className="rounded-2xl border border-border bg-card p-2">
           <TabsList className="w-full bg-transparent gap-1">
             <TabsTrigger value="visao">Visão Geral</TabsTrigger>
+            {kind === "owner" && <TabsTrigger value="imoveis">Imóveis</TabsTrigger>}
             <TabsTrigger value="financeiro">Financeiro</TabsTrigger>
             <TabsTrigger value="documentos">Documentos</TabsTrigger>
           </TabsList>
         </div>
+
 
         {/* -------------------- Visão Geral -------------------- */}
         <TabsContent value="visao" className="mt-5 space-y-5">
