@@ -712,9 +712,18 @@ function DocPreviewDialog({
   doc,
   onClose,
 }: {
-  doc: { name: string; url: string } | null;
+  doc: PreviewTarget;
   onClose: () => void;
 }) {
+  const urlFn = useServerFn(getClicksignDocumentUrl);
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ["clicksign-doc-url", doc?.docId],
+    queryFn: () => urlFn({ data: { id: doc!.docId! } }),
+    enabled: !!doc?.docId,
+    staleTime: 60_000,
+  });
+  const url = doc?.docId ? data?.url ?? null : doc?.url ?? null;
+
   return (
     <Dialog open={!!doc} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-w-4xl p-0 overflow-hidden">
@@ -723,27 +732,42 @@ function DocPreviewDialog({
         </DialogHeader>
         {doc && (
           <>
-            <iframe
-              src={doc.url}
-              title={doc.name}
-              className="h-[70vh] w-full border-t border-border bg-muted"
-            />
-            <div className="flex justify-end gap-2 px-5 py-3">
-              <a
-                href={doc.url}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
-              >
-                <ExternalLink className="size-3.5" /> Abrir em nova aba
-              </a>
-            </div>
+            {isLoading ? (
+              <div className="flex h-[70vh] items-center justify-center gap-2 border-t border-border bg-muted text-sm text-muted-foreground">
+                <Loader2 className="size-4 animate-spin" /> Gerando link seguro…
+              </div>
+            ) : url ? (
+              <iframe
+                src={url}
+                title={doc.name}
+                className="h-[70vh] w-full border-t border-border bg-muted"
+              />
+            ) : (
+              <div className="flex h-[40vh] items-center justify-center border-t border-border bg-muted px-6 text-center text-sm text-muted-foreground">
+                {isError
+                  ? "Não foi possível gerar o link do documento."
+                  : "Documento sem arquivo disponível."}
+              </div>
+            )}
+            {url && (
+              <div className="flex justify-end gap-2 px-5 py-3">
+                <a
+                  href={url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <ExternalLink className="size-3.5" /> Abrir em nova aba
+                </a>
+              </div>
+            )}
           </>
         )}
       </DialogContent>
     </Dialog>
   );
 }
+
 
 function InfoRow({
   label,
