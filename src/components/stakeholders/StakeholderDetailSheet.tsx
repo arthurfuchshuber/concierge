@@ -640,37 +640,125 @@ export function StakeholderDetailSheet({
               />
             ) : (
               <ul className="divide-y divide-border rounded-2xl border border-border bg-card">
-                {feedDocs.map((d) => (
-                  <li key={d.id} className="flex items-start justify-between gap-3 px-4 py-3">
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-medium">{d.name}</p>
-                      <p className="text-[11px] text-muted-foreground">
-                        {d.status ?? "—"}
-                        {d.at ? ` · ${fmt(d.at)}` : ""}
-                        {d.signers.length > 0 ? ` · ${d.signers.length} signatários` : ""}
-                      </p>
-                    </div>
-                    {(d.urlSigned || d.urlOriginal) && (
-                      <a
-                        href={(d.urlSigned || d.urlOriginal) as string}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="shrink-0 text-muted-foreground hover:text-foreground"
-                        title="Baixar"
-                      >
-                        <Download className="size-4" />
-                      </a>
-                    )}
-                  </li>
-                ))}
+                {feedDocs.map((d) => {
+                  const url = (d.urlSigned || d.urlOriginal) as string | null;
+                  return (
+                    <li key={d.id} className="flex items-start justify-between gap-3 px-4 py-3">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium">{d.name}</p>
+                        <p className="text-[11px] text-muted-foreground">
+                          {d.status ?? "—"}
+                          {d.at ? ` · ${fmt(d.at)}` : ""}
+                          {d.signers.length > 0 ? ` · ${d.signers.length} signatários` : ""}
+                        </p>
+                      </div>
+                      {url && (
+                        <div className="flex shrink-0 items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => setPreview({ name: d.name, url })}
+                            className="grid size-8 place-items-center rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+                            title="Visualizar"
+                          >
+                            <Eye className="size-4" />
+                          </button>
+                          <a
+                            href={url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="grid size-8 place-items-center rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+                            title="Baixar"
+                          >
+                            <Download className="size-4" />
+                          </a>
+                        </div>
+                      )}
+                    </li>
+                  );
+                })}
               </ul>
             )}
           </section>
         </TabsContent>
       </Tabs>
+
+      <DocPreviewDialog doc={preview} onClose={() => setPreview(null)} />
     </div>
   );
 }
+
+function DocPreviewDialog({
+  doc,
+  onClose,
+}: {
+  doc: { name: string; url: string } | null;
+  onClose: () => void;
+}) {
+  return (
+    <Dialog open={!!doc} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-4xl p-0 overflow-hidden">
+        <DialogHeader className="px-5 pt-5 pb-3">
+          <DialogTitle className="text-base truncate pr-8">{doc?.name}</DialogTitle>
+        </DialogHeader>
+        {doc && (
+          <>
+            <iframe
+              src={doc.url}
+              title={doc.name}
+              className="h-[70vh] w-full border-t border-border bg-muted"
+            />
+            <div className="flex justify-end gap-2 px-5 py-3">
+              <a
+                href={doc.url}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <ExternalLink className="size-3.5" /> Abrir em nova aba
+              </a>
+            </div>
+          </>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function InfoRow({
+  label,
+  value,
+  mono,
+}: {
+  label: string;
+  value?: string | null;
+  mono?: boolean;
+}) {
+  if (!value) return null;
+  return (
+    <div className="grid grid-cols-[minmax(0,110px)_minmax(0,1fr)] items-baseline gap-3">
+      <dt className="text-[11px] uppercase tracking-wide text-muted-foreground">{label}</dt>
+      <dd className={`text-sm break-words ${mono ? "font-mono" : ""}`}>{value}</dd>
+    </div>
+  );
+}
+
+function WhatsAppLink({ phone, country }: { phone?: string | null; country?: string | null }) {
+  if (!phone) return null;
+  const waNumber = toWhatsappNumber(phone, country);
+  if (!waNumber) return null;
+  return (
+    <a
+      href={`https://wa.me/${waNumber}`}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="inline-flex w-fit items-center gap-1 rounded-full bg-emerald-500/10 hover:bg-emerald-500/20 px-2.5 py-1 text-[11px] font-medium tabular-nums text-emerald-700 dark:text-emerald-400 transition"
+    >
+      <MessageCircle className="size-3" />
+      {formatIntlPhone(phone, country)}
+    </a>
+  );
+}
+
 
 function MoneyCard({
   label,
