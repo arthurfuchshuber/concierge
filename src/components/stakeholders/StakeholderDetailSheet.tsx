@@ -86,7 +86,7 @@ export function StakeholderDetailSheet({
   const [note, setNote] = useState("");
   const [newActivity, setNewActivity] = useState("");
   const [busy, setBusy] = useState(false);
-  const [preview, setPreview] = useState<{ name: string; url: string } | null>(null);
+  const [preview, setPreview] = useState<PreviewTarget>(null);
 
   const queryKey = ["stakeholder-detail", kind, id];
   const { data, isLoading } = useQuery({
