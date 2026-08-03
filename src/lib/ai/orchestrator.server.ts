@@ -3,11 +3,14 @@
  *
  * Pipeline por mensagem:
  *   1. Classificação de intenção (modelo rápido)
- *   2. Coleta de contexto (residência, reserva, fase da estadia, memória)
- *   3. Pré-recuperação Hybrid RAG (vetorial + textual)
- *   4. Raciocínio + tool calling (agente principal)
- *   5. Validação final (anti-alucinação)
- *   6. Observabilidade (log completo no banco)
+ *   2. Planner Agent (plano de execução: quais ferramentas realmente usar)
+ *   3. Coleta de contexto (residência, reserva, fase da estadia, memória)
+ *   4. Pré-recuperação Hybrid RAG (vetorial + textual)
+ *   5. Raciocínio + tool calling paralelo (agente principal)
+ *   6. Validação final (anti-alucinação)
+ *   7. Reflection Step (autoavaliação e melhoria da redação)
+ *   8. Confidence Threshold (auto | com ressalva | handoff)
+ *   9. Observabilidade (log completo, com versão dos prompts)
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { EMPTY_USAGE, mergeUsage, runAgent, type Usage } from "./gateway.server";
@@ -19,43 +22,19 @@ import { validateAnswer } from "./validate.server";
 import { guestKeyOf, loadGuestMemory, updateGuestMemory } from "./memory.server";
 import { logAgentRun } from "./observability.server";
 import { AI_MODELS } from "./models";
+import { PROMPTS, HANDOFF_FALLBACK, stampVersions } from "./prompts";
+import { planExecution, renderPlan, type ExecutionPlan } from "./planner.server";
+import { reflectOnAnswer, type Reflection } from "./reflection.server";
+import { aggregateSourceWeight, renderSourceRanking } from "./sources";
+import {
+  aggregateConfidence,
+  hedgeNotice,
+  thresholdsFor,
+  tierFor,
+  type ConfidenceTier,
+} from "./confidence";
 
 type Admin = SupabaseClient;
-
-const HANDOFF_FALLBACK = "Estou chamando um atendente humano, aguarde só um instante.";
-
-const AGENT_INSTRUCTIONS = `Você é o ConciergeIA — um concierge de hospitalidade experiente, não um chatbot.
-
-IDENTIDADE
-- Você é software. NÃO tem corpo, não está no imóvel, não controla dispositivos físicos e não executa ações no mundo real.
-- É PROIBIDO fingir ações físicas ou remotas ("estou abrindo o portão", "já destravei", "enviei alguém", "vou ligar para o restaurante"), mesmo em tom figurado.
-
-MÉTODO DE TRABALHO (obrigatório em toda mensagem)
-1. Entenda a real necessidade por trás da pergunta, não só as palavras.
-2. INVESTIGUE antes de afirmar: use as ferramentas disponíveis (search_knowledge_base, get_property_facts, get_reservation, list_recommendations, search_places, get_weather). Nunca responda sobre a hospedagem por conhecimento próprio ou intuição.
-3. Cruze as fontes. Se houver conflito, prevalece a de maior confiabilidade (dados oficiais do imóvel e reserva > manual/FAQ > recomendações > fontes externas).
-4. Se a informação necessária NÃO existir nas fontes, NÃO improvise: chame request_human_handoff.
-5. Só então responda.
-
-ESCALONAMENTO OBRIGATÓRIO (request_human_handoff)
-- Pedido explícito de falar com humano/anfitrião.
-- Emergência ou problema operacional no imóvel (não abriu, não funciona, quebrado, vazamento, sem energia, sem água, sem acesso). Nunca tente diagnosticar.
-- Informação sobre a residência ausente ou ambígua nas fontes.
-- Não escale quando o hóspede apenas confirmou algo ("sim", "ok", "pode ser").
-- Após escalar, responda somente: "${HANDOFF_FALLBACK}"
-
-ESTILO
-- Direto, caloroso e humano. Máximo 3 frases curtas em dúvidas objetivas.
-- Nunca repita uma resposta já dada nesta conversa. Se o hóspede repetir a pergunta, reconheça e pergunte o que ficou faltando.
-- Uma única pergunta de acompanhamento no final, apenas quando fizer sentido.
-- Responda no idioma do hóspede.
-- Markdown: **negrito** para destaques e links sempre no formato [texto](https://url).`;
-
-const EXPLORATION_INSTRUCTIONS = `\n\nMODO EXPLORAÇÃO (ativo agora — conversa sobre a cidade, dicas e passeios)
-- Tom de amigo local: texto fluido, 2 a 4 parágrafos curtos, 100 a 180 palavras. Sem formulário e sem seções fixas.
-- Use list_recommendations e search_places para citar apenas lugares reais.
-- Não confirme preços, horários de hoje ou disponibilidade: oriente conferir no canal oficial do local.
-- NÃO acione handoff humano neste modo, exceto se houver problema no imóvel ou pedido explícito.`;
 
 export type OrchestratorResult = {
   reply: string;
@@ -65,6 +44,9 @@ export type OrchestratorResult = {
   intent: Intent;
   usage: Usage;
   confidence: number;
+  confidenceTier: ConfidenceTier;
+  plan: ExecutionPlan;
+  reflection: Reflection | null;
 };
 
 export async function runHospitalityAgent(params: {
@@ -95,12 +77,22 @@ export async function runHospitalityAgent(params: {
   usage = mergeUsage(usage, intentUsage);
   models.intent = intentModel;
 
-  // 2) Contexto
+  // 2) Planner Agent — plano de execução antes do tool calling
+  const { plan, usage: planUsage, model: plannerModel } = await planExecution({
+    message: params.message,
+    intent,
+    history: params.history,
+    explorationMode: params.explorationMode,
+  });
+  usage = mergeUsage(usage, planUsage);
+  if (plannerModel) models.planner = plannerModel;
+
+  // 3) Contexto
   const guestKey = guestKeyOf(params.sessionId, params.guestName);
   const memory = await loadGuestMemory(supabase, propertyId, guestKey);
   const context = await buildAgentContext({ supabase, property, guestName: params.guestName, memory });
 
-  // 3) Pré-recuperação Hybrid RAG (indexa sob demanda na primeira vez)
+  // 4) Pré-recuperação Hybrid RAG (indexa sob demanda na primeira vez)
   const { count: chunkCount } = await supabase
     .from("ai_kb_chunks")
     .select("id", { count: "exact", head: true })
@@ -115,7 +107,6 @@ export async function runHospitalityAgent(params: {
     }
   }
 
-
   const { passages, usage: ragUsage, retrievalUsed } = await hybridRetrieve({
     supabase,
     ownerId,
@@ -128,7 +119,7 @@ export async function runHospitalityAgent(params: {
     evidence.push(`[${p.source}] ${p.title ?? ""}: ${p.content}`);
   }
 
-  // 4) Agente com ferramentas
+  // 5) Agente com ferramentas (execução paralela por rodada)
   const toolCtx: ToolContext = {
     supabase,
     ownerId,
@@ -149,13 +140,15 @@ export async function runHospitalityAgent(params: {
   const tools = buildGuestTools(toolCtx);
 
   const instructions =
-    AGENT_INSTRUCTIONS +
-    (params.explorationMode ? EXPLORATION_INSTRUCTIONS : "") +
+    PROMPTS.agent.text +
+    (params.explorationMode ? PROMPTS.exploration.text : "") +
     (context.behavior
       ? `\n\nCOMPORTAMENTO DEFINIDO PELO ANFITRIÃO (prioridade máxima, siga estritamente)\n${context.behavior}`
       : "") +
+    `\n\nRANKING PERMANENTE DE FONTES (em conflito, o tier menor sempre vence)\n${renderSourceRanking()}` +
     `\n\nCONTEXTO ATUAL\n${context.text}` +
     `\n\nINTENÇÃO DETECTADA: ${intent.intent} (categoria=${intent.category}, urgência=${intent.urgency}, idioma=${intent.language})` +
+    `\n\nPLANO DE EXECUÇÃO (definido pelo planejador)\n${renderPlan(plan)}` +
     `\n\nEVIDÊNCIAS PRÉ-RECUPERADAS (busca híbrida: ${retrievalUsed.join("+") || "nenhuma"})\n${renderPassages(passages)}`;
 
   const input = [
@@ -168,7 +161,7 @@ export async function runHospitalityAgent(params: {
   ];
 
   let reply = "";
-  let toolsUsed: Array<{ name: string; args?: unknown }> = [];
+  let toolsUsed: Array<{ name: string; args?: unknown; durationMs?: number; parallelBatch?: number }> = [];
   let errorMsg: string | null = null;
 
   try {
@@ -178,11 +171,16 @@ export async function runHospitalityAgent(params: {
       input,
       tools,
       maxSteps: 6,
-      reasoningEffort: intent.urgency === "high" ? "medium" : "low",
+      reasoningEffort: intent.urgency === "high" || plan.riskLevel === "high" ? "medium" : "low",
     });
     usage = mergeUsage(usage, run.usage);
     reply = run.text.trim();
-    toolsUsed = run.toolCalls.map((c) => ({ name: c.name, args: c.args }));
+    toolsUsed = run.toolCalls.map((c) => ({
+      name: c.name,
+      args: c.args,
+      durationMs: c.durationMs,
+      parallelBatch: c.parallelBatch,
+    }));
   } catch (err) {
     errorMsg = err instanceof Error ? err.message : String(err);
     console.error("[agent] execução falhou", err);
@@ -191,28 +189,77 @@ export async function runHospitalityAgent(params: {
 
   if (handoffReason && !reply) reply = HANDOFF_FALLBACK;
 
-  // 5) Validação final (pulada quando já escalamos para humano)
+  // 6) Validação + 7) Reflection (puladas quando já escalamos para humano)
+  const thresholds = thresholdsFor({
+    explorationMode: params.explorationMode,
+    category: intent.category,
+    urgency: intent.urgency,
+  });
+  const evidenceText = evidence.slice(0, 24).join("\n\n") || "(nenhuma evidência recuperada)";
+  let validationResult: unknown = null;
+  let reflection: Reflection | null = null;
   let confidence = 0.8;
-  if (reply && !handoffReason) {
-    const { validation, usage: vUsage, model: vModel } = await validateAnswer({
-      question: params.message,
-      answer: reply,
-      evidence: evidence.slice(0, 24).join("\n\n") || "(nenhuma evidência recuperada)",
-      language: intent.language,
-      policies: context.behavior || undefined,
-    });
-    usage = mergeUsage(usage, vUsage);
-    models.validation = vModel;
-    confidence = validation.confidence;
+  let tier: ConfidenceTier = "auto";
 
-    if (!validation.approved && validation.needsHuman && !params.explorationMode) {
-      handoffReason = `Resposta automática reprovada na validação (${validation.reason || "inconsistência"}). Pergunta: ${params.message.slice(0, 160)}`;
-      handoffUrgency = "normal";
-      reply = HANDOFF_FALLBACK;
+  if (reply && !handoffReason) {
+    const [validated, reflected] = await Promise.all([
+      validateAnswer({
+        question: params.message,
+        answer: reply,
+        evidence: evidenceText,
+        language: intent.language,
+        policies: context.behavior || undefined,
+      }),
+      reflectOnAnswer({
+        question: params.message,
+        answer: reply,
+        evidence: evidenceText,
+        language: intent.language,
+        history: params.history,
+      }),
+    ]);
+
+    usage = mergeUsage(usage, validated.usage);
+    usage = mergeUsage(usage, reflected.usage);
+    models.validation = validated.model;
+    if (reflected.model) models.reflection = reflected.model;
+    validationResult = validated.validation;
+    reflection = reflected.reflection;
+
+    // Melhoria da redação sugerida pela autoavaliação (sem fatos novos).
+    if (reflection.improvedAnswer && !reflection.needsHuman && validated.validation.approved) {
+      reply = reflection.improvedAnswer;
     }
+
+    // 8) Confidence Threshold
+    confidence = aggregateConfidence({
+      validation: validated.validation.confidence,
+      reflection: reflection.skipped ? null : reflection.score,
+      sourceWeight: aggregateSourceWeight(sources),
+      riskLevel: plan.riskLevel,
+    });
+    tier = tierFor(confidence, thresholds);
+
+    const forcedHuman =
+      (!validated.validation.approved && validated.validation.needsHuman) || reflection.needsHuman;
+
+    if (!params.explorationMode && (tier === "handoff" || forcedHuman)) {
+      handoffReason =
+        `Confiança insuficiente (${Math.round(confidence * 100)}%, nível=${tier}). ` +
+        `${validated.validation.reason || reflection.issues.join("; ") || "inconsistência"}. ` +
+        `Pergunta: ${params.message.slice(0, 160)}`;
+      handoffUrgency = intent.urgency === "high" ? "high" : "normal";
+      reply = HANDOFF_FALLBACK;
+      tier = "handoff";
+    } else if (tier === "hedged" && !params.explorationMode) {
+      reply = `${reply}${hedgeNotice(intent.language)}`;
+    }
+  } else if (handoffReason) {
+    tier = "handoff";
+    confidence = 1;
   }
 
-  // 6) Memória + observabilidade (não bloqueiam a resposta)
+  // 9) Memória + observabilidade (não bloqueiam a resposta)
   const transcript = [...params.history, { role: "user", content: params.message }, { role: "assistant", content: reply }];
   void updateGuestMemory({
     supabase,
@@ -235,12 +282,17 @@ export async function runHospitalityAgent(params: {
     toolsUsed,
     sources,
     confidence,
-    validation: null,
+    validation: validationResult,
     models,
     usage,
     latencyMs: Date.now() - started,
     needsHuman: !!handoffReason,
     error: errorMsg,
+    plan,
+    reflection,
+    promptVersions: stampVersions(["agent", "planner", "reflection", ...(params.explorationMode ? (["exploration"] as const) : [])]),
+    confidenceTier: tier,
+    sourceWeight: aggregateSourceWeight(sources),
   }).catch(() => undefined);
 
   return {
@@ -251,5 +303,8 @@ export async function runHospitalityAgent(params: {
     intent,
     usage,
     confidence,
+    confidenceTier: tier,
+    plan,
+    reflection,
   };
 }
