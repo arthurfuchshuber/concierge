@@ -306,29 +306,46 @@ export async function runAgent(params: {
     // dos resultados das ferramentas — exigência do contrato stateless.
     input = [...input, ...output];
 
-    for (const call of functionCalls) {
-      const name = String((call as { name?: string }).name ?? "");
-      const callId = String((call as { call_id?: string }).call_id ?? "");
-      let args: Record<string, unknown> = {};
-      try {
-        args = JSON.parse(String((call as { arguments?: string }).arguments ?? "{}"));
-      } catch {
-        args = {};
-      }
-      const tool = toolMap.get(name);
-      let result: unknown;
-      try {
-        result = tool ? await tool.execute(args) : { error: `Ferramenta desconhecida: ${name}` };
-      } catch (err) {
-        result = { error: err instanceof Error ? err.message : "Falha ao executar a ferramenta." };
-      }
-      toolCalls.push({ name, args, result });
+    // Parallel Tool Calling: ferramentas da mesma rodada são independentes
+    // entre si, então executamos todas simultaneamente. A ordem dos outputs
+    // é preservada para casar com os `call_id` na ordem original.
+    const settled = await Promise.all(
+      functionCalls.map(async (call) => {
+        const name = String((call as { name?: string }).name ?? "");
+        const callId = String((call as { call_id?: string }).call_id ?? "");
+        let args: Record<string, unknown> = {};
+        try {
+          args = JSON.parse(String((call as { arguments?: string }).arguments ?? "{}"));
+        } catch {
+          args = {};
+        }
+        const tool = toolMap.get(name);
+        const startedAt = Date.now();
+        let result: unknown;
+        try {
+          result = tool ? await tool.execute(args) : { error: `Ferramenta desconhecida: ${name}` };
+        } catch (err) {
+          result = { error: err instanceof Error ? err.message : "Falha ao executar a ferramenta." };
+        }
+        return { name, callId, args, result, durationMs: Date.now() - startedAt };
+      }),
+    );
+
+    for (const call of settled) {
+      toolCalls.push({
+        name: call.name,
+        args: call.args,
+        result: call.result,
+        durationMs: call.durationMs,
+        parallelBatch: settled.length,
+      });
       input.push({
         type: "function_call_output",
-        call_id: callId,
-        output: JSON.stringify(result ?? null).slice(0, 20000),
+        call_id: call.callId,
+        output: JSON.stringify(call.result ?? null).slice(0, 20000),
       });
     }
+
   }
 
   return { text, toolCalls, usage, model, steps };
