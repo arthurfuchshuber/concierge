@@ -158,11 +158,16 @@ export type Database = {
           cost_estimate: number | null
           created_at: string
           error: string | null
+          guest_context_snapshot: Json | null
           id: string
           intent: Json | null
           latency_ms: number | null
+          memories_retrieved: Json | null
+          memory_confidence_score: number | null
+          memory_context_used: boolean
           models: Json | null
           needs_human: boolean
+          operational_context_snapshot: Json | null
           owner_id: string | null
           plan: Json | null
           prompt_versions: Json | null
@@ -183,11 +188,16 @@ export type Database = {
           cost_estimate?: number | null
           created_at?: string
           error?: string | null
+          guest_context_snapshot?: Json | null
           id?: string
           intent?: Json | null
           latency_ms?: number | null
+          memories_retrieved?: Json | null
+          memory_confidence_score?: number | null
+          memory_context_used?: boolean
           models?: Json | null
           needs_human?: boolean
+          operational_context_snapshot?: Json | null
           owner_id?: string | null
           plan?: Json | null
           prompt_versions?: Json | null
@@ -208,11 +218,16 @@ export type Database = {
           cost_estimate?: number | null
           created_at?: string
           error?: string | null
+          guest_context_snapshot?: Json | null
           id?: string
           intent?: Json | null
           latency_ms?: number | null
+          memories_retrieved?: Json | null
+          memory_confidence_score?: number | null
+          memory_context_used?: boolean
           models?: Json | null
           needs_human?: boolean
+          operational_context_snapshot?: Json | null
           owner_id?: string | null
           plan?: Json | null
           prompt_versions?: Json | null
@@ -359,6 +374,166 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "ai_kb_chunks_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ai_memories: {
+        Row: {
+          category: string | null
+          confidence: number
+          content: string
+          content_hash: string | null
+          created_at: string
+          embedding: string | null
+          expires_at: string | null
+          guest_name: string | null
+          id: string
+          importance: number
+          kind: string
+          last_seen_at: string
+          metadata: Json
+          occurrences: number
+          owner_id: string
+          property_id: string | null
+          scope: string
+          source: string
+          source_ref: string | null
+          subject_key: string | null
+          title: string | null
+          tsv: unknown
+          updated_at: string
+        }
+        Insert: {
+          category?: string | null
+          confidence?: number
+          content: string
+          content_hash?: string | null
+          created_at?: string
+          embedding?: string | null
+          expires_at?: string | null
+          guest_name?: string | null
+          id?: string
+          importance?: number
+          kind?: string
+          last_seen_at?: string
+          metadata?: Json
+          occurrences?: number
+          owner_id: string
+          property_id?: string | null
+          scope?: string
+          source?: string
+          source_ref?: string | null
+          subject_key?: string | null
+          title?: string | null
+          tsv?: unknown
+          updated_at?: string
+        }
+        Update: {
+          category?: string | null
+          confidence?: number
+          content?: string
+          content_hash?: string | null
+          created_at?: string
+          embedding?: string | null
+          expires_at?: string | null
+          guest_name?: string | null
+          id?: string
+          importance?: number
+          kind?: string
+          last_seen_at?: string
+          metadata?: Json
+          occurrences?: number
+          owner_id?: string
+          property_id?: string | null
+          scope?: string
+          source?: string
+          source_ref?: string | null
+          subject_key?: string | null
+          title?: string | null
+          tsv?: unknown
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_memories_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ai_operational_memory: {
+        Row: {
+          category: string
+          conversation_id: string | null
+          created_at: string
+          guest_key: string | null
+          guest_name: string | null
+          id: string
+          metadata: Json
+          owner_id: string
+          property_id: string | null
+          provider_id: string | null
+          provider_name: string | null
+          recurrence_count: number
+          request: string
+          resolution: string | null
+          resolution_minutes: number | null
+          resolved_at: string | null
+          satisfaction: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          category?: string
+          conversation_id?: string | null
+          created_at?: string
+          guest_key?: string | null
+          guest_name?: string | null
+          id?: string
+          metadata?: Json
+          owner_id: string
+          property_id?: string | null
+          provider_id?: string | null
+          provider_name?: string | null
+          recurrence_count?: number
+          request: string
+          resolution?: string | null
+          resolution_minutes?: number | null
+          resolved_at?: string | null
+          satisfaction?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          category?: string
+          conversation_id?: string | null
+          created_at?: string
+          guest_key?: string | null
+          guest_name?: string | null
+          id?: string
+          metadata?: Json
+          owner_id?: string
+          property_id?: string | null
+          provider_id?: string | null
+          provider_name?: string | null
+          recurrence_count?: number
+          request?: string
+          resolution?: string | null
+          resolution_minutes?: number | null
+          resolved_at?: string | null
+          satisfaction?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_operational_memory_property_id_fkey"
             columns: ["property_id"]
             isOneToOne: false
             referencedRelation: "properties"
@@ -2952,6 +3127,30 @@ export type Database = {
           title: string
         }[]
       }
+      match_ai_memories: {
+        Args: {
+          _owner_id: string
+          _property_id?: string
+          _subject_key?: string
+          match_count?: number
+          query_embedding: string
+        }
+        Returns: {
+          category: string
+          confidence: number
+          content: string
+          id: string
+          importance: number
+          kind: string
+          last_seen_at: string
+          property_id: string
+          scope: string
+          similarity: number
+          source: string
+          subject_key: string
+          title: string
+        }[]
+      }
       move_to_dlq: {
         Args: {
           dlq_name: string
@@ -2987,6 +3186,30 @@ export type Database = {
           rank: number
           source: string
           source_id: string
+          title: string
+        }[]
+      }
+      search_ai_memories_text: {
+        Args: {
+          _owner_id: string
+          _property_id?: string
+          _query: string
+          _subject_key?: string
+          match_count?: number
+        }
+        Returns: {
+          category: string
+          confidence: number
+          content: string
+          id: string
+          importance: number
+          kind: string
+          last_seen_at: string
+          property_id: string
+          rank: number
+          scope: string
+          source: string
+          subject_key: string
           title: string
         }[]
       }
