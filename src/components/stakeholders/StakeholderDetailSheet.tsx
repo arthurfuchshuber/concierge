@@ -26,11 +26,20 @@ import {
   AlertTriangle,
   Pin,
   Upload,
+  Eye,
+  MessageCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { formatTaxId, formatIntlPhone, toWhatsappNumber } from "@/lib/masks";
 import {
   getStakeholderDetail,
   addStakeholderNote,
@@ -77,6 +86,7 @@ export function StakeholderDetailSheet({
   const [note, setNote] = useState("");
   const [newActivity, setNewActivity] = useState("");
   const [busy, setBusy] = useState(false);
+  const [preview, setPreview] = useState<{ name: string; url: string } | null>(null);
 
   const queryKey = ["stakeholder-detail", kind, id];
   const { data, isLoading } = useQuery({
@@ -237,14 +247,25 @@ export function StakeholderDetailSheet({
             {d.signers.length > 0 ? ` · ${d.signers.length} signatário(s)` : ""}
           </p>
           {(d.urlSigned || d.urlOriginal) && (
-            <a
-              href={(d.urlSigned ?? d.urlOriginal) as string}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
-            >
-              Abrir documento <ExternalLink className="size-3" />
-            </a>
+            <div className="flex flex-wrap items-center gap-3">
+              <button
+                type="button"
+                onClick={() =>
+                  setPreview({ name: d.name, url: (d.urlSigned ?? d.urlOriginal) as string })
+                }
+                className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+              >
+                <Eye className="size-3" /> Visualizar
+              </button>
+              <a
+                href={(d.urlSigned ?? d.urlOriginal) as string}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+              >
+                Abrir documento <ExternalLink className="size-3" />
+              </a>
+            </div>
           )}
         </>
       ),
@@ -255,58 +276,87 @@ export function StakeholderDetailSheet({
     <div className="flex flex-col gap-5 px-5 py-6 sm:px-6">
       {/* Header card */}
       <section className="rounded-2xl border border-border bg-card p-5">
-        <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-4">
+        <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-4">
           <div className="grid size-14 shrink-0 place-items-center rounded-2xl bg-primary/15 font-display text-2xl text-primary">
             {initial}
           </div>
           <div className="min-w-0">
-            <h2 className="font-display text-2xl leading-tight truncate">{displayName}</h2>
-            {row.doc && (
-              <p className="font-mono text-xs text-muted-foreground mt-1 truncate">{row.doc}</p>
-            )}
-          </div>
-          <div className="flex shrink-0 items-center gap-2">
-            <span
-              className={`rounded-full border px-3 py-1 text-xs ${
-                row.status === "active"
-                  ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-500"
-                  : "border-border text-muted-foreground"
-              }`}
+            <h2
+              className="font-display text-xl sm:text-2xl leading-tight truncate"
+              title={displayName}
             >
-              {row.status === "active" ? "Ativo" : "Inativo"}
-            </span>
-            <span className="rounded-full border border-border px-3 py-1 text-xs text-muted-foreground uppercase">
-              {String(row.person_type ?? "pf")}
-            </span>
-            <Button variant="outline" size="sm" className="rounded-full" onClick={onEdit}>
-              <Pencil className="size-3.5 mr-1.5" /> Editar
-            </Button>
+              {displayName}
+            </h2>
+            <div className="mt-1.5 flex flex-wrap items-center gap-2">
+              <span
+                className={`rounded-full border px-2.5 py-0.5 text-[11px] ${
+                  row.status === "active"
+                    ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-500"
+                    : "border-border text-muted-foreground"
+                }`}
+              >
+                {row.status === "active" ? "Ativo" : "Inativo"}
+              </span>
+              <span className="rounded-full border border-border px-2.5 py-0.5 text-[11px] text-muted-foreground uppercase">
+                {String(row.person_type ?? "pf")}
+              </span>
+              {categoryLabel && (
+                <span className="rounded-full border border-border px-2.5 py-0.5 text-[11px] text-muted-foreground">
+                  {categoryLabel}
+                </span>
+              )}
+              <Button variant="outline" size="sm" className="rounded-full ml-auto" onClick={onEdit}>
+                <Pencil className="size-3.5 mr-1.5" /> Editar
+              </Button>
+            </div>
           </div>
         </div>
-        <div className="mt-4 flex flex-wrap gap-x-4 gap-y-1.5 text-xs text-muted-foreground">
-          {categoryLabel && <span>{categoryLabel}</span>}
-          {row.email && (
-            <span className="flex items-center gap-1.5"><Mail className="size-3" /> {row.email}</span>
+
+        <dl className="mt-4 space-y-2 border-t border-border pt-4 text-sm">
+          <InfoRow label="Nome completo" value={row.name} />
+          {row.trade_name && <InfoRow label="Nome fantasia" value={row.trade_name} />}
+          {row.doc && (
+            <InfoRow label={String(row.doc_type ?? "cpf").toUpperCase()} value={formatTaxId(row.doc)} mono />
           )}
-          {row.phone && (
-            <span className="flex items-center gap-1.5"><Phone className="size-3" /> {row.phone}</span>
+          {(row.email || row.phone) && (
+            <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+              {row.email ? (
+                <a
+                  href={`mailto:${row.email}`}
+                  className="inline-flex min-w-0 items-center gap-2 text-sm text-foreground hover:underline"
+                >
+                  <Mail className="size-3.5 shrink-0 text-muted-foreground" />
+                  <span className="truncate">{row.email}</span>
+                </a>
+              ) : (
+                <span />
+              )}
+              <WhatsAppLink phone={row.phone} country={row.phone_country} />
+            </div>
           )}
-          {(row.city || row.state) && (
-            <span className="flex items-center gap-1.5">
-              <MapPin className="size-3" /> {[row.city, row.state].filter(Boolean).join(" / ")}
-            </span>
+          {(row.address || row.city || row.state) && (
+            <p className="flex items-start gap-2 text-sm text-muted-foreground">
+              <MapPin className="size-3.5 mt-0.5 shrink-0" />
+              <span className="min-w-0 break-words">
+                {[row.address, row.district, [row.city, row.state].filter(Boolean).join(" / ")]
+                  .filter(Boolean)
+                  .join(" · ")}
+              </span>
+            </p>
           )}
-        </div>
+        </dl>
       </section>
 
       <Tabs defaultValue="visao">
         <div className="rounded-2xl border border-border bg-card p-2">
           <TabsList className="w-full bg-transparent gap-1">
             <TabsTrigger value="visao">Visão Geral</TabsTrigger>
+            {kind === "owner" && <TabsTrigger value="imoveis">Imóveis</TabsTrigger>}
             <TabsTrigger value="financeiro">Financeiro</TabsTrigger>
             <TabsTrigger value="documentos">Documentos</TabsTrigger>
           </TabsList>
         </div>
+
 
         {/* -------------------- Visão Geral -------------------- */}
         <TabsContent value="visao" className="mt-5 space-y-5">
@@ -338,25 +388,17 @@ export function StakeholderDetailSheet({
             </ul>
           </section>
 
-          <div className="grid gap-3 sm:grid-cols-2">
-            <InfoCard label="Nome completo" value={row.name} />
-            <InfoCard label="Nome fantasia" value={row.trade_name} />
-            <InfoCard label={String(row.doc_type ?? "cpf").toUpperCase()} value={row.doc} />
-            <InfoCard label="E-mail" value={row.email} />
-            <InfoCard label="Telefone" value={row.phone} />
-            <InfoCard label="Endereço" value={row.address} />
-            <InfoCard label="Cidade" value={[row.city, row.state].filter(Boolean).join(" / ")} />
-            {kind === "provider" && (
+          {kind === "provider" && row.hourly_rate_cents ? (
+            <div className="grid gap-3 sm:grid-cols-2">
               <InfoCard
                 label="Valor / hora"
-                value={
-                  row.hourly_rate_cents
-                    ? (row.hourly_rate_cents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
-                    : null
-                }
+                value={(row.hourly_rate_cents / 100).toLocaleString("pt-BR", {
+                  style: "currency",
+                  currency: "BRL",
+                })}
               />
-            )}
-          </div>
+            </div>
+          ) : null}
 
           {row.notes && (
             <section className="rounded-2xl border border-border bg-card p-5">
@@ -365,78 +407,6 @@ export function StakeholderDetailSheet({
             </section>
           )}
 
-          {kind === "owner" && (
-            <section className="rounded-2xl border border-border bg-card p-5 space-y-3">
-              <h3 className="text-sm font-semibold">Residências</h3>
-              {properties.length === 0 && (
-                <p className="text-xs text-muted-foreground">Nenhuma residência vinculada ainda.</p>
-              )}
-              {properties.map((p: any) => (
-                <div
-                  key={p.id}
-                  className="flex items-center justify-between gap-3 rounded-xl border border-border bg-background/40 px-4 py-3"
-                >
-                  <div className="min-w-0">
-                    <p className="text-sm truncate">{p.name}</p>
-                    <p className="text-[11px] text-muted-foreground truncate">
-                      {p.published ? "Publicado" : "Rascunho"}
-                      {p.city ? ` · ${p.city}` : ""}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-1 shrink-0">
-                    <Link
-                      to="/admin/properties/$id"
-                      params={{ id: p.id }}
-                      className="grid size-8 place-items-center rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
-                      title="Abrir residência"
-                    >
-                      <ExternalLink className="size-3.5" />
-                    </Link>
-                    <button
-                      type="button"
-                      disabled={busy}
-                      onClick={() => toggleLink(p.id, false)}
-                      className="grid size-8 place-items-center rounded-full text-muted-foreground hover:text-destructive transition-colors"
-                      title="Desvincular"
-                    >
-                      <Unlink className="size-3.5" />
-                    </button>
-                  </div>
-                </div>
-              ))}
-
-              <div className="rounded-xl border border-dashed border-border p-4 space-y-2">
-                <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
-                  Vincular residência existente
-                </p>
-                {available.length === 0 ? (
-                  <p className="text-xs text-muted-foreground">
-                    Todas as residências da conta já estão vinculadas a um proprietário.
-                  </p>
-                ) : (
-                  available.map((p: any) => (
-                    <button
-                      key={p.id}
-                      type="button"
-                      disabled={busy}
-                      onClick={() => toggleLink(p.id, true)}
-                      className="w-full flex items-center justify-between gap-3 rounded-lg px-3 py-2 text-left text-sm hover:bg-secondary transition-colors"
-                    >
-                      <span className="truncate">{p.name}</span>
-                      <Link2 className="size-3.5 shrink-0 text-muted-foreground" />
-                    </button>
-                  ))
-                )}
-                <Link
-                  to="/admin/properties/$id"
-                  params={{ id: "new" }}
-                  className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline"
-                >
-                  <Plus className="size-3.5" /> Criar nova residência
-                </Link>
-              </div>
-            </section>
-          )}
 
           <section className="rounded-2xl border border-border bg-card p-5 space-y-3">
             <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
@@ -557,6 +527,101 @@ export function StakeholderDetailSheet({
           </section>
         </TabsContent>
 
+        {/* -------------------- Imóveis -------------------- */}
+        {kind === "owner" && (
+          <TabsContent value="imoveis" className="mt-5 space-y-5">
+            <section className="space-y-3">
+              <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
+                <h3 className="font-display text-xl truncate">Imóveis vinculados</h3>
+                <span className="text-[11px] text-muted-foreground shrink-0">
+                  {properties.length} residência(s)
+                </span>
+              </div>
+
+              {properties.length === 0 ? (
+                <Placeholder
+                  icon={Home}
+                  title="Nenhuma residência vinculada"
+                  desc="Vincule uma residência existente abaixo ou crie uma nova para este proprietário."
+                />
+              ) : (
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {properties.map((p: any) => (
+                    <div
+                      key={p.id}
+                      className="rounded-2xl border border-border bg-card p-4 space-y-2"
+                    >
+                      <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-2">
+                        <p className="text-sm font-medium break-words">{p.name}</p>
+                        <span
+                          className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] ${
+                            p.published
+                              ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-500"
+                              : "border-border text-muted-foreground"
+                          }`}
+                        >
+                          {p.published ? "Publicado" : "Rascunho"}
+                        </span>
+                      </div>
+                      <p className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                        <MapPin className="size-3 shrink-0" />
+                        {[p.city, p.state].filter(Boolean).join(" / ") || "Sem localização"}
+                      </p>
+                      <div className="flex items-center gap-1 pt-1">
+                        <Link
+                          to="/admin/properties/$id"
+                          params={{ id: p.id }}
+                          className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1 text-xs text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+                        >
+                          <ExternalLink className="size-3" /> Abrir
+                        </Link>
+                        <button
+                          type="button"
+                          disabled={busy}
+                          onClick={() => toggleLink(p.id, false)}
+                          className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1 text-xs text-muted-foreground hover:text-destructive transition-colors"
+                        >
+                          <Unlink className="size-3" /> Desvincular
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
+
+            {available.length > 0 && (
+              <section className="rounded-2xl border border-dashed border-border p-5 space-y-2">
+                <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                  Vincular residência existente
+                </p>
+                {available.map((p: any) => (
+                  <button
+                    key={p.id}
+                    type="button"
+                    disabled={busy}
+                    onClick={() => toggleLink(p.id, true)}
+                    className="w-full flex items-center justify-between gap-3 rounded-lg px-3 py-2 text-left text-sm hover:bg-secondary transition-colors"
+                  >
+                    <span className="truncate">{p.name}</span>
+                    <Link2 className="size-3.5 shrink-0 text-muted-foreground" />
+                  </button>
+                ))}
+              </section>
+            )}
+
+            <Link
+              to="/admin/properties/$id"
+              params={{ id: "new" }}
+              className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline"
+            >
+              <Plus className="size-3.5" /> Criar nova residência
+            </Link>
+          </TabsContent>
+        )}
+
+
+
         {/* -------------------- Financeiro -------------------- */}
         <TabsContent value="financeiro" className="mt-5 space-y-4">
           <div className="grid gap-3 sm:grid-cols-3">
@@ -596,37 +661,125 @@ export function StakeholderDetailSheet({
               />
             ) : (
               <ul className="divide-y divide-border rounded-2xl border border-border bg-card">
-                {feedDocs.map((d) => (
-                  <li key={d.id} className="flex items-start justify-between gap-3 px-4 py-3">
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-medium">{d.name}</p>
-                      <p className="text-[11px] text-muted-foreground">
-                        {d.status ?? "—"}
-                        {d.at ? ` · ${fmt(d.at)}` : ""}
-                        {d.signers.length > 0 ? ` · ${d.signers.length} signatários` : ""}
-                      </p>
-                    </div>
-                    {(d.urlSigned || d.urlOriginal) && (
-                      <a
-                        href={(d.urlSigned || d.urlOriginal) as string}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="shrink-0 text-muted-foreground hover:text-foreground"
-                        title="Baixar"
-                      >
-                        <Download className="size-4" />
-                      </a>
-                    )}
-                  </li>
-                ))}
+                {feedDocs.map((d) => {
+                  const url = (d.urlSigned || d.urlOriginal) as string | null;
+                  return (
+                    <li key={d.id} className="flex items-start justify-between gap-3 px-4 py-3">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium">{d.name}</p>
+                        <p className="text-[11px] text-muted-foreground">
+                          {d.status ?? "—"}
+                          {d.at ? ` · ${fmt(d.at)}` : ""}
+                          {d.signers.length > 0 ? ` · ${d.signers.length} signatários` : ""}
+                        </p>
+                      </div>
+                      {url && (
+                        <div className="flex shrink-0 items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => setPreview({ name: d.name, url })}
+                            className="grid size-8 place-items-center rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+                            title="Visualizar"
+                          >
+                            <Eye className="size-4" />
+                          </button>
+                          <a
+                            href={url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="grid size-8 place-items-center rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+                            title="Baixar"
+                          >
+                            <Download className="size-4" />
+                          </a>
+                        </div>
+                      )}
+                    </li>
+                  );
+                })}
               </ul>
             )}
           </section>
         </TabsContent>
       </Tabs>
+
+      <DocPreviewDialog doc={preview} onClose={() => setPreview(null)} />
     </div>
   );
 }
+
+function DocPreviewDialog({
+  doc,
+  onClose,
+}: {
+  doc: { name: string; url: string } | null;
+  onClose: () => void;
+}) {
+  return (
+    <Dialog open={!!doc} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-4xl p-0 overflow-hidden">
+        <DialogHeader className="px-5 pt-5 pb-3">
+          <DialogTitle className="text-base truncate pr-8">{doc?.name}</DialogTitle>
+        </DialogHeader>
+        {doc && (
+          <>
+            <iframe
+              src={doc.url}
+              title={doc.name}
+              className="h-[70vh] w-full border-t border-border bg-muted"
+            />
+            <div className="flex justify-end gap-2 px-5 py-3">
+              <a
+                href={doc.url}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <ExternalLink className="size-3.5" /> Abrir em nova aba
+              </a>
+            </div>
+          </>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function InfoRow({
+  label,
+  value,
+  mono,
+}: {
+  label: string;
+  value?: string | null;
+  mono?: boolean;
+}) {
+  if (!value) return null;
+  return (
+    <div className="grid grid-cols-[minmax(0,110px)_minmax(0,1fr)] items-baseline gap-3">
+      <dt className="text-[11px] uppercase tracking-wide text-muted-foreground">{label}</dt>
+      <dd className={`text-sm break-words ${mono ? "font-mono" : ""}`}>{value}</dd>
+    </div>
+  );
+}
+
+function WhatsAppLink({ phone, country }: { phone?: string | null; country?: string | null }) {
+  if (!phone) return null;
+  const waNumber = toWhatsappNumber(phone, country);
+  if (!waNumber) return null;
+  return (
+    <a
+      href={`https://wa.me/${waNumber}`}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="inline-flex w-fit items-center gap-1 rounded-full bg-emerald-500/10 hover:bg-emerald-500/20 px-2.5 py-1 text-[11px] font-medium tabular-nums text-emerald-700 dark:text-emerald-400 transition"
+    >
+      <MessageCircle className="size-3" />
+      {formatIntlPhone(phone, country)}
+    </a>
+  );
+}
+
 
 function MoneyCard({
   label,
