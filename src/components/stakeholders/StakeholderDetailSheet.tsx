@@ -247,14 +247,25 @@ export function StakeholderDetailSheet({
             {d.signers.length > 0 ? ` · ${d.signers.length} signatário(s)` : ""}
           </p>
           {(d.urlSigned || d.urlOriginal) && (
-            <a
-              href={(d.urlSigned ?? d.urlOriginal) as string}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
-            >
-              Abrir documento <ExternalLink className="size-3" />
-            </a>
+            <div className="flex flex-wrap items-center gap-3">
+              <button
+                type="button"
+                onClick={() =>
+                  setPreview({ name: d.name, url: (d.urlSigned ?? d.urlOriginal) as string })
+                }
+                className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+              >
+                <Eye className="size-3" /> Visualizar
+              </button>
+              <a
+                href={(d.urlSigned ?? d.urlOriginal) as string}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+              >
+                Abrir documento <ExternalLink className="size-3" />
+              </a>
+            </div>
           )}
         </>
       ),
