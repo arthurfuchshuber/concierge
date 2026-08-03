@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
+import { AI_MODELS } from "@/lib/ai/models";
 
 const GATEWAY = "https://connector-gateway.lovable.dev/google_maps";
 
@@ -453,7 +454,7 @@ Responda APENAS com JSON válido (sem markdown) no formato:
         Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: AI_MODELS.recommendations,
         messages: [
           { role: "system", content: "Você é um concierge local que conhece em profundidade as cidades brasileiras e seus estados. Responda sempre com JSON válido, sem markdown." },
           { role: "user", content: prompt },

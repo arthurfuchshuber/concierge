@@ -372,140 +372,88 @@ export const Route = createFileRoute("/api/public/guide-chat")({
           (m) => m.role === "assistant" && explorationSignature.test(m.content ?? ""),
         );
 
-        const EXPLORATION_MODE = `\n\nModo EXPLORAÇÃO — conversa sobre a cidade / dicas / lugares (ativo agora):
-Você é um amigo local empolgado contando sobre lugares da cidade. Use livremente todo o seu conhecimento sobre Foz do Iguaçu e a região (atrações, restaurantes, bares, passeios, história, dicas práticas) — o Gemini tem conhecimento amplo, use-o com confiança, sem inventar detalhes específicos (preços exatos, horários do dia, se está aberto agora).
+        // ─── Agente de Hospitalidade (nova arquitetura) ───
+        const { runHospitalityAgent } = await import("@/lib/ai/orchestrator.server");
+        const { AiGatewayError } = await import("@/lib/ai/gateway.server");
 
-Tom e leitura:
-- Escreva como quem conversa: texto fluido, respirável, 2 a 4 parágrafos curtos. Nada de "formulário" com muitos campos em negrito.
-- Use **negrito** com moderação — só em 1 ou 2 palavras-chave da resposta inteira (nome do lugar, uma dica-chave). Não crie seções fixas tipo "Quanto custa / Melhor horário / Como chegar" — só mencione esses tópicos quando forem naturais na resposta.
-- Bullets só se ajudarem (ex.: 2-3 destaques rápidos). Nunca obrigatório.
-- Alvo: 100–180 palavras. Prefira menos a mais.
-- NUNCA comece com "Essa dica...", "Trata-se de...", "Isso se refere a...". Comece pelo que é mais interessante.
-
-O que você NÃO faz (seja transparente, sem prometer):
-- Não busca ao vivo, não confirma horários de hoje, não checa disponibilidade de ingresso, não liga para lugares. Se o hóspede precisa desse tipo de dado, diga "os horários e preços podem variar — confirme no site/Instagram oficial antes de ir" e siga oferecendo o que VOCÊ consegue.
-- NÃO transfere para humano nesse modo. Resolva você mesmo com base no seu conhecimento. Se realmente não souber algo específico, admita naturalmente e ofereça um caminho útil.
-
-Encerramento:
-- Termine com no MÁXIMO uma pergunta curta e natural, só quando fizer sentido — e apenas sobre algo que VOCÊ consegue responder (comparar com outro lugar, sugerir onde comer perto, contar sobre outro passeio). Não force pergunta em toda resposta.
-- Nunca ofereça "quer que eu verifique / confirme / busque em tempo real".`;
-
-        const NORMAL_MODE = `\n\nHandoff humano: chame a ferramenta request_human_handoff quando (a) o hóspede pedir explicitamente falar com humano/anfitrião, (b) houver emergência ou problema operacional no imóvel (não abriu, não funciona, quebrado, vazamento, sem energia, sem acesso), OU (c) a pergunta for sobre a residência e a resposta NÃO estiver claramente coberta pelo contexto abaixo. Não chame quando o hóspede só respondeu "sim", "ok", "pode ser" a uma pergunta sua. Após chamar, responda apenas: "Estou chamando um atendente humano, aguarde só um instante." Não invente contatos e NUNCA finja executar ações físicas.`;
-
-        const MODE_INSTRUCTIONS = inExplorationFlow ? EXPLORATION_MODE : NORMAL_MODE;
-
-        const tools = inExplorationFlow
-          ? undefined
-          : [
-              {
-                type: "function",
-                function: {
-                  name: "request_human_handoff",
-                  description: "Solicita atendimento humano. USE quando (a) o hóspede pedir explicitamente falar com humano/anfitrião, (b) houver emergência ou problema operacional no imóvel (não abriu, não funciona, quebrado, vazamento, sem energia, sem acesso), OU (c) a pergunta sobre a residência não estiver claramente coberta pelo contexto — nesses casos é MELHOR acionar humano do que arriscar resposta errada. NÃO chame quando o hóspede só respondeu 'sim', 'ok', 'pode ser', 'legal' a uma pergunta sua — isso é continuar a conversa. Antes de chamar, escreva um RESUMO curto (1-2 frases, máx 220 caracteres) do que o hóspede precisa, no formato: 'Hóspede está perguntando sobre X — contexto e o que ele quer saber'.",
-                  parameters: {
-                    type: "object",
-                    properties: {
-                      reason: { type: "string", description: "Resumo curto do pedido do hóspede em 3ª pessoa (máx 220 caracteres)." },
-                      urgency: { type: "string", enum: ["low", "normal", "high"] },
-                    },
-                    required: ["reason"],
-                  },
-                },
-              },
-            ];
-
-        const OVERRIDE_LENGTH = inExplorationFlow
-          ? `\n\n[OVERRIDE]: ignore o limite de "máx 3 frases" do prompt base. Neste modo exploração, alvo 100–180 palavras, tom conversacional, sem formulário.`
-          : "";
-        const messages = [
-          { role: "system" as const, content: `${SYSTEM_PROMPT}${MODE_INSTRUCTIONS}${OVERRIDE_LENGTH}\n\n${systemContext}` },
-          ...prior.map((m) => ({ role: m.role as "user" | "assistant", content: m.content })),
-          { role: "user" as const, content: body.message },
-        ];
-
-
-        const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-          method: "POST",
-          headers: { "Content-Type": "application/json", "Lovable-API-Key": apiKey },
-          body: JSON.stringify({
-            model: inExplorationFlow ? "google/gemini-2.5-pro" : "google/gemini-2.5-flash",
-            messages,
-            ...(tools ? { tools } : {}),
-          }),
-        });
-
-
-        if (aiRes.status === 429) {
-          return new Response(JSON.stringify({ error: "Muitas perguntas em pouco tempo. Tente novamente em instantes.", conversationId }), { status: 429, headers: { "Content-Type": "application/json" } });
-        }
-        if (aiRes.status === 402) {
-          return new Response(JSON.stringify({ error: "Créditos de IA esgotados. Avise o anfitrião.", conversationId }), { status: 402, headers: { "Content-Type": "application/json" } });
-        }
-        if (!aiRes.ok) {
-          const errText = await aiRes.text().catch(() => "");
-          console.error("AI Gateway error", aiRes.status, errText);
-          return new Response(JSON.stringify({ error: "Não consegui responder agora. Tente de novo.", conversationId }), { status: 502, headers: { "Content-Type": "application/json" } });
+        let result: Awaited<ReturnType<typeof runHospitalityAgent>>;
+        try {
+          result = await runHospitalityAgent({
+            supabase: supabaseAdmin as SupabaseClient,
+            property: prop as unknown as Record<string, unknown>,
+            conversationId,
+            sessionId: body.sessionId,
+            guestName: body.guestName ?? null,
+            message: body.message,
+            history: prior.map((m) => ({ role: m.role as string, content: m.content ?? "" })),
+            explorationMode: inExplorationFlow,
+            surface: "guide_chat",
+          });
+        } catch (err) {
+          const status = err instanceof AiGatewayError ? err.status : 502;
+          const message =
+            err instanceof AiGatewayError
+              ? err.message
+              : "Não consegui responder agora. Tente de novo.";
+          if (!(err instanceof AiGatewayError)) console.error("guide-chat agent error", err);
+          return new Response(JSON.stringify({ error: message, conversationId }), {
+            status: status === 429 || status === 402 ? status : 502,
+            headers: { "Content-Type": "application/json" },
+          });
         }
 
-        const json = (await aiRes.json()) as {
-          choices?: Array<{ message?: { content?: string; tool_calls?: Array<{ function?: { name?: string; arguments?: string } }> } }>;
-        };
-        const choice = json.choices?.[0]?.message;
-        const toolCalls = choice?.tool_calls ?? [];
-        let handoffTriggered = false;
-        for (const tc of toolCalls) {
-          if (tc.function?.name === "request_human_handoff") {
-            let args: { reason?: string; urgency?: string } = {};
-            try { args = JSON.parse(tc.function?.arguments ?? "{}"); } catch { /* ignore */ }
-            const reason = (args.reason ?? "Hóspede pediu atendimento humano.").slice(0, 300);
-            const urgency = args.urgency === "high" || args.urgency === "low" ? args.urgency : "normal";
-            await supabaseAdmin
-              .from("property_chat_conversations")
-              .update({ status: "needs_human", ai_paused: true, handoff_reason: reason, handoff_urgency: urgency, handoff_at: new Date().toISOString() })
-              .eq("id", conversationId);
-            handoffTriggered = true;
-            try {
-              const { getPropertyNotifiableUsers, sendHandoffPush } = await import("@/lib/handoff.server");
-              const userIds = await getPropertyNotifiableUsers(supabaseAdmin, prop.id);
-              // Busca o access log mais recente do hóspede (por nome + propriedade) para pegar checkin_date
-              const guestNameForLookup = (body.guestName ?? "").trim();
-              const { data: accessLog } = guestNameForLookup
-                ? await supabaseAdmin
-                    .from("guide_access_logs")
-                    .select("guest_name, checkin_date")
-                    .eq("property_id", prop.id)
-                    .eq("guest_name", guestNameForLookup)
-                    .order("created_at", { ascending: false })
-                    .limit(1)
-                    .maybeSingle()
-                : { data: null as { guest_name: string; checkin_date: string } | null };
-              await sendHandoffPush(supabaseAdmin, {
-                userIds,
-                conversationId,
-                propertyName: prop.name,
-                guestName: body.guestName ?? accessLog?.guest_name ?? null,
-                guestMessage: body.message,
-                checkinDate: accessLog?.checkin_date ?? null,
-                reason,
-                urgency,
-              });
-            } catch (e) {
-              console.error("Handoff push failed", e);
-            }
+        const handoffTriggered = result.handoff;
+        if (handoffTriggered) {
+          const reason = result.handoffReason ?? "Hóspede pediu atendimento humano.";
+          const urgency = result.handoffUrgency;
+          await supabaseAdmin
+            .from("property_chat_conversations")
+            .update({
+              status: "needs_human",
+              ai_paused: true,
+              handoff_reason: reason,
+              handoff_urgency: urgency,
+              handoff_at: new Date().toISOString(),
+            })
+            .eq("id", conversationId);
+          try {
+            const { getPropertyNotifiableUsers, sendHandoffPush } = await import("@/lib/handoff.server");
+            const userIds = await getPropertyNotifiableUsers(supabaseAdmin, prop.id);
+            const guestNameForLookup = (body.guestName ?? "").trim();
+            const { data: accessLog } = guestNameForLookup
+              ? await supabaseAdmin
+                  .from("guide_access_logs")
+                  .select("guest_name, checkin_date")
+                  .eq("property_id", prop.id)
+                  .eq("guest_name", guestNameForLookup)
+                  .order("created_at", { ascending: false })
+                  .limit(1)
+                  .maybeSingle()
+              : { data: null as { guest_name: string; checkin_date: string } | null };
+            await sendHandoffPush(supabaseAdmin, {
+              userIds,
+              conversationId,
+              propertyName: prop.name,
+              guestName: body.guestName ?? accessLog?.guest_name ?? null,
+              guestMessage: body.message,
+              checkinDate: accessLog?.checkin_date ?? null,
+              reason,
+              urgency,
+            });
+          } catch (e) {
+            console.error("Handoff push failed", e);
           }
         }
 
-        const reply = (choice?.content ?? "").trim();
-        const finalReply = handoffTriggered && !reply
-          ? "Estou chamando um atendente humano, aguarde só um instante."
-          : reply;
+        const finalReply = result.reply.trim() ||
+          (handoffTriggered ? "Estou chamando um atendente humano, aguarde só um instante." : "");
 
         if (finalReply) {
           await supabaseAdmin.from("property_chat_messages").insert({
             conversation_id: conversationId,
             role: "assistant",
             content: finalReply,
-            sender_type: handoffTriggered ? "ai" : "ai",
+            sender_type: "ai",
           });
         }
         await supabaseAdmin
@@ -514,6 +462,7 @@ Encerramento:
           .eq("id", conversationId);
 
         return new Response(JSON.stringify({ conversationId, reply: finalReply, handoff: handoffTriggered }), { status: 200, headers: { "Content-Type": "application/json" } });
+
       },
       // Poll for new messages in a conversation (used after human handoff so the
       // guest widget can surface agent replies without a page reload).

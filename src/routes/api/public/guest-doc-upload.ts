@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
+import { AI_MODELS } from "@/lib/ai/models";
 
 // Upload de documento pessoal pelo hóspede durante o formulário de primeiro acesso.
 // A IA (Gemini vision) faz a checagem de legibilidade e retorna feedback.
@@ -39,7 +40,7 @@ async function checkLegibilityWithGemini(base64: string, mime: string): Promise<
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: AI_MODELS.documents,
         messages: [
           {
             role: "system",
