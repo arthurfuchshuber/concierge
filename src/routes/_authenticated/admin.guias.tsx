@@ -846,7 +846,7 @@ function Dashboard() {
           const allSelected = selected.size > 0 && selected.size === filtered.length;
           return (
             <div className="space-y-3">
-              <div className="flex items-center gap-3 px-1">
+              <div className="flex flex-wrap items-center gap-2 px-1">
                 <Checkbox
                   checked={allSelected}
                   onCheckedChange={(v) => {
@@ -854,12 +854,13 @@ function Dashboard() {
                     else setSelected(new Set());
                   }}
                 />
-                <span className="text-xs text-muted-foreground">
+                <span className="text-xs text-muted-foreground min-w-0 truncate">
                   {selected.size > 0
                     ? `${selected.size} selecionado${selected.size > 1 ? "s" : ""}`
                     : "Selecione para editar em massa"}
                 </span>
-                <div className="flex-1" />
+                <div className="hidden sm:block flex-1" />
+
                 {selected.size > 0 && (
                   <>
                     <button
