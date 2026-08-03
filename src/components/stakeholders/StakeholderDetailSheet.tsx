@@ -203,14 +203,13 @@ export function StakeholderDetailSheet({
       body: (
         <>
           {ev.htmlLink && (
-            <a
-              href={ev.htmlLink}
-              target="_blank"
-              rel="noreferrer"
+            <button
+              type="button"
+              onClick={() => setPreview({ name: ev.title, url: ev.htmlLink as string })}
               className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
             >
-              Abrir convite <ExternalLink className="size-3" />
-            </a>
+              <Eye className="size-3" /> Abrir convite
+            </button>
           )}
           {ev.attendees.length > 0 && (
             <p className="text-xs text-muted-foreground">{ev.attendees.length} participante(s)</p>
@@ -218,21 +217,21 @@ export function StakeholderDetailSheet({
           {ev.attachments.length > 0 && (
             <div className="mt-1 flex flex-wrap gap-1.5">
               {ev.attachments.map((a) => (
-                <a
+                <button
                   key={a.url}
-                  href={a.url}
-                  target="_blank"
-                  rel="noreferrer"
+                  type="button"
+                  onClick={() => setPreview({ name: a.title || ev.title, url: a.url })}
                   className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[10px] text-muted-foreground hover:text-foreground"
                 >
                   {a.kind === "transcript" ? <FileText className="size-2.5" /> : <Video className="size-2.5" />}
                   {a.kind === "transcript" ? "Transcrição" : a.kind === "recording" ? "Gravação" : a.title}
-                </a>
+                </button>
               ))}
             </div>
           )}
         </>
       ),
+
     })),
     ...feedDocs.map((d) => ({
       key: `d:${d.id}`,
