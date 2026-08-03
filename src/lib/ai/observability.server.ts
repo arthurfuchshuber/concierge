@@ -12,7 +12,7 @@ export type AgentLog = {
   surface: string;
   intent: unknown;
   contextKeys: string[];
-  toolsUsed: Array<{ name: string; args?: unknown }>;
+  toolsUsed: Array<{ name: string; args?: unknown; durationMs?: number; parallelBatch?: number }>;
   sources: Array<{ source: string; title?: string | null; confidence: number }>;
   confidence: number | null;
   validation: unknown;
@@ -21,6 +21,16 @@ export type AgentLog = {
   latencyMs: number;
   needsHuman: boolean;
   error?: string | null;
+  /** Plano de execução gerado pelo Planner Agent. */
+  plan?: unknown;
+  /** Resultado do Reflection Step. */
+  reflection?: unknown;
+  /** Versões dos prompts usados nesta interação. */
+  promptVersions?: Record<string, string>;
+  /** Nível de confiança resultante: auto | hedged | handoff. */
+  confidenceTier?: string | null;
+  /** Peso médio das fontes efetivamente consultadas. */
+  sourceWeight?: number | null;
 };
 
 export async function logAgentRun(supabase: SupabaseClient, log: AgentLog): Promise<void> {
@@ -42,6 +52,11 @@ export async function logAgentRun(supabase: SupabaseClient, log: AgentLog): Prom
       latency_ms: log.latencyMs,
       needs_human: log.needsHuman,
       error: log.error ?? null,
+      plan: (log.plan ?? null) as never,
+      reflection: (log.reflection ?? null) as never,
+      prompt_versions: (log.promptVersions ?? null) as never,
+      confidence_tier: log.confidenceTier ?? null,
+      source_weight: log.sourceWeight ?? null,
     });
   } catch (err) {
     // Observabilidade nunca pode quebrar o atendimento.
