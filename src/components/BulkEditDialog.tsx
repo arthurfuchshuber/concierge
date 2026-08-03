@@ -37,76 +37,139 @@ type FieldDef = { key: FieldKey; label: string; kind: FieldKind; placeholder?: s
 
 type ListKey = "manual" | "checkout" | "emergency" | "faqs";
 
-const TEXT_TABS: { id: string; label: string; fields: FieldDef[] }[] = [
+type Group = { title: string; fields?: FieldDef[]; lists?: ListKey[] };
+
+/** Mesma organização (abas + quadrantes) do editor individual do guia. */
+const TEXT_TABS: { id: string; label: string; groups: Group[] }[] = [
   {
     id: "house", label: "A casa",
-    fields: [
-      { key: "address", label: "Endereço completo", kind: "textarea" },
-      { key: "maps_url", label: "Link do Google Maps", kind: "text" },
-      { key: "garage_maps_url", label: "Link do Maps (garagem)", kind: "text" },
-      { key: "city", label: "Cidade", kind: "text" },
-      { key: "state", label: "Estado", kind: "text" },
-      { key: "country", label: "País", kind: "text" },
-      { key: "address_note", label: "Como chegar", kind: "textarea" },
-      { key: "house_rules", label: "Regras do espaço", kind: "textarea" },
-      { key: "host_name", label: "Nome do anfitrião", kind: "text" },
-      { key: "host_phone", label: "Telefone do anfitrião", kind: "text" },
+    groups: [
+      {
+        title: "Endereço e localização",
+        fields: [
+          { key: "address", label: "Endereço completo", kind: "textarea" },
+          { key: "maps_url", label: "Link do Google Maps", kind: "text" },
+          { key: "garage_maps_url", label: "Link do Maps (garagem)", kind: "text" },
+          { key: "city", label: "Cidade", kind: "text" },
+          { key: "state", label: "Estado", kind: "text" },
+          { key: "country", label: "País", kind: "text" },
+          { key: "address_note", label: "Como chegar", kind: "textarea" },
+        ],
+      },
+      { title: "Regras do espaço", fields: [{ key: "house_rules", label: "Regras do espaço", kind: "textarea" }] },
+      { title: "Manual da casa", lists: ["manual"] },
+      {
+        title: "Contato do anfitrião",
+        fields: [
+          { key: "host_name", label: "Nome do anfitrião", kind: "text" },
+          { key: "host_phone", label: "Telefone do anfitrião", kind: "text" },
+        ],
+      },
     ],
   },
   {
     id: "guide", label: "O guia",
-    fields: [
-      { key: "brand_name", label: "Nome da marca", kind: "text" },
-      { key: "brand_logo_url", label: "URL do logo (https://)", kind: "text" },
-      { key: "guide_theme", label: "Tema do guia", kind: "theme" },
-      { key: "default_language", label: "Idioma padrão", kind: "language" },
-      { key: "published", label: "Publicado", kind: "boolean" },
-      { key: "access_mode", label: "Modo de acesso do guia", kind: "access_mode" },
-      { key: "pin_code", label: "PIN (quando modo = PIN)", kind: "text" },
-      { key: "require_access_gate", label: "Exigir formulário de primeiro acesso", kind: "boolean" },
+    groups: [
+      {
+        title: "Identidade visual",
+        fields: [
+          { key: "brand_name", label: "Nome da marca", kind: "text" },
+          { key: "brand_logo_url", label: "URL do logo (https://)", kind: "text" },
+          { key: "guide_theme", label: "Tema do guia", kind: "theme" },
+        ],
+      },
+      {
+        title: "Modo de acesso",
+        fields: [
+          { key: "published", label: "Publicado", kind: "boolean" },
+          { key: "access_mode", label: "Modo de acesso do guia", kind: "access_mode" },
+          { key: "pin_code", label: "PIN (quando modo = PIN)", kind: "text" },
+          { key: "require_access_gate", label: "Exigir formulário de primeiro acesso", kind: "boolean" },
+        ],
+      },
+      { title: "Idioma padrão", fields: [{ key: "default_language", label: "Idioma padrão", kind: "language" }] },
     ],
   },
   {
     id: "checkin", label: "Checkin",
-    fields: [
-      { key: "checkin_instructions", label: "Instruções de check-in", kind: "textarea" },
-      { key: "checkin_time", label: "Check-in a partir", kind: "text", placeholder: "15:00" },
-      { key: "checkin_time_max", label: "Check-in até", kind: "text", placeholder: "20:00" },
-      { key: "checkin_note", label: "Observação de check-in", kind: "textarea" },
-      { key: "gate_code", label: "Código do portão", kind: "text" },
-      { key: "gate_label", label: "Nome do portão", kind: "text" },
-      { key: "gate_instructions", label: "Instruções do portão", kind: "textarea" },
-      { key: "lock_code", label: "Código da fechadura", kind: "text" },
-      { key: "lock_label", label: "Nome da fechadura", kind: "text" },
-      { key: "lock_instructions", label: "Instruções da fechadura", kind: "textarea" },
-      { key: "access_codes_pin", label: "Senha para liberar códigos e Wi-Fi", kind: "text" },
-      { key: "wifi_ssid", label: "Rede Wi-Fi", kind: "text" },
-      { key: "wifi_password", label: "Senha do Wi-Fi", kind: "text" },
-      { key: "collect_arrival_time", label: "Horário previsto de chegada", kind: "collect" },
-      { key: "collect_vehicles", label: "Veículos", kind: "collect" },
-      { key: "vehicles_max", label: "Qtd. máxima de veículos", kind: "number" },
-      { key: "collect_document", label: "Documento pessoal", kind: "collect" },
-      { key: "document_scope", label: "Documentos: hóspedes", kind: "docscope" },
+    groups: [
+      {
+        title: "Instruções de chegada",
+        fields: [{ key: "checkin_instructions", label: "Instruções de check-in", kind: "textarea" }],
+      },
+      {
+        title: "Horários de check-in",
+        fields: [
+          { key: "checkin_time", label: "Check-in a partir", kind: "text", placeholder: "15:00" },
+          { key: "checkin_time_max", label: "Check-in até", kind: "text", placeholder: "20:00" },
+          { key: "checkin_note", label: "Observação de check-in", kind: "textarea" },
+        ],
+      },
+      {
+        title: "Senhas de acesso",
+        fields: [
+          { key: "gate_label", label: "Nome do portão", kind: "text" },
+          { key: "gate_code", label: "Código do portão", kind: "text" },
+          { key: "gate_instructions", label: "Instruções do portão", kind: "textarea" },
+          { key: "lock_label", label: "Nome da fechadura", kind: "text" },
+          { key: "lock_code", label: "Código da fechadura", kind: "text" },
+          { key: "lock_instructions", label: "Instruções da fechadura", kind: "textarea" },
+          { key: "access_codes_pin", label: "Senha para liberar códigos e Wi-Fi", kind: "text" },
+        ],
+      },
+      {
+        title: "Wi-Fi",
+        fields: [
+          { key: "wifi_ssid", label: "Rede Wi-Fi", kind: "text" },
+          { key: "wifi_password", label: "Senha do Wi-Fi", kind: "text" },
+        ],
+      },
+      {
+        title: "Dados do hóspede",
+        fields: [
+          { key: "collect_arrival_time", label: "Horário previsto de chegada", kind: "collect" },
+          { key: "collect_vehicles", label: "Veículo(s)", kind: "collect" },
+          { key: "vehicles_max", label: "Qtd. máxima de veículos", kind: "number" },
+          { key: "collect_document", label: "Documento pessoal", kind: "collect" },
+          { key: "document_scope", label: "Documentos: hóspedes", kind: "docscope" },
+        ],
+      },
     ],
   },
   {
     id: "checkout", label: "Checkout",
-    fields: [
-      { key: "checkout_instructions", label: "Instruções de check-out", kind: "textarea" },
-      { key: "checkout_time", label: "Check-out até", kind: "text", placeholder: "11:00" },
-      { key: "checkout_time_min", label: "Check-out a partir", kind: "text" },
-      { key: "checkout_note", label: "Observação de check-out", kind: "textarea" },
+    groups: [
+      {
+        title: "Instruções de saída",
+        fields: [{ key: "checkout_instructions", label: "Instruções de check-out", kind: "textarea" }],
+      },
+      {
+        title: "Horários de check-out",
+        fields: [
+          { key: "checkout_time", label: "Check-out até", kind: "text", placeholder: "11:00" },
+          { key: "checkout_time_min", label: "Check-out a partir", kind: "text" },
+          { key: "checkout_note", label: "Observação de check-out", kind: "textarea" },
+        ],
+      },
+      { title: "Checklist de check-out", lists: ["checkout"] },
     ],
   },
-  { id: "faq", label: "FAQ & Contatos", fields: [] },
+  {
+    id: "faq", label: "FAQ & Contatos",
+    groups: [
+      { title: "Emergências", lists: ["emergency"] },
+      { title: "Perguntas frequentes", lists: ["faqs"] },
+      {
+        title: "Contato do anfitrião",
+        fields: [
+          { key: "host_name", label: "Nome do anfitrião", kind: "text" },
+          { key: "host_phone", label: "Telefone do anfitrião", kind: "text" },
+        ],
+      },
+    ],
+  },
+  { id: "recs", label: "Recomendações", groups: [] },
 ];
-
-const TAB_LISTS: Record<string, ListKey[]> = {
-  house: ["manual"],
-  checkout: ["checkout"],
-  faq: ["emergency", "faqs"],
-};
-
 
 type State = {
   enabled: Partial<Record<FieldKey, boolean>>;
@@ -206,8 +269,10 @@ export function BulkEditDialog({
   async function performSave(mode: "overwrite" | "fill-empty") {
     const patch: Record<string, unknown> = {};
     for (const tab of TEXT_TABS) {
-      for (const f of tab.fields) {
-        if (state.enabled[f.key]) patch[f.key] = coerce(f, state.values[f.key]);
+      for (const g of tab.groups) {
+        for (const f of g.fields ?? []) {
+          if (state.enabled[f.key]) patch[f.key] = coerce(f, state.values[f.key]);
+        }
       }
     }
     const lists: Record<string, unknown> = {};
@@ -247,7 +312,7 @@ export function BulkEditDialog({
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) reset(); onOpenChange(v); }}>
-      <DialogContent className="sm:max-w-3xl max-h-[85vh] overflow-y-auto">
+      <DialogContent className="w-[calc(100vw-1.5rem)] sm:max-w-3xl max-h-[85vh] overflow-y-auto overflow-x-hidden">
         <DialogHeader>
           <DialogTitle>Editar {ids.length} {ids.length === 1 ? "guia" : "guias"}</DialogTitle>
           <DialogDescription>
@@ -260,56 +325,71 @@ export function BulkEditDialog({
             <Loader2 className="size-5 animate-spin" />
           </div>
         ) : (
-        <Tabs defaultValue="house" className="w-full">
-          <TabsList className="w-full grid grid-cols-5 h-auto">
-            {TEXT_TABS.map((t) => (
-              <TabsTrigger key={t.id} value={t.id} className="text-xs whitespace-nowrap">{t.label}</TabsTrigger>
-            ))}
-          </TabsList>
+        <Tabs defaultValue="house" className="w-full min-w-0">
+          <div className="-mx-1 overflow-x-auto pb-1">
+            <TabsList className="inline-flex h-auto w-max gap-1">
+              {TEXT_TABS.map((t) => (
+                <TabsTrigger key={t.id} value={t.id} className="text-xs whitespace-nowrap">{t.label}</TabsTrigger>
+              ))}
+            </TabsList>
+          </div>
 
           {TEXT_TABS.map((tab) => (
-            <TabsContent key={tab.id} value={tab.id} className="space-y-3 pt-3">
-              {tab.fields.map((f) => {
-                const enabled = !!state.enabled[f.key];
-                const value = state.values[f.key];
-                const s = fieldSummary(f.key);
-                return (
-                  <div key={f.key} className={`rounded-xl border p-3 transition-colors ${enabled ? "border-accent/50 bg-accent/5" : "border-border bg-card/40"}`}>
-                    <div className="flex items-center justify-between mb-2 gap-3">
-                      <div className="min-w-0 flex-1">
-                        <label className="text-sm font-medium whitespace-nowrap truncate block">{f.label}</label>
-                        <div className="text-[11px] text-muted-foreground mt-0.5 truncate">
-                          {s.filled > 0 && s.empty === 0 && s.distinct.length === 1 && `Atual: ${s.distinct[0]}`}
-                          {s.filled > 0 && s.empty === 0 && s.distinct.length > 1 && `${s.filled} guias · ${s.distinct.length} valores distintos`}
-                          {s.filled > 0 && s.empty > 0 && `${s.filled} preenchido${s.filled > 1 ? "s" : ""} · ${s.empty} vazio${s.empty > 1 ? "s" : ""}`}
-                          {s.filled === 0 && `${s.empty} guia${s.empty > 1 ? "s" : ""} sem valor`}
-                        </div>
-                      </div>
-                      <Switch checked={enabled} onCheckedChange={(v) => toggle(f.key, v)} />
-                    </div>
-                    {enabled && renderField(f, value, (v) => setValue(f.key, v))}
-                  </div>
-                );
-              })}
+            <TabsContent key={tab.id} value={tab.id} className="space-y-5 pt-3 min-w-0">
+              {tab.groups.length === 0 && (
+                <p className="rounded-xl border border-border bg-card/40 p-4 text-sm text-muted-foreground">
+                  As recomendações são específicas de cada residência (endereço, distância e horários) e por isso
+                  não podem ser aplicadas em massa. Edite-as no guia individual.
+                </p>
+              )}
 
-              {(TAB_LISTS[tab.id] ?? []).map((lk) => {
-                const ls = listSummary(lk);
-                const titles: Record<ListKey, string> = {
-                  manual: "Manual da casa", checkout: "Checklist de checkout",
-                  emergency: "Contatos de emergência", faqs: "Perguntas frequentes",
-                };
-                return (
-                  <div key={lk}>
-                    <ListToggle
-                      enabled={!!state.listsEnabled[lk]}
-                      onChange={(v) => toggleList(lk, v)}
-                      title={titles[lk]}
-                      hint={`Atual: ${ls.withItems} guia${ls.withItems === 1 ? "" : "s"} com itens · ${ls.empty} sem itens.`}
-                    />
-                    {state.listsEnabled[lk] && renderList(lk, state, setState)}
-                  </div>
-                );
-              })}
+              {tab.groups.map((group) => (
+                <section key={group.title} className="space-y-2 min-w-0">
+                  <h3 className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground/80">{group.title}</h3>
+
+                  {(group.fields ?? []).map((f) => {
+                    const enabled = !!state.enabled[f.key];
+                    const value = state.values[f.key];
+                    const s2 = fieldSummary(f.key);
+                    return (
+                      <div key={f.key} className={`rounded-xl border p-3 transition-colors min-w-0 ${enabled ? "border-accent/50 bg-accent/5" : "border-border bg-card/40"}`}>
+                        <div className="flex items-center justify-between mb-2 gap-3">
+                          <div className="min-w-0 flex-1">
+                            <label className="text-sm font-medium truncate block">{f.label}</label>
+                            <div className="text-[11px] text-muted-foreground mt-0.5 truncate">
+                              {s2.filled > 0 && s2.empty === 0 && s2.distinct.length === 1 && `Atual: ${s2.distinct[0]}`}
+                              {s2.filled > 0 && s2.empty === 0 && s2.distinct.length > 1 && `${s2.filled} guias · ${s2.distinct.length} valores distintos`}
+                              {s2.filled > 0 && s2.empty > 0 && `${s2.filled} preenchido${s2.filled > 1 ? "s" : ""} · ${s2.empty} vazio${s2.empty > 1 ? "s" : ""}`}
+                              {s2.filled === 0 && `${s2.empty} guia${s2.empty > 1 ? "s" : ""} sem valor`}
+                            </div>
+                          </div>
+                          <Switch checked={enabled} onCheckedChange={(v) => toggle(f.key, v)} />
+                        </div>
+                        {enabled && renderField(f, value, (v) => setValue(f.key, v))}
+                      </div>
+                    );
+                  })}
+
+                  {(group.lists ?? []).map((lk) => {
+                    const ls = listSummary(lk);
+                    const titles: Record<ListKey, string> = {
+                      manual: "Manual da casa", checkout: "Checklist de checkout",
+                      emergency: "Contatos de emergência", faqs: "Perguntas frequentes",
+                    };
+                    return (
+                      <div key={lk} className="min-w-0">
+                        <ListToggle
+                          enabled={!!state.listsEnabled[lk]}
+                          onChange={(v) => toggleList(lk, v)}
+                          title={titles[lk]}
+                          hint={`Atual: ${ls.withItems} guia${ls.withItems === 1 ? "" : "s"} com itens · ${ls.empty} sem itens.`}
+                        />
+                        {state.listsEnabled[lk] && renderList(lk, state, setState)}
+                      </div>
+                    );
+                  })}
+                </section>
+              ))}
             </TabsContent>
           ))}
         </Tabs>
@@ -357,10 +437,10 @@ export function BulkEditDialog({
 
 function ListToggle({ enabled, onChange, title, hint }: { enabled: boolean; onChange: (v: boolean) => void; title: string; hint: string }) {
   return (
-    <div className={`rounded-xl border p-3 flex items-center justify-between ${enabled ? "border-accent/50 bg-accent/5" : "border-border bg-card/40"}`}>
-      <div>
-        <div className="text-sm font-medium">{title}</div>
-        <div className="text-[11px] text-muted-foreground">{hint}</div>
+    <div className={`rounded-xl border p-3 flex items-center justify-between gap-3 min-w-0 ${enabled ? "border-accent/50 bg-accent/5" : "border-border bg-card/40"}`}>
+      <div className="min-w-0">
+        <div className="text-sm font-medium truncate">{title}</div>
+        <div className="text-[11px] text-muted-foreground truncate">{hint}</div>
       </div>
       <Switch checked={enabled} onCheckedChange={onChange} />
     </div>
