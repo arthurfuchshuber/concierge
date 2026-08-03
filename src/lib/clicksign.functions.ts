@@ -516,3 +516,50 @@ export const extractClicksignPartyData = createServerFn({ method: "POST" })
 
     return { updated: filled.length, fields: filled, found: party };
   });
+
+/**
+ * "Atualizar Dados": varre todos os cadastros vinculados a contratos ClickSign
+ * e preenche APENAS os campos que estiverem vazios.
+ */
+export const refreshClicksignStakeholderData = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase, userId } = context;
+
+    const { data: docs } = await supabase
+      .from("clicksign_documents")
+      .select("stakeholder_type, stakeholder_id")
+      .eq("account_owner_id", userId)
+      .not("stakeholder_id", "is", null)
+      .in("stakeholder_type", ["owner", "provider"]);
+
+    const seen = new Set<string>();
+    const targets: Array<{ kind: "owner" | "provider"; id: string }> = [];
+    for (const d of docs ?? []) {
+      const kind = d.stakeholder_type as "owner" | "provider";
+      const id = d.stakeholder_id as string;
+      const key = `${kind}:${id}`;
+      if (!id || seen.has(key)) continue;
+      seen.add(key);
+      targets.push({ kind, id });
+    }
+
+    const { fillFromContract } = await import("@/lib/contract-fill.server");
+    let updated = 0;
+    let failed = 0;
+    const fields = new Set<string>();
+
+    for (const t of targets.slice(0, 40)) {
+      try {
+        const r = await fillFromContract(supabase, userId, t.kind, t.id);
+        if (r.filled.length) {
+          updated += 1;
+          r.filled.forEach((f) => fields.add(f));
+        }
+      } catch {
+        failed += 1;
+      }
+    }
+
+    return { scanned: targets.length, updated, failed, fields: Array.from(fields) };
+  });
