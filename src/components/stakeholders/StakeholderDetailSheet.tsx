@@ -279,15 +279,29 @@ export function StakeholderDetailSheet({
               {displayName}
             </h2>
             <div className="mt-2 flex flex-wrap items-center gap-1.5">
-              <span
-                className={`rounded-full border px-2.5 py-0.5 text-[11px] ${
-                  row.status === "active"
-                    ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-500"
-                    : "border-border text-muted-foreground"
-                }`}
-              >
-                {row.status === "active" ? "Ativo" : "Inativo"}
-              </span>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    type="button"
+                    className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[11px] transition hover:opacity-80 ${STATUS_STYLE[String(row.status)] ?? STATUS_STYLE.inactive}`}
+                  >
+                    {STATUS_LABEL[String(row.status)] ?? "Inativo"}
+                    <ChevronDown className="size-3" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start">
+                  {(["active", "paused", "canceled"] as const).map((s) => (
+                    <DropdownMenuItem key={s} onSelect={() => openStatusDialog(s)}>
+                      {STATUS_LABEL[s]}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+              {row.status_changed_at && (
+                <span className="rounded-full border border-border px-2.5 py-0.5 text-[11px] text-muted-foreground">
+                  desde {new Date(row.status_changed_at).toLocaleDateString("pt-BR")}
+                </span>
+              )}
               <span className="rounded-full border border-border px-2.5 py-0.5 text-[11px] text-muted-foreground uppercase">
                 {String(row.person_type ?? "pf")}
               </span>
@@ -300,13 +314,25 @@ export function StakeholderDetailSheet({
           </div>
         </div>
 
-        <Button
-          variant="outline"
-          className="mt-4 w-full rounded-full"
-          onClick={onEdit}
-        >
-          <Pencil className="size-3.5 mr-1.5" /> Editar cadastro
-        </Button>
+        <div className="mt-4 grid gap-2 sm:grid-cols-2">
+          <Button variant="outline" className="w-full rounded-full" onClick={onEdit}>
+            <Pencil className="size-3.5 mr-1.5" /> Editar cadastro
+          </Button>
+          <Button
+            variant="outline"
+            className="w-full rounded-full"
+            disabled={extracting}
+            onClick={runExtract}
+          >
+            {extracting ? (
+              <Loader2 className="size-3.5 mr-1.5 animate-spin" />
+            ) : (
+              <FileText className="size-3.5 mr-1.5" />
+            )}
+            Puxar dados do contrato
+          </Button>
+        </div>
+
 
         <dl className="mt-4 grid gap-4 border-t border-border pt-4 sm:grid-cols-2">
           {row.trade_name && <Field label="Nome fantasia" value={row.trade_name} />}
