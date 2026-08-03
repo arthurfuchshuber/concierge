@@ -12,7 +12,11 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, Plus, Trash2 } from "lucide-react";
+import { Section, SectionGroup, type SectionIcon } from "@/components/editor/Section";
+import {
+  Loader2, Plus, Trash2, MapPinned, ClipboardCheck, BookOpen, UserRound, FileText, Shield,
+  Globe, DoorOpen, Clock, KeyRound, Wifi, ClipboardList, LogOut, Phone, HelpCircle,
+} from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { bulkUpdateProperties, bulkFetchProperties } from "@/lib/properties.functions";
 import { toast } from "sonner";
