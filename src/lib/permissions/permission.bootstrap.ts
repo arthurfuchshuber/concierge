@@ -6,8 +6,10 @@
  * em memória (e, quando sincronizado, a tabela `permission_nodes`).
  */
 import { PERMISSION_CATALOG } from "./permission.catalog";
+import { registerPermissionFeatures } from "./permission.features";
 import { permissionRegistry, registerDiscoverySource } from "./permission.registry";
 import { discoveredRouteNodes } from "./permission.scanner";
+
 
 let bootstrapped = false;
 
