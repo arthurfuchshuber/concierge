@@ -243,6 +243,14 @@ export const changePlan = createServerFn({ method: "POST" })
       items: [{ priceId: paddlePriceId, quantity: 1 }],
       prorationBillingMode: "prorated_immediately",
     });
+    const { auditBilling } = await import("@/lib/ai/audit/platform.server");
+    await auditBilling("plan_changed", {
+      userId: context.userId,
+      entityId: sub.paddle_subscription_id,
+      description: `Plano alterado para ${targetPlan ? PLANS[targetPlan].name : data.targetPriceExternalId}.`,
+      metadata: { environment: data.environment, targetPriceExternalId: data.targetPriceExternalId },
+      severity: "notice",
+    });
     return { ok: true };
   });
 

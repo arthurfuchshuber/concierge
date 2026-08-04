@@ -1,5 +1,5 @@
 import { createFileRoute, Outlet, Link, useNavigate, useRouterState } from "@tanstack/react-router";
-import { LogOut, LayoutDashboard, Settings2, Menu, Users, Shield, ShieldCheck, Activity, Star, Headphones, Home, Contact, BrainCircuit, ScrollText, Sparkles } from "lucide-react";
+import { LogOut, LayoutDashboard, Settings2, Menu, Users, Shield, ShieldCheck, Activity, Star, Headphones, Home, Contact, BrainCircuit, Sparkles } from "lucide-react";
 import conciergeLogo from "@/assets/concierge-logo.png";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
@@ -34,8 +34,8 @@ const adminOnlyNav = [
   { to: "/admin/engajamento", label: "Engajamento", icon: Activity, exact: false },
   { to: "/admin/clientes", label: "Clientes", icon: Users, exact: false },
   { to: "/admin/recomendacoes-sigma", label: "Recomendações", icon: Star, exact: false },
-  { to: "/admin/melhoria-ia", label: "Melhoria da IA", icon: Sparkles, exact: false },
-  { to: "/admin/logs", label: "Logs & Auditoria", icon: ScrollText, exact: false },
+  { to: "/admin/inteligencia", label: "Inteligência", icon: Sparkles, exact: false },
+
   { to: "/admin/admins", label: "Administradores", icon: ShieldCheck, exact: false },
 ] as const;
 
@@ -128,8 +128,8 @@ function AdminLayout() {
     pathname.startsWith("/admin/clientes") ||
     pathname.startsWith("/admin/taxonomia") ||
     pathname.startsWith("/admin/recomendacoes-sigma") ||
-    pathname.startsWith("/admin/melhoria-ia") ||
-    pathname.startsWith("/admin/logs") ||
+    pathname.startsWith("/admin/inteligencia") ||
+
     pathname.startsWith("/admin/admins");
   // Rule: without an invite in play AND without being a team member, the user
   // can only see the panel after completing the account creation + validation

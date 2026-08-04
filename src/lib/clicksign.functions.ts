@@ -126,6 +126,12 @@ export const saveMyClicksignConfig = createServerFn({ method: "POST" })
       webhook_secret: (prev?.webhook_secret as string) ?? newWebhookSecret(),
     }, { onConflict: "owner_id,provider" });
     if (error) throw new Error(error.message);
+    const { auditIntegration } = await import("@/lib/ai/audit/platform.server");
+    await auditIntegration("integration_connected", {
+      userId: context.userId,
+      integration: "clicksign",
+      description: "Credenciais da ClickSign salvas/atualizadas.",
+    });
     return { ok: true };
   });
 
@@ -165,6 +171,16 @@ export const disconnectMyClicksign = createServerFn({ method: "POST" })
 
     await supabase.from("host_integration_credentials").delete()
       .eq("owner_id", userId).eq("provider", "clicksign");
+    const { auditIntegration } = await import("@/lib/ai/audit/platform.server");
+    await auditIntegration("integration_disconnected", {
+      userId,
+      integration: "clicksign",
+      description: data.purge
+        ? "ClickSign desconectada com expurgo dos dados importados."
+        : "ClickSign desconectada (dados importados mantidos).",
+      severity: data.purge ? "warning" : "notice",
+      metadata: { purge: data.purge },
+    });
     return { ok: true, purged: data.purge };
   });
 
