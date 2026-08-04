@@ -178,7 +178,7 @@ export async function appendCoreMessage(params: {
     const { logSystemEvent } = await import("../audit/events.server");
     void logSystemEvent(params.supabase, {
       tenantId: params.tenantId,
-      actorType: params.senderType === "guest" ? "GUEST" : params.senderType === "ai" ? "AI_AGENT" : "USER",
+      actorType: params.senderType === "guest" ? "GUEST" : params.senderType === "agent" ? "AI_AGENT" : params.senderType === "system" ? "SYSTEM" : "USER",
       actorId: params.agentKey ?? params.senderType,
       eventType: params.senderType === "guest" ? "message_received" : "message_sent",
       eventCategory: "CONVERSATION",
