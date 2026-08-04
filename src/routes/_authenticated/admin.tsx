@@ -1,5 +1,5 @@
 import { createFileRoute, Outlet, Link, useNavigate, useRouterState } from "@tanstack/react-router";
-import { LogOut, LayoutDashboard, Settings2, Menu, Users, Shield, Library, ShieldCheck, Activity, Star, Headphones, Home, Contact } from "lucide-react";
+import { LogOut, LayoutDashboard, Settings2, Menu, Users, Shield, ShieldCheck, Activity, Star, Headphones, Home, Contact } from "lucide-react";
 import conciergeLogo from "@/assets/concierge-logo.png";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
@@ -27,7 +27,7 @@ const baseNav = [
   { to: "/admin/dashboard", label: "Dashboard", icon: LayoutDashboard, exact: false },
   { to: "/admin/guias", label: "Guias", icon: Home, exact: false },
   { to: "/admin/stakeholders", label: "Stakeholders", icon: Contact, exact: false },
-  { to: "/admin/biblioteca", label: "Biblioteca", icon: Library, exact: false },
+  
 ] as const;
 const adminOnlyNav = [
   { to: "/admin/engajamento", label: "Engajamento", icon: Activity, exact: false },
