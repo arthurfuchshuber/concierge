@@ -72,7 +72,7 @@ export const Route = createFileRoute("/g/$slug/")({
   loader: async ({ params }) => {
     const r = await getPublicGuide({ data: { slug: params.slug } });
     if (r.status === "moved") {
-      throw redirect({ to: "/g/$slug/", params: { slug: r.slug }, replace: true });
+      throw redirect({ to: "/g/$slug", params: { slug: r.slug }, replace: true });
     }
     if (r.status === "not_found") throw notFound();
     return r;
