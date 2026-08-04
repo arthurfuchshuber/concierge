@@ -1,4 +1,5 @@
 /**
+* (arquivo nomeado sem ".client." por causa da proteção de imports do TanStack Start)
  * Camada client-side de autorização (FASE 4.1).
  *
  * Regra inegociável: o frontend NUNCA decide permissão. Este módulo apenas
