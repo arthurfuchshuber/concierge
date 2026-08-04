@@ -2950,6 +2950,39 @@ export type Database = {
           },
         ]
       }
+      permission_migration_status: {
+        Row: {
+          activated_at: string | null
+          activated_by: string | null
+          created_at: string
+          id: string
+          notes: string | null
+          status: Database["public"]["Enums"]["permission_migration_mode"]
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          activated_at?: string | null
+          activated_by?: string | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          status?: Database["public"]["Enums"]["permission_migration_mode"]
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          activated_at?: string | null
+          activated_by?: string | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          status?: Database["public"]["Enums"]["permission_migration_mode"]
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       permission_node_slug_history: {
         Row: {
           created_at: string
@@ -4887,6 +4920,11 @@ export type Database = {
         | "guests_view"
         | "guests_edit"
       permission_access_level: "NONE" | "READ" | "WRITE"
+      permission_migration_mode:
+        | "legacy"
+        | "monitoring"
+        | "enforced"
+        | "completed"
       permission_node_type:
         | "PAGE"
         | "SUBPAGE"
@@ -5069,6 +5107,12 @@ export const Constants = {
         "guests_edit",
       ],
       permission_access_level: ["NONE", "READ", "WRITE"],
+      permission_migration_mode: [
+        "legacy",
+        "monitoring",
+        "enforced",
+        "completed",
+      ],
       permission_node_type: [
         "PAGE",
         "SUBPAGE",
