@@ -38,6 +38,7 @@ import { Route as ApiPublicClicksignWebhookRouteImport } from './routes/api/publ
 import { Route as AuthenticatedAdminTaxonomiaRouteImport } from './routes/_authenticated/admin.taxonomia'
 import { Route as AuthenticatedAdminStakeholdersRouteImport } from './routes/_authenticated/admin.stakeholders'
 import { Route as AuthenticatedAdminMelhoriaIaRouteImport } from './routes/_authenticated/admin.melhoria-ia'
+import { Route as AuthenticatedAdminLogsRouteImport } from './routes/_authenticated/admin.logs'
 import { Route as AuthenticatedAdminIntegracoesRouteImport } from './routes/_authenticated/admin.integracoes'
 import { Route as AuthenticatedAdminIaRouteImport } from './routes/_authenticated/admin.ia'
 import { Route as AuthenticatedAdminHospedesRouteImport } from './routes/_authenticated/admin.hospedes'
@@ -224,6 +225,11 @@ const AuthenticatedAdminMelhoriaIaRoute =
     path: '/melhoria-ia',
     getParentRoute: () => AuthenticatedAdminRoute,
   } as any)
+const AuthenticatedAdminLogsRoute = AuthenticatedAdminLogsRouteImport.update({
+  id: '/logs',
+  path: '/logs',
+  getParentRoute: () => AuthenticatedAdminRoute,
+} as any)
 const AuthenticatedAdminIntegracoesRoute =
   AuthenticatedAdminIntegracoesRouteImport.update({
     id: '/integracoes',
@@ -446,6 +452,7 @@ export interface FileRoutesByFullPath {
   '/admin/hospedes': typeof AuthenticatedAdminHospedesRoute
   '/admin/ia': typeof AuthenticatedAdminIaRoute
   '/admin/integracoes': typeof AuthenticatedAdminIntegracoesRoute
+  '/admin/logs': typeof AuthenticatedAdminLogsRoute
   '/admin/melhoria-ia': typeof AuthenticatedAdminMelhoriaIaRoute
   '/admin/stakeholders': typeof AuthenticatedAdminStakeholdersRoute
   '/admin/taxonomia': typeof AuthenticatedAdminTaxonomiaRoute
@@ -507,6 +514,7 @@ export interface FileRoutesByTo {
   '/admin/hospedes': typeof AuthenticatedAdminHospedesRoute
   '/admin/ia': typeof AuthenticatedAdminIaRoute
   '/admin/integracoes': typeof AuthenticatedAdminIntegracoesRoute
+  '/admin/logs': typeof AuthenticatedAdminLogsRoute
   '/admin/melhoria-ia': typeof AuthenticatedAdminMelhoriaIaRoute
   '/admin/stakeholders': typeof AuthenticatedAdminStakeholdersRoute
   '/admin/taxonomia': typeof AuthenticatedAdminTaxonomiaRoute
@@ -572,6 +580,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/hospedes': typeof AuthenticatedAdminHospedesRoute
   '/_authenticated/admin/ia': typeof AuthenticatedAdminIaRoute
   '/_authenticated/admin/integracoes': typeof AuthenticatedAdminIntegracoesRoute
+  '/_authenticated/admin/logs': typeof AuthenticatedAdminLogsRoute
   '/_authenticated/admin/melhoria-ia': typeof AuthenticatedAdminMelhoriaIaRoute
   '/_authenticated/admin/stakeholders': typeof AuthenticatedAdminStakeholdersRoute
   '/_authenticated/admin/taxonomia': typeof AuthenticatedAdminTaxonomiaRoute
@@ -637,6 +646,7 @@ export interface FileRouteTypes {
     | '/admin/hospedes'
     | '/admin/ia'
     | '/admin/integracoes'
+    | '/admin/logs'
     | '/admin/melhoria-ia'
     | '/admin/stakeholders'
     | '/admin/taxonomia'
@@ -698,6 +708,7 @@ export interface FileRouteTypes {
     | '/admin/hospedes'
     | '/admin/ia'
     | '/admin/integracoes'
+    | '/admin/logs'
     | '/admin/melhoria-ia'
     | '/admin/stakeholders'
     | '/admin/taxonomia'
@@ -762,6 +773,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/hospedes'
     | '/_authenticated/admin/ia'
     | '/_authenticated/admin/integracoes'
+    | '/_authenticated/admin/logs'
     | '/_authenticated/admin/melhoria-ia'
     | '/_authenticated/admin/stakeholders'
     | '/_authenticated/admin/taxonomia'
@@ -1041,6 +1053,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminMelhoriaIaRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
     }
+    '/_authenticated/admin/logs': {
+      id: '/_authenticated/admin/logs'
+      path: '/logs'
+      fullPath: '/admin/logs'
+      preLoaderRoute: typeof AuthenticatedAdminLogsRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
     '/_authenticated/admin/integracoes': {
       id: '/_authenticated/admin/integracoes'
       path: '/integracoes'
@@ -1288,6 +1307,7 @@ interface AuthenticatedAdminRouteChildren {
   AuthenticatedAdminHospedesRoute: typeof AuthenticatedAdminHospedesRoute
   AuthenticatedAdminIaRoute: typeof AuthenticatedAdminIaRoute
   AuthenticatedAdminIntegracoesRoute: typeof AuthenticatedAdminIntegracoesRoute
+  AuthenticatedAdminLogsRoute: typeof AuthenticatedAdminLogsRoute
   AuthenticatedAdminMelhoriaIaRoute: typeof AuthenticatedAdminMelhoriaIaRoute
   AuthenticatedAdminStakeholdersRoute: typeof AuthenticatedAdminStakeholdersRoute
   AuthenticatedAdminTaxonomiaRoute: typeof AuthenticatedAdminTaxonomiaRoute
@@ -1314,6 +1334,7 @@ const AuthenticatedAdminRouteChildren: AuthenticatedAdminRouteChildren = {
   AuthenticatedAdminHospedesRoute: AuthenticatedAdminHospedesRoute,
   AuthenticatedAdminIaRoute: AuthenticatedAdminIaRoute,
   AuthenticatedAdminIntegracoesRoute: AuthenticatedAdminIntegracoesRoute,
+  AuthenticatedAdminLogsRoute: AuthenticatedAdminLogsRoute,
   AuthenticatedAdminMelhoriaIaRoute: AuthenticatedAdminMelhoriaIaRoute,
   AuthenticatedAdminStakeholdersRoute: AuthenticatedAdminStakeholdersRoute,
   AuthenticatedAdminTaxonomiaRoute: AuthenticatedAdminTaxonomiaRoute,
