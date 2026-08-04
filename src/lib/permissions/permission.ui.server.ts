@@ -286,6 +286,18 @@ export async function runRegistrySync(ctx: Ctx) {
   return syncPermissionRegistry({ triggeredBy: ctx.userId });
 }
 
+export type SyncRunDTO = {
+  id: string;
+  status: string;
+  startedAt: string;
+  finishedAt: string | null;
+  totalNodes: number;
+  created: number;
+  updated: number;
+  deactivated: number;
+  triggeredBy: string | null;
+};
+
 /** Diagnóstico completo: consistência, Guardian e histórico de sincronizações. */
 export async function loadRegistryDiagnostics(ctx: Ctx) {
   if (!(await isSaasAdmin(ctx.supabase, ctx.userId))) {
@@ -297,9 +309,19 @@ export async function loadRegistryDiagnostics(ctx: Ctx) {
   ]);
   const consistency = inspectRegistryConsistency();
   const guardian = inspectGuardian();
-  let runs: Array<Record<string, unknown>> = [];
+  let runs: SyncRunDTO[] = [];
   try {
-    runs = (await listSyncRuns(10)) as Array<Record<string, unknown>>;
+    runs = (await listSyncRuns(10)).map((r) => ({
+      id: r.id,
+      status: r.status,
+      startedAt: r.started_at,
+      finishedAt: r.finished_at,
+      totalNodes: r.total_nodes,
+      created: r.created_count,
+      updated: r.updated_count,
+      deactivated: r.deactivated_count,
+      triggeredBy: r.triggered_by,
+    }));
   } catch (err) {
     console.error("[permissions] falha ao ler execuções de sync", err);
   }
