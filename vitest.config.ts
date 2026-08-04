@@ -6,7 +6,7 @@ export default defineConfig({
   esbuild: { jsx: "automatic" },
   test: {
     environment: "jsdom",
-    globals: false,
+    globals: true,
     include: ["src/**/*.test.{ts,tsx}"],
   },
 });
