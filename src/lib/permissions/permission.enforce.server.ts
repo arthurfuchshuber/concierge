@@ -22,6 +22,7 @@
  */
 import { can, type AuthorizationContext, type AuthorizationDecision } from "./permission.guard.server";
 import { resolveSubjectSnapshot, type SubjectSnapshot } from "./permission.resolve.server";
+import { protectedOperation, type ProtectedOperationKey } from "./permission.operations";
 import type { AccessLevel, PermissionScope } from "./permission.types";
 
 /* --------------------------------------------------------------- contratos */
@@ -225,6 +226,7 @@ export function withResourceAccess<A extends unknown[], R>(
 }
 
 export const permissionEnforcer = {
+  enforce,
   requireAccess,
   checkAccess,
   withPermission,
@@ -235,3 +237,24 @@ export const permissionEnforcer = {
   permissionDeniedPayload,
   ENFORCEMENT_MODE,
 };
+
+/* ------------------------------------------- atalho pelo mapa de operações */
+
+/**
+ * `enforce` — atalho tipado usando o mapa `PROTECTED_OPERATIONS`.
+ * É a forma recomendada de proteger uma server function existente:
+ *
+ *   await enforce(context.userId, "imoveis.editor.write", { propertyId: id });
+ */
+export async function enforce(
+  subjectId: string,
+  key: ProtectedOperationKey,
+  context: Omit<EnforceContext, "required"> = {},
+): Promise<AuthorizationDecision> {
+  const op = protectedOperation(key);
+  return requireAccess(subjectId, op.permission, {
+    ...context,
+    required: op.required,
+    operation: context.operation ?? key,
+  });
+}
