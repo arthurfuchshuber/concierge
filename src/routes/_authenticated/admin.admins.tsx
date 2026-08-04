@@ -17,6 +17,8 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Shield, ShieldCheck, Trash2, Loader2, UserPlus, Mail, Activity, Search, XCircle } from "lucide-react";
 import { toast } from "sonner";
 import { friendlyErrorMessage } from "@/lib/friendly-error";
+import { PermissionTreeManager } from "@/components/permissions/PermissionTreeManager";
+
 
 export const Route = createFileRoute("/_authenticated/admin/admins")({
   beforeLoad: async () => {
