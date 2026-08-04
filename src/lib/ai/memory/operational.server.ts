@@ -81,6 +81,7 @@ export async function recordOperationalRequest(params: {
       .from("ai_operational_memory")
       .insert({
         owner_id: params.ownerId,
+        tenant_id: params.ownerId,
         property_id: params.propertyId,
         conversation_id: params.conversationId ?? null,
         guest_key: params.guestKey ?? null,

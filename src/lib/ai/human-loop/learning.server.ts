@@ -106,6 +106,7 @@ export async function queueLearningCandidate(params: {
       .from("ai_learning_candidates")
       .insert({
         owner_id: params.ownerId,
+        tenant_id: params.ownerId,
         property_id: params.propertyId,
         source_escalation_id: params.escalationId ?? null,
         agent_type: params.agent ?? null,

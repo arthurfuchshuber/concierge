@@ -113,6 +113,7 @@ export async function writeMemories(params: {
 
       const { error } = await supabase.from("ai_memories").insert({
         owner_id: params.ownerId,
+        tenant_id: params.ownerId,
         property_id: params.propertyId,
         scope,
         subject_key: subjectKey,
