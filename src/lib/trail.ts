@@ -263,5 +263,13 @@ export function startTrail(slug?: string): () => void {
 
 /** Registra visualização de página (chamado a cada navegação). */
 export function trackPageView(path: string, title?: string): void {
-  track({ type: "page_view", label: title ?? document.title, target: path, path });
+  const t = title ?? document.title;
+  track({
+    type: "page_view",
+    label: `Abriu a página "${t}" (${path})`,
+    target: path,
+    path,
+    metadata: { page_title: t },
+  });
 }
+
