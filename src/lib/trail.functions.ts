@@ -29,7 +29,10 @@ type Payload = {
   sessionId?: string;
   /** Slug do guia, quando o rastro vem da área do hóspede. */
   guideSlug?: string;
+  /** Nome informado no formulário de acesso do hóspede, quando houver. */
+  actorName?: string;
 };
+
 
 const MAX_EVENTS = 200;
 
