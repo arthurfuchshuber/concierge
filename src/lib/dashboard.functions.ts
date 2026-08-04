@@ -316,6 +316,7 @@ export const getGuideEngagement = createServerFn({ method: "GET" })
     for (const l of allLogs) {
       if (icalProps.has(l.property_id)) continue;
       if (doneLogs.has(l.id)) continue;
+      if (l.checkin_date && l.checkin_date < today && !touchedLogs.has(l.id)) continue;
       const key = `${l.property_id}|${(l.guest_name || "").trim().toLowerCase()}|${(l.guest_phone || "").replace(/\D/g, "")}|${l.checkin_date ?? ""}`;
       if (seenFallback.has(key)) continue;
       seenFallback.add(key);
