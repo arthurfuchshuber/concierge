@@ -2829,6 +2829,174 @@ export type Database = {
         }
         Relationships: []
       }
+      permission_assignments: {
+        Row: {
+          access_level: Database["public"]["Enums"]["permission_access_level"]
+          created_at: string
+          created_by: string | null
+          id: string
+          permission_node_id: string
+          scope_id: string | null
+          scope_type: Database["public"]["Enums"]["permission_scope_type"]
+          tenant_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          access_level?: Database["public"]["Enums"]["permission_access_level"]
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          permission_node_id: string
+          scope_id?: string | null
+          scope_type?: Database["public"]["Enums"]["permission_scope_type"]
+          tenant_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          access_level?: Database["public"]["Enums"]["permission_access_level"]
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          permission_node_id?: string
+          scope_id?: string | null
+          scope_type?: Database["public"]["Enums"]["permission_scope_type"]
+          tenant_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "permission_assignments_permission_node_id_fkey"
+            columns: ["permission_node_id"]
+            isOneToOne: false
+            referencedRelation: "permission_nodes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      permission_audit: {
+        Row: {
+          action: string
+          actor_id: string | null
+          actor_name: string | null
+          created_at: string
+          id: string
+          metadata: Json | null
+          new_access_level:
+            | Database["public"]["Enums"]["permission_access_level"]
+            | null
+          permission_node_id: string | null
+          previous_access_level:
+            | Database["public"]["Enums"]["permission_access_level"]
+            | null
+          scope_id: string | null
+          scope_type:
+            | Database["public"]["Enums"]["permission_scope_type"]
+            | null
+          target_user_id: string | null
+          tenant_id: string
+        }
+        Insert: {
+          action?: string
+          actor_id?: string | null
+          actor_name?: string | null
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          new_access_level?:
+            | Database["public"]["Enums"]["permission_access_level"]
+            | null
+          permission_node_id?: string | null
+          previous_access_level?:
+            | Database["public"]["Enums"]["permission_access_level"]
+            | null
+          scope_id?: string | null
+          scope_type?:
+            | Database["public"]["Enums"]["permission_scope_type"]
+            | null
+          target_user_id?: string | null
+          tenant_id: string
+        }
+        Update: {
+          action?: string
+          actor_id?: string | null
+          actor_name?: string | null
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          new_access_level?:
+            | Database["public"]["Enums"]["permission_access_level"]
+            | null
+          permission_node_id?: string | null
+          previous_access_level?:
+            | Database["public"]["Enums"]["permission_access_level"]
+            | null
+          scope_id?: string | null
+          scope_type?:
+            | Database["public"]["Enums"]["permission_scope_type"]
+            | null
+          target_user_id?: string | null
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "permission_audit_permission_node_id_fkey"
+            columns: ["permission_node_id"]
+            isOneToOne: false
+            referencedRelation: "permission_nodes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      permission_nodes: {
+        Row: {
+          active: boolean
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          order: number
+          parent_id: string | null
+          slug: string
+          type: Database["public"]["Enums"]["permission_node_type"]
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          order?: number
+          parent_id?: string | null
+          slug: string
+          type: Database["public"]["Enums"]["permission_node_type"]
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          order?: number
+          parent_id?: string | null
+          slug?: string
+          type?: Database["public"]["Enums"]["permission_node_type"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "permission_nodes_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "permission_nodes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       poi_categories: {
         Row: {
           created_at: string
@@ -3215,6 +3383,47 @@ export type Database = {
             columns: ["owner_contact_id"]
             isOneToOne: false
             referencedRelation: "property_owners"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      property_assignments: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          property_id: string
+          status: string
+          tenant_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          property_id: string
+          status?: string
+          tenant_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          property_id?: string
+          status?: string
+          tenant_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "property_assignments_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
             referencedColumns: ["id"]
           },
         ]
@@ -4569,6 +4778,20 @@ export type Database = {
         | "operation_edit"
         | "guests_view"
         | "guests_edit"
+      permission_access_level: "NONE" | "READ" | "WRITE"
+      permission_node_type: "PAGE" | "SUBPAGE" | "TAB" | "RESOURCE" | "FIELD"
+      permission_scope_type:
+        | "GLOBAL"
+        | "TENANT"
+        | "CLIENT"
+        | "PROPERTY"
+        | "RECORD"
+      permission_system_role:
+        | "OWNER"
+        | "SYSTEM"
+        | "ADMIN_SAAS"
+        | "CRON"
+        | "INTEGRATION"
       rec_scope: "nearby" | "city"
       rec_type:
         | "restaurant"
@@ -4730,6 +4953,22 @@ export const Constants = {
         "operation_edit",
         "guests_view",
         "guests_edit",
+      ],
+      permission_access_level: ["NONE", "READ", "WRITE"],
+      permission_node_type: ["PAGE", "SUBPAGE", "TAB", "RESOURCE", "FIELD"],
+      permission_scope_type: [
+        "GLOBAL",
+        "TENANT",
+        "CLIENT",
+        "PROPERTY",
+        "RECORD",
+      ],
+      permission_system_role: [
+        "OWNER",
+        "SYSTEM",
+        "ADMIN_SAAS",
+        "CRON",
+        "INTEGRATION",
       ],
       rec_scope: ["nearby", "city"],
       rec_type: [
