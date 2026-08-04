@@ -639,7 +639,7 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
                 {canTeach && conv?.property_id && (
                   <button
                     type="button"
-                    onClick={() => { setTeachSource({ id: m.id, content: m.content }); setTeachOpen(true); }}
+                    onClick={() => { setTeachSource({ id: m.id, content: m.content ?? "" }); setTeachOpen(true); }}
                     className="mt-1 inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
                     title="Adicionar este conteúdo à base de conhecimento da IA"
                   >

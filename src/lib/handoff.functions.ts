@@ -409,25 +409,16 @@ export const getHandoffConversation = createServerFn({ method: "POST" })
     const { supabase } = context;
     const isPreviewName = (s: string | null | undefined) =>
       !!s && /pr[eé]\s*-?\s*visualiza|preview/i.test(s.trim());
-    const [{ data: conv, error: cErr }, { data: msgs, error: mErr }] = await Promise.all([
-      supabase
-        .from("property_chat_conversations")
-        .select(
-          "id, property_id, guest_session_id, guest_name, status, ai_paused, assigned_to, claim_requested_by, claim_requested_at, handoff_reason, handoff_urgency, handoff_at, last_message_at, created_at, resolved_at, properties:property_id(id, name, owner_id, slug, city)",
-        )
-        .eq("id", data.conversationId)
-        .maybeSingle(),
-      supabase
-        .from("property_chat_messages")
-        .select(
-          "id, role, content, sender_type, sender_user_id, is_internal_note, created_at, edited_at, attachment_path, attachment_type, attachment_mime, attachment_duration_ms, attachment_size_bytes, attachment_name",
-        )
-        .eq("conversation_id", data.conversationId)
-        .order("created_at", { ascending: true }),
-    ]);
+    const { data: conv, error: cErr } = await supabase
+      .from("property_chat_conversations")
+      .select(
+        "id, property_id, guest_session_id, guest_name, status, ai_paused, assigned_to, claim_requested_by, claim_requested_at, handoff_reason, handoff_urgency, handoff_at, last_message_at, created_at, resolved_at, properties:property_id(id, name, owner_id, slug, city)",
+      )
+      .eq("id", data.conversationId)
+      .maybeSingle();
     if (cErr) throw new Error(cErr.message);
-    if (mErr) throw new Error(mErr.message);
     if (!conv) throw new Error("Conversa não encontrada.");
+
 
     // Busca o registro de acesso mais recente (nome, telefone, checkin) via service-role
     // — a RLS de guide_access_logs só permite owner; usamos admin porque a RLS de
@@ -510,6 +501,87 @@ export const getHandoffConversation = createServerFn({ method: "POST" })
     } catch {
       // silencioso — se não achar, seguimos com o que temos
     }
+
+    // -------- Histórico unificado --------
+    // O mesmo hóspede pode ter gerado conversas separadas (sessões diferentes do
+    // guia, entradas pelo dock, etc.). Aqui juntamos todas as conversas do mesmo
+    // hóspede no mesmo imóvel para que qualquer porta de entrada mostre o MESMO
+    // histórico.
+    const normName = (s: string | null | undefined) => (s ?? "").trim().toLowerCase().replace(/\s+/g, " ");
+    const digitsOf = (s: string | null | undefined) => (s ?? "").replace(/\D+/g, "").replace(/^0+/, "");
+    const conversationIds = new Set<string>([data.conversationId]);
+    try {
+      const targetName = normName(guestDetails.name ?? conv.guest_name);
+      const targetPhone = digitsOf(guestDetails.phone);
+      if (conv.property_id && (targetName || targetPhone)) {
+        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+        const { data: siblings } = await supabase
+          .from("property_chat_conversations")
+          .select("id, guest_name, guest_session_id")
+          .eq("property_id", conv.property_id)
+          .limit(500);
+        const rows = (siblings ?? []) as Array<{ id: string; guest_name: string | null; guest_session_id: string | null }>;
+        const unknownSessions = rows
+          .filter((r) => !normName(r.guest_name) && r.guest_session_id)
+          .map((r) => r.guest_session_id as string);
+        const identityBySession = new Map<string, { name: string | null; phone: string | null }>();
+        if (unknownSessions.length > 0) {
+          const { data: evs } = await (supabaseAdmin.from("guide_section_events" as never) as ReturnType<typeof supabaseAdmin.from>)
+            .select("guest_session_id, guest_name, guest_phone, created_at")
+            .eq("property_id", conv.property_id)
+            .in("guest_session_id", unknownSessions.slice(0, 300))
+            .order("created_at", { ascending: false })
+            .limit(3000);
+          for (const e of (evs ?? []) as Array<{ guest_session_id: string | null; guest_name: string | null; guest_phone: string | null }>) {
+            if (!e.guest_session_id) continue;
+            if (!e.guest_name && !e.guest_phone) continue;
+            if (isPreviewName(e.guest_name)) continue;
+            if (!identityBySession.has(e.guest_session_id)) {
+              identityBySession.set(e.guest_session_id, { name: e.guest_name, phone: e.guest_phone });
+            }
+          }
+        }
+        for (const r of rows) {
+          const ident = normName(r.guest_name)
+            ? { name: r.guest_name, phone: null as string | null }
+            : (r.guest_session_id ? identityBySession.get(r.guest_session_id) : null) ?? null;
+          if (!ident) continue;
+          const nameHit = !!targetName && normName(ident.name) === targetName;
+          const phoneHit = !!targetPhone && digitsOf(ident.phone) === targetPhone;
+          if (nameHit || phoneHit) conversationIds.add(r.id);
+        }
+      }
+    } catch {
+      // silencioso — na falha, mostramos apenas a conversa atual
+    }
+
+    type MsgRow = {
+      id: string;
+      role: string;
+      content: string | null;
+      sender_type: string | null;
+      sender_user_id: string | null;
+      is_internal_note: boolean | null;
+      created_at: string;
+      edited_at: string | null;
+      attachment_path: string | null;
+      attachment_type: string | null;
+      attachment_mime: string | null;
+      attachment_duration_ms: number | null;
+      attachment_size_bytes: number | null;
+      attachment_name: string | null;
+    };
+    const { data: msgRows, error: mErr } = await supabase
+      .from("property_chat_messages")
+      .select(
+        "id, role, content, sender_type, sender_user_id, is_internal_note, created_at, edited_at, attachment_path, attachment_type, attachment_mime, attachment_duration_ms, attachment_size_bytes, attachment_name",
+      )
+      .in("conversation_id", Array.from(conversationIds))
+      .order("created_at", { ascending: true });
+    if (mErr) throw new Error(mErr.message);
+    const msgs = ((msgRows ?? []) as unknown as MsgRow[]).sort((a, b) =>
+      a.created_at.localeCompare(b.created_at),
+    );
 
 
     // Nome do solicitante do claim (se houver)
