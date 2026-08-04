@@ -11,13 +11,15 @@ import { bootstrapPermissionRegistry } from "./permission.bootstrap";
 import { featureAccess } from "./feature.access";
 import { permissionRegistry } from "./permission.registry";
 import { permissionRepository } from "./permission.repository.server";
-import { syncRegistryToDatabase } from "./permission.service.server";
+import { isSaasSlug } from "./permission.slugs";
+import { ensureRegistrySynced } from "./permission.sync.server";
 import {
   ACCESS_LEVEL_WEIGHT,
   type AccessLevel,
   type PermissionNodeType,
   type SystemRole,
 } from "./permission.types";
+
 
 /** Tenant sintético usado pelo contexto do Admin do SaaS. */
 export const SAAS_TENANT_ID = "00000000-0000-0000-0000-000000000000";
@@ -63,23 +65,24 @@ export type PermissionWorkspace = {
   blockedFeatures: string[];
 };
 
-let dbSynced = false;
+let dbChecked = false;
 
-/** Garante que o Registry esteja carregado e espelhado no banco (uma vez). */
+/**
+ * Garante que o Registry esteja carregado em memória e que a árvore exista
+ * no banco. O sync oficial só dispara quando a tabela está vazia — nunca
+ * silenciosamente a cada leitura. Falhas são registradas, não propagadas.
+ */
 async function ensureRegistry(): Promise<void> {
   bootstrapPermissionRegistry();
-  if (dbSynced) return;
+  if (dbChecked) return;
   try {
-    await syncRegistryToDatabase();
-    dbSynced = true;
+    await ensureRegistrySynced("auto:admin-ui");
+    dbChecked = true;
   } catch (err) {
-    console.error("[permissions] falha ao sincronizar registry", err);
+    console.error("[permissions] falha ao garantir a árvore de permissões", err);
   }
 }
 
-function isSaasSlug(slug: string): boolean {
-  return slug === "admin" || slug.startsWith("admin.");
-}
 
 /**
  * Monta a árvore dinâmica já filtrada pelo plano contratado.

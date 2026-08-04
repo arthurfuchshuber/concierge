@@ -8,6 +8,12 @@
  *
  * Convenção de slug: `pai.filho.neto`, sempre único, sempre em minúsculas.
  */
+import {
+  isSaasSlug,
+  resolveSlug,
+  SAAS_NAMESPACE,
+  TENANT_NAMESPACE,
+} from "./permission.slugs";
 import type { PermissionNodeDefinition } from "./permission.types";
 
 type Def = PermissionNodeDefinition;
@@ -262,7 +268,25 @@ const FEATURE_BY_SLUG: Record<string, string> = {
   financeiro: "team",
 };
 
+const ROOTS: Def[] = [
+  page(
+    TENANT_NAMESPACE,
+    "Conta do Cliente",
+    null,
+    "Building2",
+    1,
+    "Raiz de todos os recursos disponíveis para o anfitrião e sua equipe.",
+  ),
+];
+
+/**
+ * Subárvores públicas / não permissionáveis: existem no catálogo apenas para
+ * diagnóstico e rastreabilidade, mas NUNCA entram na árvore de permissões.
+ */
+const NON_PERMISSIONABLE_PREFIXES = ["guia"];
+
 const RAW_CATALOG: Def[] = [
+  ...ROOTS,
   ...DASHBOARD,
   ...CONVERSAS,
   ...IMOVEIS,
@@ -278,11 +302,44 @@ const RAW_CATALOG: Def[] = [
   ...GUIA_PUBLICO,
 ];
 
-/** Catálogo completo — ordem de declaração define a ordem de exibição. */
-export const PERMISSION_CATALOG: Def[] = RAW_CATALOG.map((node) =>
-  FEATURE_BY_SLUG[node.slug] ? { ...node, feature: FEATURE_BY_SLUG[node.slug] } : node,
-);
+function isPermissionableSlug(rawSlug: string): boolean {
+  return !NON_PERMISSIONABLE_PREFIXES.some(
+    (prefix) => rawSlug === prefix || rawSlug.startsWith(`${prefix}.`),
+  );
+}
 
+/**
+ * Catálogo completo já normalizado (FASE 3.5):
+ *  - slugs canônicos (`tenant.*` / `admin.*`);
+ *  - marcação de nós não permissionáveis;
+ *  - histórico do slug anterior preservado em `legacySlugs`.
+ */
+export const PERMISSION_CATALOG: Def[] = RAW_CATALOG.map((node) => {
+  const slug = resolveSlug(node.slug);
+  const parentRaw =
+    node.parentSlug === null
+      ? null
+      : node.parentSlug !== undefined
+        ? resolveSlug(node.parentSlug)
+        : undefined;
+
+  // Páginas raiz do produto passam a pendurar no namespace da conta.
+  const parentSlug =
+    parentRaw === null && slug !== TENANT_NAMESPACE && slug !== SAAS_NAMESPACE
+      ? isSaasSlug(slug)
+        ? SAAS_NAMESPACE
+        : TENANT_NAMESPACE
+      : parentRaw;
+
+  return {
+    ...node,
+    slug,
+    ...(parentSlug !== undefined ? { parentSlug } : {}),
+    legacySlugs: slug === node.slug ? undefined : [node.slug],
+    isPermissionable: isPermissionableSlug(node.slug),
+    ...(FEATURE_BY_SLUG[node.slug] ? { feature: FEATURE_BY_SLUG[node.slug] } : {}),
+  } as Def;
+});
 
 /** Mapa rota → slug do nó, usado pela rotina de consistência. */
 export const CATALOG_ROUTE_MAP: Record<string, string> = PERMISSION_CATALOG.reduce(

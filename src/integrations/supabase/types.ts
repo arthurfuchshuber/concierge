@@ -2950,23 +2950,53 @@ export type Database = {
           },
         ]
       }
+      permission_node_slug_history: {
+        Row: {
+          created_at: string
+          id: string
+          new_slug: string
+          old_slug: string
+          reason: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          new_slug: string
+          old_slug: string
+          reason?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          new_slug?: string
+          old_slug?: string
+          reason?: string | null
+        }
+        Relationships: []
+      }
       permission_nodes: {
         Row: {
           active: boolean
           created_at: string
+          deactivated_at: string | null
           deprecated: boolean
           description: string | null
           display_order: number
+          feature: string | null
           icon: string | null
           id: string
           is_hidden: boolean
+          is_permissionable: boolean
           is_system: boolean
           label: string | null
+          last_synced_at: string | null
+          max_access_level: Database["public"]["Enums"]["permission_access_level"]
           name: string
           order: number
           parent_id: string | null
           route: string | null
           slug: string
+          source: string | null
           type: Database["public"]["Enums"]["permission_node_type"]
           updated_at: string
           version: number
@@ -2974,19 +3004,25 @@ export type Database = {
         Insert: {
           active?: boolean
           created_at?: string
+          deactivated_at?: string | null
           deprecated?: boolean
           description?: string | null
           display_order?: number
+          feature?: string | null
           icon?: string | null
           id?: string
           is_hidden?: boolean
+          is_permissionable?: boolean
           is_system?: boolean
           label?: string | null
+          last_synced_at?: string | null
+          max_access_level?: Database["public"]["Enums"]["permission_access_level"]
           name: string
           order?: number
           parent_id?: string | null
           route?: string | null
           slug: string
+          source?: string | null
           type: Database["public"]["Enums"]["permission_node_type"]
           updated_at?: string
           version?: number
@@ -2994,19 +3030,25 @@ export type Database = {
         Update: {
           active?: boolean
           created_at?: string
+          deactivated_at?: string | null
           deprecated?: boolean
           description?: string | null
           display_order?: number
+          feature?: string | null
           icon?: string | null
           id?: string
           is_hidden?: boolean
+          is_permissionable?: boolean
           is_system?: boolean
           label?: string | null
+          last_synced_at?: string | null
+          max_access_level?: Database["public"]["Enums"]["permission_access_level"]
           name?: string
           order?: number
           parent_id?: string | null
           route?: string | null
           slug?: string
+          source?: string | null
           type?: Database["public"]["Enums"]["permission_node_type"]
           updated_at?: string
           version?: number
@@ -3020,6 +3062,48 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      permission_sync_runs: {
+        Row: {
+          created_at: string
+          created_count: number
+          deactivated_count: number
+          errors: Json
+          finished_at: string | null
+          id: string
+          started_at: string
+          status: string
+          total_nodes: number
+          triggered_by: string | null
+          updated_count: number
+        }
+        Insert: {
+          created_at?: string
+          created_count?: number
+          deactivated_count?: number
+          errors?: Json
+          finished_at?: string | null
+          id?: string
+          started_at?: string
+          status?: string
+          total_nodes?: number
+          triggered_by?: string | null
+          updated_count?: number
+        }
+        Update: {
+          created_at?: string
+          created_count?: number
+          deactivated_count?: number
+          errors?: Json
+          finished_at?: string | null
+          id?: string
+          started_at?: string
+          status?: string
+          total_nodes?: number
+          triggered_by?: string | null
+          updated_count?: number
+        }
+        Relationships: []
       }
       poi_categories: {
         Row: {

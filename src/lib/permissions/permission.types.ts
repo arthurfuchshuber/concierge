@@ -124,6 +124,15 @@ export type PermissionNodeDefinition = {
   feature?: string | null;
   /** Nível máximo que um membro pode receber neste nó. */
   maxAccessLevel?: AccessLevel;
+  /**
+   * FASE 3.5 — quando `false`, o nó é catalogado apenas para diagnóstico e
+   * NUNCA entra na árvore de permissões (rotas públicas, legais, marketing,
+   * autenticação e landing pages).
+   */
+  isPermissionable?: boolean;
+  /** Slugs anteriores deste nó (histórico de normalização). */
+  legacySlugs?: string[];
+
 };
 
 
