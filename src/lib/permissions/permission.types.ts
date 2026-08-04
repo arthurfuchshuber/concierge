@@ -7,15 +7,33 @@
  */
 
 /** Tipo de nó na árvore de permissões. */
-export type PermissionNodeType = "PAGE" | "SUBPAGE" | "TAB" | "RESOURCE" | "FIELD";
+export type PermissionNodeType =
+  | "PAGE"
+  | "SUBPAGE"
+  | "TAB"
+  | "SECTION"
+  | "RESOURCE"
+  | "FIELD";
 
 export const PERMISSION_NODE_TYPES: PermissionNodeType[] = [
   "PAGE",
   "SUBPAGE",
   "TAB",
+  "SECTION",
   "RESOURCE",
   "FIELD",
 ];
+
+/** Ordem hierárquica esperada (do mais amplo para o mais específico). */
+export const PERMISSION_NODE_DEPTH: Record<PermissionNodeType, number> = {
+  PAGE: 0,
+  SUBPAGE: 1,
+  TAB: 2,
+  SECTION: 3,
+  RESOURCE: 4,
+  FIELD: 5,
+};
+
 
 /** Níveis de acesso padrão. Ordenados do menor para o maior. */
 export type AccessLevel = "NONE" | "READ" | "WRITE";
