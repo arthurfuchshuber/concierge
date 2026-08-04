@@ -54,6 +54,23 @@ export type AgentLog = {
   humanResponseUsed?: boolean;
   /** true quando a interação gerou candidata a conhecimento. */
   learningCreated?: boolean;
+  /** Empresa (tenant) dona da interação — isolamento multiempresa. */
+  tenantId?: string | null;
+  /** Nota de avaliação quando a interação veio do Evaluation Framework. */
+  evaluationScore?: number | null;
+  /** Resultado do teste de regressão associado. */
+  regressionTestResult?: string | null;
+  /** Canal de origem da mensagem (guide_chat, whatsapp, airbnb, email…). */
+  channelOrigin?: string | null;
+  channelReference?: string | null;
+  /** Gatilho proativo que originou a interação, quando houver. */
+  proactiveTrigger?: string | null;
+  /** Limite de autonomia aplicado à ação. */
+  autonomyLevel?: string | null;
+  /** Status de aprovação humana da ação. */
+  actionApprovalStatus?: string | null;
+  /** Rastro completo para Root Cause Analysis. */
+  rootCause?: unknown;
 };
 
 
