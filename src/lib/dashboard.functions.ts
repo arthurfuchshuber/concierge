@@ -415,6 +415,8 @@ export type ArrivalRow = {
   propertyId: string;
   propertyName: string | null;
   ownerName: string | null;
+  ownerPhone: string | null;
+  ownerPhoneCountry: string | null;
   propertyAddress: string | null;
   mapsUrl: string | null;
   garageMapsUrl: string | null;
@@ -615,14 +617,16 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
       ),
     );
     const ownerNameById = new Map<string, string>();
+    const ownerPhoneById = new Map<string, { phone: string | null; country: string | null }>();
     if (ownerIdsForProps.length > 0) {
       const { data: owners } = await context.supabase
         .from("property_owners")
-        .select("id, name, trade_name")
+        .select("id, name, trade_name, phone, phone_country")
         .in("id", ownerIdsForProps);
-      for (const o of (owners ?? []) as Array<{ id: string; name: string | null; trade_name: string | null }>) {
+      for (const o of (owners ?? []) as Array<{ id: string; name: string | null; trade_name: string | null; phone: string | null; phone_country: string | null }>) {
         const label = (o.trade_name || o.name || "").trim();
         if (label) ownerNameById.set(o.id, label);
+        ownerPhoneById.set(o.id, { phone: o.phone ?? null, country: o.phone_country ?? null });
       }
     }
 
@@ -631,6 +635,8 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
       {
         name: string | null;
         ownerName: string | null;
+        ownerPhone: string | null;
+        ownerPhoneCountry: string | null;
         address: string | null;
         maps_url: string | null;
         garage_maps_url: string | null;
@@ -661,6 +667,8 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
       propMap.set(p.id, {
         name: p.name,
         ownerName: p.owner_contact_id ? (ownerNameById.get(p.owner_contact_id) ?? null) : null,
+        ownerPhone: p.owner_contact_id ? (ownerPhoneById.get(p.owner_contact_id)?.phone ?? null) : null,
+        ownerPhoneCountry: p.owner_contact_id ? (ownerPhoneById.get(p.owner_contact_id)?.country ?? null) : null,
         address: p.address,
         maps_url: p.maps_url,
         garage_maps_url: p.garage_maps_url,
@@ -974,6 +982,8 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
         propertyId: l.property_id,
         propertyName: p?.name ?? null,
         ownerName: p?.ownerName ?? null,
+        ownerPhone: p?.ownerPhone ?? null,
+        ownerPhoneCountry: p?.ownerPhoneCountry ?? null,
         propertyAddress: p?.address ?? null,
         mapsUrl: p?.maps_url ?? null,
         garageMapsUrl: p?.garage_maps_url ?? null,
@@ -1050,6 +1060,8 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
         propertyId: r.property_id,
         propertyName: p?.name ?? null,
         ownerName: p?.ownerName ?? null,
+        ownerPhone: p?.ownerPhone ?? null,
+        ownerPhoneCountry: p?.ownerPhoneCountry ?? null,
         propertyAddress: p?.address ?? null,
         mapsUrl: p?.maps_url ?? null,
         garageMapsUrl: p?.garage_maps_url ?? null,
@@ -1724,14 +1736,16 @@ export const listConcludedArrivals = createServerFn({ method: "GET" })
     }>;
     const ownerIds = Array.from(new Set(propArr.map((p) => p.owner_contact_id).filter((v): v is string => !!v)));
     const ownerNameById = new Map<string, string>();
+    const ownerPhoneById = new Map<string, { phone: string | null; country: string | null }>();
     if (ownerIds.length > 0) {
       const { data: owners } = await context.supabase
         .from("property_owners")
-        .select("id, name, trade_name")
+        .select("id, name, trade_name, phone, phone_country")
         .in("id", ownerIds);
-      for (const o of (owners ?? []) as Array<{ id: string; name: string | null; trade_name: string | null }>) {
+      for (const o of (owners ?? []) as Array<{ id: string; name: string | null; trade_name: string | null; phone: string | null; phone_country: string | null }>) {
         const label = (o.trade_name || o.name || "").trim();
         if (label) ownerNameById.set(o.id, label);
+        ownerPhoneById.set(o.id, { phone: o.phone ?? null, country: o.phone_country ?? null });
       }
     }
     const propById = new Map(propArr.map((p) => [p.id, p]));
@@ -1760,6 +1774,8 @@ export const listConcludedArrivals = createServerFn({ method: "GET" })
         propertyId: s.property_id,
         propertyName: p?.name ?? null,
         ownerName: p?.owner_contact_id ? (ownerNameById.get(p.owner_contact_id) ?? null) : null,
+        ownerPhone: p?.owner_contact_id ? (ownerPhoneById.get(p.owner_contact_id)?.phone ?? null) : null,
+        ownerPhoneCountry: p?.owner_contact_id ? (ownerPhoneById.get(p.owner_contact_id)?.country ?? null) : null,
         propertyAddress: p?.address ?? null,
         mapsUrl: p?.maps_url ?? null,
         garageMapsUrl: p?.garage_maps_url ?? null,

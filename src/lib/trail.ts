@@ -41,18 +41,34 @@ function deviceId(): string {
   }
 }
 
+/** Nome informado pelo hóspede no formulário de acesso (quando existir). */
+function guestName(): string | undefined {
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (!k || !k.startsWith("sg-access-")) continue;
+      const rec = JSON.parse(localStorage.getItem(k) || "{}") as { name?: string };
+      if (rec?.name) return rec.name;
+    }
+  } catch {
+    /* ignore */
+  }
+  return undefined;
+}
+
 async function flush(): Promise<void> {
   if (!buffer.length) return;
   const events = buffer;
   buffer = [];
   try {
     await ingestTrail({
-      data: { events, deviceId: deviceId(), sessionId, guideSlug },
+      data: { events, deviceId: deviceId(), sessionId, guideSlug, actorName: guestName() },
     });
   } catch {
     /* rastro nunca pode atrapalhar o uso do app */
   }
 }
+
 
 function schedule(): void {
   if (timer) return;
@@ -118,10 +134,26 @@ export function startTrail(slug?: string): () => void {
     },
   });
 
+  const where = () => `na página "${document.title || window.location.pathname}"`;
+  const KIND_PT: Record<string, string> = {
+    button: "botão",
+    a: "link",
+    input: "campo",
+    select: "seletor",
+    textarea: "campo de texto",
+    label: "rótulo",
+    summary: "seção",
+  };
+
   const onClick = (e: MouseEvent) => {
     const info = describe(e.target as Element);
     if (!info) return;
-    track({ type: "click", label: info.label, target: info.target, metadata: { element: info.kind } });
+    track({
+      type: "click",
+      label: `Clicou ${KIND_PT[info.kind] ? `no ${KIND_PT[info.kind]}` : "em"} "${info.label}" ${where()}`,
+      target: info.target,
+      metadata: { element: info.kind, element_label: info.label, page_title: document.title },
+    });
   };
 
   const onChange = (e: Event) => {
@@ -129,15 +161,18 @@ export function startTrail(slug?: string): () => void {
     if (!el || el.type === "password") return;
     const info = describe(el);
     if (!info) return;
+    const filled = Boolean(el.value);
     track({
       type: "field_changed",
-      label: info.label,
+      label: `${filled ? "Preencheu" : "Limpou"} o campo "${info.label}" ${where()}`,
       target: info.target,
       metadata: {
         element: info.kind,
+        element_label: info.label,
         input_type: el.type ?? null,
-        filled: Boolean(el.value),
+        filled,
         length: typeof el.value === "string" ? el.value.length : null,
+        page_title: document.title,
       },
     });
   };
@@ -149,15 +184,17 @@ export function startTrail(slug?: string): () => void {
           .map((f) => (f as HTMLInputElement).name)
           .filter(Boolean)
       : [];
+    const formName = form?.getAttribute("aria-label") || form?.id || "sem nome";
     track({
       type: "form_submit",
-      label: form?.getAttribute("aria-label") || form?.id || "Formulário enviado",
+      label: `Enviou o formulário "${formName}" ${where()}${fields.length ? ` com os campos: ${fields.slice(0, 12).join(", ")}` : ""}`,
       target: form?.id || "form",
-      metadata: { fields },
+      metadata: { fields, page_title: document.title },
     });
   };
 
-  const onCopy = () => track({ type: "copy", label: "Conteúdo copiado" });
+  const onCopy = () => track({ type: "copy", label: `Copiou conteúdo ${where()}` });
+
 
   const onVisibility = () =>
     track({
@@ -226,5 +263,13 @@ export function startTrail(slug?: string): () => void {
 
 /** Registra visualização de página (chamado a cada navegação). */
 export function trackPageView(path: string, title?: string): void {
-  track({ type: "page_view", label: title ?? document.title, target: path, path });
+  const t = title ?? document.title;
+  track({
+    type: "page_view",
+    label: `Abriu a página "${t}" (${path})`,
+    target: path,
+    path,
+    metadata: { page_title: t },
+  });
 }
+

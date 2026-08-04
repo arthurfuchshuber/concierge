@@ -59,14 +59,24 @@ async function record(
     }
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { logSystemEvent } = await import("@/lib/ai/audit/events.server");
+    let actorLabel: string | null = actor.email;
+    if (actor.id) {
+      const { data: prof } = await supabaseAdmin
+        .from("profiles")
+        .select("full_name")
+        .eq("id", actor.id)
+        .maybeSingle();
+      actorLabel = ((prof as { full_name?: string } | null)?.full_name ?? "").trim() || actor.email;
+    }
     await logSystemEvent(supabaseAdmin, {
       tenantId: actor.id,
       userId: actor.id,
       actorType: actor.id ? "USER" : "GUEST",
       actorId: actor.id,
-      actorName: actor.email,
+      actorName: actorLabel ?? "visitante",
       eventType: error ? "server_fn_failed" : "server_fn_called",
       eventCategory: error ? "ERROR" : "SERVER_CALL",
+
       entityType: "server_function",
       entityId: name,
       description: `${method} ${name}${error ? " — falhou" : ""}`,

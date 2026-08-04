@@ -144,12 +144,13 @@ export function GuestsTable({
               <tr>
                 <th
                   onClick={() => toggle("guestName", "asc")}
-                  className="text-left px-4 py-2 pr-6 font-medium whitespace-nowrap sticky left-0 bg-muted/60 backdrop-blur z-10 cursor-pointer hover:text-foreground transition-colors w-[150px] max-w-[150px] sm:w-[170px] sm:max-w-[170px]"
+                  className="text-left px-4 py-2 pr-6 font-medium whitespace-nowrap sticky left-0 bg-muted/60 backdrop-blur z-10 cursor-pointer hover:text-foreground transition-colors w-px"
                 >
                   <span className="inline-flex items-center gap-1">
                     Hóspede <SortIndicator active={active("guestName")} dir={sort.dir} />
                   </span>
                 </th>
+
                 <ThSort onClick={() => toggle("accountName", "asc")} active={active("accountName")} dir={sort.dir} icon={Building2} align="left">Conta</ThSort>
                 <ThSort onClick={() => toggle("propertyName", "asc")} active={active("propertyName")} dir={sort.dir} align="left">Imóvel</ThSort>
                 <ThSort onClick={() => toggle("checkinDate", "desc")} active={active("checkinDate")} dir={sort.dir} icon={Calendar} align="left">Check-in</ThSort>
@@ -181,9 +182,9 @@ export function GuestsTable({
                   onClick={() => onSelect(g.key)}
                   className="border-t border-border cursor-pointer hover:bg-muted/40 transition-colors"
                 >
-                  <td className="px-4 py-3 pr-6 sticky left-0 bg-card z-10 w-[150px] max-w-[150px] sm:w-[170px] sm:max-w-[170px]">
-                    <div className="font-medium truncate" title={g.guestName}>{g.guestName || "—"}</div>
-                    <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground whitespace-nowrap overflow-hidden">
+                  <td className="px-4 py-3 pr-6 sticky left-0 bg-card z-10 w-px whitespace-nowrap">
+                    <div className="font-medium whitespace-nowrap" title={g.guestName}>{g.guestName || "—"}</div>
+                    <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground whitespace-nowrap">
                       {g.phone ? (
                         <>
                           <Phone className="size-3 shrink-0" />
@@ -192,16 +193,17 @@ export function GuestsTable({
                             target="_blank"
                             rel="noopener noreferrer"
                             onClick={(e) => e.stopPropagation()}
-                            className="tabular-nums truncate hover:text-emerald-500 hover:underline"
+                            className="tabular-nums hover:text-emerald-500 hover:underline"
                             title="Abrir no WhatsApp"
                           >
                             {phoneLabel}
                           </a>
                         </>
                       ) : <span>sem telefone</span>}
-                      {g.reservationCode && !showReservation && <span className="ml-1 truncate">· {g.reservationCode}</span>}
+                      {g.reservationCode && !showReservation && <span className="ml-1">· {g.reservationCode}</span>}
                     </div>
                   </td>
+
                   <td className="px-3 py-3 text-left text-xs text-muted-foreground truncate max-w-[160px]" title={g.accountName}>
                     {g.accountName || "—"}
                   </td>
