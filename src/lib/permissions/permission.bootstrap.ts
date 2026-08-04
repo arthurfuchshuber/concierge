@@ -22,7 +22,9 @@ function registerSources(): void {
 /** Popula o Registry com o catálogo + rotas descobertas. */
 export function bootstrapPermissionRegistry(force = false): number {
   if (bootstrapped && !force) return permissionRegistry.list().length;
+  registerPermissionFeatures();
   if (force) permissionRegistry.clear();
+
   if (!bootstrapped) registerSources();
   permissionRegistry.registerMany(PERMISSION_CATALOG);
   permissionRegistry.registerMany(discoveredRouteNodes());
