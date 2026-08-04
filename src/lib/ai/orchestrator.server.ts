@@ -1,16 +1,19 @@
 /**
- * Orquestrador do Agente de Hospitalidade.
+ * Orquestrador do Agente de Hospitalidade (arquitetura multi-agente).
  *
  * Pipeline por mensagem:
  *   1. Classificação de intenção (modelo rápido)
  *   2. Guest Context Engine + Memory Retrieval (curto prazo, longo prazo, operacional)
+ *   2b. Supervisor Agent — escolhe o especialista (Reserva, Manutenção, Experiência,
+ *       Recuperação, Receita ou Generalista) e define autonomia e ferramentas
  *   3. Planner Agent (plano de execução, já ciente do contexto e da memória)
  *   3b. Coleta de contexto (residência, reserva, fase da estadia)
  *   4. Pré-recuperação Hybrid RAG (vetorial + textual)
- *   5. Raciocínio + tool calling paralelo (agente principal)
+ *   4b. Human-in-the-loop: decisões humanas pendentes entram como verdade absoluta
+ *   5. Raciocínio + tool calling paralelo (agente especialista, whitelist de ferramentas)
  *   6. Validação final (anti-alucinação)
  *   7. Reflection Step (autoavaliação e melhoria da redação)
- *   8. Confidence Threshold (auto | com ressalva | handoff)
+ *   8. Confidence Threshold do próprio agente (auto | com ressalva | handoff)
  *   9. Gravação seletiva de memória + observabilidade (log completo)
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -47,6 +50,17 @@ import {
   tierFor,
   type ConfidenceTier,
 } from "./confidence";
+import { allowedToolsOf, getAgent, renderAgentBriefing, stampAgentPrompt } from "./agents/registry.server";
+import { describeRouting, routeToAgent } from "./agents/supervisor.server";
+import { buildAgentTools } from "./agents/tools.server";
+import type { AgentRouting } from "./agents/types";
+import {
+  markAnswersApplied,
+  pendingHumanAnswers,
+  pendingNotice,
+  renderHumanAnswers,
+} from "./human-loop/escalations.server";
+import { learnFromHumanAnswer } from "./human-loop/learning.server";
 
 type Admin = SupabaseClient;
 
@@ -61,7 +75,10 @@ export type OrchestratorResult = {
   confidenceTier: ConfidenceTier;
   plan: ExecutionPlan;
   reflection: Reflection | null;
+  routing: AgentRouting;
+  escalationId: string | null;
 };
+
 
 export async function runHospitalityAgent(params: {
   supabase: Admin;
