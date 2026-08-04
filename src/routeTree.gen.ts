@@ -44,10 +44,8 @@ import { Route as AuthenticatedAdminEquipeRouteImport } from './routes/_authenti
 import { Route as AuthenticatedAdminEngajamentoRouteImport } from './routes/_authenticated/admin.engajamento'
 import { Route as AuthenticatedAdminDashboardRouteImport } from './routes/_authenticated/admin.dashboard'
 import { Route as AuthenticatedAdminClientesRouteImport } from './routes/_authenticated/admin.clientes'
-import { Route as AuthenticatedAdminBibliotecaRouteImport } from './routes/_authenticated/admin.biblioteca'
 import { Route as AuthenticatedAdminAtendimentoRouteImport } from './routes/_authenticated/admin.atendimento'
 import { Route as AuthenticatedAdminAssinaturaRouteImport } from './routes/_authenticated/admin.assinatura'
-import { Route as AuthenticatedAdminAnalyticsRouteImport } from './routes/_authenticated/admin.analytics'
 import { Route as AuthenticatedAdminAdminsRouteImport } from './routes/_authenticated/admin.admins'
 import { Route as AuthenticatedAdminAdministrativoRouteImport } from './routes/_authenticated/admin.administrativo'
 import { Route as Char91DotmcpChar93InvokeToolToolRouteImport } from './routes/[.mcp]/invoke-tool/$tool'
@@ -259,12 +257,6 @@ const AuthenticatedAdminClientesRoute =
     path: '/clientes',
     getParentRoute: () => AuthenticatedAdminRoute,
   } as any)
-const AuthenticatedAdminBibliotecaRoute =
-  AuthenticatedAdminBibliotecaRouteImport.update({
-    id: '/biblioteca',
-    path: '/biblioteca',
-    getParentRoute: () => AuthenticatedAdminRoute,
-  } as any)
 const AuthenticatedAdminAtendimentoRoute =
   AuthenticatedAdminAtendimentoRouteImport.update({
     id: '/atendimento',
@@ -275,12 +267,6 @@ const AuthenticatedAdminAssinaturaRoute =
   AuthenticatedAdminAssinaturaRouteImport.update({
     id: '/assinatura',
     path: '/assinatura',
-    getParentRoute: () => AuthenticatedAdminRoute,
-  } as any)
-const AuthenticatedAdminAnalyticsRoute =
-  AuthenticatedAdminAnalyticsRouteImport.update({
-    id: '/analytics',
-    path: '/analytics',
     getParentRoute: () => AuthenticatedAdminRoute,
   } as any)
 const AuthenticatedAdminAdminsRoute =
@@ -437,10 +423,8 @@ export interface FileRoutesByFullPath {
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/admin/administrativo': typeof AuthenticatedAdminAdministrativoRoute
   '/admin/admins': typeof AuthenticatedAdminAdminsRoute
-  '/admin/analytics': typeof AuthenticatedAdminAnalyticsRoute
   '/admin/assinatura': typeof AuthenticatedAdminAssinaturaRoute
   '/admin/atendimento': typeof AuthenticatedAdminAtendimentoRoute
-  '/admin/biblioteca': typeof AuthenticatedAdminBibliotecaRoute
   '/admin/clientes': typeof AuthenticatedAdminClientesRoute
   '/admin/dashboard': typeof AuthenticatedAdminDashboardRoute
   '/admin/engajamento': typeof AuthenticatedAdminEngajamentoRoute
@@ -498,10 +482,8 @@ export interface FileRoutesByTo {
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/admin/administrativo': typeof AuthenticatedAdminAdministrativoRoute
   '/admin/admins': typeof AuthenticatedAdminAdminsRoute
-  '/admin/analytics': typeof AuthenticatedAdminAnalyticsRoute
   '/admin/assinatura': typeof AuthenticatedAdminAssinaturaRoute
   '/admin/atendimento': typeof AuthenticatedAdminAtendimentoRoute
-  '/admin/biblioteca': typeof AuthenticatedAdminBibliotecaRoute
   '/admin/clientes': typeof AuthenticatedAdminClientesRoute
   '/admin/dashboard': typeof AuthenticatedAdminDashboardRoute
   '/admin/engajamento': typeof AuthenticatedAdminEngajamentoRoute
@@ -563,10 +545,8 @@ export interface FileRoutesById {
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/_authenticated/admin/administrativo': typeof AuthenticatedAdminAdministrativoRoute
   '/_authenticated/admin/admins': typeof AuthenticatedAdminAdminsRoute
-  '/_authenticated/admin/analytics': typeof AuthenticatedAdminAnalyticsRoute
   '/_authenticated/admin/assinatura': typeof AuthenticatedAdminAssinaturaRoute
   '/_authenticated/admin/atendimento': typeof AuthenticatedAdminAtendimentoRoute
-  '/_authenticated/admin/biblioteca': typeof AuthenticatedAdminBibliotecaRoute
   '/_authenticated/admin/clientes': typeof AuthenticatedAdminClientesRoute
   '/_authenticated/admin/dashboard': typeof AuthenticatedAdminDashboardRoute
   '/_authenticated/admin/engajamento': typeof AuthenticatedAdminEngajamentoRoute
@@ -628,10 +608,8 @@ export interface FileRouteTypes {
     | '/.mcp/invoke-tool/$tool'
     | '/admin/administrativo'
     | '/admin/admins'
-    | '/admin/analytics'
     | '/admin/assinatura'
     | '/admin/atendimento'
-    | '/admin/biblioteca'
     | '/admin/clientes'
     | '/admin/dashboard'
     | '/admin/engajamento'
@@ -689,10 +667,8 @@ export interface FileRouteTypes {
     | '/.mcp/invoke-tool/$tool'
     | '/admin/administrativo'
     | '/admin/admins'
-    | '/admin/analytics'
     | '/admin/assinatura'
     | '/admin/atendimento'
-    | '/admin/biblioteca'
     | '/admin/clientes'
     | '/admin/dashboard'
     | '/admin/engajamento'
@@ -753,10 +729,8 @@ export interface FileRouteTypes {
     | '/.mcp/invoke-tool/$tool'
     | '/_authenticated/admin/administrativo'
     | '/_authenticated/admin/admins'
-    | '/_authenticated/admin/analytics'
     | '/_authenticated/admin/assinatura'
     | '/_authenticated/admin/atendimento'
-    | '/_authenticated/admin/biblioteca'
     | '/_authenticated/admin/clientes'
     | '/_authenticated/admin/dashboard'
     | '/_authenticated/admin/engajamento'
@@ -1084,13 +1058,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminClientesRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
     }
-    '/_authenticated/admin/biblioteca': {
-      id: '/_authenticated/admin/biblioteca'
-      path: '/biblioteca'
-      fullPath: '/admin/biblioteca'
-      preLoaderRoute: typeof AuthenticatedAdminBibliotecaRouteImport
-      parentRoute: typeof AuthenticatedAdminRoute
-    }
     '/_authenticated/admin/atendimento': {
       id: '/_authenticated/admin/atendimento'
       path: '/atendimento'
@@ -1103,13 +1070,6 @@ declare module '@tanstack/react-router' {
       path: '/assinatura'
       fullPath: '/admin/assinatura'
       preLoaderRoute: typeof AuthenticatedAdminAssinaturaRouteImport
-      parentRoute: typeof AuthenticatedAdminRoute
-    }
-    '/_authenticated/admin/analytics': {
-      id: '/_authenticated/admin/analytics'
-      path: '/analytics'
-      fullPath: '/admin/analytics'
-      preLoaderRoute: typeof AuthenticatedAdminAnalyticsRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
     }
     '/_authenticated/admin/admins': {
@@ -1279,10 +1239,8 @@ declare module '@tanstack/react-router' {
 interface AuthenticatedAdminRouteChildren {
   AuthenticatedAdminAdministrativoRoute: typeof AuthenticatedAdminAdministrativoRoute
   AuthenticatedAdminAdminsRoute: typeof AuthenticatedAdminAdminsRoute
-  AuthenticatedAdminAnalyticsRoute: typeof AuthenticatedAdminAnalyticsRoute
   AuthenticatedAdminAssinaturaRoute: typeof AuthenticatedAdminAssinaturaRoute
   AuthenticatedAdminAtendimentoRoute: typeof AuthenticatedAdminAtendimentoRoute
-  AuthenticatedAdminBibliotecaRoute: typeof AuthenticatedAdminBibliotecaRoute
   AuthenticatedAdminClientesRoute: typeof AuthenticatedAdminClientesRoute
   AuthenticatedAdminDashboardRoute: typeof AuthenticatedAdminDashboardRoute
   AuthenticatedAdminEngajamentoRoute: typeof AuthenticatedAdminEngajamentoRoute
@@ -1305,10 +1263,8 @@ interface AuthenticatedAdminRouteChildren {
 const AuthenticatedAdminRouteChildren: AuthenticatedAdminRouteChildren = {
   AuthenticatedAdminAdministrativoRoute: AuthenticatedAdminAdministrativoRoute,
   AuthenticatedAdminAdminsRoute: AuthenticatedAdminAdminsRoute,
-  AuthenticatedAdminAnalyticsRoute: AuthenticatedAdminAnalyticsRoute,
   AuthenticatedAdminAssinaturaRoute: AuthenticatedAdminAssinaturaRoute,
   AuthenticatedAdminAtendimentoRoute: AuthenticatedAdminAtendimentoRoute,
-  AuthenticatedAdminBibliotecaRoute: AuthenticatedAdminBibliotecaRoute,
   AuthenticatedAdminClientesRoute: AuthenticatedAdminClientesRoute,
   AuthenticatedAdminDashboardRoute: AuthenticatedAdminDashboardRoute,
   AuthenticatedAdminEngajamentoRoute: AuthenticatedAdminEngajamentoRoute,
