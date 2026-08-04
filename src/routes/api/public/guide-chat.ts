@@ -359,6 +359,8 @@ export const Route = createFileRoute("/api/public/guide-chat")({
           content: body.message,
           sender_type: "guest",
         });
+        await mirrorToCore("guest", body.message);
+
 
         // Nota: quando ai_paused=true, já retornamos acima. Aqui ai_paused é
         // false, então não há handoff ativo para limpar.
