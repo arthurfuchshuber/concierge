@@ -17,7 +17,20 @@ export type MemoryKind =
   | "resolution"
   | "property_fact"
   | "operational_decision"
-  | "fact";
+  | "fact"
+  // Aprendizado supervisionado (Human-in-the-loop / Knowledge Approval Flow)
+  | "operational_rule"
+  | "property_instruction"
+  | "provider_knowledge"
+  | "guest_preference"
+  | "company_policy"
+  | "temporary_exception";
+
+/** Escopo de aprovação do conhecimento aprendido com humanos. */
+export type LearningScope = "property" | "owner_portfolio" | "company_global" | "temporary_exception";
+
+export type ApprovalStatus = "pending" | "approved" | "rejected";
+
 
 export type MemoryRecord = {
   id: string;
