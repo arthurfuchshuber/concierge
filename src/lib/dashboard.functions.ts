@@ -296,6 +296,14 @@ export const getGuideEngagement = createServerFn({ method: "GET" })
         break;
       }
       if (doneReservations.has(r.id) || (matched && doneLogs.has(matched.id))) continue;
+      // Atrasados só entram se já houve interação registrada (igual ao Kanban).
+      if (
+        r.checkin_date &&
+        r.checkin_date < today &&
+        !touchedReservations.has(r.id) &&
+        !(matched && touchedLogs.has(matched.id))
+      )
+        continue;
       entries.push({
         property_id: r.property_id,
         name: (matched?.guest_name || "").trim() || "Hóspede pendente",
