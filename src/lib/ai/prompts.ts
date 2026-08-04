@@ -20,6 +20,12 @@ function entry(id: string, version: string, text: string): PromptEntry {
   return { id, version, text };
 }
 
+/** Cria um prompt versionado fora do registro central (agentes especialistas). */
+export function definePrompt(id: string, version: string, text: string): PromptEntry {
+  return entry(id, version, text);
+}
+
+
 export const PROMPTS = {
   agent: entry(
     "agent.hospitality",
