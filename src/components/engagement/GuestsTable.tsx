@@ -144,12 +144,13 @@ export function GuestsTable({
               <tr>
                 <th
                   onClick={() => toggle("guestName", "asc")}
-                  className="text-left px-4 py-2 pr-6 font-medium whitespace-nowrap sticky left-0 bg-muted/60 backdrop-blur z-10 cursor-pointer hover:text-foreground transition-colors w-[150px] max-w-[150px] sm:w-[170px] sm:max-w-[170px]"
+                  className="text-left px-4 py-2 pr-6 font-medium whitespace-nowrap sticky left-0 bg-muted/60 backdrop-blur z-10 cursor-pointer hover:text-foreground transition-colors w-px"
                 >
                   <span className="inline-flex items-center gap-1">
                     Hóspede <SortIndicator active={active("guestName")} dir={sort.dir} />
                   </span>
                 </th>
+
                 <ThSort onClick={() => toggle("accountName", "asc")} active={active("accountName")} dir={sort.dir} icon={Building2} align="left">Conta</ThSort>
                 <ThSort onClick={() => toggle("propertyName", "asc")} active={active("propertyName")} dir={sort.dir} align="left">Imóvel</ThSort>
                 <ThSort onClick={() => toggle("checkinDate", "desc")} active={active("checkinDate")} dir={sort.dir} icon={Calendar} align="left">Check-in</ThSort>
