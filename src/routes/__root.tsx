@@ -148,6 +148,11 @@ function RootComponent() {
     return () => subscription.unsubscribe();
   }, [router, queryClient]);
 
+  // Tratamento global de PERMISSION_DENIED (não quebra a aplicação).
+  useEffect(() => installPermissionDeniedHandler(), []);
+
+
+
   useEffect(() => {
     if (typeof window === "undefined" || !window.visualViewport) return;
     const vv = window.visualViewport;
