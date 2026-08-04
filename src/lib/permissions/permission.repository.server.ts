@@ -191,6 +191,23 @@ export async function upsertPropertyAssignment(input: {
   return data as unknown as PropertyAssignment;
 }
 
+/** Remove o vínculo de um imóvel com um usuário (escopo PROPERTY). */
+export async function deletePropertyAssignment(
+  tenantId: string,
+  propertyId: string,
+  userId: string,
+): Promise<void> {
+  const db = await admin();
+  const { error } = await db
+    .from("property_assignments")
+    .delete()
+    .eq("tenant_id", tenantId)
+    .eq("property_id", propertyId)
+    .eq("user_id", userId);
+  if (error) throw new Error(error.message);
+}
+
+
 /* ------------------------------------------------------------------- audit */
 
 export type AuditInput = {
