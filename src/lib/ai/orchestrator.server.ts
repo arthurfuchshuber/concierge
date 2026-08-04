@@ -569,6 +569,87 @@ export async function runHospitalityAgent(params: {
     }),
   }).catch(() => undefined);
 
+  // Enterprise Audit Trail — rastro estruturado da decisão desta interação.
+  // Nunca gravamos chain-of-thought: apenas motivo, classificação e evidências.
+  void (async () => {
+    const { logSystemEvents } = await import("./audit/events.server");
+    const correlationId = params.conversationId ?? null;
+    const base = {
+      tenantId: tenant.tenantId,
+      actorType: "AI_AGENT" as const,
+      actorId: agent.key,
+      actorName: agent.key,
+      actorRole: agent.autonomy,
+      conversationId: params.conversationId ?? null,
+      propertyId,
+      channel,
+      source: "ai_orchestrator",
+      correlationId,
+      eventCategory: "AI_DECISION" as const,
+    };
+    await logSystemEvents(supabase, [
+      {
+        ...base,
+        eventType: "agent_selected",
+        description: `Agente ${agent.key} assumiu o atendimento`,
+        reason: routing.reason,
+        metadata: { agent: agent.key, autonomy: agent.autonomy },
+      },
+      ...(guestContext.memories.length
+        ? [
+            {
+              ...base,
+              eventType: "memory_retrieved",
+              description: `${guestContext.memories.length} memória(s) utilizada(s)`,
+              reason: "Contexto recuperado por relevância semântica e temporal",
+              metadata: {
+                memories: guestContext.memories.map((m) => ({ id: m.id, tier: m.tier, score: m.score })),
+              },
+            },
+          ]
+        : []),
+      ...toolsUsed.map((t) => ({
+        ...base,
+        eventType: "tool_called",
+        description: `Ferramenta ${t.name}`,
+        reason: "Coleta de dado necessário para responder",
+        metadata: { tool: t.name, durationMs: t.durationMs ?? null },
+      })),
+      ...(sources.length
+        ? [
+            {
+              ...base,
+              eventType: "source_used",
+              description: `${sources.length} fonte(s) consultada(s)`,
+              reason: "Evidências utilizadas na resposta",
+              metadata: { sources: sources.map((s) => ({ source: s.source, confidence: s.confidence })) },
+            },
+          ]
+        : []),
+      {
+        ...base,
+        eventType: "confidence_generated",
+        description: `Confiança ${confidence ?? "n/d"} (${tier})`,
+        reason: handoffReason ?? "Resposta dentro do limite de autonomia",
+        severity: handoffReason ? ("warning" as const) : ("info" as const),
+        result: handoffReason ? ("pending" as const) : ("success" as const),
+        metadata: { confidence, tier, handoff: !!handoffReason },
+      },
+      ...(reflection
+        ? [
+            {
+              ...base,
+              eventType: "reflection_completed",
+              description: "Autoavaliação concluída",
+              reason: "Reflection Step aplicado antes de responder",
+              metadata: { reflection: reflection as never },
+            },
+          ]
+        : []),
+    ]);
+  })().catch(() => undefined);
+
+
   // Continuous Learning: memórias usadas ganham/perdem peso conforme o desfecho
   // imediato desta resposta (o loop completo roda no cron, fora do caminho crítico).
   if (guestContext.memories.length) {
