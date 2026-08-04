@@ -134,10 +134,26 @@ export function startTrail(slug?: string): () => void {
     },
   });
 
+  const where = () => `na página "${document.title || window.location.pathname}"`;
+  const KIND_PT: Record<string, string> = {
+    button: "botão",
+    a: "link",
+    input: "campo",
+    select: "seletor",
+    textarea: "campo de texto",
+    label: "rótulo",
+    summary: "seção",
+  };
+
   const onClick = (e: MouseEvent) => {
     const info = describe(e.target as Element);
     if (!info) return;
-    track({ type: "click", label: info.label, target: info.target, metadata: { element: info.kind } });
+    track({
+      type: "click",
+      label: `Clicou ${KIND_PT[info.kind] ? `no ${KIND_PT[info.kind]}` : "em"} "${info.label}" ${where()}`,
+      target: info.target,
+      metadata: { element: info.kind, element_label: info.label, page_title: document.title },
+    });
   };
 
   const onChange = (e: Event) => {
@@ -145,15 +161,18 @@ export function startTrail(slug?: string): () => void {
     if (!el || el.type === "password") return;
     const info = describe(el);
     if (!info) return;
+    const filled = Boolean(el.value);
     track({
       type: "field_changed",
-      label: info.label,
+      label: `${filled ? "Preencheu" : "Limpou"} o campo "${info.label}" ${where()}`,
       target: info.target,
       metadata: {
         element: info.kind,
+        element_label: info.label,
         input_type: el.type ?? null,
-        filled: Boolean(el.value),
+        filled,
         length: typeof el.value === "string" ? el.value.length : null,
+        page_title: document.title,
       },
     });
   };
@@ -165,15 +184,17 @@ export function startTrail(slug?: string): () => void {
           .map((f) => (f as HTMLInputElement).name)
           .filter(Boolean)
       : [];
+    const formName = form?.getAttribute("aria-label") || form?.id || "sem nome";
     track({
       type: "form_submit",
-      label: form?.getAttribute("aria-label") || form?.id || "Formulário enviado",
+      label: `Enviou o formulário "${formName}" ${where()}${fields.length ? ` com os campos: ${fields.slice(0, 12).join(", ")}` : ""}`,
       target: form?.id || "form",
-      metadata: { fields },
+      metadata: { fields, page_title: document.title },
     });
   };
 
-  const onCopy = () => track({ type: "copy", label: "Conteúdo copiado" });
+  const onCopy = () => track({ type: "copy", label: `Copiou conteúdo ${where()}` });
+
 
   const onVisibility = () =>
     track({
