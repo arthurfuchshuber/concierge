@@ -4779,7 +4779,13 @@ export type Database = {
         | "guests_view"
         | "guests_edit"
       permission_access_level: "NONE" | "READ" | "WRITE"
-      permission_node_type: "PAGE" | "SUBPAGE" | "TAB" | "RESOURCE" | "FIELD"
+      permission_node_type:
+        | "PAGE"
+        | "SUBPAGE"
+        | "TAB"
+        | "RESOURCE"
+        | "FIELD"
+        | "SECTION"
       permission_scope_type:
         | "GLOBAL"
         | "TENANT"
@@ -4955,7 +4961,14 @@ export const Constants = {
         "guests_edit",
       ],
       permission_access_level: ["NONE", "READ", "WRITE"],
-      permission_node_type: ["PAGE", "SUBPAGE", "TAB", "RESOURCE", "FIELD"],
+      permission_node_type: [
+        "PAGE",
+        "SUBPAGE",
+        "TAB",
+        "RESOURCE",
+        "FIELD",
+        "SECTION",
+      ],
       permission_scope_type: [
         "GLOBAL",
         "TENANT",
