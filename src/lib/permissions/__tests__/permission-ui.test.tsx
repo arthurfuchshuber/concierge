@@ -15,6 +15,11 @@ vi.mock("@tanstack/react-start", () => ({
   useServerFn: () => (args: unknown) => fetchMock(args),
 }));
 
+vi.mock("@/lib/permissions/permission.access.functions", () => ({
+  getMyAccessDecisions: vi.fn(),
+}));
+
+
 function decision(allowed: boolean) {
   return {
     tenantId: "t1",
