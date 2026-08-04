@@ -509,10 +509,13 @@ function EventsTab() {
   const rows = (data?.rows ?? []) as Row[];
   const total = data?.total ?? 0;
 
+  const activeFilters =
+    (category !== "all" ? 1 : 0) + (severity !== "all" ? 1 : 0) + (tenantId !== "all" ? 1 : 0);
+
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap gap-2">
-        <div className="relative flex-1 min-w-[220px]">
+      <div className="flex gap-2">
+        <div className="relative flex-1 min-w-0">
           <Search className="size-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
           <Input
             className="pl-9"
@@ -522,30 +525,65 @@ function EventsTab() {
             onKeyDown={(e) => { if (e.key === "Enter") { setPage(0); setApplied(search); } }}
           />
         </div>
-        <Select value={category} onValueChange={(v) => { setCategory(v); setPage(0); }}>
-          <SelectTrigger className="w-[190px]"><SelectValue placeholder="Categoria" /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todas as categorias</SelectItem>
-            {CATEGORIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-          </SelectContent>
-        </Select>
-        <Select value={severity} onValueChange={(v) => { setSeverity(v); setPage(0); }}>
-          <SelectTrigger className="w-[160px]"><SelectValue placeholder="Severidade" /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todas</SelectItem>
-            {SEVERITIES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-          </SelectContent>
-        </Select>
-        {(tenants.data?.length ?? 0) > 0 && (
-          <Select value={tenantId} onValueChange={(v) => { setTenantId(v); setPage(0); }}>
-            <SelectTrigger className="w-[200px]"><SelectValue placeholder="Conta" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todas as contas</SelectItem>
-              {(tenants.data ?? []).map((t) => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
-            </SelectContent>
-          </Select>
-        )}
-        <Button variant="outline" onClick={() => { setPage(0); setApplied(search); }}>Filtrar</Button>
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="outline" size="icon" className="relative shrink-0" aria-label="Filtros">
+              <SlidersHorizontal className="size-4" />
+              {activeFilters > 0 && (
+                <span className="absolute -top-1 -right-1 size-4 rounded-full bg-primary text-primary-foreground text-[10px] grid place-items-center">
+                  {activeFilters}
+                </span>
+              )}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent align="end" className="w-72 space-y-3">
+            <div className="space-y-1.5">
+              <Label className="text-xs">Categoria</Label>
+              <Select value={category} onValueChange={(v) => { setCategory(v); setPage(0); }}>
+                <SelectTrigger><SelectValue placeholder="Categoria" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todas as categorias</SelectItem>
+                  {CATEGORIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Severidade</Label>
+              <Select value={severity} onValueChange={(v) => { setSeverity(v); setPage(0); }}>
+                <SelectTrigger><SelectValue placeholder="Severidade" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todas</SelectItem>
+                  {SEVERITIES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            {(tenants.data?.length ?? 0) > 0 && (
+              <div className="space-y-1.5">
+                <Label className="text-xs">Conta</Label>
+                <Select value={tenantId} onValueChange={(v) => { setTenantId(v); setPage(0); }}>
+                  <SelectTrigger><SelectValue placeholder="Conta" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todas as contas</SelectItem>
+                    {(tenants.data ?? []).map((t) => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            <div className="flex gap-2 pt-1">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="flex-1"
+                onClick={() => { setCategory("all"); setSeverity("all"); setTenantId("all"); setPage(0); }}
+              >
+                Limpar
+              </Button>
+              <Button size="sm" className="flex-1" onClick={() => { setPage(0); setApplied(search); }}>
+                Aplicar
+              </Button>
+            </div>
+          </PopoverContent>
+        </Popover>
       </div>
 
       {isLoading ? (
@@ -556,46 +594,58 @@ function EventsTab() {
         </div>
       ) : (
         <div className="overflow-x-auto rounded-2xl border border-border bg-surface">
-          <table className="w-full text-sm">
+          <table className="w-full text-sm min-w-[980px]">
             <thead className="bg-secondary/50 text-xs uppercase tracking-wide text-muted-foreground">
               <tr>
-                <th className="text-left px-4 py-3">Quando</th>
+                <th className="text-left px-4 py-3">Data</th>
+                <th className="text-left px-4 py-3">Hora</th>
                 <th className="text-left px-4 py-3">Autor</th>
+                <th className="text-left px-4 py-3">Tipo de autor</th>
                 <th className="text-left px-4 py-3">Evento</th>
+                <th className="text-left px-4 py-3">Categoria</th>
                 <th className="text-left px-4 py-3">Descrição</th>
                 <th className="text-left px-4 py-3">Severidade</th>
               </tr>
             </thead>
             <tbody>
-              {rows.map((r) => (
+              {rows.map((r) => {
+                const when = new Date(String(r.created_at));
+                return (
                 <tr
                   key={String(r.id)}
-                  className="border-t border-border hover:bg-secondary/40 cursor-pointer"
+                  className="border-t border-border hover:bg-secondary/40 cursor-pointer align-top"
                   onClick={() => setSelected(String(r.id))}
                 >
-                  <td className="px-4 py-3 whitespace-nowrap text-muted-foreground">
-                    {new Date(String(r.created_at)).toLocaleString("pt-BR")}
+                  <td className="px-4 py-3 whitespace-nowrap text-muted-foreground tabular-nums">
+                    {when.toLocaleDateString("pt-BR")}
                   </td>
-                  <td className="px-4 py-3">
-                    <div className="font-medium">{String(r.actor_name ?? r.actor_id ?? "—")}</div>
-                    <div className="text-xs text-muted-foreground">{String(r.actor_type ?? "")}</div>
+                  <td className="px-4 py-3 whitespace-nowrap text-muted-foreground tabular-nums">
+                    {when.toLocaleTimeString("pt-BR")}
                   </td>
-                  <td className="px-4 py-3">
-                    <div>{String(r.event_type ?? "")}</div>
-                    <div className="text-xs text-muted-foreground">{String(r.event_category ?? "")}</div>
+                  <td className="px-4 py-3 font-medium whitespace-nowrap">
+                    {String(r.actor_name ?? r.actor_id ?? "visitante")}
                   </td>
-                  <td className="px-4 py-3 max-w-md truncate">{String(r.description ?? "")}</td>
+                  <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">
+                    {String(r.actor_type ?? "—")}
+                  </td>
+                  <td className="px-4 py-3 whitespace-nowrap">{String(r.event_type ?? "")}</td>
+                  <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">
+                    {String(r.event_category ?? "")}
+                  </td>
+                  <td className="px-4 py-3 min-w-[280px]">{String(r.description ?? "—")}</td>
                   <td className="px-4 py-3">
                     <span className={`px-2 py-0.5 rounded-full text-xs ${SEVERITY_STYLE[String(r.severity ?? "info")] ?? ""}`}>
                       {String(r.severity ?? "info")}
                     </span>
                   </td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
         </div>
       )}
+
 
       <div className="flex items-center justify-between text-sm text-muted-foreground">
         <span>{total} evento(s)</span>
