@@ -5,8 +5,10 @@ import { useState } from "react";
 import { toast } from "sonner";
 import {
   Sparkles, Loader2, Globe2, GitBranch, Bot, Wand2, ArrowUpRight, Check, X, Plus,
-  ScrollText, Search, Activity, BrainCircuit,
+  ScrollText, Search, Activity, BrainCircuit, SlidersHorizontal,
 } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
