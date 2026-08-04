@@ -85,6 +85,12 @@ function AdminLayout() {
   useEffect(() => { setOpen(false); }, [pathname]);
 
   async function signOut() {
+    try {
+      const { recordClientEvent } = await import("@/lib/audit.functions");
+      await recordClientEvent({
+        data: { eventType: "logout", eventCategory: "AUTHENTICATION", description: "Sessão encerrada pelo usuário." },
+      });
+    } catch { /* auditoria nunca bloqueia o logout */ }
     await qc.cancelQueries();
     qc.clear();
     await supabase.auth.signOut();
