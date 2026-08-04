@@ -141,7 +141,20 @@ export async function runHospitalityAgent(params: {
     setOpenTopic(params.conversationId, params.message, "issue");
   }
 
+  // 2b) Supervisor Agent — escolhe o especialista que assume o atendimento
+  const { routing, usage: routeUsage, model: supervisorModel } = await routeToAgent({
+    message: params.message,
+    category: intent.category,
+    urgency: intent.urgency,
+    history: params.history,
+    contextHint: guestContext.text.slice(0, 1200),
+  });
+  usage = mergeUsage(usage, routeUsage);
+  if (supervisorModel) models.supervisor = supervisorModel;
+  const agent = getAgent(routing.agent);
+
   // 3) Planner Agent — plano de execução já ciente do contexto e da memória
+
   const { plan, usage: planUsage, model: plannerModel } = await planExecution({
     message: params.message,
     intent,
