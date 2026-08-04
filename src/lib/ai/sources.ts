@@ -10,6 +10,7 @@
  */
 export const SOURCE_CONFIDENCE: Record<string, number> = {
   // Tier 1 — dados oficiais e transacionais
+  human_decision: 1.0,
   reservation: 1.0,
   database: 0.99,
   property: 0.99,
@@ -21,6 +22,7 @@ export const SOURCE_CONFIDENCE: Record<string, number> = {
   checkout: 0.98,
   procedures: 0.97,
   host_knowledge: 0.97,
+  knowledge_base: 0.97,
   host_behavior: 0.97,
   // Tier 3 — APIs externas confiáveis
   calendar: 0.95,
@@ -36,7 +38,7 @@ export const SOURCE_CONFIDENCE: Record<string, number> = {
 };
 
 export const SOURCE_TIERS: Array<{ tier: number; label: string; sources: string[] }> = [
-  { tier: 1, label: "Oficial transacional", sources: ["reservation", "database", "property"] },
+  { tier: 1, label: "Oficial transacional", sources: ["human_decision", "reservation", "database", "property"] },
   {
     tier: 2,
     label: "Conteúdo oficial do anfitrião",

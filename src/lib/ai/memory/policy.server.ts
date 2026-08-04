@@ -23,6 +23,12 @@ const ALLOWED_KINDS: MemoryKind[] = [
   "property_fact",
   "operational_decision",
   "fact",
+  "operational_rule",
+  "property_instruction",
+  "provider_knowledge",
+  "guest_preference",
+  "company_policy",
+  "temporary_exception",
 ];
 
 const ALLOWED_SCOPES: MemoryScope[] = ["guest", "property", "owner", "provider", "team", "global"];

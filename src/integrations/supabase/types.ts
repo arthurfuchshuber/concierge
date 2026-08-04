@@ -158,21 +158,29 @@ export type Database = {
           cost_estimate: number | null
           created_at: string
           error: string | null
+          escalation_id: string | null
+          escalation_triggered: boolean
           guest_context_snapshot: Json | null
+          human_response_used: boolean
           id: string
           intent: Json | null
           latency_ms: number | null
+          learning_created: boolean
           memories_retrieved: Json | null
           memory_confidence_score: number | null
           memory_context_used: boolean
+          memory_saved: boolean
+          memory_scope: string | null
           models: Json | null
           needs_human: boolean
           operational_context_snapshot: Json | null
+          orchestrator_decision: Json | null
           owner_id: string | null
           plan: Json | null
           prompt_versions: Json | null
           property_id: string | null
           reflection: Json | null
+          selected_agent: string | null
           source_weight: number | null
           sources: Json | null
           surface: string
@@ -188,21 +196,29 @@ export type Database = {
           cost_estimate?: number | null
           created_at?: string
           error?: string | null
+          escalation_id?: string | null
+          escalation_triggered?: boolean
           guest_context_snapshot?: Json | null
+          human_response_used?: boolean
           id?: string
           intent?: Json | null
           latency_ms?: number | null
+          learning_created?: boolean
           memories_retrieved?: Json | null
           memory_confidence_score?: number | null
           memory_context_used?: boolean
+          memory_saved?: boolean
+          memory_scope?: string | null
           models?: Json | null
           needs_human?: boolean
           operational_context_snapshot?: Json | null
+          orchestrator_decision?: Json | null
           owner_id?: string | null
           plan?: Json | null
           prompt_versions?: Json | null
           property_id?: string | null
           reflection?: Json | null
+          selected_agent?: string | null
           source_weight?: number | null
           sources?: Json | null
           surface?: string
@@ -218,21 +234,29 @@ export type Database = {
           cost_estimate?: number | null
           created_at?: string
           error?: string | null
+          escalation_id?: string | null
+          escalation_triggered?: boolean
           guest_context_snapshot?: Json | null
+          human_response_used?: boolean
           id?: string
           intent?: Json | null
           latency_ms?: number | null
+          learning_created?: boolean
           memories_retrieved?: Json | null
           memory_confidence_score?: number | null
           memory_context_used?: boolean
+          memory_saved?: boolean
+          memory_scope?: string | null
           models?: Json | null
           needs_human?: boolean
           operational_context_snapshot?: Json | null
+          orchestrator_decision?: Json | null
           owner_id?: string | null
           plan?: Json | null
           prompt_versions?: Json | null
           property_id?: string | null
           reflection?: Json | null
+          selected_agent?: string | null
           source_weight?: number | null
           sources?: Json | null
           surface?: string
@@ -325,6 +349,80 @@ export type Database = {
           },
         ]
       }
+      ai_human_escalations: {
+        Row: {
+          agent_type: string
+          applied_to_guest: boolean
+          confidence_score: number | null
+          context_snapshot: Json
+          conversation_id: string | null
+          created_at: string
+          guest_key: string | null
+          guest_name: string | null
+          human_response: string | null
+          human_user_id: string | null
+          id: string
+          owner_id: string
+          property_id: string | null
+          question_to_human: string
+          reason: string
+          resolved_at: string | null
+          status: string
+          trigger: string
+          updated_at: string
+        }
+        Insert: {
+          agent_type?: string
+          applied_to_guest?: boolean
+          confidence_score?: number | null
+          context_snapshot?: Json
+          conversation_id?: string | null
+          created_at?: string
+          guest_key?: string | null
+          guest_name?: string | null
+          human_response?: string | null
+          human_user_id?: string | null
+          id?: string
+          owner_id: string
+          property_id?: string | null
+          question_to_human: string
+          reason: string
+          resolved_at?: string | null
+          status?: string
+          trigger?: string
+          updated_at?: string
+        }
+        Update: {
+          agent_type?: string
+          applied_to_guest?: boolean
+          confidence_score?: number | null
+          context_snapshot?: Json
+          conversation_id?: string | null
+          created_at?: string
+          guest_key?: string | null
+          guest_name?: string | null
+          human_response?: string | null
+          human_user_id?: string | null
+          id?: string
+          owner_id?: string
+          property_id?: string | null
+          question_to_human?: string
+          reason?: string
+          resolved_at?: string | null
+          status?: string
+          trigger?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_human_escalations_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ai_kb_chunks: {
         Row: {
           confidence: number
@@ -381,8 +479,95 @@ export type Database = {
           },
         ]
       }
+      ai_learning_candidates: {
+        Row: {
+          agent_type: string | null
+          applied_memory_id: string | null
+          approval_status: string
+          approved_scope: string | null
+          category: string | null
+          confidence: number
+          created_at: string
+          id: string
+          memory_kind: string
+          owner_id: string
+          property_id: string | null
+          proposed_memory: string
+          rationale: string | null
+          recommended_scope: string
+          reviewed_at: string | null
+          reviewed_by: string | null
+          source_escalation_id: string | null
+          title: string | null
+          ttl_days: number | null
+          updated_at: string
+        }
+        Insert: {
+          agent_type?: string | null
+          applied_memory_id?: string | null
+          approval_status?: string
+          approved_scope?: string | null
+          category?: string | null
+          confidence?: number
+          created_at?: string
+          id?: string
+          memory_kind?: string
+          owner_id: string
+          property_id?: string | null
+          proposed_memory: string
+          rationale?: string | null
+          recommended_scope?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          source_escalation_id?: string | null
+          title?: string | null
+          ttl_days?: number | null
+          updated_at?: string
+        }
+        Update: {
+          agent_type?: string | null
+          applied_memory_id?: string | null
+          approval_status?: string
+          approved_scope?: string | null
+          category?: string | null
+          confidence?: number
+          created_at?: string
+          id?: string
+          memory_kind?: string
+          owner_id?: string
+          property_id?: string | null
+          proposed_memory?: string
+          rationale?: string | null
+          recommended_scope?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          source_escalation_id?: string | null
+          title?: string | null
+          ttl_days?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_learning_candidates_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_learning_candidates_source_escalation_id_fkey"
+            columns: ["source_escalation_id"]
+            isOneToOne: false
+            referencedRelation: "ai_human_escalations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ai_memories: {
         Row: {
+          approved_at: string | null
+          approved_by: string | null
+          author: string | null
           category: string | null
           confidence: number
           content: string
@@ -408,6 +593,9 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          author?: string | null
           category?: string | null
           confidence?: number
           content: string
@@ -433,6 +621,9 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          author?: string | null
           category?: string | null
           confidence?: number
           content?: string

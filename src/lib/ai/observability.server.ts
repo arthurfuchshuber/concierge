@@ -41,7 +41,21 @@ export type AgentLog = {
   guestContextSnapshot?: unknown;
   /** Retrato do contexto operacional no momento da resposta. */
   operationalContextSnapshot?: unknown;
+  /** Agente especialista que assumiu o atendimento. */
+  selectedAgent?: string | null;
+  /** Nível de autonomia do agente selecionado. */
+  agentAutonomy?: string | null;
+  /** Decisão do supervisor (roteamento). */
+  orchestratorDecision?: unknown;
+  /** true quando a IA perguntou a um humano nesta interação. */
+  escalationTriggered?: boolean;
+  escalationId?: string | null;
+  /** true quando uma decisão humana foi usada na resposta. */
+  humanResponseUsed?: boolean;
+  /** true quando a interação gerou candidata a conhecimento. */
+  learningCreated?: boolean;
 };
+
 
 export async function logAgentRun(supabase: SupabaseClient, log: AgentLog): Promise<void> {
   try {
@@ -72,7 +86,14 @@ export async function logAgentRun(supabase: SupabaseClient, log: AgentLog): Prom
       memory_confidence_score: log.memoryConfidenceScore ?? null,
       guest_context_snapshot: (log.guestContextSnapshot ?? null) as never,
       operational_context_snapshot: (log.operationalContextSnapshot ?? null) as never,
+      selected_agent: log.selectedAgent ?? null,
+      orchestrator_decision: (log.orchestratorDecision ?? null) as never,
+      escalation_triggered: log.escalationTriggered ?? false,
+      escalation_id: log.escalationId ?? null,
+      human_response_used: log.humanResponseUsed ?? false,
+      learning_created: log.learningCreated ?? false,
     });
+
   } catch (err) {
     // Observabilidade nunca pode quebrar o atendimento.
     console.error("[ai-log] falha ao registrar", err);

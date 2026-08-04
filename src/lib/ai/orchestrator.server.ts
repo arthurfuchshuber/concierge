@@ -1,16 +1,19 @@
 /**
- * Orquestrador do Agente de Hospitalidade.
+ * Orquestrador do Agente de Hospitalidade (arquitetura multi-agente).
  *
  * Pipeline por mensagem:
  *   1. Classificação de intenção (modelo rápido)
  *   2. Guest Context Engine + Memory Retrieval (curto prazo, longo prazo, operacional)
+ *   2b. Supervisor Agent — escolhe o especialista (Reserva, Manutenção, Experiência,
+ *       Recuperação, Receita ou Generalista) e define autonomia e ferramentas
  *   3. Planner Agent (plano de execução, já ciente do contexto e da memória)
  *   3b. Coleta de contexto (residência, reserva, fase da estadia)
  *   4. Pré-recuperação Hybrid RAG (vetorial + textual)
- *   5. Raciocínio + tool calling paralelo (agente principal)
+ *   4b. Human-in-the-loop: decisões humanas pendentes entram como verdade absoluta
+ *   5. Raciocínio + tool calling paralelo (agente especialista, whitelist de ferramentas)
  *   6. Validação final (anti-alucinação)
  *   7. Reflection Step (autoavaliação e melhoria da redação)
- *   8. Confidence Threshold (auto | com ressalva | handoff)
+ *   8. Confidence Threshold do próprio agente (auto | com ressalva | handoff)
  *   9. Gravação seletiva de memória + observabilidade (log completo)
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -47,6 +50,17 @@ import {
   tierFor,
   type ConfidenceTier,
 } from "./confidence";
+import { allowedToolsOf, getAgent, renderAgentBriefing, stampAgentPrompt } from "./agents/registry.server";
+import { describeRouting, routeToAgent } from "./agents/supervisor.server";
+import { buildAgentTools } from "./agents/tools.server";
+import type { AgentRouting } from "./agents/types";
+import {
+  markAnswersApplied,
+  pendingHumanAnswers,
+  pendingNotice,
+  renderHumanAnswers,
+} from "./human-loop/escalations.server";
+import { learnFromHumanAnswer } from "./human-loop/learning.server";
 
 type Admin = SupabaseClient;
 
@@ -61,7 +75,10 @@ export type OrchestratorResult = {
   confidenceTier: ConfidenceTier;
   plan: ExecutionPlan;
   reflection: Reflection | null;
+  routing: AgentRouting;
+  escalationId: string | null;
 };
+
 
 export async function runHospitalityAgent(params: {
   supabase: Admin;
@@ -124,7 +141,20 @@ export async function runHospitalityAgent(params: {
     setOpenTopic(params.conversationId, params.message, "issue");
   }
 
+  // 2b) Supervisor Agent — escolhe o especialista que assume o atendimento
+  const { routing, usage: routeUsage, model: supervisorModel } = await routeToAgent({
+    message: params.message,
+    category: intent.category,
+    urgency: intent.urgency,
+    history: params.history,
+    contextHint: guestContext.text.slice(0, 1200),
+  });
+  usage = mergeUsage(usage, routeUsage);
+  if (supervisorModel) models.supervisor = supervisorModel;
+  const agent = getAgent(routing.agent);
+
   // 3) Planner Agent — plano de execução já ciente do contexto e da memória
+
   const { plan, usage: planUsage, model: plannerModel } = await planExecution({
     message: params.message,
     intent,
@@ -166,7 +196,17 @@ export async function runHospitalityAgent(params: {
     evidence.push(`[${p.source}] ${p.title ?? ""}: ${p.content}`);
   }
 
-  // 5) Agente com ferramentas (execução paralela por rodada)
+  // 4b) Human-in-the-loop: decisões humanas pendentes desta conversa
+  const humanAnswers = await pendingHumanAnswers({ supabase, conversationId: params.conversationId });
+  for (const a of humanAnswers) {
+    sources.push({ source: "human_decision", title: "decisão da equipe", confidence: 1 });
+    evidence.push(`[human_decision] ${a.question} → ${a.answer}`);
+  }
+
+  // 5) Agente especialista com ferramentas (whitelist do registry)
+  let escalationId: string | null = null;
+  let escalationQuestion: string | null = null;
+
   const toolCtx: ToolContext = {
     supabase,
     ownerId,
@@ -184,17 +224,30 @@ export async function runHospitalityAgent(params: {
       handoffUrgency = urgency;
     },
   };
-  const tools = buildGuestTools(toolCtx);
+  const tools = allowedToolsOf(agent, [
+    ...buildGuestTools(toolCtx),
+    ...buildAgentTools({
+      ...toolCtx,
+      agent: agent.key,
+      guestKey,
+      onEscalation: (info) => {
+        escalationId = info.id;
+        escalationQuestion = info.question;
+      },
+    }),
+  ]);
 
   const instructions =
     PROMPTS.agent.text +
     (params.explorationMode ? PROMPTS.exploration.text : "") +
+    `\n\n=== SEU PAPEL NESTA CONVERSA ===\n${renderAgentBriefing(agent)}` +
     (context.behavior
       ? `\n\nCOMPORTAMENTO DEFINIDO PELO ANFITRIÃO (prioridade máxima, siga estritamente)\n${context.behavior}`
       : "") +
     `\n\nRANKING PERMANENTE DE FONTES (em conflito, o tier menor sempre vence)\n${renderSourceRanking()}` +
     `\n\nCONTEXTO ATUAL\n${context.text}` +
     `\n\nCONTEXTO DO HÓSPEDE E MEMÓRIA (uso interno — nunca revele ao hóspede que existe histórico registrado)\n${guestContext.text}` +
+    renderHumanAnswers(humanAnswers) +
     `\n\nINTENÇÃO DETECTADA: ${intent.intent} (categoria=${intent.category}, urgência=${intent.urgency}, idioma=${intent.language})` +
     `\n\nPLANO DE EXECUÇÃO (definido pelo planejador)\n${renderPlan(plan)}` +
     `\n\nEVIDÊNCIAS PRÉ-RECUPERADAS (busca híbrida: ${retrievalUsed.join("+") || "nenhuma"})\n${renderPassages(passages)}`;
@@ -219,9 +272,11 @@ export async function runHospitalityAgent(params: {
       instructions,
       input,
       tools,
-      maxSteps: 6,
-      reasoningEffort: intent.urgency === "high" || plan.riskLevel === "high" ? "medium" : "low",
+      maxSteps: agent.maxSteps,
+      reasoningEffort:
+        intent.urgency === "high" || plan.riskLevel === "high" ? "medium" : agent.reasoningEffort,
     });
+
     usage = mergeUsage(usage, run.usage);
     reply = run.text.trim();
     toolsUsed = run.toolCalls.map((c) => ({
@@ -241,15 +296,30 @@ export async function runHospitalityAgent(params: {
     toolsUsed.map((t) => ({ name: t.name, args: t.args, ok: true, at: Date.now() })),
   );
 
+  // Perguntou a um humano: responde com honestidade, nunca inventa.
+  if (escalationId && !reply) reply = pendingNotice(intent.language);
   if (handoffReason && !reply) reply = HANDOFF_FALLBACK;
+
+  // Decisões humanas já entregues ao hóspede não voltam ao contexto.
+  if (humanAnswers.length && reply) {
+    void markAnswersApplied({ supabase, ids: humanAnswers.map((a) => a.id) }).catch(() => undefined);
+  }
 
 
   // 6) Validação + 7) Reflection (puladas quando já escalamos para humano)
-  const thresholds = thresholdsFor({
+  const baseThresholds = thresholdsFor({
     explorationMode: params.explorationMode,
     category: intent.category,
     urgency: intent.urgency,
   });
+  // O agente especialista pode exigir confiança maior que a categoria.
+  const thresholds = params.explorationMode
+    ? baseThresholds
+    : {
+        auto: Math.max(baseThresholds.auto, agent.thresholds.auto),
+        hedged: Math.max(baseThresholds.hedged, agent.thresholds.hedged),
+      };
+
   const evidenceText = evidence.slice(0, 24).join("\n\n") || "(nenhuma evidência recuperada)";
   let validationResult: unknown = null;
   let reflection: Reflection | null = null;
@@ -377,6 +447,24 @@ export async function runHospitalityAgent(params: {
     }).catch(() => undefined);
   }
 
+  // Knowledge Distillation: decisão humana usada agora vira candidata a conhecimento.
+  if (humanAnswers.length) {
+    void (async () => {
+      for (const a of humanAnswers) {
+        await learnFromHumanAnswer({
+          supabase,
+          ownerId,
+          propertyId,
+          propertyName: (property.title as string) ?? null,
+          escalationId: a.id,
+          agent: a.agent,
+          question: a.question,
+          humanAnswer: a.answer,
+        }).catch(() => undefined);
+      }
+    })();
+  }
+
   void logAgentRun(supabase, {
     ownerId,
     propertyId,
@@ -395,7 +483,16 @@ export async function runHospitalityAgent(params: {
     error: errorMsg,
     plan,
     reflection,
-    promptVersions: stampVersions(["agent", "planner", "reflection", ...(params.explorationMode ? (["exploration"] as const) : [])]),
+    promptVersions: {
+      ...stampVersions([
+        "agent",
+        "planner",
+        "reflection",
+        "supervisor",
+        ...(params.explorationMode ? (["exploration"] as const) : []),
+      ]),
+      ...stampAgentPrompt(agent),
+    },
     confidenceTier: tier,
     sourceWeight: aggregateSourceWeight(sources),
     memoryContextUsed: guestContext.memories.length > 0 || guestContext.operational.length > 0,
@@ -411,6 +508,12 @@ export async function runHospitalityAgent(params: {
     memoryConfidenceScore: guestContext.memoryConfidence,
     guestContextSnapshot: guestContext.guestSnapshot,
     operationalContextSnapshot: guestContext.operationalSnapshot,
+    selectedAgent: agent.key,
+    agentAutonomy: agent.autonomy,
+    orchestratorDecision: describeRouting(routing),
+    escalationTriggered: !!escalationId,
+    escalationId,
+    humanResponseUsed: humanAnswers.length > 0,
   }).catch(() => undefined);
 
 
@@ -425,5 +528,8 @@ export async function runHospitalityAgent(params: {
     confidenceTier: tier,
     plan,
     reflection,
+    routing,
+    escalationId,
   };
 }
+
