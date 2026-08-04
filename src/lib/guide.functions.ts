@@ -37,7 +37,27 @@ export const getPublicGuide = createServerFn({ method: "POST" })
       .eq("published", true)
       .maybeSingle();
     if (error) throw (await import("@/lib/db-errors.server")).safeDbError("properties", error);
-    if (!prop) return { status: "not_found" as const };
+    if (!prop) {
+      // Link antigo: o anfitrião renomeou o guia. Redirecionamos para o slug atual
+      // para que hóspedes que já receberam o link anterior continuem chegando.
+      const { data: hist } = await (supabaseAdmin.from("property_slug_history" as never) as ReturnType<typeof supabaseAdmin.from>)
+        .select("property_id")
+        .eq("old_slug", data.slug)
+        .maybeSingle();
+      const movedTo = (hist as { property_id?: string } | null)?.property_id;
+      if (movedTo) {
+        const { data: target } = await supabaseAdmin
+          .from("properties")
+          .select("slug,published")
+          .eq("id", movedTo)
+          .maybeSingle();
+        if (target?.slug && target.published) {
+          return { status: "moved" as const, slug: target.slug };
+        }
+      }
+      return { status: "not_found" as const };
+    }
+
 
     if (prop.access_mode === "pin" && prop.pin_expires_at && new Date(prop.pin_expires_at) < new Date()) {
       return { status: "expired" as const, propertyName: prop.name };
