@@ -77,6 +77,8 @@ export async function planExecution(params: {
   intent: Intent;
   history: Array<{ role: string; content: string }>;
   explorationMode?: boolean;
+  /** Contexto do hóspede/memória (uso interno) para calibrar o plano. */
+  contextHint?: string | null;
 }): Promise<{ plan: ExecutionPlan; usage: Usage; model: string }> {
   const recent = params.history
     .slice(-4)
@@ -92,10 +94,12 @@ export async function planExecution(params: {
           `${params.explorationMode ? "Modo exploração ativo (conversa sobre a cidade).\n" : ""}` +
           `Intenção detectada: ${params.intent.intent} (categoria=${params.intent.category}, ` +
           `urgência=${params.intent.urgency}, idioma=${params.intent.language})\n` +
+          `${params.contextHint ? `Contexto e memória do hóspede (interno):\n${params.contextHint}\n` : ""}` +
           `${recent ? `Contexto recente:\n${recent}\n` : ""}` +
           `Mensagem do hóspede:\n${params.message}`,
       },
     ]);
+
 
     if (!data) return { plan: heuristicPlan(params.intent), usage, model };
 
