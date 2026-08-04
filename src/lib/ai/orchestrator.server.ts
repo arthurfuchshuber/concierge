@@ -77,20 +77,53 @@ export async function runHospitalityAgent(params: {
   usage = mergeUsage(usage, intentUsage);
   models.intent = intentModel;
 
-  // 2) Planner Agent — plano de execução antes do tool calling
+  const guestKey = guestKeyOf(params.sessionId, params.guestName);
+  rememberMessage(params.conversationId, "user", params.message);
+  rememberIntent(params.conversationId, intent);
+
+  // 2) Guest Context Engine + Memory Retrieval (curto prazo, longo prazo, operacional)
+  const memory = await loadGuestMemory(supabase, propertyId, guestKey);
+  const guestContext = await buildGuestContext({
+    supabase,
+    ownerId,
+    propertyId,
+    conversationId: params.conversationId,
+    guestKey,
+    guestName: params.guestName,
+    message: params.message,
+    history: params.history,
+    category: intent.category,
+    language: intent.language,
+    memory,
+    searchQuery: intent.searchQuery,
+  });
+  usage = mergeUsage(usage, guestContext.usage);
+  for (const m of guestContext.memories) {
+    sources.push({ source: "memory", title: m.title, confidence: m.confidence * m.decay });
+  }
+  if (guestContext.operational.length) {
+    sources.push({ source: "operational_memory", title: "histórico operacional", confidence: 0.8 });
+  }
+
+  // Assunto em aberto: problema operacional continua vivo na sessão.
+  if (intent.category === "operacional" || intent.urgency === "high") {
+    setOpenTopic(params.conversationId, params.message, "issue");
+  }
+
+  // 3) Planner Agent — plano de execução já ciente do contexto e da memória
   const { plan, usage: planUsage, model: plannerModel } = await planExecution({
     message: params.message,
     intent,
     history: params.history,
     explorationMode: params.explorationMode,
+    contextHint: guestContext.text.slice(0, 2500),
   });
   usage = mergeUsage(usage, planUsage);
   if (plannerModel) models.planner = plannerModel;
+  rememberPlan(params.conversationId, plan);
 
-  // 3) Contexto
-  const guestKey = guestKeyOf(params.sessionId, params.guestName);
-  const memory = await loadGuestMemory(supabase, propertyId, guestKey);
   const context = await buildAgentContext({ supabase, property, guestName: params.guestName, memory });
+
 
   // 4) Pré-recuperação Hybrid RAG (indexa sob demanda na primeira vez)
   const { count: chunkCount } = await supabase
