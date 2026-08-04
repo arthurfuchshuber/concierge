@@ -61,6 +61,10 @@ import {
   renderHumanAnswers,
 } from "./human-loop/escalations.server";
 import { learnFromHumanAnswer } from "./human-loop/learning.server";
+import { tenantOf } from "./tenant/context.server";
+import { bindConversationChannel } from "./channels/gateway.server";
+import type { ChannelType } from "./channels/types";
+import { buildRootCause } from "./observability/root-cause.server";
 
 type Admin = SupabaseClient;
 
