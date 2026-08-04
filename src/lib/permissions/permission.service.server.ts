@@ -91,17 +91,30 @@ export async function assignPermission(
   return saved;
 }
 
-/** Sincroniza o Registry (incluindo auto discovery) com a tabela de nós. */
+/** Sincroniza o Registry (catálogo + auto discovery) com a tabela de nós. */
 export async function syncRegistryToDatabase(): Promise<{ synced: number; errors: string[] }> {
+  bootstrapPermissionRegistry();
   runAutoDiscovery();
   const validation = permissionRegistry.validate();
   if (!validation.ok) return { synced: 0, errors: validation.errors };
   const defs = permissionRegistry.list();
   if (!defs.length) return { synced: 0, errors: [] };
-  // Duas passagens: cria os nós e depois resolve os vínculos de pai.
-  await permissionRepository.upsertNodes(defs.filter((d) => !d.parentSlug));
   const synced = await permissionRepository.upsertNodes(defs);
   return { synced, errors: [] };
+}
+
+/** Relatório de consistência da árvore (rotas sem nó, pais quebrados etc.). */
+export function inspectRegistryConsistency() {
+  bootstrapPermissionRegistry();
+  const report = buildConsistencyReport();
+  logConsistencyReport(report);
+  return report;
+}
+
+/** Achados do Lovable Guardian (recursos novos sem Permission Node). */
+export function inspectGuardian() {
+  bootstrapPermissionRegistry();
+  return lovableGuardian.inspect();
 }
 
 export const permissionService = {
@@ -109,4 +122,7 @@ export const permissionService = {
   resolveAccessLevel,
   assignPermission,
   syncRegistryToDatabase,
+  inspectRegistryConsistency,
+  inspectGuardian,
 };
+
