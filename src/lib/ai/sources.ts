@@ -30,6 +30,8 @@ export const SOURCE_CONFIDENCE: Record<string, number> = {
   city_reference: 0.9,
   // Tier 4 — inferido / histórico
   guest_memory: 0.75,
+  operational_memory: 0.8,
+  memory: 0.72,
   conversation: 0.7,
 };
 
@@ -41,7 +43,7 @@ export const SOURCE_TIERS: Array<{ tier: number; label: string; sources: string[
     sources: ["guide", "manual", "faq", "rules", "checkout", "procedures", "host_knowledge", "host_behavior"],
   },
   { tier: 3, label: "APIs externas e curadoria", sources: ["calendar", "weather", "maps", "recommendation", "city_reference"] },
-  { tier: 4, label: "Inferido / histórico", sources: ["guest_memory", "conversation"] },
+  { tier: 4, label: "Inferido / histórico", sources: ["operational_memory", "guest_memory", "memory", "conversation"] },
 ];
 
 export const DEFAULT_CONFIDENCE = 0.6;

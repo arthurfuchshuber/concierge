@@ -31,6 +31,16 @@ export type AgentLog = {
   confidenceTier?: string | null;
   /** Peso médio das fontes efetivamente consultadas. */
   sourceWeight?: number | null;
+  /** true quando alguma memória foi injetada no raciocínio. */
+  memoryContextUsed?: boolean;
+  /** Memórias recuperadas (id, tier, tipo, score) — auditoria. */
+  memoriesRetrieved?: unknown;
+  /** Confiança agregada das memórias usadas. */
+  memoryConfidenceScore?: number | null;
+  /** Retrato do contexto do hóspede no momento da resposta. */
+  guestContextSnapshot?: unknown;
+  /** Retrato do contexto operacional no momento da resposta. */
+  operationalContextSnapshot?: unknown;
 };
 
 export async function logAgentRun(supabase: SupabaseClient, log: AgentLog): Promise<void> {
@@ -57,6 +67,11 @@ export async function logAgentRun(supabase: SupabaseClient, log: AgentLog): Prom
       prompt_versions: (log.promptVersions ?? null) as never,
       confidence_tier: log.confidenceTier ?? null,
       source_weight: log.sourceWeight ?? null,
+      memory_context_used: log.memoryContextUsed ?? false,
+      memories_retrieved: (log.memoriesRetrieved ?? null) as never,
+      memory_confidence_score: log.memoryConfidenceScore ?? null,
+      guest_context_snapshot: (log.guestContextSnapshot ?? null) as never,
+      operational_context_snapshot: (log.operationalContextSnapshot ?? null) as never,
     });
   } catch (err) {
     // Observabilidade nunca pode quebrar o atendimento.
