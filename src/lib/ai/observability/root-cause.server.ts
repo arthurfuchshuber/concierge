@@ -29,6 +29,8 @@ export function buildRootCause(input: RootCause): RootCause {
   return input;
 }
 
+type Json = string | number | boolean | null | Json[] | { [key: string]: Json };
+
 export type Explanation = {
   id: string;
   createdAt: string;
@@ -39,13 +41,13 @@ export type Explanation = {
   confidenceTier: string | null;
   handoff: boolean;
   contextKeys: string[];
-  memories: unknown;
-  tools: unknown;
-  sources: unknown;
+  memories: Json;
+  tools: Json;
+  sources: Json;
   channel: string | null;
-  promptVersions: unknown;
-  models: unknown;
-  rootCause: unknown;
+  promptVersions: Json;
+  models: Json;
+  rootCause: Json;
   narrative: string;
 };
 
@@ -90,13 +92,13 @@ export async function explainInteraction(params: {
     confidenceTier: (row.confidence_tier as string) ?? null,
     handoff: !!row.needs_human,
     contextKeys: (row.context_keys as string[]) ?? [],
-    memories: row.memories_retrieved,
-    tools,
-    sources,
+    memories: (row.memories_retrieved ?? null) as Json,
+    tools: tools as Json,
+    sources: sources as Json,
     channel: (row.channel_origin as string) ?? null,
-    promptVersions: row.prompt_versions,
-    models: row.models,
-    rootCause: row.root_cause,
+    promptVersions: (row.prompt_versions ?? null) as Json,
+    models: (row.models ?? null) as Json,
+    rootCause: (row.root_cause ?? null) as Json,
     narrative,
   };
 }
