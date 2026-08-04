@@ -535,8 +535,49 @@ export async function runHospitalityAgent(params: {
     escalationTriggered: !!escalationId,
     escalationId,
     humanResponseUsed: humanAnswers.length > 0,
+    tenantId: tenant.tenantId,
+    channelOrigin: channel,
+    channelReference: params.channelReference ?? null,
+    proactiveTrigger: params.proactiveTrigger ?? null,
+    autonomyLevel: params.autonomyLevel ?? agent.autonomy,
+    actionApprovalStatus: handoffReason ? "waiting_human" : "not_required",
+    rootCause: buildRootCause({
+      decision: {
+        agent: agent.key,
+        routingReason: describeRouting(routing),
+        autonomy: agent.autonomy,
+        confidence,
+        confidenceTier: tier,
+        handoff: !!handoffReason,
+        handoffReason,
+      },
+      context: {
+        keys: [...context.keys, ...guestContext.keys],
+        memoryUsed: guestContext.memories.length > 0,
+        humanAnswerUsed: humanAnswers.length > 0,
+      },
+      memories: guestContext.memories.map((m) => ({ id: m.id, tier: m.tier, score: m.score })),
+      tools: toolsUsed.map((t) => ({ name: t.name, durationMs: t.durationMs })),
+      sources: sources.map((s) => ({ source: s.source, confidence: s.confidence })),
+      channel: { origin: channel, reference: params.channelReference ?? null },
+      proactive: {
+        trigger: params.proactiveTrigger ?? null,
+        autonomyLevel: params.autonomyLevel ?? agent.autonomy,
+        approvalStatus: handoffReason ? "waiting_human" : "not_required",
+      },
+    }),
   }).catch(() => undefined);
 
+  // Channel Gateway: registra (idempotente) a origem desta conversa.
+  void bindConversationChannel({
+    supabase,
+    tenant,
+    conversationId: params.conversationId,
+    channel,
+    externalReference: params.channelReference ?? null,
+    locale: intent.language,
+    metadata: { surface: params.surface ?? "guide_chat" },
+  }).catch(() => undefined);
 
   return {
     reply,
@@ -551,6 +592,10 @@ export async function runHospitalityAgent(params: {
     reflection,
     routing,
     escalationId,
+    tenantId: tenant.tenantId,
+    channel,
+    toolsUsed,
+    sourcesUsed: [...new Set(sources.map((s) => s.source))],
   };
 }
 
