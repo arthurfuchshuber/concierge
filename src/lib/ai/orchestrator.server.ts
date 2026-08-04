@@ -196,7 +196,17 @@ export async function runHospitalityAgent(params: {
     evidence.push(`[${p.source}] ${p.title ?? ""}: ${p.content}`);
   }
 
-  // 5) Agente com ferramentas (execução paralela por rodada)
+  // 4b) Human-in-the-loop: decisões humanas pendentes desta conversa
+  const humanAnswers = await pendingHumanAnswers({ supabase, conversationId: params.conversationId });
+  for (const a of humanAnswers) {
+    sources.push({ source: "human_decision", title: "decisão da equipe", confidence: 1 });
+    evidence.push(`[human_decision] ${a.question} → ${a.answer}`);
+  }
+
+  // 5) Agente especialista com ferramentas (whitelist do registry)
+  let escalationId: string | null = null;
+  let escalationQuestion: string | null = null;
+
   const toolCtx: ToolContext = {
     supabase,
     ownerId,
@@ -214,17 +224,30 @@ export async function runHospitalityAgent(params: {
       handoffUrgency = urgency;
     },
   };
-  const tools = buildGuestTools(toolCtx);
+  const tools = allowedToolsOf(agent, [
+    ...buildGuestTools(toolCtx),
+    ...buildAgentTools({
+      ...toolCtx,
+      agent: agent.key,
+      guestKey,
+      onEscalation: (info) => {
+        escalationId = info.id;
+        escalationQuestion = info.question;
+      },
+    }),
+  ]);
 
   const instructions =
     PROMPTS.agent.text +
     (params.explorationMode ? PROMPTS.exploration.text : "") +
+    `\n\n=== SEU PAPEL NESTA CONVERSA ===\n${renderAgentBriefing(agent)}` +
     (context.behavior
       ? `\n\nCOMPORTAMENTO DEFINIDO PELO ANFITRIÃO (prioridade máxima, siga estritamente)\n${context.behavior}`
       : "") +
     `\n\nRANKING PERMANENTE DE FONTES (em conflito, o tier menor sempre vence)\n${renderSourceRanking()}` +
     `\n\nCONTEXTO ATUAL\n${context.text}` +
     `\n\nCONTEXTO DO HÓSPEDE E MEMÓRIA (uso interno — nunca revele ao hóspede que existe histórico registrado)\n${guestContext.text}` +
+    renderHumanAnswers(humanAnswers) +
     `\n\nINTENÇÃO DETECTADA: ${intent.intent} (categoria=${intent.category}, urgência=${intent.urgency}, idioma=${intent.language})` +
     `\n\nPLANO DE EXECUÇÃO (definido pelo planejador)\n${renderPlan(plan)}` +
     `\n\nEVIDÊNCIAS PRÉ-RECUPERADAS (busca híbrida: ${retrievalUsed.join("+") || "nenhuma"})\n${renderPassages(passages)}`;
@@ -249,9 +272,11 @@ export async function runHospitalityAgent(params: {
       instructions,
       input,
       tools,
-      maxSteps: 6,
-      reasoningEffort: intent.urgency === "high" || plan.riskLevel === "high" ? "medium" : "low",
+      maxSteps: agent.maxSteps,
+      reasoningEffort:
+        intent.urgency === "high" || plan.riskLevel === "high" ? "medium" : agent.reasoningEffort,
     });
+
     usage = mergeUsage(usage, run.usage);
     reply = run.text.trim();
     toolsUsed = run.toolCalls.map((c) => ({
