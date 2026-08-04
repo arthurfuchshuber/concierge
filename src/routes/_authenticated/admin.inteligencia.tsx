@@ -443,7 +443,11 @@ const CATEGORIES = [
   "LEARNING",
   "INTEGRATIONS",
   "SECURITY",
+  "ACTIVITY",
+  "SERVER_CALL",
+  "ERROR",
 ] as const;
+
 
 const SEVERITIES = ["info", "notice", "warning", "error", "critical"] as const;
 
