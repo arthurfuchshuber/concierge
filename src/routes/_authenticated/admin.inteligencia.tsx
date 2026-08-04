@@ -72,26 +72,21 @@ function IntelligencePage() {
       </header>
 
       {/* Dois grupos, cada um com suas próprias abas */}
-      <div className="inline-flex rounded-xl border border-border bg-surface p-1">
-        <button
-          type="button"
+      <div className="inline-flex flex-wrap gap-2">
+        <Button
+          variant={group === "ia" ? "default" : "outline"}
           onClick={() => setGroup("ia")}
-          className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm transition-colors ${
-            group === "ia" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
-          }`}
         >
           <Sparkles className="size-4" /> Melhoria da IA
-        </button>
-        <button
-          type="button"
+        </Button>
+        <Button
+          variant={group === "auditoria" ? "default" : "outline"}
           onClick={() => setGroup("auditoria")}
-          className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm transition-colors ${
-            group === "auditoria" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
-          }`}
         >
           <ScrollText className="size-4" /> Auditoria do SaaS
-        </button>
+        </Button>
       </div>
+
 
       {group === "ia" ? <AiGroup /> : <AuditGroup />}
     </div>
