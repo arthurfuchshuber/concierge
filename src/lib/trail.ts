@@ -41,18 +41,34 @@ function deviceId(): string {
   }
 }
 
+/** Nome informado pelo hóspede no formulário de acesso (quando existir). */
+function guestName(): string | undefined {
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (!k || !k.startsWith("sg-access-")) continue;
+      const rec = JSON.parse(localStorage.getItem(k) || "{}") as { name?: string };
+      if (rec?.name) return rec.name;
+    }
+  } catch {
+    /* ignore */
+  }
+  return undefined;
+}
+
 async function flush(): Promise<void> {
   if (!buffer.length) return;
   const events = buffer;
   buffer = [];
   try {
     await ingestTrail({
-      data: { events, deviceId: deviceId(), sessionId, guideSlug },
+      data: { events, deviceId: deviceId(), sessionId, guideSlug, actorName: guestName() },
     });
   } catch {
     /* rastro nunca pode atrapalhar o uso do app */
   }
 }
+
 
 function schedule(): void {
   if (timer) return;
