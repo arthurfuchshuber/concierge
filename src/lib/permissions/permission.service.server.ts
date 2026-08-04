@@ -3,8 +3,12 @@
  *
  * FASE 1: disponível, porém nenhum fluxo, rota ou tela existente o consome.
  */
+import { bootstrapPermissionRegistry } from "./permission.bootstrap";
+import { buildConsistencyReport, logConsistencyReport } from "./permission.consistency";
 import { permissionEngine } from "./permission.engine";
+import { lovableGuardian } from "./permission.guardian";
 import { permissionRegistry, runAutoDiscovery } from "./permission.registry";
+
 import {
   permissionRepository,
   type UpsertAssignmentInput,
