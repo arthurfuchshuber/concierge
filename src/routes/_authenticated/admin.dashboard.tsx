@@ -35,6 +35,7 @@ import { toast } from "sonner";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { CopyButton } from "@/components/CopyButton";
+import { OwnerLine } from "@/components/dashboard/OwnerLine";
 import {
   Accordion,
   AccordionContent,
@@ -646,11 +647,7 @@ function KpiCard({
                       {r.pendingFill ? <UserPlus className="size-4" /> : initials}
                     </div>
                     <div className="min-w-0 flex-1">
-                      {r.ownerName && (
-                        <div className="text-xs font-bold text-primary truncate" title={r.ownerName}>
-                          {r.ownerName}
-                        </div>
-                      )}
+                      <OwnerLine name={r.ownerName} phone={r.ownerPhone} country={r.ownerPhoneCountry} />
                       <div
                         className="text-sm font-semibold leading-tight truncate text-foreground"
                         title={r.propertyName ?? undefined}
@@ -1166,11 +1163,7 @@ function ArrivalCard({
           {isPendingFill ? <UserPlus className="size-5" /> : initials(row.guestName)}
         </div>
         <div className="flex-1 min-w-0">
-          {row.ownerName && (
-            <div className="text-xs font-bold text-primary truncate" title={row.ownerName}>
-              {row.ownerName}
-            </div>
-          )}
+          <OwnerLine name={row.ownerName} phone={row.ownerPhone} country={row.ownerPhoneCountry} />
           <div className="font-semibold truncate text-foreground" title={row.propertyName ?? undefined}>
             {row.propertyName ?? "Sem nome"}
           </div>
