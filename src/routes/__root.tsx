@@ -13,6 +13,7 @@ import { useEffect, type ReactNode } from "react";
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { I18nProvider } from "../lib/i18n";
+import { installPermissionDeniedHandler } from "@/lib/permissions/permissionClient";
 import { Toaster } from "../components/ui/sonner";
 import { supabase } from "../integrations/supabase/client";
 import { META_PIXEL_ID, initMetaPixel, metaPixelPageView } from "../lib/meta-pixel";
@@ -147,6 +148,11 @@ function RootComponent() {
     });
     return () => subscription.unsubscribe();
   }, [router, queryClient]);
+
+  // Tratamento global de PERMISSION_DENIED (não quebra a aplicação).
+  useEffect(() => installPermissionDeniedHandler(), []);
+
+
 
   useEffect(() => {
     if (typeof window === "undefined" || !window.visualViewport) return;
