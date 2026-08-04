@@ -61,6 +61,7 @@ import {
   renderHumanAnswers,
 } from "./human-loop/escalations.server";
 import { learnFromHumanAnswer } from "./human-loop/learning.server";
+import { bumpMemoryUsage } from "./learning/memory-intelligence.server";
 import { tenantOf } from "./tenant/context.server";
 import { bindConversationChannel } from "./channels/gateway.server";
 import type { ChannelType } from "./channels/types";
