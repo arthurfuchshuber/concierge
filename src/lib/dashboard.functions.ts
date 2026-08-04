@@ -227,6 +227,7 @@ export const getGuideEngagement = createServerFn({ method: "GET" })
         .eq("source", "airbnb")
         .gte("checkin_date", from)
         .lte("checkin_date", to)
+        .gte("checkout_date", today)
         .limit(5000),
       context.supabase
         .from("guide_access_logs")
