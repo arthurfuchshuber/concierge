@@ -7,6 +7,7 @@ import { bootstrapPermissionRegistry } from "./permission.bootstrap";
 import { buildConsistencyReport, logConsistencyReport } from "./permission.consistency";
 import { permissionEngine } from "./permission.engine";
 import { lovableGuardian } from "./permission.guardian";
+import { validateScope } from "./permission.scopes";
 
 import {
   permissionRepository,
@@ -67,6 +68,13 @@ export async function assignPermission(
   if (permissionEngine.assignmentsAreImmutable(target)) {
     throw new Error("As permissões do titular (OWNER) não podem ser editadas.");
   }
+
+  // FASE 3.5 — escopo operacional obrigatório e coerente.
+  const scopeCheck = validateScope({
+    nodeSlug: String(input.permissionNodeId),
+    scope: { type: input.scopeType ?? "TENANT", id: input.scopeId ?? null },
+  });
+  if (!scopeCheck.ok) throw new Error(scopeCheck.errors.join(" "));
 
   const before = await permissionRepository.listAssignments(input.tenantId, input.userId);
   const previous = before.find(
@@ -185,6 +193,9 @@ export const permissionService = {
   resolveAccessLevel,
   assignPermission,
   syncRegistryToDatabase,
+  assignUserToProperty,
+  removeUserFromProperty,
+  listUserProperties,
   inspectRegistryConsistency,
   inspectGuardian,
 };
