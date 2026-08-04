@@ -3,14 +3,15 @@
  *
  * Pipeline por mensagem:
  *   1. Classificação de intenção (modelo rápido)
- *   2. Planner Agent (plano de execução: quais ferramentas realmente usar)
- *   3. Coleta de contexto (residência, reserva, fase da estadia, memória)
+ *   2. Guest Context Engine + Memory Retrieval (curto prazo, longo prazo, operacional)
+ *   3. Planner Agent (plano de execução, já ciente do contexto e da memória)
+ *   3b. Coleta de contexto (residência, reserva, fase da estadia)
  *   4. Pré-recuperação Hybrid RAG (vetorial + textual)
  *   5. Raciocínio + tool calling paralelo (agente principal)
  *   6. Validação final (anti-alucinação)
  *   7. Reflection Step (autoavaliação e melhoria da redação)
  *   8. Confidence Threshold (auto | com ressalva | handoff)
- *   9. Observabilidade (log completo, com versão dos prompts)
+ *   9. Gravação seletiva de memória + observabilidade (log completo)
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { EMPTY_USAGE, mergeUsage, runAgent, type Usage } from "./gateway.server";
