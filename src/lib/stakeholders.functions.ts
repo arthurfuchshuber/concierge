@@ -273,7 +273,7 @@ export const linkPropertyToOwner = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
     const { enforce } = await import("@/lib/permissions/permission.enforce.server");
-    await enforce(userId, "stakeholders.vinculo-imovel", { resource: data.stakeholderId ?? null });
+    await enforce(userId, "stakeholders.vinculo-imovel", { resource: data.ownerId, propertyId: data.propertyId });
     const accountId = await resolveAccountOwnerId(supabase, userId);
     const { data: owner } = await supabase
       .from("property_owners")
