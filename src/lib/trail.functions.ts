@@ -72,6 +72,7 @@ export const ingestTrail = createServerFn({ method: "POST" })
     deviceId: input?.deviceId,
     sessionId: input?.sessionId,
     guideSlug: input?.guideSlug,
+    actorName: typeof input?.actorName === "string" ? input.actorName.slice(0, 120) : undefined,
   }))
   .handler(async ({ data }) => {
     if (!data.events.length) return { ok: true, stored: 0 };
@@ -91,6 +92,18 @@ export const ingestTrail = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { logSystemEvents } = await import("@/lib/ai/audit/events.server");
 
+    // Autor: nome do perfil > nome do formulário de acesso > e-mail > visitante.
+    let profileName: string | null = null;
+    if (userId) {
+      const { data: prof } = await supabaseAdmin
+        .from("profiles")
+        .select("full_name")
+        .eq("id", userId)
+        .maybeSingle();
+      profileName = ((prof as { full_name?: string } | null)?.full_name ?? "").trim() || null;
+    }
+    const actorName = profileName ?? data.actorName ?? email ?? "visitante";
+
     await logSystemEvents(
       supabaseAdmin,
       data.events.map((e) => ({
@@ -98,7 +111,8 @@ export const ingestTrail = createServerFn({ method: "POST" })
         userId,
         actorType: userId ? ("USER" as const) : ("GUEST" as const),
         actorId: userId ?? data.deviceId ?? null,
-        actorName: email ?? (data.guideSlug ? `hóspede:${data.guideSlug}` : "visitante"),
+        actorName,
+
         eventType: e.type,
         eventCategory: e.category ?? "ACTIVITY",
         entityType: e.target ? "ui_element" : "page",
