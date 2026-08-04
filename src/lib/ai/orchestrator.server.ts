@@ -296,15 +296,30 @@ export async function runHospitalityAgent(params: {
     toolsUsed.map((t) => ({ name: t.name, args: t.args, ok: true, at: Date.now() })),
   );
 
+  // Perguntou a um humano: responde com honestidade, nunca inventa.
+  if (escalationId && !reply) reply = pendingNotice(intent.language);
   if (handoffReason && !reply) reply = HANDOFF_FALLBACK;
+
+  // Decisões humanas já entregues ao hóspede não voltam ao contexto.
+  if (humanAnswers.length && reply) {
+    void markAnswersApplied({ supabase, ids: humanAnswers.map((a) => a.id) }).catch(() => undefined);
+  }
 
 
   // 6) Validação + 7) Reflection (puladas quando já escalamos para humano)
-  const thresholds = thresholdsFor({
+  const baseThresholds = thresholdsFor({
     explorationMode: params.explorationMode,
     category: intent.category,
     urgency: intent.urgency,
   });
+  // O agente especialista pode exigir confiança maior que a categoria.
+  const thresholds = params.explorationMode
+    ? baseThresholds
+    : {
+        auto: Math.max(baseThresholds.auto, agent.thresholds.auto),
+        hedged: Math.max(baseThresholds.hedged, agent.thresholds.hedged),
+      };
+
   const evidenceText = evidence.slice(0, 24).join("\n\n") || "(nenhuma evidência recuperada)";
   let validationResult: unknown = null;
   let reflection: Reflection | null = null;
