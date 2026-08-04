@@ -48,7 +48,16 @@ async function runSync() {
     }
     results.push({ id: p.id, ok: out.ok, error: out.error });
   }
-  return { total: list.length, ok, fail, skipped, imported, updated, removed, results };
+  const summary = { total: list.length, ok, fail, skipped, imported, updated, removed };
+  const { auditCron } = await import("@/lib/ai/audit/platform.server");
+  await auditCron("cron_completed", {
+    job: "sync-airbnb-ical",
+    description: `Sincronização iCal: ${ok} ok, ${fail} falha(s), ${skipped} ignorada(s).`,
+    metadata: summary,
+    severity: fail > 0 ? "warning" : "info",
+    result: fail > 0 ? "failure" : "success",
+  });
+  return { ...summary, results };
 }
 
 export const Route = createFileRoute("/api/public/cron/sync-airbnb-ical")({

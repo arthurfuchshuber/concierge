@@ -298,5 +298,13 @@ export const deleteGuides = createServerFn({ method: "POST" })
       .in("id", data.ids)
       .eq("owner_id", context.userId);
     if (error) throw (await import("@/lib/db-errors.server")).safeDbError("properties", error);
+    const { auditData } = await import("@/lib/ai/audit/platform.server");
+    await auditData("guides_deleted", {
+      userId: context.userId,
+      entityType: "property",
+      description: `${data.ids.length} guia(s) excluído(s).`,
+      metadata: { ids: data.ids },
+      severity: "warning",
+    });
     return { ok: true, deleted: data.ids.length };
   });
