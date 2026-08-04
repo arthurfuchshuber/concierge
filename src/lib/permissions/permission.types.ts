@@ -7,15 +7,33 @@
  */
 
 /** Tipo de nó na árvore de permissões. */
-export type PermissionNodeType = "PAGE" | "SUBPAGE" | "TAB" | "RESOURCE" | "FIELD";
+export type PermissionNodeType =
+  | "PAGE"
+  | "SUBPAGE"
+  | "TAB"
+  | "SECTION"
+  | "RESOURCE"
+  | "FIELD";
 
 export const PERMISSION_NODE_TYPES: PermissionNodeType[] = [
   "PAGE",
   "SUBPAGE",
   "TAB",
+  "SECTION",
   "RESOURCE",
   "FIELD",
 ];
+
+/** Ordem hierárquica esperada (do mais amplo para o mais específico). */
+export const PERMISSION_NODE_DEPTH: Record<PermissionNodeType, number> = {
+  PAGE: 0,
+  SUBPAGE: 1,
+  TAB: 2,
+  SECTION: 3,
+  RESOURCE: 4,
+  FIELD: 5,
+};
+
 
 /** Níveis de acesso padrão. Ordenados do menor para o maior. */
 export type AccessLevel = "NONE" | "READ" | "WRITE";
@@ -60,9 +78,20 @@ export type PermissionNode = {
   description: string | null;
   order: number;
   active: boolean;
+  label: string | null;
+  route: string | null;
+  icon: string | null;
+  display_order: number;
+  is_system: boolean;
+  is_hidden: boolean;
+  version: number;
+  deprecated: boolean;
   created_at: string;
   updated_at: string;
 };
+
+/** Origem de um nó dentro do catálogo (usada pelo Guardian/auditoria). */
+export type PermissionNodeSource = "catalog" | "scanner" | "auto-parent" | "manual";
 
 /** Definição declarativa usada pelo Registry antes de existir no banco. */
 export type PermissionNodeDefinition = {
@@ -73,11 +102,30 @@ export type PermissionNodeDefinition = {
   description?: string | null;
   order?: number;
   active?: boolean;
+  /** Rótulo exibido ao usuário (default: `name`). */
+  label?: string | null;
+  /** Rota associada, quando o nó for navegável. */
+  route?: string | null;
+  /** Nome do ícone (lucide-react), quando existir. */
+  icon?: string | null;
+  /** Ordem de exibição dentro do pai. */
+  displayOrder?: number;
+  /** Nó estrutural do próprio SaaS (não editável pelo tenant). */
+  isSystem?: boolean;
+  /** Nó existente porém não exibido na UI de permissões. */
+  isHidden?: boolean;
+  /** Versão do nó — permite evolução sem perda de histórico. */
+  version?: number;
+  /** Nó descontinuado (mantido para histórico). */
+  deprecated?: boolean;
+  /** De onde o nó veio (catálogo, scanner, criação automática de pai). */
+  source?: PermissionNodeSource;
   /** Funcionalidade de plano exigida para o nó ficar disponível. */
   feature?: string | null;
   /** Nível máximo que um membro pode receber neste nó. */
   maxAccessLevel?: AccessLevel;
 };
+
 
 /** Atribuição de permissão — espelha `public.permission_assignments`. */
 export type PermissionAssignment = {

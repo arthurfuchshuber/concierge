@@ -1,34 +1,113 @@
 /**
  * Permission Registry — catálogo central de Permission Nodes.
  *
- * FASE 1: apenas a estrutura. Nenhum módulo existente é registrado ainda.
- * A partir da próxima fase, NENHUMA funcionalidade poderá existir sem estar
- * declarada aqui (o Auto Discovery sincroniza o registry com o banco).
+ * FASE 2: o catálogo completo do ConciergeIA é declarado e descoberto
+ * automaticamente aqui. O registry continua desconectado das telas, menus e
+ * regras de acesso atuais — ele apenas cataloga a árvore.
+ *
+ * Regras:
+ *  - slug único e padronizado (`pai.filho.neto`);
+ *  - nunca criar duplicidade (registro é idempotente e faz merge);
+ *  - nunca criar árvore quebrada (pais ausentes são criados automaticamente).
  */
-import type { AccessLevel, PermissionNodeDefinition, PermissionNodeType } from "./permission.types";
+import type {
+  AccessLevel,
+  PermissionNodeDefinition,
+  PermissionNodeType,
+} from "./permission.types";
+
+/** Deriva o slug do pai a partir do slug pontuado (`a.b.c` → `a.b`). */
+export function deriveParentSlug(slug: string): string | null {
+  const parts = slug.split(".");
+  if (parts.length <= 1) return null;
+  return parts.slice(0, -1).join(".");
+}
+
+/** Rótulo legível gerado a partir do último segmento do slug. */
+function humanize(slug: string): string {
+  const last = slug.split(".").pop() ?? slug;
+  return last
+    .replace(/[-_]/g, " ")
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+/** Tipo provável de um pai criado automaticamente, pela profundidade do slug. */
+function inferTypeFromDepth(slug: string): PermissionNodeType {
+  const depth = slug.split(".").length;
+  if (depth <= 1) return "PAGE";
+  if (depth === 2) return "SUBPAGE";
+  if (depth === 3) return "TAB";
+  return "SECTION";
+}
 
 class PermissionRegistry {
   private nodes = new Map<string, PermissionNodeDefinition>();
 
-  /** Registra (ou substitui) um nó. Idempotente por slug. */
+  /** Registra um nó. Idempotente por slug — faz merge, nunca duplica. */
   register(def: PermissionNodeDefinition): PermissionNodeDefinition {
+    const previous = this.nodes.get(def.slug);
+    const parentSlug =
+      def.parentSlug !== undefined ? def.parentSlug : (previous?.parentSlug ?? deriveParentSlug(def.slug));
+
     const normalized: PermissionNodeDefinition = {
-      order: 0,
-      active: true,
-      parentSlug: def.parentSlug ?? null,
-      description: def.description ?? null,
-      feature: def.feature ?? null,
-      maxAccessLevel: def.maxAccessLevel ?? "WRITE",
+      ...previous,
       ...def,
+      parentSlug: parentSlug ?? null,
+      description: def.description ?? previous?.description ?? null,
+      order: def.order ?? previous?.order ?? 0,
+      active: def.active ?? previous?.active ?? true,
+      label: def.label ?? previous?.label ?? def.name,
+      route: def.route ?? previous?.route ?? null,
+      icon: def.icon ?? previous?.icon ?? null,
+      displayOrder: def.displayOrder ?? previous?.displayOrder ?? def.order ?? 0,
+      isSystem: def.isSystem ?? previous?.isSystem ?? true,
+      isHidden: def.isHidden ?? previous?.isHidden ?? false,
+      version: def.version ?? previous?.version ?? 1,
+      deprecated: def.deprecated ?? previous?.deprecated ?? false,
+      source: def.source ?? previous?.source ?? "manual",
+      feature: def.feature ?? previous?.feature ?? null,
+      maxAccessLevel: def.maxAccessLevel ?? previous?.maxAccessLevel ?? "WRITE",
     };
     this.nodes.set(normalized.slug, normalized);
+    this.ensureParent(normalized);
     return normalized;
+  }
+
+  /**
+   * AUTO HERANÇA — garante que todo ancestral exista.
+   * Caso o pai ainda não exista, ele é criado automaticamente.
+   */
+  private ensureParent(node: PermissionNodeDefinition): void {
+    let parentSlug = node.parentSlug ?? null;
+    while (parentSlug && !this.nodes.has(parentSlug)) {
+      const created: PermissionNodeDefinition = {
+        slug: parentSlug,
+        name: humanize(parentSlug),
+        label: humanize(parentSlug),
+        type: inferTypeFromDepth(parentSlug),
+        parentSlug: deriveParentSlug(parentSlug),
+        description: "Agrupamento criado automaticamente pela auto herança.",
+        order: 0,
+        displayOrder: 0,
+        active: true,
+        isSystem: true,
+        isHidden: false,
+        version: 1,
+        deprecated: false,
+        source: "auto-parent",
+        feature: null,
+        maxAccessLevel: "WRITE",
+      };
+      this.nodes.set(created.slug, created);
+      parentSlug = created.parentSlug ?? null;
+    }
   }
 
   /** Registra vários nós de uma vez. */
   registerMany(defs: PermissionNodeDefinition[]): void {
     for (const d of defs) this.register(d);
   }
+
 
   has(slug: string): boolean {
     return this.nodes.has(slug);

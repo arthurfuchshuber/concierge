@@ -2954,38 +2954,62 @@ export type Database = {
         Row: {
           active: boolean
           created_at: string
+          deprecated: boolean
           description: string | null
+          display_order: number
+          icon: string | null
           id: string
+          is_hidden: boolean
+          is_system: boolean
+          label: string | null
           name: string
           order: number
           parent_id: string | null
+          route: string | null
           slug: string
           type: Database["public"]["Enums"]["permission_node_type"]
           updated_at: string
+          version: number
         }
         Insert: {
           active?: boolean
           created_at?: string
+          deprecated?: boolean
           description?: string | null
+          display_order?: number
+          icon?: string | null
           id?: string
+          is_hidden?: boolean
+          is_system?: boolean
+          label?: string | null
           name: string
           order?: number
           parent_id?: string | null
+          route?: string | null
           slug: string
           type: Database["public"]["Enums"]["permission_node_type"]
           updated_at?: string
+          version?: number
         }
         Update: {
           active?: boolean
           created_at?: string
+          deprecated?: boolean
           description?: string | null
+          display_order?: number
+          icon?: string | null
           id?: string
+          is_hidden?: boolean
+          is_system?: boolean
+          label?: string | null
           name?: string
           order?: number
           parent_id?: string | null
+          route?: string | null
           slug?: string
           type?: Database["public"]["Enums"]["permission_node_type"]
           updated_at?: string
+          version?: number
         }
         Relationships: [
           {
@@ -4779,7 +4803,13 @@ export type Database = {
         | "guests_view"
         | "guests_edit"
       permission_access_level: "NONE" | "READ" | "WRITE"
-      permission_node_type: "PAGE" | "SUBPAGE" | "TAB" | "RESOURCE" | "FIELD"
+      permission_node_type:
+        | "PAGE"
+        | "SUBPAGE"
+        | "TAB"
+        | "RESOURCE"
+        | "FIELD"
+        | "SECTION"
       permission_scope_type:
         | "GLOBAL"
         | "TENANT"
@@ -4955,7 +4985,14 @@ export const Constants = {
         "guests_edit",
       ],
       permission_access_level: ["NONE", "READ", "WRITE"],
-      permission_node_type: ["PAGE", "SUBPAGE", "TAB", "RESOURCE", "FIELD"],
+      permission_node_type: [
+        "PAGE",
+        "SUBPAGE",
+        "TAB",
+        "RESOURCE",
+        "FIELD",
+        "SECTION",
+      ],
       permission_scope_type: [
         "GLOBAL",
         "TENANT",
