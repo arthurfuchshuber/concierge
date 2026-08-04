@@ -235,7 +235,13 @@ export async function runHospitalityAgent(params: {
     throw err;
   }
 
+  rememberTools(
+    params.conversationId,
+    toolsUsed.map((t) => ({ name: t.name, args: t.args, ok: true, at: Date.now() })),
+  );
+
   if (handoffReason && !reply) reply = HANDOFF_FALLBACK;
+
 
   // 6) Validação + 7) Reflection (puladas quando já escalamos para humano)
   const thresholds = thresholdsFor({
