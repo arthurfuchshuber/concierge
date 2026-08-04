@@ -544,7 +544,7 @@ export async function runHospitalityAgent(params: {
     rootCause: buildRootCause({
       decision: {
         agent: agent.key,
-        routingReason: describeRouting(routing),
+        routingReason: routing.reason,
         autonomy: agent.autonomy,
         confidence,
         confidenceTier: tier,
