@@ -176,3 +176,11 @@ export function stampVersions(keys: PromptKey[]): PromptVersionStamp {
   }
   return stamp;
 }
+
+/** Carimbo de prompts avulsos (agentes especialistas registrados no registry). */
+export function stampEntries(entries: PromptEntry[]): PromptVersionStamp {
+  const stamp: PromptVersionStamp = {};
+  for (const p of entries) stamp[p.id] = `${p.version}+${promptHash(p.text)}`;
+  return stamp;
+}
+
