@@ -3,14 +3,15 @@
  *
  * Pipeline por mensagem:
  *   1. Classificação de intenção (modelo rápido)
- *   2. Planner Agent (plano de execução: quais ferramentas realmente usar)
- *   3. Coleta de contexto (residência, reserva, fase da estadia, memória)
+ *   2. Guest Context Engine + Memory Retrieval (curto prazo, longo prazo, operacional)
+ *   3. Planner Agent (plano de execução, já ciente do contexto e da memória)
+ *   3b. Coleta de contexto (residência, reserva, fase da estadia)
  *   4. Pré-recuperação Hybrid RAG (vetorial + textual)
  *   5. Raciocínio + tool calling paralelo (agente principal)
  *   6. Validação final (anti-alucinação)
  *   7. Reflection Step (autoavaliação e melhoria da redação)
  *   8. Confidence Threshold (auto | com ressalva | handoff)
- *   9. Observabilidade (log completo, com versão dos prompts)
+ *   9. Gravação seletiva de memória + observabilidade (log completo)
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { EMPTY_USAGE, mergeUsage, runAgent, type Usage } from "./gateway.server";
@@ -21,6 +22,19 @@ import { buildGuestTools, type ToolContext } from "./tools.server";
 import { validateAnswer } from "./validate.server";
 import { guestKeyOf, loadGuestMemory, updateGuestMemory } from "./memory.server";
 import { logAgentRun } from "./observability.server";
+import { buildGuestContext } from "./memory/guest-context.server";
+import {
+  clearOpenTopic,
+  rememberEntities,
+  rememberIntent,
+  rememberMessage,
+  rememberPlan,
+  rememberTools,
+  setOpenTopic,
+} from "./memory/shortterm.server";
+import { classifyForMemory } from "./memory/policy.server";
+import { writeMemories } from "./memory/longterm.server";
+import { recordOperationalRequest } from "./memory/operational.server";
 import { AI_MODELS } from "./models";
 import { PROMPTS, HANDOFF_FALLBACK, stampVersions } from "./prompts";
 import { planExecution, renderPlan, type ExecutionPlan } from "./planner.server";
@@ -77,20 +91,53 @@ export async function runHospitalityAgent(params: {
   usage = mergeUsage(usage, intentUsage);
   models.intent = intentModel;
 
-  // 2) Planner Agent — plano de execução antes do tool calling
+  const guestKey = guestKeyOf(params.sessionId, params.guestName);
+  rememberMessage(params.conversationId, "user", params.message);
+  rememberIntent(params.conversationId, intent);
+
+  // 2) Guest Context Engine + Memory Retrieval (curto prazo, longo prazo, operacional)
+  const memory = await loadGuestMemory(supabase, propertyId, guestKey);
+  const guestContext = await buildGuestContext({
+    supabase,
+    ownerId,
+    propertyId,
+    conversationId: params.conversationId,
+    guestKey,
+    guestName: params.guestName,
+    message: params.message,
+    history: params.history,
+    category: intent.category,
+    language: intent.language,
+    memory,
+    searchQuery: intent.searchQuery,
+  });
+  usage = mergeUsage(usage, guestContext.usage);
+  for (const m of guestContext.memories) {
+    sources.push({ source: "memory", title: m.title, confidence: m.confidence * m.decay });
+  }
+  if (guestContext.operational.length) {
+    sources.push({ source: "operational_memory", title: "histórico operacional", confidence: 0.8 });
+  }
+
+  // Assunto em aberto: problema operacional continua vivo na sessão.
+  if (intent.category === "operacional" || intent.urgency === "high") {
+    setOpenTopic(params.conversationId, params.message, "issue");
+  }
+
+  // 3) Planner Agent — plano de execução já ciente do contexto e da memória
   const { plan, usage: planUsage, model: plannerModel } = await planExecution({
     message: params.message,
     intent,
     history: params.history,
     explorationMode: params.explorationMode,
+    contextHint: guestContext.text.slice(0, 2500),
   });
   usage = mergeUsage(usage, planUsage);
   if (plannerModel) models.planner = plannerModel;
+  rememberPlan(params.conversationId, plan);
 
-  // 3) Contexto
-  const guestKey = guestKeyOf(params.sessionId, params.guestName);
-  const memory = await loadGuestMemory(supabase, propertyId, guestKey);
   const context = await buildAgentContext({ supabase, property, guestName: params.guestName, memory });
+
 
   // 4) Pré-recuperação Hybrid RAG (indexa sob demanda na primeira vez)
   const { count: chunkCount } = await supabase
@@ -147,9 +194,11 @@ export async function runHospitalityAgent(params: {
       : "") +
     `\n\nRANKING PERMANENTE DE FONTES (em conflito, o tier menor sempre vence)\n${renderSourceRanking()}` +
     `\n\nCONTEXTO ATUAL\n${context.text}` +
+    `\n\nCONTEXTO DO HÓSPEDE E MEMÓRIA (uso interno — nunca revele ao hóspede que existe histórico registrado)\n${guestContext.text}` +
     `\n\nINTENÇÃO DETECTADA: ${intent.intent} (categoria=${intent.category}, urgência=${intent.urgency}, idioma=${intent.language})` +
     `\n\nPLANO DE EXECUÇÃO (definido pelo planejador)\n${renderPlan(plan)}` +
     `\n\nEVIDÊNCIAS PRÉ-RECUPERADAS (busca híbrida: ${retrievalUsed.join("+") || "nenhuma"})\n${renderPassages(passages)}`;
+
 
   const input = [
     ...params.history.slice(-12).map((m) => ({
@@ -187,7 +236,13 @@ export async function runHospitalityAgent(params: {
     throw err;
   }
 
+  rememberTools(
+    params.conversationId,
+    toolsUsed.map((t) => ({ name: t.name, args: t.args, ok: true, at: Date.now() })),
+  );
+
   if (handoffReason && !reply) reply = HANDOFF_FALLBACK;
+
 
   // 6) Validação + 7) Reflection (puladas quando já escalamos para humano)
   const thresholds = thresholdsFor({
@@ -259,7 +314,13 @@ export async function runHospitalityAgent(params: {
     confidence = 1;
   }
 
-  // 9) Memória + observabilidade (não bloqueiam a resposta)
+  // 9) Persistência de memória + observabilidade (não bloqueiam a resposta)
+  rememberMessage(params.conversationId, "assistant", reply);
+  if (intent.category !== "operacional" && intent.urgency !== "high") {
+    // pergunta resolvida fora de contexto operacional encerra o assunto em aberto
+    if (!handoffReason) clearOpenTopic(params.conversationId);
+  }
+
   const transcript = [...params.history, { role: "user", content: params.message }, { role: "assistant", content: reply }];
   void updateGuestMemory({
     supabase,
@@ -272,13 +333,57 @@ export async function runHospitalityAgent(params: {
     transcript,
   }).catch(() => undefined);
 
+  // Política de gravação: só o que tem utilidade futura vira memória de longo prazo.
+  void (async () => {
+    try {
+      const { candidates } = await classifyForMemory({
+        message: params.message,
+        answer: reply,
+        category: intent.category,
+        intent: intent.intent,
+        language: intent.language,
+      });
+      if (candidates.length) {
+        rememberEntities(params.conversationId, {
+          ultimo_tema: candidates[0]?.title ?? candidates[0]?.content.slice(0, 80) ?? "",
+        });
+        await writeMemories({
+          supabase,
+          ownerId,
+          propertyId,
+          subjectKey: guestKey,
+          guestName: params.guestName,
+          sourceRef: params.conversationId,
+          candidates,
+        });
+      }
+    } catch (err) {
+      console.error("[agent] gravação de memória falhou", err);
+    }
+  })();
+
+  // Memória operacional: todo escalonamento vira chamado rastreável.
+  if (handoffReason || intent.category === "operacional") {
+    void recordOperationalRequest({
+      supabase,
+      ownerId,
+      propertyId,
+      conversationId: params.conversationId,
+      guestKey,
+      guestName: params.guestName,
+      category: intent.category === "operacional" ? "manutencao" : (intent.category ?? "outro"),
+      request: params.message.slice(0, 800),
+      metadata: { intent: intent.intent, urgency: intent.urgency, handoff: !!handoffReason },
+    }).catch(() => undefined);
+  }
+
   void logAgentRun(supabase, {
     ownerId,
     propertyId,
     conversationId: params.conversationId,
     surface: params.surface ?? "guide_chat",
     intent,
-    contextKeys: context.keys,
+    contextKeys: [...context.keys, ...guestContext.keys],
     toolsUsed,
     sources,
     confidence,
@@ -293,7 +398,21 @@ export async function runHospitalityAgent(params: {
     promptVersions: stampVersions(["agent", "planner", "reflection", ...(params.explorationMode ? (["exploration"] as const) : [])]),
     confidenceTier: tier,
     sourceWeight: aggregateSourceWeight(sources),
+    memoryContextUsed: guestContext.memories.length > 0 || guestContext.operational.length > 0,
+    memoriesRetrieved: guestContext.memories.map((m) => ({
+      id: m.id,
+      tier: m.tier,
+      kind: m.kind,
+      source: m.source,
+      score: Number(m.score.toFixed(4)),
+      decay: Number(m.decay.toFixed(4)),
+      lastSeenAt: m.lastSeenAt,
+    })),
+    memoryConfidenceScore: guestContext.memoryConfidence,
+    guestContextSnapshot: guestContext.guestSnapshot,
+    operationalContextSnapshot: guestContext.operationalSnapshot,
   }).catch(() => undefined);
+
 
   return {
     reply,
