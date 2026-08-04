@@ -7,6 +7,7 @@
 import { createHash } from "crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { writeMemories } from "../memory/longterm.server";
+import { logSystemEvent } from "../audit/events.server";
 import type { MemoryKind, MemoryScope } from "../memory/types";
 import type { LearningCandidateDraft, SuggestedScope, ValidationVerdict } from "./types";
 
@@ -101,7 +102,26 @@ export async function storeLearningCandidate(input: StoreInput): Promise<string 
       .single();
 
     if (error) throw error;
-    return data?.id ? String(data.id) : null;
+    const newId = data?.id ? String(data.id) : null;
+    if (newId) {
+      await logSystemEvent(supabase, {
+        tenantId: input.tenantId,
+        actorType: "AI_AGENT",
+        actorId: input.agent ?? "learning_loop",
+        actorName: input.agent ?? "Continuous Learning Loop",
+        eventType: "learning_candidate_created",
+        eventCategory: "LEARNING",
+        entityType: "ai_learning_candidates",
+        entityId: newId,
+        conversationId: input.conversationId,
+        propertyId: input.propertyId,
+        description: draft.title ?? "Novo aprendizado sugerido",
+        reason: verdict.reasons.join(" · ") || "Padrão extraído de conversa encerrada",
+        source: "learning_loop",
+        metadata: { learning_type: draft.learningType, scope: verdict.scope, risk: verdict.risk },
+      });
+    }
+    return newId;
   } catch (err) {
     console.error("[learning:candidates] falha ao gravar candidata", err);
     return null;
@@ -192,6 +212,23 @@ export async function approveAndApply(input: ApplyInput): Promise<{ ok: boolean;
     })
     .eq("id", input.candidateId);
 
+  await logSystemEvent(supabase, {
+    tenantId: input.tenantId,
+    userId: input.reviewerId,
+    actorType: "USER",
+    actorId: input.reviewerId,
+    eventType: "learning_approved",
+    eventCategory: "LEARNING",
+    entityType: "ai_learning_candidates",
+    entityId: input.candidateId,
+    conversationId: (row.source_conversation_id as string | null) ?? null,
+    propertyId: (row.property_id as string | null) ?? null,
+    description: `Aprendizado aprovado e aplicado (${scope})`,
+    reason: "Aprovação humana explícita",
+    source: "admin_panel",
+    metadata: { scope, learning_type: row.learning_type },
+  });
+
   return { ok: true };
 }
 
@@ -210,5 +247,19 @@ export async function rejectCandidate(params: {
     })
     .eq("id", params.candidateId)
     .eq("tenant_id", params.tenantId);
+
+  await logSystemEvent(params.supabase, {
+    tenantId: params.tenantId,
+    userId: params.reviewerId,
+    actorType: "USER",
+    actorId: params.reviewerId,
+    eventType: "learning_rejected",
+    eventCategory: "LEARNING",
+    entityType: "ai_learning_candidates",
+    entityId: params.candidateId,
+    description: "Aprendizado rejeitado",
+    reason: "Revisão humana",
+    source: "admin_panel",
+  });
   return { ok: true };
 }
