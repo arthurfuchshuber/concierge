@@ -95,12 +95,23 @@ export async function buildNodeTree(args: {
   await ensureRegistry();
   const dbNodes = await permissionRepository.listNodes();
   const idBySlug: Record<string, string> = {};
-  for (const n of dbNodes) idBySlug[n.slug] = n.id;
+  // Nós desativados (soft delete) permanecem no banco, mas saem da árvore.
+  for (const n of dbNodes) {
+    if (n.active === false) continue;
+    idBySlug[n.slug] = n.id;
+  }
 
   const blocked = new Set<string>();
   const defs = permissionRegistry
     .list()
-    .filter((d) => d.active !== false && !d.isHidden && !d.deprecated);
+    .filter(
+      (d) =>
+        d.active !== false &&
+        !d.isHidden &&
+        !d.deprecated &&
+        d.isPermissionable !== false,
+    );
+
 
   const allowedBySlug = new Map<string, boolean>();
   for (const def of defs) {
