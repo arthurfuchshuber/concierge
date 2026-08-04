@@ -19,7 +19,10 @@ import {
   type MemberPermission,
 } from "@/lib/member-permissions.functions";
 
+import { Shield as ShieldIcon } from "lucide-react";
+import { PermissionTreeManager } from "@/components/permissions/PermissionTreeManager";
 import { getAtendimentoAccess } from "@/lib/handoff.functions";
+
 import { useSubscription } from "@/hooks/useSubscription";
 import { enablePush, disablePush, isPushSupported, currentPushSubscription } from "@/lib/push-client";
 import { supabase } from "@/integrations/supabase/client";
@@ -483,7 +486,31 @@ function EquipePage() {
             </div>
           </AccordionContent>
         </AccordionItem>
+
+        <AccordionItem
+          value="permissoes-v2"
+          className="glass rounded-2xl border border-border overflow-hidden data-[state=open]:border-primary/40"
+        >
+          <AccordionTrigger className="px-4 lg:px-6 py-4 hover:no-underline">
+            <span className="flex items-center gap-2 font-display text-base">
+              <ShieldIcon className="size-4 text-primary" /> Permissões detalhadas por recurso
+              <span className="text-[11px] px-2 py-0.5 rounded-full bg-secondary border border-border text-muted-foreground">
+                em validação
+              </span>
+            </span>
+          </AccordionTrigger>
+          <AccordionContent className="pb-0">
+            <div className="px-4 lg:px-6 pb-5 pt-4 border-t border-border/60">
+              <p className="text-xs text-muted-foreground mb-3">
+                Nova arquitetura de permissões por página, aba, seção e recurso. As alterações aqui
+                ainda não substituem os acessos configurados acima.
+              </p>
+              <PermissionTreeManager context="account" />
+            </div>
+          </AccordionContent>
+        </AccordionItem>
       </Accordion>
+
 
     </div>
   );

@@ -17,6 +17,8 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Shield, ShieldCheck, Trash2, Loader2, UserPlus, Mail, Activity, Search, XCircle } from "lucide-react";
 import { toast } from "sonner";
 import { friendlyErrorMessage } from "@/lib/friendly-error";
+import { PermissionTreeManager } from "@/components/permissions/PermissionTreeManager";
+
 
 export const Route = createFileRoute("/_authenticated/admin/admins")({
   beforeLoad: async () => {
@@ -127,8 +129,18 @@ function AdminsPage() {
         <TabsList>
           <TabsTrigger value="admins"><ShieldCheck className="size-4 mr-1.5" />Administradores</TabsTrigger>
           <TabsTrigger value="invites"><Mail className="size-4 mr-1.5" />Convites {invites.length > 0 && <span className="ml-1 text-[10px] bg-accent text-accent-foreground px-1.5 rounded-full">{invites.length}</span>}</TabsTrigger>
+          <TabsTrigger value="permissoes"><Shield className="size-4 mr-1.5" />Permissões</TabsTrigger>
           <TabsTrigger value="logs"><Activity className="size-4 mr-1.5" />Log de atividades</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="permissoes" className="mt-6">
+          <div className="rounded-xl border border-border/60 bg-muted/30 p-3 text-xs text-muted-foreground mb-4">
+            Nova arquitetura de permissões (em validação). As alterações aqui ainda não substituem o
+            controle de acesso atual do sistema.
+          </div>
+          <PermissionTreeManager context="saas" />
+        </TabsContent>
+
 
         <TabsContent value="admins" className="mt-6 space-y-6">
           <form
