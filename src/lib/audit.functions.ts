@@ -84,12 +84,12 @@ export const listAuditTenants = createServerFn({ method: "GET" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data } = await supabaseAdmin
       .from("profiles")
-      .select("id, full_name, company_name")
+      .select("id, full_name")
       .order("full_name", { ascending: true })
       .limit(500);
     return ((data ?? []) as Array<Record<string, unknown>>).map((p) => ({
       id: String(p.id),
-      name: String(p.company_name || p.full_name || p.id),
+      name: String(p.full_name || p.id),
     }));
   });
 

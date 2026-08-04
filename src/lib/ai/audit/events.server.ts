@@ -180,7 +180,8 @@ export type EventFilters = {
   offset?: number;
 };
 
-export type SystemEventRow = Record<string, unknown>;
+export type Json = string | number | boolean | null | Json[] | { [key: string]: Json };
+export type SystemEventRow = { [key: string]: Json };
 
 /** Consulta paginada com todos os filtros do Log Viewer. */
 export async function queryEvents(
