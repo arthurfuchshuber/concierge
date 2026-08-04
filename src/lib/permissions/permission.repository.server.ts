@@ -34,7 +34,11 @@ export async function listNodes(): Promise<PermissionNode[]> {
 
 export async function getNodeBySlug(slug: string): Promise<PermissionNode | null> {
   const db = await admin();
-  const { data, error } = await db.from("permission_nodes").select("*").eq("slug", slug).maybeSingle();
+  const { data, error } = await db
+    .from("permission_nodes")
+    .select("*")
+    .eq("slug", slug)
+    .maybeSingle();
   if (error) throw new Error(error.message);
   return (data as unknown as PermissionNode) ?? null;
 }
@@ -85,13 +89,14 @@ export async function upsertNodes(defs: PermissionNodeDefinition[]): Promise<num
       deprecated: d.deprecated ?? false,
     }));
     if (!rows.length) continue;
-    const { error } = await db.from("permission_nodes").upsert(rows as never, { onConflict: "slug" });
+    const { error } = await db
+      .from("permission_nodes")
+      .upsert(rows as never, { onConflict: "slug" });
     if (error) throw new Error(error.message);
     total += rows.length;
   }
   return total;
 }
-
 
 /* ------------------------------------------------------ permission assignments */
 
@@ -191,6 +196,22 @@ export async function upsertPropertyAssignment(input: {
   return data as unknown as PropertyAssignment;
 }
 
+/** Remove o vínculo de um imóvel com um usuário (escopo PROPERTY). */
+export async function deletePropertyAssignment(
+  tenantId: string,
+  propertyId: string,
+  userId: string,
+): Promise<void> {
+  const db = await admin();
+  const { error } = await db
+    .from("property_assignments")
+    .delete()
+    .eq("tenant_id", tenantId)
+    .eq("property_id", propertyId)
+    .eq("user_id", userId);
+  if (error) throw new Error(error.message);
+}
+
 /* ------------------------------------------------------------------- audit */
 
 export type AuditInput = {
@@ -251,6 +272,7 @@ export const permissionRepository = {
   deleteAssignment,
   listPropertyAssignments,
   upsertPropertyAssignment,
+  deletePropertyAssignment,
   recordAudit,
   listAudit,
 };

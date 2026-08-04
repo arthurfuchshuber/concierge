@@ -13,7 +13,19 @@
  * diretamente de "./permission.repository.server" / "./permission.service.server".
  */
 export * from "./permission.types";
+export * from "./permission.slugs";
 export * from "./permission.registry";
+export {
+  DEFAULT_SCOPE,
+  SCOPES_REQUIRING_ID,
+  SCOPE_SPECIFICITY,
+  normalizeScope,
+  permissionScopes,
+  scopeCovers,
+  scopeKey,
+  validateScope as validateOperationalScope,
+  type ScopeValidation,
+} from "./permission.scopes";
 export * from "./permission.catalog";
 export * from "./permission.scanner";
 export * from "./permission.bootstrap";
@@ -22,4 +34,3 @@ export * from "./permission.guardian";
 export * from "./permission.engine";
 export * from "./permission.guard";
 export * from "./feature.access";
-

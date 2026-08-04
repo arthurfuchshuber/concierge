@@ -11,7 +11,8 @@ import { bootstrapPermissionRegistry } from "./permission.bootstrap";
 import { featureAccess } from "./feature.access";
 import { permissionRegistry } from "./permission.registry";
 import { permissionRepository } from "./permission.repository.server";
-import { syncRegistryToDatabase } from "./permission.service.server";
+import { isSaasSlug } from "./permission.slugs";
+import { ensureRegistrySynced } from "./permission.sync.server";
 import {
   ACCESS_LEVEL_WEIGHT,
   type AccessLevel,
@@ -63,22 +64,22 @@ export type PermissionWorkspace = {
   blockedFeatures: string[];
 };
 
-let dbSynced = false;
+let dbChecked = false;
 
-/** Garante que o Registry esteja carregado e espelhado no banco (uma vez). */
+/**
+ * Garante que o Registry esteja carregado em memória e que a árvore exista
+ * no banco. O sync oficial só dispara quando a tabela está vazia — nunca
+ * silenciosamente a cada leitura. Falhas são registradas, não propagadas.
+ */
 async function ensureRegistry(): Promise<void> {
   bootstrapPermissionRegistry();
-  if (dbSynced) return;
+  if (dbChecked) return;
   try {
-    await syncRegistryToDatabase();
-    dbSynced = true;
+    await ensureRegistrySynced("auto:admin-ui");
+    dbChecked = true;
   } catch (err) {
-    console.error("[permissions] falha ao sincronizar registry", err);
+    console.error("[permissions] falha ao garantir a árvore de permissões", err);
   }
-}
-
-function isSaasSlug(slug: string): boolean {
-  return slug === "admin" || slug.startsWith("admin.");
 }
 
 /**
@@ -92,12 +93,18 @@ export async function buildNodeTree(args: {
   await ensureRegistry();
   const dbNodes = await permissionRepository.listNodes();
   const idBySlug: Record<string, string> = {};
-  for (const n of dbNodes) idBySlug[n.slug] = n.id;
+  // Nós desativados (soft delete) permanecem no banco, mas saem da árvore.
+  for (const n of dbNodes) {
+    if (n.active === false) continue;
+    idBySlug[n.slug] = n.id;
+  }
 
   const blocked = new Set<string>();
   const defs = permissionRegistry
     .list()
-    .filter((d) => d.active !== false && !d.isHidden && !d.deprecated);
+    .filter(
+      (d) => d.active !== false && !d.isHidden && !d.deprecated && d.isPermissionable !== false,
+    );
 
   const allowedBySlug = new Map<string, boolean>();
   for (const def of defs) {
@@ -366,7 +373,8 @@ export async function setSubjectPermission(args: {
     slug: args.slug,
     level: args.level,
     removed,
-    message: args.level === "READ" ? "Acesso de visualização concedido." : "Acesso de edição concedido.",
+    message:
+      args.level === "READ" ? "Acesso de visualização concedido." : "Acesso de edição concedido.",
   };
 }
 

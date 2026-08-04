@@ -86,6 +86,8 @@ export function applyDecision(
   const defs = findings.map<PermissionNodeDefinition>((f) => ({
     ...f.definition,
     isHidden: decision === "internal" ? true : (f.definition.isHidden ?? false),
+    // Recurso interno é catalogado, mas nunca entra na árvore de permissões.
+    isPermissionable: decision === "internal" ? false : (f.definition.isPermissionable ?? true),
     isSystem: true,
   }));
 
@@ -95,7 +97,7 @@ export function applyDecision(
 
 /** Total de rotas de experiência do usuário observadas pelo Guardian. */
 export function observedRouteCount(): number {
-  return discoverRoutes().filter((r) => !r.technical).length;
+  return discoverRoutes().filter((r) => r.permissionable).length;
 }
 
 export const lovableGuardian = { inspect, applyDecision, observedRouteCount };

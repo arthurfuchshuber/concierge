@@ -150,7 +150,10 @@ async function listSubjects(ctx: Ctx, tenantId: string): Promise<PermissionSubje
   return subjects;
 }
 
-async function resolvePlan(ctx: Ctx, tenantId: string): Promise<{ plan: string | null; label: string }> {
+async function resolvePlan(
+  ctx: Ctx,
+  tenantId: string,
+): Promise<{ plan: string | null; label: string }> {
   if (ctx.kind === "saas") return { plan: "enterprise", label: "Admin do SaaS" };
   const { resolveOwnerPlanAdmin } = await import("@/lib/plan-guard.server");
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -234,8 +237,18 @@ export async function compareSubjects(ctx: Ctx & { userA: string; userB: string 
   const { plan } = await resolvePlan(ctx, tenantId);
   const { nodes } = await buildNodeTree({ plan, context: ctx.kind });
   const [permsA, permsB] = await Promise.all([
-    readSubjectPermissions({ tenantId, userId: ctx.userA, isOwner: a.isOwner, totalNodes: nodes.length }),
-    readSubjectPermissions({ tenantId, userId: ctx.userB, isOwner: b.isOwner, totalNodes: nodes.length }),
+    readSubjectPermissions({
+      tenantId,
+      userId: ctx.userA,
+      isOwner: a.isOwner,
+      totalNodes: nodes.length,
+    }),
+    readSubjectPermissions({
+      tenantId,
+      userId: ctx.userB,
+      isOwner: b.isOwner,
+      totalNodes: nodes.length,
+    }),
   ]);
 
   const levelOf = (perms: typeof permsA, slug: string, isOwner: boolean): AccessLevel =>
@@ -273,4 +286,114 @@ export async function loadAudit(ctx: Ctx) {
         : null,
     })),
   };
+}
+
+/* ------------------------------------------------- FASE 3.5: sync e escopos */
+
+/** Dispara o sync OFICIAL do Registry (exclusivo do Admin do SaaS). */
+export async function runRegistrySync(ctx: Ctx) {
+  if (!(await isSaasAdmin(ctx.supabase, ctx.userId))) {
+    throw new Error("Apenas administradores do SaaS podem sincronizar a árvore de permissões.");
+  }
+  const { syncPermissionRegistry } = await import("./permission.sync.server");
+  return syncPermissionRegistry({ triggeredBy: ctx.userId });
+}
+
+export type SyncRunDTO = {
+  id: string;
+  status: string;
+  startedAt: string;
+  finishedAt: string | null;
+  totalNodes: number;
+  created: number;
+  updated: number;
+  deactivated: number;
+  triggeredBy: string | null;
+};
+
+/** Diagnóstico completo: consistência, Guardian e histórico de sincronizações. */
+export async function loadRegistryDiagnostics(ctx: Ctx) {
+  if (!(await isSaasAdmin(ctx.supabase, ctx.userId))) {
+    throw new Error("Apenas administradores do SaaS podem consultar o diagnóstico.");
+  }
+  const [{ inspectRegistryConsistency, inspectGuardian }, { listSyncRuns }] = await Promise.all([
+    import("./permission.service.server"),
+    import("./permission.sync.server"),
+  ]);
+  const consistency = inspectRegistryConsistency();
+  const guardian = inspectGuardian();
+  let runs: SyncRunDTO[] = [];
+  try {
+    runs = (await listSyncRuns(10)).map((r) => ({
+      id: r.id,
+      status: r.status,
+      startedAt: r.started_at,
+      finishedAt: r.finished_at,
+      totalNodes: r.total_nodes,
+      created: r.created_count,
+      updated: r.updated_count,
+      deactivated: r.deactivated_count,
+      triggeredBy: r.triggered_by,
+    }));
+  } catch (err) {
+    console.error("[permissions] falha ao ler execuções de sync", err);
+  }
+  return { consistency, guardian, runs };
+}
+
+/** Imóveis atribuídos a um membro (escopo operacional PROPERTY). */
+export async function loadUserProperties(ctx: Ctx & { targetUserId: string }) {
+  const tenantId = await resolveTenant(ctx);
+  await assertManageable(ctx, tenantId, ctx.targetUserId);
+  const { listUserProperties } = await import("./permission.service.server");
+  const propertyIds = await listUserProperties(tenantId, ctx.targetUserId);
+
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data: properties } = await supabaseAdmin
+    .from("properties")
+    .select("id, name")
+    .eq("owner_id", tenantId)
+    .order("name", { ascending: true });
+
+  return {
+    tenantId,
+    assigned: propertyIds,
+    properties: (properties ?? []).map((p) => ({ id: p.id, name: p.name })),
+  };
+}
+
+/** Vincula ou desvincula um imóvel de um membro da equipe. */
+export async function writeUserProperty(
+  ctx: Ctx & { targetUserId: string; propertyId: string; assigned: boolean },
+) {
+  const tenantId = await resolveTenant(ctx);
+  const subject = await assertManageable(ctx, tenantId, ctx.targetUserId);
+  if (subject.isOwner) {
+    throw new Error("O titular da conta já possui acesso a todos os imóveis.");
+  }
+
+  const { validateScope } = await import("./permission.scopes");
+  const check = validateScope({
+    nodeSlug: "tenant.imoveis",
+    scope: { type: "PROPERTY", id: ctx.propertyId },
+  });
+  if (!check.ok) throw new Error(check.errors.join(" "));
+
+  const service = await import("./permission.service.server");
+  if (ctx.assigned) {
+    await service.assignUserToProperty({
+      tenantId,
+      propertyId: ctx.propertyId,
+      userId: ctx.targetUserId,
+      actorId: ctx.userId,
+    });
+  } else {
+    await service.removeUserFromProperty({
+      tenantId,
+      propertyId: ctx.propertyId,
+      userId: ctx.targetUserId,
+      actorId: ctx.userId,
+    });
+  }
+  return { ok: true, propertyId: ctx.propertyId, assigned: ctx.assigned };
 }

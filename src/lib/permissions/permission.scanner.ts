@@ -2,12 +2,14 @@
  * Permission Scanner (Auto Discovery) — descobre automaticamente a estrutura
  * navegável do ConciergeIA e a traduz em Permission Nodes.
  *
- * FASE 2: o scanner apenas cataloga. Ele não bloqueia, não altera menus e não
- * interfere em nenhuma rota. Somente elementos que fazem parte da experiência
- * do usuário são registrados — componentes técnicos internos são ignorados.
+ * FASE 3.5: o scanner passou a respeitar uma ALLOWLIST. Rotas públicas,
+ * de marketing, de autenticação, legais, landing pages, APIs e utilitários
+ * técnicos continuam sendo catalogados para diagnóstico, porém marcados como
+ * `isPermissionable = false` — e nunca entram na árvore de permissões.
  */
 import { CATALOG_ROUTE_MAP } from "./permission.catalog";
 import { deriveParentSlug } from "./permission.registry";
+import { isPermissionableRoute, slugForRoute } from "./permission.slugs";
 import type { PermissionNodeDefinition } from "./permission.types";
 
 /** Arquivos de rota que nunca representam experiência do usuário. */
@@ -42,14 +44,9 @@ export function fileToRoutePath(file: string): string {
   return "/" + segments.join("/");
 }
 
-/** Slug canônico derivado de uma rota (`/admin/dashboard` → `admin.dashboard`). */
+/** Slug canônico derivado de uma rota (`/admin/dashboard` → `tenant.dashboard`). */
 export function routeToSlug(route: string): string {
-  const parts = route
-    .split("/")
-    .filter(Boolean)
-    .map((p) => p.replace(/^\$/, "").toLowerCase())
-    .filter(Boolean);
-  return parts.length ? parts.join(".") : "root";
+  return slugForRoute(route);
 }
 
 function humanize(value: string): string {
@@ -70,6 +67,8 @@ export type DiscoveredRoute = {
   route: string;
   slug: string;
   technical: boolean;
+  /** Rota elegível a virar Permission Node (allowlist). */
+  permissionable: boolean;
   /** Slug do nó do catálogo que já cobre esta rota, quando existir. */
   catalogSlug: string | null;
 };
@@ -78,25 +77,32 @@ export type DiscoveredRoute = {
 export function discoverRoutes(): DiscoveredRoute[] {
   return listRouteFiles().map((file) => {
     const route = fileToRoutePath(file);
+    const technical = isTechnicalRoute(file);
     return {
       file,
       route,
-      slug: routeToSlug(route),
-      technical: isTechnicalRoute(file),
+      slug: slugForRoute(route),
+      technical,
+      permissionable: !technical && isPermissionableRoute(route),
       catalogSlug: CATALOG_ROUTE_MAP[route] ?? null,
     };
   });
 }
 
+/** Rotas descobertas que a allowlist considera permissionáveis. */
+export function permissionableRoutes(): DiscoveredRoute[] {
+  return discoverRoutes().filter((r) => r.permissionable);
+}
+
 /**
- * Converte rotas descobertas que ainda não estão no catálogo em definições
- * de Permission Node (tipo inferido pela profundidade da rota).
+ * Converte rotas permissionáveis ainda ausentes do catálogo em definições de
+ * Permission Node. Rotas fora da allowlist nunca produzem nós.
  */
 export function discoveredRouteNodes(): PermissionNodeDefinition[] {
-  return discoverRoutes()
-    .filter((r) => !r.technical && !r.catalogSlug)
+  return permissionableRoutes()
+    .filter((r) => !r.catalogSlug)
     .map<PermissionNodeDefinition>((r) => {
-      const depth = r.slug.split(".").length;
+      const depth = r.slug.split(".").length - 1;
       return {
         slug: r.slug,
         name: humanize(r.slug.split(".").pop() ?? r.slug),
@@ -109,6 +115,7 @@ export function discoveredRouteNodes(): PermissionNodeDefinition[] {
         displayOrder: 500,
         isSystem: true,
         isHidden: false,
+        isPermissionable: true,
         version: 1,
         deprecated: false,
         active: true,

@@ -36,7 +36,10 @@ function routeIsCovered(route: DiscoveredRoute, nodes: PermissionNodeDefinition[
 /** Verifica se existe qualquer rota ou recurso sem Permission Node. */
 export function buildConsistencyReport(): ConsistencyReport {
   const nodes = permissionRegistry.list();
-  const routes = discoverRoutes().filter((r) => !r.technical);
+  // Só rotas permissionáveis (allowlist) entram no diagnóstico de cobertura;
+  // páginas públicas/marketing/legais são ignoradas por definição.
+  const routes = discoverRoutes().filter((r) => r.permissionable);
+
   const issues: ConsistencyIssue[] = [];
 
   for (const route of routes) {

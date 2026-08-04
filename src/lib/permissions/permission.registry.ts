@@ -10,11 +10,8 @@
  *  - nunca criar duplicidade (registro é idempotente e faz merge);
  *  - nunca criar árvore quebrada (pais ausentes são criados automaticamente).
  */
-import type {
-  AccessLevel,
-  PermissionNodeDefinition,
-  PermissionNodeType,
-} from "./permission.types";
+import { resolveSlug, ROOT_SLUGS } from "./permission.slugs";
+import type { AccessLevel, PermissionNodeDefinition, PermissionNodeType } from "./permission.types";
 
 /** Deriva o slug do pai a partir do slug pontuado (`a.b.c` → `a.b`). */
 export function deriveParentSlug(slug: string): string | null {
@@ -26,15 +23,17 @@ export function deriveParentSlug(slug: string): string | null {
 /** Rótulo legível gerado a partir do último segmento do slug. */
 function humanize(slug: string): string {
   const last = slug.split(".").pop() ?? slug;
-  return last
-    .replace(/[-_]/g, " ")
-    .replace(/\b\w/g, (c) => c.toUpperCase());
+  return last.replace(/[-_]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
-/** Tipo provável de um pai criado automaticamente, pela profundidade do slug. */
+/**
+ * Tipo provável de um pai criado automaticamente, pela profundidade do slug.
+ * O namespace raiz (`tenant` / `admin`) não conta como nível.
+ */
 function inferTypeFromDepth(slug: string): PermissionNodeType {
-  const depth = slug.split(".").length;
-  if (depth <= 1) return "PAGE";
+  const depth = slug.split(".").length - (ROOT_SLUGS.some((r) => slug.startsWith(r)) ? 1 : 0);
+  if (depth <= 0) return "PAGE";
+  if (depth === 1) return "PAGE";
   if (depth === 2) return "SUBPAGE";
   if (depth === 3) return "TAB";
   return "SECTION";
@@ -45,14 +44,27 @@ class PermissionRegistry {
 
   /** Registra um nó. Idempotente por slug — faz merge, nunca duplica. */
   register(def: PermissionNodeDefinition): PermissionNodeDefinition {
-    const previous = this.nodes.get(def.slug);
-    const parentSlug =
-      def.parentSlug !== undefined ? def.parentSlug : (previous?.parentSlug ?? deriveParentSlug(def.slug));
+    // FASE 3.5 — todo slug entra no registry já canonizado (namespaces).
+    const slug = resolveSlug(def.slug);
+    const legacy = new Set<string>();
+    if (slug !== def.slug) legacy.add(def.slug);
+
+    const previous = this.nodes.get(slug);
+    for (const l of previous?.legacySlugs ?? []) legacy.add(l);
+    for (const l of def.legacySlugs ?? []) legacy.add(l);
+
+    const rawParent =
+      def.parentSlug !== undefined
+        ? def.parentSlug
+        : (previous?.parentSlug ?? deriveParentSlug(slug));
+    const parentSlug = rawParent ? resolveSlug(rawParent) : deriveParentSlug(slug);
 
     const normalized: PermissionNodeDefinition = {
       ...previous,
       ...def,
+      slug,
       parentSlug: parentSlug ?? null,
+      legacySlugs: [...legacy],
       description: def.description ?? previous?.description ?? null,
       order: def.order ?? previous?.order ?? 0,
       active: def.active ?? previous?.active ?? true,
@@ -67,6 +79,7 @@ class PermissionRegistry {
       source: def.source ?? previous?.source ?? "manual",
       feature: def.feature ?? previous?.feature ?? null,
       maxAccessLevel: def.maxAccessLevel ?? previous?.maxAccessLevel ?? "WRITE",
+      isPermissionable: def.isPermissionable ?? previous?.isPermissionable ?? true,
     };
     this.nodes.set(normalized.slug, normalized);
     this.ensureParent(normalized);
@@ -97,7 +110,9 @@ class PermissionRegistry {
         source: "auto-parent",
         feature: null,
         maxAccessLevel: "WRITE",
+        isPermissionable: node.isPermissionable ?? true,
       };
+
       this.nodes.set(created.slug, created);
       parentSlug = created.parentSlug ?? null;
     }
@@ -108,19 +123,23 @@ class PermissionRegistry {
     for (const d of defs) this.register(d);
   }
 
-
   has(slug: string): boolean {
-    return this.nodes.has(slug);
+    return this.nodes.has(slug) || this.nodes.has(resolveSlug(slug));
   }
 
   get(slug: string): PermissionNodeDefinition | null {
-    return this.nodes.get(slug) ?? null;
+    return this.nodes.get(slug) ?? this.nodes.get(resolveSlug(slug)) ?? null;
   }
 
   list(): PermissionNodeDefinition[] {
     return [...this.nodes.values()].sort(
       (a, b) => (a.order ?? 0) - (b.order ?? 0) || a.slug.localeCompare(b.slug),
     );
+  }
+
+  /** Somente nós que podem receber permissão (exclui públicos/marketing). */
+  listPermissionable(): PermissionNodeDefinition[] {
+    return this.list().filter((n) => n.isPermissionable !== false);
   }
 
   listByType(type: PermissionNodeType): PermissionNodeDefinition[] {
@@ -166,7 +185,9 @@ class PermissionRegistry {
   }
 
   /** Árvore serializável — usada futuramente pela UI de administração. */
-  tree(parentSlug: string | null = null): Array<PermissionNodeDefinition & { children: unknown[] }> {
+  tree(
+    parentSlug: string | null = null,
+  ): Array<PermissionNodeDefinition & { children: unknown[] }> {
     return this.children(parentSlug).map((node) => ({
       ...node,
       children: this.tree(node.slug),

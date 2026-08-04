@@ -60,7 +60,12 @@ class FeatureAccessRegistry {
    */
   check(feature: string | null | undefined, plan: PlanKey | null | undefined): FeatureDecision {
     if (!feature) {
-      return { allowed: true, reason: "Nó sem exigência de plano.", feature: "", plan: plan ?? null };
+      return {
+        allowed: true,
+        reason: "Nó sem exigência de plano.",
+        feature: "",
+        plan: plan ?? null,
+      };
     }
     const def = this.get(feature);
     if (!def) {

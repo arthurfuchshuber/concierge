@@ -57,7 +57,10 @@ export function assignmentsAreImmutable(subject: PermissionSubject): boolean {
   return isOwner(subject);
 }
 
-function scopeMatches(assignment: PermissionAssignment, scope: PermissionScope | undefined): boolean {
+function scopeMatches(
+  assignment: PermissionAssignment,
+  scope: PermissionScope | undefined,
+): boolean {
   if (assignment.scope_type === "GLOBAL") return true;
   if (assignment.scope_type === "TENANT") return !assignment.scope_id;
   if (!scope) return false;
