@@ -42,6 +42,13 @@ export const Route = createFileRoute("/api/public/clicksign-webhook")({
         const received = header.replace(/^sha256=/i, "").trim();
         const expected = createHmac("sha256", secret).update(rawBody).digest("hex");
         if (!received || !safeEqual(received, expected)) {
+          const { auditSecurity } = await import("@/lib/ai/audit/platform.server");
+          await auditSecurity("webhook_signature_invalid", {
+            description: "Webhook da ClickSign recusado por assinatura inválida.",
+            entityType: "webhook",
+            entityId: "clicksign",
+            severity: "warning",
+          });
           return new Response("Invalid signature", { status: 401 });
         }
 

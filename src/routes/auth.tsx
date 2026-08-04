@@ -65,7 +65,18 @@ function AuthPage() {
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
+        try {
+          const { recordClientEvent } = await import("@/lib/audit.functions");
+          await recordClientEvent({
+            data: {
+              eventType: "login_success",
+              eventCategory: "AUTHENTICATION",
+              description: "Login por e-mail e senha.",
+            },
+          });
+        } catch { /* auditoria nunca bloqueia o login */ }
         goPostAuth();
+
       }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Erro ao autenticar");
