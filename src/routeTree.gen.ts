@@ -62,6 +62,7 @@ import { Route as ApiPublicCronSyncAirbnbIcalRouteImport } from './routes/api/pu
 import { Route as ApiPublicCronRefreshRecommendationsRouteImport } from './routes/api/public/cron.refresh-recommendations'
 import { Route as ApiPublicCronRefreshCityReferencesRouteImport } from './routes/api/public/cron.refresh-city-references'
 import { Route as ApiPublicCronRefreshCityNewsRouteImport } from './routes/api/public/cron.refresh-city-news'
+import { Route as ApiPublicCronProactiveConciergeRouteImport } from './routes/api/public/cron.proactive-concierge'
 import { Route as AuthenticatedAdminRecomendacoesSigmaCityKeyRouteImport } from './routes/_authenticated/admin.recomendacoes-sigma.$cityKey'
 import { Route as AuthenticatedAdminPropertiesIdRouteImport } from './routes/_authenticated/admin.properties.$id'
 import { Route as AuthenticatedAdminCidadesCityKeyRouteImport } from './routes/_authenticated/admin.cidades.$cityKey'
@@ -360,6 +361,12 @@ const ApiPublicCronRefreshCityNewsRoute =
     path: '/api/public/cron/refresh-city-news',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicCronProactiveConciergeRoute =
+  ApiPublicCronProactiveConciergeRouteImport.update({
+    id: '/api/public/cron/proactive-concierge',
+    path: '/api/public/cron/proactive-concierge',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const AuthenticatedAdminRecomendacoesSigmaCityKeyRoute =
   AuthenticatedAdminRecomendacoesSigmaCityKeyRouteImport.update({
     id: '/recomendacoes-sigma/$cityKey',
@@ -436,6 +443,7 @@ export interface FileRoutesByFullPath {
   '/admin/cidades/$cityKey': typeof AuthenticatedAdminCidadesCityKeyRoute
   '/admin/properties/$id': typeof AuthenticatedAdminPropertiesIdRoute
   '/admin/recomendacoes-sigma/$cityKey': typeof AuthenticatedAdminRecomendacoesSigmaCityKeyRoute
+  '/api/public/cron/proactive-concierge': typeof ApiPublicCronProactiveConciergeRoute
   '/api/public/cron/refresh-city-news': typeof ApiPublicCronRefreshCityNewsRoute
   '/api/public/cron/refresh-city-references': typeof ApiPublicCronRefreshCityReferencesRoute
   '/api/public/cron/refresh-recommendations': typeof ApiPublicCronRefreshRecommendationsRoute
@@ -493,6 +501,7 @@ export interface FileRoutesByTo {
   '/admin/cidades/$cityKey': typeof AuthenticatedAdminCidadesCityKeyRoute
   '/admin/properties/$id': typeof AuthenticatedAdminPropertiesIdRoute
   '/admin/recomendacoes-sigma/$cityKey': typeof AuthenticatedAdminRecomendacoesSigmaCityKeyRoute
+  '/api/public/cron/proactive-concierge': typeof ApiPublicCronProactiveConciergeRoute
   '/api/public/cron/refresh-city-news': typeof ApiPublicCronRefreshCityNewsRoute
   '/api/public/cron/refresh-city-references': typeof ApiPublicCronRefreshCityReferencesRoute
   '/api/public/cron/refresh-recommendations': typeof ApiPublicCronRefreshRecommendationsRoute
@@ -554,6 +563,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/cidades/$cityKey': typeof AuthenticatedAdminCidadesCityKeyRoute
   '/_authenticated/admin/properties/$id': typeof AuthenticatedAdminPropertiesIdRoute
   '/_authenticated/admin/recomendacoes-sigma/$cityKey': typeof AuthenticatedAdminRecomendacoesSigmaCityKeyRoute
+  '/api/public/cron/proactive-concierge': typeof ApiPublicCronProactiveConciergeRoute
   '/api/public/cron/refresh-city-news': typeof ApiPublicCronRefreshCityNewsRoute
   '/api/public/cron/refresh-city-references': typeof ApiPublicCronRefreshCityReferencesRoute
   '/api/public/cron/refresh-recommendations': typeof ApiPublicCronRefreshRecommendationsRoute
@@ -615,6 +625,7 @@ export interface FileRouteTypes {
     | '/admin/cidades/$cityKey'
     | '/admin/properties/$id'
     | '/admin/recomendacoes-sigma/$cityKey'
+    | '/api/public/cron/proactive-concierge'
     | '/api/public/cron/refresh-city-news'
     | '/api/public/cron/refresh-city-references'
     | '/api/public/cron/refresh-recommendations'
@@ -672,6 +683,7 @@ export interface FileRouteTypes {
     | '/admin/cidades/$cityKey'
     | '/admin/properties/$id'
     | '/admin/recomendacoes-sigma/$cityKey'
+    | '/api/public/cron/proactive-concierge'
     | '/api/public/cron/refresh-city-news'
     | '/api/public/cron/refresh-city-references'
     | '/api/public/cron/refresh-recommendations'
@@ -732,6 +744,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/cidades/$cityKey'
     | '/_authenticated/admin/properties/$id'
     | '/_authenticated/admin/recomendacoes-sigma/$cityKey'
+    | '/api/public/cron/proactive-concierge'
     | '/api/public/cron/refresh-city-news'
     | '/api/public/cron/refresh-city-references'
     | '/api/public/cron/refresh-recommendations'
@@ -772,6 +785,7 @@ export interface RootRouteChildren {
   ApiPublicLandingChatRoute: typeof ApiPublicLandingChatRoute
   ApiPublicPlacePhotoRoute: typeof ApiPublicPlacePhotoRoute
   OauthGoogleCalendarReturnRoute: typeof OauthGoogleCalendarReturnRoute
+  ApiPublicCronProactiveConciergeRoute: typeof ApiPublicCronProactiveConciergeRoute
   ApiPublicCronRefreshCityNewsRoute: typeof ApiPublicCronRefreshCityNewsRoute
   ApiPublicCronRefreshCityReferencesRoute: typeof ApiPublicCronRefreshCityReferencesRoute
   ApiPublicCronRefreshRecommendationsRoute: typeof ApiPublicCronRefreshRecommendationsRoute
@@ -1156,6 +1170,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicCronRefreshCityNewsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/cron/proactive-concierge': {
+      id: '/api/public/cron/proactive-concierge'
+      path: '/api/public/cron/proactive-concierge'
+      fullPath: '/api/public/cron/proactive-concierge'
+      preLoaderRoute: typeof ApiPublicCronProactiveConciergeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_authenticated/admin/recomendacoes-sigma/$cityKey': {
       id: '/_authenticated/admin/recomendacoes-sigma/$cityKey'
       path: '/recomendacoes-sigma/$cityKey'
@@ -1300,6 +1321,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicLandingChatRoute: ApiPublicLandingChatRoute,
   ApiPublicPlacePhotoRoute: ApiPublicPlacePhotoRoute,
   OauthGoogleCalendarReturnRoute: OauthGoogleCalendarReturnRoute,
+  ApiPublicCronProactiveConciergeRoute: ApiPublicCronProactiveConciergeRoute,
   ApiPublicCronRefreshCityNewsRoute: ApiPublicCronRefreshCityNewsRoute,
   ApiPublicCronRefreshCityReferencesRoute:
     ApiPublicCronRefreshCityReferencesRoute,
