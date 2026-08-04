@@ -50,24 +50,48 @@ export async function nodeIdBySlug(): Promise<Record<string, string>> {
 /**
  * Sincroniza definições do Registry com a tabela (upsert por slug).
  * Nenhum nó é apagado — compatibilidade total com o que já existe.
+ *
+ * O upsert é feito em ondas por profundidade do slug para que o `parent_id`
+ * dos filhos sempre encontre o pai já persistido (herança garantida).
  */
 export async function upsertNodes(defs: PermissionNodeDefinition[]): Promise<number> {
   if (!defs.length) return 0;
   const db = await admin();
-  const existing = await nodeIdBySlug();
-  const rows = defs.map((d) => ({
-    slug: d.slug,
-    name: d.name,
-    type: d.type,
-    description: d.description ?? null,
-    order: d.order ?? 0,
-    active: d.active ?? true,
-    parent_id: d.parentSlug ? (existing[d.parentSlug] ?? null) : null,
-  }));
-  const { error } = await db.from("permission_nodes").upsert(rows as never, { onConflict: "slug" });
-  if (error) throw new Error(error.message);
-  return rows.length;
+
+  const byDepth = new Map<number, PermissionNodeDefinition[]>();
+  for (const d of defs) {
+    const depth = d.slug.split(".").length;
+    byDepth.set(depth, [...(byDepth.get(depth) ?? []), d]);
+  }
+
+  let total = 0;
+  for (const depth of [...byDepth.keys()].sort((a, b) => a - b)) {
+    const existing = await nodeIdBySlug();
+    const rows = (byDepth.get(depth) ?? []).map((d) => ({
+      slug: d.slug,
+      name: d.name,
+      type: d.type,
+      description: d.description ?? null,
+      order: d.order ?? 0,
+      active: d.active ?? true,
+      parent_id: d.parentSlug ? (existing[d.parentSlug] ?? null) : null,
+      label: d.label ?? d.name,
+      route: d.route ?? null,
+      icon: d.icon ?? null,
+      display_order: d.displayOrder ?? d.order ?? 0,
+      is_system: d.isSystem ?? true,
+      is_hidden: d.isHidden ?? false,
+      version: d.version ?? 1,
+      deprecated: d.deprecated ?? false,
+    }));
+    if (!rows.length) continue;
+    const { error } = await db.from("permission_nodes").upsert(rows as never, { onConflict: "slug" });
+    if (error) throw new Error(error.message);
+    total += rows.length;
+  }
+  return total;
 }
+
 
 /* ------------------------------------------------------ permission assignments */
 
