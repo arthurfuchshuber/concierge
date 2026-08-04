@@ -260,6 +260,54 @@ export type Database = {
           },
         ]
       }
+      ai_agent_learning_metrics: {
+        Row: {
+          agent_type: string
+          created_at: string
+          id: string
+          metadata: Json
+          metric: string
+          owner_id: string
+          period: string
+          period_start: string
+          previous_value: number | null
+          sample_size: number
+          tenant_id: string
+          trend: string
+          value: number
+        }
+        Insert: {
+          agent_type: string
+          created_at?: string
+          id?: string
+          metadata?: Json
+          metric: string
+          owner_id: string
+          period?: string
+          period_start?: string
+          previous_value?: number | null
+          sample_size?: number
+          tenant_id: string
+          trend?: string
+          value?: number
+        }
+        Update: {
+          agent_type?: string
+          created_at?: string
+          id?: string
+          metadata?: Json
+          metric?: string
+          owner_id?: string
+          period?: string
+          period_start?: string
+          previous_value?: number | null
+          sample_size?: number
+          tenant_id?: string
+          trend?: string
+          value?: number
+        }
+        Relationships: []
+      }
       ai_agent_logs: {
         Row: {
           action_approval_status: string | null
@@ -907,16 +955,80 @@ export type Database = {
           },
         ]
       }
+      ai_knowledge_gaps: {
+        Row: {
+          avg_confidence: number | null
+          created_at: string
+          escalation_count: number
+          first_seen_at: string
+          id: string
+          last_seen_at: string
+          metadata: Json
+          normalized_key: string
+          occurrences: number
+          owner_id: string
+          property_id: string | null
+          resolved_at: string | null
+          sample_questions: Json
+          status: string
+          tenant_id: string
+          topic: string
+          updated_at: string
+        }
+        Insert: {
+          avg_confidence?: number | null
+          created_at?: string
+          escalation_count?: number
+          first_seen_at?: string
+          id?: string
+          last_seen_at?: string
+          metadata?: Json
+          normalized_key: string
+          occurrences?: number
+          owner_id: string
+          property_id?: string | null
+          resolved_at?: string | null
+          sample_questions?: Json
+          status?: string
+          tenant_id: string
+          topic: string
+          updated_at?: string
+        }
+        Update: {
+          avg_confidence?: number | null
+          created_at?: string
+          escalation_count?: number
+          first_seen_at?: string
+          id?: string
+          last_seen_at?: string
+          metadata?: Json
+          normalized_key?: string
+          occurrences?: number
+          owner_id?: string
+          property_id?: string | null
+          resolved_at?: string | null
+          sample_questions?: Json
+          status?: string
+          tenant_id?: string
+          topic?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       ai_learning_candidates: {
         Row: {
           agent_type: string | null
+          applied_at: string | null
           applied_memory_id: string | null
           approval_status: string
           approved_scope: string | null
           category: string | null
           confidence: number
           created_at: string
+          dedupe_key: string | null
+          extracted_information: string | null
           id: string
+          learning_type: string
           memory_kind: string
           owner_id: string
           property_id: string | null
@@ -925,21 +1037,28 @@ export type Database = {
           recommended_scope: string
           reviewed_at: string | null
           reviewed_by: string | null
+          source_conversation_id: string | null
           source_escalation_id: string | null
+          suggested_scope: string | null
           tenant_id: string | null
           title: string | null
           ttl_days: number | null
           updated_at: string
+          validation: Json
         }
         Insert: {
           agent_type?: string | null
+          applied_at?: string | null
           applied_memory_id?: string | null
           approval_status?: string
           approved_scope?: string | null
           category?: string | null
           confidence?: number
           created_at?: string
+          dedupe_key?: string | null
+          extracted_information?: string | null
           id?: string
+          learning_type?: string
           memory_kind?: string
           owner_id: string
           property_id?: string | null
@@ -948,21 +1067,28 @@ export type Database = {
           recommended_scope?: string
           reviewed_at?: string | null
           reviewed_by?: string | null
+          source_conversation_id?: string | null
           source_escalation_id?: string | null
+          suggested_scope?: string | null
           tenant_id?: string | null
           title?: string | null
           ttl_days?: number | null
           updated_at?: string
+          validation?: Json
         }
         Update: {
           agent_type?: string | null
+          applied_at?: string | null
           applied_memory_id?: string | null
           approval_status?: string
           approved_scope?: string | null
           category?: string | null
           confidence?: number
           created_at?: string
+          dedupe_key?: string | null
+          extracted_information?: string | null
           id?: string
+          learning_type?: string
           memory_kind?: string
           owner_id?: string
           property_id?: string | null
@@ -971,11 +1097,14 @@ export type Database = {
           recommended_scope?: string
           reviewed_at?: string | null
           reviewed_by?: string | null
+          source_conversation_id?: string | null
           source_escalation_id?: string | null
+          suggested_scope?: string | null
           tenant_id?: string | null
           title?: string | null
           ttl_days?: number | null
           updated_at?: string
+          validation?: Json
         }
         Relationships: [
           {
@@ -994,6 +1123,54 @@ export type Database = {
           },
         ]
       }
+      ai_learning_impact_logs: {
+        Row: {
+          created_at: string
+          id: string
+          improvement_percentage: number | null
+          learning_id: string | null
+          measured_at: string
+          metadata: Json
+          metric: string
+          metric_after: number | null
+          metric_before: number | null
+          owner_id: string
+          sample_after: number
+          sample_before: number
+          tenant_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          improvement_percentage?: number | null
+          learning_id?: string | null
+          measured_at?: string
+          metadata?: Json
+          metric: string
+          metric_after?: number | null
+          metric_before?: number | null
+          owner_id: string
+          sample_after?: number
+          sample_before?: number
+          tenant_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          improvement_percentage?: number | null
+          learning_id?: string | null
+          measured_at?: string
+          metadata?: Json
+          metric?: string
+          metric_after?: number | null
+          metric_before?: number | null
+          owner_id?: string
+          sample_after?: number
+          sample_before?: number
+          tenant_id?: string
+        }
+        Relationships: []
+      }
       ai_memories: {
         Row: {
           approved_at: string | null
@@ -1006,11 +1183,14 @@ export type Database = {
           created_at: string
           embedding: string | null
           expires_at: string | null
+          failure_count: number
           guest_name: string | null
           id: string
           importance: number
           kind: string
           last_seen_at: string
+          last_used_at: string | null
+          memory_usage_count: number
           metadata: Json
           occurrences: number
           owner_id: string
@@ -1019,6 +1199,7 @@ export type Database = {
           source: string
           source_ref: string | null
           subject_key: string | null
+          success_count: number
           tenant_id: string | null
           title: string | null
           tsv: unknown
@@ -1035,11 +1216,14 @@ export type Database = {
           created_at?: string
           embedding?: string | null
           expires_at?: string | null
+          failure_count?: number
           guest_name?: string | null
           id?: string
           importance?: number
           kind?: string
           last_seen_at?: string
+          last_used_at?: string | null
+          memory_usage_count?: number
           metadata?: Json
           occurrences?: number
           owner_id: string
@@ -1048,6 +1232,7 @@ export type Database = {
           source?: string
           source_ref?: string | null
           subject_key?: string | null
+          success_count?: number
           tenant_id?: string | null
           title?: string | null
           tsv?: unknown
@@ -1064,11 +1249,14 @@ export type Database = {
           created_at?: string
           embedding?: string | null
           expires_at?: string | null
+          failure_count?: number
           guest_name?: string | null
           id?: string
           importance?: number
           kind?: string
           last_seen_at?: string
+          last_used_at?: string | null
+          memory_usage_count?: number
           metadata?: Json
           occurrences?: number
           owner_id?: string
@@ -1077,6 +1265,7 @@ export type Database = {
           source?: string
           source_ref?: string | null
           subject_key?: string | null
+          success_count?: number
           tenant_id?: string | null
           title?: string | null
           tsv?: unknown
@@ -1339,6 +1528,66 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      ai_prompt_change_candidates: {
+        Row: {
+          confidence: number
+          created_at: string
+          current_prompt: string | null
+          evidence: Json
+          expected_impact: string | null
+          id: string
+          owner_id: string
+          prompt_key: string
+          prompt_version: string | null
+          reason: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          sample_size: number
+          status: string
+          suggestion: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          confidence?: number
+          created_at?: string
+          current_prompt?: string | null
+          evidence?: Json
+          expected_impact?: string | null
+          id?: string
+          owner_id: string
+          prompt_key: string
+          prompt_version?: string | null
+          reason?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          sample_size?: number
+          status?: string
+          suggestion: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          confidence?: number
+          created_at?: string
+          current_prompt?: string | null
+          evidence?: Json
+          expected_impact?: string | null
+          id?: string
+          owner_id?: string
+          prompt_key?: string
+          prompt_version?: string | null
+          reason?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          sample_size?: number
+          status?: string
+          suggestion?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       app_user_connections: {
         Row: {
@@ -3872,6 +4121,10 @@ export type Database = {
       account_member_role_of: {
         Args: { _owner_id: string; _user_id: string }
         Returns: Database["public"]["Enums"]["account_member_role"]
+      }
+      bump_memory_usage: {
+        Args: { _ids: string[]; _outcome?: string }
+        Returns: undefined
       }
       decline_my_account_invite: {
         Args: { _invite_id: string }
