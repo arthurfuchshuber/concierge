@@ -174,6 +174,23 @@ export async function appendCoreMessage(params: {
       .from("ai_conversations")
       .update({ last_message_at: new Date().toISOString(), channel_origin: params.channel })
       .eq("id", params.conversationId);
+
+    const { logSystemEvent } = await import("../audit/events.server");
+    void logSystemEvent(params.supabase, {
+      tenantId: params.tenantId,
+      actorType: params.senderType === "guest" ? "GUEST" : params.senderType === "ai" ? "AI_AGENT" : "USER",
+      actorId: params.agentKey ?? params.senderType,
+      eventType: params.senderType === "guest" ? "message_received" : "message_sent",
+      eventCategory: "CONVERSATION",
+      entityType: "ai_messages",
+      entityId: params.conversationId,
+      conversationId: params.conversationId,
+      propertyId: params.propertyId ?? null,
+      channel: params.channel,
+      description: params.content.slice(0, 180),
+      reason: null,
+      source: "conversation_core",
+    });
   } catch (err) {
     console.error("[conversation-core] append falhou", err);
   }
