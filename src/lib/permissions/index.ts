@@ -34,3 +34,4 @@ export * from "./permission.guardian";
 export * from "./permission.engine";
 export * from "./permission.guard";
 export * from "./feature.access";
+export * from "./permission.operations";
