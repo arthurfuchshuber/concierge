@@ -77,6 +77,8 @@ export const inviteTeamMember = createServerFn({ method: "POST" })
   .inputValidator((i: unknown) => InviteInput.parse(i))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
+    const { enforce } = await import("@/lib/permissions/permission.enforce.server");
+    await enforce(userId, "equipe.write", { });
     // Check plan limit
     const { resolveUserPlan } = await import("@/lib/plan-guard.server");
     const plan = await resolveUserPlan(supabase, userId);
@@ -190,6 +192,8 @@ export const removeTeamMember = createServerFn({ method: "POST" })
   .inputValidator((i: unknown) => MemberOpInput.parse(i))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
+    const { enforce } = await import("@/lib/permissions/permission.enforce.server");
+    await enforce(userId, "equipe.write", { });
     const { error } = await supabase
       .from("account_members")
       .update({ status: "revoked" })
@@ -206,6 +210,8 @@ export const updateTeamMemberRole = createServerFn({ method: "POST" })
   .inputValidator((i: unknown) => UpdateRoleInput.parse(i))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
+    const { enforce } = await import("@/lib/permissions/permission.enforce.server");
+    await enforce(userId, "equipe.write", { });
     const { error } = await supabase
       .from("account_members")
       .update({ role: data.role })

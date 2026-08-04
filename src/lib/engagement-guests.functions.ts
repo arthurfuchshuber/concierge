@@ -408,6 +408,8 @@ export const getGuestDetail = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((i: unknown) => GuestDetailInput.parse(i))
   .handler(async ({ data, context }) => {
+    const { enforce } = await import("@/lib/permissions/permission.enforce.server");
+    await enforce(context.userId, "hospedes.ficha.read", { resource: data.guestKey });
     const common = await loadCommon(context, { period: "all", propertyIds: null, asUserId: data.asUserId ?? null });
     const built = buildGuestIndex(common);
     const g = built.guests.get(data.guestKey);

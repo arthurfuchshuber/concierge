@@ -335,6 +335,8 @@ export const bulkUpdateProperties = createServerFn({ method: "POST" })
     }).parse(i),
   )
   .handler(async ({ data, context }) => {
+    const { enforce } = await import("@/lib/permissions/permission.enforce.server");
+    await enforce(context.userId, "imoveis.bulk-edit", { resource: null });
     const sb = context.supabase;
     const patch: Record<string, unknown> = Object.fromEntries(
       Object.entries(data.patch).map(([k, v]) => [k, v === "" ? null : v]),
@@ -425,6 +427,8 @@ export const getMyProperty = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((i: unknown) => z.object({ id: z.string().uuid() }).parse(i))
   .handler(async ({ data, context }) => {
+    const { enforce } = await import("@/lib/permissions/permission.enforce.server");
+    await enforce(context.userId, "imoveis.editor.read", { propertyId: data.id });
     const [p, manual, recs, emerg, faqs, checkout] = await Promise.all([
       context.supabase.from("properties").select("*").eq("id", data.id).maybeSingle(),
       context.supabase.from("property_manual_items").select("*").eq("property_id", data.id).order("position"),
@@ -477,6 +481,8 @@ export const upsertProperty = createServerFn({ method: "POST" })
   .inputValidator((i: unknown) => SavePropertyInput.parse(i))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
+    const { enforce } = await import("@/lib/permissions/permission.enforce.server");
+    await enforce(userId, "imoveis.editor.write", { propertyId: data.id ?? null });
     const { resolveEffectivePlan, assertCanCreateGuide } = await import("@/lib/plan-guard.server");
     let propertyId = data.id ?? null;
 
@@ -616,6 +622,8 @@ export const deleteProperty = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((i: unknown) => z.object({ id: z.string().uuid() }).parse(i))
   .handler(async ({ data, context }) => {
+    const { enforce } = await import("@/lib/permissions/permission.enforce.server");
+    await enforce(context.userId, "imoveis.delete", { propertyId: data.id });
     const { error } = await context.supabase.from("properties").delete().eq("id", data.id);
     if (error) throw (await import("@/lib/db-errors.server")).safeDbError("properties", error);
     return { ok: true };

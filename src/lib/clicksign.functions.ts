@@ -78,6 +78,8 @@ export const saveMyClicksignConfig = createServerFn({ method: "POST" })
   .inputValidator((raw) => SAVE_INPUT.parse(raw))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
+    const { enforce } = await import("@/lib/permissions/permission.enforce.server");
+    await enforce(userId, "integracoes.write", { });
     const { csFetch } = await import("@/lib/clicksign.server");
     const { encryptToken, decryptToken } = await import("@/lib/whatsapp.server");
 
@@ -140,6 +142,8 @@ export const disconnectMyClicksign = createServerFn({ method: "POST" })
   .inputValidator((raw) => z.object({ purge: z.boolean().default(false) }).parse(raw ?? {}))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
+    const { enforce } = await import("@/lib/permissions/permission.enforce.server");
+    await enforce(userId, "integracoes.write", { });
 
     if (data.purge) {
       // Remove tudo que a integração criou: contratos importados e os cadastros
@@ -188,6 +192,8 @@ export const syncMyClicksignDocuments = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { supabase, userId } = context;
+    const { enforce } = await import("@/lib/permissions/permission.enforce.server");
+    await enforce(userId, "integracoes.write", { });
     const { decryptToken } = await import("@/lib/whatsapp.server");
     const cs = await import("@/lib/clicksign.server");
 

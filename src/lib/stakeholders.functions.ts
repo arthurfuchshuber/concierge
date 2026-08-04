@@ -128,6 +128,8 @@ export const saveStakeholder = createServerFn({ method: "POST" })
   .inputValidator((i: unknown) => SaveInput.parse(i))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
+    const { enforce } = await import("@/lib/permissions/permission.enforce.server");
+    await enforce(userId, "stakeholders.write", { resource: data.id ?? null });
     const accountId = await resolveAccountOwnerId(supabase, userId);
     const { kind, id, category, ...rest } = data;
 
@@ -190,6 +192,8 @@ export const deleteStakeholder = createServerFn({ method: "POST" })
   .inputValidator((i: unknown) => IdInput.parse(i))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
+    const { enforce } = await import("@/lib/permissions/permission.enforce.server");
+    await enforce(userId, "stakeholders.delete", { resource: data.id });
     const accountId = await resolveAccountOwnerId(supabase, userId);
     const { error } = await supabase
       .from(TABLE[data.kind])
@@ -205,6 +209,8 @@ export const getStakeholderDetail = createServerFn({ method: "GET" })
   .inputValidator((i: unknown) => IdInput.parse(i))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
+    const { enforce } = await import("@/lib/permissions/permission.enforce.server");
+    await enforce(userId, "stakeholders.read", { resource: data.id });
     const accountId = await resolveAccountOwnerId(supabase, userId);
     const [{ data: row }, { data: events }, { data: activities }] = await Promise.all([
       supabase.from(TABLE[data.kind]).select("*").eq("id", data.id).eq("account_owner_id", accountId).maybeSingle(),
@@ -266,6 +272,8 @@ export const linkPropertyToOwner = createServerFn({ method: "POST" })
   .inputValidator((i: unknown) => LinkInput.parse(i))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
+    const { enforce } = await import("@/lib/permissions/permission.enforce.server");
+    await enforce(userId, "stakeholders.vinculo-imovel", { resource: data.stakeholderId ?? null });
     const accountId = await resolveAccountOwnerId(supabase, userId);
     const { data: owner } = await supabase
       .from("property_owners")
@@ -435,6 +443,8 @@ export const setStakeholderStatus = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
+    const { enforce } = await import("@/lib/permissions/permission.enforce.server");
+    await enforce(userId, "stakeholders.write", { resource: data.id });
     const accountId = await resolveAccountOwnerId(supabase, userId);
     const when = new Date(
       /^\d{4}-\d{2}-\d{2}$/.test(data.changed_at) ? `${data.changed_at}T12:00:00` : data.changed_at,

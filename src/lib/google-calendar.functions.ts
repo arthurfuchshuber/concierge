@@ -32,6 +32,8 @@ export const getMyGoogleCalendarStatus = createServerFn({ method: "GET" })
 export const startGoogleCalendarConnect = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
+    const { enforce } = await import("@/lib/permissions/permission.enforce.server");
+    await enforce(context.userId, "integracoes.write", { });
     const clientAPIKey = process.env['GOOGLE_CALENDAR_APP_USER_CONNECTOR_CLIENT_API_KEY'];
     if (!clientAPIKey) throw new Error("GOOGLE_CALENDAR_APP_USER_CONNECTOR_CLIENT_API_KEY is not set");
 
@@ -80,6 +82,8 @@ export const completeGoogleCalendarConnection = createServerFn({ method: "POST" 
 export const disconnectMyGoogleCalendar = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
+    const { enforce } = await import("@/lib/permissions/permission.enforce.server");
+    await enforce(context.userId, "integracoes.write", { });
     const { GATEWAY_BASE_URL, CONNECTOR_ID } = await import("@/lib/google-calendar.server");
     const { getConnectionKeyForUser, deleteConnectionForUser } = await import(
       "@/lib/app-user-connections.server"

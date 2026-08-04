@@ -211,6 +211,8 @@ export const updateMemberPermission = createServerFn({ method: "POST" })
   .inputValidator((i: unknown) => UpdateInput.parse(i))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
+    const { enforce } = await import("@/lib/permissions/permission.enforce.server");
+    await enforce(userId, "equipe.permissoes", { });
     // Ensure the target is actually a member of this account
     const { data: m } = await supabase
       .from("account_members")
