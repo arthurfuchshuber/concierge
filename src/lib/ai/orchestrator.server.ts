@@ -77,6 +77,14 @@ export type OrchestratorResult = {
   reflection: Reflection | null;
   routing: AgentRouting;
   escalationId: string | null;
+  /** Empresa (tenant) dona da interação. */
+  tenantId: string;
+  /** Canal de origem normalizado. */
+  channel: ChannelType;
+  /** Ferramentas efetivamente chamadas (auditoria/avaliação). */
+  toolsUsed: Array<{ name: string; args?: unknown; durationMs?: number; parallelBatch?: number }>;
+  /** Fontes efetivamente consultadas (auditoria/avaliação). */
+  sourcesUsed: string[];
 };
 
 
@@ -90,11 +98,20 @@ export async function runHospitalityAgent(params: {
   history: Array<{ role: string; content: string }>;
   explorationMode?: boolean;
   surface?: string;
+  /** Canal de origem (Channel Gateway). O núcleo não muda de comportamento por canal. */
+  channel?: ChannelType;
+  channelReference?: string | null;
+  /** Gatilho proativo, quando a interação nasceu de uma ação antecipada. */
+  proactiveTrigger?: string | null;
+  autonomyLevel?: string | null;
 }): Promise<OrchestratorResult> {
   const started = Date.now();
   const { supabase, property } = params;
+  const tenant = tenantOf(property);
   const propertyId = String(property.id);
-  const ownerId = String(property.owner_id);
+  const ownerId = tenant.ownerId;
+  const channel: ChannelType = params.channel ?? "guide_chat";
+
 
   let usage = EMPTY_USAGE;
   const models: Record<string, string> = { agent: AI_MODELS.agent };
