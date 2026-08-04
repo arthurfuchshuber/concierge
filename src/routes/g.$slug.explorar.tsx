@@ -1,4 +1,4 @@
-import { createFileRoute, notFound, Link, useRouter } from "@tanstack/react-router";
+import { createFileRoute, notFound, redirect, Link, useRouter } from "@tanstack/react-router";
 import { useMemo, useState, useEffect, useRef } from "react";
 import { getPublicGuide } from "@/lib/guide.functions";
 import { trackGuideEvent } from "@/lib/guide-analytics.functions";
@@ -81,6 +81,9 @@ function computeReviewOptions(items: { user_ratings_total?: number | null }[]) {
 export const Route = createFileRoute("/g/$slug/explorar")({
   loader: async ({ params }) => {
     const r = await getPublicGuide({ data: { slug: params.slug } });
+    if (r.status === "moved") {
+      throw redirect({ to: "/g/$slug/explorar", params: { slug: r.slug }, replace: true });
+    }
     if (r.status === "not_found") throw notFound();
     return r;
   },
