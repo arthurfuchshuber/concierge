@@ -246,8 +246,23 @@ const GUIA_PUBLICO: Def[] = [
   field("guia.senha-acesso", "Senha de acesso", 70),
 ];
 
-/** Catálogo completo — ordem de declaração define a ordem de exibição. */
-export const PERMISSION_CATALOG: Def[] = [
+/**
+ * Funcionalidade de plano exigida por módulo. A exigência é herdada por toda
+ * a subárvore (o Registry resolve o ancestral mais próximo).
+ */
+const FEATURE_BY_SLUG: Record<string, string> = {
+  conversas: "humanHandoff",
+  ia: "ai",
+  inteligencia: "ai",
+  "imoveis.edicao-massa": "team",
+  "imoveis.editor.captacao": "advancedIntake",
+  "administrativo.equipe": "team",
+  "administrativo.integracoes": "externalIntegration",
+  "guia.chat": "guestChat",
+  financeiro: "team",
+};
+
+const RAW_CATALOG: Def[] = [
   ...DASHBOARD,
   ...CONVERSAS,
   ...IMOVEIS,
@@ -262,6 +277,12 @@ export const PERMISSION_CATALOG: Def[] = [
   ...ADMIN_SAAS,
   ...GUIA_PUBLICO,
 ];
+
+/** Catálogo completo — ordem de declaração define a ordem de exibição. */
+export const PERMISSION_CATALOG: Def[] = RAW_CATALOG.map((node) =>
+  FEATURE_BY_SLUG[node.slug] ? { ...node, feature: FEATURE_BY_SLUG[node.slug] } : node,
+);
+
 
 /** Mapa rota → slug do nó, usado pela rotina de consistência. */
 export const CATALOG_ROUTE_MAP: Record<string, string> = PERMISSION_CATALOG.reduce(
