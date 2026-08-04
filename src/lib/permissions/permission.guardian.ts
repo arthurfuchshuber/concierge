@@ -98,7 +98,7 @@ export function applyDecision(
 
 /** Total de rotas de experiência do usuário observadas pelo Guardian. */
 export function observedRouteCount(): number {
-  return discoverRoutes().filter((r) => !r.technical).length;
+  return discoverRoutes().filter((r) => r.permissionable).length;
 }
 
 export const lovableGuardian = { inspect, applyDecision, observedRouteCount };
