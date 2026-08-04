@@ -95,17 +95,77 @@ export async function assignPermission(
   return saved;
 }
 
-/** Sincroniza o Registry (catálogo + auto discovery) com a tabela de nós. */
-export async function syncRegistryToDatabase(): Promise<{ synced: number; errors: string[] }> {
-  bootstrapPermissionRegistry();
-  runAutoDiscovery();
-  const validation = permissionRegistry.validate();
-  if (!validation.ok) return { synced: 0, errors: validation.errors };
-  const defs = permissionRegistry.list();
-  if (!defs.length) return { synced: 0, errors: [] };
-  const synced = await permissionRepository.upsertNodes(defs);
-  return { synced, errors: [] };
+/**
+ * Sincroniza o Registry (catálogo + auto discovery) com a tabela de nós.
+ * Delegado ao sync OFICIAL da Fase 3.5 (com log de execução e soft delete).
+ */
+export async function syncRegistryToDatabase(
+  triggeredBy?: string | null,
+): Promise<{ synced: number; errors: string[] }> {
+  const { syncPermissionRegistry } = await import("./permission.sync.server");
+  const report = await syncPermissionRegistry({ triggeredBy: triggeredBy ?? null });
+  return { synced: report.created + report.updated, errors: report.errors };
 }
+
+/** Atribui um imóvel a um usuário (escopo operacional PROPERTY). */
+export async function assignUserToProperty(input: {
+  tenantId: string;
+  propertyId: string;
+  userId: string;
+  actorId?: string | null;
+  actorName?: string | null;
+}) {
+  const saved = await permissionRepository.upsertPropertyAssignment({
+    tenantId: input.tenantId,
+    propertyId: input.propertyId,
+    userId: input.userId,
+    createdBy: input.actorId ?? null,
+  });
+  await permissionRepository.recordAudit({
+    tenantId: input.tenantId,
+    actorId: input.actorId ?? null,
+    actorName: input.actorName ?? null,
+    targetUserId: input.userId,
+    scopeType: "PROPERTY",
+    scopeId: input.propertyId,
+    action: "property.assign",
+  });
+  return saved;
+}
+
+/** Remove o vínculo de um imóvel com um usuário. */
+export async function removeUserFromProperty(input: {
+  tenantId: string;
+  propertyId: string;
+  userId: string;
+  actorId?: string | null;
+  actorName?: string | null;
+}) {
+  await permissionRepository.deletePropertyAssignment(
+    input.tenantId,
+    input.propertyId,
+    input.userId,
+  );
+  await permissionRepository.recordAudit({
+    tenantId: input.tenantId,
+    actorId: input.actorId ?? null,
+    actorName: input.actorName ?? null,
+    targetUserId: input.userId,
+    scopeType: "PROPERTY",
+    scopeId: input.propertyId,
+    action: "property.revoke",
+  });
+}
+
+/** Imóveis atribuídos a um usuário dentro da conta. */
+export async function listUserProperties(
+  tenantId: string,
+  userId: string,
+): Promise<string[]> {
+  const rows = await permissionRepository.listPropertyAssignments(tenantId, userId);
+  return rows.filter((r) => (r.status ?? "active") === "active").map((r) => r.property_id);
+}
+
 
 /** Relatório de consistência da árvore (rotas sem nó, pais quebrados etc.). */
 export function inspectRegistryConsistency() {
