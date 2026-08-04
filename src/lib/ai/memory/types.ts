@@ -86,5 +86,10 @@ export type MemoryCandidate = {
   source?: string;
   /** Dias até expirar (memórias efêmeras). */
   ttlDays?: number | null;
+  /** Autor humano ou agente responsável pela informação. */
+  author?: string | null;
+  /** Usuário que aprovou (Knowledge Approval Flow). */
+  approvedBy?: string | null;
   metadata?: Record<string, unknown>;
 };
+
