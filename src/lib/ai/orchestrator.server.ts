@@ -313,7 +313,13 @@ export async function runHospitalityAgent(params: {
     confidence = 1;
   }
 
-  // 9) Memória + observabilidade (não bloqueiam a resposta)
+  // 9) Persistência de memória + observabilidade (não bloqueiam a resposta)
+  rememberMessage(params.conversationId, "assistant", reply);
+  if (intent.category !== "operacional" && intent.urgency !== "high") {
+    // pergunta resolvida fora de contexto operacional encerra o assunto em aberto
+    if (!handoffReason) clearOpenTopic(params.conversationId);
+  }
+
   const transcript = [...params.history, { role: "user", content: params.message }, { role: "assistant", content: reply }];
   void updateGuestMemory({
     supabase,
@@ -326,13 +332,57 @@ export async function runHospitalityAgent(params: {
     transcript,
   }).catch(() => undefined);
 
+  // Política de gravação: só o que tem utilidade futura vira memória de longo prazo.
+  void (async () => {
+    try {
+      const { candidates } = await classifyForMemory({
+        message: params.message,
+        answer: reply,
+        category: intent.category,
+        intent: intent.intent,
+        language: intent.language,
+      });
+      if (candidates.length) {
+        rememberEntities(params.conversationId, {
+          ultimo_tema: candidates[0]?.title ?? candidates[0]?.content.slice(0, 80) ?? "",
+        });
+        await writeMemories({
+          supabase,
+          ownerId,
+          propertyId,
+          subjectKey: guestKey,
+          guestName: params.guestName,
+          sourceRef: params.conversationId,
+          candidates,
+        });
+      }
+    } catch (err) {
+      console.error("[agent] gravação de memória falhou", err);
+    }
+  })();
+
+  // Memória operacional: todo escalonamento vira chamado rastreável.
+  if (handoffReason || intent.category === "operacional") {
+    void recordOperationalRequest({
+      supabase,
+      ownerId,
+      propertyId,
+      conversationId: params.conversationId,
+      guestKey,
+      guestName: params.guestName,
+      category: intent.category === "operacional" ? "manutencao" : (intent.category ?? "outro"),
+      request: params.message.slice(0, 800),
+      metadata: { intent: intent.intent, urgency: intent.urgency, handoff: !!handoffReason },
+    }).catch(() => undefined);
+  }
+
   void logAgentRun(supabase, {
     ownerId,
     propertyId,
     conversationId: params.conversationId,
     surface: params.surface ?? "guide_chat",
     intent,
-    contextKeys: context.keys,
+    contextKeys: [...context.keys, ...guestContext.keys],
     toolsUsed,
     sources,
     confidence,
@@ -347,7 +397,21 @@ export async function runHospitalityAgent(params: {
     promptVersions: stampVersions(["agent", "planner", "reflection", ...(params.explorationMode ? (["exploration"] as const) : [])]),
     confidenceTier: tier,
     sourceWeight: aggregateSourceWeight(sources),
+    memoryContextUsed: guestContext.memories.length > 0 || guestContext.operational.length > 0,
+    memoriesRetrieved: guestContext.memories.map((m) => ({
+      id: m.id,
+      tier: m.tier,
+      kind: m.kind,
+      source: m.source,
+      score: Number(m.score.toFixed(4)),
+      decay: Number(m.decay.toFixed(4)),
+      lastSeenAt: m.lastSeenAt,
+    })),
+    memoryConfidenceScore: guestContext.memoryConfidence,
+    guestContextSnapshot: guestContext.guestSnapshot,
+    operationalContextSnapshot: guestContext.operationalSnapshot,
   }).catch(() => undefined);
+
 
   return {
     reply,
