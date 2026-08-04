@@ -457,6 +457,108 @@ export type Database = {
           },
         ]
       }
+      ai_alerts: {
+        Row: {
+          acknowledged_at: string | null
+          acknowledged_by: string | null
+          baseline_value: number | null
+          created_at: string
+          detail: string | null
+          id: string
+          kind: string
+          metadata: Json
+          metric_value: number | null
+          property_id: string | null
+          severity: string
+          status: string
+          tenant_id: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          acknowledged_at?: string | null
+          acknowledged_by?: string | null
+          baseline_value?: number | null
+          created_at?: string
+          detail?: string | null
+          id?: string
+          kind: string
+          metadata?: Json
+          metric_value?: number | null
+          property_id?: string | null
+          severity?: string
+          status?: string
+          tenant_id?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          acknowledged_at?: string | null
+          acknowledged_by?: string | null
+          baseline_value?: number | null
+          created_at?: string
+          detail?: string | null
+          id?: string
+          kind?: string
+          metadata?: Json
+          metric_value?: number | null
+          property_id?: string | null
+          severity?: string
+          status?: string
+          tenant_id?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      ai_channel_connections: {
+        Row: {
+          channel_type: string
+          connected_at: string | null
+          created_at: string
+          credentials_reference: string | null
+          external_identity: string | null
+          id: string
+          last_error: string | null
+          last_seen_at: string | null
+          metadata: Json
+          provider: string
+          status: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          channel_type: string
+          connected_at?: string | null
+          created_at?: string
+          credentials_reference?: string | null
+          external_identity?: string | null
+          id?: string
+          last_error?: string | null
+          last_seen_at?: string | null
+          metadata?: Json
+          provider: string
+          status?: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          channel_type?: string
+          connected_at?: string | null
+          created_at?: string
+          credentials_reference?: string | null
+          external_identity?: string | null
+          id?: string
+          last_error?: string | null
+          last_seen_at?: string | null
+          metadata?: Json
+          provider?: string
+          status?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       ai_conversation_channels: {
         Row: {
           channel_type: string
@@ -549,6 +651,78 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      ai_conversations: {
+        Row: {
+          assigned_agent: string | null
+          assigned_user_id: string | null
+          channel_origin: string
+          created_at: string
+          guest_id: string | null
+          guest_name: string | null
+          guest_phone: string | null
+          id: string
+          last_message_at: string
+          legacy_conversation_id: string | null
+          metadata: Json
+          property_id: string | null
+          reservation_id: string | null
+          status: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          assigned_agent?: string | null
+          assigned_user_id?: string | null
+          channel_origin?: string
+          created_at?: string
+          guest_id?: string | null
+          guest_name?: string | null
+          guest_phone?: string | null
+          id?: string
+          last_message_at?: string
+          legacy_conversation_id?: string | null
+          metadata?: Json
+          property_id?: string | null
+          reservation_id?: string | null
+          status?: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          assigned_agent?: string | null
+          assigned_user_id?: string | null
+          channel_origin?: string
+          created_at?: string
+          guest_id?: string | null
+          guest_name?: string | null
+          guest_phone?: string | null
+          id?: string
+          last_message_at?: string
+          legacy_conversation_id?: string | null
+          metadata?: Json
+          property_id?: string | null
+          reservation_id?: string | null
+          status?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_conversations_legacy_conversation_id_fkey"
+            columns: ["legacy_conversation_id"]
+            isOneToOne: false
+            referencedRelation: "property_chat_conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_conversations_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       ai_guest_memory: {
         Row: {
@@ -914,6 +1088,71 @@ export type Database = {
             columns: ["property_id"]
             isOneToOne: false
             referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ai_messages: {
+        Row: {
+          agent_key: string | null
+          channel_origin: string
+          confidence: number | null
+          conversation_id: string
+          cost_usd: number | null
+          created_at: string
+          delivery_status: string | null
+          external_id: string | null
+          id: string
+          message_content: string
+          metadata: Json
+          property_id: string | null
+          sender_type: string
+          tenant_id: string
+          tokens_in: number | null
+          tokens_out: number | null
+        }
+        Insert: {
+          agent_key?: string | null
+          channel_origin?: string
+          confidence?: number | null
+          conversation_id: string
+          cost_usd?: number | null
+          created_at?: string
+          delivery_status?: string | null
+          external_id?: string | null
+          id?: string
+          message_content: string
+          metadata?: Json
+          property_id?: string | null
+          sender_type: string
+          tenant_id: string
+          tokens_in?: number | null
+          tokens_out?: number | null
+        }
+        Update: {
+          agent_key?: string | null
+          channel_origin?: string
+          confidence?: number | null
+          conversation_id?: string
+          cost_usd?: number | null
+          created_at?: string
+          delivery_status?: string | null
+          external_id?: string | null
+          id?: string
+          message_content?: string
+          metadata?: Json
+          property_id?: string | null
+          sender_type?: string
+          tenant_id?: string
+          tokens_in?: number | null
+          tokens_out?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "ai_conversations"
             referencedColumns: ["id"]
           },
         ]
