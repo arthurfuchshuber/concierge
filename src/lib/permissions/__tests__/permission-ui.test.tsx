@@ -7,7 +7,7 @@ import {
   isPermissionDenied,
   requiredLevelFor,
   toAccessState,
-} from "@/lib/permissions/permission.client";
+} from "@/lib/permissions/permissionClient";
 
 const fetchMock = vi.fn();
 

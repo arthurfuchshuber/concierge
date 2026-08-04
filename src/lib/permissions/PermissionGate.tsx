@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { usePermission, type UsePermissionOptions } from "@/lib/permissions/usePermission";
-import { requiredLevelFor } from "@/lib/permissions/permission.client";
+import { requiredLevelFor } from "@/lib/permissions/permissionClient";
 
 export type PermissionGateProps = UsePermissionOptions & {
   /** Slug do nó de permissão (ex.: "tenant.imoveis.editor"). */

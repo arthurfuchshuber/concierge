@@ -7,7 +7,7 @@ import {
   type AccessLevelInput,
   type AccessScope,
   type AccessState,
-} from "@/lib/permissions/permission.client";
+} from "@/lib/permissions/permissionClient";
 
 export type UsePermissionOptions = AccessScope & {
   required?: AccessLevelInput;
