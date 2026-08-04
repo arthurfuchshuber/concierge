@@ -447,6 +447,24 @@ export async function runHospitalityAgent(params: {
     }).catch(() => undefined);
   }
 
+  // Knowledge Distillation: decisão humana usada agora vira candidata a conhecimento.
+  if (humanAnswers.length) {
+    void (async () => {
+      for (const a of humanAnswers) {
+        await learnFromHumanAnswer({
+          supabase,
+          ownerId,
+          propertyId,
+          propertyName: (property.title as string) ?? null,
+          escalationId: a.id,
+          agent: a.agent,
+          question: a.question,
+          humanAnswer: a.answer,
+        }).catch(() => undefined);
+      }
+    })();
+  }
+
   void logAgentRun(supabase, {
     ownerId,
     propertyId,
@@ -465,7 +483,16 @@ export async function runHospitalityAgent(params: {
     error: errorMsg,
     plan,
     reflection,
-    promptVersions: stampVersions(["agent", "planner", "reflection", ...(params.explorationMode ? (["exploration"] as const) : [])]),
+    promptVersions: {
+      ...stampVersions([
+        "agent",
+        "planner",
+        "reflection",
+        "supervisor",
+        ...(params.explorationMode ? (["exploration"] as const) : []),
+      ]),
+      ...stampAgentPrompt(agent),
+    },
     confidenceTier: tier,
     sourceWeight: aggregateSourceWeight(sources),
     memoryContextUsed: guestContext.memories.length > 0 || guestContext.operational.length > 0,
@@ -481,6 +508,12 @@ export async function runHospitalityAgent(params: {
     memoryConfidenceScore: guestContext.memoryConfidence,
     guestContextSnapshot: guestContext.guestSnapshot,
     operationalContextSnapshot: guestContext.operationalSnapshot,
+    selectedAgent: agent.key,
+    agentAutonomy: agent.autonomy,
+    orchestratorDecision: describeRouting(routing),
+    escalationTriggered: !!escalationId,
+    escalationId,
+    humanResponseUsed: humanAnswers.length > 0,
   }).catch(() => undefined);
 
 
@@ -495,5 +528,8 @@ export async function runHospitalityAgent(params: {
     confidenceTier: tier,
     plan,
     reflection,
+    routing,
+    escalationId,
   };
 }
+
