@@ -568,6 +568,16 @@ export async function runHospitalityAgent(params: {
     }),
   }).catch(() => undefined);
 
+  // Continuous Learning: memórias usadas ganham/perdem peso conforme o desfecho
+  // imediato desta resposta (o loop completo roda no cron, fora do caminho crítico).
+  if (guestContext.memories.length) {
+    void bumpMemoryUsage({
+      supabase,
+      memoryIds: guestContext.memories.map((m) => m.id),
+      outcome: handoffReason ? "failure" : tier === "auto" ? "success" : "neutral",
+    }).catch(() => undefined);
+  }
+
   // Channel Gateway: registra (idempotente) a origem desta conversa.
   void bindConversationChannel({
     supabase,
