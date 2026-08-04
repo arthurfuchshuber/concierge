@@ -117,5 +117,8 @@
     "overrides": {
       "entities": "4.5.0"
     }
+  },
+  "overrides": {
+    "@tanstack/router-core": "1.170.16"
   }
 }
