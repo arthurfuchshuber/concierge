@@ -109,6 +109,25 @@ export async function resolveCoreConversation(params: {
       })
       .select("id, tenant_id, property_id, guest_id, channel_origin, status, assigned_agent")
       .single();
+    if (created) {
+      const { logSystemEvent } = await import("../audit/events.server");
+      void logSystemEvent(supabase, {
+        tenantId,
+        actorType: "GUEST",
+        actorId: guestId ?? null,
+        actorName: params.guestName ?? null,
+        eventType: "conversation_created",
+        eventCategory: "CONVERSATION",
+        entityType: "ai_conversations",
+        entityId: String(created.id),
+        conversationId: String(created.id),
+        propertyId,
+        channel,
+        description: "Nova conversa iniciada",
+        reason: "Primeiro contato do hóspede neste canal",
+        source: "conversation_core",
+      });
+    }
     return created ? mapConversation(created) : null;
   } catch (err) {
     console.error("[conversation-core] resolve falhou", err);
