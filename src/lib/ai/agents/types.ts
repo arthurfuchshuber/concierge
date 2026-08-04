@@ -1,13 +1,13 @@
 /**
- * Contratos da Multi-Agent Architecture do ConciergeIA.
+ * Contratos da arquitetura multi-agente.
  *
- * Cada agente especialista é uma configuração declarativa: prompt próprio,
- * ferramentas permitidas, nível de autonomia, limiares de confiança e regras
- * de escalonamento. Nenhum agente pode usar ferramenta fora da sua lista.
+ * Cada agente especialista é uma definição declarativa: prompt versionado,
+ * ferramentas permitidas, nível de autonomia, thresholds de confiança e
+ * regras de escalonamento. Nenhum agente pode ultrapassar sua whitelist.
  */
 import type { ConfidenceThresholds } from "../confidence";
-import type { MemoryKind } from "../memory/types";
 import type { PromptEntry } from "../prompts";
+import type { MemoryKind } from "../memory/types";
 
 export type AgentKey =
   | "reservation"
@@ -18,10 +18,10 @@ export type AgentKey =
   | "generalist";
 
 /**
- * Nível de autonomia:
- *  - low    → praticamente nada é decidido sozinho (promessas, dinheiro, contrato).
- *  - medium → resolve o operacional conhecido, escala exceções.
- *  - high   → responde sozinho enquanto houver fonte oficial.
+ * Autonomia:
+ *  - low   : só informa; qualquer decisão vai para humano.
+ *  - medium: resolve o documentado; exceções vão para humano.
+ *  - high  : resolve sozinho dentro da especialidade.
  */
 export type Autonomy = "low" | "medium" | "high";
 
@@ -30,30 +30,24 @@ export type AgentDefinition = {
   name: string;
   description: string;
   specialty: string;
-  /** Ferramentas liberadas para este agente (whitelist rígida). */
   allowedTools: string[];
   autonomy: Autonomy;
   prompt: PromptEntry;
-  /** Limiares próprios de confiança (auto | hedged | handoff). */
   thresholds: ConfidenceThresholds;
-  /** Categorias de intenção normalmente atendidas por este agente. */
+  /** Categorias de intenção que este agente costuma atender. */
   categories: string[];
-  /** Regras de escalonamento obrigatório, em linguagem natural (vão ao prompt). */
   escalationRules: string[];
-  /** Tipos de memória que este agente pode propor ao Learning Loop. */
   memoryKinds: MemoryKind[];
   reasoningEffort: "low" | "medium" | "high";
-  /** Passos máximos de tool calling. */
   maxSteps: number;
 };
 
-/** Decisão do Agent Orchestrator (supervisor). */
-export type OrchestratorDecision = {
+/** Decisão do supervisor (roteamento). */
+export type AgentRouting = {
   agent: AgentKey;
   reason: string;
   confidence: number;
-  /** Escalonamento já recomendado antes mesmo da execução. */
   escalateUpfront: boolean;
-  /** true quando a seleção veio da heurística (modelo indisponível). */
+  /** true quando a escolha veio de heurística e não do modelo. */
   fallback: boolean;
 };
