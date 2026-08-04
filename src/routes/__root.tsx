@@ -16,6 +16,7 @@ import { I18nProvider } from "../lib/i18n";
 import { Toaster } from "../components/ui/sonner";
 import { supabase } from "../integrations/supabase/client";
 import { META_PIXEL_ID, initMetaPixel, metaPixelPageView } from "../lib/meta-pixel";
+import { startTrail, trackPageView } from "../lib/trail";
 
 function NotFoundComponent() {
   return (
@@ -176,6 +177,17 @@ function RootComponent() {
   }, []);
   useEffect(() => {
     metaPixelPageView(pathname);
+  }, [pathname]);
+
+  // Rastro completo de uso: cliques, campos, envios, rolagem, erros e sessão.
+  useEffect(() => {
+    const slug = window.location.pathname.startsWith("/g/")
+      ? window.location.pathname.split("/")[2]
+      : undefined;
+    return startTrail(slug);
+  }, []);
+  useEffect(() => {
+    trackPageView(pathname);
   }, [pathname]);
 
 
