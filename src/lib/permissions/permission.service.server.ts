@@ -9,10 +9,7 @@ import { permissionEngine } from "./permission.engine";
 import { lovableGuardian } from "./permission.guardian";
 import { validateScope } from "./permission.scopes";
 
-import {
-  permissionRepository,
-  type UpsertAssignmentInput,
-} from "./permission.repository.server";
+import { permissionRepository, type UpsertAssignmentInput } from "./permission.repository.server";
 import type {
   AccessLevel,
   PermissionDecision,
@@ -165,14 +162,10 @@ export async function removeUserFromProperty(input: {
 }
 
 /** Imóveis atribuídos a um usuário dentro da conta. */
-export async function listUserProperties(
-  tenantId: string,
-  userId: string,
-): Promise<string[]> {
+export async function listUserProperties(tenantId: string, userId: string): Promise<string[]> {
   const rows = await permissionRepository.listPropertyAssignments(tenantId, userId);
   return rows.filter((r) => (r.status ?? "active") === "active").map((r) => r.property_id);
 }
-
 
 /** Relatório de consistência da árvore (rotas sem nó, pais quebrados etc.). */
 export function inspectRegistryConsistency() {
@@ -199,4 +192,3 @@ export const permissionService = {
   inspectRegistryConsistency,
   inspectGuardian,
 };
-

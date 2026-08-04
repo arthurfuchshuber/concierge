@@ -43,7 +43,11 @@ export function isNamespaced(slug: string): boolean {
  * Slugs legados (`dashboard`, `administrativo.equipe`) recebem `tenant.`.
  */
 export function canonicalSlug(slug: string): string {
-  const clean = slug.trim().toLowerCase().replace(/\.+/g, ".").replace(/^\.|\.$/g, "");
+  const clean = slug
+    .trim()
+    .toLowerCase()
+    .replace(/\.+/g, ".")
+    .replace(/^\.|\.$/g, "");
   if (!clean) return TENANT_NAMESPACE;
   if (isNamespaced(clean)) return clean;
   return `${TENANT_NAMESPACE}.${clean}`;

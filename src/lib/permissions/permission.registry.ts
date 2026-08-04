@@ -11,11 +11,7 @@
  *  - nunca criar árvore quebrada (pais ausentes são criados automaticamente).
  */
 import { resolveSlug, ROOT_SLUGS } from "./permission.slugs";
-import type {
-  AccessLevel,
-  PermissionNodeDefinition,
-  PermissionNodeType,
-} from "./permission.types";
+import type { AccessLevel, PermissionNodeDefinition, PermissionNodeType } from "./permission.types";
 
 /** Deriva o slug do pai a partir do slug pontuado (`a.b.c` → `a.b`). */
 export function deriveParentSlug(slug: string): string | null {
@@ -24,13 +20,10 @@ export function deriveParentSlug(slug: string): string | null {
   return parts.slice(0, -1).join(".");
 }
 
-
 /** Rótulo legível gerado a partir do último segmento do slug. */
 function humanize(slug: string): string {
   const last = slug.split(".").pop() ?? slug;
-  return last
-    .replace(/[-_]/g, " ")
-    .replace(/\b\w/g, (c) => c.toUpperCase());
+  return last.replace(/[-_]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
 /**
@@ -45,7 +38,6 @@ function inferTypeFromDepth(slug: string): PermissionNodeType {
   if (depth === 3) return "TAB";
   return "SECTION";
 }
-
 
 class PermissionRegistry {
   private nodes = new Map<string, PermissionNodeDefinition>();
@@ -94,7 +86,6 @@ class PermissionRegistry {
     return normalized;
   }
 
-
   /**
    * AUTO HERANÇA — garante que todo ancestral exista.
    * Caso o pai ainda não exista, ele é criado automaticamente.
@@ -132,7 +123,6 @@ class PermissionRegistry {
     for (const d of defs) this.register(d);
   }
 
-
   has(slug: string): boolean {
     return this.nodes.has(slug) || this.nodes.has(resolveSlug(slug));
   }
@@ -151,7 +141,6 @@ class PermissionRegistry {
   listPermissionable(): PermissionNodeDefinition[] {
     return this.list().filter((n) => n.isPermissionable !== false);
   }
-
 
   listByType(type: PermissionNodeType): PermissionNodeDefinition[] {
     return this.list().filter((n) => n.type === type);
@@ -196,7 +185,9 @@ class PermissionRegistry {
   }
 
   /** Árvore serializável — usada futuramente pela UI de administração. */
-  tree(parentSlug: string | null = null): Array<PermissionNodeDefinition & { children: unknown[] }> {
+  tree(
+    parentSlug: string | null = null,
+  ): Array<PermissionNodeDefinition & { children: unknown[] }> {
     return this.children(parentSlug).map((node) => ({
       ...node,
       children: this.tree(node.slug),

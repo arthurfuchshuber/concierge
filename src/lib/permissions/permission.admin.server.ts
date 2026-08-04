@@ -20,7 +20,6 @@ import {
   type SystemRole,
 } from "./permission.types";
 
-
 /** Tenant sintético usado pelo contexto do Admin do SaaS. */
 export const SAAS_TENANT_ID = "00000000-0000-0000-0000-000000000000";
 
@@ -83,7 +82,6 @@ async function ensureRegistry(): Promise<void> {
   }
 }
 
-
 /**
  * Monta a árvore dinâmica já filtrada pelo plano contratado.
  * Módulos indisponíveis para o plano não são retornados — nem para OWNER.
@@ -105,13 +103,8 @@ export async function buildNodeTree(args: {
   const defs = permissionRegistry
     .list()
     .filter(
-      (d) =>
-        d.active !== false &&
-        !d.isHidden &&
-        !d.deprecated &&
-        d.isPermissionable !== false,
+      (d) => d.active !== false && !d.isHidden && !d.deprecated && d.isPermissionable !== false,
     );
-
 
   const allowedBySlug = new Map<string, boolean>();
   for (const def of defs) {
@@ -380,7 +373,8 @@ export async function setSubjectPermission(args: {
     slug: args.slug,
     level: args.level,
     removed,
-    message: args.level === "READ" ? "Acesso de visualização concedido." : "Acesso de edição concedido.",
+    message:
+      args.level === "READ" ? "Acesso de visualização concedido." : "Acesso de edição concedido.",
   };
 }
 

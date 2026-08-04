@@ -8,12 +8,7 @@
  *
  * Convenção de slug: `pai.filho.neto`, sempre único, sempre em minúsculas.
  */
-import {
-  isSaasSlug,
-  resolveSlug,
-  SAAS_NAMESPACE,
-  TENANT_NAMESPACE,
-} from "./permission.slugs";
+import { isSaasSlug, resolveSlug, SAAS_NAMESPACE, TENANT_NAMESPACE } from "./permission.slugs";
 import type { PermissionNodeDefinition } from "./permission.types";
 
 type Def = PermissionNodeDefinition;
@@ -70,7 +65,14 @@ const field = (slug: string, name: string, order: number, extra: Partial<Def> = 
 /* ------------------------------------------------------------------ páginas */
 
 const DASHBOARD: Def[] = [
-  page("dashboard", "Operação", "/admin/dashboard", "LayoutDashboard", 10, "Painel operacional com KPIs, engajamento e esteira de chegadas."),
+  page(
+    "dashboard",
+    "Operação",
+    "/admin/dashboard",
+    "LayoutDashboard",
+    10,
+    "Painel operacional com KPIs, engajamento e esteira de chegadas.",
+  ),
   section("dashboard.kpis", "Indicadores", 10),
   resource("dashboard.kpis.checkins", "Check-ins do período", 10),
   resource("dashboard.kpis.checkouts", "Check-outs do período", 20),
@@ -89,7 +91,14 @@ const DASHBOARD: Def[] = [
 ];
 
 const CONVERSAS: Def[] = [
-  page("conversas", "Conversas", "/admin/atendimento", "MessagesSquare", 20, "Atendimento humano e acompanhamento das conversas da IA."),
+  page(
+    "conversas",
+    "Conversas",
+    "/admin/atendimento",
+    "MessagesSquare",
+    20,
+    "Atendimento humano e acompanhamento das conversas da IA.",
+  ),
   section("conversas.fila", "Filas de atendimento", 10),
   resource("conversas.fila.pendentes", "Fila pendente", 10),
   resource("conversas.fila.com-alguem", "Em atendimento", 20),
@@ -106,7 +115,14 @@ const CONVERSAS: Def[] = [
 ];
 
 const IMOVEIS: Def[] = [
-  page("imoveis", "Imóveis", "/admin/guias", "Home", 30, "Residências, guias públicos e conteúdo do hóspede."),
+  page(
+    "imoveis",
+    "Imóveis",
+    "/admin/guias",
+    "Home",
+    30,
+    "Residências, guias públicos e conteúdo do hóspede.",
+  ),
   tab("imoveis.lista", "Imóveis", 10, { route: "/admin/guias" }),
   tab("imoveis.destinos", "Destinos", 20, { route: "/admin/guias" }),
   sub("imoveis.editor", "Editor da residência", 30, { route: "/admin/properties/$id" }),
@@ -127,7 +143,14 @@ const IMOVEIS: Def[] = [
 ];
 
 const STAKEHOLDERS: Def[] = [
-  page("stakeholders", "Stakeholders", "/admin/stakeholders", "Users", 40, "Proprietários, hóspedes e prestadores de serviço."),
+  page(
+    "stakeholders",
+    "Stakeholders",
+    "/admin/stakeholders",
+    "Users",
+    40,
+    "Proprietários, hóspedes e prestadores de serviço.",
+  ),
   tab("stakeholders.proprietarios", "Proprietários", 10),
   resource("stakeholders.proprietarios.cadastro", "Cadastro de proprietário", 10),
   resource("stakeholders.proprietarios.documentos", "Documentos do proprietário", 20),
@@ -156,7 +179,14 @@ const CRM: Def[] = [
 ];
 
 const ENGAJAMENTO: Def[] = [
-  page("engajamento", "Engajamento", "/admin/engajamento", "Activity", 60, "Panorama de uso do guia pelos hóspedes."),
+  page(
+    "engajamento",
+    "Engajamento",
+    "/admin/engajamento",
+    "Activity",
+    60,
+    "Panorama de uso do guia pelos hóspedes.",
+  ),
   tab("engajamento.panorama", "Panorama", 10),
   tab("engajamento.jornada", "Jornada", 20),
   tab("engajamento.conteudo", "Conteúdo", 30),
@@ -164,7 +194,14 @@ const ENGAJAMENTO: Def[] = [
 ];
 
 const IA: Def[] = [
-  page("ia", "IA Concierge", "/admin/ia", "Bot", 70, "Base de conhecimento, memória e aprendizados do concierge."),
+  page(
+    "ia",
+    "IA Concierge",
+    "/admin/ia",
+    "Bot",
+    70,
+    "Base de conhecimento, memória e aprendizados do concierge.",
+  ),
   tab("ia.conhecimento", "Conhecimento", 10),
   resource("ia.conhecimento.faq", "Perguntas e respostas", 10),
   resource("ia.conhecimento.documentos", "Documentos da base", 20),
@@ -177,7 +214,14 @@ const IA: Def[] = [
 ];
 
 const INTELIGENCIA: Def[] = [
-  page("inteligencia", "Inteligência", "/admin/inteligencia", "Brain", 80, "Observabilidade da IA, analytics e auditoria do SaaS."),
+  page(
+    "inteligencia",
+    "Inteligência",
+    "/admin/inteligencia",
+    "Brain",
+    80,
+    "Observabilidade da IA, analytics e auditoria do SaaS.",
+  ),
   tab("inteligencia.agentes", "Agentes", 10),
   tab("inteligencia.pipeline", "Pipeline", 20),
   tab("inteligencia.prompts", "Prompts", 30),
@@ -200,7 +244,14 @@ const CIDADES: Def[] = [
 ];
 
 const ADMINISTRATIVO: Def[] = [
-  page("administrativo", "Administrativo", "/admin/administrativo", "Settings", 100, "Perfil, equipe, assinatura e integrações da conta."),
+  page(
+    "administrativo",
+    "Administrativo",
+    "/admin/administrativo",
+    "Settings",
+    100,
+    "Perfil, equipe, assinatura e integrações da conta.",
+  ),
   tab("administrativo.perfil", "Meu perfil", 10),
   field("administrativo.perfil.dados", "Dados do membro", 10),
   tab("administrativo.equipe", "Equipe", 20),
@@ -228,7 +279,14 @@ const FINANCEIRO: Def[] = [
 ];
 
 const ADMIN_SAAS: Def[] = [
-  page("admin", "Admin SaaS", "/admin/admins", "ShieldCheck", 900, "Administração interna da plataforma.", ),
+  page(
+    "admin",
+    "Admin SaaS",
+    "/admin/admins",
+    "ShieldCheck",
+    900,
+    "Administração interna da plataforma.",
+  ),
   tab("admin.admins", "Administradores", 10),
   tab("admin.invites", "Convites", 20),
   tab("admin.logs", "Logs", 30),
@@ -242,7 +300,14 @@ const ADMIN_SAAS: Def[] = [
 ];
 
 const GUIA_PUBLICO: Def[] = [
-  page("guia", "Guia do Hóspede", "/g/$slug", "BookOpen", 950, "Experiência pública acessada pelo hóspede."),
+  page(
+    "guia",
+    "Guia do Hóspede",
+    "/g/$slug",
+    "BookOpen",
+    950,
+    "Experiência pública acessada pelo hóspede.",
+  ),
   sub("guia.home", "Home do guia", 10, { route: "/g/$slug" }),
   sub("guia.explorar", "Explorar", 20, { route: "/g/$slug/explorar" }),
   section("guia.chegada", "Chegada", 30),

@@ -10,7 +10,6 @@ import { registerPermissionFeatures } from "./permission.features";
 import { permissionRegistry, registerDiscoverySource } from "./permission.registry";
 import { discoveredRouteNodes } from "./permission.scanner";
 
-
 let bootstrapped = false;
 
 /** Registra as fontes de descoberta automática (idempotente). */

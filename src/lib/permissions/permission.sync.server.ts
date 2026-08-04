@@ -172,7 +172,11 @@ export async function syncPermissionRegistry(
       for (const depth of [...byDepth.keys()].sort((a, b) => a - b)) {
         const wave = byDepth.get(depth) ?? [];
         const rows = wave.map((def) =>
-          rowFromDefinition(def, def.parentSlug ? (idBySlug.get(def.parentSlug) ?? null) : null, syncedAt),
+          rowFromDefinition(
+            def,
+            def.parentSlug ? (idBySlug.get(def.parentSlug) ?? null) : null,
+            syncedAt,
+          ),
         );
         if (!rows.length) continue;
 
@@ -266,7 +270,9 @@ export async function listSyncRuns(limit = 10) {
  * Garante que a árvore exista antes de qualquer leitura administrativa.
  * Só dispara o sync quando a tabela está vazia — evita "árvore vazia no boot".
  */
-export async function ensureRegistrySynced(triggeredBy?: string | null): Promise<SyncReport | null> {
+export async function ensureRegistrySynced(
+  triggeredBy?: string | null,
+): Promise<SyncReport | null> {
   const db = await admin();
   const { count, error } = await db
     .from("permission_nodes")

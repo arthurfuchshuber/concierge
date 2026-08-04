@@ -150,7 +150,10 @@ async function listSubjects(ctx: Ctx, tenantId: string): Promise<PermissionSubje
   return subjects;
 }
 
-async function resolvePlan(ctx: Ctx, tenantId: string): Promise<{ plan: string | null; label: string }> {
+async function resolvePlan(
+  ctx: Ctx,
+  tenantId: string,
+): Promise<{ plan: string | null; label: string }> {
   if (ctx.kind === "saas") return { plan: "enterprise", label: "Admin do SaaS" };
   const { resolveOwnerPlanAdmin } = await import("@/lib/plan-guard.server");
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -234,8 +237,18 @@ export async function compareSubjects(ctx: Ctx & { userA: string; userB: string 
   const { plan } = await resolvePlan(ctx, tenantId);
   const { nodes } = await buildNodeTree({ plan, context: ctx.kind });
   const [permsA, permsB] = await Promise.all([
-    readSubjectPermissions({ tenantId, userId: ctx.userA, isOwner: a.isOwner, totalNodes: nodes.length }),
-    readSubjectPermissions({ tenantId, userId: ctx.userB, isOwner: b.isOwner, totalNodes: nodes.length }),
+    readSubjectPermissions({
+      tenantId,
+      userId: ctx.userA,
+      isOwner: a.isOwner,
+      totalNodes: nodes.length,
+    }),
+    readSubjectPermissions({
+      tenantId,
+      userId: ctx.userB,
+      isOwner: b.isOwner,
+      totalNodes: nodes.length,
+    }),
   ]);
 
   const levelOf = (perms: typeof permsA, slug: string, isOwner: boolean): AccessLevel =>

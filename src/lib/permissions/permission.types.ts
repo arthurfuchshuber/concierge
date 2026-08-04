@@ -7,13 +7,7 @@
  */
 
 /** Tipo de nó na árvore de permissões. */
-export type PermissionNodeType =
-  | "PAGE"
-  | "SUBPAGE"
-  | "TAB"
-  | "SECTION"
-  | "RESOURCE"
-  | "FIELD";
+export type PermissionNodeType = "PAGE" | "SUBPAGE" | "TAB" | "SECTION" | "RESOURCE" | "FIELD";
 
 export const PERMISSION_NODE_TYPES: PermissionNodeType[] = [
   "PAGE",
@@ -33,7 +27,6 @@ export const PERMISSION_NODE_DEPTH: Record<PermissionNodeType, number> = {
   RESOURCE: 4,
   FIELD: 5,
 };
-
 
 /** Níveis de acesso padrão. Ordenados do menor para o maior. */
 export type AccessLevel = "NONE" | "READ" | "WRITE";
@@ -132,9 +125,7 @@ export type PermissionNodeDefinition = {
   isPermissionable?: boolean;
   /** Slugs anteriores deste nó (histórico de normalização). */
   legacySlugs?: string[];
-
 };
-
 
 /** Atribuição de permissão — espelha `public.permission_assignments`. */
 export type PermissionAssignment = {
@@ -209,5 +200,12 @@ export type PermissionDecision = {
   effective: AccessLevel;
   reason: string;
   /** Origem da decisão — útil para auditoria futura. */
-  source: "owner" | "system_role" | "assignment" | "inherited" | "default" | "feature" | "unknown_node";
+  source:
+    | "owner"
+    | "system_role"
+    | "assignment"
+    | "inherited"
+    | "default"
+    | "feature"
+    | "unknown_node";
 };

@@ -91,7 +91,6 @@ export function applyDecision(
     isSystem: true,
   }));
 
-
   if (decision === "auto-register") permissionRegistry.registerMany(defs);
   return defs;
 }
