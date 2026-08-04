@@ -305,6 +305,33 @@ export const Route = createFileRoute("/api/public/guide-chat")({
           conversationId = created.id;
         }
 
+        // ── Omnichannel Conversation Core (espelho unificado, nunca bloqueante)
+        const { resolveCoreConversation, appendCoreMessage } = await import("@/lib/ai/conversation/core.server");
+        const coreConv = await resolveCoreConversation({
+          supabase: supabaseAdmin,
+          tenantId: String(prop.owner_id),
+          propertyId: String(prop.id),
+          legacyConversationId: conversationId,
+          channel: "platform_chat",
+          guestName: body.guestName ?? null,
+          guestPhone: null,
+        });
+        const mirrorToCore = async (
+          senderType: "guest" | "agent" | "human_operator",
+          content: string,
+        ): Promise<void> => {
+          if (!coreConv || !content) return;
+          await appendCoreMessage({
+            supabase: supabaseAdmin,
+            conversationId: coreConv.id,
+            tenantId: coreConv.tenantId,
+            propertyId: String(prop.id),
+            senderType,
+            channel: "platform_chat",
+            content,
+          });
+        };
+
         // If the conversation is currently handled by a human (ai_paused), just
         // persist the guest message and let the agent reply — the guide chat
         // will surface new agent messages via polling / realtime.
@@ -332,6 +359,8 @@ export const Route = createFileRoute("/api/public/guide-chat")({
             content: body.message,
             sender_type: "guest",
           });
+          await mirrorToCore("guest", body.message);
+
           await supabaseAdmin
             .from("property_chat_conversations")
             .update({ last_message_at: new Date().toISOString(), guest_name: body.guestName ?? undefined })
@@ -359,6 +388,8 @@ export const Route = createFileRoute("/api/public/guide-chat")({
           content: body.message,
           sender_type: "guest",
         });
+        await mirrorToCore("guest", body.message);
+
 
         // Nota: quando ai_paused=true, já retornamos acima. Aqui ai_paused é
         // false, então não há handoff ativo para limpar.
@@ -455,7 +486,9 @@ export const Route = createFileRoute("/api/public/guide-chat")({
             content: finalReply,
             sender_type: "ai",
           });
+          await mirrorToCore("agent", finalReply);
         }
+
         await supabaseAdmin
           .from("property_chat_conversations")
           .update({ last_message_at: new Date().toISOString(), guest_name: body.guestName ?? undefined })

@@ -47,6 +47,7 @@ import { Route as AuthenticatedAdminClientesRouteImport } from './routes/_authen
 import { Route as AuthenticatedAdminBibliotecaRouteImport } from './routes/_authenticated/admin.biblioteca'
 import { Route as AuthenticatedAdminAtendimentoRouteImport } from './routes/_authenticated/admin.atendimento'
 import { Route as AuthenticatedAdminAssinaturaRouteImport } from './routes/_authenticated/admin.assinatura'
+import { Route as AuthenticatedAdminAnalyticsRouteImport } from './routes/_authenticated/admin.analytics'
 import { Route as AuthenticatedAdminAdminsRouteImport } from './routes/_authenticated/admin.admins'
 import { Route as AuthenticatedAdminAdministrativoRouteImport } from './routes/_authenticated/admin.administrativo'
 import { Route as Char91DotmcpChar93InvokeToolToolRouteImport } from './routes/[.mcp]/invoke-tool/$tool'
@@ -59,6 +60,7 @@ import { Route as LovableEmailAuthPreviewRouteImport } from './routes/lovable/em
 import { Route as ApiPublicWhatsappSinchWebhookRouteImport } from './routes/api/public/whatsapp/sinch-webhook'
 import { Route as ApiPublicPaymentsWebhookRouteImport } from './routes/api/public/payments/webhook'
 import { Route as ApiPublicCronSyncAirbnbIcalRouteImport } from './routes/api/public/cron.sync-airbnb-ical'
+import { Route as ApiPublicCronSaasAlertsRouteImport } from './routes/api/public/cron.saas-alerts'
 import { Route as ApiPublicCronRefreshRecommendationsRouteImport } from './routes/api/public/cron.refresh-recommendations'
 import { Route as ApiPublicCronRefreshCityReferencesRouteImport } from './routes/api/public/cron.refresh-city-references'
 import { Route as ApiPublicCronRefreshCityNewsRouteImport } from './routes/api/public/cron.refresh-city-news'
@@ -274,6 +276,12 @@ const AuthenticatedAdminAssinaturaRoute =
     path: '/assinatura',
     getParentRoute: () => AuthenticatedAdminRoute,
   } as any)
+const AuthenticatedAdminAnalyticsRoute =
+  AuthenticatedAdminAnalyticsRouteImport.update({
+    id: '/analytics',
+    path: '/analytics',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
 const AuthenticatedAdminAdminsRoute =
   AuthenticatedAdminAdminsRouteImport.update({
     id: '/admins',
@@ -343,6 +351,11 @@ const ApiPublicCronSyncAirbnbIcalRoute =
     path: '/api/public/cron/sync-airbnb-ical',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicCronSaasAlertsRoute = ApiPublicCronSaasAlertsRouteImport.update({
+  id: '/api/public/cron/saas-alerts',
+  path: '/api/public/cron/saas-alerts',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicCronRefreshRecommendationsRoute =
   ApiPublicCronRefreshRecommendationsRouteImport.update({
     id: '/api/public/cron/refresh-recommendations',
@@ -417,6 +430,7 @@ export interface FileRoutesByFullPath {
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/admin/administrativo': typeof AuthenticatedAdminAdministrativoRoute
   '/admin/admins': typeof AuthenticatedAdminAdminsRoute
+  '/admin/analytics': typeof AuthenticatedAdminAnalyticsRoute
   '/admin/assinatura': typeof AuthenticatedAdminAssinaturaRoute
   '/admin/atendimento': typeof AuthenticatedAdminAtendimentoRoute
   '/admin/biblioteca': typeof AuthenticatedAdminBibliotecaRoute
@@ -447,6 +461,7 @@ export interface FileRoutesByFullPath {
   '/api/public/cron/refresh-city-news': typeof ApiPublicCronRefreshCityNewsRoute
   '/api/public/cron/refresh-city-references': typeof ApiPublicCronRefreshCityReferencesRoute
   '/api/public/cron/refresh-recommendations': typeof ApiPublicCronRefreshRecommendationsRoute
+  '/api/public/cron/saas-alerts': typeof ApiPublicCronSaasAlertsRoute
   '/api/public/cron/sync-airbnb-ical': typeof ApiPublicCronSyncAirbnbIcalRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
   '/api/public/whatsapp/sinch-webhook': typeof ApiPublicWhatsappSinchWebhookRoute
@@ -475,6 +490,7 @@ export interface FileRoutesByTo {
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/admin/administrativo': typeof AuthenticatedAdminAdministrativoRoute
   '/admin/admins': typeof AuthenticatedAdminAdminsRoute
+  '/admin/analytics': typeof AuthenticatedAdminAnalyticsRoute
   '/admin/assinatura': typeof AuthenticatedAdminAssinaturaRoute
   '/admin/atendimento': typeof AuthenticatedAdminAtendimentoRoute
   '/admin/biblioteca': typeof AuthenticatedAdminBibliotecaRoute
@@ -505,6 +521,7 @@ export interface FileRoutesByTo {
   '/api/public/cron/refresh-city-news': typeof ApiPublicCronRefreshCityNewsRoute
   '/api/public/cron/refresh-city-references': typeof ApiPublicCronRefreshCityReferencesRoute
   '/api/public/cron/refresh-recommendations': typeof ApiPublicCronRefreshRecommendationsRoute
+  '/api/public/cron/saas-alerts': typeof ApiPublicCronSaasAlertsRoute
   '/api/public/cron/sync-airbnb-ical': typeof ApiPublicCronSyncAirbnbIcalRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
   '/api/public/whatsapp/sinch-webhook': typeof ApiPublicWhatsappSinchWebhookRoute
@@ -537,6 +554,7 @@ export interface FileRoutesById {
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/_authenticated/admin/administrativo': typeof AuthenticatedAdminAdministrativoRoute
   '/_authenticated/admin/admins': typeof AuthenticatedAdminAdminsRoute
+  '/_authenticated/admin/analytics': typeof AuthenticatedAdminAnalyticsRoute
   '/_authenticated/admin/assinatura': typeof AuthenticatedAdminAssinaturaRoute
   '/_authenticated/admin/atendimento': typeof AuthenticatedAdminAtendimentoRoute
   '/_authenticated/admin/biblioteca': typeof AuthenticatedAdminBibliotecaRoute
@@ -567,6 +585,7 @@ export interface FileRoutesById {
   '/api/public/cron/refresh-city-news': typeof ApiPublicCronRefreshCityNewsRoute
   '/api/public/cron/refresh-city-references': typeof ApiPublicCronRefreshCityReferencesRoute
   '/api/public/cron/refresh-recommendations': typeof ApiPublicCronRefreshRecommendationsRoute
+  '/api/public/cron/saas-alerts': typeof ApiPublicCronSaasAlertsRoute
   '/api/public/cron/sync-airbnb-ical': typeof ApiPublicCronSyncAirbnbIcalRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
   '/api/public/whatsapp/sinch-webhook': typeof ApiPublicWhatsappSinchWebhookRoute
@@ -599,6 +618,7 @@ export interface FileRouteTypes {
     | '/.mcp/invoke-tool/$tool'
     | '/admin/administrativo'
     | '/admin/admins'
+    | '/admin/analytics'
     | '/admin/assinatura'
     | '/admin/atendimento'
     | '/admin/biblioteca'
@@ -629,6 +649,7 @@ export interface FileRouteTypes {
     | '/api/public/cron/refresh-city-news'
     | '/api/public/cron/refresh-city-references'
     | '/api/public/cron/refresh-recommendations'
+    | '/api/public/cron/saas-alerts'
     | '/api/public/cron/sync-airbnb-ical'
     | '/api/public/payments/webhook'
     | '/api/public/whatsapp/sinch-webhook'
@@ -657,6 +678,7 @@ export interface FileRouteTypes {
     | '/.mcp/invoke-tool/$tool'
     | '/admin/administrativo'
     | '/admin/admins'
+    | '/admin/analytics'
     | '/admin/assinatura'
     | '/admin/atendimento'
     | '/admin/biblioteca'
@@ -687,6 +709,7 @@ export interface FileRouteTypes {
     | '/api/public/cron/refresh-city-news'
     | '/api/public/cron/refresh-city-references'
     | '/api/public/cron/refresh-recommendations'
+    | '/api/public/cron/saas-alerts'
     | '/api/public/cron/sync-airbnb-ical'
     | '/api/public/payments/webhook'
     | '/api/public/whatsapp/sinch-webhook'
@@ -718,6 +741,7 @@ export interface FileRouteTypes {
     | '/.mcp/invoke-tool/$tool'
     | '/_authenticated/admin/administrativo'
     | '/_authenticated/admin/admins'
+    | '/_authenticated/admin/analytics'
     | '/_authenticated/admin/assinatura'
     | '/_authenticated/admin/atendimento'
     | '/_authenticated/admin/biblioteca'
@@ -748,6 +772,7 @@ export interface FileRouteTypes {
     | '/api/public/cron/refresh-city-news'
     | '/api/public/cron/refresh-city-references'
     | '/api/public/cron/refresh-recommendations'
+    | '/api/public/cron/saas-alerts'
     | '/api/public/cron/sync-airbnb-ical'
     | '/api/public/payments/webhook'
     | '/api/public/whatsapp/sinch-webhook'
@@ -789,6 +814,7 @@ export interface RootRouteChildren {
   ApiPublicCronRefreshCityNewsRoute: typeof ApiPublicCronRefreshCityNewsRoute
   ApiPublicCronRefreshCityReferencesRoute: typeof ApiPublicCronRefreshCityReferencesRoute
   ApiPublicCronRefreshRecommendationsRoute: typeof ApiPublicCronRefreshRecommendationsRoute
+  ApiPublicCronSaasAlertsRoute: typeof ApiPublicCronSaasAlertsRoute
   ApiPublicCronSyncAirbnbIcalRoute: typeof ApiPublicCronSyncAirbnbIcalRoute
   ApiPublicPaymentsWebhookRoute: typeof ApiPublicPaymentsWebhookRoute
   ApiPublicWhatsappSinchWebhookRoute: typeof ApiPublicWhatsappSinchWebhookRoute
@@ -1065,6 +1091,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminAssinaturaRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
     }
+    '/_authenticated/admin/analytics': {
+      id: '/_authenticated/admin/analytics'
+      path: '/analytics'
+      fullPath: '/admin/analytics'
+      preLoaderRoute: typeof AuthenticatedAdminAnalyticsRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
     '/_authenticated/admin/admins': {
       id: '/_authenticated/admin/admins'
       path: '/admins'
@@ -1149,6 +1182,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicCronSyncAirbnbIcalRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/cron/saas-alerts': {
+      id: '/api/public/cron/saas-alerts'
+      path: '/api/public/cron/saas-alerts'
+      fullPath: '/api/public/cron/saas-alerts'
+      preLoaderRoute: typeof ApiPublicCronSaasAlertsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/cron/refresh-recommendations': {
       id: '/api/public/cron/refresh-recommendations'
       path: '/api/public/cron/refresh-recommendations'
@@ -1218,6 +1258,7 @@ declare module '@tanstack/react-router' {
 interface AuthenticatedAdminRouteChildren {
   AuthenticatedAdminAdministrativoRoute: typeof AuthenticatedAdminAdministrativoRoute
   AuthenticatedAdminAdminsRoute: typeof AuthenticatedAdminAdminsRoute
+  AuthenticatedAdminAnalyticsRoute: typeof AuthenticatedAdminAnalyticsRoute
   AuthenticatedAdminAssinaturaRoute: typeof AuthenticatedAdminAssinaturaRoute
   AuthenticatedAdminAtendimentoRoute: typeof AuthenticatedAdminAtendimentoRoute
   AuthenticatedAdminBibliotecaRoute: typeof AuthenticatedAdminBibliotecaRoute
@@ -1243,6 +1284,7 @@ interface AuthenticatedAdminRouteChildren {
 const AuthenticatedAdminRouteChildren: AuthenticatedAdminRouteChildren = {
   AuthenticatedAdminAdministrativoRoute: AuthenticatedAdminAdministrativoRoute,
   AuthenticatedAdminAdminsRoute: AuthenticatedAdminAdminsRoute,
+  AuthenticatedAdminAnalyticsRoute: AuthenticatedAdminAnalyticsRoute,
   AuthenticatedAdminAssinaturaRoute: AuthenticatedAdminAssinaturaRoute,
   AuthenticatedAdminAtendimentoRoute: AuthenticatedAdminAtendimentoRoute,
   AuthenticatedAdminBibliotecaRoute: AuthenticatedAdminBibliotecaRoute,
@@ -1327,6 +1369,7 @@ const rootRouteChildren: RootRouteChildren = {
     ApiPublicCronRefreshCityReferencesRoute,
   ApiPublicCronRefreshRecommendationsRoute:
     ApiPublicCronRefreshRecommendationsRoute,
+  ApiPublicCronSaasAlertsRoute: ApiPublicCronSaasAlertsRoute,
   ApiPublicCronSyncAirbnbIcalRoute: ApiPublicCronSyncAirbnbIcalRoute,
   ApiPublicPaymentsWebhookRoute: ApiPublicPaymentsWebhookRoute,
   ApiPublicWhatsappSinchWebhookRoute: ApiPublicWhatsappSinchWebhookRoute,

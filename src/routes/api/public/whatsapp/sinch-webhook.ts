@@ -121,12 +121,44 @@ export const Route = createFileRoute("/api/public/whatsapp/sinch-webhook")({
           delivery_status: "delivered",
         });
 
+        // Espelho no Conversation Core: mesma entidade de conversa do chat web.
+        try {
+          const { resolveCoreConversation, appendCoreMessage } = await import("@/lib/ai/conversation/core.server");
+          const { markChannelSeen } = await import("@/lib/ai/channels/whatsapp/provider.server");
+          const coreConv = await resolveCoreConversation({
+            supabase: supabaseAdmin,
+            tenantId: ownerId,
+            propertyId: log.property_id as string,
+            legacyConversationId: convId,
+            channel: "whatsapp",
+            guestName: (log.guest_name as string | null) ?? null,
+            guestPhone: phoneDigits,
+          });
+          if (coreConv) {
+            await appendCoreMessage({
+              supabase: supabaseAdmin,
+              conversationId: coreConv.id,
+              tenantId: coreConv.tenantId,
+              propertyId: log.property_id as string,
+              senderType: "guest",
+              channel: "whatsapp",
+              content: inbound,
+              externalId: messageId ?? null,
+              deliveryStatus: "delivered",
+            });
+          }
+          await markChannelSeen(supabaseAdmin, ownerId, "whatsapp");
+        } catch (err) {
+          console.error("[sinch-webhook] espelho core falhou", err);
+        }
+
         await supabaseAdmin
           .from("property_chat_conversations")
           .update({ last_message_at: new Date().toISOString() })
           .eq("id", convId);
 
         return new Response("ok");
+
       },
     },
   },
