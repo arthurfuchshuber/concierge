@@ -61,6 +61,10 @@ import {
   renderHumanAnswers,
 } from "./human-loop/escalations.server";
 import { learnFromHumanAnswer } from "./human-loop/learning.server";
+import { tenantOf } from "./tenant/context.server";
+import { bindConversationChannel } from "./channels/gateway.server";
+import type { ChannelType } from "./channels/types";
+import { buildRootCause } from "./observability/root-cause.server";
 
 type Admin = SupabaseClient;
 
@@ -77,6 +81,14 @@ export type OrchestratorResult = {
   reflection: Reflection | null;
   routing: AgentRouting;
   escalationId: string | null;
+  /** Empresa (tenant) dona da interação. */
+  tenantId: string;
+  /** Canal de origem normalizado. */
+  channel: ChannelType;
+  /** Ferramentas efetivamente chamadas (auditoria/avaliação). */
+  toolsUsed: Array<{ name: string; args?: unknown; durationMs?: number; parallelBatch?: number }>;
+  /** Fontes efetivamente consultadas (auditoria/avaliação). */
+  sourcesUsed: string[];
 };
 
 
@@ -90,11 +102,20 @@ export async function runHospitalityAgent(params: {
   history: Array<{ role: string; content: string }>;
   explorationMode?: boolean;
   surface?: string;
+  /** Canal de origem (Channel Gateway). O núcleo não muda de comportamento por canal. */
+  channel?: ChannelType;
+  channelReference?: string | null;
+  /** Gatilho proativo, quando a interação nasceu de uma ação antecipada. */
+  proactiveTrigger?: string | null;
+  autonomyLevel?: string | null;
 }): Promise<OrchestratorResult> {
   const started = Date.now();
   const { supabase, property } = params;
+  const tenant = tenantOf(property);
   const propertyId = String(property.id);
-  const ownerId = String(property.owner_id);
+  const ownerId = tenant.ownerId;
+  const channel: ChannelType = params.channel ?? "guide_chat";
+
 
   let usage = EMPTY_USAGE;
   const models: Record<string, string> = { agent: AI_MODELS.agent };
@@ -514,8 +535,49 @@ export async function runHospitalityAgent(params: {
     escalationTriggered: !!escalationId,
     escalationId,
     humanResponseUsed: humanAnswers.length > 0,
+    tenantId: tenant.tenantId,
+    channelOrigin: channel,
+    channelReference: params.channelReference ?? null,
+    proactiveTrigger: params.proactiveTrigger ?? null,
+    autonomyLevel: params.autonomyLevel ?? agent.autonomy,
+    actionApprovalStatus: handoffReason ? "waiting_human" : "not_required",
+    rootCause: buildRootCause({
+      decision: {
+        agent: agent.key,
+        routingReason: routing.reason,
+        autonomy: agent.autonomy,
+        confidence,
+        confidenceTier: tier,
+        handoff: !!handoffReason,
+        handoffReason,
+      },
+      context: {
+        keys: [...context.keys, ...guestContext.keys],
+        memoryUsed: guestContext.memories.length > 0,
+        humanAnswerUsed: humanAnswers.length > 0,
+      },
+      memories: guestContext.memories.map((m) => ({ id: m.id, tier: m.tier, score: m.score })),
+      tools: toolsUsed.map((t) => ({ name: t.name, durationMs: t.durationMs })),
+      sources: sources.map((s) => ({ source: s.source, confidence: s.confidence })),
+      channel: { origin: channel, reference: params.channelReference ?? null },
+      proactive: {
+        trigger: params.proactiveTrigger ?? null,
+        autonomyLevel: params.autonomyLevel ?? agent.autonomy,
+        approvalStatus: handoffReason ? "waiting_human" : "not_required",
+      },
+    }),
   }).catch(() => undefined);
 
+  // Channel Gateway: registra (idempotente) a origem desta conversa.
+  void bindConversationChannel({
+    supabase,
+    tenant,
+    conversationId: params.conversationId,
+    channel,
+    externalReference: params.channelReference ?? null,
+    locale: intent.language,
+    metadata: { surface: params.surface ?? "guide_chat" },
+  }).catch(() => undefined);
 
   return {
     reply,
@@ -530,6 +592,10 @@ export async function runHospitalityAgent(params: {
     reflection,
     routing,
     escalationId,
+    tenantId: tenant.tenantId,
+    channel,
+    toolsUsed,
+    sourcesUsed: [...new Set(sources.map((s) => s.source))],
   };
 }
 

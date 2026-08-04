@@ -149,8 +149,123 @@ export type Database = {
         }
         Relationships: []
       }
+      ai_agent_evaluations: {
+        Row: {
+          accuracy_score: number | null
+          actual_agent: string | null
+          actual_sources: Json
+          actual_tools: Json
+          confidence_score: number | null
+          created_at: string
+          evaluation_status: string
+          expected_agent: string | null
+          expected_behavior: string | null
+          expected_sources: Json
+          expected_tools: Json
+          generated_response: string | null
+          human_score: number | null
+          id: string
+          input_message: string
+          latency_ms: number | null
+          models: Json | null
+          notes: string | null
+          prompt_versions: Json | null
+          property_id: string | null
+          quality_score: number | null
+          reflection_score: number | null
+          regression_baseline_id: string | null
+          regression_result: string | null
+          run_id: string | null
+          suite: string
+          tenant_id: string | null
+          test_case_name: string
+          updated_at: string
+        }
+        Insert: {
+          accuracy_score?: number | null
+          actual_agent?: string | null
+          actual_sources?: Json
+          actual_tools?: Json
+          confidence_score?: number | null
+          created_at?: string
+          evaluation_status?: string
+          expected_agent?: string | null
+          expected_behavior?: string | null
+          expected_sources?: Json
+          expected_tools?: Json
+          generated_response?: string | null
+          human_score?: number | null
+          id?: string
+          input_message: string
+          latency_ms?: number | null
+          models?: Json | null
+          notes?: string | null
+          prompt_versions?: Json | null
+          property_id?: string | null
+          quality_score?: number | null
+          reflection_score?: number | null
+          regression_baseline_id?: string | null
+          regression_result?: string | null
+          run_id?: string | null
+          suite?: string
+          tenant_id?: string | null
+          test_case_name: string
+          updated_at?: string
+        }
+        Update: {
+          accuracy_score?: number | null
+          actual_agent?: string | null
+          actual_sources?: Json
+          actual_tools?: Json
+          confidence_score?: number | null
+          created_at?: string
+          evaluation_status?: string
+          expected_agent?: string | null
+          expected_behavior?: string | null
+          expected_sources?: Json
+          expected_tools?: Json
+          generated_response?: string | null
+          human_score?: number | null
+          id?: string
+          input_message?: string
+          latency_ms?: number | null
+          models?: Json | null
+          notes?: string | null
+          prompt_versions?: Json | null
+          property_id?: string | null
+          quality_score?: number | null
+          reflection_score?: number | null
+          regression_baseline_id?: string | null
+          regression_result?: string | null
+          run_id?: string | null
+          suite?: string
+          tenant_id?: string | null
+          test_case_name?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_agent_evaluations_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_agent_evaluations_regression_baseline_id_fkey"
+            columns: ["regression_baseline_id"]
+            isOneToOne: false
+            referencedRelation: "ai_agent_evaluations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ai_agent_logs: {
         Row: {
+          action_approval_status: string | null
+          autonomy_level: string | null
+          channel_origin: string | null
+          channel_reference: string | null
           confidence: number | null
           confidence_tier: string | null
           context_keys: Json | null
@@ -160,6 +275,7 @@ export type Database = {
           error: string | null
           escalation_id: string | null
           escalation_triggered: boolean
+          evaluation_score: number | null
           guest_context_snapshot: Json | null
           human_response_used: boolean
           id: string
@@ -177,18 +293,26 @@ export type Database = {
           orchestrator_decision: Json | null
           owner_id: string | null
           plan: Json | null
+          proactive_trigger: string | null
           prompt_versions: Json | null
           property_id: string | null
           reflection: Json | null
+          regression_test_result: string | null
+          root_cause: Json | null
           selected_agent: string | null
           source_weight: number | null
           sources: Json | null
           surface: string
+          tenant_id: string | null
           tokens: Json | null
           tools_used: Json | null
           validation: Json | null
         }
         Insert: {
+          action_approval_status?: string | null
+          autonomy_level?: string | null
+          channel_origin?: string | null
+          channel_reference?: string | null
           confidence?: number | null
           confidence_tier?: string | null
           context_keys?: Json | null
@@ -198,6 +322,7 @@ export type Database = {
           error?: string | null
           escalation_id?: string | null
           escalation_triggered?: boolean
+          evaluation_score?: number | null
           guest_context_snapshot?: Json | null
           human_response_used?: boolean
           id?: string
@@ -215,18 +340,26 @@ export type Database = {
           orchestrator_decision?: Json | null
           owner_id?: string | null
           plan?: Json | null
+          proactive_trigger?: string | null
           prompt_versions?: Json | null
           property_id?: string | null
           reflection?: Json | null
+          regression_test_result?: string | null
+          root_cause?: Json | null
           selected_agent?: string | null
           source_weight?: number | null
           sources?: Json | null
           surface?: string
+          tenant_id?: string | null
           tokens?: Json | null
           tools_used?: Json | null
           validation?: Json | null
         }
         Update: {
+          action_approval_status?: string | null
+          autonomy_level?: string | null
+          channel_origin?: string | null
+          channel_reference?: string | null
           confidence?: number | null
           confidence_tier?: string | null
           context_keys?: Json | null
@@ -236,6 +369,7 @@ export type Database = {
           error?: string | null
           escalation_id?: string | null
           escalation_triggered?: boolean
+          evaluation_score?: number | null
           guest_context_snapshot?: Json | null
           human_response_used?: boolean
           id?: string
@@ -253,18 +387,132 @@ export type Database = {
           orchestrator_decision?: Json | null
           owner_id?: string | null
           plan?: Json | null
+          proactive_trigger?: string | null
           prompt_versions?: Json | null
           property_id?: string | null
           reflection?: Json | null
+          regression_test_result?: string | null
+          root_cause?: Json | null
           selected_agent?: string | null
           source_weight?: number | null
           sources?: Json | null
           surface?: string
+          tenant_id?: string | null
           tokens?: Json | null
           tools_used?: Json | null
           validation?: Json | null
         }
         Relationships: []
+      }
+      ai_agent_metrics: {
+        Row: {
+          agent_type: string
+          created_at: string
+          dimension: string | null
+          id: string
+          metadata: Json
+          metric_name: string
+          metric_value: number
+          period: string
+          period_start: string
+          property_id: string | null
+          sample_size: number
+          tenant_id: string | null
+        }
+        Insert: {
+          agent_type?: string
+          created_at?: string
+          dimension?: string | null
+          id?: string
+          metadata?: Json
+          metric_name: string
+          metric_value: number
+          period?: string
+          period_start?: string
+          property_id?: string | null
+          sample_size?: number
+          tenant_id?: string | null
+        }
+        Update: {
+          agent_type?: string
+          created_at?: string
+          dimension?: string | null
+          id?: string
+          metadata?: Json
+          metric_name?: string
+          metric_value?: number
+          period?: string
+          period_start?: string
+          property_id?: string | null
+          sample_size?: number
+          tenant_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_agent_metrics_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ai_conversation_channels: {
+        Row: {
+          channel_type: string
+          conversation_id: string
+          created_at: string
+          external_reference: string | null
+          external_thread_id: string | null
+          id: string
+          locale: string | null
+          metadata: Json
+          property_id: string | null
+          tenant_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          channel_type?: string
+          conversation_id: string
+          created_at?: string
+          external_reference?: string | null
+          external_thread_id?: string | null
+          id?: string
+          locale?: string | null
+          metadata?: Json
+          property_id?: string | null
+          tenant_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          channel_type?: string
+          conversation_id?: string
+          created_at?: string
+          external_reference?: string | null
+          external_thread_id?: string | null
+          id?: string
+          locale?: string | null
+          metadata?: Json
+          property_id?: string | null
+          tenant_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_conversation_channels_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "property_chat_conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_conversation_channels_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       ai_conversation_summaries: {
         Row: {
@@ -368,6 +616,7 @@ export type Database = {
           reason: string
           resolved_at: string | null
           status: string
+          tenant_id: string | null
           trigger: string
           updated_at: string
         }
@@ -389,6 +638,7 @@ export type Database = {
           reason: string
           resolved_at?: string | null
           status?: string
+          tenant_id?: string | null
           trigger?: string
           updated_at?: string
         }
@@ -410,6 +660,7 @@ export type Database = {
           reason?: string
           resolved_at?: string | null
           status?: string
+          tenant_id?: string | null
           trigger?: string
           updated_at?: string
         }
@@ -435,6 +686,7 @@ export type Database = {
           property_id: string | null
           source: string
           source_id: string | null
+          tenant_id: string | null
           title: string | null
           tsv: unknown
           updated_at: string
@@ -450,6 +702,7 @@ export type Database = {
           property_id?: string | null
           source: string
           source_id?: string | null
+          tenant_id?: string | null
           title?: string | null
           tsv?: unknown
           updated_at?: string
@@ -465,6 +718,7 @@ export type Database = {
           property_id?: string | null
           source?: string
           source_id?: string | null
+          tenant_id?: string | null
           title?: string | null
           tsv?: unknown
           updated_at?: string
@@ -498,6 +752,7 @@ export type Database = {
           reviewed_at: string | null
           reviewed_by: string | null
           source_escalation_id: string | null
+          tenant_id: string | null
           title: string | null
           ttl_days: number | null
           updated_at: string
@@ -520,6 +775,7 @@ export type Database = {
           reviewed_at?: string | null
           reviewed_by?: string | null
           source_escalation_id?: string | null
+          tenant_id?: string | null
           title?: string | null
           ttl_days?: number | null
           updated_at?: string
@@ -542,6 +798,7 @@ export type Database = {
           reviewed_at?: string | null
           reviewed_by?: string | null
           source_escalation_id?: string | null
+          tenant_id?: string | null
           title?: string | null
           ttl_days?: number | null
           updated_at?: string
@@ -588,6 +845,7 @@ export type Database = {
           source: string
           source_ref: string | null
           subject_key: string | null
+          tenant_id: string | null
           title: string | null
           tsv: unknown
           updated_at: string
@@ -616,6 +874,7 @@ export type Database = {
           source?: string
           source_ref?: string | null
           subject_key?: string | null
+          tenant_id?: string | null
           title?: string | null
           tsv?: unknown
           updated_at?: string
@@ -644,6 +903,7 @@ export type Database = {
           source?: string
           source_ref?: string | null
           subject_key?: string | null
+          tenant_id?: string | null
           title?: string | null
           tsv?: unknown
           updated_at?: string
@@ -678,6 +938,7 @@ export type Database = {
           resolved_at: string | null
           satisfaction: string | null
           status: string
+          tenant_id: string | null
           updated_at: string
         }
         Insert: {
@@ -699,6 +960,7 @@ export type Database = {
           resolved_at?: string | null
           satisfaction?: string | null
           status?: string
+          tenant_id?: string | null
           updated_at?: string
         }
         Update: {
@@ -720,6 +982,7 @@ export type Database = {
           resolved_at?: string | null
           satisfaction?: string | null
           status?: string
+          tenant_id?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -728,6 +991,112 @@ export type Database = {
             columns: ["property_id"]
             isOneToOne: false
             referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ai_proactive_actions: {
+        Row: {
+          action_payload: Json
+          approval_status: string
+          approved_at: string | null
+          approved_by: string | null
+          autonomy_level: string
+          conversation_id: string | null
+          created_at: string
+          dedupe_key: string | null
+          error: string | null
+          executed_action: string | null
+          executed_at: string | null
+          guest_id: string | null
+          guest_name: string | null
+          id: string
+          owner_id: string | null
+          property_id: string | null
+          recommended_action: string
+          reservation_id: string | null
+          rule_key: string
+          scheduled_for: string | null
+          status: string
+          tenant_id: string | null
+          trigger_event: string
+          trigger_payload: Json
+          updated_at: string
+        }
+        Insert: {
+          action_payload?: Json
+          approval_status?: string
+          approved_at?: string | null
+          approved_by?: string | null
+          autonomy_level?: string
+          conversation_id?: string | null
+          created_at?: string
+          dedupe_key?: string | null
+          error?: string | null
+          executed_action?: string | null
+          executed_at?: string | null
+          guest_id?: string | null
+          guest_name?: string | null
+          id?: string
+          owner_id?: string | null
+          property_id?: string | null
+          recommended_action: string
+          reservation_id?: string | null
+          rule_key: string
+          scheduled_for?: string | null
+          status?: string
+          tenant_id?: string | null
+          trigger_event: string
+          trigger_payload?: Json
+          updated_at?: string
+        }
+        Update: {
+          action_payload?: Json
+          approval_status?: string
+          approved_at?: string | null
+          approved_by?: string | null
+          autonomy_level?: string
+          conversation_id?: string | null
+          created_at?: string
+          dedupe_key?: string | null
+          error?: string | null
+          executed_action?: string | null
+          executed_at?: string | null
+          guest_id?: string | null
+          guest_name?: string | null
+          id?: string
+          owner_id?: string | null
+          property_id?: string | null
+          recommended_action?: string
+          reservation_id?: string | null
+          rule_key?: string
+          scheduled_for?: string | null
+          status?: string
+          tenant_id?: string | null
+          trigger_event?: string
+          trigger_payload?: Json
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_proactive_actions_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "property_chat_conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_proactive_actions_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_proactive_actions_reservation_id_fkey"
+            columns: ["reservation_id"]
+            isOneToOne: false
+            referencedRelation: "property_reservations"
             referencedColumns: ["id"]
           },
         ]

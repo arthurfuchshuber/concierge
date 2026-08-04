@@ -131,6 +131,7 @@ export async function reindexProperty(
 
   const rows = chunks.map((c, i) => ({
     owner_id: ownerId,
+    tenant_id: ownerId,
     property_id: propertyId,
     source: c.source,
     source_id: c.sourceId,

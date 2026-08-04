@@ -40,6 +40,7 @@ export async function askHumanSupervisor(input: EscalationInput): Promise<string
       .from("ai_human_escalations")
       .insert({
         owner_id: input.ownerId,
+        tenant_id: input.ownerId,
         property_id: input.propertyId,
         conversation_id: input.conversationId,
         guest_key: input.guestKey ?? null,
