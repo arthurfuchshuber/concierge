@@ -3735,6 +3735,35 @@ export type Database = {
           },
         ]
       }
+      property_slug_history: {
+        Row: {
+          created_at: string
+          id: string
+          old_slug: string
+          property_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          old_slug: string
+          property_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          old_slug?: string
+          property_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "property_slug_history_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       push_subscriptions: {
         Row: {
           auth: string
