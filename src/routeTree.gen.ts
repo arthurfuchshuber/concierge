@@ -59,6 +59,7 @@ import { Route as LovableEmailAuthPreviewRouteImport } from './routes/lovable/em
 import { Route as ApiPublicWhatsappSinchWebhookRouteImport } from './routes/api/public/whatsapp/sinch-webhook'
 import { Route as ApiPublicPaymentsWebhookRouteImport } from './routes/api/public/payments/webhook'
 import { Route as ApiPublicCronSyncAirbnbIcalRouteImport } from './routes/api/public/cron.sync-airbnb-ical'
+import { Route as ApiPublicCronSaasAlertsRouteImport } from './routes/api/public/cron.saas-alerts'
 import { Route as ApiPublicCronRefreshRecommendationsRouteImport } from './routes/api/public/cron.refresh-recommendations'
 import { Route as ApiPublicCronRefreshCityReferencesRouteImport } from './routes/api/public/cron.refresh-city-references'
 import { Route as ApiPublicCronRefreshCityNewsRouteImport } from './routes/api/public/cron.refresh-city-news'
@@ -343,6 +344,11 @@ const ApiPublicCronSyncAirbnbIcalRoute =
     path: '/api/public/cron/sync-airbnb-ical',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicCronSaasAlertsRoute = ApiPublicCronSaasAlertsRouteImport.update({
+  id: '/api/public/cron/saas-alerts',
+  path: '/api/public/cron/saas-alerts',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicCronRefreshRecommendationsRoute =
   ApiPublicCronRefreshRecommendationsRouteImport.update({
     id: '/api/public/cron/refresh-recommendations',
@@ -447,6 +453,7 @@ export interface FileRoutesByFullPath {
   '/api/public/cron/refresh-city-news': typeof ApiPublicCronRefreshCityNewsRoute
   '/api/public/cron/refresh-city-references': typeof ApiPublicCronRefreshCityReferencesRoute
   '/api/public/cron/refresh-recommendations': typeof ApiPublicCronRefreshRecommendationsRoute
+  '/api/public/cron/saas-alerts': typeof ApiPublicCronSaasAlertsRoute
   '/api/public/cron/sync-airbnb-ical': typeof ApiPublicCronSyncAirbnbIcalRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
   '/api/public/whatsapp/sinch-webhook': typeof ApiPublicWhatsappSinchWebhookRoute
@@ -505,6 +512,7 @@ export interface FileRoutesByTo {
   '/api/public/cron/refresh-city-news': typeof ApiPublicCronRefreshCityNewsRoute
   '/api/public/cron/refresh-city-references': typeof ApiPublicCronRefreshCityReferencesRoute
   '/api/public/cron/refresh-recommendations': typeof ApiPublicCronRefreshRecommendationsRoute
+  '/api/public/cron/saas-alerts': typeof ApiPublicCronSaasAlertsRoute
   '/api/public/cron/sync-airbnb-ical': typeof ApiPublicCronSyncAirbnbIcalRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
   '/api/public/whatsapp/sinch-webhook': typeof ApiPublicWhatsappSinchWebhookRoute
@@ -567,6 +575,7 @@ export interface FileRoutesById {
   '/api/public/cron/refresh-city-news': typeof ApiPublicCronRefreshCityNewsRoute
   '/api/public/cron/refresh-city-references': typeof ApiPublicCronRefreshCityReferencesRoute
   '/api/public/cron/refresh-recommendations': typeof ApiPublicCronRefreshRecommendationsRoute
+  '/api/public/cron/saas-alerts': typeof ApiPublicCronSaasAlertsRoute
   '/api/public/cron/sync-airbnb-ical': typeof ApiPublicCronSyncAirbnbIcalRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
   '/api/public/whatsapp/sinch-webhook': typeof ApiPublicWhatsappSinchWebhookRoute
@@ -629,6 +638,7 @@ export interface FileRouteTypes {
     | '/api/public/cron/refresh-city-news'
     | '/api/public/cron/refresh-city-references'
     | '/api/public/cron/refresh-recommendations'
+    | '/api/public/cron/saas-alerts'
     | '/api/public/cron/sync-airbnb-ical'
     | '/api/public/payments/webhook'
     | '/api/public/whatsapp/sinch-webhook'
@@ -687,6 +697,7 @@ export interface FileRouteTypes {
     | '/api/public/cron/refresh-city-news'
     | '/api/public/cron/refresh-city-references'
     | '/api/public/cron/refresh-recommendations'
+    | '/api/public/cron/saas-alerts'
     | '/api/public/cron/sync-airbnb-ical'
     | '/api/public/payments/webhook'
     | '/api/public/whatsapp/sinch-webhook'
@@ -748,6 +759,7 @@ export interface FileRouteTypes {
     | '/api/public/cron/refresh-city-news'
     | '/api/public/cron/refresh-city-references'
     | '/api/public/cron/refresh-recommendations'
+    | '/api/public/cron/saas-alerts'
     | '/api/public/cron/sync-airbnb-ical'
     | '/api/public/payments/webhook'
     | '/api/public/whatsapp/sinch-webhook'
@@ -789,6 +801,7 @@ export interface RootRouteChildren {
   ApiPublicCronRefreshCityNewsRoute: typeof ApiPublicCronRefreshCityNewsRoute
   ApiPublicCronRefreshCityReferencesRoute: typeof ApiPublicCronRefreshCityReferencesRoute
   ApiPublicCronRefreshRecommendationsRoute: typeof ApiPublicCronRefreshRecommendationsRoute
+  ApiPublicCronSaasAlertsRoute: typeof ApiPublicCronSaasAlertsRoute
   ApiPublicCronSyncAirbnbIcalRoute: typeof ApiPublicCronSyncAirbnbIcalRoute
   ApiPublicPaymentsWebhookRoute: typeof ApiPublicPaymentsWebhookRoute
   ApiPublicWhatsappSinchWebhookRoute: typeof ApiPublicWhatsappSinchWebhookRoute
@@ -1149,6 +1162,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicCronSyncAirbnbIcalRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/cron/saas-alerts': {
+      id: '/api/public/cron/saas-alerts'
+      path: '/api/public/cron/saas-alerts'
+      fullPath: '/api/public/cron/saas-alerts'
+      preLoaderRoute: typeof ApiPublicCronSaasAlertsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/cron/refresh-recommendations': {
       id: '/api/public/cron/refresh-recommendations'
       path: '/api/public/cron/refresh-recommendations'
@@ -1327,6 +1347,7 @@ const rootRouteChildren: RootRouteChildren = {
     ApiPublicCronRefreshCityReferencesRoute,
   ApiPublicCronRefreshRecommendationsRoute:
     ApiPublicCronRefreshRecommendationsRoute,
+  ApiPublicCronSaasAlertsRoute: ApiPublicCronSaasAlertsRoute,
   ApiPublicCronSyncAirbnbIcalRoute: ApiPublicCronSyncAirbnbIcalRoute,
   ApiPublicPaymentsWebhookRoute: ApiPublicPaymentsWebhookRoute,
   ApiPublicWhatsappSinchWebhookRoute: ApiPublicWhatsappSinchWebhookRoute,
