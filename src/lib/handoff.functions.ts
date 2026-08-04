@@ -409,25 +409,16 @@ export const getHandoffConversation = createServerFn({ method: "POST" })
     const { supabase } = context;
     const isPreviewName = (s: string | null | undefined) =>
       !!s && /pr[eé]\s*-?\s*visualiza|preview/i.test(s.trim());
-    const [{ data: conv, error: cErr }, { data: msgs, error: mErr }] = await Promise.all([
-      supabase
-        .from("property_chat_conversations")
-        .select(
-          "id, property_id, guest_session_id, guest_name, status, ai_paused, assigned_to, claim_requested_by, claim_requested_at, handoff_reason, handoff_urgency, handoff_at, last_message_at, created_at, resolved_at, properties:property_id(id, name, owner_id, slug, city)",
-        )
-        .eq("id", data.conversationId)
-        .maybeSingle(),
-      supabase
-        .from("property_chat_messages")
-        .select(
-          "id, role, content, sender_type, sender_user_id, is_internal_note, created_at, edited_at, attachment_path, attachment_type, attachment_mime, attachment_duration_ms, attachment_size_bytes, attachment_name",
-        )
-        .eq("conversation_id", data.conversationId)
-        .order("created_at", { ascending: true }),
-    ]);
+    const { data: conv, error: cErr } = await supabase
+      .from("property_chat_conversations")
+      .select(
+        "id, property_id, guest_session_id, guest_name, status, ai_paused, assigned_to, claim_requested_by, claim_requested_at, handoff_reason, handoff_urgency, handoff_at, last_message_at, created_at, resolved_at, properties:property_id(id, name, owner_id, slug, city)",
+      )
+      .eq("id", data.conversationId)
+      .maybeSingle();
     if (cErr) throw new Error(cErr.message);
-    if (mErr) throw new Error(mErr.message);
     if (!conv) throw new Error("Conversa não encontrada.");
+
 
     // Busca o registro de acesso mais recente (nome, telefone, checkin) via service-role
     // — a RLS de guide_access_logs só permite owner; usamos admin porque a RLS de
