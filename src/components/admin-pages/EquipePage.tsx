@@ -19,7 +19,10 @@ import {
   type MemberPermission,
 } from "@/lib/member-permissions.functions";
 
+import { Shield as ShieldIcon } from "lucide-react";
+import { PermissionTreeManager } from "@/components/permissions/PermissionTreeManager";
 import { getAtendimentoAccess } from "@/lib/handoff.functions";
+
 import { useSubscription } from "@/hooks/useSubscription";
 import { enablePush, disablePush, isPushSupported, currentPushSubscription } from "@/lib/push-client";
 import { supabase } from "@/integrations/supabase/client";
