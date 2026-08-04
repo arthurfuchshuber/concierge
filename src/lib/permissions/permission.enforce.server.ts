@@ -146,6 +146,17 @@ export function resolveOutcome(
   return { allowed: false, enforced: false, decision };
 }
 
+/** Modo efetivo do tenant (FASE 3.8) — default seguro: `progressive`. */
+async function tenantEnforcement(tenantId: string) {
+  try {
+    const m = await import("./permission.migration.server");
+    const status = await m.getTenantPermissionMode(tenantId);
+    return { mode: m.enforcementModeFor(status.status), tenantMode: status.status };
+  } catch {
+    return { mode: ENFORCEMENT_MODE, tenantMode: "legacy" as const };
+  }
+}
+
 /* --------------------------------------------------------------- API pública */
 
 /**
@@ -159,7 +170,8 @@ export async function requireAccess(
 ): Promise<AuthorizationDecision> {
   const snapshot = context.snapshot ?? (await resolveSubjectSnapshot(subjectId, context));
   const decision = await can(subjectId, permission, { ...context, snapshot });
-  const outcome = resolveOutcome(decision, snapshot);
+  const { mode, tenantMode } = await tenantEnforcement(snapshot.subject.tenantId);
+  const outcome = resolveOutcome(decision, snapshot, mode);
 
   if (!decision.allowed) {
     record({
@@ -175,6 +187,24 @@ export async function requireAccess(
       reason: decision.reason,
       outcome: outcome.enforced ? "blocked" : "shadow",
     });
+
+    // Modos legacy/monitoring: divergência entre o fluxo legado (que permitiu)
+    // e o novo motor (que negaria). Registrada para o relatório de migração.
+    if (!outcome.enforced) {
+      const m = await import("./permission.migration.server");
+      if (m.shouldRecordDivergence(tenantMode)) {
+        m.recordDivergence({
+          tenantId: snapshot.subject.tenantId,
+          userId: subjectId,
+          mode: tenantMode,
+          operation: context.operation ?? permission,
+          permission: decision.permission,
+          legacyAllowed: true,
+          engineAllowed: false,
+          reason: decision.reason,
+        });
+      }
+    }
   }
 
   if (!outcome.allowed && outcome.enforced) throw new PermissionEnforcementError(decision);
@@ -189,8 +219,10 @@ export async function checkAccess(
 ): Promise<EnforcementOutcome> {
   const snapshot = context.snapshot ?? (await resolveSubjectSnapshot(subjectId, context));
   const decision = await can(subjectId, permission, { ...context, snapshot });
-  return resolveOutcome(decision, snapshot);
+  const { mode } = await tenantEnforcement(snapshot.subject.tenantId);
+  return resolveOutcome(decision, snapshot, mode);
 }
+
 
 /**
  * `withPermission` — envolve uma operação de backend com validação de permissão.
