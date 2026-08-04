@@ -278,6 +278,30 @@ export const updateMemberPermission = createServerFn({ method: "POST" })
       .from("account_member_permissions")
       .upsert(rowsToUpsert, { onConflict: "owner_id,member_user_id,permission" });
     if (error) throw new Error(error.message);
+
+    // Audit Trail: quem alterou, qual permissão, quem foi afetado, antes/depois.
+    try {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const { logSystemEvent } = await import("@/lib/ai/audit/events.server");
+      await logSystemEvent(supabaseAdmin, {
+        tenantId: userId,
+        userId,
+        actorType: "OWNER",
+        actorId: userId,
+        actorRole: "owner",
+        permissionSnapshot: { changed: rowsToUpsert.map((r) => ({ permission: r.permission, granted: r.granted })) },
+        eventType: "permission_changed",
+        eventCategory: "PERMISSIONS",
+        entityType: "account_member_permissions",
+        entityId: data.memberUserId,
+        description: `Permissão ${data.permission} ${data.granted ? "concedida" : "removida"}`,
+        reason: "Alteração manual de permissão de membro da equipe",
+        source: "admin_panel",
+        severity: "notice",
+        metadata: { member_user_id: data.memberUserId, permission: data.permission, granted: data.granted },
+      });
+    } catch { /* auditoria nunca bloqueia a operação */ }
+
     return { ok: true };
   });
 
