@@ -14,6 +14,12 @@
  */
 export * from "./permission.types";
 export * from "./permission.registry";
+export * from "./permission.catalog";
+export * from "./permission.scanner";
+export * from "./permission.bootstrap";
+export * from "./permission.consistency";
+export * from "./permission.guardian";
 export * from "./permission.engine";
 export * from "./permission.guard";
 export * from "./feature.access";
+
