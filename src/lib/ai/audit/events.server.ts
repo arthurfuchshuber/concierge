@@ -39,7 +39,10 @@ export type EventCategory =
   | "MEMORY"
   | "LEARNING"
   | "INTEGRATIONS"
-  | "SECURITY";
+  | "SECURITY"
+  | "ACTIVITY"
+  | "SERVER_CALL"
+  | "ERROR";
 
 export const EVENT_CATEGORIES: Record<EventCategory, { label: string; events: string[] }> = {
   AUTHENTICATION: {
@@ -84,6 +87,32 @@ export const EVENT_CATEGORIES: Record<EventCategory, { label: string; events: st
   SECURITY: {
     label: "Segurança",
     events: ["tenant_access_attempt", "permission_violation", "suspicious_activity"],
+  },
+  ACTIVITY: {
+    label: "Atividade",
+    events: [
+      "page_view",
+      "click",
+      "form_submit",
+      "field_changed",
+      "search",
+      "copy",
+      "download",
+      "media_play",
+      "scroll_depth",
+      "session_start",
+      "session_end",
+      "tab_hidden",
+      "tab_visible",
+    ],
+  },
+  SERVER_CALL: {
+    label: "Chamadas do servidor",
+    events: ["server_fn_called", "server_fn_failed"],
+  },
+  ERROR: {
+    label: "Erros",
+    events: ["client_error", "unhandled_rejection", "server_error"],
   },
 };
 
@@ -160,7 +189,38 @@ export async function logSystemEvents(
   events: SystemEventInput[],
 ): Promise<void> {
   if (!events.length) return;
-  for (const e of events) await logSystemEvent(supabase, e);
+  try {
+    await supabase.from("ai_system_events").insert(
+      events.map((event) => ({
+        tenant_id: event.tenantId ?? null,
+        organization_id: event.organizationId ?? event.tenantId ?? null,
+        user_id: event.userId ?? null,
+        actor_type: event.actorType,
+        actor_id: event.actorId ?? null,
+        actor_name: event.actorName ?? null,
+        actor_role: event.actorRole ?? null,
+        permission_snapshot: (event.permissionSnapshot ?? {}) as never,
+        event_type: event.eventType,
+        event_category: event.eventCategory,
+        entity_type: event.entityType ?? null,
+        entity_id: event.entityId ?? null,
+        action: event.action ?? event.eventType,
+        description: event.description ?? null,
+        reason: event.reason ?? null,
+        source: event.source ?? "system",
+        channel: event.channel ?? null,
+        ip_reference: event.ipReference ?? null,
+        metadata: (event.metadata ?? {}) as never,
+        severity: event.severity ?? "info",
+        conversation_id: event.conversationId ?? null,
+        property_id: event.propertyId ?? null,
+        correlation_id: event.correlationId ?? null,
+        result: event.result ?? "success",
+      })) as never,
+    );
+  } catch (err) {
+    console.error("[audit] falha ao registrar lote de eventos", err);
+  }
 }
 
 export type EventFilters = {
