@@ -297,9 +297,9 @@ export async function loadRegistryDiagnostics(ctx: Ctx) {
   ]);
   const consistency = inspectRegistryConsistency();
   const guardian = inspectGuardian();
-  let runs: unknown[] = [];
+  let runs: Array<Record<string, unknown>> = [];
   try {
-    runs = await listSyncRuns(10);
+    runs = (await listSyncRuns(10)) as Array<Record<string, unknown>>;
   } catch (err) {
     console.error("[permissions] falha ao ler execuções de sync", err);
   }
@@ -317,7 +317,7 @@ export async function loadUserProperties(ctx: Ctx & { targetUserId: string }) {
   const { data: properties } = await supabaseAdmin
     .from("properties")
     .select("id, name")
-    .eq("user_id", tenantId)
+    .eq("owner_id", tenantId)
     .order("name", { ascending: true });
 
   return {
