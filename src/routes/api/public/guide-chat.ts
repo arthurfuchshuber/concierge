@@ -455,7 +455,9 @@ export const Route = createFileRoute("/api/public/guide-chat")({
             content: finalReply,
             sender_type: "ai",
           });
+          await mirrorToCore("agent", finalReply);
         }
+
         await supabaseAdmin
           .from("property_chat_conversations")
           .update({ last_message_at: new Date().toISOString(), guest_name: body.guestName ?? undefined })
