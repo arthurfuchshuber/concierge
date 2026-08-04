@@ -86,8 +86,11 @@ export function applyDecision(
   const defs = findings.map<PermissionNodeDefinition>((f) => ({
     ...f.definition,
     isHidden: decision === "internal" ? true : (f.definition.isHidden ?? false),
+    // Recurso interno é catalogado, mas nunca entra na árvore de permissões.
+    isPermissionable: decision === "internal" ? false : (f.definition.isPermissionable ?? true),
     isSystem: true,
   }));
+
 
   if (decision === "auto-register") permissionRegistry.registerMany(defs);
   return defs;
