@@ -772,6 +772,63 @@ export type Database = {
           },
         ]
       }
+      ai_global_intelligence: {
+        Row: {
+          category: string
+          confidence: number
+          created_at: string
+          created_by: string | null
+          evidence: Json
+          id: string
+          impact_estimate: string | null
+          impact_percentage: number | null
+          insight: string
+          metadata: Json
+          published_at: string | null
+          source_conversations: number
+          source_tenants: number
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          category?: string
+          confidence?: number
+          created_at?: string
+          created_by?: string | null
+          evidence?: Json
+          id?: string
+          impact_estimate?: string | null
+          impact_percentage?: number | null
+          insight: string
+          metadata?: Json
+          published_at?: string | null
+          source_conversations?: number
+          source_tenants?: number
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          category?: string
+          confidence?: number
+          created_at?: string
+          created_by?: string | null
+          evidence?: Json
+          id?: string
+          impact_estimate?: string | null
+          impact_percentage?: number | null
+          insight?: string
+          metadata?: Json
+          published_at?: string | null
+          source_conversations?: number
+          source_tenants?: number
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       ai_guest_memory: {
         Row: {
           created_at: string
@@ -1018,19 +1075,24 @@ export type Database = {
       ai_learning_candidates: {
         Row: {
           agent_type: string | null
+          application_history: Json
           applied_at: string | null
           applied_memory_id: string | null
+          approval_history: Json
           approval_status: string
           approved_scope: string | null
           category: string | null
           confidence: number
           created_at: string
           dedupe_key: string | null
+          estimated_impact: string | null
+          event_origin: string | null
           extracted_information: string | null
           id: string
           learning_type: string
           memory_kind: string
           owner_id: string
+          promoted_global_id: string | null
           property_id: string | null
           proposed_memory: string
           rationale: string | null
@@ -1041,6 +1103,7 @@ export type Database = {
           source_escalation_id: string | null
           suggested_scope: string | null
           tenant_id: string | null
+          tenant_origin: string | null
           title: string | null
           ttl_days: number | null
           updated_at: string
@@ -1048,19 +1111,24 @@ export type Database = {
         }
         Insert: {
           agent_type?: string | null
+          application_history?: Json
           applied_at?: string | null
           applied_memory_id?: string | null
+          approval_history?: Json
           approval_status?: string
           approved_scope?: string | null
           category?: string | null
           confidence?: number
           created_at?: string
           dedupe_key?: string | null
+          estimated_impact?: string | null
+          event_origin?: string | null
           extracted_information?: string | null
           id?: string
           learning_type?: string
           memory_kind?: string
           owner_id: string
+          promoted_global_id?: string | null
           property_id?: string | null
           proposed_memory: string
           rationale?: string | null
@@ -1071,6 +1139,7 @@ export type Database = {
           source_escalation_id?: string | null
           suggested_scope?: string | null
           tenant_id?: string | null
+          tenant_origin?: string | null
           title?: string | null
           ttl_days?: number | null
           updated_at?: string
@@ -1078,19 +1147,24 @@ export type Database = {
         }
         Update: {
           agent_type?: string | null
+          application_history?: Json
           applied_at?: string | null
           applied_memory_id?: string | null
+          approval_history?: Json
           approval_status?: string
           approved_scope?: string | null
           category?: string | null
           confidence?: number
           created_at?: string
           dedupe_key?: string | null
+          estimated_impact?: string | null
+          event_origin?: string | null
           extracted_information?: string | null
           id?: string
           learning_type?: string
           memory_kind?: string
           owner_id?: string
+          promoted_global_id?: string | null
           property_id?: string | null
           proposed_memory?: string
           rationale?: string | null
@@ -1101,12 +1175,20 @@ export type Database = {
           source_escalation_id?: string | null
           suggested_scope?: string | null
           tenant_id?: string | null
+          tenant_origin?: string | null
           title?: string | null
           ttl_days?: number | null
           updated_at?: string
           validation?: Json
         }
         Relationships: [
+          {
+            foreignKeyName: "ai_learning_candidates_promoted_global_id_fkey"
+            columns: ["promoted_global_id"]
+            isOneToOne: false
+            referencedRelation: "ai_global_intelligence"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "ai_learning_candidates_property_id_fkey"
             columns: ["property_id"]
@@ -1588,6 +1670,164 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      ai_system_events: {
+        Row: {
+          action: string | null
+          actor_id: string | null
+          actor_name: string | null
+          actor_role: string | null
+          actor_type: string
+          channel: string | null
+          conversation_id: string | null
+          correlation_id: string | null
+          created_at: string
+          description: string | null
+          entity_id: string | null
+          entity_type: string | null
+          event_category: string
+          event_type: string
+          id: string
+          ip_reference: string | null
+          metadata: Json
+          organization_id: string | null
+          permission_snapshot: Json
+          property_id: string | null
+          reason: string | null
+          result: string | null
+          severity: string
+          source: string
+          tenant_id: string | null
+          user_id: string | null
+        }
+        Insert: {
+          action?: string | null
+          actor_id?: string | null
+          actor_name?: string | null
+          actor_role?: string | null
+          actor_type?: string
+          channel?: string | null
+          conversation_id?: string | null
+          correlation_id?: string | null
+          created_at?: string
+          description?: string | null
+          entity_id?: string | null
+          entity_type?: string | null
+          event_category: string
+          event_type: string
+          id?: string
+          ip_reference?: string | null
+          metadata?: Json
+          organization_id?: string | null
+          permission_snapshot?: Json
+          property_id?: string | null
+          reason?: string | null
+          result?: string | null
+          severity?: string
+          source?: string
+          tenant_id?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          action?: string | null
+          actor_id?: string | null
+          actor_name?: string | null
+          actor_role?: string | null
+          actor_type?: string
+          channel?: string | null
+          conversation_id?: string | null
+          correlation_id?: string | null
+          created_at?: string
+          description?: string | null
+          entity_id?: string | null
+          entity_type?: string | null
+          event_category?: string
+          event_type?: string
+          id?: string
+          ip_reference?: string | null
+          metadata?: Json
+          organization_id?: string | null
+          permission_snapshot?: Json
+          property_id?: string | null
+          reason?: string | null
+          result?: string | null
+          severity?: string
+          source?: string
+          tenant_id?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      ai_tenant_knowledge: {
+        Row: {
+          applied_memory_id: string | null
+          author_id: string | null
+          author_name: string | null
+          category: string
+          content: string
+          created_at: string
+          id: string
+          knowledge_scope: string
+          metadata: Json
+          owner_id: string
+          priority: number
+          property_id: string | null
+          source: string
+          source_learning_id: string | null
+          status: string
+          tenant_id: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          applied_memory_id?: string | null
+          author_id?: string | null
+          author_name?: string | null
+          category?: string
+          content: string
+          created_at?: string
+          id?: string
+          knowledge_scope?: string
+          metadata?: Json
+          owner_id: string
+          priority?: number
+          property_id?: string | null
+          source?: string
+          source_learning_id?: string | null
+          status?: string
+          tenant_id: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          applied_memory_id?: string | null
+          author_id?: string | null
+          author_name?: string | null
+          category?: string
+          content?: string
+          created_at?: string
+          id?: string
+          knowledge_scope?: string
+          metadata?: Json
+          owner_id?: string
+          priority?: number
+          property_id?: string | null
+          source?: string
+          source_learning_id?: string | null
+          status?: string
+          tenant_id?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_tenant_knowledge_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       app_user_connections: {
         Row: {

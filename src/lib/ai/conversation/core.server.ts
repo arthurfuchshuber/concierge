@@ -109,6 +109,25 @@ export async function resolveCoreConversation(params: {
       })
       .select("id, tenant_id, property_id, guest_id, channel_origin, status, assigned_agent")
       .single();
+    if (created) {
+      const { logSystemEvent } = await import("../audit/events.server");
+      void logSystemEvent(supabase, {
+        tenantId,
+        actorType: "GUEST",
+        actorId: guestId ?? null,
+        actorName: params.guestName ?? null,
+        eventType: "conversation_created",
+        eventCategory: "CONVERSATION",
+        entityType: "ai_conversations",
+        entityId: String(created.id),
+        conversationId: String(created.id),
+        propertyId,
+        channel,
+        description: "Nova conversa iniciada",
+        reason: "Primeiro contato do hóspede neste canal",
+        source: "conversation_core",
+      });
+    }
     return created ? mapConversation(created) : null;
   } catch (err) {
     console.error("[conversation-core] resolve falhou", err);
@@ -155,6 +174,23 @@ export async function appendCoreMessage(params: {
       .from("ai_conversations")
       .update({ last_message_at: new Date().toISOString(), channel_origin: params.channel })
       .eq("id", params.conversationId);
+
+    const { logSystemEvent } = await import("../audit/events.server");
+    void logSystemEvent(params.supabase, {
+      tenantId: params.tenantId,
+      actorType: params.senderType === "guest" ? "GUEST" : params.senderType === "agent" ? "AI_AGENT" : params.senderType === "system" ? "SYSTEM" : "USER",
+      actorId: params.agentKey ?? params.senderType,
+      eventType: params.senderType === "guest" ? "message_received" : "message_sent",
+      eventCategory: "CONVERSATION",
+      entityType: "ai_messages",
+      entityId: params.conversationId,
+      conversationId: params.conversationId,
+      propertyId: params.propertyId ?? null,
+      channel: params.channel,
+      description: params.content.slice(0, 180),
+      reason: null,
+      source: "conversation_core",
+    });
   } catch (err) {
     console.error("[conversation-core] append falhou", err);
   }
