@@ -109,6 +109,15 @@ export async function logAgentRun(supabase: SupabaseClient, log: AgentLog): Prom
       escalation_id: log.escalationId ?? null,
       human_response_used: log.humanResponseUsed ?? false,
       learning_created: log.learningCreated ?? false,
+      tenant_id: log.tenantId ?? log.ownerId ?? null,
+      evaluation_score: log.evaluationScore ?? null,
+      regression_test_result: log.regressionTestResult ?? null,
+      channel_origin: log.channelOrigin ?? "guide_chat",
+      channel_reference: log.channelReference ?? null,
+      proactive_trigger: log.proactiveTrigger ?? null,
+      autonomy_level: log.autonomyLevel ?? null,
+      action_approval_status: log.actionApprovalStatus ?? null,
+      root_cause: (log.rootCause ?? null) as never,
     });
 
   } catch (err) {
