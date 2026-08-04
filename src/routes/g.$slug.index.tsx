@@ -1,4 +1,4 @@
-import { createFileRoute, notFound, Link } from "@tanstack/react-router";
+import { createFileRoute, notFound, redirect, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -71,6 +71,9 @@ import { cn } from "@/lib/utils";
 export const Route = createFileRoute("/g/$slug/")({
   loader: async ({ params }) => {
     const r = await getPublicGuide({ data: { slug: params.slug } });
+    if (r.status === "moved") {
+      throw redirect({ to: "/g/$slug", params: { slug: r.slug }, replace: true });
+    }
     if (r.status === "not_found") throw notFound();
     return r;
   },
