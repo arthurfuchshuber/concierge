@@ -7,7 +7,6 @@ import { bootstrapPermissionRegistry } from "./permission.bootstrap";
 import { buildConsistencyReport, logConsistencyReport } from "./permission.consistency";
 import { permissionEngine } from "./permission.engine";
 import { lovableGuardian } from "./permission.guardian";
-import { permissionRegistry, runAutoDiscovery } from "./permission.registry";
 
 import {
   permissionRepository,
