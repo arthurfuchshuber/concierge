@@ -202,7 +202,12 @@ export const getGuideEngagement = createServerFn({ method: "GET" })
     const today = todayISO();
     let from = today;
     let to = today;
-    if (data.range === "tomorrow") {
+    // "Hoje" espelha o Kanban: inclui todos os check-ins ATRASADOS ainda pendentes.
+    const overdueFrom = "1970-01-01";
+    if (data.range === "today") {
+      from = overdueFrom;
+      to = today;
+    } else if (data.range === "tomorrow") {
       from = addDaysISO(today, 1);
       to = from;
     } else if (data.range === "7d") {
@@ -212,7 +217,7 @@ export const getGuideEngagement = createServerFn({ method: "GET" })
       from = today;
       to = addDaysISO(today, 29);
     }
-    const [{ data: props }, { data: reservations }, { data: logs }, { data: doneStatuses }] = await Promise.all([
+    const [{ data: props }, { data: reservations }, { data: logs }, { data: allStatuses }] = await Promise.all([
       context.supabase.from("properties").select("id, name, airbnb_ical_url, lock_code, gate_code").in("id", propIds),
       context.supabase
         .from("property_reservations")
@@ -234,7 +239,6 @@ export const getGuideEngagement = createServerFn({ method: "GET" })
         .select("reservation_id, log_id, kind, status")
         .in("property_id", propIds)
         .eq("kind", "checkin")
-        .eq("status", "done")
         .limit(5000),
     ]);
 
@@ -242,10 +246,16 @@ export const getGuideEngagement = createServerFn({ method: "GET" })
     // apenas os check-ins PENDENTES, igual aos cards do Kanban.
     const doneReservations = new Set<string>();
     const doneLogs = new Set<string>();
-    for (const s of (doneStatuses ?? []) as Array<{ reservation_id: string | null; log_id: string | null }>) {
+    const touchedReservations = new Set<string>();
+    const touchedLogs = new Set<string>();
+    for (const s of (allStatuses ?? []) as Array<{ reservation_id: string | null; log_id: string | null; status: string }>) {
+      if (s.reservation_id) touchedReservations.add(s.reservation_id);
+      if (s.log_id) touchedLogs.add(s.log_id);
+      if (s.status !== "done") continue;
       if (s.reservation_id) doneReservations.add(s.reservation_id);
       if (s.log_id) doneLogs.add(s.log_id);
     }
+
 
     const icalProps = new Set(
       ((props ?? []) as Array<{ id: string; airbnb_ical_url: string | null }>)
@@ -286,6 +296,14 @@ export const getGuideEngagement = createServerFn({ method: "GET" })
         break;
       }
       if (doneReservations.has(r.id) || (matched && doneLogs.has(matched.id))) continue;
+      // Atrasados só entram se já houve interação registrada (igual ao Kanban).
+      if (
+        r.checkin_date &&
+        r.checkin_date < today &&
+        !touchedReservations.has(r.id) &&
+        !(matched && touchedLogs.has(matched.id))
+      )
+        continue;
       entries.push({
         property_id: r.property_id,
         name: (matched?.guest_name || "").trim() || "Hóspede pendente",
@@ -298,6 +316,7 @@ export const getGuideEngagement = createServerFn({ method: "GET" })
     for (const l of allLogs) {
       if (icalProps.has(l.property_id)) continue;
       if (doneLogs.has(l.id)) continue;
+      if (l.checkin_date && l.checkin_date < today && !touchedLogs.has(l.id)) continue;
       const key = `${l.property_id}|${(l.guest_name || "").trim().toLowerCase()}|${(l.guest_phone || "").replace(/\D/g, "")}|${l.checkin_date ?? ""}`;
       if (seenFallback.has(key)) continue;
       seenFallback.add(key);
