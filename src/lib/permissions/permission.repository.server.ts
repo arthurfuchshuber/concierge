@@ -268,6 +268,7 @@ export const permissionRepository = {
   deleteAssignment,
   listPropertyAssignments,
   upsertPropertyAssignment,
+  deletePropertyAssignment,
   recordAudit,
   listAudit,
 };
