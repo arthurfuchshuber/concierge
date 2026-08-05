@@ -117,11 +117,11 @@ export function PropertyScopePanel({
             </div>
             <div className="grid grid-cols-2 gap-2">
               <Select value={city} onValueChange={setCity}>
-                <SelectTrigger className="h-9 w-full">
-                  <SelectValue placeholder="Cidade" />
+                <SelectTrigger className="h-9 w-full min-w-0">
+                  <SelectValue placeholder="Cidades" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value={ALL}>Todas as cidades</SelectItem>
+                  <SelectItem value={ALL}>Cidades</SelectItem>
                   {cities.map((c) => (
                     <SelectItem key={c} value={c}>
                       {c}
@@ -130,11 +130,11 @@ export function PropertyScopePanel({
                 </SelectContent>
               </Select>
               <Select value={owner} onValueChange={setOwner}>
-                <SelectTrigger className="h-9 w-full">
-                  <SelectValue placeholder="Proprietário" />
+                <SelectTrigger className="h-9 w-full min-w-0">
+                  <SelectValue placeholder="Proprietários" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value={ALL}>Todos os proprietários</SelectItem>
+                  <SelectItem value={ALL}>Proprietários</SelectItem>
                   {owners.map((o) => (
                     <SelectItem key={o} value={o}>
                       {o}
@@ -145,35 +145,42 @@ export function PropertyScopePanel({
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/30 px-3 py-2">
-            <label className="flex items-center gap-2 text-xs text-muted-foreground">
-              <Checkbox
-                checked={allVisibleSelected}
-                onCheckedChange={(v) => setSelected(v ? filteredIds : [])}
-                disabled={disabled || filteredIds.length === 0}
-              />
-              Selecionar {filtered.length} visíveis
-            </label>
-            <span className="ml-auto text-xs text-muted-foreground">
-              {selectedVisible.length} selecionadas
-            </span>
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={disabled || pending || selectedVisible.length === 0}
-              onClick={() => onBulk(selectedVisible, true)}
-            >
-              Ativar
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={disabled || pending || selectedVisible.length === 0}
-              onClick={() => onBulk(selectedVisible, false)}
-            >
-              Desativar
-            </Button>
+          <div className="space-y-2 rounded-lg border bg-muted/30 px-3 py-2">
+            <div className="flex items-center gap-2">
+              <label className="flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
+                <Checkbox
+                  checked={allVisibleSelected}
+                  onCheckedChange={(v) => setSelected(v ? filteredIds : [])}
+                  disabled={disabled || filteredIds.length === 0}
+                />
+                <span className="truncate">Selecionar {filtered.length} visíveis</span>
+              </label>
+              <span className="ml-auto shrink-0 text-xs text-muted-foreground">
+                {selectedVisible.length} selecionadas
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                className="flex-1"
+                disabled={disabled || pending || selectedVisible.length === 0}
+                onClick={() => onBulk(selectedVisible, true)}
+              >
+                Ativar
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="flex-1"
+                disabled={disabled || pending || selectedVisible.length === 0}
+                onClick={() => onBulk(selectedVisible, false)}
+              >
+                Desativar
+              </Button>
+            </div>
           </div>
+
 
           <div className="rounded-lg border">
             {filtered.length === 0 ? (
