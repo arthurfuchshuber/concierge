@@ -404,20 +404,25 @@ function DashboardPage() {
           />
         </div>
 
-        {/* Em Limpeza — faixa fina logo abaixo dos pendentes */}
-        <KpiCard
-          label="Em Limpeza"
-          rows={cleaningRows}
-          icon={Sparkles}
-          tone="primary-soft"
-          loading={checkoutListQ.isLoading}
-          onRefresh={() => checkoutListQ.refetch()}
-          kind="checkout"
-          rangeLabel={rangeLabel[range]}
-          onEditTime={handleEditTime}
-          onAdvance={(r) => handleAdvance(r, "cleaning")}
-          compact
-        />
+        {/* Em Limpeza — faixa fina logo abaixo dos pendentes (só quando houver 1+) */}
+        {cleaningRows.length > 0 ? (
+          <div className="amber-mirror ring-1 ring-amber-500/25 shadow-[0_0_24px_-8px_oklch(0.83_0.16_85/0.45)]">
+            <KpiCard
+              label="Em Limpeza"
+              rows={cleaningRows}
+              icon={Sparkles}
+              tone="primary-soft"
+              loading={checkoutListQ.isLoading}
+              onRefresh={() => checkoutListQ.refetch()}
+              kind="checkout"
+              rangeLabel={rangeLabel[range]}
+              onEditTime={handleEditTime}
+              onAdvance={(r) => handleAdvance(r, "cleaning")}
+              compact
+            />
+          </div>
+        ) : null}
+
 
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           <KpiCard
