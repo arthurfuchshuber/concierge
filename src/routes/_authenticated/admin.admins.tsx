@@ -17,7 +17,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Shield, ShieldCheck, Trash2, Loader2, UserPlus, Mail, Activity, Search, XCircle } from "lucide-react";
 import { toast } from "sonner";
 import { friendlyErrorMessage } from "@/lib/friendly-error";
-import { PermissionTreeManager } from "@/components/permissions/PermissionTreeManager";
+import { PermissionCenterPage } from "@/components/admin-pages/PermissionCenterPage";
 
 
 export const Route = createFileRoute("/_authenticated/admin/admins")({
@@ -135,10 +135,10 @@ function AdminsPage() {
 
         <TabsContent value="permissoes" className="mt-6">
           <div className="rounded-xl border border-border/60 bg-muted/30 p-3 text-xs text-muted-foreground mb-4">
-            Nova arquitetura de permissões (em validação). As alterações aqui ainda não substituem o
-            controle de acesso atual do sistema.
+            Acessos dos membros do SaaS. Para permissões dentro de uma conta de cliente, use
+            Administrativo → Permissões na conta correspondente.
           </div>
-          <PermissionTreeManager context="saas" />
+          <PermissionCenterPage context="saas" />
         </TabsContent>
 
 
