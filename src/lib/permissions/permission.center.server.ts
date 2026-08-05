@@ -58,7 +58,16 @@ export type CenterPermissionRow = {
 export type CenterUserDetail = {
   allowed: true;
   user: CenterUser;
-  direct: Array<{ namespace: string; label: string; level: AccessLevel; scopeType: ScopeType; scopeId: string | null }>;
+  /** Papel atual dentro da conta (owner | agent | viewer). */
+  role: string;
+  direct: Array<{
+    id: string;
+    namespace: string;
+    label: string;
+    level: AccessLevel;
+    scopeType: ScopeType;
+    scopeId: string | null;
+  }>;
   inherited: Array<{ namespace: string; label: string; level: AccessLevel }>;
   scopes: Array<{ type: ScopeType; description: string; count: number }>;
   properties: Array<{ id: string; name: string; assigned: boolean }>;
@@ -329,6 +338,7 @@ export async function loadCenterUserDetail(
     .map((a) => {
       const namespace = slugByNodeId[a.permission_node_id] ?? a.permission_node_id;
       return {
+        id: a.id,
         namespace,
         label: labelOf(namespace),
         level: a.access_level,
@@ -348,6 +358,7 @@ export async function loadCenterUserDetail(
   return {
     allowed: true,
     user,
+    role,
     direct,
     inherited,
     scopes: scopeSummary(snapshot),
