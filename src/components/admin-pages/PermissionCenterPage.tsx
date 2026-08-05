@@ -22,6 +22,8 @@ import { AccessBadge } from "@/components/permissions/AccessBadge";
 import { PermissionTree } from "@/components/permissions/PermissionTree";
 import { ScopeViewer } from "@/components/permissions/ScopeViewer";
 import { UserPermissionSummary } from "@/components/permissions/UserPermissionSummary";
+import { CreateUserDialog } from "@/components/permissions/CreateUserDialog";
+import { UserAccessManager } from "@/components/permissions/UserAccessManager";
 import {
   getPermissionCenterAudit,
   getPermissionCenterOverview,
@@ -72,9 +74,15 @@ function LoadingState() {
 
 function UserDetail({ userId, onBack }: { userId: string; onBack: () => void }) {
   const fn = useServerFn(getPermissionCenterUser);
+  const registryFn = useServerFn(getPermissionCenterRegistry);
   const q = useQuery({
     queryKey: ["permission-center-user", userId],
     queryFn: () => fn({ data: { targetUserId: userId } }),
+    retry: false,
+  });
+  const registry = useQuery({
+    queryKey: ["permission-center-registry"],
+    queryFn: () => registryFn(),
     retry: false,
   });
 
@@ -85,6 +93,8 @@ function UserDetail({ userId, onBack }: { userId: string; onBack: () => void }) 
   }
 
   const detail = q.data;
+  const permissions =
+    registry.data && registry.data.allowed !== false ? registry.data.permissions : [];
 
   return (
     <div className="space-y-4">
@@ -93,6 +103,17 @@ function UserDetail({ userId, onBack }: { userId: string; onBack: () => void }) 
       </Button>
 
       <UserPermissionSummary data={detail.user} />
+
+      <UserAccessManager
+        targetUserId={detail.user.userId}
+        isOwner={detail.user.isOwner}
+        role={detail.role}
+        status={detail.user.status}
+        direct={detail.direct}
+        properties={detail.properties}
+        permissions={permissions}
+      />
+
 
       <Card className="p-4">
         <p className="text-sm font-semibold">Permissões diretas</p>
@@ -169,15 +190,19 @@ function UsersSection({ onOpen }: { onOpen: (id: string) => void }) {
 
   return (
     <div className="space-y-3">
-      <div className="relative">
-        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          value={term}
-          onChange={(e) => setTerm(e.target.value)}
-          placeholder="Buscar por nome ou e-mail…"
-          className="pl-9"
-        />
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="relative min-w-[200px] flex-1">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={term}
+            onChange={(e) => setTerm(e.target.value)}
+            placeholder="Buscar por nome ou e-mail…"
+            className="pl-9"
+          />
+        </div>
+        <CreateUserDialog />
       </div>
+
 
       {users.length === 0 ? (
         <EmptyState label="Nenhum usuário encontrado neste contexto." />
