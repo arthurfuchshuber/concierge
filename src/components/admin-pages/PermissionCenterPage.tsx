@@ -385,40 +385,14 @@ function UserAccess({
         ))}
       </Accordion>
 
-      <Card className="p-4">
-        <button
-          type="button"
-          onClick={() => setShowProperties((v) => !v)}
-          className="flex w-full items-center justify-between gap-2 text-left"
-        >
-          <span className="flex items-center gap-2 text-sm font-semibold">
-            <Home className="h-4 w-4" /> Residências que esta pessoa atende
-          </span>
-          <span className="text-xs text-muted-foreground">
-            {detail.properties.filter((p) => p.assigned).length} de {detail.properties.length}
-          </span>
-        </button>
-        {showProperties ? (
-          <div className="mt-3 divide-y rounded-lg border">
-            {detail.properties.length === 0 ? (
-              <p className="p-4 text-sm text-muted-foreground">Nenhuma residência cadastrada.</p>
-            ) : (
-              detail.properties.map((p) => (
-                <div key={p.id} className="flex items-center justify-between gap-3 px-3 py-2.5">
-                  <span className="truncate text-sm">{p.name}</span>
-                  <Switch
-                    checked={p.assigned}
-                    disabled={isOwner || propertyMutation.isPending}
-                    onCheckedChange={(v) =>
-                      propertyMutation.mutate({ propertyId: p.id, assigned: v })
-                    }
-                  />
-                </div>
-              ))
-            )}
-          </div>
-        ) : null}
-      </Card>
+      <PropertyScopePanel
+        properties={detail.properties}
+        disabled={isOwner}
+        pending={propertyMutation.isPending || bulkPropertyMutation.isPending}
+        onToggle={(propertyId, assigned) => propertyMutation.mutate({ propertyId, assigned })}
+        onBulk={(propertyIds, assigned) => bulkPropertyMutation.mutate({ propertyIds, assigned })}
+      />
+
     </div>
   );
 }
