@@ -270,13 +270,16 @@ async function nodeIdOf(namespace: string): Promise<string> {
   return id;
 }
 
-/** Concede uma permissão diretamente ao usuário (não altera o Registry). */
+/**
+ * Concede (ou nega explicitamente) uma permissão diretamente ao usuário.
+ * Nível `NONE` grava uma negação explícita, que vence a herança do papel.
+ */
 export async function grantCenterPermission(
   actorId: string,
   input: {
     targetUserId: string;
     namespace: string;
-    level: Exclude<AccessLevel, "NONE">;
+    level: AccessLevel;
     scopeType?: ScopeType;
     scopeId?: string | null;
   },
@@ -303,7 +306,7 @@ export async function grantCenterPermission(
 
   await audit(ctx, {
     targetUserId: input.targetUserId,
-    action: "permission.grant",
+    action: input.level === "NONE" ? "permission.deny" : "permission.grant",
     permissionNodeId: nodeId,
     previous: before?.access_level ?? "NONE",
     next: input.level,
@@ -311,8 +314,15 @@ export async function grantCenterPermission(
     scopeId: input.scopeId ?? null,
     metadata: { namespace: input.namespace },
   });
-  return { ok: true, message: `Permissão ${input.namespace} concedida (${input.level}).` };
+  return {
+    ok: true,
+    message:
+      input.level === "NONE"
+        ? "Acesso removido para esta área."
+        : `Permissão ${input.namespace} concedida (${input.level}).`,
+  };
 }
+
 
 /** Remove uma permissão direta. A herança por papel permanece intacta. */
 export async function revokeCenterPermission(
