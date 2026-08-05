@@ -183,6 +183,12 @@ export type PermissionSubject = {
   systemRoles?: SystemRole[];
   /** Plano ativo do tenant (usado pelo feature gating). */
   plan?: string | null;
+  /**
+   * O usuário é MEMBRO desta conta (não é o titular)? Nesse caso as
+   * permissões da conta valem mesmo que ele seja administrador do SaaS —
+   * o bypass de `ADMIN_SAAS` fica restrito aos recursos `admin.*`.
+   */
+  isTenantMember?: boolean;
 };
 
 /** Pedido de checagem. */
