@@ -129,6 +129,8 @@ export function evaluate(input: EvaluationInput): PermissionDecision {
   let effective: AccessLevel = "NONE";
   let source: PermissionDecision["source"] = "default";
   let bestSpecificity = -1;
+  /** Atribuição direta com nível NONE = negação explícita (vence a herança). */
+  let explicitDeny = false;
 
   chain.forEach((node, depth) => {
     const nodeId = nodeIdBySlug[node.slug];
@@ -138,6 +140,10 @@ export function evaluate(input: EvaluationInput): PermissionDecision {
       if (assignment.user_id !== subject.userId) continue;
       if (assignment.tenant_id !== subject.tenantId) continue;
       if (!scopeMatches(assignment, scope)) continue;
+      if (depth === 0 && assignment.access_level === "NONE") {
+        explicitDeny = true;
+        continue;
+      }
       const specificity = SCOPE_SPECIFICITY[assignment.scope_type] - depth * 0.1;
       if (specificity < bestSpecificity) continue;
       bestSpecificity = specificity;
@@ -146,7 +152,13 @@ export function evaluate(input: EvaluationInput): PermissionDecision {
     }
   });
 
+  if (explicitDeny) {
+    effective = "NONE";
+    source = "assignment";
+  }
+
   effective = capLevel(effective, permissionRegistry.maxAccessLevel(nodeSlug));
+
   const allowed = meetsLevel(effective, required);
 
   return {
