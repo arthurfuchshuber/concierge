@@ -180,6 +180,10 @@ function PropertyEditor() {
   const { id } = Route.useParams();
   const isNew = id === "new";
   const navigate = useNavigate();
+  // Permissão do editor: com "Visualizar" o conteúdo aparece, mas travado.
+  const editorWrite = useAccess("tenant.guias.editor", "write");
+  const readOnly = !editorWrite.loading && !editorWrite.allowed;
+
   const fetchProp = useServerFn(getMyProperty);
   const save = useServerFn(upsertProperty);
   const { impersonation } = useImpersonation();
