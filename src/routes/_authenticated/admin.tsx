@@ -72,7 +72,8 @@ function AdminLayout() {
   });
 
   const handoffEnabled = access.data?.allowed === true;
-  const nav = handoffEnabled
+  const areaAccess = useAreaAccess(ROUTE_PERMISSION_LIST);
+  const navAll = handoffEnabled
     ? ([
         ...baseNav,
         { to: "/admin/atendimento", label: "Atendimento", icon: Headphones, exact: false, badge: pending.data?.count ?? 0 },
@@ -82,6 +83,12 @@ function AdminLayout() {
         ...baseNav,
         { to: "/admin/administrativo", label: "Administrativo", icon: Settings2, exact: false },
       ] as const);
+  // Itens de menu de áreas sem acesso simplesmente não aparecem.
+  const nav = navAll.filter((item) => {
+    const permission = permissionForPath(item.to);
+    return !permission || areaAccess.can(permission);
+  });
+
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setEmail(data.user?.email ?? ""));
