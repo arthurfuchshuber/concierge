@@ -26,6 +26,7 @@ import {
   ACCOUNT_AREAS,
   SAAS_AREAS,
   type AreaGroup,
+  type AreaItem,
 } from "@/lib/permissions/permission.areas";
 
 export type PermissionCenterContext = "account" | "saas";
