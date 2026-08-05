@@ -897,7 +897,7 @@ function PropertyEditor() {
   // alteração enquanto o usuário está na aba "recs". "Pela cidade" já é
   // persistido inline em city_references via mutations próprias.
   useEffect(() => {
-    if (!hydratedRef.current || isNew || step !== "recs" || saving) return;
+    if (!hydratedRef.current || isNew || step !== "recs" || saving || readOnly) return;
     const nearby = form.recommendations.filter((r) => r.scope === "nearby");
     const snapshot = JSON.stringify(nearby);
     if (snapshot === lastSavedRecsRef.current) return;
