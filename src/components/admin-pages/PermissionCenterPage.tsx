@@ -349,19 +349,21 @@ function UserAccess({
                 <Accordion type="single" collapsible>
                   {buildSubgroups(group).map((sub) => (
                     <AccordionItem key={sub.parent.namespace} value={sub.parent.namespace}>
-                      <div className="flex items-center gap-2 pr-3">
-                        <AccordionTrigger className="flex-1 py-2.5 pl-8 pr-2 text-sm hover:no-underline">
+                      <div className="flex w-full items-center gap-2 pr-3">
+                        <div className="min-w-0 flex-1 [&>h3]:w-full">
+                          <AccordionTrigger className="w-full py-2.5 pl-8 pr-2 text-sm hover:no-underline">
+                            <span className="flex min-w-0 items-center gap-2 font-medium">
+                              <span className="truncate">{sub.parent.label}</span>
+                              {sub.children.length > 0 ? (
+                                <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-normal text-muted-foreground">
+                                  {sub.children.length}
+                                </span>
+                              ) : null}
+                            </span>
+                          </AccordionTrigger>
+                        </div>
+                        <div className="ml-auto shrink-0">
 
-                          <span className="flex items-center gap-2 font-medium">
-                            {sub.parent.label}
-                            {sub.children.length > 0 ? (
-                              <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-normal text-muted-foreground">
-                                {sub.children.length}
-                              </span>
-                            ) : null}
-                          </span>
-                        </AccordionTrigger>
-                        <div className="shrink-0">
                           <LevelSwitch
                             value={
                               isOwner
