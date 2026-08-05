@@ -65,6 +65,7 @@ describe("Escopos e acesso efetivo (FASE 4.3)", () => {
       reason: "Sem acesso.",
       scope: { type: "TENANT" as const },
       source: "default" as const,
+      subject,
     };
 
     const inactive = resolveOutcome(decision, { assignments: [], status: "revoked" }, "progressive");
