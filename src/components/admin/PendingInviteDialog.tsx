@@ -8,11 +8,6 @@ import {
   declineMyInvite,
 } from "@/lib/pending-invites.functions";
 
-const ROLE_LABEL: Record<string, string> = {
-  owner: "titular",
-  agent: "atendente",
-  viewer: "leitor",
-};
 
 export function PendingInviteDialog() {
   const listFn = useServerFn(listMyPendingInvites);
@@ -52,7 +47,7 @@ export function PendingInviteDialog() {
 
   const inv = list[0];
   const ownerLabel = inv.owner_name || inv.owner_email || "outra conta";
-  const roleLabel = ROLE_LABEL[inv.role] ?? inv.role;
+  
 
   return (
     <div className="fixed inset-0 z-[70] bg-black/60 backdrop-blur-sm grid place-items-center px-4">
@@ -81,10 +76,6 @@ export function PendingInviteDialog() {
                 <span className="truncate">{inv.owner_email}</span>
               </div>
             )}
-            <div className="flex items-center gap-2 text-sm">
-              <span className="text-muted-foreground">Papel:</span>
-              <span className="font-medium capitalize">{roleLabel}</span>
-            </div>
           </div>
 
           {list.length > 1 && (
