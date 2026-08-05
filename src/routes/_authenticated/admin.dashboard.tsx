@@ -944,15 +944,32 @@ function OccupancyPanel({
     return map;
   }, [stays]);
 
-  function cellState(propertyId: string, day: string): "in" | "out" | "busy" | "free" {
+  type CellPart = "in" | "out" | "busy" | "free";
+
+  /**
+   * Cada dia é dividido em duas metades (manhã = saída, tarde = entrada),
+   * que é a ordem natural do dia. Quando as duas metades são iguais o
+   * desenho é renderizado inteiro.
+   */
+  function cellHalves(propertyId: string, day: string): [CellPart, CellPart] {
     const list = byProperty.get(propertyId) ?? [];
-    for (const s of list) {
-      if (s.checkin === day) return "in";
-      if (s.checkout === day) return "out";
-      if (s.checkin < day && (s.checkout ?? s.checkin) > day) return "busy";
-    }
-    return "free";
+    const hasOut = list.some((s) => s.checkout === day);
+    const hasIn = list.some((s) => s.checkin === day);
+    const through = list.some((s) => s.checkin < day && (s.checkout ?? s.checkin) > day);
+
+    const first: CellPart = hasOut ? "out" : through ? "busy" : "free";
+    // Depois que o check-in é marcado como concluído, a metade da tarde passa
+    // a ser "ocupado" — a metade da manhã (checkout) permanece como estava.
+    const second: CellPart = hasIn
+      ? day === todayISO && checkedInPropertyIds.has(propertyId)
+        ? "busy"
+        : "in"
+      : through
+        ? "busy"
+        : "free";
+    return [first, second];
   }
+
 
   return (
     <Accordion
