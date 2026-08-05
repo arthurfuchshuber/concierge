@@ -33,18 +33,17 @@ export function CreateUserDialog() {
   const invite = useServerFn(inviteTeamMember);
   const [open, setOpen] = useState(false);
   const [email, setEmail] = useState("");
-  const [role, setRole] = useState("agent");
 
   const mutation = useMutation({
-    mutationFn: () => invite({ data: { email, role: role as "agent" | "viewer" | "owner" } }),
+    mutationFn: () => invite({ data: { email, role: "agent" as const } }),
     onSuccess: (res) => {
       const r = res as { emailSent?: boolean; existingUser?: boolean };
       toast.success(
         r?.existingUser
-          ? "Convite criado. A pessoa verá o aviso de aceite ao entrar no painel."
+          ? "Convite criado. A pessoa verá o aviso para aceitar assim que entrar no painel."
           : r?.emailSent
-            ? "Convite enviado por e-mail."
-            : "Convite criado. Use “Reenviar” caso o e-mail não chegue.",
+            ? "Convite enviado por e-mail. Assim que a pessoa aceitar, você já pode liberar as áreas."
+            : "Convite criado, mas o e-mail não saiu. Use “Reenviar” para tentar de novo.",
       );
       qc.invalidateQueries({ queryKey: ["permission-center-overview"] });
       qc.invalidateQueries({ queryKey: ["permission-center-audit"] });
