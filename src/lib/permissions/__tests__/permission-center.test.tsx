@@ -15,6 +15,14 @@ vi.mock("@/lib/permission-center.functions", () => ({
   getPermissionCenterRegistry: "registry",
   getPermissionCenterScopes: "scopes",
   getPermissionCenterAudit: "audit",
+  createPermissionCenterUser: "createUser",
+  assignPermissionCenterRole: "assignRole",
+  removePermissionCenterRole: "removeRole",
+  setPermissionCenterUserStatus: "setStatus",
+  removePermissionCenterUser: "removeUser",
+  grantPermissionCenterPermission: "grant",
+  revokePermissionCenterPermission: "revoke",
+  setPermissionCenterPropertyScope: "setProperty",
 }));
 
 vi.mock("@tanstack/react-start", () => ({
@@ -26,6 +34,7 @@ vi.mock("@tanstack/react-start", () => ({
       scopes: scopesMock,
       audit: auditMock,
     };
+    if (!map[fn]) return async () => ({ ok: true, message: "ok" });
     return (args?: unknown) => map[fn](args);
   },
 }));
