@@ -62,19 +62,28 @@ export function canonicalSlug(slug: string): string {
  * `tenant.administrativo.equipe`.
  */
 export const SLUG_ALIASES: Record<string, string> = {
-  "admin.equipe": "tenant.administrativo.equipe",
-  "admin.administrativo": "tenant.administrativo",
+  // Slugs derivados da URL do painel (o prefixo /admin é apenas a rota).
   "admin.dashboard": "tenant.dashboard",
-  "admin.atendimento": "tenant.conversas",
-  "admin.guias": "tenant.imoveis",
+  "admin.guias": "tenant.guias",
+  "admin.properties": "tenant.guias.editor",
   "admin.stakeholders": "tenant.stakeholders",
-  "admin.engajamento": "tenant.engajamento",
+  "admin.hospedes": "tenant.stakeholders.hospedes",
   "admin.ia": "tenant.ia",
-  "admin.inteligencia": "tenant.inteligencia",
-  "admin.cidades": "tenant.cidades",
+  "admin.atendimento": "tenant.atendimento",
+  "admin.administrativo": "tenant.administrativo",
   "admin.assinatura": "tenant.administrativo.assinatura",
   "admin.integracoes": "tenant.administrativo.integracoes",
-  "admin.hospedes": "tenant.stakeholders.hospedes",
+  // Árvore antiga (antes da reestruturação por menu lateral).
+  "tenant.imoveis": "tenant.guias",
+  "tenant.conversas": "tenant.atendimento",
+  "tenant.administrativo.equipe": "tenant.administrativo.permissoes",
+  "tenant.engajamento": "admin.engajamento",
+  "tenant.inteligencia": "admin.inteligencia",
+  "tenant.clientes": "admin.clientes",
+  "tenant.crm.clientes": "admin.clientes",
+  "tenant.cidades": "admin.cidades",
+  "tenant.taxonomia": "admin.taxonomia",
+  "tenant.recomendacoes-sigma": "admin.recomendacoes-sigma",
 };
 
 /** Aplica aliases + canonicalização (idempotente). */
@@ -128,7 +137,15 @@ const NON_PERMISSIONABLE_PATTERNS = [
 ];
 
 /** Rotas do Admin do SaaS (namespace `admin.*`). */
-export const SAAS_ROUTES = new Set(["/admin/admins"]);
+export const SAAS_ROUTES = new Set([
+  "/admin/admins",
+  "/admin/engajamento",
+  "/admin/clientes",
+  "/admin/recomendacoes-sigma",
+  "/admin/inteligencia",
+  "/admin/cidades",
+  "/admin/taxonomia",
+]);
 
 /** Decide se uma rota descoberta pode virar Permission Node. */
 export function isPermissionableRoute(route: string): boolean {

@@ -114,7 +114,9 @@ export function discoveredRouteNodes(): PermissionNodeDefinition[] {
         order: 500,
         displayOrder: 500,
         isSystem: true,
-        isHidden: false,
+        // Rotas descobertas automaticamente NUNCA entram na árvore visível:
+        // a árvore é exatamente o catálogo (menu lateral → abas → ações).
+        isHidden: true,
         isPermissionable: true,
         version: 1,
         deprecated: false,
