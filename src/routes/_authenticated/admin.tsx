@@ -85,14 +85,15 @@ function AdminLayout() {
         ...baseNav,
         { to: "/admin/administrativo", label: "Administrativo", icon: Settings2, exact: false },
       ] as const);
-  // Itens de menu de áreas sem acesso simplesmente não aparecem.
-  const nav = navAll.filter((item) => {
+  // Admin do SaaS sem conta selecionada: o menu da conta do cliente fica
+  // oculto até que ele escolha um cliente no seletor acima.
+  const nav = (awaitingAccountChoice ? [] : navAll).filter((item) => {
     const permission = permissionForPath(item.to);
     return !permission || areaAccess.can(permission);
   });
   const routePermission = permissionForPath(pathname);
   // Empresa ativa (auto-seleção para membros) + recarga dos dados ao trocar.
-  const { resolving: resolvingAccount } = useActiveAccount();
+  const { resolving: resolvingAccount, awaitingAccountChoice } = useActiveAccount();
   useImpersonationQuerySync();
 
 
