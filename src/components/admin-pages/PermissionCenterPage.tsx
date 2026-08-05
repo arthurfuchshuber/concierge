@@ -294,6 +294,32 @@ function UserAccess({
     onError: (e: Error) => toast.error(e.message || "Não foi possível atualizar o acesso."),
   });
 
+  /** Liberação em massa: aplica o mesmo nível a todas as áreas da categoria. */
+  const bulkMutation = useMutation({
+    mutationFn: async (input: { namespaces: string[]; level: Level }) => {
+      for (const namespace of input.namespaces) {
+        await grant({
+          data: {
+            targetUserId: userId,
+            namespace,
+            level: input.level,
+            scopeType: "TENANT" as const,
+            scopeId: null,
+          },
+        });
+      }
+      return input;
+    },
+    onSuccess: (input) => {
+      const label = OPTIONS.find((o) => o.value === input.level)?.label ?? input.level;
+      toast.success(`${input.namespaces.length} áreas atualizadas para "${label}".`);
+      qc.invalidateQueries({ queryKey: ["permission-center-user", userId] });
+      qc.invalidateQueries({ queryKey: ["permission-center-overview"] });
+      qc.invalidateQueries({ queryKey: ["area-access"] });
+    },
+    onError: (e: Error) => toast.error(e.message || "Não foi possível atualizar as áreas."),
+  });
+
   const propertyMutation = useMutation({
     mutationFn: (input: { propertyId: string; assigned: boolean }) =>
       setProperty({ data: { targetUserId: userId, ...input } }),
@@ -311,6 +337,13 @@ function UserAccess({
   }
 
   const isOwner = detail.user.isOwner;
+
+  /** Nível comum da categoria (quando todas as áreas estão iguais). */
+  function groupLevel(group: AreaGroup): Level {
+    if (isOwner) return "WRITE";
+    const values = group.items.map((i) => levels.get(i.namespace)?.level ?? "NONE");
+    return values.every((v) => v === values[0]) ? values[0] : "NONE";
+  }
 
   return (
     <div className="space-y-4">
@@ -339,14 +372,27 @@ function UserAccess({
             value={group.title}
             className="overflow-hidden rounded-xl border bg-card"
           >
-            <AccordionTrigger className="px-4 py-3 text-sm font-semibold hover:no-underline">
-              <span className="flex items-center gap-2">
-                {group.title}
-                <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-normal text-muted-foreground">
-                  {group.items.length}
+            <div className="flex items-center gap-2 pr-3">
+              <AccordionTrigger className="flex-1 px-4 py-3 text-sm font-semibold hover:no-underline">
+                <span className="flex items-center gap-2">
+                  {group.title}
+                  <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-normal text-muted-foreground">
+                    {group.items.length}
+                  </span>
                 </span>
-              </span>
-            </AccordionTrigger>
+              </AccordionTrigger>
+              {/* Liberação em massa da categoria inteira. */}
+              <LevelSwitch
+                value={groupLevel(group)}
+                disabled={isOwner || bulkMutation.isPending || mutation.isPending}
+                onChange={(v) =>
+                  bulkMutation.mutate({
+                    namespaces: group.items.map((i) => i.namespace),
+                    level: v,
+                  })
+                }
+              />
+            </div>
             <AccordionContent className="pb-0">
               <div className="divide-y border-t">
                 {group.items.map((item) => {
