@@ -42,10 +42,10 @@ export function OwnerLine({
           rel="noopener noreferrer"
           onClick={(e) => e.stopPropagation()}
           title="Abrir conversa no WhatsApp"
-          className="inline-flex min-w-0 max-w-[52%] shrink items-center gap-1 text-[11px] font-medium text-emerald-500 hover:text-emerald-400 hover:underline tabular-nums"
+          className="ml-auto inline-flex shrink-0 items-center gap-1 whitespace-nowrap text-[11px] font-medium text-emerald-500 tabular-nums hover:text-emerald-400 hover:underline"
         >
           <MessageCircle className="size-3 shrink-0" />
-          <span className="truncate">{label}</span>
+          <span>{label}</span>
         </a>
       )}
     </div>
