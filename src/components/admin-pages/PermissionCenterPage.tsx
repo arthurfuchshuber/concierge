@@ -237,7 +237,15 @@ function LevelSwitch({
 
 /* -------------------------------------------------------- acesso do usuário */
 
-function UserAccess({ userId, onBack }: { userId: string; onBack: () => void }) {
+function UserAccess({
+  userId,
+  onBack,
+  areas,
+}: {
+  userId: string;
+  onBack: () => void;
+  areas: AreaGroup[];
+}) {
   const qc = useQueryClient();
   const fn = useServerFn(getPermissionCenterUser);
   const grant = useServerFn(grantPermissionCenterPermission);
@@ -268,8 +276,8 @@ function UserAccess({ userId, onBack }: { userId: string; onBack: () => void }) 
   const mutation = useMutation({
     mutationFn: async (input: { namespace: string; level: Level }) => {
       const current = levels.get(input.namespace);
-      if (input.level === "NONE") {
-        if (!current?.assignmentId) return { message: "Nenhuma permissão direta para remover." };
+      // Sem acesso: se a permissão vem herdada, gravamos uma negação explícita.
+      if (input.level === "NONE" && current?.assignmentId && !current.inherited) {
         return revoke({ data: { targetUserId: userId, assignmentId: current.assignmentId } });
       }
       return grant({
@@ -328,37 +336,50 @@ function UserAccess({ userId, onBack }: { userId: string; onBack: () => void }) 
         </p>
       ) : null}
 
-      {AREAS.map((group) => (
-        <Card key={group.title} className="overflow-hidden p-0">
-          <div className="border-b bg-muted/30 px-4 py-2.5">
-            <p className="text-sm font-semibold">{group.title}</p>
-          </div>
-          <div className="divide-y">
-            {group.items.map((item) => {
-              const state = levels.get(item.namespace);
-              const level: Level = isOwner ? "WRITE" : (state?.level ?? "NONE");
-              return (
-                <div
-                  key={item.namespace}
-                  className="flex flex-wrap items-center justify-between gap-3 px-4 py-3"
-                >
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium">{item.label}</p>
-                    {state?.inherited && !isOwner ? (
-                      <p className="text-xs text-muted-foreground">Vem do papel do usuário</p>
-                    ) : null}
-                  </div>
-                  <LevelSwitch
-                    value={level}
-                    disabled={isOwner || mutation.isPending}
-                    onChange={(v) => mutation.mutate({ namespace: item.namespace, level: v })}
-                  />
-                </div>
-              );
-            })}
-          </div>
-        </Card>
-      ))}
+      <Accordion type="single" collapsible className="space-y-3">
+        {areas.map((group) => (
+          <AccordionItem
+            key={group.title}
+            value={group.title}
+            className="overflow-hidden rounded-xl border bg-card"
+          >
+            <AccordionTrigger className="px-4 py-3 text-sm font-semibold hover:no-underline">
+              <span className="flex items-center gap-2">
+                {group.title}
+                <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-normal text-muted-foreground">
+                  {group.items.length}
+                </span>
+              </span>
+            </AccordionTrigger>
+            <AccordionContent className="pb-0">
+              <div className="divide-y border-t">
+                {group.items.map((item) => {
+                  const state = levels.get(item.namespace);
+                  const level: Level = isOwner ? "WRITE" : (state?.level ?? "NONE");
+                  return (
+                    <div
+                      key={item.namespace}
+                      className="flex flex-wrap items-center justify-between gap-3 px-4 py-3"
+                    >
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium">{item.label}</p>
+                        {state?.inherited && !isOwner ? (
+                          <p className="text-xs text-muted-foreground">Herdado da área acima</p>
+                        ) : null}
+                      </div>
+                      <LevelSwitch
+                        value={level}
+                        disabled={isOwner || mutation.isPending}
+                        onChange={(v) => mutation.mutate({ namespace: item.namespace, level: v })}
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+            </AccordionContent>
+          </AccordionItem>
+        ))}
+      </Accordion>
 
       <Card className="p-4">
         <button
@@ -400,7 +421,12 @@ function UserAccess({ userId, onBack }: { userId: string; onBack: () => void }) 
 
 /* ---------------------------------------------------------------- página */
 
-export function PermissionCenterPage() {
+export function PermissionCenterPage({
+  context = "account",
+}: {
+  context?: PermissionCenterContext;
+} = {}) {
+  const areas = context === "saas" ? SAAS_AREAS : ACCOUNT_AREAS;
   const [selected, setSelected] = useState<string | null>(null);
   const fn = useServerFn(getPermissionCenterOverview);
   const q = useQuery({
@@ -409,7 +435,8 @@ export function PermissionCenterPage() {
     retry: false,
   });
 
-  if (selected) return <UserAccess userId={selected} onBack={() => setSelected(null)} />;
+  if (selected)
+    return <UserAccess userId={selected} onBack={() => setSelected(null)} areas={areas} />;
   if (q.isLoading) return <LoadingState />;
   if (q.isError) return <ErrorState message={(q.error as Error)?.message} />;
   if (!q.data || q.data.allowed === false) {
@@ -420,7 +447,9 @@ export function PermissionCenterPage() {
     <div className="space-y-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="text-sm font-semibold">Quem tem acesso à conta</p>
+          <p className="text-sm font-semibold">
+            {context === "saas" ? "Quem tem acesso ao SaaS" : "Quem tem acesso à conta"}
+          </p>
           <p className="text-sm text-muted-foreground">
             Escolha uma pessoa para definir, em cada área, se ela pode apenas visualizar ou também
             editar.
