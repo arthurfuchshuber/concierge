@@ -54,6 +54,7 @@ async function accessiblePropertyIds(
     from: (t: string) => unknown;
   },
   ownerId?: string | null,
+  userId?: string | null,
 ): Promise<string[]> {
   // RLS on properties already scopes to owner + active account members.
   const query = (
@@ -68,8 +69,13 @@ async function accessiblePropertyIds(
     .from("properties")
     .select("id");
   const { data } = ownerId ? await query.eq("owner_id", ownerId) : await query;
-  return (data ?? []).map((r) => r.id);
+  const ids = (data ?? []).map((r) => r.id);
+  if (!userId) return ids;
+  // Recorte por residências atendidas: sem vínculo, o membro não vê nada.
+  const { filterVisiblePropertyIds } = await import("@/lib/permissions/property-scope.server");
+  return await filterVisiblePropertyIds(userId, ids);
 }
+
 
 // ----- KPIs -----
 
@@ -77,7 +83,7 @@ export const getDashboardKpis = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((i: unknown) => ScopeInput.parse(i) ?? {})
   .handler(async ({ data, context }) => {
-    const propIds = await accessiblePropertyIds(context.supabase as never, data.ownerId ?? null);
+    const propIds = await accessiblePropertyIds(context.supabase as never, data.ownerId ?? null, context.userId);
     if (propIds.length === 0) {
       return { checkinsToday: 0, checkinsTomorrow: 0, checkoutsToday: 0, checkoutsTomorrow: 0 };
     }
@@ -195,7 +201,7 @@ export const getGuideEngagement = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((i: unknown) => EngagementInput.merge(ScopeInput.unwrap()).parse(i))
   .handler(async ({ data, context }) => {
-    const propIds = await accessiblePropertyIds(context.supabase as never, data.ownerId ?? null);
+    const propIds = await accessiblePropertyIds(context.supabase as never, data.ownerId ?? null, context.userId);
     if (propIds.length === 0) {
       return { guideOpens: 0, checkinTabOpens: 0, checkinsInPeriod: 0, codesTabOpens: 0, checkinsWithCodes: 0, checkinBreakdown: { viewed: [] as GuestMark[], notViewed: [] as GuestMark[] }, codesBreakdown: { viewed: [] as GuestMark[], notViewed: [] as GuestMark[] } };
     }
@@ -464,7 +470,7 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((i: unknown) => ListInput.parse(i))
   .handler(async ({ data, context }): Promise<{ rows: ArrivalRow[] }> => {
-    const propIds = await accessiblePropertyIds(context.supabase as never, data.ownerId ?? null);
+    const propIds = await accessiblePropertyIds(context.supabase as never, data.ownerId ?? null, context.userId);
     if (propIds.length === 0) return { rows: [] };
 
     const dateCol = data.kind === "checkin" ? "checkin_date" : "checkout_date";
@@ -1692,7 +1698,7 @@ export const listConcludedArrivals = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((i: unknown) => ScopeInput.parse(i))
   .handler(async ({ data, context }): Promise<{ rows: ArrivalRow[] }> => {
-    const propIds = await accessiblePropertyIds(context.supabase as never, data?.ownerId ?? null);
+    const propIds = await accessiblePropertyIds(context.supabase as never, data?.ownerId ?? null, context.userId);
     if (propIds.length === 0) return { rows: [] };
 
     const { data: statuses } = await context.supabase

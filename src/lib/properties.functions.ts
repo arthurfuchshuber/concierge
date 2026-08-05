@@ -198,9 +198,15 @@ export const listPropertiesForAccount = createServerFn({ method: "POST" })
       .eq("owner_id", data.ownerId)
       .order("updated_at", { ascending: false });
     if (error) throw (await import("@/lib/db-errors.server")).safeDbError("properties", error);
+    // Recorte por residências atendidas: sem vínculo, a lista fica vazia.
+    const { visiblePropertyIds } = await import("@/lib/permissions/property-scope.server");
+    const allowed = await visiblePropertyIds(context.userId);
+    const visible =
+      allowed === null ? (rows ?? []) : (rows ?? []).filter((r) => allowed.includes(r.id));
     const { signPropertyImages } = await import("@/lib/storage.server");
-    return await signPropertyImages(context.supabase, rows ?? []);
+    return await signPropertyImages(context.supabase, visible);
   });
+
 
 // Versão leve: apenas os campos necessários para seleção de imóveis em UIs
 // como o CopyRecsDialog. Não carrega imagens assinadas, reduz payload.
