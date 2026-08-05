@@ -362,64 +362,37 @@ function DashboardPage() {
       </header>
 
       {/* KPIs */}
-      <section className="grid grid-cols-2 lg:grid-cols-6 gap-3">
-        <KpiCard
-          label="Check-ins Pendentes"
-          rows={checkinPendingRows}
-          icon={LogIn}
-          tone="primary"
-          loading={checkinListQ.isLoading}
-          onRefresh={() => checkinListQ.refetch()}
-          kind="checkin"
-          rangeLabel={rangeLabel[range]}
-          shadowTone="emerald"
-          onEditTime={handleEditTime}
-        />
-        <KpiCard
-          label="Checkouts Pendentes"
-          rows={checkoutPendingRows}
-          icon={LogOut}
-          tone="primary"
-          loading={checkoutListQ.isLoading}
-          onRefresh={() => checkoutListQ.refetch()}
-          kind="checkout"
-          rangeLabel={rangeLabel[range]}
-          shadowTone="amber"
-          onEditTime={handleEditTime}
-        />
-        <KpiCard
-          label="Check-ins amanhã"
-          rows={tomorrowCheckinPendingRows}
-          icon={CalendarCheck}
-          tone="primary-soft"
-          loading={tomorrowCheckinListQ.isLoading}
-          onRefresh={() => tomorrowCheckinListQ.refetch()}
-          kind="checkin"
-          rangeLabel="Amanhã"
-          onEditTime={handleEditTime}
-        />
-        <KpiCard
-          label="Checkouts amanhã"
-          rows={tomorrowCheckoutPendingRows}
-          icon={CalendarX}
-          tone="primary-soft"
-          loading={tomorrowCheckoutListQ.isLoading}
-          onRefresh={() => tomorrowCheckoutListQ.refetch()}
-          kind="checkout"
-          rangeLabel="Amanhã"
-          onEditTime={handleEditTime}
-        />
-        <KpiCard
-          label="Em Estadia"
-          rows={stayRows}
-          icon={BedDouble}
-          tone="primary-soft"
-          loading={checkinListQ.isLoading}
-          onRefresh={() => checkinListQ.refetch()}
-          kind="checkin"
-          rangeLabel={rangeLabel[range]}
-          onEditTime={handleEditTime}
-        />
+      <section className="space-y-3">
+        <div className="grid grid-cols-2 gap-3">
+          <KpiCard
+            label="Check-ins Pendentes"
+            rows={checkinPendingRows}
+            icon={LogIn}
+            tone="primary"
+            loading={checkinListQ.isLoading}
+            onRefresh={() => checkinListQ.refetch()}
+            kind="checkin"
+            rangeLabel={rangeLabel[range]}
+            shadowTone="emerald"
+            onEditTime={handleEditTime}
+            onAdvance={(r) => handleAdvance(r, "checkin")}
+          />
+          <KpiCard
+            label="Checkouts Pendentes"
+            rows={checkoutPendingRows}
+            icon={LogOut}
+            tone="primary"
+            loading={checkoutListQ.isLoading}
+            onRefresh={() => checkoutListQ.refetch()}
+            kind="checkout"
+            rangeLabel={rangeLabel[range]}
+            shadowTone="amber"
+            onEditTime={handleEditTime}
+            onAdvance={(r) => handleAdvance(r, "checkout")}
+          />
+        </div>
+
+        {/* Em Limpeza — faixa fina logo abaixo dos pendentes */}
         <KpiCard
           label="Em Limpeza"
           rows={cleaningRows}
@@ -430,8 +403,55 @@ function DashboardPage() {
           kind="checkout"
           rangeLabel={rangeLabel[range]}
           onEditTime={handleEditTime}
+          onAdvance={(r) => handleAdvance(r, "cleaning")}
+          compact
         />
+
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <KpiCard
+            label="Check-ins amanhã"
+            rows={tomorrowCheckinPendingRows}
+            icon={CalendarCheck}
+            tone="primary-soft"
+            loading={tomorrowCheckinListQ.isLoading}
+            onRefresh={() => tomorrowCheckinListQ.refetch()}
+            kind="checkin"
+            rangeLabel="Amanhã"
+            onEditTime={handleEditTime}
+            onAdvance={(r) => handleAdvance(r, "checkin")}
+          />
+          <KpiCard
+            label="Checkouts amanhã"
+            rows={tomorrowCheckoutPendingRows}
+            icon={CalendarX}
+            tone="primary-soft"
+            loading={tomorrowCheckoutListQ.isLoading}
+            onRefresh={() => tomorrowCheckoutListQ.refetch()}
+            kind="checkout"
+            rangeLabel="Amanhã"
+            onEditTime={handleEditTime}
+            onAdvance={(r) => handleAdvance(r, "checkout")}
+          />
+          <KpiCard
+            label="Em Estadia"
+            rows={stayRows}
+            icon={BedDouble}
+            tone="primary-soft"
+            loading={checkinListQ.isLoading}
+            onRefresh={() => checkinListQ.refetch()}
+            kind="checkin"
+            rangeLabel={rangeLabel[range]}
+            onEditTime={handleEditTime}
+            onAdvance={(r) => handleAdvance(r, "stay")}
+          />
+          <FreePropertiesCard
+            loading={occupancyQ.isLoading}
+            properties={occupancyQ.data?.freeToday ?? []}
+            onRefresh={() => occupancyQ.refetch()}
+          />
+        </div>
       </section>
+
 
       {/* Engajamento — segue os check-ins PENDENTES do filtro atual; some quando zera */}
       {counts.checkin > 0 && (
