@@ -176,7 +176,7 @@ function UserAccess({
   const fn = useServerFn(getPermissionCenterUser);
   const grant = useServerFn(grantPermissionCenterPermission);
   const setProperty = useServerFn(setPermissionCenterPropertyScope);
-  const [showProperties, setShowProperties] = useState(false);
+  
 
   const q = useQuery({
     queryKey: ["permission-center-user", userId],
