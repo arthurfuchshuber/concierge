@@ -151,13 +151,24 @@ export function evaluateWithSnapshot(
   const bypass =
     isOwner || (snapshot.subject.systemRoles ?? []).some((r) => memberBypassRoles.includes(r));
 
-  if (scope.type === "PROPERTY" && !bypass && !snapshot.properties.includes(scope.id ?? "")) {
+  // Restrição por residência só vale quando o usuário TEM residências
+  // vinculadas. Sem nenhum vínculo, não há recorte: o acesso segue apenas as
+  // permissões da conta (caso contrário, quem tem permissão de área ficaria
+  // sem ver nada por não ter residências marcadas).
+  const hasPropertyRestriction = snapshot.properties.length > 0;
+  if (
+    scope.type === "PROPERTY" &&
+    !bypass &&
+    hasPropertyRestriction &&
+    !snapshot.properties.includes(scope.id ?? "")
+  ) {
     return decide(
       { ...base, source: "property_assignment" },
       false,
       "O usuário não possui vínculo ativo com a residência informada.",
     );
   }
+
 
   // 4) Nó precisa existir e ser permissionável.
   const node = permissionRegistry.get(slug);
