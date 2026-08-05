@@ -192,6 +192,12 @@ function DashboardPage() {
     staleTime: 30_000,
     placeholderData: keepPreviousData,
   });
+  const occupancyQ = useQuery({
+    queryKey: ["dash-occupancy", activeOwnerId ?? "self"],
+    queryFn: () => occupancyFn({ data: { ownerId: activeOwnerId, days: 14 } }),
+    staleTime: 60_000,
+    placeholderData: keepPreviousData,
+  });
   const listQ = mode === "done" ? concludedQ : kind === "checkin" ? checkinListQ : checkoutListQ;
 
 
