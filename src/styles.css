@@ -413,3 +413,30 @@
 /* Regra global: pontuação nunca inicia uma linha (evita órfãos ",", ".", ";", etc). */
 :root { hanging-punctuation: first allow-end last; }
 h1, h2, h3, h4, h5, h6, p, li, blockquote, figcaption, dt, dd { text-wrap: pretty; }
+
+/* Amber mirror sweep — faixa "Em Limpeza" */
+@keyframes amber-mirror-sweep {
+  0% { transform: translateX(-140%) skewX(-18deg); }
+  55% { transform: translateX(320%) skewX(-18deg); }
+  100% { transform: translateX(320%) skewX(-18deg); }
+}
+.amber-mirror { position: relative; overflow: hidden; isolation: isolate; border-radius: 1rem; }
+.amber-mirror::after {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 38%;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    color-mix(in oklab, oklch(0.83 0.16 85) 42%, transparent) 50%,
+    transparent 100%
+  );
+  filter: blur(2px);
+  animation: amber-mirror-sweep 3.4s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  pointer-events: none;
+  z-index: 3;
+}
+@media (prefers-reduced-motion: reduce) {
+  .amber-mirror::after { animation: none; opacity: 0; }
+}
