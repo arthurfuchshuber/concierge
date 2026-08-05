@@ -163,7 +163,16 @@ function AreaRow({
         ) : null}
       </div>
       <div className="shrink-0">
-        <LevelSwitch value={level} disabled={isOwner || pending} onChange={onChange} />
+        <LevelSwitch
+          value={level}
+          disabled={isOwner || pending}
+          disabledReason={
+            isOwner
+              ? "O titular da conta sempre tem acesso total, por isso não é possível limitar as áreas dele."
+              : "Aguarde: estamos salvando a alteração anterior."
+          }
+          onChange={onChange}
+        />
       </div>
     </div>
 
