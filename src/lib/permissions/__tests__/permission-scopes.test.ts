@@ -27,7 +27,7 @@ function assignment(over: Partial<PermissionAssignment> = {}): PermissionAssignm
 describe("Escopos e acesso efetivo (FASE 4.3)", () => {
   it("escopo PROPERTY restringe o acesso ao imóvel vinculado", () => {
     const input = {
-      subject,
+      subject: { userId: "member", tenantId: "tenant", status: "revoked" },
       nodeSlug: SLUG,
       required: "READ" as const,
       assignments: [assignment()],
@@ -44,7 +44,7 @@ describe("Escopos e acesso efetivo (FASE 4.3)", () => {
 
   it("remoção da atribuição elimina o acesso efetivo", () => {
     const after = evaluate({
-      subject,
+      subject: { userId: "member", tenantId: "tenant", status: "revoked" },
       nodeSlug: SLUG,
       required: "READ",
       scope: { type: "PROPERTY", id: "prop-1" },
@@ -65,7 +65,7 @@ describe("Escopos e acesso efetivo (FASE 4.3)", () => {
       reason: "Sem acesso.",
       scope: { type: "TENANT" as const },
       source: "default" as const,
-      subject,
+      subject: { userId: "member", tenantId: "tenant", status: "revoked" },
     };
 
     const inactive = resolveOutcome(decision, { assignments: [], status: "revoked" }, "progressive");
