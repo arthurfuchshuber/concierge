@@ -338,6 +338,7 @@ async function propertiesOf(tenantId: string, assigned: string[]) {
       ownerName: owner?.name ?? null,
       ownerPhone: owner?.phone ?? null,
       ownerPhoneCountry: owner?.country ?? null,
+      published: !!p.published,
       assigned: assigned.includes(p.id),
     };
   });
