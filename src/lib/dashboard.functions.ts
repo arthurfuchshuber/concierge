@@ -1734,7 +1734,7 @@ export const getOccupancyBoard = createServerFn({ method: "GET" })
     }
 
     const [{ data: props }, { data: reservations }, { data: logs }] = await Promise.all([
-      context.supabase.from("properties").select("id, name, city").in("id", propIds).order("name"),
+      context.supabase.from("properties").select("id, name, city, owner_contact_id").in("id", propIds).order("name"),
       context.supabase
         .from("property_reservations")
         .select("property_id, checkin_date, checkout_date, guest_hint, status, raw_summary")
