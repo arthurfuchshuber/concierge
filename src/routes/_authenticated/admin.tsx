@@ -17,6 +17,11 @@ import { listMyAccounts } from "@/lib/active-account.functions";
 import { PendingInviteDialog } from "@/components/admin/PendingInviteDialog";
 import { CompleteProfileDialog } from "@/components/admin/CompleteProfileDialog";
 import { listMyPendingInvites } from "@/lib/pending-invites.functions";
+import { useAreaAccess } from "@/lib/permissions/useAreaAccess";
+import { ROUTE_PERMISSION_LIST, permissionForPath } from "@/lib/permissions/routeAreas";
+import { AccessDenied } from "@/components/permissions/AreaGate";
+import { Skeleton } from "@/components/ui/skeleton";
+
 
 
 export const Route = createFileRoute("/_authenticated/admin")({
@@ -67,7 +72,8 @@ function AdminLayout() {
   });
 
   const handoffEnabled = access.data?.allowed === true;
-  const nav = handoffEnabled
+  const areaAccess = useAreaAccess(ROUTE_PERMISSION_LIST);
+  const navAll = handoffEnabled
     ? ([
         ...baseNav,
         { to: "/admin/atendimento", label: "Atendimento", icon: Headphones, exact: false, badge: pending.data?.count ?? 0 },
@@ -77,6 +83,14 @@ function AdminLayout() {
         ...baseNav,
         { to: "/admin/administrativo", label: "Administrativo", icon: Settings2, exact: false },
       ] as const);
+  // Itens de menu de áreas sem acesso simplesmente não aparecem.
+  const nav = navAll.filter((item) => {
+    const permission = permissionForPath(item.to);
+    return !permission || areaAccess.can(permission);
+  });
+  const routePermission = permissionForPath(pathname);
+
+
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setEmail(data.user?.email ?? ""));
@@ -267,10 +281,18 @@ function AdminLayout() {
           <PushNotificationBanner />
           {needsPlan ? (
             <OnboardingCheckout onSignOut={signOut} />
+          ) : routePermission && areaAccess.loading ? (
+            <div className="mx-auto w-full max-w-7xl space-y-3 px-4 py-10">
+              <Skeleton className="h-10 w-64" />
+              <Skeleton className="h-40 w-full" />
+            </div>
+          ) : routePermission && !areaAccess.can(routePermission) ? (
+            <AccessDenied reason={areaAccess.reasonFor(routePermission)} />
           ) : (
             <Outlet />
           )}
         </main>
+
       </div>
       {handoffEnabled && !pathname.startsWith("/admin/atendimento") && <FloatingHandoffDock />}
       <PendingInviteDialog />

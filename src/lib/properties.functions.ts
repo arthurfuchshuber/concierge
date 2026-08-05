@@ -166,6 +166,8 @@ export const listMyProperties = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { userId } = context;
+    const { enforce } = await import("@/lib/permissions/permission.enforce.server");
+    await enforce(userId, "imoveis.read");
     // CRÍTICO: filtrar explicitamente por owner_id do próprio usuário.
     // Sem este filtro, a RLS `user_can_access_property` também autoriza
     // propriedades de contas onde ele é membro — vazando guias de outras
@@ -188,6 +190,8 @@ export const listPropertiesForAccount = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((i: unknown) => z.object({ ownerId: z.string().uuid() }).parse(i))
   .handler(async ({ data, context }) => {
+    const { enforce } = await import("@/lib/permissions/permission.enforce.server");
+    await enforce(context.userId, "imoveis.read");
     const { data: rows, error } = await context.supabase
       .from("properties")
       .select("id, slug, name, tagline, hero_image_url, gallery_images, access_mode, pin_expires_at, published, city, country, address, lat, lng, updated_at, wifi_ssid, checkin_time, checkout_time")
