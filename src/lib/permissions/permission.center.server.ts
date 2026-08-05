@@ -43,6 +43,16 @@ export type CenterOverview = {
   tenantId: string;
   tenantName: string;
   users: CenterUser[];
+  invites: CenterInvite[];
+};
+
+export type CenterInvite = {
+  id: string;
+  email: string;
+  role: string;
+  status: string;
+  createdAt: string;
+  expiresAt: string;
 };
 
 export type CenterPermissionRow = {
@@ -280,7 +290,23 @@ export async function loadCenterOverview(
     );
   }
 
-  return { allowed: true, context: kind, tenantId, tenantName, users };
+  const { data: pendingInvites } = await client
+    .from("account_member_invites")
+    .select("id, email, role, status, created_at, expires_at")
+    .eq("owner_id", tenantId)
+    .eq("status", "pending")
+    .order("created_at", { ascending: false });
+
+  const invites: CenterInvite[] = (pendingInvites ?? []).map((i) => ({
+    id: i.id as string,
+    email: i.email as string,
+    role: (i.role as string) ?? "agent",
+    status: (i.status as string) ?? "pending",
+    createdAt: i.created_at as string,
+    expiresAt: i.expires_at as string,
+  }));
+
+  return { allowed: true, context: kind, tenantId, tenantName, users, invites };
 }
 
 async function propertiesOf(tenantId: string, assigned: string[]) {

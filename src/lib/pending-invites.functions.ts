@@ -20,13 +20,32 @@ export const listMyPendingInvites = createServerFn({ method: "GET" })
 
     const { data, error } = await supabase
       .from("account_member_invites")
-      .select("id, owner_id, role, status, expires_at, created_at")
+      .select("id, owner_id, email, role, status, expires_at, created_at")
       .eq("status", "pending")
+      .eq("email", email)
       .gt("expires_at", new Date().toISOString());
     if (error) return [];
 
-    const rows = (data ?? []).filter(() => true);
+    // Nunca mostrar convites que o próprio usuário enviou, nem convites de
+    // contas onde ele já é membro ativo (ou é o próprio titular).
+    const candidates = (data ?? []).filter(
+      (r) => ((r.email as string) ?? "").toLowerCase() === email && (r.owner_id as string) !== userId,
+    );
+    if (candidates.length === 0) return [];
+
+    const { supabaseAdmin: adminForMembership } = await import(
+      "@/integrations/supabase/client.server"
+    );
+    const { data: memberships } = await adminForMembership
+      .from("account_members")
+      .select("owner_id")
+      .eq("member_user_id", userId)
+      .eq("status", "active");
+    const alreadyIn = new Set((memberships ?? []).map((m) => m.owner_id as string));
+    const rows = candidates.filter((r) => !alreadyIn.has(r.owner_id as string));
     if (rows.length === 0) return [];
+
+
 
     // Enrich with owner name/email so the popup can show "You were invited by X".
     const ownerIds = Array.from(new Set(rows.map((r) => r.owner_id as string)));
