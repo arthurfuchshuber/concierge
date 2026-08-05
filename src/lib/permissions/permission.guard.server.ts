@@ -145,11 +145,11 @@ export function evaluateWithSnapshot(
 
   // 3) Resource validation — escopo PROPERTY exige vínculo ativo.
   const isOwner = permissionEngine.isOwner(snapshot.subject);
+  const memberBypassRoles = snapshot.subject.isTenantMember
+    ? ["SYSTEM", "CRON"]
+    : ["SYSTEM", "ADMIN_SAAS", "CRON"];
   const bypass =
-    isOwner ||
-    (snapshot.subject.systemRoles ?? []).some((r) =>
-      ["SYSTEM", "ADMIN_SAAS", "CRON"].includes(r),
-    );
+    isOwner || (snapshot.subject.systemRoles ?? []).some((r) => memberBypassRoles.includes(r));
 
   if (scope.type === "PROPERTY" && !bypass && !snapshot.properties.includes(scope.id ?? "")) {
     return decide(

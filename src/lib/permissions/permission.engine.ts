@@ -5,6 +5,7 @@
  * página ou fluxo existente.
  */
 import { featureAccess } from "./feature.access";
+import { isSaasSlug } from "./permission.slugs";
 import { permissionRegistry } from "./permission.registry";
 import {
   ACCESS_LEVEL_WEIGHT,
@@ -94,7 +95,13 @@ export function evaluate(input: EvaluationInput): PermissionDecision {
     };
   }
 
-  for (const role of BYPASS_SYSTEM_ROLES) {
+  // Administrador do SaaS só ignora a checagem em recursos `admin.*`. Dentro
+  // de uma conta em que ele é MEMBRO, valem as permissões daquela conta.
+  const bypassRoles = subject.isTenantMember && !isSaasSlug(nodeSlug)
+    ? BYPASS_SYSTEM_ROLES.filter((r) => r !== "ADMIN_SAAS")
+    : BYPASS_SYSTEM_ROLES;
+
+  for (const role of bypassRoles) {
     if (hasSystemRole(subject, role)) {
       return {
         allowed: true,
