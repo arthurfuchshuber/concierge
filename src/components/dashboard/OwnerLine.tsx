@@ -8,10 +8,12 @@ export function OwnerLine({
   name,
   phone,
   country,
+  phonePosition = "end",
 }: {
   name: string | null;
   phone: string | null;
   country: string | null;
+  phonePosition?: "adjacent" | "end";
 }) {
   if (!name) return null;
 
@@ -31,8 +33,11 @@ export function OwnerLine({
   }
 
   return (
-    <div className="flex w-full min-w-0 max-w-full items-center gap-2 overflow-hidden">
-      <span className="min-w-0 flex-1 truncate text-xs font-bold text-primary" title={name}>
+    <div className="flex w-full min-w-0 max-w-full items-center gap-1.5 overflow-hidden">
+      <span
+        className={`${phonePosition === "end" ? "flex-1" : "max-w-[55%]"} min-w-0 truncate text-xs font-bold text-primary`}
+        title={name}
+      >
         {name}
       </span>
       {digits && (
@@ -42,7 +47,7 @@ export function OwnerLine({
           rel="noopener noreferrer"
           onClick={(e) => e.stopPropagation()}
           title="Abrir conversa no WhatsApp"
-          className="ml-auto inline-flex shrink-0 items-center gap-1 whitespace-nowrap text-[11px] font-medium text-emerald-500 tabular-nums hover:text-emerald-400 hover:underline"
+          className={`${phonePosition === "end" ? "ml-auto" : ""} inline-flex shrink-0 items-center gap-1 whitespace-nowrap text-[11px] font-medium text-emerald-500 tabular-nums hover:text-emerald-400 hover:underline`}
         >
           <MessageCircle className="size-3 shrink-0" />
           <span>{label}</span>
