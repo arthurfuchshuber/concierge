@@ -12,7 +12,6 @@ import {
   StickyNote,
   Check,
   AlertTriangle,
-  Clock,
   Loader2,
   Home,
   Info,
