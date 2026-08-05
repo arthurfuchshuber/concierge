@@ -28,6 +28,8 @@ import {
   BedDouble,
   CheckCircle2,
   Undo2,
+  Filter,
+
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -404,20 +406,25 @@ function DashboardPage() {
           />
         </div>
 
-        {/* Em Limpeza — faixa fina logo abaixo dos pendentes */}
-        <KpiCard
-          label="Em Limpeza"
-          rows={cleaningRows}
-          icon={Sparkles}
-          tone="primary-soft"
-          loading={checkoutListQ.isLoading}
-          onRefresh={() => checkoutListQ.refetch()}
-          kind="checkout"
-          rangeLabel={rangeLabel[range]}
-          onEditTime={handleEditTime}
-          onAdvance={(r) => handleAdvance(r, "cleaning")}
-          compact
-        />
+        {/* Em Limpeza — faixa fina logo abaixo dos pendentes (só quando houver 1+) */}
+        {cleaningRows.length > 0 ? (
+          <div className="amber-mirror ring-1 ring-amber-500/25 shadow-[0_0_24px_-8px_oklch(0.83_0.16_85/0.45)]">
+            <KpiCard
+              label="Em Limpeza"
+              rows={cleaningRows}
+              icon={Sparkles}
+              tone="primary-soft"
+              loading={checkoutListQ.isLoading}
+              onRefresh={() => checkoutListQ.refetch()}
+              kind="checkout"
+              rangeLabel={rangeLabel[range]}
+              onEditTime={handleEditTime}
+              onAdvance={(r) => handleAdvance(r, "cleaning")}
+              compact
+            />
+          </div>
+        ) : null}
+
 
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           <KpiCard
@@ -852,16 +859,47 @@ function OccupancyPanel({
   properties: Array<{ id: string; name: string; city: string | null; ownerName?: string | null }>;
   stays: Array<{ propertyId: string; checkin: string; checkout: string | null; guest: string | null }>;
 }) {
+  const [periodDays, setPeriodDays] = useState<number>(0); // 0 = tudo
+  const [ownerFilter, setOwnerFilter] = useState<string>("");
+  const [cityFilter, setCityFilter] = useState<string>("");
+
+  const todayISO = new Date().toISOString().slice(0, 10);
+
   const dayList = useMemo(() => {
     const out: string[] = [];
     const [y, m, d] = start.split("-").map(Number);
-    for (let i = 0; i < days; i++) {
+    const total = periodDays > 0 ? Math.min(periodDays, days) : days;
+    for (let i = 0; i < total; i++) {
       const dt = new Date(Date.UTC(y, (m ?? 1) - 1, d));
       dt.setUTCDate(dt.getUTCDate() + i);
       out.push(dt.toISOString().slice(0, 10));
     }
     return out;
-  }, [start, days]);
+  }, [start, days, periodDays]);
+
+  const owners = useMemo(
+    () => [...new Set(properties.map((p) => p.ownerName).filter((o): o is string => !!o))].sort((a, b) => a.localeCompare(b, "pt-BR")),
+    [properties],
+  );
+  const cities = useMemo(
+    () => [...new Set(properties.map((p) => p.city).filter((c): c is string => !!c))].sort((a, b) => a.localeCompare(b, "pt-BR")),
+    [properties],
+  );
+
+  const visibleProperties = useMemo(() => {
+    const cmp = (a: string, b: string) => a.localeCompare(b, "pt-BR", { sensitivity: "base" });
+    return properties
+      .filter((p) => (!ownerFilter || p.ownerName === ownerFilter) && (!cityFilter || p.city === cityFilter))
+      .slice()
+      .sort(
+        (a, b) =>
+          cmp(a.ownerName ?? "zzz", b.ownerName ?? "zzz") ||
+          cmp(a.name, b.name) ||
+          cmp(a.city ?? "zzz", b.city ?? "zzz"),
+      );
+  }, [properties, ownerFilter, cityFilter]);
+
+  const activeFilters = (periodDays > 0 ? 1 : 0) + (ownerFilter ? 1 : 0) + (cityFilter ? 1 : 0);
 
   const byProperty = useMemo(() => {
     const map = new Map<string, Array<{ checkin: string; checkout: string | null; guest: string | null }>>();
@@ -900,11 +938,95 @@ function OccupancyPanel({
             <div className="py-8 text-center text-sm text-muted-foreground">Nenhum imóvel para exibir.</div>
           ) : (
             <>
-              <div className="overflow-x-auto -mx-1 px-1">
+              <div className="mb-2 flex justify-end">
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <button
+                      type="button"
+                      className="relative inline-flex items-center gap-1.5 rounded-lg border border-border bg-background/60 px-2.5 py-1.5 text-xs font-medium text-foreground/80 hover:bg-muted/60 transition-colors"
+                    >
+                      <Filter className="size-3.5 opacity-70" /> Filtros
+                      {activeFilters > 0 ? (
+                        <span className="ml-0.5 grid size-4 place-items-center rounded-full bg-primary text-[9px] font-semibold text-primary-foreground">
+                          {activeFilters}
+                        </span>
+                      ) : null}
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent align="end" className="w-64 space-y-4 p-3">
+                    <div>
+                      <p className="mb-1.5 text-[10px] uppercase tracking-wider text-muted-foreground">Período</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {[
+                          [7, "7 dias"],
+                          [14, "14 dias"],
+                          [0, "Tudo"],
+                        ].map(([v, label]) => (
+                          <button
+                            key={String(v)}
+                            type="button"
+                            onClick={() => setPeriodDays(v as number)}
+                            className={`rounded-md border px-2 py-1 text-[11px] transition-colors ${
+                              periodDays === v
+                                ? "border-primary/40 bg-primary/10 text-foreground"
+                                : "border-border text-muted-foreground hover:bg-muted/60"
+                            }`}
+                          >
+                            {label as string}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <div>
+                      <p className="mb-1.5 text-[10px] uppercase tracking-wider text-muted-foreground">Proprietário</p>
+                      <select
+                        value={ownerFilter}
+                        onChange={(e) => setOwnerFilter(e.target.value)}
+                        className="h-8 w-full rounded-md border border-border bg-background px-2 text-xs"
+                      >
+                        <option value="">Todos</option>
+                        {owners.map((o) => (
+                          <option key={o} value={o}>
+                            {o}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <p className="mb-1.5 text-[10px] uppercase tracking-wider text-muted-foreground">Cidade</p>
+                      <select
+                        value={cityFilter}
+                        onChange={(e) => setCityFilter(e.target.value)}
+                        className="h-8 w-full rounded-md border border-border bg-background px-2 text-xs"
+                      >
+                        <option value="">Todas</option>
+                        {cities.map((c) => (
+                          <option key={c} value={c}>
+                            {c}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPeriodDays(0);
+                        setOwnerFilter("");
+                        setCityFilter("");
+                      }}
+                      className="w-full rounded-md border border-border px-2 py-1.5 text-[11px] text-muted-foreground hover:bg-muted/60"
+                    >
+                      Limpar filtros
+                    </button>
+                  </PopoverContent>
+                </Popover>
+              </div>
+
+              <div className="sg-elegant-scroll max-h-[26rem] overflow-auto -mx-1 px-1">
                 <table className="w-full border-separate border-spacing-x-0.5 border-spacing-y-1 text-xs">
                   <thead>
                     <tr>
-                      <th className="sticky left-0 z-10 bg-card text-left font-medium text-muted-foreground pr-2 w-[132px] min-w-[132px] max-w-[132px]">
+                      <th className="sticky left-0 top-0 z-20 bg-card text-left font-medium text-muted-foreground pr-2 w-[clamp(112px,34vw,220px)] min-w-[112px] max-w-[220px]">
                         Imóvel
                       </th>
                       {dayList.map((d) => {
@@ -912,8 +1034,14 @@ function OccupancyPanel({
                           weekday: "short",
                           timeZone: "UTC",
                         });
+                        const isToday = d === todayISO;
                         return (
-                          <th key={d} className="px-0 font-medium text-muted-foreground tabular-nums min-w-[34px]">
+                          <th
+                            key={d}
+                            className={`sticky top-0 z-10 bg-card px-0 font-medium tabular-nums min-w-[34px] ${
+                              isToday ? "text-emerald-500" : "text-muted-foreground"
+                            }`}
+                          >
                             <div className="text-[9px] uppercase tracking-wide opacity-70">{wd.replace(".", "")}</div>
                             <div className="text-[10px]">
                               {d.slice(8, 10)}/{d.slice(5, 7)}
@@ -924,21 +1052,26 @@ function OccupancyPanel({
                     </tr>
                   </thead>
                   <tbody>
-                    {properties.map((p) => (
+                    {visibleProperties.map((p) => (
                       <tr key={p.id}>
-                        <td className="sticky left-0 z-10 bg-card pr-2 w-[132px] min-w-[132px] max-w-[132px] align-middle">
-                          {p.ownerName ? (
-                            <div className="truncate text-[10px] font-semibold text-primary" title={p.ownerName}>
-                              {p.ownerName}
+                        <td className="sticky left-0 z-10 bg-card pr-2 w-[clamp(112px,34vw,220px)] min-w-[112px] max-w-[220px] align-middle">
+                          <div className="min-w-0 max-w-full">
+                            {p.ownerName ? (
+                              <div className="truncate text-[10px] font-semibold text-primary" title={p.ownerName}>
+                                {p.ownerName}
+                              </div>
+                            ) : null}
+                            <div className="truncate text-[11px] font-medium leading-tight" title={p.name}>
+                              {p.name}
                             </div>
-                          ) : null}
-                          <div className="truncate text-[11px] font-medium leading-tight" title={p.name}>
-                            {p.name}
+                            {p.city ? (
+                              <div className="truncate text-[10px] text-muted-foreground">{p.city}</div>
+                            ) : null}
                           </div>
-                          {p.city ? <div className="truncate text-[10px] text-muted-foreground">{p.city}</div> : null}
                         </td>
                         {dayList.map((d) => {
                           const st = cellState(p.id, d);
+                          const isToday = d === todayISO;
                           const cls =
                             st === "in"
                               ? "bg-emerald-500/85"
@@ -956,7 +1089,7 @@ function OccupancyPanel({
                                   ? "Ocupado"
                                   : "Livre";
                           return (
-                            <td key={d} className="px-0">
+                            <td key={d} className={`px-0 ${isToday ? "bg-emerald-500/10" : ""}`}>
                               <div className={`h-7 rounded-md ${cls}`} title={`${title} · ${fmtDateBR(d)}`} />
                             </td>
                           );
@@ -966,7 +1099,7 @@ function OccupancyPanel({
                   </tbody>
                 </table>
               </div>
-              <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-muted-foreground">
+              <div className="mt-3 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-[11px] text-muted-foreground">
                 <span className="inline-flex items-center gap-1">
                   <span className="size-2.5 rounded-sm bg-emerald-500/80" /> Check-in
                 </span>
@@ -987,6 +1120,7 @@ function OccupancyPanel({
     </Accordion>
   );
 }
+
 
 
 function RangeDropdown<T extends string>({

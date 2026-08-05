@@ -31,8 +31,8 @@ export function OwnerLine({
   }
 
   return (
-    <div className="flex items-center gap-2 min-w-0">
-      <span className="text-xs font-bold text-primary truncate" title={name}>
+    <div className="flex w-full min-w-0 max-w-full items-center gap-2 overflow-hidden">
+      <span className="min-w-0 flex-1 truncate text-xs font-bold text-primary" title={name}>
         {name}
       </span>
       {digits && (
@@ -42,7 +42,7 @@ export function OwnerLine({
           rel="noopener noreferrer"
           onClick={(e) => e.stopPropagation()}
           title="Abrir conversa no WhatsApp"
-          className="inline-flex min-w-0 items-center gap-1 text-[11px] font-medium text-emerald-500 hover:text-emerald-400 hover:underline tabular-nums"
+          className="inline-flex min-w-0 max-w-[52%] shrink items-center gap-1 text-[11px] font-medium text-emerald-500 hover:text-emerald-400 hover:underline tabular-nums"
         >
           <MessageCircle className="size-3 shrink-0" />
           <span className="truncate">{label}</span>
@@ -50,4 +50,5 @@ export function OwnerLine({
       )}
     </div>
   );
+
 }

@@ -197,7 +197,7 @@ export function PropertyScopePanel({
               >
                 {filtered.map((p) => (
                   <AccordionItem key={p.id} value={p.id} className="border-0">
-                    <div className="flex w-full min-w-0 items-center gap-3 px-3 py-2">
+                    <div className="flex w-full min-w-0 max-w-full items-center gap-3 overflow-hidden px-3 py-2">
                       <span className="shrink-0">
                         <Checkbox
                           checked={selected.includes(p.id)}
@@ -205,10 +205,12 @@ export function PropertyScopePanel({
                           disabled={disabled}
                         />
                       </span>
-                      <AccordionTrigger className="min-w-0 flex-1 py-1 hover:no-underline [&>svg]:shrink-0">
+                      <AccordionTrigger className="min-w-0 flex-1 overflow-hidden py-1 hover:no-underline [&>svg]:shrink-0">
 
-                        <div className="min-w-0 flex-1 space-y-0.5 text-left">
-                          <p className="truncate text-sm font-medium">{p.name}</p>
+                        <div className="min-w-0 max-w-full flex-1 space-y-0.5 overflow-hidden text-left">
+                          <p className="truncate text-sm font-medium" title={p.name}>
+                            {p.name}
+                          </p>
                           <OwnerLine
                             name={p.ownerName}
                             phone={p.ownerPhone}
@@ -216,6 +218,7 @@ export function PropertyScopePanel({
                           />
                         </div>
                       </AccordionTrigger>
+
                       <Switch
                         className="shrink-0"
                         checked={p.assigned}
