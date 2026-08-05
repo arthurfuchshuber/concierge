@@ -611,10 +611,13 @@ export async function runHospitalityAgent(params: {
       ...toolsUsed.map((t) => ({
         ...base,
         eventType: "tool_called",
-        description: `Ferramenta ${t.name}`,
+        description: `IA usou a ferramenta "${t.name}"${
+          t.args ? ` — ${JSON.stringify(t.args).slice(0, 180)}` : ""
+        }`,
         reason: "Coleta de dado necessário para responder",
-        metadata: { tool: t.name, durationMs: t.durationMs ?? null },
+        metadata: { tool: t.name, args: t.args ?? null, durationMs: t.durationMs ?? null },
       })),
+
       ...(sources.length
         ? [
             {

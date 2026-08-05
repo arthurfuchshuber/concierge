@@ -598,17 +598,18 @@ function EventsTab() {
         <div className="overflow-x-auto rounded-2xl border border-border bg-surface">
           <table className="w-full text-sm min-w-[980px]">
             <thead className="bg-secondary/50 text-xs uppercase tracking-wide text-muted-foreground">
-              <tr>
+              <tr className="[&>th]:whitespace-nowrap">
                 <th className="text-left px-4 py-3">Data</th>
                 <th className="text-left px-4 py-3">Hora</th>
                 <th className="text-left px-4 py-3">Autor</th>
-                <th className="text-left px-4 py-3">Tipo de autor</th>
+                <th className="text-left px-4 py-3 w-[132px]">Tipo de autor</th>
                 <th className="text-left px-4 py-3">Evento</th>
                 <th className="text-left px-4 py-3">Categoria</th>
                 <th className="text-left px-4 py-3">Descrição</th>
                 <th className="text-left px-4 py-3">Severidade</th>
               </tr>
             </thead>
+
             <tbody>
               {rows.map((r) => {
                 const when = new Date(String(r.created_at));

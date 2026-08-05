@@ -2,8 +2,8 @@
  * Middleware global de auditoria de chamadas de servidor.
  *
  * Toda chamada a um server function é registrada: quem chamou, qual função,
- * duração, resultado e erro (quando houver). Auditoria nunca derruba a
- * operação — falhas de log são engolidas.
+ * o que foi enviado, duração, resultado e erro (quando houver). Auditoria
+ * nunca derruba a operação — falhas de log são engolidas.
  */
 import { createMiddleware } from "@tanstack/react-start";
 
@@ -25,17 +25,19 @@ function subFromToken(token: string | null): { id: string | null; email: string 
 }
 
 export const auditServerCalls = createMiddleware({ type: "function" }).server(
-  async ({ next, method, serverFnMeta }) => {
+  async (opts) => {
+    const { next, method, serverFnMeta } = opts;
     const name = serverFnMeta?.name ?? serverFnMeta?.id ?? "unknown";
     if (SKIP.has(name)) return next();
 
+    const payload = (opts as unknown as { data?: unknown }).data;
     const startedAt = Date.now();
     try {
       const result = await next();
-      void record(name, method, startedAt, null, serverFnMeta?.filename);
+      void record(name, method, startedAt, null, payload, serverFnMeta?.filename);
       return result;
     } catch (error) {
-      void record(name, method, startedAt, error, serverFnMeta?.filename);
+      void record(name, method, startedAt, error, payload, serverFnMeta?.filename);
       throw error;
     }
   },
@@ -46,6 +48,7 @@ async function record(
   method: string,
   startedAt: number,
   error: unknown,
+  payload: unknown,
   filename?: string,
 ): Promise<void> {
   try {
@@ -59,6 +62,7 @@ async function record(
     }
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { logSystemEvent } = await import("@/lib/ai/audit/events.server");
+    const { describeServerCall, sanitizeArgs } = await import("@/lib/audit-fn-labels.server");
     let actorLabel: string | null = actor.email;
     if (actor.id) {
       const { data: prof } = await supabaseAdmin
@@ -73,13 +77,13 @@ async function record(
       userId: actor.id,
       actorType: actor.id ? "USER" : "GUEST",
       actorId: actor.id,
-      actorName: actorLabel ?? "visitante",
+      actorName: actorLabel ?? actor.email ?? "visitante",
       eventType: error ? "server_fn_failed" : "server_fn_called",
       eventCategory: error ? "ERROR" : "SERVER_CALL",
 
       entityType: "server_function",
       entityId: name,
-      description: `${method} ${name}${error ? " — falhou" : ""}`,
+      description: describeServerCall(name, payload, !!error),
       severity: error ? "error" : "info",
       source: "server",
       ipReference: ip,
@@ -88,6 +92,8 @@ async function record(
         file: filename ?? null,
         method,
         duration_ms: Date.now() - startedAt,
+        actor_email: actor.email,
+        args: sanitizeArgs(payload),
         error: error instanceof Error ? error.message.slice(0, 300) : error ? String(error).slice(0, 300) : null,
       },
       result: error ? "failure" : "success",
