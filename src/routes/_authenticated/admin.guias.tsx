@@ -519,6 +519,8 @@ function Dashboard() {
 
 
 
+      <GuiasTabsBar />
+
       {/* Guias section */}
       <div className="flex flex-col gap-4 mb-5">
         <div className="flex items-center justify-between gap-3">
