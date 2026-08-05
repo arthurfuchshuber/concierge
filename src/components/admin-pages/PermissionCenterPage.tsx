@@ -7,7 +7,6 @@ import {
   History,
   Layers,
   ListTree,
-  Loader2,
   Lock,
   Search,
   ShieldCheck,
@@ -402,5 +401,3 @@ export function PermissionCenterPage() {
     </div>
   );
 }
-
-export { Loader2 as _unusedLoader };
