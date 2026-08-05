@@ -22,41 +22,52 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { createPermissionCenterUser } from "@/lib/permission-center.functions";
+import { inviteTeamMember } from "@/lib/team.functions";
 
-/** Criação de usuário — gera um convite de acesso pendente na conta. */
+/**
+ * Convite de membro — segue o fluxo oficial de equipe: e-mail de convite,
+ * convite pendente e popup de aceite no primeiro acesso.
+ */
 export function CreateUserDialog() {
   const qc = useQueryClient();
-  const create = useServerFn(createPermissionCenterUser);
+  const invite = useServerFn(inviteTeamMember);
   const [open, setOpen] = useState(false);
   const [email, setEmail] = useState("");
   const [role, setRole] = useState("agent");
 
   const mutation = useMutation({
-    mutationFn: () => create({ data: { email, role: role as "agent" } }),
+    mutationFn: () => invite({ data: { email, role: role as "agent" | "viewer" | "owner" } }),
     onSuccess: (res) => {
-      toast.success(res?.message ?? "Convite criado.");
+      const r = res as { emailSent?: boolean; existingUser?: boolean };
+      toast.success(
+        r?.existingUser
+          ? "Convite criado. A pessoa verá o aviso de aceite ao entrar no painel."
+          : r?.emailSent
+            ? "Convite enviado por e-mail."
+            : "Convite criado. Use “Reenviar” caso o e-mail não chegue.",
+      );
       qc.invalidateQueries({ queryKey: ["permission-center-overview"] });
       qc.invalidateQueries({ queryKey: ["permission-center-audit"] });
+      qc.invalidateQueries({ queryKey: ["my-team"] });
       setOpen(false);
       setEmail("");
     },
-    onError: (err: Error) => toast.error(err?.message || "Não foi possível criar o usuário."),
+    onError: (err: Error) => toast.error(err?.message || "Não foi possível enviar o convite."),
   });
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button className="gap-1.5">
-          <UserPlus className="h-4 w-4" /> Criar usuário
+        <Button className="h-10 gap-1.5">
+          <UserPlus className="h-4 w-4" /> Convidar Membro
         </Button>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Criar usuário</DialogTitle>
+          <DialogTitle>Convidar Membro</DialogTitle>
           <DialogDescription>
-            Um convite de acesso é criado para o e-mail informado. O acesso passa a valer quando o
-            convite é aceito.
+            Enviamos um convite por e-mail. O acesso passa a valer quando a pessoa aceita o convite
+            no primeiro acesso ao painel.
           </DialogDescription>
         </DialogHeader>
 
@@ -91,10 +102,11 @@ export function CreateUserDialog() {
             disabled={mutation.isPending || !email.includes("@")}
             onClick={() => mutation.mutate()}
           >
-            Criar acesso
+            Enviar convite
           </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
   );
 }
+
