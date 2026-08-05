@@ -19,7 +19,6 @@ import {
   getPermissionCenterOverview,
   getPermissionCenterUser,
   grantPermissionCenterPermission,
-  revokePermissionCenterPermission,
   setPermissionCenterPropertyScope,
 } from "@/lib/permission-center.functions";
 import { cn } from "@/lib/utils";
@@ -249,7 +248,6 @@ function UserAccess({
   const qc = useQueryClient();
   const fn = useServerFn(getPermissionCenterUser);
   const grant = useServerFn(grantPermissionCenterPermission);
-  const revoke = useServerFn(revokePermissionCenterPermission);
   const setProperty = useServerFn(setPermissionCenterPropertyScope);
   const [showProperties, setShowProperties] = useState(false);
 
