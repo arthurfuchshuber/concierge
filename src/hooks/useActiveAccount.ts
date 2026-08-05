@@ -20,13 +20,27 @@ export function useActiveAccount() {
     queryKey: ["my-accounts"],
     queryFn: () => listFn(),
     staleTime: 5 * 60_000,
-    enabled: !isAdmin && !adminLoading,
+    enabled: !adminLoading,
   });
   const { impersonation } = useImpersonation();
 
   const accounts = useMemo(() => q.data?.accounts ?? [], [q.data]);
   const hasOwn = q.data?.hasOwnProperties ?? true;
-  const needsAccount = !isAdmin && !impersonation && !!q.data && !hasOwn && accounts.length >= 1;
+  /**
+   * Auto-seleção da conta ativa no primeiro acesso.
+   *  - Membro de equipe (sem imóveis próprios): abre direto na conta.
+   *  - Admin do SaaS que também é membro de contas de cliente: abre na
+   *    primeira conta pela ordem STATUS + ALFABÉTICA (definida no backend).
+   */
+  const needsAccount =
+    !impersonation && !!q.data && accounts.length >= 1 && (isAdmin || !hasOwn);
+
+  /**
+   * Admin do SaaS sem vínculo com nenhuma conta de cliente: o menu da conta
+   * fica OCULTO até que ele escolha um cliente no seletor.
+   */
+  const awaitingAccountChoice =
+    isAdmin && !impersonation && !!q.data && accounts.length === 0;
 
   useEffect(() => {
     if (!needsAccount) return;
@@ -39,7 +53,7 @@ export function useActiveAccount() {
   }, [needsAccount, accounts]);
 
   const resolving =
-    !isAdmin && !impersonation && (adminLoading || (q.isLoading && !q.data) || needsAccount);
+    !impersonation && (adminLoading || (q.isLoading && !q.data) || needsAccount);
 
-  return { accounts, hasOwn, impersonation, isAdmin, resolving, query: q };
+  return { accounts, hasOwn, impersonation, isAdmin, resolving, awaitingAccountChoice, query: q };
 }

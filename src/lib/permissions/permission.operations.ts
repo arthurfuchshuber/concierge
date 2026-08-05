@@ -24,11 +24,11 @@ export type ProtectedOperation = {
 
 export const PROTECTED_OPERATIONS = {
   /* ------------------------------------------------------------- imóveis */
-  "imoveis.read": { permission: "tenant.imoveis", required: "READ", domain: "imoveis" },
-  "imoveis.editor.read": { permission: "tenant.imoveis.editor", required: "READ", domain: "imoveis" },
-  "imoveis.editor.write": { permission: "tenant.imoveis.editor", required: "WRITE", domain: "imoveis" },
-  "imoveis.delete": { permission: "tenant.imoveis.editor", required: "WRITE", domain: "imoveis" },
-  "imoveis.bulk-edit": { permission: "tenant.imoveis.edicao-massa", required: "WRITE", domain: "imoveis" },
+  "imoveis.read": { permission: "tenant.guias", required: "READ", domain: "imoveis" },
+  "imoveis.editor.read": { permission: "tenant.guias.editor", required: "READ", domain: "imoveis" },
+  "imoveis.editor.write": { permission: "tenant.guias.editor", required: "WRITE", domain: "imoveis" },
+  "imoveis.delete": { permission: "tenant.guias.editor", required: "WRITE", domain: "imoveis" },
+  "imoveis.bulk-edit": { permission: "tenant.guias.imoveis.edicao-massa", required: "WRITE", domain: "imoveis" },
 
   /* -------------------------------------------------------- stakeholders */
   "stakeholders.read": { permission: "tenant.stakeholders", required: "READ", domain: "stakeholders" },
@@ -40,7 +40,7 @@ export const PROTECTED_OPERATIONS = {
     domain: "stakeholders",
   },
   "prestadores.write": {
-    permission: "tenant.stakeholders.prestadores.cadastro",
+    permission: "tenant.stakeholders.prestadores.cadastrar",
     required: "WRITE",
     domain: "stakeholders",
   },
@@ -54,10 +54,10 @@ export const PROTECTED_OPERATIONS = {
   },
 
   /* -------------------------------------------------------------- equipe */
-  "equipe.read": { permission: "tenant.administrativo.equipe", required: "READ", domain: "equipe" },
-  "equipe.write": { permission: "tenant.administrativo.equipe", required: "WRITE", domain: "equipe" },
+  "equipe.read": { permission: "tenant.administrativo.permissoes", required: "READ", domain: "equipe" },
+  "equipe.write": { permission: "tenant.administrativo.permissoes", required: "WRITE", domain: "equipe" },
   "equipe.permissoes": {
-    permission: "tenant.administrativo.equipe",
+    permission: "tenant.administrativo.permissoes",
     required: "WRITE",
     domain: "equipe",
   },

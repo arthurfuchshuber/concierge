@@ -22,136 +22,11 @@ import {
   setPermissionCenterPropertyScope,
 } from "@/lib/permission-center.functions";
 import { cn } from "@/lib/utils";
-
-/* ------------------------------------------------------------------ áreas */
-
-type AreaItem = { namespace: string; label: string; hint?: string };
-type AreaGroup = { title: string; items: AreaItem[] };
-
-/**
- * Lista curta e em linguagem simples das áreas do produto.
- * Cada linha tem só três respostas possíveis: sem acesso, visualizar, editar.
- */
-/** Áreas da conta do cliente — nomes idênticos aos usados no SaaS. */
-const ACCOUNT_AREAS: AreaGroup[] = [
-  {
-    title: "Operação",
-    items: [
-      { namespace: "tenant.dashboard", label: "Operação (painel)" },
-      { namespace: "tenant.dashboard.kpis", label: "Indicadores" },
-      { namespace: "tenant.dashboard.engajamento", label: "Barras de engajamento" },
-      { namespace: "tenant.dashboard.kanban", label: "Esteira de chegadas" },
-      { namespace: "tenant.dashboard.kanban.checkin", label: "Confirmar check-in" },
-      { namespace: "tenant.dashboard.kanban.checkout", label: "Confirmar check-out" },
-      { namespace: "tenant.dashboard.kanban.limpeza", label: "Controle de limpeza" },
-    ],
-  },
-  {
-    title: "Conversas",
-    items: [
-      { namespace: "tenant.conversas", label: "Conversas (Atendimento)" },
-      { namespace: "tenant.conversas.fila", label: "Filas de atendimento" },
-      { namespace: "tenant.conversas.thread", label: "Janela da conversa" },
-    ],
-  },
-  {
-    title: "Imóveis",
-    items: [
-      { namespace: "tenant.imoveis", label: "Imóveis (Guias)" },
-      { namespace: "tenant.imoveis.editor", label: "Editor da residência" },
-      { namespace: "tenant.imoveis.edicao-massa", label: "Edição em massa" },
-      { namespace: "tenant.imoveis.acessos", label: "Acessos do guia" },
-      { namespace: "tenant.imoveis.conversas", label: "Conversas do imóvel" },
-      { namespace: "tenant.imoveis.ical", label: "Sincronização iCal" },
-    ],
-  },
-  {
-    title: "Stakeholders",
-    items: [
-      { namespace: "tenant.stakeholders", label: "Stakeholders" },
-      { namespace: "tenant.stakeholders.proprietarios", label: "Proprietários" },
-      { namespace: "tenant.stakeholders.hospedes", label: "Hóspedes" },
-      { namespace: "tenant.stakeholders.prestadores", label: "Prestadores" },
-    ],
-  },
-  {
-    title: "CRM",
-    items: [
-      { namespace: "tenant.crm", label: "CRM" },
-      { namespace: "tenant.crm.clientes", label: "Clientes" },
-      { namespace: "tenant.crm.reservas", label: "Reservas" },
-    ],
-  },
-  {
-    title: "Engajamento",
-    items: [
-      { namespace: "tenant.engajamento", label: "Engajamento" },
-      { namespace: "tenant.engajamento.panorama", label: "Panorama" },
-      { namespace: "tenant.engajamento.jornada", label: "Jornada" },
-      { namespace: "tenant.engajamento.conteudo", label: "Conteúdo" },
-      { namespace: "tenant.engajamento.hospedes", label: "Hóspedes" },
-    ],
-  },
-  {
-    title: "IA Concierge",
-    items: [
-      { namespace: "tenant.ia", label: "IA Concierge" },
-      { namespace: "tenant.ia.conhecimento", label: "Conhecimento" },
-      { namespace: "tenant.ia.memoria", label: "Memória" },
-      { namespace: "tenant.ia.aprendizados", label: "Aprendizados" },
-    ],
-  },
-  {
-    title: "Inteligência",
-    items: [
-      { namespace: "tenant.inteligencia", label: "Inteligência" },
-      { namespace: "tenant.inteligencia.agentes", label: "Agentes" },
-      { namespace: "tenant.inteligencia.analytics", label: "Analytics" },
-      { namespace: "tenant.inteligencia.eventos", label: "Auditoria do SaaS" },
-    ],
-  },
-  {
-    title: "Cidades",
-    items: [
-      { namespace: "tenant.cidades", label: "Cidades" },
-      { namespace: "tenant.cidades.recomendacoes", label: "Recomendações Sigma" },
-      { namespace: "tenant.cidades.taxonomia", label: "Taxonomia" },
-    ],
-  },
-  {
-    title: "Administrativo",
-    items: [
-      { namespace: "tenant.administrativo", label: "Administrativo" },
-      { namespace: "tenant.administrativo.perfil", label: "Meu perfil" },
-      { namespace: "tenant.administrativo.equipe", label: "Equipe" },
-      { namespace: "tenant.administrativo.assinatura", label: "Assinatura" },
-      { namespace: "tenant.administrativo.integracoes", label: "Integrações" },
-    ],
-  },
-];
-
-/** Áreas do Admin SaaS — mesmos nomes das abas de /admin/admins. */
-const SAAS_AREAS: AreaGroup[] = [
-  {
-    title: "Admin SaaS",
-    items: [
-      { namespace: "admin", label: "Admin SaaS" },
-      { namespace: "admin.admins", label: "Administradores" },
-      { namespace: "admin.invites", label: "Convites" },
-      { namespace: "admin.logs", label: "Logs" },
-    ],
-  },
-  {
-    title: "Permissões",
-    items: [
-      { namespace: "admin.permissions", label: "Permissões" },
-      { namespace: "admin.permissions.arvore", label: "Árvore de permissões" },
-      { namespace: "admin.permissions.atribuicoes", label: "Atribuições" },
-      { namespace: "admin.permissions.auditoria", label: "Auditoria de permissões" },
-      { namespace: "admin.permissions.consistencia", label: "Relatório de consistência" },
-    ],
-  },
-];
+import {
+  ACCOUNT_AREAS,
+  SAAS_AREAS,
+  type AreaGroup,
+} from "@/lib/permissions/permission.areas";
 
 export type PermissionCenterContext = "account" | "saas";
 
@@ -368,8 +243,8 @@ function UserAccess({
       <Accordion type="single" collapsible className="space-y-3">
         {areas.map((group) => (
           <AccordionItem
-            key={group.title}
-            value={group.title}
+            key={group.namespace}
+            value={group.namespace}
             className="overflow-hidden rounded-xl border bg-card"
           >
             <div className="flex items-center gap-2 pr-3">
@@ -401,10 +276,20 @@ function UserAccess({
                   return (
                     <div
                       key={item.namespace}
-                      className="flex flex-wrap items-center justify-between gap-3 px-4 py-3"
+                      className="flex flex-wrap items-center justify-between gap-3 py-3 pr-4"
+                      style={{ paddingLeft: 16 + item.depth * 20 }}
                     >
                       <div className="min-w-0">
-                        <p className="text-sm font-medium">{item.label}</p>
+                        <p
+                          className={cn(
+                            "text-sm",
+                            item.depth === 0 && "font-semibold",
+                            item.depth === 1 && "font-medium",
+                            item.depth === 2 && "text-muted-foreground",
+                          )}
+                        >
+                          {item.label}
+                        </p>
                         {state?.inherited && !isOwner ? (
                           <p className="text-xs text-muted-foreground">Herdado da área acima</p>
                         ) : null}

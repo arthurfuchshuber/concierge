@@ -1,18 +1,27 @@
 /**
- * Mapa rota → área de permissão do painel da conta.
+ * Mapa rota → CATEGORIA de permissão (página do menu lateral).
  * Usado pela navegação e pelo bloqueio de páginas em `/admin`.
  */
 export const ROUTE_PERMISSIONS: Array<{ prefix: string; permission: string }> = [
+  // Conta do cliente
   { prefix: "/admin/dashboard", permission: "tenant.dashboard" },
-  { prefix: "/admin/guias", permission: "tenant.imoveis" },
-  { prefix: "/admin/properties", permission: "tenant.imoveis.editor" },
+  { prefix: "/admin/guias", permission: "tenant.guias" },
+  { prefix: "/admin/properties", permission: "tenant.guias.editor" },
   { prefix: "/admin/stakeholders", permission: "tenant.stakeholders" },
   { prefix: "/admin/hospedes", permission: "tenant.stakeholders.hospedes" },
   { prefix: "/admin/ia", permission: "tenant.ia" },
-  { prefix: "/admin/atendimento", permission: "tenant.conversas" },
+  { prefix: "/admin/atendimento", permission: "tenant.atendimento" },
   { prefix: "/admin/administrativo", permission: "tenant.administrativo" },
-  { prefix: "/admin/cidades", permission: "tenant.cidades" },
-  { prefix: "/admin/taxonomia", permission: "tenant.cidades.taxonomia" },
+  { prefix: "/admin/assinatura", permission: "tenant.administrativo.assinatura" },
+  { prefix: "/admin/integracoes", permission: "tenant.administrativo.integracoes" },
+  // Admin do SaaS
+  { prefix: "/admin/engajamento", permission: "admin.engajamento" },
+  { prefix: "/admin/clientes", permission: "admin.clientes" },
+  { prefix: "/admin/recomendacoes-sigma", permission: "admin.recomendacoes-sigma" },
+  { prefix: "/admin/inteligencia", permission: "admin.inteligencia" },
+  { prefix: "/admin/cidades", permission: "admin.cidades" },
+  { prefix: "/admin/taxonomia", permission: "admin.taxonomia" },
+  { prefix: "/admin/admins", permission: "admin.admins" },
 ];
 
 export const ROUTE_PERMISSION_LIST = [

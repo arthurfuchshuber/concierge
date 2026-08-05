@@ -95,7 +95,7 @@ export type CenterAudit = {
 };
 
 /** Nó do Registry que representa o próprio centro administrativo. */
-export const PERMISSION_CENTER_SLUG = "tenant.administrativo.equipe.permissoes";
+export const PERMISSION_CENTER_SLUG = "tenant.administrativo.permissoes";
 
 const SCOPE_DESCRIPTION: Record<ScopeType, string> = {
   GLOBAL: "Vale para todo o SaaS, independente de conta.",

@@ -374,7 +374,7 @@ export async function writeUserProperty(
 
   const { validateScope } = await import("./permission.scopes");
   const check = validateScope({
-    nodeSlug: "tenant.imoveis",
+    nodeSlug: "tenant.guias",
     scope: { type: "PROPERTY", id: ctx.propertyId },
   });
   if (!check.ok) throw new Error(check.errors.join(" "));
