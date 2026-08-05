@@ -8,11 +8,6 @@ import {
   declineMyInvite,
 } from "@/lib/pending-invites.functions";
 
-const ROLE_LABEL: Record<string, string> = {
-  owner: "titular",
-  agent: "atendente",
-  viewer: "leitor",
-};
 
 export function PendingInviteDialog() {
   const listFn = useServerFn(listMyPendingInvites);
