@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 
 export type Impersonation = { userId: string; name: string; email: string | null } | null;
+
 
 const KEY = "sg-impersonate";
 const EVT = "sg-impersonate-change";
