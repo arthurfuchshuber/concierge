@@ -1113,30 +1113,36 @@ function OccupancyPanel({
                           </div>
                         </td>
                         {dayList.map((d) => {
-                          const st = cellState(p.id, d);
+                          const [a, b] = cellHalves(p.id, d);
                           const isToday = d === todayISO;
-                          const cls =
-                            st === "in"
+                          const clsOf = (s: CellPart) =>
+                            s === "in"
                               ? "bg-emerald-500/85"
-                              : st === "out"
+                              : s === "out"
                                 ? "bg-amber-500/85"
-                                : st === "busy"
+                                : s === "busy"
                                   ? "bg-primary/45"
                                   : "bg-muted/60";
+                          const labelOf = (s: CellPart) =>
+                            s === "in" ? "Check-in" : s === "out" ? "Checkout" : s === "busy" ? "Ocupado" : "Livre";
                           const title =
-                            st === "in"
-                              ? "Check-in"
-                              : st === "out"
-                                ? "Checkout"
-                                : st === "busy"
-                                  ? "Ocupado"
-                                  : "Livre";
+                            a === b
+                              ? `${labelOf(a)} · ${fmtDateBR(d)}`
+                              : `${labelOf(a)} → ${labelOf(b)} · ${fmtDateBR(d)}`;
                           return (
                             <td key={d} className={`px-0 ${isToday ? "bg-emerald-500/10" : ""}`}>
-                              <div className={`h-7 rounded-md ${cls}`} title={`${title} · ${fmtDateBR(d)}`} />
+                              {a === b ? (
+                                <div className={`h-7 rounded-md ${clsOf(a)}`} title={title} />
+                              ) : (
+                                <div className="flex h-7 gap-px overflow-hidden rounded-md" title={title}>
+                                  <div className={`h-full flex-1 rounded-l-md ${clsOf(a)}`} />
+                                  <div className={`h-full flex-1 rounded-r-md ${clsOf(b)}`} />
+                                </div>
+                              )}
                             </td>
                           );
                         })}
+
                       </tr>
                     ))}
                   </tbody>
