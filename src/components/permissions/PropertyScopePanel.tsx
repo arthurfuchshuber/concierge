@@ -182,7 +182,7 @@ export function PropertyScopePanel({
           </div>
 
 
-          <div className="rounded-lg border">
+          <div className="overflow-hidden rounded-lg border">
             {filtered.length === 0 ? (
               <p className="p-4 text-sm text-muted-foreground">
                 Nenhuma residência encontrada com estes filtros.
@@ -197,13 +197,16 @@ export function PropertyScopePanel({
               >
                 {filtered.map((p) => (
                   <AccordionItem key={p.id} value={p.id} className="border-0">
-                    <div className="flex items-center gap-3 px-3 py-2">
-                      <Checkbox
-                        checked={selected.includes(p.id)}
-                        onCheckedChange={(v) => toggleSelect(p.id, !!v)}
-                        disabled={disabled}
-                      />
-                      <AccordionTrigger className="flex-1 min-w-0 py-1 hover:no-underline [&>svg]:shrink-0">
+                    <div className="flex w-full min-w-0 items-center gap-3 px-3 py-2">
+                      <span className="shrink-0">
+                        <Checkbox
+                          checked={selected.includes(p.id)}
+                          onCheckedChange={(v) => toggleSelect(p.id, !!v)}
+                          disabled={disabled}
+                        />
+                      </span>
+                      <AccordionTrigger className="min-w-0 flex-1 py-1 hover:no-underline [&>svg]:shrink-0">
+
                         <div className="min-w-0 flex-1 space-y-0.5 text-left">
                           <p className="truncate text-sm font-medium">{p.name}</p>
                           <OwnerLine
