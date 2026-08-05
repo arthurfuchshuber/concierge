@@ -81,19 +81,10 @@ export function CreateUserDialog() {
               className="mt-1"
             />
           </div>
-          <div>
-            <Label className="text-xs">Papel inicial</Label>
-            <Select value={role} onValueChange={setRole}>
-              <SelectTrigger className="mt-1">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="agent">Atendente</SelectItem>
-                <SelectItem value="viewer">Visualizador</SelectItem>
-                <SelectItem value="owner">Titular da conta</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+          <p className="text-xs text-muted-foreground">
+            Depois de aceitar o convite, a pessoa entra sem nenhum acesso. Você libera cada área
+            aqui mesmo, escolhendo entre “Sem acesso”, “Visualizar” ou “Editar”.
+          </p>
         </div>
 
         <DialogFooter>
