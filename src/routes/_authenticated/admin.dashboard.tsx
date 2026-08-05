@@ -850,7 +850,7 @@ function OccupancyPanel({
   loading: boolean;
   start: string;
   days: number;
-  properties: Array<{ id: string; name: string; city: string | null }>;
+  properties: Array<{ id: string; name: string; city: string | null; ownerName?: string | null }>;
   stays: Array<{ propertyId: string; checkin: string; checkout: string | null; guest: string | null }>;
 }) {
   const dayList = useMemo(() => {
