@@ -88,6 +88,8 @@ function AdminLayout() {
     const permission = permissionForPath(item.to);
     return !permission || areaAccess.can(permission);
   });
+  const routePermission = permissionForPath(pathname);
+
 
 
   useEffect(() => {
