@@ -121,7 +121,7 @@ export const grantPermissionCenterPermission = createServerFn({ method: "POST" }
       .object({
         targetUserId: z.string().uuid(),
         namespace: z.string().min(1).max(200),
-        level: z.enum(["READ", "WRITE"]),
+        level: z.enum(["NONE", "READ", "WRITE"]),
         scopeType: ScopeEnum.default("TENANT"),
         scopeId: z.string().nullish(),
       })
