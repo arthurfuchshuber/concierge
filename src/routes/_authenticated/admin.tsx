@@ -94,7 +94,7 @@ function AdminLayout() {
     await qc.cancelQueries();
     qc.clear();
     await supabase.auth.signOut();
-    navigate({ to: "/auth", replace: true, search: {} });
+    navigate({ to: "/auth", replace: true, search: { next: undefined } });
   }
 
   const initials = (email || "?").slice(0, 2).toUpperCase();
