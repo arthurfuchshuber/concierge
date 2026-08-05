@@ -104,7 +104,7 @@ describe("Permission Center", () => {
     overviewMock.mockResolvedValue({ ...ADMIN_OVERVIEW, users: [] });
     render(<PermissionCenterPage />, { wrapper });
     await waitFor(() =>
-      expect(screen.getByText("Nenhum usuário encontrado neste contexto.")).toBeTruthy(),
+      expect(screen.getByText("Nenhuma pessoa nesta conta ainda.")).toBeTruthy(),
     );
   });
 });
