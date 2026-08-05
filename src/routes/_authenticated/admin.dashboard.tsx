@@ -1070,7 +1070,7 @@ function OccupancyPanel({
                   <tbody>
                     {visibleProperties.map((p) => (
                       <tr key={p.id}>
-                        <td className="sticky left-0 z-10 bg-card pr-2 w-[clamp(112px,34vw,220px)] min-w-[112px] max-w-[220px] align-middle">
+                        <td className="sticky left-0 z-10 bg-card pr-2 w-[clamp(96px,28vw,200px)] min-w-[96px] max-w-[200px] align-middle">
                           <div className="min-w-0 max-w-full">
                             {p.ownerName ? (
                               <div className="truncate text-[10px] font-semibold text-primary" title={p.ownerName}>
