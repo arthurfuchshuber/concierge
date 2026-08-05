@@ -48,8 +48,8 @@ function AdministrativoPage() {
             <TabsTrigger value="assinatura">
               <CreditCard className="size-4" /> Assinatura
             </TabsTrigger>
-            <TabsTrigger value="equipe">
-              <UsersRound className="size-4" /> Equipe & Permissões
+            <TabsTrigger value="permissoes">
+              <ShieldCheck className="size-4" /> Permissões
             </TabsTrigger>
             <TabsTrigger value="integracoes">
               <Plug className="size-4" /> Integrações
@@ -63,9 +63,10 @@ function AdministrativoPage() {
           <TabsContent value="assinatura" className="mt-0">
             <AssinaturaPage />
           </TabsContent>
-          <TabsContent value="equipe" className="mt-0">
-            <EquipePage />
+          <TabsContent value="permissoes" className="mt-0">
+            <PermissionCenterPage />
           </TabsContent>
+
           <TabsContent value="integracoes" className="mt-0">
             <IntegracoesPage />
           </TabsContent>
