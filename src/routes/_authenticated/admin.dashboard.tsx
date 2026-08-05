@@ -80,7 +80,7 @@ function PhoneLink({ phone, country }: { phone: string | null; country: string |
       target="_blank"
       rel="noopener noreferrer"
       onClick={(event) => event.stopPropagation()}
-      className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap text-emerald-500 hover:text-emerald-400 hover:underline"
+      className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap text-[11px] font-medium text-emerald-500 hover:text-emerald-400 hover:underline"
       title="Abrir conversa no WhatsApp"
     >
       <MessageCircle className="size-3 shrink-0" />
