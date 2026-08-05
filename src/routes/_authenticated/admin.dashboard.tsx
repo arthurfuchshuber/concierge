@@ -65,6 +65,30 @@ import {
 import { openHandoffDock } from "@/lib/handoff-dock";
 import { useImpersonation } from "@/hooks/useImpersonation";
 
+function PhoneLink({ phone, country }: { phone: string | null; country: string | null }) {
+  if (!phone) return null;
+  const countryDigits = (country ?? "").replace(/\D/g, "");
+  const phoneDigits = phone.replace(/\D/g, "");
+  const digits = phone.trim().startsWith("+") || !countryDigits
+    ? phoneDigits
+    : `${countryDigits}${phoneDigits}`;
+  if (!digits) return null;
+
+  return (
+    <a
+      href={`https://wa.me/${digits}`}
+      target="_blank"
+      rel="noopener noreferrer"
+      onClick={(event) => event.stopPropagation()}
+      className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap text-emerald-500 hover:text-emerald-400 hover:underline"
+      title="Abrir conversa no WhatsApp"
+    >
+      <MessageCircle className="size-3 shrink-0" />
+      <span className="tabular-nums">{phone}</span>
+    </a>
+  );
+}
+
 export const Route = createFileRoute("/_authenticated/admin/dashboard")({
   head: () => ({
     meta: [
@@ -712,7 +736,7 @@ function KpiCard({
                       {r.pendingFill ? <UserPlus className="size-4" /> : initials}
                     </div>
                     <div className="min-w-0 flex-1">
-                      <OwnerLine name={r.ownerName} phone={r.ownerPhone} country={r.ownerPhoneCountry} />
+                      <OwnerLine name={r.ownerName} phone={r.ownerPhone} country={r.ownerPhoneCountry} phonePosition="adjacent" />
                       <div
                         className="text-sm font-semibold leading-tight truncate text-foreground"
                         title={r.propertyName ?? undefined}
@@ -729,7 +753,10 @@ function KpiCard({
                             <span className="truncate">Hóspede Pendente</span>
                           </>
                         ) : (
-                          <span className="truncate">{r.guestName}</span>
+                          <>
+                            <span className="min-w-0 truncate">{r.guestName}</span>
+                            <PhoneLink phone={r.guestPhone} country={r.guestPhoneCountry} />
+                          </>
                         )}
                       </div>
                       {(r.additionalGuests?.length ?? 0) > 0 && (
@@ -859,7 +886,6 @@ function OccupancyPanel({
   properties: Array<{ id: string; name: string; city: string | null; ownerName?: string | null }>;
   stays: Array<{ propertyId: string; checkin: string; checkout: string | null; guest: string | null }>;
 }) {
-  const [periodDays, setPeriodDays] = useState<number>(7); // 0 = tudo
   const [openAgenda, setOpenAgenda] = useState<string>("agenda");
   const [ownerFilter, setOwnerFilter] = useState<string>("");
   const [cityFilter, setCityFilter] = useState<string>("");
@@ -869,14 +895,13 @@ function OccupancyPanel({
   const dayList = useMemo(() => {
     const out: string[] = [];
     const [y, m, d] = start.split("-").map(Number);
-    const total = periodDays > 0 ? Math.min(periodDays, days) : days;
-    for (let i = 0; i < total; i++) {
+    for (let i = 0; i < 7; i++) {
       const dt = new Date(Date.UTC(y, (m ?? 1) - 1, d));
       dt.setUTCDate(dt.getUTCDate() + i);
       out.push(dt.toISOString().slice(0, 10));
     }
     return out;
-  }, [start, days, periodDays]);
+  }, [start]);
 
   const owners = useMemo(
     () => [...new Set(properties.map((p) => p.ownerName).filter((o): o is string => !!o))].sort((a, b) => a.localeCompare(b, "pt-BR")),
@@ -900,7 +925,7 @@ function OccupancyPanel({
       );
   }, [properties, ownerFilter, cityFilter]);
 
-  const activeFilters = (periodDays > 0 ? 1 : 0) + (ownerFilter ? 1 : 0) + (cityFilter ? 1 : 0);
+  const activeFilters = (ownerFilter ? 1 : 0) + (cityFilter ? 1 : 0);
 
   const byProperty = useMemo(() => {
     const map = new Map<string, Array<{ checkin: string; checkout: string | null; guest: string | null }>>();
@@ -954,29 +979,6 @@ function OccupancyPanel({
             </PopoverTrigger>
             <PopoverContent align="end" className="w-64 space-y-4 p-3">
               <div>
-                <p className="mb-1.5 text-[10px] uppercase tracking-wider text-muted-foreground">Período</p>
-                <div className="flex flex-wrap gap-1.5">
-                  {[
-                    [7, "7 dias"],
-                    [14, "14 dias"],
-                    [0, "Tudo"],
-                  ].map(([v, label]) => (
-                    <button
-                      key={String(v)}
-                      type="button"
-                      onClick={() => setPeriodDays(v as number)}
-                      className={`rounded-md border px-2 py-1 text-[11px] transition-colors ${
-                        periodDays === v
-                          ? "border-primary/40 bg-primary/10 text-foreground"
-                          : "border-border text-muted-foreground hover:bg-muted/60"
-                      }`}
-                    >
-                      {label as string}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div>
                 <p className="mb-1.5 text-[10px] uppercase tracking-wider text-muted-foreground">Proprietário</p>
                 <select
                   value={ownerFilter}
@@ -1009,7 +1011,6 @@ function OccupancyPanel({
               <button
                 type="button"
                 onClick={() => {
-                  setPeriodDays(7);
                   setOwnerFilter("");
                   setCityFilter("");
                 }}
@@ -1038,11 +1039,11 @@ function OccupancyPanel({
           ) : (
             <>
 
-              <div className="sg-elegant-scroll max-h-[26rem] overflow-auto -mx-1 px-1">
-                <table className="w-full border-separate border-spacing-x-0.5 border-spacing-y-1 text-xs">
+              <div className="sg-elegant-scroll max-h-[18rem] overflow-auto -mx-1 px-1">
+                <table className="w-full min-w-[330px] table-fixed border-separate border-spacing-x-0.5 border-spacing-y-1 text-xs">
                   <thead>
                     <tr>
-                      <th className="sticky left-0 top-0 z-20 bg-card text-left font-medium text-muted-foreground pr-2 w-[clamp(96px,28vw,200px)] min-w-[96px] max-w-[200px]">
+                      <th className="sticky left-0 top-0 z-20 w-[29%] bg-card pr-2 text-left font-medium text-muted-foreground">
                         Imóvel
                       </th>
                       {dayList.map((d) => {
@@ -1054,7 +1055,7 @@ function OccupancyPanel({
                         return (
                           <th
                             key={d}
-                            className={`sticky top-0 z-10 bg-card px-0 font-medium tabular-nums min-w-[34px] ${
+                            className={`sticky top-0 z-10 w-[10.14%] bg-card px-0 font-medium tabular-nums ${
                               isToday ? "text-emerald-500" : "text-muted-foreground"
                             }`}
                           >
@@ -1070,7 +1071,7 @@ function OccupancyPanel({
                   <tbody>
                     {visibleProperties.map((p) => (
                       <tr key={p.id}>
-                        <td className="sticky left-0 z-10 bg-card pr-2 w-[clamp(96px,28vw,200px)] min-w-[96px] max-w-[200px] align-middle">
+                        <td className="sticky left-0 z-10 w-[29%] bg-card pr-2 align-middle">
                           <div className="min-w-0 max-w-full">
                             {p.ownerName ? (
                               <div className="truncate text-[10px] font-semibold text-primary" title={p.ownerName}>
@@ -1602,7 +1603,7 @@ function ArrivalCard({
           {isPendingFill ? <UserPlus className="size-5" /> : initials(row.guestName)}
         </div>
         <div className="flex-1 min-w-0">
-          <OwnerLine name={row.ownerName} phone={row.ownerPhone} country={row.ownerPhoneCountry} />
+          <OwnerLine name={row.ownerName} phone={row.ownerPhone} country={row.ownerPhoneCountry} phonePosition="adjacent" />
           <div className="font-semibold truncate text-foreground" title={row.propertyName ?? undefined}>
             {row.propertyName ?? "Sem nome"}
           </div>
@@ -1625,7 +1626,10 @@ function ArrivalCard({
                 <span className="truncate">{row.guestName}</span>
               )
             ) : (
-              <span className="truncate">{row.guestName}</span>
+              <span className="inline-flex min-w-0 items-center gap-1.5 overflow-hidden">
+                <span className="min-w-0 truncate">{row.guestName}</span>
+                <PhoneLink phone={row.guestPhone} country={row.guestPhoneCountry} />
+              </span>
             )}
           </div>
           {(row.additionalGuests?.length ?? 0) > 0 && (
