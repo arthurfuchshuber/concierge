@@ -378,6 +378,15 @@ function DashboardPage() {
     [occupancyQ.data?.freeToday, cleaningPendingPropIds],
   );
 
+  // Check-ins de hoje já marcados como concluídos → agenda mostra "ocupado".
+  const checkedInPropertyIds = useMemo(
+    () =>
+      new Set(
+        ciRows.filter((r) => r.status === "done" && r.guestCheckin === todayISO).map((r) => r.propertyId),
+      ),
+    [ciRows, todayISO],
+  );
+
   const boardRows = useMemo(() => {
     if (mode === "checkin") return checkinPendingRows;
     if (mode === "checkout") return checkoutPendingRows;
@@ -535,6 +544,7 @@ function DashboardPage() {
         days={occupancyQ.data?.days ?? 14}
         properties={occupancyQ.data?.properties ?? []}
         stays={occupancyQ.data?.stays ?? []}
+        checkedInPropertyIds={checkedInPropertyIds}
       />
 
       {/* Arrivals */}
@@ -886,12 +896,14 @@ function OccupancyPanel({
   days,
   properties,
   stays,
+  checkedInPropertyIds,
 }: {
   loading: boolean;
   start: string;
   days: number;
   properties: Array<{ id: string; name: string; city: string | null; ownerName?: string | null }>;
   stays: Array<{ propertyId: string; checkin: string; checkout: string | null; guest: string | null }>;
+  checkedInPropertyIds: Set<string>;
 }) {
   const [openAgenda, setOpenAgenda] = useState<string>("agenda");
   const [ownerFilter, setOwnerFilter] = useState<string>("");
@@ -944,15 +956,32 @@ function OccupancyPanel({
     return map;
   }, [stays]);
 
-  function cellState(propertyId: string, day: string): "in" | "out" | "busy" | "free" {
+  type CellPart = "in" | "out" | "busy" | "free";
+
+  /**
+   * Cada dia é dividido em duas metades (manhã = saída, tarde = entrada),
+   * que é a ordem natural do dia. Quando as duas metades são iguais o
+   * desenho é renderizado inteiro.
+   */
+  function cellHalves(propertyId: string, day: string): [CellPart, CellPart] {
     const list = byProperty.get(propertyId) ?? [];
-    for (const s of list) {
-      if (s.checkin === day) return "in";
-      if (s.checkout === day) return "out";
-      if (s.checkin < day && (s.checkout ?? s.checkin) > day) return "busy";
-    }
-    return "free";
+    const hasOut = list.some((s) => s.checkout === day);
+    const hasIn = list.some((s) => s.checkin === day);
+    const through = list.some((s) => s.checkin < day && (s.checkout ?? s.checkin) > day);
+
+    const first: CellPart = hasOut ? "out" : through ? "busy" : "free";
+    // Depois que o check-in é marcado como concluído, a metade da tarde passa
+    // a ser "ocupado" — a metade da manhã (checkout) permanece como estava.
+    const second: CellPart = hasIn
+      ? day === todayISO && checkedInPropertyIds.has(propertyId)
+        ? "busy"
+        : "in"
+      : through
+        ? "busy"
+        : "free";
+    return [first, second];
   }
+
 
   return (
     <Accordion
@@ -1096,30 +1125,36 @@ function OccupancyPanel({
                           </div>
                         </td>
                         {dayList.map((d) => {
-                          const st = cellState(p.id, d);
+                          const [a, b] = cellHalves(p.id, d);
                           const isToday = d === todayISO;
-                          const cls =
-                            st === "in"
+                          const clsOf = (s: CellPart) =>
+                            s === "in"
                               ? "bg-emerald-500/85"
-                              : st === "out"
+                              : s === "out"
                                 ? "bg-amber-500/85"
-                                : st === "busy"
+                                : s === "busy"
                                   ? "bg-primary/45"
                                   : "bg-muted/60";
+                          const labelOf = (s: CellPart) =>
+                            s === "in" ? "Check-in" : s === "out" ? "Checkout" : s === "busy" ? "Ocupado" : "Livre";
                           const title =
-                            st === "in"
-                              ? "Check-in"
-                              : st === "out"
-                                ? "Checkout"
-                                : st === "busy"
-                                  ? "Ocupado"
-                                  : "Livre";
+                            a === b
+                              ? `${labelOf(a)} · ${fmtDateBR(d)}`
+                              : `${labelOf(a)} → ${labelOf(b)} · ${fmtDateBR(d)}`;
                           return (
                             <td key={d} className={`px-0 ${isToday ? "bg-emerald-500/10" : ""}`}>
-                              <div className={`h-7 rounded-md ${cls}`} title={`${title} · ${fmtDateBR(d)}`} />
+                              {a === b ? (
+                                <div className={`h-7 rounded-md ${clsOf(a)}`} title={title} />
+                              ) : (
+                                <div className="flex h-7 gap-px overflow-hidden rounded-md" title={title}>
+                                  <div className={`h-full flex-1 rounded-l-md ${clsOf(a)}`} />
+                                  <div className={`h-full flex-1 rounded-r-md ${clsOf(b)}`} />
+                                </div>
+                              )}
                             </td>
                           );
                         })}
+
                       </tr>
                     ))}
                   </tbody>
