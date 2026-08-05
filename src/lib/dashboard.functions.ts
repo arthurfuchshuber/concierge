@@ -54,6 +54,7 @@ async function accessiblePropertyIds(
     from: (t: string) => unknown;
   },
   ownerId?: string | null,
+  userId?: string | null,
 ): Promise<string[]> {
   // RLS on properties already scopes to owner + active account members.
   const query = (
@@ -68,8 +69,13 @@ async function accessiblePropertyIds(
     .from("properties")
     .select("id");
   const { data } = ownerId ? await query.eq("owner_id", ownerId) : await query;
-  return (data ?? []).map((r) => r.id);
+  const ids = (data ?? []).map((r) => r.id);
+  if (!userId) return ids;
+  // Recorte por residências atendidas: sem vínculo, o membro não vê nada.
+  const { filterVisiblePropertyIds } = await import("@/lib/permissions/property-scope.server");
+  return await filterVisiblePropertyIds(userId, ids);
 }
+
 
 // ----- KPIs -----
 
