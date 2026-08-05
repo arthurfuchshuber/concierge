@@ -901,25 +901,39 @@ function OccupancyPanel({
             <div className="py-8 text-center text-sm text-muted-foreground">Nenhum imóvel para exibir.</div>
           ) : (
             <>
-              <div className="overflow-x-auto">
-                <table className="w-full border-separate border-spacing-y-1 text-xs">
+              <div className="overflow-x-auto -mx-1 px-1">
+                <table className="w-full border-separate border-spacing-x-0.5 border-spacing-y-1 text-xs">
                   <thead>
                     <tr>
-                      <th className="sticky left-0 z-10 bg-card text-left font-medium text-muted-foreground pr-3 min-w-[160px]">
+                      <th className="sticky left-0 z-10 bg-card text-left font-medium text-muted-foreground pr-2 w-[132px] min-w-[132px] max-w-[132px]">
                         Imóvel
                       </th>
-                      {dayList.map((d) => (
-                        <th key={d} className="px-0.5 font-medium text-muted-foreground tabular-nums">
-                          {d.slice(8, 10)}/{d.slice(5, 7)}
-                        </th>
-                      ))}
+                      {dayList.map((d) => {
+                        const wd = new Date(`${d}T12:00:00Z`).toLocaleDateString("pt-BR", {
+                          weekday: "short",
+                          timeZone: "UTC",
+                        });
+                        return (
+                          <th key={d} className="px-0 font-medium text-muted-foreground tabular-nums min-w-[34px]">
+                            <div className="text-[9px] uppercase tracking-wide opacity-70">{wd.replace(".", "")}</div>
+                            <div className="text-[10px]">
+                              {d.slice(8, 10)}/{d.slice(5, 7)}
+                            </div>
+                          </th>
+                        );
+                      })}
                     </tr>
                   </thead>
                   <tbody>
                     {properties.map((p) => (
                       <tr key={p.id}>
-                        <td className="sticky left-0 z-10 bg-card pr-3 max-w-[220px]">
-                          <div className="truncate font-medium" title={p.name}>
+                        <td className="sticky left-0 z-10 bg-card pr-2 w-[132px] min-w-[132px] max-w-[132px] align-middle">
+                          {p.ownerName ? (
+                            <div className="truncate text-[10px] font-semibold text-primary" title={p.ownerName}>
+                              {p.ownerName}
+                            </div>
+                          ) : null}
+                          <div className="truncate text-[11px] font-medium leading-tight" title={p.name}>
                             {p.name}
                           </div>
                           {p.city ? <div className="truncate text-[10px] text-muted-foreground">{p.city}</div> : null}
@@ -928,12 +942,12 @@ function OccupancyPanel({
                           const st = cellState(p.id, d);
                           const cls =
                             st === "in"
-                              ? "bg-emerald-500/80"
+                              ? "bg-emerald-500/85"
                               : st === "out"
-                                ? "bg-amber-500/80"
+                                ? "bg-amber-500/85"
                                 : st === "busy"
-                                  ? "bg-primary/50"
-                                  : "bg-muted";
+                                  ? "bg-primary/45"
+                                  : "bg-muted/60";
                           const title =
                             st === "in"
                               ? "Check-in"
@@ -943,8 +957,8 @@ function OccupancyPanel({
                                   ? "Ocupado"
                                   : "Livre";
                           return (
-                            <td key={d} className="px-0.5">
-                              <div className={`h-6 rounded-sm ${cls}`} title={`${title} · ${fmtDateBR(d)}`} />
+                            <td key={d} className="px-0">
+                              <div className={`h-7 rounded-md ${cls}`} title={`${title} · ${fmtDateBR(d)}`} />
                             </td>
                           );
                         })}
