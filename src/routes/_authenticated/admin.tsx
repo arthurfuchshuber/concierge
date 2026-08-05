@@ -96,6 +96,26 @@ function AdminLayout() {
   const routePermission = permissionForPath(pathname);
   useImpersonationQuerySync();
 
+  // Primeiro acesso: se a página atual estiver bloqueada, leva o usuário
+  // para a PRIMEIRA página do menu à qual ele tem acesso.
+  const firstAllowedPath = nav[0]?.to as string | undefined;
+  useEffect(() => {
+    if (resolvingAccount || awaitingAccountChoice) return;
+    if (!areaAccess.ready) return;
+    if (!routePermission) return;
+    if (areaAccess.can(routePermission)) return;
+    if (!firstAllowedPath || firstAllowedPath === pathname) return;
+    navigate({ to: firstAllowedPath, replace: true });
+  }, [
+    resolvingAccount,
+    awaitingAccountChoice,
+    areaAccess.ready,
+    routePermission,
+    firstAllowedPath,
+    pathname,
+  ]);
+
+
 
 
   useEffect(() => {
