@@ -1624,7 +1624,7 @@ export const revertArrival = createServerFn({ method: "POST" })
       return undefined;
     }
 
-    if (data.from === "stay") {
+    if (data.from === "stay" || data.from === "checkout") {
       // Back to Chegadas: undo checkin.done.
       const id = await findId("checkin");
       if (id) {
