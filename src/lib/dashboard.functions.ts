@@ -1593,7 +1593,7 @@ const RevertInput = z
   .object({
     logId: z.string().uuid().optional(),
     reservationId: z.string().uuid().optional(),
-    from: z.enum(["stay", "cleaning"]),
+    from: z.enum(["checkout", "stay", "cleaning", "done"]),
   })
   .refine((v) => !!v.logId || !!v.reservationId, { message: "Informe a reserva ou o registro do hóspede." });
 
