@@ -1,17 +1,17 @@
 import { createFileRoute, useNavigate, useSearch } from "@tanstack/react-router";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { CreditCard, UsersRound, User as UserIcon, Plug } from "lucide-react";
+import { CreditCard, ShieldCheck, User as UserIcon, Plug } from "lucide-react";
 import { AssinaturaPage } from "@/components/admin-pages/AssinaturaPage";
-import { EquipePage } from "@/components/admin-pages/EquipePage";
+import { PermissionCenterPage } from "@/components/admin-pages/PermissionCenterPage";
 import { MeuPerfilPage } from "@/components/admin-pages/MeuPerfilPage";
 import { IntegracoesPage } from "@/components/admin-pages/IntegracoesPage";
 
-type Tab = "perfil" | "assinatura" | "equipe" | "integracoes";
+type Tab = "perfil" | "assinatura" | "permissoes" | "integracoes";
 
 function coerceTab(v: unknown): Tab {
-  // "permissoes" (legacy) redireciona para "equipe" — as duas abas foram unificadas.
-  if (v === "permissoes") return "equipe";
-  return v === "assinatura" || v === "equipe" || v === "integracoes" ? v : "perfil";
+  // "equipe" (legacy) redireciona para "permissoes" — a aba foi substituída.
+  if (v === "equipe") return "permissoes";
+  return v === "assinatura" || v === "permissoes" || v === "integracoes" ? v : "perfil";
 }
 
 export const Route = createFileRoute("/_authenticated/admin/administrativo")({
@@ -21,6 +21,7 @@ export const Route = createFileRoute("/_authenticated/admin/administrativo")({
   }),
   component: AdministrativoPage,
 });
+
 
 function AdministrativoPage() {
   const { tab } = useSearch({ from: "/_authenticated/admin/administrativo" });
