@@ -1814,8 +1814,25 @@ export const getOccupancyBoard = createServerFn({ method: "GET" })
       ownerName: p.owner_contact_id ? (occOwnerName.get(p.owner_contact_id) ?? null) : null,
     }));
 
+    // Um imóvel cujo checkout é hoje só passa a contar como "livre" após o horário
+    // padrão de checkout (11h no fuso local). Antes disso, ele ainda está ocupado.
+    const nowHour = Number(
+      new Intl.DateTimeFormat("pt-BR", {
+        hour: "2-digit",
+        hour12: false,
+        timeZone: "America/Sao_Paulo",
+      }).format(new Date()),
+    );
+    const beforeCheckoutHour = Number.isFinite(nowHour) ? nowHour < 11 : true;
     const occupiedToday = new Set(
-      stays.filter((s) => s.checkin <= start && (s.checkout ?? s.checkin) > start).map((s) => s.propertyId),
+      stays
+        .filter((s) => {
+          const out = s.checkout ?? s.checkin;
+          if (s.checkin <= start && out > start) return true;
+          // checkout marcado para hoje: ainda ocupado até o horário padrão de saída
+          return s.checkin <= start && out === start && beforeCheckoutHour;
+        })
+        .map((s) => s.propertyId),
     );
     const freeToday = properties
       .filter((p) => !occupiedToday.has(p.id))
