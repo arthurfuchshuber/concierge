@@ -109,7 +109,53 @@ function LevelSwitch({
   );
 }
 
+/* ---------------------------------------------------- linhas e subgrupos */
+
+type LevelMap = Map<string, { level: Level; inherited: boolean; assignmentId?: string }>;
+
+/** Agrupa as atividades (depth 2) sob a aba correspondente (depth 1). */
+function buildSubgroups(group: AreaGroup): Array<{ parent: AreaItem; children: AreaItem[] }> {
+  const out: Array<{ parent: AreaItem; children: AreaItem[] }> = [];
+  for (const item of group.items) {
+    if (item.depth === 1) out.push({ parent: item, children: [] });
+    else if (item.depth >= 2 && out.length > 0) out[out.length - 1].children.push(item);
+  }
+  return out;
+}
+
+function AreaRow({
+  item,
+  levels,
+  isOwner,
+  pending,
+  onChange,
+}: {
+  item: AreaItem;
+  levels: LevelMap;
+  isOwner: boolean;
+  pending: boolean;
+  onChange: (v: Level) => void;
+}) {
+  const state = levels.get(item.namespace);
+  const level: Level = isOwner ? "WRITE" : (state?.level ?? "NONE");
+  return (
+    <div
+      className="flex flex-wrap items-center justify-between gap-3 py-3 pr-4"
+      style={{ paddingLeft: 16 + item.depth * 20 }}
+    >
+      <div className="min-w-0">
+        <p className={cn("text-sm", item.depth === 0 && "font-semibold")}>{item.label}</p>
+        {state?.inherited && !isOwner ? (
+          <p className="text-xs text-muted-foreground">Herdado da área acima</p>
+        ) : null}
+      </div>
+      <LevelSwitch value={level} disabled={isOwner || pending} onChange={onChange} />
+    </div>
+  );
+}
+
 /* -------------------------------------------------------- acesso do usuário */
+
 
 function UserAccess({
   userId,
