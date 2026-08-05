@@ -272,15 +272,61 @@ async function propertiesOf(tenantId: string, assigned: string[]) {
   const client = await db();
   const { data } = await client
     .from("properties")
-    .select("id, name")
+    .select("id, name, address, city, state, owner_contact_id")
     .eq("owner_id", tenantId)
     .order("name", { ascending: true });
-  return (data ?? []).map((p) => ({
-    id: p.id as string,
-    name: (p.name as string) ?? "Residência",
-    assigned: assigned.includes(p.id as string),
-  }));
+
+  const rows = (data ?? []) as Array<{
+    id: string;
+    name: string | null;
+    address: string | null;
+    city: string | null;
+    state: string | null;
+    owner_contact_id: string | null;
+  }>;
+
+  const ownerIds = [...new Set(rows.map((r) => r.owner_contact_id).filter((v): v is string => !!v))];
+  const ownerById = new Map<
+    string,
+    { name: string | null; phone: string | null; country: string | null }
+  >();
+  if (ownerIds.length > 0) {
+    const { data: owners } = await client
+      .from("property_owners")
+      .select("id, name, trade_name, phone, phone_country")
+      .in("id", ownerIds);
+    for (const o of (owners ?? []) as Array<{
+      id: string;
+      name: string | null;
+      trade_name: string | null;
+      phone: string | null;
+      phone_country: string | null;
+    }>) {
+      ownerById.set(o.id, {
+        name: (o.trade_name || o.name || "").trim() || null,
+        phone: o.phone ?? null,
+        country: o.phone_country ?? null,
+      });
+    }
+  }
+
+  return rows.map((p) => {
+    const owner = p.owner_contact_id ? ownerById.get(p.owner_contact_id) : undefined;
+    return {
+      id: p.id,
+      name: p.name ?? "Residência",
+      address: p.address ?? null,
+      city: p.city ?? null,
+      state: p.state ?? null,
+      ownerId: p.owner_contact_id,
+      ownerName: owner?.name ?? null,
+      ownerPhone: owner?.phone ?? null,
+      ownerPhoneCountry: owner?.country ?? null,
+      assigned: assigned.includes(p.id),
+    };
+  });
 }
+
 
 function scopeSummary(snapshot: SubjectSnapshot) {
   const byType = new Map<ScopeType, number>();
