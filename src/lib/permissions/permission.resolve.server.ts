@@ -131,7 +131,7 @@ export async function resolveSubjectSnapshot(
   ]);
 
   return {
-    subject: { userId, tenantId, systemRoles, plan },
+    subject: { userId, tenantId, systemRoles, plan, isTenantMember: userId !== tenantId },
     status,
     properties: propertyRows
       .filter((r) => (r.status ?? "active") === "active")
