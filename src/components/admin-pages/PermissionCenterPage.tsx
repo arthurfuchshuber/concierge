@@ -338,23 +338,26 @@ function UserAccess({
                             ) : null}
                           </span>
                         </AccordionTrigger>
-                        <LevelSwitch
-                          value={
-                            isOwner
-                              ? "WRITE"
-                              : (levels.get(sub.parent.namespace)?.level ?? "NONE")
-                          }
-                          disabled={isOwner || mutation.isPending || bulkMutation.isPending}
-                          onChange={(v) =>
-                            bulkMutation.mutate({
-                              namespaces: [
-                                sub.parent.namespace,
-                                ...sub.children.map((c) => c.namespace),
-                              ],
-                              level: v,
-                            })
-                          }
-                        />
+                        <div className="shrink-0">
+                          <LevelSwitch
+                            value={
+                              isOwner
+                                ? "WRITE"
+                                : (levels.get(sub.parent.namespace)?.level ?? "NONE")
+                            }
+                            disabled={isOwner || mutation.isPending || bulkMutation.isPending}
+                            onChange={(v) =>
+                              bulkMutation.mutate({
+                                namespaces: [
+                                  sub.parent.namespace,
+                                  ...sub.children.map((c) => c.namespace),
+                                ],
+                                level: v,
+                              })
+                            }
+                          />
+                        </div>
+
                       </div>
                       <AccordionContent className="pb-0">
                         <div className="divide-y border-t bg-muted/20">
