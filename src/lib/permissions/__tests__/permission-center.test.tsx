@@ -19,7 +19,7 @@ vi.mock("@/lib/permission-center.functions", () => ({
 
 vi.mock("@tanstack/react-start", () => ({
   useServerFn: (fn: string) => {
-    const map: Record<string, ReturnType<typeof vi.fn>> = {
+    const map: Record<string, (args?: unknown) => unknown> = {
       overview: overviewMock,
       user: userMock,
       registry: registryMock,
