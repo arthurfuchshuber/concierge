@@ -19,22 +19,22 @@ export const Route = createFileRoute("/_authenticated")({
       hasSession = !!sessionData.session;
     } catch {
       await clearInvalidSession();
-      throw redirect({ to: "/auth" });
+      throw redirect({ to: "/auth", search: {} });
     }
 
-    if (!hasSession) throw redirect({ to: "/auth" });
+    if (!hasSession) throw redirect({ to: "/auth", search: {} });
 
     try {
       const { data, error } = await supabase.auth.getUser();
       if (error || !data.user) {
         await clearInvalidSession();
-        throw redirect({ to: "/auth" });
+        throw redirect({ to: "/auth", search: {} });
       }
       return { user: data.user };
     } catch (error) {
       if (error && typeof error === "object" && "isRedirect" in error) throw error;
       await clearInvalidSession();
-      throw redirect({ to: "/auth" });
+      throw redirect({ to: "/auth", search: {} });
     }
   },
   component: () => <Outlet />,

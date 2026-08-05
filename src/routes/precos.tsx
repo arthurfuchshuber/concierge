@@ -185,7 +185,7 @@ function PricingPage() {
             </div>
             <span className="font-display text-lg">ConciergeIA</span>
           </Link>
-          <Link to="/auth" className="text-sm px-4 py-2 rounded-full hover:bg-secondary">
+          <Link to="/auth" search={{}} className="text-sm px-4 py-2 rounded-full hover:bg-secondary">
             Entrar
           </Link>
         </div>

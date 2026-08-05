@@ -50,7 +50,7 @@ function AdminCityDetail() {
     queryFn: () => list({ data: { city_label: label, state, country, includeHidden: true } }),
   });
 
-  useCityReferencesRealtime(label, () => {
+  useCityReferencesRealtime({}, () => {
     void qc.invalidateQueries({ queryKey });
   });
 
