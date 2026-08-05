@@ -4822,6 +4822,10 @@ export type Database = {
           title: string
         }[]
       }
+      member_can_see_property: {
+        Args: { _owner_id: string; _property_id: string; _user_id: string }
+        Returns: boolean
+      }
       move_to_dlq: {
         Args: {
           dlq_name: string
