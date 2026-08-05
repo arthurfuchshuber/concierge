@@ -307,39 +307,28 @@ function UserAccess({
                 </span>
               </AccordionTrigger>
               {/* Liberação em massa da categoria inteira. */}
-              <LevelSwitch
-                value={groupLevel(group)}
-                disabled={isOwner || bulkMutation.isPending || mutation.isPending}
-                onChange={(v) =>
-                  bulkMutation.mutate({
-                    namespaces: group.items.map((i) => i.namespace),
-                    level: v,
-                  })
-                }
-              />
+              <div className="shrink-0">
+                <LevelSwitch
+                  value={groupLevel(group)}
+                  disabled={isOwner || bulkMutation.isPending || mutation.isPending}
+                  onChange={(v) =>
+                    bulkMutation.mutate({
+                      namespaces: group.items.map((i) => i.namespace),
+                      level: v,
+                    })
+                  }
+                />
+              </div>
             </div>
             <AccordionContent className="pb-0">
               <div className="border-t">
-                {/* Linha da própria página (depth 0). */}
-                {group.items
-                  .filter((i) => i.depth === 0)
-                  .map((item) => (
-                    <AreaRow
-                      key={item.namespace}
-                      item={item}
-                      levels={levels}
-                      isOwner={isOwner}
-                      pending={mutation.isPending}
-                      onChange={(v) => mutation.mutate({ namespace: item.namespace, level: v })}
-                    />
-                  ))}
-
                 {/* Subcategorias (abas) também expansivas, uma por vez. */}
-                <Accordion type="single" collapsible className="border-t">
+                <Accordion type="single" collapsible>
                   {buildSubgroups(group).map((sub) => (
                     <AccordionItem key={sub.parent.namespace} value={sub.parent.namespace}>
-                      <div className="flex items-center gap-2 pr-4">
+                      <div className="flex items-center gap-2 pr-3">
                         <AccordionTrigger className="flex-1 py-2.5 pl-8 pr-2 text-sm hover:no-underline">
+
                           <span className="flex items-center gap-2 font-medium">
                             {sub.parent.label}
                             {sub.children.length > 0 ? (
