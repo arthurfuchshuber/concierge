@@ -378,6 +378,15 @@ function DashboardPage() {
     [occupancyQ.data?.freeToday, cleaningPendingPropIds],
   );
 
+  // Check-ins de hoje já marcados como concluídos → agenda mostra "ocupado".
+  const checkedInPropertyIds = useMemo(
+    () =>
+      new Set(
+        ciRows.filter((r) => r.status === "done" && r.guestCheckin === todayISO).map((r) => r.propertyId),
+      ),
+    [ciRows, todayISO],
+  );
+
   const boardRows = useMemo(() => {
     if (mode === "checkin") return checkinPendingRows;
     if (mode === "checkout") return checkoutPendingRows;
@@ -535,6 +544,7 @@ function DashboardPage() {
         days={occupancyQ.data?.days ?? 14}
         properties={occupancyQ.data?.properties ?? []}
         stays={occupancyQ.data?.stays ?? []}
+        checkedInPropertyIds={checkedInPropertyIds}
       />
 
       {/* Arrivals */}
@@ -886,12 +896,14 @@ function OccupancyPanel({
   days,
   properties,
   stays,
+  checkedInPropertyIds,
 }: {
   loading: boolean;
   start: string;
   days: number;
   properties: Array<{ id: string; name: string; city: string | null; ownerName?: string | null }>;
   stays: Array<{ propertyId: string; checkin: string; checkout: string | null; guest: string | null }>;
+  checkedInPropertyIds: Set<string>;
 }) {
   const [openAgenda, setOpenAgenda] = useState<string>("agenda");
   const [ownerFilter, setOwnerFilter] = useState<string>("");
