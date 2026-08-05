@@ -692,9 +692,7 @@ function Dashboard() {
           ))}
         </div>
       ) : !data?.length ? (
-        <>
-
-        <div className="mb-8 rounded-2xl border border-accent/20 bg-card p-6">
+        <div className="rounded-2xl border border-accent/20 bg-card p-6">
           <div className="flex items-center justify-between mb-5">
             <div>
               <p className="text-[10px] uppercase tracking-[0.2em] text-accent font-semibold mb-1">Primeiros passos</p>
@@ -721,25 +719,18 @@ function Dashboard() {
           </div>
           <Button
             className="mt-5 rounded-full"
-            onClick={() => navigate({ to: "/admin/properties/$id", params: { id: "new" } })}
-            disabled={!sub.plan}
+            onClick={goCreate}
+            disabled={canCreate && !sub.plan}
+            aria-disabled={!canCreate}
+            title={canCreate ? undefined : NO_PERMISSION_MSG}
           >
             <Plus className="size-4 mr-1.5" /> Criar meu primeiro guia
           </Button>
+          {!canCreate && (
+            <p className="mt-2 text-xs text-destructive">{NO_PERMISSION_MSG}</p>
+          )}
         </div>
-        <div className="rounded-2xl border border-dashed border-border bg-card/50 p-12 text-center">
-          <div className="size-12 rounded-2xl bg-accent/10 grid place-items-center mx-auto mb-4">
-            <BookOpen className="size-5 text-accent" />
-          </div>
-          <h3 className="font-display text-2xl mb-2">Crie seu primeiro guia</h3>
-          <p className="text-sm text-muted-foreground mb-6 max-w-md mx-auto">
-            Você só precisa do nome do imóvel e do link do Google Maps. Cuidamos do resto.
-          </p>
-          <Button onClick={() => navigate({ to: "/admin/properties/$id", params: { id: "new" } })} className="rounded-full">
-            <Plus className="size-4 mr-1.5" /> Criar guia
-          </Button>
-        </div>
-        </>
+
       ) : filtered.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-border bg-card/30 p-12 text-center">
           <div className="size-12 rounded-2xl bg-secondary grid place-items-center mx-auto mb-4">
