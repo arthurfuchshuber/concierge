@@ -923,13 +923,111 @@ function OccupancyPanel({
   }
 
   return (
-    <Accordion type="single" collapsible className="rounded-2xl border border-border bg-card shadow-sm">
+    <Accordion
+      type="single"
+      collapsible
+      value={openAgenda}
+      onValueChange={setOpenAgenda}
+      className="rounded-2xl border border-border bg-card shadow-sm"
+    >
       <AccordionItem value="agenda" className="border-0">
-        <AccordionTrigger className="px-4 sm:px-5 py-4 hover:no-underline">
-          <span className="flex items-center gap-2 text-sm font-semibold">
-            <CalendarCheck className="size-4 text-muted-foreground" /> Agenda de ocupação dos imóveis
-          </span>
-        </AccordionTrigger>
+        <div className="flex items-center gap-2 px-4 sm:px-5 py-4">
+          <AccordionTrigger className="min-w-0 flex-1 p-0 hover:no-underline [&>svg]:hidden">
+            <span className="flex min-w-0 items-center gap-2 text-sm font-semibold">
+              <CalendarCheck className="size-4 shrink-0 text-muted-foreground" />
+              <span className="truncate">Ocupação dos Imóveis</span>
+            </span>
+          </AccordionTrigger>
+          <Popover>
+            <PopoverTrigger asChild>
+              <button
+                type="button"
+                className="relative inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-border bg-background/60 px-2.5 py-1.5 text-xs font-medium text-foreground/80 transition-colors hover:bg-muted/60"
+              >
+                <Filter className="size-3.5 opacity-70" /> Filtros
+                {activeFilters > 0 ? (
+                  <span className="ml-0.5 grid size-4 place-items-center rounded-full bg-primary text-[9px] font-semibold text-primary-foreground">
+                    {activeFilters}
+                  </span>
+                ) : null}
+              </button>
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-64 space-y-4 p-3">
+              <div>
+                <p className="mb-1.5 text-[10px] uppercase tracking-wider text-muted-foreground">Período</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {[
+                    [7, "7 dias"],
+                    [14, "14 dias"],
+                    [0, "Tudo"],
+                  ].map(([v, label]) => (
+                    <button
+                      key={String(v)}
+                      type="button"
+                      onClick={() => setPeriodDays(v as number)}
+                      className={`rounded-md border px-2 py-1 text-[11px] transition-colors ${
+                        periodDays === v
+                          ? "border-primary/40 bg-primary/10 text-foreground"
+                          : "border-border text-muted-foreground hover:bg-muted/60"
+                      }`}
+                    >
+                      {label as string}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <p className="mb-1.5 text-[10px] uppercase tracking-wider text-muted-foreground">Proprietário</p>
+                <select
+                  value={ownerFilter}
+                  onChange={(e) => setOwnerFilter(e.target.value)}
+                  className="h-8 w-full rounded-md border border-border bg-background px-2 text-xs"
+                >
+                  <option value="">Todos</option>
+                  {owners.map((o) => (
+                    <option key={o} value={o}>
+                      {o}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <p className="mb-1.5 text-[10px] uppercase tracking-wider text-muted-foreground">Cidade</p>
+                <select
+                  value={cityFilter}
+                  onChange={(e) => setCityFilter(e.target.value)}
+                  className="h-8 w-full rounded-md border border-border bg-background px-2 text-xs"
+                >
+                  <option value="">Todas</option>
+                  {cities.map((c) => (
+                    <option key={c} value={c}>
+                      {c}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setPeriodDays(7);
+                  setOwnerFilter("");
+                  setCityFilter("");
+                }}
+                className="w-full rounded-md border border-border px-2 py-1.5 text-[11px] text-muted-foreground hover:bg-muted/60"
+              >
+                Limpar filtros
+              </button>
+            </PopoverContent>
+          </Popover>
+          <button
+            type="button"
+            aria-label={openAgenda ? "Recolher" : "Expandir"}
+            onClick={() => setOpenAgenda((v) => (v ? "" : "agenda"))}
+            className="shrink-0 text-muted-foreground transition-transform hover:text-foreground"
+          >
+            <ChevronDown className={`size-4 transition-transform ${openAgenda ? "rotate-180" : ""}`} />
+          </button>
+        </div>
         <AccordionContent className="px-4 sm:px-5 pb-5">
           {loading ? (
             <div className="py-10 grid place-items-center text-muted-foreground">
