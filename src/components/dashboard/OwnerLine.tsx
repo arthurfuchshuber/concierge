@@ -35,11 +35,12 @@ export function OwnerLine({
   return (
     <div className="flex w-full min-w-0 max-w-full items-center gap-1.5 overflow-hidden">
       <span
-        className="min-w-0 flex-1 truncate text-xs font-bold text-primary"
+        className={`${phonePosition === "end" ? "flex-1" : "shrink"} min-w-0 truncate text-xs font-bold text-primary`}
         title={name}
       >
         {name}
       </span>
+
       {digits && (
         <a
           href={`https://wa.me/${digits}`}
