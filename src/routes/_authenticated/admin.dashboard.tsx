@@ -1771,16 +1771,26 @@ function ArrivalCard({
         </button>
         )}
 
-        {onRevert && (mode === "stay" || mode === "cleaning") && (
+        {onRevert && mode !== "checkin" && (
           <button
             type="button"
-            onClick={() => onRevert(row)}
+            onClick={() => {
+              const label =
+                mode === "stay" || mode === "checkout"
+                  ? "Desfazer o check-in e voltar este card para a lista de Check-ins?"
+                  : mode === "cleaning"
+                    ? "Desfazer o check-out e voltar este card para a lista de Checkouts?"
+                    : "Reabrir esta estadia e voltar o card para a lista Em Limpeza?";
+              if (window.confirm(label)) onRevert(row);
+            }}
             disabled={busy}
-            aria-label={mode === "stay" ? "Voltar para Check-ins" : "Voltar para Checkouts"}
+            aria-label="Voltar para a etapa anterior"
             title={
-              mode === "stay"
-                ? "Desfazer check-in (voltar para a lista de Check-ins)"
-                : "Desfazer conclusão de check-out (voltar para a lista de Checkouts)"
+              mode === "stay" || mode === "checkout"
+                ? "Voltar para a etapa anterior (lista de Check-ins)"
+                : mode === "cleaning"
+                  ? "Voltar para a etapa anterior (lista de Checkouts)"
+                  : "Voltar para a etapa anterior (lista Em Limpeza)"
             }
             className="size-9 grid place-items-center rounded-lg bg-secondary hover:bg-secondary/80 border border-border/60 transition-colors"
           >
