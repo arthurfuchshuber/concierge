@@ -489,9 +489,10 @@ function DashboardPage() {
           />
           <FreePropertiesCard
             loading={occupancyQ.isLoading}
-            properties={occupancyQ.data?.freeToday ?? []}
+            properties={freeProperties}
             onRefresh={() => occupancyQ.refetch()}
           />
+
         </div>
       </section>
 
