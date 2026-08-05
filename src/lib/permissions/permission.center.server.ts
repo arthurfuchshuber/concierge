@@ -83,6 +83,7 @@ export type CenterProperty = {
   ownerName: string | null;
   ownerPhone: string | null;
   ownerPhoneCountry: string | null;
+  published: boolean;
   assigned: boolean;
 };
 
