@@ -9,6 +9,8 @@ import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { CreateUserDialog } from "@/components/permissions/CreateUserDialog";
+import { PropertyScopePanel } from "@/components/permissions/PropertyScopePanel";
+
 import {
   Accordion,
   AccordionContent,
@@ -174,7 +176,7 @@ function UserAccess({
   const fn = useServerFn(getPermissionCenterUser);
   const grant = useServerFn(grantPermissionCenterPermission);
   const setProperty = useServerFn(setPermissionCenterPropertyScope);
-  const [showProperties, setShowProperties] = useState(false);
+  
 
   const q = useQuery({
     queryKey: ["permission-center-user", userId],
@@ -255,6 +257,24 @@ function UserAccess({
     onError: (e: Error) => toast.error(e.message || "Não foi possível atualizar a residência."),
   });
 
+  /** Ativa ou desativa várias residências de uma vez. */
+  const bulkPropertyMutation = useMutation({
+    mutationFn: async (input: { propertyIds: string[]; assigned: boolean }) => {
+      for (const propertyId of input.propertyIds) {
+        await setProperty({ data: { targetUserId: userId, propertyId, assigned: input.assigned } });
+      }
+      return input;
+    },
+    onSuccess: (input) => {
+      toast.success(
+        `${input.propertyIds.length} residências ${input.assigned ? "ativadas" : "desativadas"}.`,
+      );
+      qc.invalidateQueries({ queryKey: ["permission-center-user", userId] });
+    },
+    onError: (e: Error) => toast.error(e.message || "Não foi possível atualizar as residências."),
+  });
+
+
   if (q.isLoading) return <LoadingState />;
   if (q.isError) return <ErrorState message={(q.error as Error)?.message} />;
   if (!detail) {
@@ -297,17 +317,19 @@ function UserAccess({
             value={group.namespace}
             className="overflow-hidden rounded-xl border bg-card"
           >
-            <div className="flex items-center gap-2 pr-3">
-              <AccordionTrigger className="flex-1 px-4 py-3 text-sm font-semibold hover:no-underline">
-                <span className="flex items-center gap-2">
-                  {group.title}
-                  <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-normal text-muted-foreground">
-                    {group.items.length}
+            <div className="flex w-full items-center gap-2 pr-3">
+              <div className="min-w-0 flex-1 [&>h3]:w-full">
+                <AccordionTrigger className="w-full px-4 py-3 text-sm font-semibold hover:no-underline">
+                  <span className="flex min-w-0 items-center gap-2">
+                    <span className="truncate">{group.title}</span>
+                    <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-normal text-muted-foreground">
+                      {group.items.length}
+                    </span>
                   </span>
-                </span>
-              </AccordionTrigger>
+                </AccordionTrigger>
+              </div>
               {/* Liberação em massa da categoria inteira. */}
-              <div className="shrink-0">
+              <div className="ml-auto shrink-0">
                 <LevelSwitch
                   value={groupLevel(group)}
                   disabled={isOwner || bulkMutation.isPending || mutation.isPending}
@@ -320,25 +342,28 @@ function UserAccess({
                 />
               </div>
             </div>
+
             <AccordionContent className="pb-0">
               <div className="border-t">
                 {/* Subcategorias (abas) também expansivas, uma por vez. */}
                 <Accordion type="single" collapsible>
                   {buildSubgroups(group).map((sub) => (
                     <AccordionItem key={sub.parent.namespace} value={sub.parent.namespace}>
-                      <div className="flex items-center gap-2 pr-3">
-                        <AccordionTrigger className="flex-1 py-2.5 pl-8 pr-2 text-sm hover:no-underline">
+                      <div className="flex w-full items-center gap-2 pr-3">
+                        <div className="min-w-0 flex-1 [&>h3]:w-full">
+                          <AccordionTrigger className="w-full py-2.5 pl-8 pr-2 text-sm hover:no-underline">
+                            <span className="flex min-w-0 items-center gap-2 font-medium">
+                              <span className="truncate">{sub.parent.label}</span>
+                              {sub.children.length > 0 ? (
+                                <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-normal text-muted-foreground">
+                                  {sub.children.length}
+                                </span>
+                              ) : null}
+                            </span>
+                          </AccordionTrigger>
+                        </div>
+                        <div className="ml-auto shrink-0">
 
-                          <span className="flex items-center gap-2 font-medium">
-                            {sub.parent.label}
-                            {sub.children.length > 0 ? (
-                              <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-normal text-muted-foreground">
-                                {sub.children.length}
-                              </span>
-                            ) : null}
-                          </span>
-                        </AccordionTrigger>
-                        <div className="shrink-0">
                           <LevelSwitch
                             value={
                               isOwner
@@ -385,40 +410,14 @@ function UserAccess({
         ))}
       </Accordion>
 
-      <Card className="p-4">
-        <button
-          type="button"
-          onClick={() => setShowProperties((v) => !v)}
-          className="flex w-full items-center justify-between gap-2 text-left"
-        >
-          <span className="flex items-center gap-2 text-sm font-semibold">
-            <Home className="h-4 w-4" /> Residências que esta pessoa atende
-          </span>
-          <span className="text-xs text-muted-foreground">
-            {detail.properties.filter((p) => p.assigned).length} de {detail.properties.length}
-          </span>
-        </button>
-        {showProperties ? (
-          <div className="mt-3 divide-y rounded-lg border">
-            {detail.properties.length === 0 ? (
-              <p className="p-4 text-sm text-muted-foreground">Nenhuma residência cadastrada.</p>
-            ) : (
-              detail.properties.map((p) => (
-                <div key={p.id} className="flex items-center justify-between gap-3 px-3 py-2.5">
-                  <span className="truncate text-sm">{p.name}</span>
-                  <Switch
-                    checked={p.assigned}
-                    disabled={isOwner || propertyMutation.isPending}
-                    onCheckedChange={(v) =>
-                      propertyMutation.mutate({ propertyId: p.id, assigned: v })
-                    }
-                  />
-                </div>
-              ))
-            )}
-          </div>
-        ) : null}
-      </Card>
+      <PropertyScopePanel
+        properties={detail.properties}
+        disabled={isOwner}
+        pending={propertyMutation.isPending || bulkPropertyMutation.isPending}
+        onToggle={(propertyId, assigned) => propertyMutation.mutate({ propertyId, assigned })}
+        onBulk={(propertyIds, assigned) => bulkPropertyMutation.mutate({ propertyIds, assigned })}
+      />
+
     </div>
   );
 }
