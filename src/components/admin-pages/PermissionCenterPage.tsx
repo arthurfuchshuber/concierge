@@ -41,9 +41,9 @@ function DeniedState({ reason }: { reason?: string }) {
   return (
     <Card className="flex flex-col items-center gap-2 p-10 text-center">
       <Lock className="h-8 w-8 text-muted-foreground" />
-      <p className="font-medium">Você não tem permissão para gerenciar acessos</p>
+      <p className="font-medium">Você não tem permissão para gerenciar os acessos desta conta</p>
       <p className="max-w-md text-sm text-muted-foreground">
-        {reason || "Solicite acesso ao titular da conta."}
+        {reason || "Esta área só pode ser gerenciada pelo titular da conta. Peça a ele para liberar seu acesso."}
       </p>
     </Card>
   );
@@ -54,7 +54,10 @@ function ErrorState({ message }: { message?: string }) {
     <Card className="flex flex-col items-center gap-2 p-10 text-center">
       <AlertTriangle className="h-8 w-8 text-destructive" />
       <p className="font-medium">Não foi possível carregar</p>
-      <p className="max-w-md text-sm text-muted-foreground">{message || "Tente novamente."}</p>
+      <p className="max-w-md text-sm text-muted-foreground">
+        {message ||
+          "Algo deu errado ao buscar as informações. Verifique sua conexão e tente abrir a página novamente."}
+      </p>
     </Card>
   );
 }
@@ -80,14 +83,21 @@ const OPTIONS: Array<{ value: Level; label: string; icon: typeof Eye; active: st
 function LevelSwitch({
   value,
   disabled,
+  disabledReason,
   onChange,
 }: {
   value: Level;
   disabled?: boolean;
+  disabledReason?: string;
   onChange: (v: Level) => void;
 }) {
   return (
-    <div className="inline-flex shrink-0 rounded-lg border bg-background p-0.5">
+    <div
+      className="inline-flex shrink-0 rounded-lg border bg-background p-0.5"
+      onClick={() => {
+        if (disabled && disabledReason) toast.info(disabledReason);
+      }}
+    >
       {OPTIONS.map((o) => {
         const Icon = o.icon;
         const on = o.value === value;
@@ -213,12 +223,12 @@ function UserAccess({
       });
     },
     onSuccess: (res) => {
-      toast.success((res as { message?: string })?.message ?? "Acesso atualizado.");
+      toast.success((res as { message?: string })?.message ?? "Pronto! O acesso desta pessoa foi atualizado.");
       qc.invalidateQueries({ queryKey: ["permission-center-user", userId] });
       qc.invalidateQueries({ queryKey: ["permission-center-overview"] });
       qc.invalidateQueries({ queryKey: ["area-access"] });
     },
-    onError: (e: Error) => toast.error(e.message || "Não foi possível atualizar o acesso."),
+    onError: (e: Error) => toast.error(e.message || "Não conseguimos salvar essa alteração agora. Tente de novo em instantes."),
   });
 
   /** Liberação em massa: aplica o mesmo nível a todas as áreas da categoria. */
@@ -239,22 +249,22 @@ function UserAccess({
     },
     onSuccess: (input) => {
       const label = OPTIONS.find((o) => o.value === input.level)?.label ?? input.level;
-      toast.success(`${input.namespaces.length} áreas atualizadas para "${label}".`);
+      toast.success(`${input.namespaces.length} áreas foram definidas como "${label}".`);
       qc.invalidateQueries({ queryKey: ["permission-center-user", userId] });
       qc.invalidateQueries({ queryKey: ["permission-center-overview"] });
       qc.invalidateQueries({ queryKey: ["area-access"] });
     },
-    onError: (e: Error) => toast.error(e.message || "Não foi possível atualizar as áreas."),
+    onError: (e: Error) => toast.error(e.message || "Não conseguimos salvar as áreas agora. Tente de novo em instantes."),
   });
 
   const propertyMutation = useMutation({
     mutationFn: (input: { propertyId: string; assigned: boolean }) =>
       setProperty({ data: { targetUserId: userId, ...input } }),
     onSuccess: (res) => {
-      toast.success((res as { message?: string })?.message ?? "Residência atualizada.");
+      toast.success((res as { message?: string })?.message ?? "Pronto! A residência foi atualizada.");
       qc.invalidateQueries({ queryKey: ["permission-center-user", userId] });
     },
-    onError: (e: Error) => toast.error(e.message || "Não foi possível atualizar a residência."),
+    onError: (e: Error) => toast.error(e.message || "Não conseguimos atualizar essa residência agora. Tente de novo em instantes."),
   });
 
   /** Ativa ou desativa várias residências de uma vez. */
@@ -271,7 +281,7 @@ function UserAccess({
       );
       qc.invalidateQueries({ queryKey: ["permission-center-user", userId] });
     },
-    onError: (e: Error) => toast.error(e.message || "Não foi possível atualizar as residências."),
+    onError: (e: Error) => toast.error(e.message || "Não conseguimos atualizar as residências agora. Tente de novo em instantes."),
   });
 
 
@@ -301,7 +311,7 @@ function UserAccess({
           <p className="truncate font-medium">{detail.user.name}</p>
           <p className="truncate text-xs text-muted-foreground">{detail.user.email ?? "—"}</p>
         </div>
-        <Badge variant="outline">{isOwner ? "Titular da conta" : detail.role}</Badge>
+        {isOwner ? <Badge variant="outline">Titular da conta</Badge> : null}
       </Card>
 
       {isOwner ? (
@@ -319,7 +329,7 @@ function UserAccess({
           >
             <div className="flex w-full items-center gap-2 pr-3">
               <div className="min-w-0 flex-1 [&>h3]:w-full">
-                <AccordionTrigger className="w-full px-4 py-3 text-sm font-semibold hover:no-underline">
+                <AccordionTrigger className="w-full py-3 pl-4 pr-3 text-sm font-semibold hover:no-underline">
                   <span className="flex min-w-0 items-center gap-2">
                     <span className="truncate">{group.title}</span>
                     <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-normal text-muted-foreground">
@@ -333,6 +343,11 @@ function UserAccess({
                 <LevelSwitch
                   value={groupLevel(group)}
                   disabled={isOwner || bulkMutation.isPending || mutation.isPending}
+                  disabledReason={
+                    isOwner
+                      ? "O titular da conta sempre tem acesso total, por isso não é possível limitar as áreas dele."
+                      : "Aguarde: estamos salvando a alteração anterior."
+                  }
                   onChange={(v) =>
                     bulkMutation.mutate({
                       namespaces: group.items.map((i) => i.namespace),
@@ -351,7 +366,7 @@ function UserAccess({
                     <AccordionItem key={sub.parent.namespace} value={sub.parent.namespace}>
                       <div className="flex w-full items-center gap-2 pr-3">
                         <div className="min-w-0 flex-1 [&>h3]:w-full">
-                          <AccordionTrigger className="w-full py-2.5 pl-8 pr-2 text-sm hover:no-underline">
+                          <AccordionTrigger className="w-full py-2.5 pl-8 pr-3 text-sm hover:no-underline">
                             <span className="flex min-w-0 items-center gap-2 font-medium">
                               <span className="truncate">{sub.parent.label}</span>
                               {sub.children.length > 0 ? (
@@ -371,6 +386,11 @@ function UserAccess({
                                 : (levels.get(sub.parent.namespace)?.level ?? "NONE")
                             }
                             disabled={isOwner || mutation.isPending || bulkMutation.isPending}
+                            disabledReason={
+                              isOwner
+                                ? "O titular da conta sempre tem acesso total, por isso não é possível limitar as áreas dele."
+                                : "Aguarde: estamos salvando a alteração anterior."
+                            }
                             onChange={(v) =>
                               bulkMutation.mutate({
                                 namespaces: [
@@ -463,7 +483,7 @@ export function PermissionCenterPage({
 
       {q.data.users.length === 0 ? (
         <p className="py-10 text-center text-sm text-muted-foreground">
-          Nenhuma pessoa nesta conta ainda.
+          Ainda não há ninguém além de você nesta conta. Use “Convidar Membro” para adicionar alguém.
         </p>
       ) : (
         <div className="grid gap-2">
@@ -479,7 +499,7 @@ export function PermissionCenterPage({
                 <p className="truncate text-xs text-muted-foreground">{u.email ?? "—"}</p>
               </div>
               <div className="flex items-center gap-2">
-                <Badge variant="outline">{u.isOwner ? "Titular" : (u.roles[0] ?? "Membro")}</Badge>
+                {u.isOwner ? <Badge variant="outline">Titular</Badge> : null}
                 <Badge variant={u.status === "active" ? "secondary" : "outline"}>
                   {u.status === "active" ? "Ativo" : u.status === "pending" ? "Pendente" : "Inativo"}
                 </Badge>
