@@ -47,7 +47,7 @@ export function PendingInviteDialog() {
 
   const inv = list[0];
   const ownerLabel = inv.owner_name || inv.owner_email || "outra conta";
-  const roleLabel = ROLE_LABEL[inv.role] ?? inv.role;
+  
 
   return (
     <div className="fixed inset-0 z-[70] bg-black/60 backdrop-blur-sm grid place-items-center px-4">
