@@ -257,6 +257,24 @@ function UserAccess({
     onError: (e: Error) => toast.error(e.message || "Não foi possível atualizar a residência."),
   });
 
+  /** Ativa ou desativa várias residências de uma vez. */
+  const bulkPropertyMutation = useMutation({
+    mutationFn: async (input: { propertyIds: string[]; assigned: boolean }) => {
+      for (const propertyId of input.propertyIds) {
+        await setProperty({ data: { targetUserId: userId, propertyId, assigned: input.assigned } });
+      }
+      return input;
+    },
+    onSuccess: (input) => {
+      toast.success(
+        `${input.propertyIds.length} residências ${input.assigned ? "ativadas" : "desativadas"}.`,
+      );
+      qc.invalidateQueries({ queryKey: ["permission-center-user", userId] });
+    },
+    onError: (e: Error) => toast.error(e.message || "Não foi possível atualizar as residências."),
+  });
+
+
   if (q.isLoading) return <LoadingState />;
   if (q.isError) return <ErrorState message={(q.error as Error)?.message} />;
   if (!detail) {
