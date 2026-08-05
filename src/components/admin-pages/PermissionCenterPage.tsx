@@ -141,17 +141,20 @@ function AreaRow({
   const level: Level = isOwner ? "WRITE" : (state?.level ?? "NONE");
   return (
     <div
-      className="flex flex-wrap items-center justify-between gap-3 py-3 pr-4"
+      className="flex items-center justify-between gap-3 py-3 pr-3"
       style={{ paddingLeft: 16 + item.depth * 20 }}
     >
-      <div className="min-w-0">
+      <div className="min-w-0 flex-1">
         <p className={cn("text-sm", item.depth === 0 && "font-semibold")}>{item.label}</p>
         {state?.inherited && !isOwner ? (
           <p className="text-xs text-muted-foreground">Herdado da área acima</p>
         ) : null}
       </div>
-      <LevelSwitch value={level} disabled={isOwner || pending} onChange={onChange} />
+      <div className="shrink-0">
+        <LevelSwitch value={level} disabled={isOwner || pending} onChange={onChange} />
+      </div>
     </div>
+
   );
 }
 
