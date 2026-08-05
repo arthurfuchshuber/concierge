@@ -543,8 +543,9 @@ function DashboardPage() {
               }}
 
               onRevert={
-                mode === "stay" || mode === "cleaning"
-                  ? (row: ArrivalRow) => {
+                mode === "checkin"
+                  ? undefined
+                  : (row: ArrivalRow) => {
                       const target = statusTarget(row);
                       if (!target.logId && !target.reservationId) {
                         toast.error("Não foi possível identificar esse card.");
@@ -552,7 +553,6 @@ function DashboardPage() {
                       }
                       revert.mutate({ ...target, from: mode });
                     }
-                  : undefined
               }
               onSyncIcal={(row) => {
                 const t = kind === "checkin" ? "15:00" : "11:00";
