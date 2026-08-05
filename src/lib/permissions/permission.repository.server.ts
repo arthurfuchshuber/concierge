@@ -126,20 +126,34 @@ export async function upsertAssignment(
   input: UpsertAssignmentInput,
 ): Promise<PermissionAssignment> {
   const db = await admin();
+  const scopeType = input.scopeType ?? "TENANT";
+  const scopeId = input.scopeId ?? null;
+
+  // Remove qualquer atribuição anterior do mesmo nó/escopo antes de gravar.
+  // (No Postgres, índices únicos não colidem quando `scope_id` é NULL — sem
+  // esta limpeza a mesma área acumulava níveis conflitantes, ex.: WRITE+NONE.)
+  let stale = db
+    .from("permission_assignments")
+    .delete()
+    .eq("tenant_id", input.tenantId)
+    .eq("user_id", input.userId)
+    .eq("permission_node_id", input.permissionNodeId)
+    .eq("scope_type", scopeType);
+  stale = scopeId === null ? stale.is("scope_id", null) : stale.eq("scope_id", scopeId);
+  const { error: cleanupError } = await stale;
+  if (cleanupError) throw new Error(cleanupError.message);
+
   const { data, error } = await db
     .from("permission_assignments")
-    .upsert(
-      {
-        tenant_id: input.tenantId,
-        user_id: input.userId,
-        permission_node_id: input.permissionNodeId,
-        access_level: input.accessLevel,
-        scope_type: input.scopeType ?? "TENANT",
-        scope_id: input.scopeId ?? null,
-        created_by: input.createdBy ?? null,
-      } as never,
-      { onConflict: "tenant_id,user_id,permission_node_id,scope_type,scope_id" },
-    )
+    .insert({
+      tenant_id: input.tenantId,
+      user_id: input.userId,
+      permission_node_id: input.permissionNodeId,
+      access_level: input.accessLevel,
+      scope_type: scopeType,
+      scope_id: scopeId,
+      created_by: input.createdBy ?? null,
+    } as never)
     .select("*")
     .single();
   if (error) throw new Error(error.message);
