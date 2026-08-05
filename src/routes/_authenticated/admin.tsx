@@ -284,13 +284,14 @@ function AdminLayout() {
 
         <main className="flex-1">
           <PushNotificationBanner />
-          {needsPlan ? (
-            <OnboardingCheckout onSignOut={signOut} />
-          ) : resolvingAccount || (routePermission && areaAccess.loading) ? (
+          {resolvingAccount || (routePermission && areaAccess.loading) ? (
             <div className="mx-auto w-full max-w-7xl space-y-3 px-4 py-10">
               <Skeleton className="h-10 w-64" />
               <Skeleton className="h-40 w-full" />
             </div>
+          ) : needsPlan ? (
+            <OnboardingCheckout onSignOut={signOut} />
+
           ) : routePermission && !areaAccess.can(routePermission) ? (
             <AccessDenied reason={areaAccess.reasonFor(routePermission)} />
           ) : (
