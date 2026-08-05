@@ -486,8 +486,14 @@ function DashboardPage() {
 
         </section>
       )}
-
-
+      {/* Agenda macro de ocupação */}
+      <OccupancyPanel
+        loading={occupancyQ.isLoading}
+        start={occupancyQ.data?.start ?? todayISO}
+        days={occupancyQ.data?.days ?? 14}
+        properties={occupancyQ.data?.properties ?? []}
+        stays={occupancyQ.data?.stays ?? []}
+      />
 
       {/* Arrivals */}
       <section className="rounded-2xl border border-border bg-card p-4 sm:p-5 space-y-4 shadow-sm">
