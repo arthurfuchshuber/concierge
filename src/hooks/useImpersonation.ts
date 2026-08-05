@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 
 export type Impersonation = { userId: string; name: string; email: string | null } | null;
+
 
 const KEY = "sg-impersonate";
 const EVT = "sg-impersonate-change";
@@ -39,3 +41,24 @@ export function useImpersonation() {
   const clear = useCallback(() => setImpersonation(null), []);
   return { impersonation: state, clear };
 }
+
+/**
+ * Recarrega os dados do painel sempre que a empresa ativa muda.
+ * Sem isso, as telas continuavam exibindo o resultado da consulta anterior
+ * (ex.: "Sem plano · 0" e lista de guias vazia) até um refresh manual.
+ */
+export function useImpersonationQuerySync() {
+  const queryClient = useQueryClient();
+  useEffect(() => {
+    const handler = () => {
+      queryClient.invalidateQueries();
+    };
+    window.addEventListener(EVT, handler);
+    window.addEventListener("storage", handler);
+    return () => {
+      window.removeEventListener(EVT, handler);
+      window.removeEventListener("storage", handler);
+    };
+  }, [queryClient]);
+}
+

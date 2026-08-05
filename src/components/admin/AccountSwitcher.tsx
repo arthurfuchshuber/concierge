@@ -1,53 +1,26 @@
-import { useEffect, useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { useServerFn } from "@tanstack/react-start";
+import { useState } from "react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Building2, ChevronDown, Check } from "lucide-react";
-import { listMyAccounts } from "@/lib/active-account.functions";
-import { useImpersonation, setImpersonation } from "@/hooks/useImpersonation";
-import { useIsAdmin } from "@/hooks/useIsAdmin";
+import { setImpersonation } from "@/hooks/useImpersonation";
+import { useActiveAccount } from "@/hooks/useActiveAccount";
 
 /**
  * For team members (users invited via account_members) — shows the active
  * account/company and lets them switch between the accounts they belong to.
- * If the user only belongs to a single account and owns no properties, it
- * auto-selects that account on first render.
+ * A seleção automática da única empresa vinculada acontece em
+ * `useActiveAccount`, para valer em todas as páginas do painel.
  *
  * Hidden entirely for SaaS admins (they already have ClientSwitcher).
  */
 export function AccountSwitcher() {
-  const { isAdmin } = useIsAdmin();
-  const listFn = useServerFn(listMyAccounts);
-  const q = useQuery({
-    queryKey: ["my-accounts"],
-    queryFn: () => listFn(),
-    staleTime: 5 * 60_000,
-    enabled: !isAdmin,
-  });
-  const { impersonation } = useImpersonation();
+  const { isAdmin, accounts, hasOwn, impersonation, query: q } = useActiveAccount();
   const [open, setOpen] = useState(false);
-
-  const accounts = useMemo(() => q.data?.accounts ?? [], [q.data]);
-  const hasOwn = q.data?.hasOwnProperties ?? true;
-
-  // Auto-select: se o usuário NÃO tem propriedades próprias, sempre garantimos
-  // uma conta ativa — usa a primeira membership disponível. Isso evita que a
-  // UI opere "sem conta" e vaze/oculte dados de forma inconsistente.
-  useEffect(() => {
-    if (isAdmin) return;
-    if (!q.data) return;
-    if (impersonation) return;
-    if (hasOwn) return;
-    if (accounts.length >= 1) {
-      const a = accounts[0];
-      setImpersonation({ userId: a.ownerId, name: a.name || a.email || "Conta", email: a.email });
-    }
-  }, [q.data, hasOwn, accounts, impersonation, isAdmin]);
 
   if (isAdmin) return null;
   if (!q.data) return null;
   // Nothing to switch: user is a plain host with only their own account.
   if (accounts.length === 0) return null;
+
 
   const totalOptions = accounts.length + (hasOwn ? 1 : 0);
   const activeLabel = impersonation ? (impersonation.name || impersonation.email || "Conta") : "Minha conta";
