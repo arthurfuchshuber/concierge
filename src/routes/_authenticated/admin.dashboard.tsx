@@ -58,6 +58,7 @@ import {
   advanceArrival,
   revertArrival,
   listConcludedArrivals,
+  getOccupancyBoard,
   type ArrivalRow,
 } from "@/lib/dashboard.functions";
 import { openHandoffDock } from "@/lib/handoff-dock";
