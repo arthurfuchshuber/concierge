@@ -4745,6 +4745,10 @@ export type Database = {
         Args: { _ids: string[]; _outcome?: string }
         Returns: undefined
       }
+      can_read_permission_catalog: {
+        Args: { _user_id: string }
+        Returns: boolean
+      }
       decline_my_account_invite: {
         Args: { _invite_id: string }
         Returns: boolean
