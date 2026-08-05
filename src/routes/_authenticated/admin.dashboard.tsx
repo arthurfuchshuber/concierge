@@ -859,7 +859,8 @@ function OccupancyPanel({
   properties: Array<{ id: string; name: string; city: string | null; ownerName?: string | null }>;
   stays: Array<{ propertyId: string; checkin: string; checkout: string | null; guest: string | null }>;
 }) {
-  const [periodDays, setPeriodDays] = useState<number>(0); // 0 = tudo
+  const [periodDays, setPeriodDays] = useState<number>(7); // 0 = tudo
+  const [openAgenda, setOpenAgenda] = useState<string>("agenda");
   const [ownerFilter, setOwnerFilter] = useState<string>("");
   const [cityFilter, setCityFilter] = useState<string>("");
 
