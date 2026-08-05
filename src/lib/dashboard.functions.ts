@@ -1688,8 +1688,118 @@ export const revertArrival = createServerFn({ method: "POST" })
           .eq("id", ciId);
         if (error) throw new Error(error.message);
       }
+    } else if (data.from === "done") {
+      // Concluído → volta para Em Limpeza: mantém o check-out como feito,
+      // apenas remove a conclusão da esteira.
+      for (const kind of ["checkout", "checkin"] as const) {
+        const id = await findId(kind);
+        if (!id) continue;
+        const { error } = await context.supabase
+          .from("guest_arrival_status")
+          .update({ concluded_at: null })
+          .eq("id", id);
+        if (error) throw new Error(error.message);
+      }
     }
     return { ok: true };
+  });
+
+// ----- Agenda macro de ocupação (visão de todos os imóveis) -----
+
+export type OccupancyStay = {
+  propertyId: string;
+  checkin: string;
+  checkout: string | null;
+  guest: string | null;
+};
+
+export const getOccupancyBoard = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) =>
+    z
+      .object({
+        ownerId: z.string().uuid().nullable().optional(),
+        days: z.number().int().min(3).max(60).optional(),
+      })
+      .optional()
+      .parse(i) ?? {},
+  )
+  .handler(async ({ data, context }) => {
+    const days = data.days ?? 14;
+    const start = todayISO();
+    const end = addDaysISO(start, days - 1);
+    const propIds = await accessiblePropertyIds(context.supabase as never, data.ownerId ?? null, context.userId);
+    if (propIds.length === 0) {
+      return { start, days, properties: [], stays: [] as OccupancyStay[], freeToday: [] as Array<{ id: string; name: string }> };
+    }
+
+    const [{ data: props }, { data: reservations }, { data: logs }] = await Promise.all([
+      context.supabase.from("properties").select("id, name, city").in("id", propIds).order("name"),
+      context.supabase
+        .from("property_reservations")
+        .select("property_id, checkin_date, checkout_date, guest_hint, status, raw_summary")
+        .in("property_id", propIds)
+        .lte("checkin_date", end)
+        .gte("checkout_date", start)
+        .limit(5000),
+      context.supabase
+        .from("guide_access_logs")
+        .select("property_id, checkin_date, checkout_date, guest_name")
+        .in("property_id", propIds)
+        .lte("checkin_date", end)
+        .gte("checkout_date", start)
+        .limit(5000),
+    ]);
+
+    const stays: OccupancyStay[] = [];
+    for (const r of (reservations ?? []) as Array<{
+      property_id: string;
+      checkin_date: string;
+      checkout_date: string | null;
+      guest_hint: string | null;
+      status: string | null;
+      raw_summary: string | null;
+    }>) {
+      if (!isRealReservation(r)) continue;
+      stays.push({
+        propertyId: r.property_id,
+        checkin: r.checkin_date,
+        checkout: r.checkout_date,
+        guest: r.guest_hint,
+      });
+    }
+    for (const l of (logs ?? []) as Array<{
+      property_id: string;
+      checkin_date: string;
+      checkout_date: string | null;
+      guest_name: string | null;
+    }>) {
+      const dup = stays.some(
+        (s) => s.propertyId === l.property_id && s.checkin === l.checkin_date && s.checkout === l.checkout_date,
+      );
+      if (dup) continue;
+      stays.push({
+        propertyId: l.property_id,
+        checkin: l.checkin_date,
+        checkout: l.checkout_date,
+        guest: l.guest_name,
+      });
+    }
+
+    const properties = ((props ?? []) as Array<{ id: string; name: string | null; city: string | null }>).map((p) => ({
+      id: p.id,
+      name: p.name ?? "Sem nome",
+      city: p.city ?? null,
+    }));
+
+    const occupiedToday = new Set(
+      stays.filter((s) => s.checkin <= start && (s.checkout ?? s.checkin) > start).map((s) => s.propertyId),
+    );
+    const freeToday = properties
+      .filter((p) => !occupiedToday.has(p.id))
+      .map((p) => ({ id: p.id, name: p.name }));
+
+    return { start, days, properties, stays, freeToday };
   });
 
 // ----- Concluídos: cards que já percorreram toda a esteira -----
