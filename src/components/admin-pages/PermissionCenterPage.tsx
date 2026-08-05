@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { AlertTriangle, ArrowLeft, Eye, Lock, Pencil, ShieldOff, Home } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Eye, Lock, Pencil, ShieldOff, Home, Mail, RotateCw, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -23,6 +23,7 @@ import {
   grantPermissionCenterPermission,
   setPermissionCenterPropertyScope,
 } from "@/lib/permission-center.functions";
+import { resendTeamInvite, revokeTeamInvite } from "@/lib/team.functions";
 import { cn } from "@/lib/utils";
 import {
   ACCOUNT_AREAS,
@@ -461,6 +462,27 @@ export function PermissionCenterPage({
   const areas = context === "saas" ? SAAS_AREAS : ACCOUNT_AREAS;
   const [selected, setSelected] = useState<string | null>(null);
   const fn = useServerFn(getPermissionCenterOverview);
+  const resendFn = useServerFn(resendTeamInvite);
+  const revokeFn = useServerFn(revokeTeamInvite);
+  const qc = useQueryClient();
+  const refreshOverview = () =>
+    qc.invalidateQueries({ queryKey: ["permission-center-overview"] });
+  const resendMutation = useMutation({
+    mutationFn: (inviteId: string) => resendFn({ data: { inviteId } }),
+    onSuccess: () => {
+      toast.success("Convite reenviado por e-mail.");
+      void refreshOverview();
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+  const revokeMutation = useMutation({
+    mutationFn: (inviteId: string) => revokeFn({ data: { inviteId } }),
+    onSuccess: () => {
+      toast.success("Convite cancelado.");
+      void refreshOverview();
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
   const q = useQuery({
     queryKey: ["permission-center-overview"],
     queryFn: () => fn(),
@@ -517,6 +539,52 @@ export function PermissionCenterPage({
           ))}
         </div>
       )}
+
+      {q.data.invites && q.data.invites.length > 0 ? (
+        <div className="space-y-2 pt-2">
+          <p className="text-sm font-semibold">Convites enviados</p>
+          <div className="grid gap-2">
+            {q.data.invites.map((inv) => (
+              <div
+                key={inv.id}
+                className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-dashed bg-card/60 p-4"
+              >
+                <div className="flex min-w-0 items-center gap-2">
+                  <Mail className="h-4 w-4 shrink-0 text-muted-foreground" />
+                  <div className="min-w-0">
+                    <p className="truncate font-medium">{inv.email}</p>
+                    <p className="truncate text-xs text-muted-foreground">
+                      Expira em {new Date(inv.expiresAt).toLocaleDateString("pt-BR")}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline">Convite enviado</Badge>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    disabled={resendMutation.isPending}
+                    onClick={() => resendMutation.mutate(inv.id)}
+                  >
+                    <RotateCw className="mr-1.5 h-3.5 w-3.5" />
+                    Reenviar
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="text-destructive hover:text-destructive"
+                    disabled={revokeMutation.isPending}
+                    onClick={() => revokeMutation.mutate(inv.id)}
+                  >
+                    <Trash2 className="mr-1.5 h-3.5 w-3.5" />
+                    Cancelar
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
