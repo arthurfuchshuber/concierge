@@ -9,6 +9,8 @@ import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { CreateUserDialog } from "@/components/permissions/CreateUserDialog";
+import { PropertyScopePanel } from "@/components/permissions/PropertyScopePanel";
+
 import {
   Accordion,
   AccordionContent,
