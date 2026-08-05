@@ -145,6 +145,7 @@ function DashboardPage() {
   const activeOwnerId = impersonation?.userId ?? null;
 
   const concludedFn = useServerFn(listConcludedArrivals);
+  const occupancyFn = useServerFn(getOccupancyBoard);
   const [mode, setMode] = useState<BoardMode>("checkin");
   const kind: "checkin" | "checkout" =
     mode === "checkout" || mode === "cleaning" || mode === "done" ? "checkout" : "checkin";
