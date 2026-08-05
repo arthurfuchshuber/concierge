@@ -269,41 +269,76 @@ function UserAccess({
               />
             </div>
             <AccordionContent className="pb-0">
-              <div className="divide-y border-t">
-                {group.items.map((item) => {
-                  const state = levels.get(item.namespace);
-                  const level: Level = isOwner ? "WRITE" : (state?.level ?? "NONE");
-                  return (
-                    <div
+              <div className="border-t">
+                {/* Linha da própria página (depth 0). */}
+                {group.items
+                  .filter((i) => i.depth === 0)
+                  .map((item) => (
+                    <AreaRow
                       key={item.namespace}
-                      className="flex flex-wrap items-center justify-between gap-3 py-3 pr-4"
-                      style={{ paddingLeft: 16 + item.depth * 20 }}
-                    >
-                      <div className="min-w-0">
-                        <p
-                          className={cn(
-                            "text-sm",
-                            item.depth === 0 && "font-semibold",
-                            item.depth === 1 && "font-medium",
-                            item.depth === 2 && "text-muted-foreground",
-                          )}
-                        >
-                          {item.label}
-                        </p>
-                        {state?.inherited && !isOwner ? (
-                          <p className="text-xs text-muted-foreground">Herdado da área acima</p>
-                        ) : null}
+                      item={item}
+                      levels={levels}
+                      isOwner={isOwner}
+                      pending={mutation.isPending}
+                      onChange={(v) => mutation.mutate({ namespace: item.namespace, level: v })}
+                    />
+                  ))}
+
+                {/* Subcategorias (abas) também expansivas, uma por vez. */}
+                <Accordion type="single" collapsible className="border-t">
+                  {buildSubgroups(group).map((sub) => (
+                    <AccordionItem key={sub.parent.namespace} value={sub.parent.namespace}>
+                      <div className="flex items-center gap-2 pr-4">
+                        <AccordionTrigger className="flex-1 py-2.5 pl-8 pr-2 text-sm hover:no-underline">
+                          <span className="flex items-center gap-2 font-medium">
+                            {sub.parent.label}
+                            {sub.children.length > 0 ? (
+                              <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-normal text-muted-foreground">
+                                {sub.children.length}
+                              </span>
+                            ) : null}
+                          </span>
+                        </AccordionTrigger>
+                        <LevelSwitch
+                          value={
+                            isOwner
+                              ? "WRITE"
+                              : (levels.get(sub.parent.namespace)?.level ?? "NONE")
+                          }
+                          disabled={isOwner || mutation.isPending || bulkMutation.isPending}
+                          onChange={(v) =>
+                            bulkMutation.mutate({
+                              namespaces: [
+                                sub.parent.namespace,
+                                ...sub.children.map((c) => c.namespace),
+                              ],
+                              level: v,
+                            })
+                          }
+                        />
                       </div>
-                      <LevelSwitch
-                        value={level}
-                        disabled={isOwner || mutation.isPending}
-                        onChange={(v) => mutation.mutate({ namespace: item.namespace, level: v })}
-                      />
-                    </div>
-                  );
-                })}
+                      <AccordionContent className="pb-0">
+                        <div className="divide-y border-t bg-muted/20">
+                          {sub.children.map((child) => (
+                            <AreaRow
+                              key={child.namespace}
+                              item={child}
+                              levels={levels}
+                              isOwner={isOwner}
+                              pending={mutation.isPending}
+                              onChange={(v) =>
+                                mutation.mutate({ namespace: child.namespace, level: v })
+                              }
+                            />
+                          ))}
+                        </div>
+                      </AccordionContent>
+                    </AccordionItem>
+                  ))}
+                </Accordion>
               </div>
             </AccordionContent>
+
           </AccordionItem>
         ))}
       </Accordion>
