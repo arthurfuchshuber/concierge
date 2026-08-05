@@ -1042,7 +1042,7 @@ function OccupancyPanel({
                 <table className="w-full border-separate border-spacing-x-0.5 border-spacing-y-1 text-xs">
                   <thead>
                     <tr>
-                      <th className="sticky left-0 top-0 z-20 bg-card text-left font-medium text-muted-foreground pr-2 w-[clamp(112px,34vw,220px)] min-w-[112px] max-w-[220px]">
+                      <th className="sticky left-0 top-0 z-20 bg-card text-left font-medium text-muted-foreground pr-2 w-[clamp(96px,28vw,200px)] min-w-[96px] max-w-[200px]">
                         Imóvel
                       </th>
                       {dayList.map((d) => {
