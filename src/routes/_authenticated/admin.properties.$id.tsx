@@ -1921,9 +1921,10 @@ function PropertyEditor() {
         </AlertDialogContent>
       </AlertDialog>
 
-
+      </fieldset>
     </div>
   );
+
 }
 
 
