@@ -25,7 +25,20 @@ vi.mock("@/lib/permission-center.functions", () => ({
   setPermissionCenterPropertyScope: "setProperty",
 }));
 
+vi.mock("@/lib/team.functions", () => ({
+  inviteTeamMember: "inviteTeamMember",
+}));
+
 vi.mock("@tanstack/react-start", () => ({
+  createMiddleware: () => ({ server: () => ({}), client: () => ({}) }),
+  createServerFn: () => ({
+    middleware: () => ({
+      inputValidator: () => ({ handler: () => async () => ({}) }),
+      handler: () => async () => ({}),
+    }),
+    inputValidator: () => ({ handler: () => async () => ({}) }),
+    handler: () => async () => ({}),
+  }),
   useServerFn: (fn: string) => {
     const map: Record<string, (args?: unknown) => unknown> = {
       overview: overviewMock,
@@ -38,6 +51,7 @@ vi.mock("@tanstack/react-start", () => ({
     return (args?: unknown) => map[fn](args);
   },
 }));
+
 
 import { PermissionCenterPage } from "@/components/admin-pages/PermissionCenterPage";
 
