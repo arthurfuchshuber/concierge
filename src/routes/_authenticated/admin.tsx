@@ -75,6 +75,8 @@ function AdminLayout() {
 
   const handoffEnabled = access.data?.allowed === true;
   const areaAccess = useAreaAccess(ROUTE_PERMISSION_LIST);
+  // Empresa ativa (auto-seleção para membros) + recarga dos dados ao trocar.
+  const { resolving: resolvingAccount, awaitingAccountChoice } = useActiveAccount();
   const navAll = handoffEnabled
     ? ([
         ...baseNav,
@@ -92,8 +94,6 @@ function AdminLayout() {
     return !permission || areaAccess.can(permission);
   });
   const routePermission = permissionForPath(pathname);
-  // Empresa ativa (auto-seleção para membros) + recarga dos dados ao trocar.
-  const { resolving: resolvingAccount, awaitingAccountChoice } = useActiveAccount();
   useImpersonationQuerySync();
 
 
