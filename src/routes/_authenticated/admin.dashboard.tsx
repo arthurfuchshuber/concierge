@@ -80,7 +80,7 @@ function PhoneLink({ phone, country }: { phone: string | null; country: string |
       target="_blank"
       rel="noopener noreferrer"
       onClick={(event) => event.stopPropagation()}
-      className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap text-emerald-500 hover:text-emerald-400 hover:underline"
+      className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap text-[11px] font-medium text-emerald-500 hover:text-emerald-400 hover:underline"
       title="Abrir conversa no WhatsApp"
     >
       <MessageCircle className="size-3 shrink-0" />
@@ -956,18 +956,20 @@ function OccupancyPanel({
       className="rounded-2xl border border-border bg-card shadow-sm"
     >
       <AccordionItem value="agenda" className="border-0">
-        <div className="flex items-center gap-2 px-4 sm:px-5 py-4">
-          <AccordionTrigger className="min-w-0 flex-1 p-0 hover:no-underline [&>svg]:hidden">
-            <span className="flex min-w-0 items-center gap-2 text-sm font-semibold">
-              <CalendarCheck className="size-4 shrink-0 text-muted-foreground" />
-              <span className="truncate">Ocupação dos Imóveis</span>
-            </span>
-          </AccordionTrigger>
+        <div className="flex w-full items-center gap-2 px-4 sm:px-5 py-4">
+          <button
+            type="button"
+            onClick={() => setOpenAgenda((v) => (v ? "" : "agenda"))}
+            className="flex min-w-0 flex-1 items-center gap-2 text-left text-sm font-semibold"
+          >
+            <CalendarCheck className="size-4 shrink-0 text-muted-foreground" />
+            <span className="truncate">Ocupação dos Imóveis</span>
+          </button>
           <Popover>
             <PopoverTrigger asChild>
               <button
                 type="button"
-                className="relative inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-border bg-background/60 px-2.5 py-1.5 text-xs font-medium text-foreground/80 transition-colors hover:bg-muted/60"
+                className="relative ml-auto inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-border bg-background/60 px-2.5 py-1.5 text-xs font-medium text-foreground/80 transition-colors hover:bg-muted/60"
               >
                 <Filter className="size-3.5 opacity-70" /> Filtros
                 {activeFilters > 0 ? (
