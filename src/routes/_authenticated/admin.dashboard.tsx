@@ -232,7 +232,11 @@ function DashboardPage() {
 
   const revertFn = useServerFn(revertArrival);
   const revert = useMutation({
-    mutationFn: (v: { logId?: string; reservationId?: string; from: "stay" | "cleaning" }) => revertFn({ data: v }),
+    mutationFn: (v: {
+      logId?: string;
+      reservationId?: string;
+      from: "checkout" | "stay" | "cleaning" | "done";
+    }) => revertFn({ data: v }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["dash-list"] });
       qc.invalidateQueries({ queryKey: ["dash-kpis"] });
