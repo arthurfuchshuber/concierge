@@ -295,6 +295,7 @@ function DashboardPage() {
       qc.invalidateQueries({ queryKey: ["dash-list"] });
       qc.invalidateQueries({ queryKey: ["dash-kpis"] });
       qc.invalidateQueries({ queryKey: ["dash-eng"] });
+      qc.invalidateQueries({ queryKey: ["dash-occupancy"] });
     };
     const ch = supabase
       .channel("dash-live")
