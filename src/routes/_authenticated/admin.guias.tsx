@@ -68,6 +68,19 @@ function guideCompleteness(p: {
 }
 
 
+function GuiasTabsBar() {
+  return (
+    <TabsList className="mb-5">
+      <TabsTrigger value="imoveis">
+        <Home className="size-4" /> Guias de Imóveis
+      </TabsTrigger>
+      <TabsTrigger value="destinos">
+        <Compass className="size-4" /> Guias de Destinos
+      </TabsTrigger>
+    </TabsList>
+  );
+}
+
 function GuiasTabs() {
   const search = useSearch({ from: "/_authenticated/admin/guias" });
   const tab = coerceGuiaTab(search.tab);
@@ -78,16 +91,6 @@ function GuiasTabs() {
       onValueChange={(v) => navigate({ to: "/admin/guias", search: { tab: coerceGuiaTab(v) } })}
       className="w-full"
     >
-      <div className="px-6 lg:px-10 pt-8 lg:pt-10 max-w-7xl mx-auto w-full">
-        <TabsList>
-          <TabsTrigger value="imoveis">
-            <Home className="size-4" /> Guias de Imóveis
-          </TabsTrigger>
-          <TabsTrigger value="destinos">
-            <Compass className="size-4" /> Guias de Destinos
-          </TabsTrigger>
-        </TabsList>
-      </div>
       <TabsContent value="imoveis" className="mt-0">
         <Dashboard />
       </TabsContent>
@@ -98,11 +101,15 @@ function GuiasTabs() {
           <p className="text-sm text-muted-foreground mt-1.5">
             Em breve você poderá criar guias completos por destino.
           </p>
+          <div className="flex justify-center mt-6">
+            <GuiasTabsBar />
+          </div>
         </div>
       </TabsContent>
     </Tabs>
   );
 }
+
 
 function Dashboard() {
   const list = useServerFn(listMyProperties);
