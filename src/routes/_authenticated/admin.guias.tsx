@@ -503,7 +503,7 @@ function Dashboard() {
               Atualize seu método de pagamento para evitar a suspensão do acesso.
             </p>
           </div>
-          <Link to="/admin/assinatura" className="text-xs font-medium px-3 py-1.5 rounded-full bg-destructive text-destructive-foreground hover:opacity-90">
+          <Link to="/admin/assinatura" search={{ checkout: undefined }} className="text-xs font-medium px-3 py-1.5 rounded-full bg-destructive text-destructive-foreground hover:opacity-90">
             Resolver
           </Link>
         </div>

@@ -160,12 +160,13 @@ function Header() {
           <a href="#recursos" className="hover:text-black transition">Recursos</a>
           <a href="#planos" className="hover:text-black transition">Planos</a>
           <a href="#faq" className="hover:text-black transition">FAQ</a>
-          <Link to="/auth" className="hover:text-black transition">Login</Link>
+          <Link to="/auth" search={{ next: undefined }} className="hover:text-black transition">Login</Link>
         </nav>
 
         <div className="flex items-center gap-2">
           <Link
             to="/auth"
+            search={{ next: undefined }}
             className="hidden sm:inline-flex items-center gap-1.5 rounded-full px-5 h-10 text-sm font-semibold text-white shadow-lg hover:opacity-95 transition"
             style={{ background: BRAND_GRADIENT }}
           >
@@ -186,9 +187,10 @@ function Header() {
             <a href="#recursos" onClick={() => setOpen(false)}>Recursos</a>
             <a href="#planos" onClick={() => setOpen(false)}>Planos</a>
             <a href="#faq" onClick={() => setOpen(false)}>FAQ</a>
-            <Link to="/auth" onClick={() => setOpen(false)}>Login</Link>
+            <Link to="/auth" search={{ next: undefined }} onClick={() => setOpen(false)}>Login</Link>
             <Link
               to="/auth"
+              search={{ next: undefined }}
               onClick={() => setOpen(false)}
               className="mt-2 inline-flex items-center justify-center gap-1.5 rounded-full h-11 text-sm font-semibold text-white"
               style={{ background: BRAND_GRADIENT }}
@@ -242,6 +244,7 @@ function Hero() {
           <div className="mt-8 flex flex-col sm:flex-row gap-3 w-full sm:w-auto justify-center">
             <Link
               to="/auth"
+              search={{ next: undefined }}
               className="btn-shine inline-flex items-center justify-center gap-2 rounded-full h-12 px-7 text-white text-sm font-semibold shadow-xl hover:opacity-95 transition"
               style={{ background: BRAND_GRADIENT }}
             >
@@ -1224,6 +1227,7 @@ function FinalCTA() {
             </p>
             <Link
               to="/auth"
+              search={{ next: undefined }}
               className="mt-8 inline-flex items-center justify-center gap-2 rounded-full h-14 px-8 bg-white text-black text-base font-bold hover:bg-black hover:text-white transition"
             >
               Começar agora <ArrowRight className="size-5" />

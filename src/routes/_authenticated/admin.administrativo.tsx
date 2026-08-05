@@ -35,7 +35,7 @@ function AdministrativoPage() {
       <Tabs
         value={tab}
         onValueChange={(v) =>
-          navigate({ to: "/admin/administrativo", search: { tab: coerceTab(v) } })
+          navigate({ to: "/admin/administrativo", search: { tab: coerceTab(v), checkout: undefined } })
         }
         className="w-full"
       >
