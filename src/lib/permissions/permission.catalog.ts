@@ -1,18 +1,34 @@
 /**
- * Permission Catalog — catálogo central declarativo do ConciergeIA.
+ * Permission Catalog — árvore ÚNICA de permissões do ConciergeIA.
  *
- * FASE 2: catalogação. Todo módulo, página, subpágina, aba, seção, recurso e
- * informação relevante do produto está declarado aqui. Nada disto altera o
- * comportamento atual do sistema — as permissões em vigor continuam sendo as
- * antigas. Esta árvore apenas existe para as próximas fases.
+ * REGRA ESTRUTURAL (definida pelo produto):
+ *  1. CATEGORIA  = cada página do menu lateral esquerdo do SaaS
+ *                  (menu da conta do cliente `tenant.*` e menu Admin SaaS `admin.*`).
+ *  2. SUBCATEGORIA = cada aba existente dentro daquela página.
+ *  3. ATIVIDADE  = cada ação possível dentro da aba (kanban, criar, editar,
+ *                  excluir, sincronizar, etc.).
  *
- * Convenção de slug: `pai.filho.neto`, sempre único, sempre em minúsculas.
+ * Nada além disto entra na árvore. Rotas descobertas automaticamente pelo
+ * scanner ficam ocultas (apenas diagnóstico).
  */
 import { isSaasSlug, resolveSlug, SAAS_NAMESPACE, TENANT_NAMESPACE } from "./permission.slugs";
 import type { PermissionNodeDefinition } from "./permission.types";
 
 type Def = PermissionNodeDefinition;
 
+const root = (slug: string, name: string, description: string): Def => ({
+  slug,
+  name,
+  label: name,
+  type: "PAGE",
+  parentSlug: null,
+  order: 0,
+  displayOrder: 0,
+  description,
+  source: "catalog",
+});
+
+/** CATEGORIA — página do menu lateral. */
 const page = (
   slug: string,
   name: string,
@@ -51,366 +67,299 @@ const child = (
   ...extra,
 });
 
-const sub = (slug: string, name: string, order: number, extra: Partial<Def> = {}) =>
-  child("SUBPAGE", slug, name, order, extra);
+/** SUBCATEGORIA — aba da página. */
 const tab = (slug: string, name: string, order: number, extra: Partial<Def> = {}) =>
   child("TAB", slug, name, order, extra);
-const section = (slug: string, name: string, order: number, extra: Partial<Def> = {}) =>
-  child("SECTION", slug, name, order, extra);
-const resource = (slug: string, name: string, order: number, extra: Partial<Def> = {}) =>
+/** SUBCATEGORIA — subpágina (tela aberta a partir da página). */
+const sub = (slug: string, name: string, order: number, extra: Partial<Def> = {}) =>
+  child("SUBPAGE", slug, name, order, extra);
+/** ATIVIDADE — ação executável dentro da aba. */
+const act = (slug: string, name: string, order: number, extra: Partial<Def> = {}) =>
   child("RESOURCE", slug, name, order, extra);
-const field = (slug: string, name: string, order: number, extra: Partial<Def> = {}) =>
-  child("FIELD", slug, name, order, extra);
 
-/* ------------------------------------------------------------------ páginas */
+/* =========================================================== CONTA DO CLIENTE */
 
+/** Dashboard — /admin/dashboard */
 const DASHBOARD: Def[] = [
-  page(
-    "dashboard",
-    "Operação",
-    "/admin/dashboard",
-    "LayoutDashboard",
-    10,
-    "Painel operacional com KPIs, engajamento e esteira de chegadas.",
-  ),
-  section("dashboard.kpis", "Indicadores", 10),
-  resource("dashboard.kpis.checkins", "Check-ins do período", 10),
-  resource("dashboard.kpis.checkouts", "Check-outs do período", 20),
-  resource("dashboard.kpis.em-estadia", "Hóspedes em estadia", 30),
-  section("dashboard.engajamento", "Barras de engajamento", 20),
-  resource("dashboard.engajamento.instrucoes", "Instruções de check-in visualizadas", 10),
-  resource("dashboard.engajamento.senha", "Senha de acesso revelada", 20),
-  section("dashboard.kanban", "Esteira de chegadas", 30),
-  resource("dashboard.kanban.card", "Card de chegada", 10),
-  field("dashboard.kanban.card.horario", "Horário previsto", 10),
-  field("dashboard.kanban.card.proprietario", "Proprietário do imóvel", 20),
-  field("dashboard.kanban.card.codigo-reserva", "Código da reserva", 30),
-  resource("dashboard.kanban.checkin", "Confirmar check-in", 20),
-  resource("dashboard.kanban.checkout", "Confirmar check-out", 30),
-  resource("dashboard.kanban.limpeza", "Controle de limpeza", 40),
+  page("tenant.dashboard", "Dashboard", "/admin/dashboard", "LayoutDashboard", 10,
+    "Painel de operação: indicadores, engajamento e esteira de chegadas."),
+
+  tab("tenant.dashboard.indicadores", "Indicadores", 10),
+  act("tenant.dashboard.indicadores.kpis", "Ver KPIs do período", 10),
+  act("tenant.dashboard.indicadores.engajamento", "Barras de engajamento", 20),
+  act("tenant.dashboard.indicadores.periodo", "Alterar período", 30),
+
+  tab("tenant.dashboard.chegadas", "Chegadas e saídas", 20),
+  act("tenant.dashboard.chegadas.kanban", "Kanban de chegadas", 10),
+  act("tenant.dashboard.chegadas.checkin", "Confirmar check-in", 20),
+  act("tenant.dashboard.chegadas.checkout", "Confirmar check-out", 30),
+  act("tenant.dashboard.chegadas.limpeza", "Controle de limpeza", 40),
+  act("tenant.dashboard.chegadas.horario", "Editar horário previsto", 50),
+  act("tenant.dashboard.chegadas.notas", "Notas da reserva", 60),
+  act("tenant.dashboard.chegadas.reverter", "Reverter status", 70),
+  act("tenant.dashboard.chegadas.ical", "Sincronizar iCal", 80),
 ];
 
-const CONVERSAS: Def[] = [
-  page(
-    "conversas",
-    "Conversas",
-    "/admin/atendimento",
-    "MessagesSquare",
-    20,
-    "Atendimento humano e acompanhamento das conversas da IA.",
-  ),
-  section("conversas.fila", "Filas de atendimento", 10),
-  resource("conversas.fila.pendentes", "Fila pendente", 10),
-  resource("conversas.fila.com-alguem", "Em atendimento", 20),
-  resource("conversas.fila.resolvidas", "Resolvidas", 30),
-  section("conversas.thread", "Janela da conversa", 20),
-  resource("conversas.thread.assumir", "Assumir atendimento", 10),
-  resource("conversas.thread.responder", "Responder ao hóspede", 20),
-  resource("conversas.thread.editar-mensagem", "Editar mensagem", 30),
-  resource("conversas.thread.excluir-mensagem", "Excluir mensagem", 40),
-  resource("conversas.thread.traduzir", "Traduzir mensagem", 50),
-  resource("conversas.thread.mencoes", "Menções à equipe", 60),
-  resource("conversas.thread.audio", "Mensagem de áudio", 70),
-  field("conversas.thread.dados-hospede", "Dados do hóspede", 80),
+/** Guias — /admin/guias */
+const GUIAS: Def[] = [
+  page("tenant.guias", "Guias", "/admin/guias", "Home", 20,
+    "Residências, guias públicos e conteúdo do hóspede."),
+
+  tab("tenant.guias.imoveis", "Imóveis", 10),
+  act("tenant.guias.imoveis.criar", "Criar guia", 10),
+  act("tenant.guias.imoveis.duplicar", "Duplicar guia", 20),
+  act("tenant.guias.imoveis.publicar", "Publicar / despublicar", 30),
+  act("tenant.guias.imoveis.excluir", "Excluir guia", 40),
+  act("tenant.guias.imoveis.edicao-massa", "Edição em massa", 50),
+  act("tenant.guias.imoveis.link", "Link público do guia", 60),
+  act("tenant.guias.imoveis.ical", "Sincronização iCal", 70),
+  act("tenant.guias.imoveis.acessos", "Acessos do guia", 80),
+  act("tenant.guias.imoveis.conversas", "Conversas do imóvel", 90),
+
+  sub("tenant.guias.editor", "Editor da residência", 20, { route: "/admin/properties/$id" }),
+  act("tenant.guias.editor.identificacao", "Identificação", 10),
+  act("tenant.guias.editor.acesso", "Acesso e chegada", 20),
+  act("tenant.guias.editor.residencia", "Residência", 30),
+  act("tenant.guias.editor.explorar", "Explorar", 40),
+  act("tenant.guias.editor.captacao", "Captação", 50),
+  act("tenant.guias.editor.publicacao", "Publicação", 60),
+
+  tab("tenant.guias.destinos", "Destinos", 30),
+  act("tenant.guias.destinos.gerenciar", "Gerenciar destinos", 10),
 ];
 
-const IMOVEIS: Def[] = [
-  page(
-    "imoveis",
-    "Imóveis",
-    "/admin/guias",
-    "Home",
-    30,
-    "Residências, guias públicos e conteúdo do hóspede.",
-  ),
-  tab("imoveis.lista", "Imóveis", 10, { route: "/admin/guias" }),
-  tab("imoveis.destinos", "Destinos", 20, { route: "/admin/guias" }),
-  sub("imoveis.editor", "Editor da residência", 30, { route: "/admin/properties/$id" }),
-  tab("imoveis.editor.identificacao", "Identificação", 10),
-  tab("imoveis.editor.acesso", "Acesso & Chegada", 20),
-  tab("imoveis.editor.residencia", "Residência", 30),
-  tab("imoveis.editor.explorar", "Explorar", 40),
-  tab("imoveis.editor.captacao", "Captação", 50),
-  tab("imoveis.editor.publicacao", "Publicação", 60),
-  section("imoveis.editor.wifi", "Wi-Fi e acesso", 70),
-  field("imoveis.editor.wifi.senha", "Senha do Wi-Fi", 10),
-  field("imoveis.editor.wifi.instrucoes", "Instruções de acesso", 20),
-  resource("imoveis.editor.slug", "Link público do guia", 80),
-  resource("imoveis.edicao-massa", "Edição em massa", 40),
-  sub("imoveis.acessos", "Acessos do guia", 50, { route: "/admin/properties/$id/acessos" }),
-  sub("imoveis.conversas", "Conversas do imóvel", 60, { route: "/admin/properties/$id/conversas" }),
-  resource("imoveis.ical", "Sincronização iCal", 70),
-];
-
+/** Stakeholders — /admin/stakeholders */
 const STAKEHOLDERS: Def[] = [
-  page(
-    "stakeholders",
-    "Stakeholders",
-    "/admin/stakeholders",
-    "Users",
-    40,
-    "Proprietários, hóspedes e prestadores de serviço.",
-  ),
-  tab("stakeholders.proprietarios", "Proprietários", 10),
-  resource("stakeholders.proprietarios.cadastro", "Cadastro de proprietário", 10),
-  resource("stakeholders.proprietarios.documentos", "Documentos do proprietário", 20),
-  resource("stakeholders.proprietarios.financeiro", "Financeiro do proprietário", 30),
-  resource("stakeholders.proprietarios.imoveis", "Imóveis vinculados", 40),
-  field("stakeholders.proprietarios.dados-sensiveis", "Documento (CPF/CNPJ) e endereço", 50),
-  tab("stakeholders.hospedes", "Hóspedes", 20, { route: "/admin/hospedes" }),
-  resource("stakeholders.hospedes.ficha", "Ficha do hóspede", 10),
-  resource("stakeholders.hospedes.captacao", "Dados de captação", 20),
-  tab("stakeholders.prestadores", "Prestadores", 30),
-  resource("stakeholders.prestadores.cadastro", "Cadastro de prestador", 10),
-  section("stakeholders.timeline", "Timeline unificada", 40),
-  resource("stakeholders.timeline.eventos", "Eventos do stakeholder", 10),
+  page("tenant.stakeholders", "Stakeholders", "/admin/stakeholders", "Contact", 30,
+    "Proprietários, hóspedes e prestadores de serviço."),
+
+  tab("tenant.stakeholders.proprietarios", "Proprietários", 10),
+  act("tenant.stakeholders.proprietarios.cadastrar", "Cadastrar proprietário", 10),
+  act("tenant.stakeholders.proprietarios.editar", "Editar proprietário", 20),
+  act("tenant.stakeholders.proprietarios.documentos", "Documentos", 30),
+  act("tenant.stakeholders.proprietarios.financeiro", "Financeiro", 40),
+  act("tenant.stakeholders.proprietarios.imoveis", "Imóveis vinculados", 50),
+  act("tenant.stakeholders.proprietarios.timeline", "Timeline de eventos", 60),
+
+  tab("tenant.stakeholders.hospedes", "Hóspedes", 20, { route: "/admin/hospedes" }),
+  act("tenant.stakeholders.hospedes.ficha", "Ficha do hóspede", 10),
+  act("tenant.stakeholders.hospedes.captacao", "Dados de captação", 20),
+  act("tenant.stakeholders.hospedes.enviar-guia", "Enviar guia por e-mail", 30),
+
+  tab("tenant.stakeholders.prestadores", "Prestadores", 30),
+  act("tenant.stakeholders.prestadores.cadastrar", "Cadastrar prestador", 10),
+  act("tenant.stakeholders.prestadores.editar", "Editar prestador", 20),
 ];
 
-const CRM: Def[] = [
-  page("crm", "CRM", null, "Contact", 50, "Relacionamento comercial e carteira de clientes."),
-  sub("crm.clientes", "Clientes", 10, { route: "/admin/clientes" }),
-  resource("crm.clientes.status", "Alterar status do cliente", 10),
-  resource("crm.clientes.whatsapp", "Contato por WhatsApp", 20),
-  sub("crm.pipeline", "Pipeline", 20),
-  tab("crm.pipeline.kanban", "Kanban comercial", 10),
-  sub("crm.reservas", "Reservas", 30),
-  resource("crm.reservas.importacao-ical", "Importação por iCal", 10),
-  resource("crm.reservas.codigo", "Código da reserva", 20),
-];
-
-const ENGAJAMENTO: Def[] = [
-  page(
-    "engajamento",
-    "Engajamento",
-    "/admin/engajamento",
-    "Activity",
-    60,
-    "Panorama de uso do guia pelos hóspedes.",
-  ),
-  tab("engajamento.panorama", "Panorama", 10),
-  tab("engajamento.jornada", "Jornada", 20),
-  tab("engajamento.conteudo", "Conteúdo", 30),
-  tab("engajamento.hospedes", "Hóspedes", 40),
-];
-
+/** IA Concierge — /admin/ia */
 const IA: Def[] = [
-  page(
-    "ia",
-    "IA Concierge",
-    "/admin/ia",
-    "Bot",
-    70,
-    "Base de conhecimento, memória e aprendizados do concierge.",
-  ),
-  tab("ia.conhecimento", "Conhecimento", 10),
-  resource("ia.conhecimento.faq", "Perguntas e respostas", 10),
-  resource("ia.conhecimento.documentos", "Documentos da base", 20),
-  tab("ia.memoria", "Memória", 20),
-  resource("ia.memoria.operacional", "Memória operacional", 10),
-  resource("ia.memoria.hospede", "Memória do hóspede", 20),
-  tab("ia.aprendizados", "Aprendizados", 30),
-  resource("ia.aprendizados.candidatos", "Candidatos de aprendizado", 10),
-  resource("ia.aprendizados.aprovacao", "Aprovar aprendizado", 20),
+  page("tenant.ia", "IA Concierge", "/admin/ia", "BrainCircuit", 40,
+    "Memória, conhecimento e aprendizados do concierge."),
+
+  tab("tenant.ia.memoria", "Memória da Operação", 10),
+  act("tenant.ia.memoria.consultar", "Consultar memórias", 10),
+  act("tenant.ia.memoria.editar", "Editar memória", 20),
+
+  tab("tenant.ia.conhecimento", "Conhecimento da Operação", 20),
+  act("tenant.ia.conhecimento.criar", "Criar conhecimento", 10),
+  act("tenant.ia.conhecimento.editar", "Editar conhecimento", 20),
+  act("tenant.ia.conhecimento.excluir", "Excluir conhecimento", 30),
+
+  tab("tenant.ia.aprendizados", "Aprendizados Pendentes", 30),
+  act("tenant.ia.aprendizados.aprovar", "Aprovar aprendizado", 10),
+  act("tenant.ia.aprendizados.rejeitar", "Rejeitar aprendizado", 20),
 ];
 
-const INTELIGENCIA: Def[] = [
-  page(
-    "inteligencia",
-    "Inteligência",
-    "/admin/inteligencia",
-    "Brain",
-    80,
-    "Observabilidade da IA, analytics e auditoria do SaaS.",
-  ),
-  tab("inteligencia.agentes", "Agentes", 10),
-  tab("inteligencia.pipeline", "Pipeline", 20),
-  tab("inteligencia.prompts", "Prompts", 30),
-  tab("inteligencia.global", "Inteligência global", 40),
-  tab("inteligencia.analytics", "Analytics", 50),
-  resource("inteligencia.analytics.metricas", "Métricas de atendimento", 10),
-  tab("inteligencia.eventos", "Auditoria do SaaS", 60),
-  resource("inteligencia.eventos.logs", "Logs detalhados", 10),
-  resource("inteligencia.eventos.exportar", "Exportar logs", 20),
+/** Atendimento — /admin/atendimento */
+const ATENDIMENTO: Def[] = [
+  page("tenant.atendimento", "Atendimento", "/admin/atendimento", "Headphones", 50,
+    "Filas de atendimento humano e conversas da IA."),
+
+  tab("tenant.atendimento.pendentes", "Pendentes", 10),
+  tab("tenant.atendimento.em-atendimento", "Com alguém", 20),
+  tab("tenant.atendimento.resolvidas", "Resolvidas", 30),
+
+  tab("tenant.atendimento.conversa", "Janela da conversa", 40),
+  act("tenant.atendimento.conversa.assumir", "Assumir atendimento", 10),
+  act("tenant.atendimento.conversa.responder", "Responder ao hóspede", 20),
+  act("tenant.atendimento.conversa.editar-mensagem", "Editar mensagem", 30),
+  act("tenant.atendimento.conversa.excluir-mensagem", "Excluir mensagem", 40),
+  act("tenant.atendimento.conversa.audio", "Enviar áudio", 50),
+  act("tenant.atendimento.conversa.traduzir", "Traduzir mensagem", 60),
+  act("tenant.atendimento.conversa.mencoes", "Mencionar a equipe", 70),
+  act("tenant.atendimento.conversa.ensinar-ia", "Ensinar a IA", 80),
+  act("tenant.atendimento.conversa.resolver", "Resolver conversa", 90),
 ];
 
-const CIDADES: Def[] = [
-  page("cidades", "Cidades", "/admin/cidades", "MapPin", 90, "Curadoria de conteúdo por cidade."),
-  sub("cidades.detalhe", "Detalhe da cidade", 10, { route: "/admin/cidades/$cityKey" }),
-  sub("cidades.recomendacoes", "Recomendações Sigma", 20, { route: "/admin/recomendacoes-sigma" }),
-  tab("cidades.recomendacoes.recs", "Recomendações", 10),
-  tab("cidades.recomendacoes.faqs", "FAQs", 20),
-  tab("cidades.recomendacoes.mkt", "Marketplace", 30),
-  sub("cidades.taxonomia", "Taxonomia", 30, { route: "/admin/taxonomia" }),
-];
-
+/** Administrativo — /admin/administrativo */
 const ADMINISTRATIVO: Def[] = [
-  page(
-    "administrativo",
-    "Administrativo",
-    "/admin/administrativo",
-    "Settings",
-    100,
-    "Perfil, equipe, assinatura e integrações da conta.",
-  ),
-  tab("administrativo.perfil", "Meu perfil", 10),
-  field("administrativo.perfil.dados", "Dados do membro", 10),
-  tab("administrativo.equipe", "Equipe", 20),
-  resource("administrativo.equipe.convites", "Convites de membros", 10),
-  resource("administrativo.equipe.permissoes", "Permissões do membro", 20),
-  resource("administrativo.equipe.remover", "Remover membro", 30),
-  tab("administrativo.assinatura", "Assinatura", 30, { route: "/admin/assinatura" }),
-  resource("administrativo.assinatura.plano", "Plano contratado", 10),
-  resource("administrativo.assinatura.pagamento", "Pagamento e faturas", 20),
-  tab("administrativo.integracoes", "Integrações", 40, { route: "/admin/integracoes" }),
-  section("administrativo.integracoes.google-agenda", "Google Agenda", 10),
-  section("administrativo.integracoes.clicksign", "ClickSign", 20),
-  resource("administrativo.integracoes.clicksign.api", "Chave de API", 10),
-  resource("administrativo.integracoes.clicksign.webhook", "Webhook", 20),
-  resource("administrativo.integracoes.clicksign.importar", "Importar documentos", 30),
-  section("administrativo.integracoes.whatsapp", "WhatsApp", 30),
+  page("tenant.administrativo", "Administrativo", "/admin/administrativo", "Settings2", 60,
+    "Perfil, assinatura, permissões da equipe e integrações."),
+
+  tab("tenant.administrativo.perfil", "Perfil", 10),
+  act("tenant.administrativo.perfil.editar", "Editar meus dados", 10),
+
+  tab("tenant.administrativo.assinatura", "Assinatura", 20, { route: "/admin/assinatura" }),
+  act("tenant.administrativo.assinatura.plano", "Plano", 10),
+  act("tenant.administrativo.assinatura.cartao", "Cartão de crédito", 20),
+  act("tenant.administrativo.assinatura.pagamentos", "Pagamentos", 30),
+
+  tab("tenant.administrativo.permissoes", "Permissões", 30),
+  act("tenant.administrativo.permissoes.convidar", "Convidar membro", 10),
+  act("tenant.administrativo.permissoes.definir", "Definir permissões", 20),
+  act("tenant.administrativo.permissoes.imoveis", "Vincular imóveis ao membro", 30),
+  act("tenant.administrativo.permissoes.remover", "Remover membro", 40),
+
+  tab("tenant.administrativo.integracoes", "Integrações", 40, { route: "/admin/integracoes" }),
+  act("tenant.administrativo.integracoes.google-agenda", "Google Agenda", 10),
+  act("tenant.administrativo.integracoes.clicksign", "ClickSign", 20),
+  act("tenant.administrativo.integracoes.whatsapp", "WhatsApp", 30),
 ];
 
-const FINANCEIRO: Def[] = [
-  page("financeiro", "Financeiro", null, "Wallet", 110, "Cobranças, repasses e faturamento."),
-  sub("financeiro.billing", "Billing", 10),
-  resource("financeiro.billing.faturas", "Faturas", 10),
-  resource("financeiro.billing.metodo-pagamento", "Método de pagamento", 20),
-  sub("financeiro.repasses", "Repasses a proprietários", 20),
+/* ================================================================ ADMIN SAAS */
+
+const SAAS_ENGAJAMENTO: Def[] = [
+  page("admin.engajamento", "Engajamento", "/admin/engajamento", "Activity", 10,
+    "Panorama de uso dos guias pelos hóspedes."),
+  tab("admin.engajamento.panorama", "Panorama", 10),
+  tab("admin.engajamento.jornada", "Jornada", 20),
+  tab("admin.engajamento.conteudo", "Conteúdo", 30),
+  tab("admin.engajamento.hospedes", "Hóspedes", 40),
 ];
 
-const ADMIN_SAAS: Def[] = [
-  page(
-    "admin",
-    "Admin SaaS",
-    "/admin/admins",
-    "ShieldCheck",
-    900,
-    "Administração interna da plataforma.",
-  ),
-  tab("admin.admins", "Administradores", 10),
-  tab("admin.invites", "Convites", 20),
-  tab("admin.logs", "Logs", 30),
-  sub("admin.permissions", "Permissões", 40, {
-    description: "Árvore de permissões, atribuições e auditoria (arquitetura nova).",
-  }),
-  resource("admin.permissions.arvore", "Árvore de permissões", 10),
-  resource("admin.permissions.atribuicoes", "Atribuições", 20),
-  resource("admin.permissions.auditoria", "Auditoria de permissões", 30),
-  resource("admin.permissions.consistencia", "Relatório de consistência", 40),
+const SAAS_CLIENTES: Def[] = [
+  page("admin.clientes", "Clientes", "/admin/clientes", "Users", 20,
+    "Carteira de clientes, assinaturas e planos."),
+  tab("admin.clientes.lista", "Lista de clientes", 10),
+  act("admin.clientes.lista.filtros", "Filtrar e buscar", 10),
+  act("admin.clientes.lista.abrir-guias", "Abrir guias do cliente", 20),
+  tab("admin.clientes.assinatura", "Assinatura do cliente", 20),
+  act("admin.clientes.assinatura.editar", "Editar assinatura", 10),
+  act("admin.clientes.assinatura.trial", "Aplicar trial personalizado", 20),
+  act("admin.clientes.assinatura.enterprise", "Criar assinatura Enterprise", 30),
+  act("admin.clientes.assinatura.cancelar", "Cancelar assinatura", 40),
 ];
 
-const GUIA_PUBLICO: Def[] = [
-  page(
-    "guia",
-    "Guia do Hóspede",
-    "/g/$slug",
-    "BookOpen",
-    950,
-    "Experiência pública acessada pelo hóspede.",
-  ),
-  sub("guia.home", "Home do guia", 10, { route: "/g/$slug" }),
-  sub("guia.explorar", "Explorar", 20, { route: "/g/$slug/explorar" }),
-  section("guia.chegada", "Chegada", 30),
-  section("guia.saida", "Saída", 40),
-  section("guia.residencia", "Residência", 50),
-  resource("guia.chat", "Chat com o concierge", 60),
-  field("guia.senha-acesso", "Senha de acesso", 70),
+const SAAS_RECOMENDACOES: Def[] = [
+  page("admin.recomendacoes-sigma", "Recomendações", "/admin/recomendacoes-sigma", "Star", 30,
+    "Curadoria Sigma de conteúdo por cidade."),
+  tab("admin.recomendacoes-sigma.pacotes", "Pacotes por cidade", 10),
+  act("admin.recomendacoes-sigma.pacotes.criar", "Criar cidade / pacote", 10),
+  act("admin.recomendacoes-sigma.pacotes.publicar", "Publicar / despublicar", 20),
+  act("admin.recomendacoes-sigma.pacotes.excluir", "Excluir pacote", 30),
+  tab("admin.recomendacoes-sigma.recomendacoes", "Recomendações", 20),
+  tab("admin.recomendacoes-sigma.faqs", "FAQs", 30),
+  tab("admin.recomendacoes-sigma.marketplace", "Marketplace", 40),
+  sub("admin.cidades", "Cidades", 50, { route: "/admin/cidades", parentSlug: "admin.recomendacoes-sigma" }),
+  sub("admin.taxonomia", "Taxonomia", 60, { route: "/admin/taxonomia", parentSlug: "admin.recomendacoes-sigma" }),
+  act("admin.taxonomia.categorias", "Categorias", 10, { parentSlug: "admin.taxonomia" }),
+  act("admin.taxonomia.tags", "Etiquetas", 20, { parentSlug: "admin.taxonomia" }),
+  act("admin.taxonomia.mesclar", "Mesclar categorias", 30, { parentSlug: "admin.taxonomia" }),
 ];
 
-/**
- * Funcionalidade de plano exigida por módulo. A exigência é herdada por toda
- * a subárvore (o Registry resolve o ancestral mais próximo).
- */
-const FEATURE_BY_SLUG: Record<string, string> = {
-  conversas: "humanHandoff",
-  ia: "ai",
-  inteligencia: "ai",
-  "imoveis.edicao-massa": "team",
-  "imoveis.editor.captacao": "advancedIntake",
-  "administrativo.equipe": "team",
-  "administrativo.integracoes": "externalIntegration",
-  "guia.chat": "guestChat",
-  financeiro: "team",
-};
+const SAAS_INTELIGENCIA: Def[] = [
+  page("admin.inteligencia", "Inteligência", "/admin/inteligencia", "Sparkles", 40,
+    "Observabilidade da IA, auditoria e analytics do SaaS."),
+  tab("admin.inteligencia.global", "Global Intelligence", 10),
+  tab("admin.inteligencia.pipeline", "Pipeline de Aprendizado", 20),
+  tab("admin.inteligencia.agentes", "Evolução dos Agentes", 30),
+  tab("admin.inteligencia.prompts", "Evolução dos Prompts", 40),
+  tab("admin.inteligencia.eventos", "Eventos", 50),
+  act("admin.inteligencia.eventos.exportar", "Exportar eventos", 10),
+  tab("admin.inteligencia.analytics", "Analytics de Logs", 60),
+];
+
+const SAAS_ADMINS: Def[] = [
+  page("admin.admins", "Administradores", "/admin/admins", "ShieldCheck", 50,
+    "Administração interna da plataforma."),
+  tab("admin.admins.admins", "Administradores", 10),
+  act("admin.admins.admins.conceder", "Conceder acesso admin", 10),
+  act("admin.admins.admins.revogar", "Revogar acesso admin", 20),
+  tab("admin.admins.invites", "Convites", 20),
+  act("admin.admins.invites.criar", "Criar convite", 10),
+  act("admin.admins.invites.cancelar", "Cancelar convite", 20),
+  tab("admin.admins.permissoes", "Permissões", 30),
+  act("admin.admins.permissoes.definir", "Definir permissões do admin", 10),
+  act("admin.admins.permissoes.sincronizar", "Sincronizar árvore", 20),
+  tab("admin.admins.logs", "Log de atividades", 40),
+];
+
+/* ------------------------------------------------------------- raízes/planos */
 
 const ROOTS: Def[] = [
-  page(
-    TENANT_NAMESPACE,
-    "Conta do Cliente",
-    null,
-    "Building2",
-    1,
-    "Raiz de todos os recursos disponíveis para o anfitrião e sua equipe.",
-  ),
+  root(TENANT_NAMESPACE, "Conta do Cliente", "Raiz dos recursos do anfitrião e sua equipe."),
+  root(SAAS_NAMESPACE, "Admin SaaS", "Raiz dos recursos internos da plataforma."),
 ];
 
-/**
- * Subárvores públicas / não permissionáveis: existem no catálogo apenas para
- * diagnóstico e rastreabilidade, mas NUNCA entram na árvore de permissões.
- */
-const NON_PERMISSIONABLE_PREFIXES = ["guia"];
+/** Funcionalidade de plano exigida por categoria (herdada pela subárvore). */
+const FEATURE_BY_SLUG: Record<string, string> = {
+  "tenant.atendimento": "humanHandoff",
+  "tenant.ia": "ai",
+  "tenant.guias.imoveis.edicao-massa": "team",
+  "tenant.guias.editor.captacao": "advancedIntake",
+  "tenant.administrativo.permissoes": "team",
+  "tenant.administrativo.integracoes": "externalIntegration",
+};
 
 const RAW_CATALOG: Def[] = [
   ...ROOTS,
   ...DASHBOARD,
-  ...CONVERSAS,
-  ...IMOVEIS,
+  ...GUIAS,
   ...STAKEHOLDERS,
-  ...CRM,
-  ...ENGAJAMENTO,
   ...IA,
-  ...INTELIGENCIA,
-  ...CIDADES,
+  ...ATENDIMENTO,
   ...ADMINISTRATIVO,
-  ...FINANCEIRO,
-  ...ADMIN_SAAS,
-  ...GUIA_PUBLICO,
+  ...SAAS_ENGAJAMENTO,
+  ...SAAS_CLIENTES,
+  ...SAAS_RECOMENDACOES,
+  ...SAAS_INTELIGENCIA,
+  ...SAAS_ADMINS,
 ];
 
-function isPermissionableSlug(rawSlug: string): boolean {
-  return !NON_PERMISSIONABLE_PREFIXES.some(
-    (prefix) => rawSlug === prefix || rawSlug.startsWith(`${prefix}.`),
-  );
+/**
+ * Deriva o pai de um slug quando ele não foi informado explicitamente:
+ * `tenant.guias.imoveis.criar` → `tenant.guias.imoveis`.
+ */
+function parentFromSlug(slug: string): string | null {
+  const parts = slug.split(".");
+  if (parts.length <= 1) return null;
+  return parts.slice(0, -1).join(".");
 }
 
-/**
- * Catálogo completo já normalizado (FASE 3.5):
- *  - slugs canônicos (`tenant.*` / `admin.*`);
- *  - marcação de nós não permissionáveis;
- *  - histórico do slug anterior preservado em `legacySlugs`.
- */
+/** Catálogo normalizado — todo nó já com pai resolvido e slug canônico. */
 export const PERMISSION_CATALOG: Def[] = RAW_CATALOG.map((node) => {
   const slug = resolveSlug(node.slug);
-  const parentRaw =
-    node.parentSlug === null
-      ? null
-      : node.parentSlug !== undefined
-        ? resolveSlug(node.parentSlug)
-        : undefined;
+  const isRoot = slug === TENANT_NAMESPACE || slug === SAAS_NAMESPACE;
 
-  // Páginas raiz do produto passam a pendurar no namespace da conta.
-  const parentSlug =
-    parentRaw === null && slug !== TENANT_NAMESPACE && slug !== SAAS_NAMESPACE
-      ? isSaasSlug(slug)
-        ? SAAS_NAMESPACE
-        : TENANT_NAMESPACE
-      : parentRaw;
+  const parentSlug = isRoot
+    ? null
+    : node.parentSlug !== undefined && node.parentSlug !== null
+      ? resolveSlug(node.parentSlug)
+      : node.type === "PAGE"
+        ? isSaasSlug(slug)
+          ? SAAS_NAMESPACE
+          : TENANT_NAMESPACE
+        : parentFromSlug(slug);
 
   return {
     ...node,
     slug,
-    ...(parentSlug !== undefined ? { parentSlug } : {}),
-    legacySlugs: slug === node.slug ? undefined : [node.slug],
-    isPermissionable: isPermissionableSlug(node.slug),
+    parentSlug,
+    isPermissionable: true,
     ...(FEATURE_BY_SLUG[node.slug] ? { feature: FEATURE_BY_SLUG[node.slug] } : {}),
   } as Def;
 });
 
-/** Mapa rota → slug do nó, usado pela rotina de consistência. */
+/** Mapa rota → slug do nó, usado pela rotina de consistência e pelo scanner. */
 export const CATALOG_ROUTE_MAP: Record<string, string> = PERMISSION_CATALOG.reduce(
   (acc, node) => {
     if (node.route) acc[node.route] = node.slug;
     return acc;
   },
   {} as Record<string, string>,
+);
+
+/** Slugs das categorias (páginas do menu) por contexto. */
+export const CATALOG_PAGES = PERMISSION_CATALOG.filter(
+  (n) => n.type === "PAGE" && n.slug !== TENANT_NAMESPACE && n.slug !== SAAS_NAMESPACE,
 );
