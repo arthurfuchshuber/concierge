@@ -572,6 +572,8 @@ function KpiCard({
   rangeLabel,
   shadowTone,
   onEditTime,
+  onAdvance,
+  compact,
 }: {
   label: string;
   rows: ArrivalRow[];
@@ -583,6 +585,10 @@ function KpiCard({
   rangeLabel: string;
   shadowTone?: "emerald" | "amber";
   onEditTime: (row: ArrivalRow, kind: "checkin" | "checkout", time: string | null) => void;
+  /** Avança o card na esteira direto pelo popup do indicador. */
+  onAdvance?: (row: ArrivalRow) => void;
+  /** Faixa fina (largura total) em vez de card quadrado. */
+  compact?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const valueTone = tone === "primary" ? "text-primary" : "text-foreground";
@@ -608,15 +614,30 @@ function KpiCard({
       }}
     >
       <DialogTrigger asChild>
-        <button
-          type="button"
-          className={`w-full h-full rounded-xl border border-border bg-card px-4 py-3 text-left transition hover:border-primary/40 hover:bg-secondary/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${shadowClass}`}
-        >
-          <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.16em] text-muted-foreground font-semibold">
-            <Icon className="size-3.5" /> <span className="truncate">{label}</span>
-          </div>
-          <div className={`text-2xl font-display mt-1 tabular-nums ${valueColor}`}>{loading ? "—" : rows.length}</div>
-        </button>
+        {compact ? (
+          <button
+            type="button"
+            className={`w-full flex items-center gap-2 rounded-xl border border-border bg-card px-4 py-2 text-left transition hover:border-primary/40 hover:bg-secondary/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${shadowClass}`}
+          >
+            <Icon className="size-3.5 text-muted-foreground" />
+            <span className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground font-semibold truncate">
+              {label}
+            </span>
+            <span className={`ml-auto text-lg font-display tabular-nums ${valueColor}`}>
+              {loading ? "—" : rows.length}
+            </span>
+          </button>
+        ) : (
+          <button
+            type="button"
+            className={`w-full h-full rounded-xl border border-border bg-card px-4 py-3 text-left transition hover:border-primary/40 hover:bg-secondary/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${shadowClass}`}
+          >
+            <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.16em] text-muted-foreground font-semibold">
+              <Icon className="size-3.5" /> <span className="truncate">{label}</span>
+            </div>
+            <div className={`text-2xl font-display mt-1 tabular-nums ${valueColor}`}>{loading ? "—" : rows.length}</div>
+          </button>
+        )}
       </DialogTrigger>
       <DialogContent className="w-[calc(100vw-1.5rem)] sm:w-full sm:max-w-md p-0 overflow-hidden rounded-2xl border-border/60 bg-card/95 backdrop-blur-xl shadow-2xl">
         <div
@@ -648,7 +669,6 @@ function KpiCard({
             <ul className="space-y-1.5">
               {rows.map((r) => {
                 const time = r.arrivalTimeOverride ?? r.guestArrivalTime ?? null;
-                const done = r.status === "done";
                 const initials =
                   (r.guestName || "?")
                     .split(/\s+/)
@@ -659,7 +679,7 @@ function KpiCard({
                 return (
                   <li
                     key={r.logId}
-                    className="group flex items-center gap-2 rounded-xl border border-border/50 bg-background/40 px-2.5 py-2 transition hover:border-border hover:bg-secondary/40"
+                    className="group flex items-start gap-2 rounded-xl border border-border/50 bg-background/40 px-2.5 py-2 transition hover:border-border hover:bg-secondary/40"
                   >
                     <div
                       className={`grid place-items-center size-8 rounded-full text-xs font-semibold shrink-0 ${r.pendingFill ? "bg-muted text-muted-foreground" : "bg-primary/10 text-primary"}`}
@@ -698,17 +718,34 @@ function KpiCard({
                           <CopyButton value={r.reservationCode} size={10} className="p-0.5" />
                         </div>
                       )}
-                    </div>
-                    <div className="flex flex-col items-end gap-0.5 shrink-0">
-                      <TimeDropdown value={time} onChange={(v) => onEditTime(r, kind, v)} size="xs" />
-                      {done ? (
-                        <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
-                          <Check className="size-3" /> Concluído
+                      {/* Previsão de horário — campo largo, logo abaixo do código da reserva */}
+                      <div className="mt-1.5 flex items-center gap-2">
+                        <span className="text-[10px] uppercase tracking-wider text-muted-foreground shrink-0">
+                          Previsão
                         </span>
-                      ) : (
-                        <span className="text-[10px] uppercase tracking-wider text-muted-foreground">Pendente</span>
+                        <div className="min-w-[140px]">
+                          <TimeDropdown value={time} onChange={(v) => onEditTime(r, kind, v)} />
+                        </div>
+                      </div>
+                      {!r.openedCheckin && (
+                        <div className="mt-1 text-[10px] uppercase tracking-wider font-semibold text-amber-600 dark:text-amber-400">
+                          Não Acessou o Guia
+                        </div>
                       )}
                     </div>
+                    {onAdvance && (
+                      <div className="self-end shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => onAdvance(r)}
+                          title="Marcar como concluído"
+                          aria-label="Marcar como concluído"
+                          className="size-8 grid place-items-center rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition-colors"
+                        >
+                          <Check className="size-4" />
+                        </button>
+                      </div>
+                    )}
                   </li>
                 );
               })}
@@ -719,6 +756,206 @@ function KpiCard({
     </Dialog>
   );
 }
+
+/** Imóveis sem ninguém hospedado hoje. */
+function FreePropertiesCard({
+  loading,
+  properties,
+  onRefresh,
+}: {
+  loading: boolean;
+  properties: Array<{ id: string; name: string }>;
+  onRefresh: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(v) => {
+        setOpen(v);
+        if (v) onRefresh();
+      }}
+    >
+      <DialogTrigger asChild>
+        <button
+          type="button"
+          className="w-full h-full rounded-xl border border-border bg-card px-4 py-3 text-left transition hover:border-primary/40 hover:bg-secondary/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 shadow-sm hover:shadow-md"
+        >
+          <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.16em] text-muted-foreground font-semibold">
+            <Home className="size-3.5" /> <span className="truncate">Imóveis sem ninguém</span>
+          </div>
+          <div className="text-2xl font-display mt-1 tabular-nums text-foreground">
+            {loading ? "—" : properties.length}
+          </div>
+        </button>
+      </DialogTrigger>
+      <DialogContent className="w-[calc(100vw-1.5rem)] sm:w-full sm:max-w-md p-0 overflow-hidden rounded-2xl">
+        <DialogHeader className="px-5 pt-5 pb-3">
+          <DialogTitle className="text-base font-display">Imóveis sem ninguém hoje</DialogTitle>
+        </DialogHeader>
+        <div className="max-h-[70vh] overflow-y-auto px-4 pb-5">
+          {loading ? (
+            <div className="py-10 grid place-items-center text-muted-foreground">
+              <Loader2 className="size-5 animate-spin" />
+            </div>
+          ) : properties.length === 0 ? (
+            <div className="py-10 text-center text-sm text-muted-foreground">
+              Todos os imóveis estão ocupados hoje.
+            </div>
+          ) : (
+            <ul className="space-y-1.5">
+              {properties.map((p) => (
+                <li
+                  key={p.id}
+                  className="rounded-lg border border-border/50 bg-background/40 px-3 py-2 text-sm truncate"
+                >
+                  {p.name}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/** Agenda macro: ocupação de todos os imóveis nos próximos dias. */
+function OccupancyPanel({
+  loading,
+  start,
+  days,
+  properties,
+  stays,
+}: {
+  loading: boolean;
+  start: string;
+  days: number;
+  properties: Array<{ id: string; name: string; city: string | null }>;
+  stays: Array<{ propertyId: string; checkin: string; checkout: string | null; guest: string | null }>;
+}) {
+  const dayList = useMemo(() => {
+    const out: string[] = [];
+    const [y, m, d] = start.split("-").map(Number);
+    for (let i = 0; i < days; i++) {
+      const dt = new Date(Date.UTC(y, (m ?? 1) - 1, d));
+      dt.setUTCDate(dt.getUTCDate() + i);
+      out.push(dt.toISOString().slice(0, 10));
+    }
+    return out;
+  }, [start, days]);
+
+  const byProperty = useMemo(() => {
+    const map = new Map<string, Array<{ checkin: string; checkout: string | null; guest: string | null }>>();
+    for (const s of stays) {
+      const arr = map.get(s.propertyId) ?? [];
+      arr.push({ checkin: s.checkin, checkout: s.checkout, guest: s.guest });
+      map.set(s.propertyId, arr);
+    }
+    return map;
+  }, [stays]);
+
+  function cellState(propertyId: string, day: string): "in" | "out" | "busy" | "free" {
+    const list = byProperty.get(propertyId) ?? [];
+    for (const s of list) {
+      if (s.checkin === day) return "in";
+      if (s.checkout === day) return "out";
+      if (s.checkin < day && (s.checkout ?? s.checkin) > day) return "busy";
+    }
+    return "free";
+  }
+
+  return (
+    <Accordion type="single" collapsible className="rounded-2xl border border-border bg-card shadow-sm">
+      <AccordionItem value="agenda" className="border-0">
+        <AccordionTrigger className="px-4 sm:px-5 py-4 hover:no-underline">
+          <span className="flex items-center gap-2 text-sm font-semibold">
+            <CalendarCheck className="size-4 text-muted-foreground" /> Agenda de ocupação dos imóveis
+          </span>
+        </AccordionTrigger>
+        <AccordionContent className="px-4 sm:px-5 pb-5">
+          {loading ? (
+            <div className="py-10 grid place-items-center text-muted-foreground">
+              <Loader2 className="size-5 animate-spin" />
+            </div>
+          ) : properties.length === 0 ? (
+            <div className="py-8 text-center text-sm text-muted-foreground">Nenhum imóvel para exibir.</div>
+          ) : (
+            <>
+              <div className="overflow-x-auto">
+                <table className="w-full border-separate border-spacing-y-1 text-xs">
+                  <thead>
+                    <tr>
+                      <th className="sticky left-0 z-10 bg-card text-left font-medium text-muted-foreground pr-3 min-w-[160px]">
+                        Imóvel
+                      </th>
+                      {dayList.map((d) => (
+                        <th key={d} className="px-0.5 font-medium text-muted-foreground tabular-nums">
+                          {d.slice(8, 10)}/{d.slice(5, 7)}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {properties.map((p) => (
+                      <tr key={p.id}>
+                        <td className="sticky left-0 z-10 bg-card pr-3 max-w-[220px]">
+                          <div className="truncate font-medium" title={p.name}>
+                            {p.name}
+                          </div>
+                          {p.city ? <div className="truncate text-[10px] text-muted-foreground">{p.city}</div> : null}
+                        </td>
+                        {dayList.map((d) => {
+                          const st = cellState(p.id, d);
+                          const cls =
+                            st === "in"
+                              ? "bg-emerald-500/80"
+                              : st === "out"
+                                ? "bg-amber-500/80"
+                                : st === "busy"
+                                  ? "bg-primary/50"
+                                  : "bg-muted";
+                          const title =
+                            st === "in"
+                              ? "Check-in"
+                              : st === "out"
+                                ? "Checkout"
+                                : st === "busy"
+                                  ? "Ocupado"
+                                  : "Livre";
+                          return (
+                            <td key={d} className="px-0.5">
+                              <div className={`h-6 rounded-sm ${cls}`} title={`${title} · ${fmtDateBR(d)}`} />
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-muted-foreground">
+                <span className="inline-flex items-center gap-1">
+                  <span className="size-2.5 rounded-sm bg-emerald-500/80" /> Check-in
+                </span>
+                <span className="inline-flex items-center gap-1">
+                  <span className="size-2.5 rounded-sm bg-amber-500/80" /> Checkout
+                </span>
+                <span className="inline-flex items-center gap-1">
+                  <span className="size-2.5 rounded-sm bg-primary/50" /> Ocupado
+                </span>
+                <span className="inline-flex items-center gap-1">
+                  <span className="size-2.5 rounded-sm bg-muted" /> Livre
+                </span>
+              </div>
+            </>
+          )}
+        </AccordionContent>
+      </AccordionItem>
+    </Accordion>
+  );
+}
+
 
 function RangeDropdown<T extends string>({
   value,
