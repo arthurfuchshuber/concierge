@@ -44,6 +44,8 @@ import { SigmaImportButton, SigmaActiveBanner, SaveAsSigmaPackButton } from "@/c
 import { getMyPropertySigmaState } from "@/lib/sigma-recommendations.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { useImpersonation } from "@/hooks/useImpersonation";
+import { useAccess } from "@/lib/permissions/useAccess";
+
 
 export const Route = createFileRoute("/_authenticated/admin/properties/$id")({
   component: PropertyEditor,
