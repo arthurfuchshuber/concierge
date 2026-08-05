@@ -37,6 +37,7 @@ import { Route as ApiPublicGuestDocUploadRouteImport } from './routes/api/public
 import { Route as ApiPublicClicksignWebhookRouteImport } from './routes/api/public/clicksign-webhook'
 import { Route as AuthenticatedAdminTaxonomiaRouteImport } from './routes/_authenticated/admin.taxonomia'
 import { Route as AuthenticatedAdminStakeholdersRouteImport } from './routes/_authenticated/admin.stakeholders'
+import { Route as AuthenticatedAdminPermissoesRouteImport } from './routes/_authenticated/admin.permissoes'
 import { Route as AuthenticatedAdminInteligenciaRouteImport } from './routes/_authenticated/admin.inteligencia'
 import { Route as AuthenticatedAdminIntegracoesRouteImport } from './routes/_authenticated/admin.integracoes'
 import { Route as AuthenticatedAdminIaRouteImport } from './routes/_authenticated/admin.ia'
@@ -216,6 +217,12 @@ const AuthenticatedAdminStakeholdersRoute =
   AuthenticatedAdminStakeholdersRouteImport.update({
     id: '/stakeholders',
     path: '/stakeholders',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
+const AuthenticatedAdminPermissoesRoute =
+  AuthenticatedAdminPermissoesRouteImport.update({
+    id: '/permissoes',
+    path: '/permissoes',
     getParentRoute: () => AuthenticatedAdminRoute,
   } as any)
 const AuthenticatedAdminInteligenciaRoute =
@@ -447,6 +454,7 @@ export interface FileRoutesByFullPath {
   '/admin/ia': typeof AuthenticatedAdminIaRoute
   '/admin/integracoes': typeof AuthenticatedAdminIntegracoesRoute
   '/admin/inteligencia': typeof AuthenticatedAdminInteligenciaRoute
+  '/admin/permissoes': typeof AuthenticatedAdminPermissoesRoute
   '/admin/stakeholders': typeof AuthenticatedAdminStakeholdersRoute
   '/admin/taxonomia': typeof AuthenticatedAdminTaxonomiaRoute
   '/api/public/clicksign-webhook': typeof ApiPublicClicksignWebhookRoute
@@ -508,6 +516,7 @@ export interface FileRoutesByTo {
   '/admin/ia': typeof AuthenticatedAdminIaRoute
   '/admin/integracoes': typeof AuthenticatedAdminIntegracoesRoute
   '/admin/inteligencia': typeof AuthenticatedAdminInteligenciaRoute
+  '/admin/permissoes': typeof AuthenticatedAdminPermissoesRoute
   '/admin/stakeholders': typeof AuthenticatedAdminStakeholdersRoute
   '/admin/taxonomia': typeof AuthenticatedAdminTaxonomiaRoute
   '/api/public/clicksign-webhook': typeof ApiPublicClicksignWebhookRoute
@@ -573,6 +582,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/ia': typeof AuthenticatedAdminIaRoute
   '/_authenticated/admin/integracoes': typeof AuthenticatedAdminIntegracoesRoute
   '/_authenticated/admin/inteligencia': typeof AuthenticatedAdminInteligenciaRoute
+  '/_authenticated/admin/permissoes': typeof AuthenticatedAdminPermissoesRoute
   '/_authenticated/admin/stakeholders': typeof AuthenticatedAdminStakeholdersRoute
   '/_authenticated/admin/taxonomia': typeof AuthenticatedAdminTaxonomiaRoute
   '/api/public/clicksign-webhook': typeof ApiPublicClicksignWebhookRoute
@@ -638,6 +648,7 @@ export interface FileRouteTypes {
     | '/admin/ia'
     | '/admin/integracoes'
     | '/admin/inteligencia'
+    | '/admin/permissoes'
     | '/admin/stakeholders'
     | '/admin/taxonomia'
     | '/api/public/clicksign-webhook'
@@ -699,6 +710,7 @@ export interface FileRouteTypes {
     | '/admin/ia'
     | '/admin/integracoes'
     | '/admin/inteligencia'
+    | '/admin/permissoes'
     | '/admin/stakeholders'
     | '/admin/taxonomia'
     | '/api/public/clicksign-webhook'
@@ -763,6 +775,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/ia'
     | '/_authenticated/admin/integracoes'
     | '/_authenticated/admin/inteligencia'
+    | '/_authenticated/admin/permissoes'
     | '/_authenticated/admin/stakeholders'
     | '/_authenticated/admin/taxonomia'
     | '/api/public/clicksign-webhook'
@@ -1034,6 +1047,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminStakeholdersRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
     }
+    '/_authenticated/admin/permissoes': {
+      id: '/_authenticated/admin/permissoes'
+      path: '/permissoes'
+      fullPath: '/admin/permissoes'
+      preLoaderRoute: typeof AuthenticatedAdminPermissoesRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
     '/_authenticated/admin/inteligencia': {
       id: '/_authenticated/admin/inteligencia'
       path: '/inteligencia'
@@ -1289,6 +1309,7 @@ interface AuthenticatedAdminRouteChildren {
   AuthenticatedAdminIaRoute: typeof AuthenticatedAdminIaRoute
   AuthenticatedAdminIntegracoesRoute: typeof AuthenticatedAdminIntegracoesRoute
   AuthenticatedAdminInteligenciaRoute: typeof AuthenticatedAdminInteligenciaRoute
+  AuthenticatedAdminPermissoesRoute: typeof AuthenticatedAdminPermissoesRoute
   AuthenticatedAdminStakeholdersRoute: typeof AuthenticatedAdminStakeholdersRoute
   AuthenticatedAdminTaxonomiaRoute: typeof AuthenticatedAdminTaxonomiaRoute
   AuthenticatedAdminIndexRoute: typeof AuthenticatedAdminIndexRoute
@@ -1315,6 +1336,7 @@ const AuthenticatedAdminRouteChildren: AuthenticatedAdminRouteChildren = {
   AuthenticatedAdminIaRoute: AuthenticatedAdminIaRoute,
   AuthenticatedAdminIntegracoesRoute: AuthenticatedAdminIntegracoesRoute,
   AuthenticatedAdminInteligenciaRoute: AuthenticatedAdminInteligenciaRoute,
+  AuthenticatedAdminPermissoesRoute: AuthenticatedAdminPermissoesRoute,
   AuthenticatedAdminStakeholdersRoute: AuthenticatedAdminStakeholdersRoute,
   AuthenticatedAdminTaxonomiaRoute: AuthenticatedAdminTaxonomiaRoute,
   AuthenticatedAdminIndexRoute: AuthenticatedAdminIndexRoute,
