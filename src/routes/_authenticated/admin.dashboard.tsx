@@ -372,6 +372,12 @@ function DashboardPage() {
     }
     return blocked;
   }, [coRows]);
+  // Imóvel com check-out pendente ou limpeza em andamento não é "livre".
+  const freeProperties = useMemo(
+    () => (occupancyQ.data?.freeToday ?? []).filter((p) => !cleaningPendingPropIds.has(p.id)),
+    [occupancyQ.data?.freeToday, cleaningPendingPropIds],
+  );
+
   const boardRows = useMemo(() => {
     if (mode === "checkin") return checkinPendingRows;
     if (mode === "checkout") return checkoutPendingRows;
