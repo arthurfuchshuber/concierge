@@ -12,7 +12,6 @@ import {
   StickyNote,
   Check,
   AlertTriangle,
-  Clock,
   Loader2,
   Home,
   Info,
@@ -636,7 +635,7 @@ function KpiCard({
         {compact ? (
           <button
             type="button"
-            className={`w-full flex items-center gap-2 rounded-xl border border-border bg-card px-4 py-2 text-left transition hover:border-primary/40 hover:bg-secondary/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${shadowClass}`}
+            className={`w-full flex items-center gap-2 rounded-xl border border-border bg-card px-4 py-3 text-left transition hover:border-primary/40 hover:bg-secondary/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${shadowClass}`}
           >
             <Icon className="size-3.5 text-muted-foreground" />
             <span className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground font-semibold truncate">
@@ -738,11 +737,11 @@ function KpiCard({
                         </div>
                       )}
                       {/* Previsão de horário — campo largo, logo abaixo do código da reserva */}
-                      <div className="mt-1.5 flex items-center gap-2">
+                      <div className="mt-0.5 flex items-center gap-2">
                         <span className="text-[10px] uppercase tracking-wider text-muted-foreground shrink-0">
                           Previsão
                         </span>
-                        <div className="min-w-[140px]">
+                        <div className="min-w-[104px]">
                           <TimeDropdown value={time} onChange={(v) => onEditTime(r, kind, v)} />
                         </div>
                       </div>
@@ -850,7 +849,7 @@ function OccupancyPanel({
   loading: boolean;
   start: string;
   days: number;
-  properties: Array<{ id: string; name: string; city: string | null }>;
+  properties: Array<{ id: string; name: string; city: string | null; ownerName?: string | null }>;
   stays: Array<{ propertyId: string; checkin: string; checkout: string | null; guest: string | null }>;
 }) {
   const dayList = useMemo(() => {
@@ -901,25 +900,39 @@ function OccupancyPanel({
             <div className="py-8 text-center text-sm text-muted-foreground">Nenhum imóvel para exibir.</div>
           ) : (
             <>
-              <div className="overflow-x-auto">
-                <table className="w-full border-separate border-spacing-y-1 text-xs">
+              <div className="overflow-x-auto -mx-1 px-1">
+                <table className="w-full border-separate border-spacing-x-0.5 border-spacing-y-1 text-xs">
                   <thead>
                     <tr>
-                      <th className="sticky left-0 z-10 bg-card text-left font-medium text-muted-foreground pr-3 min-w-[160px]">
+                      <th className="sticky left-0 z-10 bg-card text-left font-medium text-muted-foreground pr-2 w-[132px] min-w-[132px] max-w-[132px]">
                         Imóvel
                       </th>
-                      {dayList.map((d) => (
-                        <th key={d} className="px-0.5 font-medium text-muted-foreground tabular-nums">
-                          {d.slice(8, 10)}/{d.slice(5, 7)}
-                        </th>
-                      ))}
+                      {dayList.map((d) => {
+                        const wd = new Date(`${d}T12:00:00Z`).toLocaleDateString("pt-BR", {
+                          weekday: "short",
+                          timeZone: "UTC",
+                        });
+                        return (
+                          <th key={d} className="px-0 font-medium text-muted-foreground tabular-nums min-w-[34px]">
+                            <div className="text-[9px] uppercase tracking-wide opacity-70">{wd.replace(".", "")}</div>
+                            <div className="text-[10px]">
+                              {d.slice(8, 10)}/{d.slice(5, 7)}
+                            </div>
+                          </th>
+                        );
+                      })}
                     </tr>
                   </thead>
                   <tbody>
                     {properties.map((p) => (
                       <tr key={p.id}>
-                        <td className="sticky left-0 z-10 bg-card pr-3 max-w-[220px]">
-                          <div className="truncate font-medium" title={p.name}>
+                        <td className="sticky left-0 z-10 bg-card pr-2 w-[132px] min-w-[132px] max-w-[132px] align-middle">
+                          {p.ownerName ? (
+                            <div className="truncate text-[10px] font-semibold text-primary" title={p.ownerName}>
+                              {p.ownerName}
+                            </div>
+                          ) : null}
+                          <div className="truncate text-[11px] font-medium leading-tight" title={p.name}>
                             {p.name}
                           </div>
                           {p.city ? <div className="truncate text-[10px] text-muted-foreground">{p.city}</div> : null}
@@ -928,12 +941,12 @@ function OccupancyPanel({
                           const st = cellState(p.id, d);
                           const cls =
                             st === "in"
-                              ? "bg-emerald-500/80"
+                              ? "bg-emerald-500/85"
                               : st === "out"
-                                ? "bg-amber-500/80"
+                                ? "bg-amber-500/85"
                                 : st === "busy"
-                                  ? "bg-primary/50"
-                                  : "bg-muted";
+                                  ? "bg-primary/45"
+                                  : "bg-muted/60";
                           const title =
                             st === "in"
                               ? "Check-in"
@@ -943,8 +956,8 @@ function OccupancyPanel({
                                   ? "Ocupado"
                                   : "Livre";
                           return (
-                            <td key={d} className="px-0.5">
-                              <div className={`h-6 rounded-sm ${cls}`} title={`${title} · ${fmtDateBR(d)}`} />
+                            <td key={d} className="px-0">
+                              <div className={`h-7 rounded-md ${cls}`} title={`${title} · ${fmtDateBR(d)}`} />
                             </td>
                           );
                         })}
@@ -1948,10 +1961,9 @@ function TimeDropdown({
           disabled={disabled}
           onClick={(e) => e.stopPropagation()}
           title={disabled ? "Indisponível" : "Selecionar horário previsto"}
-          className={`inline-flex items-center gap-1 tabular-nums rounded hover:text-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 disabled:cursor-not-allowed disabled:hover:text-inherit ${size === "xs" ? "text-xs" : "text-sm"}`}
+          className={`inline-flex w-full items-center justify-between gap-1 tabular-nums rounded-md border border-border/60 bg-background/60 px-2 py-1 hover:text-primary hover:border-border focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 disabled:cursor-not-allowed disabled:hover:text-inherit ${size === "xs" ? "text-xs" : "text-sm"}`}
         >
-          <Clock className="size-3" />
-          <span>{value ?? "—"}</span>
+          <span className="font-medium">{value ?? "—"}</span>
           <ChevronDown className="size-3 opacity-50" />
         </button>
       </DropdownMenuTrigger>
