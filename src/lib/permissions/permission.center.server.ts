@@ -70,14 +70,28 @@ export type CenterUserDetail = {
   }>;
   inherited: Array<{ namespace: string; label: string; level: AccessLevel }>;
   scopes: Array<{ type: ScopeType; description: string; count: number }>;
-  properties: Array<{ id: string; name: string; assigned: boolean }>;
+  properties: CenterProperty[];
+};
+
+export type CenterProperty = {
+  id: string;
+  name: string;
+  address: string | null;
+  city: string | null;
+  state: string | null;
+  ownerId: string | null;
+  ownerName: string | null;
+  ownerPhone: string | null;
+  ownerPhoneCountry: string | null;
+  assigned: boolean;
 };
 
 export type CenterScopes = {
   allowed: true;
   scopes: Array<{ type: ScopeType; description: string; count: number }>;
-  properties: Array<{ id: string; name: string; assigned: boolean }>;
+  properties: CenterProperty[];
 };
+
 
 export type CenterAudit = {
   allowed: true;
