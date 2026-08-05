@@ -317,17 +317,19 @@ function UserAccess({
             value={group.namespace}
             className="overflow-hidden rounded-xl border bg-card"
           >
-            <div className="flex items-center gap-2 pr-3">
-              <AccordionTrigger className="flex-1 px-4 py-3 text-sm font-semibold hover:no-underline">
-                <span className="flex items-center gap-2">
-                  {group.title}
-                  <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-normal text-muted-foreground">
-                    {group.items.length}
+            <div className="flex w-full items-center gap-2 pr-3">
+              <div className="min-w-0 flex-1 [&>h3]:w-full">
+                <AccordionTrigger className="w-full px-4 py-3 text-sm font-semibold hover:no-underline">
+                  <span className="flex min-w-0 items-center gap-2">
+                    <span className="truncate">{group.title}</span>
+                    <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-normal text-muted-foreground">
+                      {group.items.length}
+                    </span>
                   </span>
-                </span>
-              </AccordionTrigger>
+                </AccordionTrigger>
+              </div>
               {/* Liberação em massa da categoria inteira. */}
-              <div className="shrink-0">
+              <div className="ml-auto shrink-0">
                 <LevelSwitch
                   value={groupLevel(group)}
                   disabled={isOwner || bulkMutation.isPending || mutation.isPending}
@@ -340,6 +342,7 @@ function UserAccess({
                 />
               </div>
             </div>
+
             <AccordionContent className="pb-0">
               <div className="border-t">
                 {/* Subcategorias (abas) também expansivas, uma por vez. */}
