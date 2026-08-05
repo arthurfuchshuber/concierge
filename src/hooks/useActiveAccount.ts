@@ -14,7 +14,7 @@ import { useIsAdmin } from "@/hooks/useIsAdmin";
  * que a tela espere em vez de renderizar dados da conta errada.
  */
 export function useActiveAccount() {
-  const { isAdmin, loading: adminLoading } = useIsAdmin();
+  const { isAdmin, isLoading: adminLoading } = useIsAdmin();
   const listFn = useServerFn(listMyAccounts);
   const q = useQuery({
     queryKey: ["my-accounts"],
