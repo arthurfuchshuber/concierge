@@ -1786,10 +1786,32 @@ export const getOccupancyBoard = createServerFn({ method: "GET" })
       });
     }
 
-    const properties = ((props ?? []) as Array<{ id: string; name: string | null; city: string | null }>).map((p) => ({
+    const propsRaw = (props ?? []) as Array<{
+      id: string;
+      name: string | null;
+      city: string | null;
+      owner_contact_id?: string | null;
+    }>;
+    const occOwnerIds = Array.from(
+      new Set(propsRaw.map((p) => p.owner_contact_id).filter((v): v is string => !!v)),
+    );
+    const occOwnerName = new Map<string, string>();
+    if (occOwnerIds.length > 0) {
+      const { data: owners } = await context.supabase
+        .from("property_owners")
+        .select("id, name, trade_name")
+        .in("id", occOwnerIds);
+      for (const o of (owners ?? []) as Array<{ id: string; name: string | null; trade_name: string | null }>) {
+        const label = (o.trade_name || o.name || "").trim();
+        if (label) occOwnerName.set(o.id, label);
+      }
+    }
+
+    const properties = propsRaw.map((p) => ({
       id: p.id,
       name: p.name ?? "Sem nome",
       city: p.city ?? null,
+      ownerName: p.owner_contact_id ? (occOwnerName.get(p.owner_contact_id) ?? null) : null,
     }));
 
     const occupiedToday = new Set(
