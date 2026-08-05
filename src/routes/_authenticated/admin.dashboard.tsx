@@ -636,7 +636,7 @@ function KpiCard({
         {compact ? (
           <button
             type="button"
-            className={`w-full flex items-center gap-2 rounded-xl border border-border bg-card px-4 py-2 text-left transition hover:border-primary/40 hover:bg-secondary/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${shadowClass}`}
+            className={`w-full flex items-center gap-2 rounded-xl border border-border bg-card px-4 py-3 text-left transition hover:border-primary/40 hover:bg-secondary/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${shadowClass}`}
           >
             <Icon className="size-3.5 text-muted-foreground" />
             <span className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground font-semibold truncate">
@@ -738,11 +738,11 @@ function KpiCard({
                         </div>
                       )}
                       {/* Previsão de horário — campo largo, logo abaixo do código da reserva */}
-                      <div className="mt-1.5 flex items-center gap-2">
+                      <div className="mt-0.5 flex items-center gap-2">
                         <span className="text-[10px] uppercase tracking-wider text-muted-foreground shrink-0">
                           Previsão
                         </span>
-                        <div className="min-w-[140px]">
+                        <div className="min-w-[104px]">
                           <TimeDropdown value={time} onChange={(v) => onEditTime(r, kind, v)} />
                         </div>
                       </div>
@@ -1962,10 +1962,9 @@ function TimeDropdown({
           disabled={disabled}
           onClick={(e) => e.stopPropagation()}
           title={disabled ? "Indisponível" : "Selecionar horário previsto"}
-          className={`inline-flex items-center gap-1 tabular-nums rounded hover:text-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 disabled:cursor-not-allowed disabled:hover:text-inherit ${size === "xs" ? "text-xs" : "text-sm"}`}
+          className={`inline-flex w-full items-center justify-between gap-1 tabular-nums rounded-md border border-border/60 bg-background/60 px-2 py-1 hover:text-primary hover:border-border focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 disabled:cursor-not-allowed disabled:hover:text-inherit ${size === "xs" ? "text-xs" : "text-sm"}`}
         >
-          <Clock className="size-3" />
-          <span>{value ?? "—"}</span>
+          <span className="font-medium">{value ?? "—"}</span>
           <ChevronDown className="size-3 opacity-50" />
         </button>
       </DropdownMenuTrigger>
