@@ -81,10 +81,6 @@ export function PendingInviteDialog() {
                 <span className="truncate">{inv.owner_email}</span>
               </div>
             )}
-            <div className="flex items-center gap-2 text-sm">
-              <span className="text-muted-foreground">Papel:</span>
-              <span className="font-medium capitalize">{roleLabel}</span>
-            </div>
           </div>
 
           {list.length > 1 && (
