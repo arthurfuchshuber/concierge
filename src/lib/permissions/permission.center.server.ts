@@ -83,6 +83,7 @@ export type CenterProperty = {
   ownerName: string | null;
   ownerPhone: string | null;
   ownerPhoneCountry: string | null;
+  published: boolean;
   assigned: boolean;
 };
 
@@ -286,7 +287,7 @@ async function propertiesOf(tenantId: string, assigned: string[]) {
   const client = await db();
   const { data } = await client
     .from("properties")
-    .select("id, name, address, city, state, owner_contact_id")
+    .select("id, name, address, city, state, owner_contact_id, published")
     .eq("owner_id", tenantId)
     .order("name", { ascending: true });
 
@@ -297,6 +298,7 @@ async function propertiesOf(tenantId: string, assigned: string[]) {
     city: string | null;
     state: string | null;
     owner_contact_id: string | null;
+    published: boolean | null;
   }>;
 
   const ownerIds = [...new Set(rows.map((r) => r.owner_contact_id).filter((v): v is string => !!v))];
@@ -336,6 +338,7 @@ async function propertiesOf(tenantId: string, assigned: string[]) {
       ownerName: owner?.name ?? null,
       ownerPhone: owner?.phone ?? null,
       ownerPhoneCountry: owner?.country ?? null,
+      published: !!p.published,
       assigned: assigned.includes(p.id),
     };
   });
