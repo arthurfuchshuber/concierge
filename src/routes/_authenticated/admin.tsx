@@ -72,12 +72,10 @@ function AdminLayout() {
         ...baseNav,
         { to: "/admin/atendimento", label: "Atendimento", icon: Headphones, exact: false, badge: pending.data?.count ?? 0 },
         { to: "/admin/administrativo", label: "Administrativo", icon: Settings2, exact: false },
-        { to: "/admin/permissoes", label: "Equipe e Permissões", icon: Shield, exact: false },
       ] as const)
     : ([
         ...baseNav,
         { to: "/admin/administrativo", label: "Administrativo", icon: Settings2, exact: false },
-        { to: "/admin/permissoes", label: "Equipe e Permissões", icon: Shield, exact: false },
       ] as const);
 
   useEffect(() => {
