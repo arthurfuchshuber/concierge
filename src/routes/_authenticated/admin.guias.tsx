@@ -27,6 +27,8 @@ import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { adminListUserPropertiesFull } from "@/lib/admin-subs.functions";
 import { useImpersonation } from "@/hooks/useImpersonation";
 import { listMyAccounts } from "@/lib/active-account.functions";
+import { useAccess } from "@/lib/permissions/useAccess";
+
 
 import { Eye } from "lucide-react";
 
