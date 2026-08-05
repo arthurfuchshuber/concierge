@@ -15,13 +15,6 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { inviteTeamMember } from "@/lib/team.functions";
 
 /**
@@ -33,18 +26,17 @@ export function CreateUserDialog() {
   const invite = useServerFn(inviteTeamMember);
   const [open, setOpen] = useState(false);
   const [email, setEmail] = useState("");
-  const [role, setRole] = useState("agent");
 
   const mutation = useMutation({
-    mutationFn: () => invite({ data: { email, role: role as "agent" | "viewer" | "owner" } }),
+    mutationFn: () => invite({ data: { email, role: "agent" as const } }),
     onSuccess: (res) => {
       const r = res as { emailSent?: boolean; existingUser?: boolean };
       toast.success(
         r?.existingUser
-          ? "Convite criado. A pessoa verá o aviso de aceite ao entrar no painel."
+          ? "Convite criado. A pessoa verá o aviso para aceitar assim que entrar no painel."
           : r?.emailSent
-            ? "Convite enviado por e-mail."
-            : "Convite criado. Use “Reenviar” caso o e-mail não chegue.",
+            ? "Convite enviado por e-mail. Assim que a pessoa aceitar, você já pode liberar as áreas."
+            : "Convite criado, mas o e-mail não saiu. Use “Reenviar” para tentar de novo.",
       );
       qc.invalidateQueries({ queryKey: ["permission-center-overview"] });
       qc.invalidateQueries({ queryKey: ["permission-center-audit"] });
@@ -82,19 +74,10 @@ export function CreateUserDialog() {
               className="mt-1"
             />
           </div>
-          <div>
-            <Label className="text-xs">Papel inicial</Label>
-            <Select value={role} onValueChange={setRole}>
-              <SelectTrigger className="mt-1">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="agent">Atendente</SelectItem>
-                <SelectItem value="viewer">Visualizador</SelectItem>
-                <SelectItem value="owner">Titular da conta</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+          <p className="text-xs text-muted-foreground">
+            Depois de aceitar o convite, a pessoa entra sem nenhum acesso. Você libera cada área
+            aqui mesmo, escolhendo entre “Sem acesso”, “Visualizar” ou “Editar”.
+          </p>
         </div>
 
         <DialogFooter>
