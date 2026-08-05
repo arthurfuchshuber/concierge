@@ -139,6 +139,21 @@ function Dashboard() {
   // Read-only apenas quando um admin SaaS acessa um cliente do qual NÃO é membro.
   const readOnly = !!impersonation && isSaasAdmin && !isMemberOfImpersonated;
 
+  // Permissão de criação de guias — vale para a conta inteira.
+  const createAccess = useAccess("tenant.guias.imoveis.criar", "criar");
+  const canCreate = createAccess.loading ? true : createAccess.allowed;
+  const NO_PERMISSION_MSG =
+    "Você não tem permissão de acesso. Procure o administrador deste cadastro.";
+  function goCreate() {
+    if (!canCreate) {
+      toast.error(NO_PERMISSION_MSG);
+      return;
+    }
+    navigate({ to: "/admin/properties/$id", params: { id: "new" } });
+  }
+
+
+
 
   const [view, setView] = useState<"grid" | "list">("grid");
   const [statCardsOpen, setStatCardsOpen] = useState(false);
