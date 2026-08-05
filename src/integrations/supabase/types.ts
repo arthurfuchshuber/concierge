@@ -4843,6 +4843,35 @@ export type Database = {
           read_ct: number
         }[]
       }
+      replace_permission_assignment: {
+        Args: {
+          _access_level: Database["public"]["Enums"]["permission_access_level"]
+          _created_by?: string
+          _permission_node_id: string
+          _scope_id?: string
+          _scope_type: Database["public"]["Enums"]["permission_scope_type"]
+          _tenant_id: string
+          _user_id: string
+        }
+        Returns: {
+          access_level: Database["public"]["Enums"]["permission_access_level"]
+          created_at: string
+          created_by: string | null
+          id: string
+          permission_node_id: string
+          scope_id: string | null
+          scope_type: Database["public"]["Enums"]["permission_scope_type"]
+          tenant_id: string
+          updated_at: string
+          user_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "permission_assignments"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       search_ai_kb_chunks_text: {
         Args: {
           _owner_id: string

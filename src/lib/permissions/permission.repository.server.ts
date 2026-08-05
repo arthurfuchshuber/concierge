@@ -129,33 +129,18 @@ export async function upsertAssignment(
   const scopeType = input.scopeType ?? "TENANT";
   const scopeId = input.scopeId ?? null;
 
-  // Remove qualquer atribuição anterior do mesmo nó/escopo antes de gravar.
-  // (No Postgres, índices únicos não colidem quando `scope_id` é NULL — sem
-  // esta limpeza a mesma área acumulava níveis conflitantes, ex.: WRITE+NONE.)
-  let stale = db
-    .from("permission_assignments")
-    .delete()
-    .eq("tenant_id", input.tenantId)
-    .eq("user_id", input.userId)
-    .eq("permission_node_id", input.permissionNodeId)
-    .eq("scope_type", scopeType);
-  stale = scopeId === null ? stale.is("scope_id", null) : stale.eq("scope_id", scopeId);
-  const { error: cleanupError } = await stale;
-  if (cleanupError) throw new Error(cleanupError.message);
-
-  const { data, error } = await db
-    .from("permission_assignments")
-    .insert({
-      tenant_id: input.tenantId,
-      user_id: input.userId,
-      permission_node_id: input.permissionNodeId,
-      access_level: input.accessLevel,
-      scope_type: scopeType,
-      scope_id: scopeId,
-      created_by: input.createdBy ?? null,
-    } as never)
-    .select("*")
-    .single();
+  // Substituição atômica no banco: serializa gravações simultâneas do mesmo
+  // usuário/nó/escopo e elimina a janela entre DELETE e INSERT que causava
+  // `permission_assignments_unique_scope_null` no duplo clique/refetch.
+  const { data, error } = await db.rpc("replace_permission_assignment", {
+    _tenant_id: input.tenantId,
+    _user_id: input.userId,
+    _permission_node_id: input.permissionNodeId,
+    _access_level: input.accessLevel,
+    _scope_type: scopeType,
+    _scope_id: scopeId ?? undefined,
+    _created_by: input.createdBy ?? undefined,
+  });
   if (error) throw new Error(error.message);
   return data as unknown as PermissionAssignment;
 }

@@ -33,10 +33,10 @@ export function useAreaAccess(namespaces: string[], required: AccessLevelInput =
 
   const decisions = query.data?.decisions ?? {};
 
-  /** Área liberada? Em erro (ou sem resposta) mantemos o acesso atual da conta. */
+  /** Área liberada? Sem uma decisão positiva do backend, o acesso fica fechado. */
   function can(namespace: string): boolean {
     const decision = decisions[namespace];
-    if (!decision) return query.isError || query.isLoading;
+    if (!decision) return query.isLoading;
     return decision.allowed;
   }
 

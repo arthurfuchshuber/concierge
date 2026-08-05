@@ -19,7 +19,6 @@ import {
   getPermissionCenterOverview,
   getPermissionCenterUser,
   grantPermissionCenterPermission,
-  revokePermissionCenterPermission,
   setPermissionCenterPropertyScope,
 } from "@/lib/permission-center.functions";
 import { cn } from "@/lib/utils";
@@ -249,7 +248,6 @@ function UserAccess({
   const qc = useQueryClient();
   const fn = useServerFn(getPermissionCenterUser);
   const grant = useServerFn(grantPermissionCenterPermission);
-  const revoke = useServerFn(revokePermissionCenterPermission);
   const setProperty = useServerFn(setPermissionCenterPropertyScope);
   const [showProperties, setShowProperties] = useState(false);
 
@@ -275,11 +273,8 @@ function UserAccess({
 
   const mutation = useMutation({
     mutationFn: async (input: { namespace: string; level: Level }) => {
-      const current = levels.get(input.namespace);
-      // Sem acesso: se a permissão vem herdada, gravamos uma negação explícita.
-      if (input.level === "NONE" && current?.assignmentId && !current.inherited) {
-        return revoke({ data: { targetUserId: userId, assignmentId: current.assignmentId } });
-      }
+      // `NONE` é uma negação explícita e precisa permanecer gravada para
+      // prevalecer sobre permissões herdadas do papel do membro.
       return grant({
         data: {
           targetUserId: userId,
@@ -294,6 +289,7 @@ function UserAccess({
       toast.success((res as { message?: string })?.message ?? "Acesso atualizado.");
       qc.invalidateQueries({ queryKey: ["permission-center-user", userId] });
       qc.invalidateQueries({ queryKey: ["permission-center-overview"] });
+      qc.invalidateQueries({ queryKey: ["area-access"] });
     },
     onError: (e: Error) => toast.error(e.message || "Não foi possível atualizar o acesso."),
   });
