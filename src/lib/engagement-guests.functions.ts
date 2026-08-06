@@ -483,28 +483,22 @@ export const getGuestDetail = createServerFn({ method: "POST" })
           : null,
     });
 
-    const seen = new Set<string>();
-    // 1) Conversas atribuídas ao hóspede pela resolução por identidade/nome/tempo
+    // Fonte única: o mesmo conjunto de conversas usado para contar as
+    // mensagens na listagem de hóspedes.
+    const convIds = built.convIdsByGuest.get(g.key) ?? new Set<string>();
     for (const c of built.convs) {
-      if (built.convGuestKey.get(c.id) !== g.key) continue;
-      if (seen.has(c.id)) continue;
-      seen.add(c.id);
+      if (!convIds.has(c.id)) continue;
       const msgs = (built.msgsByConv.get(c.id) ?? []).map(mapMsg);
       conversations.push({ id: c.id, startedAt: c.created_at, lastMessageAt: c.last_message_at, messages: msgs });
     }
-    // 2) Fallback: conversas ligadas às sessões deste hóspede por session_id
-    for (const s of ss) {
-      const cs = built.convBySid.get(s.sid) ?? [];
-      for (const c of cs) {
-        if (seen.has(c.id)) continue;
-        seen.add(c.id);
-        const msgs = (built.msgsByConv.get(c.id) ?? []).map(mapMsg);
-        conversations.push({ id: c.id, startedAt: c.created_at, lastMessageAt: c.last_message_at, messages: msgs });
-      }
-    }
     conversations.sort((a, b) => a.startedAt.localeCompare(b.startedAt));
 
-    return { guest: g, sessions, conversations };
+    const messagesCount = conversations.reduce((acc, c) => acc + c.messages.length, 0);
+    return {
+      guest: { ...g, messagesCount, conversationsCount: conversations.length },
+      sessions,
+      conversations,
+    };
   });
 
 export type GuestDetailPayload = Awaited<ReturnType<typeof getGuestDetail>>;
