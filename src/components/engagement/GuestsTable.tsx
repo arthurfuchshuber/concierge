@@ -145,7 +145,7 @@ export function GuestsTable({
               <tr>
                 <th
                   onClick={() => toggle("guestName", "asc")}
-                  className="text-left px-4 py-2 pr-6 font-medium whitespace-nowrap sticky left-0 bg-muted/60 backdrop-blur z-10 cursor-pointer hover:text-foreground transition-colors w-px"
+                  className="text-left px-3 py-2 font-medium whitespace-nowrap sticky left-0 bg-muted/60 backdrop-blur z-10 cursor-pointer hover:text-foreground transition-colors w-[160px] max-w-[160px]"
                 >
                   <span className="inline-flex items-center gap-1">
                     Hóspede <SortIndicator active={active("guestName")} dir={sort.dir} />
