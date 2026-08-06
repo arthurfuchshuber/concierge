@@ -2829,6 +2829,36 @@ export type Database = {
         }
         Relationships: []
       }
+      ops_push_log: {
+        Row: {
+          created_at: string
+          dedupe_key: string
+          id: string
+          kind: string
+          owner_id: string
+          payload: Json | null
+          sent_count: number
+        }
+        Insert: {
+          created_at?: string
+          dedupe_key: string
+          id?: string
+          kind: string
+          owner_id: string
+          payload?: Json | null
+          sent_count?: number
+        }
+        Update: {
+          created_at?: string
+          dedupe_key?: string
+          id?: string
+          kind?: string
+          owner_id?: string
+          payload?: Json | null
+          sent_count?: number
+        }
+        Relationships: []
+      }
       permission_assignments: {
         Row: {
           access_level: Database["public"]["Enums"]["permission_access_level"]
