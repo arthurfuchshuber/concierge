@@ -130,29 +130,24 @@ type PropRow = {
   checkout_time: string | null;
 };
 
-type ResRow = {
-  id: string;
-  property_id: string;
-  checkin_date: string;
-  checkout_date: string;
-};
-
 const plural = (n: number, one: string, many: string) => (n === 1 ? one : many);
 
 /**
  * Varredura operacional. Deve rodar a cada 30 minutos.
+ * A fonte de verdade é EXATAMENTE a mesma esteira (Kanban) do dashboard:
+ * usamos `buildArrivalRows` e consideramos apenas os cards pendentes.
  * Regras:
  *  1. 20h — quantos check-outs ocorrem amanhã
  *  2. 07h — quantos check-ins ocorrem hoje
- *  3. a cada 30min — check-outs atrasados (passou do horário oficial e não foi dado "check")
+ *  3. a cada 30min — check-outs atrasados (passou do horário oficial, sem "check")
  *  4. a cada 1h após o horário de check-in — check-ins ainda pendentes
- *  5. alerta crítico (vermelho) para atrasos graves (>2h no check-out, >3h no check-in)
+ *  5. atraso grave (check-out +2h / check-in +3h) vira alerta crítico — e nesse
+ *     caso o aviso "normal" correspondente NÃO é enviado (evita push duplicado).
  */
 export async function runOpsPushScan(admin: Admin, now = new Date()) {
   const t = localNow(now);
   const today = t.date;
-  const tomorrow = addDays(today, 1);
-  const windowStart = addDays(today, -14);
+  const { buildArrivalRows } = await import("@/lib/arrival-board.server");
 
   const { data: propsRaw } = await admin
     .from("properties")
@@ -161,99 +156,11 @@ export async function runOpsPushScan(admin: Admin, now = new Date()) {
   const props = (propsRaw ?? []) as PropRow[];
   if (props.length === 0) return { ownersNotified: 0, notifications: 0 };
 
-  const propById = new Map(props.map((p) => [p.id, p]));
-  const propIds = props.map((p) => p.id);
-
-  const [{ data: resRaw }, { data: statusRaw }] = await Promise.all([
-    admin
-      .from("property_reservations")
-      .select("id, property_id, checkin_date, checkout_date")
-      .in("property_id", propIds)
-      .gte("checkout_date", windowStart)
-      .lte("checkin_date", tomorrow)
-      .limit(10000),
-    admin
-      .from("guest_arrival_status")
-      .select("reservation_id, kind, status, done_at")
-      .in("property_id", propIds)
-      .limit(10000),
-  ]);
-
-  const reservations = (resRaw ?? []) as ResRow[];
-  const doneCheckin = new Set<string>();
-  const doneCheckout = new Set<string>();
-  for (const s of (statusRaw ?? []) as Array<{
-    reservation_id: string | null;
-    kind: "checkin" | "checkout";
-    status: string | null;
-    done_at: string | null;
-  }>) {
-    if (!s.reservation_id) continue;
-    const isDone = s.status === "done" || !!s.done_at;
-    if (!isDone) continue;
-    if (s.kind === "checkin") doneCheckin.add(s.reservation_id);
-    else doneCheckout.add(s.reservation_id);
-  }
-
-  type Agg = {
-    checkoutsTomorrow: number;
-    checkinsToday: number;
-    lateCheckouts: number;
-    lateCheckoutNames: string[];
-    pendingCheckins: number;
-    pendingCheckinNames: string[];
-    criticalCheckouts: number;
-    criticalCheckins: number;
-  };
-  const byOwner = new Map<string, Agg>();
-  const agg = (ownerId: string): Agg => {
-    let a = byOwner.get(ownerId);
-    if (!a) {
-      a = {
-        checkoutsTomorrow: 0,
-        checkinsToday: 0,
-        lateCheckouts: 0,
-        lateCheckoutNames: [],
-        pendingCheckins: 0,
-        pendingCheckinNames: [],
-        criticalCheckouts: 0,
-        criticalCheckins: 0,
-      };
-      byOwner.set(ownerId, a);
-    }
-    return a;
-  };
-
-  for (const r of reservations) {
-    const p = propById.get(r.property_id);
-    if (!p) continue;
-    const a = agg(p.owner_id);
-    const checkinMin = timeToMinutes(p.checkin_time, DEFAULT_CHECKIN);
-    const checkoutMin = timeToMinutes(p.checkout_time, DEFAULT_CHECKOUT);
-    const name = (p.name || "Imóvel").trim();
-
-    if (r.checkout_date === tomorrow) a.checkoutsTomorrow++;
-    if (r.checkin_date === today) a.checkinsToday++;
-
-    // Check-out atrasado: data de saída hoje (já passou do horário) ou anterior, sem "check"
-    if (!doneCheckout.has(r.id) && r.checkout_date <= today) {
-      const lateBy = r.checkout_date < today ? 24 * 60 : t.minutes - checkoutMin;
-      if (lateBy > 0) {
-        a.lateCheckouts++;
-        if (a.lateCheckoutNames.length < 3) a.lateCheckoutNames.push(name);
-        if (lateBy >= 120) a.criticalCheckouts++;
-      }
-    }
-
-    // Check-in pendente: entrada hoje, já passou do horário oficial, sem "check"
-    if (!doneCheckin.has(r.id) && r.checkin_date === today) {
-      const lateBy = t.minutes - checkinMin;
-      if (lateBy > 0) {
-        a.pendingCheckins++;
-        if (a.pendingCheckinNames.length < 3) a.pendingCheckinNames.push(name);
-        if (lateBy >= 180) a.criticalCheckins++;
-      }
-    }
+  const propsByOwner = new Map<string, PropRow[]>();
+  for (const p of props) {
+    const arr = propsByOwner.get(p.owner_id) ?? [];
+    arr.push(p);
+    propsByOwner.set(p.owner_id, arr);
   }
 
   const slot30 = `${t.date}-${String(t.hour).padStart(2, "0")}${t.minute < 30 ? "00" : "30"}`;
@@ -263,7 +170,10 @@ export async function runOpsPushScan(admin: Admin, now = new Date()) {
   let notifications = 0;
   const owners = new Set<string>();
 
-  for (const [ownerId, a] of byOwner) {
+  for (const [ownerId, ownerProps] of propsByOwner) {
+    const propById = new Map(ownerProps.map((p) => [p.id, p]));
+    const propIds = ownerProps.map((p) => p.id);
+
     const fire = async (kind: string, dedupeKey: string, payload: PushPayload) => {
       const r = await sendOpsPush(admin, { ownerId, kind, dedupeKey, payload });
       if (!r.skipped) {
@@ -272,54 +182,104 @@ export async function runOpsPushScan(admin: Admin, now = new Date()) {
       }
     };
 
-    // 1. 20h — check-outs de amanhã
-    if (t.hour === 20 && a.checkoutsTomorrow > 0) {
+    const needTomorrow = t.hour === 20;
+    const [checkoutToday, checkinToday, checkoutTomorrow] = await Promise.all([
+      buildArrivalRows(admin as never, { kind: "checkout", range: "today", propIds }),
+      buildArrivalRows(admin as never, { kind: "checkin", range: "today", propIds }),
+      needTomorrow
+        ? buildArrivalRows(admin as never, { kind: "checkout", range: "tomorrow", propIds })
+        : Promise.resolve({ rows: [] as Awaited<ReturnType<typeof buildArrivalRows>>["rows"] }),
+    ]);
+
+    const pendingCheckouts = checkoutToday.rows.filter((r) => r.status === "pending");
+    const pendingCheckins = checkinToday.rows.filter((r) => r.status === "pending");
+
+    const nameOf = (propertyId: string, fallback: string | null) =>
+      (propById.get(propertyId)?.name || fallback || "Imóvel").trim();
+
+    // 1. 20h — check-outs de amanhã (mesma lista do Kanban, filtro "Amanhã")
+    const checkoutsTomorrow = checkoutTomorrow.rows.filter((r) => r.status === "pending").length;
+    if (needTomorrow && checkoutsTomorrow > 0) {
       await fire("checkouts-tomorrow", `checkouts-tomorrow:${ownerId}:${today}`, {
-        title: `Amanhã: ${a.checkoutsTomorrow} ${plural(a.checkoutsTomorrow, "check-out", "check-outs")}`,
-        body: `Prepare a equipe: ${a.checkoutsTomorrow} ${plural(a.checkoutsTomorrow, "saída prevista", "saídas previstas")} para amanhã.`,
+        title: `Amanhã: ${checkoutsTomorrow} ${plural(checkoutsTomorrow, "check-out", "check-outs")}`,
+        body: `Prepare a equipe: ${checkoutsTomorrow} ${plural(checkoutsTomorrow, "saída prevista", "saídas previstas")} para amanhã.`,
         data: { url, tag: "ops-checkouts-tomorrow" },
       });
     }
 
     // 2. 07h — check-ins de hoje
-    if (t.hour === 7 && a.checkinsToday > 0) {
+    const checkinsToday = pendingCheckins.filter((r) => r.date === today).length;
+    if (t.hour === 7 && checkinsToday > 0) {
       await fire("checkins-today", `checkins-today:${ownerId}:${today}`, {
-        title: `Hoje: ${a.checkinsToday} ${plural(a.checkinsToday, "check-in", "check-ins")}`,
-        body: `${a.checkinsToday} ${plural(a.checkinsToday, "chegada prevista", "chegadas previstas")} para hoje. Confira a esteira de chegadas.`,
+        title: `Hoje: ${checkinsToday} ${plural(checkinsToday, "check-in", "check-ins")}`,
+        body: `${checkinsToday} ${plural(checkinsToday, "chegada prevista", "chegadas previstas")} para hoje. Confira a esteira de chegadas.`,
         data: { url, tag: "ops-checkins-today" },
       });
     }
 
-    // 3. a cada 30min — check-outs atrasados
-    if (a.lateCheckouts > 0) {
+    // ----- atrasos (com base nos cards pendentes da esteira) -----
+    const lateCheckoutNames: string[] = [];
+    let lateCheckouts = 0;
+    let criticalCheckouts = 0;
+    for (const r of pendingCheckouts) {
+      if (r.date > today) continue;
+      const p = propById.get(r.propertyId);
+      const limit = timeToMinutes(r.standardTime ?? p?.checkout_time ?? null, DEFAULT_CHECKOUT);
+      const lateBy = r.date < today ? 24 * 60 : t.minutes - limit;
+      if (lateBy <= 0) continue;
+      lateCheckouts++;
+      if (lateCheckoutNames.length < 3) lateCheckoutNames.push(nameOf(r.propertyId, r.propertyName));
+      if (lateBy >= 120) criticalCheckouts++;
+    }
+
+    const pendingCheckinNames: string[] = [];
+    let latePendingCheckins = 0;
+    let criticalCheckins = 0;
+    for (const r of pendingCheckins) {
+      if (r.date > today) continue;
+      const p = propById.get(r.propertyId);
+      const limit = timeToMinutes(
+        r.arrivalTimeOverride ?? r.guestArrivalTime ?? r.standardTime ?? p?.checkin_time ?? null,
+        DEFAULT_CHECKIN,
+      );
+      const lateBy = r.date < today ? 24 * 60 : t.minutes - limit;
+      if (lateBy <= 0) continue;
+      latePendingCheckins++;
+      if (pendingCheckinNames.length < 3) pendingCheckinNames.push(nameOf(r.propertyId, r.propertyName));
+      if (lateBy >= 180) criticalCheckins++;
+    }
+
+    // 5. alerta crítico (vermelho) — substitui os avisos normais correspondentes
+    const critical = criticalCheckouts + criticalCheckins;
+    if (critical > 0) {
+      const partes: string[] = [];
+      if (criticalCheckouts > 0)
+        partes.push(`${criticalCheckouts} ${plural(criticalCheckouts, "check-out", "check-outs")} +2h`);
+      if (criticalCheckins > 0)
+        partes.push(`${criticalCheckins} ${plural(criticalCheckins, "check-in", "check-ins")} +3h`);
+      const nomes = [...lateCheckoutNames, ...pendingCheckinNames].slice(0, 3).join(", ");
+      await fire("ops-critical", `ops-critical:${ownerId}:${slot30}`, {
+        title: `🔴 Atraso crítico: ${critical} ${plural(critical, "card", "cards")}`,
+        body: `${partes.join(" • ")} sem confirmação${nomes ? ` (${nomes})` : ""}. Ação imediata recomendada.`,
+        data: { url, tag: "ops-critical", urgency: "high", critical: true },
+      });
+    }
+
+    // 3. a cada 30min — check-outs atrasados (só se não houver crítico de saída)
+    if (lateCheckouts > 0 && criticalCheckouts === 0) {
       await fire("checkouts-late", `checkouts-late:${ownerId}:${slot30}`, {
-        title: `${a.lateCheckouts} ${plural(a.lateCheckouts, "check-out atrasado", "check-outs atrasados")}`,
-        body: `${a.lateCheckoutNames.join(", ")}${a.lateCheckouts > a.lateCheckoutNames.length ? " e outros" : ""} passaram do horário de saída sem confirmação.`,
+        title: `${lateCheckouts} ${plural(lateCheckouts, "check-out atrasado", "check-outs atrasados")}`,
+        body: `${lateCheckoutNames.join(", ")}${lateCheckouts > lateCheckoutNames.length ? " e outros" : ""} passaram do horário de saída sem confirmação.`,
         data: { url, tag: "ops-checkouts-late" },
       });
     }
 
-    // 4. a cada 1h após o horário de check-in — check-ins pendentes
-    if (a.pendingCheckins > 0 && t.minute < 30) {
+    // 4. a cada 1h — check-ins pendentes (só se não houver crítico de chegada)
+    if (latePendingCheckins > 0 && criticalCheckins === 0 && t.minute < 30) {
       await fire("checkins-pending", `checkins-pending:${ownerId}:${slotHour}`, {
-        title: `${a.pendingCheckins} ${plural(a.pendingCheckins, "check-in pendente", "check-ins pendentes")}`,
-        body: `${a.pendingCheckinNames.join(", ")}${a.pendingCheckins > a.pendingCheckinNames.length ? " e outros" : ""} já passaram do horário de entrada sem confirmação.`,
+        title: `${latePendingCheckins} ${plural(latePendingCheckins, "check-in pendente", "check-ins pendentes")}`,
+        body: `${pendingCheckinNames.join(", ")}${latePendingCheckins > pendingCheckinNames.length ? " e outros" : ""} já passaram do horário de entrada sem confirmação.`,
         data: { url, tag: "ops-checkins-pending" },
-      });
-    }
-
-    // 5. alerta crítico (vermelho) para atrasos graves
-    const critical = a.criticalCheckouts + a.criticalCheckins;
-    if (critical > 0 && t.minute < 30) {
-      const partes: string[] = [];
-      if (a.criticalCheckouts > 0)
-        partes.push(`${a.criticalCheckouts} ${plural(a.criticalCheckouts, "check-out", "check-outs")} +2h`);
-      if (a.criticalCheckins > 0)
-        partes.push(`${a.criticalCheckins} ${plural(a.criticalCheckins, "check-in", "check-ins")} +3h`);
-      await fire("ops-critical", `ops-critical:${ownerId}:${slotHour}`, {
-        title: `🔴 Atraso crítico: ${critical} ${plural(critical, "card", "cards")}`,
-        body: `${partes.join(" • ")} sem confirmação. Ação imediata recomendada.`,
-        data: { url, tag: "ops-critical", urgency: "high", critical: true },
       });
     }
   }
@@ -330,6 +290,7 @@ export async function runOpsPushScan(admin: Admin, now = new Date()) {
     localTime: `${today} ${fmtTime(t.minutes)}`,
   };
 }
+
 
 /** Aviso de que um hóspede iniciou uma conversa com a IA. */
 export async function sendConversationStartedPush(
