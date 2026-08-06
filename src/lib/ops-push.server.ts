@@ -92,7 +92,7 @@ export async function sendOpsPush(
     owner_id: opts.ownerId,
     kind: opts.kind,
     dedupe_key: opts.dedupeKey,
-    payload: opts.payload as unknown as Record<string, unknown>,
+    payload: JSON.parse(JSON.stringify(opts.payload)),
   });
   // Violação de unicidade => já enviado nesta janela
   if (dedupeError) return { sent: 0, skipped: true };
