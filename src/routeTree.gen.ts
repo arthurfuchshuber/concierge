@@ -66,6 +66,7 @@ import { Route as ApiPublicCronRefreshRecommendationsRouteImport } from './route
 import { Route as ApiPublicCronRefreshCityReferencesRouteImport } from './routes/api/public/cron.refresh-city-references'
 import { Route as ApiPublicCronRefreshCityNewsRouteImport } from './routes/api/public/cron.refresh-city-news'
 import { Route as ApiPublicCronProactiveConciergeRouteImport } from './routes/api/public/cron.proactive-concierge'
+import { Route as ApiPublicCronOpsPushRouteImport } from './routes/api/public/cron.ops-push'
 import { Route as ApiPublicCronLearningLoopRouteImport } from './routes/api/public/cron.learning-loop'
 import { Route as AuthenticatedAdminRecomendacoesSigmaCityKeyRouteImport } from './routes/_authenticated/admin.recomendacoes-sigma.$cityKey'
 import { Route as AuthenticatedAdminPropertiesIdRouteImport } from './routes/_authenticated/admin.properties.$id'
@@ -387,6 +388,11 @@ const ApiPublicCronProactiveConciergeRoute =
     path: '/api/public/cron/proactive-concierge',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicCronOpsPushRoute = ApiPublicCronOpsPushRouteImport.update({
+  id: '/api/public/cron/ops-push',
+  path: '/api/public/cron/ops-push',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicCronLearningLoopRoute =
   ApiPublicCronLearningLoopRouteImport.update({
     id: '/api/public/cron/learning-loop',
@@ -472,6 +478,7 @@ export interface FileRoutesByFullPath {
   '/admin/properties/$id': typeof AuthenticatedAdminPropertiesIdRoute
   '/admin/recomendacoes-sigma/$cityKey': typeof AuthenticatedAdminRecomendacoesSigmaCityKeyRoute
   '/api/public/cron/learning-loop': typeof ApiPublicCronLearningLoopRoute
+  '/api/public/cron/ops-push': typeof ApiPublicCronOpsPushRoute
   '/api/public/cron/proactive-concierge': typeof ApiPublicCronProactiveConciergeRoute
   '/api/public/cron/refresh-city-news': typeof ApiPublicCronRefreshCityNewsRoute
   '/api/public/cron/refresh-city-references': typeof ApiPublicCronRefreshCityReferencesRoute
@@ -534,6 +541,7 @@ export interface FileRoutesByTo {
   '/admin/properties/$id': typeof AuthenticatedAdminPropertiesIdRoute
   '/admin/recomendacoes-sigma/$cityKey': typeof AuthenticatedAdminRecomendacoesSigmaCityKeyRoute
   '/api/public/cron/learning-loop': typeof ApiPublicCronLearningLoopRoute
+  '/api/public/cron/ops-push': typeof ApiPublicCronOpsPushRoute
   '/api/public/cron/proactive-concierge': typeof ApiPublicCronProactiveConciergeRoute
   '/api/public/cron/refresh-city-news': typeof ApiPublicCronRefreshCityNewsRoute
   '/api/public/cron/refresh-city-references': typeof ApiPublicCronRefreshCityReferencesRoute
@@ -600,6 +608,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/properties/$id': typeof AuthenticatedAdminPropertiesIdRoute
   '/_authenticated/admin/recomendacoes-sigma/$cityKey': typeof AuthenticatedAdminRecomendacoesSigmaCityKeyRoute
   '/api/public/cron/learning-loop': typeof ApiPublicCronLearningLoopRoute
+  '/api/public/cron/ops-push': typeof ApiPublicCronOpsPushRoute
   '/api/public/cron/proactive-concierge': typeof ApiPublicCronProactiveConciergeRoute
   '/api/public/cron/refresh-city-news': typeof ApiPublicCronRefreshCityNewsRoute
   '/api/public/cron/refresh-city-references': typeof ApiPublicCronRefreshCityReferencesRoute
@@ -666,6 +675,7 @@ export interface FileRouteTypes {
     | '/admin/properties/$id'
     | '/admin/recomendacoes-sigma/$cityKey'
     | '/api/public/cron/learning-loop'
+    | '/api/public/cron/ops-push'
     | '/api/public/cron/proactive-concierge'
     | '/api/public/cron/refresh-city-news'
     | '/api/public/cron/refresh-city-references'
@@ -728,6 +738,7 @@ export interface FileRouteTypes {
     | '/admin/properties/$id'
     | '/admin/recomendacoes-sigma/$cityKey'
     | '/api/public/cron/learning-loop'
+    | '/api/public/cron/ops-push'
     | '/api/public/cron/proactive-concierge'
     | '/api/public/cron/refresh-city-news'
     | '/api/public/cron/refresh-city-references'
@@ -793,6 +804,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/properties/$id'
     | '/_authenticated/admin/recomendacoes-sigma/$cityKey'
     | '/api/public/cron/learning-loop'
+    | '/api/public/cron/ops-push'
     | '/api/public/cron/proactive-concierge'
     | '/api/public/cron/refresh-city-news'
     | '/api/public/cron/refresh-city-references'
@@ -836,6 +848,7 @@ export interface RootRouteChildren {
   ApiPublicPlacePhotoRoute: typeof ApiPublicPlacePhotoRoute
   OauthGoogleCalendarReturnRoute: typeof OauthGoogleCalendarReturnRoute
   ApiPublicCronLearningLoopRoute: typeof ApiPublicCronLearningLoopRoute
+  ApiPublicCronOpsPushRoute: typeof ApiPublicCronOpsPushRoute
   ApiPublicCronProactiveConciergeRoute: typeof ApiPublicCronProactiveConciergeRoute
   ApiPublicCronRefreshCityNewsRoute: typeof ApiPublicCronRefreshCityNewsRoute
   ApiPublicCronRefreshCityReferencesRoute: typeof ApiPublicCronRefreshCityReferencesRoute
@@ -1250,6 +1263,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicCronProactiveConciergeRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/cron/ops-push': {
+      id: '/api/public/cron/ops-push'
+      path: '/api/public/cron/ops-push'
+      fullPath: '/api/public/cron/ops-push'
+      preLoaderRoute: typeof ApiPublicCronOpsPushRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/cron/learning-loop': {
       id: '/api/public/cron/learning-loop'
       path: '/api/public/cron/learning-loop'
@@ -1406,6 +1426,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicPlacePhotoRoute: ApiPublicPlacePhotoRoute,
   OauthGoogleCalendarReturnRoute: OauthGoogleCalendarReturnRoute,
   ApiPublicCronLearningLoopRoute: ApiPublicCronLearningLoopRoute,
+  ApiPublicCronOpsPushRoute: ApiPublicCronOpsPushRoute,
   ApiPublicCronProactiveConciergeRoute: ApiPublicCronProactiveConciergeRoute,
   ApiPublicCronRefreshCityNewsRoute: ApiPublicCronRefreshCityNewsRoute,
   ApiPublicCronRefreshCityReferencesRoute:

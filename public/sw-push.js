@@ -24,6 +24,8 @@ self.addEventListener("push", (event) => {
   const tag = (payload.data && payload.data.tag) || "handoff";
   const conversationId = payload.data && payload.data.conversationId;
 
+  const critical = !!(payload.data && (payload.data.critical || payload.data.urgency === "high"));
+
   const options = {
     body,
     icon: "/favicon.png",
@@ -31,8 +33,8 @@ self.addEventListener("push", (event) => {
     tag,
     renotify: true,
     requireInteraction: true,
-    vibrate: [200, 100, 200],
-    data: { url, conversationId, ts: Date.now() },
+    vibrate: critical ? [300, 100, 300, 100, 300] : [200, 100, 200],
+    data: { url, conversationId, critical, ts: Date.now() },
   };
 
   event.waitUntil(
