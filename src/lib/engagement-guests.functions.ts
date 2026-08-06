@@ -312,12 +312,18 @@ function buildGuestIndex(data: Awaited<ReturnType<typeof loadCommon>>) {
       const k = guestKeyOf({ propertyId: c.property_id, phone: "", name: normalizeName(c.guest_name) });
       const g = guests.get(k); if (g) return g;
     }
+    // Fallback determinístico: o acesso mais RECENTE que ocorreu ANTES (ou no
+    // mesmo instante) do início da conversa, dentro de 96h. Usar o "mais
+    // próximo em módulo" fazia a conversa migrar de hóspede conforme o período
+    // filtrado (mais/menos logs carregados), gerando contagens divergentes.
     const propLogs = logsByProp.get(c.property_id) ?? [];
-    const target = new Date(c.last_message_at ?? c.created_at).getTime();
+    const target = new Date(c.created_at).getTime();
     let best: (typeof logs)[number] | null = null;
     let bestDiff = Infinity;
     for (const l of propLogs) {
-      const d = Math.abs(new Date(l.created_at).getTime() - target);
+      const t = new Date(l.created_at).getTime();
+      if (t > target) continue;
+      const d = target - t;
       if (d < bestDiff) { bestDiff = d; best = l; }
     }
     if (best && bestDiff <= 96 * 3600_000) {
@@ -335,14 +341,33 @@ function buildGuestIndex(data: Awaited<ReturnType<typeof loadCommon>>) {
     const g = resolveGuestForConv(c);
     if (!g) continue;
     convGuestKey.set(c.id, g.key);
-    const cmsgs = msgsByConv.get(c.id) ?? [];
-    g.conversationsCount++;
-    g.messagesCount += cmsgs.length;
     if (unresolvedByConv.has(c.id)) g.hasUnresolvedFeedback = true;
     if (c.last_message_at > g.lastActivity) g.lastActivity = c.last_message_at;
   }
 
-  return { guests, sessions, convs, msgs, msgsByConv, unresolvedByConv, sessionByPhoneName, convBySid, convGuestKey };
+  // Conjunto único de conversas por hóspede (identidade + sessões por sid),
+  // exatamente o mesmo usado na ficha do hóspede — assim a contagem da lista
+  // nunca diverge do que é exibido dentro do card.
+  const convIdsByGuest = new Map<string, Set<string>>();
+  const addConv = (key: string, convId: string) => {
+    const set = convIdsByGuest.get(key) ?? new Set<string>();
+    set.add(convId); convIdsByGuest.set(key, set);
+  };
+  for (const [convId, key] of convGuestKey) addConv(key, convId);
+  for (const g of guests.values()) {
+    const idKey = g.phone ? `${g.propertyId}|p:${g.phone}` : `${g.propertyId}|n:${normalizeName(g.guestName)}`;
+    for (const s of sessionByPhoneName.get(idKey) ?? []) {
+      for (const c of convBySid.get(s.sid) ?? []) addConv(g.key, c.id);
+    }
+  }
+  for (const g of guests.values()) {
+    const ids = convIdsByGuest.get(g.key);
+    g.conversationsCount = ids?.size ?? 0;
+    g.messagesCount = 0;
+    for (const id of ids ?? []) g.messagesCount += (msgsByConv.get(id) ?? []).length;
+  }
+
+  return { guests, sessions, convs, msgs, msgsByConv, unresolvedByConv, sessionByPhoneName, convBySid, convGuestKey, convIdsByGuest };
 }
 
 
