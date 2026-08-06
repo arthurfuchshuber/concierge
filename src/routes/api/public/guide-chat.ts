@@ -303,6 +303,20 @@ export const Route = createFileRoute("/api/public/guide-chat")({
             return new Response(JSON.stringify({ error: "Não consegui iniciar a conversa." }), { status: 500, headers: { "Content-Type": "application/json" } });
           }
           conversationId = created.id;
+
+          // Avisa o anfitrião que um hóspede iniciou uma conversa com a IA.
+          try {
+            const { sendConversationStartedPush } = await import("@/lib/ops-push.server");
+            await sendConversationStartedPush(supabaseAdmin, {
+              propertyId: prop.id,
+              propertyName: prop.name ?? null,
+              conversationId: created.id,
+              guestName: body.guestName ?? null,
+              firstMessage: body.message ?? null,
+            });
+          } catch (e) {
+            console.error("[guide-chat] conversation-started push failed", e);
+          }
         }
 
         // ── Omnichannel Conversation Core (espelho unificado, nunca bloqueante)
