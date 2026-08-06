@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import type { GuestListItem } from "@/lib/engagement-guests.functions";
 import { toWhatsappNumber, formatIntlPhone } from "@/lib/masks";
+import { CopyButton } from "@/components/CopyButton";
 
 /** Formata em uma linha compacta: 16m3s, 2h15m, 34s */
 function fmtCompact(seconds: number): string {
