@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import type { GuestListItem } from "@/lib/engagement-guests.functions";
 import { toWhatsappNumber, formatIntlPhone } from "@/lib/masks";
+import { CopyButton } from "@/components/CopyButton";
 
 /** Formata em uma linha compacta: 16m3s, 2h15m, 34s */
 function fmtCompact(seconds: number): string {
@@ -144,7 +145,7 @@ export function GuestsTable({
               <tr>
                 <th
                   onClick={() => toggle("guestName", "asc")}
-                  className="text-left px-4 py-2 pr-6 font-medium whitespace-nowrap sticky left-0 bg-muted/60 backdrop-blur z-10 cursor-pointer hover:text-foreground transition-colors w-px"
+                  className="text-left px-3 py-2 font-medium whitespace-nowrap sticky left-0 bg-muted/60 backdrop-blur z-10 cursor-pointer hover:text-foreground transition-colors w-[160px] max-w-[160px]"
                 >
                   <span className="inline-flex items-center gap-1">
                     Hóspede <SortIndicator active={active("guestName")} dir={sort.dir} />
@@ -182,26 +183,33 @@ export function GuestsTable({
                   onClick={() => onSelect(g.key)}
                   className="border-t border-border cursor-pointer hover:bg-muted/40 transition-colors"
                 >
-                  <td className="px-4 py-3 pr-6 sticky left-0 bg-card z-10 w-px whitespace-nowrap">
-                    <div className="font-medium whitespace-nowrap" title={g.guestName}>{g.guestName || "—"}</div>
-                    <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground whitespace-nowrap">
+                  <td className="px-3 py-3 pr-3 sticky left-0 bg-card z-10 w-[160px] max-w-[160px]">
+                    <div className="font-medium truncate" title={g.guestName}>{g.guestName || "—"}</div>
+                    <div className="flex items-center gap-1 text-[11px] min-w-0">
                       {g.phone ? (
-                        <>
+                        <a
+                          href={`https://wa.me/${waNum}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                          className="inline-flex items-center gap-1 min-w-0 text-emerald-500 hover:text-emerald-400 hover:underline"
+                          title="Abrir no WhatsApp"
+                        >
                           <Phone className="size-3 shrink-0" />
-                          <a
-                            href={`https://wa.me/${waNum}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            onClick={(e) => e.stopPropagation()}
-                            className="tabular-nums hover:text-emerald-500 hover:underline"
-                            title="Abrir no WhatsApp"
-                          >
-                            {phoneLabel}
-                          </a>
-                        </>
-                      ) : <span>sem telefone</span>}
-                      {g.reservationCode && !showReservation && <span className="ml-1">· {g.reservationCode}</span>}
+                          <span className="tabular-nums truncate">{phoneLabel}</span>
+                        </a>
+                      ) : <span className="text-muted-foreground">sem telefone</span>}
                     </div>
+                    {g.reservationCode && !showReservation && (
+                      <div className="flex items-center gap-1 mt-0.5 min-w-0">
+                        <span className="font-mono text-[10px] px-1 py-0.5 rounded bg-muted/60 border border-border/60 truncate">
+                          {g.reservationCode}
+                        </span>
+                        <span onClick={(e) => e.stopPropagation()} className="shrink-0">
+                          <CopyButton value={g.reservationCode} size={11} />
+                        </span>
+                      </div>
+                    )}
                   </td>
 
                   <td className="px-3 py-3 text-left text-xs text-muted-foreground truncate max-w-[160px]" title={g.accountName}>
