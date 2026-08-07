@@ -281,9 +281,24 @@ export function StakeholderFormDialog({
       try {
         const current = access?.status ?? "none";
         if (systemAccess && current === "none" && emailValid) {
-          await inviteFn({ data: { email: form.email.trim().toLowerCase(), role: "agent" as const } });
-          toast.success("Convite de acesso enviado por e-mail.");
+          if (provisionalPwd.trim().length >= 8) {
+            await provisionalFn({
+              data: {
+                email: form.email.trim().toLowerCase(),
+                password: provisionalPwd.trim(),
+                name: form.name.trim() || undefined,
+              },
+            });
+            setProvisionalPwd("");
+            toast.success(
+              "Acesso liberado com senha provisória. No primeiro login a pessoa cria a própria senha.",
+            );
+          } else {
+            await inviteFn({ data: { email: form.email.trim().toLowerCase(), role: "agent" as const } });
+            toast.success("Convite de acesso enviado por e-mail.");
+          }
         } else if (!systemAccess && current === "pending" && access?.inviteId) {
+
           await revokeInviteFn({ data: { inviteId: access.inviteId } });
           toast.success("Convite de acesso cancelado.");
         } else if (!systemAccess && current === "active" && access?.memberId) {
