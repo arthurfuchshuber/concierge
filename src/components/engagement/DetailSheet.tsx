@@ -141,7 +141,7 @@ function GuestDetail({ guestKey, accountId }: { guestKey: string; accountId: str
       </SheetHeader>
 
       <dl className="grid grid-cols-2 gap-3 mt-6">
-        <Stat label="Check-in" value={new Date(g.checkinDate).toLocaleDateString("pt-BR")} />
+        <Stat label="Check-in" value={new Date(`${g.checkinDate}T12:00:00`).toLocaleDateString("pt-BR")} />
         <Stat label="Tempo total" value={formatDur(g.totalSeconds)} icon={<Clock className="size-3" />} />
         <Stat label="Sessões" value={g.sessionsCount} />
         <Stat label="Seções distintas" value={g.sectionsCount} icon={<Layers className="size-3" />} />

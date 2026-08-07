@@ -23,7 +23,9 @@ function fmtCompact(seconds: number): string {
 
 function fmtDate(v: string | null | undefined): string {
   if (!v) return "—";
-  const d = new Date(v);
+  // Datas "YYYY-MM-DD" são lidas como UTC pelo JS e apareciam um dia antes
+  // no fuso do Brasil — ancoramos ao meio-dia local.
+  const d = /^\d{4}-\d{2}-\d{2}$/.test(v) ? new Date(`${v}T12:00:00`) : new Date(v);
   if (isNaN(d.getTime())) return "—";
   return d.toLocaleDateString("pt-BR");
 }
@@ -70,7 +72,7 @@ export function GuestsTable({
         g.topSection ?? "",
         g.propertyCity ?? "",
         g.checkinDate ?? "",
-        g.checkinDate ? new Date(g.checkinDate).toLocaleDateString("pt-BR") : "",
+        fmtDate(g.checkinDate),
       ].join(" ").toLowerCase();
       if (hay.includes(term)) return true;
       if (digits && g.phone && g.phone.includes(digits)) return true;

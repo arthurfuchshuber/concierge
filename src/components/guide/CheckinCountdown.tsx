@@ -10,12 +10,15 @@ function parseTime(t: string | null | undefined): { h: number; m: number } | nul
 
 export function CheckinCountdown({
   checkinTime,
+  checkinDate,
   theme,
   expandable = false,
   open = false,
   onToggle,
 }: {
   checkinTime: string | null | undefined;
+  /** Data real do check-in (YYYY-MM-DD) — quando existe, a contagem considera dias. */
+  checkinDate?: string | null;
   theme: "dark" | "light";
   expandable?: boolean;
   open?: boolean;
@@ -33,12 +36,21 @@ export function CheckinCountdown({
   const parsed = parseTime(checkinTime);
   if (!parsed || !now) return null;
 
+  const dateParts = checkinDate ? checkinDate.split("-").map(Number) : null;
   const target = new Date(now);
+  if (dateParts && dateParts.length === 3 && !dateParts.some(Number.isNaN)) {
+    target.setFullYear(dateParts[0], dateParts[1] - 1, dateParts[2]);
+  }
   target.setHours(parsed.h, parsed.m, 0, 0);
   const diffMs = target.getTime() - now.getTime();
 
-  const startOfWindow = new Date(now);
+  // Janela de progresso: da meia-noite do dia do check-in (ou até 7 dias antes,
+  // quando falta mais de um dia) até o horário liberado.
+  const startOfWindow = new Date(target);
   startOfWindow.setHours(0, 0, 0, 0);
+  if (diffMs > 0 && now < startOfWindow) {
+    startOfWindow.setDate(startOfWindow.getDate() - 7);
+  }
   const isLight = theme === "light";
 
   const Wrapper = ({ children }: { children: React.ReactNode }) =>
@@ -65,7 +77,7 @@ export function CheckinCountdown({
       />
     ) : null;
 
-  if (now < startOfWindow || now > target) {
+  if (diffMs <= 0) {
     if (diffMs < 0 && Math.abs(diffMs) < 3 * 60 * 60 * 1000) {
       return (
         <div className="mx-4 md:mx-10 lg:mx-16 mb-3 relative z-10">
@@ -98,20 +110,27 @@ export function CheckinCountdown({
   }
 
   const totalSec = Math.max(1, Math.floor(diffMs / 1000));
-  const hours = Math.floor(totalSec / 3600);
+  const days = Math.floor(totalSec / 86_400);
+  const hours = Math.floor((totalSec % 86_400) / 3600);
   const minutes = Math.floor((totalSec % 3600) / 60);
   const seconds = totalSec % 60;
-  // Enquanto falta ≥ 1h mostramos "5h07"; abaixo disso, contagem fina "58:23".
+  // ≥ 1 dia: "3d 04h"; ≥ 1h: "5h07"; abaixo disso, contagem fina "58:23".
   const label =
-    hours > 0
-      ? `${hours}h${String(minutes).padStart(2, "0")}`
-      : `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+    days > 0
+      ? `${days}d ${String(hours).padStart(2, "0")}h`
+      : hours > 0
+        ? `${hours}h${String(minutes).padStart(2, "0")}`
+        : `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
 
   const totalWindow = target.getTime() - startOfWindow.getTime();
   const progressed = now.getTime() - startOfWindow.getTime();
   const pct = Math.max(4, Math.min(100, (progressed / totalWindow) * 100));
 
-  const targetLabel = `${String(parsed.h).padStart(2, "0")}:${String(parsed.m).padStart(2, "0")}`;
+  const hhmm = `${String(parsed.h).padStart(2, "0")}:${String(parsed.m).padStart(2, "0")}`;
+  const targetLabel =
+    days > 0
+      ? `${String(target.getDate()).padStart(2, "0")}/${String(target.getMonth() + 1).padStart(2, "0")} ${hhmm}`
+      : hhmm;
 
   return (
     <div className="mx-4 md:mx-10 lg:mx-16 mb-3 md:mb-4 relative z-10">
