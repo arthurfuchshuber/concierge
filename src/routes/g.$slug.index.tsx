@@ -741,12 +741,19 @@ function Guide({ data }: { data: GuideOk }) {
                       p.gate_code ||
                       p.lock_code;
                     if (!hasCodes) {
-                      return <CheckinCountdown checkinTime={p.checkin_time as string | null} theme={theme} />;
+                      return (
+                        <CheckinCountdown
+                          checkinTime={p.checkin_time as string | null}
+                          checkinDate={accessRec?.checkinDate ?? null}
+                          theme={theme}
+                        />
+                      );
                     }
                     return (
                       <>
                         <CheckinCountdown
                           checkinTime={p.checkin_time as string | null}
+                          checkinDate={accessRec?.checkinDate ?? null}
                           theme={theme}
                           expandable
                           open={codesOpen}
@@ -758,6 +765,7 @@ function Guide({ data }: { data: GuideOk }) {
                           open={codesOpen}
                           onToggle={() => setCodesOpen((v) => !v)}
                           checkinTime={p.checkin_time as string | null}
+                          checkinDate={accessRec?.checkinDate ?? null}
                         />
                       </>
                     );
@@ -3052,11 +3060,13 @@ function CodesTrigger({
   open,
   onToggle,
   checkinTime,
+  checkinDate,
 }: {
   theme: "dark" | "light";
   open: boolean;
   onToggle: () => void;
   checkinTime: string | null;
+  checkinDate?: string | null;
 }) {
   // Só aparece quando o CheckinCountdown não está visível (fora da janela ativa),
   // para não duplicar. Reproduz a lógica do CheckinCountdown de forma leve.
@@ -3070,11 +3080,13 @@ function CodesTrigger({
   const m = checkinTime ? String(checkinTime).match(/^(\d{1,2}):(\d{2})/) : null;
   if (m) {
     const target = new Date(now);
+    const dp = checkinDate ? checkinDate.split("-").map(Number) : null;
+    if (dp && dp.length === 3 && !dp.some(Number.isNaN)) {
+      target.setFullYear(dp[0], dp[1] - 1, dp[2]);
+    }
     target.setHours(Number(m[1]), Number(m[2]), 0, 0);
-    const startOfWindow = new Date(now);
-    startOfWindow.setHours(0, 0, 0, 0);
     const diffMs = target.getTime() - now.getTime();
-    const inCountdown = now >= startOfWindow && now <= target;
+    const inCountdown = diffMs > 0;
     const inLiberated = diffMs < 0 && Math.abs(diffMs) < 3 * 60 * 60 * 1000;
     if (inCountdown || inLiberated) return null; // CheckinCountdown já cobre
   }
