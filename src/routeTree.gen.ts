@@ -16,6 +16,7 @@ import { Route as PrivacidadeRouteImport } from './routes/privacidade'
 import { Route as PrecosRouteImport } from './routes/precos'
 import { Route as PainelRouteImport } from './routes/painel'
 import { Route as McpRouteImport } from './routes/mcp'
+import { Route as DefinirSenhaRouteImport } from './routes/definir-senha'
 import { Route as ConfiancaRouteImport } from './routes/confianca'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
@@ -107,6 +108,11 @@ const PainelRoute = PainelRouteImport.update({
 const McpRoute = McpRouteImport.update({
   id: '/mcp',
   path: '/mcp',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DefinirSenhaRoute = DefinirSenhaRouteImport.update({
+  id: '/definir-senha',
+  path: '/definir-senha',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ConfiancaRoute = ConfiancaRouteImport.update({
@@ -434,6 +440,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/confianca': typeof ConfiancaRoute
+  '/definir-senha': typeof DefinirSenhaRoute
   '/mcp': typeof McpRoute
   '/painel': typeof PainelRoute
   '/precos': typeof PrecosRoute
@@ -499,6 +506,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/confianca': typeof ConfiancaRoute
+  '/definir-senha': typeof DefinirSenhaRoute
   '/mcp': typeof McpRoute
   '/painel': typeof PainelRoute
   '/precos': typeof PrecosRoute
@@ -564,6 +572,7 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
   '/confianca': typeof ConfiancaRoute
+  '/definir-senha': typeof DefinirSenhaRoute
   '/mcp': typeof McpRoute
   '/painel': typeof PainelRoute
   '/precos': typeof PrecosRoute
@@ -631,6 +640,7 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/confianca'
+    | '/definir-senha'
     | '/mcp'
     | '/painel'
     | '/precos'
@@ -696,6 +706,7 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/confianca'
+    | '/definir-senha'
     | '/mcp'
     | '/painel'
     | '/precos'
@@ -760,6 +771,7 @@ export interface FileRouteTypes {
     | '/_authenticated'
     | '/auth'
     | '/confianca'
+    | '/definir-senha'
     | '/mcp'
     | '/painel'
     | '/precos'
@@ -827,6 +839,7 @@ export interface RootRouteChildren {
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
   ConfiancaRoute: typeof ConfiancaRoute
+  DefinirSenhaRoute: typeof DefinirSenhaRoute
   McpRoute: typeof McpRoute
   PainelRoute: typeof PainelRoute
   PrecosRoute: typeof PrecosRoute
@@ -911,6 +924,13 @@ declare module '@tanstack/react-router' {
       path: '/mcp'
       fullPath: '/mcp'
       preLoaderRoute: typeof McpRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/definir-senha': {
+      id: '/definir-senha'
+      path: '/definir-senha'
+      fullPath: '/definir-senha'
+      preLoaderRoute: typeof DefinirSenhaRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/confianca': {
@@ -1404,6 +1424,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
   ConfiancaRoute: ConfiancaRoute,
+  DefinirSenhaRoute: DefinirSenhaRoute,
   McpRoute: McpRoute,
   PainelRoute: PainelRoute,
   PrecosRoute: PrecosRoute,
