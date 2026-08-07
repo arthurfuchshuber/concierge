@@ -942,6 +942,30 @@ function OccupancyPanel({
   const [ownerFilter, setOwnerFilter] = useState<string>("");
   const [cityFilter, setCityFilter] = useState<string>("");
 
+  /**
+   * Mostramos sempre 5 dias inteiros na largura visível (o resto fica na
+   * rolagem horizontal). A largura de cada coluna é calculada a partir do
+   * espaço disponível para que nenhuma "bolinha" apareça cortada.
+   */
+  const NAME_COL = 130;
+  const VISIBLE_DAYS = 5;
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+  const [dayW, setDayW] = useState(40);
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const update = () => {
+      const w = el.clientWidth;
+      if (!w) return;
+      setDayW(Math.max(28, Math.floor((w - NAME_COL - 4) / VISIBLE_DAYS)));
+    };
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [openAgenda]);
+
   const todayISO = new Date().toISOString().slice(0, 10);
 
   const dayList = useMemo(() => {
