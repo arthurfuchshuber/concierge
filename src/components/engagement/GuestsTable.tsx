@@ -72,7 +72,7 @@ export function GuestsTable({
         g.topSection ?? "",
         g.propertyCity ?? "",
         g.checkinDate ?? "",
-        g.checkinDate ? new Date(g.checkinDate).toLocaleDateString("pt-BR") : "",
+        fmtDate(g.checkinDate),
       ].join(" ").toLowerCase();
       if (hay.includes(term)) return true;
       if (digits && g.phone && g.phone.includes(digits)) return true;
