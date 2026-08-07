@@ -413,8 +413,10 @@ function Dashboard() {
 
 
 
-      {/* Stat cards (collapsible) */}
+      {/* Stat cards (collapsible) — apenas para o titular da conta */}
+      {canSeePlan && (
       <div className="mb-10">
+
         <button
           type="button"
           onClick={() => setStatCardsOpen((v) => !v)}
