@@ -1154,7 +1154,11 @@ function OccupancyPanel({
           ) : (
             <>
 
-              <div ref={scrollRef} className="sg-elegant-scroll max-h-[18rem] overflow-auto snap-x snap-mandatory -mx-1 px-1">
+              <div
+                ref={scrollRef}
+                style={{ scrollPaddingLeft: NAME_COL }}
+                className="sg-elegant-scroll max-h-[18rem] overflow-auto snap-x snap-mandatory -mx-1 px-1"
+              >
                 <table
                   className="w-full table-fixed border-separate border-spacing-x-0.5 border-spacing-y-1 text-xs"
                   style={{ minWidth: NAME_COL + dayList.length * dayW }}
