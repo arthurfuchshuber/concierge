@@ -7,7 +7,9 @@ import { countPropertyOwners } from "@/lib/stakeholders.functions";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { listMyProperties, deleteProperty, duplicateProperty, listPropertiesForAccount, bulkUpdateProperties } from "@/lib/properties.functions";
+import { listMyProperties, deleteProperty, duplicateProperty, listPropertiesForAccount, bulkUpdateProperties, countAccountGuides } from "@/lib/properties.functions";
+import { useMyPermissions } from "@/hooks/useMyPermissions";
+
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle, DialogDescription, DialogFooter, DialogHeader } from "@/components/ui/dialog";
@@ -298,7 +300,19 @@ function Dashboard() {
   }
 
 
-  const count = data?.length ?? 0;
+  // Uso do plano é informação GLOBAL da conta: nunca depende de quantos
+  // imóveis o usuário atual enxerga.
+  const countGuidesFn = useServerFn(countAccountGuides);
+  const { data: guidesCountData } = useQuery({
+    queryKey: ["account-guides-count", impersonation?.userId ?? "self"],
+    queryFn: () => countGuidesFn({ data: { ownerId: impersonation?.userId ?? null } }),
+    staleTime: 30_000,
+  });
+  const count = guidesCountData?.count ?? data?.length ?? 0;
+  // Dados de plano/assinatura só para o titular da conta (ou admin SaaS).
+  const { isOwner } = useMyPermissions();
+  const canSeePlan = isOwner || isSaasAdmin;
+
   const planConfig = sub.plan ? PLANS[sub.plan] : null;
   const planName = planConfig?.name ?? "Sem plano";
   const hasCustomPrice = sub.customPriceCents != null;
@@ -399,8 +413,10 @@ function Dashboard() {
 
 
 
-      {/* Stat cards (collapsible) */}
+      {/* Stat cards (collapsible) — apenas para o titular da conta */}
+      {canSeePlan && (
       <div className="mb-10">
+
         <button
           type="button"
           onClick={() => setStatCardsOpen((v) => !v)}
@@ -516,9 +532,11 @@ function Dashboard() {
         </div>
         )}
       </div>
+      )}
 
 
-      {sub.isPastDue && (
+
+      {canSeePlan && sub.isPastDue && (
         <div className="mb-6 rounded-2xl border border-destructive/30 bg-destructive/5 p-4 flex items-start gap-3">
           <AlertTriangle className="size-5 text-destructive shrink-0 mt-0.5" />
           <div className="flex-1">

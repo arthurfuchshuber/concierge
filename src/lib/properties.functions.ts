@@ -208,6 +208,45 @@ export const listPropertiesForAccount = createServerFn({ method: "POST" })
   });
 
 
+/**
+ * Contagem GLOBAL de guias da conta (número total de imóveis do titular),
+ * independente do recorte de residências visíveis para o caller. Serve para
+ * indicadores de plano ("X/900"), que são informação da conta, não do escopo.
+ */
+export const countAccountGuides = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) =>
+    z.object({ ownerId: z.string().uuid().nullable().optional() }).parse(i ?? {}),
+  )
+  .handler(async ({ data, context }) => {
+    const { userId } = context;
+    const target = data.ownerId ?? userId;
+    if (target !== userId) {
+      // Só conta a conta de terceiros se o caller for membro ativo ou admin SaaS.
+      const { data: isMember } = await context.supabase.rpc("is_account_member", {
+        _user_id: userId,
+        _owner_id: target,
+      });
+      if (!isMember) {
+        const { data: isAdmin } = await context.supabase.rpc("has_role", {
+          _user_id: userId,
+          _role: "admin",
+        });
+        if (!isAdmin) return { count: 0 };
+      }
+    }
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { count, error } = await supabaseAdmin
+      .from("properties")
+      .select("id", { count: "exact", head: true })
+      .eq("owner_id", target);
+    if (error) return { count: 0 };
+    return { count: count ?? 0 };
+  });
+
+
+
+
 // Versão leve: apenas os campos necessários para seleção de imóveis em UIs
 // como o CopyRecsDialog. Não carrega imagens assinadas, reduz payload.
 export const listMyPropertiesBrief = createServerFn({ method: "GET" })
