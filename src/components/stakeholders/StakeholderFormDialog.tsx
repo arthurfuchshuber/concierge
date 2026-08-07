@@ -322,8 +322,14 @@ export function StakeholderFormDialog({
                 email: form.email.trim().toLowerCase(),
                 password: provisionalPwd.trim(),
                 name: form.name.trim() || undefined,
+                // Já temos CPF e nascimento no cadastro — o convidado não
+                // precisa preencher de novo no primeiro acesso.
+                cpf: !isPJ && d.length === 11 ? d : undefined,
+                birth_date: !isPJ && form.birth_date ? form.birth_date : undefined,
+                phone: stripMask(form.phone) || undefined,
               },
             });
+
             setProvisionalPwd("");
             toast.success(
               "Acesso liberado com senha provisória. No primeiro login a pessoa cria a própria senha.",
