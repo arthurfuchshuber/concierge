@@ -932,51 +932,90 @@ export const getOccupancyBoard = createServerFn({ method: "GET" })
       return { start, days, properties: [], stays: [] as OccupancyStay[], freeToday: [] as Array<{ id: string; name: string }> };
     }
 
+    // Mesma fonte da verdade do Kanban: garante que alterações de reserva no
+    // iCal (ex.: checkout adiado) apareçam também no calendário de ocupação.
+    const { syncStaleIcals } = await import("@/lib/arrival-board.server");
+    await syncStaleIcals(context.supabase as never, propIds);
+
     const [{ data: props }, { data: reservations }, { data: logs }] = await Promise.all([
       context.supabase.from("properties").select("id, name, city, owner_contact_id").in("id", propIds).order("name"),
       context.supabase
         .from("property_reservations")
         .select("property_id, checkin_date, checkout_date, guest_hint, status, raw_summary")
         .in("property_id", propIds)
+        .eq("source", "airbnb")
         .lte("checkin_date", end)
         .gte("checkout_date", start)
         .limit(5000),
       context.supabase
         .from("guide_access_logs")
-        .select("property_id, checkin_date, checkout_date, guest_name")
+        .select("property_id, checkin_date, checkout_date, guest_name, reservation_code")
         .in("property_id", propIds)
         .lte("checkin_date", end)
         .gte("checkout_date", start)
         .limit(5000),
     ]);
 
+    const normalizeCode = (s: string | null | undefined): string | null => {
+      if (!s) return null;
+      const m = String(s).match(/HM[A-Z0-9]{6,}/i);
+      return m ? m[0].toUpperCase() : null;
+    };
+
+    const logRows = ((logs ?? []) as Array<{
+      property_id: string;
+      checkin_date: string;
+      checkout_date: string | null;
+      guest_name: string | null;
+      reservation_code: string | null;
+    }>).filter((l) => (l.guest_name ?? "").trim().toLowerCase() !== "hóspede pendente");
+
     const stays: OccupancyStay[] = [];
-    for (const r of (reservations ?? []) as Array<{
+    const reservationRows = ((reservations ?? []) as Array<{
       property_id: string;
       checkin_date: string;
       checkout_date: string | null;
       guest_hint: string | null;
       status: string | null;
       raw_summary: string | null;
-    }>) {
-      if (!isRealReservation(r)) continue;
+    }>).filter(isRealReservation);
+
+    const consumedLogs = new Set<(typeof logRows)[number]>();
+    for (const r of reservationRows) {
+      const resCode = normalizeCode(r.guest_hint);
+      // A reserva manda nas DATAS; o log só contribui com o nome do hóspede.
+      const match =
+        logRows.find(
+          (l) =>
+            l.property_id === r.property_id && !!resCode && normalizeCode(l.reservation_code) === resCode,
+        ) ??
+        logRows.find(
+          (l) =>
+            l.property_id === r.property_id &&
+            l.checkin_date === r.checkin_date &&
+            l.checkout_date === r.checkout_date,
+        ) ??
+        logRows.find((l) => l.property_id === r.property_id && l.checkin_date === r.checkin_date);
+      if (match) consumedLogs.add(match);
       stays.push({
         propertyId: r.property_id,
         checkin: r.checkin_date,
         checkout: r.checkout_date,
-        guest: r.guest_hint,
+        guest: match?.guest_name ?? r.guest_hint,
       });
     }
-    for (const l of (logs ?? []) as Array<{
-      property_id: string;
-      checkin_date: string;
-      checkout_date: string | null;
-      guest_name: string | null;
-    }>) {
-      const dup = stays.some(
-        (s) => s.propertyId === l.property_id && s.checkin === l.checkin_date && s.checkout === l.checkout_date,
+
+    for (const l of logRows) {
+      if (consumedLogs.has(l)) continue;
+      // Ignora logs cujo período se sobrepõe a uma reserva já mapeada — a
+      // reserva (iCal) é sempre a versão atual do período.
+      const overlaps = reservationRows.some(
+        (r) =>
+          r.property_id === l.property_id &&
+          r.checkin_date < (l.checkout_date ?? l.checkin_date) &&
+          (r.checkout_date ?? r.checkin_date) > l.checkin_date,
       );
-      if (dup) continue;
+      if (overlaps) continue;
       stays.push({
         propertyId: l.property_id,
         checkin: l.checkin_date,
@@ -984,6 +1023,7 @@ export const getOccupancyBoard = createServerFn({ method: "GET" })
         guest: l.guest_name,
       });
     }
+
 
     const propsRaw = (props ?? []) as Array<{
       id: string;
