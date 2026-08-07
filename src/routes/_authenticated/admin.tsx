@@ -324,6 +324,8 @@ function AdminLayout() {
       {handoffEnabled && !pathname.startsWith("/admin/atendimento") && <FloatingHandoffDock />}
       <PendingInviteDialog />
       <CompleteProfileDialog />
+      <ForcePasswordChangeDialog />
+
     </div>
 
   );
