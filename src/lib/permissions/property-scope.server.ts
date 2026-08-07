@@ -17,6 +17,10 @@ export async function visiblePropertyIds(userId: string): Promise<string[] | nul
   const isMember = snapshot.subject.isTenantMember;
   if (!isMember) return null;
   if (roles.includes("SYSTEM") || roles.includes("CRON")) return null;
+  // Sem nenhuma residência marcada, o recorte não se aplica: quem tem
+  // permissão de visualização/edição enxerga tudo o que a conta possui.
+  // O recorte por residência só vale quando alguma foi escolhida.
+  if (snapshot.properties.length === 0) return null;
   return snapshot.properties;
 }
 
