@@ -565,12 +565,22 @@ export function PermissionCenterPage({
                   <Button
                     size="sm"
                     variant="ghost"
+                    disabled={linkMutation.isPending}
+                    onClick={() => linkMutation.mutate(inv.id)}
+                  >
+                    <Link2 className="mr-1.5 h-3.5 w-3.5" />
+                    Copiar link
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
                     disabled={resendMutation.isPending}
                     onClick={() => resendMutation.mutate(inv.id)}
                   >
                     <RotateCw className="mr-1.5 h-3.5 w-3.5" />
                     Reenviar
                   </Button>
+
                   <Button
                     size="sm"
                     variant="ghost"
