@@ -231,6 +231,26 @@ function DashboardPage() {
   const listQ = mode === "done" ? concludedQ : kind === "checkin" ? checkinListQ : checkoutListQ;
 
 
+  // Uma única rotina de recarga, com "debounce": evita disparar 4-5 requisições
+  // seguidas (mutação + eventos em tempo real) — o que deixava o app lento no celular.
+  const refreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const refreshDashboard = useCallback(
+    (delay = 250) => {
+      if (refreshTimer.current) clearTimeout(refreshTimer.current);
+      refreshTimer.current = setTimeout(() => {
+        qc.invalidateQueries({
+          predicate: (q) => {
+            const k = q.queryKey[0];
+            return k === "dash-list" || k === "dash-kpis" || k === "dash-eng" || k === "dash-occupancy";
+          },
+          refetchType: "active",
+        });
+      }, delay);
+    },
+    [qc],
+  );
+  useEffect(() => () => { if (refreshTimer.current) clearTimeout(refreshTimer.current); }, []);
+
   type UpsertPayload = {
     logId?: string;
     reservationId?: string;
@@ -242,20 +262,20 @@ function DashboardPage() {
   const upsert = useMutation({
     mutationFn: (v: UpsertPayload) => upsertFn({ data: v }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["dash-list"] });
-      qc.invalidateQueries({ queryKey: ["dash-kpis"] });
+      refreshDashboard();
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Falha ao atualizar."),
+    onSettled: () => setBusyRowId(null),
   });
 
   const advance = useMutation({
     mutationFn: (v: { logId?: string; reservationId?: string; from: "checkin" | "stay" | "checkout" | "cleaning" }) =>
       advanceFn({ data: v }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["dash-list"] });
-      qc.invalidateQueries({ queryKey: ["dash-kpis"] });
+      refreshDashboard();
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Falha ao avançar card."),
+    onSettled: () => setBusyRowId(null),
   });
 
   const revertFn = useServerFn(revertArrival);
@@ -266,31 +286,32 @@ function DashboardPage() {
       from: "checkout" | "stay" | "cleaning" | "done";
     }) => revertFn({ data: v }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["dash-list"] });
-      qc.invalidateQueries({ queryKey: ["dash-kpis"] });
+      refreshDashboard();
       toast.success("Check desfeito.");
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Falha ao desfazer."),
+    onSettled: () => setBusyRowId(null),
   });
 
   const updateDates = useMutation({
     mutationFn: (v: { logId: string; checkinDate?: string; checkoutDate?: string | null }) =>
       updateDatesFn({ data: v }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["dash-list"] });
-      qc.invalidateQueries({ queryKey: ["dash-kpis"] });
+      refreshDashboard();
       toast.success("Datas atualizadas.");
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Falha ao atualizar datas."),
+    onSettled: () => setBusyRowId(null),
   });
 
   const updateTime = useMutation({
     mutationFn: (v: { logId: string; time: string | null }) => updateTimeFn({ data: v }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["dash-list"] });
+      refreshDashboard();
       toast.success("Horário atualizado.");
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Falha ao atualizar horário."),
+    onSettled: () => setBusyRowId(null),
   });
 
   function statusTarget(row: ArrivalRow): Pick<UpsertPayload, "logId" | "reservationId"> {
@@ -305,6 +326,7 @@ function DashboardPage() {
       toast.error("Não foi possível identificar esse card. Atualize a página e tente novamente.");
       return;
     }
+    setBusyRowId(row.logId);
     if (from === "stay") {
       revert.mutate({ ...target, from });
       return;
@@ -313,6 +335,7 @@ function DashboardPage() {
   }
 
   function handleEditTime(row: ArrivalRow, k: "checkin" | "checkout", time: string | null) {
+    setBusyRowId(row.logId);
     upsert.mutate({ ...statusTarget(row), kind: k, arrivalTimeOverride: time });
   }
 
@@ -320,8 +343,7 @@ function DashboardPage() {
   // horários, notas ou reservas mudam (via outro membro da equipe, iCal etc).
   useEffect(() => {
     const invalidate = () => {
-      qc.invalidateQueries({ queryKey: ["dash-list"] });
-      qc.invalidateQueries({ queryKey: ["dash-kpis"] });
+      refreshDashboard();
       qc.invalidateQueries({ queryKey: ["dash-eng"] });
       qc.invalidateQueries({ queryKey: ["dash-occupancy"] });
     };
@@ -334,7 +356,7 @@ function DashboardPage() {
     return () => {
       supabase.removeChannel(ch);
     };
-  }, [qc]);
+  }, [refreshDashboard]);
 
   const todayISO = todayISOSaoPaulo();
   const ciRows = checkinListQ.data?.rows ?? [];
@@ -608,16 +630,18 @@ function DashboardPage() {
                         toast.error("Não foi possível identificar esse card.");
                         return;
                       }
+                      setBusyRowId(row.logId);
                       revert.mutate({ ...target, from: mode });
                     }
               }
               onSyncIcal={(row) => {
                 const t = kind === "checkin" ? "15:00" : "11:00";
+                setBusyRowId(row.logId);
                 upsert.mutate({ ...statusTarget(row), kind, arrivalTimeOverride: t });
                 toast.success(`Horário alinhado ao iCal (${t}).`);
               }}
-              onNote={(row, note) => upsert.mutate({ ...statusTarget(row), kind, note })}
-              onEditDates={(row, dates) => updateDates.mutate({ logId: row.logId, ...dates })}
+              onNote={(row, note) => { setBusyRowId(row.logId); upsert.mutate({ ...statusTarget(row), kind, note }); }}
+              onEditDates={(row, dates) => { setBusyRowId(row.logId); updateDates.mutate({ logId: row.logId, ...dates }); }}
               onEditTime={(row, time) => handleEditTime(row, kind, time)}
               busyRowId={busyRowId}
               muted={mode === "stay" || mode === "cleaning"}
