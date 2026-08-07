@@ -1142,7 +1142,7 @@ function PropertyEditor() {
                       {reservationsQuery.data.reservations.map((r) => (
                         <li key={r.id} className="text-xs flex items-center justify-between gap-2 py-1 border-b border-border/50 last:border-0">
                           <span className="font-medium">
-                            {new Date(r.checkin_date).toLocaleDateString("pt-BR")} → {new Date(r.checkout_date).toLocaleDateString("pt-BR")}
+                            {new Date(`${r.checkin_date}T12:00:00`).toLocaleDateString("pt-BR")} → {new Date(`${r.checkout_date}T12:00:00`).toLocaleDateString("pt-BR")}
                           </span>
                           {r.guest_hint && (<span className="text-muted-foreground font-mono text-[10px]">{r.guest_hint}</span>)}
                         </li>
