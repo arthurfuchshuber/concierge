@@ -900,6 +900,8 @@ function OccupancyPanel({
   properties,
   stays,
   checkedInPropertyIds,
+  onStartChange,
+  defaultStart,
 }: {
   loading: boolean;
   start: string;
@@ -907,6 +909,8 @@ function OccupancyPanel({
   properties: Array<{ id: string; name: string; city: string | null; ownerName?: string | null }>;
   stays: Array<{ propertyId: string; checkin: string; checkout: string | null; guest: string | null }>;
   checkedInPropertyIds: Set<string>;
+  onStartChange?: (v: string) => void;
+  defaultStart?: string;
 }) {
   const [openAgenda, setOpenAgenda] = useState<string>("agenda");
   const [ownerFilter, setOwnerFilter] = useState<string>("");
@@ -917,13 +921,14 @@ function OccupancyPanel({
   const dayList = useMemo(() => {
     const out: string[] = [];
     const [y, m, d] = start.split("-").map(Number);
-    for (let i = 0; i < 7; i++) {
+    for (let i = 0; i < days; i++) {
       const dt = new Date(Date.UTC(y, (m ?? 1) - 1, d));
       dt.setUTCDate(dt.getUTCDate() + i);
       out.push(dt.toISOString().slice(0, 10));
     }
     return out;
-  }, [start]);
+  }, [start, days]);
+
 
   const owners = useMemo(
     () => [...new Set(properties.map((p) => p.ownerName).filter((o): o is string => !!o))].sort((a, b) => a.localeCompare(b, "pt-BR")),
