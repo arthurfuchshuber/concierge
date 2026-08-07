@@ -219,10 +219,12 @@ export const resendTeamInvite = createServerFn({ method: "POST" })
     // (optionally) resend the branded invite e-mail.
     const existingUserId = await findUserIdByEmail(inv.email as string);
     if (existingUserId) {
-      return { ok: true, autoAccepted: false, existingUser: true };
+      await sendExistingUserAccessEmail(inv.email as string);
+      return { ok: true, autoAccepted: false, existingUser: true, emailSent: true };
     }
     await sendAccountInviteEmail(inv.email as string, ((inviter?.trade_name as string) || (inviter?.full_name as string)) ?? null);
-    return { ok: true, autoAccepted: false };
+    return { ok: true, autoAccepted: false, emailSent: true };
+
 
 
   });
