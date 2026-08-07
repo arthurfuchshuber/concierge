@@ -951,6 +951,7 @@ function OccupancyPanel({
   const VISIBLE_DAYS = 5;
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const [dayW, setDayW] = useState(40);
+  const dotSize = Math.max(18, Math.min(28, dayW - 8));
 
   useEffect(() => {
     const el = scrollRef.current;
@@ -958,8 +959,11 @@ function OccupancyPanel({
     const update = () => {
       const w = el.clientWidth;
       if (!w) return;
-      setDayW(Math.max(28, Math.floor((w - NAME_COL - 4) / VISIBLE_DAYS)));
+      // desconta o padding lateral (8px) e o border-spacing entre as colunas
+      const usable = w - NAME_COL - 8 - VISIBLE_DAYS * 2;
+      setDayW(Math.max(26, Math.floor(usable / VISIBLE_DAYS)));
     };
+
     update();
     const ro = new ResizeObserver(update);
     ro.observe(el);
@@ -1232,14 +1236,23 @@ function OccupancyPanel({
                           return (
                             <td key={d} style={{ width: dayW, minWidth: dayW }} className={`snap-start px-0 ${isToday ? "bg-emerald-500/10" : ""}`}>
                               {a === b ? (
-                                <div className={`h-7 rounded-md ${clsOf(a)}`} title={title} />
+                                <div
+                                  className={`mx-auto rounded-full ${clsOf(a)}`}
+                                  style={{ width: dotSize, height: dotSize }}
+                                  title={title}
+                                />
                               ) : (
-                                <div className="flex h-7 gap-px overflow-hidden rounded-md" title={title}>
-                                  <div className={`h-full flex-1 rounded-l-md ${clsOf(a)}`} />
-                                  <div className={`h-full flex-1 rounded-r-md ${clsOf(b)}`} />
+                                <div
+                                  className="mx-auto flex overflow-hidden rounded-full"
+                                  style={{ width: dotSize, height: dotSize }}
+                                  title={title}
+                                >
+                                  <div className={`h-full w-1/2 ${clsOf(a)}`} />
+                                  <div className={`h-full w-1/2 ${clsOf(b)}`} />
                                 </div>
                               )}
                             </td>
+
                           );
                         })}
 
@@ -1250,16 +1263,16 @@ function OccupancyPanel({
               </div>
               <div className="mt-3 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-[11px] text-muted-foreground">
                 <span className="inline-flex items-center gap-1">
-                  <span className="size-2.5 rounded-sm bg-emerald-500/80" /> Check-in
+                  <span className="size-2.5 rounded-full bg-emerald-500/80" /> Check-in
                 </span>
                 <span className="inline-flex items-center gap-1">
-                  <span className="size-2.5 rounded-sm bg-amber-500/80" /> Checkout
+                  <span className="size-2.5 rounded-full bg-amber-500/80" /> Checkout
                 </span>
                 <span className="inline-flex items-center gap-1">
-                  <span className="size-2.5 rounded-sm bg-primary/50" /> Ocupado
+                  <span className="size-2.5 rounded-full bg-primary/50" /> Ocupado
                 </span>
                 <span className="inline-flex items-center gap-1">
-                  <span className="size-2.5 rounded-sm bg-muted" /> Livre
+                  <span className="size-2.5 rounded-full bg-muted" /> Livre
                 </span>
               </div>
             </>
