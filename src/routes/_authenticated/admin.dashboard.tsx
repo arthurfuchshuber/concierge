@@ -1024,7 +1024,11 @@ function OccupancyPanel({
                 ) : null}
               </button>
             </PopoverTrigger>
-            <PopoverContent align="end" className="w-64 space-y-4 p-3">
+            <PopoverContent
+              align="end"
+              className="w-64 space-y-4 p-3"
+              onOpenAutoFocus={(e) => e.preventDefault()}
+            >
               {onStartChange ? (
                 <div>
                   <p className="mb-1.5 text-[10px] uppercase tracking-wider text-muted-foreground">
