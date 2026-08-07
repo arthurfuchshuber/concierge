@@ -177,6 +177,8 @@ function DashboardPage() {
     mode === "checkout" || mode === "cleaning" || mode === "done" ? "checkout" : "checkin";
 
   const [range, setRange] = useState<"today" | "tomorrow" | "7d" | "all">("today");
+  // Card em ação (para feedback imediato no toque, sem travar o quadro inteiro).
+  const [busyRowId, setBusyRowId] = useState<string | null>(null);
   // Engagement window follows the kanban range: tomorrow/all map to 7d/30d.
   const engRange: "today" | "tomorrow" | "7d" | "30d" =
     range === "today" ? "today" : range === "tomorrow" ? "tomorrow" : range === "all" ? "30d" : "7d";
@@ -617,7 +619,7 @@ function DashboardPage() {
               onNote={(row, note) => upsert.mutate({ ...statusTarget(row), kind, note })}
               onEditDates={(row, dates) => updateDates.mutate({ logId: row.logId, ...dates })}
               onEditTime={(row, time) => handleEditTime(row, kind, time)}
-              busy={upsert.isPending || advance.isPending || updateDates.isPending || updateTime.isPending}
+              busyRowId={busyRowId}
               muted={mode === "stay" || mode === "cleaning"}
               cleaningPendingPropIds={cleaningPendingPropIds}
             />
@@ -1484,7 +1486,7 @@ function ArrivalGroup({
   onNote,
   onEditDates,
   onEditTime,
-  busy,
+  busyRowId,
   muted,
   cleaningPendingPropIds,
 }: {
@@ -1498,7 +1500,8 @@ function ArrivalGroup({
   onNote: (r: ArrivalRow, note: string | null) => void;
   onEditDates: (r: ArrivalRow, dates: { checkinDate?: string; checkoutDate?: string | null }) => void;
   onEditTime: (r: ArrivalRow, time: string | null) => void;
-  busy: boolean;
+  /** Só o card em ação fica travado — o restante do quadro segue responsivo. */
+  busyRowId?: string | null;
   muted?: boolean;
   cleaningPendingPropIds?: Map<string, "checkout" | "cleaning">;
 }) {
@@ -1519,7 +1522,7 @@ function ArrivalGroup({
           onNote={onNote}
           onEditDates={onEditDates}
           onEditTime={onEditTime}
-          busy={busy}
+          busy={busyRowId === r.logId}
           expanded={openId === r.logId}
           onToggleExpanded={(open) => setOpenId(open ? r.logId : null)}
           cleaningBlocked={mode === "checkin" ? (cleaningPendingPropIds?.get(r.propertyId) ?? null) : null}
