@@ -157,9 +157,13 @@ export function StakeholderFormDialog({
   });
   const access = accessQuery.data;
 
+  // Reflete o estado real do acesso sempre que o diálogo abre — mesmo quando a
+  // consulta vem do cache (mesmo objeto), o `open` no deps força a sincronia.
   useEffect(() => {
-    if (access) setSystemAccess(access.status !== "none");
-  }, [access]);
+    if (!open || !access) return;
+    setSystemAccess(access.status !== "none");
+  }, [access?.status, open]);
+
 
   useEffect(() => {
     if (!open) return;
