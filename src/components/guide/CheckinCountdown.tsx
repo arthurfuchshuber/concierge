@@ -77,7 +77,7 @@ export function CheckinCountdown({
       />
     ) : null;
 
-  if (now < startOfWindow || now > target) {
+  if (diffMs <= 0) {
     if (diffMs < 0 && Math.abs(diffMs) < 3 * 60 * 60 * 1000) {
       return (
         <div className="mx-4 md:mx-10 lg:mx-16 mb-3 relative z-10">
