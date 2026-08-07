@@ -1236,14 +1236,23 @@ function OccupancyPanel({
                           return (
                             <td key={d} style={{ width: dayW, minWidth: dayW }} className={`snap-start px-0 ${isToday ? "bg-emerald-500/10" : ""}`}>
                               {a === b ? (
-                                <div className={`h-7 rounded-md ${clsOf(a)}`} title={title} />
+                                <div
+                                  className={`mx-auto rounded-full ${clsOf(a)}`}
+                                  style={{ width: dotSize, height: dotSize }}
+                                  title={title}
+                                />
                               ) : (
-                                <div className="flex h-7 gap-px overflow-hidden rounded-md" title={title}>
-                                  <div className={`h-full flex-1 rounded-l-md ${clsOf(a)}`} />
-                                  <div className={`h-full flex-1 rounded-r-md ${clsOf(b)}`} />
+                                <div
+                                  className="mx-auto flex overflow-hidden rounded-full"
+                                  style={{ width: dotSize, height: dotSize }}
+                                  title={title}
+                                >
+                                  <div className={`h-full w-1/2 ${clsOf(a)}`} />
+                                  <div className={`h-full w-1/2 ${clsOf(b)}`} />
                                 </div>
                               )}
                             </td>
+
                           );
                         })}
 
