@@ -12,6 +12,10 @@ import {
   Home,
   Calendar,
   Wrench,
+  KeyRound,
+  Eye,
+  EyeOff,
+
 } from "lucide-react";
 import {
   Dialog,
@@ -33,7 +37,7 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { MaskedInput, stripMask } from "@/components/inputs/MaskedInput";
-import { getStakeholderAccess } from "@/lib/stakeholder-access.functions";
+import { getStakeholderAccess, createStakeholderProvisionalAccess } from "@/lib/stakeholder-access.functions";
 import { inviteTeamMember, revokeTeamInvite, removeTeamMember } from "@/lib/team.functions";
 import { saveStakeholder } from "@/lib/stakeholders.functions";
 import { lookupCnpj } from "@/lib/br-lookup.functions";
@@ -136,9 +140,13 @@ export function StakeholderFormDialog({
   const lastCep = useRef("");
   const accessFn = useServerFn(getStakeholderAccess);
   const inviteFn = useServerFn(inviteTeamMember);
+  const provisionalFn = useServerFn(createStakeholderProvisionalAccess);
   const revokeInviteFn = useServerFn(revokeTeamInvite);
   const removeMemberFn = useServerFn(removeTeamMember);
   const [systemAccess, setSystemAccess] = useState(false);
+  const [provisionalPwd, setProvisionalPwd] = useState("");
+  const [showPwd, setShowPwd] = useState(false);
+
 
   const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(form.email.trim());
   const accessQuery = useQuery({
@@ -158,6 +166,9 @@ export function StakeholderFormDialog({
     setForm(initial ?? emptyStakeholderForm);
     setErrors({});
     setSystemAccess(false);
+    setProvisionalPwd("");
+    setShowPwd(false);
+
     lastCep.current = "";
   }, [open, initial]);
 
@@ -277,9 +288,24 @@ export function StakeholderFormDialog({
       try {
         const current = access?.status ?? "none";
         if (systemAccess && current === "none" && emailValid) {
-          await inviteFn({ data: { email: form.email.trim().toLowerCase(), role: "agent" as const } });
-          toast.success("Convite de acesso enviado por e-mail.");
+          if (provisionalPwd.trim().length >= 8) {
+            await provisionalFn({
+              data: {
+                email: form.email.trim().toLowerCase(),
+                password: provisionalPwd.trim(),
+                name: form.name.trim() || undefined,
+              },
+            });
+            setProvisionalPwd("");
+            toast.success(
+              "Acesso liberado com senha provisória. No primeiro login a pessoa cria a própria senha.",
+            );
+          } else {
+            await inviteFn({ data: { email: form.email.trim().toLowerCase(), role: "agent" as const } });
+            toast.success("Convite de acesso enviado por e-mail.");
+          }
         } else if (!systemAccess && current === "pending" && access?.inviteId) {
+
           await revokeInviteFn({ data: { inviteId: access.inviteId } });
           toast.success("Convite de acesso cancelado.");
         } else if (!systemAccess && current === "active" && access?.memberId) {
@@ -479,7 +505,7 @@ export function StakeholderFormDialog({
                     ? "Esta pessoa já acessa o sistema. As permissões por área ficam na ficha, na aba “Acessos”."
                     : access?.status === "pending"
                       ? "Convite enviado — o acesso passa a valer quando a pessoa aceitar no primeiro login."
-                      : "Enviamos um convite por e-mail para criar a senha. A pessoa entra sem nenhum acesso e você libera cada área depois."}
+                      : "Defina uma senha provisória abaixo (ou deixe em branco para enviar convite por e-mail). No primeiro acesso a pessoa cria a própria senha."}
                 </p>
               </div>
               <Switch
@@ -493,6 +519,55 @@ export function StakeholderFormDialog({
                 Informe um e-mail válido acima para liberar o acesso ao sistema.
               </p>
             )}
+            {systemAccess && emailValid && access?.status === "none" && (
+              <div className="mt-3 space-y-1.5">
+                <Label className="text-xs text-muted-foreground flex items-center gap-1.5">
+                  <KeyRound className="size-3.5" /> Senha provisória
+                </Label>
+                <div className="flex gap-2">
+                  <div className="relative flex-1">
+                    <Input
+                      type={showPwd ? "text" : "password"}
+                      autoComplete="new-password"
+                      maxLength={72}
+                      placeholder="Mínimo 8 caracteres"
+                      value={provisionalPwd}
+                      onChange={(e) => setProvisionalPwd(e.target.value)}
+                      className="pr-9"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPwd((s) => !s)}
+                      aria-label={showPwd ? "Ocultar senha" : "Mostrar senha"}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    >
+                      {showPwd ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                    </button>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      const gen = Array.from(crypto.getRandomValues(new Uint32Array(3)))
+                        .map((n) => n.toString(36))
+                        .join("")
+                        .slice(0, 12);
+                      setProvisionalPwd(gen);
+                      setShowPwd(true);
+                    }}
+                  >
+                    Gerar
+                  </Button>
+                </div>
+                {provisionalPwd && provisionalPwd.trim().length < 8 && (
+                  <p className="text-xs text-destructive">A senha precisa ter pelo menos 8 caracteres.</p>
+                )}
+                <p className="text-[11px] text-muted-foreground">
+                  Passe essa senha à pessoa por WhatsApp. Em branco, enviamos convite por e-mail.
+                </p>
+              </div>
+            )}
+
           </div>
 
           <SectionDivider label="Endereço" busy={loadingCep} />

@@ -54,3 +54,90 @@ export const getStakeholderAccess = createServerFn({ method: "GET" })
       inviteId: (invite?.id as string) ?? null,
     };
   });
+
+/**
+ * Cria o acesso do stakeholder com SENHA PROVISÓRIA.
+ *
+ * Em vez de depender da entrega do e-mail de convite, o titular define uma
+ * senha provisória na hora. O usuário entra com ela e, no primeiro acesso,
+ * o sistema obriga a criação de uma nova senha (flag `must_change_password`).
+ */
+const ProvisionalInput = z.object({
+  email: z.string().trim().toLowerCase().email().max(200),
+  password: z.string().min(8).max(72),
+  name: z.string().trim().max(200).optional(),
+});
+
+export const createStakeholderProvisionalAccess = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => ProvisionalInput.parse(i))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { enforce } = await import("@/lib/permissions/permission.enforce.server");
+    await enforce(userId, "equipe.write", {});
+
+    const { resolveUserPlan } = await import("@/lib/plan-guard.server");
+    const plan = await resolveUserPlan(supabase, userId);
+    if (plan.plan !== "business" && plan.plan !== "enterprise") {
+      throw new Error("Liberar acesso ao sistema requer plano Business ou Enterprise.");
+    }
+    if (plan.plan === "business") {
+      const { count } = await supabase
+        .from("account_members")
+        .select("id", { count: "exact", head: true })
+        .eq("owner_id", userId)
+        .eq("status", "active");
+      if ((count ?? 0) >= 2) {
+        throw new Error(
+          "O plano Business permite até 2 pessoas com acesso além do titular. Faça upgrade para o Enterprise.",
+        );
+      }
+    }
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    let memberUserId = await findUserIdByEmail(data.email);
+    if (memberUserId) {
+      const { error } = await supabaseAdmin.auth.admin.updateUserById(memberUserId, {
+        password: data.password,
+        user_metadata: { must_change_password: true },
+      });
+      if (error) throw new Error(`Não foi possível definir a senha provisória: ${error.message}`);
+    } else {
+      const { data: created, error } = await supabaseAdmin.auth.admin.createUser({
+        email: data.email,
+        password: data.password,
+        email_confirm: true,
+        user_metadata: { must_change_password: true, full_name: data.name ?? null },
+      });
+      if (error || !created.user) {
+        throw new Error(`Não foi possível criar o acesso: ${error?.message ?? "erro desconhecido"}`);
+      }
+      memberUserId = created.user.id;
+    }
+
+    const { error: memberError } = await supabaseAdmin
+      .from("account_members")
+      .upsert(
+        {
+          owner_id: userId,
+          member_user_id: memberUserId,
+          role: "agent" as const,
+          status: "active" as const,
+          invited_by: userId,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "owner_id,member_user_id" },
+      );
+    if (memberError) throw new Error(`Acesso criado, mas o vínculo falhou: ${memberError.message}`);
+
+    // Remove convite pendente antigo para o mesmo e-mail, se existir.
+    await supabaseAdmin
+      .from("account_member_invites")
+      .delete()
+      .eq("owner_id", userId)
+      .eq("email", data.email)
+      .eq("status", "pending");
+
+    return { ok: true, userId: memberUserId };
+  });

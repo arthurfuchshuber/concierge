@@ -16,6 +16,8 @@ import { getAtendimentoAccess, countPendingHandoffs } from "@/lib/handoff.functi
 import { listMyAccounts } from "@/lib/active-account.functions";
 import { PendingInviteDialog } from "@/components/admin/PendingInviteDialog";
 import { CompleteProfileDialog } from "@/components/admin/CompleteProfileDialog";
+import { ForcePasswordChangeDialog } from "@/components/admin/ForcePasswordChangeDialog";
+
 import { listMyPendingInvites } from "@/lib/pending-invites.functions";
 import { useAreaAccess } from "@/lib/permissions/useAreaAccess";
 import { useActiveAccount } from "@/hooks/useActiveAccount";
@@ -324,6 +326,8 @@ function AdminLayout() {
       {handoffEnabled && !pathname.startsWith("/admin/atendimento") && <FloatingHandoffDock />}
       <PendingInviteDialog />
       <CompleteProfileDialog />
+      <ForcePasswordChangeDialog />
+
     </div>
 
   );
