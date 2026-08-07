@@ -10,12 +10,15 @@ function parseTime(t: string | null | undefined): { h: number; m: number } | nul
 
 export function CheckinCountdown({
   checkinTime,
+  checkinDate,
   theme,
   expandable = false,
   open = false,
   onToggle,
 }: {
   checkinTime: string | null | undefined;
+  /** Data real do check-in (YYYY-MM-DD) — quando existe, a contagem considera dias. */
+  checkinDate?: string | null;
   theme: "dark" | "light";
   expandable?: boolean;
   open?: boolean;
