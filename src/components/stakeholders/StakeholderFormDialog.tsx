@@ -33,7 +33,7 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { MaskedInput, stripMask } from "@/components/inputs/MaskedInput";
-import { getStakeholderAccess } from "@/lib/stakeholder-access.functions";
+import { getStakeholderAccess, createStakeholderProvisionalAccess } from "@/lib/stakeholder-access.functions";
 import { inviteTeamMember, revokeTeamInvite, removeTeamMember } from "@/lib/team.functions";
 import { saveStakeholder } from "@/lib/stakeholders.functions";
 import { lookupCnpj } from "@/lib/br-lookup.functions";
