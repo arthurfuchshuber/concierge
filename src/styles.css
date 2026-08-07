@@ -136,6 +136,14 @@
     font-feature-settings: "kern", "liga", "calt";
   }
 
+  /* Toque imediato no celular: remove o atraso de ~300ms do duplo-toque
+     e o realce cinza padrão do iOS/Android ao tocar em botões e links. */
+  button, a, [role="button"], [role="tab"], summary, label, input, select, textarea {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+
   /* SaaS display headings — Geist, clean, premium and highly legible */
   .font-display {
     font-family: var(--font-display);
