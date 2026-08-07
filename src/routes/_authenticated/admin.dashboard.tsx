@@ -1263,16 +1263,16 @@ function OccupancyPanel({
               </div>
               <div className="mt-3 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-[11px] text-muted-foreground">
                 <span className="inline-flex items-center gap-1">
-                  <span className="size-2.5 rounded-sm bg-emerald-500/80" /> Check-in
+                  <span className="size-2.5 rounded-full bg-emerald-500/80" /> Check-in
                 </span>
                 <span className="inline-flex items-center gap-1">
-                  <span className="size-2.5 rounded-sm bg-amber-500/80" /> Checkout
+                  <span className="size-2.5 rounded-full bg-amber-500/80" /> Checkout
                 </span>
                 <span className="inline-flex items-center gap-1">
-                  <span className="size-2.5 rounded-sm bg-primary/50" /> Ocupado
+                  <span className="size-2.5 rounded-full bg-primary/50" /> Ocupado
                 </span>
                 <span className="inline-flex items-center gap-1">
-                  <span className="size-2.5 rounded-sm bg-muted" /> Livre
+                  <span className="size-2.5 rounded-full bg-muted" /> Livre
                 </span>
               </div>
             </>
