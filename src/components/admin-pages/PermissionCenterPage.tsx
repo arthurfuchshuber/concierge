@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { AlertTriangle, ArrowLeft, Eye, Lock, Pencil, ShieldOff, Home, Mail, RotateCw, Trash2 } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Eye, Lock, Pencil, ShieldOff, Home, Mail, RotateCw, Trash2, Link2 } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -23,7 +23,7 @@ import {
   grantPermissionCenterPermission,
   setPermissionCenterPropertyScope,
 } from "@/lib/permission-center.functions";
-import { resendTeamInvite, revokeTeamInvite } from "@/lib/team.functions";
+import { getTeamInviteLink, resendTeamInvite, revokeTeamInvite } from "@/lib/team.functions";
 import { cn } from "@/lib/utils";
 import {
   ACCOUNT_AREAS,
@@ -474,6 +474,19 @@ export function PermissionCenterPage({
     onSuccess: () => {
       toast.success("Convite reenviado por e-mail.");
       void refreshOverview();
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+  const linkFn = useServerFn(getTeamInviteLink);
+  const linkMutation = useMutation({
+    mutationFn: (inviteId: string) => linkFn({ data: { inviteId } }),
+    onSuccess: async (res: { url: string }) => {
+      try {
+        await navigator.clipboard.writeText(res.url);
+        toast.success("Link de acesso copiado — envie para a pessoa.");
+      } catch {
+        toast.info(res.url);
+      }
     },
     onError: (e: Error) => toast.error(e.message),
   });
