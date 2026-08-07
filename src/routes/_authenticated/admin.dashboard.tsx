@@ -949,18 +949,20 @@ function OccupancyPanel({
    */
   const NAME_COL = 130;
   const VISIBLE_DAYS = 5;
+  const outerRef = useRef<HTMLDivElement | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const [dayW, setDayW] = useState(40);
-  const dotSize = Math.max(18, Math.min(28, dayW - 8));
+  const dotSize = Math.max(18, Math.min(28, dayW - 6));
+  // largura exata do "visor": nome + 5 colunas inteiras (sem sobra para o 6º dia)
+  const viewportW = NAME_COL + VISIBLE_DAYS * dayW;
 
   useEffect(() => {
-    const el = scrollRef.current;
+    const el = outerRef.current;
     if (!el) return;
     const update = () => {
       const w = el.clientWidth;
       if (!w) return;
-      // desconta o padding lateral (8px) e o border-spacing entre as colunas
-      const usable = w - NAME_COL - 8 - VISIBLE_DAYS * 2;
+      const usable = w - NAME_COL;
       setDayW(Math.max(26, Math.floor(usable / VISIBLE_DAYS)));
     };
 
@@ -969,6 +971,7 @@ function OccupancyPanel({
     ro.observe(el);
     return () => ro.disconnect();
   }, [openAgenda]);
+
 
   const todayISO = new Date().toISOString().slice(0, 10);
 
@@ -1158,15 +1161,16 @@ function OccupancyPanel({
           ) : (
             <>
 
-              <div
-                ref={scrollRef}
-                style={{ scrollPaddingLeft: NAME_COL }}
-                className="sg-elegant-scroll max-h-[18rem] overflow-auto snap-x snap-mandatory -mx-1 px-1"
-              >
-                <table
-                  className="w-full table-fixed border-separate border-spacing-x-0.5 border-spacing-y-1 text-xs"
-                  style={{ minWidth: NAME_COL + dayList.length * dayW }}
+              <div ref={outerRef} className="w-full">
+                <div
+                  ref={scrollRef}
+                  style={{ scrollPaddingLeft: NAME_COL, width: viewportW, maxWidth: "100%" }}
+                  className="sg-elegant-scroll max-h-[18rem] overflow-auto snap-x snap-mandatory"
                 >
+                  <table
+                    className="table-fixed border-separate border-spacing-x-0 border-spacing-y-1 text-xs"
+                    style={{ width: NAME_COL + dayList.length * dayW, minWidth: NAME_COL + dayList.length * dayW }}
+                  >
                   <thead>
                     <tr>
                       <th
@@ -1259,8 +1263,10 @@ function OccupancyPanel({
                       </tr>
                     ))}
                   </tbody>
-                </table>
+                  </table>
+                </div>
               </div>
+
               <div className="mt-3 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-[11px] text-muted-foreground">
                 <span className="inline-flex items-center gap-1">
                   <span className="size-2.5 rounded-full bg-emerald-500/80" /> Check-in
