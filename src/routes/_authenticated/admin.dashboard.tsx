@@ -1025,6 +1025,19 @@ function OccupancyPanel({
               </button>
             </PopoverTrigger>
             <PopoverContent align="end" className="w-64 space-y-4 p-3">
+              {onStartChange ? (
+                <div>
+                  <p className="mb-1.5 text-[10px] uppercase tracking-wider text-muted-foreground">
+                    Início do período ({days} dias)
+                  </p>
+                  <input
+                    type="date"
+                    value={start}
+                    onChange={(e) => e.target.value && onStartChange(e.target.value)}
+                    className="h-8 w-full rounded-md border border-border bg-background px-2 text-xs tabular-nums"
+                  />
+                </div>
+              ) : null}
               <div>
                 <p className="mb-1.5 text-[10px] uppercase tracking-wider text-muted-foreground">Proprietário</p>
                 <select
@@ -1060,6 +1073,7 @@ function OccupancyPanel({
                 onClick={() => {
                   setOwnerFilter("");
                   setCityFilter("");
+                  if (defaultStart && onStartChange) onStartChange(defaultStart);
                 }}
                 className="w-full rounded-md border border-border px-2 py-1.5 text-[11px] text-muted-foreground hover:bg-muted/60"
               >
