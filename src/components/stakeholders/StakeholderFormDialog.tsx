@@ -12,6 +12,10 @@ import {
   Home,
   Calendar,
   Wrench,
+  KeyRound,
+  Eye,
+  EyeOff,
+
 } from "lucide-react";
 import {
   Dialog,
