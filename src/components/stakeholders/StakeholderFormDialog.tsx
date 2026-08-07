@@ -257,8 +257,28 @@ export function StakeholderFormDialog({
     }
     if (form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(form.email.trim()))
       errs.email = "E-mail inválido";
+
+    // Prestadores: todos os campos são obrigatórios — só "Observações" é opcional.
+    if (allRequired) {
+      if (!d) errs.doc = isPJ ? "CNPJ obrigatório" : "CPF obrigatório";
+      if (isPJ && !form.trade_name.trim()) errs.trade_name = "Nome fantasia obrigatório";
+      if (!isPJ && !form.birth_date) errs.birth_date = "Data de nascimento obrigatória";
+      if (!form.category) errs.category = "Categoria obrigatória";
+      if (stripMask(form.phone).length < 10) errs.phone = "Telefone obrigatório";
+      if (!form.email.trim()) errs.email = "E-mail obrigatório";
+      if (stripMask(form.cep).length !== 8) errs.cep = "CEP obrigatório";
+      if (!form.address.trim()) errs.address = "Logradouro obrigatório";
+      if (!form.district.trim()) errs.district = "Bairro obrigatório";
+      if (!form.city.trim()) errs.city = "Cidade obrigatória";
+      if (form.state.trim().length !== 2) errs.state = "Estado obrigatório";
+    }
+
     setErrors(errs);
-    if (Object.keys(errs).length) return;
+    if (Object.keys(errs).length) {
+      toast.error("Preencha todos os campos obrigatórios.");
+      return;
+    }
+
 
     setSaving(true);
     try {
