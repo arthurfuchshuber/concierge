@@ -53,15 +53,19 @@ async function findUserIdByEmail(email: string): Promise<string | null> {
   return found?.id ?? null;
 }
 
-async function sendAccountInviteEmail(email: string, inviterName: string | null) {
-  // Sends via Supabase's built-in invite email (routes through our auth webhook
-  // and the branded invite.tsx template). Only works for NEW users.
-  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+function resolveSiteUrl() {
   const siteUrl =
     process.env.SITE_URL ||
     process.env.PUBLIC_SITE_URL ||
     "https://sigmaconcierge.lovable.app";
-  const redirectTo = `${siteUrl.replace(/\/$/, "")}/admin/atendimento`;
+  return siteUrl.replace(/\/$/, "");
+}
+
+async function sendAccountInviteEmail(email: string, inviterName: string | null) {
+  // Novo usuário: convite nativo do Supabase → passa pelo nosso webhook e usa
+  // o template branded invite.tsx (em português).
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const redirectTo = `${resolveSiteUrl()}/definir-senha`;
   const meta = { invited_by_name: inviterName ?? undefined, invite_kind: "account_member" };
   const { error } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
     redirectTo,
@@ -70,6 +74,37 @@ async function sendAccountInviteEmail(email: string, inviterName: string | null)
   if (error) throw new Error(error.message);
   return { sent: true, via: "invite" as const };
 }
+
+/**
+ * Usuário que já existe no sistema não pode receber `inviteUserByEmail`.
+ * Enviamos um e-mail de link de acesso (magic link) para que ele entre e veja
+ * o convite pendente da equipe — e possa definir/alterar a senha se quiser.
+ */
+async function sendExistingUserAccessEmail(email: string) {
+  const { createClient } = await import("@supabase/supabase-js");
+  const url = process.env["SUPABASE_URL"]!;
+  const key = process.env["SUPABASE_PUBLISHABLE_KEY"]!;
+  const anon = createClient(url, key, {
+    auth: { persistSession: false, autoRefreshToken: false },
+    global: {
+      fetch: (input, init) => {
+        const h = new Headers(init?.headers);
+        if (key.startsWith("sb_") && h.get("Authorization") === `Bearer ${key}`) {
+          h.delete("Authorization");
+        }
+        h.set("apikey", key);
+        return fetch(input as RequestInfo, { ...init, headers: h });
+      },
+    },
+  });
+  const { error } = await anon.auth.signInWithOtp({
+    email,
+    options: { emailRedirectTo: `${resolveSiteUrl()}/painel`, shouldCreateUser: false },
+  });
+  if (error) throw new Error(error.message);
+  return { sent: true, via: "magiclink" as const };
+}
+
 
 
 export const inviteTeamMember = createServerFn({ method: "POST" })
@@ -114,19 +149,26 @@ export const inviteTeamMember = createServerFn({ method: "POST" })
     // Sigma user. Previously we auto-accepted for existing users, which
     // silently added them to the account without their consent.
     const existingUserId = await findUserIdByEmail(data.email);
-    if (existingUserId) {
-      return { ok: true, id: inserted.id, emailSent: false, autoAccepted: false, existingUser: true };
-    }
-
-
     try {
+      if (existingUserId) {
+        await sendExistingUserAccessEmail(data.email);
+        return { ok: true, id: inserted.id, emailSent: true, autoAccepted: false, existingUser: true };
+      }
       await sendAccountInviteEmail(data.email, ((inviter?.trade_name as string) || (inviter?.full_name as string)) ?? null);
       return { ok: true, id: inserted.id, emailSent: true, autoAccepted: false };
     } catch (e) {
-      // Convite ficou registrado mesmo se o envio falhar — o titular pode
+      // Convite fica registrado mesmo se o envio falhar — o titular pode
       // usar o botão "Reenviar" na lista de convites pendentes.
-      return { ok: true, id: inserted.id, emailSent: false, autoAccepted: false, emailError: (e as Error).message };
+      return {
+        ok: true,
+        id: inserted.id,
+        emailSent: false,
+        autoAccepted: false,
+        existingUser: !!existingUserId,
+        emailError: (e as Error).message,
+      };
     }
+
   });
 
 
@@ -177,10 +219,12 @@ export const resendTeamInvite = createServerFn({ method: "POST" })
     // (optionally) resend the branded invite e-mail.
     const existingUserId = await findUserIdByEmail(inv.email as string);
     if (existingUserId) {
-      return { ok: true, autoAccepted: false, existingUser: true };
+      await sendExistingUserAccessEmail(inv.email as string);
+      return { ok: true, autoAccepted: false, existingUser: true, emailSent: true };
     }
     await sendAccountInviteEmail(inv.email as string, ((inviter?.trade_name as string) || (inviter?.full_name as string)) ?? null);
-    return { ok: true, autoAccepted: false };
+    return { ok: true, autoAccepted: false, emailSent: true };
+
 
 
   });
