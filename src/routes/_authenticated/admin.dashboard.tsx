@@ -951,6 +951,7 @@ function OccupancyPanel({
   const VISIBLE_DAYS = 5;
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const [dayW, setDayW] = useState(40);
+  const dotSize = Math.max(18, Math.min(28, dayW - 8));
 
   useEffect(() => {
     const el = scrollRef.current;
@@ -958,8 +959,11 @@ function OccupancyPanel({
     const update = () => {
       const w = el.clientWidth;
       if (!w) return;
-      setDayW(Math.max(28, Math.floor((w - NAME_COL - 4) / VISIBLE_DAYS)));
+      // desconta o padding lateral (8px) e o border-spacing entre as colunas
+      const usable = w - NAME_COL - 8 - VISIBLE_DAYS * 2;
+      setDayW(Math.max(26, Math.floor(usable / VISIBLE_DAYS)));
     };
+
     update();
     const ro = new ResizeObserver(update);
     ro.observe(el);
