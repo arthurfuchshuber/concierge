@@ -46,6 +46,38 @@ function isRealReservation(row: { status?: string | null; raw_summary?: string |
 }
 
 /**
+ * Ressincroniza iCals desatualizados (>10min) para que qualquer superfície
+ * (Kanban, KPIs, calendário de ocupação) leia sempre a reserva mais recente.
+ */
+export async function syncStaleIcals(supabase: AnyClient, propIds: string[]): Promise<void> {
+  if (propIds.length === 0) return;
+  const { data: syncProps } = await (supabase as any)
+    .from("properties")
+    .select("id, airbnb_ical_url, airbnb_ical_last_sync_at")
+    .in("id", propIds)
+    .not("airbnb_ical_url", "is", null);
+  const stale = (
+    (syncProps ?? []) as Array<{ id: string; airbnb_ical_url: string | null; airbnb_ical_last_sync_at: string | null }>
+  )
+    .filter((p) => {
+      const url = p.airbnb_ical_url?.trim();
+      if (!url) return false;
+      if (!p.airbnb_ical_last_sync_at) return true;
+      return Date.now() - new Date(p.airbnb_ical_last_sync_at).getTime() > 10 * 60 * 1000;
+    })
+    .slice(0, 8);
+  if (stale.length === 0) return;
+  const { isAllowedIcalUrl } = await import("@/lib/airbnb-ical-url");
+  const { syncPropertyIcal } = await import("@/lib/airbnb-ical.server");
+  await Promise.allSettled(
+    stale.map((p) => {
+      const url = p.airbnb_ical_url?.trim();
+      return url && isAllowedIcalUrl(url) ? syncPropertyIcal(p.id, url) : Promise.resolve(null);
+    }),
+  );
+}
+
+/**
  * Monta exatamente as mesmas linhas exibidas no Kanban do dashboard.
  * `supabase` pode ser o client do usuário (RLS) ou o admin (cron).
  */
