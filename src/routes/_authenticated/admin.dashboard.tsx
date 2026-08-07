@@ -942,6 +942,30 @@ function OccupancyPanel({
   const [ownerFilter, setOwnerFilter] = useState<string>("");
   const [cityFilter, setCityFilter] = useState<string>("");
 
+  /**
+   * Mostramos sempre 5 dias inteiros na largura visível (o resto fica na
+   * rolagem horizontal). A largura de cada coluna é calculada a partir do
+   * espaço disponível para que nenhuma "bolinha" apareça cortada.
+   */
+  const NAME_COL = 130;
+  const VISIBLE_DAYS = 5;
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+  const [dayW, setDayW] = useState(40);
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const update = () => {
+      const w = el.clientWidth;
+      if (!w) return;
+      setDayW(Math.max(28, Math.floor((w - NAME_COL - 4) / VISIBLE_DAYS)));
+    };
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [openAgenda]);
+
   const todayISO = new Date().toISOString().slice(0, 10);
 
   const dayList = useMemo(() => {
@@ -1130,14 +1154,21 @@ function OccupancyPanel({
           ) : (
             <>
 
-              <div className="sg-elegant-scroll max-h-[18rem] overflow-auto -mx-1 px-1">
+              <div
+                ref={scrollRef}
+                style={{ scrollPaddingLeft: NAME_COL }}
+                className="sg-elegant-scroll max-h-[18rem] overflow-auto snap-x snap-mandatory -mx-1 px-1"
+              >
                 <table
                   className="w-full table-fixed border-separate border-spacing-x-0.5 border-spacing-y-1 text-xs"
-                  style={{ minWidth: 130 + dayList.length * 32 }}
+                  style={{ minWidth: NAME_COL + dayList.length * dayW }}
                 >
                   <thead>
                     <tr>
-                      <th className="sticky left-0 top-0 z-20 w-[130px] bg-card pr-2 text-left font-medium text-muted-foreground">
+                      <th
+                        className="sticky left-0 top-0 z-20 bg-card pr-2 text-left font-medium text-muted-foreground"
+                        style={{ width: NAME_COL, minWidth: NAME_COL }}
+                      >
                         Imóvel
                       </th>
                       {dayList.map((d) => {
@@ -1149,7 +1180,8 @@ function OccupancyPanel({
                         return (
                           <th
                             key={d}
-                            className={`sticky top-0 z-10 w-[32px] bg-card px-0 font-medium tabular-nums ${
+                            style={{ width: dayW, minWidth: dayW }}
+                            className={`sticky top-0 z-10 snap-start bg-card px-0 font-medium tabular-nums ${
                               isToday ? "text-emerald-500" : "text-muted-foreground"
                             }`}
                           >
@@ -1165,7 +1197,7 @@ function OccupancyPanel({
                   <tbody>
                     {visibleProperties.map((p) => (
                       <tr key={p.id}>
-                        <td className="sticky left-0 z-10 w-[130px] bg-card pr-2 align-middle">
+                        <td className="sticky left-0 z-10 bg-card pr-2 align-middle" style={{ width: NAME_COL, minWidth: NAME_COL }}>
                           <div className="min-w-0 max-w-full">
                             {p.ownerName ? (
                               <div className="truncate text-[10px] font-semibold text-primary" title={p.ownerName}>
@@ -1198,7 +1230,7 @@ function OccupancyPanel({
                               ? `${labelOf(a)} · ${fmtDateBR(d)}`
                               : `${labelOf(a)} → ${labelOf(b)} · ${fmtDateBR(d)}`;
                           return (
-                            <td key={d} className={`px-0 ${isToday ? "bg-emerald-500/10" : ""}`}>
+                            <td key={d} style={{ width: dayW, minWidth: dayW }} className={`snap-start px-0 ${isToday ? "bg-emerald-500/10" : ""}`}>
                               {a === b ? (
                                 <div className={`h-7 rounded-md ${clsOf(a)}`} title={title} />
                               ) : (
