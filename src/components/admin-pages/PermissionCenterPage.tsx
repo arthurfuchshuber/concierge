@@ -183,14 +183,14 @@ function AreaRow({
 /* -------------------------------------------------------- acesso do usuário */
 
 
-function UserAccess({
+export function UserAccess({
   userId,
   onBack,
-  areas,
+  areas = ACCOUNT_AREAS,
 }: {
   userId: string;
-  onBack: () => void;
-  areas: AreaGroup[];
+  onBack?: () => void;
+  areas?: AreaGroup[];
 }) {
   const qc = useQueryClient();
   const fn = useServerFn(getPermissionCenterUser);
