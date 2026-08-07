@@ -323,7 +323,11 @@ function AdminLayout() {
         </main>
 
       </div>
-      {handoffEnabled && !pathname.startsWith("/admin/atendimento") && <FloatingHandoffDock />}
+      {handoffEnabled &&
+        areaAccess.ready &&
+        areaAccess.can("tenant.atendimento") &&
+        !awaitingAccountChoice &&
+        !pathname.startsWith("/admin/atendimento") && <FloatingHandoffDock />}
       <PendingInviteDialog />
       <CompleteProfileDialog />
       <ForcePasswordChangeDialog />
