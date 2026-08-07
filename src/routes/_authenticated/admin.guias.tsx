@@ -300,7 +300,19 @@ function Dashboard() {
   }
 
 
-  const count = data?.length ?? 0;
+  // Uso do plano é informação GLOBAL da conta: nunca depende de quantos
+  // imóveis o usuário atual enxerga.
+  const countGuidesFn = useServerFn(countAccountGuides);
+  const { data: guidesCountData } = useQuery({
+    queryKey: ["account-guides-count", impersonation?.userId ?? "self"],
+    queryFn: () => countGuidesFn({ data: { ownerId: impersonation?.userId ?? null } }),
+    staleTime: 30_000,
+  });
+  const count = guidesCountData?.count ?? data?.length ?? 0;
+  // Dados de plano/assinatura só para o titular da conta (ou admin SaaS).
+  const { isOwner } = useMyPermissions();
+  const canSeePlan = isOwner || isSaasAdmin;
+
   const planConfig = sub.plan ? PLANS[sub.plan] : null;
   const planName = planConfig?.name ?? "Sem plano";
   const hasCustomPrice = sub.customPriceCents != null;
