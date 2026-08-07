@@ -536,7 +536,7 @@ function Dashboard() {
 
 
 
-      {sub.isPastDue && (
+      {canSeePlan && sub.isPastDue && (
         <div className="mb-6 rounded-2xl border border-destructive/30 bg-destructive/5 p-4 flex items-start gap-3">
           <AlertTriangle className="size-5 text-destructive shrink-0 mt-0.5" />
           <div className="flex-1">
