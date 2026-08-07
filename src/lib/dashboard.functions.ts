@@ -918,14 +918,15 @@ export const getOccupancyBoard = createServerFn({ method: "GET" })
     z
       .object({
         ownerId: z.string().uuid().nullable().optional(),
-        days: z.number().int().min(3).max(60).optional(),
+        days: z.number().int().min(3).max(90).optional(),
+        start: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
       })
       .optional()
       .parse(i) ?? {},
   )
   .handler(async ({ data, context }) => {
     const days = data.days ?? 14;
-    const start = todayISO();
+    const start = data.start ?? todayISO();
     const end = addDaysISO(start, days - 1);
     const propIds = await accessiblePropertyIds(context.supabase as never, data.ownerId ?? null, context.userId);
     if (propIds.length === 0) {

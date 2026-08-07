@@ -219,9 +219,10 @@ function DashboardPage() {
     staleTime: 30_000,
     placeholderData: keepPreviousData,
   });
+  const [agendaStart, setAgendaStart] = useState<string>(todayISOSaoPaulo);
   const occupancyQ = useQuery({
-    queryKey: ["dash-occupancy", activeOwnerId ?? "self"],
-    queryFn: () => occupancyFn({ data: { ownerId: activeOwnerId, days: 14 } }),
+    queryKey: ["dash-occupancy", activeOwnerId ?? "self", agendaStart],
+    queryFn: () => occupancyFn({ data: { ownerId: activeOwnerId, days: 21, start: agendaStart } }),
     staleTime: 60_000,
     placeholderData: keepPreviousData,
   });
@@ -540,11 +541,13 @@ function DashboardPage() {
       {/* Agenda macro de ocupação */}
       <OccupancyPanel
         loading={occupancyQ.isLoading}
-        start={occupancyQ.data?.start ?? todayISO}
-        days={occupancyQ.data?.days ?? 14}
+        start={occupancyQ.data?.start ?? agendaStart}
+        days={occupancyQ.data?.days ?? 21}
         properties={occupancyQ.data?.properties ?? []}
         stays={occupancyQ.data?.stays ?? []}
         checkedInPropertyIds={checkedInPropertyIds}
+        onStartChange={setAgendaStart}
+        defaultStart={todayISO}
       />
 
       {/* Arrivals */}
@@ -897,6 +900,8 @@ function OccupancyPanel({
   properties,
   stays,
   checkedInPropertyIds,
+  onStartChange,
+  defaultStart,
 }: {
   loading: boolean;
   start: string;
@@ -904,6 +909,8 @@ function OccupancyPanel({
   properties: Array<{ id: string; name: string; city: string | null; ownerName?: string | null }>;
   stays: Array<{ propertyId: string; checkin: string; checkout: string | null; guest: string | null }>;
   checkedInPropertyIds: Set<string>;
+  onStartChange?: (v: string) => void;
+  defaultStart?: string;
 }) {
   const [openAgenda, setOpenAgenda] = useState<string>("agenda");
   const [ownerFilter, setOwnerFilter] = useState<string>("");
@@ -914,13 +921,14 @@ function OccupancyPanel({
   const dayList = useMemo(() => {
     const out: string[] = [];
     const [y, m, d] = start.split("-").map(Number);
-    for (let i = 0; i < 7; i++) {
+    for (let i = 0; i < days; i++) {
       const dt = new Date(Date.UTC(y, (m ?? 1) - 1, d));
       dt.setUTCDate(dt.getUTCDate() + i);
       out.push(dt.toISOString().slice(0, 10));
     }
     return out;
-  }, [start]);
+  }, [start, days]);
+
 
   const owners = useMemo(
     () => [...new Set(properties.map((p) => p.ownerName).filter((o): o is string => !!o))].sort((a, b) => a.localeCompare(b, "pt-BR")),
@@ -944,7 +952,8 @@ function OccupancyPanel({
       );
   }, [properties, ownerFilter, cityFilter]);
 
-  const activeFilters = (ownerFilter ? 1 : 0) + (cityFilter ? 1 : 0);
+  const startChanged = !!defaultStart && start !== defaultStart;
+  const activeFilters = (ownerFilter ? 1 : 0) + (cityFilter ? 1 : 0) + (startChanged ? 1 : 0);
 
   const byProperty = useMemo(() => {
     const map = new Map<string, Array<{ checkin: string; checkout: string | null; guest: string | null }>>();
@@ -1016,6 +1025,19 @@ function OccupancyPanel({
               </button>
             </PopoverTrigger>
             <PopoverContent align="end" className="w-64 space-y-4 p-3">
+              {onStartChange ? (
+                <div>
+                  <p className="mb-1.5 text-[10px] uppercase tracking-wider text-muted-foreground">
+                    Início do período ({days} dias)
+                  </p>
+                  <input
+                    type="date"
+                    value={start}
+                    onChange={(e) => e.target.value && onStartChange(e.target.value)}
+                    className="h-8 w-full rounded-md border border-border bg-background px-2 text-xs tabular-nums"
+                  />
+                </div>
+              ) : null}
               <div>
                 <p className="mb-1.5 text-[10px] uppercase tracking-wider text-muted-foreground">Proprietário</p>
                 <select
@@ -1051,6 +1073,7 @@ function OccupancyPanel({
                 onClick={() => {
                   setOwnerFilter("");
                   setCityFilter("");
+                  if (defaultStart && onStartChange) onStartChange(defaultStart);
                 }}
                 className="w-full rounded-md border border-border px-2 py-1.5 text-[11px] text-muted-foreground hover:bg-muted/60"
               >
@@ -1078,10 +1101,13 @@ function OccupancyPanel({
             <>
 
               <div className="sg-elegant-scroll max-h-[18rem] overflow-auto -mx-1 px-1">
-                <table className="w-full min-w-[330px] table-fixed border-separate border-spacing-x-0.5 border-spacing-y-1 text-xs">
+                <table
+                  className="w-full table-fixed border-separate border-spacing-x-0.5 border-spacing-y-1 text-xs"
+                  style={{ minWidth: 130 + dayList.length * 32 }}
+                >
                   <thead>
                     <tr>
-                      <th className="sticky left-0 top-0 z-20 w-[29%] bg-card pr-2 text-left font-medium text-muted-foreground">
+                      <th className="sticky left-0 top-0 z-20 w-[130px] bg-card pr-2 text-left font-medium text-muted-foreground">
                         Imóvel
                       </th>
                       {dayList.map((d) => {
@@ -1093,7 +1119,7 @@ function OccupancyPanel({
                         return (
                           <th
                             key={d}
-                            className={`sticky top-0 z-10 w-[10.14%] bg-card px-0 font-medium tabular-nums ${
+                            className={`sticky top-0 z-10 w-[32px] bg-card px-0 font-medium tabular-nums ${
                               isToday ? "text-emerald-500" : "text-muted-foreground"
                             }`}
                           >
@@ -1109,7 +1135,7 @@ function OccupancyPanel({
                   <tbody>
                     {visibleProperties.map((p) => (
                       <tr key={p.id}>
-                        <td className="sticky left-0 z-10 w-[29%] bg-card pr-2 align-middle">
+                        <td className="sticky left-0 z-10 w-[130px] bg-card pr-2 align-middle">
                           <div className="min-w-0 max-w-full">
                             {p.ownerName ? (
                               <div className="truncate text-[10px] font-semibold text-primary" title={p.ownerName}>
