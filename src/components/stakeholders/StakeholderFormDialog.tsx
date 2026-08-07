@@ -473,7 +473,7 @@ export function StakeholderFormDialog({
             {kind === "provider" && (
               <div className="space-y-1.5">
                 <Label className="text-xs text-muted-foreground flex items-center gap-1.5">
-                  <Wrench className="size-3.5" /> Categoria de serviço
+                  <Wrench className="size-3.5" /> Categoria de serviço{req}
                 </Label>
                 <Select value={form.category} onValueChange={(v) => set({ category: v })}>
                   <SelectTrigger>
