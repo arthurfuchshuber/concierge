@@ -5,6 +5,8 @@ import { AssinaturaPage } from "@/components/admin-pages/AssinaturaPage";
 import { PermissionCenterPage } from "@/components/admin-pages/PermissionCenterPage";
 import { MeuPerfilPage } from "@/components/admin-pages/MeuPerfilPage";
 import { IntegracoesPage } from "@/components/admin-pages/IntegracoesPage";
+import { useMyPermissions } from "@/hooks/useMyPermissions";
+import { useIsAdmin } from "@/hooks/useIsAdmin";
 
 type Tab = "perfil" | "assinatura" | "permissoes" | "integracoes";
 
@@ -26,6 +28,11 @@ export const Route = createFileRoute("/_authenticated/admin/administrativo")({
 function AdministrativoPage() {
   const { tab } = useSearch({ from: "/_authenticated/admin/administrativo" });
   const navigate = useNavigate();
+  // Assinatura é informação do titular da conta — membros não veem.
+  const { isOwner } = useMyPermissions();
+  const { isAdmin } = useIsAdmin();
+  const canSeeBilling = isOwner || isAdmin;
+  const activeTab: Tab = tab === "assinatura" && !canSeeBilling ? "perfil" : tab;
 
   return (
     <div className="min-h-screen">
@@ -34,7 +41,7 @@ function AdministrativoPage() {
         <p className="text-sm text-muted-foreground mt-1">Perfil, assinatura, equipe e integrações da sua conta.</p>
       </div>
       <Tabs
-        value={tab}
+        value={activeTab}
         onValueChange={(v) =>
           navigate({ to: "/admin/administrativo", search: { tab: coerceTab(v), checkout: undefined } })
         }
@@ -45,9 +52,11 @@ function AdministrativoPage() {
             <TabsTrigger value="perfil">
               <UserIcon className="size-4" /> Meu perfil
             </TabsTrigger>
-            <TabsTrigger value="assinatura">
-              <CreditCard className="size-4" /> Assinatura
-            </TabsTrigger>
+            {canSeeBilling && (
+              <TabsTrigger value="assinatura">
+                <CreditCard className="size-4" /> Assinatura
+              </TabsTrigger>
+            )}
             <TabsTrigger value="permissoes">
               <ShieldCheck className="size-4" /> Permissões
             </TabsTrigger>
@@ -60,9 +69,11 @@ function AdministrativoPage() {
           <TabsContent value="perfil" className="mt-0">
             <MeuPerfilPage />
           </TabsContent>
-          <TabsContent value="assinatura" className="mt-0">
-            <AssinaturaPage />
-          </TabsContent>
+          {canSeeBilling && (
+            <TabsContent value="assinatura" className="mt-0">
+              <AssinaturaPage />
+            </TabsContent>
+          )}
           <TabsContent value="permissoes" className="mt-0">
             <PermissionCenterPage />
           </TabsContent>
