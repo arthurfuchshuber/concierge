@@ -1226,7 +1226,7 @@ function OccupancyPanel({
                               ? `${labelOf(a)} · ${fmtDateBR(d)}`
                               : `${labelOf(a)} → ${labelOf(b)} · ${fmtDateBR(d)}`;
                           return (
-                            <td key={d} className={`px-0 ${isToday ? "bg-emerald-500/10" : ""}`}>
+                            <td key={d} style={{ width: dayW, minWidth: dayW }} className={`snap-start px-0 ${isToday ? "bg-emerald-500/10" : ""}`}>
                               {a === b ? (
                                 <div className={`h-7 rounded-md ${clsOf(a)}`} title={title} />
                               ) : (
