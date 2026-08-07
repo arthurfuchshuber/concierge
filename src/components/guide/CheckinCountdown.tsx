@@ -36,12 +36,21 @@ export function CheckinCountdown({
   const parsed = parseTime(checkinTime);
   if (!parsed || !now) return null;
 
+  const dateParts = checkinDate ? checkinDate.split("-").map(Number) : null;
   const target = new Date(now);
+  if (dateParts && dateParts.length === 3 && !dateParts.some(Number.isNaN)) {
+    target.setFullYear(dateParts[0], dateParts[1] - 1, dateParts[2]);
+  }
   target.setHours(parsed.h, parsed.m, 0, 0);
   const diffMs = target.getTime() - now.getTime();
 
-  const startOfWindow = new Date(now);
+  // Janela de progresso: da meia-noite do dia do check-in (ou até 7 dias antes,
+  // quando falta mais de um dia) até o horário liberado.
+  const startOfWindow = new Date(target);
   startOfWindow.setHours(0, 0, 0, 0);
+  if (diffMs > 0 && now < startOfWindow) {
+    startOfWindow.setDate(startOfWindow.getDate() - 7);
+  }
   const isLight = theme === "light";
 
   const Wrapper = ({ children }: { children: React.ReactNode }) =>
