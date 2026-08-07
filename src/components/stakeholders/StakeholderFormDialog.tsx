@@ -420,7 +420,7 @@ export function StakeholderFormDialog({
             </div>
 
             <MaskedInput
-              label={isPJ ? "CNPJ" : "CPF"}
+              label={`${isPJ ? "CNPJ" : "CPF"}${req}`}
               mask={isPJ ? "00.000.000/0000-00" : "000.000.000-00"}
               placeholder={isPJ ? "00.000.000/0000-00" : "000.000.000-00"}
               value={form.doc}
@@ -434,26 +434,41 @@ export function StakeholderFormDialog({
 
             {isPJ ? (
               <div className="space-y-1.5">
-                <Label className="text-xs text-muted-foreground">Nome fantasia</Label>
+                <Label className="text-xs text-muted-foreground">Nome fantasia{req}</Label>
                 <Input
                   value={form.trade_name}
                   maxLength={160}
                   placeholder="Como o cliente é conhecido"
-                  onChange={(e) => set({ trade_name: e.target.value })}
+                  onChange={(e) => {
+                    set({ trade_name: e.target.value });
+                    clearError("trade_name");
+                  }}
+                  className={errors.trade_name ? "border-destructive" : ""}
                 />
+                {errors.trade_name && (
+                  <p className="text-xs text-destructive">{errors.trade_name}</p>
+                )}
               </div>
             ) : (
               <div className="space-y-1.5">
                 <Label className="text-xs text-muted-foreground flex items-center gap-1.5">
-                  <Calendar className="size-3.5" /> Data de nascimento
+                  <Calendar className="size-3.5" /> Data de nascimento{req}
                 </Label>
                 <Input
                   type="date"
                   value={form.birth_date}
-                  onChange={(e) => set({ birth_date: e.target.value })}
+                  onChange={(e) => {
+                    set({ birth_date: e.target.value });
+                    clearError("birth_date");
+                  }}
+                  className={errors.birth_date ? "border-destructive" : ""}
                 />
+                {errors.birth_date && (
+                  <p className="text-xs text-destructive">{errors.birth_date}</p>
+                )}
               </div>
             )}
+
 
             {kind === "provider" && (
               <div className="space-y-1.5">
