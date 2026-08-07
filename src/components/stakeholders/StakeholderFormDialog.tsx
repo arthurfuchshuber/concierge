@@ -178,6 +178,10 @@ export function StakeholderFormDialog({
 
   const isPJ = form.person_type === "pj";
   const singular = kind === "owner" ? "proprietário" : "prestador";
+  /** Prestadores: tudo obrigatório, exceto observações. */
+  const allRequired = kind === "provider";
+  const req = allRequired ? " *" : "";
+
 
   const set = (patch: Partial<StakeholderFormValues>) => setForm((p) => ({ ...p, ...patch }));
   const clearError = (k: string) =>
