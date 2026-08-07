@@ -50,24 +50,29 @@ export const recordGuideAccess = createServerFn({ method: "POST" })
 
     const hasIcal = !!((prop as { airbnb_ical_url?: string | null }).airbnb_ical_url ?? "").trim();
     let icalReservationCode: string | null = null;
-    if (hasIcal && data.checkout_date) {
+    if (hasIcal) {
       const { ensurePropertyIcalFresh } = await import("@/lib/airbnb-ical.server");
       await ensurePropertyIcalFresh(
         prop.id,
         (prop as { airbnb_ical_url?: string | null }).airbnb_ical_url,
         (prop as { airbnb_ical_last_sync_at?: string | null }).airbnb_ical_last_sync_at,
       );
-      const { isAllowedGuidePeriod } = await import("@/lib/reservations.server");
-      const { data: periods } = await supabaseAdmin
+      const { isAllowedGuidePeriod, isRealReservation } = await import("@/lib/reservations.server");
+      // Sem data de saída informada, a validação usa apenas a data de entrada:
+      // o hóspede nunca pode registrar um dia que não é chegada real do iCal.
+      let query = supabaseAdmin
         .from("property_reservations")
         .select("checkin_date, checkout_date, raw_summary, status, guest_hint")
         .eq("property_id", prop.id)
         .eq("source", "airbnb")
-        .eq("checkin_date", data.checkin_date)
-        .eq("checkout_date", data.checkout_date)
-        .limit(50);
-      const allowed = isAllowedGuidePeriod(periods as never, data.checkin_date, data.checkout_date);
-      if (!allowed.matched) return { ok: false as const, reason: "no_match" };
+        .eq("checkin_date", data.checkin_date);
+      if (data.checkout_date) query = query.eq("checkout_date", data.checkout_date);
+      const { data: periods } = await query.limit(50);
+      const matched = data.checkout_date
+        ? isAllowedGuidePeriod(periods as never, data.checkin_date, data.checkout_date).matched
+        : ((periods ?? []) as never[]).some((r) => isRealReservation(r));
+      if (!matched) return { ok: false as const, reason: "no_match" };
+
       // Captura o código HM… do iCal quando o par (imóvel, entrada, saída) é
       // único — assim o dashboard mapeia o log ao card certo mesmo quando o
       // formulário público não expõe o campo de código.
