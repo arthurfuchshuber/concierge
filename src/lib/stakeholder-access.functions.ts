@@ -66,7 +66,11 @@ const ProvisionalInput = z.object({
   email: z.string().trim().toLowerCase().email().max(200),
   password: z.string().min(8).max(72),
   name: z.string().trim().max(200).optional(),
+  cpf: z.string().trim().regex(/^\d{11}$/).optional(),
+  birth_date: z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  phone: z.string().trim().max(20).optional(),
 });
+
 
 export const createStakeholderProvisionalAccess = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -115,6 +119,18 @@ export const createStakeholderProvisionalAccess = createServerFn({ method: "POST
       }
       memberUserId = created.user.id;
     }
+
+    // Perfil já nasce com os dados informados no cadastro do stakeholder —
+    // assim o popup "Complete seu cadastro" não pede o que já foi preenchido.
+    const profilePatch: Record<string, unknown> = { id: memberUserId };
+    if (data.name) profilePatch.full_name = data.name;
+    if (data.cpf) profilePatch.cpf = data.cpf;
+    if (data.birth_date) profilePatch.birth_date = data.birth_date;
+    if (data.phone) profilePatch.phone = data.phone;
+    if (Object.keys(profilePatch).length > 1) {
+      await supabaseAdmin.from("profiles").upsert(profilePatch as never, { onConflict: "id" });
+    }
+
 
     const { error: memberError } = await supabaseAdmin
       .from("account_members")

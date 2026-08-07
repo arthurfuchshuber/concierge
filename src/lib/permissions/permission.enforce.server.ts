@@ -131,7 +131,9 @@ export function clearEnforcementLog(): void {
 /** Decide o desfecho a partir de uma decisão do guard (testável, sem I/O). */
 export function resolveOutcome(
   decision: AuthorizationDecision,
-  snapshot: Pick<SubjectSnapshot, "assignments" | "status">,
+  snapshot: Pick<SubjectSnapshot, "assignments" | "status"> & {
+    subject?: Pick<SubjectSnapshot["subject"], "isTenantMember" | "systemRoles">;
+  },
   mode: EnforcementMode = ENFORCEMENT_MODE,
 ): EnforcementOutcome {
   if (decision.allowed) return { allowed: true, enforced: true, decision };
@@ -139,8 +141,17 @@ export function resolveOutcome(
   // Sujeito inativo nunca passa, mesmo no modo progressivo.
   const inactive = snapshot.status === "revoked" || snapshot.status === "pending";
   const migrated = snapshot.assignments.length > 0;
+  // Convidado da conta (não é o titular): a negação SEMPRE vale, mesmo sem
+  // nenhuma atribuição gravada. Primeiro acesso começa sem nada liberado.
+  const roles = snapshot.subject?.systemRoles ?? [];
+  const guestMember =
+    snapshot.subject?.isTenantMember === true &&
+    !roles.includes("OWNER") &&
+    !roles.includes("ADMIN_SAAS") &&
+    !roles.includes("SYSTEM") &&
+    !roles.includes("CRON");
 
-  if (mode === "strict" || inactive || migrated) {
+  if (mode === "strict" || inactive || migrated || guestMember) {
     return { allowed: false, enforced: true, decision };
   }
   return { allowed: false, enforced: false, decision };

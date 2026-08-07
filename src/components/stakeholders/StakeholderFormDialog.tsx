@@ -157,9 +157,13 @@ export function StakeholderFormDialog({
   });
   const access = accessQuery.data;
 
+  // Reflete o estado real do acesso sempre que o diálogo abre — mesmo quando a
+  // consulta vem do cache (mesmo objeto), o `open` no deps força a sincronia.
   useEffect(() => {
-    if (access) setSystemAccess(access.status !== "none");
-  }, [access]);
+    if (!open || !access) return;
+    setSystemAccess(access.status !== "none");
+  }, [access?.status, open]);
+
 
   useEffect(() => {
     if (!open) return;
@@ -174,6 +178,10 @@ export function StakeholderFormDialog({
 
   const isPJ = form.person_type === "pj";
   const singular = kind === "owner" ? "proprietário" : "prestador";
+  /** Prestadores: tudo obrigatório, exceto observações. */
+  const allRequired = kind === "provider";
+  const req = allRequired ? " *" : "";
+
 
   const set = (patch: Partial<StakeholderFormValues>) => setForm((p) => ({ ...p, ...patch }));
   const clearError = (k: string) =>
@@ -257,8 +265,28 @@ export function StakeholderFormDialog({
     }
     if (form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(form.email.trim()))
       errs.email = "E-mail inválido";
+
+    // Prestadores: todos os campos são obrigatórios — só "Observações" é opcional.
+    if (allRequired) {
+      if (!d) errs.doc = isPJ ? "CNPJ obrigatório" : "CPF obrigatório";
+      if (isPJ && !form.trade_name.trim()) errs.trade_name = "Nome fantasia obrigatório";
+      if (!isPJ && !form.birth_date) errs.birth_date = "Data de nascimento obrigatória";
+      if (!form.category) errs.category = "Categoria obrigatória";
+      if (stripMask(form.phone).length < 10) errs.phone = "Telefone obrigatório";
+      if (!form.email.trim()) errs.email = "E-mail obrigatório";
+      if (stripMask(form.cep).length !== 8) errs.cep = "CEP obrigatório";
+      if (!form.address.trim()) errs.address = "Logradouro obrigatório";
+      if (!form.district.trim()) errs.district = "Bairro obrigatório";
+      if (!form.city.trim()) errs.city = "Cidade obrigatória";
+      if (form.state.trim().length !== 2) errs.state = "Estado obrigatório";
+    }
+
     setErrors(errs);
-    if (Object.keys(errs).length) return;
+    if (Object.keys(errs).length) {
+      toast.error("Preencha todos os campos obrigatórios.");
+      return;
+    }
+
 
     setSaving(true);
     try {
@@ -294,8 +322,14 @@ export function StakeholderFormDialog({
                 email: form.email.trim().toLowerCase(),
                 password: provisionalPwd.trim(),
                 name: form.name.trim() || undefined,
+                // Já temos CPF e nascimento no cadastro — o convidado não
+                // precisa preencher de novo no primeiro acesso.
+                cpf: !isPJ && d.length === 11 ? d : undefined,
+                birth_date: !isPJ && form.birth_date ? form.birth_date : undefined,
+                phone: stripMask(form.phone) || undefined,
               },
             });
+
             setProvisionalPwd("");
             toast.success(
               "Acesso liberado com senha provisória. No primeiro login a pessoa cria a própria senha.",
@@ -392,7 +426,7 @@ export function StakeholderFormDialog({
             </div>
 
             <MaskedInput
-              label={isPJ ? "CNPJ" : "CPF"}
+              label={`${isPJ ? "CNPJ" : "CPF"}${req}`}
               mask={isPJ ? "00.000.000/0000-00" : "000.000.000-00"}
               placeholder={isPJ ? "00.000.000/0000-00" : "000.000.000-00"}
               value={form.doc}
@@ -406,31 +440,46 @@ export function StakeholderFormDialog({
 
             {isPJ ? (
               <div className="space-y-1.5">
-                <Label className="text-xs text-muted-foreground">Nome fantasia</Label>
+                <Label className="text-xs text-muted-foreground">Nome fantasia{req}</Label>
                 <Input
                   value={form.trade_name}
                   maxLength={160}
                   placeholder="Como o cliente é conhecido"
-                  onChange={(e) => set({ trade_name: e.target.value })}
+                  onChange={(e) => {
+                    set({ trade_name: e.target.value });
+                    clearError("trade_name");
+                  }}
+                  className={errors.trade_name ? "border-destructive" : ""}
                 />
+                {errors.trade_name && (
+                  <p className="text-xs text-destructive">{errors.trade_name}</p>
+                )}
               </div>
             ) : (
               <div className="space-y-1.5">
                 <Label className="text-xs text-muted-foreground flex items-center gap-1.5">
-                  <Calendar className="size-3.5" /> Data de nascimento
+                  <Calendar className="size-3.5" /> Data de nascimento{req}
                 </Label>
                 <Input
                   type="date"
                   value={form.birth_date}
-                  onChange={(e) => set({ birth_date: e.target.value })}
+                  onChange={(e) => {
+                    set({ birth_date: e.target.value });
+                    clearError("birth_date");
+                  }}
+                  className={errors.birth_date ? "border-destructive" : ""}
                 />
+                {errors.birth_date && (
+                  <p className="text-xs text-destructive">{errors.birth_date}</p>
+                )}
               </div>
             )}
+
 
             {kind === "provider" && (
               <div className="space-y-1.5">
                 <Label className="text-xs text-muted-foreground flex items-center gap-1.5">
-                  <Wrench className="size-3.5" /> Categoria de serviço
+                  <Wrench className="size-3.5" /> Categoria de serviço{req}
                 </Label>
                 <Select value={form.category} onValueChange={(v) => set({ category: v })}>
                   <SelectTrigger>
@@ -468,16 +517,21 @@ export function StakeholderFormDialog({
 
           <div className="grid gap-3 sm:grid-cols-2">
             <MaskedInput
-              label="Telefone / WhatsApp"
+              label={`Telefone / WhatsApp${req}`}
               mask="(00) 00000-0000"
               placeholder="(00) 00000-0000"
               value={form.phone}
-              onValueChange={(raw) => set({ phone: raw })}
+              onValueChange={(raw) => {
+                set({ phone: raw });
+                clearError("phone");
+              }}
+              error={errors.phone}
               hint={form.phone ? formatBRPhone(form.phone) : undefined}
             />
+
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground flex items-center gap-1.5">
-                <Mail className="size-3.5" /> E-mail
+                <Mail className="size-3.5" /> E-mail{req}
               </Label>
               <Input
                 type="email"
@@ -574,58 +628,83 @@ export function StakeholderFormDialog({
 
           <div className="grid gap-3 sm:grid-cols-3">
             <MaskedInput
-              label="CEP"
+              label={`CEP${req}`}
               mask="00000-000"
               placeholder="00000-000"
               value={form.cep}
-              onValueChange={(raw) => void handleCep(raw)}
+              onValueChange={(raw) => {
+                clearError("cep");
+                void handleCep(raw);
+              }}
+              error={errors.cep}
             />
             <div className="space-y-1.5 sm:col-span-2">
               <Label className="text-xs text-muted-foreground flex items-center gap-1.5">
-                <Home className="size-3.5" /> Logradouro
+                <Home className="size-3.5" /> Logradouro{req}
               </Label>
               <Input
                 maxLength={300}
                 placeholder="Rua, avenida, número..."
                 value={form.address}
-                onChange={(e) => set({ address: e.target.value })}
+                onChange={(e) => {
+                  set({ address: e.target.value });
+                  clearError("address");
+                }}
+                className={errors.address ? "border-destructive" : ""}
               />
+              {errors.address && <p className="text-xs text-destructive">{errors.address}</p>}
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">Bairro</Label>
+              <Label className="text-xs text-muted-foreground">Bairro{req}</Label>
               <Input
                 maxLength={120}
                 placeholder="Bairro"
                 value={form.district}
-                onChange={(e) => set({ district: e.target.value })}
+                onChange={(e) => {
+                  set({ district: e.target.value });
+                  clearError("district");
+                }}
+                className={errors.district ? "border-destructive" : ""}
               />
+              {errors.district && <p className="text-xs text-destructive">{errors.district}</p>}
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground flex items-center gap-1.5">
-                <MapPin className="size-3.5" /> Cidade
+                <MapPin className="size-3.5" /> Cidade{req}
               </Label>
               <Input
                 maxLength={120}
                 placeholder="Cidade"
                 value={form.city}
-                onChange={(e) => set({ city: e.target.value })}
+                onChange={(e) => {
+                  set({ city: e.target.value });
+                  clearError("city");
+                }}
+                className={errors.city ? "border-destructive" : ""}
               />
+              {errors.city && <p className="text-xs text-destructive">{errors.city}</p>}
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">Estado</Label>
+              <Label className="text-xs text-muted-foreground">Estado{req}</Label>
               <Input
                 maxLength={2}
                 placeholder="UF"
                 value={form.state}
-                onChange={(e) => set({ state: e.target.value.toUpperCase() })}
+                onChange={(e) => {
+                  set({ state: e.target.value.toUpperCase() });
+                  clearError("state");
+                }}
+                className={errors.state ? "border-destructive" : ""}
               />
+              {errors.state && <p className="text-xs text-destructive">{errors.state}</p>}
             </div>
+
           </div>
 
           <SectionDivider label="Extras" />
 
           <div className="space-y-1.5">
-            <Label className="text-xs text-muted-foreground">Observações</Label>
+            <Label className="text-xs text-muted-foreground">Observações (opcional)</Label>
             <Textarea
               rows={3}
               maxLength={4000}
