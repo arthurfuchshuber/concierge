@@ -525,7 +525,7 @@ export function StakeholderFormDialog({
 
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground flex items-center gap-1.5">
-                <Mail className="size-3.5" /> E-mail
+                <Mail className="size-3.5" /> E-mail{req}
               </Label>
               <Input
                 type="email"
