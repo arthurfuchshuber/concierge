@@ -7,7 +7,9 @@ import { countPropertyOwners } from "@/lib/stakeholders.functions";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { listMyProperties, deleteProperty, duplicateProperty, listPropertiesForAccount, bulkUpdateProperties } from "@/lib/properties.functions";
+import { listMyProperties, deleteProperty, duplicateProperty, listPropertiesForAccount, bulkUpdateProperties, countAccountGuides } from "@/lib/properties.functions";
+import { useMyPermissions } from "@/hooks/useMyPermissions";
+
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle, DialogDescription, DialogFooter, DialogHeader } from "@/components/ui/dialog";
