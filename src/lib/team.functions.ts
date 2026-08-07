@@ -229,6 +229,44 @@ export const resendTeamInvite = createServerFn({ method: "POST" })
 
   });
 
+/**
+ * Gera um link direto de acesso para o convidado — usado quando o e-mail não
+ * chega (filtro de spam do provedor do destinatário). O titular copia e envia
+ * pelo canal que preferir (WhatsApp, etc).
+ */
+export const getTeamInviteLink = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => RevokeInput.parse(i))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { enforce } = await import("@/lib/permissions/permission.enforce.server");
+    await enforce(userId, "equipe.write", {});
+    const { data: inv, error } = await supabase
+      .from("account_member_invites")
+      .select("id, email, status")
+      .eq("id", data.inviteId)
+      .eq("owner_id", userId)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!inv) throw new Error("Convite não encontrado.");
+    if (inv.status !== "pending") throw new Error("Este convite não está mais pendente.");
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const email = inv.email as string;
+    const existingUserId = await findUserIdByEmail(email);
+    const redirectTo = `${resolveSiteUrl()}/definir-senha`;
+    const { data: link, error: linkErr } = await supabaseAdmin.auth.admin.generateLink(
+      existingUserId
+        ? { type: "magiclink", email, options: { redirectTo } }
+        : { type: "invite", email, options: { redirectTo } },
+    );
+    if (linkErr) throw new Error(linkErr.message);
+    const url = link?.properties?.action_link;
+    if (!url) throw new Error("Não foi possível gerar o link de acesso.");
+    return { ok: true, url, email };
+  });
+
+
 const MemberOpInput = z.object({ memberId: z.string().uuid() });
 
 export const removeTeamMember = createServerFn({ method: "POST" })
