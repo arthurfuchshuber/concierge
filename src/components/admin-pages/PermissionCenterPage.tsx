@@ -183,14 +183,14 @@ function AreaRow({
 /* -------------------------------------------------------- acesso do usuário */
 
 
-function UserAccess({
+export function UserAccess({
   userId,
   onBack,
-  areas,
+  areas = ACCOUNT_AREAS,
 }: {
   userId: string;
-  onBack: () => void;
-  areas: AreaGroup[];
+  onBack?: () => void;
+  areas?: AreaGroup[];
 }) {
   const qc = useQueryClient();
   const fn = useServerFn(getPermissionCenterUser);
@@ -312,9 +312,11 @@ function UserAccess({
 
   return (
     <div className="space-y-4">
-      <Button variant="ghost" size="sm" onClick={onBack} className="gap-1.5">
-        <ArrowLeft className="h-4 w-4" /> Voltar
-      </Button>
+      {onBack ? (
+        <Button variant="ghost" size="sm" onClick={onBack} className="gap-1.5">
+          <ArrowLeft className="h-4 w-4" /> Voltar
+        </Button>
+      ) : null}
 
       <Card className="flex flex-wrap items-center justify-between gap-3 p-4">
         <div className="min-w-0">

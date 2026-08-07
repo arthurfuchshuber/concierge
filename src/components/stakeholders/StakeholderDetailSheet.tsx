@@ -60,6 +60,8 @@ import {
 import { getStakeholderIntegrationFeed } from "@/lib/stakeholder-feed.functions";
 import { getClicksignDocumentUrl, extractClicksignPartyData } from "@/lib/clicksign.functions";
 import { CopyButton } from "@/components/CopyButton";
+import { getStakeholderAccess } from "@/lib/stakeholder-access.functions";
+import { UserAccess } from "@/components/admin-pages/PermissionCenterPage";
 import type { StakeholderKind } from "./StakeholderDirectory";
 import { PROVIDER_CATEGORIES } from "./StakeholderDirectory";
 
@@ -177,6 +179,15 @@ export function StakeholderDetailSheet({
   });
 
   const row = data?.row as Record<string, any> | null | undefined;
+
+  const accessFn = useServerFn(getStakeholderAccess);
+  const stakeholderEmail = (row?.email as string | null)?.trim().toLowerCase() ?? "";
+  const accessQuery = useQuery({
+    queryKey: ["stakeholder-access", stakeholderEmail],
+    queryFn: () => accessFn({ data: { email: stakeholderEmail } }),
+    enabled: !!stakeholderEmail,
+    retry: false,
+  });
 
   async function submitNote() {
     if (!note.trim()) return;
@@ -453,9 +464,29 @@ export function StakeholderDetailSheet({
             {kind === "owner" && <TabsTrigger value="imoveis">Imóveis</TabsTrigger>}
             <TabsTrigger value="financeiro">Financeiro</TabsTrigger>
             <TabsTrigger value="documentos">Documentos</TabsTrigger>
+            <TabsTrigger value="acessos">Acessos</TabsTrigger>
           </TabsList>
         </div>
 
+
+        {/* -------------------- Acessos -------------------- */}
+        <TabsContent value="acessos" className="mt-5 space-y-4">
+          {!stakeholderEmail ? (
+            <p className="rounded-2xl border border-border bg-card p-5 text-sm text-muted-foreground">
+              Cadastre um e-mail nesta ficha para poder liberar o acesso ao sistema.
+            </p>
+          ) : accessQuery.isLoading ? (
+            <p className="p-5 text-sm text-muted-foreground">Carregando acessos...</p>
+          ) : accessQuery.data?.status === "active" && accessQuery.data.userId ? (
+            <UserAccess userId={accessQuery.data.userId} />
+          ) : (
+            <p className="rounded-2xl border border-border bg-card p-5 text-sm text-muted-foreground">
+              {accessQuery.data?.status === "pending"
+                ? "Convite enviado. As permissões por área ficam disponíveis assim que a pessoa aceitar o convite e entrar no sistema."
+                : "Esta pessoa ainda não tem acesso ao sistema. Ative “Permitir acesso ao sistema” na edição do cadastro para enviar o convite."}
+            </p>
+          )}
+        </TabsContent>
 
         {/* -------------------- Visão Geral -------------------- */}
         <TabsContent value="visao" className="mt-5 space-y-5">

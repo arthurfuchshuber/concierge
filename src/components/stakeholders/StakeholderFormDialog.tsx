@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import {
@@ -30,7 +31,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { MaskedInput, stripMask } from "@/components/inputs/MaskedInput";
+import { getStakeholderAccess } from "@/lib/stakeholder-access.functions";
+import { inviteTeamMember, revokeTeamInvite, removeTeamMember } from "@/lib/team.functions";
 import { saveStakeholder } from "@/lib/stakeholders.functions";
 import { lookupCnpj } from "@/lib/br-lookup.functions";
 import { isValidCPF, isValidCNPJ, formatBRPhone } from "@/lib/masks";
@@ -130,11 +134,30 @@ export function StakeholderFormDialog({
   const [loadingCep, setLoadingCep] = useState(false);
   const [saving, setSaving] = useState(false);
   const lastCep = useRef("");
+  const accessFn = useServerFn(getStakeholderAccess);
+  const inviteFn = useServerFn(inviteTeamMember);
+  const revokeInviteFn = useServerFn(revokeTeamInvite);
+  const removeMemberFn = useServerFn(removeTeamMember);
+  const [systemAccess, setSystemAccess] = useState(false);
+
+  const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(form.email.trim());
+  const accessQuery = useQuery({
+    queryKey: ["stakeholder-access", form.email.trim().toLowerCase()],
+    queryFn: () => accessFn({ data: { email: form.email.trim().toLowerCase() } }),
+    enabled: open && emailValid,
+    retry: false,
+  });
+  const access = accessQuery.data;
+
+  useEffect(() => {
+    if (access) setSystemAccess(access.status !== "none");
+  }, [access]);
 
   useEffect(() => {
     if (!open) return;
     setForm(initial ?? emptyStakeholderForm);
     setErrors({});
+    setSystemAccess(false);
     lastCep.current = "";
   }, [open, initial]);
 
@@ -250,6 +273,26 @@ export function StakeholderFormDialog({
           status: form.status,
         },
       });
+      // Acesso ao sistema: mesmo fluxo de convite dos membros da equipe.
+      try {
+        const current = access?.status ?? "none";
+        if (systemAccess && current === "none" && emailValid) {
+          await inviteFn({ data: { email: form.email.trim().toLowerCase(), role: "agent" as const } });
+          toast.success("Convite de acesso enviado por e-mail.");
+        } else if (!systemAccess && current === "pending" && access?.inviteId) {
+          await revokeInviteFn({ data: { inviteId: access.inviteId } });
+          toast.success("Convite de acesso cancelado.");
+        } else if (!systemAccess && current === "active" && access?.memberId) {
+          await removeMemberFn({ data: { memberId: access.memberId } });
+          toast.success("Acesso ao sistema removido.");
+        }
+        void accessQuery.refetch();
+      } catch (e) {
+        toast.error(
+          `Cadastro salvo, mas não foi possível atualizar o acesso: ${(e as Error).message}`,
+        );
+      }
+
       toast.success(form.id ? "Cadastro atualizado." : `Cadastro de ${singular} criado.`);
       onOpenChange(false);
       onSaved?.(res.id as string, !form.id, form);
@@ -423,6 +466,33 @@ export function StakeholderFormDialog({
               />
               {errors.email && <p className="text-xs text-destructive">{errors.email}</p>}
             </div>
+          </div>
+
+          <SectionDivider label="Acesso ao sistema" />
+
+          <div className="rounded-xl border border-border/60 p-3.5">
+            <div className="flex items-start justify-between gap-4">
+              <div className="min-w-0">
+                <p className="text-sm font-medium">Permitir acesso ao sistema</p>
+                <p className="text-xs text-muted-foreground">
+                  {access?.status === "active"
+                    ? "Esta pessoa já acessa o sistema. As permissões por área ficam na ficha, na aba “Acessos”."
+                    : access?.status === "pending"
+                      ? "Convite enviado — o acesso passa a valer quando a pessoa aceitar no primeiro login."
+                      : "Enviamos um convite por e-mail para criar a senha. A pessoa entra sem nenhum acesso e você libera cada área depois."}
+                </p>
+              </div>
+              <Switch
+                checked={systemAccess}
+                disabled={!emailValid || accessQuery.isLoading}
+                onCheckedChange={setSystemAccess}
+              />
+            </div>
+            {!emailValid && (
+              <p className="mt-2 text-xs text-amber-500">
+                Informe um e-mail válido acima para liberar o acesso ao sistema.
+              </p>
+            )}
           </div>
 
           <SectionDivider label="Endereço" busy={loadingCep} />
