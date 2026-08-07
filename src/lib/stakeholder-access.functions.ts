@@ -120,6 +120,18 @@ export const createStakeholderProvisionalAccess = createServerFn({ method: "POST
       memberUserId = created.user.id;
     }
 
+    // Perfil já nasce com os dados informados no cadastro do stakeholder —
+    // assim o popup "Complete seu cadastro" não pede o que já foi preenchido.
+    const profilePatch: Record<string, unknown> = { id: memberUserId };
+    if (data.name) profilePatch.full_name = data.name;
+    if (data.cpf) profilePatch.cpf = data.cpf;
+    if (data.birth_date) profilePatch.birth_date = data.birth_date;
+    if (data.phone) profilePatch.phone = data.phone;
+    if (Object.keys(profilePatch).length > 1) {
+      await supabaseAdmin.from("profiles").upsert(profilePatch as never, { onConflict: "id" });
+    }
+
+
     const { error: memberError } = await supabaseAdmin
       .from("account_members")
       .upsert(
