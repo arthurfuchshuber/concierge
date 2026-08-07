@@ -1101,10 +1101,13 @@ function OccupancyPanel({
             <>
 
               <div className="sg-elegant-scroll max-h-[18rem] overflow-auto -mx-1 px-1">
-                <table className="w-full min-w-[330px] table-fixed border-separate border-spacing-x-0.5 border-spacing-y-1 text-xs">
+                <table
+                  className="w-full table-fixed border-separate border-spacing-x-0.5 border-spacing-y-1 text-xs"
+                  style={{ minWidth: 130 + dayList.length * 32 }}
+                >
                   <thead>
                     <tr>
-                      <th className="sticky left-0 top-0 z-20 w-[29%] bg-card pr-2 text-left font-medium text-muted-foreground">
+                      <th className="sticky left-0 top-0 z-20 w-[130px] bg-card pr-2 text-left font-medium text-muted-foreground">
                         Imóvel
                       </th>
                       {dayList.map((d) => {
@@ -1116,7 +1119,7 @@ function OccupancyPanel({
                         return (
                           <th
                             key={d}
-                            className={`sticky top-0 z-10 w-[10.14%] bg-card px-0 font-medium tabular-nums ${
+                            className={`sticky top-0 z-10 w-[32px] bg-card px-0 font-medium tabular-nums ${
                               isToday ? "text-emerald-500" : "text-muted-foreground"
                             }`}
                           >
