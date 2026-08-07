@@ -66,7 +66,11 @@ const ProvisionalInput = z.object({
   email: z.string().trim().toLowerCase().email().max(200),
   password: z.string().min(8).max(72),
   name: z.string().trim().max(200).optional(),
+  cpf: z.string().trim().regex(/^\d{11}$/).optional(),
+  birth_date: z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  phone: z.string().trim().max(20).optional(),
 });
+
 
 export const createStakeholderProvisionalAccess = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
