@@ -136,9 +136,13 @@ export function StakeholderFormDialog({
   const lastCep = useRef("");
   const accessFn = useServerFn(getStakeholderAccess);
   const inviteFn = useServerFn(inviteTeamMember);
+  const provisionalFn = useServerFn(createStakeholderProvisionalAccess);
   const revokeInviteFn = useServerFn(revokeTeamInvite);
   const removeMemberFn = useServerFn(removeTeamMember);
   const [systemAccess, setSystemAccess] = useState(false);
+  const [provisionalPwd, setProvisionalPwd] = useState("");
+  const [showPwd, setShowPwd] = useState(false);
+
 
   const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(form.email.trim());
   const accessQuery = useQuery({
