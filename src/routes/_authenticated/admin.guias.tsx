@@ -532,6 +532,8 @@ function Dashboard() {
         </div>
         )}
       </div>
+      )}
+
 
 
       {sub.isPastDue && (
