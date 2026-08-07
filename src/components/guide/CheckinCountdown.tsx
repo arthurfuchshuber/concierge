@@ -126,7 +126,11 @@ export function CheckinCountdown({
   const progressed = now.getTime() - startOfWindow.getTime();
   const pct = Math.max(4, Math.min(100, (progressed / totalWindow) * 100));
 
-  const targetLabel = `${String(parsed.h).padStart(2, "0")}:${String(parsed.m).padStart(2, "0")}`;
+  const hhmm = `${String(parsed.h).padStart(2, "0")}:${String(parsed.m).padStart(2, "0")}`;
+  const targetLabel =
+    days > 0
+      ? `${String(target.getDate()).padStart(2, "0")}/${String(target.getMonth() + 1).padStart(2, "0")} ${hhmm}`
+      : hhmm;
 
   return (
     <div className="mx-4 md:mx-10 lg:mx-16 mb-3 md:mb-4 relative z-10">
