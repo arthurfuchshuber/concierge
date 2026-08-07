@@ -541,11 +541,13 @@ function DashboardPage() {
       {/* Agenda macro de ocupação */}
       <OccupancyPanel
         loading={occupancyQ.isLoading}
-        start={occupancyQ.data?.start ?? todayISO}
-        days={occupancyQ.data?.days ?? 14}
+        start={occupancyQ.data?.start ?? agendaStart}
+        days={occupancyQ.data?.days ?? 21}
         properties={occupancyQ.data?.properties ?? []}
         stays={occupancyQ.data?.stays ?? []}
         checkedInPropertyIds={checkedInPropertyIds}
+        onStartChange={setAgendaStart}
+        defaultStart={todayISO}
       />
 
       {/* Arrivals */}
