@@ -622,52 +622,77 @@ export function StakeholderFormDialog({
 
           <div className="grid gap-3 sm:grid-cols-3">
             <MaskedInput
-              label="CEP"
+              label={`CEP${req}`}
               mask="00000-000"
               placeholder="00000-000"
               value={form.cep}
-              onValueChange={(raw) => void handleCep(raw)}
+              onValueChange={(raw) => {
+                clearError("cep");
+                void handleCep(raw);
+              }}
+              error={errors.cep}
             />
             <div className="space-y-1.5 sm:col-span-2">
               <Label className="text-xs text-muted-foreground flex items-center gap-1.5">
-                <Home className="size-3.5" /> Logradouro
+                <Home className="size-3.5" /> Logradouro{req}
               </Label>
               <Input
                 maxLength={300}
                 placeholder="Rua, avenida, número..."
                 value={form.address}
-                onChange={(e) => set({ address: e.target.value })}
+                onChange={(e) => {
+                  set({ address: e.target.value });
+                  clearError("address");
+                }}
+                className={errors.address ? "border-destructive" : ""}
               />
+              {errors.address && <p className="text-xs text-destructive">{errors.address}</p>}
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">Bairro</Label>
+              <Label className="text-xs text-muted-foreground">Bairro{req}</Label>
               <Input
                 maxLength={120}
                 placeholder="Bairro"
                 value={form.district}
-                onChange={(e) => set({ district: e.target.value })}
+                onChange={(e) => {
+                  set({ district: e.target.value });
+                  clearError("district");
+                }}
+                className={errors.district ? "border-destructive" : ""}
               />
+              {errors.district && <p className="text-xs text-destructive">{errors.district}</p>}
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground flex items-center gap-1.5">
-                <MapPin className="size-3.5" /> Cidade
+                <MapPin className="size-3.5" /> Cidade{req}
               </Label>
               <Input
                 maxLength={120}
                 placeholder="Cidade"
                 value={form.city}
-                onChange={(e) => set({ city: e.target.value })}
+                onChange={(e) => {
+                  set({ city: e.target.value });
+                  clearError("city");
+                }}
+                className={errors.city ? "border-destructive" : ""}
               />
+              {errors.city && <p className="text-xs text-destructive">{errors.city}</p>}
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">Estado</Label>
+              <Label className="text-xs text-muted-foreground">Estado{req}</Label>
               <Input
                 maxLength={2}
                 placeholder="UF"
                 value={form.state}
-                onChange={(e) => set({ state: e.target.value.toUpperCase() })}
+                onChange={(e) => {
+                  set({ state: e.target.value.toUpperCase() });
+                  clearError("state");
+                }}
+                className={errors.state ? "border-destructive" : ""}
               />
+              {errors.state && <p className="text-xs text-destructive">{errors.state}</p>}
             </div>
+
           </div>
 
           <SectionDivider label="Extras" />
