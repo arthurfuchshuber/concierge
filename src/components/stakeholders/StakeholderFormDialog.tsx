@@ -511,13 +511,18 @@ export function StakeholderFormDialog({
 
           <div className="grid gap-3 sm:grid-cols-2">
             <MaskedInput
-              label="Telefone / WhatsApp"
+              label={`Telefone / WhatsApp${req}`}
               mask="(00) 00000-0000"
               placeholder="(00) 00000-0000"
               value={form.phone}
-              onValueChange={(raw) => set({ phone: raw })}
+              onValueChange={(raw) => {
+                set({ phone: raw });
+                clearError("phone");
+              }}
+              error={errors.phone}
               hint={form.phone ? formatBRPhone(form.phone) : undefined}
             />
+
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground flex items-center gap-1.5">
                 <Mail className="size-3.5" /> E-mail
