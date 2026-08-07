@@ -166,6 +166,9 @@ export function StakeholderFormDialog({
     setForm(initial ?? emptyStakeholderForm);
     setErrors({});
     setSystemAccess(false);
+    setProvisionalPwd("");
+    setShowPwd(false);
+
     lastCep.current = "";
   }, [open, initial]);
 
