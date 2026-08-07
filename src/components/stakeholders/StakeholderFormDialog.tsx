@@ -704,7 +704,7 @@ export function StakeholderFormDialog({
           <SectionDivider label="Extras" />
 
           <div className="space-y-1.5">
-            <Label className="text-xs text-muted-foreground">Observações</Label>
+            <Label className="text-xs text-muted-foreground">Observações (opcional)</Label>
             <Textarea
               rows={3}
               maxLength={4000}
