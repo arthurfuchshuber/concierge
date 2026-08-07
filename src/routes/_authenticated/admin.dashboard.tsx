@@ -952,7 +952,8 @@ function OccupancyPanel({
       );
   }, [properties, ownerFilter, cityFilter]);
 
-  const activeFilters = (ownerFilter ? 1 : 0) + (cityFilter ? 1 : 0);
+  const startChanged = !!defaultStart && start !== defaultStart;
+  const activeFilters = (ownerFilter ? 1 : 0) + (cityFilter ? 1 : 0) + (startChanged ? 1 : 0);
 
   const byProperty = useMemo(() => {
     const map = new Map<string, Array<{ checkin: string; checkout: string | null; guest: string | null }>>();
