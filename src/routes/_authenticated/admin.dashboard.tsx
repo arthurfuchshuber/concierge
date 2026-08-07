@@ -219,7 +219,7 @@ function DashboardPage() {
     staleTime: 30_000,
     placeholderData: keepPreviousData,
   });
-  const [agendaStart, setAgendaStart] = useState<string>(todayISO);
+  const [agendaStart, setAgendaStart] = useState<string>(todayISOSaoPaulo);
   const occupancyQ = useQuery({
     queryKey: ["dash-occupancy", activeOwnerId ?? "self", agendaStart],
     queryFn: () => occupancyFn({ data: { ownerId: activeOwnerId, days: 21, start: agendaStart } }),
