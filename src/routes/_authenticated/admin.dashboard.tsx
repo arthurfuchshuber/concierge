@@ -948,13 +948,15 @@ function OccupancyPanel({
    * espaço disponível para que nenhuma "bolinha" apareça cortada.
    */
   const NAME_COL = 130;
-  const VISIBLE_DAYS = 5;
+  const MOBILE_DAYS = 5;
+  const IDEAL_DAY_W = 52; // largura alvo por coluna no desktop
   const outerRef = useRef<HTMLDivElement | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const [dayW, setDayW] = useState(40);
+  const [visibleDays, setVisibleDays] = useState(MOBILE_DAYS);
   const dotSize = Math.max(18, Math.min(28, dayW - 6));
-  // largura exata do "visor": nome + 5 colunas inteiras (sem sobra para o 6º dia)
-  const viewportW = NAME_COL + VISIBLE_DAYS * dayW;
+  // largura exata do "visor": nome + N colunas inteiras (sem sobra de coluna cortada)
+  const viewportW = NAME_COL + visibleDays * dayW;
 
   useEffect(() => {
     const el = outerRef.current;
@@ -963,14 +965,22 @@ function OccupancyPanel({
       const w = el.clientWidth;
       if (!w) return;
       const usable = w - NAME_COL;
-      setDayW(Math.max(26, Math.floor(usable / VISIBLE_DAYS)));
+      // No mobile mantemos exatamente 5 dias; no desktop preenchemos toda a
+      // largura com o maior número de colunas inteiras possível.
+      const isDesktop = w >= 768;
+      const count = isDesktop
+        ? Math.max(5, Math.min(days, Math.floor(usable / IDEAL_DAY_W)))
+        : MOBILE_DAYS;
+      setVisibleDays(count);
+      setDayW(Math.max(26, Math.floor(usable / count)));
     };
 
     update();
     const ro = new ResizeObserver(update);
     ro.observe(el);
     return () => ro.disconnect();
-  }, [openAgenda]);
+  }, [openAgenda, days]);
+
 
 
   const todayISO = new Date().toISOString().slice(0, 10);
