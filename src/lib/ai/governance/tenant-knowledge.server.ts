@@ -170,12 +170,12 @@ export async function listOperationMemory(params: {
       .is("expires_at", null)
       .order("occurrences", { ascending: false })
       .limit(60),
-    supabase.from("properties").select("id, title").eq("owner_id", tenantId).limit(500),
+    supabase.from("properties").select("id, name").eq("owner_id", tenantId).limit(500),
   ]);
 
   const names = new Map<string, string>();
   for (const p of (propsRes.data ?? []) as Array<Record<string, unknown>>) {
-    names.set(String(p.id), String(p.title ?? ""));
+    names.set(String(p.id), String(p.name ?? ""));
   }
   const nameOf = (id: unknown) => (id ? (names.get(String(id)) ?? null) : null);
 
