@@ -8,7 +8,8 @@
  * REGRA: ao editar o texto de um prompt, incremente a `version` correspondente.
  */
 
-export const HANDOFF_FALLBACK = "Estou chamando um atendente humano, aguarde só um instante.";
+/** Handoff é silencioso: a IA não anuncia a transferência ao hóspede. */
+export const HANDOFF_FALLBACK = "";
 
 export type PromptEntry = {
   id: string;
