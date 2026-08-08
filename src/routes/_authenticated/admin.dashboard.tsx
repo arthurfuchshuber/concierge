@@ -943,13 +943,13 @@ function OccupancyPanel({
   const [cityFilter, setCityFilter] = useState<string>("");
 
   /**
-   * Mostramos sempre 5 dias inteiros na largura visível (o resto fica na
-   * rolagem horizontal). A largura de cada coluna é calculada a partir do
-   * espaço disponível para que nenhuma "bolinha" apareça cortada.
+   * Mobile: exatamente 5 dias inteiros no visor.
+   * Desktop: o máximo de dias inteiros que couber na largura do quadrante,
+   * sem nunca cortar a bolinha do último dia.
    */
   const NAME_COL = 130;
   const MOBILE_DAYS = 5;
-  const IDEAL_DAY_W = 52; // largura alvo por coluna no desktop
+  const MIN_DAY_W = 38; // largura mínima por coluna no desktop
   const outerRef = useRef<HTMLDivElement | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const [dayW, setDayW] = useState(40);
@@ -965,14 +965,12 @@ function OccupancyPanel({
       const w = el.clientWidth;
       if (!w) return;
       const usable = w - NAME_COL;
-      // No mobile mantemos exatamente 5 dias; no desktop preenchemos toda a
-      // largura com o maior número de colunas inteiras possível.
       const isDesktop = w >= 768;
       const count = isDesktop
-        ? Math.max(5, Math.min(days, Math.floor(usable / IDEAL_DAY_W)))
+        ? Math.max(1, Math.min(days, Math.floor(usable / MIN_DAY_W)))
         : MOBILE_DAYS;
       setVisibleDays(count);
-      setDayW(Math.max(26, Math.floor(usable / count)));
+      setDayW(Math.max(MIN_DAY_W, Math.floor(usable / count)));
     };
 
     update();
@@ -980,6 +978,7 @@ function OccupancyPanel({
     ro.observe(el);
     return () => ro.disconnect();
   }, [openAgenda, days]);
+
 
 
 
