@@ -710,6 +710,17 @@ function Dashboard() {
           ))}
         </div>
       ) : !data?.length ? (
+        !canCreate || readOnly ? (
+          <div className="rounded-2xl border border-dashed border-border bg-card/30 p-12 text-center">
+            <div className="size-12 rounded-2xl bg-secondary grid place-items-center mx-auto mb-4">
+              <Search className="size-5 text-muted-foreground" />
+            </div>
+            <h3 className="font-display text-xl mb-2">Nenhum guia disponível</h3>
+            <p className="text-sm text-muted-foreground max-w-md mx-auto">
+              Não há guias vinculados ao seu acesso nesta conta.
+            </p>
+          </div>
+        ) : (
         <div className="rounded-2xl border border-accent/20 bg-card p-6">
           <div className="flex items-center justify-between mb-5">
             <div>
@@ -738,16 +749,13 @@ function Dashboard() {
           <Button
             className="mt-5 rounded-full"
             onClick={goCreate}
-            disabled={canCreate && !sub.plan}
-            aria-disabled={!canCreate}
-            title={canCreate ? undefined : NO_PERMISSION_MSG}
+            disabled={!sub.plan}
           >
             <Plus className="size-4 mr-1.5" /> Criar meu primeiro guia
           </Button>
-          {!canCreate && (
-            <p className="mt-2 text-xs text-destructive">{NO_PERMISSION_MSG}</p>
-          )}
         </div>
+        )
+
 
       ) : filtered.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-border bg-card/30 p-12 text-center">
