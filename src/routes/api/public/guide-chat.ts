@@ -490,8 +490,9 @@ export const Route = createFileRoute("/api/public/guide-chat")({
           }
         }
 
-        const finalReply = result.reply.trim() ||
-          (handoffTriggered ? "Estou chamando um atendente humano, aguarde só um instante." : "");
+        // Handoff silencioso: nada é dito ao hóspede, a conversa apenas passa
+        // para o atendente humano.
+        const finalReply = handoffTriggered ? "" : result.reply.trim();
 
         if (finalReply) {
           await supabaseAdmin.from("property_chat_messages").insert({
