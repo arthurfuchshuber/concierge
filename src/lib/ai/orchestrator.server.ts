@@ -397,7 +397,7 @@ export async function runHospitalityAgent(params: {
         `${validated.validation.reason || reflection.issues.join("; ") || "inconsistência"}. ` +
         `Pergunta: ${params.message.slice(0, 160)}`;
       handoffUrgency = intent.urgency === "high" ? "high" : "normal";
-      reply = HANDOFF_FALLBACK;
+      reply = "";
       tier = "handoff";
     } else if (tier === "hedged" && !params.explorationMode) {
       reply = `${reply}${hedgeNotice(intent.language)}`;
