@@ -938,7 +938,7 @@ function OccupancyPanel({
   onStartChange?: (v: string) => void;
   defaultStart?: string;
 }) {
-  const [openAgenda, setOpenAgenda] = useState<string>("agenda");
+  const [openAgenda, setOpenAgenda] = useState<string>("");
   const [ownerFilter, setOwnerFilter] = useState<string>("");
   const [cityFilter, setCityFilter] = useState<string>("");
 
@@ -980,7 +980,37 @@ function OccupancyPanel({
   }, [openAgenda, days]);
 
 
-
+  // Recolhe a agenda ao rolar a página — exceto quando a rolagem acontece
+  // dentro do próprio quadrante do calendário.
+  useEffect(() => {
+    if (!openAgenda) return;
+    const insideRef = { current: false };
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const markInside = (e: Event) => {
+      const el = outerRef.current;
+      const t = e.target as Node | null;
+      if (el && t && el.contains(t)) {
+        insideRef.current = true;
+        if (timer) clearTimeout(timer);
+        timer = setTimeout(() => {
+          insideRef.current = false;
+        }, 400);
+      }
+    };
+    const onScroll = () => {
+      if (insideRef.current) return;
+      setOpenAgenda("");
+    };
+    window.addEventListener("wheel", markInside, { passive: true, capture: true });
+    window.addEventListener("touchmove", markInside, { passive: true, capture: true });
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      if (timer) clearTimeout(timer);
+      window.removeEventListener("wheel", markInside, true);
+      window.removeEventListener("touchmove", markInside, true);
+      window.removeEventListener("scroll", onScroll);
+    };
+  }, [openAgenda]);
 
   const todayISO = new Date().toISOString().slice(0, 10);
 
