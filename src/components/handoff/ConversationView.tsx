@@ -399,10 +399,16 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
             )}
 
             {!inputFocused && conv?.handoff_reason && (
-              <div className="text-[11px] mt-2 px-2 py-1 rounded bg-amber-500/10 text-amber-700 border border-amber-500/30 line-clamp-2">
+              <button
+                type="button"
+                onClick={() => setReasonOpen(true)}
+                title="Ver motivo completo e ações"
+                className="w-full text-left text-[11px] mt-2 px-2 py-1 rounded bg-amber-500/10 text-amber-700 border border-amber-500/30 line-clamp-2 hover:bg-amber-500/20 transition-colors cursor-pointer"
+              >
                 {conv.handoff_reason}
-              </div>
+              </button>
             )}
+
 
             {!inputFocused && isLockedByOther && (
               <div className="text-[11px] mt-2 px-2 py-1 rounded bg-secondary text-foreground/80 border border-border inline-flex items-center gap-1">
