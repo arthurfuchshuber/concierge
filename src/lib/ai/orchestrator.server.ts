@@ -320,7 +320,8 @@ export async function runHospitalityAgent(params: {
 
   // Perguntou a um humano: responde com honestidade, nunca inventa.
   if (escalationId && !reply) reply = pendingNotice(intent.language);
-  if (handoffReason && !reply) reply = HANDOFF_FALLBACK;
+  // Handoff é SILENCIOSO: a conversa vai para o humano sem mensagem da IA.
+  if (handoffReason) reply = "";
 
   // Decisões humanas já entregues ao hóspede não voltam ao contexto.
   if (humanAnswers.length && reply) {
