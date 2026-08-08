@@ -160,7 +160,7 @@ export async function listOperationMemory(params: {
       .from("ai_operational_memory")
       .select("id, property_id, category, request, recurrence_count, status, updated_at")
       .eq("tenant_id", tenantId)
-      .gte("recurrence_count", 2)
+      .gte("recurrence_count", 1)
       .order("recurrence_count", { ascending: false })
       .limit(60),
     supabase
