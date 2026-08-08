@@ -745,6 +745,63 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
         </DialogContent>
       </Dialog>
 
+      {/* Motivo do escalonamento + ações sugeridas */}
+      <Dialog open={reasonOpen} onOpenChange={setReasonOpen}>
+        <DialogContent className="max-w-md z-[2147483600]">
+          <DialogHeader>
+            <DialogTitle className="text-base">Por que a IA escalou</DialogTitle>
+          </DialogHeader>
+          <div className="max-h-60 overflow-y-auto text-xs leading-relaxed whitespace-pre-wrap rounded-lg border border-amber-500/30 bg-amber-500/10 text-amber-800 p-3">
+            {conv?.handoff_reason}
+          </div>
+          <p className="text-[11px] text-muted-foreground mt-2">O que você quer fazer?</p>
+          <div className="flex flex-col gap-2 mt-1">
+            {!isMine && status !== "resolved" && (
+              <button
+                type="button"
+                disabled={claim.isPending}
+                onClick={() => { setReasonOpen(false); onClaimClick(); }}
+                className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 text-sm disabled:opacity-50"
+              >
+                <UserPlus2 className="size-4" /> Assumir e responder
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => {
+                if (conv?.handoff_reason) navigator.clipboard?.writeText(conv.handoff_reason);
+                setReasonOpen(false);
+              }}
+              className="flex items-center gap-2 px-3 py-2.5 rounded-xl border border-border hover:bg-secondary text-sm"
+            >
+              <Copy className="size-4" /> Copiar motivo
+            </button>
+            {isMine && status !== "resolved" && (
+              <button
+                type="button"
+                disabled={release.isPending}
+                onClick={() => { release.mutate(); setReasonOpen(false); }}
+                className="flex items-center gap-2 px-3 py-2.5 rounded-xl border border-border hover:bg-secondary text-sm disabled:opacity-50"
+              >
+                <Sparkles className="size-4" /> Devolver para a IA
+              </button>
+            )}
+            {status !== "resolved" && (
+              <button
+                type="button"
+                disabled={resolve.isPending}
+                onClick={() => { resolve.mutate(); setReasonOpen(false); }}
+                className="flex items-center gap-2 px-3 py-2.5 rounded-xl border border-border hover:bg-secondary text-sm disabled:opacity-50"
+              >
+                <CheckCircle2 className="size-4" /> Marcar como resolvida
+              </button>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+
+
 
 
       {status !== "resolved" && !canChat && (
