@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { MessageCircleMore, Send, X, Loader2, Paperclip } from "lucide-react";
+import { MessageCircleMore, Send, X, Loader2, Paperclip, Copy, Check } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { GuestNotificationsPrompt } from "@/components/GuestNotificationsPrompt";
@@ -19,6 +19,37 @@ type Msg = {
   senderType?: string;
   attachment?: AttachmentInfo | null;
 };
+
+/** Código/senha em linha com botão de copiar ao lado. */
+function CopyableCode({ children, ...props }: React.ComponentProps<"code">) {
+  const [copied, setCopied] = useState(false);
+  const text = String(
+    Array.isArray(children) ? children.join("") : (children ?? ""),
+  ).trim();
+  return (
+    <span className="inline-flex items-center gap-1 align-middle">
+      <code
+        {...props}
+        className="rounded-md bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 font-mono text-[12.5px] text-emerald-800"
+      >
+        {children}
+      </code>
+      <button
+        type="button"
+        aria-label="Copiar"
+        onClick={() => {
+          navigator.clipboard?.writeText(text).then(() => {
+            setCopied(true);
+            setTimeout(() => setCopied(false), 1600);
+          });
+        }}
+        className="inline-flex size-6 items-center justify-center rounded-md border border-emerald-200 bg-white text-emerald-700 active:scale-95 transition"
+      >
+        {copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
+      </button>
+    </span>
+  );
+}
 
 function getSessionId(slug: string): string {
   const key = `guide-chat-session:${slug}`;
@@ -680,11 +711,15 @@ export function GuideAiChat({ slug, propertyName, guestName }: { slug: string; p
                         a: ({ node, ...props }) => (
                           <a {...props} target="_blank" rel="noopener noreferrer" />
                         ),
+                        code: ({ node, children, ...props }) => (
+                          <CopyableCode {...props}>{children}</CopyableCode>
+                        ),
                       }}
                     >
                       {(m.id && autoTranslated[m.id]) || m.content}
                     </ReactMarkdown>
                   )}
+
                 </div>
               )}
             </div>

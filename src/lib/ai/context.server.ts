@@ -17,7 +17,25 @@ export type AgentContext = {
   stayPhase: "pre_checkin" | "checkin_day" | "in_stay" | "checkout_day" | "post_checkout" | "unknown";
 };
 
+const TZ = "America/Sao_Paulo";
+
+/** Offset (em minutos) do fuso de São Paulo para uma data UTC. */
+function tzOffsetMinutes(date: Date): number {
+  const asTz = new Date(date.toLocaleString("en-US", { timeZone: TZ }));
+  const asUtc = new Date(date.toLocaleString("en-US", { timeZone: "UTC" }));
+  return (asTz.getTime() - asUtc.getTime()) / 60000;
+}
+
+/** 17:00 (horário de São Paulo) do dia anterior ao check-in, em UTC. */
+function pinReleaseAt(checkinDate: string): Date {
+  const [y, m, d] = checkinDate.split("-").map(Number);
+  const base = Date.UTC(y ?? 1970, (m ?? 1) - 1, d ?? 1, 17, 0, 0) - 86_400_000;
+  const guess = new Date(base);
+  return new Date(base - tzOffsetMinutes(guess) * 60000);
+}
+
 function nowInfo(): string {
+
   const now = new Date();
   const fmt = new Intl.DateTimeFormat("pt-BR", {
     timeZone: "America/Sao_Paulo",
@@ -44,8 +62,9 @@ export async function buildAgentContext(params: {
   if (p.city) lines.push(`Cidade: ${p.city}${p.country ? ` (${p.country})` : ""}`);
   if (p.host_name) lines.push(`Anfitrião: ${p.host_name}`);
 
-  const sensitiveLocked =
-    typeof p.access_codes_pin === "string" && (p.access_codes_pin as string).trim().length > 0;
+  const accessPin =
+    typeof p.access_codes_pin === "string" ? (p.access_codes_pin as string).trim() : "";
+  const sensitiveLocked = accessPin.length > 0;
   if (sensitiveLocked) {
     keys.push("sensitive_locked");
     lines.push(
@@ -56,6 +75,7 @@ export async function buildAgentContext(params: {
 
   // Estado da estadia (fase) — determina prioridade e tom.
   let stayPhase: AgentContext["stayPhase"] = "unknown";
+  let checkinDate: string | null = null;
   const guestName = (params.guestName ?? "").trim();
   if (guestName) {
     const { data: log } = await supabase
@@ -70,6 +90,7 @@ export async function buildAgentContext(params: {
       keys.push("reservation");
       const today = new Date().toISOString().slice(0, 10);
       const ci = String(log.checkin_date).slice(0, 10);
+      checkinDate = ci;
       const co = log.checkout_date ? String(log.checkout_date).slice(0, 10) : null;
       if (today < ci) stayPhase = "pre_checkin";
       else if (today === ci) stayPhase = "checkin_day";
@@ -81,6 +102,43 @@ export async function buildAgentContext(params: {
       );
     }
   }
+
+  // ── Senha de liberação do guia (código de visualização)
+  // Só pode ser informada pela IA a partir das 17:00 (America/Sao_Paulo) do dia
+  // anterior ao check-in. Antes disso a IA avisa que ainda não está liberada.
+  if (sensitiveLocked) {
+    keys.push("access_pin_policy");
+    if (!checkinDate) {
+      lines.push(
+        "\n## Senha de liberação do guia (código de visualização)\n" +
+          "Não foi possível confirmar a data de check-in deste hóspede. NÃO informe a senha de liberação. " +
+          "Explique que ela é liberada a partir das 17:00 do dia anterior ao check-in e peça que ele confirme os dados de check-in no guia.",
+      );
+    } else {
+      const releaseAt = pinReleaseAt(checkinDate);
+      const released = Date.now() >= releaseAt.getTime();
+      const releaseLabel = new Intl.DateTimeFormat("pt-BR", {
+        timeZone: TZ,
+        day: "2-digit",
+        month: "2-digit",
+      }).format(releaseAt);
+      if (released) {
+        lines.push(
+          "\n## Senha de liberação do guia (código de visualização)\n" +
+            `LIBERADA. Se o hóspede pedir, informe o código: \`${accessPin}\`\n` +
+            "Escreva o código SEMPRE entre crases (\\`código\\`) para que o hóspede possa copiar com um toque. " +
+            "Depois de informar, oriente que ele digite esse código no guia (botão 'Ver Senha') para liberar Wi-Fi e códigos de acesso. " +
+            "As senhas da residência (Wi-Fi, portão, fechadura) continuam bloqueadas para você — nunca as revele no chat.",
+        );
+      } else {
+        lines.push(
+          "\n## Senha de liberação do guia (código de visualização)\n" +
+            `AINDA NÃO LIBERADA. NUNCA informe o código agora, nem parcialmente. Diga com gentileza que ele é liberado a partir das 17:00 do dia ${releaseLabel} (véspera do check-in).`,
+        );
+      }
+    }
+  }
+
 
   if (params.memory) {
     keys.push("guest_memory");
