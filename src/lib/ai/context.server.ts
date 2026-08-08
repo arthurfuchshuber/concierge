@@ -17,7 +17,25 @@ export type AgentContext = {
   stayPhase: "pre_checkin" | "checkin_day" | "in_stay" | "checkout_day" | "post_checkout" | "unknown";
 };
 
+const TZ = "America/Sao_Paulo";
+
+/** Offset (em minutos) do fuso de São Paulo para uma data UTC. */
+function tzOffsetMinutes(date: Date): number {
+  const asTz = new Date(date.toLocaleString("en-US", { timeZone: TZ }));
+  const asUtc = new Date(date.toLocaleString("en-US", { timeZone: "UTC" }));
+  return (asTz.getTime() - asUtc.getTime()) / 60000;
+}
+
+/** 17:00 (horário de São Paulo) do dia anterior ao check-in, em UTC. */
+function pinReleaseAt(checkinDate: string): Date {
+  const [y, m, d] = checkinDate.split("-").map(Number);
+  const base = Date.UTC(y ?? 1970, (m ?? 1) - 1, d ?? 1, 17, 0, 0) - 86_400_000;
+  const guess = new Date(base);
+  return new Date(base - tzOffsetMinutes(guess) * 60000);
+}
+
 function nowInfo(): string {
+
   const now = new Date();
   const fmt = new Intl.DateTimeFormat("pt-BR", {
     timeZone: "America/Sao_Paulo",
