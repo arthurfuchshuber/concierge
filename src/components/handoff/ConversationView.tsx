@@ -18,8 +18,39 @@ import {
 } from "@/lib/handoff.functions";
 import { MessageText } from "@/components/handoff/MessageText";
 import { attachStaffMessage } from "@/lib/chat-attachments.functions";
-import { Send, UserCheck, RotateCcw, CheckCircle2, Loader2, StickyNote, Phone, Calendar, Hash, Lock, UserPlus2, ArrowRightLeft, X, Sparkles, Paperclip, MessageCircle, MessageSquare, Languages, Pencil, Trash2, MoreVertical, Copy, Camera } from "lucide-react";
-import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
+import {
+  Send,
+  UserCheck,
+  RotateCcw,
+  CheckCircle2,
+  Loader2,
+  StickyNote,
+  Phone,
+  Calendar,
+  Hash,
+  Lock,
+  UserPlus2,
+  ArrowRightLeft,
+  X,
+  Sparkles,
+  Paperclip,
+  MessageCircle,
+  MessageSquare,
+  Languages,
+  Pencil,
+  Trash2,
+  MoreVertical,
+  Copy,
+  Camera,
+} from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { reopenHandoffConversation } from "@/lib/handoff.functions";
 import { sendWhatsappFromConversation, getMyWhatsappConfig } from "@/lib/whatsapp.functions";
@@ -33,7 +64,6 @@ import { AttachmentBubble, type AttachmentInfo } from "@/components/handoff/Atta
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useMyPermissions } from "@/hooks/useMyPermissions";
-
 
 type Props = { conversationId: string; compact?: boolean; myUserId: string | null };
 
@@ -84,7 +114,14 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
     staleTime: 60_000,
   });
   const tagItems = useMemo<TagMentionItem[]>(
-    () => (tagItemsData?.items ?? []).map((i) => ({ key: i.key, param: i.param, label: i.label, hint: i.hint, kind: i.kind })),
+    () =>
+      (tagItemsData?.items ?? []).map((i) => ({
+        key: i.key,
+        param: i.param,
+        label: i.label,
+        hint: i.hint,
+        kind: i.kind,
+      })),
     [tagItemsData],
   );
 
@@ -101,7 +138,10 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
     longPressRef.current = setTimeout(() => setActionMsg(m), 450);
   };
   const cancelLongPress = () => {
-    if (longPressRef.current) { clearTimeout(longPressRef.current); longPressRef.current = null; }
+    if (longPressRef.current) {
+      clearTimeout(longPressRef.current);
+      longPressRef.current = null;
+    }
   };
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [reasonOpen, setReasonOpen] = useState(false);
@@ -117,7 +157,13 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
   const waCfgFn = useServerFn(getMyWhatsappConfig);
   const waCfgQ = useQuery({
     queryKey: ["my-whatsapp-config"],
-    queryFn: async () => { try { return await waCfgFn(); } catch { return null; } },
+    queryFn: async () => {
+      try {
+        return await waCfgFn();
+      } catch {
+        return null;
+      }
+    },
     staleTime: 5 * 60_000,
     retry: false,
   });
@@ -126,7 +172,9 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
   // Tradução de mensagens do hóspede para o idioma do sistema do atendente.
   const myLang = useMemo(() => userLanguage(), []);
   const translateFn = useServerFn(translateMessage);
-  const [translations, setTranslations] = useState<Record<string, { text: string | null; loading: boolean; showing: boolean }>>({});
+  const [translations, setTranslations] = useState<
+    Record<string, { text: string | null; loading: boolean; showing: boolean }>
+  >({});
   const toggleTranslation = async (id: string, content: string) => {
     const current = translations[id];
     if (current?.text) {
@@ -158,14 +206,29 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
     const channelName = `conv-${conversationId}-${Math.random().toString(36).slice(2)}`;
     const ch = supabase
       .channel(channelName)
-      .on("postgres_changes", { event: "*", schema: "public", table: "property_chat_messages", filter: `conversation_id=eq.${conversationId}` }, () => {
-        qc.invalidateQueries({ queryKey: ["handoff-conv", conversationId] });
-      })
-      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "property_chat_conversations", filter: `id=eq.${conversationId}` }, () => {
-        qc.invalidateQueries({ queryKey: ["handoff-conv", conversationId] });
-      })
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "property_chat_messages",
+          filter: `conversation_id=eq.${conversationId}`,
+        },
+        () => {
+          qc.invalidateQueries({ queryKey: ["handoff-conv", conversationId] });
+        },
+      )
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "property_chat_conversations", filter: `id=eq.${conversationId}` },
+        () => {
+          qc.invalidateQueries({ queryKey: ["handoff-conv", conversationId] });
+        },
+      )
       .subscribe();
-    return () => { supabase.removeChannel(ch); };
+    return () => {
+      supabase.removeChannel(ch);
+    };
   }, [conversationId, qc]);
 
   const invalidateAll = () => {
@@ -179,7 +242,10 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
       channel === "whatsapp" && !note
         ? sendWaFn({ data: { conversationId, text: text.trim() } })
         : sendFn({ data: { conversationId, content: text.trim(), internalNote: note } }),
-    onSuccess: () => { setText(""); invalidateAll(); },
+    onSuccess: () => {
+      setText("");
+      invalidateAll();
+    },
     onError: (e) => setErrorMsg((e as Error).message),
   });
   const reopen = useMutation({
@@ -187,7 +253,11 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
       await reopenFn({ data: { conversationId } });
       return ch;
     },
-    onSuccess: (ch) => { setChannel(ch); setReopenOpen(false); invalidateAll(); },
+    onSuccess: (ch) => {
+      setChannel(ch);
+      setReopenOpen(false);
+      invalidateAll();
+    },
     onError: (e) => setErrorMsg((e as Error).message),
   });
   const claim = useMutation({
@@ -214,13 +284,20 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
   });
   const transfer = useMutation({
     mutationFn: async (toUserId: string) => transferFn({ data: { conversationId, toUserId } }),
-    onSuccess: () => { setTransferOpen(false); invalidateAll(); },
+    onSuccess: () => {
+      setTransferOpen(false);
+      invalidateAll();
+    },
     onError: (e) => setErrorMsg((e as Error).message),
   });
   const editMsg = useMutation({
     mutationFn: async (v: { messageId: string; content: string }) =>
       editFn({ data: { conversationId, messageId: v.messageId, content: v.content } }),
-    onSuccess: () => { setEditingId(null); setEditingText(""); invalidateAll(); },
+    onSuccess: () => {
+      setEditingId(null);
+      setEditingText("");
+      invalidateAll();
+    },
     onError: (e) => setErrorMsg((e as Error).message),
   });
   const deleteMsg = useMutation({
@@ -228,7 +305,6 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
     onSuccess: invalidateAll,
     onError: (e) => setErrorMsg((e as Error).message),
   });
-
 
   function inferAttachmentType(mime: string): "image" | "audio" | "video" | "document" | null {
     if (mime.startsWith("image/")) return "image";
@@ -254,10 +330,17 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
     setUploading(true);
     try {
       const ext =
-        type === "image" ? (mime.split("/")[1] ?? "jpg").replace("jpeg", "jpg") :
-        type === "audio" ? (mime.includes("mp4") ? "m4a" : mime.includes("mpeg") ? "mp3" : "webm") :
-        type === "video" ? (mime.split("/")[1] ?? "mp4") :
-        "pdf";
+        type === "image"
+          ? (mime.split("/")[1] ?? "jpg").replace("jpeg", "jpg")
+          : type === "audio"
+            ? mime.includes("mp4")
+              ? "m4a"
+              : mime.includes("mpeg")
+                ? "mp3"
+                : "webm"
+            : type === "video"
+              ? (mime.split("/")[1] ?? "mp4")
+              : "pdf";
       const objectId = crypto.randomUUID();
       const path = `${conv.property_id}/${conversationId}/staff-${objectId}.${ext}`;
       const { error: upErr } = await supabase.storage
@@ -313,7 +396,8 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
   const guest = q.data?.guestDetails;
   const claimReq = q.data?.claimRequester;
   const assignedProfile = q.data?.assignedProfile;
-  const senderProfiles = (q.data as { senderProfiles?: Record<string, { displayName: string | null }> } | undefined)?.senderProfiles ?? {};
+  const senderProfiles =
+    (q.data as { senderProfiles?: Record<string, { displayName: string | null }> } | undefined)?.senderProfiles ?? {};
   const propertyName = (conv?.properties as { name?: string } | null)?.name ?? "Guia";
   const isMine = !!(conv?.assigned_to && myUserId && conv.assigned_to === myUserId);
   const isLockedByOther = !!(conv?.assigned_to && myUserId && conv.assigned_to !== myUserId);
@@ -327,11 +411,12 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
   const checkinFmt = fmtCheckin(guest?.checkinDate ?? null);
   const checkoutFmt = fmtCheckin((guest as { checkoutDate?: string | null } | undefined)?.checkoutDate ?? null);
 
-
   function handleClaim() {
     if (isLockedByOther) {
       const who = assignedProfile?.displayName ?? "outro membro";
-      const ok = typeof window !== "undefined" && window.confirm(`Esta conversa está sendo atendida por ${who}. Tem certeza que deseja assumir?`);
+      const ok =
+        typeof window !== "undefined" &&
+        window.confirm(`Esta conversa está sendo atendida por ${who}. Tem certeza que deseja assumir?`);
       if (!ok) return;
     }
     claim.mutate();
@@ -368,7 +453,9 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
             </div>
             <div className="text-[11px] text-muted-foreground truncate">
               {propertyName}
-              {!inputFocused && conv?.handoff_at ? ` · ${formatDistanceToNow(new Date(conv.handoff_at), { locale: ptBR, addSuffix: true })}` : ""}
+              {!inputFocused && conv?.handoff_at
+                ? ` · ${formatDistanceToNow(new Date(conv.handoff_at), { locale: ptBR, addSuffix: true })}`
+                : ""}
               {inputFocused && checkinFmt ? ` · In ${checkinFmt}` : ""}
               {inputFocused && checkoutFmt ? ` · Out ${checkoutFmt}` : ""}
             </div>
@@ -376,7 +463,12 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
             {!inputFocused && (waHref || checkinFmt || checkoutFmt || guest?.reservationCode) && (
               <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
                 {waHref && (
-                  <a href={waHref} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-emerald-600 hover:underline">
+                  <a
+                    href={waHref}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1 text-emerald-600 hover:underline"
+                  >
                     <Phone className="size-3" /> {formatIntlPhone(guest?.phone, guest?.phoneCountry)}
                   </a>
                 )}
@@ -411,7 +503,6 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
               </button>
             )}
 
-
             {!inputFocused && isLockedByOther && (
               <div className="text-[11px] mt-2 px-2 py-1 rounded bg-secondary text-foreground/80 border border-border inline-flex items-center gap-1">
                 <Lock className="size-3" /> Em atendimento por {assignedProfile?.displayName ?? "outro membro"}
@@ -419,7 +510,9 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
             )}
             {!inputFocused && someoneRequestedFromMe && (
               <div className="text-[11px] mt-2 px-2 py-1 rounded bg-primary/10 text-primary border border-primary/30 flex items-center justify-between gap-2">
-                <span className="inline-flex items-center gap-1"><UserPlus2 className="size-3" /> {claimReq?.displayName ?? "Um membro"} pediu acesso</span>
+                <span className="inline-flex items-center gap-1">
+                  <UserPlus2 className="size-3" /> {claimReq?.displayName ?? "Um membro"} pediu acesso
+                </span>
                 <button
                   onClick={() => claimReq?.userId && transfer.mutate(claimReq.userId)}
                   className="px-2 py-0.5 rounded bg-primary text-primary-foreground text-[11px]"
@@ -453,10 +546,14 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56 z-[2147483600]">
-
                 <DropdownMenuLabel className="text-[11px]">Ações</DropdownMenuLabel>
                 {status === "resolved" && canChat && (
-                  <DropdownMenuItem onSelect={() => { if (waIntegrated && guest?.phone) setReopenOpen(true); else reopen.mutate("chat"); }}>
+                  <DropdownMenuItem
+                    onSelect={() => {
+                      if (waIntegrated && guest?.phone) setReopenOpen(true);
+                      else reopen.mutate("chat");
+                    }}
+                  >
                     <RotateCcw className="size-3.5 mr-2" /> Reabrir conversa
                   </DropdownMenuItem>
                 )}
@@ -477,7 +574,12 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
                 )}
                 {isMine && status !== "resolved" && (
                   <>
-                    <DropdownMenuItem onSelect={(e) => { e.preventDefault(); setTransferOpen((v) => !v); }}>
+                    <DropdownMenuItem
+                      onSelect={(e) => {
+                        e.preventDefault();
+                        setTransferOpen((v) => !v);
+                      }}
+                    >
                       <ArrowRightLeft className="size-3.5 mr-2" /> Transferir
                     </DropdownMenuItem>
                     <DropdownMenuItem onSelect={() => release.mutate()}>
@@ -502,16 +604,26 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
 
         {channel === "whatsapp" && (
           <div className="text-[11px] px-2 py-1 rounded bg-emerald-500/10 text-emerald-700 border border-emerald-500/30 flex items-center justify-between gap-2">
-            <span className="inline-flex items-center gap-1"><MessageCircle className="size-3" /> Enviando pelo WhatsApp do hóspede</span>
-            <button onClick={() => setChannel("chat")} className="underline">usar chat</button>
+            <span className="inline-flex items-center gap-1">
+              <MessageCircle className="size-3" /> Enviando pelo WhatsApp do hóspede
+            </span>
+            <button onClick={() => setChannel("chat")} className="underline">
+              usar chat
+            </button>
           </div>
         )}
 
         {transferOpen && isMine && (
           <div className="rounded-md border border-border bg-background p-2 space-y-1">
             <div className="text-[11px] text-muted-foreground px-1">Transferir para:</div>
-            {targetsQ.isLoading && <div className="text-xs text-muted-foreground px-1 py-1"><Loader2 className="size-3 animate-spin inline mr-1" /> Carregando…</div>}
-            {targetsQ.data?.targets.length === 0 && <div className="text-xs text-muted-foreground px-1 py-1">Nenhum outro membro disponível.</div>}
+            {targetsQ.isLoading && (
+              <div className="text-xs text-muted-foreground px-1 py-1">
+                <Loader2 className="size-3 animate-spin inline mr-1" /> Carregando…
+              </div>
+            )}
+            {targetsQ.data?.targets.length === 0 && (
+              <div className="text-xs text-muted-foreground px-1 py-1">Nenhum outro membro disponível.</div>
+            )}
             {targetsQ.data?.targets.map((t) => (
               <button
                 key={t.userId}
@@ -529,13 +641,19 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
         {errorMsg && (
           <div className="text-[11px] px-2 py-1 rounded bg-destructive/10 text-destructive border border-destructive/30 flex items-center justify-between gap-2">
             <span>{errorMsg}</span>
-            <button onClick={() => setErrorMsg(null)}><X className="size-3" /></button>
+            <button onClick={() => setErrorMsg(null)}>
+              <X className="size-3" />
+            </button>
           </div>
         )}
       </div>
 
       <div ref={scrollRef} className="flex-1 overflow-y-auto p-3 space-y-2 min-h-0 bg-transparent">
-        {q.isLoading && <div className="text-xs text-muted-foreground flex items-center gap-2"><Loader2 className="size-3 animate-spin" /> Carregando…</div>}
+        {q.isLoading && (
+          <div className="text-xs text-muted-foreground flex items-center gap-2">
+            <Loader2 className="size-3 animate-spin" /> Carregando…
+          </div>
+        )}
         {msgs.map((m) => {
           const isGuest = m.sender_type === "guest";
           const isNote = m.is_internal_note;
@@ -568,13 +686,17 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
                   isNote
                     ? "bg-yellow-500/15 border border-yellow-500/30 text-foreground"
                     : isGuest
-                    ? "bg-secondary text-foreground"
-                    : m.sender_type === "human"
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-accent text-accent-foreground"
+                      ? "bg-secondary text-foreground"
+                      : m.sender_type === "human"
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-accent text-accent-foreground"
                 }`}
               >
-                {isNote && <div className="text-[10px] uppercase tracking-wide opacity-70 mb-1 flex items-center gap-1"><StickyNote className="size-3" /> Nota interna</div>}
+                {isNote && (
+                  <div className="text-[10px] uppercase tracking-wide opacity-70 mb-1 flex items-center gap-1">
+                    <StickyNote className="size-3" /> Nota interna
+                  </div>
+                )}
                 {!isNote && !isGuest && (
                   <div className="text-[11px] mb-1">
                     {m.sender_type === "human" ? (
@@ -603,7 +725,10 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
                       <button
                         type="button"
                         className="text-[11px] opacity-70 hover:opacity-100"
-                        onClick={() => { setEditingId(null); setEditingText(""); }}
+                        onClick={() => {
+                          setEditingId(null);
+                          setEditingText("");
+                        }}
                       >
                         Cancelar
                       </button>
@@ -629,7 +754,6 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
                   {formatDistanceToNow(new Date(m.created_at), { locale: ptBR, addSuffix: true })}
                   {m.edited_at ? " · editada" : ""}
                 </div>
-
               </div>
               <div className="flex items-center gap-2">
                 {canTranslate && (
@@ -647,7 +771,10 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
                 {canTeach && conv?.property_id && (
                   <button
                     type="button"
-                    onClick={() => { setTeachSource({ id: m.id, content: m.content ?? "" }); setTeachOpen(true); }}
+                    onClick={() => {
+                      setTeachSource({ id: m.id, content: m.content ?? "" });
+                      setTeachOpen(true);
+                    }}
                     className="mt-1 inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
                     title="Adicionar este conteúdo à base de conhecimento da IA"
                   >
@@ -660,11 +787,13 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
         })}
       </div>
 
-
       {conv?.property_id && teachSource && (
         <TeachAiDialog
           open={teachOpen}
-          onOpenChange={(v) => { setTeachOpen(v); if (!v) setTeachSource(null); }}
+          onOpenChange={(v) => {
+            setTeachOpen(v);
+            if (!v) setTeachSource(null);
+          }}
           propertyId={conv.property_id as string}
           propertyName={propertyName}
           initialContent={teachSource.content}
@@ -673,7 +802,12 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
       )}
 
       {/* Ações da mensagem (segurar para abrir, como no WhatsApp) */}
-      <Dialog open={!!actionMsg} onOpenChange={(v) => { if (!v) setActionMsg(null); }}>
+      <Dialog
+        open={!!actionMsg}
+        onOpenChange={(v) => {
+          if (!v) setActionMsg(null);
+        }}
+      >
         <DialogContent className="max-w-xs z-[2147483600]">
           <DialogHeader>
             <DialogTitle className="text-sm">Opções da mensagem</DialogTitle>
@@ -695,7 +829,10 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
                   type="button"
                   className="flex items-center gap-2 px-2 py-2.5 rounded-lg text-sm hover:bg-secondary text-left"
                   onClick={() => {
-                    if (actionMsg) { setEditingId(actionMsg.id); setEditingText(actionMsg.content); }
+                    if (actionMsg) {
+                      setEditingId(actionMsg.id);
+                      setEditingText(actionMsg.content);
+                    }
                     setActionMsg(null);
                   }}
                 >
@@ -751,7 +888,7 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
           <DialogHeader>
             <DialogTitle className="text-base">Por que a IA escalou</DialogTitle>
           </DialogHeader>
-          <div className="max-h-60 overflow-y-auto text-xs leading-relaxed whitespace-pre-wrap rounded-lg border border-amber-500/30 bg-amber-500/10 text-amber-800 p-3">
+          <div className="max-h-60 overflow-y-auto text-xs leading-relaxed whitespace-pre-wrap rounded-lg border border-amber-500/30 bg-amber-500/10 text-foreground p-3">
             {conv?.handoff_reason}
           </div>
           <p className="text-[11px] text-muted-foreground mt-2">O que você quer fazer?</p>
@@ -760,7 +897,10 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
               <button
                 type="button"
                 disabled={claim.isPending}
-                onClick={() => { setReasonOpen(false); handleClaim(); }}
+                onClick={() => {
+                  setReasonOpen(false);
+                  handleClaim();
+                }}
                 className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 text-sm disabled:opacity-50"
               >
                 <UserPlus2 className="size-4" /> Assumir e responder
@@ -780,7 +920,10 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
               <button
                 type="button"
                 disabled={release.isPending}
-                onClick={() => { release.mutate(); setReasonOpen(false); }}
+                onClick={() => {
+                  release.mutate();
+                  setReasonOpen(false);
+                }}
                 className="flex items-center gap-2 px-3 py-2.5 rounded-xl border border-border hover:bg-secondary text-sm disabled:opacity-50"
               >
                 <Sparkles className="size-4" /> Devolver para a IA
@@ -790,7 +933,10 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
               <button
                 type="button"
                 disabled={resolve.isPending}
-                onClick={() => { resolve.mutate(); setReasonOpen(false); }}
+                onClick={() => {
+                  resolve.mutate();
+                  setReasonOpen(false);
+                }}
                 className="flex items-center gap-2 px-3 py-2.5 rounded-xl border border-border hover:bg-secondary text-sm disabled:opacity-50"
               >
                 <CheckCircle2 className="size-4" /> Marcar como resolvida
@@ -800,19 +946,18 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
         </DialogContent>
       </Dialog>
 
-
-
-
-
       {status !== "resolved" && !canChat && (
         <div className="shrink-0 border-t border-border p-3 text-center text-xs text-muted-foreground bg-surface flex items-center justify-center gap-2">
           <Lock className="size-3" />
-          <span>Você não tem permissão para responder no chat. Peça ao dono da conta para habilitar em Administrativo → Permissões.</span>
+          <span>
+            Você não tem permissão para responder no chat. Peça ao dono da conta para habilitar em Administrativo →
+            Permissões.
+          </span>
         </div>
       )}
-      {status !== "resolved" && canChat && (
-
-        !isMine ? (
+      {status !== "resolved" &&
+        canChat &&
+        (!isMine ? (
           <div
             className="shrink-0 border-t border-border p-3 text-center text-xs text-muted-foreground bg-surface flex items-center justify-center gap-2"
             style={{
@@ -823,9 +968,14 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
           >
             <Lock className="size-3" />
             <span>
-              {isLockedByOther
-                ? <>Somente <strong>{assignedProfile?.displayName ?? "o atendente responsável"}</strong> pode responder — você acompanha em tempo real.</>
-                : "Assuma a conversa para poder responder ao hóspede."}
+              {isLockedByOther ? (
+                <>
+                  Somente <strong>{assignedProfile?.displayName ?? "o atendente responsável"}</strong> pode responder —
+                  você acompanha em tempo real.
+                </>
+              ) : (
+                "Assuma a conversa para poder responder ao hóspede."
+              )}
             </span>
             <button
               onClick={handleClaim}
@@ -876,7 +1026,9 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
                 className="hidden"
                 onChange={onFilePicked}
               />
-              <div className={`flex-1 min-w-0 flex items-end gap-1 rounded-3xl border bg-background pl-3 pr-1.5 py-1 ${note ? "border-yellow-500/50" : "border-border"}`}>
+              <div
+                className={`flex-1 min-w-0 flex items-end gap-1 rounded-3xl border bg-background pl-3 pr-1.5 py-1 ${note ? "border-yellow-500/50" : "border-border"}`}
+              >
                 <TagMentionTextarea
                   value={text}
                   onChange={(e) => setText(e.target.value)}
@@ -889,7 +1041,13 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
                     }
                   }}
                   items={tagItems}
-                  placeholder={note ? "Nota interna…" : channel === "whatsapp" ? "Mensagem via WhatsApp…" : "Mensagem… (@ linka o guia)"}
+                  placeholder={
+                    note
+                      ? "Nota interna…"
+                      : channel === "whatsapp"
+                        ? "Mensagem via WhatsApp…"
+                        : "Mensagem… (@ linka o guia)"
+                  }
                   rows={1}
                   containerClassName="flex-1 min-w-0"
                   className="w-full resize-none bg-transparent border-0 px-0 py-2 text-sm leading-5 outline-none focus:ring-0 min-w-0 max-h-28"
@@ -926,22 +1084,15 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
                 </button>
               ) : (
                 <div className="shrink-0">
-                  <AudioRecorderButton
-                    disabled={uploading}
-                    maxSeconds={60}
-                    onRecorded={onAudioRecorded}
-                  />
+                  <AudioRecorderButton disabled={uploading} maxSeconds={60} onRecorded={onAudioRecorded} />
                 </div>
               )}
             </div>
-
           </form>
-        )
-      )}
+        ))}
     </div>
   );
 }
-
 
 type GuestDetail = {
   name: string | null;
@@ -952,7 +1103,6 @@ type GuestDetail = {
   reservationCode: string | null;
 };
 
-
 export function ConversationList({
   conversations,
   details,
@@ -962,17 +1112,25 @@ export function ConversationList({
   onSelect,
 }: {
   conversations: Array<{
-    id: string; guest_name: string | null; status: string; handoff_at: string | null; last_message_at: string; handoff_urgency: string | null; handoff_reason: string | null;
+    id: string;
+    guest_name: string | null;
+    status: string;
+    handoff_at: string | null;
+    last_message_at: string;
+    handoff_urgency: string | null;
+    handoff_reason: string | null;
     assigned_to?: string | null;
     properties: { name: string | null } | { name: string | null }[] | null;
   }>;
   details?: Record<string, GuestDetail>;
   assignedNames?: Record<string, string>;
-  reservations?: Record<string, { status: "confirmed" | "loose" | "missing" | "no_ical"; checkin: string | null; checkout: string | null }>;
+  reservations?: Record<
+    string,
+    { status: "confirmed" | "loose" | "missing" | "no_ical"; checkin: string | null; checkout: string | null }
+  >;
   activeId: string | null;
   onSelect: (id: string) => void;
 }) {
-
   return (
     <div className="flex flex-col divide-y divide-border">
       {conversations.length === 0 && (
@@ -989,7 +1147,6 @@ export function ConversationList({
         const checkout = fmtCheckin(d?.checkoutDate ?? null);
         const withWhom = c.assigned_to ? (assignedNames?.[c.id] ?? "outro membro") : null;
         const res = reservations?.[c.id];
-
 
         return (
           <div
@@ -1061,15 +1218,15 @@ export function ConversationList({
                 )}
               </div>
             )}
-            {c.handoff_reason && <div className="text-[11px] text-foreground/70 truncate mt-0.5">{c.handoff_reason}</div>}
-
+            {c.handoff_reason && (
+              <div className="text-[11px] text-foreground/70 truncate mt-0.5">{c.handoff_reason}</div>
+            )}
           </div>
         );
       })}
     </div>
   );
 }
-
 
 export function useMyUserId() {
   const [id, setId] = useState<string | null>(null);
