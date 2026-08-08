@@ -39,7 +39,7 @@ import { classifyForMemory } from "./memory/policy.server";
 import { writeMemories } from "./memory/longterm.server";
 import { recordOperationalRequest } from "./memory/operational.server";
 import { AI_MODELS } from "./models";
-import { PROMPTS, HANDOFF_FALLBACK, stampVersions } from "./prompts";
+import { PROMPTS, stampVersions } from "./prompts";
 import { planExecution, renderPlan, type ExecutionPlan } from "./planner.server";
 import { reflectOnAnswer, type Reflection } from "./reflection.server";
 import { aggregateSourceWeight, renderSourceRanking } from "./sources";
