@@ -640,17 +640,14 @@ function Dashboard() {
                 <List className="size-3.5" />
               </button>
             </div>
-            {!readOnly && (
+            {!readOnly && canCreate && (
               <button
                 type="button"
                 onClick={goCreate}
-                disabled={canCreate && (reachedLimit || !sub.plan || noOwners)}
-                aria-disabled={!canCreate}
+                disabled={reachedLimit || !sub.plan || noOwners}
                 aria-label="Novo guia"
                 title={
-                  !canCreate
-                    ? NO_PERMISSION_MSG
-                    : !sub.plan
+                  !sub.plan
                     ? "Assine um plano para criar guias"
                     : noOwners
                     ? "Cadastre um proprietário em Stakeholders antes de criar guias"
@@ -658,11 +655,12 @@ function Dashboard() {
                     ? "Limite do seu plano atingido. Faça upgrade."
                     : "Novo guia"
                 }
-                className={`size-10 grid place-items-center rounded-full bg-secondary text-foreground border border-border hover:bg-secondary/70 transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${!canCreate ? "opacity-50 cursor-not-allowed" : ""}`}
+                className="size-10 grid place-items-center rounded-full bg-secondary text-foreground border border-border hover:bg-secondary/70 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Plus className="size-4" />
               </button>
             )}
+
 
           </div>
 
