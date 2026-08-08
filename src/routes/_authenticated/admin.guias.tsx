@@ -145,7 +145,8 @@ function Dashboard() {
 
   // Permissão de criação de guias — vale para a conta inteira.
   const createAccess = useAccess("tenant.guias.imoveis.criar", "criar");
-  const canCreate = createAccess.loading ? true : createAccess.allowed;
+  // Enquanto carrega, tratamos como "sem permissão" para nunca exibir UI de criação indevidamente.
+  const canCreate = createAccess.loading ? false : createAccess.allowed;
   const NO_PERMISSION_MSG =
     "Você não tem permissão de acesso. Procure o administrador deste cadastro.";
   function goCreate() {
