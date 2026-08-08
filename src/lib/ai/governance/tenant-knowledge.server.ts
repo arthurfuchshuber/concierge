@@ -175,7 +175,7 @@ export async function listOperationMemory(params: {
 
   const names = new Map<string, string>();
   for (const p of (propsRes.data ?? []) as Array<Record<string, unknown>>) {
-    names.set(String(p.id), String(p.title ?? ""));
+    names.set(String(p.id), String(p.name ?? ""));
   }
   const nameOf = (id: unknown) => (id ? (names.get(String(id)) ?? null) : null);
 
