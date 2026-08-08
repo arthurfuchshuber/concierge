@@ -39,7 +39,7 @@ import { classifyForMemory } from "./memory/policy.server";
 import { writeMemories } from "./memory/longterm.server";
 import { recordOperationalRequest } from "./memory/operational.server";
 import { AI_MODELS } from "./models";
-import { PROMPTS, HANDOFF_FALLBACK, stampVersions } from "./prompts";
+import { PROMPTS, stampVersions } from "./prompts";
 import { planExecution, renderPlan, type ExecutionPlan } from "./planner.server";
 import { reflectOnAnswer, type Reflection } from "./reflection.server";
 import { aggregateSourceWeight, renderSourceRanking } from "./sources";
@@ -320,7 +320,8 @@ export async function runHospitalityAgent(params: {
 
   // Perguntou a um humano: responde com honestidade, nunca inventa.
   if (escalationId && !reply) reply = pendingNotice(intent.language);
-  if (handoffReason && !reply) reply = HANDOFF_FALLBACK;
+  // Handoff é SILENCIOSO: a conversa vai para o humano sem mensagem da IA.
+  if (handoffReason) reply = "";
 
   // Decisões humanas já entregues ao hóspede não voltam ao contexto.
   if (humanAnswers.length && reply) {
@@ -396,7 +397,7 @@ export async function runHospitalityAgent(params: {
         `${validated.validation.reason || reflection.issues.join("; ") || "inconsistência"}. ` +
         `Pergunta: ${params.message.slice(0, 160)}`;
       handoffUrgency = intent.urgency === "high" ? "high" : "normal";
-      reply = HANDOFF_FALLBACK;
+      reply = "";
       tier = "handoff";
     } else if (tier === "hedged" && !params.explorationMode) {
       reply = `${reply}${hedgeNotice(intent.language)}`;
