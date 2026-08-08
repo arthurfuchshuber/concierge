@@ -170,7 +170,7 @@ export async function listOperationMemory(params: {
       .is("expires_at", null)
       .order("occurrences", { ascending: false })
       .limit(60),
-    supabase.from("properties").select("id, title").eq("owner_id", tenantId).limit(500),
+    supabase.from("properties").select("id, name").eq("owner_id", tenantId).limit(500),
   ]);
 
   const names = new Map<string, string>();
