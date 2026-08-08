@@ -760,7 +760,7 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
               <button
                 type="button"
                 disabled={claim.isPending}
-                onClick={() => { setReasonOpen(false); onClaimClick(); }}
+                onClick={() => { setReasonOpen(false); handleClaim(); }}
                 className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 text-sm disabled:opacity-50"
               >
                 <UserPlus2 className="size-4" /> Assumir e responder
