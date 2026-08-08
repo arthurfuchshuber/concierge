@@ -680,11 +680,15 @@ export function GuideAiChat({ slug, propertyName, guestName }: { slug: string; p
                         a: ({ node, ...props }) => (
                           <a {...props} target="_blank" rel="noopener noreferrer" />
                         ),
+                        code: ({ node, children, ...props }) => (
+                          <CopyableCode {...props}>{children}</CopyableCode>
+                        ),
                       }}
                     >
                       {(m.id && autoTranslated[m.id]) || m.content}
                     </ReactMarkdown>
                   )}
+
                 </div>
               )}
             </div>
