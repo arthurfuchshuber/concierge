@@ -628,42 +628,32 @@ export const upsertProperty = createServerFn({ method: "POST" })
     }
 
     // Replace child tables wholesale (simpler than diff).
+    // Cada tabela faz delete -> insert em cadeia própria, e as 5 cadeias rodam
+    // em paralelo: reduz de ~11 idas e voltas sequenciais ao banco para ~2.
     if (!propertyId) throw new Error("Não foi possível salvar o guia.");
     const id = propertyId;
-    await Promise.all([
-      writeClient.from("property_recommendations").delete().eq("property_id", id),
-      writeClient.from("property_manual_items").delete().eq("property_id", id),
-      writeClient.from("property_emergency_contacts").delete().eq("property_id", id),
-      writeClient.from("property_faqs").delete().eq("property_id", id),
-      writeClient.from("property_checkout_items").delete().eq("property_id", id),
-    ]);
+    const { safeDbError } = await import("@/lib/db-errors.server");
+    const replaceChild = async (
+      table: "property_recommendations" | "property_manual_items" | "property_emergency_contacts" | "property_faqs" | "property_checkout_items",
+      items: Record<string, unknown>[],
+    ) => {
+      const del = await (writeClient.from(table) as any).delete().eq("property_id", id);
+      if (del.error) throw safeDbError("properties", del.error);
+      if (!items.length) return;
+      const rows = items.map((r, i) => ({ ...r, property_id: id, position: i }));
+      const { error } = await (writeClient.from(table) as any).insert(rows);
+      if (error) throw safeDbError("properties", error);
+    };
 
-    if (data.recommendations.length) {
-      const rows = data.recommendations.map((r, i) => ({ ...r, property_id: id, position: i }));
-      const { error } = await writeClient.from("property_recommendations").insert(rows);
-      if (error) throw (await import("@/lib/db-errors.server")).safeDbError("properties", error);
-    }
-    if (data.manual.length) {
-      const rows = data.manual.map((m, i) => ({ ...m, property_id: id, position: i }));
-      const { error } = await writeClient.from("property_manual_items").insert(rows);
-      if (error) throw (await import("@/lib/db-errors.server")).safeDbError("properties", error);
-    }
-    if (data.emergency.length) {
-      const rows = data.emergency.map((m, i) => ({ ...m, property_id: id, position: i }));
-      const { error } = await writeClient.from("property_emergency_contacts").insert(rows);
-      if (error) throw (await import("@/lib/db-errors.server")).safeDbError("properties", error);
-    }
-    if (data.faqs.length) {
-      const rows = data.faqs.map((m, i) => ({ ...m, property_id: id, position: i }));
-      const { error } = await writeClient.from("property_faqs").insert(rows);
-      if (error) throw (await import("@/lib/db-errors.server")).safeDbError("properties", error);
-    }
-    if (data.checkout.length) {
-      const rows = data.checkout.map((m, i) => ({ ...m, property_id: id, position: i }));
-      const { error } = await writeClient.from("property_checkout_items").insert(rows);
-      if (error) throw (await import("@/lib/db-errors.server")).safeDbError("properties", error);
-    }
+    await Promise.all([
+      replaceChild("property_recommendations", data.recommendations as unknown as Record<string, unknown>[]),
+      replaceChild("property_manual_items", data.manual as unknown as Record<string, unknown>[]),
+      replaceChild("property_emergency_contacts", data.emergency as unknown as Record<string, unknown>[]),
+      replaceChild("property_faqs", data.faqs as unknown as Record<string, unknown>[]),
+      replaceChild("property_checkout_items", data.checkout as unknown as Record<string, unknown>[]),
+    ]);
     return { id };
+
   });
 
 
