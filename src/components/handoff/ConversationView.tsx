@@ -104,6 +104,8 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
     if (longPressRef.current) { clearTimeout(longPressRef.current); longPressRef.current = null; }
   };
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [reasonOpen, setReasonOpen] = useState(false);
+
   const [teachOpen, setTeachOpen] = useState(false);
   const [teachSource, setTeachSource] = useState<{ id: string; content: string } | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
