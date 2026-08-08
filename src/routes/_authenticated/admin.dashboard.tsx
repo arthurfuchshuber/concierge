@@ -1225,7 +1225,9 @@ function OccupancyPanel({
                               {p.name}
                             </div>
                             {p.city ? (
-                              <div className="truncate text-[10px] text-muted-foreground">{p.city}</div>
+                              <div className="text-[10px] leading-tight text-muted-foreground break-words whitespace-normal" title={p.city}>
+                                {p.city}
+                              </div>
                             ) : null}
                           </div>
                         </td>
