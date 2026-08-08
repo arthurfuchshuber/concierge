@@ -145,7 +145,8 @@ function Dashboard() {
 
   // Permissão de criação de guias — vale para a conta inteira.
   const createAccess = useAccess("tenant.guias.imoveis.criar", "criar");
-  const canCreate = createAccess.loading ? true : createAccess.allowed;
+  // Enquanto carrega, tratamos como "sem permissão" para nunca exibir UI de criação indevidamente.
+  const canCreate = createAccess.loading ? false : createAccess.allowed;
   const NO_PERMISSION_MSG =
     "Você não tem permissão de acesso. Procure o administrador deste cadastro.";
   function goCreate() {
@@ -640,17 +641,14 @@ function Dashboard() {
                 <List className="size-3.5" />
               </button>
             </div>
-            {!readOnly && (
+            {!readOnly && canCreate && (
               <button
                 type="button"
                 onClick={goCreate}
-                disabled={canCreate && (reachedLimit || !sub.plan || noOwners)}
-                aria-disabled={!canCreate}
+                disabled={reachedLimit || !sub.plan || noOwners}
                 aria-label="Novo guia"
                 title={
-                  !canCreate
-                    ? NO_PERMISSION_MSG
-                    : !sub.plan
+                  !sub.plan
                     ? "Assine um plano para criar guias"
                     : noOwners
                     ? "Cadastre um proprietário em Stakeholders antes de criar guias"
@@ -658,11 +656,12 @@ function Dashboard() {
                     ? "Limite do seu plano atingido. Faça upgrade."
                     : "Novo guia"
                 }
-                className={`size-10 grid place-items-center rounded-full bg-secondary text-foreground border border-border hover:bg-secondary/70 transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${!canCreate ? "opacity-50 cursor-not-allowed" : ""}`}
+                className="size-10 grid place-items-center rounded-full bg-secondary text-foreground border border-border hover:bg-secondary/70 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Plus className="size-4" />
               </button>
             )}
+
 
           </div>
 
@@ -710,6 +709,17 @@ function Dashboard() {
           ))}
         </div>
       ) : !data?.length ? (
+        !canCreate || readOnly ? (
+          <div className="rounded-2xl border border-dashed border-border bg-card/30 p-12 text-center">
+            <div className="size-12 rounded-2xl bg-secondary grid place-items-center mx-auto mb-4">
+              <Search className="size-5 text-muted-foreground" />
+            </div>
+            <h3 className="font-display text-xl mb-2">Nenhum guia disponível</h3>
+            <p className="text-sm text-muted-foreground max-w-md mx-auto">
+              Não há guias vinculados ao seu acesso nesta conta.
+            </p>
+          </div>
+        ) : (
         <div className="rounded-2xl border border-accent/20 bg-card p-6">
           <div className="flex items-center justify-between mb-5">
             <div>
@@ -738,16 +748,13 @@ function Dashboard() {
           <Button
             className="mt-5 rounded-full"
             onClick={goCreate}
-            disabled={canCreate && !sub.plan}
-            aria-disabled={!canCreate}
-            title={canCreate ? undefined : NO_PERMISSION_MSG}
+            disabled={!sub.plan}
           >
             <Plus className="size-4 mr-1.5" /> Criar meu primeiro guia
           </Button>
-          {!canCreate && (
-            <p className="mt-2 text-xs text-destructive">{NO_PERMISSION_MSG}</p>
-          )}
         </div>
+        )
+
 
       ) : filtered.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-border bg-card/30 p-12 text-center">

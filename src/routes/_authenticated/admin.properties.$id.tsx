@@ -1885,16 +1885,19 @@ function PropertyEditor() {
             Próximo
             <ArrowLeft className="size-3.5 ml-1 rotate-180" />
           </Button>
-          <Button variant="ghost" className="h-10 min-w-[120px]" onClick={() => navigate({ to: "/admin/guias" })}>Cancelar</Button>
-          <Button className="h-10 min-w-[120px]" onClick={handleSave} disabled={saving || !form.property.name}>
-            {saving ? <Loader2 className="size-4 animate-spin mr-1.5" /> : null}
-            Salvar
-          </Button>
-          {step === "recs" && !isNew && (
+          <Button variant="ghost" className="h-10 min-w-[120px]" onClick={() => navigate({ to: "/admin/guias" })}>{readOnly ? "Voltar" : "Cancelar"}</Button>
+          {!readOnly && (
+            <Button className="h-10 min-w-[120px]" onClick={handleSave} disabled={saving || !form.property.name}>
+              {saving ? <Loader2 className="size-4 animate-spin mr-1.5" /> : null}
+              Salvar
+            </Button>
+          )}
+          {!readOnly && step === "recs" && !isNew && (
             <span className="basis-full text-center text-[11px] text-muted-foreground inline-flex items-center justify-center gap-1.5">
               {autoSaving ? (<><Loader2 className="size-3 animate-spin" /> Salvando…</>) : "Alterações salvas automaticamente"}
             </span>
           )}
+
         </div>
       </div>
 
