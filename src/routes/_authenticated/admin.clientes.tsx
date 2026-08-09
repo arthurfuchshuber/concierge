@@ -8,6 +8,7 @@ import {
   adminUpdateCustomerProfile,
   adminListUserProperties,
   adminApplyCustomTrial,
+  adminDeleteCustomer,
   checkIsAdmin,
   type AdminCustomerRow,
 } from "@/lib/admin-subs.functions";
@@ -38,7 +39,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Search, Users, Pencil, Loader2, Shield, Crown, Anchor, Ban, Calendar, Filter, MessageCircle } from "lucide-react";
+import { Search, Users, Pencil, Loader2, Shield, Crown, Anchor, Ban, Calendar, Filter, MessageCircle, Trash2 } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetFooter } from "@/components/ui/sheet";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -111,6 +112,7 @@ function ClientesPage() {
   const qc = useQueryClient();
   const [search, setSearch] = useState("");
   const [editing, setEditing] = useState<AdminCustomerRow | null>(null);
+  const [deleting, setDeleting] = useState<AdminCustomerRow | null>(null);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [planFilter, setPlanFilter] = useState<PlanFilter>("all");
   const [churnOnly, setChurnOnly] = useState(false);
@@ -500,6 +502,16 @@ function ClientesPage() {
                             >
                               <Pencil className="size-3 mr-1" /> Editar
                             </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="rounded-full text-red-600 dark:text-red-400 hover:bg-red-500/10 border-red-500/30"
+                              onClick={() => setDeleting(c)}
+                              title="Excluir cliente e todos os seus dados"
+                              aria-label="Excluir cliente"
+                            >
+                              <Trash2 className="size-3" />
+                            </Button>
                           </div>
                         </td>
 
@@ -534,7 +546,85 @@ function ClientesPage() {
           }}
         />
       )}
+
+      {deleting && (
+        <DeleteCustomerDialog
+          customer={deleting}
+          onClose={() => setDeleting(null)}
+          onDeleted={() => {
+            setDeleting(null);
+            qc.invalidateQueries({ queryKey: ["admin-customers"] });
+          }}
+        />
+      )}
     </div>
+  );
+}
+
+function DeleteCustomerDialog({
+  customer,
+  onClose,
+  onDeleted,
+}: {
+  customer: AdminCustomerRow;
+  onClose: () => void;
+  onDeleted: () => void;
+}) {
+  const remover = useServerFn(adminDeleteCustomer);
+  const [word, setWord] = useState("");
+  const [busy, setBusy] = useState(false);
+  const confirmed = word.trim().toUpperCase() === "EXCLUIR";
+
+  async function handleDelete() {
+    if (!confirmed || busy) return;
+    setBusy(true);
+    try {
+      await remover({ data: { userId: customer.userId } });
+      toast.success("Cliente excluído com todos os seus dados.");
+      onDeleted();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erro ao excluir cliente");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Dialog open onOpenChange={(o) => { if (!o && !busy) onClose(); }}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle className="text-red-600 dark:text-red-400">Excluir cliente</DialogTitle>
+          <DialogDescription>
+            Esta ação é permanente. Todos os guias, conversas, hóspedes, integrações e o login de{" "}
+            <span className="font-medium text-foreground">{customer.fullName || customer.email || "este cliente"}</span>{" "}
+            serão apagados e não poderão ser recuperados.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-2">
+          <Label htmlFor="confirm-delete">
+            Digite <span className="font-semibold text-foreground">EXCLUIR</span> para confirmar
+          </Label>
+          <Input
+            id="confirm-delete"
+            value={word}
+            onChange={(e) => setWord(e.target.value)}
+            placeholder="EXCLUIR"
+            autoComplete="off"
+          />
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose} disabled={busy}>Cancelar</Button>
+          <Button
+            variant="destructive"
+            onClick={handleDelete}
+            disabled={!confirmed || busy}
+          >
+            {busy ? <Loader2 className="size-4 mr-1 animate-spin" /> : <Trash2 className="size-4 mr-1" />}
+            Excluir definitivamente
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
