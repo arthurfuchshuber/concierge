@@ -693,6 +693,7 @@ export async function buildArrivalRows(
                 ? "done"
                 : "pending",
         note: s?.note ?? null,
+        mutedUntil: s?.muted_until ?? null,
         arrivalTimeOverride: s?.arrival_time_override ?? null,
         doneAt: s?.done_at ?? null,
         pendingFill: !matchedLog,
