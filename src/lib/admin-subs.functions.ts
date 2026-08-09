@@ -888,3 +888,70 @@ export const adminGetUserSubscription = createServerFn({ method: "POST" })
     return { subscription: match, plan: planFromProductId(match.product_id) };
   });
 
+
+// ───────────────── Exclusão total de cliente ─────────────────
+
+/** Tabelas com vínculo direto ao dono/tenant. Limpas antes de remover o usuário. */
+const OWNER_SCOPED_TABLES: Array<[table: string, column: string]> = [
+  ["ai_agent_learning_metrics", "owner_id"], ["ai_agent_logs", "owner_id"],
+  ["ai_conversation_summaries", "owner_id"], ["ai_guest_memory", "owner_id"],
+  ["ai_human_escalations", "owner_id"], ["ai_kb_chunks", "owner_id"],
+  ["ai_knowledge_gaps", "owner_id"], ["ai_learning_candidates", "owner_id"],
+  ["ai_learning_impact_logs", "owner_id"], ["ai_memories", "owner_id"],
+  ["ai_operational_memory", "owner_id"], ["ai_proactive_actions", "owner_id"],
+  ["ai_prompt_change_candidates", "owner_id"], ["ai_tenant_knowledge", "owner_id"],
+  ["chat_message_feedback", "owner_id"], ["host_behavior", "owner_id"],
+  ["host_faqs", "owner_id"], ["host_integration_credentials", "owner_id"],
+  ["host_knowledge", "owner_id"], ["host_whatsapp_config", "owner_id"],
+  ["ops_push_log", "owner_id"], ["whatsapp_templates", "owner_id"],
+  ["account_member_invites", "owner_id"], ["account_member_permissions", "owner_id"],
+  ["account_members", "owner_id"],
+  ["ai_agent_evaluations", "tenant_id"], ["ai_agent_metrics", "tenant_id"],
+  ["ai_alerts", "tenant_id"], ["ai_channel_connections", "tenant_id"],
+  ["ai_conversation_channels", "tenant_id"], ["ai_conversations", "tenant_id"],
+  ["ai_messages", "tenant_id"], ["ai_system_events", "tenant_id"],
+  ["permission_assignments", "tenant_id"], ["permission_audit", "tenant_id"],
+  ["permission_migration_status", "tenant_id"], ["property_assignments", "tenant_id"],
+  ["subscriptions", "user_id"], ["push_subscriptions", "user_id"],
+  ["app_user_connections", "user_id"], ["user_roles", "user_id"],
+  ["audit_logs", "user_id"], ["permission_assignments", "user_id"],
+  ["property_assignments", "user_id"], ["service_providers", "created_by"],
+  ["stakeholder_activities", "created_by"], ["stakeholder_events", "created_by"],
+  ["stakeholder_link_aliases", "created_by"], ["property_owners", "created_by"],
+];
+
+export const adminDeleteCustomer = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => z.object({ userId: z.string().uuid() }).parse(i))
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context.supabase, context.userId);
+    if (data.userId === context.userId) {
+      throw new Error("Você não pode excluir a própria conta.");
+    }
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    // 1) Guias (propriedades) do dono — as tabelas filhas caem por cascade.
+    const { data: props } = await supabaseAdmin
+      .from("properties").select("id").eq("owner_id", data.userId);
+    const propertyIds = (props ?? []).map((p: { id: string }) => p.id);
+
+    // 2) Registros vinculados ao dono/tenant.
+    for (const [table, column] of OWNER_SCOPED_TABLES) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { error } = await (supabaseAdmin as any).from(table).delete().eq(column, data.userId);
+      if (error) console.error("[adminDeleteCustomer]", table, column, error.message);
+    }
+
+    if (propertyIds.length) {
+      const { error: propErr } = await supabaseAdmin
+        .from("properties").delete().in("id", propertyIds);
+      if (propErr) throw new Error("Não foi possível excluir os guias deste cliente.");
+    }
+
+    await supabaseAdmin.from("profiles").delete().eq("id", data.userId);
+
+    const { error: authErr } = await supabaseAdmin.auth.admin.deleteUser(data.userId);
+    if (authErr) throw new Error("Dados removidos, mas falhou ao excluir o login do usuário.");
+
+    return { ok: true, deletedProperties: propertyIds.length };
+  });
