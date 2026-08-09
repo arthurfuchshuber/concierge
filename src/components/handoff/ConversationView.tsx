@@ -399,6 +399,8 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
   const senderProfiles =
     (q.data as { senderProfiles?: Record<string, { displayName: string | null }> } | undefined)?.senderProfiles ?? {};
   const propertyName = (conv?.properties as { name?: string } | null)?.name ?? "Guia";
+  const propertyOwnerName = (q.data as { propertyOwnerName?: string | null } | undefined)?.propertyOwnerName ?? null;
+
   const isMine = !!(conv?.assigned_to && myUserId && conv.assigned_to === myUserId);
   const isLockedByOther = !!(conv?.assigned_to && myUserId && conv.assigned_to !== myUserId);
   const isUnassigned = !conv?.assigned_to;
