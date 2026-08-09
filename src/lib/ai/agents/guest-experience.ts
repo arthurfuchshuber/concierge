@@ -20,8 +20,8 @@ export const guestExperienceAgent: AgentDefinition = {
   thresholds: DEFAULT_THRESHOLDS,
   categories: ["cidade", "recomendacao", "social", "outro"],
   memoryKinds: ["guest_preference", "preference", "fact"],
-  reasoningEffort: "low",
-  maxSteps: 5,
+  reasoningEffort: "medium",
+  maxSteps: 6,
   escalationRules: [
     "problema no imóvel surgido no meio da conversa",
     "pedido explícito de falar com o anfitrião",
