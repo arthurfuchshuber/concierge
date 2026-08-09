@@ -192,7 +192,7 @@ export async function buildArrivalRows(
         .in("id", propIds),
       context.supabase
         .from("guest_arrival_status")
-        .select("log_id, reservation_id, kind, status, note, arrival_time_override, done_at, concluded_at")
+        .select("log_id, reservation_id, kind, status, note, arrival_time_override, muted_until, done_at, concluded_at")
         .in("property_id", propIds)
         .limit(5000),
       reservationsQuery.order(data.kind === "checkin" ? "checkin_date" : "checkout_date", { ascending: true }).limit(10000),
