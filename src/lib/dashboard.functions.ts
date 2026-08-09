@@ -1174,6 +1174,7 @@ export const listConcludedArrivals = createServerFn({ method: "GET" })
       out.push({
         logId: (log?.["id"] as string) ?? `ical:${s.reservation_id}`,
         reservationId: s.reservation_id,
+        mutedUntil: null,
         propertyId: s.property_id,
         propertyName: p?.name ?? null,
         ownerName: p?.owner_contact_id ? (ownerNameById.get(p.owner_contact_id) ?? null) : null,
