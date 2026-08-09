@@ -112,6 +112,7 @@ function ClientesPage() {
   const qc = useQueryClient();
   const [search, setSearch] = useState("");
   const [editing, setEditing] = useState<AdminCustomerRow | null>(null);
+  const [deleting, setDeleting] = useState<AdminCustomerRow | null>(null);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [planFilter, setPlanFilter] = useState<PlanFilter>("all");
   const [churnOnly, setChurnOnly] = useState(false);
