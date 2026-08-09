@@ -317,13 +317,35 @@ export function FloatingHandoffDock() {
 
           {!state.minimized && (
             <div className="flex-1 min-h-0 flex">
-              <div className="w-[180px] border-r border-border overflow-y-auto shrink-0">
-                <ConversationList
-                  conversations={convs as any}
-                  details={details} assignedNames={assignedNames} reservations={reservations}
-                  activeId={activeId}
-                  onSelect={setActiveId}
-                />
+              <div className="w-[200px] border-r border-border shrink-0 flex flex-col min-h-0">
+                <div className="px-1.5 py-1.5 border-b border-border">
+                  <div className="flex w-full items-center gap-1 overflow-x-auto whitespace-nowrap rounded-xl border border-border bg-muted/40 p-1 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+                    {QUEUES.map((q) => {
+                      const Icon = q.icon;
+                      const active = queue === q.key;
+                      return (
+                        <button
+                          key={q.key}
+                          onClick={() => setQueue(q.key)}
+                          title={q.label}
+                          className={`inline-flex flex-1 min-w-fit items-center justify-center gap-1 rounded-lg px-1.5 py-1 text-[10px] font-medium transition-all ${
+                            active ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                          }`}
+                        >
+                          <Icon className="size-3" /> {q.short}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+                <div className="flex-1 min-h-0 overflow-y-auto">
+                  <ConversationList
+                    conversations={convs as any}
+                    details={details} assignedNames={assignedNames} reservations={reservations}
+                    activeId={activeId}
+                    onSelect={setActiveId}
+                  />
+                </div>
               </div>
               <div className="flex-1 min-w-0">
                 {activeId ? (
