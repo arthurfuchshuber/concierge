@@ -399,6 +399,8 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
   const senderProfiles =
     (q.data as { senderProfiles?: Record<string, { displayName: string | null }> } | undefined)?.senderProfiles ?? {};
   const propertyName = (conv?.properties as { name?: string } | null)?.name ?? "Guia";
+  const propertyOwnerName = (q.data as { propertyOwnerName?: string | null } | undefined)?.propertyOwnerName ?? null;
+
   const isMine = !!(conv?.assigned_to && myUserId && conv.assigned_to === myUserId);
   const isLockedByOther = !!(conv?.assigned_to && myUserId && conv.assigned_to !== myUserId);
   const isUnassigned = !conv?.assigned_to;
@@ -451,6 +453,12 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
                 <span className="ml-2 text-[11px] font-normal text-muted-foreground">{guest.reservationCode}</span>
               )}
             </div>
+            {propertyOwnerName && (
+              <div className="text-[11px] font-bold text-foreground truncate" title={propertyOwnerName}>
+                {propertyOwnerName}
+              </div>
+            )}
+
             <div className="text-[11px] text-muted-foreground truncate">
               {propertyName}
               {!inputFocused && conv?.handoff_at
