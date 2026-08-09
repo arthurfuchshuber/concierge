@@ -16,16 +16,12 @@ const DOCK_POSITION_KEY = "handoff-dock-position-v1";
 
 type DockState = { open: boolean; minimized: boolean };
 
+// A janela sempre inicia fechada: só abre quando o usuário clica no ícone.
 function loadState(): DockState {
-  if (typeof window === "undefined") return { open: false, minimized: true };
-  try {
-    const raw = localStorage.getItem(DOCK_STATE_KEY);
-    if (raw) return JSON.parse(raw) as DockState;
-  } catch {}
-  return { open: false, minimized: true };
+  return { open: false, minimized: false };
 }
 function saveState(s: DockState) {
-  try { localStorage.setItem(DOCK_STATE_KEY, JSON.stringify(s)); } catch {}
+  try { localStorage.setItem(DOCK_STATE_KEY, JSON.stringify({ ...s, open: false })); } catch {}
 }
 
 function loadDockBottom(): number {
