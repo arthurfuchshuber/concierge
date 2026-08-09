@@ -28,6 +28,8 @@ export type ArrivalRow = {
   status: "pending" | "done";
   note: string | null;
   arrivalTimeOverride: string | null;
+  /** ISO: até quando os alertas de atraso deste card estão silenciados */
+  mutedUntil: string | null;
   doneAt: string | null;
   pendingFill: boolean; // true = reserva iCal sem formulário preenchido
   concludedAt?: string | null;

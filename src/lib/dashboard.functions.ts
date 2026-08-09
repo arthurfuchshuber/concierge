@@ -451,6 +451,7 @@ const UpsertInput = z
       .regex(/^\d{2}:\d{2}$/)
       .nullable()
       .optional(),
+    mutedUntil: z.string().datetime().nullable().optional(),
   })
   .refine((v) => !!v.logId || !!v.reservationId, { message: "Informe a reserva ou o registro do hóspede." });
 
@@ -487,6 +488,7 @@ export const upsertArrivalStatus = createServerFn({ method: "POST" })
       done_at?: string | null;
       note?: string | null;
       arrival_time_override?: string | null;
+      muted_until?: string | null;
     } = {
       property_id: propertyId,
       kind: data.kind,
@@ -499,6 +501,8 @@ export const upsertArrivalStatus = createServerFn({ method: "POST" })
     }
     if (typeof data.note !== "undefined") patch.note = data.note;
     if (typeof data.arrivalTimeOverride !== "undefined") patch.arrival_time_override = data.arrivalTimeOverride;
+    if (typeof data.mutedUntil !== "undefined") patch.muted_until = data.mutedUntil;
+
 
     let existingId: string | undefined;
     if (data.reservationId) {
@@ -1174,6 +1178,7 @@ export const listConcludedArrivals = createServerFn({ method: "GET" })
       out.push({
         logId: (log?.["id"] as string) ?? `ical:${s.reservation_id}`,
         reservationId: s.reservation_id,
+        mutedUntil: null,
         propertyId: s.property_id,
         propertyName: p?.name ?? null,
         ownerName: p?.owner_contact_id ? (ownerNameById.get(p.owner_contact_id) ?? null) : null,
