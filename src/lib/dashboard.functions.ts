@@ -451,6 +451,7 @@ const UpsertInput = z
       .regex(/^\d{2}:\d{2}$/)
       .nullable()
       .optional(),
+    mutedUntil: z.string().datetime().nullable().optional(),
   })
   .refine((v) => !!v.logId || !!v.reservationId, { message: "Informe a reserva ou o registro do hóspede." });
 
