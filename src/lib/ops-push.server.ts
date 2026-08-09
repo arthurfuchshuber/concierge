@@ -126,11 +126,25 @@ type PropRow = {
   id: string;
   owner_id: string;
   name: string | null;
+  city: string | null;
   checkin_time: string | null;
   checkout_time: string | null;
 };
 
 const plural = (n: number, one: string, many: string) => (n === 1 ? one : many);
+
+/**
+ * Monta o corpo da notificação agrupado por cidade:
+ *   "2 em Foz do Iguaçu\n1 em Praia do Peró"
+ * Quando não há cidade cadastrada, usa o nome do imóvel como fallback.
+ */
+function bodyByCity(counts: Map<string, number>, suffix: string): string {
+  const lines = Array.from(counts.entries())
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+    .map(([city, n]) => `${n} em ${city}`);
+  return lines.length > 0 ? `${lines.join("\n")}${suffix ? `\n${suffix}` : ""}` : suffix;
+}
+
 
 /**
  * Varredura operacional. Deve rodar a cada 30 minutos.
