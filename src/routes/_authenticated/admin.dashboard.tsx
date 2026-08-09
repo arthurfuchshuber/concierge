@@ -2205,6 +2205,39 @@ function ArrivalCard({
         >
           <StickyNote className="size-4" />
         </button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              type="button"
+              aria-label="Silenciar alertas desta reserva"
+              title={
+                isMutedNow
+                  ? `Alertas silenciados até ${new Date(row.mutedUntil as string).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`
+                  : "Silenciar alertas de atraso desta reserva"
+              }
+              className={`size-9 grid place-items-center rounded-lg border ${
+                isMutedNow
+                  ? "bg-amber-500/15 border-amber-500/50 text-amber-600 dark:text-amber-400"
+                  : "bg-background/60 border-border/50 hover:bg-primary/[0.08]"
+              }`}
+            >
+              {isMutedNow ? <BellOff className="size-4" /> : <Bell className="size-4" />}
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="max-h-72 overflow-y-auto min-w-[11rem]">
+            {isMutedNow && (
+              <DropdownMenuItem onClick={() => mute.mutate(null)}>
+                <Bell className="size-3.5 shrink-0" /> Reativar alertas
+              </DropdownMenuItem>
+            )}
+            {Array.from({ length: 24 }, (_, i) => i + 1).map((h) => (
+              <DropdownMenuItem key={h} onClick={() => mute.mutate(h)}>
+                <BellOff className="size-3.5 shrink-0" /> Silenciar por {h}h
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
+
         {mapsHref && (
           <div className="ml-auto flex items-center gap-1.5">
             <DropdownMenu>
