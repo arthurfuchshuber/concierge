@@ -303,7 +303,13 @@ export function HomeIntelligence({
               </div>
               <button
                 type="button"
-                onClick={() => openChat(tip.title ? `Sobre a dica de hoje: ${tip.title}. ` : "")}
+                onClick={() =>
+                  openChat(
+                    tip.title
+                      ? `Sobre a dica de hoje — "${tip.title}"${tip.body ? `: ${tip.body}` : ""}\n\nO que exatamente você sugere para eu aproveitar isso agora? Pode indicar lugares reais e como chegar. `
+                      : "",
+                  )
+                }
                 aria-label="Perguntar ao Concierge IA"
                 className="grid size-12 shrink-0 place-items-center rounded-full bg-pink-500/90 text-white shadow-[0_12px_32px_-10px_rgba(236,72,153,0.9)] transition hover:bg-pink-400 active:scale-95"
               >
