@@ -165,7 +165,7 @@ export async function runOpsPushScan(admin: Admin, now = new Date()) {
 
   const { data: propsRaw } = await admin
     .from("properties")
-    .select("id, owner_id, name, checkin_time, checkout_time")
+    .select("id, owner_id, name, city, checkin_time, checkout_time")
     .eq("published", true);
   const props = (propsRaw ?? []) as PropRow[];
   if (props.length === 0) return { ownersNotified: 0, notifications: 0 };
@@ -180,6 +180,7 @@ export async function runOpsPushScan(admin: Admin, now = new Date()) {
   const slot30 = `${t.date}-${String(t.hour).padStart(2, "0")}${t.minute < 30 ? "00" : "30"}`;
   const slotHour = `${t.date}-${String(t.hour).padStart(2, "0")}`;
   const url = "/admin/dashboard";
+  const nowMs = now.getTime();
 
   let notifications = 0;
   const owners = new Set<string>();
@@ -208,49 +209,74 @@ export async function runOpsPushScan(admin: Admin, now = new Date()) {
     const pendingCheckouts = checkoutToday.rows.filter((r) => r.status === "pending");
     const pendingCheckins = checkinToday.rows.filter((r) => r.status === "pending");
 
+    const cityOf = (propertyId: string, fallback: string | null) => {
+      const p = propById.get(propertyId);
+      return (p?.city || p?.name || fallback || "Imóvel sem cidade").trim();
+    };
     const nameOf = (propertyId: string, fallback: string | null) =>
       (propById.get(propertyId)?.name || fallback || "Imóvel").trim();
+    /** Card silenciado pelo usuário no Kanban (só afeta alertas de atraso). */
+    const isMuted = (r: { mutedUntil: string | null }) =>
+      !!r.mutedUntil && new Date(r.mutedUntil).getTime() > nowMs;
+    const tally = (map: Map<string, number>, city: string) => map.set(city, (map.get(city) ?? 0) + 1);
 
     // 1. 20h — check-outs de amanhã (mesma lista do Kanban, filtro "Amanhã")
-    const checkoutsTomorrow = checkoutTomorrow.rows.filter((r) => r.status === "pending").length;
+    const tomorrowRows = checkoutTomorrow.rows.filter((r) => r.status === "pending");
+    const checkoutsTomorrow = tomorrowRows.length;
     if (needTomorrow && checkoutsTomorrow > 0) {
+      const byCity = new Map<string, number>();
+      for (const r of tomorrowRows) tally(byCity, cityOf(r.propertyId, r.propertyName));
       await fire("checkouts-tomorrow", `checkouts-tomorrow:${ownerId}:${today}`, {
         title: `Amanhã: ${checkoutsTomorrow} ${plural(checkoutsTomorrow, "check-out", "check-outs")}`,
-        body: `Prepare a equipe: ${checkoutsTomorrow} ${plural(checkoutsTomorrow, "saída prevista", "saídas previstas")} para amanhã.`,
+        body: bodyByCity(byCity, "Prepare a equipe."),
         data: { url, tag: "ops-checkouts-tomorrow" },
       });
     }
 
     // 2. 07h — check-ins de hoje
-    const checkinsToday = pendingCheckins.filter((r) => r.date === today).length;
+    const checkinTodayRows = pendingCheckins.filter((r) => r.date === today);
+    const checkinsToday = checkinTodayRows.length;
     if (t.hour === 7 && checkinsToday > 0) {
+      const byCity = new Map<string, number>();
+      for (const r of checkinTodayRows) tally(byCity, cityOf(r.propertyId, r.propertyName));
       await fire("checkins-today", `checkins-today:${ownerId}:${today}`, {
         title: `Hoje: ${checkinsToday} ${plural(checkinsToday, "check-in", "check-ins")}`,
-        body: `${checkinsToday} ${plural(checkinsToday, "chegada prevista", "chegadas previstas")} para hoje. Confira a esteira de chegadas.`,
+        body: bodyByCity(byCity, "Confira a esteira de chegadas."),
         data: { url, tag: "ops-checkins-today" },
       });
     }
 
     // ----- atrasos (com base nos cards pendentes da esteira) -----
     const lateCheckoutNames: string[] = [];
+    const lateCheckoutsByCity = new Map<string, number>();
+    const criticalCheckoutsByCity = new Map<string, number>();
     let lateCheckouts = 0;
     let criticalCheckouts = 0;
     for (const r of pendingCheckouts) {
       if (r.date > today) continue;
+      if (isMuted(r)) continue;
       const p = propById.get(r.propertyId);
       const limit = timeToMinutes(r.standardTime ?? p?.checkout_time ?? null, DEFAULT_CHECKOUT);
       const lateBy = r.date < today ? 24 * 60 : t.minutes - limit;
       if (lateBy <= 0) continue;
       lateCheckouts++;
+      const city = cityOf(r.propertyId, r.propertyName);
+      tally(lateCheckoutsByCity, city);
       if (lateCheckoutNames.length < 3) lateCheckoutNames.push(nameOf(r.propertyId, r.propertyName));
-      if (lateBy >= 120) criticalCheckouts++;
+      if (lateBy >= 120) {
+        criticalCheckouts++;
+        tally(criticalCheckoutsByCity, city);
+      }
     }
 
     const pendingCheckinNames: string[] = [];
+    const lateCheckinsByCity = new Map<string, number>();
+    const criticalCheckinsByCity = new Map<string, number>();
     let latePendingCheckins = 0;
     let criticalCheckins = 0;
     for (const r of pendingCheckins) {
       if (r.date > today) continue;
+      if (isMuted(r)) continue;
       const p = propById.get(r.propertyId);
       const limit = timeToMinutes(
         r.arrivalTimeOverride ?? r.guestArrivalTime ?? r.standardTime ?? p?.checkin_time ?? null,
@@ -259,22 +285,30 @@ export async function runOpsPushScan(admin: Admin, now = new Date()) {
       const lateBy = r.date < today ? 24 * 60 : t.minutes - limit;
       if (lateBy <= 0) continue;
       latePendingCheckins++;
+      const city = cityOf(r.propertyId, r.propertyName);
+      tally(lateCheckinsByCity, city);
       if (pendingCheckinNames.length < 3) pendingCheckinNames.push(nameOf(r.propertyId, r.propertyName));
-      if (lateBy >= 180) criticalCheckins++;
+      if (lateBy >= 180) {
+        criticalCheckins++;
+        tally(criticalCheckinsByCity, city);
+      }
     }
 
     // 5. alerta crítico (vermelho) — substitui os avisos normais correspondentes
     const critical = criticalCheckouts + criticalCheckins;
     if (critical > 0) {
-      const partes: string[] = [];
-      if (criticalCheckouts > 0)
-        partes.push(`${criticalCheckouts} ${plural(criticalCheckouts, "check-out", "check-outs")} +2h`);
-      if (criticalCheckins > 0)
-        partes.push(`${criticalCheckins} ${plural(criticalCheckins, "check-in", "check-ins")} +3h`);
-      const nomes = [...lateCheckoutNames, ...pendingCheckinNames].slice(0, 3).join(", ");
+      const titulo =
+        criticalCheckouts > 0 && criticalCheckins > 0
+          ? `🔴 ${critical} ${plural(critical, "atraso crítico", "atrasos críticos")}`
+          : criticalCheckouts > 0
+            ? `🔴 ${criticalCheckouts} ${plural(criticalCheckouts, "Check-out atrasado", "Check-outs atrasados")}`
+            : `🔴 ${criticalCheckins} ${plural(criticalCheckins, "Check-in atrasado", "Check-ins atrasados")}`;
+      const byCity = new Map<string, number>();
+      for (const [c, n] of criticalCheckoutsByCity) byCity.set(c, (byCity.get(c) ?? 0) + n);
+      for (const [c, n] of criticalCheckinsByCity) byCity.set(c, (byCity.get(c) ?? 0) + n);
       await fire("ops-critical", `ops-critical:${ownerId}:${slot30}`, {
-        title: `🔴 Atraso crítico: ${critical} ${plural(critical, "card", "cards")}`,
-        body: `${partes.join(" • ")} sem confirmação${nomes ? ` (${nomes})` : ""}. Ação imediata recomendada.`,
+        title: titulo,
+        body: bodyByCity(byCity, "Ação imediata recomendada."),
         data: { url, tag: "ops-critical", urgency: "high", critical: true },
       });
     }
@@ -282,8 +316,8 @@ export async function runOpsPushScan(admin: Admin, now = new Date()) {
     // 3. a cada 30min — check-outs atrasados (só se não houver crítico de saída)
     if (lateCheckouts > 0 && criticalCheckouts === 0) {
       await fire("checkouts-late", `checkouts-late:${ownerId}:${slot30}`, {
-        title: `${lateCheckouts} ${plural(lateCheckouts, "check-out atrasado", "check-outs atrasados")}`,
-        body: `${lateCheckoutNames.join(", ")}${lateCheckouts > lateCheckoutNames.length ? " e outros" : ""} passaram do horário de saída sem confirmação.`,
+        title: `${lateCheckouts} ${plural(lateCheckouts, "Check-out atrasado", "Check-outs atrasados")}`,
+        body: bodyByCity(lateCheckoutsByCity, "Sem confirmação de saída."),
         data: { url, tag: "ops-checkouts-late" },
       });
     }
@@ -291,12 +325,13 @@ export async function runOpsPushScan(admin: Admin, now = new Date()) {
     // 4. a cada 1h — check-ins pendentes (só se não houver crítico de chegada)
     if (latePendingCheckins > 0 && criticalCheckins === 0 && t.minute < 30) {
       await fire("checkins-pending", `checkins-pending:${ownerId}:${slotHour}`, {
-        title: `${latePendingCheckins} ${plural(latePendingCheckins, "check-in pendente", "check-ins pendentes")}`,
-        body: `${pendingCheckinNames.join(", ")}${latePendingCheckins > pendingCheckinNames.length ? " e outros" : ""} já passaram do horário de entrada sem confirmação.`,
+        title: `${latePendingCheckins} ${plural(latePendingCheckins, "Check-in pendente", "Check-ins pendentes")}`,
+        body: bodyByCity(lateCheckinsByCity, "Sem confirmação de entrada."),
         data: { url, tag: "ops-checkins-pending" },
       });
     }
   }
+
 
   return {
     ownersNotified: owners.size,
