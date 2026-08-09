@@ -8,6 +8,7 @@ import {
   adminUpdateCustomerProfile,
   adminListUserProperties,
   adminApplyCustomTrial,
+  adminDeleteCustomer,
   checkIsAdmin,
   type AdminCustomerRow,
 } from "@/lib/admin-subs.functions";
