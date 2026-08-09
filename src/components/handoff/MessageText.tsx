@@ -56,7 +56,7 @@ export function MessageText({ text }: { text: string }) {
   let m: RegExpExecArray | null;
   MD_LINK.lastIndex = 0;
   while ((m = MD_LINK.exec(text))) {
-    if (m.index > last) nodes.push(...linkify(text.slice(last, m.index), `p${m.index}`));
+    if (m.index > last) nodes.push(...richify(text.slice(last, m.index), `p${m.index}`));
     nodes.push(
       <a
         key={`l${m.index}`}
@@ -70,6 +70,6 @@ export function MessageText({ text }: { text: string }) {
     );
     last = m.index + m[0].length;
   }
-  if (last < text.length) nodes.push(...linkify(text.slice(last), "tail"));
+  if (last < text.length) nodes.push(...richify(text.slice(last), "tail"));
   return <Fragment>{nodes}</Fragment>;
 }
