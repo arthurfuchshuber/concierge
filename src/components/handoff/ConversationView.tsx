@@ -453,6 +453,12 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
                 <span className="ml-2 text-[11px] font-normal text-muted-foreground">{guest.reservationCode}</span>
               )}
             </div>
+            {propertyOwnerName && (
+              <div className="text-[11px] font-bold text-foreground truncate" title={propertyOwnerName}>
+                {propertyOwnerName}
+              </div>
+            )}
+
             <div className="text-[11px] text-muted-foreground truncate">
               {propertyName}
               {!inputFocused && conv?.handoff_at
