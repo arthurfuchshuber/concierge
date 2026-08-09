@@ -501,6 +501,16 @@ function ClientesPage() {
                             >
                               <Pencil className="size-3 mr-1" /> Editar
                             </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="rounded-full text-red-600 dark:text-red-400 hover:bg-red-500/10 border-red-500/30"
+                              onClick={() => setDeleting(c)}
+                              title="Excluir cliente e todos os seus dados"
+                              aria-label="Excluir cliente"
+                            >
+                              <Trash2 className="size-3" />
+                            </Button>
                           </div>
                         </td>
 
