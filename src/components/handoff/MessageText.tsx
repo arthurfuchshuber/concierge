@@ -4,6 +4,7 @@ import { Fragment, type ReactNode } from "react";
 // Mantém quebras de linha (o container usa whitespace-pre-wrap).
 const MD_LINK = /\[([^\]\n]+)\]\(((?:https?:\/\/|\/)[^\s)]+)\)/g;
 const BARE_URL = /(https?:\/\/[^\s<>()]+)/g;
+const MD_BOLD = /\*\*([^*\n]+)\*\*|\*([^*\n]+)\*/g;
 
 function linkify(text: string, keyBase: string): ReactNode[] {
   const out: ReactNode[] = [];
@@ -28,6 +29,26 @@ function linkify(text: string, keyBase: string): ReactNode[] {
   if (last < text.length) out.push(text.slice(last));
   return out;
 }
+
+// Negrito markdown (**texto** ou *texto*) aplicado antes da linkificação.
+function richify(text: string, keyBase: string): ReactNode[] {
+  const out: ReactNode[] = [];
+  let last = 0;
+  let m: RegExpExecArray | null;
+  MD_BOLD.lastIndex = 0;
+  while ((m = MD_BOLD.exec(text))) {
+    if (m.index > last) out.push(...linkify(text.slice(last, m.index), `${keyBase}-t${m.index}`));
+    out.push(
+      <strong key={`${keyBase}-b${m.index}`} className="font-semibold">
+        {linkify(m[1] ?? m[2] ?? "", `${keyBase}-bi${m.index}`)}
+      </strong>,
+    );
+    last = m.index + m[0].length;
+  }
+  if (last < text.length) out.push(...linkify(text.slice(last), `${keyBase}-e`));
+  return out;
+}
+
 
 export function MessageText({ text }: { text: string }) {
   const nodes: ReactNode[] = [];
