@@ -38,7 +38,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Search, Users, Pencil, Loader2, Shield, Crown, Anchor, Ban, Calendar, Filter, MessageCircle } from "lucide-react";
+import { Search, Users, Pencil, Loader2, Shield, Crown, Anchor, Ban, Calendar, Filter, MessageCircle, Trash2 } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetFooter } from "@/components/ui/sheet";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
