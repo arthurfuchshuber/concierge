@@ -309,6 +309,7 @@ export async function buildArrivalRows(
       status: "pending" | "done";
       note: string | null;
       arrival_time_override: string | null;
+      muted_until: string | null;
       done_at: string | null;
       concluded_at: string | null;
     };
@@ -337,6 +338,7 @@ export async function buildArrivalRows(
         status: s.status,
         note: s.note,
         arrival_time_override: s.arrival_time_override,
+        muted_until: s.muted_until,
         done_at: s.done_at,
         concluded_at: s.concluded_at,
       };
