@@ -97,10 +97,22 @@ export async function buildAgentContext(params: {
       else if (co && today === co) stayPhase = "checkout_day";
       else if (co && today > co) stayPhase = "post_checkout";
       else stayPhase = "in_stay";
+      const dayMs = 86400000;
+      const daysTo = Math.round((Date.parse(`${ci}T00:00:00Z`) - Date.parse(`${today}T00:00:00Z`)) / dayMs);
+      const fmt = (d: string) => d.split("-").reverse().join("/");
+      const phaseNote =
+        stayPhase === "pre_checkin"
+          ? `O hóspede AINDA NÃO ESTÁ NA CIDADE: faltam ${daysTo} dia(s) para o check-in. ` +
+            "NUNCA sugira algo para 'hoje', 'agora' ou 'hoje à noite', nem use o clima de hoje como base. " +
+            "Fale sempre no futuro, referindo-se aos dias da estadia, e trate qualquer conversa atual como planejamento antecipado."
+          : stayPhase === "post_checkout"
+            ? "A estadia já terminou: não sugira programas locais como se ele estivesse hospedado."
+            : "O hóspede está na estadia: sugestões para hoje/agora são apropriadas.";
       lines.push(
-        `\n## Reserva do hóspede\nHóspede: ${log.guest_name}\nCheck-in: ${ci}${co ? `\nCheck-out: ${co}` : ""}\nFase da estadia: ${stayPhase}`,
+        `\n## Reserva do hóspede\nHóspede: ${log.guest_name}\nHoje: ${fmt(today)}\nCheck-in: ${fmt(ci)}${co ? `\nCheck-out: ${fmt(co)}` : ""}\nFase da estadia: ${stayPhase}\n${phaseNote}`,
       );
     }
+
   }
 
   // ── Senha de liberação do guia (código de visualização)
