@@ -1704,6 +1704,31 @@ function ArrivalCard({
 
   const [noteOpen, setNoteOpen] = useState(false);
   const [noteText, setNoteText] = useState(row.note ?? "");
+
+  // Silenciar alertas de atraso desta reserva (1h a 24h) — vale para a conta toda.
+  const qcCard = useQueryClient();
+  const muteFn = useServerFn(upsertArrivalStatus);
+  const isMutedNow = !!row.mutedUntil && new Date(row.mutedUntil).getTime() > Date.now();
+  const mute = useMutation({
+    mutationFn: (hours: number | null) => {
+      const logId = /^[0-9a-f-]{36}$/i.test(row.logId) ? row.logId : undefined;
+      const reservationId = row.reservationId ?? (row.logId.startsWith("ical:") ? row.logId.slice(5) : null);
+      return muteFn({
+        data: {
+          ...(logId ? { logId } : {}),
+          ...(reservationId ? { reservationId } : {}),
+          kind,
+          mutedUntil: hours ? new Date(Date.now() + hours * 3600_000).toISOString() : null,
+        },
+      });
+    },
+    onSuccess: (_d, hours) => {
+      toast.success(hours ? `Alertas silenciados por ${hours}h.` : "Alertas reativados.");
+      qcCard.invalidateQueries({ predicate: (q) => q.queryKey[0] === "dash-list", refetchType: "active" });
+    },
+    onError: () => toast.error("Não foi possível alterar o silenciamento."),
+  });
+
   const guestTime = row.arrivalTimeOverride ?? row.guestArrivalTime;
   const stdWindow = row.standardTime
     ? row.standardTimeMax
