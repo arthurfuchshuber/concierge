@@ -1,0 +1,1 @@
+delete from public.property_chat_messages where conversation_id='20b62a83-1ff7-41b3-9506-727feb8f3bfc' and role='user' and content like 'Sobre a dica de hoje — %';
