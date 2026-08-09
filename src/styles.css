@@ -275,6 +275,11 @@
   ::selection {
     background-color: oklch(from var(--accent) l c h / 0.25);
   }
+
+  /* Cabeçalhos de tabela sempre em uma única linha. */
+  thead th {
+    white-space: nowrap;
+  }
 }
 
 @layer utilities {
