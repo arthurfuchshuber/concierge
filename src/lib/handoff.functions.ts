@@ -412,7 +412,7 @@ export const getHandoffConversation = createServerFn({ method: "POST" })
     const { data: conv, error: cErr } = await supabase
       .from("property_chat_conversations")
       .select(
-        "id, property_id, guest_session_id, guest_name, status, ai_paused, assigned_to, claim_requested_by, claim_requested_at, handoff_reason, handoff_urgency, handoff_at, last_message_at, created_at, resolved_at, properties:property_id(id, name, owner_id, slug, city)",
+        "id, property_id, guest_session_id, guest_name, status, ai_paused, assigned_to, claim_requested_by, claim_requested_at, handoff_reason, handoff_urgency, handoff_at, last_message_at, created_at, resolved_at, properties:property_id(id, name, owner_id, owner_contact_id, slug, city)",
       )
       .eq("id", data.conversationId)
       .maybeSingle();
@@ -626,10 +626,24 @@ export const getHandoffConversation = createServerFn({ method: "POST" })
       }
     }
 
+    // Nome do proprietário do imóvel (stakeholder) para exibir no cabeçalho.
+    let propertyOwnerName: string | null = null;
+    const ownerContactId = (conv.properties as { owner_contact_id?: string | null } | null)?.owner_contact_id ?? null;
+    if (ownerContactId) {
+      const { data: owner } = await supabase
+        .from("property_owners")
+        .select("name, trade_name")
+        .eq("id", ownerContactId)
+        .maybeSingle();
+      const label = ((owner?.trade_name as string) || (owner?.name as string) || "").trim();
+      propertyOwnerName = label || null;
+    }
+
     return {
       conversation: isPreviewName(conv.guest_name) ? { ...conv, guest_name: null } : conv,
       messages: msgs ?? [],
       guestDetails,
+      propertyOwnerName,
       claimRequester,
       assignedProfile,
       senderProfiles,
