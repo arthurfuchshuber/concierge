@@ -2379,6 +2379,7 @@ export type Database = {
           id: string
           kind: string
           log_id: string | null
+          muted_until: string | null
           note: string | null
           property_id: string
           reservation_id: string | null
@@ -2393,6 +2394,7 @@ export type Database = {
           id?: string
           kind: string
           log_id?: string | null
+          muted_until?: string | null
           note?: string | null
           property_id: string
           reservation_id?: string | null
@@ -2407,6 +2409,7 @@ export type Database = {
           id?: string
           kind?: string
           log_id?: string | null
+          muted_until?: string | null
           note?: string | null
           property_id?: string
           reservation_id?: string | null
