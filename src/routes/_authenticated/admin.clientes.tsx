@@ -546,7 +546,85 @@ function ClientesPage() {
           }}
         />
       )}
+
+      {deleting && (
+        <DeleteCustomerDialog
+          customer={deleting}
+          onClose={() => setDeleting(null)}
+          onDeleted={() => {
+            setDeleting(null);
+            qc.invalidateQueries({ queryKey: ["admin-customers"] });
+          }}
+        />
+      )}
     </div>
+  );
+}
+
+function DeleteCustomerDialog({
+  customer,
+  onClose,
+  onDeleted,
+}: {
+  customer: AdminCustomerRow;
+  onClose: () => void;
+  onDeleted: () => void;
+}) {
+  const remover = useServerFn(adminDeleteCustomer);
+  const [word, setWord] = useState("");
+  const [busy, setBusy] = useState(false);
+  const confirmed = word.trim().toUpperCase() === "EXCLUIR";
+
+  async function handleDelete() {
+    if (!confirmed || busy) return;
+    setBusy(true);
+    try {
+      await remover({ data: { userId: customer.userId } });
+      toast.success("Cliente excluído com todos os seus dados.");
+      onDeleted();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erro ao excluir cliente");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Dialog open onOpenChange={(o) => { if (!o && !busy) onClose(); }}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle className="text-red-600 dark:text-red-400">Excluir cliente</DialogTitle>
+          <DialogDescription>
+            Esta ação é permanente. Todos os guias, conversas, hóspedes, integrações e o login de{" "}
+            <span className="font-medium text-foreground">{customer.fullName || customer.email || "este cliente"}</span>{" "}
+            serão apagados e não poderão ser recuperados.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-2">
+          <Label htmlFor="confirm-delete">
+            Digite <span className="font-semibold text-foreground">EXCLUIR</span> para confirmar
+          </Label>
+          <Input
+            id="confirm-delete"
+            value={word}
+            onChange={(e) => setWord(e.target.value)}
+            placeholder="EXCLUIR"
+            autoComplete="off"
+          />
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose} disabled={busy}>Cancelar</Button>
+          <Button
+            variant="destructive"
+            onClick={handleDelete}
+            disabled={!confirmed || busy}
+          >
+            {busy ? <Loader2 className="size-4 mr-1 animate-spin" /> : <Trash2 className="size-4 mr-1" />}
+            Excluir definitivamente
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
