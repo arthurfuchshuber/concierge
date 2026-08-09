@@ -62,6 +62,38 @@ export async function buildAgentContext(params: {
   if (p.city) lines.push(`Cidade: ${p.city}${p.country ? ` (${p.country})` : ""}`);
   if (p.host_name) lines.push(`Anfitrião: ${p.host_name}`);
 
+  // ── Marketplace / serviços parceiros (upsell)
+  try {
+    const { cityKey } = await import("@/lib/city-key");
+    type MktLink = { label?: string | null; url?: string | null; description?: string | null };
+    const own = Array.isArray(p.marketplace_links) ? (p.marketplace_links as MktLink[]) : [];
+    const ck = cityKey(typeof p.city === "string" ? p.city : null);
+    let cityMkt: MktLink[] = [];
+    if (ck) {
+      const { data } = await supabase
+        .from("sigma_city_marketplace")
+        .select("label, url, description")
+        .eq("city_key", ck)
+        .order("position");
+      cityMkt = (data ?? []) as MktLink[];
+    }
+    const all = [...own, ...cityMkt].filter((l) => l && l.url && l.label);
+    if (all.length > 0) {
+      keys.push("marketplace");
+      lines.push(
+        "\n## Marketplace / serviços parceiros disponíveis (upsell)\n" +
+          all
+            .map((l) => `- [${l.label}](${l.url})${l.description ? ` — ${l.description}` : ""}`)
+            .join("\n") +
+          "\nUse SOMENTE estes links quando o assunto da conversa tiver relação real com eles (passeios, ingressos, transfer, experiências). " +
+          "Ofereça como sugestão natural e útil, no formato markdown [texto](url), no máximo um por resposta e nunca de forma insistente.",
+      );
+    }
+  } catch (e) {
+    console.warn("marketplace context failed", e);
+  }
+
+
   const accessPin =
     typeof p.access_codes_pin === "string" ? (p.access_codes_pin as string).trim() : "";
   const sensitiveLocked = accessPin.length > 0;
