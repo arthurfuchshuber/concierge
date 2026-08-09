@@ -488,6 +488,7 @@ export const upsertArrivalStatus = createServerFn({ method: "POST" })
       done_at?: string | null;
       note?: string | null;
       arrival_time_override?: string | null;
+      muted_until?: string | null;
     } = {
       property_id: propertyId,
       kind: data.kind,
@@ -500,6 +501,8 @@ export const upsertArrivalStatus = createServerFn({ method: "POST" })
     }
     if (typeof data.note !== "undefined") patch.note = data.note;
     if (typeof data.arrivalTimeOverride !== "undefined") patch.arrival_time_override = data.arrivalTimeOverride;
+    if (typeof data.mutedUntil !== "undefined") patch.muted_until = data.mutedUntil;
+
 
     let existingId: string | undefined;
     if (data.reservationId) {
