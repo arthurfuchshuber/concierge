@@ -433,7 +433,7 @@ export function StakeholderDetailSheet({
               {categoryLabels.length > 0 && (
                 <Field label="Categorias de serviço" value={categoryLabels.join(", ")} />
               )}
-              {row.cep && <Field label="CEP" value={row.cep} mono copy={row.cep} />
+              {row.cep && <Field label="CEP" value={row.cep} mono copy={row.cep} />}
               {row.doc && (
                 <Field
                   label={String(row.doc_type ?? "cpf").toUpperCase()}
