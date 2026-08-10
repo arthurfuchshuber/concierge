@@ -4809,6 +4809,7 @@ export type Database = {
         Args: { _user_id: string }
         Returns: boolean
       }
+      current_verified_email: { Args: never; Returns: string }
       decline_my_account_invite: {
         Args: { _invite_id: string }
         Returns: boolean
