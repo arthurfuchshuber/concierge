@@ -26,7 +26,6 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
   Dialog,
@@ -49,6 +48,7 @@ import {
   setStakeholderStatus,
 } from "@/lib/stakeholders.functions";
 import { getStakeholderIntegrationFeed } from "@/lib/stakeholder-feed.functions";
+import { getStakeholderSystemTrail } from "@/lib/stakeholder-trail.functions";
 import { getClicksignDocumentUrl, extractClicksignPartyData } from "@/lib/clicksign.functions";
 import { CopyButton } from "@/components/CopyButton";
 import { getStakeholderAccess } from "@/lib/stakeholder-access.functions";
@@ -180,6 +180,16 @@ export function StakeholderDetailSheet({
     staleTime: 5 * 60_000,
     retry: false,
   });
+
+  // Rastro completo: tudo o que a pessoa fez dentro do sistema.
+  const trailFn = useServerFn(getStakeholderSystemTrail);
+  const trail = useQuery({
+    queryKey: ["stakeholder-trail", kind, id],
+    queryFn: () => trailFn({ data: { kind, id } }),
+    refetchInterval: 60_000,
+    retry: false,
+  });
+
 
   const row = data?.row as Record<string, any> | null | undefined;
 
@@ -320,8 +330,25 @@ export function StakeholderDetailSheet({
         </>
       ),
     })),
-
+    ...(trail.data?.items ?? []).map((ev) => ({
+      key: `t:${ev.id}`,
+      at: ev.at ?? "",
+      icon: ev.severity === "error" || ev.severity === "critical" ? Unlink : MessageCircle,
+      title: ev.title,
+      badge: ev.badge,
+      body:
+        ev.details.length > 0 ? (
+          <ul className="space-y-0.5">
+            {ev.details.map((d, i) => (
+              <li key={i} className="text-[11px] text-muted-foreground break-words">
+                {d}
+              </li>
+            ))}
+          </ul>
+        ) : null,
+    })),
   ].sort((a, b) => String(b.at).localeCompare(String(a.at)));
+
 
   return (
     <div className="flex flex-col gap-5 px-5 py-6 sm:px-6">
@@ -402,22 +429,38 @@ export function StakeholderDetailSheet({
           <button
             type="button"
             onClick={() => setDataOpen((o) => !o)}
-            className="flex w-full items-center justify-between gap-2 text-left"
+            className="relative flex w-full items-center justify-center gap-2 py-1 text-center"
             aria-expanded={dataOpen}
           >
             <span className="text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
               Dados pessoais
             </span>
             <ChevronDown
-              className={`size-4 shrink-0 text-muted-foreground transition-transform ${dataOpen ? "rotate-180" : ""}`}
+              className={`absolute right-0 size-4 shrink-0 text-muted-foreground transition-transform ${dataOpen ? "rotate-180" : ""}`}
             />
           </button>
 
           {dataOpen && (
             <dl className="mt-4 grid gap-4 sm:grid-cols-2">
+              <Field label="Nome completo" value={row.name} copy={row.name} />
               {row.trade_name && (
                 <Field label="Nome fantasia" value={row.trade_name} copy={row.trade_name} />
               )}
+              <Field
+                label="Tipo de pessoa"
+                value={String(row.person_type ?? "pf").toUpperCase() === "PJ" ? "Pessoa jurídica" : "Pessoa física"}
+              />
+              {row.birth_date && (
+                <Field
+                  label="Data de nascimento"
+                  value={new Date(`${String(row.birth_date).slice(0, 10)}T12:00:00`).toLocaleDateString("pt-BR")}
+                  copy={new Date(`${String(row.birth_date).slice(0, 10)}T12:00:00`).toLocaleDateString("pt-BR")}
+                />
+              )}
+              {categoryLabels.length > 0 && (
+                <Field label="Categorias de serviço" value={categoryLabels.join(", ")} />
+              )}
+              {row.cep && <Field label="CEP" value={row.cep} mono copy={row.cep} />}
               {row.doc && (
                 <Field
                   label={String(row.doc_type ?? "cpf").toUpperCase()}
@@ -527,26 +570,8 @@ export function StakeholderDetailSheet({
               )}
             </div>
 
-            <div className="relative">
-              <Textarea
-                rows={2}
-                value={note}
-                onChange={(e) => setNote(e.target.value)}
-                placeholder="Adicionar nota..."
-                className="text-sm pr-12"
-              />
-              {note.trim().length > 0 && (
-                <Button
-                  size="icon"
-                  className="absolute bottom-2 right-2 size-8 rounded-full"
-                  onClick={submitNote}
-                  disabled={busy}
-                  aria-label="Adicionar nota"
-                >
-                  <Plus className="size-4" />
-                </Button>
-              )}
-            </div>
+
+
 
 
             {feed.data?.calendarError && (
