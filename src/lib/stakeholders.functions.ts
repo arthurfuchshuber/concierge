@@ -124,7 +124,65 @@ function isValidCNPJDigits(d: string): boolean {
   return calc(d.slice(0, 12)) === Number(d[12]) && calc(d.slice(0, 13)) === Number(d[13]);
 }
 
+/** Nomes amigáveis dos campos do cadastro, usados na Linha do Tempo. */
+const FIELD_LABELS: Record<string, string> = {
+  name: "Nome",
+  email: "E-mail",
+  phone: "Telefone",
+  doc: "CPF/CNPJ",
+  doc_type: "Tipo de documento",
+  person_type: "Tipo de pessoa",
+  birth_date: "Data de nascimento",
+  address: "Endereço",
+  address_number: "Número",
+  complement: "Complemento",
+  neighborhood: "Bairro",
+  city: "Cidade",
+  state: "Estado",
+  cep: "CEP",
+  category: "Categoria principal",
+  categories: "Categorias de serviço",
+  status: "Situação",
+  notes: "Observações",
+  bank: "Banco",
+  pix_key: "Chave Pix",
+  commission: "Comissão",
+  rate: "Valor / diária",
+  contract_start: "Início do contrato",
+  contract_end: "Fim do contrato",
+};
+
+const MASKED_FIELDS = new Set(["doc", "pix_key"]);
+
+function displayValue(field: string, value: unknown): string {
+  if (value === null || value === undefined || value === "") return "vazio";
+  if (Array.isArray(value)) return value.length ? value.join(", ") : "vazio";
+  const text = String(value);
+  if (MASKED_FIELDS.has(field)) return `${text.slice(0, 3)}•••${text.slice(-2)}`;
+  return text.length > 60 ? `${text.slice(0, 60)}…` : text;
+}
+
+function sameValue(a: unknown, b: unknown): boolean {
+  const norm = (v: unknown) =>
+    Array.isArray(v) ? [...v].map(String).sort().join("|") : v === null || v === undefined ? "" : String(v);
+  return norm(a) === norm(b);
+}
+
+/** Diferenças legíveis entre o cadastro anterior e o novo ("Telefone: A → B"). */
+function diffPayload(before: Record<string, unknown>, after: Record<string, unknown>): string[] {
+  const out: string[] = [];
+  for (const [key, value] of Object.entries(after)) {
+    if (key === "account_owner_id" || key === "created_by") continue;
+    if (!(key in before)) continue;
+    if (sameValue(before[key], value)) continue;
+    const label = FIELD_LABELS[key] ?? key;
+    out.push(`${label}: "${displayValue(key, before[key])}" → "${displayValue(key, value)}"`);
+  }
+  return out;
+}
+
 export const saveStakeholder = createServerFn({ method: "POST" })
+
   .middleware([requireSupabaseAuth])
   .inputValidator((i: unknown) => SaveInput.parse(i))
   .handler(async ({ data, context }) => {
@@ -158,22 +216,33 @@ export const saveStakeholder = createServerFn({ method: "POST" })
 
 
     if (id) {
+      const { data: before } = await supabase
+        .from(TABLE[kind])
+        .select("*")
+        .eq("id", id)
+        .eq("account_owner_id", accountId)
+        .maybeSingle();
+
       const { error } = await supabase
         .from(TABLE[kind])
         .update(payload as never)
         .eq("id", id)
         .eq("account_owner_id", accountId);
       if (error) throw new Error(error.message);
+      const changes = diffPayload((before ?? {}) as Record<string, unknown>, payload);
       await supabase.from("stakeholder_events").insert({
         account_owner_id: accountId,
         stakeholder_type: kind,
         stakeholder_id: id,
         kind: "update",
-        message: "Cadastro atualizado.",
+        message: changes.length
+          ? `Cadastro atualizado — ${changes.length} informação(ões) alterada(s): ${changes.join("; ")}`
+          : "Cadastro salvo sem alterações.",
         created_by: userId,
       });
       return { ok: true, id };
     }
+
 
     const { data: inserted, error } = await supabase
       .from(TABLE[kind])
@@ -186,7 +255,13 @@ export const saveStakeholder = createServerFn({ method: "POST" })
       stakeholder_type: kind,
       stakeholder_id: inserted.id as string,
       kind: "create",
-      message: "Cadastro criado.",
+      message: (() => {
+        const filled = Object.entries(payload)
+          .filter(([k, v]) => k !== "account_owner_id" && v !== null && v !== "" && !(Array.isArray(v) && !v.length))
+          .map(([k, v]) => `${FIELD_LABELS[k] ?? k}: "${displayValue(k, v)}"`);
+        return filled.length ? `Cadastro criado com ${filled.join("; ")}` : "Cadastro criado.";
+      })(),
+
       created_by: userId,
     });
     return { ok: true, id: inserted.id as string };

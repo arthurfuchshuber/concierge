@@ -90,7 +90,26 @@ export function track(event: TrailEventInput): void {
   else schedule();
 }
 
-function describe(el: Element | null): { label: string; target: string; kind: string } | null {
+/** Título/identificação do bloco (card, linha da tabela, diálogo) onde o clique ocorreu. */
+function contextOf(node: HTMLElement): string | null {
+  const explicit = node.closest("[data-track-context]") as HTMLElement | null;
+  if (explicit) return (explicit.getAttribute("data-track-context") || "").slice(0, 120) || null;
+
+  const box = node.closest(
+    "[data-card], [role='dialog'], [role='row'], tr, li, article, [data-slot='card']",
+  ) as HTMLElement | null;
+  if (!box) return null;
+
+  const heading = box.querySelector(
+    "[data-track-title], h1, h2, h3, h4, [role='heading'], strong, th, td:first-child",
+  ) as HTMLElement | null;
+  const text = (heading?.textContent ?? box.textContent ?? "").replace(/\s+/g, " ").trim();
+  return text ? text.slice(0, 120) : null;
+}
+
+function describe(
+  el: Element | null,
+): { label: string; target: string; kind: string; context: string | null } | null {
   if (!el) return null;
   const node = el.closest(
     "button, a, [role='button'], [role='tab'], [role='menuitem'], [role='option'], input, select, textarea, summary, label, [data-track]",
@@ -112,8 +131,14 @@ function describe(el: Element | null): { label: string; target: string; kind: st
     (node as HTMLInputElement).name ||
     node.getAttribute("href") ||
     `${tag}${node.className && typeof node.className === "string" ? `.${node.className.split(" ")[0]}` : ""}`;
-  return { label: String(label), target: String(target).slice(0, 160), kind: tag };
+  return {
+    label: String(label),
+    target: String(target).slice(0, 160),
+    kind: tag,
+    context: contextOf(node),
+  };
 }
+
 
 /** Inicia a captura global. Idempotente. */
 export function startTrail(slug?: string): () => void {
@@ -134,7 +159,9 @@ export function startTrail(slug?: string): () => void {
     },
   });
 
-  const where = () => `na página "${document.title || window.location.pathname}"`;
+  const pageName = () => (document.title || window.location.pathname).replace(/\s*[—–|-]\s*ConciergeIA\s*$/i, "");
+  const where = () => `na página "${pageName()}"`;
+  const inside = (ctx: string | null) => (ctx ? ` em "${ctx}"` : "");
   const KIND_PT: Record<string, string> = {
     button: "botão",
     a: "link",
@@ -150,9 +177,14 @@ export function startTrail(slug?: string): () => void {
     if (!info) return;
     track({
       type: "click",
-      label: `Clicou ${KIND_PT[info.kind] ? `no ${KIND_PT[info.kind]}` : "em"} "${info.label}" ${where()}`,
+      label: `Clicou ${KIND_PT[info.kind] ? `no ${KIND_PT[info.kind]}` : "em"} "${info.label}"${inside(info.context)} ${where()}`,
       target: info.target,
-      metadata: { element: info.kind, element_label: info.label, page_title: document.title },
+      metadata: {
+        element: info.kind,
+        element_label: info.label,
+        context_label: info.context,
+        page_title: pageName(),
+      },
     });
   };
 
@@ -164,18 +196,20 @@ export function startTrail(slug?: string): () => void {
     const filled = Boolean(el.value);
     track({
       type: "field_changed",
-      label: `${filled ? "Preencheu" : "Limpou"} o campo "${info.label}" ${where()}`,
+      label: `${filled ? "Preencheu" : "Limpou"} o campo "${info.label}"${inside(info.context)} ${where()}`,
       target: info.target,
       metadata: {
         element: info.kind,
         element_label: info.label,
+        context_label: info.context,
         input_type: el.type ?? null,
         filled,
         length: typeof el.value === "string" ? el.value.length : null,
-        page_title: document.title,
+        page_title: pageName(),
       },
     });
   };
+
 
   const onSubmit = (e: Event) => {
     const form = e.target as HTMLFormElement | null;
@@ -189,7 +223,7 @@ export function startTrail(slug?: string): () => void {
       type: "form_submit",
       label: `Enviou o formulário "${formName}" ${where()}${fields.length ? ` com os campos: ${fields.slice(0, 12).join(", ")}` : ""}`,
       target: form?.id || "form",
-      metadata: { fields, page_title: document.title },
+      metadata: { fields, page_title: pageName() },
     });
   };
 
@@ -263,13 +297,14 @@ export function startTrail(slug?: string): () => void {
 
 /** Registra visualização de página (chamado a cada navegação). */
 export function trackPageView(path: string, title?: string): void {
-  const t = title ?? document.title;
+  const t = (title ?? document.title).replace(/\s*[—–|-]\s*ConciergeIA\s*$/i, "");
   track({
     type: "page_view",
-    label: `Abriu a página "${t}" (${path})`,
+    label: `Abriu a página "${t}"`,
     target: path,
     path,
     metadata: { page_title: t },
   });
 }
+
 

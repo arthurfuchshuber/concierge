@@ -101,7 +101,8 @@ function friendlyPage(path: string | null, pageTitle: string | null): string | n
     const hit = PAGE_PT.find(([re]) => re.test(path));
     if (hit) return hit[1];
   }
-  return pageTitle ? `Página ${pageTitle}` : null;
+  const clean = (pageTitle ?? "").replace(/\s*[—–|-]\s*ConciergeIA\s*$/i, "").trim();
+  return clean ? `Página ${clean}` : null;
 }
 
 const ENTITY_PT: Record<string, string> = {
@@ -115,6 +116,53 @@ const ENTITY_PT: Record<string, string> = {
   account_member: "Membro da equipe",
   document: "Documento",
 };
+
+/** Nomes amigáveis para os dados que aparecem nos detalhes das ações. */
+const ARG_LABELS: Record<string, string> = {
+  id: "Registro",
+  name: "Nome",
+  title: "Título",
+  email: "E-mail",
+  slug: "Endereço do guia",
+  stage: "Etapa",
+  status: "Situação",
+  level: "Nível",
+  role: "Papel",
+  guestName: "Hóspede",
+  guest_name: "Hóspede",
+  propertyId: "Imóvel",
+  property_id: "Imóvel",
+  conversationId: "Conversa",
+  reservationCode: "Código da reserva",
+  reservation_code: "Código da reserva",
+  phone: "Telefone",
+  date: "Data",
+  checkin: "Check-in",
+  checkout: "Check-out",
+  time: "Horário",
+  message: "Mensagem",
+  reason: "Motivo",
+  category: "Categoria",
+  action: "Ação",
+};
+
+/** Transforma os argumentos da chamada em frases legíveis ("Hóspede: Ana"). */
+function argDetails(meta: Record<string, unknown>): string[] {
+  const args = meta["args"];
+  if (!args || typeof args !== "object" || Array.isArray(args)) return [];
+  const out: string[] = [];
+  for (const [k, v] of Object.entries(args as Record<string, unknown>)) {
+    if (v === null || v === undefined || v === "" || v === "***") continue;
+    if (typeof v === "object") continue;
+    const label = ARG_LABELS[k];
+    if (!label) continue;
+    out.push(`${label}: ${String(v).slice(0, 80)}`);
+    if (out.length >= 6) break;
+  }
+  return out;
+}
+
+
 
 
 export const getStakeholderSystemTrail = createServerFn({ method: "POST" })
@@ -162,24 +210,28 @@ export const getStakeholderSystemTrail = createServerFn({ method: "POST" })
       const path = (meta["path"] ?? null) as string | null;
       const pageName = friendlyPage(path, pageTitle);
       const label = meta["element_label"] ? String(meta["element_label"]) : null;
+      const context = meta["context_label"] ? String(meta["context_label"]) : null;
 
       let title = String(r.description ?? "").trim();
       if (!title) {
         if (type === "page_view" && pageName) title = `Abriu a ${pageName.replace(/^Página /, "página ")}`;
-        else if (type === "click" && label) title = `Clicou em “${label}”`;
+        else if (type === "click" && label)
+          title = `Clicou em “${label}”${context ? ` no item “${context}”` : ""}`;
         else title = TYPE_PT[type] || type.replace(/_/g, " ") || "Ação no sistema";
       }
 
       const details: string[] = [];
       if (pageName) details.push(pageName);
+      if (context && !title.includes(context)) details.push(`Item: ${context}`);
       if (label && !title.includes(label)) details.push(`Botão: ${label}`);
       if (Array.isArray(meta["fields"]) && (meta["fields"] as string[]).length > 0) {
         details.push(`Informações preenchidas: ${(meta["fields"] as string[]).slice(0, 12).join(", ")}`);
       }
-      if (r.entity_type) {
-        details.push(`Referente a: ${ENTITY_PT[String(r.entity_type)] ?? String(r.entity_type)}`);
-      }
+      details.push(...argDetails(meta));
+      const entityLabel = r.entity_type ? ENTITY_PT[String(r.entity_type)] : null;
+      if (entityLabel) details.push(`Referente a: ${entityLabel}`);
       if (r.result && r.result !== "success") details.push("Não foi concluído");
+
 
       return {
         id: String(r.id),
