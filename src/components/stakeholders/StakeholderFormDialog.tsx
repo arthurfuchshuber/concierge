@@ -42,7 +42,9 @@ import { inviteTeamMember, revokeTeamInvite, removeTeamMember } from "@/lib/team
 import { saveStakeholder } from "@/lib/stakeholders.functions";
 import { lookupCnpj } from "@/lib/br-lookup.functions";
 import { isValidCPF, isValidCNPJ, formatBRPhone } from "@/lib/masks";
-import { PROVIDER_CATEGORIES, type StakeholderKind } from "./constants";
+import { type StakeholderKind } from "./constants";
+import { CategoryPicker } from "./CategoryPicker";
+import { AddressAutocomplete } from "./AddressAutocomplete";
 
 export type StakeholderFormValues = {
   id: string | null;
@@ -50,6 +52,7 @@ export type StakeholderFormValues = {
   name: string;
   trade_name: string;
   category: string;
+  categories: string[];
   doc: string;
   birth_date: string;
   email: string;
@@ -69,6 +72,7 @@ export const emptyStakeholderForm: StakeholderFormValues = {
   name: "",
   trade_name: "",
   category: "outros",
+  categories: [],
   doc: "",
   birth_date: "",
   email: "",
@@ -89,6 +93,11 @@ export function rowToStakeholderForm(row: Record<string, any>): StakeholderFormV
     name: row.name ?? "",
     trade_name: row.trade_name ?? "",
     category: row.category ?? "outros",
+    categories: Array.isArray(row.categories) && row.categories.length > 0
+      ? (row.categories as string[])
+      : row.category
+        ? [row.category as string]
+        : [],
     doc: row.doc ?? "",
     birth_date: row.birth_date ?? "",
     email: row.email ?? "",
@@ -271,7 +280,7 @@ export function StakeholderFormDialog({
       if (!d) errs.doc = isPJ ? "CNPJ obrigatório" : "CPF obrigatório";
       if (isPJ && !form.trade_name.trim()) errs.trade_name = "Nome fantasia obrigatório";
       if (!isPJ && !form.birth_date) errs.birth_date = "Data de nascimento obrigatória";
-      if (!form.category) errs.category = "Categoria obrigatória";
+      if (form.categories.length === 0) errs.category = "Selecione ao menos uma categoria";
       if (stripMask(form.phone).length < 10) errs.phone = "Telefone obrigatório";
       if (!form.email.trim()) errs.email = "E-mail obrigatório";
       if (stripMask(form.cep).length !== 8) errs.cep = "CEP obrigatório";
@@ -298,7 +307,8 @@ export function StakeholderFormDialog({
           doc_type: isPJ ? "cnpj" : "cpf",
           name: form.name.trim(),
           trade_name: form.trade_name.trim() || null,
-          category: kind === "provider" ? form.category : null,
+          category: kind === "provider" ? form.categories[0] ?? "outros" : null,
+          categories: kind === "provider" ? form.categories : undefined,
           doc: d || null,
           birth_date: !isPJ && form.birth_date ? form.birth_date : null,
           email: form.email.trim() || null,
@@ -365,7 +375,7 @@ export function StakeholderFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="w-[calc(100vw-1.5rem)] max-w-2xl overflow-x-hidden">
         <DialogHeader>
           <DialogTitle className="font-display text-2xl capitalize">
             {form.id ? `Editar ${singular}` : `Novo ${singular}`}
@@ -373,7 +383,7 @@ export function StakeholderFormDialog({
           <DialogDescription>CNPJ e CEP preenchem os dados automaticamente.</DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4 max-h-[65vh] overflow-y-auto pr-1">
+        <div className="space-y-4 max-h-[65vh] overflow-y-auto overflow-x-hidden pr-1">
           {/* Tipo */}
           <div className="grid grid-cols-2 gap-2">
             {([
@@ -407,7 +417,7 @@ export function StakeholderFormDialog({
 
           <SectionDivider label="Dados cadastrais" busy={checkingCnpj} />
 
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid gap-3 sm:grid-cols-2 [&>*]:min-w-0">
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground">
                 {isPJ ? "Razão social *" : "Nome completo *"}
@@ -477,22 +487,15 @@ export function StakeholderFormDialog({
 
 
             {kind === "provider" && (
-              <div className="space-y-1.5">
-                <Label className="text-xs text-muted-foreground flex items-center gap-1.5">
-                  <Wrench className="size-3.5" /> Categoria de serviço{req}
-                </Label>
-                <Select value={form.category} onValueChange={(v) => set({ category: v })}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {PROVIDER_CATEGORIES.map((c) => (
-                      <SelectItem key={c.value} value={c.value}>
-                        {c.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+              <div className="sm:col-span-2">
+                <CategoryPicker
+                  value={form.categories}
+                  error={errors.category}
+                  onChange={(next) => {
+                    set({ categories: next });
+                    clearError("category");
+                  }}
+                />
               </div>
             )}
 
@@ -515,7 +518,7 @@ export function StakeholderFormDialog({
 
           <SectionDivider label="Contato" />
 
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid gap-3 sm:grid-cols-2 [&>*]:min-w-0">
             <MaskedInput
               label={`Telefone / WhatsApp${req}`}
               mask="(00) 00000-0000"
@@ -538,8 +541,10 @@ export function StakeholderFormDialog({
                 maxLength={200}
                 placeholder="email@exemplo.com"
                 value={form.email}
+                inputMode="email"
+                autoComplete="email"
                 onChange={(e) => {
-                  set({ email: e.target.value });
+                  set({ email: e.target.value.replace(/\s+/g, "").toLowerCase() });
                   clearError("email");
                 }}
                 className={errors.email ? "border-destructive" : ""}
@@ -626,8 +631,9 @@ export function StakeholderFormDialog({
 
           <SectionDivider label="Endereço" busy={loadingCep} />
 
-          <div className="grid gap-3 sm:grid-cols-3">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 [&>*]:min-w-0">
             <MaskedInput
+              className="min-w-0"
               label={`CEP${req}`}
               mask="00000-000"
               placeholder="00000-000"
@@ -638,21 +644,35 @@ export function StakeholderFormDialog({
               }}
               error={errors.cep}
             />
-            <div className="space-y-1.5 sm:col-span-2">
-              <Label className="text-xs text-muted-foreground flex items-center gap-1.5">
-                <Home className="size-3.5" /> Logradouro{req}
-              </Label>
-              <Input
-                maxLength={300}
-                placeholder="Rua, avenida, número..."
+            <div className="col-span-2">
+              <AddressAutocomplete
+                label={`Logradouro${req}`}
                 value={form.address}
-                onChange={(e) => {
-                  set({ address: e.target.value });
+                error={errors.address}
+                cityHint={[form.city, form.state].filter(Boolean).join(" ")}
+                onChange={(v) => {
+                  set({ address: v });
                   clearError("address");
                 }}
-                className={errors.address ? "border-destructive" : ""}
+                onPick={(sug) => {
+                  setForm((p) => ({
+                    ...p,
+                    address: sug.address || p.address,
+                    district: sug.district || p.district,
+                    city: sug.city || p.city,
+                    state: sug.state || p.state,
+                    cep: sug.cep || p.cep,
+                  }));
+                  setErrors((p) => {
+                    const n = { ...p };
+                    delete n.address;
+                    delete n.district;
+                    delete n.city;
+                    delete n.state;
+                    return n;
+                  });
+                }}
               />
-              {errors.address && <p className="text-xs text-destructive">{errors.address}</p>}
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground">Bairro{req}</Label>
@@ -715,7 +735,7 @@ export function StakeholderFormDialog({
           </div>
         </div>
 
-        <div className="flex justify-end gap-2 pt-3 border-t border-border/30">
+        <div className="flex flex-wrap justify-center gap-2 pt-3 border-t border-border/30">
           <Button variant="ghost" className="rounded-full" onClick={() => onOpenChange(false)}>
             Cancelar
           </Button>
