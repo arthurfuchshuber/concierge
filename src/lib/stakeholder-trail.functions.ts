@@ -101,7 +101,8 @@ function friendlyPage(path: string | null, pageTitle: string | null): string | n
     const hit = PAGE_PT.find(([re]) => re.test(path));
     if (hit) return hit[1];
   }
-  return pageTitle ? `Página ${pageTitle}` : null;
+  const clean = (pageTitle ?? "").replace(/\s*[—–|-]\s*ConciergeIA\s*$/i, "").trim();
+  return clean ? `Página ${clean}` : null;
 }
 
 const ENTITY_PT: Record<string, string> = {
@@ -115,6 +116,53 @@ const ENTITY_PT: Record<string, string> = {
   account_member: "Membro da equipe",
   document: "Documento",
 };
+
+/** Nomes amigáveis para os dados que aparecem nos detalhes das ações. */
+const ARG_LABELS: Record<string, string> = {
+  id: "Registro",
+  name: "Nome",
+  title: "Título",
+  email: "E-mail",
+  slug: "Endereço do guia",
+  stage: "Etapa",
+  status: "Situação",
+  level: "Nível",
+  role: "Papel",
+  guestName: "Hóspede",
+  guest_name: "Hóspede",
+  propertyId: "Imóvel",
+  property_id: "Imóvel",
+  conversationId: "Conversa",
+  reservationCode: "Código da reserva",
+  reservation_code: "Código da reserva",
+  phone: "Telefone",
+  date: "Data",
+  checkin: "Check-in",
+  checkout: "Check-out",
+  time: "Horário",
+  message: "Mensagem",
+  reason: "Motivo",
+  category: "Categoria",
+  action: "Ação",
+};
+
+/** Transforma os argumentos da chamada em frases legíveis ("Hóspede: Ana"). */
+function argDetails(meta: Record<string, unknown>): string[] {
+  const args = meta["args"];
+  if (!args || typeof args !== "object" || Array.isArray(args)) return [];
+  const out: string[] = [];
+  for (const [k, v] of Object.entries(args as Record<string, unknown>)) {
+    if (v === null || v === undefined || v === "" || v === "***") continue;
+    if (typeof v === "object") continue;
+    const label = ARG_LABELS[k];
+    if (!label) continue;
+    out.push(`${label}: ${String(v).slice(0, 80)}`);
+    if (out.length >= 6) break;
+  }
+  return out;
+}
+
+
 
 
 export const getStakeholderSystemTrail = createServerFn({ method: "POST" })
