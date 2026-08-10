@@ -330,23 +330,26 @@ export function StakeholderDetailSheet({
         </>
       ),
     })),
-    ...(trail.data?.items ?? []).map((ev) => ({
-      key: `t:${ev.id}`,
-      at: ev.at ?? "",
-      icon: ev.severity === "error" || ev.severity === "critical" ? Unlink : MessageCircle,
-      title: ev.title,
-      badge: ev.badge,
-      body:
-        ev.details.length > 0 ? (
-          <ul className="space-y-0.5">
-            {ev.details.map((d, i) => (
-              <li key={i} className="text-[11px] text-muted-foreground break-words">
-                {d}
-              </li>
-            ))}
-          </ul>
-        ) : null,
-    })),
+    ...(trail.data?.items ?? [])
+      .filter((ev) => ev.macro)
+      .map((ev) => ({
+        key: `t:${ev.id}`,
+        at: ev.at ?? "",
+        icon: ev.severity === "error" || ev.severity === "critical" ? Unlink : MessageCircle,
+        title: ev.title,
+        badge: ev.badge,
+        body:
+          ev.details.length > 0 ? (
+            <ul className="space-y-0.5">
+              {ev.details.map((d, i) => (
+                <li key={i} className="text-[11px] text-muted-foreground break-words">
+                  {d}
+                </li>
+              ))}
+            </ul>
+          ) : null,
+      })),
+
   ].sort((a, b) => String(b.at).localeCompare(String(a.at)));
 
 
@@ -518,6 +521,8 @@ export function StakeholderDetailSheet({
             <TabsTrigger value="financeiro">Financeiro</TabsTrigger>
             <TabsTrigger value="documentos">Documentos</TabsTrigger>
             <TabsTrigger value="acessos">Acessos</TabsTrigger>
+            <TabsTrigger value="log">Log</TabsTrigger>
+
           </TabsList>
         </div>
 
@@ -540,6 +545,49 @@ export function StakeholderDetailSheet({
             </p>
           )}
         </TabsContent>
+
+        {/* -------------------- Log -------------------- */}
+        <TabsContent value="log" className="mt-5 space-y-4">
+          <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
+            <h3 className="font-display text-xl truncate">Log de atividades</h3>
+            {trail.isLoading && (
+              <span className="flex items-center gap-1.5 text-[11px] text-muted-foreground shrink-0">
+                <Loader2 className="size-3 animate-spin" /> Carregando…
+              </span>
+            )}
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Detalhes de tudo o que a pessoa fez no sistema: páginas abertas, botões clicados e informações preenchidas.
+          </p>
+          {(trail.data?.items ?? []).length === 0 ? (
+            <Placeholder
+              icon={Pin}
+              title="Sem atividades registradas"
+              desc="Assim que a pessoa usar o sistema, cada passo aparece aqui."
+            />
+          ) : (
+            <ul className="space-y-2">
+              {(trail.data?.items ?? []).map((ev) => (
+                <li key={ev.id} className="rounded-2xl border border-border bg-card px-4 py-3">
+                  <p className="text-sm font-medium break-words">{ev.title}</p>
+                  <p className="text-[11px] text-muted-foreground">{ev.badge}</p>
+                  {ev.details.length > 0 && (
+                    <ul className="mt-1 space-y-0.5">
+                      {ev.details.map((d, i) => (
+                        <li key={i} className="text-[11px] text-muted-foreground break-words">
+                          {d}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  <p className="mt-1 text-[11px] text-muted-foreground/80">{ev.at ? fmt(ev.at) : "Sem data"}</p>
+                </li>
+              ))}
+            </ul>
+          )}
+        </TabsContent>
+
+
 
         {/* -------------------- Visão Geral -------------------- */}
         <TabsContent value="visao" className="mt-5 space-y-5">

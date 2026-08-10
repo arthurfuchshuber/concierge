@@ -21,6 +21,8 @@ export type StakeholderTrailItem = {
   /** Detalhes complementares (página, elemento, resultado). */
   details: string[];
   severity: string;
+  /** true = movimento relevante (Linha do Tempo); false = micro detalhe (Log). */
+  macro: boolean;
 };
 
 const INPUT = z.object({
@@ -33,7 +35,7 @@ const TABLE = { owner: "property_owners", provider: "service_providers" } as con
 
 const CATEGORY_PT: Record<string, string> = {
   ACTIVITY: "Atividade",
-  AUTHENTICATION: "Autenticação",
+  AUTHENTICATION: "Acesso à conta",
   PERMISSIONS: "Permissões",
   USER_MANAGEMENT: "Usuários",
   CONVERSATION: "Conversas",
@@ -45,20 +47,75 @@ const CATEGORY_PT: Record<string, string> = {
 
 const TYPE_PT: Record<string, string> = {
   page_view: "Abriu uma página",
-  click: "Clicou em um elemento",
+  click: "Clicou em um botão",
   field_changed: "Preencheu um campo",
-  form_submit: "Enviou um formulário",
-  copy: "Copiou conteúdo",
+  form_submit: "Salvou um formulário",
+  copy: "Copiou uma informação",
   scroll_depth: "Rolou a página",
-  session_start: "Iniciou uma sessão",
-  session_end: "Encerrou a sessão",
-  tab_hidden: "Saiu da aba",
-  tab_visible: "Voltou para a aba",
+  session_start: "Começou a usar o sistema",
+  session_end: "Parou de usar o sistema",
+  tab_hidden: "Saiu da tela",
+  tab_visible: "Voltou para a tela",
   login_success: "Entrou no sistema",
   logout: "Saiu do sistema",
-  client_error: "Erro no navegador",
-  unhandled_rejection: "Erro no navegador",
+  client_error: "Ocorreu um erro na tela",
+  unhandled_rejection: "Ocorreu um erro na tela",
 };
+
+/** Eventos que aparecem na Linha do Tempo (macro). O resto vai para o Log. */
+const MACRO_TYPES = new Set([
+  "form_submit",
+  "note_added",
+  "comment_added",
+  "login_success",
+  "logout",
+  "card_moved",
+  "status_changed",
+  "invite_sent",
+  "permission_changed",
+  "document_signed",
+]);
+
+const PAGE_PT: Array<[RegExp, string]> = [
+  [/^\/admin\/dashboard/, "Página Operação"],
+  [/^\/admin\/guias?/, "Página Guias"],
+  [/^\/admin\/atendimento/, "Central de Atendimento"],
+  [/^\/admin\/hospedes/, "Página Hóspedes"],
+  [/^\/admin\/engajamento/, "Página Engajamento"],
+  [/^\/admin\/administrativo/, "Página Administrativo"],
+  [/^\/admin\/permissoes/, "Página Permissões"],
+  [/^\/admin\/clientes/, "Página Clientes"],
+  [/^\/admin\/ia|^\/admin\/concierge/, "Página IA Concierge"],
+  [/^\/admin\/proprietarios/, "Página Proprietários"],
+  [/^\/admin\/prestadores/, "Página Prestadores"],
+  [/^\/admin\/assinatura/, "Página Assinatura"],
+  [/^\/admin\/biblioteca/, "Página Biblioteca"],
+  [/^\/admin/, "Área administrativa"],
+  [/^\/auth|^\/login/, "Tela de login"],
+  [/^\/g\//, "Guia do hóspede"],
+  [/^\/$/, "Página inicial"],
+];
+
+function friendlyPage(path: string | null, pageTitle: string | null): string | null {
+  if (path) {
+    const hit = PAGE_PT.find(([re]) => re.test(path));
+    if (hit) return hit[1];
+  }
+  return pageTitle ? `Página ${pageTitle}` : null;
+}
+
+const ENTITY_PT: Record<string, string> = {
+  property: "Imóvel",
+  properties: "Imóvel",
+  guest: "Hóspede",
+  conversation: "Conversa",
+  reservation: "Reserva",
+  property_owner: "Proprietário",
+  service_provider: "Prestador",
+  account_member: "Membro da equipe",
+  document: "Documento",
+};
+
 
 export const getStakeholderSystemTrail = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -101,20 +158,28 @@ export const getStakeholderSystemTrail = createServerFn({ method: "POST" })
     const items: StakeholderTrailItem[] = (rows ?? []).map((r) => {
       const meta = (r.metadata ?? {}) as Record<string, unknown>;
       const type = String(r.event_type ?? "");
-      const title =
-        String(r.description ?? "").trim() || TYPE_PT[type] || type.replace(/_/g, " ") || "Ação no sistema";
+      const pageTitle = (meta["page_title"] ?? null) as string | null;
+      const path = (meta["path"] ?? null) as string | null;
+      const pageName = friendlyPage(path, pageTitle);
+      const label = meta["element_label"] ? String(meta["element_label"]) : null;
+
+      let title = String(r.description ?? "").trim();
+      if (!title) {
+        if (type === "page_view" && pageName) title = `Abriu a ${pageName.replace(/^Página /, "página ")}`;
+        else if (type === "click" && label) title = `Clicou em “${label}”`;
+        else title = TYPE_PT[type] || type.replace(/_/g, " ") || "Ação no sistema";
+      }
 
       const details: string[] = [];
-      const page = (meta["page_title"] ?? null) as string | null;
-      const path = (meta["path"] ?? null) as string | null;
-      if (page) details.push(`Página: ${page}`);
-      if (path) details.push(`Rota: ${path}`);
-      if (meta["element_label"]) details.push(`Elemento: ${String(meta["element_label"])}`);
+      if (pageName) details.push(pageName);
+      if (label && !title.includes(label)) details.push(`Botão: ${label}`);
       if (Array.isArray(meta["fields"]) && (meta["fields"] as string[]).length > 0) {
-        details.push(`Campos: ${(meta["fields"] as string[]).slice(0, 12).join(", ")}`);
+        details.push(`Informações preenchidas: ${(meta["fields"] as string[]).slice(0, 12).join(", ")}`);
       }
-      if (r.entity_type && r.entity_id) details.push(`Alvo: ${r.entity_type} · ${r.entity_id}`);
-      if (r.result && r.result !== "success") details.push(`Resultado: ${String(r.result)}`);
+      if (r.entity_type) {
+        details.push(`Referente a: ${ENTITY_PT[String(r.entity_type)] ?? String(r.entity_type)}`);
+      }
+      if (r.result && r.result !== "success") details.push("Não foi concluído");
 
       return {
         id: String(r.id),
@@ -123,8 +188,13 @@ export const getStakeholderSystemTrail = createServerFn({ method: "POST" })
         badge: CATEGORY_PT[String(r.event_category)] ?? "Atividade",
         details,
         severity: String(r.severity ?? "info"),
+        macro:
+          MACRO_TYPES.has(type) ||
+          String(r.event_category) === "PERMISSIONS" ||
+          String(r.event_category) === "USER_MANAGEMENT",
       };
     });
+
 
     return { items, linked: true };
   });
