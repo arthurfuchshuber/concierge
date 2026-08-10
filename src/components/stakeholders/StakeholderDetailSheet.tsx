@@ -22,8 +22,6 @@ import {
   CalendarDays,
   Video,
   Download,
-  TrendingUp,
-  AlertTriangle,
   Pin,
   Upload,
   Eye,
@@ -51,9 +49,6 @@ import { formatTaxId, formatIntlPhone, toWhatsappNumber } from "@/lib/masks";
 import {
   getStakeholderDetail,
   addStakeholderNote,
-  saveStakeholderActivity,
-  setStakeholderActivityStatus,
-  deleteStakeholderActivity,
   linkPropertyToOwner,
   setStakeholderStatus,
 } from "@/lib/stakeholders.functions";
@@ -111,13 +106,9 @@ export function StakeholderDetailSheet({
   const qc = useQueryClient();
   const detailFn = useServerFn(getStakeholderDetail);
   const noteFn = useServerFn(addStakeholderNote);
-  const actFn = useServerFn(saveStakeholderActivity);
-  const actStatusFn = useServerFn(setStakeholderActivityStatus);
-  const actDelFn = useServerFn(deleteStakeholderActivity);
   const linkFn = useServerFn(linkPropertyToOwner);
 
   const [note, setNote] = useState("");
-  const [newActivity, setNewActivity] = useState("");
   const [busy, setBusy] = useState(false);
   const [preview, setPreview] = useState<PreviewTarget>(null);
   const [extracting, setExtracting] = useState(false);
@@ -224,35 +215,8 @@ export function StakeholderDetailSheet({
     }
   }
 
-  async function addActivity() {
-    if (!newActivity.trim()) return;
-    setBusy(true);
-    try {
-      await actFn({
-        data: { kind, stakeholderId: id, title: newActivity.trim(), status: "todo", priority: "normal" },
-      });
-      setNewActivity("");
-      qc.invalidateQueries({ queryKey });
-      qc.invalidateQueries({ queryKey: ["stakeholders", kind] });
-    } catch (e) {
-      toast.error((e as Error).message);
-    } finally {
-      setBusy(false);
-    }
-  }
 
-  async function cycleStatus(activityId: string, current: string) {
-    const next = current === "todo" ? "doing" : current === "doing" ? "done" : "todo";
-    await actStatusFn({ data: { id: activityId, status: next as "todo" | "doing" | "done" } });
-    qc.invalidateQueries({ queryKey });
-    qc.invalidateQueries({ queryKey: ["stakeholders", kind] });
-  }
 
-  async function removeActivity(activityId: string) {
-    await actDelFn({ data: { id: activityId } });
-    qc.invalidateQueries({ queryKey });
-    qc.invalidateQueries({ queryKey: ["stakeholders", kind] });
-  }
 
   async function toggleLink(propertyId: string, link: boolean) {
     setBusy(true);
@@ -289,11 +253,9 @@ export function StakeholderDetailSheet({
 
   const feedEvents = feed.data?.events ?? [];
   const feedDocs = feed.data?.documents ?? [];
-  const activities = data?.activities ?? [];
   const events = data?.events ?? [];
   const properties = data?.properties ?? [];
   const available = data?.availableProperties ?? [];
-  const openCount = activities.filter((a: any) => a.status !== "done").length;
   const displayName = row.trade_name || row.name;
   const initial = String(displayName ?? "?").trim().charAt(0).toUpperCase();
 
