@@ -11,10 +11,6 @@ import {
   FileText,
   Plus,
   Pencil,
-  CheckCircle2,
-  Circle,
-  CircleDot,
-  Trash2,
   Home,
   Link2,
   Unlink,
@@ -22,8 +18,6 @@ import {
   CalendarDays,
   Video,
   Download,
-  TrendingUp,
-  AlertTriangle,
   Pin,
   Upload,
   Eye,
@@ -51,9 +45,6 @@ import { formatTaxId, formatIntlPhone, toWhatsappNumber } from "@/lib/masks";
 import {
   getStakeholderDetail,
   addStakeholderNote,
-  saveStakeholderActivity,
-  setStakeholderActivityStatus,
-  deleteStakeholderActivity,
   linkPropertyToOwner,
   setStakeholderStatus,
 } from "@/lib/stakeholders.functions";
@@ -62,8 +53,9 @@ import { getClicksignDocumentUrl, extractClicksignPartyData } from "@/lib/clicks
 import { CopyButton } from "@/components/CopyButton";
 import { getStakeholderAccess } from "@/lib/stakeholder-access.functions";
 import { UserAccess } from "@/components/admin-pages/PermissionCenterPage";
+import { listProviderCategories } from "@/lib/provider-categories.functions";
+import { getMyClicksignConfig } from "@/lib/clicksign.functions";
 import type { StakeholderKind } from "./StakeholderDirectory";
-import { PROVIDER_CATEGORIES } from "./StakeholderDirectory";
 
 type PreviewTarget = { name: string; url?: string | null; docId?: string } | null;
 
@@ -92,11 +84,6 @@ const STATUS_STYLE: Record<string, string> = {
   inactive: "border-border text-muted-foreground",
 };
 
-const STATUS_META: Record<string, { label: string; icon: typeof Circle; cls: string }> = {
-  todo: { label: "A fazer", icon: Circle, cls: "text-muted-foreground" },
-  doing: { label: "Em andamento", icon: CircleDot, cls: "text-amber-500" },
-  done: { label: "Concluída", icon: CheckCircle2, cls: "text-emerald-500" },
-};
 
 export function StakeholderDetailSheet({
   kind,
@@ -110,17 +97,33 @@ export function StakeholderDetailSheet({
   const qc = useQueryClient();
   const detailFn = useServerFn(getStakeholderDetail);
   const noteFn = useServerFn(addStakeholderNote);
-  const actFn = useServerFn(saveStakeholderActivity);
-  const actStatusFn = useServerFn(setStakeholderActivityStatus);
-  const actDelFn = useServerFn(deleteStakeholderActivity);
   const linkFn = useServerFn(linkPropertyToOwner);
 
   const [note, setNote] = useState("");
-  const [newActivity, setNewActivity] = useState("");
   const [busy, setBusy] = useState(false);
   const [preview, setPreview] = useState<PreviewTarget>(null);
   const [extracting, setExtracting] = useState(false);
   const [statusDraft, setStatusDraft] = useState<{ status: StatusValue; date: string } | null>(null);
+  // Dados pessoais sempre começam recolhidos ao abrir a ficha.
+  const [dataOpen, setDataOpen] = useState(false);
+
+  const clicksignFn = useServerFn(getMyClicksignConfig);
+  const clicksign = useQuery({
+    queryKey: ["clicksign-config"],
+    queryFn: () => clicksignFn(),
+    staleTime: 5 * 60_000,
+    retry: false,
+  });
+  const clicksignActive =
+    clicksign.data?.status === "active" && Boolean(clicksign.data?.hasToken);
+
+  const catsFn = useServerFn(listProviderCategories);
+  const cats = useQuery({
+    queryKey: ["provider-categories"],
+    queryFn: () => catsFn(),
+    staleTime: 5 * 60_000,
+    enabled: kind === "provider",
+  });
 
   const statusFn = useServerFn(setStakeholderStatus);
   const extractFn = useServerFn(extractClicksignPartyData);
@@ -203,35 +206,8 @@ export function StakeholderDetailSheet({
     }
   }
 
-  async function addActivity() {
-    if (!newActivity.trim()) return;
-    setBusy(true);
-    try {
-      await actFn({
-        data: { kind, stakeholderId: id, title: newActivity.trim(), status: "todo", priority: "normal" },
-      });
-      setNewActivity("");
-      qc.invalidateQueries({ queryKey });
-      qc.invalidateQueries({ queryKey: ["stakeholders", kind] });
-    } catch (e) {
-      toast.error((e as Error).message);
-    } finally {
-      setBusy(false);
-    }
-  }
 
-  async function cycleStatus(activityId: string, current: string) {
-    const next = current === "todo" ? "doing" : current === "doing" ? "done" : "todo";
-    await actStatusFn({ data: { id: activityId, status: next as "todo" | "doing" | "done" } });
-    qc.invalidateQueries({ queryKey });
-    qc.invalidateQueries({ queryKey: ["stakeholders", kind] });
-  }
 
-  async function removeActivity(activityId: string) {
-    await actDelFn({ data: { id: activityId } });
-    qc.invalidateQueries({ queryKey });
-    qc.invalidateQueries({ queryKey: ["stakeholders", kind] });
-  }
 
   async function toggleLink(propertyId: string, link: boolean) {
     setBusy(true);
@@ -254,18 +230,23 @@ export function StakeholderDetailSheet({
     );
   }
 
-  const categoryLabel =
+  const categorySlugs: string[] =
     kind === "provider"
-      ? PROVIDER_CATEGORIES.find((c) => c.value === row.category)?.label ?? "Outros"
-      : null;
+      ? (Array.isArray(row.categories) && row.categories.length > 0
+          ? (row.categories as string[])
+          : row.category
+            ? [row.category as string]
+            : [])
+      : [];
+  const categoryLabels = categorySlugs.map(
+    (slug) => (cats.data ?? []).find((c) => c.slug === slug)?.label ?? slug,
+  );
 
   const feedEvents = feed.data?.events ?? [];
   const feedDocs = feed.data?.documents ?? [];
-  const activities = data?.activities ?? [];
   const events = data?.events ?? [];
   const properties = data?.properties ?? [];
   const available = data?.availableProperties ?? [];
-  const openCount = activities.filter((a: any) => a.status !== "done").length;
   const displayName = row.trade_name || row.name;
   const initial = String(displayName ?? "?").trim().charAt(0).toUpperCase();
 
@@ -384,76 +365,105 @@ export function StakeholderDetailSheet({
               <span className="rounded-full border border-border px-2.5 py-0.5 text-[11px] text-muted-foreground uppercase">
                 {String(row.person_type ?? "pf")}
               </span>
-              {categoryLabel && (
-                <span className="rounded-full border border-border px-2.5 py-0.5 text-[11px] text-muted-foreground">
-                  {categoryLabel}
+              {categoryLabels.map((label) => (
+                <span
+                  key={label}
+                  className="rounded-full border border-border px-2.5 py-0.5 text-[11px] text-muted-foreground"
+                >
+                  {label}
                 </span>
-              )}
+              ))}
             </div>
           </div>
         </div>
 
-        <div className="mt-4 grid gap-2 sm:grid-cols-2">
+        <div className="mt-4 grid grid-cols-2 gap-2">
           <Button variant="outline" className="w-full rounded-full" onClick={onEdit}>
-            <Pencil className="size-3.5 mr-1.5" /> Editar cadastro
+            <Pencil className="size-3.5 mr-1.5" /> Editar
           </Button>
-          <Button
-            variant="outline"
-            className="w-full rounded-full"
-            disabled={extracting}
-            onClick={runExtract}
-          >
-            {extracting ? (
-              <Loader2 className="size-3.5 mr-1.5 animate-spin" />
-            ) : (
-              <FileText className="size-3.5 mr-1.5" />
-            )}
-            Puxar dados do contrato
-          </Button>
+          {clicksignActive && (
+            <Button
+              variant="outline"
+              className="w-full rounded-full"
+              disabled={extracting}
+              onClick={runExtract}
+            >
+              {extracting ? (
+                <Loader2 className="size-3.5 mr-1.5 animate-spin" />
+              ) : (
+                <FileText className="size-3.5 mr-1.5" />
+              )}
+              Importar Dados
+            </Button>
+          )}
         </div>
 
-
-        <dl className="mt-4 grid gap-4 border-t border-border pt-4 sm:grid-cols-2">
-          {row.trade_name && <Field label="Nome fantasia" value={row.trade_name} />}
-          {row.doc && (
-            <Field
-              label={String(row.doc_type ?? "cpf").toUpperCase()}
-              value={formatTaxId(row.doc)}
-              mono
-              copy={formatTaxId(row.doc)}
+        <div className="mt-4 border-t border-border pt-3">
+          <button
+            type="button"
+            onClick={() => setDataOpen((o) => !o)}
+            className="flex w-full items-center justify-between gap-2 text-left"
+            aria-expanded={dataOpen}
+          >
+            <span className="text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
+              Dados pessoais
+            </span>
+            <ChevronDown
+              className={`size-4 shrink-0 text-muted-foreground transition-transform ${dataOpen ? "rotate-180" : ""}`}
             />
-          )}
-          {row.email && (
-            <Field label="E-mail" copy={row.email}>
-              <a
-                href={`mailto:${row.email}`}
-                className="inline-flex min-w-0 items-center gap-2 text-sm hover:underline"
-              >
-                <Mail className="size-3.5 shrink-0 text-muted-foreground" />
-                <span className="truncate">{row.email}</span>
-              </a>
-            </Field>
-          )}
-          {row.phone && (
-            <Field label="Telefone">
-              <WhatsAppLink phone={row.phone} country={row.phone_country} />
-            </Field>
-          )}
-          {(row.address || row.city || row.state) && (
-            <div className="sm:col-span-2">
-              <Field label="Endereço">
-                <p className="flex items-start gap-2 text-sm">
-                  <MapPin className="size-3.5 mt-0.5 shrink-0 text-muted-foreground" />
-                  <span className="min-w-0 break-words">
-                    {[row.address, row.district, [row.city, row.state].filter(Boolean).join(" / ")]
+          </button>
+
+          {dataOpen && (
+            <dl className="mt-4 grid gap-4 sm:grid-cols-2">
+              {row.trade_name && (
+                <Field label="Nome fantasia" value={row.trade_name} copy={row.trade_name} />
+              )}
+              {row.doc && (
+                <Field
+                  label={String(row.doc_type ?? "cpf").toUpperCase()}
+                  value={formatTaxId(row.doc)}
+                  mono
+                  copy={formatTaxId(row.doc)}
+                />
+              )}
+              {row.email && (
+                <Field label="E-mail" copy={row.email}>
+                  <a
+                    href={`mailto:${row.email}`}
+                    className="inline-flex min-w-0 items-center gap-2 text-sm hover:underline"
+                  >
+                    <Mail className="size-3.5 shrink-0 text-muted-foreground" />
+                    <span className="truncate">{row.email}</span>
+                  </a>
+                </Field>
+              )}
+              {row.phone && (
+                <Field label="Telefone" copy={formatIntlPhone(row.phone, row.phone_country)}>
+                  <WhatsAppLink phone={row.phone} country={row.phone_country} />
+                </Field>
+              )}
+              {(row.address || row.city || row.state) && (
+                <div className="sm:col-span-2">
+                  <Field
+                    label="Endereço"
+                    copy={[row.address, row.district, [row.city, row.state].filter(Boolean).join(" / ")]
                       .filter(Boolean)
                       .join(" · ")}
-                  </span>
-                </p>
-              </Field>
-            </div>
+                  >
+                    <p className="flex items-start gap-2 text-sm">
+                      <MapPin className="size-3.5 mt-0.5 shrink-0 text-muted-foreground" />
+                      <span className="min-w-0 break-words">
+                        {[row.address, row.district, [row.city, row.state].filter(Boolean).join(" / ")]
+                          .filter(Boolean)
+                          .join(" · ")}
+                      </span>
+                    </p>
+                  </Field>
+                </div>
+              )}
+            </dl>
           )}
-        </dl>
+        </div>
       </section>
 
 
@@ -490,34 +500,6 @@ export function StakeholderDetailSheet({
 
         {/* -------------------- Visão Geral -------------------- */}
         <TabsContent value="visao" className="mt-5 space-y-5">
-          <section className="rounded-2xl border border-border bg-card p-5">
-            <h3 className="flex items-center gap-2 text-sm font-semibold">
-              <TrendingUp className="size-4 text-muted-foreground" /> Visão Macro
-            </h3>
-            <ul className="mt-3 space-y-2 text-sm">
-              {kind === "owner" && (
-                <li className="flex items-start gap-2">
-                  <Home className="size-4 mt-0.5 shrink-0 text-muted-foreground" />
-                  {properties.length > 0
-                    ? `${properties.length} residência(s) vinculada(s).`
-                    : "Nenhuma residência vinculada."}
-                </li>
-              )}
-              <li className="flex items-start gap-2">
-                {openCount > 0 ? (
-                  <AlertTriangle className="size-4 mt-0.5 shrink-0 text-amber-500" />
-                ) : (
-                  <CheckCircle2 className="size-4 mt-0.5 shrink-0 text-emerald-500" />
-                )}
-                {openCount > 0 ? `${openCount} atividade(s) em aberto.` : "Nenhuma atividade em aberto."}
-              </li>
-              <li className="flex items-start gap-2">
-                <FileText className="size-4 mt-0.5 shrink-0 text-muted-foreground" />
-                {timeline.length} registro(s) na linha do tempo.
-              </li>
-            </ul>
-          </section>
-
           {kind === "provider" && row.hourly_rate_cents ? (
             <div className="grid gap-3 sm:grid-cols-2">
               <InfoCard
@@ -533,72 +515,6 @@ export function StakeholderDetailSheet({
 
 
 
-
-          <section className="rounded-2xl border border-border bg-card p-5 space-y-3">
-            <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
-              <h3 className="text-sm font-semibold truncate">Atividades</h3>
-              <span className="text-[11px] text-muted-foreground shrink-0">{openCount} em aberto</span>
-            </div>
-            <div className="relative">
-              <Input
-                value={newActivity}
-                onChange={(e) => setNewActivity(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && addActivity()}
-                placeholder="Nova atividade..."
-                className="rounded-full text-sm pr-11"
-              />
-              {newActivity.trim().length > 0 && (
-                <Button
-                  size="icon"
-                  className="absolute top-1/2 right-1 size-8 -translate-y-1/2 rounded-full"
-                  onClick={addActivity}
-                  disabled={busy}
-                  aria-label="Adicionar atividade"
-                >
-                  <Plus className="size-4" />
-                </Button>
-              )}
-            </div>
-
-            {activities.map((a: any) => {
-              const meta = STATUS_META[a.status] ?? STATUS_META.todo;
-              const StatusIcon = meta.icon;
-              return (
-                <div
-                  key={a.id}
-                  className="group flex items-start gap-2.5 rounded-xl border border-border bg-background/40 px-3 py-2.5"
-                >
-                  <button
-                    type="button"
-                    onClick={() => cycleStatus(a.id, a.status)}
-                    className={`mt-0.5 ${meta.cls}`}
-                    title={meta.label}
-                  >
-                    <StatusIcon className="size-4" />
-                  </button>
-                  <div className="min-w-0 flex-1">
-                    <p className={`text-sm truncate ${a.status === "done" ? "line-through text-muted-foreground" : ""}`}>
-                      {a.title}
-                    </p>
-                    <p className="text-[11px] text-muted-foreground">
-                      {meta.label}
-                      {a.due_date ? ` · vence ${a.due_date.split("-").reverse().join("/")}` : ""}
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => removeActivity(a.id)}
-                    className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-opacity"
-                  >
-                    <Trash2 className="size-3.5" />
-                  </button>
-                </div>
-              );
-            })}
-            {activities.length === 0 && (
-              <p className="text-xs text-muted-foreground">Nenhuma atividade registrada.</p>
-            )}
-          </section>
 
           {/* Linha do tempo */}
           <section className="space-y-4">
@@ -768,7 +684,7 @@ export function StakeholderDetailSheet({
 
         {/* -------------------- Financeiro -------------------- */}
         <TabsContent value="financeiro" className="mt-5 space-y-4">
-          <div className="grid gap-3 sm:grid-cols-3">
+          <div className="grid grid-cols-3 gap-2 sm:gap-3">
             <MoneyCard label="A receber" value={0} tone="emerald" />
             <MoneyCard label="Recebido" value={0} tone="primary" />
             <MoneyCard label="A pagar" value={0} tone="amber" />
@@ -991,9 +907,9 @@ function MoneyCard({
   const toneCls =
     tone === "emerald" ? "text-emerald-500" : tone === "amber" ? "text-amber-500" : "text-primary";
   return (
-    <div className="rounded-2xl border border-border bg-card px-4 py-4">
-      <p className={`text-[11px] uppercase tracking-wide ${toneCls}`}>{label}</p>
-      <p className="font-display text-2xl tabular-nums mt-1">
+    <div className="min-w-0 rounded-2xl border border-border bg-card px-3 py-3 sm:px-4 sm:py-4">
+      <p className={`text-[10px] uppercase tracking-wide truncate ${toneCls}`}>{label}</p>
+      <p className="font-display text-base sm:text-xl tabular-nums mt-1 tracking-tight break-all">
         {(value / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
       </p>
     </div>

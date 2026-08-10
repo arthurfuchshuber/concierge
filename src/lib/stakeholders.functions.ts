@@ -77,6 +77,7 @@ const SaveInput = z.object({
   name: z.string().trim().min(1).max(160),
   trade_name: z.string().trim().max(160).optional().nullable(),
   category: z.string().trim().max(60).optional().nullable(),
+  categories: z.array(z.string().trim().max(60)).max(20).optional(),
   person_type: z.enum(["pf", "pj"]).default("pf"),
   doc_type: z.enum(["cpf", "cnpj"]).default("cpf"),
   doc: z.string().trim().max(40).optional().nullable(),
@@ -131,7 +132,7 @@ export const saveStakeholder = createServerFn({ method: "POST" })
     const { enforce } = await import("@/lib/permissions/permission.enforce.server");
     await enforce(userId, "stakeholders.write", { resource: data.id ?? null });
     const accountId = await resolveAccountOwnerId(supabase, userId);
-    const { kind, id, category, ...rest } = data;
+    const { kind, id, category, categories, ...rest } = data;
 
     // Validação real do documento no servidor (dígitos verificadores oficiais).
     const doc = onlyDigits(rest.doc);
@@ -147,7 +148,13 @@ export const saveStakeholder = createServerFn({ method: "POST" })
       cep: onlyDigits(rest.cep) || null,
       account_owner_id: accountId,
     };
-    if (kind === "provider") payload.category = category || "outros";
+    if (kind === "provider") {
+      const list = (categories ?? []).filter(Boolean);
+      payload.categories = list;
+      // `category` segue preenchida (primeira categoria) para compatibilidade
+      // com filtros e telas antigas.
+      payload.category = list[0] || category || "outros";
+    }
 
 
     if (id) {

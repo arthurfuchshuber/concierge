@@ -4147,6 +4147,30 @@ export type Database = {
           },
         ]
       }
+      provider_categories: {
+        Row: {
+          account_owner_id: string
+          created_at: string
+          id: string
+          label: string
+          slug: string
+        }
+        Insert: {
+          account_owner_id: string
+          created_at?: string
+          id?: string
+          label: string
+          slug: string
+        }
+        Update: {
+          account_owner_id?: string
+          created_at?: string
+          id?: string
+          label?: string
+          slug?: string
+        }
+        Relationships: []
+      }
       push_subscriptions: {
         Row: {
           auth: string
@@ -4200,6 +4224,7 @@ export type Database = {
           account_owner_id: string
           address: string | null
           birth_date: string | null
+          categories: string[]
           category: string
           cep: string | null
           city: string | null
@@ -4228,6 +4253,7 @@ export type Database = {
           account_owner_id: string
           address?: string | null
           birth_date?: string | null
+          categories?: string[]
           category?: string
           cep?: string | null
           city?: string | null
@@ -4256,6 +4282,7 @@ export type Database = {
           account_owner_id?: string
           address?: string | null
           birth_date?: string | null
+          categories?: string[]
           category?: string
           cep?: string | null
           city?: string | null
