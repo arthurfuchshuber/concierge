@@ -158,20 +158,28 @@ export const getStakeholderSystemTrail = createServerFn({ method: "POST" })
     const items: StakeholderTrailItem[] = (rows ?? []).map((r) => {
       const meta = (r.metadata ?? {}) as Record<string, unknown>;
       const type = String(r.event_type ?? "");
-      const title =
-        String(r.description ?? "").trim() || TYPE_PT[type] || type.replace(/_/g, " ") || "Ação no sistema";
+      const pageTitle = (meta["page_title"] ?? null) as string | null;
+      const path = (meta["path"] ?? null) as string | null;
+      const pageName = friendlyPage(path, pageTitle);
+      const label = meta["element_label"] ? String(meta["element_label"]) : null;
+
+      let title = String(r.description ?? "").trim();
+      if (!title) {
+        if (type === "page_view" && pageName) title = `Abriu a ${pageName.replace(/^Página /, "página ")}`;
+        else if (type === "click" && label) title = `Clicou em “${label}”`;
+        else title = TYPE_PT[type] || type.replace(/_/g, " ") || "Ação no sistema";
+      }
 
       const details: string[] = [];
-      const page = (meta["page_title"] ?? null) as string | null;
-      const path = (meta["path"] ?? null) as string | null;
-      if (page) details.push(`Página: ${page}`);
-      if (path) details.push(`Rota: ${path}`);
-      if (meta["element_label"]) details.push(`Elemento: ${String(meta["element_label"])}`);
+      if (pageName) details.push(pageName);
+      if (label && !title.includes(label)) details.push(`Botão: ${label}`);
       if (Array.isArray(meta["fields"]) && (meta["fields"] as string[]).length > 0) {
-        details.push(`Campos: ${(meta["fields"] as string[]).slice(0, 12).join(", ")}`);
+        details.push(`Informações preenchidas: ${(meta["fields"] as string[]).slice(0, 12).join(", ")}`);
       }
-      if (r.entity_type && r.entity_id) details.push(`Alvo: ${r.entity_type} · ${r.entity_id}`);
-      if (r.result && r.result !== "success") details.push(`Resultado: ${String(r.result)}`);
+      if (r.entity_type) {
+        details.push(`Referente a: ${ENTITY_PT[String(r.entity_type)] ?? String(r.entity_type)}`);
+      }
+      if (r.result && r.result !== "success") details.push("Não foi concluído");
 
       return {
         id: String(r.id),
@@ -180,8 +188,13 @@ export const getStakeholderSystemTrail = createServerFn({ method: "POST" })
         badge: CATEGORY_PT[String(r.event_category)] ?? "Atividade",
         details,
         severity: String(r.severity ?? "info"),
+        macro:
+          MACRO_TYPES.has(type) ||
+          String(r.event_category) === "PERMISSIONS" ||
+          String(r.event_category) === "USER_MANAGEMENT",
       };
     });
+
 
     return { items, linked: true };
   });
