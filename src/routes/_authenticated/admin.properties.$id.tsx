@@ -134,6 +134,7 @@ type FormState = {
     collect_document: "off" | "optional" | "required";
     document_scope: "main" | "all";
     airbnb_ical_url: string | null;
+    airbnb_ical_url_2: string | null;
     airbnb_ical_last_sync_at: string | null;
     airbnb_ical_last_error: string | null;
     airbnb_listing_url: string | null;
@@ -157,7 +158,7 @@ function emptyForm(): FormState {
       host_name: "", host_phone: "", brand_name: "", brand_logo_url: "", access_mode: "public", pin_code: "", pin_expires_at: "",
       default_language: "pt", guide_theme: "dark", published: true, require_access_gate: false,
       collect_arrival_time: "off", collect_vehicles: "off", vehicles_max: 2, collect_document: "off", document_scope: "main",
-      airbnb_ical_url: null, airbnb_ical_last_sync_at: null, airbnb_ical_last_error: null, airbnb_listing_url: null,
+      airbnb_ical_url: null, airbnb_ical_url_2: null, airbnb_ical_last_sync_at: null, airbnb_ical_last_error: null, airbnb_listing_url: null,
     },
     manual: [],
     emergency: [{ label: "Polícia", number: "190" }, { label: "Bombeiros / SAMU", number: "192" }],
@@ -447,6 +448,7 @@ function PropertyEditor() {
         collect_document: ((p.collect_document as "off" | "optional" | "required") ?? "off"),
         document_scope: ((p.document_scope as "main" | "all") ?? "main"),
         airbnb_ical_url: (p.airbnb_ical_url as string | null) ?? null,
+        airbnb_ical_url_2: ((p as Record<string, unknown>).airbnb_ical_url_2 as string | null) ?? null,
         airbnb_ical_last_sync_at: (p.airbnb_ical_last_sync_at as string | null) ?? null,
         airbnb_ical_last_error: (p.airbnb_ical_last_error as string | null) ?? null,
         airbnb_listing_url: ((p as Record<string, unknown>).airbnb_listing_url as string | null) ?? null,
@@ -777,7 +779,7 @@ function PropertyEditor() {
     const wasFirstActivation = !form.property.airbnb_ical_last_sync_at;
     setSyncingIcal(true);
     try {
-      const r = await syncIcal({ data: { propertyId: id, icalUrl: url } });
+      const r = await syncIcal({ data: { propertyId: id, icalUrl: url, icalUrl2: form.property.airbnb_ical_url_2?.trim() || null } });
       const parts: string[] = [];
       if (r.imported) parts.push(`${r.imported} nova(s)`);
       if (r.updated) parts.push(`${r.updated} atualizada(s)`);
