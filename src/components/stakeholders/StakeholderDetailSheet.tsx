@@ -11,10 +11,6 @@ import {
   FileText,
   Plus,
   Pencil,
-  CheckCircle2,
-  Circle,
-  CircleDot,
-  Trash2,
   Home,
   Link2,
   Unlink,
@@ -88,11 +84,6 @@ const STATUS_STYLE: Record<string, string> = {
   inactive: "border-border text-muted-foreground",
 };
 
-const STATUS_META: Record<string, { label: string; icon: typeof Circle; cls: string }> = {
-  todo: { label: "A fazer", icon: Circle, cls: "text-muted-foreground" },
-  doing: { label: "Em andamento", icon: CircleDot, cls: "text-amber-500" },
-  done: { label: "Concluída", icon: CheckCircle2, cls: "text-emerald-500" },
-};
 
 export function StakeholderDetailSheet({
   kind,
