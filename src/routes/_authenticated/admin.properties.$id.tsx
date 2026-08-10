@@ -1123,6 +1123,34 @@ function PropertyEditor() {
                   </div>
                 </Field>
 
+                {showIcal2 || (form.property.airbnb_ical_url_2 ?? "").trim() ? (
+                  <Field label="2º calendário (outro anúncio do mesmo imóvel)" hint="Use quando o imóvel tem mais de um anúncio no Airbnb. As reservas dos dois calendários são unificadas neste guia.">
+                    <div className="flex gap-2">
+                      <Input
+                        value={form.property.airbnb_ical_url_2 ?? ""}
+                        onChange={(e) => update("airbnb_ical_url_2", e.target.value.trim() || null)}
+                        placeholder="https://www.airbnb.com/calendar/ical/67890.ics?s=..."
+                      />
+                      <Button
+                        variant="ghost"
+                        className="shrink-0"
+                        onClick={() => { update("airbnb_ical_url_2", null); setShowIcal2(false); }}
+                        title="Remover 2º calendário"
+                      >
+                        Remover
+                      </Button>
+                    </div>
+                  </Field>
+                ) : (
+                  <div className="flex justify-end">
+                    <Button variant="ghost" size="sm" onClick={() => setShowIcal2(true)}>
+                      + Adicionar 2º calendário
+                    </Button>
+                  </div>
+                )}
+
+
+
                 {(form.property.airbnb_ical_last_sync_at || form.property.airbnb_ical_last_error) && (
                   <div className="text-[11px] text-muted-foreground flex items-center gap-2 flex-wrap">
                     {form.property.airbnb_ical_last_sync_at && (
