@@ -415,9 +415,25 @@ export function StakeholderDetailSheet({
 
           {dataOpen && (
             <dl className="mt-4 grid gap-4 sm:grid-cols-2">
+              <Field label="Nome completo" value={row.name} copy={row.name} />
               {row.trade_name && (
                 <Field label="Nome fantasia" value={row.trade_name} copy={row.trade_name} />
               )}
+              <Field
+                label="Tipo de pessoa"
+                value={String(row.person_type ?? "pf").toUpperCase() === "PJ" ? "Pessoa jurídica" : "Pessoa física"}
+              />
+              {row.birth_date && (
+                <Field
+                  label="Data de nascimento"
+                  value={new Date(`${String(row.birth_date).slice(0, 10)}T12:00:00`).toLocaleDateString("pt-BR")}
+                  copy={new Date(`${String(row.birth_date).slice(0, 10)}T12:00:00`).toLocaleDateString("pt-BR")}
+                />
+              )}
+              {categoryLabels.length > 0 && (
+                <Field label="Categorias de serviço" value={categoryLabels.join(", ")} />
+              )}
+              {row.cep && <Field label="CEP" value={row.cep} mono copy={row.cep} />
               {row.doc && (
                 <Field
                   label={String(row.doc_type ?? "cpf").toUpperCase()}
