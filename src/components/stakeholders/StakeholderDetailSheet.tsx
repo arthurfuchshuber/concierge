@@ -402,14 +402,14 @@ export function StakeholderDetailSheet({
           <button
             type="button"
             onClick={() => setDataOpen((o) => !o)}
-            className="flex w-full items-center justify-between gap-2 text-left"
+            className="relative flex w-full items-center justify-center gap-2 py-1 text-center"
             aria-expanded={dataOpen}
           >
             <span className="text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
               Dados pessoais
             </span>
             <ChevronDown
-              className={`size-4 shrink-0 text-muted-foreground transition-transform ${dataOpen ? "rotate-180" : ""}`}
+              className={`absolute right-0 size-4 shrink-0 text-muted-foreground transition-transform ${dataOpen ? "rotate-180" : ""}`}
             />
           </button>
 
