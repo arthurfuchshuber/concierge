@@ -521,6 +521,8 @@ export function StakeholderDetailSheet({
             <TabsTrigger value="financeiro">Financeiro</TabsTrigger>
             <TabsTrigger value="documentos">Documentos</TabsTrigger>
             <TabsTrigger value="acessos">Acessos</TabsTrigger>
+            <TabsTrigger value="log">Log</TabsTrigger>
+
           </TabsList>
         </div>
 
