@@ -331,8 +331,25 @@ export function StakeholderDetailSheet({
         </>
       ),
     })),
-
+    ...(trail.data?.items ?? []).map((ev) => ({
+      key: `t:${ev.id}`,
+      at: ev.at ?? "",
+      icon: ev.severity === "error" || ev.severity === "critical" ? Unlink : MessageCircle,
+      title: ev.title,
+      badge: ev.badge,
+      body:
+        ev.details.length > 0 ? (
+          <ul className="space-y-0.5">
+            {ev.details.map((d, i) => (
+              <li key={i} className="text-[11px] text-muted-foreground break-words">
+                {d}
+              </li>
+            ))}
+          </ul>
+        ) : null,
+    })),
   ].sort((a, b) => String(b.at).localeCompare(String(a.at)));
+
 
   return (
     <div className="flex flex-col gap-5 px-5 py-6 sm:px-6">
