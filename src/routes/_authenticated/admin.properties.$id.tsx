@@ -220,6 +220,7 @@ function PropertyEditor() {
   const [syncingIcal, setSyncingIcal] = useState(false);
   
   const [pendingIcalClear, setPendingIcalClear] = useState(false);
+  const [showIcal2, setShowIcal2] = useState(false);
   const reservationsQuery = useQuery({
     queryKey: ["airbnb-reservations", id],
     queryFn: () => listReservations({ data: { propertyId: id } }),
