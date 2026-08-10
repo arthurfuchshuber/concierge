@@ -223,7 +223,7 @@ export function startTrail(slug?: string): () => void {
       type: "form_submit",
       label: `Enviou o formulário "${formName}" ${where()}${fields.length ? ` com os campos: ${fields.slice(0, 12).join(", ")}` : ""}`,
       target: form?.id || "form",
-      metadata: { fields, page_title: document.title },
+      metadata: { fields, page_title: pageName() },
     });
   };
 
