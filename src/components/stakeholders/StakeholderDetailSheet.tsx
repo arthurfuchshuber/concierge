@@ -49,6 +49,7 @@ import {
   setStakeholderStatus,
 } from "@/lib/stakeholders.functions";
 import { getStakeholderIntegrationFeed } from "@/lib/stakeholder-feed.functions";
+import { getStakeholderSystemTrail } from "@/lib/stakeholder-trail.functions";
 import { getClicksignDocumentUrl, extractClicksignPartyData } from "@/lib/clicksign.functions";
 import { CopyButton } from "@/components/CopyButton";
 import { getStakeholderAccess } from "@/lib/stakeholder-access.functions";
