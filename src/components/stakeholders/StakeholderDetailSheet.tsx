@@ -543,26 +543,8 @@ export function StakeholderDetailSheet({
               )}
             </div>
 
-            <div className="relative">
-              <Textarea
-                rows={2}
-                value={note}
-                onChange={(e) => setNote(e.target.value)}
-                placeholder="Adicionar nota..."
-                className="text-sm pr-12"
-              />
-              {note.trim().length > 0 && (
-                <Button
-                  size="icon"
-                  className="absolute bottom-2 right-2 size-8 rounded-full"
-                  onClick={submitNote}
-                  disabled={busy}
-                  aria-label="Adicionar nota"
-                >
-                  <Plus className="size-4" />
-                </Button>
-              )}
-            </div>
+
+
 
 
             {feed.data?.calendarError && (
