@@ -1121,6 +1121,17 @@ function PropertyEditor() {
                       {syncingIcal ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}
                       <span className="ml-1.5 hidden sm:inline">{syncingIcal ? "Sincronizando…" : "Sincronizar"}</span>
                     </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="shrink-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                      disabled={!(form.property.airbnb_ical_url ?? "").trim()}
+                      onClick={() => setPendingIcalClear(true)}
+                      title="Remover calendário"
+                      aria-label="Remover calendário"
+                    >
+                      <Trash2 className="size-4" />
+                    </Button>
                   </div>
                 </Field>
 
@@ -1144,12 +1155,15 @@ function PropertyEditor() {
                       </Button>
                       <Button
                         variant="ghost"
-                        className="shrink-0"
+                        size="icon"
+                        className="shrink-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
                         onClick={() => { update("airbnb_ical_url_2", null); setShowIcal2(false); }}
                         title="Remover 2º calendário"
+                        aria-label="Remover 2º calendário"
                       >
-                        Remover
+                        <Trash2 className="size-4" />
                       </Button>
+
 
                     </div>
                   </Field>
