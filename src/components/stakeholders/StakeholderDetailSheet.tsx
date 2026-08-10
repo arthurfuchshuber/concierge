@@ -133,7 +133,7 @@ export function StakeholderDetailSheet({
     retry: false,
   });
   const clicksignActive =
-    clicksign.data?.status === "connected" && Boolean(clicksign.data?.hasToken);
+    clicksign.data?.status === "active" && Boolean(clicksign.data?.hasToken);
 
   const catsFn = useServerFn(listProviderCategories);
   const cats = useQuery({
