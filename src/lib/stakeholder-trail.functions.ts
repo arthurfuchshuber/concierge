@@ -210,24 +210,28 @@ export const getStakeholderSystemTrail = createServerFn({ method: "POST" })
       const path = (meta["path"] ?? null) as string | null;
       const pageName = friendlyPage(path, pageTitle);
       const label = meta["element_label"] ? String(meta["element_label"]) : null;
+      const context = meta["context_label"] ? String(meta["context_label"]) : null;
 
       let title = String(r.description ?? "").trim();
       if (!title) {
         if (type === "page_view" && pageName) title = `Abriu a ${pageName.replace(/^Página /, "página ")}`;
-        else if (type === "click" && label) title = `Clicou em “${label}”`;
+        else if (type === "click" && label)
+          title = `Clicou em “${label}”${context ? ` no item “${context}”` : ""}`;
         else title = TYPE_PT[type] || type.replace(/_/g, " ") || "Ação no sistema";
       }
 
       const details: string[] = [];
       if (pageName) details.push(pageName);
+      if (context && !title.includes(context)) details.push(`Item: ${context}`);
       if (label && !title.includes(label)) details.push(`Botão: ${label}`);
       if (Array.isArray(meta["fields"]) && (meta["fields"] as string[]).length > 0) {
         details.push(`Informações preenchidas: ${(meta["fields"] as string[]).slice(0, 12).join(", ")}`);
       }
-      if (r.entity_type) {
-        details.push(`Referente a: ${ENTITY_PT[String(r.entity_type)] ?? String(r.entity_type)}`);
-      }
+      details.push(...argDetails(meta));
+      const entityLabel = r.entity_type ? ENTITY_PT[String(r.entity_type)] : null;
+      if (entityLabel) details.push(`Referente a: ${entityLabel}`);
       if (r.result && r.result !== "success") details.push("Não foi concluído");
+
 
       return {
         id: String(r.id),
