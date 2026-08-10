@@ -181,6 +181,16 @@ export function StakeholderDetailSheet({
     retry: false,
   });
 
+  // Rastro completo: tudo o que a pessoa fez dentro do sistema.
+  const trailFn = useServerFn(getStakeholderSystemTrail);
+  const trail = useQuery({
+    queryKey: ["stakeholder-trail", kind, id],
+    queryFn: () => trailFn({ data: { kind, id } }),
+    refetchInterval: 60_000,
+    retry: false,
+  });
+
+
   const row = data?.row as Record<string, any> | null | undefined;
 
   const accessFn = useServerFn(getStakeholderAccess);
