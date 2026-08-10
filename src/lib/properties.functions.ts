@@ -137,6 +137,18 @@ const PropertyInput = z.object({
       .optional()
       .nullable(),
   ),
+  airbnb_ical_url_2: z.preprocess(
+    normalizeHttpsInput,
+    z
+      .string()
+      .trim()
+      .url()
+      .max(2048)
+      .refine(isHttpsUrl, "Use um link HTTPS válido")
+      .refine(isAllowedIcalUrl, "Use um link iCal oficial do Airbnb")
+      .optional()
+      .nullable(),
+  ),
   airbnb_listing_url: HttpsUrl,
 });
 
