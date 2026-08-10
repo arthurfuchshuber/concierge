@@ -255,7 +255,13 @@ export const saveStakeholder = createServerFn({ method: "POST" })
       stakeholder_type: kind,
       stakeholder_id: inserted.id as string,
       kind: "create",
-      message: "Cadastro criado.",
+      message: (() => {
+        const filled = Object.entries(payload)
+          .filter(([k, v]) => k !== "account_owner_id" && v !== null && v !== "" && !(Array.isArray(v) && !v.length))
+          .map(([k, v]) => `${FIELD_LABELS[k] ?? k}: "${displayValue(k, v)}"`);
+        return filled.length ? `Cadastro criado com ${filled.join("; ")}` : "Cadastro criado.";
+      })(),
+
       created_by: userId,
     });
     return { ok: true, id: inserted.id as string };
