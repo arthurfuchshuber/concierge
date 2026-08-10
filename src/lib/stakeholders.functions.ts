@@ -158,22 +158,33 @@ export const saveStakeholder = createServerFn({ method: "POST" })
 
 
     if (id) {
+      const { data: before } = await supabase
+        .from(TABLE[kind])
+        .select("*")
+        .eq("id", id)
+        .eq("account_owner_id", accountId)
+        .maybeSingle();
+
       const { error } = await supabase
         .from(TABLE[kind])
         .update(payload as never)
         .eq("id", id)
         .eq("account_owner_id", accountId);
       if (error) throw new Error(error.message);
+      const changes = diffPayload((before ?? {}) as Record<string, unknown>, payload);
       await supabase.from("stakeholder_events").insert({
         account_owner_id: accountId,
         stakeholder_type: kind,
         stakeholder_id: id,
         kind: "update",
-        message: "Cadastro atualizado.",
+        message: changes.length
+          ? `Cadastro atualizado — ${changes.length} informação(ões) alterada(s): ${changes.join("; ")}`
+          : "Cadastro salvo sem alterações.",
         created_by: userId,
       });
       return { ok: true, id };
     }
+
 
     const { data: inserted, error } = await supabase
       .from(TABLE[kind])
