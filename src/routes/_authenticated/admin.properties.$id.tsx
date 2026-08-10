@@ -1133,6 +1133,16 @@ function PropertyEditor() {
                         placeholder="https://www.airbnb.com/calendar/ical/67890.ics?s=..."
                       />
                       <Button
+                        onClick={handleSyncIcal}
+                        disabled={syncingIcal || isNew || !(form.property.airbnb_ical_url_2 ?? "").trim()}
+                        variant="secondary"
+                        className="shrink-0"
+                        title={isNew ? "Salve o guia antes de sincronizar" : "Sincronizar agora"}
+                      >
+                        {syncingIcal ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}
+                        <span className="ml-1.5 hidden sm:inline">{syncingIcal ? "Sincronizando…" : "Sincronizar"}</span>
+                      </Button>
+                      <Button
                         variant="ghost"
                         className="shrink-0"
                         onClick={() => { update("airbnb_ical_url_2", null); setShowIcal2(false); }}
@@ -1140,6 +1150,7 @@ function PropertyEditor() {
                       >
                         Remover
                       </Button>
+
                     </div>
                   </Field>
                 ) : (
