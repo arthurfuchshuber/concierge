@@ -297,13 +297,14 @@ export function startTrail(slug?: string): () => void {
 
 /** Registra visualização de página (chamado a cada navegação). */
 export function trackPageView(path: string, title?: string): void {
-  const t = title ?? document.title;
+  const t = (title ?? document.title).replace(/\s*[—–|-]\s*ConciergeIA\s*$/i, "");
   track({
     type: "page_view",
-    label: `Abriu a página "${t}" (${path})`,
+    label: `Abriu a página "${t}"`,
     target: path,
     path,
     metadata: { page_title: t },
   });
 }
+
 
