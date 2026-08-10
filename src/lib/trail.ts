@@ -159,7 +159,9 @@ export function startTrail(slug?: string): () => void {
     },
   });
 
-  const where = () => `na página "${document.title || window.location.pathname}"`;
+  const pageName = () => (document.title || window.location.pathname).replace(/\s*[—–|-]\s*ConciergeIA\s*$/i, "");
+  const where = () => `na página "${pageName()}"`;
+  const inside = (ctx: string | null) => (ctx ? ` em "${ctx}"` : "");
   const KIND_PT: Record<string, string> = {
     button: "botão",
     a: "link",
@@ -175,9 +177,14 @@ export function startTrail(slug?: string): () => void {
     if (!info) return;
     track({
       type: "click",
-      label: `Clicou ${KIND_PT[info.kind] ? `no ${KIND_PT[info.kind]}` : "em"} "${info.label}" ${where()}`,
+      label: `Clicou ${KIND_PT[info.kind] ? `no ${KIND_PT[info.kind]}` : "em"} "${info.label}"${inside(info.context)} ${where()}`,
       target: info.target,
-      metadata: { element: info.kind, element_label: info.label, page_title: document.title },
+      metadata: {
+        element: info.kind,
+        element_label: info.label,
+        context_label: info.context,
+        page_title: pageName(),
+      },
     });
   };
 
@@ -189,18 +196,20 @@ export function startTrail(slug?: string): () => void {
     const filled = Boolean(el.value);
     track({
       type: "field_changed",
-      label: `${filled ? "Preencheu" : "Limpou"} o campo "${info.label}" ${where()}`,
+      label: `${filled ? "Preencheu" : "Limpou"} o campo "${info.label}"${inside(info.context)} ${where()}`,
       target: info.target,
       metadata: {
         element: info.kind,
         element_label: info.label,
+        context_label: info.context,
         input_type: el.type ?? null,
         filled,
         length: typeof el.value === "string" ? el.value.length : null,
-        page_title: document.title,
+        page_title: pageName(),
       },
     });
   };
+
 
   const onSubmit = (e: Event) => {
     const form = e.target as HTMLFormElement | null;
