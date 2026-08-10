@@ -10,6 +10,7 @@ import { LineChart, Line, ResponsiveContainer, Tooltip, XAxis } from "recharts";
 import type { EngagementAnalytics } from "@/lib/engagement-analytics.functions";
 import { getGuestDetail } from "@/lib/engagement-guests.functions";
 import { labelFor } from "./insights";
+import { MessageText } from "@/components/handoff/MessageText";
 import { formatDur } from "./KpiStrip";
 import { formatIntlPhone } from "@/lib/masks";
 
