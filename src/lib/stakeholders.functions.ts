@@ -132,7 +132,7 @@ export const saveStakeholder = createServerFn({ method: "POST" })
     const { enforce } = await import("@/lib/permissions/permission.enforce.server");
     await enforce(userId, "stakeholders.write", { resource: data.id ?? null });
     const accountId = await resolveAccountOwnerId(supabase, userId);
-    const { kind, id, category, ...rest } = data;
+    const { kind, id, category, categories, ...rest } = data;
 
     // Validação real do documento no servidor (dígitos verificadores oficiais).
     const doc = onlyDigits(rest.doc);
@@ -148,7 +148,13 @@ export const saveStakeholder = createServerFn({ method: "POST" })
       cep: onlyDigits(rest.cep) || null,
       account_owner_id: accountId,
     };
-    if (kind === "provider") payload.category = category || "outros";
+    if (kind === "provider") {
+      const list = (categories ?? []).filter(Boolean);
+      payload.categories = list;
+      // `category` segue preenchida (primeira categoria) para compatibilidade
+      // com filtros e telas antigas.
+      payload.category = list[0] || category || "outros";
+    }
 
 
     if (id) {
