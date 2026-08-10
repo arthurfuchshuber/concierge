@@ -12,6 +12,14 @@ const SyncInput = z.object({
     .max(2048)
     .refine(isAllowedIcalUrl, "Use um link iCal oficial do Airbnb (https://...airbnb.*)")
     .optional(),
+  icalUrl2: z
+    .string()
+    .trim()
+    .url()
+    .max(2048)
+    .refine(isAllowedIcalUrl, "Use um link iCal oficial do Airbnb (https://...airbnb.*)")
+    .optional()
+    .nullable(),
 });
 
 export const syncPropertyAirbnbIcal = createServerFn({ method: "POST" })
@@ -21,7 +29,7 @@ export const syncPropertyAirbnbIcal = createServerFn({ method: "POST" })
     // Access check: owner or account member
     const { data: prop, error } = await context.supabase
       .from("properties")
-      .select("id, airbnb_ical_url")
+      .select("id, airbnb_ical_url, airbnb_ical_url_2")
       .eq("id", data.propertyId)
       .maybeSingle();
     if (error || !prop) throw new Error("Guia não encontrado ou sem acesso.");
@@ -38,14 +46,35 @@ export const syncPropertyAirbnbIcal = createServerFn({ method: "POST" })
       effectiveUrl = data.icalUrl;
     }
 
+    let effectiveUrl2 = ((prop as { airbnb_ical_url_2?: string | null }).airbnb_ical_url_2 as string | null) ?? null;
+    if (typeof data.icalUrl2 !== "undefined" && (data.icalUrl2 ?? null) !== effectiveUrl2) {
+      const { error: up2 } = await context.supabase
+        .from("properties")
+        .update({ airbnb_ical_url_2: data.icalUrl2 ?? null })
+        .eq("id", data.propertyId);
+      if (up2) throw new Error("Não foi possível salvar o 2º link iCal antes de sincronizar.");
+      effectiveUrl2 = data.icalUrl2 ?? null;
+    }
+
     if (!effectiveUrl) throw new Error("Nenhum link iCal cadastrado neste guia.");
     if (!isAllowedIcalUrl(effectiveUrl)) {
       throw new Error("Link iCal fora da lista permitida. Use um link oficial do Airbnb.");
     }
 
     const { syncPropertyIcal } = await import("@/lib/airbnb-ical.server");
-    const out = await syncPropertyIcal(prop.id, effectiveUrl);
+    const out = await syncPropertyIcal(prop.id, effectiveUrl, 0);
     if (!out.ok) throw new Error(out.error ?? "Falha ao sincronizar.");
+
+    if (effectiveUrl2 && isAllowedIcalUrl(effectiveUrl2)) {
+      const out2 = await syncPropertyIcal(prop.id, effectiveUrl2, 1);
+      if (!out2.ok) throw new Error(out2.error ?? "Falha ao sincronizar o 2º calendário.");
+      return {
+        ok: true,
+        imported: out.imported + out2.imported,
+        updated: out.updated + out2.updated,
+        removed: out.removed + out2.removed,
+      };
+    }
     return out;
   });
 

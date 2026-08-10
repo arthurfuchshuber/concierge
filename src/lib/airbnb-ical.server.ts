@@ -156,10 +156,32 @@ export async function ensurePropertyIcalFresh(
   if (currentLastSync && Date.now() - new Date(currentLastSync).getTime() <= maxAgeMs) {
     return null;
   }
-  return syncPropertyIcal(propertyId, url);
+  const primary = await syncPropertyIcal(propertyId, url, 0);
+  const secondary = await syncSecondaryIcal(propertyId);
+  if (!secondary) return primary;
+  return {
+    ok: primary.ok && secondary.ok,
+    imported: primary.imported + secondary.imported,
+    updated: primary.updated + secondary.updated,
+    removed: primary.removed + secondary.removed,
+    error: primary.error ?? secondary.error,
+  };
 }
 
-export async function syncPropertyIcal(propertyId: string, icalUrl: string): Promise<SyncOutcome> {
+/** Sincroniza o 2º calendário do imóvel (quando o anfitrião cadastrou dois anúncios). */
+export async function syncSecondaryIcal(propertyId: string): Promise<SyncOutcome | null> {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data } = await supabaseAdmin
+    .from("properties")
+    .select("airbnb_ical_url_2")
+    .eq("id", propertyId)
+    .maybeSingle();
+  const url2 = ((data as { airbnb_ical_url_2?: string | null } | null)?.airbnb_ical_url_2 ?? "").trim();
+  if (!url2 || !isAllowedIcalUrl(url2)) return null;
+  return syncPropertyIcal(propertyId, url2, 1);
+}
+
+export async function syncPropertyIcal(propertyId: string, icalUrl: string, feedIndex = 0): Promise<SyncOutcome> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const now = new Date().toISOString();
   try {
@@ -201,12 +223,14 @@ export async function syncPropertyIcal(propertyId: string, icalUrl: string): Pro
             ? "blocked"
             : ev.status ?? "confirmed",
         synced_at: now,
+        feed_index: feedIndex,
       }));
       const { data: existing } = await supabaseAdmin
         .from("property_reservations")
         .select("external_uid")
         .eq("property_id", propertyId)
-        .eq("source", "airbnb");
+        .eq("source", "airbnb")
+        .eq("feed_index", feedIndex);
       const known = new Set((existing ?? []).map((r) => r.external_uid));
       imported = rows.filter((r) => !known.has(r.external_uid)).length;
       updated = rows.length - imported;
@@ -225,6 +249,7 @@ export async function syncPropertyIcal(propertyId: string, icalUrl: string): Pro
       .select("id, external_uid")
       .eq("property_id", propertyId)
       .eq("source", "airbnb")
+      .eq("feed_index", feedIndex)
       .gte("checkout_date", new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().slice(0, 10));
     const toDelete = (staleFuture ?? []).filter((r) => !uids.includes(r.external_uid)).map((r) => r.id);
     if (toDelete.length > 0) {

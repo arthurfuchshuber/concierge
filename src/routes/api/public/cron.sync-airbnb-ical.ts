@@ -16,9 +16,9 @@ async function runSync() {
   const { syncPropertyIcal } = await import("@/lib/airbnb-ical.server");
   const { data: props } = await supabaseAdmin
     .from("properties")
-    .select("id, airbnb_ical_url")
+    .select("id, airbnb_ical_url, airbnb_ical_url_2")
     .not("airbnb_ical_url", "is", null);
-  const list = (props ?? []) as Array<{ id: string; airbnb_ical_url: string }>;
+  const list = (props ?? []) as Array<{ id: string; airbnb_ical_url: string; airbnb_ical_url_2: string | null }>;
 
   let ok = 0;
   let fail = 0;
@@ -37,7 +37,16 @@ async function runSync() {
       results.push({ id: p.id, ok: false, skipped: true, error: "URL fora do allowlist" });
       continue;
     }
-    const out = await syncPropertyIcal(p.id, p.airbnb_ical_url);
+    const out = await syncPropertyIcal(p.id, p.airbnb_ical_url, 0);
+    const url2 = p.airbnb_ical_url_2?.trim();
+    if (url2 && isAllowedIcalUrl(url2)) {
+      const out2 = await syncPropertyIcal(p.id, url2, 1);
+      if (out2.ok) {
+        imported += out2.imported;
+        updated += out2.updated;
+        removed += out2.removed;
+      }
+    }
     if (out.ok) {
       ok++;
       imported += out.imported;

@@ -134,6 +134,7 @@ type FormState = {
     collect_document: "off" | "optional" | "required";
     document_scope: "main" | "all";
     airbnb_ical_url: string | null;
+    airbnb_ical_url_2: string | null;
     airbnb_ical_last_sync_at: string | null;
     airbnb_ical_last_error: string | null;
     airbnb_listing_url: string | null;
@@ -157,7 +158,7 @@ function emptyForm(): FormState {
       host_name: "", host_phone: "", brand_name: "", brand_logo_url: "", access_mode: "public", pin_code: "", pin_expires_at: "",
       default_language: "pt", guide_theme: "dark", published: true, require_access_gate: false,
       collect_arrival_time: "off", collect_vehicles: "off", vehicles_max: 2, collect_document: "off", document_scope: "main",
-      airbnb_ical_url: null, airbnb_ical_last_sync_at: null, airbnb_ical_last_error: null, airbnb_listing_url: null,
+      airbnb_ical_url: null, airbnb_ical_url_2: null, airbnb_ical_last_sync_at: null, airbnb_ical_last_error: null, airbnb_listing_url: null,
     },
     manual: [],
     emergency: [{ label: "Polícia", number: "190" }, { label: "Bombeiros / SAMU", number: "192" }],
@@ -219,6 +220,7 @@ function PropertyEditor() {
   const [syncingIcal, setSyncingIcal] = useState(false);
   
   const [pendingIcalClear, setPendingIcalClear] = useState(false);
+  const [showIcal2, setShowIcal2] = useState(false);
   const reservationsQuery = useQuery({
     queryKey: ["airbnb-reservations", id],
     queryFn: () => listReservations({ data: { propertyId: id } }),
@@ -447,6 +449,7 @@ function PropertyEditor() {
         collect_document: ((p.collect_document as "off" | "optional" | "required") ?? "off"),
         document_scope: ((p.document_scope as "main" | "all") ?? "main"),
         airbnb_ical_url: (p.airbnb_ical_url as string | null) ?? null,
+        airbnb_ical_url_2: ((p as Record<string, unknown>).airbnb_ical_url_2 as string | null) ?? null,
         airbnb_ical_last_sync_at: (p.airbnb_ical_last_sync_at as string | null) ?? null,
         airbnb_ical_last_error: (p.airbnb_ical_last_error as string | null) ?? null,
         airbnb_listing_url: ((p as Record<string, unknown>).airbnb_listing_url as string | null) ?? null,
@@ -777,7 +780,7 @@ function PropertyEditor() {
     const wasFirstActivation = !form.property.airbnb_ical_last_sync_at;
     setSyncingIcal(true);
     try {
-      const r = await syncIcal({ data: { propertyId: id, icalUrl: url } });
+      const r = await syncIcal({ data: { propertyId: id, icalUrl: url, icalUrl2: form.property.airbnb_ical_url_2?.trim() || null } });
       const parts: string[] = [];
       if (r.imported) parts.push(`${r.imported} nova(s)`);
       if (r.updated) parts.push(`${r.updated} atualizada(s)`);
@@ -1120,6 +1123,34 @@ function PropertyEditor() {
                     </Button>
                   </div>
                 </Field>
+
+                {showIcal2 || (form.property.airbnb_ical_url_2 ?? "").trim() ? (
+                  <Field label="2º calendário (outro anúncio do mesmo imóvel)" hint="Use quando o imóvel tem mais de um anúncio no Airbnb. As reservas dos dois calendários são unificadas neste guia.">
+                    <div className="flex gap-2">
+                      <Input
+                        value={form.property.airbnb_ical_url_2 ?? ""}
+                        onChange={(e) => update("airbnb_ical_url_2", e.target.value.trim() || null)}
+                        placeholder="https://www.airbnb.com/calendar/ical/67890.ics?s=..."
+                      />
+                      <Button
+                        variant="ghost"
+                        className="shrink-0"
+                        onClick={() => { update("airbnb_ical_url_2", null); setShowIcal2(false); }}
+                        title="Remover 2º calendário"
+                      >
+                        Remover
+                      </Button>
+                    </div>
+                  </Field>
+                ) : (
+                  <div className="flex justify-end">
+                    <Button variant="ghost" size="sm" onClick={() => setShowIcal2(true)}>
+                      + Adicionar 2º calendário
+                    </Button>
+                  </div>
+                )}
+
+
 
                 {(form.property.airbnb_ical_last_sync_at || form.property.airbnb_ical_last_error) && (
                   <div className="text-[11px] text-muted-foreground flex items-center gap-2 flex-wrap">
