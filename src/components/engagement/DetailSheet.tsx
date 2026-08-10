@@ -10,6 +10,7 @@ import { LineChart, Line, ResponsiveContainer, Tooltip, XAxis } from "recharts";
 import type { EngagementAnalytics } from "@/lib/engagement-analytics.functions";
 import { getGuestDetail } from "@/lib/engagement-guests.functions";
 import { labelFor } from "./insights";
+import { MessageText } from "@/components/handoff/MessageText";
 import { formatDur } from "./KpiStrip";
 import { formatIntlPhone } from "@/lib/masks";
 
@@ -271,7 +272,7 @@ function GuestDetail({ guestKey, accountId }: { guestKey: string; accountId: str
                             ? (m as { senderName?: string | null }).senderName
                             : m.role === "assistant" ? "IA" : m.role}
                       </div>
-                      <div className="whitespace-pre-wrap">{m.content}</div>
+                      <div className="whitespace-pre-wrap"><MessageText text={m.content} /></div>
                       {m.feedback && !m.feedback.resolved && (
                         <div className="mt-1 text-[10px] text-rose-600 dark:text-rose-400 flex items-center gap-1">
                           <AlertCircle className="size-3" /> Marcada como não útil{m.feedback.reason ? ` — ${m.feedback.reason}` : ""}
