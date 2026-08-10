@@ -1,35 +1,18 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
-import { resolveAccountOwnerId } from "@/lib/active-account.functions";
+import type { ProviderCategory } from "@/lib/provider-categories.server";
 
-export type ProviderCategory = { id: string; slug: string; label: string };
+export type { ProviderCategory };
 
-const DEFAULTS: Array<{ slug: string; label: string }> = [
-  { slug: "limpeza", label: "Limpeza" },
-  { slug: "manutencao", label: "Manutenção" },
-  { slug: "portaria", label: "Portaria" },
-  { slug: "lavanderia", label: "Lavanderia" },
-  { slug: "jardinagem", label: "Jardinagem" },
-  { slug: "piscina", label: "Piscina" },
-  { slug: "outros", label: "Outros" },
-];
-
-function slugify(v: string) {
-  return v
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 50);
-}
-
-/** Categorias de serviço da conta. Na primeira leitura, cria as padrões — a
+/** Categorias de serviço da conta. Na primeira leitura cria as padrões — a
  * partir daí o usuário pode renomear, excluir ou criar novas livremente. */
 export const listProviderCategories = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<ProviderCategory[]> => {
+    const { DEFAULT_PROVIDER_CATEGORIES, resolveAccountOwnerId } = await import(
+      "@/lib/provider-categories.server"
+    );
     const { supabase, userId } = context;
     const accountId = await resolveAccountOwnerId(supabase, userId);
     const { data } = await supabase
@@ -41,7 +24,9 @@ export const listProviderCategories = createServerFn({ method: "GET" })
 
     await supabase
       .from("provider_categories")
-      .insert(DEFAULTS.map((d) => ({ ...d, account_owner_id: accountId })) as never);
+      .insert(
+        DEFAULT_PROVIDER_CATEGORIES.map((d) => ({ ...d, account_owner_id: accountId })) as never,
+      );
     const { data: seeded } = await supabase
       .from("provider_categories")
       .select("id, slug, label")
@@ -55,10 +40,16 @@ export const saveProviderCategory = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((i: unknown) =>
     z
-      .object({ id: z.string().uuid().optional().nullable(), label: z.string().trim().min(2).max(60) })
+      .object({
+        id: z.string().uuid().optional().nullable(),
+        label: z.string().trim().min(2).max(60),
+      })
       .parse(i),
   )
   .handler(async ({ data, context }): Promise<ProviderCategory> => {
+    const { resolveAccountOwnerId, slugifyCategory } = await import(
+      "@/lib/provider-categories.server"
+    );
     const { supabase, userId } = context;
     const accountId = await resolveAccountOwnerId(supabase, userId);
     const label = data.label.trim();
@@ -75,7 +66,7 @@ export const saveProviderCategory = createServerFn({ method: "POST" })
       return row as ProviderCategory;
     }
 
-    const slug = slugify(label) || `cat-${Date.now()}`;
+    const slug = slugifyCategory(label) || `cat-${Date.now()}`;
     const { data: row, error } = await supabase
       .from("provider_categories")
       .insert({ account_owner_id: accountId, slug, label } as never)
@@ -90,6 +81,7 @@ export const deleteProviderCategory = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((i: unknown) => z.object({ id: z.string().uuid() }).parse(i))
   .handler(async ({ data, context }) => {
+    const { resolveAccountOwnerId } = await import("@/lib/provider-categories.server");
     const { supabase, userId } = context;
     const accountId = await resolveAccountOwnerId(supabase, userId);
     const { error } = await supabase
