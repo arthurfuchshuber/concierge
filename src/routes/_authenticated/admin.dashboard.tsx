@@ -9,7 +9,6 @@ import {
   CalendarX,
   LogIn,
   LogOut,
-  MessageCircle,
   StickyNote,
   Check,
   AlertTriangle,
@@ -64,7 +63,6 @@ import {
   getOccupancyBoard,
   type ArrivalRow,
 } from "@/lib/dashboard.functions";
-import { openHandoffDock } from "@/lib/handoff-dock";
 import { useImpersonation } from "@/hooks/useImpersonation";
 
 function PhoneLink({ phone, country }: { phone: string | null; country: string | null }) {
