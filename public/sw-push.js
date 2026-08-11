@@ -25,16 +25,39 @@ self.addEventListener("push", (event) => {
   const conversationId = payload.data && payload.data.conversationId;
 
   const critical = !!(payload.data && (payload.data.critical || payload.data.urgency === "high"));
+  const style = (payload.data && payload.data.style) || null;
+
+  // Estilos dedicados às notificações de limpeza — visual distinto das
+  // notificações operacionais (esteira de check-in/check-out).
+  const CLEANING_STYLES = {
+    "cleaning-ready": {
+      vibrate: [80, 60, 80, 60, 240],
+      requireInteraction: true,
+      silent: false,
+      actions: [{ action: "open", title: "Abrir operação" }],
+      dir: "ltr",
+    },
+    "cleaning-done": {
+      vibrate: [40, 40, 40],
+      requireInteraction: false,
+      silent: false,
+      actions: [{ action: "open", title: "Ver residência" }],
+      dir: "ltr",
+    },
+  };
+  const cleaning = style ? CLEANING_STYLES[style] : null;
 
   const options = {
     body,
     icon: "/favicon.png",
     badge: "/favicon.png",
+    image: undefined,
     tag,
     renotify: true,
-    requireInteraction: true,
-    vibrate: critical ? [300, 100, 300, 100, 300] : [200, 100, 200],
-    data: { url, conversationId, critical, ts: Date.now() },
+    requireInteraction: cleaning ? cleaning.requireInteraction : true,
+    vibrate: cleaning ? cleaning.vibrate : critical ? [300, 100, 300, 100, 300] : [200, 100, 200],
+    actions: cleaning ? cleaning.actions : undefined,
+    data: { url, conversationId, critical, style, ts: Date.now() },
   };
 
   event.waitUntil(

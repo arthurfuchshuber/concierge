@@ -786,8 +786,33 @@ export const advanceArrival = createServerFn({ method: "POST" })
       await upsertStatus("checkin", { status: "done", concluded_at: nowIso });
     }
 
+    // Notificações de limpeza (não bloqueiam a resposta em caso de falha).
+    try {
+      const refKey = data.reservationId ?? data.logId ?? today;
+      const isCheckoutConfirmed =
+        data.from === "stay" ||
+        data.from === "checkout" ||
+        (data.from === "checkin" && !!checkoutDate && today > checkoutDate);
+      if ((isCheckoutConfirmed && !cleaningStale) || data.from === "cleaning") {
+        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+        const { notifyCleaningReady, notifyCleaningDone } = await import("@/lib/ops-push.server");
+        if (data.from === "cleaning") {
+          await notifyCleaningDone(supabaseAdmin as never, {
+            propertyId,
+            refKey,
+            byUserId: context.userId,
+          });
+        } else {
+          await notifyCleaningReady(supabaseAdmin as never, { propertyId, refKey });
+        }
+      }
+    } catch (err) {
+      console.error("[advanceArrival] falha ao enviar push de limpeza:", err);
+    }
+
     return { ok: true };
   });
+
 
 // ----- Undo a check-advance (from destination list) -----
 // Reverts a card one step back in the funnel: stay → Chegadas,
