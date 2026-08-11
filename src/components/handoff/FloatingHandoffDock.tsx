@@ -372,8 +372,10 @@ export function FloatingHandoffDock() {
                   </div>
                 )}
               </div>
-            </div>
+              </div>
+            </>
           )}
+
         </div>
       )}
 
