@@ -851,13 +851,15 @@ export const adminListUserPropertiesFull = createServerFn({ method: "POST" })
     const { data: rows, error } = await supabaseAdmin
       .from("properties")
       .select(
-        "id, slug, name, tagline, hero_image_url, gallery_images, access_mode, pin_expires_at, published, city, country, address, lat, lng, updated_at, wifi_ssid, checkin_time, checkout_time",
+        "id, slug, name, tagline, hero_image_url, gallery_images, access_mode, pin_expires_at, published, city, country, address, lat, lng, updated_at, wifi_ssid, checkin_time, checkout_time, owner_contact_id",
       )
       .eq("owner_id", data.userId)
       .order("updated_at", { ascending: false });
     if (error) throw new Error("Não foi possível carregar os guias deste cliente.");
     const { signPropertyImages } = await import("@/lib/storage.server");
-    return await signPropertyImages(supabaseAdmin, rows ?? []);
+    const signed = await signPropertyImages(supabaseAdmin, rows ?? []);
+    const { attachOwnerNames } = await import("@/lib/property-owner-names.server");
+    return await attachOwnerNames(supabaseAdmin as never, signed);
   });
 
 export const adminGetUserSubscription = createServerFn({ method: "POST" })

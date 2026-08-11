@@ -333,7 +333,7 @@ function Dashboard() {
   const filtered = useMemo(() => {
     if (!data) return [];
     const q = search.trim().toLowerCase();
-    return data.filter((p) => {
+    const rows = data.filter((p) => {
       if (statusFilter === "published" && !p.published) return false;
       if (statusFilter === "draft" && p.published) return false;
       if (accessFilter !== "all" && p.access_mode !== accessFilter) return false;
@@ -342,7 +342,22 @@ function Dashboard() {
         .filter(Boolean)
         .some((s) => String(s).toLowerCase().includes(q));
     });
+    // Ordem pedida: cidade → título do guia → proprietário (alfabética pt-BR).
+    const cmp = (a: string, b: string) =>
+      a.localeCompare(b, "pt-BR", { sensitivity: "base", numeric: true });
+    const txt = (v: unknown) => String(v ?? "").trim();
+    return [...rows].sort((a, b) => {
+      const ac = txt(a.city), bc = txt(b.city);
+      // Guias sem cidade vão para o fim, mantendo a lista legível.
+      if (!ac !== !bc) return ac ? -1 : 1;
+      return (
+        cmp(ac, bc) ||
+        cmp(txt(a.name), txt(b.name)) ||
+        cmp(txt((a as { ownerName?: string | null }).ownerName), txt((b as { ownerName?: string | null }).ownerName))
+      );
+    });
   }, [data, search, statusFilter, accessFilter]);
+
 
   // Trava: nenhum guia pode ser criado sem um proprietário cadastrado em
   // Stakeholders → Proprietários (fonte da verdade das propriedades).

@@ -186,12 +186,14 @@ export const listMyProperties = createServerFn({ method: "GET" })
     // contas quando nenhum "cliente" está selecionado no switcher.
     const { data, error } = await context.supabase
       .from("properties")
-      .select("id, slug, name, tagline, hero_image_url, gallery_images, access_mode, pin_expires_at, published, city, country, address, lat, lng, updated_at, wifi_ssid, checkin_time, checkout_time")
+      .select("id, slug, name, tagline, hero_image_url, gallery_images, access_mode, pin_expires_at, published, city, country, address, lat, lng, updated_at, wifi_ssid, checkin_time, checkout_time, owner_contact_id")
       .eq("owner_id", userId)
       .order("updated_at", { ascending: false });
     if (error) throw (await import("@/lib/db-errors.server")).safeDbError("properties", error);
     const { signPropertyImages } = await import("@/lib/storage.server");
-    return await signPropertyImages(context.supabase, data ?? []);
+    const signed = await signPropertyImages(context.supabase, data ?? []);
+    const { attachOwnerNames } = await import("@/lib/property-owner-names.server");
+    return await attachOwnerNames(context.supabase as never, signed);
   });
 
 // Lista as propriedades de uma conta específica que o usuário atual pode
@@ -206,7 +208,7 @@ export const listPropertiesForAccount = createServerFn({ method: "POST" })
     await enforce(context.userId, "imoveis.read");
     const { data: rows, error } = await context.supabase
       .from("properties")
-      .select("id, slug, name, tagline, hero_image_url, gallery_images, access_mode, pin_expires_at, published, city, country, address, lat, lng, updated_at, wifi_ssid, checkin_time, checkout_time")
+      .select("id, slug, name, tagline, hero_image_url, gallery_images, access_mode, pin_expires_at, published, city, country, address, lat, lng, updated_at, wifi_ssid, checkin_time, checkout_time, owner_contact_id")
       .eq("owner_id", data.ownerId)
       .order("updated_at", { ascending: false });
     if (error) throw (await import("@/lib/db-errors.server")).safeDbError("properties", error);
@@ -216,8 +218,11 @@ export const listPropertiesForAccount = createServerFn({ method: "POST" })
     const visible =
       allowed === null ? (rows ?? []) : (rows ?? []).filter((r) => allowed.includes(r.id));
     const { signPropertyImages } = await import("@/lib/storage.server");
-    return await signPropertyImages(context.supabase, visible);
+    const signed = await signPropertyImages(context.supabase, visible);
+    const { attachOwnerNames } = await import("@/lib/property-owner-names.server");
+    return await attachOwnerNames(context.supabase as never, signed);
   });
+
 
 
 /**
