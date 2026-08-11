@@ -2187,24 +2187,6 @@ function ArrivalCard({
             <Undo2 className="size-4" />
           </button>
         )}
-        {(row.guestPhone || row.guestName) && !isPendingFill && (
-          <button
-            type="button"
-            onClick={() =>
-              openHandoffDock({
-                propertyId: row.propertyId,
-                phone: row.guestPhone,
-                reservationCode: row.reservationCode,
-                guestName: row.guestName,
-              })
-            }
-            aria-label="Falar com hóspede"
-            title="Falar com hóspede (chat + WhatsApp integrado)"
-            className="size-9 grid place-items-center rounded-lg bg-background/60 border border-border/50 hover:bg-primary/[0.08]"
-          >
-            <MessageCircle className="size-4" />
-          </button>
-        )}
         <button
           onClick={() => setNoteOpen((v) => !v)}
           aria-label={row.note ? "Editar nota" : "Adicionar nota"}
