@@ -1,3 +1,4 @@
+import { PhoneActionButton } from "@/components/PhoneActionButton";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Home, Compass } from "lucide-react";
 import { useSearch } from "@tanstack/react-router";
@@ -815,8 +816,27 @@ function Dashboard() {
                 </div>
               </div>
               <div className="p-4">
+                {(p as any).ownerName && (
+                  <div className="mb-1 flex items-center gap-1.5 min-w-0">
+                    <span className="min-w-0 flex-1 truncate text-[11px] font-bold text-primary" title={(p as any).ownerName}>
+                      {(p as any).ownerName}
+                    </span>
+                    <PhoneActionButton
+                      phone={(p as any).ownerPhone}
+                      country={(p as any).ownerPhoneCountry}
+                      size={12}
+                      className="ml-auto"
+                    />
+                  </div>
+                )}
                 <h3 className="font-semibold leading-tight truncate">{p.name}</h3>
+                {p.city && (
+                  <p className="mt-0.5 truncate text-[11px] font-semibold text-yellow-500">
+                    {p.city}{p.country ? `, ${p.country}` : ""}
+                  </p>
+                )}
                 <p className="text-xs text-muted-foreground mt-1 truncate">{p.tagline || `${p.city ?? ""}${p.country ? `, ${p.country}` : ""}`}</p>
+
                 {(() => {
                   const c = guideCompleteness(p as any);
                   return (

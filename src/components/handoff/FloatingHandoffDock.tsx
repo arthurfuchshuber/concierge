@@ -8,7 +8,7 @@ import { listHandoffConversations, countPendingHandoffs, getAtendimentoAccess, r
 import { ConversationList, ConversationView, useMyUserId } from "@/components/handoff/ConversationView";
 import { listenToPushMessages } from "@/lib/push-client";
 import { HANDOFF_DOCK_OPEN_EVENT, type HandoffDockOpenDetail } from "@/lib/handoff-dock";
-import { Headphones, X, Minimize2, Maximize2 } from "lucide-react";
+import { Headphones, X, Minimize2, Maximize2, Expand, Shrink } from "lucide-react";
 import { QUEUES, type Queue } from "@/lib/handoff-queues";
 
 const DOCK_STATE_KEY = "handoff-dock-state-v1";
@@ -82,6 +82,7 @@ export function FloatingHandoffDock() {
 
   const [state, setState] = useState<DockState>(() => loadState());
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [enlarged, setEnlarged] = useState(false);
   const [dockBottom, setDockBottom] = useState(() => loadDockBottom());
   const [dragY, setDragY] = useState<number | null>(null);
   const justDraggedRef = useRef(false);
@@ -280,7 +281,9 @@ export function FloatingHandoffDock() {
       {/* Widget desktop */}
       {state.open && (
         <div
-          className={`hidden lg:flex fixed bottom-6 right-6 flex-col bg-surface border border-border rounded-2xl shadow-2xl overflow-hidden ${state.minimized ? "w-80 h-14" : "w-[520px] h-[560px]"}`}
+          className={`hidden lg:flex fixed bottom-6 right-6 flex-col bg-surface border border-border rounded-2xl shadow-2xl overflow-hidden ${
+            state.minimized ? "w-80 h-14" : enlarged ? "w-[820px] h-[76vh]" : "w-[520px] h-[560px]"
+          }`}
           style={{ zIndex: 2147483000, pointerEvents: "auto" }}
         >
           <div className="shrink-0 flex items-center justify-between gap-2 px-3 h-12 border-b border-border bg-secondary/40">
@@ -298,6 +301,16 @@ export function FloatingHandoffDock() {
               >
                 Central completa
               </Link>
+              {!state.minimized && (
+                <button
+                  onClick={() => setEnlarged((v) => !v)}
+                  className="size-7 grid place-items-center rounded-md hover:bg-secondary"
+                  aria-label={enlarged ? "Reduzir janela" : "Aumentar janela"}
+                  title={enlarged ? "Reduzir janela" : "Aumentar janela"}
+                >
+                  {enlarged ? <Shrink className="size-3.5" /> : <Expand className="size-3.5" />}
+                </button>
+              )}
               <button
                 onClick={() => setState((s) => ({ ...s, minimized: !s.minimized }))}
                 className="size-7 grid place-items-center rounded-md hover:bg-secondary"
@@ -316,37 +329,41 @@ export function FloatingHandoffDock() {
           </div>
 
           {!state.minimized && (
-            <div className="flex-1 min-h-0 flex">
-              <div className="w-[200px] border-r border-border shrink-0 flex flex-col min-h-0">
-                <div className="px-1.5 py-1.5 border-b border-border">
-                  <div className="flex w-full items-center gap-1 overflow-x-auto whitespace-nowrap rounded-xl border border-border bg-muted/40 p-1 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
-                    {QUEUES.map((q) => {
-                      const Icon = q.icon;
-                      const active = queue === q.key;
-                      return (
-                        <button
-                          key={q.key}
-                          onClick={() => setQueue(q.key)}
-                          title={q.label}
-                          className={`inline-flex flex-1 min-w-fit items-center justify-center gap-1 rounded-lg px-1.5 py-1 text-[10px] font-medium transition-all ${
-                            active ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
-                          }`}
-                        >
-                          <Icon className="size-3" /> {q.short}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-                <div className="flex-1 min-h-0 overflow-y-auto">
-                  <ConversationList
-                    conversations={convs as any}
-                    details={details} assignedNames={assignedNames} reservations={reservations}
-                    activeId={activeId}
-                    onSelect={setActiveId}
-                  />
+            <>
+              {/* Abas ocupam toda a largura da janela — sem rolagem lateral */}
+              <div className="shrink-0 px-2 py-1.5 border-b border-border">
+                <div className="flex w-full items-center gap-1 rounded-xl border border-border bg-muted/40 p-1">
+                  {QUEUES.map((q) => {
+                    const Icon = q.icon;
+                    const active = queue === q.key;
+                    return (
+                      <button
+                        key={q.key}
+                        onClick={() => setQueue(q.key)}
+                        title={q.label}
+                        className={`inline-flex flex-1 min-w-0 items-center justify-center gap-1 rounded-lg px-1.5 py-1 text-[11px] font-medium transition-all ${
+                          active ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                        }`}
+                      >
+                        <Icon className="size-3 shrink-0" /> <span className="truncate">{q.short}</span>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
+
+              <div className="flex-1 min-h-0 flex">
+                <div className="w-[200px] border-r border-border shrink-0 flex flex-col min-h-0">
+                  <div className="flex-1 min-h-0 overflow-y-auto">
+                    <ConversationList
+                      conversations={convs as any}
+                      details={details} assignedNames={assignedNames} reservations={reservations}
+                      activeId={activeId}
+                      onSelect={setActiveId}
+                    />
+                  </div>
+                </div>
+
               <div className="flex-1 min-w-0">
                 {activeId ? (
                   <ConversationView conversationId={activeId} compact myUserId={myUserId} />
@@ -356,8 +373,10 @@ export function FloatingHandoffDock() {
                   </div>
                 )}
               </div>
-            </div>
+              </div>
+            </>
           )}
+
         </div>
       )}
 

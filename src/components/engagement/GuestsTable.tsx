@@ -1,3 +1,4 @@
+import { PhoneActionButton } from "@/components/PhoneActionButton";
 import { useMemo, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -189,19 +190,10 @@ export function GuestsTable({
                     <div className="font-medium truncate" title={g.guestName}>{g.guestName || "—"}</div>
                     <div className="flex items-center gap-1 text-[11px] min-w-0">
                       {g.phone ? (
-                        <a
-                          href={`https://wa.me/${waNum}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          onClick={(e) => e.stopPropagation()}
-                          className="inline-flex items-center gap-1 min-w-0 text-emerald-500 hover:text-emerald-400 hover:underline"
-                          title="Abrir no WhatsApp"
-                        >
-                          <Phone className="size-3 shrink-0" />
-                          <span className="tabular-nums truncate">{phoneLabel}</span>
-                        </a>
+                        <PhoneActionButton phone={g.phone} country={g.phoneCountry} size={12} />
                       ) : <span className="text-muted-foreground">sem telefone</span>}
                     </div>
+
                     {g.reservationCode && !showReservation && (
                       <div className="flex items-center gap-1 mt-0.5 min-w-0">
                         <span className="font-mono text-[10px] px-1 py-0.5 rounded bg-muted/60 border border-border/60 truncate">

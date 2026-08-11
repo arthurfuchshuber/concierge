@@ -1,3 +1,4 @@
+import { PhoneActionButton } from "@/components/PhoneActionButton";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { CopyButton } from "@/components/CopyButton";
 import { useServerFn } from "@tanstack/react-start";
@@ -470,16 +471,10 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
 
             {!inputFocused && (waHref || checkinFmt || checkoutFmt || guest?.reservationCode) && (
               <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
-                {waHref && (
-                  <a
-                    href={waHref}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex items-center gap-1 text-emerald-600 hover:underline"
-                  >
-                    <Phone className="size-3" /> {formatIntlPhone(guest?.phone, guest?.phoneCountry)}
-                  </a>
+                {guest?.phone && (
+                  <PhoneActionButton phone={guest.phone} country={guest.phoneCountry} size={12} />
                 )}
+
                 {checkinFmt && (
                   <span className="inline-flex items-center gap-1">
                     <Calendar className="size-3" /> Check-in {checkinFmt}
@@ -1049,16 +1044,11 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
                     }
                   }}
                   items={tagItems}
-                  placeholder={
-                    note
-                      ? "Nota interna…"
-                      : channel === "whatsapp"
-                        ? "Mensagem via WhatsApp…"
-                        : "Mensagem… (@ linka o guia)"
-                  }
+                  placeholder={note ? "Nota interna…" : "Mensagem…"}
                   rows={1}
                   containerClassName="flex-1 min-w-0"
-                  className="w-full resize-none bg-transparent border-0 px-0 py-2 text-sm leading-5 outline-none focus:ring-0 min-w-0 max-h-28"
+                  className="w-full resize-none bg-transparent border-0 px-0 py-1.5 text-sm leading-5 outline-none focus:ring-0 min-w-0 h-8 max-h-28 overflow-y-auto"
+
                 />
                 <button
                   type="button"
@@ -1172,17 +1162,10 @@ export function ConversationList({
             <div className="text-[11px] text-muted-foreground truncate">{prop?.name ?? "—"}</div>
             {(wa || checkin || checkout || d?.reservationCode) && (
               <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-muted-foreground">
-                {wa && (
-                  <a
-                    href={wa}
-                    target="_blank"
-                    rel="noreferrer"
-                    onClick={(e) => e.stopPropagation()}
-                    className="inline-flex items-center gap-1 text-emerald-600 hover:underline"
-                  >
-                    <Phone className="size-3" /> {formatIntlPhone(d?.phone, d?.phoneCountry)}
-                  </a>
+                {d?.phone && (
+                  <PhoneActionButton phone={d.phone} country={d.phoneCountry} size={12} />
                 )}
+
                 {checkin && (
                   <span className="inline-flex items-center gap-1">
                     <Calendar className="size-3" /> In {checkin}
