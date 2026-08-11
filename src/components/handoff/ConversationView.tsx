@@ -1058,7 +1058,7 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
                 onCamera={() => cameraInputRef.current?.click()}
               />
               <div
-                className={`flex-1 min-w-0 flex items-center rounded-full border bg-background px-3 ${note ? "border-yellow-500/50" : "border-border"}`}
+                className={`flex-1 min-w-0 flex items-center rounded-full border bg-background px-3 py-0.5 ${note ? "border-yellow-500/50" : "border-border"}`}
               >
                 <TagMentionTextarea
                   value={text}
@@ -1075,9 +1075,10 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
                   placeholder={note ? "Nota interna…" : "Mensagem…"}
                   rows={1}
                   containerClassName="flex-1 min-w-0"
-                  className="w-full resize-none bg-transparent border-0 px-0 py-2 text-sm leading-5 outline-none focus:ring-0 min-w-0 h-9 max-h-28 overflow-y-auto"
+                  className="w-full resize-none bg-transparent border-0 px-0 py-0 text-sm leading-[1.35rem] outline-none focus:ring-0 min-w-0 h-[1.35rem] max-h-24 overflow-y-auto block"
                 />
               </div>
+
 
 
               {text.trim() ? (
