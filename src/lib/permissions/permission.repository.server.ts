@@ -81,6 +81,7 @@ export async function upsertNodes(defs: PermissionNodeDefinition[]): Promise<num
 
   let total = 0;
   for (const depth of [...byDepth.keys()].sort((a, b) => a - b)) {
+    invalidateNodeMapCache();
     const existing = await nodeIdBySlug();
     const rows = (byDepth.get(depth) ?? []).map((d) => ({
       slug: d.slug,
