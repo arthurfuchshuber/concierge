@@ -145,6 +145,7 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
     }
   };
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [fillOpen, setFillOpen] = useState(false);
   const [reasonOpen, setReasonOpen] = useState(false);
 
   const [teachOpen, setTeachOpen] = useState(false);
@@ -885,6 +886,16 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
         </DialogContent>
       </Dialog>
 
+      <KnowledgeFillDialog
+        conversationId={conversationId}
+        open={fillOpen}
+        onOpenChange={setFillOpen}
+        onApplied={() => {
+          qc.invalidateQueries({ queryKey: ["handoff-conversation", conversationId] });
+          qc.invalidateQueries({ queryKey: ["handoff-messages", conversationId] });
+        }}
+      />
+
       {/* Motivo do escalonamento + ações sugeridas */}
       <Dialog open={reasonOpen} onOpenChange={setReasonOpen}>
         <DialogContent className="max-w-md z-[2147483600]">
@@ -896,6 +907,16 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
           </div>
           <p className="text-[11px] text-muted-foreground mt-2">O que você quer fazer?</p>
           <div className="flex flex-col gap-2 mt-1">
+            <button
+              type="button"
+              onClick={() => {
+                setReasonOpen(false);
+                setFillOpen(true);
+              }}
+              className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-primary text-primary-foreground hover:opacity-90 text-sm"
+            >
+              <Sparkles className="size-4" /> Completar informação e responder
+            </button>
             {!isMine && status !== "resolved" && (
               <button
                 type="button"
