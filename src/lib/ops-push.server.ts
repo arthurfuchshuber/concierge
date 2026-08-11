@@ -380,3 +380,120 @@ export async function sendConversationStartedPush(
     },
   });
 }
+
+// ===========================================================================
+// Notificações de LIMPEZA (design próprio, separado dos avisos da esteira).
+// data.style = "cleaning-ready" | "cleaning-done" → o service worker aplica
+// ícone, vibração e ações diferentes das notificações operacionais.
+// ===========================================================================
+
+const CLEANING_RE = /limp|faxin|clean|housekeep/i;
+
+function isCleaningCategory(row: { category?: string | null; categories?: string[] | null }): boolean {
+  if (row.category && CLEANING_RE.test(row.category)) return true;
+  return (row.categories ?? []).some((c) => CLEANING_RE.test(c ?? ""));
+}
+
+async function getPropertyBasics(admin: Admin, propertyId: string) {
+  const { data } = await admin
+    .from("properties")
+    .select("id, owner_id, name, city")
+    .eq("id", propertyId)
+    .maybeSingle();
+  return (data as { id: string; owner_id: string; name: string | null; city: string | null } | null) ?? null;
+}
+
+/**
+ * Check-out confirmado → avisa os prestadores de LIMPEZA vinculados ao imóvel
+ * que a casa já está liberada para a faxina.
+ */
+export async function notifyCleaningReady(
+  admin: Admin,
+  opts: { propertyId: string; refKey: string; guestName?: string | null },
+) {
+  const prop = await getPropertyBasics(admin, opts.propertyId);
+  if (!prop) return { sent: 0, skipped: true };
+
+  const { data: providersRaw } = await admin
+    .from("service_providers")
+    .select("member_user_id, category, categories, status")
+    .eq("account_owner_id", prop.owner_id)
+    .not("member_user_id", "is", null);
+
+  const cleaners = (providersRaw ?? []).filter(
+    (p) =>
+      (p.status ?? "active") !== "inactive" &&
+      isCleaningCategory(p as { category?: string | null; categories?: string[] | null }),
+  );
+  if (cleaners.length === 0) return { sent: 0, skipped: true };
+
+  const cleanerIds = Array.from(new Set(cleaners.map((p) => p.member_user_id as string)));
+
+  // Só notifica quem está vinculado a esta residência.
+  const { data: assignments } = await admin
+    .from("property_assignments")
+    .select("user_id, status")
+    .eq("property_id", opts.propertyId)
+    .in("user_id", cleanerIds);
+  const targets = Array.from(
+    new Set((assignments ?? []).filter((a) => (a.status ?? "active") !== "inactive").map((a) => a.user_id as string)),
+  );
+  if (targets.length === 0) return { sent: 0, skipped: true };
+
+  const name = (prop.name || "Residência").trim();
+  const local = prop.city ? ` · ${prop.city}` : "";
+  return sendOpsPush(admin, {
+    ownerId: prop.owner_id,
+    kind: "cleaning-ready",
+    dedupeKey: `cleaning-ready:${opts.propertyId}:${opts.refKey}`,
+    userIds: targets,
+    payload: {
+      title: `🧹 Liberado para limpeza — ${name}`,
+      body: `Check-out confirmado${local}.${opts.guestName ? ` Hóspede: ${opts.guestName}.` : ""}\nA residência já pode receber a limpeza.`,
+      data: {
+        url: "/admin/dashboard",
+        tag: `cleaning-ready-${opts.propertyId}`,
+        style: "cleaning-ready",
+        propertyId: opts.propertyId,
+      },
+    },
+  });
+}
+
+/** Limpeza finalizada → avisa a equipe do anfitrião (owner + membros ativos). */
+export async function notifyCleaningDone(
+  admin: Admin,
+  opts: { propertyId: string; refKey: string; byUserId?: string | null },
+) {
+  const prop = await getPropertyBasics(admin, opts.propertyId);
+  if (!prop) return { sent: 0, skipped: true };
+
+  let who = "";
+  if (opts.byUserId) {
+    const { data: provider } = await admin
+      .from("service_providers")
+      .select("name, trade_name")
+      .eq("member_user_id", opts.byUserId)
+      .maybeSingle();
+    const label = (provider?.trade_name as string) || (provider?.name as string) || "";
+    if (label) who = ` por ${label}`;
+  }
+
+  const name = (prop.name || "Residência").trim();
+  const local = prop.city ? ` · ${prop.city}` : "";
+  return sendOpsPush(admin, {
+    ownerId: prop.owner_id,
+    kind: "cleaning-done",
+    dedupeKey: `cleaning-done:${opts.propertyId}:${opts.refKey}`,
+    payload: {
+      title: `✨ Limpeza finalizada — ${name}`,
+      body: `Residência pronta${local}.${who ? ` Concluída${who}.` : ""}\nDisponível para a próxima chegada.`,
+      data: {
+        url: "/admin/dashboard",
+        tag: `cleaning-done-${opts.propertyId}`,
+        style: "cleaning-done",
+        propertyId: opts.propertyId,
+      },
+    },
+  });
+}
