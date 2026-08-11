@@ -67,28 +67,9 @@ import { openHandoffDock } from "@/lib/handoff-dock";
 import { useImpersonation } from "@/hooks/useImpersonation";
 
 function PhoneLink({ phone, country }: { phone: string | null; country: string | null }) {
-  if (!phone) return null;
-  const countryDigits = (country ?? "").replace(/\D/g, "");
-  const phoneDigits = phone.replace(/\D/g, "");
-  const digits = phone.trim().startsWith("+") || !countryDigits
-    ? phoneDigits
-    : `${countryDigits}${phoneDigits}`;
-  if (!digits) return null;
-
-  return (
-    <a
-      href={`https://wa.me/${digits}`}
-      target="_blank"
-      rel="noopener noreferrer"
-      onClick={(event) => event.stopPropagation()}
-      className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap text-[11px] font-medium text-emerald-500 hover:text-emerald-400 hover:underline"
-      title="Abrir conversa no WhatsApp"
-    >
-      <MessageCircle className="size-3 shrink-0" />
-      <span className="tabular-nums">{phone}</span>
-    </a>
-  );
+  return <PhoneActionButton phone={phone} country={country} size={12} />;
 }
+
 
 export const Route = createFileRoute("/_authenticated/admin/dashboard")({
   head: () => ({
