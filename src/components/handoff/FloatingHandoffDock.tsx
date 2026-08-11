@@ -8,7 +8,7 @@ import { listHandoffConversations, countPendingHandoffs, getAtendimentoAccess, r
 import { ConversationList, ConversationView, useMyUserId } from "@/components/handoff/ConversationView";
 import { listenToPushMessages } from "@/lib/push-client";
 import { HANDOFF_DOCK_OPEN_EVENT, type HandoffDockOpenDetail } from "@/lib/handoff-dock";
-import { Headphones, X, Minimize2, Maximize2 } from "lucide-react";
+import { Headphones, X, Minimize2, Maximize2, Expand, Shrink } from "lucide-react";
 import { QUEUES, type Queue } from "@/lib/handoff-queues";
 
 const DOCK_STATE_KEY = "handoff-dock-state-v1";
@@ -82,6 +82,7 @@ export function FloatingHandoffDock() {
 
   const [state, setState] = useState<DockState>(() => loadState());
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [enlarged, setEnlarged] = useState(false);
   const [dockBottom, setDockBottom] = useState(() => loadDockBottom());
   const [dragY, setDragY] = useState<number | null>(null);
   const justDraggedRef = useRef(false);
