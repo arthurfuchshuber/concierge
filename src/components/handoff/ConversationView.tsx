@@ -1,3 +1,4 @@
+import { ComposerPlusMenu } from "@/components/handoff/ComposerPlusMenu";
 import { PhoneActionButton } from "@/components/PhoneActionButton";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { CopyButton } from "@/components/CopyButton";
@@ -1051,8 +1052,13 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
                 className="hidden"
                 onChange={onFilePicked}
               />
+              <ComposerPlusMenu
+                disabled={uploading}
+                onAttach={() => fileInputRef.current?.click()}
+                onCamera={() => cameraInputRef.current?.click()}
+              />
               <div
-                className={`flex-1 min-w-0 flex items-end gap-1 rounded-3xl border bg-background pl-3 pr-1.5 py-1 ${note ? "border-yellow-500/50" : "border-border"}`}
+                className={`flex-1 min-w-0 flex items-center rounded-full border bg-background px-3 ${note ? "border-yellow-500/50" : "border-border"}`}
               >
                 <TagMentionTextarea
                   value={text}
@@ -1069,30 +1075,10 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
                   placeholder={note ? "Nota interna…" : "Mensagem…"}
                   rows={1}
                   containerClassName="flex-1 min-w-0"
-                  className="w-full resize-none bg-transparent border-0 px-0 py-1.5 text-sm leading-5 outline-none focus:ring-0 min-w-0 h-8 max-h-28 overflow-y-auto"
-
+                  className="w-full resize-none bg-transparent border-0 px-0 py-2 text-sm leading-5 outline-none focus:ring-0 min-w-0 h-9 max-h-28 overflow-y-auto"
                 />
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={uploading}
-                  title="Anexar arquivo"
-                  aria-label="Anexar arquivo"
-                  className="grid size-9 place-items-center rounded-full hover:bg-muted text-muted-foreground hover:text-foreground shrink-0 disabled:opacity-40"
-                >
-                  <Paperclip className="size-5" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => cameraInputRef.current?.click()}
-                  disabled={uploading}
-                  title="Tirar foto ou vídeo"
-                  aria-label="Tirar foto ou vídeo"
-                  className="grid size-9 place-items-center rounded-full hover:bg-muted text-muted-foreground hover:text-foreground shrink-0 disabled:opacity-40"
-                >
-                  <Camera className="size-5" />
-                </button>
               </div>
+
 
               {text.trim() ? (
                 <button
@@ -1162,7 +1148,6 @@ export function ConversationList({
         const urgent = c.handoff_urgency === "high";
         const d = details?.[c.id];
         const displayName = d?.name || c.guest_name || "Hóspede anônimo";
-        const wa = d?.phone ? whatsappHref(d.phone, d.phoneCountry) : null;
         const checkin = fmtCheckin(d?.checkinDate ?? null);
         const checkout = fmtCheckin(d?.checkoutDate ?? null);
         const withWhom = c.assigned_to ? (assignedNames?.[c.id] ?? "outro membro") : null;
@@ -1176,17 +1161,21 @@ export function ConversationList({
           >
             <div className="flex items-center gap-2">
               {urgent && <span className="size-2 rounded-full bg-red-500 shrink-0" />}
-              <div className="text-sm font-medium truncate flex-1">{displayName}</div>
+              <div className="text-sm font-medium truncate min-w-0 flex-1">{displayName}</div>
+              {d?.phone && (
+                <span className="shrink-0" onClick={(e) => e.stopPropagation()}>
+                  <PhoneActionButton phone={d.phone} country={d.phoneCountry} size={12} />
+                </span>
+              )}
               <span className="text-[10px] text-muted-foreground shrink-0">
                 {formatDistanceToNow(new Date(c.handoff_at ?? c.last_message_at), { locale: ptBR, addSuffix: false })}
               </span>
             </div>
             <div className="text-[11px] text-muted-foreground truncate">{prop?.name ?? "—"}</div>
-            {(wa || checkin || checkout || d?.reservationCode) && (
+            {(checkin || checkout || d?.reservationCode) && (
               <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-muted-foreground">
-                {d?.phone && (
-                  <PhoneActionButton phone={d.phone} country={d.phoneCountry} size={12} />
-                )}
+
+
 
                 {checkin && (
                   <span className="inline-flex items-center gap-1">
