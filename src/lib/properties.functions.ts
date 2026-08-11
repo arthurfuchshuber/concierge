@@ -588,6 +588,7 @@ export const upsertProperty = createServerFn({ method: "POST" })
       }
     }
 
+    await enforcing;
     const plan = await resolveEffectivePlan(supabase, userId, { ownerId: effectiveOwnerId });
 
     // Strip Business-only fields when the effective plan doesn't include white-label.
