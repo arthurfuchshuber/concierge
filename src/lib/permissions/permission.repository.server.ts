@@ -43,11 +43,22 @@ export async function getNodeBySlug(slug: string): Promise<PermissionNode | null
   return (data as unknown as PermissionNode) ?? null;
 }
 
-/** Mapa slug → id, consumido pelo engine na avaliação. */
+/** Mapa slug → id, consumido pelo engine na avaliação.
+ *  Cacheado em memória (60s): `permission_nodes` é praticamente estático e
+ *  era relido a cada checagem de permissão, encarecendo toda operação. */
+let nodeMapCache: { at: number; map: Record<string, string> } | null = null;
+const NODE_MAP_TTL = 60_000;
+
+export function invalidateNodeMapCache(): void {
+  nodeMapCache = null;
+}
+
 export async function nodeIdBySlug(): Promise<Record<string, string>> {
+  if (nodeMapCache && Date.now() - nodeMapCache.at < NODE_MAP_TTL) return nodeMapCache.map;
   const nodes = await listNodes();
   const map: Record<string, string> = {};
   for (const node of nodes) map[node.slug] = node.id;
+  nodeMapCache = { at: Date.now(), map };
   return map;
 }
 
@@ -70,6 +81,7 @@ export async function upsertNodes(defs: PermissionNodeDefinition[]): Promise<num
 
   let total = 0;
   for (const depth of [...byDepth.keys()].sort((a, b) => a - b)) {
+    invalidateNodeMapCache();
     const existing = await nodeIdBySlug();
     const rows = (byDepth.get(depth) ?? []).map((d) => ({
       slug: d.slug,

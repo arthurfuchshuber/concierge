@@ -174,10 +174,20 @@ export async function assertFeature(
  * unauthenticated public routes (guide page, public chat). Mirrors
  * resolveUserPlan but bypasses RLS by querying through supabaseAdmin.
  */
+const ownerPlanCache = new Map<string, { at: number; value: ResolvedPlan }>();
+const OWNER_PLAN_TTL = 20_000;
+
+export function invalidateOwnerPlanCache(ownerId?: string): void {
+  if (ownerId) ownerPlanCache.delete(ownerId);
+  else ownerPlanCache.clear();
+}
+
 export async function resolveOwnerPlanAdmin(
   supabaseAdmin: SupabaseClient,
   ownerId: string,
 ): Promise<ResolvedPlan> {
+  const hit = ownerPlanCache.get(ownerId);
+  if (hit && Date.now() - hit.at < OWNER_PLAN_TTL) return hit.value;
   const runtimeEnv = getRuntimeEnv();
   const { data: subs } = await supabaseAdmin
     .from("subscriptions")
@@ -185,6 +195,10 @@ export async function resolveOwnerPlanAdmin(
     .eq("user_id", ownerId)
     .order("created_at", { ascending: false });
   const list = subs ?? [];
+  const remember = (value: ResolvedPlan) => {
+    ownerPlanCache.set(ownerId, { at: Date.now(), value });
+    return value;
+  };
   const candidates = [
     ...list.filter((sub) => sub.environment === runtimeEnv),
     ...list.filter((sub) => sub.environment !== runtimeEnv && (sub.is_manual || sub.product_id === "enterprise_plan")),
@@ -202,7 +216,7 @@ export async function resolveOwnerPlanAdmin(
     if (!plan) continue;
     const cfg = PLANS[plan];
     const override = (sub.max_guides_override as number | null) ?? null;
-    return { plan, status, maxGuides: override ?? cfg.maxGuides, features: { ...cfg.features } };
+    return remember({ plan, status, maxGuides: override ?? cfg.maxGuides, features: { ...cfg.features } });
   }
-  return FREE;
+  return remember(FREE);
 }
