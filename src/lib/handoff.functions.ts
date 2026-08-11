@@ -41,13 +41,14 @@ export const listHandoffConversations = createServerFn({ method: "POST" })
     try {
       const { supabase, userId } = context;
 
-      // Auto-encerra conversas com a IA sem atividade há mais de 1 hora → resolvidas.
+      // Auto-encerra conversas sem atividade há mais de 1 hora → resolvidas.
+      // Mesmo critério para IA e para conversas já assumidas por um humano.
       try {
         const cutoff = new Date(Date.now() - 60 * 60 * 1000).toISOString();
         await supabase
           .from("property_chat_conversations")
           .update({ status: "resolved", resolved_at: new Date().toISOString() })
-          .eq("status", "ai")
+          .in("status", ["ai", "assigned", "needs_human"])
           .lt("last_message_at", cutoff);
       } catch (e) {
         // não bloqueia leitura
