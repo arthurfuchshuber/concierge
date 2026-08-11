@@ -103,6 +103,7 @@ function buildContext(p: PropertyRow, kids: {
   cityReferences: CityReference[];
   knowledge: Array<Record<string, unknown>>;
   behavior: Array<Record<string, unknown>>;
+  details?: Array<Record<string, unknown>>;
 }) {
   const lines: string[] = [];
   lines.push(`# Hospedagem: ${p.name ?? ""}`);
@@ -127,6 +128,12 @@ function buildContext(p: PropertyRow, kids: {
   if (p.host_name) lines.push(`Anfitrião: ${p.host_name}`);
   if (p.host_phone) lines.push(`Telefone do anfitrião: ${maskPhone(p.host_phone)}`);
 
+  if (kids.details?.length) {
+    lines.push("\n## Detalhamento do imóvel (base do anfitrião)");
+    for (const d of kids.details) {
+      lines.push(`### ${d.title ?? "Detalhe"}\n${d.content}`);
+    }
+  }
   if (kids.knowledge.length) {
     lines.push("\n## Conhecimento do anfitrião");
     for (const k of kids.knowledge) {
@@ -245,12 +252,13 @@ export const Route = createFileRoute("/api/public/guide-chat")({
         const ck = cityKey(prop.city);
         const propCountry = prop.country ?? "BR";
 
-        const [manualR, faqsR, emergR, checkoutR, recsR, knowledgeR, behaviorR, cityRefsR] = await Promise.all([
+        const [manualR, faqsR, emergR, checkoutR, recsR, detailsR, knowledgeR, behaviorR, cityRefsR] = await Promise.all([
           supabaseAdmin.from("property_manual_items").select("title, description, body").eq("property_id", prop.id).order("position"),
           supabaseAdmin.from("property_faqs").select("question, answer").eq("property_id", prop.id).order("position"),
           supabaseAdmin.from("property_emergency_contacts").select("label, number").eq("property_id", prop.id).order("position"),
           supabaseAdmin.from("property_checkout_items").select("label").eq("property_id", prop.id).order("position"),
           supabaseAdmin.from("property_recommendations").select("name, category, type, scope, distance_text, note").eq("property_id", prop.id).order("position"),
+          supabaseAdmin.from("property_details").select("title, content").eq("property_id", prop.id).order("position"),
           supabaseAdmin.from("host_knowledge").select("title, body").eq("owner_id", prop.owner_id).eq("enabled", true).or(`scope_property_id.is.null,scope_property_id.eq.${prop.id}`).order("position"),
           supabaseAdmin.from("host_behavior").select("title, body").eq("owner_id", prop.owner_id).eq("enabled", true).or(`scope_property_id.is.null,scope_property_id.eq.${prop.id}`).order("position"),
 
@@ -273,6 +281,7 @@ export const Route = createFileRoute("/api/public/guide-chat")({
           checkout: (checkoutR.data as Array<Record<string, unknown>>) ?? [],
           recommendations: (recsR.data as Recommendation[]) ?? [],
           cityReferences: (cityRefsR.data as CityReference[]) ?? [],
+          details: (detailsR.data as Array<Record<string, unknown>>) ?? [],
           knowledge: (knowledgeR.data as Array<Record<string, unknown>>) ?? [],
           behavior: (behaviorR.data as Array<Record<string, unknown>>) ?? [],
         });
@@ -448,6 +457,7 @@ export const Route = createFileRoute("/api/public/guide-chat")({
         }
 
         const handoffTriggered = result.handoff;
+        const partialReply = result.reply.trim();
         if (handoffTriggered) {
           const reason = result.handoffReason ?? "Hóspede pediu atendimento humano.";
           const urgency = result.handoffUrgency;
@@ -455,7 +465,9 @@ export const Route = createFileRoute("/api/public/guide-chat")({
             .from("property_chat_conversations")
             .update({
               status: "needs_human",
-              ai_paused: true,
+              // Com resposta parcial a IA continua na conversa (consulta
+              // interna); só travamos a IA quando não houve nada a dizer.
+              ai_paused: !partialReply,
               handoff_reason: reason,
               handoff_urgency: urgency,
               handoff_at: new Date().toISOString(),
@@ -490,9 +502,9 @@ export const Route = createFileRoute("/api/public/guide-chat")({
           }
         }
 
-        // Handoff silencioso: nada é dito ao hóspede, a conversa apenas passa
-        // para o atendente humano.
-        const finalReply = handoffTriggered ? "" : result.reply.trim();
+        // A IA sempre entrega o que sabe. No handoff, a mensagem parcial já
+        // sinaliza a consulta interna — sem anunciar transferência.
+        const finalReply = partialReply;
 
         if (finalReply) {
           await supabaseAdmin.from("property_chat_messages").insert({
