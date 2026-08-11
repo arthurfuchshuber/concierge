@@ -1162,17 +1162,21 @@ export function ConversationList({
           >
             <div className="flex items-center gap-2">
               {urgent && <span className="size-2 rounded-full bg-red-500 shrink-0" />}
-              <div className="text-sm font-medium truncate flex-1">{displayName}</div>
+              <div className="text-sm font-medium truncate min-w-0 flex-1">{displayName}</div>
+              {d?.phone && (
+                <span className="shrink-0" onClick={(e) => e.stopPropagation()}>
+                  <PhoneActionButton phone={d.phone} country={d.phoneCountry} size={12} />
+                </span>
+              )}
               <span className="text-[10px] text-muted-foreground shrink-0">
                 {formatDistanceToNow(new Date(c.handoff_at ?? c.last_message_at), { locale: ptBR, addSuffix: false })}
               </span>
             </div>
             <div className="text-[11px] text-muted-foreground truncate">{prop?.name ?? "—"}</div>
-            {(wa || checkin || checkout || d?.reservationCode) && (
+            {(checkin || checkout || d?.reservationCode) && (
               <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-muted-foreground">
-                {d?.phone && (
-                  <PhoneActionButton phone={d.phone} country={d.phoneCountry} size={12} />
-                )}
+
+
 
                 {checkin && (
                   <span className="inline-flex items-center gap-1">
