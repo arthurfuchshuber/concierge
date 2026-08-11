@@ -522,19 +522,18 @@ export async function notifyCleaningDone(
       .select("name, trade_name")
       .eq("member_user_id", opts.byUserId)
       .maybeSingle();
-    const label = (provider?.trade_name as string) || (provider?.name as string) || "";
-    if (label) who = ` por ${label}`;
+    who = ((provider?.trade_name as string) || (provider?.name as string) || "").trim();
   }
 
   const name = (prop.name || "Residência").trim();
-  const local = prop.city ? ` · ${prop.city}` : "";
+  const line = locLine([prop.ownerName, name, prop.cityClean, who ? `Finalizado por ${who}` : ""]);
   return sendOpsPush(admin, {
     ownerId: prop.owner_id,
     kind: "cleaning-done",
     dedupeKey: `cleaning-done:${opts.propertyId}:${opts.refKey}`,
     payload: {
-      title: `✨ Limpeza finalizada — ${name}`,
-      body: `Residência pronta${local}.${who ? ` Concluída${who}.` : ""}\nDisponível para a próxima chegada.`,
+      title: `✨ Limpeza finalizada`,
+      body: line,
       data: {
         url: "/admin/dashboard",
         tag: `cleaning-done-${opts.propertyId}`,
