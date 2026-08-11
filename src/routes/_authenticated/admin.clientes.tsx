@@ -44,6 +44,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetFooter
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
+import { PhoneActionButton } from "@/components/PhoneActionButton";
 import { DatePicker } from "@/components/ui/date-picker";
 import { toast } from "sonner";
 import { formatCPF, onlyDigits, isValidCPF, isValidEmail, titleCaseName, formatIntlPhone, toE164, toWhatsappNumber, isValidIntlPhone } from "@/lib/masks";
