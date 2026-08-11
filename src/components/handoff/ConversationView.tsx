@@ -471,16 +471,10 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
 
             {!inputFocused && (waHref || checkinFmt || checkoutFmt || guest?.reservationCode) && (
               <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
-                {waHref && (
-                  <a
-                    href={waHref}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex items-center gap-1 text-emerald-600 hover:underline"
-                  >
-                    <Phone className="size-3" /> {formatIntlPhone(guest?.phone, guest?.phoneCountry)}
-                  </a>
+                {guest?.phone && (
+                  <PhoneActionButton phone={guest.phone} country={guest.phoneCountry} size={12} />
                 )}
+
                 {checkinFmt && (
                   <span className="inline-flex items-center gap-1">
                     <Calendar className="size-3" /> Check-in {checkinFmt}
