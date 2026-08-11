@@ -543,20 +543,20 @@ export const upsertProperty = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
     const { enforce } = await import("@/lib/permissions/permission.enforce.server");
-    await enforce(userId, "imoveis.editor.write", { propertyId: data.id ?? null });
+    const enforcing = enforce(userId, "imoveis.editor.write", { propertyId: data.id ?? null });
     const { resolveEffectivePlan, assertCanCreateGuide } = await import("@/lib/plan-guard.server");
     let propertyId = data.id ?? null;
 
     // Descobre o dono efetivo (para membros de equipe editando propriedades
     // do dono da conta, o plano relevante é o do DONO — não do caller).
+    // A checagem de permissão roda em paralelo com esta consulta.
     let effectiveOwnerId: string = userId;
     if (propertyId) {
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-      const { data: existing } = await supabaseAdmin
-        .from("properties")
-        .select("owner_id")
-        .eq("id", propertyId)
-        .maybeSingle();
+      const [{ data: existing }] = await Promise.all([
+        supabaseAdmin.from("properties").select("owner_id").eq("id", propertyId).maybeSingle(),
+        enforcing,
+      ]);
       if (existing?.owner_id) effectiveOwnerId = existing.owner_id as string;
     } else if (data.ownerId && data.ownerId !== userId) {
       effectiveOwnerId = data.ownerId;
