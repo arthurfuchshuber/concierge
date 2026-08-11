@@ -21,6 +21,7 @@ export const SOURCE_CONFIDENCE: Record<string, number> = {
   rules: 0.98,
   checkout: 0.98,
   procedures: 0.97,
+  property_detail: 0.98,
   host_knowledge: 0.97,
   knowledge_base: 0.97,
   host_behavior: 0.97,
@@ -42,7 +43,7 @@ export const SOURCE_TIERS: Array<{ tier: number; label: string; sources: string[
   {
     tier: 2,
     label: "Conteúdo oficial do anfitrião",
-    sources: ["guide", "manual", "faq", "rules", "checkout", "procedures", "host_knowledge", "host_behavior"],
+    sources: ["guide", "manual", "faq", "rules", "checkout", "procedures", "property_detail", "host_knowledge", "host_behavior"],
   },
   { tier: 3, label: "APIs externas e curadoria", sources: ["calendar", "weather", "maps", "recommendation", "city_reference"] },
   { tier: 4, label: "Inferido / histórico", sources: ["operational_memory", "guest_memory", "memory", "conversation"] },

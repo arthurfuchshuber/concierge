@@ -48,12 +48,13 @@ async function collectChunks(supabase: Admin, propertyId: string, prop: Record<s
     if (value) pushChunk(chunks, { source: "property", sourceId: label, title: `${name} — ${label}`, content: `${label}: ${value}` });
   }
 
-  const [manual, faqs, rules, checkout, recs, knowledge, behavior, emergency] = await Promise.all([
+  const [manual, faqs, rules, checkout, recs, details, knowledge, behavior, emergency] = await Promise.all([
     supabase.from("property_manual_items").select("id, title, description, body").eq("property_id", propertyId),
     supabase.from("property_faqs").select("id, question, answer").eq("property_id", propertyId),
     supabase.from("property_recommendations").select("id, name, category, type, distance_text, note").eq("property_id", propertyId),
     supabase.from("property_checkout_items").select("id, label").eq("property_id", propertyId),
     supabase.from("property_emergency_contacts").select("id, label, number").eq("property_id", propertyId),
+    supabase.from("property_details").select("id, title, content").eq("property_id", propertyId),
     supabase.from("host_knowledge").select("id, title, body, scope_property_id").eq("enabled", true),
     supabase.from("host_behavior").select("id, title, body, scope_property_id").eq("enabled", true),
     Promise.resolve(null),
@@ -89,6 +90,14 @@ async function collectChunks(supabase: Admin, propertyId: string, prop: Record<s
   }
   for (const c of (recs.data ?? []) as Array<Record<string, unknown>>) {
     pushChunk(chunks, { source: "procedures", sourceId: String(c.id), title: "Contato de emergência", content: `${c.label}: ${c.number}` });
+  }
+  for (const d of (details.data ?? []) as Array<Record<string, unknown>>) {
+    pushChunk(chunks, {
+      source: "property_detail",
+      sourceId: String(d.id),
+      title: String(d.title ?? "Detalhamento do imóvel"),
+      content: [d.title, d.content].filter(Boolean).join(" — "),
+    });
   }
   for (const k of (knowledge.data ?? []) as Array<Record<string, unknown>>) {
     if (k.scope_property_id && k.scope_property_id !== propertyId) continue;

@@ -3805,6 +3805,53 @@ export type Database = {
           },
         ]
       }
+      property_details: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          images: Json
+          owner_id: string
+          position: number
+          property_id: string
+          source: string
+          title: string | null
+          updated_at: string
+        }
+        Insert: {
+          content?: string
+          created_at?: string
+          id?: string
+          images?: Json
+          owner_id: string
+          position?: number
+          property_id: string
+          source?: string
+          title?: string | null
+          updated_at?: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          images?: Json
+          owner_id?: string
+          position?: number
+          property_id?: string
+          source?: string
+          title?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "property_details_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       property_emergency_contacts: {
         Row: {
           id: string

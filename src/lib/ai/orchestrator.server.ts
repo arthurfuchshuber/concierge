@@ -39,7 +39,7 @@ import { classifyForMemory } from "./memory/policy.server";
 import { writeMemories } from "./memory/longterm.server";
 import { recordOperationalRequest } from "./memory/operational.server";
 import { AI_MODELS } from "./models";
-import { PROMPTS, stampVersions } from "./prompts";
+import { PROMPTS, stampVersions, HANDOFF_FALLBACK } from "./prompts";
 import { planExecution, renderPlan, type ExecutionPlan } from "./planner.server";
 import { reflectOnAnswer, type Reflection } from "./reflection.server";
 import { aggregateSourceWeight, renderSourceRanking } from "./sources";
@@ -320,8 +320,10 @@ export async function runHospitalityAgent(params: {
 
   // Perguntou a um humano: responde com honestidade, nunca inventa.
   if (escalationId && !reply) reply = pendingNotice(intent.language);
-  // Handoff é SILENCIOSO: a conversa vai para o humano sem mensagem da IA.
-  if (handoffReason) reply = "";
+  // Handoff NÃO é mais silencioso: a IA entrega a resposta parcial que
+  // conseguiu montar e sinaliza a consulta interna. Só usamos o fallback
+  // quando o modelo não produziu nada aproveitável.
+  if (handoffReason && !reply) reply = HANDOFF_FALLBACK;
 
   // Decisões humanas já entregues ao hóspede não voltam ao contexto.
   if (humanAnswers.length && reply) {
