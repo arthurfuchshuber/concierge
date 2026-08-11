@@ -951,21 +951,9 @@ function Field({
 
 
 function WhatsAppLink({ phone, country }: { phone?: string | null; country?: string | null }) {
-  if (!phone) return null;
-  const waNumber = toWhatsappNumber(phone, country);
-  if (!waNumber) return null;
-  return (
-    <a
-      href={`https://wa.me/${waNumber}`}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="inline-flex w-fit items-center gap-1 rounded-full bg-emerald-500/10 hover:bg-emerald-500/20 px-2.5 py-1 text-[11px] font-medium tabular-nums text-emerald-700 dark:text-emerald-400 transition"
-    >
-      <MessageCircle className="size-3" />
-      {formatIntlPhone(phone, country)}
-    </a>
-  );
+  return <PhoneActionButton phone={phone} country={country} size={13} />;
 }
+
 
 
 function MoneyCard({
