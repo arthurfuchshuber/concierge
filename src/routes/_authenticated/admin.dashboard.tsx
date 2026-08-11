@@ -9,7 +9,6 @@ import {
   CalendarX,
   LogIn,
   LogOut,
-  MessageCircle,
   StickyNote,
   Check,
   AlertTriangle,
@@ -64,7 +63,6 @@ import {
   getOccupancyBoard,
   type ArrivalRow,
 } from "@/lib/dashboard.functions";
-import { openHandoffDock } from "@/lib/handoff-dock";
 import { useImpersonation } from "@/hooks/useImpersonation";
 
 function PhoneLink({ phone, country }: { phone: string | null; country: string | null }) {
@@ -2185,24 +2183,6 @@ function ArrivalCard({
             className="size-9 grid place-items-center rounded-lg bg-secondary hover:bg-secondary/80 border border-border/60 transition-colors"
           >
             <Undo2 className="size-4" />
-          </button>
-        )}
-        {(row.guestPhone || row.guestName) && !isPendingFill && (
-          <button
-            type="button"
-            onClick={() =>
-              openHandoffDock({
-                propertyId: row.propertyId,
-                phone: row.guestPhone,
-                reservationCode: row.reservationCode,
-                guestName: row.guestName,
-              })
-            }
-            aria-label="Falar com hóspede"
-            title="Falar com hóspede (chat + WhatsApp integrado)"
-            className="size-9 grid place-items-center rounded-lg bg-background/60 border border-border/50 hover:bg-primary/[0.08]"
-          >
-            <MessageCircle className="size-4" />
           </button>
         )}
         <button
