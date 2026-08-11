@@ -193,7 +193,7 @@ export const listMyProperties = createServerFn({ method: "GET" })
     const { signPropertyImages } = await import("@/lib/storage.server");
     const signed = await signPropertyImages(context.supabase, data ?? []);
     const { attachOwnerNames } = await import("@/lib/property-owner-names.server");
-    return await attachOwnerNames(context.supabase as never, signed as never);
+    return await attachOwnerNames(context.supabase as never, signed);
   });
 
 // Lista as propriedades de uma conta específica que o usuário atual pode
@@ -220,7 +220,7 @@ export const listPropertiesForAccount = createServerFn({ method: "POST" })
     const { signPropertyImages } = await import("@/lib/storage.server");
     const signed = await signPropertyImages(context.supabase, visible);
     const { attachOwnerNames } = await import("@/lib/property-owner-names.server");
-    return await attachOwnerNames(context.supabase as never, signed as never);
+    return await attachOwnerNames(context.supabase as never, signed);
   });
 
 
