@@ -773,7 +773,7 @@ export function GuideAiChat({ slug, propertyName, guestName }: { slug: string; p
               onAttach={() => fileInputRef.current?.click()}
               onCamera={() => cameraInputRef.current?.click()}
             />
-            <div className="flex-1 min-w-0 flex items-center bg-zinc-50 border border-zinc-200 rounded-full px-3 focus-within:border-emerald-400/50 transition-colors">
+            <div className="flex-1 min-w-0 flex items-center bg-zinc-50 border border-zinc-200 rounded-full px-3 py-1.5 focus-within:border-emerald-400/50 transition-colors">
               <textarea
                 ref={inputRef}
                 value={input}
@@ -784,7 +784,7 @@ export function GuideAiChat({ slug, propertyName, guestName }: { slug: string; p
                 placeholder={uploading ? "Enviando anexo…" : "Mensagem…"}
                 aria-label="Mensagem para o concierge"
                 disabled={uploading}
-                className="w-full resize-none bg-transparent py-2 text-[16px] leading-5 h-9 max-h-28 overflow-y-auto text-zinc-900 outline-none placeholder:text-zinc-400 min-w-0"
+                className="block w-full resize-none bg-transparent py-0 text-[16px] leading-[1.4rem] h-[1.4rem] max-h-24 overflow-y-auto text-zinc-900 outline-none placeholder:text-zinc-400 min-w-0"
               />
             </div>
             {input.trim() ? (
