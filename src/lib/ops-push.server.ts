@@ -488,15 +488,15 @@ export async function notifyCleaningReady(
   if (targets.length === 0) return { sent: 0, skipped: true };
 
   const name = (prop.name || "Residência").trim();
-  const local = prop.city ? ` · ${prop.city}` : "";
+  const line = locLine([prop.ownerName, name, prop.cityClean, prop.district]);
   return sendOpsPush(admin, {
     ownerId: prop.owner_id,
     kind: "cleaning-ready",
     dedupeKey: `cleaning-ready:${opts.propertyId}:${opts.refKey}`,
     userIds: targets,
     payload: {
-      title: `🧹 Liberado para limpeza — ${name}`,
-      body: `Check-out confirmado${local}.${opts.guestName ? ` Hóspede: ${opts.guestName}.` : ""}\nA residência já pode receber a limpeza.`,
+      title: `🧹 Liberado para limpeza`,
+      body: line,
       data: {
         url: "/admin/dashboard",
         tag: `cleaning-ready-${opts.propertyId}`,
