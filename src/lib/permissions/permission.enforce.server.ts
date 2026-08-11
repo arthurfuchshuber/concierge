@@ -159,7 +159,8 @@ export function resolveOutcome(
 
 /** Modo efetivo do tenant (FASE 3.8) — default seguro: `progressive`.
  *  Cacheado por 60s: o modo muda raramente e era consultado em toda operação. */
-const tenantModeCache = new Map<string, { at: number; value: { mode: EnforcementMode; tenantMode: string } }>();
+type TenantEnforcement = { mode: EnforcementMode; tenantMode: import("./permission.migration.server").TenantPermissionMode };
+const tenantModeCache = new Map<string, { at: number; value: TenantEnforcement }>();
 
 async function tenantEnforcement(tenantId: string) {
   const hit = tenantModeCache.get(tenantId);
