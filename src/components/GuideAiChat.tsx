@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { ComposerPlusMenu } from "@/components/handoff/ComposerPlusMenu";
 import { MessageCircleMore, Send, X, Loader2, Paperclip, Copy, Check } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -289,6 +290,7 @@ export function GuideAiChat({ slug, propertyName, guestName }: { slug: string; p
   const [uploading, setUploading] = useState(false);
   const [uploadErr, setUploadErr] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
   const lastFetchedAtRef = useRef<string | undefined>(undefined);
 
   async function uploadGuestAttachment(blob: Blob, opts: { filename: string; mime: string; durationMs?: number }) {
