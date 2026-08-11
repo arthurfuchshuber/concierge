@@ -773,7 +773,7 @@ export function GuideAiChat({ slug, propertyName, guestName }: { slug: string; p
               onAttach={() => fileInputRef.current?.click()}
               onCamera={() => cameraInputRef.current?.click()}
             />
-            <div className="flex-1 min-w-0 flex items-center bg-zinc-50 border border-zinc-200 rounded-full px-3 focus-within:border-emerald-400/50 transition-colors">
+            <div className="flex-1 min-w-0 flex items-center bg-zinc-50 border border-zinc-200 rounded-full px-3 py-1.5 focus-within:border-emerald-400/50 transition-colors">it
               <textarea
                 ref={inputRef}
                 value={input}
