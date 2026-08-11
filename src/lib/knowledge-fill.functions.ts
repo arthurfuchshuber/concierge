@@ -145,7 +145,7 @@ export const applyKnowledgeFill = createServerFn({ method: "POST" })
     if (["checkin_instructions", "checkout_instructions", "house_rules", "address_note"].includes(data.target)) {
       const current = String(p[data.target] ?? "").trim();
       const next = data.mode === "replace" || !current ? text : `${current}\n${text}`;
-      const { error } = await supabaseAdmin.from("properties").update({ [data.target]: next }).eq("id", propertyId);
+      const { error } = await supabaseAdmin.from("properties").update({ [data.target]: next } as never).eq("id", propertyId);
       if (error) throw new Error(error.message);
     } else if (data.target === "manual") {
       const { error } = await supabaseAdmin.from("property_manual_items").insert({
@@ -158,7 +158,7 @@ export const applyKnowledgeFill = createServerFn({ method: "POST" })
     } else if (data.target === "faq") {
       const { error } = await supabaseAdmin.from("property_faqs").insert({
         property_id: propertyId,
-        question: title ?? lastGuest.slice(0, 160) || "Dúvida do hóspede",
+        question: title ?? (lastGuest.slice(0, 160) || "Dúvida do hóspede"),
         answer: text,
       });
       if (error) throw new Error(error.message);
