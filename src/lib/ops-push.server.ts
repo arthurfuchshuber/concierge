@@ -394,13 +394,60 @@ function isCleaningCategory(row: { category?: string | null; categories?: string
   return (row.categories ?? []).some((c) => CLEANING_RE.test(c ?? ""));
 }
 
+const COUNTRY_RE = /\b(brasil|brazil|br|portugal|pt|argentina|espanha|spain|usa|eua|estados unidos|united states)\b/i;
+
+/** Remove sufixos de país (ex.: "Florianópolis, Brasil" → "Florianópolis"). */
+function cleanCity(city?: string | null): string {
+  if (!city) return "";
+  const parts = String(city)
+    .split(/[,/·–-]/)
+    .map((p) => p.trim())
+    .filter(Boolean)
+    .filter((p) => !COUNTRY_RE.test(p));
+  return (parts[0] ?? "").trim();
+}
+
 async function getPropertyBasics(admin: Admin, propertyId: string) {
   const { data } = await admin
     .from("properties")
-    .select("id, owner_id, name, city")
+    .select("id, owner_id, name, city, address, owner_contact_id")
     .eq("id", propertyId)
     .maybeSingle();
-  return (data as { id: string; owner_id: string; name: string | null; city: string | null } | null) ?? null;
+  const prop = data as
+    | {
+        id: string;
+        owner_id: string;
+        name: string | null;
+        city: string | null;
+        address: string | null;
+        owner_contact_id: string | null;
+      }
+    | null;
+  if (!prop) return null;
+
+  let ownerName = "";
+  let district = "";
+  if (prop.owner_contact_id) {
+    const { data: oc } = await admin
+      .from("property_owners")
+      .select("name, trade_name, district")
+      .eq("id", prop.owner_contact_id)
+      .maybeSingle();
+    ownerName = ((oc?.trade_name as string) || (oc?.name as string) || "").trim();
+    district = ((oc?.district as string) || "").trim();
+  }
+
+  return {
+    ...prop,
+    cityClean: cleanCity(prop.city),
+    ownerName,
+    district,
+  };
+}
+
+/** "Proprietário · Imóvel · Cidade · Bairro" (só o que existir). */
+function locLine(parts: (string | null | undefined)[]): string {
+  return parts.map((p) => (p ?? "").trim()).filter(Boolean).join(" · ");
 }
 
 /**
