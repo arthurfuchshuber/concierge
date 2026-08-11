@@ -1051,8 +1051,13 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
                 className="hidden"
                 onChange={onFilePicked}
               />
+              <ComposerPlusMenu
+                disabled={uploading}
+                onAttach={() => fileInputRef.current?.click()}
+                onCamera={() => cameraInputRef.current?.click()}
+              />
               <div
-                className={`flex-1 min-w-0 flex items-end gap-1 rounded-3xl border bg-background pl-3 pr-1.5 py-1 ${note ? "border-yellow-500/50" : "border-border"}`}
+                className={`flex-1 min-w-0 flex items-center rounded-full border bg-background px-3 ${note ? "border-yellow-500/50" : "border-border"}`}
               >
                 <TagMentionTextarea
                   value={text}
@@ -1069,30 +1074,10 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
                   placeholder={note ? "Nota interna…" : "Mensagem…"}
                   rows={1}
                   containerClassName="flex-1 min-w-0"
-                  className="w-full resize-none bg-transparent border-0 px-0 py-1.5 text-sm leading-5 outline-none focus:ring-0 min-w-0 h-8 max-h-28 overflow-y-auto"
-
+                  className="w-full resize-none bg-transparent border-0 px-0 py-2 text-sm leading-5 outline-none focus:ring-0 min-w-0 h-9 max-h-28 overflow-y-auto"
                 />
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={uploading}
-                  title="Anexar arquivo"
-                  aria-label="Anexar arquivo"
-                  className="grid size-9 place-items-center rounded-full hover:bg-muted text-muted-foreground hover:text-foreground shrink-0 disabled:opacity-40"
-                >
-                  <Paperclip className="size-5" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => cameraInputRef.current?.click()}
-                  disabled={uploading}
-                  title="Tirar foto ou vídeo"
-                  aria-label="Tirar foto ou vídeo"
-                  className="grid size-9 place-items-center rounded-full hover:bg-muted text-muted-foreground hover:text-foreground shrink-0 disabled:opacity-40"
-                >
-                  <Camera className="size-5" />
-                </button>
               </div>
+
 
               {text.trim() ? (
                 <button
