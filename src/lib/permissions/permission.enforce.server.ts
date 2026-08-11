@@ -157,12 +157,19 @@ export function resolveOutcome(
   return { allowed: false, enforced: false, decision };
 }
 
-/** Modo efetivo do tenant (FASE 3.8) — default seguro: `progressive`. */
+/** Modo efetivo do tenant (FASE 3.8) — default seguro: `progressive`.
+ *  Cacheado por 60s: o modo muda raramente e era consultado em toda operação. */
+const tenantModeCache = new Map<string, { at: number; value: { mode: EnforcementMode; tenantMode: string } }>();
+
 async function tenantEnforcement(tenantId: string) {
+  const hit = tenantModeCache.get(tenantId);
+  if (hit && Date.now() - hit.at < 60_000) return hit.value;
   try {
     const m = await import("./permission.migration.server");
     const status = await m.getTenantPermissionMode(tenantId);
-    return { mode: m.enforcementModeFor(status.status), tenantMode: status.status };
+    const value = { mode: m.enforcementModeFor(status.status), tenantMode: status.status };
+    tenantModeCache.set(tenantId, { at: Date.now(), value });
+    return value;
   } catch {
     return { mode: ENFORCEMENT_MODE, tenantMode: "legacy" as const };
   }
