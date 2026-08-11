@@ -1,8 +1,7 @@
-import { parsePhoneNumberFromString } from "libphonenumber-js";
-import { MessageCircle } from "lucide-react";
+import { PhoneActionButton } from "@/components/PhoneActionButton";
 
 /**
- * Nome do proprietário em destaque com o telefone clicável (WhatsApp) à direita.
+ * Nome do proprietário em destaque com o botão de contato (ícone) à direita.
  */
 export function OwnerLine({
   name,
@@ -17,21 +16,6 @@ export function OwnerLine({
 }) {
   if (!name) return null;
 
-  const raw = (phone ?? "").trim();
-  let digits = raw.replace(/\D/g, "");
-  let label = raw;
-  if (raw) {
-    const parsed = parsePhoneNumberFromString(
-      raw.startsWith("+") ? raw : `${country ?? "+55"}${raw}`,
-    );
-    if (parsed?.isValid()) {
-      digits = parsed.number.replace(/\D/g, "");
-      label = parsed.formatInternational();
-    } else if (!raw.startsWith("+") && country) {
-      digits = `${country.replace(/\D/g, "")}${digits}`;
-    }
-  }
-
   return (
     <div className="flex w-full min-w-0 max-w-full items-center gap-1.5 overflow-hidden">
       <span
@@ -41,20 +25,12 @@ export function OwnerLine({
         {name}
       </span>
 
-      {digits && (
-        <a
-          href={`https://wa.me/${digits}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          onClick={(e) => e.stopPropagation()}
-          title="Abrir conversa no WhatsApp"
-          className={`${phonePosition === "end" ? "ml-auto" : ""} inline-flex shrink-0 items-center gap-1 whitespace-nowrap text-[11px] font-medium text-emerald-500 tabular-nums hover:text-emerald-400 hover:underline`}
-        >
-          <MessageCircle className="size-3 shrink-0" />
-          <span>{label}</span>
-        </a>
-      )}
+      <PhoneActionButton
+        phone={phone}
+        country={country}
+        size={12}
+        className={phonePosition === "end" ? "ml-auto" : ""}
+      />
     </div>
   );
-
 }
