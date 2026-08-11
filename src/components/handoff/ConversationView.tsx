@@ -1044,16 +1044,11 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
                     }
                   }}
                   items={tagItems}
-                  placeholder={
-                    note
-                      ? "Nota interna…"
-                      : channel === "whatsapp"
-                        ? "Mensagem via WhatsApp…"
-                        : "Mensagem… (@ linka o guia)"
-                  }
+                  placeholder={note ? "Nota interna…" : "Mensagem…"}
                   rows={1}
                   containerClassName="flex-1 min-w-0"
-                  className="w-full resize-none bg-transparent border-0 px-0 py-2 text-sm leading-5 outline-none focus:ring-0 min-w-0 max-h-28"
+                  className="w-full resize-none bg-transparent border-0 px-0 py-1.5 text-sm leading-5 outline-none focus:ring-0 min-w-0 h-8 max-h-28 overflow-y-auto"
+
                 />
                 <button
                   type="button"
