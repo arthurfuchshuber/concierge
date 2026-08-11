@@ -1148,7 +1148,6 @@ export function ConversationList({
         const urgent = c.handoff_urgency === "high";
         const d = details?.[c.id];
         const displayName = d?.name || c.guest_name || "Hóspede anônimo";
-        const wa = d?.phone ? whatsappHref(d.phone, d.phoneCountry) : null;
         const checkin = fmtCheckin(d?.checkinDate ?? null);
         const checkout = fmtCheckin(d?.checkoutDate ?? null);
         const withWhom = c.assigned_to ? (assignedNames?.[c.id] ?? "outro membro") : null;
