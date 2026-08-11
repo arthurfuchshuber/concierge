@@ -216,7 +216,7 @@ export async function resolveOwnerPlanAdmin(
     if (!plan) continue;
     const cfg = PLANS[plan];
     const override = (sub.max_guides_override as number | null) ?? null;
-    return { plan, status, maxGuides: override ?? cfg.maxGuides, features: { ...cfg.features } };
+    return remember({ plan, status, maxGuides: override ?? cfg.maxGuides, features: { ...cfg.features } });
   }
-  return FREE;
+  return remember(FREE);
 }
