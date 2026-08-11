@@ -86,7 +86,14 @@ export async function getAccountNotifiableUsers(admin: Admin, ownerId: string): 
  */
 export async function sendOpsPush(
   admin: Admin,
-  opts: { ownerId: string; kind: string; dedupeKey: string; payload: PushPayload },
+  opts: {
+    ownerId: string;
+    kind: string;
+    dedupeKey: string;
+    payload: PushPayload;
+    /** Destinatários específicos. Se omitido, usa owner + membros ativos. */
+    userIds?: string[];
+  },
 ): Promise<{ sent: number; skipped: boolean }> {
   const { error: dedupeError } = await admin.from("ops_push_log").insert({
     owner_id: opts.ownerId,
@@ -97,8 +104,9 @@ export async function sendOpsPush(
   // Violação de unicidade => já enviado nesta janela
   if (dedupeError) return { sent: 0, skipped: true };
 
-  const userIds = await getAccountNotifiableUsers(admin, opts.ownerId);
+  const userIds = opts.userIds ?? (await getAccountNotifiableUsers(admin, opts.ownerId));
   if (userIds.length === 0) return { sent: 0, skipped: false };
+
 
   const { data: subs } = await admin
     .from("push_subscriptions")
