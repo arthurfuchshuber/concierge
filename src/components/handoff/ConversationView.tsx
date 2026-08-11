@@ -891,8 +891,8 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
         open={fillOpen}
         onOpenChange={setFillOpen}
         onApplied={() => {
-          qc.invalidateQueries({ queryKey: ["handoff-conversation", conversationId] });
-          qc.invalidateQueries({ queryKey: ["handoff-messages", conversationId] });
+          qc.invalidateQueries({ queryKey: ["handoff-conv", conversationId] });
+          qc.invalidateQueries({ queryKey: ["handoff-list"] });
         }}
       />
 
