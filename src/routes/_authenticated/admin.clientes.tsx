@@ -76,26 +76,9 @@ function WhatsAppLink({
   country: string | null;
   className?: string;
 }) {
-  if (!phone) return null;
-  const waNumber = toWhatsappNumber(phone, country);
-  if (!waNumber) return null;
-  const label = formatIntlPhone(phone, country);
-  return (
-    <a
-      href={`https://wa.me/${waNumber}`}
-      target="_blank"
-      rel="noopener noreferrer"
-      onClick={(e) => e.stopPropagation()}
-      className={cn(
-        "inline-flex items-center gap-1 rounded-full bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 px-2 py-0.5 text-[11px] font-medium tabular-nums transition",
-        className,
-      )}
-    >
-      <MessageCircle className="size-3" />
-      {label}
-    </a>
-  );
+  return <PhoneActionButton phone={phone} country={country} className={className} size={13} />;
 }
+
 
 
 type StatusFilter = "all" | "active" | "trialing" | "canceled" | "past_due" | "incomplete";
