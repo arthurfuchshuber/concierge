@@ -66,6 +66,7 @@ import { tenantOf } from "./tenant/context.server";
 import { bindConversationChannel } from "./channels/gateway.server";
 import type { ChannelType } from "./channels/types";
 import { buildRootCause } from "./observability/root-cause.server";
+import { guestSafetyDecision } from "./guest-safety.server";
 
 type Admin = SupabaseClient;
 
@@ -133,6 +134,59 @@ export async function runHospitalityAgent(params: {
   const guestKey = guestKeyOf(params.sessionId, params.guestName);
   rememberMessage(params.conversationId, "user", params.message);
   rememberIntent(params.conversationId, intent);
+
+  // Guardrail determinístico: acesso físico e credenciais não dependem de decisão do modelo.
+  const safety = guestSafetyDecision(params.message, String(property.slug ?? ""));
+  if (safety.kind !== "none") {
+    const handoff = safety.kind === "access_incident";
+    const plan: ExecutionPlan = {
+      objective: safety.kind === "access_incident" ? "Proteger o hóspede em incidente de acesso" : "Orientar o acesso seguro ao guia",
+      tools: handoff ? [{ name: "request_human_handoff", reason: "incidente de acesso físico" }] : [],
+      parallel: false,
+      needsHuman: handoff,
+      riskLevel: handoff ? "high" : "normal",
+      notes: "Regra determinística de segurança; geração por IA não é permitida neste caso.",
+      fallback: false,
+    };
+    const routing: AgentRouting = {
+      agent: handoff ? "maintenance" : "reservation",
+      reason: "regra determinística de segurança para acesso e credenciais",
+      confidence: 1,
+      escalateUpfront: handoff,
+      fallback: false,
+    };
+    if (handoff) {
+      void recordOperationalRequest({
+        supabase,
+        ownerId,
+        propertyId,
+        conversationId: params.conversationId,
+        guestKey,
+        guestName: params.guestName,
+        category: "acesso",
+        request: params.message.slice(0, 800),
+        metadata: { intent: intent.intent, urgency: "high", handoff: true, source: "deterministic_guest_safety" },
+      }).catch(() => undefined);
+    }
+    return {
+      reply: safety.reply,
+      handoff,
+      handoffReason: handoff ? "Incidente de acesso físico relatado pelo hóspede." : null,
+      handoffUrgency: handoff ? "high" : "normal",
+      intent,
+      usage,
+      confidence: 1,
+      confidenceTier: "auto",
+      plan,
+      reflection: null,
+      routing,
+      escalationId: null,
+      tenantId: tenant.tenantId,
+      channel,
+      toolsUsed: handoff ? [{ name: "request_human_handoff" }] : [],
+      sourcesUsed: ["guest_safety_policy"],
+    };
+  }
 
   // 2) Guest Context Engine + Memory Retrieval (curto prazo, longo prazo, operacional)
   const memory = await loadGuestMemory(supabase, propertyId, guestKey);
