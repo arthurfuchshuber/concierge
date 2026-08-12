@@ -787,12 +787,21 @@ export function GuideAiChat({ slug, propertyName, guestName }: { slug: string; p
               )}
             </div>
           ))}
-          {loading && (
-            <div className="flex items-center gap-2 text-zinc-500 text-[12.5px]">
-              <Loader2 className="size-3.5 animate-spin" /> pensando…
-
+          {streamingText && (
+            <div className="flex justify-start">
+              <div className="max-w-[85%] rounded-2xl rounded-bl-md bg-zinc-100 dark:bg-zinc-800 px-3.5 py-2.5 text-[14px] leading-relaxed whitespace-pre-wrap">
+                {streamingText}
+                <span className="ml-0.5 inline-block h-3.5 w-[2px] translate-y-[2px] bg-emerald-500 animate-pulse" />
+              </div>
             </div>
           )}
+          {loading && !streamingText && (
+            <div className="flex items-center gap-2 text-zinc-500 text-[12.5px]">
+              <Loader2 className="size-3.5 animate-spin" />
+              <span className="animate-pulse">{stageLabel ? `${stageLabel}…` : "pensando…"}</span>
+            </div>
+          )}
+
         </div>
 
         <GuestNotificationsPrompt
