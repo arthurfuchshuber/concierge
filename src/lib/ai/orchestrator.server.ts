@@ -528,6 +528,7 @@ export async function runHospitalityAgent(params: {
         evidence: evidenceText,
         language: intent.language,
         policies: context.behavior || undefined,
+        history: params.history,
         highRisk: highRiskContext,
       });
       usage = mergeUsage(usage, revalidated.usage);
