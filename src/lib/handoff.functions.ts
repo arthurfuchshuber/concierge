@@ -94,7 +94,9 @@ export const listHandoffConversations = createServerFn({ method: "POST" })
       return Number.isFinite(t) ? t : 0;
     };
     const isPreviewName = (s: string | null | undefined) =>
-      !!s && /pr[eé]\s*-?\s*visualiza|preview/i.test(s.trim());
+      !!s && /pr[eé]\s*-?\s*visualiza|preview|h[oó]spede de teste/i.test(s.trim());
+    const isPreviewConv = (c: HandoffConversationSummary) =>
+      isPreviewName(c.guest_name) || String(c.guest_session_id ?? "").startsWith("preview-");
     const details: Record<string, HandoffGuestDetail> = {};
     const mergeDetails: Record<string, HandoffGuestDetail> = {};
     if (list.length > 0) {
