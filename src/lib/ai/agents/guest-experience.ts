@@ -10,6 +10,7 @@ export const guestExperienceAgent: AgentDefinition = {
   specialty: "recomendações locais, restaurantes, passeios, turismo e dúvidas gerais",
   allowedTools: [
     "list_recommendations",
+    "get_city_news",
     "search_places",
     "get_weather",
     "search_knowledge_base",
