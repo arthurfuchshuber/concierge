@@ -53,28 +53,18 @@ const Body = z.object({
   guestName: z.string().trim().min(1).max(80).optional(),
   message: z.string().trim().min(1).max(2000),
   forceAi: z.boolean().optional(),
+  /** Quando true, a resposta vem como SSE com o progresso do agente em tempo real. */
+  stream: z.boolean().optional(),
 });
 
-export const Route = createFileRoute("/api/public/guide-chat")({
-  server: {
-    handlers: {
-      POST: async ({ request }) => {
-        let body: z.infer<typeof Body>;
-        try {
-          body = Body.parse(await request.json());
-        } catch (err) {
-          return new Response(JSON.stringify({ error: "Entrada inválida." }), { status: 400, headers: { "Content-Type": "application/json" } });
-        }
+type StageEvent = { step: string; label: string };
 
-        // Rate limit checks
-        const clientIp = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "";
-        const rl = checkRateLimit(body.sessionId, clientIp, body.slug);
-        if (!rl.ok) {
-          return new Response(
-            JSON.stringify({ error: "Muitas mensagens em pouco tempo. Aguarde um momento." }),
-            { status: 429, headers: { "Content-Type": "application/json" } },
-          );
-        }
+async function runGuideChat(
+  body: z.infer<typeof Body>,
+  emitStage: (stage: StageEvent) => void,
+): Promise<Response> {
+        {
+
 
         const apiKey = process.env.LOVABLE_API_KEY;
         if (!apiKey) {
