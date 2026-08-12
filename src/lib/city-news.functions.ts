@@ -77,6 +77,7 @@ async function curateWithAi(params: {
   cityLabel: string;
   country: string | null;
   lang: string;
+  today: string;
   candidates: FirecrawlSearchResult[];
 }): Promise<NewsItem[]> {
   const key = process.env.LOVABLE_API_KEY;
@@ -152,6 +153,9 @@ ${feed}`;
       emoji?: string;
       imageQuery?: string;
       sourceIndex?: number;
+      startDate?: string | null;
+      endDate?: string | null;
+      venue?: string | null;
     }>;
   } = {};
   try {
@@ -172,6 +176,9 @@ ${feed}`;
       imageUrl: null,
       sourceUrl: src?.url ?? null,
       sourceName: siteName ?? null,
+      startDate: it.startDate && ISO_DATE.test(it.startDate) ? it.startDate : null,
+      endDate: it.endDate && ISO_DATE.test(it.endDate) ? it.endDate : null,
+      venue: it.venue ? String(it.venue).slice(0, 120) : null,
     };
   });
   return items.filter((i) => i.title.length > 3);
@@ -291,6 +298,7 @@ export async function generateAndCacheCityNews(input: {
       cityLabel: input.cityLabel,
       country: input.country ?? null,
       lang,
+      today,
       candidates,
     });
   } catch {
