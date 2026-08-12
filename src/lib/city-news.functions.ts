@@ -251,7 +251,7 @@ async function verifyEventDates(items: NewsItem[], today: string): Promise<NewsI
   const eventIdx = items
     .map((it, i) => ({ it, i }))
     .filter(({ it }) => (it.category ?? "").toLowerCase() === "evento")
-    .slice(0, 8);
+    .slice(0, 16);
   if (eventIdx.length === 0) return items;
   // Sem IA disponível não há como confirmar calendário: eventos não são exibidos.
   if (!key) return items.filter((it) => (it.category ?? "").toLowerCase() !== "evento");
