@@ -818,16 +818,17 @@ function Dashboard() {
               <div className="p-4">
                 {(p as any).ownerName && (
                   <div className="mb-1 flex items-center gap-1.5 min-w-0">
-                    <span className="min-w-0 flex-1 truncate text-[11px] font-bold text-primary" title={(p as any).ownerName}>
+                    <span className="min-w-0 max-w-full truncate text-[11px] font-bold text-primary" title={(p as any).ownerName}>
                       {(p as any).ownerName}
                     </span>
                     <PhoneActionButton
                       phone={(p as any).ownerPhone}
                       country={(p as any).ownerPhoneCountry}
                       size={12}
-                      className="ml-auto"
+                      className="shrink-0"
                     />
                   </div>
+
                 )}
                 <h3 className="font-semibold leading-tight truncate">{p.name}</h3>
                 {p.city && (
