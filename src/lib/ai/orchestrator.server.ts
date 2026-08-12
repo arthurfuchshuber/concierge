@@ -136,7 +136,7 @@ export async function runHospitalityAgent(params: {
   rememberIntent(params.conversationId, intent);
 
   // Guardrail determinístico: acesso físico e credenciais não dependem de decisão do modelo.
-  const safety = guestSafetyDecision(params.message, String(property.slug ?? ""));
+  const safety = await guestSafetyDecision(params.message, String(property.slug ?? ""), { supabase, propertyId });
   if (safety.kind !== "none") {
     const handoff = safety.kind === "access_incident";
     const plan: ExecutionPlan = {
@@ -445,12 +445,14 @@ export async function runHospitalityAgent(params: {
     tier = tierFor(confidence, thresholds);
 
     const forcedHuman =
-      (!validated.validation.approved && validated.validation.needsHuman) || reflection.needsHuman;
+      (!validated.validation.approved && validated.validation.needsHuman) ||
+      reflection.needsHuman ||
+      plan.needsHuman;
 
     if (!params.explorationMode && (tier === "handoff" || forcedHuman)) {
       handoffReason =
         `Confiança insuficiente (${Math.round(confidence * 100)}%, nível=${tier}). ` +
-        `${validated.validation.reason || reflection.issues.join("; ") || "inconsistência"}. ` +
+        `${validated.validation.reason || reflection.issues.join("; ") || (plan.needsHuman ? "planejador sinalizou necessidade de humano" : "inconsistência")}. ` +
         `Pergunta: ${params.message.slice(0, 160)}`;
       handoffUrgency = intent.urgency === "high" ? "high" : "normal";
       reply = "";
@@ -568,6 +570,7 @@ export async function runHospitalityAgent(params: {
         "planner",
         "reflection",
         "supervisor",
+        "validation",
         ...(params.explorationMode ? (["exploration"] as const) : []),
       ]),
       ...stampAgentPrompt(agent),

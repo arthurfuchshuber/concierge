@@ -875,11 +875,36 @@ export const sendHandoffMessage = createServerFn({ method: "POST" })
 
     const { data: cur } = await supabase
       .from("property_chat_conversations")
-      .select("assigned_to")
+      .select("assigned_to, handoff_reason, property_id, properties:property_id(owner_id, name)")
       .eq("id", data.conversationId)
       .maybeSingle();
     if (cur?.assigned_to && cur.assigned_to !== userId) {
       throw new Error("Esta conversa está sendo atendida por outro membro. Solicite acesso ou peça uma transferência.");
+    }
+
+    // Continuous Learning: se esta conversa foi escalada (handoff_reason preenchido — inclusive pelo
+    // guardrail determinístico de acesso, que nunca passa por ask_human_supervisor) e esta é a
+    // PRIMEIRA resposta humana desde a escalada, ela vira candidata a conhecimento reutilizável.
+    // Aprovação humana continua obrigatória antes de qualquer coisa entrar na memória de longo prazo.
+    let learnQuestion: string | null = null;
+    if (!data.internalNote && cur?.handoff_reason) {
+      const { count: priorHumanReplies } = await supabase
+        .from("property_chat_messages")
+        .select("id", { count: "exact", head: true })
+        .eq("conversation_id", data.conversationId)
+        .eq("sender_type", "human")
+        .eq("is_internal_note", false);
+      if (!priorHumanReplies) {
+        const { data: lastGuestMsg } = await supabase
+          .from("property_chat_messages")
+          .select("content")
+          .eq("conversation_id", data.conversationId)
+          .eq("role", "user")
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (lastGuestMsg?.content) learnQuestion = lastGuestMsg.content as string;
+      }
     }
     // Expande [[info:...]] com valores da propriedade e [[tag:...]] em links do guia.
     let content = data.content;
@@ -913,6 +938,29 @@ export const sendHandoffMessage = createServerFn({ method: "POST" })
         .from("property_chat_conversations")
         .update({ ai_paused: true, status: "assigned", assigned_to: userId, last_message_at: new Date().toISOString() })
         .eq("id", data.conversationId);
+
+      // Continuous Learning: dispara a destilação da resposta humana (fire-and-forget, nunca bloqueia o envio).
+      if (learnQuestion) {
+        void (async () => {
+          const joinedProps = cur?.properties as
+            | { owner_id?: string; name?: string }
+            | Array<{ owner_id?: string; name?: string }>
+            | null;
+          const propRow = Array.isArray(joinedProps) ? (joinedProps[0] ?? null) : joinedProps;
+          const ownerId = propRow?.owner_id;
+          if (!ownerId) return;
+          const { learnFromHumanAnswer } = await import("@/lib/ai/human-loop/learning.server");
+          await learnFromHumanAnswer({
+            supabase,
+            ownerId,
+            propertyId: cur?.property_id ?? null,
+            propertyName: propRow?.name ?? null,
+            agent: "handoff_resolution",
+            question: learnQuestion,
+            humanAnswer: content,
+          });
+        })().catch((e) => console.error("[learning] falha ao destilar resposta humana de handoff", e));
+      }
 
       // Dispara push para o hóspede (se ele tiver ativado notificações).
       try {

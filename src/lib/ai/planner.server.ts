@@ -134,8 +134,11 @@ export async function planExecution(params: {
 
 /** Renderiza o plano para o agente principal seguir (sem tirar sua autonomia). */
 export function renderPlan(plan: ExecutionPlan): string {
+  const signal = plan.needsHuman
+    ? `\nSINAL DE ESCALONAMENTO: o planejador já identificou que este caso provavelmente exige um humano (risco=${plan.riskLevel}). Investigue e responda com o que puder, mas chame request_human_handoff antes de encerrar.`
+    : "";
   if (!plan.tools.length) {
-    return `Objetivo: ${plan.objective || "atender o hóspede"}\nNenhuma ferramenta prevista — resposta direta, sem inventar fatos.`;
+    return `Objetivo: ${plan.objective || "atender o hóspede"}\nNenhuma ferramenta prevista — resposta direta, sem inventar fatos.${signal}`;
   }
   const lines = plan.tools.map(
     (t, i) => `${i + 1}. ${t.name}${t.query ? ` (consulta: "${t.query}")` : ""} — ${t.reason}`,
@@ -145,6 +148,6 @@ export function renderPlan(plan: ExecutionPlan): string {
     `Ferramentas previstas${plan.parallel ? " (acione-as na MESMA rodada — execução paralela)" : ""}:\n` +
     lines.join("\n") +
     (plan.notes ? `\nObservações: ${plan.notes}` : "") +
-    `\nVocê pode acionar outras ferramentas se a investigação exigir.`
+    `\nVocê pode acionar outras ferramentas se a investigação exigir.${signal}`
   );
 }

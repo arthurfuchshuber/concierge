@@ -5,6 +5,7 @@
  * o atendimento é escalado para um humano.
  */
 import { chatJson, EMPTY_USAGE, type Usage } from "./gateway.server";
+import { PROMPTS } from "./prompts";
 
 export type Validation = {
   approved: boolean;
@@ -33,14 +34,7 @@ export async function validateAnswer(params: {
     const { data, usage, model } = await chatJson<Partial<Validation>>("validation", [
       {
         role: "system",
-        content:
-          "Você é o validador final de um concierge de hospedagem. Verifique se a RESPOSTA está " +
-          "inteiramente fundamentada nas EVIDÊNCIAS. Reprove quando houver: informação não presente nas " +
-          "evidências (alucinação), conflito entre fontes, dado desatualizado, violação de política do " +
-          "imóvel, data/horário inconsistente, idioma errado, ou promessa de ação física/remota (abrir " +
-          "portão, destravar, enviar alguém, ligar para terceiros). Conversa social, acolhimento e " +
-          "perguntas de acompanhamento são permitidos sem evidência. " +
-          'Responda APENAS JSON: {"approved":bool,"reason":"...","issues":["..."],"needsHuman":bool,"confidence":0..1}',
+        content: PROMPTS.validation.text,
       },
       {
         role: "user",

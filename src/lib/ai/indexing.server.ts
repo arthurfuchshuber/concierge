@@ -48,7 +48,7 @@ async function collectChunks(supabase: Admin, propertyId: string, prop: Record<s
     if (value) pushChunk(chunks, { source: "property", sourceId: label, title: `${name} — ${label}`, content: `${label}: ${value}` });
   }
 
-  const [manual, faqs, rules, checkout, recs, details, knowledge, behavior, emergency] = await Promise.all([
+  const [manual, faqs, recommendations, checkout, emergency, details, knowledge, behavior] = await Promise.all([
     supabase.from("property_manual_items").select("id, title, description, body").eq("property_id", propertyId),
     supabase.from("property_faqs").select("id, question, answer").eq("property_id", propertyId),
     supabase.from("property_recommendations").select("id, name, category, type, distance_text, note").eq("property_id", propertyId),
@@ -57,9 +57,7 @@ async function collectChunks(supabase: Admin, propertyId: string, prop: Record<s
     supabase.from("property_details").select("id, title, content").eq("property_id", propertyId),
     supabase.from("host_knowledge").select("id, title, body, scope_property_id").eq("owner_id", prop.owner_id as string).eq("enabled", true),
     supabase.from("host_behavior").select("id, title, body, scope_property_id").eq("owner_id", prop.owner_id as string).eq("enabled", true),
-    Promise.resolve(null),
   ]);
-  void emergency;
 
   for (const m of (manual.data ?? []) as Array<Record<string, unknown>>) {
     pushChunk(chunks, {
@@ -77,7 +75,7 @@ async function collectChunks(supabase: Admin, propertyId: string, prop: Record<s
       content: `Pergunta: ${f.question}\nResposta: ${f.answer}`,
     });
   }
-  for (const r of (rules.data ?? []) as Array<Record<string, unknown>>) {
+  for (const r of (recommendations.data ?? []) as Array<Record<string, unknown>>) {
     pushChunk(chunks, {
       source: "recommendation",
       sourceId: String(r.id),
@@ -88,7 +86,7 @@ async function collectChunks(supabase: Admin, propertyId: string, prop: Record<s
   for (const c of (checkout.data ?? []) as Array<Record<string, unknown>>) {
     pushChunk(chunks, { source: "checkout", sourceId: String(c.id), title: "Antes de sair", content: String(c.label ?? "") });
   }
-  for (const c of (recs.data ?? []) as Array<Record<string, unknown>>) {
+  for (const c of (emergency.data ?? []) as Array<Record<string, unknown>>) {
     pushChunk(chunks, { source: "procedures", sourceId: String(c.id), title: "Contato de emergência", content: `${c.label}: ${c.number}` });
   }
   for (const d of (details.data ?? []) as Array<Record<string, unknown>>) {
