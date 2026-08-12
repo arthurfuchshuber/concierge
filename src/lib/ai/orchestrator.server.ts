@@ -263,6 +263,7 @@ export async function runHospitalityAgent(params: {
   const context = await buildAgentContext({ supabase, property, guestName: params.guestName, memory });
 
 
+  stage("retrieval", "Consultando o guia da residência");
   // 4) Pré-recuperação Hybrid RAG (indexa sob demanda na primeira vez)
   const { count: chunkCount } = await supabase
     .from("ai_kb_chunks")
