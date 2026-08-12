@@ -460,6 +460,7 @@ export async function runHospitalityAgent(params: {
   }
 
 
+  stage("review", "Revisando os detalhes");
   // 6) Validação + 7) Reflection (puladas quando já escalamos para humano)
   const baseThresholds = thresholdsFor({
     explorationMode: params.explorationMode,
