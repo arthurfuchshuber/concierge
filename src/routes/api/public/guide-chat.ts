@@ -247,6 +247,7 @@ async function runGuideChat(
         let result: Awaited<ReturnType<typeof runHospitalityAgent>>;
         try {
           result = await runHospitalityAgent({
+            onStage: emitStage,
             supabase: supabaseAdmin as SupabaseClient,
             property: prop as unknown as Record<string, unknown>,
             conversationId,
