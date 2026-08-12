@@ -451,12 +451,18 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
       <div className={`border-b border-zinc-200 shrink-0 bg-zinc-50 ${inputFocused ? "px-3 py-1.5" : "p-3 space-y-2"}`}>
         <div className={`flex gap-2 ${inputFocused ? "items-center" : "items-start justify-between"}`}>
           <div className="min-w-0 flex-1">
-            <div className="text-sm font-medium truncate">
-              {guestName}
+            <div className="flex min-w-0 items-center gap-1.5">
+              <span className="text-sm font-medium truncate">{guestName}</span>
+              {guest?.phone && (
+                <span className="shrink-0" onClick={(e) => e.stopPropagation()}>
+                  <PhoneActionButton phone={guest.phone} country={guest.phoneCountry} size={12} />
+                </span>
+              )}
               {inputFocused && guest?.reservationCode && (
-                <span className="ml-2 text-[11px] font-normal text-muted-foreground">{guest.reservationCode}</span>
+                <span className="ml-1 text-[11px] font-normal text-muted-foreground">{guest.reservationCode}</span>
               )}
             </div>
+
             {propertyOwnerName && (
               <div className="text-[11px] font-bold text-foreground truncate" title={propertyOwnerName}>
                 {propertyOwnerName}
@@ -472,11 +478,9 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
               {inputFocused && checkoutFmt ? ` · Out ${checkoutFmt}` : ""}
             </div>
 
-            {!inputFocused && (waHref || checkinFmt || checkoutFmt || guest?.reservationCode) && (
+            {!inputFocused && (checkinFmt || checkoutFmt || guest?.reservationCode) && (
               <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
-                {guest?.phone && (
-                  <PhoneActionButton phone={guest.phone} country={guest.phoneCountry} size={12} />
-                )}
+
 
                 {checkinFmt && (
                   <span className="inline-flex items-center gap-1">
@@ -1151,7 +1155,11 @@ export function ConversationList({
         const displayName = d?.name || c.guest_name || "Hóspede anônimo";
         const checkin = fmtCheckin(d?.checkinDate ?? null);
         const checkout = fmtCheckin(d?.checkoutDate ?? null);
-        const withWhom = c.assigned_to ? (assignedNames?.[c.id] ?? "outro membro") : null;
+        const withWhom =
+          c.assigned_to && (c as any).status !== "resolved"
+            ? (assignedNames?.[c.id] ?? "outro membro")
+            : null;
+
         const res = reservations?.[c.id];
 
         return (
