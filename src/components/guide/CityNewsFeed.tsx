@@ -39,6 +39,25 @@ function fallbackImage(cat: string, idx: number) {
   return idx % 2 === 0 ? recBeach : recRestaurant;
 }
 
+
+/** Rótulo curto e humano da data do evento (hoje / amanhã / dd mmm). */
+function formatEventDate(start?: string | null, end?: string | null): string | null {
+  const iso = start ?? end;
+  if (!iso || !/^\d{4}-\d{2}-\d{2}$/.test(iso)) return null;
+  const today = new Date();
+  const todayKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+  const label = (v: string) => {
+    const [y, m, d] = v.split("-").map(Number);
+    return new Date(y, m - 1, d).toLocaleDateString("pt-BR", { day: "2-digit", month: "short" });
+  };
+  const tomorrow = new Date(today.getTime() + 86_400_000);
+  const tomorrowKey = `${tomorrow.getFullYear()}-${String(tomorrow.getMonth() + 1).padStart(2, "0")}-${String(tomorrow.getDate()).padStart(2, "0")}`;
+  if (end && start && end !== start) return `${label(start)} até ${label(end)}`;
+  if (iso === todayKey) return "Hoje";
+  if (iso === tomorrowKey) return "Amanhã";
+  return label(iso);
+}
+
 export function CityNewsFeed({
   city,
   country,
