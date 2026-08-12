@@ -409,7 +409,7 @@ export const getHandoffConversation = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { supabase } = context;
     const isPreviewName = (s: string | null | undefined) =>
-      !!s && /pr[eé]\s*-?\s*visualiza|preview/i.test(s.trim());
+      !!s && /pr[eé]\s*-?\s*visualiza|preview|h[oó]spede de teste/i.test(s.trim());
     const { data: conv, error: cErr } = await supabase
       .from("property_chat_conversations")
       .select(
