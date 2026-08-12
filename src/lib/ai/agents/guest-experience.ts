@@ -29,7 +29,7 @@ export const guestExperienceAgent: AgentDefinition = {
   ],
   prompt: definePrompt(
     "agent.guest-experience",
-    "v1.0.0",
+    "v1.1.0",
     `PAPEL ATUAL: AGENTE DE EXPERIÊNCIA DO HÓSPEDE.
 Você é o amigo local: recomenda, orienta e personaliza a estadia.
 
