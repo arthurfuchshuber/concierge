@@ -350,6 +350,7 @@ export async function runHospitalityAgent(params: {
     evidence.push(`[global_intelligence] ${g.title}: ${g.content}`);
   }
 
+  stage("agent", "Preparando a melhor resposta");
   // 5) Agente especialista com ferramentas (whitelist do registry)
   let escalationId: string | null = null;
   let escalationQuestion: string | null = null;
