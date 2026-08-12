@@ -276,7 +276,14 @@ export function buildGuestTools(ctx: ToolContext): AgentTool[] {
           .order("date", { ascending: false })
           .limit(1)
           .maybeSingle();
-        const items = Array.isArray(data?.items) ? (data!.items as Array<Record<string, unknown>>) : [];
+        const today = new Date().toISOString().slice(0, 10);
+        const { filterUpcoming } = await import("@/lib/city-news.functions");
+        const raw = Array.isArray(data?.items) ? (data!.items as Array<Record<string, unknown>>) : [];
+        // Nunca oferecemos ao hóspede algo que já aconteceu.
+        const items = filterUpcoming(
+          raw as unknown as Array<{ title: string; category: string }>,
+          today,
+        ) as unknown as Array<Record<string, unknown>>;
         if (!items.length) return { disponivel: false };
         ctx.collectSource({
           source: "city_reference",
@@ -290,6 +297,9 @@ export function buildGuestTools(ctx: ToolContext): AgentTool[] {
             titulo: it.title,
             categoria: it.category,
             resumo: it.summary,
+            data_inicio: it.startDate ?? null,
+            data_fim: it.endDate ?? null,
+            local: it.venue ?? null,
             fonte: it.sourceName ?? null,
             link: it.sourceUrl ?? null,
           })),

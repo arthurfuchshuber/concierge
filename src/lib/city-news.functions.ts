@@ -17,7 +17,33 @@ export type NewsItem = {
   imageUrl?: string | null;
   sourceUrl?: string | null;
   sourceName?: string | null;
+  /** Data de início confirmada (YYYY-MM-DD) — obrigatória para category="evento". */
+  startDate?: string | null;
+  /** Última data em que o evento ainda acontece (YYYY-MM-DD). */
+  endDate?: string | null;
+  /** Local confirmado do evento, quando a fonte informa. */
+  venue?: string | null;
 };
+
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+
+/**
+ * Regra de ouro do calendário: nada que já aconteceu chega ao hóspede.
+ * - Itens de categoria "evento" só passam com data confirmada.
+ * - Um evento é válido enquanto (endDate ?? startDate) >= hoje.
+ * - Itens perenes (restaurante, passeio, natureza…) não têm data e seguem válidos.
+ */
+export function filterUpcoming(items: NewsItem[], today: string): NewsItem[] {
+  return items.filter((it) => {
+    const isEvent = (it.category ?? "").toLowerCase() === "evento";
+    const start = it.startDate && ISO_DATE.test(it.startDate) ? it.startDate : null;
+    const end = it.endDate && ISO_DATE.test(it.endDate) ? it.endDate : null;
+    const last = end ?? start;
+    if (isEvent && !last) return false; // evento sem data confirmada nunca é exibido
+    if (last && last < today) return false; // já aconteceu
+    return true;
+  });
+}
 
 export type CityNews = { items: NewsItem[] };
 
@@ -51,6 +77,7 @@ async function curateWithAi(params: {
   cityLabel: string;
   country: string | null;
   lang: string;
+  today: string;
   candidates: FirecrawlSearchResult[];
 }): Promise<NewsItem[]> {
   const key = process.env.LOVABLE_API_KEY;
@@ -81,15 +108,23 @@ PRIORIZE — turismo, hospitalidade e experiência:
 
 Se o resultado não for claramente local e positivo, descarte-o. NÃO há limite máximo de itens — inclua TODOS os itens realmente bons e distintos que encontrar. Prefira qualidade a quantidade, mas não deixe de fora um item excelente por medo de repetir categoria: pode haver vários itens da mesma categoria (ex: vários restaurantes, vários eventos), desde que cada um seja genuinamente interessante e distinto dos outros. Descarte apenas duplicatas óbvias e itens medianos.`;
   const user = `Cidade-alvo: ${params.cityLabel}${params.country ? `, ${params.country}` : ""}.
+HOJE é ${params.today}. Nunca selecione algo que já aconteceu.
 Selecione TODOS os itens EXCLUSIVAMENTE sobre esta cidade que sejam realmente bons e distintos para animar um hóspede HOJE. Sem teto — pode retornar 5, 15 ou 25 itens, o que importa é a qualidade e diversidade real de opções. Aceite múltiplos itens da mesma categoria quando forem experiências distintas (ex: 4 restaurantes diferentes, 3 eventos distintos).
 
-Retorne JSON estrito: {"items":[{"title":"...","category":"...","summary":"...","emoji":"...","imageQuery":"...","sourceIndex": 0}]}
+Retorne JSON estrito: {"items":[{"title":"...","category":"...","summary":"...","emoji":"...","imageQuery":"...","sourceIndex":0,"startDate":null,"endDate":null,"venue":null}]}
 - title: até 9 palavras, tom convidativo e positivo (ex: "Festival de jazz ilumina o centro histórico"). Nunca copie o título original.
 - category: uma palavra entre: natureza, gastronomia, evento, passeio, cultura, noite, mercado.
 - summary: 1 frase (14-22 palavras) explicando por que vale a experiência HOJE, sempre com tom acolhedor.
 - emoji: 1 emoji temático (🌿 🍽️ 🎉 🧭 🎭 🌙 🛍️ etc.).
 - imageQuery: 2-3 palavras em inglês para buscar foto.
 - sourceIndex: índice do resultado original.
+- startDate/endDate: "YYYY-MM-DD" APENAS quando a data aparecer explicitamente no texto da fonte. Se o texto não trouxer data, use null — NUNCA deduza, estime ou invente.
+- venue: local exato, se o texto informar; senão null.
+
+REGRA DE CALENDÁRIO (obrigatória):
+- Use category "evento" apenas para algo com data marcada (festival, show, feira, exposição temporária).
+- Se o texto indicar que o evento já terminou antes de ${params.today}, descarte o item.
+- Experiências permanentes (restaurante, parque, atração, trilha) NÃO são "evento": classifique na categoria própria e deixe as datas null.
 
 Resultados brutos (filtre agressivamente):
 ${feed}`;
@@ -118,6 +153,9 @@ ${feed}`;
       emoji?: string;
       imageQuery?: string;
       sourceIndex?: number;
+      startDate?: string | null;
+      endDate?: string | null;
+      venue?: string | null;
     }>;
   } = {};
   try {
@@ -138,9 +176,103 @@ ${feed}`;
       imageUrl: null,
       sourceUrl: src?.url ?? null,
       sourceName: siteName ?? null,
+      startDate: it.startDate && ISO_DATE.test(it.startDate) ? it.startDate : null,
+      endDate: it.endDate && ISO_DATE.test(it.endDate) ? it.endDate : null,
+      venue: it.venue ? String(it.venue).slice(0, 120) : null,
     };
   });
   return items.filter((i) => i.title.length > 3);
+}
+
+/** Baixa o conteúdo real da página da fonte (para conferir datas). */
+async function firecrawlScrape(url: string): Promise<string | null> {
+  const key = process.env.FIRECRAWL_API_KEY;
+  if (!key) return null;
+  try {
+    const r = await fetch("https://api.firecrawl.dev/v2/scrape", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ url, formats: ["markdown"], onlyMainContent: true, timeout: 12000 }),
+      signal: AbortSignal.timeout(14000),
+    });
+    if (!r.ok) return null;
+    const j = (await r.json()) as { data?: { markdown?: string } };
+    const md = j.data?.markdown;
+    return md ? md.slice(0, 6000) : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Confere no conteúdo real da fonte a data de cada item classificado como
+ * "evento". Só sobrevive o que tem data explícita e ainda não passou — nada de
+ * inferência. Sem confirmação, o item é descartado (nunca vira "talvez").
+ */
+async function verifyEventDates(items: NewsItem[], today: string): Promise<NewsItem[]> {
+  const key = process.env.LOVABLE_API_KEY;
+  const eventIdx = items
+    .map((it, i) => ({ it, i }))
+    .filter(({ it }) => (it.category ?? "").toLowerCase() === "evento")
+    .slice(0, 8);
+  if (eventIdx.length === 0) return items;
+  // Sem IA disponível não há como confirmar calendário: eventos não são exibidos.
+  if (!key) return items.filter((it) => (it.category ?? "").toLowerCase() !== "evento");
+
+  const verified = new Set<number>();
+
+  await Promise.all(
+    eventIdx.map(async ({ it, i }) => {
+      if (!it.sourceUrl) return;
+      const page = await firecrawlScrape(it.sourceUrl);
+      if (!page) return;
+      try {
+        const r = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "Lovable-API-Key": key },
+          body: JSON.stringify({
+            model: AI_MODELS.cityPulse,
+            messages: [
+              {
+                role: "system",
+                content:
+                  `Você extrai datas de eventos de um texto. HOJE é ${today}. Responda SOMENTE com JSON: ` +
+                  `{"startDate":"YYYY-MM-DD"|null,"endDate":"YYYY-MM-DD"|null,"venue":string|null,"recurring":boolean}. ` +
+                  `Use apenas datas explícitas no texto. Se o texto não disser a data (ou disser só "em breve", ` +
+                  `"todo mês", sem dia), retorne null — jamais estime, deduza ou complete com o ano atual sem base. ` +
+                  `Se o evento for semanal/recorrente e continuar acontecendo, marque recurring=true e informe a próxima ` +
+                  `data apenas se estiver escrita no texto.`,
+              },
+              { role: "user", content: `Evento: ${it.title}\n\nConteúdo da fonte:\n${page}` },
+            ],
+            response_format: { type: "json_object" },
+          }),
+          signal: AbortSignal.timeout(12000),
+        });
+        if (!r.ok) return;
+        const j = (await r.json()) as { choices?: Array<{ message?: { content?: string } }> };
+        const parsed = JSON.parse(j.choices?.[0]?.message?.content ?? "{}") as {
+          startDate?: string | null;
+          endDate?: string | null;
+          venue?: string | null;
+        };
+        const start = parsed.startDate && ISO_DATE.test(parsed.startDate) ? parsed.startDate : null;
+        const end = parsed.endDate && ISO_DATE.test(parsed.endDate) ? parsed.endDate : null;
+        if (!start && !end) return;
+        items[i].startDate = start;
+        items[i].endDate = end;
+        if (parsed.venue) items[i].venue = String(parsed.venue).slice(0, 120);
+        verified.add(i);
+      } catch {
+        /* sem confirmação — o item cai no filtro abaixo */
+      }
+    }),
+  );
+
+  // Eventos sem confirmação na fonte são removidos.
+  return items.filter(
+    (it, i) => (it.category ?? "").toLowerCase() !== "evento" || verified.has(i),
+  );
 }
 
 // Busca uma foto real do Google Places para cada item, usando o título + cidade
@@ -238,7 +370,9 @@ export async function generateAndCacheCityNews(input: {
           // segue com o cache original
         }
       }
-      return { items: cachedItems, cached: true, generated: false };
+      cachedItems = filterUpcoming(cachedItems, today);
+      // Se sobrou algo válido, entregamos o cache; senão seguimos e geramos de novo.
+      if (cachedItems.length > 0) return { items: cachedItems, cached: true, generated: false };
     }
   }
 
@@ -257,11 +391,23 @@ export async function generateAndCacheCityNews(input: {
       cityLabel: input.cityLabel,
       country: input.country ?? null,
       lang,
+      today,
       candidates,
     });
   } catch {
     items = [];
   }
+  if (items.length === 0) return { items: null, cached: false, generated: false };
+
+  // Verificação de calendário: lê a página da fonte de cada evento e só mantém
+  // o que tem data confirmada de hoje em diante.
+  try {
+    items = await verifyEventDates(items, today);
+  } catch {
+    // Sem verificação não há garantia de calendário — descartamos os eventos.
+    items = items.filter((it) => (it.category ?? "").toLowerCase() !== "evento");
+  }
+  items = filterUpcoming(items, today);
   if (items.length === 0) return { items: null, cached: false, generated: false };
 
   // Enriquece com fotos reais do Google Places (foto do lugar/atração/restaurante).
