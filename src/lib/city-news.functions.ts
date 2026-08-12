@@ -306,6 +306,17 @@ export async function generateAndCacheCityNews(input: {
   }
   if (items.length === 0) return { items: null, cached: false, generated: false };
 
+  // Verificação de calendário: lê a página da fonte de cada evento e só mantém
+  // o que tem data confirmada de hoje em diante.
+  try {
+    items = await verifyEventDates(items, today);
+  } catch {
+    // Sem verificação não há garantia de calendário — descartamos os eventos.
+    items = items.filter((it) => (it.category ?? "").toLowerCase() !== "evento");
+  }
+  items = filterUpcoming(items, today);
+  if (items.length === 0) return { items: null, cached: false, generated: false };
+
   // Enriquece com fotos reais do Google Places (foto do lugar/atração/restaurante).
   try {
     items = await attachPlacePhotos(items, input.cityLabel, input.country ?? null);
