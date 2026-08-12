@@ -110,6 +110,8 @@ export async function runHospitalityAgent(params: {
   /** Gatilho proativo, quando a interação nasceu de uma ação antecipada. */
   proactiveTrigger?: string | null;
   autonomyLevel?: string | null;
+  /** Progresso em tempo real do pipeline (streaming para a UI do hóspede). */
+  onStage?: (stage: { step: string; label: string }) => void;
 }): Promise<OrchestratorResult> {
   const started = Date.now();
   const { supabase, property } = params;
@@ -117,6 +119,16 @@ export async function runHospitalityAgent(params: {
   const propertyId = String(property.id);
   const ownerId = tenant.ownerId;
   const channel: ChannelType = params.channel ?? "guide_chat";
+  const stage = (step: string, label: string) => {
+    try {
+      params.onStage?.({ step, label });
+    } catch {
+      /* streaming nunca pode quebrar o pipeline */
+    }
+  };
+  stage("intent", "Entendendo sua pergunta");
+
+
 
 
   let usage = EMPTY_USAGE;
