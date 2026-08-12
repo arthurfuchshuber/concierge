@@ -10,12 +10,9 @@ export const Route = createFileRoute("/api/public/cron/ops-push")({
     handlers: {
       POST: async ({ request }) => {
         const cronSecret = process.env["CRON_SECRET"];
-        const anonKey = process.env["SUPABASE_PUBLISHABLE_KEY"] ?? process.env["VITE_SUPABASE_PUBLISHABLE_KEY"];
-        const headerSecret = request.headers.get("x-cron-secret");
-        const headerApiKey = request.headers.get("apikey");
-        const ok =
-          (!!cronSecret && headerSecret === cronSecret) || (!!anonKey && headerApiKey === anonKey);
-        if (!ok) return new Response("Unauthorized", { status: 401 });
+        if (!cronSecret || request.headers.get("x-cron-secret") !== cronSecret) {
+          return new Response("Unauthorized", { status: 401 });
+        }
 
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
         const { runOpsPushScan } = await import("@/lib/ops-push.server");
