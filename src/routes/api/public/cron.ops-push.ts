@@ -2,8 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 
 /**
  * Cron operacional: dispara notificações push de check-in/check-out.
- * Deve rodar a cada 30 minutos. Protegido por `x-cron-secret` OU pela
- * chave pública (`apikey`) do projeto.
+ * Deve rodar a cada 30 minutos. Protegido pelo segredo `x-cron-secret`.
  */
 export const Route = createFileRoute("/api/public/cron/ops-push")({
   server: {
