@@ -230,6 +230,7 @@ export async function runHospitalityAgent(params: {
     setOpenTopic(params.conversationId, params.message, "issue");
   }
 
+  stage("plan", "Montando o plano de resposta");
   // 2b) Supervisor Agent + 3) Planner Agent — rodam em paralelo: nenhum dos dois
   // depende do resultado do outro, só de `intent`/`guestContext`. Antes rodavam em
   // série (mais um round-trip de LLM por mensagem, sem necessidade).
