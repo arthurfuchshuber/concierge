@@ -99,9 +99,3 @@ export async function validateAnswer(params: {
     return { validation: unavailableValidation(highRisk), usage: EMPTY_USAGE, model: "" };
   }
 }
-
-  } catch (err) {
-    console.error("[ai] validateAnswer falhou", err);
-    return { validation: unavailableValidation(highRisk), usage: EMPTY_USAGE, model: "" };
-  }
-}
