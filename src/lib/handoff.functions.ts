@@ -404,7 +404,9 @@ export const listHandoffConversations = createServerFn({ method: "POST" })
     }
 
     return {
-      conversations: deduped.map((c) => (isPreviewName(c.guest_name) ? { ...c, guest_name: null } : c)),
+      conversations: deduped.map((c) =>
+        isPreviewConv(c) ? { ...c, guest_name: "Hóspede de teste" } : c,
+      ),
       details,
       assignedNames,
       reservations,
