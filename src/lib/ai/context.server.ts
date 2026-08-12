@@ -141,7 +141,7 @@ export async function buildAgentContext(params: {
             ? "A estadia já terminou: não sugira programas locais como se ele estivesse hospedado."
             : "O hóspede está na estadia: sugestões para hoje/agora são apropriadas.";
       lines.push(
-        `\n## Reserva do hóspede\nHóspede: ${log.guest_name}\nHoje: ${fmt(today)}\nCheck-in: ${fmt(ci)}${co ? `\nCheck-out: ${fmt(co)}` : ""}\nFase da estadia: ${stayPhase}\n${phaseNote}`,
+        `\n## Dados de estadia informados no acesso ao guia\nHóspede: ${log.guest_name}\nHoje: ${fmt(today)}\nCheck-in: ${fmt(ci)}${co ? `\nCheck-out: ${fmt(co)}` : ""}\nFase da estadia: ${stayPhase}\n${phaseNote}`,
       );
     }
 
@@ -155,7 +155,7 @@ export async function buildAgentContext(params: {
     if (!checkinDate) {
       lines.push(
         "\n## Senha de liberação do guia (código de visualização)\n" +
-          "Não foi possível confirmar a data de check-in deste hóspede. NÃO informe a senha de liberação. " +
+          "Não há data de check-in informada no acesso ao guia. NÃO informe a senha de liberação. " +
           "Explique que ela é liberada a partir das 17:00 do dia anterior ao check-in e peça que ele confirme os dados de check-in no guia.",
       );
     } else {
