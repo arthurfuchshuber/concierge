@@ -385,52 +385,108 @@ export function GuideAiChat({ slug, propertyName, guestName }: { slug: string; p
     setMessages(next);
     setInput("");
     setLoading(true);
+    setStageLabel("Recebi sua mensagem");
+    setStreamingText("");
+
+    const finishWith = (updated: Msg[], convId?: string) => {
+      setMessages(updated);
+      saveCachedMessages(slug, convId ?? conversationId, updated);
+    };
+
     try {
       const effectiveGuestName = guestName ?? readAccessRecord(slug)?.name ?? undefined;
       const res = await fetch("/api/public/guide-chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ slug, sessionId, conversationId, message: text, guestName: effectiveGuestName, forceAi: forceAi || undefined }),
+        body: JSON.stringify({ slug, sessionId, conversationId, message: text, guestName: effectiveGuestName, forceAi: forceAi || undefined, stream: true }),
       });
-      const data = (await res.json().catch(() => ({}))) as { conversationId?: string; reply?: string; error?: string; handoff?: boolean; humanMode?: boolean };
-      if (!res.ok) {
-        const errMsg = data.error || "Não consegui responder agora.";
-        const updated = [...next, { role: "assistant" as const, content: errMsg }];
-        setMessages(updated);
+
+      const ctype = res.headers.get("Content-Type") ?? "";
+      if (!res.ok || !res.body || !ctype.includes("text/event-stream")) {
+        // Fallback: resposta JSON (erro de rate limit, validação, etc.)
+        const data = (await res.json().catch(() => ({}))) as { conversationId?: string; reply?: string; error?: string; handoff?: boolean; humanMode?: boolean };
         if (data.conversationId) setConversationId(data.conversationId);
-        saveCachedMessages(slug, data.conversationId ?? conversationId, updated);
+        const content = data.error || data.reply || "Não consegui responder agora.";
+        finishWith([...next, { role: "assistant" as const, content }], data.conversationId);
+        lastFetchedAtRef.current = new Date().toISOString();
         return;
       }
-      if (data.conversationId) setConversationId(data.conversationId);
-      if (data.humanMode) {
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      let acc = "";
+      let convId = conversationId;
+      let done = false;
+      let humanModeEvent = false;
+      let errorMsg: string | null = null;
+
+      while (!done) {
+        const chunk = await reader.read();
+        if (chunk.done) break;
+        buffer += decoder.decode(chunk.value, { stream: true });
+        const parts = buffer.split("\n\n");
+        buffer = parts.pop() ?? "";
+        for (const part of parts) {
+          const line = part.split("\n").find((l) => l.startsWith("data: "));
+          if (!line) continue;
+          let evt: Record<string, unknown>;
+          try {
+            evt = JSON.parse(line.slice(6));
+          } catch {
+            continue;
+          }
+          const type = evt.type as string;
+          if (type === "stage") {
+            setStageLabel(String(evt.label ?? ""));
+          } else if (type === "reply_start") {
+            setStageLabel(null);
+            if (evt.conversationId) convId = String(evt.conversationId);
+          } else if (type === "delta") {
+            acc += String(evt.text ?? "");
+            setStreamingText(acc);
+          } else if (type === "error") {
+            errorMsg = String(evt.error ?? "Não consegui responder agora.");
+            if (evt.conversationId) convId = String(evt.conversationId);
+            done = true;
+          } else if (type === "done") {
+            if (evt.conversationId) convId = String(evt.conversationId);
+            humanModeEvent = !!evt.humanMode;
+            acc = String(evt.reply ?? acc);
+            done = true;
+          }
+        }
+      }
+
+      if (convId) setConversationId(convId);
+
+      if (errorMsg) {
+        finishWith([...next, { role: "assistant" as const, content: errorMsg }], convId);
+      } else if (humanModeEvent) {
         setHumanMode(true);
-        // Add a one-time system note so the guest sees why the AI didn't answer.
         const alreadyNoted = next.some((m) => m.role === "system" && m.content.startsWith("Um atendente humano"));
-        const updated = alreadyNoted
-          ? next
-          : [...next, { role: "system" as const, content: "Um atendente humano vai responder por aqui em instantes." }];
-        setMessages(updated);
-        saveCachedMessages(slug, data.conversationId ?? conversationId, updated);
+        finishWith(
+          alreadyNoted ? next : [...next, { role: "system" as const, content: "Um atendente humano vai responder por aqui em instantes." }],
+          convId,
+        );
       } else {
-        const replyText = data.reply || "";
-        const updated = [...next, { role: "assistant" as const, content: replyText }];
-        setMessages(updated);
-        saveCachedMessages(slug, data.conversationId ?? conversationId, updated);
-        if (!openRef.current && replyText.trim()) setPendingPreview(replyText);
+        finishWith([...next, { role: "assistant" as const, content: acc }], convId);
+        if (!openRef.current && acc.trim()) setPendingPreview(acc);
       }
 
       // Advance the polling cursor past the just-persisted user+AI rows so the
       // next poll doesn't re-append the AI reply we already rendered optimistically.
       lastFetchedAtRef.current = new Date().toISOString();
     } catch {
-      const updated = [...next, { role: "assistant" as const, content: "Sem conexão. Tente novamente." }];
-      setMessages(updated);
-      saveCachedMessages(slug, conversationId, updated);
+      finishWith([...next, { role: "assistant" as const, content: "Sem conexão. Tente novamente." }]);
     } finally {
+      setStageLabel(null);
+      setStreamingText("");
       setLoading(false);
       setTimeout(() => inputRef.current?.focus(), 30);
     }
   }
+
 
   // Poll for new agent/AI messages when we have a conversation. Ensures human
   // replies after handoff show up in the guest widget without a reload.
