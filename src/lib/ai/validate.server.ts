@@ -40,6 +40,8 @@ export async function validateAnswer(params: {
   evidence: string;
   language: string;
   policies?: string;
+  /** Turnos anteriores — sem eles o validador não resolve perguntas de continuidade. */
+  history?: Array<{ role: string; content: string }>;
   /** Falha fechado (nunca aprova às cegas) quando true. Ver nota FAIL-SAFE acima. */
   highRisk?: boolean;
 }): Promise<{ validation: Validation; usage: Usage; model: string }> {
@@ -53,6 +55,11 @@ export async function validateAnswer(params: {
     };
   }
 
+  const historyText = (params.history ?? [])
+    .slice(-8)
+    .map((m) => `${m.role === "assistant" ? "IA" : "Hóspede"}: ${(m.content ?? "").slice(0, 600)}`)
+    .join("\n");
+
   try {
     const { data, usage, model } = await chatJson<Partial<Validation>>("validation", [
       {
@@ -64,6 +71,7 @@ export async function validateAnswer(params: {
         content:
           `Idioma esperado: ${params.language}\n` +
           `${params.policies ? `Políticas:\n${params.policies}\n` : ""}` +
+          `${historyText ? `CONVERSA ATÉ AQUI (use para resolver referências como "sim", "essa", "outra"):\n${historyText}\n\n` : ""}` +
           `Pergunta do hóspede:\n${params.question}\n\nEVIDÊNCIAS:\n${params.evidence}\n\nRESPOSTA PROPOSTA:\n${params.answer}`,
       },
     ]);
@@ -72,12 +80,15 @@ export async function validateAnswer(params: {
       return { validation: unavailableValidation(highRisk), usage, model };
     }
 
+    const approved = data.approved !== false;
     return {
       validation: {
-        approved: data.approved !== false,
+        approved,
         reason: data.reason ?? "",
         issues: Array.isArray(data.issues) ? data.issues.slice(0, 8).map(String) : [],
-        needsHuman: data.needsHuman === true || data.approved === false,
+        // Reprovar a redação NÃO é motivo para chamar um humano: só escalamos
+        // quando o validador pede explicitamente, ou em contexto de risco alto.
+        needsHuman: data.needsHuman === true || (!approved && highRisk),
         confidence: typeof data.confidence === "number" ? data.confidence : 0.7,
       },
       usage,

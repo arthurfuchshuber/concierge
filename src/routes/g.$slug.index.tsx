@@ -393,8 +393,8 @@ function Guide({ data }: { data: GuideOk }) {
       const today = new Date().toISOString().slice(0, 10);
       setIsPreview(true);
       setAccessRec({
-        name: "Pré-visualização",
-        code: null,
+        name: "Hóspede de teste",
+        code: "TESTE000",
         checkinDate: today,
         checkoutDate: today,
         phone: null,

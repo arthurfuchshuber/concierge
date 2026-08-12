@@ -52,23 +52,41 @@ function CopyableCode({ children, ...props }: React.ComponentProps<"code">) {
   );
 }
 
+/** Modo de teste do anfitrião (?preview=1): identidade sempre fictícia. */
+export function isPreviewMode(): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    return new URLSearchParams(window.location.search).get("preview") === "1";
+  } catch {
+    return false;
+  }
+}
+
+/** Nome fictício usado no modo de teste — nunca um hóspede real. */
+const PREVIEW_GUEST_NAME = "Hóspede de teste";
+
+function scopeKey(base: string, slug: string): string {
+  return isPreviewMode() ? `${base}:preview:${slug}` : `${base}:${slug}`;
+}
+
 function getSessionId(slug: string): string {
-  const key = `guide-chat-session:${slug}`;
+  const key = scopeKey("guide-chat-session", slug);
+  const preview = isPreviewMode();
   try {
     const existing = window.localStorage.getItem(key);
     if (existing) return existing;
-    const id = crypto.randomUUID();
+    const id = `${preview ? "preview-" : ""}${crypto.randomUUID()}`;
     window.localStorage.setItem(key, id);
     return id;
   } catch {
-    return Math.random().toString(36).slice(2);
+    return `${preview ? "preview-" : ""}${Math.random().toString(36).slice(2)}`;
   }
 }
 
 function loadCachedMessages(slug: string): { conversationId?: string; messages: Msg[] } {
   if (typeof window === "undefined") return { messages: [] };
   try {
-    const raw = window.localStorage.getItem(`guide-chat-thread:${slug}`);
+    const raw = window.localStorage.getItem(scopeKey("guide-chat-thread", slug));
     if (!raw) return { messages: [] };
     const parsed = JSON.parse(raw) as { conversationId?: string; messages: Msg[] };
     return { conversationId: parsed.conversationId, messages: parsed.messages ?? [] };
@@ -80,13 +98,14 @@ function loadCachedMessages(slug: string): { conversationId?: string; messages: 
 function saveCachedMessages(slug: string, conversationId: string | undefined, messages: Msg[]) {
   try {
     window.localStorage.setItem(
-      `guide-chat-thread:${slug}`,
+      scopeKey("guide-chat-thread", slug),
       JSON.stringify({ conversationId, messages: messages.slice(-30) }),
     );
   } catch {
     // ignore
   }
 }
+
 
 // Returns a time-of-day greeting and context hint based on current hour
 function getTimeContext(): { greeting: string; hint: string } {
@@ -394,7 +413,9 @@ export function GuideAiChat({ slug, propertyName, guestName }: { slug: string; p
     };
 
     try {
-      const effectiveGuestName = guestName ?? readAccessRecord(slug)?.name ?? undefined;
+      const effectiveGuestName = isPreviewMode()
+        ? PREVIEW_GUEST_NAME
+        : (guestName ?? readAccessRecord(slug)?.name ?? undefined);
       const res = await fetch("/api/public/guide-chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },

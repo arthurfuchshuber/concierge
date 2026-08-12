@@ -94,7 +94,9 @@ export const listHandoffConversations = createServerFn({ method: "POST" })
       return Number.isFinite(t) ? t : 0;
     };
     const isPreviewName = (s: string | null | undefined) =>
-      !!s && /pr[eé]\s*-?\s*visualiza|preview/i.test(s.trim());
+      !!s && /pr[eé]\s*-?\s*visualiza|preview|h[oó]spede de teste/i.test(s.trim());
+    const isPreviewConv = (c: HandoffConversationSummary) =>
+      isPreviewName(c.guest_name) || String(c.guest_session_id ?? "").startsWith("preview-");
     const details: Record<string, HandoffGuestDetail> = {};
     const mergeDetails: Record<string, HandoffGuestDetail> = {};
     if (list.length > 0) {
@@ -217,6 +219,19 @@ export const listHandoffConversations = createServerFn({ method: "POST" })
         };
 
         for (const conv of list) {
+          // Conversas de teste (pré-visualização do anfitrião) nunca herdam a
+          // identidade de um hóspede real.
+          if (isPreviewConv(conv)) {
+            details[conv.id as string] = {
+              name: "Hóspede de teste",
+              phone: null,
+              phoneCountry: null,
+              checkinDate: null,
+              checkoutDate: null,
+              reservationCode: "TESTE000",
+            };
+            continue;
+          }
           const eventMatch = conv.guest_session_id
             ? latestEventBySession.get(`${conv.property_id}|${conv.guest_session_id}`)
             : null;
@@ -389,7 +404,9 @@ export const listHandoffConversations = createServerFn({ method: "POST" })
     }
 
     return {
-      conversations: deduped.map((c) => (isPreviewName(c.guest_name) ? { ...c, guest_name: null } : c)),
+      conversations: deduped.map((c) =>
+        isPreviewConv(c) ? { ...c, guest_name: "Hóspede de teste" } : c,
+      ),
       details,
       assignedNames,
       reservations,
@@ -409,7 +426,7 @@ export const getHandoffConversation = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { supabase } = context;
     const isPreviewName = (s: string | null | undefined) =>
-      !!s && /pr[eé]\s*-?\s*visualiza|preview/i.test(s.trim());
+      !!s && /pr[eé]\s*-?\s*visualiza|preview|h[oó]spede de teste/i.test(s.trim());
     const { data: conv, error: cErr } = await supabase
       .from("property_chat_conversations")
       .select(
@@ -432,7 +449,20 @@ export const getHandoffConversation = createServerFn({ method: "POST" })
       checkoutDate: string | null;
       reservationCode: string | null;
     } = { name: null, phone: null, phoneCountry: null, checkinDate: null, checkoutDate: null, reservationCode: null };
+    const isPreviewConv =
+      isPreviewName(conv.guest_name) || String(conv.guest_session_id ?? "").startsWith("preview-");
+    if (isPreviewConv) {
+      guestDetails = {
+        name: "Hóspede de teste",
+        phone: null,
+        phoneCountry: null,
+        checkinDate: null,
+        checkoutDate: null,
+        reservationCode: "TESTE000",
+      };
+    }
     try {
+      if (isPreviewConv) throw new Error("skip-enrichment");
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
       if (conv.property_id) {
         const norm = (s: string | null | undefined) => (s ?? "").trim().toLowerCase().replace(/\s+/g, " ");
@@ -512,8 +542,8 @@ export const getHandoffConversation = createServerFn({ method: "POST" })
     const digitsOf = (s: string | null | undefined) => (s ?? "").replace(/\D+/g, "").replace(/^0+/, "");
     const conversationIds = new Set<string>([data.conversationId]);
     try {
-      const targetName = normName(guestDetails.name ?? conv.guest_name);
-      const targetPhone = digitsOf(guestDetails.phone);
+      const targetName = isPreviewConv ? "" : normName(guestDetails.name ?? conv.guest_name);
+      const targetPhone = isPreviewConv ? "" : digitsOf(guestDetails.phone);
       if (conv.property_id && (targetName || targetPhone)) {
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
         const { data: siblings } = await supabase
