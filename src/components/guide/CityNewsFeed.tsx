@@ -167,6 +167,11 @@ export function CityNewsFeed({
                     <h3 className={`font-black text-[13.5px] leading-[1.18] [text-wrap:pretty] line-clamp-2 ${isDark ? "text-white" : "text-slate-950"}`}>
                       {it.title}
                     </h3>
+                    {formatEventDate(it.startDate, it.endDate) && (
+                      <p className={`mt-1 text-[9.5px] font-black uppercase tracking-[0.1em] ${isDark ? "text-emerald-300" : "text-emerald-700"}`}>
+                        {formatEventDate(it.startDate, it.endDate)}
+                      </p>
+                    )}
                     {it.summary && (
                       <p className={`mt-1.5 text-[10.5px] leading-[1.38] line-clamp-3 [text-wrap:pretty] ${isDark ? "text-white/60" : "text-slate-700/78"}`}>
                         {it.summary}
