@@ -413,7 +413,9 @@ export function GuideAiChat({ slug, propertyName, guestName }: { slug: string; p
     };
 
     try {
-      const effectiveGuestName = guestName ?? readAccessRecord(slug)?.name ?? undefined;
+      const effectiveGuestName = isPreviewMode()
+        ? PREVIEW_GUEST_NAME
+        : (guestName ?? readAccessRecord(slug)?.name ?? undefined);
       const res = await fetch("/api/public/guide-chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
