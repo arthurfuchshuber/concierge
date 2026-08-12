@@ -110,6 +110,8 @@ export async function runHospitalityAgent(params: {
   /** Gatilho proativo, quando a interação nasceu de uma ação antecipada. */
   proactiveTrigger?: string | null;
   autonomyLevel?: string | null;
+  /** Progresso em tempo real do pipeline (streaming para a UI do hóspede). */
+  onStage?: (stage: { step: string; label: string }) => void;
 }): Promise<OrchestratorResult> {
   const started = Date.now();
   const { supabase, property } = params;
@@ -117,6 +119,16 @@ export async function runHospitalityAgent(params: {
   const propertyId = String(property.id);
   const ownerId = tenant.ownerId;
   const channel: ChannelType = params.channel ?? "guide_chat";
+  const stage = (step: string, label: string) => {
+    try {
+      params.onStage?.({ step, label });
+    } catch {
+      /* streaming nunca pode quebrar o pipeline */
+    }
+  };
+  stage("intent", "Entendendo sua pergunta");
+
+
 
 
   let usage = EMPTY_USAGE;
@@ -188,6 +200,7 @@ export async function runHospitalityAgent(params: {
     };
   }
 
+  stage("memory", "Lembrando do seu histórico");
   // 2) Guest Context Engine + Memory Retrieval (curto prazo, longo prazo, operacional)
   const memory = await loadGuestMemory(supabase, propertyId, guestKey);
   const guestContext = await buildGuestContext({
@@ -217,6 +230,7 @@ export async function runHospitalityAgent(params: {
     setOpenTopic(params.conversationId, params.message, "issue");
   }
 
+  stage("plan", "Montando o plano de resposta");
   // 2b) Supervisor Agent + 3) Planner Agent — rodam em paralelo: nenhum dos dois
   // depende do resultado do outro, só de `intent`/`guestContext`. Antes rodavam em
   // série (mais um round-trip de LLM por mensagem, sem necessidade).
@@ -249,6 +263,7 @@ export async function runHospitalityAgent(params: {
   const context = await buildAgentContext({ supabase, property, guestName: params.guestName, memory });
 
 
+  stage("retrieval", "Consultando o guia da residência");
   // 4) Pré-recuperação Hybrid RAG (indexa sob demanda na primeira vez)
   const { count: chunkCount } = await supabase
     .from("ai_kb_chunks")
@@ -335,6 +350,7 @@ export async function runHospitalityAgent(params: {
     evidence.push(`[global_intelligence] ${g.title}: ${g.content}`);
   }
 
+  stage("agent", "Preparando a melhor resposta");
   // 5) Agente especialista com ferramentas (whitelist do registry)
   let escalationId: string | null = null;
   let escalationQuestion: string | null = null;
@@ -444,6 +460,7 @@ export async function runHospitalityAgent(params: {
   }
 
 
+  stage("review", "Revisando os detalhes");
   // 6) Validação + 7) Reflection (puladas quando já escalamos para humano)
   const baseThresholds = thresholdsFor({
     explorationMode: params.explorationMode,

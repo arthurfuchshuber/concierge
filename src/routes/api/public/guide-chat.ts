@@ -53,28 +53,18 @@ const Body = z.object({
   guestName: z.string().trim().min(1).max(80).optional(),
   message: z.string().trim().min(1).max(2000),
   forceAi: z.boolean().optional(),
+  /** Quando true, a resposta vem como SSE com o progresso do agente em tempo real. */
+  stream: z.boolean().optional(),
 });
 
-export const Route = createFileRoute("/api/public/guide-chat")({
-  server: {
-    handlers: {
-      POST: async ({ request }) => {
-        let body: z.infer<typeof Body>;
-        try {
-          body = Body.parse(await request.json());
-        } catch (err) {
-          return new Response(JSON.stringify({ error: "Entrada inválida." }), { status: 400, headers: { "Content-Type": "application/json" } });
-        }
+type StageEvent = { step: string; label: string };
 
-        // Rate limit checks
-        const clientIp = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "";
-        const rl = checkRateLimit(body.sessionId, clientIp, body.slug);
-        if (!rl.ok) {
-          return new Response(
-            JSON.stringify({ error: "Muitas mensagens em pouco tempo. Aguarde um momento." }),
-            { status: 429, headers: { "Content-Type": "application/json" } },
-          );
-        }
+async function runGuideChat(
+  body: z.infer<typeof Body>,
+  emitStage: (stage: StageEvent) => void,
+): Promise<Response> {
+        {
+
 
         const apiKey = process.env.LOVABLE_API_KEY;
         if (!apiKey) {
@@ -257,6 +247,7 @@ export const Route = createFileRoute("/api/public/guide-chat")({
         let result: Awaited<ReturnType<typeof runHospitalityAgent>>;
         try {
           result = await runHospitalityAgent({
+            onStage: emitStage,
             supabase: supabaseAdmin as SupabaseClient,
             property: prop as unknown as Record<string, unknown>,
             conversationId,
@@ -346,7 +337,108 @@ export const Route = createFileRoute("/api/public/guide-chat")({
           .eq("id", conversationId);
 
         return new Response(JSON.stringify({ conversationId, reply: finalReply, handoff: handoffTriggered }), { status: 200, headers: { "Content-Type": "application/json" } });
+  }
+}
 
+export const Route = createFileRoute("/api/public/guide-chat")({
+  server: {
+    handlers: {
+      POST: async ({ request }) => {
+        let body: z.infer<typeof Body>;
+        try {
+          body = Body.parse(await request.json());
+        } catch {
+          return new Response(JSON.stringify({ error: "Entrada inválida." }), { status: 400, headers: { "Content-Type": "application/json" } });
+        }
+
+        // Rate limit checks
+        const clientIp = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "";
+        const rl = checkRateLimit(body.sessionId, clientIp, body.slug);
+        if (!rl.ok) {
+          return new Response(
+            JSON.stringify({ error: "Muitas mensagens em pouco tempo. Aguarde um momento." }),
+            { status: 429, headers: { "Content-Type": "application/json" } },
+          );
+        }
+
+        if (!body.stream) return runGuideChat(body, () => {});
+
+        // ── Modo streaming (SSE): o progresso real do agente chega ao hóspede
+        // enquanto o pipeline roda; a resposta final é revelada em pedaços,
+        // depois de validada (nunca enviamos texto não verificado).
+        const encoder = new TextEncoder();
+        const stream = new ReadableStream<Uint8Array>({
+          async start(controller) {
+            let closed = false;
+            const send = (event: Record<string, unknown>) => {
+              if (closed) return;
+              try {
+                controller.enqueue(encoder.encode(`data: ${JSON.stringify(event)}\n\n`));
+              } catch {
+                closed = true;
+              }
+            };
+            send({ type: "stage", step: "start", label: "Recebi sua mensagem" });
+            try {
+              const res = await runGuideChat(body, (stage) =>
+                send({ type: "stage", step: stage.step, label: stage.label }),
+              );
+              const payload = (await res.json().catch(() => ({}))) as {
+                reply?: string;
+                conversationId?: string;
+                handoff?: boolean;
+                humanMode?: boolean;
+                error?: string;
+              };
+              if (!res.ok || payload.error) {
+                send({ type: "error", error: payload.error ?? "Não consegui responder agora.", conversationId: payload.conversationId ?? null });
+              } else {
+                const reply = payload.reply ?? "";
+                if (reply) {
+                  send({ type: "reply_start", conversationId: payload.conversationId ?? null });
+                  const words = reply.split(/(\s+)/);
+                  let buf = "";
+                  for (const w of words) {
+                    buf += w;
+                    if (buf.length >= 18) {
+                      send({ type: "delta", text: buf });
+                      buf = "";
+                      await new Promise((r) => setTimeout(r, 22));
+                    }
+                  }
+                  if (buf) send({ type: "delta", text: buf });
+                }
+                send({
+                  type: "done",
+                  conversationId: payload.conversationId ?? null,
+                  reply,
+                  handoff: !!payload.handoff,
+                  humanMode: !!payload.humanMode,
+                });
+              }
+            } catch (err) {
+              console.error("[guide-chat] stream error", err);
+              send({ type: "error", error: "Não consegui responder agora. Tente de novo." });
+            } finally {
+              closed = true;
+              try {
+                controller.close();
+              } catch {
+                /* já fechado */
+              }
+            }
+          },
+        });
+
+        return new Response(stream, {
+          status: 200,
+          headers: {
+            "Content-Type": "text/event-stream; charset=utf-8",
+            "Cache-Control": "no-cache, no-transform",
+            Connection: "keep-alive",
+            "X-Accel-Buffering": "no",
+          },
+        });
       },
       // Poll for new messages in a conversation (used after human handoff so the
       // guest widget can surface agent replies without a page reload).
