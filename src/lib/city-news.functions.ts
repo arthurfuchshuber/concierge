@@ -17,7 +17,33 @@ export type NewsItem = {
   imageUrl?: string | null;
   sourceUrl?: string | null;
   sourceName?: string | null;
+  /** Data de início confirmada (YYYY-MM-DD) — obrigatória para category="evento". */
+  startDate?: string | null;
+  /** Última data em que o evento ainda acontece (YYYY-MM-DD). */
+  endDate?: string | null;
+  /** Local confirmado do evento, quando a fonte informa. */
+  venue?: string | null;
 };
+
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+
+/**
+ * Regra de ouro do calendário: nada que já aconteceu chega ao hóspede.
+ * - Itens de categoria "evento" só passam com data confirmada.
+ * - Um evento é válido enquanto (endDate ?? startDate) >= hoje.
+ * - Itens perenes (restaurante, passeio, natureza…) não têm data e seguem válidos.
+ */
+export function filterUpcoming(items: NewsItem[], today: string): NewsItem[] {
+  return items.filter((it) => {
+    const isEvent = (it.category ?? "").toLowerCase() === "evento";
+    const start = it.startDate && ISO_DATE.test(it.startDate) ? it.startDate : null;
+    const end = it.endDate && ISO_DATE.test(it.endDate) ? it.endDate : null;
+    const last = end ?? start;
+    if (isEvent && !last) return false; // evento sem data confirmada nunca é exibido
+    if (last && last < today) return false; // já aconteceu
+    return true;
+  });
+}
 
 export type CityNews = { items: NewsItem[] };
 
