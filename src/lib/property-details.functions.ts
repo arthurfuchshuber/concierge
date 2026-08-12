@@ -14,8 +14,8 @@ const SaveInput = z.object({
   id: z.string().uuid().optional().nullable(),
   propertyId: z.string().uuid(),
   title: z.string().trim().max(160).optional().nullable(),
-  content: z.string().trim().min(1).max(8000),
-  images: z.array(z.string().max(500)).max(8).optional(),
+  content: z.string().trim().max(40000).default(""),
+  images: z.array(z.string().max(500)).max(12).optional(),
   source: z.enum(["text", "audio"]).optional(),
 });
 
