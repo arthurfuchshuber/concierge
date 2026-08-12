@@ -413,13 +413,13 @@ export async function generateAndCacheCityNews(input: {
     }
   }
 
-  const query = `"${input.cityLabel}" ${input.country ?? ""} eventos festival gastronomia passeios restaurantes atrações turismo esta semana`;
   let candidates: FirecrawlSearchResult[] = [];
   try {
-    candidates = await firecrawlSearch(query);
+    candidates = await deepCitySearch(input.cityLabel, input.country ?? null);
   } catch {
     candidates = [];
   }
+
   if (candidates.length === 0) return { items: null, cached: false, generated: false };
 
   let items: NewsItem[] = [];
