@@ -670,6 +670,21 @@ export const upsertProperty = createServerFn({ method: "POST" })
       replaceChild("property_faqs", data.faqs as unknown as Record<string, unknown>[]),
       replaceChild("property_checkout_items", data.checkout as unknown as Record<string, unknown>[]),
     ]);
+
+    // Reindexa a base de conhecimento (RAG) para a IA refletir as mudanças do guia.
+    // Fire-and-forget: gerar embeddings não deve bloquear o salvamento na tela do anfitrião.
+    // Sem isso, o search_knowledge_base do agente podia servir manual/FAQ/checkout/emergência
+    // desatualizados indefinidamente após a primeira indexação do imóvel.
+    void (async () => {
+      try {
+        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+        const { reindexProperty } = await import("@/lib/ai/indexing.server");
+        await reindexProperty(supabaseAdmin, id);
+      } catch (e) {
+        console.error("[properties] reindex pós-salvamento do guia falhou", e);
+      }
+    })();
+
     return { id };
 
   });

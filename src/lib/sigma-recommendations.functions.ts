@@ -222,6 +222,17 @@ async function applySigmaPackToPropertyInternal(supabaseAdmin: any, propertyId: 
     await supabaseAdmin.from("property_faqs").insert(rows as never);
   }
 
+  // Reindexa a base de conhecimento (RAG): aplicar um pack muda FAQs e referências
+  // de cidade que a IA usa para responder. Fire-and-forget, não bloqueia a ativação.
+  void (async () => {
+    try {
+      const { reindexProperty } = await import("@/lib/ai/indexing.server");
+      await reindexProperty(supabaseAdmin, propertyId);
+    } catch (e) {
+      console.error("[sigma] reindex pós-ativação do pack falhou", e);
+    }
+  })();
+
   return { ok: true };
 }
 
@@ -749,6 +760,16 @@ export const deactivateSigmaPackOnProperty = createServerFn({ method: "POST" })
     // FAQs manuais continuam editáveis enquanto o SigmaConcierge está ativo;
     // ao desativar, removemos apenas as FAQs adicionadas pelo SigmaConcierge.
     await context.supabase.from("property_faqs").delete().eq("property_id", data.property_id).contains("tags", ["sigma"]);
+
+    void (async () => {
+      try {
+        const { reindexProperty } = await import("@/lib/ai/indexing.server");
+        await reindexProperty(supabaseAdmin, data.property_id);
+      } catch (e) {
+        console.error("[sigma] reindex pós-desativação do pack falhou", e);
+      }
+    })();
+
     return { ok: true };
   });
 

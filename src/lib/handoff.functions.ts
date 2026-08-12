@@ -906,6 +906,33 @@ export const sendHandoffMessage = createServerFn({ method: "POST" })
         if (lastGuestMsg?.content) learnQuestion = lastGuestMsg.content as string;
       }
     }
+
+    // Fecha o ciclo do escalonamento "oficial" (tool ask_human_supervisor): quando a IA pergunta algo
+    // pontual e específico, ela cria uma linha em ai_human_escalations com status "pending" — mas nada
+    // nunca marcava essa linha como respondida, então pendingHumanAnswers() nunca devolvia nada e a
+    // decisão do humano jamais voltava para o raciocínio da IA nas próximas mensagens. Em vez de criar
+    // uma tela dedicada só para isso, aproveitamos o mesmo lugar onde o humano já responde de verdade
+    // hoje (esta função): se houver pergunta(s) pendente(s) nesta conversa, a resposta enviada aqui
+    // também as resolve.
+    if (!data.internalNote) {
+      void (async () => {
+        try {
+          const { error } = await supabase
+            .from("ai_human_escalations")
+            .update({
+              status: "answered",
+              human_response: data.content,
+              human_user_id: userId,
+              resolved_at: new Date().toISOString(),
+            })
+            .eq("conversation_id", data.conversationId)
+            .eq("status", "pending");
+          if (error) throw error;
+        } catch (e) {
+          console.error("[handoff] falha ao resolver escalonamento pendente", e);
+        }
+      })();
+    }
     // Expande [[info:...]] com valores da propriedade e [[tag:...]] em links do guia.
     let content = data.content;
     try {

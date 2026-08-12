@@ -42,7 +42,7 @@ import { AI_MODELS } from "./models";
 import { PROMPTS, stampVersions, HANDOFF_FALLBACK } from "./prompts";
 import { planExecution, renderPlan, type ExecutionPlan } from "./planner.server";
 import { reflectOnAnswer, type Reflection } from "./reflection.server";
-import { aggregateSourceWeight, renderSourceRanking } from "./sources";
+import { aggregateSourceWeight, confidenceOf, renderSourceRanking } from "./sources";
 import {
   aggregateConfidence,
   hedgeNotice,
@@ -217,27 +217,31 @@ export async function runHospitalityAgent(params: {
     setOpenTopic(params.conversationId, params.message, "issue");
   }
 
-  // 2b) Supervisor Agent — escolhe o especialista que assume o atendimento
-  const { routing, usage: routeUsage, model: supervisorModel } = await routeToAgent({
-    message: params.message,
-    category: intent.category,
-    urgency: intent.urgency,
-    history: params.history,
-    contextHint: guestContext.text.slice(0, 1200),
-  });
+  // 2b) Supervisor Agent + 3) Planner Agent — rodam em paralelo: nenhum dos dois
+  // depende do resultado do outro, só de `intent`/`guestContext`. Antes rodavam em
+  // série (mais um round-trip de LLM por mensagem, sem necessidade).
+  const [
+    { routing, usage: routeUsage, model: supervisorModel },
+    { plan, usage: planUsage, model: plannerModel },
+  ] = await Promise.all([
+    routeToAgent({
+      message: params.message,
+      category: intent.category,
+      urgency: intent.urgency,
+      history: params.history,
+      contextHint: guestContext.text.slice(0, 1200),
+    }),
+    planExecution({
+      message: params.message,
+      intent,
+      history: params.history,
+      explorationMode: params.explorationMode,
+      contextHint: guestContext.text.slice(0, 2500),
+    }),
+  ]);
   usage = mergeUsage(usage, routeUsage);
   if (supervisorModel) models.supervisor = supervisorModel;
   const agent = getAgent(routing.agent);
-
-  // 3) Planner Agent — plano de execução já ciente do contexto e da memória
-
-  const { plan, usage: planUsage, model: plannerModel } = await planExecution({
-    message: params.message,
-    intent,
-    history: params.history,
-    explorationMode: params.explorationMode,
-    contextHint: guestContext.text.slice(0, 2500),
-  });
   usage = mergeUsage(usage, planUsage);
   if (plannerModel) models.planner = plannerModel;
   rememberPlan(params.conversationId, plan);
@@ -251,10 +255,20 @@ export async function runHospitalityAgent(params: {
     .select("id", { count: "exact", head: true })
     .eq("property_id", propertyId);
   if (!chunkCount) {
+    // Teto de tempo: gerar embeddings pode demorar bastante para um guia grande.
+    // Antes, isso bloqueava a primeira mensagem do hóspede sem limite nenhum.
+    // Com o teto, se estourar, a resposta desta mensagem segue sem RAG (ainda
+    // assim gera algo, só sem evidência), e a próxima mensagem já encontra os
+    // chunks prontos (a indexação em si roda até o fim, só paramos de esperar).
     try {
       const { reindexProperty } = await import("./indexing.server");
-      const { usage: idxUsage } = await reindexProperty(supabase, propertyId);
-      usage = mergeUsage(usage, idxUsage);
+      const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), 12_000));
+      const result = await Promise.race([reindexProperty(supabase, propertyId), timeout]);
+      if (result) {
+        usage = mergeUsage(usage, result.usage);
+      } else {
+        console.warn("[agent] indexação inicial excedeu o teto de 12s — seguindo sem esperar");
+      }
     } catch (err) {
       console.error("[agent] indexação inicial falhou", err);
     }
@@ -272,11 +286,53 @@ export async function runHospitalityAgent(params: {
     evidence.push(`[${p.source}] ${p.title ?? ""}: ${p.content}`);
   }
 
-  // 4b) Human-in-the-loop: decisões humanas pendentes desta conversa
-  const humanAnswers = await pendingHumanAnswers({ supabase, conversationId: params.conversationId });
+  // 4b) Human-in-the-loop: decisões humanas pendentes desta conversa +
+  // Conhecimento da empresa (ai_tenant_knowledge/ai_global_intelligence) — cadastrado
+  // no painel mas, até esta correção, nunca lido por nenhuma camada do pipeline de
+  // resposta (só pela própria tela de cadastro). Rodam em paralelo com o passo acima
+  // para não somar latência sequencial.
+  const [humanAnswers, tenantKnowledgeText, globalIntelPassages] = await Promise.all([
+    pendingHumanAnswers({ supabase, conversationId: params.conversationId }),
+    (async () => {
+      try {
+        const { listTenantKnowledge } = await import("./governance/tenant-knowledge.server");
+        const rows = await listTenantKnowledge({ supabase, tenantId: ownerId, status: "active" });
+        const scoped = rows.filter((r) => !r.property_id || r.property_id === propertyId).slice(0, 20);
+        if (!scoped.length) return "";
+        return scoped
+          .map((r) => `- [${r.category ?? "geral"}] ${r.title}: ${String(r.content ?? "").slice(0, 500)}`)
+          .join("\n");
+      } catch (err) {
+        console.error("[agent] falha ao ler conhecimento da empresa", err);
+        return "";
+      }
+    })(),
+    (async () => {
+      try {
+        const { listGlobalIntelligence } = await import("./governance/global-intelligence.server");
+        const rows = await listGlobalIntelligence({ supabase, status: "published" });
+        return rows
+          .filter((r) => typeof r.confidence === "number" && (r.confidence as number) >= 0.7)
+          .slice(0, 8)
+          .map((r) => ({
+            title: String(r.title ?? ""),
+            content: String(r.insight ?? "").slice(0, 400),
+          }));
+      } catch (err) {
+        console.error("[agent] falha ao ler global intelligence", err);
+        return [] as Array<{ title: string; content: string }>;
+      }
+    })(),
+  ]);
   for (const a of humanAnswers) {
     sources.push({ source: "human_decision", title: "decisão da equipe", confidence: 1 });
     evidence.push(`[human_decision] ${a.question} → ${a.answer}`);
+  }
+  for (const g of globalIntelPassages) {
+    // Insight agregado da plataforma, não fato oficial deste imóvel: fica no tier
+    // mais baixo do ranking de fontes (ver sources.ts) — nunca sobrepõe dado oficial.
+    sources.push({ source: "global_intelligence", title: g.title, confidence: confidenceOf("global_intelligence") });
+    evidence.push(`[global_intelligence] ${g.title}: ${g.content}`);
   }
 
   // 5) Agente especialista com ferramentas (whitelist do registry)
@@ -319,6 +375,9 @@ export async function runHospitalityAgent(params: {
     `\n\n=== SEU PAPEL NESTA CONVERSA ===\n${renderAgentBriefing(agent)}` +
     (context.behavior
       ? `\n\nCOMPORTAMENTO DEFINIDO PELO ANFITRIÃO (prioridade máxima, siga estritamente)\n${context.behavior}`
+      : "") +
+    (tenantKnowledgeText
+      ? `\n\nCONHECIMENTO DA EMPRESA (políticas/procedimentos internos cadastrados pelo anfitrião — trate como regra oficial, não como sugestão)\n${tenantKnowledgeText}`
       : "") +
     `\n\nRANKING PERMANENTE DE FONTES (em conflito, o tier menor sempre vence)\n${renderSourceRanking()}` +
     `\n\nCONTEXTO ATUAL\n${context.text}` +
@@ -405,6 +464,14 @@ export async function runHospitalityAgent(params: {
   let confidence = 0.8;
   let tier: ConfidenceTier = "auto";
 
+  // Contexto de risco alto: falhar o validador aqui nunca deve aprovar às cegas (ver validate.server.ts).
+  const highRiskContext =
+    plan.riskLevel === "high" ||
+    intent.urgency === "high" ||
+    intent.category === "acesso" ||
+    intent.category === "reserva" ||
+    intent.category === "financeiro";
+
   if (reply && !handoffReason) {
     const [validated, reflected] = await Promise.all([
       validateAnswer({
@@ -413,6 +480,7 @@ export async function runHospitalityAgent(params: {
         evidence: evidenceText,
         language: intent.language,
         policies: context.behavior || undefined,
+        highRisk: highRiskContext,
       }),
       reflectOnAnswer({
         question: params.message,
@@ -427,17 +495,36 @@ export async function runHospitalityAgent(params: {
     usage = mergeUsage(usage, reflected.usage);
     models.validation = validated.model;
     if (reflected.model) models.reflection = reflected.model;
-    validationResult = validated.validation;
     reflection = reflected.reflection;
 
-    // Melhoria da redação sugerida pela autoavaliação (sem fatos novos).
+    // Melhoria da redação sugerida pela autoavaliação (sem fatos novos, segundo a reflection).
+    // CORREÇÃO: o texto melhorado NUNCA foi checado pelo validador (que rodou em paralelo sobre o
+    // texto original) — sem revalidar, o hóspede recebe um texto que passou pela IA duas vezes mas
+    // pela checagem anti-alucinação zero. Se a reflection reescreveu o texto, revalidamos só a versão
+    // final antes de decidir o que sai. Custo extra: uma chamada adicional, só quando há reescrita.
+    let finalValidation = validated.validation;
     if (reflection.improvedAnswer && !reflection.needsHuman && validated.validation.approved) {
-      reply = reflection.improvedAnswer;
+      const revalidated = await validateAnswer({
+        question: params.message,
+        answer: reflection.improvedAnswer,
+        evidence: evidenceText,
+        language: intent.language,
+        policies: context.behavior || undefined,
+        highRisk: highRiskContext,
+      });
+      usage = mergeUsage(usage, revalidated.usage);
+      if (revalidated.validation.approved) {
+        reply = reflection.improvedAnswer;
+        finalValidation = revalidated.validation;
+      }
+      // Se a revalidação reprovar o texto melhorado, ficamos com o original (já validado) —
+      // nunca descartamos a checagem, só a melhoria de redação.
     }
+    validationResult = finalValidation;
 
-    // 8) Confidence Threshold
+    // 8) Confidence Threshold — calculado sobre o texto que de fato vai ser enviado.
     confidence = aggregateConfidence({
-      validation: validated.validation.confidence,
+      validation: finalValidation.confidence,
       reflection: reflection.skipped ? null : reflection.score,
       sourceWeight: aggregateSourceWeight(sources),
       riskLevel: plan.riskLevel,
@@ -445,14 +532,14 @@ export async function runHospitalityAgent(params: {
     tier = tierFor(confidence, thresholds);
 
     const forcedHuman =
-      (!validated.validation.approved && validated.validation.needsHuman) ||
+      (!finalValidation.approved && finalValidation.needsHuman) ||
       reflection.needsHuman ||
       plan.needsHuman;
 
     if (!params.explorationMode && (tier === "handoff" || forcedHuman)) {
       handoffReason =
         `Confiança insuficiente (${Math.round(confidence * 100)}%, nível=${tier}). ` +
-        `${validated.validation.reason || reflection.issues.join("; ") || (plan.needsHuman ? "planejador sinalizou necessidade de humano" : "inconsistência")}. ` +
+        `${finalValidation.reason || reflection.issues.join("; ") || (plan.needsHuman ? "planejador sinalizou necessidade de humano" : "inconsistência")}. ` +
         `Pergunta: ${params.message.slice(0, 160)}`;
       handoffUrgency = intent.urgency === "high" ? "high" : "normal";
       reply = "";

@@ -44,6 +44,35 @@ function throwForStatus(status: number, body: string): never {
   throw new AiGatewayError(status, "Serviço de IA indisponível no momento.");
 }
 
+/**
+ * fetch com um retry curto para falhas transitórias (5xx ou erro de rede).
+ * NUNCA retenta se o cancelamento veio do próprio signal do caller (timeout
+ * intencional) — nesse caso, insistir só atrasaria uma resposta que já vai
+ * ser abandonada. 429/402 não são retentados aqui: já têm tratamento próprio
+ * em `throwForStatus` e retry imediato só pioraria rate limit/billing.
+ */
+async function fetchWithRetry(url: string, init: RequestInit, opts?: { retries?: number; backoffMs?: number }): Promise<Response> {
+  const retries = opts?.retries ?? 1;
+  const backoffMs = opts?.backoffMs ?? 400;
+  let lastErr: unknown;
+  for (let attempt = 0; attempt <= retries; attempt += 1) {
+    try {
+      const res = await fetch(url, init);
+      if (res.status >= 500 && attempt < retries) {
+        lastErr = new Error(`HTTP ${res.status}`);
+        await new Promise((r) => setTimeout(r, backoffMs));
+        continue;
+      }
+      return res;
+    } catch (err) {
+      if (init.signal?.aborted || attempt >= retries) throw err;
+      lastErr = err;
+      await new Promise((r) => setTimeout(r, backoffMs));
+    }
+  }
+  throw lastErr;
+}
+
 // ───────────────────────── Chat completions (modelos não-OpenAI) ─────────────────────────
 
 export type ChatMessage = { role: "system" | "user" | "assistant"; content: string };
@@ -77,11 +106,13 @@ export async function chatText(
     return { text: run.text, usage: run.usage, model: run.model };
   }
 
-  const res = await fetch(`${BASE}/chat/completions`, {
+  const res = await fetchWithRetry(`${BASE}/chat/completions`, {
 
     method: "POST",
     headers: { "Content-Type": "application/json", "Lovable-API-Key": apiKey() },
-    signal: opts?.signal,
+    // Timeout defensivo: chamadas de classificação/validação são rápidas por natureza;
+    // 20s é folga generosa sem deixar o turno do hóspede travado indefinidamente.
+    signal: opts?.signal ?? AbortSignal.timeout(20_000),
     body: JSON.stringify({
       model,
       messages,
@@ -129,7 +160,7 @@ export async function embedTexts(texts: string[]): Promise<{ vectors: number[][]
 
   for (let i = 0; i < texts.length; i += EMBED_BATCH) {
     const batch = texts.slice(i, i + EMBED_BATCH);
-    const res = await fetch(`${BASE}/embeddings`, {
+    const res = await fetchWithRetry(`${BASE}/embeddings`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "Lovable-API-Key": apiKey() },
       body: JSON.stringify({ model, input: batch }),
@@ -177,7 +208,7 @@ type ResponsesPayload = {
 };
 
 async function postResponses(body: unknown, signal?: AbortSignal): Promise<ResponsesPayload> {
-  const res = await fetch(`${BASE}/responses`, {
+  const res = await fetchWithRetry(`${BASE}/responses`, {
     method: "POST",
     headers: { "Content-Type": "application/json", "Lovable-API-Key": apiKey() },
     signal,
@@ -256,6 +287,10 @@ export async function runAgent(params: {
 }): Promise<AgentRun> {
   const model = modelFor(params.task ?? "agent");
   const maxSteps = params.maxSteps ?? 5;
+  // Timeout padrão: nenhuma chamada ao agente principal pode travar indefinidamente.
+  // 90s cobre um loop de tool-calling de vários passos com folga; se o caller já
+  // passou seu próprio signal, respeitamos o dele em vez de sobrepor.
+  const signal = params.signal ?? AbortSignal.timeout(90_000);
   const toolMap = new Map(params.tools.map((t) => [t.name, t]));
   const toolDefs = params.tools.map((t) => ({
     type: "function",
@@ -284,7 +319,7 @@ export async function runAgent(params: {
         reasoning: { effort: params.reasoningEffort ?? "low", summary: "auto" },
         include: ["reasoning.encrypted_content"],
       },
-      params.signal,
+      signal,
     );
 
     const inputTokens = payload.usage?.input_tokens ?? 0;

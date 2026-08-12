@@ -1,6 +1,22 @@
 /**
  * Supervisão da IA (backend): fila de perguntas ao humano e aprovação de
  * conhecimento aprendido. Sem UI — apenas a camada de dados/RPC.
+ *
+ * STATUS (auditoria de continuidade — ver AUDITORIA_IA_CONCIERGE.md):
+ * - `answerEscalation` está REDUNDANTE desde a correção em `handoff.functions.ts`
+ *   (`sendHandoffMessage`), que já marca escalonamentos pendentes como respondidos
+ *   automaticamente quando um humano responde pelo dock — sem precisar desta rota.
+ * - `listLearningCandidates`/`reviewLearningCandidate` duplicam, sem nenhum
+ *   consumidor de UI confirmado, a pipeline REAL de aprovação de conhecimento
+ *   que já existe em `@/lib/ai-learning.functions.ts` (essa sim usada por
+ *   `admin.ia.tsx`) — que por sua vez lê a mesma tabela `ai_learning_candidates`
+ *   e já cobre corretamente as candidatas criadas por `queueLearningCandidate`
+ *   (via fallback `row.extracted_information ?? row.proposed_memory`).
+ * - Não removemos este arquivo agora por não ser possível confirmar com 100% de
+ *   certeza que nenhum consumidor externo (app mobile, cron, integração) o chama
+ *   diretamente pelo nome da server function. Antes de apagar de vez, confirme
+ *   isso no seu ambiente e então remova este arquivo e as duas funções análogas
+ *   em `human-loop/learning.server.ts` (`approveLearningCandidate`/`rejectLearningCandidate`).
  */
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";

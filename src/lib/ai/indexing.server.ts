@@ -13,16 +13,43 @@ type Chunk = { source: string; sourceId: string | null; title: string | null; co
 
 const MAX_CHARS = 1400;
 
+/** Preserva quebras de parágrafo (ex.: passo a passo de check-in) — só colapsa
+ * espaços/tabs redundantes dentro de cada linha, não achata tudo num bloco só. */
+function normalizeText(text: string): string {
+  return text
+    .split(/\n{2,}/)
+    .map((block) => block.replace(/[ \t]+/g, " ").replace(/\n/g, " ").trim())
+    .filter(Boolean)
+    .join("\n\n");
+}
+
+/** Corta no limite de palavra mais próximo — nunca no meio de uma palavra. */
+function splitAtWordBoundary(text: string, maxChars: number, overlap: number): string[] {
+  const parts: string[] = [];
+  let i = 0;
+  while (i < text.length) {
+    let end = Math.min(i + maxChars, text.length);
+    if (end < text.length) {
+      const lastSpace = text.lastIndexOf(" ", end);
+      if (lastSpace > i) end = lastSpace;
+    }
+    parts.push(text.slice(i, end).trim());
+    if (end >= text.length) break;
+    i = Math.max(end - overlap, i + 1);
+  }
+  return parts;
+}
+
 function pushChunk(out: Chunk[], chunk: Chunk) {
-  const content = chunk.content.replace(/\s+/g, " ").trim();
+  const content = normalizeText(chunk.content);
   if (content.length < 8) return;
   if (content.length <= MAX_CHARS) {
     out.push({ ...chunk, content });
     return;
   }
-  // Divide textos longos em partes com sobreposição leve.
-  for (let i = 0; i < content.length; i += MAX_CHARS - 150) {
-    out.push({ ...chunk, content: content.slice(i, i + MAX_CHARS) });
+  // Divide textos longos em partes com sobreposição leve, sempre em limite de palavra.
+  for (const part of splitAtWordBoundary(content, MAX_CHARS, 150)) {
+    if (part.length >= 8) out.push({ ...chunk, content: part });
   }
 }
 

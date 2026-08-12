@@ -25,6 +25,7 @@ export const SOURCE_CONFIDENCE: Record<string, number> = {
   host_knowledge: 0.97,
   knowledge_base: 0.97,
   host_behavior: 0.97,
+  tenant_knowledge: 0.97,
   // Tier 3 — APIs externas confiáveis
   calendar: 0.95,
   weather: 0.95,
@@ -36,6 +37,9 @@ export const SOURCE_CONFIDENCE: Record<string, number> = {
   operational_memory: 0.8,
   memory: 0.72,
   conversation: 0.7,
+  // Insight agregado entre tenants (não é fato oficial deste imóvel/empresa) —
+  // serve de inspiração, nunca sobrepõe dado oficial ou específico.
+  global_intelligence: 0.6,
 };
 
 export const SOURCE_TIERS: Array<{ tier: number; label: string; sources: string[] }> = [
@@ -43,10 +47,10 @@ export const SOURCE_TIERS: Array<{ tier: number; label: string; sources: string[
   {
     tier: 2,
     label: "Conteúdo oficial do anfitrião",
-    sources: ["guide", "manual", "faq", "rules", "checkout", "procedures", "property_detail", "host_knowledge", "host_behavior"],
+    sources: ["guide", "manual", "faq", "rules", "checkout", "procedures", "property_detail", "host_knowledge", "host_behavior", "tenant_knowledge"],
   },
   { tier: 3, label: "APIs externas e curadoria", sources: ["calendar", "weather", "maps", "recommendation", "city_reference"] },
-  { tier: 4, label: "Inferido / histórico", sources: ["operational_memory", "guest_memory", "memory", "conversation"] },
+  { tier: 4, label: "Inferido / histórico", sources: ["operational_memory", "guest_memory", "memory", "conversation", "global_intelligence"] },
 ];
 
 export const DEFAULT_CONFIDENCE = 0.6;

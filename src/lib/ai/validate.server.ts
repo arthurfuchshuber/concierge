@@ -3,6 +3,13 @@
  * Verifica conflitos, alucinações, dados fora do contexto, idioma e políticas.
  * Se houver qualquer inconsistência, a resposta NÃO é enviada automaticamente:
  * o atendimento é escalado para um humano.
+ *
+ * FAIL-SAFE: se o validador falhar (indisponível/erro/resposta vazia) em um
+ * contexto de risco alto — categoria sensível (acesso/reserva/financeiro) ou
+ * plano marcado como risco alto — NÃO aprovamos por padrão. Aprovar "às cegas"
+ * justamente quando a checagem anti-alucinação está fora do ar é o pior momento
+ * possível para relaxar a guarda. Em contexto de risco normal/baixo, seguimos
+ * falhando aberto (não travar o atendimento por uma instabilidade pontual).
  */
 import { chatJson, EMPTY_USAGE, type Usage } from "./gateway.server";
 import { PROMPTS } from "./prompts";
@@ -15,13 +22,29 @@ export type Validation = {
   confidence: number;
 };
 
+function unavailableValidation(highRisk: boolean): Validation {
+  return highRisk
+    ? {
+        approved: false,
+        reason: "validador indisponível em contexto de risco alto — escalado por segurança",
+        issues: ["validator_unavailable_high_risk"],
+        needsHuman: true,
+        confidence: 0,
+      }
+    : { approved: true, reason: "validador indisponível", issues: [], needsHuman: false, confidence: 0.5 };
+}
+
 export async function validateAnswer(params: {
   question: string;
   answer: string;
   evidence: string;
   language: string;
   policies?: string;
+  /** Falha fechado (nunca aprova às cegas) quando true. Ver nota FAIL-SAFE acima. */
+  highRisk?: boolean;
 }): Promise<{ validation: Validation; usage: Usage; model: string }> {
+  const highRisk = params.highRisk === true;
+
   if (!params.answer.trim()) {
     return {
       validation: { approved: false, reason: "resposta vazia", issues: ["empty"], needsHuman: true, confidence: 0 },
@@ -46,12 +69,7 @@ export async function validateAnswer(params: {
     ]);
 
     if (!data) {
-      // Falha do validador não pode travar o atendimento: aprovamos com confiança baixa.
-      return {
-        validation: { approved: true, reason: "validador indisponível", issues: [], needsHuman: false, confidence: 0.5 },
-        usage,
-        model,
-      };
+      return { validation: unavailableValidation(highRisk), usage, model };
     }
 
     return {
@@ -67,10 +85,6 @@ export async function validateAnswer(params: {
     };
   } catch (err) {
     console.error("[ai] validateAnswer falhou", err);
-    return {
-      validation: { approved: true, reason: "validador indisponível", issues: [], needsHuman: false, confidence: 0.5 },
-      usage: EMPTY_USAGE,
-      model: "",
-    };
+    return { validation: unavailableValidation(highRisk), usage: EMPTY_USAGE, model: "" };
   }
 }
