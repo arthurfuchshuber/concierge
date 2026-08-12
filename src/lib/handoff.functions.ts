@@ -525,8 +525,8 @@ export const getHandoffConversation = createServerFn({ method: "POST" })
     const digitsOf = (s: string | null | undefined) => (s ?? "").replace(/\D+/g, "").replace(/^0+/, "");
     const conversationIds = new Set<string>([data.conversationId]);
     try {
-      const targetName = normName(guestDetails.name ?? conv.guest_name);
-      const targetPhone = digitsOf(guestDetails.phone);
+      const targetName = isPreviewConv ? "" : normName(guestDetails.name ?? conv.guest_name);
+      const targetPhone = isPreviewConv ? "" : digitsOf(guestDetails.phone);
       if (conv.property_id && (targetName || targetPhone)) {
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
         const { data: siblings } = await supabase
