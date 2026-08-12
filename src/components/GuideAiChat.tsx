@@ -137,7 +137,12 @@ export function GuideAiChat({ slug, propertyName, guestName }: { slug: string; p
 
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  /** Etapa atual do agente durante o streaming (ex.: "Consultando o guia"). */
+  const [stageLabel, setStageLabel] = useState<string | null>(null);
+  /** Texto que está sendo revelado progressivamente. */
+  const [streamingText, setStreamingText] = useState("");
   const [pendingPreview, setPendingPreview] = useState<string | null>(null);
+
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const forceAiNextRef = useRef(false);
