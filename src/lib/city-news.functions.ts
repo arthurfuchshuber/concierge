@@ -215,9 +215,9 @@ async function verifyEventDates(items: NewsItem[], today: string): Promise<NewsI
     .map((it, i) => ({ it, i }))
     .filter(({ it }) => (it.category ?? "").toLowerCase() === "evento")
     .slice(0, 8);
-  if (!key || eventIdx.length === 0) {
-    return items.filter((it) => (it.category ?? "").toLowerCase() !== "evento" || eventIdx.length === 0 ? true : true);
-  }
+  if (eventIdx.length === 0) return items;
+  // Sem IA disponível não há como confirmar calendário: eventos não são exibidos.
+  if (!key) return items.filter((it) => (it.category ?? "").toLowerCase() !== "evento");
 
   const verified = new Set<number>();
 
@@ -370,6 +370,8 @@ export async function generateAndCacheCityNews(input: {
           // segue com o cache original
         }
       }
+      cachedItems = filterUpcoming(cachedItems, today);
+      if (cachedItems.length === 0) return { items: null, cached: false, generated: false };
       return { items: cachedItems, cached: true, generated: false };
     }
   }
