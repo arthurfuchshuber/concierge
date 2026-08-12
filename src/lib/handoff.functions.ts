@@ -432,7 +432,20 @@ export const getHandoffConversation = createServerFn({ method: "POST" })
       checkoutDate: string | null;
       reservationCode: string | null;
     } = { name: null, phone: null, phoneCountry: null, checkinDate: null, checkoutDate: null, reservationCode: null };
+    const isPreviewConv =
+      isPreviewName(conv.guest_name) || String(conv.guest_session_id ?? "").startsWith("preview-");
+    if (isPreviewConv) {
+      guestDetails = {
+        name: "Hóspede de teste",
+        phone: null,
+        phoneCountry: null,
+        checkinDate: null,
+        checkoutDate: null,
+        reservationCode: "TESTE000",
+      };
+    }
     try {
+      if (isPreviewConv) throw new Error("skip-enrichment");
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
       if (conv.property_id) {
         const norm = (s: string | null | undefined) => (s ?? "").trim().toLowerCase().replace(/\s+/g, " ");
