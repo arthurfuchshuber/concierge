@@ -54,13 +54,13 @@ type FirecrawlSearchResult = {
   metadata?: { ogImage?: string; ogSiteName?: string };
 };
 
-async function firecrawlSearch(query: string): Promise<FirecrawlSearchResult[]> {
+async function firecrawlSearch(query: string, tbs: string = "qdr:w"): Promise<FirecrawlSearchResult[]> {
   const key = process.env.FIRECRAWL_API_KEY;
   if (!key) return [];
   const r = await fetch("https://api.firecrawl.dev/v2/search", {
     method: "POST",
     headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ query, limit: 40, tbs: "qdr:w", lang: "pt", country: "br" }),
+    body: JSON.stringify({ query, limit: 30, tbs, lang: "pt", country: "br" }),
     signal: AbortSignal.timeout(9000),
   });
   if (!r.ok) return [];
@@ -70,8 +70,45 @@ async function firecrawlSearch(query: string): Promise<FirecrawlSearchResult[]> 
     : Array.isArray((j.data as { web?: FirecrawlSearchResult[] })?.web)
       ? (j.data as { web?: FirecrawlSearchResult[] }).web!
       : [];
-  return list.slice(0, 40);
+  return list.slice(0, 30);
 }
+
+/**
+ * Busca profunda: várias frentes em paralelo (agenda cultural, eventos
+ * temporários, comércios locais com atrativos, gastronomia e experiências),
+ * deduplicadas por URL. Cobre muito mais que uma única query genérica.
+ */
+async function deepCitySearch(cityLabel: string, country: string | null): Promise<FirecrawlSearchResult[]> {
+  const city = `"${cityLabel}"${country ? ` ${country}` : ""}`;
+  const queries: Array<{ q: string; tbs: string }> = [
+    { q: `${city} agenda cultural eventos desta semana programação`, tbs: "qdr:w" },
+    { q: `${city} festival show feira exposição temporária ingressos data`, tbs: "qdr:m" },
+    { q: `${city} evento gratuito open air música ao vivo fim de semana`, tbs: "qdr:w" },
+    { q: `${city} restaurantes bares novidades menu especial noite gastronomia`, tbs: "qdr:m" },
+    { q: `${city} feira gastronômica food truck mercado produtores local`, tbs: "qdr:m" },
+    { q: `${city} passeios trilhas atrações turismo o que fazer roteiro`, tbs: "qdr:m" },
+    { q: `${city} workshop degustação experiência promoção comércio local turistas`, tbs: "qdr:m" },
+  ];
+
+  const results = await Promise.all(
+    queries.map(({ q, tbs }) => firecrawlSearch(q, tbs).catch(() => [] as FirecrawlSearchResult[])),
+  );
+
+  const seen = new Set<string>();
+  const merged: FirecrawlSearchResult[] = [];
+  for (const list of results) {
+    for (const it of list) {
+      const url = (it.url ?? "").split("#")[0];
+      const dedupeKey = url || (it.title ?? "");
+      if (!dedupeKey || seen.has(dedupeKey)) continue;
+      seen.add(dedupeKey);
+      merged.push(it);
+    }
+  }
+  return merged.slice(0, 90);
+}
+
+
 
 async function curateWithAi(params: {
   cityLabel: string;
