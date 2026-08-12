@@ -554,11 +554,20 @@ export async function runHospitalityAgent(params: {
       (!finalValidation.approved && finalValidation.needsHuman) ||
       reflection.needsHuman ||
       plan.needsHuman;
+    const forcedCause = forcedHuman
+      ? finalValidation.needsHuman
+        ? "validação anti-alucinação pediu humano"
+        : reflection.needsHuman
+          ? "autoavaliação pediu humano"
+          : "planejador sinalizou necessidade de humano"
+      : null;
 
     if (!params.explorationMode && (tier === "handoff" || forcedHuman)) {
       handoffReason =
-        `Confiança insuficiente (${Math.round(confidence * 100)}%, nível=${tier}). ` +
-        `${finalValidation.reason || reflection.issues.join("; ") || (plan.needsHuman ? "planejador sinalizou necessidade de humano" : "inconsistência")}. ` +
+        (forcedCause
+          ? `${forcedCause} (confiança ${Math.round(confidence * 100)}%). `
+          : `Confiança insuficiente (${Math.round(confidence * 100)}%, nível=handoff). `) +
+        `${finalValidation.reason || reflection.issues.join("; ") || "inconsistência"}. ` +
         `Pergunta: ${params.message.slice(0, 160)}`;
       handoffUrgency = intent.urgency === "high" ? "high" : "normal";
       reply = "";
@@ -566,6 +575,7 @@ export async function runHospitalityAgent(params: {
     } else if (tier === "hedged" && !params.explorationMode) {
       reply = `${reply}${hedgeNotice(intent.language)}`;
     }
+
   } else if (handoffReason) {
     tier = "handoff";
     confidence = 1;
