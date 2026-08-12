@@ -128,7 +128,7 @@ export function CityNewsFeed({
         </div>
       ) : (
         <div
-          className="flex gap-3 overflow-x-auto snap-x snap-mandatory scrollbar-none pl-4 md:pl-10 lg:pl-16 pr-4 md:pr-10 lg:pr-16 pb-3"
+          className="flex gap-3 overflow-x-auto snap-x snap-mandatory scrollbar-none pl-4 md:pl-10 lg:pl-16 pr-4 md:pr-10 lg:pr-16 scroll-pl-4 md:scroll-pl-10 lg:scroll-pl-16 pb-3"
           style={{ scrollbarWidth: "none" }}
         >
           {items!.map((it, idx) => {
