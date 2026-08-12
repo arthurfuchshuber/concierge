@@ -55,8 +55,8 @@ async function collectChunks(supabase: Admin, propertyId: string, prop: Record<s
     supabase.from("property_checkout_items").select("id, label").eq("property_id", propertyId),
     supabase.from("property_emergency_contacts").select("id, label, number").eq("property_id", propertyId),
     supabase.from("property_details").select("id, title, content").eq("property_id", propertyId),
-    supabase.from("host_knowledge").select("id, title, body, scope_property_id").eq("enabled", true),
-    supabase.from("host_behavior").select("id, title, body, scope_property_id").eq("enabled", true),
+    supabase.from("host_knowledge").select("id, title, body, scope_property_id").eq("owner_id", prop.owner_id as string).eq("enabled", true),
+    supabase.from("host_behavior").select("id, title, body, scope_property_id").eq("owner_id", prop.owner_id as string).eq("enabled", true),
     Promise.resolve(null),
   ]);
   void emergency;
