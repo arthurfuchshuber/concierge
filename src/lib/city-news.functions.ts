@@ -142,6 +142,7 @@ PRIORIZE — turismo, hospitalidade e experiência:
 - Passeios, trilhas, atrações naturais, parques, mirantes.
 - Cultura, arte, música, teatro local.
 - Vida noturna, roteiros, experiências únicas da cidade.
+- Atrativos temporários promovidos por comércios locais: menus especiais, degustações, música ao vivo em bares/restaurantes, workshops, feiras de produtores, pop-ups e temporadas sazonais.
 
 Se o resultado não for claramente local e positivo, descarte-o. NÃO há limite máximo de itens — inclua TODOS os itens realmente bons e distintos que encontrar. Prefira qualidade a quantidade, mas não deixe de fora um item excelente por medo de repetir categoria: pode haver vários itens da mesma categoria (ex: vários restaurantes, vários eventos), desde que cada um seja genuinamente interessante e distinto dos outros. Descarte apenas duplicatas óbvias e itens medianos.`;
   const user = `Cidade-alvo: ${params.cityLabel}${params.country ? `, ${params.country}` : ""}.
