@@ -262,7 +262,7 @@ export function GuideAiChat({ slug, propertyName, guestName }: { slug: string; p
     if (open && scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [open, messages, loading]);
+  }, [open, messages, loading, streamingText, stageLabel]);
 
   useEffect(() => {
     if (open) {
