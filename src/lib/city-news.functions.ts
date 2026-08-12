@@ -371,8 +371,8 @@ export async function generateAndCacheCityNews(input: {
         }
       }
       cachedItems = filterUpcoming(cachedItems, today);
-      if (cachedItems.length === 0) return { items: null, cached: false, generated: false };
-      return { items: cachedItems, cached: true, generated: false };
+      // Se sobrou algo válido, entregamos o cache; senão seguimos e geramos de novo.
+      if (cachedItems.length > 0) return { items: cachedItems, cached: true, generated: false };
     }
   }
 
