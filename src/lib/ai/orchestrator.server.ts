@@ -200,6 +200,7 @@ export async function runHospitalityAgent(params: {
     };
   }
 
+  stage("memory", "Lembrando do seu histórico");
   // 2) Guest Context Engine + Memory Retrieval (curto prazo, longo prazo, operacional)
   const memory = await loadGuestMemory(supabase, propertyId, guestKey);
   const guestContext = await buildGuestContext({
