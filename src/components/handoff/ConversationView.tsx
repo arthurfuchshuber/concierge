@@ -478,11 +478,9 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
               {inputFocused && checkoutFmt ? ` · Out ${checkoutFmt}` : ""}
             </div>
 
-            {!inputFocused && (waHref || checkinFmt || checkoutFmt || guest?.reservationCode) && (
+            {!inputFocused && (checkinFmt || checkoutFmt || guest?.reservationCode) && (
               <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
-                {guest?.phone && (
-                  <PhoneActionButton phone={guest.phone} country={guest.phoneCountry} size={12} />
-                )}
+
 
                 {checkinFmt && (
                   <span className="inline-flex items-center gap-1">
