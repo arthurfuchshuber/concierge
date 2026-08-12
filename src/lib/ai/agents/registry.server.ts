@@ -25,6 +25,7 @@ export const generalistAgent: AgentDefinition = {
     "get_property_facts",
     "get_reservation",
     "list_recommendations",
+    "get_city_news",
     "search_places",
     "get_weather",
     "request_human_handoff",

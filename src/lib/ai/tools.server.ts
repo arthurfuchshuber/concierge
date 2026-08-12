@@ -257,6 +257,51 @@ export function buildGuestTools(ctx: ToolContext): AgentTool[] {
   });
 
   tools.push({
+    name: "get_city_news",
+    description:
+      "Lista os destaques do feed 'O que rola na cidade' exibido HOJE dentro do guia do hóspede (eventos, " +
+      "gastronomia, passeios, cultura). USE SEMPRE que o hóspede citar um título, evento ou card que viu no guia — " +
+      "esse conteúdo é curadoria da plataforma e existe de verdade na tela dele. Nunca diga que não encontrou " +
+      "antes de consultar esta ferramenta.",
+    parameters: schema({}, []),
+    execute: async () => {
+      try {
+        const { cityKey } = await import("@/lib/city-key");
+        const ck = cityKey(ctx.property.city as string | null);
+        if (!ck) return { disponivel: false };
+        const { data } = await ctx.supabase
+          .from("city_daily_news")
+          .select("date, items")
+          .eq("city_key", ck)
+          .order("date", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        const items = Array.isArray(data?.items) ? (data!.items as Array<Record<string, unknown>>) : [];
+        if (!items.length) return { disponivel: false };
+        ctx.collectSource({
+          source: "city_reference",
+          title: "Destaques da cidade no guia",
+          confidence: confidenceOf("city_reference"),
+        });
+        return {
+          disponivel: true,
+          data: data?.date ?? null,
+          destaques: items.slice(0, 25).map((it) => ({
+            titulo: it.title,
+            categoria: it.category,
+            resumo: it.summary,
+            fonte: it.sourceName ?? null,
+            link: it.sourceUrl ?? null,
+          })),
+        };
+      } catch (err) {
+        console.error("[tool get_city_news]", err);
+        return { disponivel: false };
+      }
+    },
+  });
+
+  tools.push({
     name: "request_human_handoff",
     description:
       "Escala o atendimento para um humano. USE quando: o hóspede pedir humano/anfitrião; houver emergência ou " +
