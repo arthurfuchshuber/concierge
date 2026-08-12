@@ -146,6 +146,10 @@ export function PropertyDetailsEditor({ propertyId }: { propertyId: string }) {
   }
 
   async function save() {
+    if (!text.trim() && images.length === 0) {
+      toast.error("Escreva algo ou adicione uma imagem antes de salvar.");
+      return;
+    }
     setSaving(true);
     try {
       await saveFn({
