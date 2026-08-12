@@ -219,6 +219,19 @@ export const listHandoffConversations = createServerFn({ method: "POST" })
         };
 
         for (const conv of list) {
+          // Conversas de teste (pré-visualização do anfitrião) nunca herdam a
+          // identidade de um hóspede real.
+          if (isPreviewConv(conv)) {
+            details[conv.id as string] = {
+              name: "Hóspede de teste",
+              phone: null,
+              phoneCountry: null,
+              checkinDate: null,
+              checkoutDate: null,
+              reservationCode: "TESTE000",
+            };
+            continue;
+          }
           const eventMatch = conv.guest_session_id
             ? latestEventBySession.get(`${conv.property_id}|${conv.guest_session_id}`)
             : null;
