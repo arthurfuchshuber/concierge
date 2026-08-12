@@ -184,6 +184,97 @@ ${feed}`;
   return items.filter((i) => i.title.length > 3);
 }
 
+/** Baixa o conteúdo real da página da fonte (para conferir datas). */
+async function firecrawlScrape(url: string): Promise<string | null> {
+  const key = process.env.FIRECRAWL_API_KEY;
+  if (!key) return null;
+  try {
+    const r = await fetch("https://api.firecrawl.dev/v2/scrape", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ url, formats: ["markdown"], onlyMainContent: true, timeout: 12000 }),
+      signal: AbortSignal.timeout(14000),
+    });
+    if (!r.ok) return null;
+    const j = (await r.json()) as { data?: { markdown?: string } };
+    const md = j.data?.markdown;
+    return md ? md.slice(0, 6000) : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Confere no conteúdo real da fonte a data de cada item classificado como
+ * "evento". Só sobrevive o que tem data explícita e ainda não passou — nada de
+ * inferência. Sem confirmação, o item é descartado (nunca vira "talvez").
+ */
+async function verifyEventDates(items: NewsItem[], today: string): Promise<NewsItem[]> {
+  const key = process.env.LOVABLE_API_KEY;
+  const eventIdx = items
+    .map((it, i) => ({ it, i }))
+    .filter(({ it }) => (it.category ?? "").toLowerCase() === "evento")
+    .slice(0, 8);
+  if (!key || eventIdx.length === 0) {
+    return items.filter((it) => (it.category ?? "").toLowerCase() !== "evento" || eventIdx.length === 0 ? true : true);
+  }
+
+  const verified = new Set<number>();
+
+  await Promise.all(
+    eventIdx.map(async ({ it, i }) => {
+      if (!it.sourceUrl) return;
+      const page = await firecrawlScrape(it.sourceUrl);
+      if (!page) return;
+      try {
+        const r = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "Lovable-API-Key": key },
+          body: JSON.stringify({
+            model: AI_MODELS.cityPulse,
+            messages: [
+              {
+                role: "system",
+                content:
+                  `Você extrai datas de eventos de um texto. HOJE é ${today}. Responda SOMENTE com JSON: ` +
+                  `{"startDate":"YYYY-MM-DD"|null,"endDate":"YYYY-MM-DD"|null,"venue":string|null,"recurring":boolean}. ` +
+                  `Use apenas datas explícitas no texto. Se o texto não disser a data (ou disser só "em breve", ` +
+                  `"todo mês", sem dia), retorne null — jamais estime, deduza ou complete com o ano atual sem base. ` +
+                  `Se o evento for semanal/recorrente e continuar acontecendo, marque recurring=true e informe a próxima ` +
+                  `data apenas se estiver escrita no texto.`,
+              },
+              { role: "user", content: `Evento: ${it.title}\n\nConteúdo da fonte:\n${page}` },
+            ],
+            response_format: { type: "json_object" },
+          }),
+          signal: AbortSignal.timeout(12000),
+        });
+        if (!r.ok) return;
+        const j = (await r.json()) as { choices?: Array<{ message?: { content?: string } }> };
+        const parsed = JSON.parse(j.choices?.[0]?.message?.content ?? "{}") as {
+          startDate?: string | null;
+          endDate?: string | null;
+          venue?: string | null;
+        };
+        const start = parsed.startDate && ISO_DATE.test(parsed.startDate) ? parsed.startDate : null;
+        const end = parsed.endDate && ISO_DATE.test(parsed.endDate) ? parsed.endDate : null;
+        if (!start && !end) return;
+        items[i].startDate = start;
+        items[i].endDate = end;
+        if (parsed.venue) items[i].venue = String(parsed.venue).slice(0, 120);
+        verified.add(i);
+      } catch {
+        /* sem confirmação — o item cai no filtro abaixo */
+      }
+    }),
+  );
+
+  // Eventos sem confirmação na fonte são removidos.
+  return items.filter(
+    (it, i) => (it.category ?? "").toLowerCase() !== "evento" || verified.has(i),
+  );
+}
+
 // Busca uma foto real do Google Places para cada item, usando o título + cidade
 // como query. Se não encontrar, deixa imageUrl null (o cliente mostra fallback).
 async function attachPlacePhotos(items: NewsItem[], cityLabel: string, country: string | null): Promise<NewsItem[]> {
