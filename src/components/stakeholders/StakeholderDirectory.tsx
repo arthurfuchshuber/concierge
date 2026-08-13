@@ -45,7 +45,7 @@ import {
   type StakeholderFormValues,
 } from "./StakeholderFormDialog";
 import { PROVIDER_CATEGORIES, type StakeholderKind } from "./constants";
-import { statusLabel, statusChip } from "@/lib/stakeholder-status";
+import { statusLabel, statusChip, effectiveStatus } from "@/lib/stakeholder-status";
 
 export { PROVIDER_CATEGORIES };
 export type { StakeholderKind };
@@ -100,7 +100,7 @@ export function StakeholderDirectory({ kind }: { kind: StakeholderKind }) {
   const filtered = useMemo(() => {
     const term = q.trim().toLowerCase();
     return rows.filter((r) => {
-      if (status !== "all" && r.status !== status) return false;
+      if (status !== "all" && effectiveStatus(r.status, r.status_changed_at) !== status) return false;
       if (!term) return true;
       return [r.name, r.trade_name, r.email, r.phone, r.city, r.doc]
         .filter(Boolean)
@@ -161,17 +161,17 @@ export function StakeholderDirectory({ kind }: { kind: StakeholderKind }) {
       label: "Em dia",
       test: (r) => r.status === "active" && (pendingByStakeholder.get(r.id) ?? 0) === 0,
     },
-    { key: "signature", label: "Assinatura", test: (r) => r.status === "signature" },
-    { key: "contract", label: "Contrato", test: (r) => r.status === "contract" },
+    { key: "signature", label: "Assinatura", test: (r) => effectiveStatus(r.status, r.status_changed_at) === "signature" },
+    { key: "contract", label: "Contrato", test: (r) => effectiveStatus(r.status, r.status_changed_at) === "contract" },
     {
       key: "documentation",
       label: "Documentação",
-      test: (r) => r.status === "documentation",
+      test: (r) => effectiveStatus(r.status, r.status_changed_at) === "documentation",
     },
-    { key: "paused", label: "Pausados", test: (r) => r.status === "paused" },
-    { key: "canceling", label: "Cancelando", test: (r) => r.status === "canceling" },
-    { key: "canceled", label: "Cancelados", test: (r) => r.status === "canceled" },
-    { key: "inactive", label: "Inativos", test: (r) => r.status === "inactive" },
+    { key: "paused", label: "Pausados", test: (r) => effectiveStatus(r.status, r.status_changed_at) === "paused" },
+    { key: "canceling", label: "Cancelando", test: (r) => effectiveStatus(r.status, r.status_changed_at) === "canceling" },
+    { key: "canceled", label: "Cancelados", test: (r) => effectiveStatus(r.status, r.status_changed_at) === "canceled" },
+    { key: "inactive", label: "Inativos", test: (r) => effectiveStatus(r.status, r.status_changed_at) === "inactive" },
   ];
 
   return (
@@ -386,8 +386,8 @@ function StakeholderCard({
               {pending}
             </span>
           )}
-          <span className={`rounded-full text-[10px] px-2 py-0.5 ${statusChip(row.status)}`}>
-            {statusLabel(row.status)}
+          <span className={`rounded-full text-[10px] px-2 py-0.5 ${statusChip(effectiveStatus(row.status, row.status_changed_at))}`}>
+            {statusLabel(effectiveStatus(row.status, row.status_changed_at))}
           </span>
         </div>
       </div>

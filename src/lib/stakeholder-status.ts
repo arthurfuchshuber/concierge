@@ -64,6 +64,19 @@ export const STATUS_CHIP: Record<string, string> = {
   inactive: "bg-muted text-muted-foreground",
 };
 
+/**
+ * Situação exibida: "Cancelado" com data futura é, na prática, "Cancelando"
+ * (amarelo) até a confirmação humana na data agendada.
+ */
+export function effectiveStatus(
+  status: string | null | undefined,
+  changedAt?: string | null,
+): string {
+  const s = String(status ?? "inactive");
+  if (s === "canceled" && changedAt && isFutureDate(changedAt)) return "canceling";
+  return s;
+}
+
 export function statusLabel(status: string | null | undefined): string {
   return STATUS_LABEL[String(status ?? "inactive")] ?? "Inativo";
 }
