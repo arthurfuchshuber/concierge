@@ -128,17 +128,28 @@ export function StakeholderDetailSheet({
   const extractFn = useServerFn(extractClicksignPartyData);
 
   function openStatusDialog(status: StatusValue) {
-    setStatusDraft({ status, date: new Date().toISOString().slice(0, 10) });
+    setStatusDraft({ status, date: new Date().toISOString().slice(0, 10), stage: null });
   }
 
+  // "Ativo" com data futura exige escolher o estágio real (Assinatura/Contrato/Documentação).
+  const needsStage =
+    !!statusDraft &&
+    statusDraft.status === "active" &&
+    !!statusDraft.date &&
+    isFutureDate(statusDraft.date) &&
+    !statusDraft.stage;
+
   async function confirmStatus() {
-    if (!statusDraft) return;
+    if (!statusDraft || needsStage) return;
     setBusy(true);
     try {
-      await statusFn({ data: { kind, id, status: statusDraft.status, changed_at: statusDraft.date } });
+      const finalStatus =
+        statusDraft.status === "active" && statusDraft.stage ? statusDraft.stage : statusDraft.status;
+      await statusFn({ data: { kind, id, status: finalStatus, changed_at: statusDraft.date } });
       setStatusDraft(null);
       qc.invalidateQueries({ queryKey });
       qc.invalidateQueries({ queryKey: ["stakeholders", kind] });
+      qc.invalidateQueries({ queryKey: ["pending-cancellations"] });
       toast.success("Situação atualizada.");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Não foi possível alterar a situação.");
@@ -146,6 +157,7 @@ export function StakeholderDetailSheet({
       setBusy(false);
     }
   }
+
 
   async function runExtract() {
     setExtracting(true);
