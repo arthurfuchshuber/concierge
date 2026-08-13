@@ -15,6 +15,7 @@ import { reportLovableError } from "../lib/lovable-error-reporting";
 import { I18nProvider } from "../lib/i18n";
 import { installPermissionDeniedHandler } from "@/lib/permissions/permissionClient";
 import { Toaster } from "../components/ui/sonner";
+import { OfflineBanner } from "../components/OfflineBanner";
 import { supabase } from "../integrations/supabase/client";
 import { META_PIXEL_ID, initMetaPixel, metaPixelPageView } from "../lib/meta-pixel";
 import { startTrail, trackPageView } from "../lib/trail";
@@ -199,10 +200,12 @@ function RootComponent() {
 
 
   /**
-   * Cache persistente: só guardamos dados "frios" (guias, cadastros, etc).
-   * Dados operacionais mudam a cada minuto — se fossem restaurados do
-   * localStorage, a tela abria com números antigos e só corrigia segundos
-   * depois. Esses ficam de fora e são buscados na hora.
+   * Cache persistente: guardamos TUDO no aparelho para que a última visão
+   * fique disponível mesmo sem internet.
+   *
+   * Dados operacionais mudam a cada minuto — para não abrir a tela com
+   * números antigos, eles são descartados na restauração QUANDO há conexão
+   * (aí buscamos na hora). Sem internet, eles permanecem visíveis.
    */
   const VOLATILE_PREFIXES = [
     "dash-",
@@ -220,6 +223,7 @@ function RootComponent() {
 
   const content = (
     <I18nProvider>
+      <OfflineBanner />
       <Outlet />
       <Toaster position="top-center" />
     </I18nProvider>
@@ -228,15 +232,23 @@ function RootComponent() {
   return persister ? (
     <PersistQueryClientProvider
       client={queryClient}
+      onSuccess={() => {
+        if (typeof navigator !== "undefined" && navigator.onLine === false) return;
+        queryClient
+          .getQueryCache()
+          .getAll()
+          .forEach((query) => {
+            const key = String(query.queryKey?.[0] ?? "");
+            if (VOLATILE_PREFIXES.some((p) => key.startsWith(p))) {
+              queryClient.removeQueries({ queryKey: query.queryKey, exact: true });
+            }
+          });
+      }}
       persistOptions={{
         persister,
         maxAge: 1000 * 60 * 60 * 24 * 7 /* 7 dias */,
         dehydrateOptions: {
-          shouldDehydrateQuery: (query) => {
-            const key = String(query.queryKey?.[0] ?? "");
-            if (VOLATILE_PREFIXES.some((p) => key.startsWith(p))) return false;
-            return query.state.status === "success";
-          },
+          shouldDehydrateQuery: (query) => query.state.status === "success",
         },
       }}
     >
@@ -247,3 +259,4 @@ function RootComponent() {
     <QueryClientProvider client={queryClient}>{content}</QueryClientProvider>
   );
 }
+
