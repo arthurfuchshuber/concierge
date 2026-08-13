@@ -641,7 +641,11 @@ function DashboardPage() {
                         return;
                       }
                       setBusyRowId(row.logId);
+                      if (mode === "stay") patchList("checkin", (rows) => rows.map((r) => (r.logId === row.logId ? { ...r, status: "pending" } : r)));
+                      else if (mode === "checkout" || mode === "cleaning")
+                        patchList("checkout", (rows) => rows.map((r) => (r.logId === row.logId ? { ...r, status: "pending" } : r)));
                       revert.mutate({ ...target, from: mode });
+
                     }
               }
               onSyncIcal={(row) => {
