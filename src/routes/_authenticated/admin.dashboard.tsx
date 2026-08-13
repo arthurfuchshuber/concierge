@@ -301,6 +301,33 @@ function DashboardPage() {
     return { ...(logId ? { logId } : {}), ...(reservationId ? { reservationId } : {}) };
   }
 
+  /**
+   * Atualização otimista: o card muda de coluna instantaneamente no cache,
+   * antes do servidor responder. O refresh em segundo plano corrige depois.
+   */
+  const patchList = useCallback(
+    (listKind: "checkin" | "checkout", patch: (rows: ArrivalRow[]) => ArrivalRow[]) => {
+      qc.setQueriesData<{ rows: ArrivalRow[] } | undefined>(
+        { predicate: (q) => q.queryKey[0] === "dash-list" && q.queryKey[1] === listKind },
+        (old) => (old?.rows ? { ...old, rows: patch(old.rows) } : old),
+      );
+    },
+    [qc],
+  );
+
+  const optimisticMove = useCallback(
+    (row: ArrivalRow, from: "checkin" | "stay" | "checkout" | "cleaning" | "done") => {
+      const id = row.logId;
+      const setStatus = (rows: ArrivalRow[], status: "pending" | "done") =>
+        rows.map((r) => (r.logId === id ? { ...r, status } : r));
+      if (from === "checkin") patchList("checkin", (rows) => setStatus(rows, "done"));
+      else if (from === "stay") patchList("checkin", (rows) => setStatus(rows, "pending"));
+      else if (from === "checkout") patchList("checkout", (rows) => setStatus(rows, "done"));
+      else if (from === "cleaning") patchList("checkout", (rows) => rows.filter((r) => r.logId !== id));
+    },
+    [patchList],
+  );
+
   function handleAdvance(row: ArrivalRow, from: "checkin" | "stay" | "checkout" | "cleaning") {
     const target = statusTarget(row);
     if (!target.logId && !target.reservationId) {
@@ -308,12 +335,14 @@ function DashboardPage() {
       return;
     }
     setBusyRowId(row.logId);
+    optimisticMove(row, from);
     if (from === "stay") {
       revert.mutate({ ...target, from });
       return;
     }
     advance.mutate({ ...target, from });
   }
+
 
   function handleEditTime(row: ArrivalRow, k: "checkin" | "checkout", time: string | null) {
     setBusyRowId(row.logId);
