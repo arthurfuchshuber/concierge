@@ -198,6 +198,22 @@ function RootComponent() {
 
 
 
+  /**
+   * Cache persistente: só guardamos dados "frios" (guias, cadastros, etc).
+   * Dados operacionais mudam a cada minuto — se fossem restaurados do
+   * localStorage, a tela abria com números antigos e só corrigia segundos
+   * depois. Esses ficam de fora e são buscados na hora.
+   */
+  const VOLATILE_PREFIXES = [
+    "dash-",
+    "handoff",
+    "conversations",
+    "conversation",
+    "guest",
+    "notifications",
+    "ops-",
+  ];
+
   const persister = typeof window !== "undefined"
     ? createSyncStoragePersister({ storage: window.localStorage, key: "cia-cache-v1", throttleTime: 1000 })
     : null;
@@ -212,11 +228,22 @@ function RootComponent() {
   return persister ? (
     <PersistQueryClientProvider
       client={queryClient}
-      persistOptions={{ persister, maxAge: 1000 * 60 * 60 * 24 * 7 /* 7 dias */ }}
+      persistOptions={{
+        persister,
+        maxAge: 1000 * 60 * 60 * 24 * 7 /* 7 dias */,
+        dehydrateOptions: {
+          shouldDehydrateQuery: (query) => {
+            const key = String(query.queryKey?.[0] ?? "");
+            if (VOLATILE_PREFIXES.some((p) => key.startsWith(p))) return false;
+            return query.state.status === "success";
+          },
+        },
+      }}
     >
       {content}
     </PersistQueryClientProvider>
   ) : (
+
     <QueryClientProvider client={queryClient}>{content}</QueryClientProvider>
   );
 }
