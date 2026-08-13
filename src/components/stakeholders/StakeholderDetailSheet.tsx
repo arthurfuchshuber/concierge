@@ -57,6 +57,12 @@ import { UserAccess } from "@/components/admin-pages/PermissionCenterPage";
 import { listProviderCategories } from "@/lib/provider-categories.functions";
 import { getMyClicksignConfig } from "@/lib/clicksign.functions";
 import type { StakeholderKind } from "./StakeholderDirectory";
+import {
+  statusLabel,
+  statusStyle,
+  statusDateLabel,
+  isFutureDate,
+} from "@/lib/stakeholder-status";
 
 type PreviewTarget = { name: string; url?: string | null; docId?: string } | null;
 
@@ -70,20 +76,14 @@ function fmt(iso: string) {
 
 
 type StatusValue = "active" | "paused" | "canceled";
+type StageValue = "documentation" | "contract" | "signature";
 
-const STATUS_LABEL: Record<string, string> = {
-  active: "Ativo",
-  paused: "Pausado",
-  canceled: "Cancelado",
-  inactive: "Inativo",
-};
+const STAGE_OPTIONS: Array<{ value: StageValue; label: string; hint: string }> = [
+  { value: "signature", label: "Assinatura", hint: "O contrato já foi enviado" },
+  { value: "contract", label: "Contrato", hint: "Contrato pendente de envio" },
+  { value: "documentation", label: "Documentação", hint: "Cliente pendente de documentação" },
+];
 
-const STATUS_STYLE: Record<string, string> = {
-  active: "border-emerald-500/30 bg-emerald-500/10 text-emerald-500",
-  paused: "border-amber-500/30 bg-amber-500/10 text-amber-500",
-  canceled: "border-destructive/30 bg-destructive/10 text-destructive",
-  inactive: "border-border text-muted-foreground",
-};
 
 
 export function StakeholderDetailSheet({
@@ -104,7 +104,11 @@ export function StakeholderDetailSheet({
   const [busy, setBusy] = useState(false);
   const [preview, setPreview] = useState<PreviewTarget>(null);
   const [extracting, setExtracting] = useState(false);
-  const [statusDraft, setStatusDraft] = useState<{ status: StatusValue; date: string } | null>(null);
+  const [statusDraft, setStatusDraft] = useState<{
+    status: StatusValue;
+    date: string;
+    stage: StageValue | null;
+  } | null>(null);
   // Dados pessoais sempre começam recolhidos ao abrir a ficha.
   const [dataOpen, setDataOpen] = useState(false);
 
@@ -130,17 +134,28 @@ export function StakeholderDetailSheet({
   const extractFn = useServerFn(extractClicksignPartyData);
 
   function openStatusDialog(status: StatusValue) {
-    setStatusDraft({ status, date: new Date().toISOString().slice(0, 10) });
+    setStatusDraft({ status, date: new Date().toISOString().slice(0, 10), stage: null });
   }
 
+  // "Ativo" com data futura exige escolher o estágio real (Assinatura/Contrato/Documentação).
+  const needsStage =
+    !!statusDraft &&
+    statusDraft.status === "active" &&
+    !!statusDraft.date &&
+    isFutureDate(statusDraft.date) &&
+    !statusDraft.stage;
+
   async function confirmStatus() {
-    if (!statusDraft) return;
+    if (!statusDraft || needsStage) return;
     setBusy(true);
     try {
-      await statusFn({ data: { kind, id, status: statusDraft.status, changed_at: statusDraft.date } });
+      const finalStatus =
+        statusDraft.status === "active" && statusDraft.stage ? statusDraft.stage : statusDraft.status;
+      await statusFn({ data: { kind, id, status: finalStatus, changed_at: statusDraft.date } });
       setStatusDraft(null);
       qc.invalidateQueries({ queryKey });
       qc.invalidateQueries({ queryKey: ["stakeholders", kind] });
+      qc.invalidateQueries({ queryKey: ["pending-cancellations"] });
       toast.success("Situação atualizada.");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Não foi possível alterar a situação.");
@@ -148,6 +163,7 @@ export function StakeholderDetailSheet({
       setBusy(false);
     }
   }
+
 
   async function runExtract() {
     setExtracting(true);
@@ -374,25 +390,26 @@ export function StakeholderDetailSheet({
                 <DropdownMenuTrigger asChild>
                   <button
                     type="button"
-                    className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[11px] transition hover:opacity-80 ${STATUS_STYLE[String(row.status)] ?? STATUS_STYLE.inactive}`}
+                    className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[11px] transition hover:opacity-80 ${statusStyle(row.status)}`}
                   >
-                    {STATUS_LABEL[String(row.status)] ?? "Inativo"}
+                    {statusLabel(row.status)}
                     <ChevronDown className="size-3" />
                   </button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="start">
                   {(["active", "paused", "canceled"] as const).map((s) => (
                     <DropdownMenuItem key={s} onSelect={() => openStatusDialog(s)}>
-                      {STATUS_LABEL[s]}
+                      {statusLabel(s)}
                     </DropdownMenuItem>
                   ))}
                 </DropdownMenuContent>
               </DropdownMenu>
               {row.status_changed_at && (
                 <span className="rounded-full border border-border px-2.5 py-0.5 text-[11px] text-muted-foreground">
-                  desde {new Date(row.status_changed_at).toLocaleDateString("pt-BR")}
+                  {statusDateLabel(String(row.status_changed_at))}
                 </span>
               )}
+
               <span className="rounded-full border border-border px-2.5 py-0.5 text-[11px] text-muted-foreground uppercase">
                 {String(row.person_type ?? "pf")}
               </span>
@@ -828,7 +845,7 @@ export function StakeholderDetailSheet({
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
             <DialogTitle>
-              Marcar como {statusDraft ? STATUS_LABEL[statusDraft.status] : ""}
+              Marcar como {statusDraft ? statusLabel(statusDraft.status) : ""}
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-2">
@@ -838,24 +855,60 @@ export function StakeholderDetailSheet({
               type="date"
               value={statusDraft?.date ?? ""}
               onChange={(e) =>
-                setStatusDraft((d) => (d ? { ...d, date: e.target.value } : d))
+                setStatusDraft((d) => (d ? { ...d, date: e.target.value, stage: null } : d))
               }
             />
             <p className="text-xs text-muted-foreground">
               Pode ser uma data futura, se a mudança ainda vai acontecer.
             </p>
           </div>
+
+          {statusDraft?.status === "active" && statusDraft.date && isFutureDate(statusDraft.date) && (
+            <div className="space-y-2 rounded-lg border border-border bg-secondary/30 p-3">
+              <p className="text-xs text-foreground">
+                A data é futura. Qual a situação real do cliente até lá?
+              </p>
+              <div className="space-y-1.5">
+                {STAGE_OPTIONS.map((opt) => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() =>
+                      setStatusDraft((d) => (d ? { ...d, stage: opt.value } : d))
+                    }
+                    className={`w-full text-left rounded-md border px-3 py-2 transition ${
+                      statusDraft.stage === opt.value
+                        ? "border-amber-500/50 bg-amber-500/10"
+                        : "border-border hover:bg-secondary/60"
+                    }`}
+                  >
+                    <div className="text-xs font-medium">{opt.label}</div>
+                    <div className="text-[11px] text-muted-foreground">{opt.hint}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {statusDraft?.status === "canceled" && statusDraft.date && isFutureDate(statusDraft.date) && (
+            <p className="rounded-lg border border-yellow-500/30 bg-yellow-500/10 p-3 text-[11px] text-yellow-600 dark:text-yellow-400">
+              O cadastro ficará como <strong>Cancelando</strong> até a data informada. Nesse dia, a
+              equipe será consultada para confirmar o cancelamento ou reverter para Ativo.
+            </p>
+          )}
+
           <div className="flex justify-end gap-2 pt-2">
             <Button variant="ghost" onClick={() => setStatusDraft(null)}>
               Cancelar
             </Button>
-            <Button onClick={confirmStatus} disabled={busy || !statusDraft?.date}>
+            <Button onClick={confirmStatus} disabled={busy || !statusDraft?.date || needsStage}>
               {busy && <Loader2 className="size-3.5 mr-1.5 animate-spin" />}
               Confirmar
             </Button>
           </div>
         </DialogContent>
       </Dialog>
+
     </div>
   );
 }

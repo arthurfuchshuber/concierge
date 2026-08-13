@@ -45,6 +45,7 @@ import {
   type StakeholderFormValues,
 } from "./StakeholderFormDialog";
 import { PROVIDER_CATEGORIES, type StakeholderKind } from "./constants";
+import { statusLabel, statusChip } from "@/lib/stakeholder-status";
 
 export { PROVIDER_CATEGORIES };
 export type { StakeholderKind };
@@ -59,7 +60,7 @@ export function StakeholderDirectory({ kind }: { kind: StakeholderKind }) {
 
   const [view, setView] = useState<"list" | "kanban">("list");
   const [q, setQ] = useState("");
-  const [status, setStatus] = useState<"all" | "active" | "paused" | "canceled" | "inactive">("all");
+  const [status, setStatus] = useState<string>("all");
   const [formOpen, setFormOpen] = useState(false);
   const [form, setForm] = useState<StakeholderFormValues>(emptyStakeholderForm);
   const [detailId, setDetailId] = useState<string | null>(null);
@@ -160,7 +161,15 @@ export function StakeholderDirectory({ kind }: { kind: StakeholderKind }) {
       label: "Em dia",
       test: (r) => r.status === "active" && (pendingByStakeholder.get(r.id) ?? 0) === 0,
     },
+    { key: "signature", label: "Assinatura", test: (r) => r.status === "signature" },
+    { key: "contract", label: "Contrato", test: (r) => r.status === "contract" },
+    {
+      key: "documentation",
+      label: "Documentação",
+      test: (r) => r.status === "documentation",
+    },
     { key: "paused", label: "Pausados", test: (r) => r.status === "paused" },
+    { key: "canceling", label: "Cancelando", test: (r) => r.status === "canceling" },
     { key: "canceled", label: "Cancelados", test: (r) => r.status === "canceled" },
     { key: "inactive", label: "Inativos", test: (r) => r.status === "inactive" },
   ];
@@ -186,7 +195,11 @@ export function StakeholderDirectory({ kind }: { kind: StakeholderKind }) {
             <SelectContent>
               <SelectItem value="all">Todos</SelectItem>
               <SelectItem value="active">Ativos</SelectItem>
+              <SelectItem value="signature">Assinatura</SelectItem>
+              <SelectItem value="contract">Contrato</SelectItem>
+              <SelectItem value="documentation">Documentação</SelectItem>
               <SelectItem value="paused">Pausados</SelectItem>
+              <SelectItem value="canceling">Cancelando</SelectItem>
               <SelectItem value="canceled">Cancelados</SelectItem>
               <SelectItem value="inactive">Inativos</SelectItem>
             </SelectContent>
@@ -373,24 +386,8 @@ function StakeholderCard({
               {pending}
             </span>
           )}
-          <span
-            className={`rounded-full text-[10px] px-2 py-0.5 ${
-              row.status === "active"
-                ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
-                : row.status === "paused"
-                  ? "bg-amber-500/15 text-amber-600 dark:text-amber-400"
-                  : row.status === "canceled"
-                    ? "bg-destructive/15 text-destructive"
-                    : "bg-muted text-muted-foreground"
-            }`}
-          >
-            {row.status === "active"
-              ? "Ativo"
-              : row.status === "paused"
-                ? "Pausado"
-                : row.status === "canceled"
-                  ? "Cancelado"
-                  : "Inativo"}
+          <span className={`rounded-full text-[10px] px-2 py-0.5 ${statusChip(row.status)}`}>
+            {statusLabel(row.status)}
           </span>
         </div>
       </div>
