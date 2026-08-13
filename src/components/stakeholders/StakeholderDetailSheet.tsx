@@ -57,6 +57,12 @@ import { UserAccess } from "@/components/admin-pages/PermissionCenterPage";
 import { listProviderCategories } from "@/lib/provider-categories.functions";
 import { getMyClicksignConfig } from "@/lib/clicksign.functions";
 import type { StakeholderKind } from "./StakeholderDirectory";
+import {
+  statusLabel,
+  statusStyle,
+  statusDateLabel,
+  isFutureDate,
+} from "@/lib/stakeholder-status";
 
 type PreviewTarget = { name: string; url?: string | null; docId?: string } | null;
 
