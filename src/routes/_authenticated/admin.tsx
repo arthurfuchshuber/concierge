@@ -331,6 +331,7 @@ function AdminLayout() {
       <PendingInviteDialog />
       <CompleteProfileDialog />
       <ForcePasswordChangeDialog />
+      <CancellationReviewDialog />
 
     </div>
 
