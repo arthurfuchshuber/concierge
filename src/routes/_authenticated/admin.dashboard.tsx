@@ -216,7 +216,7 @@ function DashboardPage() {
   // seguidas (mutação + eventos em tempo real) — o que deixava o app lento no celular.
   const refreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const refreshDashboard = useCallback(
-    (delay = 250) => {
+    (delay = 600) => {
       if (refreshTimer.current) clearTimeout(refreshTimer.current);
       refreshTimer.current = setTimeout(() => {
         qc.invalidateQueries({
