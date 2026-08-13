@@ -510,7 +510,11 @@ export const countPropertyOwners = createServerFn({ method: "GET" })
     return { count: count ?? 0 };
   });
 
-/** Situação do cadastro (Ativo/Pausado/Cancelado) com a data informada pelo usuário. */
+/**
+ * Situação do cadastro com a data informada pelo usuário.
+ * - "canceled" com data futura vira "canceling" (amarelo) e só é confirmado depois.
+ * - Estágios intermediários (documentation/contract/signature) viram "active" na data.
+ */
 export const setStakeholderStatus = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((i: unknown) =>
@@ -518,7 +522,14 @@ export const setStakeholderStatus = createServerFn({ method: "POST" })
       .object({
         kind: Kind,
         id: z.string().uuid(),
-        status: z.enum(["active", "paused", "canceled"]),
+        status: z.enum([
+          "active",
+          "documentation",
+          "contract",
+          "signature",
+          "paused",
+          "canceled",
+        ]),
         changed_at: z.string().trim().min(4).max(40),
       })
       .parse(i),
@@ -533,23 +544,121 @@ export const setStakeholderStatus = createServerFn({ method: "POST" })
     );
     if (Number.isNaN(when.getTime())) throw new Error("Data inválida.");
 
+    const { statusLabel, isFutureDate } = await import("@/lib/stakeholder-status");
+    const future = isFutureDate(when);
+    let stored: string = data.status;
+    if (data.status === "canceled" && future) stored = "canceling";
+    if (
+      (data.status === "documentation" || data.status === "contract" || data.status === "signature") &&
+      !future
+    ) {
+      stored = "active";
+    }
+
     const { error } = await supabase
       .from(TABLE[data.kind])
-      .update({ status: data.status, status_changed_at: when.toISOString() } as never)
+      .update({ status: stored, status_changed_at: when.toISOString() } as never)
       .eq("id", data.id)
       .eq("account_owner_id", accountId);
     if (error) throw new Error(error.message);
 
-    const LABEL: Record<string, string> = { active: "Ativo", paused: "Pausado", canceled: "Cancelado" };
+    const prefix = future ? "a partir de" : "em";
     await supabase.from("stakeholder_events").insert({
       account_owner_id: accountId,
       stakeholder_type: data.kind,
       stakeholder_id: data.id,
       kind: "update",
-      created_at: when.toISOString(),
-      message: `Situação alterada para ${LABEL[data.status]} em ${when.toLocaleDateString("pt-BR")}.`,
-      metadata: { source: "status", status: data.status, at: when.toISOString() } as never,
+      created_at: new Date().toISOString(),
+      message: `Situação alterada para ${statusLabel(stored)} ${prefix} ${when.toLocaleDateString("pt-BR")}.`,
+      metadata: { source: "status", status: stored, at: when.toISOString() } as never,
       created_by: userId,
     });
     return { ok: true };
   });
+
+/** Promove estágios intermediários vencidos para "Ativo" (a data chegou). */
+async function promoteDueStages(supabase: SupabaseClient, accountId: string) {
+  const nowIso = new Date().toISOString();
+  await Promise.all(
+    (["property_owners", "service_providers"] as const).map((t) =>
+      supabase
+        .from(t)
+        .update({ status: "active" } as never)
+        .eq("account_owner_id", accountId)
+        .in("status", ["documentation", "contract", "signature"])
+        .lte("status_changed_at", nowIso),
+    ),
+  );
+}
+
+/** Cancelamentos agendados cuja data já chegou e ainda aguardam confirmação humana. */
+export const listPendingCancellations = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase, userId } = context;
+    const accountId = await resolveAccountOwnerId(supabase, userId);
+    await promoteDueStages(supabase, accountId);
+    const nowIso = new Date().toISOString();
+    const [owners, providers] = await Promise.all(
+      (["owner", "provider"] as const).map((k) =>
+        supabase
+          .from(TABLE[k])
+          .select("id, name, trade_name, status_changed_at")
+          .eq("account_owner_id", accountId)
+          .eq("status", "canceling")
+          .lte("status_changed_at", nowIso),
+      ),
+    );
+    const map = (kind: "owner" | "provider", rows: any[] | null) =>
+      (rows ?? []).map((r) => ({
+        kind,
+        id: r.id as string,
+        name: (r.trade_name || r.name || "Cadastro") as string,
+        scheduled_at: r.status_changed_at as string,
+      }));
+    return { pending: [...map("owner", owners.data), ...map("provider", providers.data)] };
+  });
+
+/** Resposta do popup: confirma o cancelamento ou reverte o cliente para ativo. */
+export const resolveScheduledCancellation = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) =>
+    z
+      .object({
+        kind: Kind,
+        id: z.string().uuid(),
+        outcome: z.enum(["canceled", "active"]),
+      })
+      .parse(i),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { enforce } = await import("@/lib/permissions/permission.enforce.server");
+    await enforce(userId, "stakeholders.write", { resource: data.id });
+    const accountId = await resolveAccountOwnerId(supabase, userId);
+    const nowIso = new Date().toISOString();
+
+    const { error } = await supabase
+      .from(TABLE[data.kind])
+      .update({ status: data.outcome, status_changed_at: nowIso } as never)
+      .eq("id", data.id)
+      .eq("account_owner_id", accountId)
+      .eq("status", "canceling");
+    if (error) throw new Error(error.message);
+
+    await supabase.from("stakeholder_events").insert({
+      account_owner_id: accountId,
+      stakeholder_type: data.kind,
+      stakeholder_id: data.id,
+      kind: "update",
+      created_at: nowIso,
+      message:
+        data.outcome === "canceled"
+          ? "Cancelamento confirmado: cliente cancelado definitivamente."
+          : "Cancelamento revertido: cliente segue ativo.",
+      metadata: { source: "cancellation_review", status: data.outcome } as never,
+      created_by: userId,
+    });
+    return { ok: true };
+  });
+
