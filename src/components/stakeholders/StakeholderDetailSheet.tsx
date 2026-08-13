@@ -70,20 +70,14 @@ function fmt(iso: string) {
 
 
 type StatusValue = "active" | "paused" | "canceled";
+type StageValue = "documentation" | "contract" | "signature";
 
-const STATUS_LABEL: Record<string, string> = {
-  active: "Ativo",
-  paused: "Pausado",
-  canceled: "Cancelado",
-  inactive: "Inativo",
-};
+const STAGE_OPTIONS: Array<{ value: StageValue; label: string; hint: string }> = [
+  { value: "signature", label: "Assinatura", hint: "O contrato já foi enviado" },
+  { value: "contract", label: "Contrato", hint: "Contrato pendente de envio" },
+  { value: "documentation", label: "Documentação", hint: "Cliente pendente de documentação" },
+];
 
-const STATUS_STYLE: Record<string, string> = {
-  active: "border-emerald-500/30 bg-emerald-500/10 text-emerald-500",
-  paused: "border-amber-500/30 bg-amber-500/10 text-amber-500",
-  canceled: "border-destructive/30 bg-destructive/10 text-destructive",
-  inactive: "border-border text-muted-foreground",
-};
 
 
 export function StakeholderDetailSheet({
