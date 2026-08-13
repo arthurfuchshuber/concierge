@@ -98,7 +98,11 @@ export function StakeholderDetailSheet({
   const [busy, setBusy] = useState(false);
   const [preview, setPreview] = useState<PreviewTarget>(null);
   const [extracting, setExtracting] = useState(false);
-  const [statusDraft, setStatusDraft] = useState<{ status: StatusValue; date: string } | null>(null);
+  const [statusDraft, setStatusDraft] = useState<{
+    status: StatusValue;
+    date: string;
+    stage: StageValue | null;
+  } | null>(null);
   // Dados pessoais sempre começam recolhidos ao abrir a ficha.
   const [dataOpen, setDataOpen] = useState(false);
 
