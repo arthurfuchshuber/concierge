@@ -58,7 +58,11 @@ export function CancellationReviewDialog() {
 
   return (
     <Dialog open>
-      <DialogContent className="sm:max-w-md" hideClose>
+      <DialogContent
+        className="sm:max-w-md [&>button]:hidden"
+        onEscapeKeyDown={(e) => e.preventDefault()}
+        onInteractOutside={(e) => e.preventDefault()}
+      >
         <DialogHeader>
           <div className="flex items-center gap-2 text-yellow-500">
             <AlertTriangle className="size-4" />
