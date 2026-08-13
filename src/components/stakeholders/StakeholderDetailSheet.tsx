@@ -62,6 +62,7 @@ import {
   statusStyle,
   statusDateLabel,
   isFutureDate,
+  effectiveStatus,
 } from "@/lib/stakeholder-status";
 
 type PreviewTarget = { name: string; url?: string | null; docId?: string } | null;
@@ -75,7 +76,13 @@ function fmt(iso: string) {
 }
 
 
-type StatusValue = "active" | "paused" | "canceled";
+type StatusValue =
+  | "active"
+  | "documentation"
+  | "contract"
+  | "signature"
+  | "paused"
+  | "canceled";
 type StageValue = "documentation" | "contract" | "signature";
 
 const STAGE_OPTIONS: Array<{ value: StageValue; label: string; hint: string }> = [
@@ -390,14 +397,14 @@ export function StakeholderDetailSheet({
                 <DropdownMenuTrigger asChild>
                   <button
                     type="button"
-                    className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[11px] transition hover:opacity-80 ${statusStyle(row.status)}`}
+                    className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[11px] transition hover:opacity-80 ${statusStyle(effectiveStatus(row.status, row.status_changed_at))}`}
                   >
-                    {statusLabel(row.status)}
+                    {statusLabel(effectiveStatus(row.status, row.status_changed_at))}
                     <ChevronDown className="size-3" />
                   </button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="start">
-                  {(["active", "paused", "canceled"] as const).map((s) => (
+                  {(["active", "documentation", "contract", "signature", "paused", "canceled"] as const).map((s) => (
                     <DropdownMenuItem key={s} onSelect={() => openStatusDialog(s)}>
                       {statusLabel(s)}
                     </DropdownMenuItem>
