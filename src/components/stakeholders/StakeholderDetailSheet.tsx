@@ -368,25 +368,26 @@ export function StakeholderDetailSheet({
                 <DropdownMenuTrigger asChild>
                   <button
                     type="button"
-                    className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[11px] transition hover:opacity-80 ${STATUS_STYLE[String(row.status)] ?? STATUS_STYLE.inactive}`}
+                    className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[11px] transition hover:opacity-80 ${statusStyle(row.status)}`}
                   >
-                    {STATUS_LABEL[String(row.status)] ?? "Inativo"}
+                    {statusLabel(row.status)}
                     <ChevronDown className="size-3" />
                   </button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="start">
                   {(["active", "paused", "canceled"] as const).map((s) => (
                     <DropdownMenuItem key={s} onSelect={() => openStatusDialog(s)}>
-                      {STATUS_LABEL[s]}
+                      {statusLabel(s)}
                     </DropdownMenuItem>
                   ))}
                 </DropdownMenuContent>
               </DropdownMenu>
               {row.status_changed_at && (
                 <span className="rounded-full border border-border px-2.5 py-0.5 text-[11px] text-muted-foreground">
-                  desde {new Date(row.status_changed_at).toLocaleDateString("pt-BR")}
+                  {statusDateLabel(String(row.status_changed_at))}
                 </span>
               )}
+
               <span className="rounded-full border border-border px-2.5 py-0.5 text-[11px] text-muted-foreground uppercase">
                 {String(row.person_type ?? "pf")}
               </span>
