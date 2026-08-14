@@ -59,7 +59,7 @@ import { GuideAiChat } from "@/components/GuideAiChat";
 import { HomeIntelligence } from "@/components/guide/HomeIntelligence";
 import { CityNewsFeed } from "@/components/guide/CityNewsFeed";
 import { CheckinCountdown } from "@/components/guide/CheckinCountdown";
-import { propertyTimeZone, partsInTZ, todayInTZ, zonedTimeToUtc } from "@/lib/property-timezone";
+import { propertyTimeZone, todayInTZ, zonedTimeToUtc } from "@/lib/property-timezone";
 import { BottomNav, type BottomNavKey } from "@/components/guide/BottomNav";
 import waterfallImg from "@/assets/rec-waterfall.jpg";
 import conciergeLogo from "@/assets/concierge-logo.png";
