@@ -350,20 +350,8 @@ function Guide({ data }: { data: GuideOk }) {
 
   function gotoSection(s: Section) {
     setSection(s);
-    // Fire-and-forget analytics — never blocks navigation
-    const sid = typeof window !== "undefined" ? (localStorage.getItem(`guide-chat-session:${slug}`) ?? "anon") : "anon";
-    const pagePath = typeof window !== "undefined" ? window.location.pathname : null;
-    trackEvent({
-      data: {
-        slug,
-        section: s,
-        sessionId: sid,
-        guestName: accessRec?.name ?? null,
-        guestPhone: accessRec?.phone ?? null,
-        pagePath,
-      },
-    }).catch(() => {});
   }
+
   const { lang, setLang } = useI18n();
 
   // Auto-detect browser language on first visit (if no saved preference)
