@@ -24,6 +24,7 @@ import {
   Eye,
   MessageCircle,
   ChevronDown,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -41,6 +42,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Label } from "@/components/ui/label";
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { formatTaxId, formatIntlPhone, toWhatsappNumber } from "@/lib/masks";
 import {
   getStakeholderDetail,
@@ -56,6 +58,8 @@ import { getStakeholderAccess } from "@/lib/stakeholder-access.functions";
 import { UserAccess } from "@/components/admin-pages/PermissionCenterPage";
 import { listProviderCategories } from "@/lib/provider-categories.functions";
 import { getMyClicksignConfig } from "@/lib/clicksign.functions";
+import { listStakeholderOptions } from "@/lib/stakeholder-links.functions";
+import { PropertyQuickEditDialog } from "@/components/admin/PropertyQuickEditDialog";
 import type { StakeholderKind } from "./StakeholderDirectory";
 import {
   statusLabel,
@@ -106,11 +110,15 @@ export function StakeholderDetailSheet({
   const detailFn = useServerFn(getStakeholderDetail);
   const noteFn = useServerFn(addStakeholderNote);
   const linkFn = useServerFn(linkPropertyToOwner);
+  const stakeholderOptionsFn = useServerFn(listStakeholderOptions);
 
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
   const [preview, setPreview] = useState<PreviewTarget>(null);
   const [extracting, setExtracting] = useState(false);
+  const [editingPropertyId, setEditingPropertyId] = useState<string | null>(null);
+  const [transferPropertyId, setTransferPropertyId] = useState<string | null>(null);
+  const [transferTargetId, setTransferTargetId] = useState<string>("");
   const [statusDraft, setStatusDraft] = useState<{
     status: StatusValue;
     date: string;
@@ -254,6 +262,36 @@ export function StakeholderDetailSheet({
       // sem esperar um refresh manual.
       qc.invalidateQueries({ queryKey: ["property", propertyId] });
       qc.invalidateQueries({ queryKey: ["my-properties"] });
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  // Um imóvel sempre precisa ter um proprietário responsável — por isso não
+  // existe mais "desvincular" puro. A única forma de tirar um imóvel deste
+  // proprietário é transferindo para outro, na mesma ação.
+  const otherOwnersQuery = useQuery({
+    queryKey: ["stakeholder-options", "owner", id],
+    queryFn: () => stakeholderOptionsFn(),
+    enabled: !!transferPropertyId,
+    select: (all) => all.filter((o) => o.type === "owner" && o.id !== id),
+  });
+
+  async function handleTransfer(propertyId: string) {
+    if (!transferTargetId) return;
+    setBusy(true);
+    try {
+      await linkFn({ data: { ownerId: transferTargetId, propertyId, link: true } });
+      qc.invalidateQueries({ queryKey });
+      qc.invalidateQueries({ queryKey: ["stakeholders", kind] });
+      qc.invalidateQueries({ queryKey: ["property", propertyId] });
+      qc.invalidateQueries({ queryKey: ["my-properties"] });
+      qc.invalidateQueries({ predicate: (q) => q.queryKey[0] === "stakeholder-detail" });
+      setTransferPropertyId(null);
+      setTransferTargetId("");
+      toast.success("Imóvel transferido para o novo proprietário.");
     } catch (e) {
       toast.error((e as Error).message);
     } finally {
@@ -730,22 +768,66 @@ export function StakeholderDetailSheet({
                         <MapPin className="size-3 shrink-0" />
                         {[p.city, p.state].filter(Boolean).join(" / ") || "Sem localização"}
                       </p>
-                      <div className="flex items-center gap-1 pt-1">
+                      <div className="flex items-center gap-1 pt-1 flex-wrap">
+                        <button
+                          type="button"
+                          onClick={() => setEditingPropertyId(p.id)}
+                          className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1 text-xs text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+                        >
+                          <Pencil className="size-3" /> Editar
+                        </button>
                         <Link
                           to="/admin/properties/$id"
                           params={{ id: p.id }}
                           className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1 text-xs text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+                          title="Abrir o editor completo do guia (checkin, checkout, FAQ, recomendações)"
                         >
-                          <ExternalLink className="size-3" /> Abrir
+                          <ExternalLink className="size-3" /> Guia completo
                         </Link>
-                        <button
-                          type="button"
-                          disabled={busy}
-                          onClick={() => toggleLink(p.id, false)}
-                          className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1 text-xs text-muted-foreground hover:text-destructive transition-colors"
-                        >
-                          <Unlink className="size-3" /> Desvincular
-                        </button>
+
+                        {transferPropertyId === p.id ? (
+                          <div className="flex items-center gap-1.5 w-full mt-1.5">
+                            <Select value={transferTargetId} onValueChange={setTransferTargetId}>
+                              <SelectTrigger className="h-8 text-xs flex-1 min-w-0">
+                                <SelectValue placeholder="Transferir para..." />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {(otherOwnersQuery.data ?? []).map((o) => (
+                                  <SelectItem key={o.id} value={o.id}>{o.label}</SelectItem>
+                                ))}
+                                {otherOwnersQuery.data?.length === 0 && (
+                                  <div className="px-3 py-2 text-xs text-muted-foreground">Nenhum outro proprietário cadastrado.</div>
+                                )}
+                              </SelectContent>
+                            </Select>
+                            <Button
+                              size="sm"
+                              className="h-8 shrink-0"
+                              disabled={busy || !transferTargetId}
+                              onClick={() => handleTransfer(p.id)}
+                            >
+                              Confirmar
+                            </Button>
+                            <button
+                              type="button"
+                              onClick={() => { setTransferPropertyId(null); setTransferTargetId(""); }}
+                              className="text-muted-foreground hover:text-foreground shrink-0"
+                              aria-label="Cancelar transferência"
+                            >
+                              <X className="size-4" />
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            disabled={busy}
+                            onClick={() => setTransferPropertyId(p.id)}
+                            className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1 text-xs text-muted-foreground hover:text-destructive transition-colors"
+                            title="Um imóvel sempre precisa de um proprietário — transfira para outro em vez de apenas desvincular."
+                          >
+                            <Unlink className="size-3" /> Transferir
+                          </button>
+                        )}
                       </div>
                     </div>
                     );
@@ -753,6 +835,14 @@ export function StakeholderDetailSheet({
                 </div>
               )}
             </section>
+
+            {editingPropertyId && (
+              <PropertyQuickEditDialog
+                propertyId={editingPropertyId}
+                open={!!editingPropertyId}
+                onOpenChange={(o) => { if (!o) setEditingPropertyId(null); }}
+              />
+            )}
 
             {available.length > 0 && (
               <section className="rounded-2xl border border-dashed border-border p-5 space-y-2">

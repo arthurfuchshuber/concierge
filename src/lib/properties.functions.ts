@@ -519,6 +519,41 @@ export const getMyProperty = createServerFn({ method: "POST" })
     };
   });
 
+/**
+ * Igual a getMyProperty, mas SEM assinar as URLs de imagem — deliberadamente.
+ * Usada pelo popup de edição rápida (PropertyQuickEditDialog): ele só edita
+ * um subconjunto de campos (nome, tipo, endereço, iCal, contato), mas o
+ * upsertProperty exige o objeto "property" completo. Se resubmetêssemos as
+ * URLs ASSINADAS (temporárias) de getMyProperty como se fossem permanentes,
+ * a foto de capa/galeria do imóvel quebraria assim que o link expirasse.
+ * Aqui devolvemos o caminho de armazenamento real, intacto.
+ */
+export const getPropertyForQuickEdit = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => z.object({ id: z.string().uuid() }).parse(i))
+  .handler(async ({ data, context }) => {
+    const { enforce } = await import("@/lib/permissions/permission.enforce.server");
+    await enforce(context.userId, "imoveis.editor.read", { propertyId: data.id });
+    const [p, manual, recs, emerg, faqs, checkout] = await Promise.all([
+      context.supabase.from("properties").select("*").eq("id", data.id).maybeSingle(),
+      context.supabase.from("property_manual_items").select("*").eq("property_id", data.id).order("position"),
+      context.supabase.from("property_recommendations").select("*").eq("property_id", data.id).order("scope").order("type").order("position"),
+      context.supabase.from("property_emergency_contacts").select("*").eq("property_id", data.id).order("position"),
+      context.supabase.from("property_faqs").select("*").eq("property_id", data.id).order("position"),
+      context.supabase.from("property_checkout_items").select("*").eq("property_id", data.id).order("position"),
+    ]);
+    if (p.error) throw (await import("@/lib/db-errors.server")).safeDbError("properties", p.error);
+    if (!p.data) throw new Error("Imóvel não encontrado.");
+    return {
+      property: p.data,
+      manual: manual.data ?? [],
+      recommendations: recs.data ?? [],
+      emergency: emerg.data ?? [],
+      faqs: faqs.data ?? [],
+      checkout: checkout.data ?? [],
+    };
+  });
+
 const SavePropertyInput = z.object({
   id: z.string().uuid().optional().nullable(),
   ownerId: z.string().uuid().optional().nullable(),
