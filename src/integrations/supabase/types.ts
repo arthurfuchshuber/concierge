@@ -3377,6 +3377,7 @@ export type Database = {
           gate_label: string | null
           gate_media: Json
           gate_video_url: string | null
+          guide_created: boolean
           guide_theme: string
           hero_image_url: string | null
           host_name: string | null
@@ -3398,6 +3399,7 @@ export type Database = {
           pin_code: string | null
           pin_expires_at: string | null
           portaria_email: string | null
+          property_type_id: string | null
           published: boolean
           require_access_gate: boolean
           sigma_pack_activated_at: string | null
@@ -3448,6 +3450,7 @@ export type Database = {
           gate_label?: string | null
           gate_media?: Json
           gate_video_url?: string | null
+          guide_created?: boolean
           guide_theme?: string
           hero_image_url?: string | null
           host_name?: string | null
@@ -3469,6 +3472,7 @@ export type Database = {
           pin_code?: string | null
           pin_expires_at?: string | null
           portaria_email?: string | null
+          property_type_id?: string | null
           published?: boolean
           require_access_gate?: boolean
           sigma_pack_activated_at?: string | null
@@ -3519,6 +3523,7 @@ export type Database = {
           gate_label?: string | null
           gate_media?: Json
           gate_video_url?: string | null
+          guide_created?: boolean
           guide_theme?: string
           hero_image_url?: string | null
           host_name?: string | null
@@ -3540,6 +3545,7 @@ export type Database = {
           pin_code?: string | null
           pin_expires_at?: string | null
           portaria_email?: string | null
+          property_type_id?: string | null
           published?: boolean
           require_access_gate?: boolean
           sigma_pack_activated_at?: string | null
@@ -3560,6 +3566,13 @@ export type Database = {
             columns: ["owner_contact_id"]
             isOneToOne: false
             referencedRelation: "property_owners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "properties_property_type_id_fkey"
+            columns: ["property_type_id"]
+            isOneToOne: false
+            referencedRelation: "property_types"
             referencedColumns: ["id"]
           },
         ]
@@ -4199,6 +4212,30 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      property_types: {
+        Row: {
+          account_owner_id: string
+          created_at: string
+          id: string
+          label: string
+          slug: string
+        }
+        Insert: {
+          account_owner_id: string
+          created_at?: string
+          id?: string
+          label: string
+          slug: string
+        }
+        Update: {
+          account_owner_id?: string
+          created_at?: string
+          id?: string
+          label?: string
+          slug?: string
+        }
+        Relationships: []
       }
       provider_categories: {
         Row: {
