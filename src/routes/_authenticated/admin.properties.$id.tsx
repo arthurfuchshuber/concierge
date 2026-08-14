@@ -774,7 +774,7 @@ function PropertyEditor() {
   }
 
   async function handleSyncIcal() {
-    if (isNew) { toast.error("Salve o guia antes de sincronizar."); return; }
+    if (isNew) { toast.error("Salve o imóvel antes de sincronizar."); return; }
     const url = form.property.airbnb_ical_url?.trim();
     if (!url) { toast.error("Cole a URL do calendário Airbnb antes."); return; }
     if (autoSaving) { toast.info("Aguarde salvar as alterações."); return; }
@@ -883,11 +883,18 @@ function PropertyEditor() {
         checkout: form.checkout.filter((m) => m.label),
       };
       const r = await save({ data: payload });
-      toast.success("Guia salvo");
+      toast.success(isNew ? "Imóvel criado" : "Guia salvo");
       // Invalida caches para que o próximo mount reflita o estado salvo
       // (published, campos alterados, etc.) em vez de servir cache stale.
       queryClient.invalidateQueries({ queryKey: ["property", id] });
       queryClient.invalidateQueries({ queryKey: ["my-properties"] });
+      // Bidirecional: a ficha do proprietário (Stakeholders) lê os mesmos
+      // campos direto da tabela "properties" — mas fica em cache próprio
+      // ("stakeholder-detail"). Sem isto, quem estiver com a ficha do
+      // proprietário aberta em outra aba só veria o nome/endereço/status
+      // novos depois de até 20s (o refetchInterval dela) ou reabrindo a
+      // ficha. Invalidando aqui, a atualização é imediata nos dois sentidos.
+      queryClient.invalidateQueries({ predicate: (q) => q.queryKey[0] === "stakeholder-detail" });
       if (isNew) navigate({ to: "/admin/properties/$id", params: { id: r.id } });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Erro ao salvar");
@@ -959,6 +966,226 @@ function PropertyEditor() {
   const savedSlug = !isNew ? ((data?.property as Record<string, unknown> | undefined)?.slug as string | undefined) : undefined;
   const previewSlug = savedSlug || form.property.slug;
 
+  // Extraídos como funções para serem reaproveitados tanto na tela enxuta de
+  // criação do imóvel (isNew) quanto na aba "A casa" do editor completo —
+  // mesmo JSX, duas telas, sem duplicar campos/handlers.
+  const renderAddressSection = () => (
+          <Section id="address" icon={MapPinned} title="Endereço e localização" desc="Cole o link do Google Maps e use Auto-preencher." collapsible>
+            <Field label="Link do Google Maps — Entrada principal" required>
+              <div className="flex gap-2">
+                <Input value={form.property.maps_url} onChange={(e) => update("maps_url", e.target.value)} placeholder="https://maps.app.goo.gl/..." />
+                <Button onClick={handleEnrich} disabled={enriching} variant="secondary" className="shrink-0">
+                  {enriching ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
+                  <span className="ml-1.5 hidden sm:inline">{enriching ? "Buscando…" : "Auto-preencher"}</span>
+                </Button>
+              </div>
+            </Field>
+            <Field label="Link do Google Maps — Garagem (opcional)" hint="Aparece como um segundo botão de localização no guia.">
+              <Input value={form.property.garage_maps_url} onChange={(e) => update("garage_maps_url", e.target.value)} placeholder="https://maps.app.goo.gl/..." />
+            </Field>
+            <Field label="Endereço">
+              <Input value={form.property.address} onChange={(e) => update("address", e.target.value)} />
+            </Field>
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Cidade"><Input value={form.property.city} onChange={(e) => update("city", e.target.value)} /></Field>
+              <Field label="País"><Input value={form.property.country} onChange={(e) => update("country", e.target.value)} /></Field>
+            </div>
+            <Field label="Observação sobre o endereço" hint="Ponto de referência, instruções para o motorista, etc.">
+              <Textarea value={form.property.address_note} maxLength={1000} onChange={(e) => update("address_note", e.target.value)} />
+            </Field>
+          </Section>
+  );
+
+  const renderAirbnbCalendarSection = () => (
+          <Section id="airbnb-calendar" icon={RefreshCw} title="Calendário e reservas (Airbnb)" desc="Sincronize para habilitar dashboard, calendário e kanban — funciona mesmo sem publicar um guia." collapsible>
+            {!canAirbnb && (
+              <div className="mb-3 rounded-xl border border-border bg-secondary/40 p-3 text-xs text-muted-foreground flex items-start gap-2">
+                <Lock className="size-3.5 shrink-0 mt-0.5" />
+                <span>
+                  Sincronização automática é exclusiva dos planos <strong>Pro</strong>, <strong>Business</strong> e <strong>Enterprise</strong>. Faça upgrade em{" "}
+                  <Link to="/precos" className="underline font-medium">Planos</Link>.
+                </span>
+              </div>
+            )}
+
+            {isNew && (
+              <div className="mb-3 rounded-xl border border-border bg-muted/30 p-3 text-xs text-muted-foreground flex items-start gap-2">
+                <Clock className="size-3.5 shrink-0 mt-0.5" />
+                <span>Salve o imóvel uma vez (botão "Salvar" abaixo) para liberar a sincronização — não precisa preencher o guia.</span>
+              </div>
+            )}
+
+            <Field label="URL do calendário Airbnb" hint="No Airbnb: Anúncio → Calendário → Disponibilidade → Exportar calendário. Sincroniza a cada 30 minutos.">
+              <div className="flex gap-2">
+                <Input
+                  value={form.property.airbnb_ical_url ?? ""}
+                  disabled={!canAirbnb}
+                  onChange={(e) => {
+                    const next = e.target.value.trim() || null;
+                    const prev = form.property.airbnb_ical_url;
+                    if (!next && prev) { setPendingIcalClear(true); return; }
+                    update("airbnb_ical_url", next);
+                  }}
+                  placeholder="https://www.airbnb.com/calendar/ical/12345.ics?s=..."
+                />
+                <Button onClick={handleSyncIcal} disabled={syncingIcal || isNew || !canAirbnb || !(form.property.airbnb_ical_url ?? "").trim()} variant="secondary" className="shrink-0" title={isNew ? "Salve o imóvel antes de sincronizar" : "Sincronizar agora"}>
+                  {syncingIcal ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}
+                  <span className="ml-1.5 hidden sm:inline">{syncingIcal ? "Sincronizando…" : "Sincronizar"}</span>
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="shrink-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                  disabled={!(form.property.airbnb_ical_url ?? "").trim()}
+                  onClick={() => setPendingIcalClear(true)}
+                  title="Remover calendário"
+                  aria-label="Remover calendário"
+                >
+                  <Trash2 className="size-4" />
+                </Button>
+              </div>
+            </Field>
+
+            {showIcal2 || (form.property.airbnb_ical_url_2 ?? "").trim() ? (
+              <Field label="2º calendário (outro anúncio do mesmo imóvel)" hint="Use quando o imóvel tem mais de um anúncio no Airbnb. As reservas dos dois calendários são unificadas.">
+                <div className="flex gap-2">
+                  <Input
+                    value={form.property.airbnb_ical_url_2 ?? ""}
+                    onChange={(e) => update("airbnb_ical_url_2", e.target.value.trim() || null)}
+                    placeholder="https://www.airbnb.com/calendar/ical/67890.ics?s=..."
+                  />
+                  <Button
+                    onClick={handleSyncIcal}
+                    disabled={syncingIcal || isNew || !(form.property.airbnb_ical_url_2 ?? "").trim()}
+                    variant="secondary"
+                    className="shrink-0"
+                    title={isNew ? "Salve o imóvel antes de sincronizar" : "Sincronizar agora"}
+                  >
+                    {syncingIcal ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}
+                    <span className="ml-1.5 hidden sm:inline">{syncingIcal ? "Sincronizando…" : "Sincronizar"}</span>
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="shrink-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                    onClick={() => { update("airbnb_ical_url_2", null); setShowIcal2(false); }}
+                    title="Remover 2º calendário"
+                    aria-label="Remover 2º calendário"
+                  >
+                    <Trash2 className="size-4" />
+                  </Button>
+                </div>
+              </Field>
+            ) : (
+              <div className="flex justify-end">
+                <Button variant="ghost" size="sm" onClick={() => setShowIcal2(true)}>
+                  + Adicionar 2º calendário
+                </Button>
+              </div>
+            )}
+
+            {(form.property.airbnb_ical_last_sync_at || form.property.airbnb_ical_last_error) && (
+              <div className="text-[11px] text-muted-foreground flex items-center gap-2 flex-wrap">
+                {form.property.airbnb_ical_last_sync_at && (
+                  <span>Última sincronização: {new Date(form.property.airbnb_ical_last_sync_at).toLocaleString("pt-BR")}</span>
+                )}
+                {form.property.airbnb_ical_last_error && (
+                  <span className="text-destructive">Erro: {form.property.airbnb_ical_last_error}</span>
+                )}
+              </div>
+            )}
+
+            {reservationsQuery.data?.reservations && reservationsQuery.data.reservations.length > 0 && (
+              <details className="group rounded-xl border border-border bg-muted/30">
+                <summary className="list-none cursor-pointer select-none px-3 py-2.5 flex items-center justify-between text-xs font-semibold">
+                  <span>Próximas reservas ({reservationsQuery.data.reservations.length})</span>
+                  <ChevronDown className="size-4 text-muted-foreground transition-transform group-open:rotate-180" />
+                </summary>
+                <ul className="px-3 pb-3 space-y-1.5 max-h-56 overflow-y-auto">
+                  {reservationsQuery.data.reservations.map((r) => (
+                    <li key={r.id} className="text-xs flex items-center justify-between gap-2 py-1 border-b border-border/50 last:border-0">
+                      <span className="font-medium">
+                        {new Date(`${r.checkin_date}T12:00:00`).toLocaleDateString("pt-BR")} → {new Date(`${r.checkout_date}T12:00:00`).toLocaleDateString("pt-BR")}
+                      </span>
+                      {r.guest_hint && (<span className="text-muted-foreground font-mono text-[10px]">{r.guest_hint}</span>)}
+                    </li>
+                  ))}
+                </ul>
+              </details>
+            )}
+          </Section>
+  );
+
+  const renderHostContactSection = () => (
+          <Section id="host-house" icon={UserRound} title="Contato do anfitrião" desc="Nome e WhatsApp para o hóspede te encontrar." collapsible>
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Nome"><Input value={form.property.host_name} maxLength={120} onChange={(e) => update("host_name", e.target.value)} /></Field>
+              <Field label="Telefone (WhatsApp)"><Input value={form.property.host_phone} maxLength={40} onChange={(e) => update("host_phone", e.target.value)} /></Field>
+            </div>
+          </Section>
+  );
+
+  // ================= INFORMAÇÕES DO IMÓVEL (criação) =================
+  // Antes, um imóvel novo abria direto os 6 steps inteiros do editor de guia
+  // (A casa, O guia, Checkin, Checkout, FAQ & Contatos, Recomendações) — a
+  // maioria deles sem sentido nenhum antes de o imóvel existir. Agora, ao
+  // criar, mostramos só o essencial: nome, endereço, calendário e contato do
+  // anfitrião. O guia (com todo o resto) só aparece depois de salvo, quando a
+  // rota deixa de ser "new" e passa a ter um id real — mesmo handleSave de
+  // sempre, só muda o que é exibido antes de o imóvel existir.
+  if (isNew) {
+    return (
+      <div className="px-6 lg:px-10 pt-8 lg:pt-10 max-w-3xl mx-auto w-full">
+        <Link to="/admin/guias" className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground mb-5 transition-colors">
+          <ArrowLeft className="size-3.5" /> Voltar
+        </Link>
+
+        <div className="mb-6 pb-4 border-b border-border/60">
+          <h1 className="font-display text-2xl sm:text-3xl mb-1.5">Novo imóvel</h1>
+          <p className="text-sm text-muted-foreground">
+            Só o essencial para cadastrar a residência. O guia para hóspedes, checkin, checkout, FAQ e recomendações ficam disponíveis depois de criado — não são obrigatórios.
+          </p>
+        </div>
+
+        <fieldset disabled={readOnly} className="m-0 min-w-0 border-0 p-0">
+          <SectionGroup>
+            <Section id="new-name" icon={Home} title="Nome do imóvel" desc="Como você identifica essa residência internamente." collapsible={false}>
+              <Field label="Nome" required>
+                <Input
+                  value={form.property.name}
+                  maxLength={80}
+                  onChange={(e) => {
+                    const v = e.target.value.slice(0, 80);
+                    update("name", v);
+                    if (!form.property.slug) update("slug", slugify(v));
+                  }}
+                  placeholder="Ex: Casa Charmosa Próx. a Avenida das Cataratas"
+                />
+              </Field>
+            </Section>
+
+            {renderAddressSection()}
+            {renderAirbnbCalendarSection()}
+            {renderHostContactSection()}
+          </SectionGroup>
+
+          <div className="flex items-center justify-end gap-2 mt-6 pt-4 border-t border-border/60">
+            <Link
+              to="/admin/guias"
+              className="inline-flex items-center h-10 px-4 rounded-lg border border-border text-sm text-muted-foreground hover:bg-secondary transition-colors"
+            >
+              Cancelar
+            </Link>
+            <Button className="h-10 min-w-[140px]" onClick={handleSave} disabled={saving || !form.property.name.trim()}>
+              {saving ? <Loader2 className="size-4 animate-spin" /> : null}
+              <span className={saving ? "ml-1.5" : ""}>{saving ? "Criando…" : "Criar imóvel"}</span>
+            </Button>
+          </div>
+        </fieldset>
+      </div>
+    );
+  }
+
   return (
     <div className="px-6 lg:px-10 pt-8 lg:pt-10 max-w-7xl mx-auto w-full">
       <Link to="/admin/guias" className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground mb-5 transition-colors">
@@ -1016,30 +1243,11 @@ function PropertyEditor() {
         <TabsContent value="house" className="space-y-4 mt-6">
           <SectionGroup>
 
-          <Section id="address" icon={MapPinned} title="Endereço e localização" desc="Cole o link do Google Maps e use Auto-preencher." collapsible>
-            <Field label="Link do Google Maps — Entrada principal" required>
-              <div className="flex gap-2">
-                <Input value={form.property.maps_url} onChange={(e) => update("maps_url", e.target.value)} placeholder="https://maps.app.goo.gl/..." />
-                <Button onClick={handleEnrich} disabled={enriching} variant="secondary" className="shrink-0">
-                  {enriching ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
-                  <span className="ml-1.5 hidden sm:inline">{enriching ? "Buscando…" : "Auto-preencher"}</span>
-                </Button>
-              </div>
-            </Field>
-            <Field label="Link do Google Maps — Garagem (opcional)" hint="Aparece como um segundo botão de localização no guia.">
-              <Input value={form.property.garage_maps_url} onChange={(e) => update("garage_maps_url", e.target.value)} placeholder="https://maps.app.goo.gl/..." />
-            </Field>
-            <Field label="Endereço">
-              <Input value={form.property.address} onChange={(e) => update("address", e.target.value)} />
-            </Field>
-            <div className="grid grid-cols-2 gap-3">
-              <Field label="Cidade"><Input value={form.property.city} onChange={(e) => update("city", e.target.value)} /></Field>
-              <Field label="País"><Input value={form.property.country} onChange={(e) => update("country", e.target.value)} /></Field>
-            </div>
-            <Field label="Observação sobre o endereço" hint="Ponto de referência, instruções para o motorista, etc.">
-              <Textarea value={form.property.address_note} maxLength={1000} onChange={(e) => update("address_note", e.target.value)} />
-            </Field>
-          </Section>
+          {renderAddressSection()}
+
+
+          {renderAirbnbCalendarSection()}
+
 
           <Section id="house-rules" icon={ClipboardCheck} title="Regras do espaço" desc="Uma regra por linha — cada linha vira um item numerado no guia." collapsible>
             <Field label="Regras (opcional)" hint="Uma regra por linha. Linhas em branco são ignoradas.">
@@ -1067,12 +1275,7 @@ function PropertyEditor() {
             )}
           </Section>
 
-          <Section id="host-house" icon={UserRound} title="Contato do anfitrião" desc="Nome e WhatsApp para o hóspede te encontrar." collapsible>
-            <div className="grid grid-cols-2 gap-3">
-              <Field label="Nome"><Input value={form.property.host_name} maxLength={120} onChange={(e) => update("host_name", e.target.value)} /></Field>
-              <Field label="Telefone (WhatsApp)"><Input value={form.property.host_phone} maxLength={40} onChange={(e) => update("host_phone", e.target.value)} /></Field>
-            </div>
-          </Section>
+          {renderHostContactSection()}
 
           </SectionGroup>
         </TabsContent>
@@ -1081,7 +1284,7 @@ function PropertyEditor() {
         <TabsContent value="guide" className="space-y-4 mt-6">
           <SectionGroup>
 
-          <Section id="import-airbnb" icon={Sparkles} tone="accent" title="Importar do Airbnb" desc="Cole o link do anúncio e sincronize o calendário do Airbnb." collapsible>
+          <Section id="import-airbnb" icon={Sparkles} tone="accent" title="Importar do Airbnb" desc="Cole o link do anúncio para importar descrição, fotos e comodidades no guia." collapsible>
             {!canAirbnb && (
               <div className="mb-3 rounded-xl border border-border bg-secondary/40 p-3 text-xs text-muted-foreground flex items-start gap-2">
                 <Lock className="size-3.5 shrink-0 mt-0.5" />
@@ -1092,131 +1295,16 @@ function PropertyEditor() {
               </div>
             )}
 
-            <details className="group rounded-xl border border-border bg-muted/30" open>
-              <summary className="list-none cursor-pointer select-none px-3 py-2.5 flex items-center justify-between text-xs font-semibold">
-                <span className="inline-flex items-center gap-2"><Sparkles className="size-3.5 text-muted-foreground" /> Link do anúncio</span>
-                <ChevronDown className="size-4 text-muted-foreground transition-transform group-open:rotate-180" />
-              </summary>
-              <div className="px-3 pb-3 pt-1">
-                <div className="flex gap-2">
-                  <Input value={airbnbUrl} onChange={(e) => setAirbnbUrl(e.target.value)} placeholder="https://airbnb.com.br/h/seu-anuncio" disabled={!canAirbnb} />
-                  <Button onClick={handleImportAirbnb} disabled={importingAirbnb || !canAirbnb} variant="secondary" className="shrink-0">
-                    {importingAirbnb ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
-                    <span className="ml-1.5 hidden sm:inline">{importingAirbnb ? "Importando…" : "Importar"}</span>
-                  </Button>
-                </div>
-              </div>
-            </details>
-
-            <details className="group rounded-xl border border-border bg-muted/30 mt-3" open>
-              <summary className="list-none cursor-pointer select-none px-3 py-2.5 flex items-center justify-between text-xs font-semibold">
-                <span className="inline-flex items-center gap-2"><RefreshCw className="size-3.5 text-muted-foreground" /> Calendário Airbnb (iCal)</span>
-                <ChevronDown className="size-4 text-muted-foreground transition-transform group-open:rotate-180" />
-              </summary>
-              <div className="px-3 pb-3 pt-1 space-y-3">
-                <Field label="URL do calendário Airbnb" hint="No Airbnb: Anúncio → Calendário → Disponibilidade → Exportar calendário. Sincroniza a cada 30 minutos.">
-                  <div className="flex gap-2">
-                    <Input
-                      value={form.property.airbnb_ical_url ?? ""}
-                      onChange={(e) => {
-                        const next = e.target.value.trim() || null;
-                        const prev = form.property.airbnb_ical_url;
-                        if (!next && prev) { setPendingIcalClear(true); return; }
-                        update("airbnb_ical_url", next);
-                      }}
-                      placeholder="https://www.airbnb.com/calendar/ical/12345.ics?s=..."
-                    />
-                    <Button onClick={handleSyncIcal} disabled={syncingIcal || isNew || !(form.property.airbnb_ical_url ?? "").trim()} variant="secondary" className="shrink-0" title={isNew ? "Salve o guia antes de sincronizar" : "Sincronizar agora"}>
-                      {syncingIcal ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}
-                      <span className="ml-1.5 hidden sm:inline">{syncingIcal ? "Sincronizando…" : "Sincronizar"}</span>
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="shrink-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                      disabled={!(form.property.airbnb_ical_url ?? "").trim()}
-                      onClick={() => setPendingIcalClear(true)}
-                      title="Remover calendário"
-                      aria-label="Remover calendário"
-                    >
-                      <Trash2 className="size-4" />
-                    </Button>
-                  </div>
-                </Field>
-
-                {showIcal2 || (form.property.airbnb_ical_url_2 ?? "").trim() ? (
-                  <Field label="2º calendário (outro anúncio do mesmo imóvel)" hint="Use quando o imóvel tem mais de um anúncio no Airbnb. As reservas dos dois calendários são unificadas neste guia.">
-                    <div className="flex gap-2">
-                      <Input
-                        value={form.property.airbnb_ical_url_2 ?? ""}
-                        onChange={(e) => update("airbnb_ical_url_2", e.target.value.trim() || null)}
-                        placeholder="https://www.airbnb.com/calendar/ical/67890.ics?s=..."
-                      />
-                      <Button
-                        onClick={handleSyncIcal}
-                        disabled={syncingIcal || isNew || !(form.property.airbnb_ical_url_2 ?? "").trim()}
-                        variant="secondary"
-                        className="shrink-0"
-                        title={isNew ? "Salve o guia antes de sincronizar" : "Sincronizar agora"}
-                      >
-                        {syncingIcal ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}
-                        <span className="ml-1.5 hidden sm:inline">{syncingIcal ? "Sincronizando…" : "Sincronizar"}</span>
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="shrink-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                        onClick={() => { update("airbnb_ical_url_2", null); setShowIcal2(false); }}
-                        title="Remover 2º calendário"
-                        aria-label="Remover 2º calendário"
-                      >
-                        <Trash2 className="size-4" />
-                      </Button>
-
-
-                    </div>
-                  </Field>
-                ) : (
-                  <div className="flex justify-end">
-                    <Button variant="ghost" size="sm" onClick={() => setShowIcal2(true)}>
-                      + Adicionar 2º calendário
-                    </Button>
-                  </div>
-                )}
-
-
-
-                {(form.property.airbnb_ical_last_sync_at || form.property.airbnb_ical_last_error) && (
-                  <div className="text-[11px] text-muted-foreground flex items-center gap-2 flex-wrap">
-                    {form.property.airbnb_ical_last_sync_at && (
-                      <span>Última sincronização: {new Date(form.property.airbnb_ical_last_sync_at).toLocaleString("pt-BR")}</span>
-                    )}
-                    {form.property.airbnb_ical_last_error && (
-                      <span className="text-destructive">Erro: {form.property.airbnb_ical_last_error}</span>
-                    )}
-                  </div>
-                )}
-
-                {reservationsQuery.data?.reservations && reservationsQuery.data.reservations.length > 0 && (
-                  <details className="group rounded-xl border border-border bg-muted/30">
-                    <summary className="list-none cursor-pointer select-none px-3 py-2.5 flex items-center justify-between text-xs font-semibold">
-                      <span>Próximas reservas ({reservationsQuery.data.reservations.length})</span>
-                      <ChevronDown className="size-4 text-muted-foreground transition-transform group-open:rotate-180" />
-                    </summary>
-                    <ul className="px-3 pb-3 space-y-1.5 max-h-56 overflow-y-auto">
-                      {reservationsQuery.data.reservations.map((r) => (
-                        <li key={r.id} className="text-xs flex items-center justify-between gap-2 py-1 border-b border-border/50 last:border-0">
-                          <span className="font-medium">
-                            {new Date(`${r.checkin_date}T12:00:00`).toLocaleDateString("pt-BR")} → {new Date(`${r.checkout_date}T12:00:00`).toLocaleDateString("pt-BR")}
-                          </span>
-                          {r.guest_hint && (<span className="text-muted-foreground font-mono text-[10px]">{r.guest_hint}</span>)}
-                        </li>
-                      ))}
-                    </ul>
-                  </details>
-                )}
-              </div>
-            </details>
+            <div className="flex gap-2">
+              <Input value={airbnbUrl} onChange={(e) => setAirbnbUrl(e.target.value)} placeholder="https://airbnb.com.br/h/seu-anuncio" disabled={!canAirbnb} />
+              <Button onClick={handleImportAirbnb} disabled={importingAirbnb || !canAirbnb} variant="secondary" className="shrink-0">
+                {importingAirbnb ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
+                <span className="ml-1.5 hidden sm:inline">{importingAirbnb ? "Importando…" : "Importar"}</span>
+              </Button>
+            </div>
+            <p className="text-[11px] text-muted-foreground mt-2">
+              Procurando o calendário/iCal? Ele foi para a aba <strong>A casa</strong> — não depende mais de criar um guia.
+            </p>
           </Section>
 
 

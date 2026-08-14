@@ -19,7 +19,6 @@ import {
 } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
-  listOperationMemoryInsights,
   listOperationKnowledge,
   saveOperationKnowledge,
   archiveOperationKnowledge,
@@ -61,16 +60,12 @@ function IaGovernancePage() {
         </p>
       </header>
 
-      <Tabs defaultValue="memoria">
+      <Tabs defaultValue="conhecimento">
         <TabsList className="w-full flex overflow-x-auto justify-start">
-          <TabsTrigger value="memoria" className="shrink-0">Memória da Operação</TabsTrigger>
           <TabsTrigger value="conhecimento" className="shrink-0">Conhecimento da Operação</TabsTrigger>
           <TabsTrigger value="aprendizados" className="shrink-0">Aprendizados Pendentes</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="memoria" className="mt-5">
-          <MemoryTab />
-        </TabsContent>
         <TabsContent value="conhecimento" className="mt-5">
           <KnowledgeTab />
         </TabsContent>
@@ -78,61 +73,6 @@ function IaGovernancePage() {
           <QueueTab />
         </TabsContent>
       </Tabs>
-    </div>
-  );
-}
-
-/* ---------------------------------------------------------------- */
-
-function MemoryTab() {
-  const fn = useServerFn(listOperationMemoryInsights);
-  const { data, isLoading } = useQuery({
-    queryKey: ["ia-operation-memory"],
-    queryFn: async () => {
-      try {
-        return await fn({ data: {} });
-      } catch {
-        return [];
-      }
-    },
-    staleTime: 60_000,
-  });
-
-  if (isLoading) return <Loading />;
-  if (!data?.length) {
-    return (
-      <Empty
-        icon={<BrainCircuit className="size-5" />}
-        title="Nenhum padrão detectado ainda"
-        text="Conforme os hóspedes conversam, os padrões recorrentes e as lacunas aparecem aqui automaticamente."
-      />
-    );
-  }
-
-  const label: Record<string, string> = {
-    gap: "Lacuna de informação",
-    recurrence: "Pedido recorrente",
-    memory: "Padrão aprendido",
-  };
-
-  return (
-    <div className="grid gap-3 sm:grid-cols-2">
-      {data.map((m) => (
-        <article key={m.id} className="rounded-2xl border border-border bg-surface p-4 space-y-2 shadow-sm">
-          <div className="flex items-start justify-between gap-3">
-            <h3 className="font-medium leading-snug">{m.topic}</h3>
-            <Badge variant="secondary" className="shrink-0">{label[m.kind] ?? m.kind}</Badge>
-          </div>
-          {m.propertyName && <p className="text-xs text-muted-foreground">{m.propertyName}</p>}
-          <p className="text-sm text-foreground/80 whitespace-pre-wrap">{m.detail}</p>
-          <div className="flex flex-wrap items-center gap-2 pt-1 text-xs text-muted-foreground">
-            <span>{m.occurrences}× observado</span>
-            {m.confidence != null && <span>· confiança {(m.confidence * 100).toFixed(0)}%</span>}
-            {m.lastSeenAt && <span>· {new Date(m.lastSeenAt).toLocaleDateString("pt-BR")}</span>}
-          </div>
-          <p className="text-sm rounded-xl bg-secondary/60 px-3 py-2">{m.suggestion}</p>
-        </article>
-      ))}
     </div>
   );
 }

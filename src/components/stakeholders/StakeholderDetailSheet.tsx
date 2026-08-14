@@ -249,6 +249,11 @@ export function StakeholderDetailSheet({
       await linkFn({ data: { ownerId: id, propertyId, link } });
       qc.invalidateQueries({ queryKey });
       qc.invalidateQueries({ queryKey: ["stakeholders", kind] });
+      // Bidirecional: se o editor do imóvel (aba "A casa") estiver aberto em
+      // outra aba, ele precisa refletir o vínculo/desvínculo imediatamente,
+      // sem esperar um refresh manual.
+      qc.invalidateQueries({ queryKey: ["property", propertyId] });
+      qc.invalidateQueries({ queryKey: ["my-properties"] });
     } catch (e) {
       toast.error((e as Error).message);
     } finally {
