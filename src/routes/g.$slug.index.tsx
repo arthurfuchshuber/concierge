@@ -350,8 +350,20 @@ function Guide({ data }: { data: GuideOk }) {
 
   function gotoSection(s: Section) {
     setSection(s);
+    // Fire-and-forget analytics — never blocks navigation
+    const sid = typeof window !== "undefined" ? (localStorage.getItem(`guide-chat-session:${slug}`) ?? "anon") : "anon";
+    const pagePath = typeof window !== "undefined" ? window.location.pathname : null;
+    trackEvent({
+      data: {
+        slug,
+        section: s,
+        sessionId: sid,
+        guestName: accessRec?.name ?? null,
+        guestPhone: accessRec?.phone ?? null,
+        pagePath,
+      },
+    }).catch(() => {});
   }
-
   const { lang, setLang } = useI18n();
 
   // Auto-detect browser language on first visit (if no saved preference)
@@ -454,50 +466,6 @@ function Guide({ data }: { data: GuideOk }) {
       },
     }).catch(() => {});
   };
-
-  /**
-   * Registro de leitura: dispara sempre que a seção visível muda — inclusive
-   * na abertura do guia e em navegação por abas/hash — para que as barras de
-   * engajamento do anfitrião reflitam a realidade.
-   */
-  const trackedSectionsRef = useRef<Set<string>>(new Set());
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const guestName = accessRec?.name ?? null;
-    if (!guestName) return; // sem identificação não há como marcar o hóspede
-    const key = `${section}|${guestName}`;
-    if (trackedSectionsRef.current.has(key)) return;
-    trackedSectionsRef.current.add(key);
-    const sid = localStorage.getItem(`guide-chat-session:${slug}`) ?? "anon";
-    trackEvent({
-      data: {
-        slug,
-        section,
-        sessionId: sid,
-        guestName,
-        guestPhone: accessRec?.phone ?? null,
-        pagePath: window.location.pathname,
-      },
-    }).catch(() => {});
-    // Abrir o guia já conta como "viu as instruções de check-in": o bloco de
-    // chegada aparece na home, então marcamos ambos no primeiro acesso.
-    if (section === "home" && !trackedSectionsRef.current.has(`checkin|${guestName}`)) {
-      trackedSectionsRef.current.add(`checkin|${guestName}`);
-      trackEvent({
-        data: {
-          slug,
-          section: "checkin",
-          sessionId: sid,
-          guestName,
-          guestPhone: accessRec?.phone ?? null,
-          pagePath: window.location.pathname,
-        },
-      }).catch(() => {});
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [section, accessRec?.name, accessRec?.phone, slug]);
-
-
 
 
 
