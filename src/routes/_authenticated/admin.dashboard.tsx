@@ -1926,20 +1926,8 @@ function ArrivalCard({
               </span>
             )}
           </div>
-          {(row.additionalGuests?.length ?? 0) > 0 && (
-            <ul className="mt-1 space-y-0.5">
-              {row.additionalGuests!.map((g) => (
-                <li
-                  key={g.logId}
-                  className="text-xs text-muted-foreground truncate flex items-center gap-1"
-                  title={g.name}
-                >
-                  <span className="size-1 rounded-full bg-muted-foreground/60 shrink-0" />
-                  <span className="truncate">{g.name}</span>
-                </li>
-              ))}
-            </ul>
-          )}
+          <ExtraGuests guests={row.additionalGuests ?? []} />
+
           {/* Período: "dd/mm/aaaa a dd/mm/aaaa", editável inline, alinhado à esquerda */}
           <div className="mt-1 flex items-center gap-1 text-xs tabular-nums text-foreground/80">
             <DateEditor
