@@ -241,6 +241,7 @@ export const getGuideEngagement = createServerFn({ method: "GET" })
         .in("property_id", propIds)
         .gte("checkin_date", from)
         .lte("checkin_date", to)
+        .order("created_at", { ascending: true })
         .limit(2000),
       context.supabase
         .from("guest_arrival_status")
@@ -394,8 +395,14 @@ export const getGuideEngagement = createServerFn({ method: "GET" })
             (digits.length >= 8 && seen.phones.has(`${e.property_id}|${digits.slice(-8)}`)));
         (hit ? viewed : notViewed).push(mark);
       }
-      const byName = (a: GuestMark, b: GuestMark) => a.name.localeCompare(b.name, "pt-BR");
-      return { viewed: viewed.sort(byName), notViewed: notViewed.sort(byName) };
+      // Mantém a ordem de acesso dentro de cada imóvel (o 1º a acessar é o
+      // hóspede principal) e agrupa os imóveis por nome.
+      const stableByProperty = (list: GuestMark[]) =>
+        list
+          .map((m, i) => ({ m, i }))
+          .sort((a, b) => a.m.property.localeCompare(b.m.property, "pt-BR") || a.i - b.i)
+          .map((x) => x.m);
+      return { viewed: stableByProperty(viewed), notViewed: stableByProperty(notViewed) };
     }
 
     const checkinBreakdown = breakdown(checkinSeen, entries);
