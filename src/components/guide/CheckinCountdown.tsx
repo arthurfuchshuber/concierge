@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Clock, ChevronDown } from "lucide-react";
+import { partsInTZ, todayInTZ, zonedTimeToUtc } from "@/lib/property-timezone";
 
 function parseTime(t: string | null | undefined): { h: number; m: number } | null {
   if (!t) return null;
@@ -11,6 +12,7 @@ function parseTime(t: string | null | undefined): { h: number; m: number } | nul
 export function CheckinCountdown({
   checkinTime,
   checkinDate,
+  timeZone,
   theme,
   expandable = false,
   open = false,
@@ -19,6 +21,8 @@ export function CheckinCountdown({
   checkinTime: string | null | undefined;
   /** Data real do check-in (YYYY-MM-DD) — quando existe, a contagem considera dias. */
   checkinDate?: string | null;
+  /** Fuso horário do imóvel (IANA). Nunca usar o fuso do aparelho. */
+  timeZone: string;
   theme: "dark" | "light";
   expandable?: boolean;
   open?: boolean;
@@ -36,22 +40,21 @@ export function CheckinCountdown({
   const parsed = parseTime(checkinTime);
   if (!parsed || !now) return null;
 
-  const dateParts = checkinDate ? checkinDate.split("-").map(Number) : null;
-  const target = new Date(now);
-  if (dateParts && dateParts.length === 3 && !dateParts.some(Number.isNaN)) {
-    target.setFullYear(dateParts[0], dateParts[1] - 1, dateParts[2]);
-  }
-  target.setHours(parsed.h, parsed.m, 0, 0);
+  // Data-alvo sempre no fuso do imóvel (cidade), não no do aparelho do hóspede.
+  const dayISO = checkinDate ?? todayInTZ(timeZone, now);
+  const dateParts = dayISO.split("-").map(Number);
+  if (dateParts.length !== 3 || dateParts.some(Number.isNaN)) return null;
+  const target = zonedTimeToUtc(dateParts[0], dateParts[1], dateParts[2], parsed.h, parsed.m, timeZone);
   const diffMs = target.getTime() - now.getTime();
 
   // Janela de progresso: da meia-noite do dia do check-in (ou até 7 dias antes,
   // quando falta mais de um dia) até o horário liberado.
-  const startOfWindow = new Date(target);
-  startOfWindow.setHours(0, 0, 0, 0);
+  let startOfWindow = zonedTimeToUtc(dateParts[0], dateParts[1], dateParts[2], 0, 0, timeZone);
   if (diffMs > 0 && now < startOfWindow) {
-    startOfWindow.setDate(startOfWindow.getDate() - 7);
+    startOfWindow = new Date(startOfWindow.getTime() - 7 * 86_400_000);
   }
   const isLight = theme === "light";
+
 
   const Wrapper = ({ children }: { children: React.ReactNode }) =>
     expandable ? (
