@@ -301,13 +301,13 @@ export function PropertyQuickEditDialog({
         ) : (
           <>
             <SectionGroup>
-              <Section id="qe-name" icon={Home} title="Nome do imóvel" desc="Como você identifica essa residência internamente." collapsible={false}>
+              <Section id="qe-name" icon={Home} title="Nome do imóvel" desc="Como você identifica essa residência internamente." collapsible>
                 <Field label="Nome" required>
                   <Input value={edited.name} maxLength={80} onChange={(e) => upd("name", e.target.value)} />
                 </Field>
               </Section>
 
-              <Section id="property-type" icon={Home} title="Tipo do imóvel" desc="Ajuda a organizar seus imóveis — as opções são totalmente editáveis." collapsible={false}>
+              <Section id="property-type" icon={Home} title="Tipo do imóvel" desc="Ajuda a organizar seus imóveis — as opções são totalmente editáveis." collapsible>
                 <PropertyTypeSelect value={edited.property_type_id} onChange={(v) => upd("property_type_id", v)} />
               </Section>
 
