@@ -703,6 +703,7 @@ function Guide({ data }: { data: GuideOk }) {
             documentScope: ((p as unknown as { document_scope?: string }).document_scope as "main" | "all") ?? "main",
           }}
           onUnlock={setAccessRec}
+          timeZone={propertyTimeZone(p.city as string | null, (p as any).country as string | null)}
           theme={theme === "light" ? "light" : "dark"}
 
         />
