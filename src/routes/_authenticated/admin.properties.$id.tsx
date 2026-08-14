@@ -1218,13 +1218,13 @@ function PropertyEditor() {
               Cancelar
             </Link>
             {isNew ? (
-              <Button className="h-10 min-w-[140px]" onClick={handleSave} disabled={saving || !form.property.name.trim()}>
+              <Button className="h-10 min-w-[140px]" onClick={() => handleSave()} disabled={saving || !form.property.name.trim()}>
                 {saving ? <Loader2 className="size-4 animate-spin" /> : null}
                 <span className={saving ? "ml-1.5" : ""}>{saving ? "Criando…" : "Criar imóvel"}</span>
               </Button>
             ) : (
               <>
-                <Button variant="secondary" className="h-10 min-w-[140px]" onClick={handleSave} disabled={saving || !form.property.name.trim()}>
+                <Button variant="secondary" className="h-10 min-w-[140px]" onClick={() => handleSave()} disabled={saving || !form.property.name.trim()}>
                   {saving ? <Loader2 className="size-4 animate-spin" /> : null}
                   <span className={saving ? "ml-1.5" : ""}>{saving ? "Salvando…" : "Salvar alterações"}</span>
                 </Button>
@@ -2097,7 +2097,7 @@ function PropertyEditor() {
           </Button>
           <Button variant="ghost" className="h-10 min-w-[120px]" onClick={() => navigate({ to: "/admin/guias" })}>{readOnly ? "Voltar" : "Cancelar"}</Button>
           {!readOnly && (
-            <Button className="h-10 min-w-[120px]" onClick={handleSave} disabled={saving || !form.property.name}>
+            <Button className="h-10 min-w-[120px]" onClick={() => handleSave()} disabled={saving || !form.property.name}>
               {saving ? <Loader2 className="size-4 animate-spin mr-1.5" /> : null}
               Salvar
             </Button>
