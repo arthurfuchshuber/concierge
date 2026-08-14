@@ -15,6 +15,7 @@ import {
   listPendingCancellations,
   resolveScheduledCancellation,
 } from "@/lib/stakeholders.functions";
+import { useAreaAccess } from "@/lib/permissions/useAreaAccess";
 
 /**
  * Popup global: quando chega a data de um cancelamento agendado, toda a equipe
