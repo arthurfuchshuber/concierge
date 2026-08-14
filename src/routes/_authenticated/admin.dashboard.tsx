@@ -81,21 +81,21 @@ function ExtraGuests({
   const [open, setOpen] = useState(false);
   if (!guests || guests.length === 0) return null;
   return (
-    <div className="mt-0.5">
+    <span className="relative inline-flex shrink-0">
       <button
         type="button"
         onClick={(e) => {
           e.stopPropagation();
           setOpen((v) => !v);
         }}
-        className="inline-flex items-center gap-1 rounded-full border border-border/60 bg-secondary/50 px-2 py-0.5 text-[11px] font-medium text-muted-foreground transition hover:border-border hover:text-foreground"
+        className="inline-flex items-center gap-1 rounded-full border border-border/60 bg-secondary/50 px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground transition hover:border-border hover:text-foreground"
         title={`${guests.length} outro(s) hóspede(s) nesta reserva`}
       >
         +{guests.length}
         <ChevronDown className={`size-3 transition-transform ${open ? "rotate-180" : ""}`} />
       </button>
       {open && (
-        <ul className="mt-1 space-y-0.5 rounded-lg border border-border/50 bg-background/60 px-2 py-1.5">
+        <ul className="absolute left-0 top-full z-30 mt-1 min-w-[180px] space-y-0.5 rounded-lg border border-border/50 bg-popover px-2 py-1.5 shadow-lg">
           {guests.map((g) => (
             <li key={g.logId} className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
               <span className="size-1 rounded-full bg-muted-foreground/60 shrink-0" />
@@ -107,7 +107,7 @@ function ExtraGuests({
           ))}
         </ul>
       )}
-    </div>
+    </span>
   );
 }
 
@@ -849,7 +849,7 @@ function KpiCard({
                       </div>
 
                       <div
-                        className={`text-xs truncate flex items-center gap-1 mt-0.5 ${r.pendingFill || !r.guestName || r.guestName === r.reservationCode ? "text-orange-500 font-medium" : "text-muted-foreground"}`}
+                        className={`text-xs flex items-center gap-1 mt-0.5 ${r.pendingFill || !r.guestName || r.guestName === r.reservationCode ? "text-orange-500 font-medium" : "text-muted-foreground"}`}
                       >
                         {r.pendingFill || !r.guestName || r.guestName === r.reservationCode ? (
                           <>
@@ -860,10 +860,10 @@ function KpiCard({
                           <>
                             <span className="min-w-0 truncate">{r.guestName}</span>
                             <PhoneLink phone={r.guestPhone} country={r.guestPhoneCountry} />
+                            <ExtraGuests guests={r.additionalGuests ?? []} />
                           </>
                         )}
                       </div>
-                      <ExtraGuests guests={r.additionalGuests ?? []} />
 
                       {r.reservationCode && (
                         <div className="mt-0.5 inline-flex items-center gap-0.5 text-[11px] text-muted-foreground font-normal tabular-nums">
@@ -1946,7 +1946,7 @@ function ArrivalCard({
           </div>
 
           <div
-            className={`text-xs truncate flex items-center gap-1 ${isPendingFill ? "text-orange-500 font-medium" : "text-muted-foreground"}`}
+            className={`text-xs flex items-center gap-1 ${isPendingFill ? "text-orange-500 font-medium" : "text-muted-foreground"}`}
           >
             {isPendingFill ? (
               <>
@@ -1963,13 +1963,13 @@ function ArrivalCard({
                 <span className="truncate">{row.guestName}</span>
               )
             ) : (
-              <span className="inline-flex min-w-0 items-center gap-1.5 overflow-hidden">
+              <span className="inline-flex min-w-0 items-center gap-1.5">
                 <span className="min-w-0 truncate">{row.guestName}</span>
                 <PhoneLink phone={row.guestPhone} country={row.guestPhoneCountry} />
+                <ExtraGuests guests={row.additionalGuests ?? []} />
               </span>
             )}
           </div>
-          <ExtraGuests guests={row.additionalGuests ?? []} />
 
           {/* Período: "dd/mm/aaaa a dd/mm/aaaa", editável inline, alinhado à esquerda */}
           <div className="mt-1 flex items-center gap-1 text-xs tabular-nums text-foreground/80">
