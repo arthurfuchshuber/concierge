@@ -272,10 +272,20 @@ function Guide({ data }: { data: GuideOk }) {
     if (typeof window === "undefined") return "home";
     const raw = window.location.hash.replace("#", "");
     const map: Record<string, Section> = {
-      home: "home", checkin: "checkin", saida: "saida", residencia: "residencia", faq: "faq",
-      wifi: "checkin", "senhas-acesso": "checkin", endereco: "checkin", "checkin-instrucoes": "checkin",
-      "manual-casa": "residencia", "regras-casa": "residencia",
-      "checkout-instrucoes": "saida", emergencias: "faq", "contato-anfitriao": "faq",
+      home: "home",
+      checkin: "checkin",
+      saida: "saida",
+      residencia: "residencia",
+      faq: "faq",
+      wifi: "checkin",
+      "senhas-acesso": "checkin",
+      endereco: "checkin",
+      "checkin-instrucoes": "checkin",
+      "manual-casa": "residencia",
+      "regras-casa": "residencia",
+      "checkout-instrucoes": "saida",
+      emergencias: "faq",
+      "contato-anfitriao": "faq",
     };
     if (map[raw]) return map[raw];
     if (raw.startsWith("faq-") || raw.startsWith("local-")) return "faq";
@@ -285,7 +295,9 @@ function Guide({ data }: { data: GuideOk }) {
   const setSection = useCallback((s: Section) => {
     setSectionRaw(s);
     if (typeof window !== "undefined") {
-      try { window.history.replaceState(null, "", `#${s}`); } catch {}
+      try {
+        window.history.replaceState(null, "", `#${s}`);
+      } catch {}
     }
   }, []);
   const trackEvent = useServerFn(trackGuideEvent);
@@ -300,11 +312,20 @@ function Guide({ data }: { data: GuideOk }) {
   useEffect(() => {
     if (typeof window === "undefined") return;
     const SECTION_ALIASES: Record<string, Section> = {
-      home: "home", checkin: "checkin", saida: "saida", residencia: "residencia", faq: "faq",
-      wifi: "checkin", "senhas-acesso": "checkin", endereco: "checkin", "checkin-instrucoes": "checkin",
-      "manual-casa": "residencia", "regras-casa": "residencia",
+      home: "home",
+      checkin: "checkin",
+      saida: "saida",
+      residencia: "residencia",
+      faq: "faq",
+      wifi: "checkin",
+      "senhas-acesso": "checkin",
+      endereco: "checkin",
+      "checkin-instrucoes": "checkin",
+      "manual-casa": "residencia",
+      "regras-casa": "residencia",
       "checkout-instrucoes": "saida",
-      emergencias: "faq", "contato-anfitriao": "faq",
+      emergencias: "faq",
+      "contato-anfitriao": "faq",
     };
     const apply = () => {
       const raw = window.location.hash.replace("#", "");
@@ -313,9 +334,21 @@ function Guide({ data }: { data: GuideOk }) {
       let target: Section | null = SECTION_ALIASES[raw] ?? null;
       let scrollToId: string | null = null;
       if (!target) {
-        if (raw.startsWith("faq-")) { target = "faq"; scrollToId = raw; }
-        else if (raw.startsWith("local-")) { target = "faq"; scrollToId = raw; /* fallback quando /explorar não é rota separada */ }
-      } else if (SECTION_ALIASES[raw] && raw !== "home" && raw !== "checkin" && raw !== "saida" && raw !== "residencia" && raw !== "faq") {
+        if (raw.startsWith("faq-")) {
+          target = "faq";
+          scrollToId = raw;
+        } else if (raw.startsWith("local-")) {
+          target = "faq";
+          scrollToId = raw; /* fallback quando /explorar não é rota separada */
+        }
+      } else if (
+        SECTION_ALIASES[raw] &&
+        raw !== "home" &&
+        raw !== "checkin" &&
+        raw !== "saida" &&
+        raw !== "residencia" &&
+        raw !== "faq"
+      ) {
         scrollToId = raw;
       }
       if (target) {
@@ -324,7 +357,10 @@ function Guide({ data }: { data: GuideOk }) {
         requestAnimationFrame(() => {
           if (scrollToId) {
             const el = document.getElementById(scrollToId);
-            if (el) { el.scrollIntoView({ behavior: "smooth", block: "start" }); return; }
+            if (el) {
+              el.scrollIntoView({ behavior: "smooth", block: "start" });
+              return;
+            }
           }
           window.scrollTo({ top: 0, behavior: "auto" });
         });
@@ -345,9 +381,6 @@ function Guide({ data }: { data: GuideOk }) {
       window.location.hash = hash;
     }
   }
-
-
-
 
   function gotoSection(s: Section) {
     setSection(s);
@@ -468,8 +501,6 @@ function Guide({ data }: { data: GuideOk }) {
     }).catch(() => {});
   };
 
-
-
   // Expansividade da barra "check-in libera em" — abre wi-fi/senhas
   const [codesOpen, setCodesOpen] = useState(false);
   const [locWifiOpen, setLocWifiOpen] = useState(false);
@@ -492,7 +523,6 @@ function Guide({ data }: { data: GuideOk }) {
     checkinLocked,
     onRequestUnlock: () => requestUnlock(),
   };
-
 
   // Theme: admin default, override per-visitor via localStorage
   const adminTheme: "dark" | "light" = p.guide_theme === "light" ? "light" : "dark";
@@ -696,16 +726,23 @@ function Guide({ data }: { data: GuideOk }) {
           propertyName={p.name as string}
           requireReservationCode={gateEnabled}
           collection={{
-            arrivalTime: ((p as unknown as { collect_arrival_time?: string }).collect_arrival_time as "off" | "optional" | "required") ?? "off",
-            vehicles: ((p as unknown as { collect_vehicles?: string }).collect_vehicles as "off" | "optional" | "required") ?? "off",
+            arrivalTime:
+              ((p as unknown as { collect_arrival_time?: string }).collect_arrival_time as
+                | "off"
+                | "optional"
+                | "required") ?? "off",
+            vehicles:
+              ((p as unknown as { collect_vehicles?: string }).collect_vehicles as "off" | "optional" | "required") ??
+              "off",
             vehiclesMax: (p as unknown as { vehicles_max?: number }).vehicles_max ?? 2,
-            document: ((p as unknown as { collect_document?: string }).collect_document as "off" | "optional" | "required") ?? "off",
+            document:
+              ((p as unknown as { collect_document?: string }).collect_document as "off" | "optional" | "required") ??
+              "off",
             documentScope: ((p as unknown as { document_scope?: string }).document_scope as "main" | "all") ?? "main",
           }}
           onUnlock={setAccessRec}
           timeZone={propertyTimeZone(p.city as string | null, (p as any).country as string | null)}
           theme={theme === "light" ? "light" : "dark"}
-
         />
       )}
       <div className="relative z-10 mx-auto w-full max-w-[490px] md:max-w-[520px]">
@@ -737,11 +774,7 @@ function Guide({ data }: { data: GuideOk }) {
                 <div className="mt-3 md:mt-4">
                   {(() => {
                     const hasCodes =
-                      p.wifi_ssid ||
-                      (p as any).gate_code_set ||
-                      (p as any).lock_code_set ||
-                      p.gate_code ||
-                      p.lock_code;
+                      p.wifi_ssid || (p as any).gate_code_set || (p as any).lock_code_set || p.gate_code || p.lock_code;
                     if (!hasCodes) {
                       return (
                         <CheckinCountdown
@@ -851,7 +884,9 @@ function Guide({ data }: { data: GuideOk }) {
               {((homeStripsVisible && p.checkin_note) ||
                 (checkoutNoticeVisible && (p.checkout_note || p.checkout_time))) && (
                 <div className="px-4 md:px-10 lg:px-16 mt-3">
-                  <div className={`rounded-[22px] border px-4 py-4 flex flex-col gap-4 ${theme === "dark" ? "border-amber-300/22 bg-amber-300/10 text-amber-50" : "border-amber-200/80 bg-amber-50/90 text-amber-950"}`}>
+                  <div
+                    className={`rounded-[22px] border px-4 py-4 flex flex-col gap-4 ${theme === "dark" ? "border-amber-300/22 bg-amber-300/10 text-amber-50" : "border-amber-200/80 bg-amber-50/90 text-amber-950"}`}
+                  >
                     {homeStripsVisible && p.checkin_note && (
                       <div className="flex items-start gap-3 md:flex-1 md:min-w-0">
                         <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-amber-400/15 text-amber-400">
@@ -875,16 +910,18 @@ function Guide({ data }: { data: GuideOk }) {
                         <div className="min-w-0">
                           <p className="text-[10px] uppercase tracking-[0.18em] font-black opacity-75 truncate whitespace-nowrap">
                             {(() => {
-                              const t = p.checkout_time
-                                ? String(p.checkout_time).match(/^(\d{1,2}):(\d{2})/)
-                                : null;
+                              const t = p.checkout_time ? String(p.checkout_time).match(/^(\d{1,2}):(\d{2})/) : null;
                               const time = t ? `${t[1].padStart(2, "0")}h${t[2] !== "00" ? t[2] : ""}` : null;
                               return `Importante · Check-out${time ? ` até ${time}` : ""}`;
                             })()}
                           </p>
                           {p.checkout_note && (
                             <p className="text-[13px] leading-relaxed font-medium mt-1 whitespace-pre-line">
-                              <InlineTagText text={String(p.checkout_note)} onNavigate={navigateGuideTag} info={infoCtx} />
+                              <InlineTagText
+                                text={String(p.checkout_note)}
+                                onNavigate={navigateGuideTag}
+                                info={infoCtx}
+                              />
                             </p>
                           )}
                         </div>
@@ -894,20 +931,22 @@ function Guide({ data }: { data: GuideOk }) {
                 </div>
               )}
 
-
               <section id="guide-actions" className="px-4 md:px-10 lg:px-16 mt-3.5 md:mt-5 relative z-10">
                 <div className="flex items-center gap-3 mb-3.5 md:mb-4">
-                  <p className={`shrink-0 whitespace-nowrap text-[9.5px] md:text-[10px] uppercase tracking-[0.24em] font-black ${theme === "dark" ? "text-white/76" : "text-slate-950/78"}`}>
+                  <p
+                    className={`shrink-0 whitespace-nowrap text-[9.5px] md:text-[10px] uppercase tracking-[0.24em] font-black ${theme === "dark" ? "text-white/76" : "text-slate-950/78"}`}
+                  >
                     <span className="inline-block size-1.5 rounded-full bg-fuchsia-500 mr-2 align-middle shadow-[0_0_7px_rgba(217,70,239,0.75)]" />
                     Acessos rápidos
                   </p>
-                  <span className={`h-px flex-1 bg-gradient-to-r ${theme === "dark" ? "from-white/12 via-white/4" : "from-slate-900/12 via-slate-900/4"} to-transparent`} />
+                  <span
+                    className={`h-px flex-1 bg-gradient-to-r ${theme === "dark" ? "from-white/12 via-white/4" : "from-slate-900/12 via-slate-900/4"} to-transparent`}
+                  />
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
                   {quickCards.map((c) => {
-                    const span =
-                      c.variant === "hero-wide" || c.variant === "horizontal-wide" ? "col-span-2" : "";
+                    const span = c.variant === "hero-wide" || c.variant === "horizontal-wide" ? "col-span-2" : "";
                     const inner = (
                       <SectionCard
                         title={c.title}
@@ -917,16 +956,11 @@ function Guide({ data }: { data: GuideOk }) {
                         tone={c.tone}
                         badge={c.badge}
                         theme={theme}
-                        imageUrl={c.key === "explore" ? (themeImages.explore || waterfallImg) : undefined}
+                        imageUrl={c.key === "explore" ? themeImages.explore || waterfallImg : undefined}
                       />
                     );
                     return c.to?.kind === "link" ? (
-                      <Link
-                        key={c.key}
-                        to="/g/$slug/explorar"
-                        params={{ slug }}
-                        className={`block ${span}`}
-                      >
+                      <Link key={c.key} to="/g/$slug/explorar" params={{ slug }} className={`block ${span}`}>
                         {inner}
                       </Link>
                     ) : (
@@ -984,9 +1018,6 @@ function Guide({ data }: { data: GuideOk }) {
                   </button>
                 </section>
               )}
-
-
-
 
               <footer className="mt-10 px-6 text-center flex items-center justify-center gap-2.5">
                 {p.brand_logo_url ? (
@@ -1090,9 +1121,7 @@ function Guide({ data }: { data: GuideOk }) {
                       uberParams.set("dropoff[formatted_address]", String(p.address));
                       uberParams.set("dropoff[nickname]", String(p.address).slice(0, 60));
                     }
-                    const uberUrl = (hasCoords || p.address)
-                      ? `https://m.uber.com/ul/?${uberParams.toString()}`
-                      : null;
+                    const uberUrl = hasCoords || p.address ? `https://m.uber.com/ul/?${uberParams.toString()}` : null;
                     // 99 deep link — abre o app com destino preenchido
                     const noveNoveParams = new URLSearchParams();
                     noveNoveParams.set("deep_link_value", "open_ride_estimate");
@@ -1103,9 +1132,8 @@ function Guide({ data }: { data: GuideOk }) {
                     if (p.address) {
                       noveNoveParams.set("dropoff_title", String(p.address));
                     }
-                    const noveNoveUrl = (hasCoords || p.address)
-                      ? `https://99app.com/open/?${noveNoveParams.toString()}`
-                      : null;
+                    const noveNoveUrl =
+                      hasCoords || p.address ? `https://99app.com/open/?${noveNoveParams.toString()}` : null;
 
                     return (
                       <SubList>
@@ -1167,7 +1195,11 @@ function Guide({ data }: { data: GuideOk }) {
                                       Observação
                                     </p>
                                     <p className="text-[14px] text-foreground/85 leading-relaxed whitespace-pre-line">
-                                      <InlineTagText text={String(p.checkin_note)} onNavigate={navigateGuideTag} info={infoCtx} />
+                                      <InlineTagText
+                                        text={String(p.checkin_note)}
+                                        onNavigate={navigateGuideTag}
+                                        info={infoCtx}
+                                      />
                                     </p>
                                   </div>
                                 )}
@@ -1431,7 +1463,9 @@ function Guide({ data }: { data: GuideOk }) {
                             label="Proibido Neste Espaço"
                             hint="O que não é permitido durante a estadia"
                           >
-                            <RulesGrid text={expandInfoTags(String((p as Record<string, unknown>).house_rules), p as never)} />
+                            <RulesGrid
+                              text={expandInfoTags(String((p as Record<string, unknown>).house_rules), p as never)}
+                            />
                           </SubItem>
                         ) : null}
                       </SubList>
@@ -1509,7 +1543,11 @@ function Guide({ data }: { data: GuideOk }) {
                                       Observação
                                     </p>
                                     <p className="text-[14px] text-foreground/85 leading-relaxed whitespace-pre-line">
-                                      <InlineTagText text={String(p.checkout_note)} onNavigate={navigateGuideTag} info={infoCtx} />
+                                      <InlineTagText
+                                        text={String(p.checkout_note)}
+                                        onNavigate={navigateGuideTag}
+                                        info={infoCtx}
+                                      />
                                     </p>
                                   </div>
                                 )}
@@ -1524,7 +1562,10 @@ function Guide({ data }: { data: GuideOk }) {
                             hint="Passo a passo da saída"
                           >
                             <div className="rounded-2xl border border-border/60 bg-background/40 px-4 py-4">
-                              <StepList text={expandInfoTags(String(p.checkout_instructions ?? ""), p as never)} dense />
+                              <StepList
+                                text={expandInfoTags(String(p.checkout_instructions ?? ""), p as never)}
+                                dense
+                              />
                             </div>
                           </SubItem>
                         )}
@@ -1633,35 +1674,36 @@ function Guide({ data }: { data: GuideOk }) {
                         {data.faqs.map((f: any, idx: number) => {
                           const anchor = `faq-${slugForTag(String(f.question ?? ""))}`;
                           return (
-                          <AccordionItem
-                            key={f.id}
-                            id={anchor}
-                            value={f.id}
-                            className="border border-border/70 rounded-xl px-3.5 bg-card/30 hover:bg-card/60 transition-colors data-[state=open]:bg-card data-[state=open]:border-accent/40 scroll-mt-24"
-                          >
-                            <AccordionTrigger className="text-left hover:no-underline py-2.5 gap-3">
-                              <span className="flex items-center gap-2.5 min-w-0">
-                                <span className="text-[10px] font-mono text-accent/70 tabular-nums tracking-wider shrink-0">
-                                  {String(idx + 1).padStart(2, "0")}
+                            <AccordionItem
+                              key={f.id}
+                              id={anchor}
+                              value={f.id}
+                              className="border border-border/70 rounded-xl px-3.5 bg-card/30 hover:bg-card/60 transition-colors data-[state=open]:bg-card data-[state=open]:border-accent/40 scroll-mt-24"
+                            >
+                              <AccordionTrigger className="text-left hover:no-underline py-2.5 gap-3">
+                                <span className="flex items-center gap-2.5 min-w-0">
+                                  <span className="text-[10px] font-mono text-accent/70 tabular-nums tracking-wider shrink-0">
+                                    {String(idx + 1).padStart(2, "0")}
+                                  </span>
+                                  <span className="text-[13.5px] font-medium leading-snug truncate">{f.question}</span>
                                 </span>
-                                <span className="text-[13.5px] font-medium leading-snug truncate">{f.question}</span>
-                              </span>
-                            </AccordionTrigger>
-                            <AccordionContent className="text-[13.5px] leading-relaxed whitespace-pre-line text-foreground/80 pl-6 pr-1 pb-3.5 max-w-prose">
-                              <InlineTagText
-                                text={String(f.answer ?? "")}
-                                onNavigate={(k, pp) => navigateGuideTag(k, pp)}
-                                info={{
-                                  snapshot: p as never,
-                                  unlocked,
-                                  hasAccessPin,
-                                  checkinLocked,
-                                  onRequestUnlock: () => requestUnlock(),
-                                }}
-                              />
-                            </AccordionContent>
-                          </AccordionItem>
-                        );})}
+                              </AccordionTrigger>
+                              <AccordionContent className="text-[13.5px] leading-relaxed whitespace-pre-line text-foreground/80 pl-6 pr-1 pb-3.5 max-w-prose">
+                                <InlineTagText
+                                  text={String(f.answer ?? "")}
+                                  onNavigate={(k, pp) => navigateGuideTag(k, pp)}
+                                  info={{
+                                    snapshot: p as never,
+                                    unlocked,
+                                    hasAccessPin,
+                                    checkinLocked,
+                                    onRequestUnlock: () => requestUnlock(),
+                                  }}
+                                />
+                              </AccordionContent>
+                            </AccordionItem>
+                          );
+                        })}
                       </Accordion>
                     </div>
                   )}
@@ -1765,14 +1807,23 @@ function Guide({ data }: { data: GuideOk }) {
             active={active}
             items={items}
             onSelect={(k: BottomNavKey) => {
-              if (k === "home") { setSection("home"); window.scrollTo({ top: 0, behavior: "smooth" }); return; }
-              if (k === "explore") { window.location.href = `/g/${slug}/explorar`; return; }
+              if (k === "home") {
+                setSection("home");
+                window.scrollTo({ top: 0, behavior: "smooth" });
+                return;
+              }
+              if (k === "explore") {
+                window.location.href = `/g/${slug}/explorar`;
+                return;
+              }
               gotoSection(k as Section);
             }}
           />
         );
       })()}
-      {!needsGate && data.aiEnabled ? <GuideAiChat slug={slug} propertyName={heroParts.title} guestName={accessRec?.name ?? null} /> : null}
+      {!needsGate && data.aiEnabled ? (
+        <GuideAiChat slug={slug} propertyName={heroParts.title} guestName={accessRec?.name ?? null} />
+      ) : null}
       <PinDialog
         open={pinDialog.open}
         slug={slug}
@@ -1844,9 +1895,7 @@ function LocWifiDialog({
             <Wifi className="size-[18px]" strokeWidth={1.75} />
           </div>
           <DialogTitle className="font-display text-[18px] tracking-tight">Localização & Wi-Fi</DialogTitle>
-          <p className="text-[12px] text-muted-foreground mt-1 leading-relaxed">
-            Onde estamos e como se conectar.
-          </p>
+          <p className="text-[12px] text-muted-foreground mt-1 leading-relaxed">Onde estamos e como se conectar.</p>
         </div>
         <div className="px-5 py-4 max-h-[65vh] overflow-y-auto sg-elegant-scroll space-y-5">
           {hasLoc && (
@@ -1960,8 +2009,6 @@ function LocWifiDialog({
     </Dialog>
   );
 }
-
-
 
 function residenciaIcon(title: string): React.ReactNode {
   const t = title.toLowerCase();
@@ -2128,11 +2175,7 @@ function HeroCompact({
     <section className="relative px-4 md:px-10 lg:px-16 pt-4 pb-3 md:pt-6 md:pb-5">
       <header className="relative z-10 flex items-center justify-between gap-3">
         <div className="flex items-center gap-1.5 min-w-0">
-          <img
-            src={conciergeLogo}
-            alt="ConciergeIA"
-            className="size-6 object-contain shrink-0"
-          />
+          <img src={conciergeLogo} alt="ConciergeIA" className="size-6 object-contain shrink-0" />
           <span
             className={`font-display font-bold text-[13.5px] tracking-tight truncate ${isDark ? "text-white" : "text-foreground"}`}
           >
@@ -2194,7 +2237,9 @@ function HeroCompact({
               }`}
             />
           ))}
-          {photos.length === 0 && <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-violet-950 to-pink-950" />}
+          {photos.length === 0 && (
+            <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-violet-950 to-pink-950" />
+          )}
           <div
             className={`absolute inset-0 ${
               isDark
@@ -2221,7 +2266,9 @@ function HeroCompact({
               {name}
               {tagline ? <span className="opacity-90"> {tagline}</span> : null}
             </h1>
-            <p className={`relative z-10 mt-2.5 max-w-[260px] text-[12.5px] md:text-[13.5px] leading-[1.45] ${isDark ? "text-white/72" : "text-slate-950/76"}`}>
+            <p
+              className={`relative z-10 mt-2.5 max-w-[260px] text-[12.5px] md:text-[13.5px] leading-[1.45] ${isDark ? "text-white/72" : "text-slate-950/76"}`}
+            >
               Tudo o que você precisa para uma estadia incrível.
             </p>
           </div>
@@ -2266,18 +2313,57 @@ function HeroCompact({
           )}
         </div>
       </div>
-
     </section>
   );
 }
 
 // Celestial glassmorphism — each tone owns its color story
 const SECTION_TONES = {
-  gold:   { border: "border-pink-500/22",    bg: "bg-[linear-gradient(135deg,rgba(236,72,153,0.09),rgba(88,28,135,0.04)_58%,rgba(2,6,23,0.55))]", iconBg: "bg-pink-500/14",    iconRing: "border-pink-400/22",    icon: "text-pink-300",    accent: "text-pink-200",    glow: "shadow-pink-500/12" },
-  blue:   { border: "border-blue-500/16",    bg: "bg-white/[0.035]", iconBg: "bg-blue-500/12",    iconRing: "border-blue-400/20",    icon: "text-blue-300",    accent: "text-blue-200",    glow: "shadow-blue-500/8" },
-  green:  { border: "border-amber-400/18",   bg: "bg-white/[0.035]", iconBg: "bg-amber-400/12",   iconRing: "border-amber-300/22",   icon: "text-amber-200",   accent: "text-amber-100",   glow: "shadow-amber-500/8" },
-  purple: { border: "border-violet-500/18",  bg: "bg-white/[0.035]", iconBg: "bg-violet-500/14",  iconRing: "border-violet-400/22",  icon: "text-violet-300",  accent: "text-violet-200",  glow: "shadow-violet-500/8" },
-  rose:   { border: "border-pink-500/24",    bg: "bg-pink-500/[0.10]", iconBg: "bg-pink-500/16", iconRing: "border-pink-400/22", icon: "text-pink-300", accent: "text-pink-200", glow: "shadow-pink-500/12" },
+  gold: {
+    border: "border-pink-500/22",
+    bg: "bg-[linear-gradient(135deg,rgba(236,72,153,0.09),rgba(88,28,135,0.04)_58%,rgba(2,6,23,0.55))]",
+    iconBg: "bg-pink-500/14",
+    iconRing: "border-pink-400/22",
+    icon: "text-pink-300",
+    accent: "text-pink-200",
+    glow: "shadow-pink-500/12",
+  },
+  blue: {
+    border: "border-blue-500/16",
+    bg: "bg-white/[0.035]",
+    iconBg: "bg-blue-500/12",
+    iconRing: "border-blue-400/20",
+    icon: "text-blue-300",
+    accent: "text-blue-200",
+    glow: "shadow-blue-500/8",
+  },
+  green: {
+    border: "border-amber-400/18",
+    bg: "bg-white/[0.035]",
+    iconBg: "bg-amber-400/12",
+    iconRing: "border-amber-300/22",
+    icon: "text-amber-200",
+    accent: "text-amber-100",
+    glow: "shadow-amber-500/8",
+  },
+  purple: {
+    border: "border-violet-500/18",
+    bg: "bg-white/[0.035]",
+    iconBg: "bg-violet-500/14",
+    iconRing: "border-violet-400/22",
+    icon: "text-violet-300",
+    accent: "text-violet-200",
+    glow: "shadow-violet-500/8",
+  },
+  rose: {
+    border: "border-pink-500/24",
+    bg: "bg-pink-500/[0.10]",
+    iconBg: "bg-pink-500/16",
+    iconRing: "border-pink-400/22",
+    icon: "text-pink-300",
+    accent: "text-pink-200",
+    glow: "shadow-pink-500/12",
+  },
 } as const;
 
 function SectionCard({
@@ -2308,8 +2394,24 @@ function SectionCard({
   // Light theme fallback — keeps the card readable without glass
   const lightBg = footerStyle ? "bg-pink-50/88" : isGold ? "bg-white/62" : "bg-white/45";
   const lightBorder = footerStyle ? "border-pink-100" : "border-slate-900/[0.055]";
-  const lightIconBg = isGold ? "bg-pink-50" : tone === "purple" ? "bg-violet-50" : tone === "green" ? "bg-emerald-50" : tone === "blue" ? "bg-blue-50" : "bg-pink-50";
-  const lightIcon = isGold ? "text-pink-600" : tone === "purple" ? "text-violet-600" : tone === "green" ? "text-emerald-600" : tone === "blue" ? "text-blue-600" : "text-pink-600";
+  const lightIconBg = isGold
+    ? "bg-pink-50"
+    : tone === "purple"
+      ? "bg-violet-50"
+      : tone === "green"
+        ? "bg-emerald-50"
+        : tone === "blue"
+          ? "bg-blue-50"
+          : "bg-pink-50";
+  const lightIcon = isGold
+    ? "text-pink-600"
+    : tone === "purple"
+      ? "text-violet-600"
+      : tone === "green"
+        ? "text-emerald-600"
+        : tone === "blue"
+          ? "text-blue-600"
+          : "text-pink-600";
 
   const surfaceBg = isDark ? t.bg : lightBg;
   const surfaceBorder = isDark ? t.border : lightBorder;
@@ -2351,7 +2453,9 @@ function SectionCard({
           </>
         )}
         {!imageUrl && isDark && (
-          <span className={`pointer-events-none absolute -top-8 -right-8 h-24 w-24 rounded-full opacity-24 blur-2xl ${t.iconBg}`} />
+          <span
+            className={`pointer-events-none absolute -top-8 -right-8 h-24 w-24 rounded-full opacity-24 blur-2xl ${t.iconBg}`}
+          />
         )}
         <div
           className={`relative grid size-12 shrink-0 place-items-center rounded-full border ${iconBgCls} ${iconRingCls}`}
@@ -2362,7 +2466,10 @@ function SectionCard({
           <p className={`text-[14px] font-black leading-tight ${titleColor}`}>{title}</p>
           <p className={`mt-1 text-[11.5px] leading-snug line-clamp-2 ${descColor}`}>{desc}</p>
         </div>
-        <ChevronRight className={`relative size-4 shrink-0 ${isDark ? "text-white/82" : "text-slate-950/68"}`} strokeWidth={2} />
+        <ChevronRight
+          className={`relative size-4 shrink-0 ${isDark ? "text-white/82" : "text-slate-950/68"}`}
+          strokeWidth={2}
+        />
       </div>
     );
   }
@@ -2381,7 +2488,9 @@ function SectionCard({
       {/* Interior glow */}
       {isDark && (
         <>
-          <span className={`pointer-events-none absolute -top-10 -right-10 h-28 w-28 rounded-full opacity-24 blur-3xl ${t.iconBg}`} />
+          <span
+            className={`pointer-events-none absolute -top-10 -right-10 h-28 w-28 rounded-full opacity-24 blur-3xl ${t.iconBg}`}
+          />
           {isGold && (
             <span className="pointer-events-none absolute inset-0 rounded-[20px] bg-gradient-to-br from-pink-400/[0.08] to-transparent" />
           )}
@@ -2415,9 +2524,7 @@ function SectionCard({
       )}
 
       <div className={`relative flex items-start ${isHero ? "gap-4" : "gap-3"}`}>
-        <div
-          className={`grid ${iconSize} shrink-0 place-items-center rounded-full border ${iconBgCls} ${iconRingCls}`}
-        >
+        <div className={`grid ${iconSize} shrink-0 place-items-center rounded-full border ${iconBgCls} ${iconRingCls}`}>
           <span className={`${iconColorCls} ${iconSvg}`}>{icon}</span>
         </div>
         <div className="min-w-0 flex-1">
@@ -2437,9 +2544,7 @@ function SectionCard({
         badge && (
           <span
             className={`absolute top-3 right-3 z-10 rounded-md px-2 py-0.5 text-[9.5px] font-black uppercase tracking-tighter ${
-              isDark
-                ? "bg-amber-400 text-black shadow-[0_0_12px_rgba(251,191,36,0.5)]"
-                : "bg-amber-500 text-white"
+              isDark ? "bg-amber-400 text-black shadow-[0_0_12px_rgba(251,191,36,0.5)]" : "bg-amber-500 text-white"
             }`}
           >
             {badge}
@@ -2449,8 +2554,6 @@ function SectionCard({
     </div>
   );
 }
-
-
 
 function SubList({ children }: { children: React.ReactNode }) {
   return (
@@ -3111,7 +3214,9 @@ function CodesTrigger({
         }`}
       >
         <div className="flex items-center justify-between gap-2">
-          <p className={`text-[12px] font-medium inline-flex items-center gap-1.5 ${isLight ? "text-foreground/80" : "text-white/85"}`}>
+          <p
+            className={`text-[12px] font-medium inline-flex items-center gap-1.5 ${isLight ? "text-foreground/80" : "text-white/85"}`}
+          >
             <KeyRound className="size-3.5 text-amber-400" strokeWidth={2} />
             {open ? "Ocultar senhas de acesso" : "Ver senhas de acesso"}
           </p>
@@ -3124,8 +3229,6 @@ function CodesTrigger({
     </div>
   );
 }
-
-
 
 function WifiStrip({
   ssid,
@@ -3217,11 +3320,12 @@ function WifiStrip({
       </span>
 
       <div className="relative flex items-center gap-3 px-3 py-3">
-
         <span
           className={`relative grid size-10 shrink-0 place-items-center rounded-xl ring-1 ${isLight ? "bg-accent/15 text-accent/80 ring-accent/20" : "bg-amber-400/10 text-amber-50 ring-amber-200/25"}`}
         >
-          <span className={`wifi-pulse pointer-events-none absolute -inset-1 rounded-xl ${isLight ? "bg-accent/15" : "bg-amber-400/12"} blur-md -z-10`} />
+          <span
+            className={`wifi-pulse pointer-events-none absolute -inset-1 rounded-xl ${isLight ? "bg-accent/15" : "bg-amber-400/12"} blur-md -z-10`}
+          />
           <Wifi className="relative size-[18px]" strokeWidth={2} />
         </span>
         <div className="flex-1 min-w-0">
@@ -3232,8 +3336,8 @@ function WifiStrip({
             {hasPwd ? (showing ? password : masked) : "—"}
           </p>
         </div>
-        {hasPwd && (
-          !showing ? (
+        {hasPwd &&
+          (!showing ? (
             <button
               onClick={handleEyeClick}
               aria-label="Ver senha do Wi-Fi"
@@ -3248,11 +3352,14 @@ function WifiStrip({
               aria-label="Copiar senha do Wi-Fi"
               className="shrink-0 inline-flex items-center gap-1.5 rounded-full bg-foreground text-background px-3 py-1.5 text-[11px] font-semibold tracking-wide hover:opacity-90 active:scale-95 transition-all"
             >
-              {copied ? <Check className="size-3.5" strokeWidth={2.4} /> : <Copy className="size-3.5" strokeWidth={2.4} />}
+              {copied ? (
+                <Check className="size-3.5" strokeWidth={2.4} />
+              ) : (
+                <Copy className="size-3.5" strokeWidth={2.4} />
+              )}
               <span>{copied ? "Copiado" : "Copiar"}</span>
             </button>
-          )
-        )}
+          ))}
       </div>
     </div>
   );
@@ -3370,7 +3477,6 @@ function AccessCodesStrip({
       </span>
 
       <div className="relative flex items-center gap-3 px-3 py-3">
-
         <span
           className={`relative grid size-10 shrink-0 place-items-center rounded-xl ring-1 ${isLight ? "bg-accent/15 text-accent/80 ring-accent/20" : "bg-amber-400/10 text-amber-50 ring-amber-200/25"}`}
         >
@@ -3560,10 +3666,10 @@ function PinDialog({
           </div>
           <DialogHeader className="text-center space-y-1.5">
             <DialogTitle className="font-serif text-[20px] leading-tight tracking-tight">
-              Senha de acesso
+              Código de Visualização
             </DialogTitle>
             <p className="text-[12.5px] text-muted-foreground leading-relaxed px-2">
-              Digite a senha do anfitrião para ver os dados sensíveis.
+              Digite o código de visualização enviado pelo anfitrião para obter as senhas de acesso do imóvel.
             </p>
           </DialogHeader>
         </div>
