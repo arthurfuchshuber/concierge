@@ -40,6 +40,10 @@ import { TagPicker, useTaxonomy, TAXONOMY_QUERY_KEY, NewCategoryDialog, NewTagDi
 import { updatePoiCategory, reorderPoiCategories, deletePoiCategory } from "@/lib/poi-taxonomy.functions";
 import { PropertyDetailsEditor } from "@/components/admin/PropertyDetailsEditor";
 import { PropertyTypeSelect } from "@/components/admin/PropertyTypeSelect";
+import { usePresence } from "@/hooks/usePresence";
+import { useRealtimeInvalidate } from "@/hooks/useRealtimeInvalidate";
+import { PresenceAvatars } from "@/components/presence/PresenceAvatars";
+import { FieldTypingBadge } from "@/components/presence/FieldTypingBadge";
 import { Pencil, Check as CheckIcon, X as XIcon, Search, Settings2 } from "lucide-react";
 import { friendlyErrorMessage } from "@/lib/friendly-error";
 import { SigmaImportButton, SigmaActiveBanner, SaveAsSigmaPackButton } from "@/components/admin/SigmaImportButton";
@@ -186,6 +190,38 @@ function PropertyEditor() {
   const { id } = Route.useParams();
   const isNew = id === "new";
   const navigate = useNavigate();
+  // Presença em tempo real: quem mais está nesta mesma tela agora, e o que
+  // está digitando (piloto — ver usePresence.ts para estender a outras telas).
+  const presence = usePresence(!isNew ? `property:${id}` : null);
+  // Instantâneo de verdade pra QUALQUER escrita neste imóvel — não só a de
+  // quem está com a tela aberta. Antes, um "Salvar" só refletia na mesma
+  // aba/sessão que salvou; outro usuário com este mesmo imóvel aberto em
+  // outro navegador só via a mudança se desse refresh manual.
+  useRealtimeInvalidate(
+    `property-live:${id}`,
+    !isNew
+      ? [
+          { table: "properties", filter: `id=eq.${id}` },
+          { table: "property_manual_items", filter: `property_id=eq.${id}` },
+          { table: "property_faqs", filter: `property_id=eq.${id}` },
+          { table: "property_checkout_items", filter: `property_id=eq.${id}` },
+          { table: "property_emergency_contacts", filter: `property_id=eq.${id}` },
+          { table: "property_recommendations", filter: `property_id=eq.${id}` },
+        ]
+      : [],
+    [["property", id]],
+    {
+      enabled: !isNew,
+      // Se você tem edição local não salva, recarregar agora apagaria o que
+      // está digitando — nesse caso só avisamos, sem sobrescrever sozinho.
+      shouldRefetch: () => !dirtyRef.current,
+      onRemoteChange: () => {
+        if (dirtyRef.current) {
+          toast.info("Outra pessoa atualizou este imóvel. Salve suas alterações para não perder nada, depois atualize a página para ver as mudanças dela.");
+        }
+      },
+    },
+  );
   // Permissão do editor: com "Visualizar" o conteúdo aparece, mas travado.
   const editorWrite = useAccess("tenant.guias.editor", "write");
   const readOnly = !editorWrite.loading && !editorWrite.allowed;
@@ -502,13 +538,20 @@ function PropertyEditor() {
     // imediatamente após carregar do servidor.
     setTimeout(() => {
       hydratedRef.current = true;
+      dirtyRef.current = false;
       lastSavedRecsRef.current = JSON.stringify(
         (data.recommendations ?? []).filter((r: Record<string, unknown>) => r.scope === "nearby"),
       );
     }, 0);
   }, [data, isNew]);
 
+  // Marca se há edição local ainda não salva — usado pra decidir se uma
+  // atualização em tempo real vinda de outra pessoa pode recarregar a tela
+  // com segurança, ou se isso apagaria o que você está digitando agora.
+  const dirtyRef = useRef(false);
+
   function update<K extends keyof FormState["property"]>(key: K, value: FormState["property"][K]) {
+    dirtyRef.current = true;
     setForm((f) => ({ ...f, property: { ...f.property, [key]: value } }));
   }
 
@@ -895,6 +938,7 @@ function PropertyEditor() {
       };
       const r = await save({ data: payload });
       toast.success(isNew ? "Imóvel criado" : "Guia salvo");
+      dirtyRef.current = false;
       // Invalida caches para que o próximo mount reflita o estado salvo
       // (published, campos alterados, etc.) em vez de servir cache stale.
       queryClient.invalidateQueries({ queryKey: ["property", id] });
@@ -1042,7 +1086,9 @@ function PropertyEditor() {
                     const prev = form.property.airbnb_ical_url;
                     if (!next && prev) { setPendingIcalClear(true); return; }
                     update("airbnb_ical_url", next);
+                    presence.broadcastTyping("airbnb_ical_url", e.target.value);
                   }}
+                  onBlur={() => presence.broadcastFieldBlur("airbnb_ical_url")}
                   placeholder="https://www.airbnb.com/calendar/ical/12345.ics?s=..."
                 />
                 <Button onClick={handleSyncIcal} disabled={syncingIcal || isNew || !canAirbnb || !(form.property.airbnb_ical_url ?? "").trim()} variant="secondary" className="shrink-0" title={isNew ? "Salve o imóvel antes de sincronizar" : "Sincronizar agora"}>
@@ -1061,6 +1107,7 @@ function PropertyEditor() {
                   <Trash2 className="size-4" />
                 </Button>
               </div>
+              <FieldTypingBadge typing={presence.typing["airbnb_ical_url"]} />
             </Field>
 
             {showIcal2 || (form.property.airbnb_ical_url_2 ?? "").trim() ? (
@@ -1172,13 +1219,16 @@ function PropertyEditor() {
         </Link>
 
         <div className="mb-6 pb-4 border-b border-border/60">
-          <div className="flex items-center gap-2 mb-1.5">
-            <h1 className="font-display text-2xl sm:text-3xl">{isNew ? "Novo imóvel" : (form.property.name || "Informações do imóvel")}</h1>
-            {!isNew && (
-              <span className="shrink-0 rounded-full border border-border px-2.5 py-0.5 text-[11px] text-muted-foreground">
-                Sem guia criado
-              </span>
-            )}
+          <div className="flex items-center justify-between gap-2 mb-1.5">
+            <div className="flex items-center gap-2 min-w-0">
+              <h1 className="font-display text-2xl sm:text-3xl truncate">{isNew ? "Novo imóvel" : (form.property.name || "Informações do imóvel")}</h1>
+              {!isNew && (
+                <span className="shrink-0 rounded-full border border-border px-2.5 py-0.5 text-[11px] text-muted-foreground">
+                  Sem guia criado
+                </span>
+              )}
+            </div>
+            <PresenceAvatars users={presence.users} />
           </div>
           <p className="text-sm text-muted-foreground">
             {isNew
@@ -1198,10 +1248,13 @@ function PropertyEditor() {
                     const v = e.target.value.slice(0, 80);
                     update("name", v);
                     if (!form.property.slug) update("slug", slugify(v));
+                    presence.broadcastTyping("name", v);
                   }}
+                  onBlur={() => presence.broadcastFieldBlur("name")}
                   placeholder="Ex: Casa Charmosa Próx. a Avenida das Cataratas"
                 />
               </Field>
+              <FieldTypingBadge typing={presence.typing["name"]} />
             </Section>
 
             {renderPropertyTypeSection()}
@@ -1258,7 +1311,8 @@ function PropertyEditor() {
           <h1 className="font-display text-2xl sm:text-4xl break-words leading-tight line-clamp-2">{form.property.name || "Sem título"}</h1>
         </div>
         {!isNew && (
-          <div className="shrink-0 flex items-center gap-2">
+          <div className="shrink-0 flex items-center gap-3">
+            <PresenceAvatars users={presence.users} />
             <Link
               to="/admin/properties/$id/acessos"
               params={{ id }}

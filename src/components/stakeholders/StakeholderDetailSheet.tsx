@@ -60,6 +60,7 @@ import { listProviderCategories } from "@/lib/provider-categories.functions";
 import { getMyClicksignConfig } from "@/lib/clicksign.functions";
 import { listStakeholderOptions } from "@/lib/stakeholder-links.functions";
 import { PropertyQuickEditDialog } from "@/components/admin/PropertyQuickEditDialog";
+import { useRealtimeInvalidate } from "@/hooks/useRealtimeInvalidate";
 import type { StakeholderKind } from "./StakeholderDirectory";
 import {
   statusLabel,
@@ -202,8 +203,25 @@ export function StakeholderDetailSheet({
   const { data, isLoading } = useQuery({
     queryKey,
     queryFn: () => detailFn({ data: { kind, id } }),
+    // O refetchInterval de 20s continua como rede de segurança — o Realtime
+    // abaixo já cobre o caso comum (instantâneo), isto só cobre eventos que
+    // por algum motivo não chegaram pelo canal (rede instável, por exemplo).
     refetchInterval: 20_000,
   });
+
+  // Instantâneo pra quem estiver com ESTA MESMA ficha aberta: os próprios
+  // dados do proprietário mudando (outra pessoa editou) ou um imóvel sendo
+  // vinculado/desvinculado/editado — sem esperar o poll de 20s.
+  useRealtimeInvalidate(
+    `stakeholder-live:${kind}:${id}`,
+    kind === "owner"
+      ? [
+          { table: "property_owners", filter: `id=eq.${id}` },
+          { table: "properties", filter: `owner_contact_id=eq.${id}` },
+        ]
+      : [{ table: "service_providers", filter: `id=eq.${id}` }],
+    [queryKey],
+  );
 
   const feedFn = useServerFn(getStakeholderIntegrationFeed);
   const feed = useQuery({
