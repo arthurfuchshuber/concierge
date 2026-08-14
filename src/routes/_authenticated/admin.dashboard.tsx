@@ -863,11 +863,8 @@ function KpiCard({
                           </>
                         )}
                       </div>
-                      {(r.additionalGuests?.length ?? 0) > 0 && (
-                        <div className="mt-0.5 text-[11px] text-muted-foreground truncate">
-                          + {r.additionalGuests!.map((g) => g.name).join(", ")}
-                        </div>
-                      )}
+                      <ExtraGuests guests={r.additionalGuests ?? []} />
+
                       {r.reservationCode && (
                         <div className="mt-0.5 inline-flex items-center gap-0.5 text-[11px] text-muted-foreground font-normal tabular-nums">
                           <span className="truncate max-w-[160px]">{r.reservationCode}</span>
