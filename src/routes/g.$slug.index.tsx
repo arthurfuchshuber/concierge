@@ -59,6 +59,7 @@ import { GuideAiChat } from "@/components/GuideAiChat";
 import { HomeIntelligence } from "@/components/guide/HomeIntelligence";
 import { CityNewsFeed } from "@/components/guide/CityNewsFeed";
 import { CheckinCountdown } from "@/components/guide/CheckinCountdown";
+import { propertyTimeZone, todayInTZ, zonedTimeToUtc } from "@/lib/property-timezone";
 import { BottomNav, type BottomNavKey } from "@/components/guide/BottomNav";
 import waterfallImg from "@/assets/rec-waterfall.jpg";
 import conciergeLogo from "@/assets/concierge-logo.png";
@@ -702,6 +703,7 @@ function Guide({ data }: { data: GuideOk }) {
             documentScope: ((p as unknown as { document_scope?: string }).document_scope as "main" | "all") ?? "main",
           }}
           onUnlock={setAccessRec}
+          timeZone={propertyTimeZone(p.city as string | null, (p as any).country as string | null)}
           theme={theme === "light" ? "light" : "dark"}
 
         />
@@ -745,6 +747,7 @@ function Guide({ data }: { data: GuideOk }) {
                         <CheckinCountdown
                           checkinTime={p.checkin_time as string | null}
                           checkinDate={accessRec?.checkinDate ?? null}
+                          timeZone={propertyTimeZone(p.city as string | null, (p as any).country as string | null)}
                           theme={theme}
                         />
                       );
@@ -754,6 +757,7 @@ function Guide({ data }: { data: GuideOk }) {
                         <CheckinCountdown
                           checkinTime={p.checkin_time as string | null}
                           checkinDate={accessRec?.checkinDate ?? null}
+                          timeZone={propertyTimeZone(p.city as string | null, (p as any).country as string | null)}
                           theme={theme}
                           expandable
                           open={codesOpen}
@@ -761,6 +765,7 @@ function Guide({ data }: { data: GuideOk }) {
                         />
                         {/* Trigger neutro — aparece quando o countdown não está visível (fora da janela) */}
                         <CodesTrigger
+                          timeZone={propertyTimeZone(p.city as string | null, (p as any).country as string | null)}
                           theme={theme}
                           open={codesOpen}
                           onToggle={() => setCodesOpen((v) => !v)}
@@ -3057,12 +3062,14 @@ function GatedCopyCard({
 
 function CodesTrigger({
   theme,
+  timeZone,
   open,
   onToggle,
   checkinTime,
   checkinDate,
 }: {
   theme: "dark" | "light";
+  timeZone: string;
   open: boolean;
   onToggle: () => void;
   checkinTime: string | null;
@@ -3079,12 +3086,12 @@ function CodesTrigger({
   if (!now) return null;
   const m = checkinTime ? String(checkinTime).match(/^(\d{1,2}):(\d{2})/) : null;
   if (m) {
-    const target = new Date(now);
-    const dp = checkinDate ? checkinDate.split("-").map(Number) : null;
-    if (dp && dp.length === 3 && !dp.some(Number.isNaN)) {
-      target.setFullYear(dp[0], dp[1] - 1, dp[2]);
-    }
-    target.setHours(Number(m[1]), Number(m[2]), 0, 0);
+    // Sempre no fuso do imóvel, nunca no do aparelho do hóspede.
+    const dp = (checkinDate ?? todayInTZ(timeZone, now)).split("-").map(Number);
+    const target =
+      dp.length === 3 && !dp.some(Number.isNaN)
+        ? zonedTimeToUtc(dp[0], dp[1], dp[2], Number(m[1]), Number(m[2]), timeZone)
+        : now;
     const diffMs = target.getTime() - now.getTime();
     const inCountdown = diffMs > 0;
     const inLiberated = diffMs < 0 && Math.abs(diffMs) < 3 * 60 * 60 * 1000;

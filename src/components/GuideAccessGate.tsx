@@ -29,6 +29,7 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { todayInTZ } from "@/lib/property-timezone";
 import { titleCaseName } from "@/lib/masks";
 
 import PhoneInput, { isValidPhoneNumber, type Country } from "react-phone-number-input";
@@ -113,7 +114,7 @@ function dateFromISODate(value: string): Date | null {
   return new Date(y, m - 1, d, 12, 0, 0, 0);
 }
 
-export function GuideAccessGate({ slug, propertyId, propertyName, requireReservationCode, collection, onUnlock, theme = "dark" }: Props) {
+export function GuideAccessGate({ slug, propertyId, propertyName, requireReservationCode, collection, onUnlock, theme = "dark", timeZone = "America/Sao_Paulo" }: Props & { timeZone?: string }) {
   const themeClass = cn("sigma-public-guide", theme === "light" && "theme-light");
 
   const submit = useServerFn(recordGuideAccess);
@@ -219,10 +220,8 @@ export function GuideAccessGate({ slug, propertyId, propertyName, requireReserva
 
   const isDateDisabled = (date: Date): boolean => {
     if (selectableDateSet) return !selectableDateSet.has(format(date, "yyyy-MM-dd"));
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    if (date < today) return true;
-    return false;
+    // "Hoje" é o dia do imóvel (fuso da cidade), não o do aparelho do hóspede.
+    return format(date, "yyyy-MM-dd") < todayInTZ(timeZone);
   };
 
   // Auto-pair check-out when the user picks a known reservation check-in.
