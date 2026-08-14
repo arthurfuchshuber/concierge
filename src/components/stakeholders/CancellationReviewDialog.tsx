@@ -58,6 +58,9 @@ export function CancellationReviewDialog() {
       qc.invalidateQueries({ queryKey: ["stakeholders"] });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Não foi possível registrar a decisão.");
+      // Nunca deixar o usuário preso: se a decisão falhar, o popup é liberado
+      // para esta sessão e volta no próximo carregamento.
+      setDismissed((d) => [...d, item.id]);
     } finally {
       setBusy(null);
     }
