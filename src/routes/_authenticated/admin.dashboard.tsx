@@ -1569,20 +1569,63 @@ function EngagementBars({
 }
 
 
+/** Mesma lógica dos cards: hóspede principal (1º a acessar) + "+N" expansível. */
+function GuestMarkGroup({ group, tone }: { group: GuestMark[]; tone: "ok" | "off" }) {
+  const [open, setOpen] = useState(false);
+  const [main, ...rest] = group;
+  return (
+    <li className="flex items-start gap-1.5">
+      <span className={`mt-1 size-1.5 shrink-0 rounded-full ${tone === "ok" ? "bg-emerald-500" : "bg-rose-500"}`} />
+      <span className="min-w-0">
+        <span className="font-medium text-foreground/90">{main.name}</span>
+        {main.property ? <span className="text-muted-foreground"> · {main.property}</span> : null}
+        {rest.length > 0 && (
+          <>
+            {" "}
+            <button
+              type="button"
+              onClick={() => setOpen((v) => !v)}
+              className="inline-flex items-center gap-1 rounded-full border border-border/60 bg-secondary/50 px-1.5 py-0.5 align-middle text-[11px] font-medium text-muted-foreground transition hover:border-border hover:text-foreground"
+              title={`${rest.length} outro(s) hóspede(s) nesta reserva`}
+            >
+              +{rest.length}
+              <ChevronDown className={`size-3 transition-transform ${open ? "rotate-180" : ""}`} />
+            </button>
+            {open && (
+              <ul className="mt-1 space-y-0.5 rounded-lg border border-border/50 bg-background/60 px-2 py-1.5">
+                {rest.map((g, i) => (
+                  <li key={`${g.name}-${i}`} className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                    <span className="size-1 shrink-0 rounded-full bg-muted-foreground/60" />
+                    <span className="min-w-0 truncate">{g.name}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </>
+        )}
+      </span>
+    </li>
+  );
+}
+
 function GuestMarkList({ items, tone }: { items: GuestMark[]; tone: "ok" | "off" }) {
   if (items.length === 0) return <div className="text-muted-foreground text-[11px]">Ninguém</div>;
+  const groups: GuestMark[][] = [];
+  const index = new Map<string, number>();
+  for (const it of items) {
+    const key = it.property || it.name;
+    const at = index.get(key);
+    if (at === undefined) {
+      index.set(key, groups.length);
+      groups.push([it]);
+    } else groups[at].push(it);
+  }
   return (
     <ul className="space-y-0.5">
-      {items.slice(0, 12).map((g, i) => (
-        <li key={`${g.name}-${i}`} className="flex items-start gap-1.5">
-          <span className={`mt-1 size-1.5 shrink-0 rounded-full ${tone === "ok" ? "bg-emerald-500" : "bg-rose-500"}`} />
-          <span className="min-w-0">
-            <span className="font-medium text-foreground/90">{g.name}</span>
-            {g.property ? <span className="text-muted-foreground"> · {g.property}</span> : null}
-          </span>
-        </li>
+      {groups.slice(0, 12).map((g, i) => (
+        <GuestMarkGroup key={`${g[0].name}-${i}`} group={g} tone={tone} />
       ))}
-      {items.length > 12 && <li className="text-muted-foreground text-[11px]">+{items.length - 12} outros</li>}
+      {groups.length > 12 && <li className="text-muted-foreground text-[11px]">+{groups.length - 12} outros</li>}
     </ul>
   );
 }
