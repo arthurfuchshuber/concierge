@@ -498,7 +498,8 @@ export async function buildArrivalRows(
         const aExact = a.checkin_date === r.checkin_date && a.checkout_date === r.checkout_date ? 1 : 0;
         const bExact = b.checkin_date === r.checkin_date && b.checkout_date === r.checkout_date ? 1 : 0;
         if (aExact !== bExact) return bExact - aExact;
-        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+        // Hóspede principal = o PRIMEIRO que acessou o guia desta reserva.
+        return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
       });
       return { primary: matched[0], extras: matched.slice(1) };
     }
@@ -741,7 +742,8 @@ export async function buildArrivalRows(
       nonIcalGroups.set(key, arr);
     }
     for (const group of nonIcalGroups.values()) {
-      group.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+      // Principal = primeiro acesso ao guia (created_at mais antigo).
+      group.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
       const [primary, ...extras] = group;
       const row = rowFromLog(primary, undefined, extras);
       if (row) rows.push(row);

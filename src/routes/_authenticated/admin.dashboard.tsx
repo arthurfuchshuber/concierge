@@ -69,6 +69,50 @@ function PhoneLink({ phone, country }: { phone: string | null; country: string |
   return <PhoneActionButton phone={phone} country={country} size={12} />;
 }
 
+/**
+ * Acompanhantes da mesma reserva: mostramos apenas "+N" clicável; ao expandir,
+ * a lista completa com nome e telefone de cada hóspede.
+ */
+function ExtraGuests({
+  guests,
+}: {
+  guests: Array<{ logId: string; name: string; phone: string | null; phoneCountry: string | null }>;
+}) {
+  const [open, setOpen] = useState(false);
+  if (!guests || guests.length === 0) return null;
+  return (
+    <div className="mt-0.5">
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          setOpen((v) => !v);
+        }}
+        className="inline-flex items-center gap-1 rounded-full border border-border/60 bg-secondary/50 px-2 py-0.5 text-[11px] font-medium text-muted-foreground transition hover:border-border hover:text-foreground"
+        title={`${guests.length} outro(s) hóspede(s) nesta reserva`}
+      >
+        +{guests.length}
+        <ChevronDown className={`size-3 transition-transform ${open ? "rotate-180" : ""}`} />
+      </button>
+      {open && (
+        <ul className="mt-1 space-y-0.5 rounded-lg border border-border/50 bg-background/60 px-2 py-1.5">
+          {guests.map((g) => (
+            <li key={g.logId} className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+              <span className="size-1 rounded-full bg-muted-foreground/60 shrink-0" />
+              <span className="min-w-0 truncate" title={g.name}>
+                {g.name}
+              </span>
+              <PhoneLink phone={g.phone} country={g.phoneCountry} />
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+
+
 
 export const Route = createFileRoute("/_authenticated/admin/dashboard")({
   head: () => ({
@@ -819,11 +863,8 @@ function KpiCard({
                           </>
                         )}
                       </div>
-                      {(r.additionalGuests?.length ?? 0) > 0 && (
-                        <div className="mt-0.5 text-[11px] text-muted-foreground truncate">
-                          + {r.additionalGuests!.map((g) => g.name).join(", ")}
-                        </div>
-                      )}
+                      <ExtraGuests guests={r.additionalGuests ?? []} />
+
                       {r.reservationCode && (
                         <div className="mt-0.5 inline-flex items-center gap-0.5 text-[11px] text-muted-foreground font-normal tabular-nums">
                           <span className="truncate max-w-[160px]">{r.reservationCode}</span>
@@ -1885,20 +1926,8 @@ function ArrivalCard({
               </span>
             )}
           </div>
-          {(row.additionalGuests?.length ?? 0) > 0 && (
-            <ul className="mt-1 space-y-0.5">
-              {row.additionalGuests!.map((g) => (
-                <li
-                  key={g.logId}
-                  className="text-xs text-muted-foreground truncate flex items-center gap-1"
-                  title={g.name}
-                >
-                  <span className="size-1 rounded-full bg-muted-foreground/60 shrink-0" />
-                  <span className="truncate">{g.name}</span>
-                </li>
-              ))}
-            </ul>
-          )}
+          <ExtraGuests guests={row.additionalGuests ?? []} />
+
           {/* Período: "dd/mm/aaaa a dd/mm/aaaa", editável inline, alinhado à esquerda */}
           <div className="mt-1 flex items-center gap-1 text-xs tabular-nums text-foreground/80">
             <DateEditor
