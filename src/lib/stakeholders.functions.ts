@@ -326,13 +326,39 @@ export const getStakeholderDetail = createServerFn({ method: "GET" })
     let availableProperties: PropRow[] = [];
 
     if (data.kind === "owner") {
-      const { data: all } = await supabase
+      // `guide_created` só existe depois da migration 20260814180000. Se ela
+      // ainda não rodou no banco, o select abaixo falha (coluna inexistente)
+      // e o Supabase devolve `data: null` — sem isto, o código antigo fazia
+      // `all ?? []` silenciosamente e a lista de imóveis vinculados sumia
+      // por inteiro, para QUALQUER proprietário, sem erro visível em lugar
+      // nenhum. Agora falha "alto": loga o motivo e cai para o select antigo
+      // (sem guide_created) em vez de mostrar "nenhuma residência" errado.
+      let all: Array<Record<string, unknown>> | null = null;
+      const first = await supabase
         .from("properties")
         .select("id, name, slug, published, guide_created, city, state, owner_contact_id")
         .eq("owner_id", accountId)
         .order("name");
-      properties = (all ?? []).filter((p) => p.owner_contact_id === data.id);
-      availableProperties = (all ?? []).filter((p) => !p.owner_contact_id);
+      if (first.error) {
+        console.error(
+          "[stakeholders] select com guide_created falhou — migration 20260814180000 já rodou no banco? " +
+            first.error.message,
+        );
+        const fallback = await supabase
+          .from("properties")
+          .select("id, name, slug, published, city, state, owner_contact_id")
+          .eq("owner_id", accountId)
+          .order("name");
+        if (fallback.error) {
+          console.error("[stakeholders] select de properties falhou mesmo sem guide_created: " + fallback.error.message);
+        }
+        all = (fallback.data ?? []).map((p) => ({ ...p, guide_created: false }));
+      } else {
+        all = first.data;
+      }
+      const rows = (all ?? []) as unknown as PropRow[];
+      properties = rows.filter((p) => p.owner_contact_id === data.id);
+      availableProperties = rows.filter((p) => !p.owner_contact_id);
     }
     return {
       row: row ?? null,
