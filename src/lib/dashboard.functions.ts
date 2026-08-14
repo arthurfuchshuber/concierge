@@ -511,28 +511,18 @@ export const upsertArrivalStatus = createServerFn({ method: "POST" })
     if (typeof data.mutedUntil !== "undefined") patch.muted_until = data.mutedUntil;
 
 
-    let existingId: string | undefined;
-    if (data.reservationId) {
-      const { data: existingByReservation } = await context.supabase
-        .from("guest_arrival_status")
-        .select("id")
-        .eq("reservation_id", data.reservationId)
-        .eq("kind", data.kind)
-        .limit(1);
-      existingId = (existingByReservation?.[0] as { id: string } | undefined)?.id;
-    }
-    if (!existingId && data.logId) {
-      const { data: existingByLog } = await context.supabase
-        .from("guest_arrival_status")
-        .select("id")
-        .eq("log_id", data.logId)
-        .eq("kind", data.kind)
-        .limit(1);
-      existingId = (existingByLog?.[0] as { id: string } | undefined)?.id;
-    }
-    const { error } = existingId
-      ? await context.supabase.from("guest_arrival_status").update(patch).eq("id", existingId)
-      : await context.supabase.from("guest_arrival_status").insert(patch);
+    // Upsert atômico direto no banco — em vez de "buscar se existe, depois
+    // decidir insert ou update" (que tinha uma janela de corrida real: dois
+    // cliques quase simultâneos podiam os dois "não encontrar" a linha
+    // existente e os dois tentarem inserir, criando duplicata). O onConflict
+    // aponta pro índice único certo conforme o identificador disponível.
+    const { error } = data.reservationId
+      ? await context.supabase
+          .from("guest_arrival_status")
+          .upsert(patch, { onConflict: "reservation_id,kind" })
+      : await context.supabase
+          .from("guest_arrival_status")
+          .upsert(patch, { onConflict: "log_id,kind" });
     if (error) throw new Error(error.message);
     return { ok: true };
   });
@@ -716,27 +706,6 @@ export const advanceArrival = createServerFn({ method: "POST" })
         concluded_at?: string | null;
       },
     ) {
-      // Find existing row for (log|reservation, kind)
-      let existingId: string | undefined;
-      if (data.reservationId) {
-        const { data: existing } = await context.supabase
-          .from("guest_arrival_status")
-          .select("id")
-          .eq("reservation_id", data.reservationId)
-          .eq("kind", kind)
-          .limit(1);
-        existingId = (existing?.[0] as { id: string } | undefined)?.id;
-      }
-      if (!existingId && data.logId) {
-        const { data: existing } = await context.supabase
-          .from("guest_arrival_status")
-          .select("id")
-          .eq("log_id", data.logId)
-          .eq("kind", kind)
-          .limit(1);
-        existingId = (existing?.[0] as { id: string } | undefined)?.id;
-      }
-
       const body: {
         property_id: string;
         kind: "checkin" | "checkout";
@@ -749,9 +718,16 @@ export const advanceArrival = createServerFn({ method: "POST" })
       if (data.logId) body.log_id = data.logId;
       if (data.reservationId) body.reservation_id = data.reservationId;
 
-      const { error } = existingId
-        ? await context.supabase.from("guest_arrival_status").update(body).eq("id", existingId)
-        : await context.supabase.from("guest_arrival_status").insert(body);
+      // Upsert atômico (ver upsertArrivalStatus acima para o motivo: "buscar
+      // depois decidir" tinha uma janela real de corrida entre dois cliques
+      // quase simultâneos, podendo criar linhas duplicadas).
+      const { error } = data.reservationId
+        ? await context.supabase
+            .from("guest_arrival_status")
+            .upsert(body, { onConflict: "reservation_id,kind" })
+        : await context.supabase
+            .from("guest_arrival_status")
+            .upsert(body, { onConflict: "log_id,kind" });
       if (error) throw new Error(error.message);
     }
 
@@ -900,7 +876,11 @@ export const revertArrival = createServerFn({ method: "POST" })
           } = { property_id: propertyId, kind: "checkin", status: "pending" };
           if (data.logId) body.log_id = data.logId;
           if (data.reservationId) body.reservation_id = data.reservationId;
-          const { error } = await context.supabase.from("guest_arrival_status").insert(body);
+          const { error } = await context.supabase
+            .from("guest_arrival_status")
+            .upsert(body, {
+              onConflict: data.reservationId ? "reservation_id,kind" : "log_id,kind",
+            });
           if (error) throw new Error(error.message);
         }
       }

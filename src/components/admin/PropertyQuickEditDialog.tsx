@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
@@ -27,6 +27,7 @@ import { syncPropertyAirbnbIcal, listPropertyReservations } from "@/lib/airbnb-i
 import { enrichFromMapsLink } from "@/lib/maps.functions";
 import { PropertyTypeSelect } from "@/components/admin/PropertyTypeSelect";
 import { PropertyDetailsEditor } from "@/components/admin/PropertyDetailsEditor";
+import { useRealtimeInvalidate } from "@/hooks/useRealtimeInvalidate";
 
 function Field({
   label,
@@ -140,6 +141,33 @@ export function PropertyQuickEditDialog({
   const [syncing, setSyncing] = useState(false);
   const [enriching, setEnriching] = useState(false);
   const [showIcal2, setShowIcal2] = useState(false);
+  // Mesma proteção aplicada na tela cheia do imóvel: se há edição local não
+  // salva, um refetch (seja por Realtime, seja pelo React Query) não pode
+  // sobrescrever silenciosamente o que a pessoa está digitando neste popup.
+  const dirtyRef = useRef(false);
+
+  // Instantâneo pra quem tiver este popup aberto enquanto o mesmo imóvel é
+  // alterado em outro lugar (tela cheia, outro usuário, etc.) — sem isto, o
+  // popup ficava com dado desatualizado até fechar e reabrir.
+  useRealtimeInvalidate(
+    `property-quick-edit-live:${propertyId}`,
+    open
+      ? [
+          { table: "properties", filter: `id=eq.${propertyId}` },
+          { table: "property_manual_items", filter: `property_id=eq.${propertyId}` },
+        ]
+      : [],
+    [["property-quick-edit", propertyId]],
+    {
+      enabled: open,
+      shouldRefetch: () => !dirtyRef.current,
+      onRemoteChange: () => {
+        if (dirtyRef.current) {
+          toast.info("Este imóvel foi atualizado em outro lugar. Salve para não perder suas alterações.");
+        }
+      },
+    },
+  );
 
   useEffect(() => {
     if (!data?.property) return;
@@ -167,9 +195,11 @@ export function PropertyQuickEditDialog({
         body: (m.body as string) ?? "",
       })),
     );
+    dirtyRef.current = false;
   }, [data]);
 
   function upd<K extends keyof Edited>(key: K, value: Edited[K]) {
+    dirtyRef.current = true;
     setEdited((e) => (e ? { ...e, [key]: value } : e));
   }
 
@@ -272,6 +302,7 @@ export function PropertyQuickEditDialog({
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await saveFn({ data: payload as any });
       toast.success("Imóvel atualizado");
+      dirtyRef.current = false;
       qc.invalidateQueries({ queryKey: ["property", propertyId] });
       qc.invalidateQueries({ queryKey: ["my-properties"] });
       qc.invalidateQueries({ queryKey: ["property-quick-edit", propertyId] });
