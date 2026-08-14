@@ -27,6 +27,11 @@ export function CancellationReviewDialog() {
   const listFn = useServerFn(listPendingCancellations);
   const resolveFn = useServerFn(resolveScheduledCancellation);
   const [busy, setBusy] = useState<string | null>(null);
+  const [dismissed, setDismissed] = useState<string[]>([]);
+  // Só quem pode editar stakeholders consegue responder o popup — para os demais
+  // ele nunca aparece (evita travar o painel inteiro sem saída).
+  const access = useAreaAccess(["tenant.stakeholders"], "WRITE");
+  const canResolve = access.ready && access.can("tenant.stakeholders");
 
   const { data } = useQuery({
     queryKey: ["pending-cancellations"],
@@ -34,9 +39,12 @@ export function CancellationReviewDialog() {
     refetchInterval: 5 * 60_000,
     staleTime: 60_000,
     retry: false,
+    enabled: canResolve,
   });
 
-  const item = data?.pending?.[0];
+  const item = canResolve
+    ? data?.pending?.find((p) => !dismissed.includes(p.id))
+    : undefined;
 
   async function resolve(outcome: "canceled" | "active") {
     if (!item) return;
