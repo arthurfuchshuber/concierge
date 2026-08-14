@@ -169,9 +169,14 @@ function DashboardPage() {
   const engQ = useQuery({
     queryKey: ["dash-eng", engRange, activeOwnerId ?? "self"],
     queryFn: () => engFn({ data: { range: engRange, ownerId: activeOwnerId } }),
-    staleTime: 60_000,
+    // Engajamento é acompanhado ao vivo: nada de números guardados em cache.
+    staleTime: 0,
+    gcTime: 0,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
     placeholderData: keepPreviousData,
   });
+
   const checkinListQ = useQuery({
     queryKey: ["dash-list", "checkin", range, activeOwnerId ?? "self"],
     queryFn: () => listFn({ data: { kind: "checkin", range, ownerId: activeOwnerId } }),
