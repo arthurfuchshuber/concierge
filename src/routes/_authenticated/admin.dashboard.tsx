@@ -169,9 +169,14 @@ function DashboardPage() {
   const engQ = useQuery({
     queryKey: ["dash-eng", engRange, activeOwnerId ?? "self"],
     queryFn: () => engFn({ data: { range: engRange, ownerId: activeOwnerId } }),
-    staleTime: 60_000,
+    // Engajamento é acompanhado ao vivo: nada de números guardados em cache.
+    staleTime: 0,
+    gcTime: 0,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
     placeholderData: keepPreviousData,
   });
+
   const checkinListQ = useQuery({
     queryKey: ["dash-list", "checkin", range, activeOwnerId ?? "self"],
     queryFn: () => listFn({ data: { kind: "checkin", range, ownerId: activeOwnerId } }),
@@ -357,16 +362,25 @@ function DashboardPage() {
       qc.invalidateQueries({ queryKey: ["dash-eng"] });
       qc.invalidateQueries({ queryKey: ["dash-occupancy"] });
     };
+    // Barras de engajamento: atualizam na hora, sem esperar o refresh geral.
+    const engagementNow = () => {
+      qc.invalidateQueries({ queryKey: ["dash-eng"], refetchType: "active" });
+    };
     const ch = supabase
       .channel("dash-live")
-      .on("postgres_changes", { event: "*", schema: "public", table: "guide_access_logs" }, invalidate)
+      .on("postgres_changes", { event: "*", schema: "public", table: "guide_access_logs" }, () => {
+        engagementNow();
+        invalidate();
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "guide_section_events" }, engagementNow)
       .on("postgres_changes", { event: "*", schema: "public", table: "guest_arrival_status" }, invalidate)
       .on("postgres_changes", { event: "*", schema: "public", table: "property_reservations" }, invalidate)
       .subscribe();
     return () => {
       supabase.removeChannel(ch);
     };
-  }, [refreshDashboard]);
+  }, [refreshDashboard, qc]);
+
 
   const todayISO = todayISOSaoPaulo();
   const ciRows = checkinListQ.data?.rows ?? [];
