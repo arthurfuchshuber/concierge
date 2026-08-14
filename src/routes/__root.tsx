@@ -203,9 +203,10 @@ function RootComponent() {
    * Cache persistente: guardamos TUDO no aparelho para que a última visão
    * fique disponível mesmo sem internet.
    *
-   * Dados operacionais mudam a cada minuto — para não abrir a tela com
-   * números antigos, eles são descartados na restauração QUANDO há conexão
-   * (aí buscamos na hora). Sem internet, eles permanecem visíveis.
+   * Ao abrir, a tela pinta IMEDIATAMENTE com a última visão salva. Dados
+   * operacionais são apenas marcados como desatualizados (revalidação em
+   * segundo plano) — nunca apagados — para não deixar a tela vazia enquanto
+   * a rede responde. Sem internet, permanecem visíveis do mesmo jeito.
    */
   const VOLATILE_PREFIXES = [
     "dash-",
@@ -240,10 +241,12 @@ function RootComponent() {
           .forEach((query) => {
             const key = String(query.queryKey?.[0] ?? "");
             if (VOLATILE_PREFIXES.some((p) => key.startsWith(p))) {
-              queryClient.removeQueries({ queryKey: query.queryKey, exact: true });
+              // Mantém os dados na tela e revalida em segundo plano.
+              queryClient.invalidateQueries({ queryKey: query.queryKey, exact: true });
             }
           });
       }}
+
       persistOptions={{
         persister,
         maxAge: 1000 * 60 * 60 * 24 * 7 /* 7 dias */,
