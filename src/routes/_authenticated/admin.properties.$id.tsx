@@ -39,6 +39,7 @@ import { DateTimePicker } from "@/components/ui/date-picker";
 import { TagPicker, useTaxonomy, TAXONOMY_QUERY_KEY, NewCategoryDialog, NewTagDialog } from "@/components/admin/TagPicker";
 import { updatePoiCategory, reorderPoiCategories, deletePoiCategory } from "@/lib/poi-taxonomy.functions";
 import { PropertyDetailsEditor } from "@/components/admin/PropertyDetailsEditor";
+import { PropertyTypeSelect } from "@/components/admin/PropertyTypeSelect";
 import { Pencil, Check as CheckIcon, X as XIcon, Search, Settings2 } from "lucide-react";
 import { friendlyErrorMessage } from "@/lib/friendly-error";
 import { SigmaImportButton, SigmaActiveBanner, SaveAsSigmaPackButton } from "@/components/admin/SigmaImportButton";
@@ -139,6 +140,8 @@ type FormState = {
     airbnb_ical_last_sync_at: string | null;
     airbnb_ical_last_error: string | null;
     airbnb_listing_url: string | null;
+    property_type_id: string | null;
+    guide_created: boolean;
   };
   manual: { title: string; description: string; body: string }[];
   emergency: { label: string; number: string }[];
@@ -160,6 +163,7 @@ function emptyForm(): FormState {
       default_language: "pt", guide_theme: "dark", published: true, require_access_gate: false,
       collect_arrival_time: "off", collect_vehicles: "off", vehicles_max: 2, collect_document: "off", document_scope: "main",
       airbnb_ical_url: null, airbnb_ical_url_2: null, airbnb_ical_last_sync_at: null, airbnb_ical_last_error: null, airbnb_listing_url: null,
+      property_type_id: null, guide_created: false,
     },
     manual: [],
     emergency: [{ label: "Polícia", number: "190" }, { label: "Bombeiros / SAMU", number: "192" }],
@@ -454,6 +458,8 @@ function PropertyEditor() {
         airbnb_ical_last_sync_at: (p.airbnb_ical_last_sync_at as string | null) ?? null,
         airbnb_ical_last_error: (p.airbnb_ical_last_error as string | null) ?? null,
         airbnb_listing_url: ((p as Record<string, unknown>).airbnb_listing_url as string | null) ?? null,
+        property_type_id: ((p as Record<string, unknown>).property_type_id as string | null) ?? null,
+        guide_created: ((p as Record<string, unknown>).guide_created as boolean) ?? false,
       },
       manual: (data.manual ?? []).map((m: Record<string, unknown>) => ({
         title: (m.title as string) ?? "",
@@ -799,7 +805,7 @@ function PropertyEditor() {
 
 
 
-  async function handleSave() {
+  async function handleSave(overrides?: Partial<FormState["property"]>) {
     if (gateOpen) {
       if (!form.property.gate_code.trim()) { toast.error("Informe o código do portão ou desative essa opção."); return; }
       if (!form.property.gate_label.trim()) { toast.error("Defina um nome para o acesso do portão."); return; }
@@ -810,12 +816,17 @@ function PropertyEditor() {
     }
     setSaving(true);
     try {
-      const galleryImages = form.property.gallery_images.filter((u) => u.trim()).slice(0, 4);
+      // `overrides` existe para casos como "Criar guia": precisamos gravar
+      // guide_created=true NA MESMA chamada de save, sem esperar um ciclo de
+      // render (setForm/update() é assíncrono — chamar handleSave logo depois
+      // de um update() leria form.property desatualizado).
+      const propertySource = overrides ? { ...form.property, ...overrides } : form.property;
+      const galleryImages = propertySource.gallery_images.filter((u) => u.trim()).slice(0, 4);
       const payload = {
         id: isNew ? null : id,
         ownerId: isNew ? (impersonation?.userId ?? null) : null,
         property: {
-          ...form.property,
+          ...propertySource,
           slug: form.property.slug || slugify(form.property.name),
           tagline: form.property.tagline || null,
           hero_image_url: galleryImages[0] || form.property.hero_image_url || null,
@@ -969,6 +980,12 @@ function PropertyEditor() {
   // Extraídos como funções para serem reaproveitados tanto na tela enxuta de
   // criação do imóvel (isNew) quanto na aba "A casa" do editor completo —
   // mesmo JSX, duas telas, sem duplicar campos/handlers.
+  const renderPropertyTypeSection = () => (
+          <Section id="property-type" icon={Home} title="Tipo do imóvel" desc="Ajuda a organizar seus imóveis — as opções são totalmente editáveis." collapsible={false}>
+            <PropertyTypeSelect value={form.property.property_type_id} onChange={(v) => update("property_type_id", v)} />
+          </Section>
+  );
+
   const renderAddressSection = () => (
           <Section id="address" icon={MapPinned} title="Endereço e localização" desc="Cole o link do Google Maps e use Auto-preencher." collapsible>
             <Field label="Link do Google Maps — Entrada principal" required>
@@ -1125,15 +1142,29 @@ function PropertyEditor() {
           </Section>
   );
 
-  // ================= INFORMAÇÕES DO IMÓVEL (criação) =================
+  // ================= INFORMAÇÕES DO IMÓVEL =================
   // Antes, um imóvel novo abria direto os 6 steps inteiros do editor de guia
   // (A casa, O guia, Checkin, Checkout, FAQ & Contatos, Recomendações) — a
-  // maioria deles sem sentido nenhum antes de o imóvel existir. Agora, ao
-  // criar, mostramos só o essencial: nome, endereço, calendário e contato do
-  // anfitrião. O guia (com todo o resto) só aparece depois de salvo, quando a
-  // rota deixa de ser "new" e passa a ter um id real — mesmo handleSave de
-  // sempre, só muda o que é exibido antes de o imóvel existir.
-  if (isNew) {
+  // maioria deles sem sentido nenhum antes de existir um guia de verdade.
+  //
+  // IMPORTANTE: a condição não é mais só "isNew" (que é temporário — vira
+  // false assim que salva uma vez). Agora depende de `guide_created`, uma
+  // coluna persistida em "properties". Ou seja: mesmo depois de criado e
+  // salvo várias vezes, um imóvel sem guia continua caindo nesta tela enxuta
+  // sempre que for aberto — até o anfitrião clicar em "Criar guia" de
+  // propósito. Os campos aqui (nome, tipo, endereço, calendário, contato) são
+  // os MESMOS da aba "A casa" do editor completo (mesmo form.property, mesmas
+  // funções render*Section) — não existem em duplicidade, então qualquer
+  // alteração feita aqui ou lá é a mesma informação, sempre.
+  const showLeanInfoScreen = isNew || !form.property.guide_created;
+
+  if (showLeanInfoScreen) {
+    async function handleCreateGuide() {
+      // Passamos o override direto pro handleSave em vez de chamar update()
+      // antes: update() é assíncrono (setForm), e handleSave rodando logo em
+      // seguida leria form.property ainda com guide_created=false.
+      await handleSave({ guide_created: true });
+    }
     return (
       <div className="px-6 lg:px-10 pt-8 lg:pt-10 max-w-3xl mx-auto w-full">
         <Link to="/admin/guias" className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground mb-5 transition-colors">
@@ -1141,9 +1172,18 @@ function PropertyEditor() {
         </Link>
 
         <div className="mb-6 pb-4 border-b border-border/60">
-          <h1 className="font-display text-2xl sm:text-3xl mb-1.5">Novo imóvel</h1>
+          <div className="flex items-center gap-2 mb-1.5">
+            <h1 className="font-display text-2xl sm:text-3xl">{isNew ? "Novo imóvel" : (form.property.name || "Informações do imóvel")}</h1>
+            {!isNew && (
+              <span className="shrink-0 rounded-full border border-border px-2.5 py-0.5 text-[11px] text-muted-foreground">
+                Sem guia criado
+              </span>
+            )}
+          </div>
           <p className="text-sm text-muted-foreground">
-            Só o essencial para cadastrar a residência. O guia para hóspedes, checkin, checkout, FAQ e recomendações ficam disponíveis depois de criado — não são obrigatórios.
+            {isNew
+              ? "Só o essencial para cadastrar a residência. O guia para hóspedes, checkin, checkout, FAQ e recomendações ficam disponíveis depois de criado — não são obrigatórios."
+              : "Este imóvel ainda não tem um guia para hóspedes. Você pode continuar usando dashboard, calendário e kanban só com essas informações, ou criar o guia quando quiser."}
           </p>
         </div>
 
@@ -1164,6 +1204,7 @@ function PropertyEditor() {
               </Field>
             </Section>
 
+            {renderPropertyTypeSection()}
             {renderAddressSection()}
             {renderAirbnbCalendarSection()}
             {renderHostContactSection()}
@@ -1176,10 +1217,23 @@ function PropertyEditor() {
             >
               Cancelar
             </Link>
-            <Button className="h-10 min-w-[140px]" onClick={handleSave} disabled={saving || !form.property.name.trim()}>
-              {saving ? <Loader2 className="size-4 animate-spin" /> : null}
-              <span className={saving ? "ml-1.5" : ""}>{saving ? "Criando…" : "Criar imóvel"}</span>
-            </Button>
+            {isNew ? (
+              <Button className="h-10 min-w-[140px]" onClick={handleSave} disabled={saving || !form.property.name.trim()}>
+                {saving ? <Loader2 className="size-4 animate-spin" /> : null}
+                <span className={saving ? "ml-1.5" : ""}>{saving ? "Criando…" : "Criar imóvel"}</span>
+              </Button>
+            ) : (
+              <>
+                <Button variant="secondary" className="h-10 min-w-[140px]" onClick={handleSave} disabled={saving || !form.property.name.trim()}>
+                  {saving ? <Loader2 className="size-4 animate-spin" /> : null}
+                  <span className={saving ? "ml-1.5" : ""}>{saving ? "Salvando…" : "Salvar alterações"}</span>
+                </Button>
+                <Button className="h-10 min-w-[140px]" onClick={handleCreateGuide} disabled={saving || !form.property.name.trim()}>
+                  {saving ? <Loader2 className="size-4 animate-spin" /> : null}
+                  <span className={saving ? "ml-1.5" : ""}>{saving ? "Criando…" : "Criar guia"}</span>
+                </Button>
+              </>
+            )}
           </div>
         </fieldset>
       </div>
@@ -1242,6 +1296,9 @@ function PropertyEditor() {
         {/* ================= A CASA ================= */}
         <TabsContent value="house" className="space-y-4 mt-6">
           <SectionGroup>
+
+          {renderPropertyTypeSection()}
+
 
           {renderAddressSection()}
 

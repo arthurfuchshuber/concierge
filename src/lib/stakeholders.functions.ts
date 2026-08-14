@@ -317,6 +317,7 @@ export const getStakeholderDetail = createServerFn({ method: "GET" })
       name: string;
       slug: string;
       published: boolean;
+      guide_created: boolean;
       city: string | null;
       state: string | null;
       owner_contact_id: string | null;
@@ -327,7 +328,7 @@ export const getStakeholderDetail = createServerFn({ method: "GET" })
     if (data.kind === "owner") {
       const { data: all } = await supabase
         .from("properties")
-        .select("id, name, slug, published, city, state, owner_contact_id")
+        .select("id, name, slug, published, guide_created, city, state, owner_contact_id")
         .eq("owner_id", accountId)
         .order("name");
       properties = (all ?? []).filter((p) => p.owner_contact_id === data.id);

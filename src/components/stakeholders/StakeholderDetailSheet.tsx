@@ -707,7 +707,13 @@ export function StakeholderDetailSheet({
                 />
               ) : (
                 <div className="grid gap-3 sm:grid-cols-2">
-                  {properties.map((p: any) => (
+                  {properties.map((p: any) => {
+                    const status = p.published
+                      ? { label: "Publicado", cls: "border-emerald-500/30 bg-emerald-500/10 text-emerald-500" }
+                      : p.guide_created
+                      ? { label: "Guia em edição", cls: "border-amber-500/30 bg-amber-500/10 text-amber-500" }
+                      : { label: "Sem guia", cls: "border-border text-muted-foreground" };
+                    return (
                     <div
                       key={p.id}
                       className="rounded-2xl border border-border bg-card p-4 space-y-2"
@@ -715,13 +721,9 @@ export function StakeholderDetailSheet({
                       <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-2">
                         <p className="text-sm font-medium break-words">{p.name}</p>
                         <span
-                          className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] ${
-                            p.published
-                              ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-500"
-                              : "border-border text-muted-foreground"
-                          }`}
+                          className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] ${status.cls}`}
                         >
-                          {p.published ? "Publicado" : "Rascunho"}
+                          {status.label}
                         </span>
                       </div>
                       <p className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
@@ -746,7 +748,8 @@ export function StakeholderDetailSheet({
                         </button>
                       </div>
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </section>

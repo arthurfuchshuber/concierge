@@ -150,6 +150,8 @@ const PropertyInput = z.object({
       .nullable(),
   ),
   airbnb_listing_url: HttpsUrl,
+  property_type_id: z.string().uuid().optional().nullable(),
+  guide_created: z.boolean().default(false),
 });
 
 
