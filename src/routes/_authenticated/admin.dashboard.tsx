@@ -32,7 +32,6 @@ import {
   Filter,
   LayoutGrid,
   MoreVertical,
-
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -40,12 +39,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { CopyButton } from "@/components/CopyButton";
 import { OwnerLine } from "@/components/dashboard/OwnerLine";
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -115,9 +109,6 @@ function ExtraGuests({
   );
 }
 
-
-
-
 export const Route = createFileRoute("/_authenticated/admin/dashboard")({
   head: () => ({
     meta: [
@@ -178,7 +169,6 @@ function InfoHint({ title, children }: { title: string; children: React.ReactNod
 }
 
 function DashboardPage() {
-  
   const engFn = useServerFn(getGuideEngagement);
   const listFn = useServerFn(listDashboardArrivals);
   const upsertFn = useServerFn(upsertArrivalStatus);
@@ -306,7 +296,12 @@ function DashboardPage() {
     },
     [qc],
   );
-  useEffect(() => () => { if (refreshTimer.current) clearTimeout(refreshTimer.current); }, []);
+  useEffect(
+    () => () => {
+      if (refreshTimer.current) clearTimeout(refreshTimer.current);
+    },
+    [],
+  );
 
   type UpsertPayload = {
     logId?: string;
@@ -337,11 +332,8 @@ function DashboardPage() {
 
   const revertFn = useServerFn(revertArrival);
   const revert = useMutation({
-    mutationFn: (v: {
-      logId?: string;
-      reservationId?: string;
-      from: "checkout" | "stay" | "cleaning" | "done";
-    }) => revertFn({ data: v }),
+    mutationFn: (v: { logId?: string; reservationId?: string; from: "checkout" | "stay" | "cleaning" | "done" }) =>
+      revertFn({ data: v }),
     onSuccess: () => {
       refreshDashboard();
       toast.success("Check desfeito.");
@@ -419,7 +411,6 @@ function DashboardPage() {
     advance.mutate({ ...target, from });
   }
 
-
   function handleEditTime(row: ArrivalRow, k: "checkin" | "checkout", time: string | null) {
     setBusyRowId(row.logId);
     upsert.mutate({ ...statusTarget(row), kind: k, arrivalTimeOverride: time });
@@ -491,13 +482,9 @@ function DashboardPage() {
 
   // Check-ins de hoje já marcados como concluídos → agenda mostra "ocupado".
   const checkedInPropertyIds = useMemo(
-    () =>
-      new Set(
-        ciRows.filter((r) => r.status === "done" && r.guestCheckin === todayISO).map((r) => r.propertyId),
-      ),
+    () => new Set(ciRows.filter((r) => r.status === "done" && r.guestCheckin === todayISO).map((r) => r.propertyId)),
     [ciRows, todayISO],
   );
-
 
   const rangeLabel: Record<typeof range, string> = {
     today: "Hoje",
@@ -527,9 +514,14 @@ function DashboardPage() {
                 return;
               }
               setBusyRowId(row.logId);
-              if (colMode === "stay") patchList("checkin", (rows) => rows.map((r) => (r.logId === row.logId ? { ...r, status: "pending" } : r)));
+              if (colMode === "stay")
+                patchList("checkin", (rows) =>
+                  rows.map((r) => (r.logId === row.logId ? { ...r, status: "pending" } : r)),
+                );
               else if (colMode === "checkout" || colMode === "cleaning")
-                patchList("checkout", (rows) => rows.map((r) => (r.logId === row.logId ? { ...r, status: "pending" } : r)));
+                patchList("checkout", (rows) =>
+                  rows.map((r) => (r.logId === row.logId ? { ...r, status: "pending" } : r)),
+                );
               revert.mutate({ ...target, from: colMode as "checkout" | "stay" | "cleaning" | "done" });
             },
       onSyncIcal: (row: ArrivalRow) => {
@@ -581,10 +573,10 @@ function DashboardPage() {
     <div className="px-6 lg:px-10 py-8 lg:py-10 max-w-[1440px] mx-auto w-full space-y-6">
       <header>
         <h1 className="font-display text-3xl md:text-4xl flex items-center gap-2.5">
-          <TrendingUp className="size-7 text-muted-foreground" /> Operação
+          <TrendingUp className="size-7 text-muted-foreground" /> Operação Diária
         </h1>
         <p className="text-sm text-muted-foreground mt-1.5">
-          Sua rotina diária: check-ins, checkouts e engajamento do guia.
+          Sua rotina diária: check-ins, checkouts e visualização de instruções/senhas..
         </p>
       </header>
 
@@ -638,7 +630,6 @@ function DashboardPage() {
           </div>
         ) : null}
 
-
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           <KpiCard
             label="Check-ins amanhã"
@@ -681,10 +672,8 @@ function DashboardPage() {
             properties={freeProperties}
             onRefresh={() => occupancyQ.refetch()}
           />
-
         </div>
       </section>
-
 
       {/* Engajamento do guia — volta a aparecer aqui embaixo, sempre, em
           largura total (mobile e desktop). Versão discreta, sem cabeçalho. */}
@@ -760,23 +749,43 @@ function DashboardPage() {
           </div>
 
           {mobileTab === "checkin" &&
-            (checkinListQ.isLoading ? <ColumnLoading /> : checkinPendingRows.length === 0 ? <ColumnEmpty /> : (
+            (checkinListQ.isLoading ? (
+              <ColumnLoading />
+            ) : checkinPendingRows.length === 0 ? (
+              <ColumnEmpty />
+            ) : (
               <ArrivalGroup title="" {...arrivalGroupPropsFor("checkin", checkinPendingRows)} />
             ))}
           {mobileTab === "checkout" &&
-            (checkoutListQ.isLoading ? <ColumnLoading /> : checkoutPendingRows.length === 0 ? <ColumnEmpty /> : (
+            (checkoutListQ.isLoading ? (
+              <ColumnLoading />
+            ) : checkoutPendingRows.length === 0 ? (
+              <ColumnEmpty />
+            ) : (
               <ArrivalGroup title="" {...arrivalGroupPropsFor("checkout", checkoutPendingRows)} />
             ))}
           {mobileTab === "stay" &&
-            (checkinListQ.isLoading ? <ColumnLoading /> : stayRows.length === 0 ? <ColumnEmpty /> : (
+            (checkinListQ.isLoading ? (
+              <ColumnLoading />
+            ) : stayRows.length === 0 ? (
+              <ColumnEmpty />
+            ) : (
               <ArrivalGroup title="" {...arrivalGroupPropsFor("stay", stayRows)} />
             ))}
           {mobileTab === "cleaning" &&
-            (checkoutListQ.isLoading ? <ColumnLoading /> : cleaningRows.length === 0 ? <ColumnEmpty /> : (
+            (checkoutListQ.isLoading ? (
+              <ColumnLoading />
+            ) : cleaningRows.length === 0 ? (
+              <ColumnEmpty />
+            ) : (
               <ArrivalGroup title="" {...arrivalGroupPropsFor("cleaning", cleaningRows)} />
             ))}
           {mobileTab === "done" &&
-            (concludedQ.isLoading ? <ColumnLoading /> : concludedRows.length === 0 ? <ColumnEmpty /> : (
+            (concludedQ.isLoading ? (
+              <ColumnLoading />
+            ) : concludedRows.length === 0 ? (
+              <ColumnEmpty />
+            ) : (
               <ArrivalGroup title="" {...arrivalGroupPropsFor("done", concludedRows)} />
             ))}
         </div>
@@ -790,7 +799,13 @@ function DashboardPage() {
             espaço disponível. */}
         <div ref={kanbanRowRef} className="hidden sm:flex gap-3 items-start overflow-x-auto snap-x pb-2 -mx-1 px-1">
           <div style={{ width: kanbanColWidth }} className="shrink-0 snap-start">
-            <KanbanColumn onScroll={() => setExpandedByColumn((prev) => ({ ...prev, checkin: null }))} title="Check-ins" icon={CalendarCheck} count={counts.checkin} tone="emerald">
+            <KanbanColumn
+              onScroll={() => setExpandedByColumn((prev) => ({ ...prev, checkin: null }))}
+              title="Check-ins"
+              icon={CalendarCheck}
+              count={counts.checkin}
+              tone="emerald"
+            >
               {checkinListQ.isLoading ? (
                 <ColumnLoading />
               ) : checkinPendingRows.length === 0 ? (
@@ -802,7 +817,13 @@ function DashboardPage() {
           </div>
 
           <div style={{ width: kanbanColWidth }} className="shrink-0 snap-start">
-            <KanbanColumn onScroll={() => setExpandedByColumn((prev) => ({ ...prev, checkout: null }))} title="Checkouts" icon={CalendarX} count={counts.checkout} tone="amber">
+            <KanbanColumn
+              onScroll={() => setExpandedByColumn((prev) => ({ ...prev, checkout: null }))}
+              title="Checkouts"
+              icon={CalendarX}
+              count={counts.checkout}
+              tone="amber"
+            >
               {checkoutListQ.isLoading ? (
                 <ColumnLoading />
               ) : checkoutPendingRows.length === 0 ? (
@@ -814,7 +835,13 @@ function DashboardPage() {
           </div>
 
           <div style={{ width: kanbanColWidth }} className="shrink-0 snap-start">
-            <KanbanColumn onScroll={() => setExpandedByColumn((prev) => ({ ...prev, stay: null }))} title="Em Estadia" icon={BedDouble} count={counts.stay} tone="sky">
+            <KanbanColumn
+              onScroll={() => setExpandedByColumn((prev) => ({ ...prev, stay: null }))}
+              title="Em Estadia"
+              icon={BedDouble}
+              count={counts.stay}
+              tone="sky"
+            >
               {checkinListQ.isLoading ? (
                 <ColumnLoading />
               ) : stayRows.length === 0 ? (
@@ -826,7 +853,13 @@ function DashboardPage() {
           </div>
 
           <div style={{ width: kanbanColWidth }} className="shrink-0 snap-start">
-            <KanbanColumn onScroll={() => setExpandedByColumn((prev) => ({ ...prev, cleaning: null }))} title="Em Limpeza" icon={Sparkles} count={counts.cleaning} tone="violet">
+            <KanbanColumn
+              onScroll={() => setExpandedByColumn((prev) => ({ ...prev, cleaning: null }))}
+              title="Em Limpeza"
+              icon={Sparkles}
+              count={counts.cleaning}
+              tone="violet"
+            >
               {checkoutListQ.isLoading ? (
                 <ColumnLoading />
               ) : cleaningRows.length === 0 ? (
@@ -838,7 +871,13 @@ function DashboardPage() {
           </div>
 
           <div style={{ width: kanbanColWidth }} className="shrink-0 snap-start">
-            <KanbanColumn onScroll={() => setExpandedByColumn((prev) => ({ ...prev, done: null }))} title="Concluídos" icon={CheckCircle2} count={counts.done} tone="zinc">
+            <KanbanColumn
+              onScroll={() => setExpandedByColumn((prev) => ({ ...prev, done: null }))}
+              title="Concluídos"
+              icon={CheckCircle2}
+              count={counts.done}
+              tone="zinc"
+            >
               {concludedQ.isLoading ? (
                 <ColumnLoading />
               ) : concludedRows.length === 0 ? (
@@ -1082,7 +1121,12 @@ function KpiCard({
                       {r.pendingFill ? <UserPlus className="size-4" /> : initials}
                     </div>
                     <div className="min-w-0 flex-1">
-                      <OwnerLine name={r.ownerName} phone={r.ownerPhone} country={r.ownerPhoneCountry} phonePosition="adjacent" />
+                      <OwnerLine
+                        name={r.ownerName}
+                        phone={r.ownerPhone}
+                        country={r.ownerPhoneCountry}
+                        phonePosition="adjacent"
+                      />
                       <div
                         className="text-sm font-semibold leading-tight truncate text-foreground"
                         title={r.propertyName ?? undefined}
@@ -1194,9 +1238,7 @@ function FreePropertiesCard({
               <Loader2 className="size-5 animate-spin" />
             </div>
           ) : properties.length === 0 ? (
-            <div className="py-10 text-center text-sm text-muted-foreground">
-              Todos os imóveis estão ocupados hoje.
-            </div>
+            <div className="py-10 text-center text-sm text-muted-foreground">Todos os imóveis estão ocupados hoje.</div>
           ) : (
             <ul className="space-y-1.5">
               {properties.map((p) => (
@@ -1263,9 +1305,7 @@ function OccupancyPanel({
       if (!w) return;
       const usable = w - NAME_COL;
       const isDesktop = w >= 768;
-      const count = isDesktop
-        ? Math.max(1, Math.min(days, Math.floor(usable / MIN_DAY_W)))
-        : MOBILE_DAYS;
+      const count = isDesktop ? Math.max(1, Math.min(days, Math.floor(usable / MIN_DAY_W))) : MOBILE_DAYS;
       setVisibleDays(count);
       setDayW(Math.max(MIN_DAY_W, Math.floor(usable / count)));
     };
@@ -1275,7 +1315,6 @@ function OccupancyPanel({
     ro.observe(el);
     return () => ro.disconnect();
   }, [openAgenda, days]);
-
 
   // Recolhe a agenda ao rolar a página — só depois de uma rolagem significativa
   // e com uma pequena espera, para não parecer agressivo. Rolagem dentro do
@@ -1329,7 +1368,6 @@ function OccupancyPanel({
     };
   }, [openAgenda]);
 
-
   const todayISO = new Date().toISOString().slice(0, 10);
 
   const dayList = useMemo(() => {
@@ -1343,13 +1381,18 @@ function OccupancyPanel({
     return out;
   }, [start, days]);
 
-
   const owners = useMemo(
-    () => [...new Set(properties.map((p) => p.ownerName).filter((o): o is string => !!o))].sort((a, b) => a.localeCompare(b, "pt-BR")),
+    () =>
+      [...new Set(properties.map((p) => p.ownerName).filter((o): o is string => !!o))].sort((a, b) =>
+        a.localeCompare(b, "pt-BR"),
+      ),
     [properties],
   );
   const cities = useMemo(
-    () => [...new Set(properties.map((p) => p.city).filter((c): c is string => !!c))].sort((a, b) => a.localeCompare(b, "pt-BR")),
+    () =>
+      [...new Set(properties.map((p) => p.city).filter((c): c is string => !!c))].sort((a, b) =>
+        a.localeCompare(b, "pt-BR"),
+      ),
     [properties],
   );
 
@@ -1405,7 +1448,6 @@ function OccupancyPanel({
     return [first, second];
   }
 
-
   return (
     <Accordion
       type="single"
@@ -1438,11 +1480,7 @@ function OccupancyPanel({
                 ) : null}
               </button>
             </PopoverTrigger>
-            <PopoverContent
-              align="end"
-              className="w-64 space-y-4 p-3"
-              onOpenAutoFocus={(e) => e.preventDefault()}
-            >
+            <PopoverContent align="end" className="w-64 space-y-4 p-3" onOpenAutoFocus={(e) => e.preventDefault()}>
               {onStartChange ? (
                 <div>
                   <p className="mb-1.5 text-[10px] uppercase tracking-wider text-muted-foreground">
@@ -1517,7 +1555,6 @@ function OccupancyPanel({
             <div className="py-8 text-center text-sm text-muted-foreground">Nenhum imóvel para exibir.</div>
           ) : (
             <>
-
               <div ref={outerRef} className="w-full">
                 <div
                   ref={scrollRef}
@@ -1528,100 +1565,108 @@ function OccupancyPanel({
                     className="table-fixed border-separate border-spacing-x-0 border-spacing-y-1 text-xs"
                     style={{ width: NAME_COL + dayList.length * dayW, minWidth: NAME_COL + dayList.length * dayW }}
                   >
-                  <thead>
-                    <tr>
-                      <th
-                        className="sticky left-0 top-0 z-20 bg-card pr-2 text-left font-medium text-muted-foreground"
-                        style={{ width: NAME_COL, minWidth: NAME_COL }}
-                      >
-                        Imóvel
-                      </th>
-                      {dayList.map((d) => {
-                        const wd = new Date(`${d}T12:00:00Z`).toLocaleDateString("pt-BR", {
-                          weekday: "short",
-                          timeZone: "UTC",
-                        });
-                        const isToday = d === todayISO;
-                        return (
-                          <th
-                            key={d}
-                            style={{ width: dayW, minWidth: dayW }}
-                            className={`sticky top-0 z-10 snap-start bg-card px-0 font-medium tabular-nums ${
-                              isToday ? "text-emerald-500" : "text-muted-foreground"
-                            }`}
-                          >
-                            <div className="text-[9px] uppercase tracking-wide opacity-70">{wd.replace(".", "")}</div>
-                            <div className="text-[10px]">
-                              {d.slice(8, 10)}/{d.slice(5, 7)}
-                            </div>
-                          </th>
-                        );
-                      })}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {visibleProperties.map((p) => (
-                      <tr key={p.id}>
-                        <td className="sticky left-0 z-10 bg-card pr-2 align-middle" style={{ width: NAME_COL, minWidth: NAME_COL }}>
-                          <div className="min-w-0 max-w-full">
-                            {p.ownerName ? (
-                              <div className="truncate text-[10px] font-semibold text-primary" title={p.ownerName}>
-                                {p.ownerName}
-                              </div>
-                            ) : null}
-                            <div className="truncate text-[11px] font-medium leading-tight" title={p.name}>
-                              {p.name}
-                            </div>
-                            {p.city ? (
-                              <div className="text-[10px] leading-tight text-muted-foreground break-words whitespace-normal" title={p.city}>
-                                {p.city}
-                              </div>
-                            ) : null}
-                          </div>
-                        </td>
+                    <thead>
+                      <tr>
+                        <th
+                          className="sticky left-0 top-0 z-20 bg-card pr-2 text-left font-medium text-muted-foreground"
+                          style={{ width: NAME_COL, minWidth: NAME_COL }}
+                        >
+                          Imóvel
+                        </th>
                         {dayList.map((d) => {
-                          const [a, b] = cellHalves(p.id, d);
+                          const wd = new Date(`${d}T12:00:00Z`).toLocaleDateString("pt-BR", {
+                            weekday: "short",
+                            timeZone: "UTC",
+                          });
                           const isToday = d === todayISO;
-                          const clsOf = (s: CellPart) =>
-                            s === "in"
-                              ? "bg-emerald-500/85"
-                              : s === "out"
-                                ? "bg-amber-500/85"
-                                : s === "busy"
-                                  ? "bg-primary/45"
-                                  : "bg-muted/60";
-                          const labelOf = (s: CellPart) =>
-                            s === "in" ? "Check-in" : s === "out" ? "Checkout" : s === "busy" ? "Ocupado" : "Livre";
-                          const title =
-                            a === b
-                              ? `${labelOf(a)} · ${fmtDateBR(d)}`
-                              : `${labelOf(a)} → ${labelOf(b)} · ${fmtDateBR(d)}`;
                           return (
-                            <td key={d} style={{ width: dayW, minWidth: dayW }} className={`snap-start px-0 ${isToday ? "bg-emerald-500/10" : ""}`}>
-                              {a === b ? (
-                                <div
-                                  className={`mx-auto rounded-full ${clsOf(a)}`}
-                                  style={{ width: dotSize, height: dotSize }}
-                                  title={title}
-                                />
-                              ) : (
-                                <div
-                                  className="mx-auto flex overflow-hidden rounded-full"
-                                  style={{ width: dotSize, height: dotSize }}
-                                  title={title}
-                                >
-                                  <div className={`h-full w-1/2 ${clsOf(a)}`} />
-                                  <div className={`h-full w-1/2 ${clsOf(b)}`} />
-                                </div>
-                              )}
-                            </td>
-
+                            <th
+                              key={d}
+                              style={{ width: dayW, minWidth: dayW }}
+                              className={`sticky top-0 z-10 snap-start bg-card px-0 font-medium tabular-nums ${
+                                isToday ? "text-emerald-500" : "text-muted-foreground"
+                              }`}
+                            >
+                              <div className="text-[9px] uppercase tracking-wide opacity-70">{wd.replace(".", "")}</div>
+                              <div className="text-[10px]">
+                                {d.slice(8, 10)}/{d.slice(5, 7)}
+                              </div>
+                            </th>
                           );
                         })}
-
                       </tr>
-                    ))}
-                  </tbody>
+                    </thead>
+                    <tbody>
+                      {visibleProperties.map((p) => (
+                        <tr key={p.id}>
+                          <td
+                            className="sticky left-0 z-10 bg-card pr-2 align-middle"
+                            style={{ width: NAME_COL, minWidth: NAME_COL }}
+                          >
+                            <div className="min-w-0 max-w-full">
+                              {p.ownerName ? (
+                                <div className="truncate text-[10px] font-semibold text-primary" title={p.ownerName}>
+                                  {p.ownerName}
+                                </div>
+                              ) : null}
+                              <div className="truncate text-[11px] font-medium leading-tight" title={p.name}>
+                                {p.name}
+                              </div>
+                              {p.city ? (
+                                <div
+                                  className="text-[10px] leading-tight text-muted-foreground break-words whitespace-normal"
+                                  title={p.city}
+                                >
+                                  {p.city}
+                                </div>
+                              ) : null}
+                            </div>
+                          </td>
+                          {dayList.map((d) => {
+                            const [a, b] = cellHalves(p.id, d);
+                            const isToday = d === todayISO;
+                            const clsOf = (s: CellPart) =>
+                              s === "in"
+                                ? "bg-emerald-500/85"
+                                : s === "out"
+                                  ? "bg-amber-500/85"
+                                  : s === "busy"
+                                    ? "bg-primary/45"
+                                    : "bg-muted/60";
+                            const labelOf = (s: CellPart) =>
+                              s === "in" ? "Check-in" : s === "out" ? "Checkout" : s === "busy" ? "Ocupado" : "Livre";
+                            const title =
+                              a === b
+                                ? `${labelOf(a)} · ${fmtDateBR(d)}`
+                                : `${labelOf(a)} → ${labelOf(b)} · ${fmtDateBR(d)}`;
+                            return (
+                              <td
+                                key={d}
+                                style={{ width: dayW, minWidth: dayW }}
+                                className={`snap-start px-0 ${isToday ? "bg-emerald-500/10" : ""}`}
+                              >
+                                {a === b ? (
+                                  <div
+                                    className={`mx-auto rounded-full ${clsOf(a)}`}
+                                    style={{ width: dotSize, height: dotSize }}
+                                    title={title}
+                                  />
+                                ) : (
+                                  <div
+                                    className="mx-auto flex overflow-hidden rounded-full"
+                                    style={{ width: dotSize, height: dotSize }}
+                                    title={title}
+                                  >
+                                    <div className={`h-full w-1/2 ${clsOf(a)}`} />
+                                    <div className={`h-full w-1/2 ${clsOf(b)}`} />
+                                  </div>
+                                )}
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      ))}
+                    </tbody>
                   </table>
                 </div>
               </div>
@@ -1647,8 +1692,6 @@ function OccupancyPanel({
     </Accordion>
   );
 }
-
-
 
 function RangeDropdown<T extends string>({
   value,
@@ -1733,7 +1776,6 @@ function EngagementBars({
     </div>
   );
 }
-
 
 /** Mesma lógica dos cards: hóspede principal (1º a acessar) + "+N" expansível. */
 function GuestMarkGroup({ group, tone }: { group: GuestMark[]; tone: "ok" | "off" }) {
@@ -1851,7 +1893,6 @@ function BarRow({
               <div className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground mt-0.5">
                 {value} de {total} check-ins
               </div>
-
             </div>
           </div>
         </DialogHeader>
@@ -1873,8 +1914,6 @@ function BarRow({
     </Dialog>
   );
 }
-
-
 
 function ArrivalGroup({
   title,
@@ -1915,7 +1954,7 @@ function ArrivalGroup({
 }) {
   // Somente UM card pode ficar com o quadro de detalhes aberto por vez.
   const [localOpenId, setLocalOpenId] = useState<string | null>(null);
-  const openId = onExpandedChange ? expandedIdProp ?? null : localOpenId;
+  const openId = onExpandedChange ? (expandedIdProp ?? null) : localOpenId;
   const setOpenId = onExpandedChange ?? setLocalOpenId;
   // Antes esta lista ocupava a largura inteira da seção (fazia sentido um
   // grid responsivo de 2-3 colunas). Agora ArrivalGroup só é usado dentro de
@@ -1948,7 +1987,6 @@ function ArrivalGroup({
   );
 }
 
-
 type BoardMode = "checkin" | "checkout" | "stay" | "cleaning" | "done";
 
 function ArrivalCard({
@@ -1980,7 +2018,6 @@ function ArrivalCard({
   onToggleExpanded?: (open: boolean) => void;
   cleaningBlocked?: "checkout" | "cleaning" | null;
 }) {
-
   const [noteOpen, setNoteOpen] = useState(false);
   const [noteText, setNoteText] = useState(row.note ?? "");
 
@@ -2069,7 +2106,6 @@ function ArrivalCard({
     onMark(row);
   }
 
-
   return (
     <div
       className={`group relative snap-start flex flex-col rounded-2xl border p-4 gap-3 transition-all ${
@@ -2108,12 +2144,16 @@ function ArrivalCard({
         </div>
       )}
 
-
       {/* Header: nome + imóvel + data — sem avatar (ocupava espaço demais
           numa coluna estreita de Kanban; o nome já identifica o hóspede). */}
       <div className="flex items-center gap-3">
         <div className="flex-1 min-w-0">
-          <OwnerLine name={row.ownerName} phone={row.ownerPhone} country={row.ownerPhoneCountry} phonePosition="adjacent" />
+          <OwnerLine
+            name={row.ownerName}
+            phone={row.ownerPhone}
+            country={row.ownerPhoneCountry}
+            phonePosition="adjacent"
+          />
           <div className="font-semibold truncate text-foreground" title={row.propertyName ?? undefined}>
             {row.propertyName ?? "Sem nome"}
           </div>
@@ -2303,7 +2343,6 @@ function ArrivalCard({
         </AccordionItem>
       </Accordion>
 
-
       {row.note && !noteOpen && (
         <button
           type="button"
@@ -2376,67 +2415,65 @@ function ArrivalCard({
             <CheckCircle2 className="size-4" />
           </span>
         ) : (
-        <button
-
-          onClick={() => {
-            if (cleaningBlock) {
-              const msg =
-                blockReason === "checkout"
-                  ? "Hóspede anterior ainda não fez check-out. Conclua o check-out e a limpeza para liberar o novo check-in."
-                  : "Limpeza deste imóvel ainda não foi concluída. Finalize a limpeza para liberar o check-in.";
-              toast.warning(msg);
-              return;
+          <button
+            onClick={() => {
+              if (cleaningBlock) {
+                const msg =
+                  blockReason === "checkout"
+                    ? "Hóspede anterior ainda não fez check-out. Conclua o check-out e a limpeza para liberar o novo check-in."
+                    : "Limpeza deste imóvel ainda não foi concluída. Finalize a limpeza para liberar o check-in.";
+                toast.warning(msg);
+                return;
+              }
+              if (blockCheck) {
+                toast.warning(
+                  `Check-in previsto para ${fmtDateBR(row.date)}. Só é possível marcar a partir do dia da chegada.`,
+                );
+                return;
+              }
+              runMark();
+            }}
+            disabled={busy || blockCheck}
+            aria-label={
+              cleaningBlock
+                ? blockReason === "checkout"
+                  ? "Check-out anterior pendente neste imóvel"
+                  : "Limpeza pendente neste imóvel"
+                : blockCheck
+                  ? "Check-in em data futura"
+                  : mode === "cleaning"
+                    ? "Concluir limpeza"
+                    : done
+                      ? "Reabrir (marcar pendente)"
+                      : "Marcar como concluído"
             }
-            if (blockCheck) {
-              toast.warning(
-                `Check-in previsto para ${fmtDateBR(row.date)}. Só é possível marcar a partir do dia da chegada.`,
-              );
-              return;
+            title={
+              cleaningBlock
+                ? blockReason === "checkout"
+                  ? "Check-out anterior pendente — limpeza precisa ser concluída antes de liberar o check-in"
+                  : "Limpeza ainda em andamento — check-in bloqueado"
+                : blockCheck
+                  ? `Só é possível marcar a partir de ${fmtDateBR(row.date)}`
+                  : mode === "cleaning"
+                    ? "Concluir limpeza (finaliza a estadia)"
+                    : done
+                      ? "Reabrir (voltar para Pendente)"
+                      : "Marcar como Concluído"
             }
-            runMark();
-
-          }}
-          disabled={busy || blockCheck}
-          aria-label={
-            cleaningBlock
-              ? blockReason === "checkout"
-                ? "Check-out anterior pendente neste imóvel"
-                : "Limpeza pendente neste imóvel"
-              : blockCheck
-                ? "Check-in em data futura"
-                : mode === "cleaning"
-                  ? "Concluir limpeza"
-                  : done
-                    ? "Reabrir (marcar pendente)"
-                    : "Marcar como concluído"
-          }
-          title={
-            cleaningBlock
-              ? blockReason === "checkout"
-                ? "Check-out anterior pendente — limpeza precisa ser concluída antes de liberar o check-in"
-                : "Limpeza ainda em andamento — check-in bloqueado"
-              : blockCheck
-                ? `Só é possível marcar a partir de ${fmtDateBR(row.date)}`
-                : mode === "cleaning"
-                  ? "Concluir limpeza (finaliza a estadia)"
-                  : done
-                    ? "Reabrir (voltar para Pendente)"
-                    : "Marcar como Concluído"
-          }
-          className={`size-9 grid place-items-center rounded-lg transition-colors ${
-            cleaningBlock
-              ? "bg-orange-500/25 text-orange-700 dark:text-orange-400 border border-orange-500/50 cursor-not-allowed"
-              : blockCheck
-                ? "bg-amber-500/20 text-amber-700 dark:text-amber-400 border border-amber-500/40 cursor-not-allowed"
-                : mode === "cleaning"
-                  ? "bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm shadow-emerald-600/20"
-                  : done
-                    ? "bg-secondary hover:bg-secondary/80"
-                    : "bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm shadow-emerald-600/20"
-          }`}
-        >
-          <Check className="size-4" />
-        </button>
+            className={`size-9 grid place-items-center rounded-lg transition-colors ${
+              cleaningBlock
+                ? "bg-orange-500/25 text-orange-700 dark:text-orange-400 border border-orange-500/50 cursor-not-allowed"
+                : blockCheck
+                  ? "bg-amber-500/20 text-amber-700 dark:text-amber-400 border border-amber-500/40 cursor-not-allowed"
+                  : mode === "cleaning"
+                    ? "bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm shadow-emerald-600/20"
+                    : done
+                      ? "bg-secondary hover:bg-secondary/80"
+                      : "bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm shadow-emerald-600/20"
+            }`}
+          >
+            <Check className="size-4" />
+          </button>
         )}
 
         {onRevert && mode !== "checkin" && (
@@ -2467,74 +2504,74 @@ function ArrivalCard({
         )}
 
         <div className="ml-auto flex items-center gap-1.5">
-            {mapsHref && (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <button
-                    type="button"
-                    aria-label="Opções do Maps"
-                    title={row.garageMapsUrl ? "Garagem no Maps" : "Endereço no Maps"}
-                    className="size-9 grid place-items-center rounded-lg bg-background/60 border border-border/50 hover:bg-primary/[0.08]"
-                  >
-                    <MapPin className="size-4" />
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="min-w-[12rem]">
-                  <DropdownMenuItem onClick={copyLink} disabled={!copyText}>
-                    <LinkIcon className="size-3.5 shrink-0" /> Copiar Link do Maps
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => window.open(mapsHref, "_blank", "noopener,noreferrer")}>
-                    <MapPin className="size-3.5 shrink-0" /> Abrir o Google Maps
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            )}
-
-            {/* Nota + Silenciar juntos num só botão de menu, agora ao lado
-                direito do Maps. O menu principal mostra só 2 opções —
-                "Adicionar nota" e "Silenciar notificações" — e as 24 opções
-                de período ficam escondidas num submenu, só aparecendo ao
-                passar/tocar em "Silenciar notificações". */}
+          {mapsHref && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button
                   type="button"
-                  aria-label="Mais opções"
-                  title="Nota interna e alertas"
-                  className={`size-9 grid place-items-center rounded-lg border ${
-                    isMutedNow
-                      ? "bg-amber-500/15 border-amber-500/50 text-amber-600 dark:text-amber-400"
-                      : "bg-background/60 border-border/50 hover:bg-primary/[0.08]"
-                  }`}
+                  aria-label="Opções do Maps"
+                  title={row.garageMapsUrl ? "Garagem no Maps" : "Endereço no Maps"}
+                  className="size-9 grid place-items-center rounded-lg bg-background/60 border border-border/50 hover:bg-primary/[0.08]"
                 >
-                  <MoreVertical className="size-4" />
+                  <MapPin className="size-4" />
                 </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="min-w-[13rem]">
-                <DropdownMenuItem onClick={() => setNoteOpen((v) => !v)}>
-                  <StickyNote className="size-3.5 shrink-0" /> {row.note ? "Editar nota" : "Adicionar nota"}
+              <DropdownMenuContent align="end" className="min-w-[12rem]">
+                <DropdownMenuItem onClick={copyLink} disabled={!copyText}>
+                  <LinkIcon className="size-3.5 shrink-0" /> Copiar Link do Maps
                 </DropdownMenuItem>
-                {isMutedNow ? (
-                  <DropdownMenuItem onClick={() => mute.mutate(null)}>
-                    <Bell className="size-3.5 shrink-0" /> Reativar alertas
-                  </DropdownMenuItem>
-                ) : (
-                  <DropdownMenuSub>
-                    <DropdownMenuSubTrigger>
-                      <BellOff className="size-3.5 shrink-0" /> Silenciar notificações
-                    </DropdownMenuSubTrigger>
-                    <DropdownMenuSubContent className="max-h-72 overflow-y-auto min-w-[10rem]">
-                      {Array.from({ length: 24 }, (_, i) => i + 1).map((h) => (
-                        <DropdownMenuItem key={h} onClick={() => mute.mutate(h)}>
-                          <BellOff className="size-3.5 shrink-0" /> Por {h}h
-                        </DropdownMenuItem>
-                      ))}
-                    </DropdownMenuSubContent>
-                  </DropdownMenuSub>
-                )}
+                <DropdownMenuItem onClick={() => window.open(mapsHref, "_blank", "noopener,noreferrer")}>
+                  <MapPin className="size-3.5 shrink-0" /> Abrir o Google Maps
+                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-          </div>
+          )}
+
+          {/* Nota + Silenciar juntos num só botão de menu, agora ao lado
+                direito do Maps. O menu principal mostra só 2 opções —
+                "Adicionar nota" e "Silenciar notificações" — e as 24 opções
+                de período ficam escondidas num submenu, só aparecendo ao
+                passar/tocar em "Silenciar notificações". */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                aria-label="Mais opções"
+                title="Nota interna e alertas"
+                className={`size-9 grid place-items-center rounded-lg border ${
+                  isMutedNow
+                    ? "bg-amber-500/15 border-amber-500/50 text-amber-600 dark:text-amber-400"
+                    : "bg-background/60 border-border/50 hover:bg-primary/[0.08]"
+                }`}
+              >
+                <MoreVertical className="size-4" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="min-w-[13rem]">
+              <DropdownMenuItem onClick={() => setNoteOpen((v) => !v)}>
+                <StickyNote className="size-3.5 shrink-0" /> {row.note ? "Editar nota" : "Adicionar nota"}
+              </DropdownMenuItem>
+              {isMutedNow ? (
+                <DropdownMenuItem onClick={() => mute.mutate(null)}>
+                  <Bell className="size-3.5 shrink-0" /> Reativar alertas
+                </DropdownMenuItem>
+              ) : (
+                <DropdownMenuSub>
+                  <DropdownMenuSubTrigger>
+                    <BellOff className="size-3.5 shrink-0" /> Silenciar notificações
+                  </DropdownMenuSubTrigger>
+                  <DropdownMenuSubContent className="max-h-72 overflow-y-auto min-w-[10rem]">
+                    {Array.from({ length: 24 }, (_, i) => i + 1).map((h) => (
+                      <DropdownMenuItem key={h} onClick={() => mute.mutate(h)}>
+                        <BellOff className="size-3.5 shrink-0" /> Por {h}h
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuSubContent>
+                </DropdownMenuSub>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </div>
 
       {/* Confirmação de check antecipado */}
@@ -2568,7 +2605,6 @@ function ArrivalCard({
     </div>
   );
 }
-
 
 function DateEditor({
   value,

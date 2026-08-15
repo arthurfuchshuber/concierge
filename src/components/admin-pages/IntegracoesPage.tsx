@@ -152,7 +152,6 @@ export function IntegracoesPage() {
     return `${cfg.nome} ${cfg.descricao} ${cfg.categoria}`.toLowerCase().includes(term);
   });
 
-
   return (
     <div className="w-full space-y-5">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -237,10 +236,7 @@ export function IntegracoesPage() {
                     </div>
                   </div>
                   <ChevronDown
-                    className={cn(
-                      "size-4 shrink-0 text-muted-foreground transition-transform",
-                      isOpen && "rotate-180",
-                    )}
+                    className={cn("size-4 shrink-0 text-muted-foreground transition-transform", isOpen && "rotate-180")}
                   />
                 </button>
 
@@ -263,7 +259,6 @@ export function IntegracoesPage() {
                     ) : (
                       <ClicksignPanel />
                     )}
-
                   </div>
                 )}
               </div>
