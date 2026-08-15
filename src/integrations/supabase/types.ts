@@ -3632,6 +3632,7 @@ export type Database = {
           handoff_urgency: string | null
           id: string
           last_message_at: string
+          last_reminder_at: string | null
           property_id: string
           resolved_at: string | null
           status: Database["public"]["Enums"]["chat_conversation_status"]
@@ -3650,6 +3651,7 @@ export type Database = {
           handoff_urgency?: string | null
           id?: string
           last_message_at?: string
+          last_reminder_at?: string | null
           property_id: string
           resolved_at?: string | null
           status?: Database["public"]["Enums"]["chat_conversation_status"]
@@ -3668,6 +3670,7 @@ export type Database = {
           handoff_urgency?: string | null
           id?: string
           last_message_at?: string
+          last_reminder_at?: string | null
           property_id?: string
           resolved_at?: string | null
           status?: Database["public"]["Enums"]["chat_conversation_status"]
