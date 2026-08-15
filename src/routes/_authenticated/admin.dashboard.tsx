@@ -719,7 +719,7 @@ function DashboardPage() {
             e usa a mesma cor da coluna correspondente no desktop, pra manter
             a mesma linguagem visual entre os dois tamanhos de tela. */}
         <div className="sm:hidden space-y-3">
-          <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-1 px-1">
+          <div className="flex gap-1.5 overflow-x-auto pb-3 -mx-1 px-1">
             {(
               [
                 { key: "checkin", label: "Check-ins", icon: CalendarCheck, count: counts.checkin, tone: "emerald" },
@@ -1841,9 +1841,15 @@ function ArrivalGroup({
 }) {
   // Somente UM card pode ficar com o quadro de detalhes aberto por vez.
   const [openId, setOpenId] = useState<string | null>(null);
+  // Antes esta lista ocupava a largura inteira da seção (fazia sentido um
+  // grid responsivo de 2-3 colunas). Agora ArrivalGroup só é usado dentro de
+  // colunas estreitas do Kanban (desktop) ou das abas (mobile) — nunca mais
+  // com espaço de sobra — por isso virou uma pilha vertical simples. O grid
+  // antigo, baseado na largura da JANELA (não do container), fazia os cards
+  // se espremerem em várias colunas dentro de uma coluna de ~220px.
   if (rows.length === 0) return null;
   return (
-    <div className={`grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 items-stretch ${muted ? "opacity-70" : ""}`}>
+    <div className={`flex flex-col gap-3 ${muted ? "opacity-70" : ""}`}>
       {rows.map((r) => (
         <ArrivalCard
           key={r.logId}
@@ -1990,7 +1996,7 @@ function ArrivalCard({
 
   return (
     <div
-      className={`group relative h-full flex flex-col rounded-2xl border p-4 gap-3 transition-all ${
+      className={`group relative flex flex-col rounded-2xl border p-4 gap-3 transition-all ${
         visualDone
           ? "bg-secondary/30 border-border/50"
           : isOverdue
