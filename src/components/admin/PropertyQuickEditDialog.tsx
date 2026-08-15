@@ -193,6 +193,7 @@ export function PropertyQuickEditDialog({
         title: (m.title as string) ?? "",
         description: (m.description as string) ?? "",
         body: (m.body as string) ?? "",
+        images: Array.isArray(m.images) ? (m.images as string[]) : [],
       })),
     );
     dirtyRef.current = false;
@@ -291,7 +292,12 @@ export function PropertyQuickEditDialog({
         },
         manual: manual
           .filter((m) => m.title.trim())
-          .map((m) => ({ title: m.title.trim(), description: m.description || null, body: m.body || null })),
+          .map((m) => ({
+            title: m.title.trim(),
+            description: m.description || null,
+            body: m.body || null,
+            images: m.images ?? [],
+          })),
         emergency: (data.emergency ?? []) as Array<Record<string, unknown>>,
         faqs: (data.faqs ?? []) as Array<Record<string, unknown>>,
         checkout: (data.checkout ?? []) as Array<Record<string, unknown>>,
@@ -475,7 +481,7 @@ export function PropertyQuickEditDialog({
                     size="sm"
                     variant="outline"
                     className="shrink-0 h-8 rounded-full text-xs"
-                    onClick={() => setManual((m) => [...m, { title: "", description: "", body: "" }])}
+                    onClick={() => setManual((m) => [...m, { title: "", description: "", body: "", images: [] }])}
                   >
                     <Plus className="size-3.5" /> Adicionar
                   </Button>
