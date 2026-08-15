@@ -1,5 +1,5 @@
 import { createFileRoute, Outlet, Link, useNavigate, useRouterState } from "@tanstack/react-router";
-import { LogOut, LayoutDashboard, Settings2, Menu, Users, Shield, ShieldCheck, Activity, Star, Headphones, Home, Contact, BrainCircuit, Sparkles } from "lucide-react";
+import { LogOut, LayoutDashboard, Settings2, Menu, Users, Shield, ShieldCheck, Activity, Star, Headphones, Home, Contact, BrainCircuit, Sparkles, ChevronsLeft, ChevronsRight } from "lucide-react";
 import conciergeLogo from "@/assets/concierge-logo.png";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
@@ -56,6 +56,20 @@ function AdminLayout() {
   const { isAdmin, isLoading: adminLoading } = useIsAdmin();
   const [email, setEmail] = useState<string>("");
   const [open, setOpen] = useState(false);
+  // Recolher o menu lateral (só desktop — no mobile o menu já é um overlay
+  // que abre/fecha por cima, "recolher" não se aplica lá). Lembra a escolha
+  // entre sessões.
+  const [collapsed, setCollapsed] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return window.localStorage.getItem("sidebar-collapsed") === "1";
+  });
+  useEffect(() => {
+    try {
+      window.localStorage.setItem("sidebar-collapsed", collapsed ? "1" : "0");
+    } catch {
+      // localStorage indisponível (modo privado etc.) — não é crítico.
+    }
+  }, [collapsed]);
   const accessFn = useServerFn(getAtendimentoAccess);
   const pendingFn = useServerFn(countPendingHandoffs);
   const access = useQuery({
@@ -192,17 +206,28 @@ function AdminLayout() {
     <div className="min-h-screen bg-background text-foreground flex">
       {/* Sidebar */}
       <aside
-        className={`fixed lg:sticky top-0 left-0 z-40 h-screen w-72 shrink-0 border-r border-border bg-surface flex flex-col transition-transform duration-300 ${open ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}`}
+        className={`fixed lg:sticky top-0 left-0 z-40 h-screen shrink-0 border-r border-border bg-surface flex flex-col transition-[transform,width] duration-300 ${open ? "translate-x-0" : "-translate-x-full lg:translate-x-0"} ${collapsed ? "lg:w-[76px]" : "w-72"}`}
       >
-        <div className="px-6 py-6 border-b border-border">
-          <Link to="/admin" className="inline-flex items-center gap-2.5">
-            <img src={conciergeLogo} alt="ConciergeIA" className="size-10 rounded-xl object-contain" />
-            <div className="font-display text-xl leading-none">ConciergeIA</div>
+        <div className={`relative border-b border-border flex items-center ${collapsed ? "px-4 py-6 justify-center" : "px-6 py-6 justify-between"}`}>
+          <Link to="/admin" className="inline-flex items-center gap-2.5 min-w-0">
+            <img src={conciergeLogo} alt="ConciergeIA" className="size-10 rounded-xl object-contain shrink-0" />
+            {!collapsed && <div className="font-display text-xl leading-none truncate">ConciergeIA</div>}
           </Link>
+          {/* Recolher/expandir — só aparece no desktop (lg+); no mobile o
+              controle é o botão de hambúrguer que já existia. */}
+          <button
+            type="button"
+            onClick={() => setCollapsed((c) => !c)}
+            aria-label={collapsed ? "Expandir menu" : "Recolher menu"}
+            title={collapsed ? "Expandir menu" : "Recolher menu"}
+            className={`hidden lg:grid size-7 place-items-center rounded-lg border border-border text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors shrink-0 ${collapsed ? "absolute -right-3 top-7 bg-surface shadow-sm" : ""}`}
+          >
+            {collapsed ? <ChevronsRight className="size-3.5" /> : <ChevronsLeft className="size-3.5" />}
+          </button>
         </div>
 
         <nav className="flex-1 px-3 py-4 pb-8 space-y-1 overflow-y-auto min-h-0">
-          {isAdmin ? (
+          {!collapsed && (isAdmin ? (
             <div className="px-1 pb-3 mb-2 border-b border-border/60">
               <ClientSwitcher />
             </div>
@@ -210,7 +235,7 @@ function AdminLayout() {
             <div className="px-1 pb-3 mb-2 border-b border-border/60">
               <AccountSwitcher />
             </div>
-          )}
+          ))}
           {nav.map((item) => {
             const active = item.exact ? pathname === item.to : pathname.startsWith(item.to);
             const Icon = item.icon;
@@ -219,18 +244,22 @@ function AdminLayout() {
               <Link
                 key={item.label}
                 to={item.to}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-colors ${
+                title={collapsed ? item.label : undefined}
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-colors ${collapsed ? "justify-center" : ""} ${
                   active
                     ? "bg-primary text-primary-foreground font-medium shadow-sm"
                     : "text-foreground/70 hover:bg-secondary hover:text-foreground"
                 }`}
               >
-                <Icon className="size-4" strokeWidth={2} />
-                <span className="flex-1">{item.label}</span>
-                {badge > 0 && (
+                <Icon className="size-4 shrink-0" strokeWidth={2} />
+                {!collapsed && <span className="flex-1">{item.label}</span>}
+                {badge > 0 && !collapsed && (
                   <span className="min-w-5 h-5 px-1.5 rounded-full bg-red-500 text-white text-[10px] font-bold grid place-items-center">
                     {badge}
                   </span>
+                )}
+                {badge > 0 && collapsed && (
+                  <span className="absolute ml-6 -mt-5 size-2 rounded-full bg-red-500" aria-hidden />
                 )}
               </Link>
             );
@@ -238,9 +267,11 @@ function AdminLayout() {
 
           {isAdmin && (
             <div className="pt-6 mt-2 border-t border-border/60">
-              <div className="px-3 pb-2 flex items-center gap-2 text-[10px] uppercase tracking-[0.18em] text-muted-foreground font-semibold">
-                <Shield className="size-3" /> Admin SaaS
-              </div>
+              {!collapsed && (
+                <div className="px-3 pb-2 flex items-center gap-2 text-[10px] uppercase tracking-[0.18em] text-muted-foreground font-semibold">
+                  <Shield className="size-3" /> Admin SaaS
+                </div>
+              )}
               {adminOnlyNav.map((item) => {
                 const active = pathname.startsWith(item.to);
                 const Icon = item.icon;
@@ -248,14 +279,15 @@ function AdminLayout() {
                   <Link
                     key={item.label}
                     to={item.to}
-                    className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-colors ${
+                    title={collapsed ? item.label : undefined}
+                    className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-colors ${collapsed ? "justify-center" : ""} ${
                       active
                         ? "bg-primary text-primary-foreground font-medium shadow-sm"
                         : "text-foreground/70 hover:bg-secondary hover:text-foreground"
                     }`}
                   >
-                    <Icon className="size-4" strokeWidth={2} />
-                    {item.label}
+                    <Icon className="size-4 shrink-0" strokeWidth={2} />
+                    {!collapsed && item.label}
                   </Link>
                 );
               })}
@@ -263,22 +295,25 @@ function AdminLayout() {
           )}
         </nav>
 
-        <div className="border-t border-border p-3 space-y-2 shrink-0">
-          <div className="flex items-center gap-3 px-2 py-1">
+        <div className={`border-t border-border p-3 space-y-2 shrink-0 ${collapsed ? "flex flex-col items-center" : ""}`}>
+          <div className={`flex items-center gap-3 px-2 py-1 ${collapsed ? "justify-center px-0" : ""}`}>
             <div className="size-9 rounded-full bg-accent text-accent-foreground grid place-items-center text-xs font-semibold shrink-0">
               {initials}
             </div>
-            <div className="flex-1 min-w-0">
-              <div className="text-sm font-medium truncate">{email ? "Conectado como" : "Anfitrião"}</div>
-              <div className="text-[11px] text-muted-foreground truncate">{email || "—"}</div>
-            </div>
+            {!collapsed && (
+              <div className="flex-1 min-w-0">
+                <div className="text-sm font-medium truncate">{email ? "Conectado como" : "Anfitrião"}</div>
+                <div className="text-[11px] text-muted-foreground truncate">{email || "—"}</div>
+              </div>
+            )}
           </div>
           <button
             onClick={signOut}
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium border border-border bg-secondary/40 hover:bg-secondary transition-colors"
+            title={collapsed ? "Sair / Trocar usuário" : undefined}
+            className={`flex items-center gap-3 rounded-xl text-sm font-medium border border-border bg-secondary/40 hover:bg-secondary transition-colors ${collapsed ? "size-9 justify-center px-0 py-0" : "w-full px-3 py-2.5"}`}
           >
-            <LogOut className="size-4" strokeWidth={2} />
-            Sair / Trocar usuário
+            <LogOut className="size-4 shrink-0" strokeWidth={2} />
+            {!collapsed && "Sair / Trocar usuário"}
           </button>
         </div>
       </aside>

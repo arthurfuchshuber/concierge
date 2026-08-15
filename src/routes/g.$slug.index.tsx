@@ -7,7 +7,7 @@ import { trackGuideEvent } from "@/lib/guide-analytics.functions";
 import { useI18n } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Tabs, TabsContent } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
 import {
   Lock,
@@ -63,7 +63,8 @@ import { propertyTimeZone, todayInTZ, zonedTimeToUtc } from "@/lib/property-time
 import { BottomNav, type BottomNavKey } from "@/components/guide/BottomNav";
 import waterfallImg from "@/assets/rec-waterfall.jpg";
 import conciergeLogo from "@/assets/concierge-logo.png";
-import { GuideAccessGate, readAccessRecord, type AccessRecord } from "@/components/GuideAccessGate";
+import { GuideAccessGate, readAccessRecord, consumeFirstAccessFlag, type AccessRecord } from "@/components/GuideAccessGate";
+import { FirstVisitTour } from "@/components/guide/FirstVisitTour";
 import { InlineTagText } from "@/components/tags/InlineTagText";
 import { slugForTag, expandInfoTags, type GuideTagKey } from "@/lib/guide-tags";
 import { toast } from "sonner";
@@ -418,6 +419,18 @@ function Guide({ data }: { data: GuideOk }) {
   // e mostra o conteúdo do guia diretamente, sem exigir preenchimento.
   const [isPreview, setIsPreview] = useState(false);
   const [accessRec, setAccessRec] = useState<AccessRecord | null>(null);
+  const [tourActive, setTourActive] = useState(false);
+  // Dispara o tour guiado só na primeira vez que ESTA reserva libera o acesso
+  // (nunca em visitas de retorno, que reidratam o accessRec direto do
+  // localStorage sem passar pela submissão do formulário).
+  useEffect(() => {
+    if (!accessRec) return;
+    if (consumeFirstAccessFlag(slug)) {
+      setSection("checkin");
+      const t = setTimeout(() => setTourActive(true), 450);
+      return () => clearTimeout(t);
+    }
+  }, [accessRec, slug]);
   // Hidrata o registro do localStorage somente após mount (evita mismatch SSR
   // que descartava o registro e fazia o popup reaparecer a cada acesso).
   const [gateReady, setGateReady] = useState(false);
@@ -745,6 +758,7 @@ function Guide({ data }: { data: GuideOk }) {
           theme={theme === "light" ? "light" : "dark"}
         />
       )}
+      <FirstVisitTour active={tourActive} onDone={() => setTourActive(false)} />
       <div className="relative z-10 mx-auto w-full max-w-[490px] md:max-w-[520px]">
         <AnimatePresence mode="wait" initial={false}>
           {section === "home" ? (
@@ -1318,12 +1332,20 @@ function Guide({ data }: { data: GuideOk }) {
                           </SubItem>
                         )}
 
-                        {(p.checkin_instructions || (Array.isArray(p.checkin_media) && p.checkin_media.length > 0)) && (
-                          <SubItem
-                            icon={<LogIn className="size-[18px]" strokeWidth={1.6} />}
-                            label="Check-in"
-                            hint="Passo a passo da chegada"
-                          >
+                        {(() => {
+                          const hasCheckinSteps = !!(
+                            p.checkin_instructions || (Array.isArray(p.checkin_media) && p.checkin_media.length > 0)
+                          );
+                          if (!hasCheckinSteps && !hasAcesso && !hasWifi) return null;
+                          // Antes eram 3 cards separados no acordeão (Check-in, Senha de
+                          // Acesso, Senha do Wi-Fi) — hóspede tinha que descobrir sozinho
+                          // que "senha" ficava num card diferente do passo a passo. Agora
+                          // é um card só, com abas internas: "Passo a passo" e "Senhas".
+                          // O tour de primeiro acesso aponta exatamente pra esse fluxo:
+                          // toque no card "Check-in" → toque na aba "Senhas".
+                          const showTabs = hasCheckinSteps && (hasAcesso || hasWifi);
+                          const defaultTab = hasCheckinSteps ? "passos" : "senhas";
+                          const stepsContent = hasCheckinSteps && (
                             <Lockable locked={checkinLocked}>
                               <div className="space-y-4">
                                 {p.checkin_instructions && (
@@ -1362,100 +1384,103 @@ function Guide({ data }: { data: GuideOk }) {
                                 )}
                               </div>
                             </Lockable>
-                          </SubItem>
-                        )}
-
-                        {hasAcesso &&
-                          (() => {
-                            const gateLabel = ((p.gate_label as string | null) || "Portão").trim() || "Portão";
-                            const lockLabel = ((p.lock_label as string | null) || "Fechadura").trim() || "Fechadura";
-                            const accessCount = (gateCodeSet ? 1 : 0) + (lockCodeSet ? 1 : 0);
-                            const accessLabel = accessCount > 1 ? "Senhas de Acessos" : "Senha de Acesso";
-                            return (
-                              <SubItem
-                                icon={<KeyRound className="size-[18px]" strokeWidth={1.6} />}
-                                label={accessLabel}
-                                hint={
-                                  gateCodeSet && lockCodeSet
-                                    ? `${gateLabel} e ${lockLabel.toLowerCase()}`
-                                    : gateCodeSet
-                                      ? gateLabel
-                                      : lockCodeSet
-                                        ? lockLabel
-                                        : "Instruções de entrada"
-                                }
-                              >
-                                <Lockable locked={checkinLocked}>
-                                  <div className="space-y-4">
-                                    {gateCodeSet && (
-                                      <AccessBlock
-                                        kind="gate"
-                                        label={gateLabel}
-                                        code={p.gate_code ?? ""}
-                                        instructions={p.gate_instructions as string | null}
-                                        videoUrl={p.gate_video_url as string | null}
-                                        media={gateMedia}
-                                        unlocked={unlocked}
-                                        requestUnlock={requestUnlock}
-                                        hasPin={hasAccessPin}
-                                        onShown={markPasswordsSeen}
-                                      />
-                                    )}
-                                    {lockCodeSet && (
-                                      <AccessBlock
-                                        kind="lock"
-                                        label={lockLabel}
-                                        code={p.lock_code ?? ""}
-                                        instructions={p.lock_instructions as string | null}
-                                        videoUrl={p.lock_video_url as string | null}
-                                        media={lockMedia}
-                                        unlocked={unlocked}
-                                        requestUnlock={requestUnlock}
-                                        hasPin={hasAccessPin}
-                                        onShown={markPasswordsSeen}
-                                      />
-                                    )}
+                          );
+                          const passwordsContent = (hasAcesso || hasWifi) && (
+                            <div className="space-y-5">
+                              {hasAcesso &&
+                                (() => {
+                                  const gateLabel = ((p.gate_label as string | null) || "Portão").trim() || "Portão";
+                                  const lockLabel = ((p.lock_label as string | null) || "Fechadura").trim() || "Fechadura";
+                                  return (
+                                    <Lockable locked={checkinLocked}>
+                                      <div className="space-y-4">
+                                        {gateCodeSet && (
+                                          <AccessBlock
+                                            kind="gate"
+                                            label={gateLabel}
+                                            code={p.gate_code ?? ""}
+                                            instructions={p.gate_instructions as string | null}
+                                            videoUrl={p.gate_video_url as string | null}
+                                            media={gateMedia}
+                                            unlocked={unlocked}
+                                            requestUnlock={requestUnlock}
+                                            hasPin={hasAccessPin}
+                                            onShown={markPasswordsSeen}
+                                          />
+                                        )}
+                                        {lockCodeSet && (
+                                          <AccessBlock
+                                            kind="lock"
+                                            label={lockLabel}
+                                            code={p.lock_code ?? ""}
+                                            instructions={p.lock_instructions as string | null}
+                                            videoUrl={p.lock_video_url as string | null}
+                                            media={lockMedia}
+                                            unlocked={unlocked}
+                                            requestUnlock={requestUnlock}
+                                            hasPin={hasAccessPin}
+                                            onShown={markPasswordsSeen}
+                                          />
+                                        )}
+                                      </div>
+                                    </Lockable>
+                                  );
+                                })()}
+                              {hasWifi && (
+                                <div className="rounded-xl bg-background/50 border border-border/50 overflow-hidden divide-y divide-border/40">
+                                  <div className="flex items-center gap-3 px-3.5 py-3">
+                                    <div className="size-9 rounded-lg bg-accent/10 text-accent/75 grid place-items-center shrink-0">
+                                      <Wifi className="size-[18px]" strokeWidth={1.75} />
+                                    </div>
+                                    <div className="min-w-0">
+                                      <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground font-semibold">
+                                        Rede
+                                      </p>
+                                      <p className="text-[15px] font-semibold tracking-tight mt-0.5 break-all leading-snug">
+                                        {p.wifi_ssid}
+                                      </p>
+                                    </div>
                                   </div>
-                                </Lockable>
-                              </SubItem>
-                            );
-                          })()}
-
-                        {hasWifi && (
-                          <SubItem
-                            icon={<Wifi className="size-[18px]" strokeWidth={1.6} />}
-                            label="Senha do Wi-Fi"
-                            hint={p.wifi_ssid || undefined}
-                          >
-                            <div className="rounded-xl bg-background/50 border border-border/50 overflow-hidden divide-y divide-border/40">
-                              <div className="flex items-center gap-3 px-3.5 py-3">
-                                <div className="size-9 rounded-lg bg-accent/10 text-accent/75 grid place-items-center shrink-0">
-                                  <Wifi className="size-[18px]" strokeWidth={1.75} />
+                                  {((p as any).wifi_password_set || p.wifi_password) && (
+                                    <Lockable locked={checkinLocked}>
+                                      <GatedCopyCard
+                                        icon={<KeyRound className="size-[18px]" strokeWidth={1.75} />}
+                                        eyebrow="Senha"
+                                        value={p.wifi_password ?? ""}
+                                        unlocked={unlocked}
+                                        requestUnlock={requestUnlock}
+                                        hasPin={hasAccessPin}
+                                      />
+                                    </Lockable>
+                                  )}
                                 </div>
-                                <div className="min-w-0">
-                                  <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground font-semibold">
-                                    Rede
-                                  </p>
-                                  <p className="text-[15px] font-semibold tracking-tight mt-0.5 break-all leading-snug">
-                                    {p.wifi_ssid}
-                                  </p>
-                                </div>
-                              </div>
-                              {((p as any).wifi_password_set || p.wifi_password) && (
-                                <Lockable locked={checkinLocked}>
-                                  <GatedCopyCard
-                                    icon={<KeyRound className="size-[18px]" strokeWidth={1.75} />}
-                                    eyebrow="Senha"
-                                    value={p.wifi_password ?? ""}
-                                    unlocked={unlocked}
-                                    requestUnlock={requestUnlock}
-                                    hasPin={hasAccessPin}
-                                  />
-                                </Lockable>
                               )}
                             </div>
-                          </SubItem>
-                        )}
+                          );
+                          return (
+                            <SubItem
+                              icon={<LogIn className="size-[18px]" strokeWidth={1.6} />}
+                              label="Check-in"
+                              hint={showTabs ? "Passo a passo e senhas de acesso" : hasCheckinSteps ? "Passo a passo da chegada" : "Senhas de acesso"}
+                              dataTour="checkin-card"
+                            >
+                              {showTabs ? (
+                                <Tabs defaultValue={defaultTab}>
+                                  <TabsList className="w-full grid grid-cols-2 mb-4">
+                                    <TabsTrigger value="passos">Passo a passo</TabsTrigger>
+                                    <TabsTrigger value="senhas" data-tour="senhas-tab">Senhas</TabsTrigger>
+                                  </TabsList>
+                                  <TabsContent value="passos">{stepsContent}</TabsContent>
+                                  <TabsContent value="senhas" data-tour="senhas-panel">{passwordsContent}</TabsContent>
+                                </Tabs>
+                              ) : hasCheckinSteps ? (
+                                stepsContent
+                              ) : (
+                                <div data-tour="senhas-panel">{passwordsContent}</div>
+                              )}
+                            </SubItem>
+                          );
+                        })()}
 
                         {hasRules ? (
                           <SubItem
@@ -2730,16 +2755,19 @@ function SubItem({
   label,
   hint,
   children,
+  dataTour,
 }: {
   icon: React.ReactNode;
   label: string;
   hint?: string;
   children: React.ReactNode;
+  dataTour?: string;
 }) {
   const id = label.toLowerCase().replace(/\s+/g, "-");
   return (
     <AccordionItem
       value={id}
+      data-tour={dataTour}
       className="border border-border/70 rounded-2xl overflow-hidden bg-card/60 backdrop-blur-sm data-[state=open]:border-accent/40 data-[state=open]:shadow-[0_8px_28px_-16px_oklch(from_var(--accent)_l_c_h/0.45)] transition-all"
     >
       <AccordionTrigger className="px-5 py-4 md:py-5 hover:no-underline">

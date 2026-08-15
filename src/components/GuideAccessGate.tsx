@@ -36,6 +36,20 @@ import PhoneInput, { isValidPhoneNumber, type Country } from "react-phone-number
 import "react-phone-number-input/style.css";
 
 const STORAGE_PREFIX = "sg-access-";
+const TOUR_PENDING_PREFIX = "sg-tour-pending-";
+
+/**
+ * Consome (lê e apaga) a flag de "primeiro acesso de verdade" desta reserva.
+ * Chamado uma única vez pela página do guia ao detectar que o acesso foi
+ * liberado — se retornar true, é a hora de mostrar o tour guiado.
+ */
+export function consumeFirstAccessFlag(slug: string): boolean {
+  if (typeof window === "undefined") return false;
+  const key = TOUR_PENDING_PREFIX + slug;
+  const pending = window.localStorage.getItem(key) === "1";
+  if (pending) window.localStorage.removeItem(key);
+  return pending;
+}
 
 export type AccessRecord = {
   name: string;
@@ -431,6 +445,11 @@ export function GuideAccessGate({ slug, propertyId, propertyName, requireReserva
         phoneCountry: country,
       };
       window.localStorage.setItem(STORAGE_PREFIX + slug, JSON.stringify(rec));
+      // Marca que esta é uma submissão nova de verdade (não uma visita de
+      // retorno lendo o registro já salvo) — quem consome isso é o tour de
+      // primeiro acesso na página do guia, que só deve aparecer uma vez por
+      // reserva (telefone+nome+data+imóvel já identificam essa reserva aqui).
+      window.localStorage.setItem(TOUR_PENDING_PREFIX + slug, "1");
       onUnlock(rec);
     } catch {
       toast.error("Erro ao registrar acesso. Tente novamente.");

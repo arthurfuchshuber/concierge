@@ -30,6 +30,7 @@ import {
   CheckCircle2,
   Undo2,
   Filter,
+  LayoutGrid,
 
 } from "lucide-react";
 import { toast } from "sonner";
@@ -197,11 +198,12 @@ function DashboardPage() {
 
   const concludedFn = useServerFn(listConcludedArrivals);
   const occupancyFn = useServerFn(getOccupancyBoard);
-  const [mode, setMode] = useState<BoardMode>("checkin");
-  const kind: "checkin" | "checkout" =
-    mode === "checkout" || mode === "cleaning" || mode === "done" ? "checkout" : "checkin";
 
   const [range, setRange] = useState<"today" | "tomorrow" | "7d" | "all">("today");
+  // Qual coluna do Kanban está ativa no mobile (lá o quadro vira abas — não
+  // cabem as 5 colunas lado a lado). No desktop não é usado; as 5 colunas
+  // aparecem todas ao mesmo tempo.
+  const [mobileTab, setMobileTab] = useState<BoardMode>("checkin");
   // Card em ação (para feedback imediato no toque, sem travar o quadro inteiro).
   const [busyRowId, setBusyRowId] = useState<string | null>(null);
   // Engagement window follows the kanban range: tomorrow/all map to 7d/30d.
@@ -253,8 +255,6 @@ function DashboardPage() {
     staleTime: 60_000,
     placeholderData: keepPreviousData,
   });
-  const listQ = mode === "done" ? concludedQ : kind === "checkin" ? checkinListQ : checkoutListQ;
-
 
   // Uma única rotina de recarga, com "debounce": evita disparar 4-5 requisições
   // seguidas (mutação + eventos em tempo real) — o que deixava o app lento no celular.
@@ -466,14 +466,6 @@ function DashboardPage() {
     [ciRows, todayISO],
   );
 
-  const boardRows = useMemo(() => {
-    if (mode === "checkin") return checkinPendingRows;
-    if (mode === "checkout") return checkoutPendingRows;
-    if (mode === "stay") return stayRows;
-    if (mode === "done") return concludedRows;
-    return cleaningRows;
-  }, [mode, checkinPendingRows, checkoutPendingRows, stayRows, cleaningRows, concludedRows]);
-
 
   const rangeLabel: Record<typeof range, string> = {
     today: "Hoje",
@@ -481,6 +473,84 @@ function DashboardPage() {
     "7d": "7 dias",
     all: "Todos",
   };
+
+  function arrivalGroupPropsFor(colMode: BoardMode, rows: ArrivalRow[]) {
+    const colKind: "checkin" | "checkout" =
+      colMode === "checkout" || colMode === "cleaning" || colMode === "done" ? "checkout" : "checkin";
+    return {
+      rows,
+      kind: colKind,
+      mode: colMode,
+      onMark: (row: ArrivalRow) => {
+        if (colMode === "done") return;
+        handleAdvance(row, colMode as "checkin" | "stay" | "checkout" | "cleaning");
+      },
+      onRevert:
+        colMode === "checkin"
+          ? undefined
+          : (row: ArrivalRow) => {
+              const target = statusTarget(row);
+              if (!target.logId && !target.reservationId) {
+                toast.error("Não foi possível identificar esse card.");
+                return;
+              }
+              setBusyRowId(row.logId);
+              if (colMode === "stay") patchList("checkin", (rows) => rows.map((r) => (r.logId === row.logId ? { ...r, status: "pending" } : r)));
+              else if (colMode === "checkout" || colMode === "cleaning")
+                patchList("checkout", (rows) => rows.map((r) => (r.logId === row.logId ? { ...r, status: "pending" } : r)));
+              revert.mutate({ ...target, from: colMode as "checkout" | "stay" | "cleaning" | "done" });
+            },
+      onSyncIcal: (row: ArrivalRow) => {
+        const t = colKind === "checkin" ? "15:00" : "11:00";
+        setBusyRowId(row.logId);
+        upsert.mutate({ ...statusTarget(row), kind: colKind, arrivalTimeOverride: t });
+        toast.success(`Horário alinhado ao iCal (${t}).`);
+      },
+      onNote: (row: ArrivalRow, note: string | null) => {
+        setBusyRowId(row.logId);
+        upsert.mutate({ ...statusTarget(row), kind: colKind, note });
+      },
+      onEditDates: (row: ArrivalRow, dates: { checkinDate?: string; checkoutDate?: string | null }) => {
+        setBusyRowId(row.logId);
+        updateDates.mutate({ logId: row.logId, ...dates });
+      },
+      onEditTime: (row: ArrivalRow, time: string | null) => handleEditTime(row, colKind, time),
+      busyRowId,
+      muted: colMode === "stay" || colMode === "cleaning",
+      cleaningPendingPropIds,
+    };
+  }
+
+  // Extraído como função pra poder aparecer em dois lugares diferentes (ao
+  // lado dos pendentes no desktop, embaixo no mobile) sem duplicar o JSX de
+  // verdade — os dois pontos de chamada leem o mesmo engQ/range do
+  // componente pai, então nunca ficam dessincronizados entre si.
+  function renderEngagementPanel(wrapperClassName: string) {
+    if (counts.checkin === 0) return null;
+    return (
+      <section className={`rounded-2xl border border-border bg-card p-4 sm:p-5 space-y-4 shadow-sm ${wrapperClassName}`}>
+        <div className="relative flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-start gap-2 min-w-0">
+            <div className="size-9 rounded-xl bg-primary/10 text-primary grid place-items-center shrink-0 ring-1 ring-primary/15">
+              <TrendingUp className="size-4" />
+            </div>
+            <div className="min-w-0">
+              <div className="text-sm font-semibold">Engajamento do guia</div>
+              <div className="text-xs text-muted-foreground">Comparativo com os check-ins do período</div>
+            </div>
+          </div>
+          <div className="text-xs text-muted-foreground tabular-nums">{rangeLabel[range]}</div>
+        </div>
+        <EngagementBars
+          loading={engQ.isLoading}
+          checkins={engQ.data?.checkinsInPeriod ?? 0}
+          checkinsWithCodes={engQ.data?.checkinsWithCodes ?? 0}
+          checkinBreakdown={engQ.data?.checkinBreakdown}
+          codesBreakdown={engQ.data?.codesBreakdown}
+        />
+      </section>
+    );
+  }
 
   return (
     <div className="px-6 lg:px-10 py-8 lg:py-10 max-w-7xl mx-auto w-full space-y-6">
@@ -495,33 +565,47 @@ function DashboardPage() {
 
       {/* KPIs */}
       <section className="space-y-3">
-        <div className="grid grid-cols-2 gap-3">
-          <KpiCard
-            label="Check-ins Pendentes"
-            rows={checkinPendingRows}
-            icon={LogIn}
-            tone="primary"
-            loading={checkinListQ.isLoading}
-            onRefresh={() => checkinListQ.refetch()}
-            kind="checkin"
-            rangeLabel={rangeLabel[range]}
-            shadowTone="emerald"
-            onEditTime={handleEditTime}
-            onAdvance={(r) => handleAdvance(r, "checkin")}
-          />
-          <KpiCard
-            label="Checkouts Pendentes"
-            rows={checkoutPendingRows}
-            icon={LogOut}
-            tone="primary"
-            loading={checkoutListQ.isLoading}
-            onRefresh={() => checkoutListQ.refetch()}
-            kind="checkout"
-            rangeLabel={rangeLabel[range]}
-            shadowTone="amber"
-            onEditTime={handleEditTime}
-            onAdvance={(r) => handleAdvance(r, "checkout")}
-          />
+        <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 items-stretch">
+          <div className="lg:col-start-1 lg:row-start-1">
+            <KpiCard
+              label="Check-ins Pendentes"
+              rows={checkinPendingRows}
+              icon={LogIn}
+              tone="primary"
+              loading={checkinListQ.isLoading}
+              onRefresh={() => checkinListQ.refetch()}
+              kind="checkin"
+              rangeLabel={rangeLabel[range]}
+              shadowTone="emerald"
+              onEditTime={handleEditTime}
+              onAdvance={(r) => handleAdvance(r, "checkin")}
+            />
+          </div>
+          {/* No desktop, Checkouts Pendentes fica abaixo de Check-ins Pendentes
+              (mesma coluna) — libera a coluna da direita pro Engajamento do
+              guia. No mobile continua lado a lado, como sempre foi. */}
+          <div className="lg:col-start-1 lg:row-start-2">
+            <KpiCard
+              label="Checkouts Pendentes"
+              rows={checkoutPendingRows}
+              icon={LogOut}
+              tone="primary"
+              loading={checkoutListQ.isLoading}
+              onRefresh={() => checkoutListQ.refetch()}
+              kind="checkout"
+              rangeLabel={rangeLabel[range]}
+              shadowTone="amber"
+              onEditTime={handleEditTime}
+              onAdvance={(r) => handleAdvance(r, "checkout")}
+            />
+          </div>
+          {/* Engajamento do guia — só no desktop ele mora aqui, ao lado dos
+              pendentes. No mobile a mesma seção aparece mais abaixo (função
+              renderEngagementPanel, chamada de novo lá embaixo — mesmo dado,
+              só posição diferente). */}
+          {renderEngagementPanel(
+            "hidden lg:flex lg:flex-col lg:col-start-2 lg:row-start-1 lg:row-span-2 lg:col-span-2",
+          )}
         </div>
 
         {/* Em Limpeza — faixa fina logo abaixo dos pendentes (só quando houver 1+) */}
@@ -591,31 +675,9 @@ function DashboardPage() {
       </section>
 
 
-      {/* Engajamento — segue os check-ins PENDENTES do filtro atual; some quando zera */}
-      {counts.checkin > 0 && (
-        <section className="rounded-2xl border border-border bg-card p-4 sm:p-5 space-y-4 shadow-sm">
-          <div className="relative flex flex-wrap items-center justify-between gap-3">
-            <div className="flex items-start gap-2 min-w-0">
-              <div className="size-9 rounded-xl bg-primary/10 text-primary grid place-items-center shrink-0 ring-1 ring-primary/15">
-                <TrendingUp className="size-4" />
-              </div>
-              <div className="min-w-0">
-                <div className="text-sm font-semibold">Engajamento do guia</div>
-                <div className="text-xs text-muted-foreground">Comparativo com os check-ins do período</div>
-              </div>
-            </div>
-            <div className="text-xs text-muted-foreground tabular-nums">{rangeLabel[range]}</div>
-          </div>
-          <EngagementBars
-            loading={engQ.isLoading}
-            checkins={engQ.data?.checkinsInPeriod ?? 0}
-            checkinsWithCodes={engQ.data?.checkinsWithCodes ?? 0}
-            checkinBreakdown={engQ.data?.checkinBreakdown}
-            codesBreakdown={engQ.data?.codesBreakdown}
-          />
-
-        </section>
-      )}
+      {/* No mobile, Engajamento do guia continua aqui embaixo (no desktop já
+          apareceu lá em cima, ao lado dos pendentes — mesma função). */}
+      {renderEngagementPanel("lg:hidden")}
       {/* Agenda macro de ocupação */}
       <OccupancyPanel
         loading={occupancyQ.isLoading}
@@ -628,21 +690,16 @@ function DashboardPage() {
         defaultStart={todayISO}
       />
 
-      {/* Arrivals */}
+      {/* Quadro de operação — Kanban por status, colunas lado a lado (estilo
+          Jira). Antes era uma lista só com um dropdown pra trocar de status;
+          agora todos os status ficam visíveis ao mesmo tempo, e "puxar" um
+          card de um status pro outro fica visual, não escondido atrás de um
+          menu. */}
       <section className="rounded-2xl border border-border bg-card p-4 sm:p-5 space-y-4 shadow-sm">
         <div className="flex items-center gap-3">
-          <ModeDropdown
-            value={mode}
-            onChange={setMode}
-            options={[
-              { value: "checkin", label: "Check-ins", icon: CalendarCheck, count: counts.checkin },
-              { value: "checkout", label: "Checkouts", icon: CalendarX, count: counts.checkout },
-              { value: "stay", label: "Em Estadia", icon: BedDouble, count: counts.stay },
-              { value: "cleaning", label: "Em Limpeza", icon: Sparkles, count: counts.cleaning },
-              { value: "done", label: "Concluídos", icon: CheckCircle2, count: counts.done },
-
-            ]}
-          />
+          <h2 className="font-display text-base sm:text-lg flex items-center gap-2">
+            <LayoutGrid className="size-4.5 text-muted-foreground" /> Quadro de operação
+          </h2>
           <div className="ml-auto">
             <RangeDropdown
               value={range}
@@ -657,62 +714,180 @@ function DashboardPage() {
           </div>
         </div>
 
-        {listQ.isLoading ? (
-          <div className="py-12 grid place-items-center text-muted-foreground text-sm">
-            <Loader2 className="size-5 animate-spin" />
+        {/* Mobile: abas roláveis, uma coluna ativa por vez — 5 colunas lado a
+            lado não cabem numa tela estreita. Cada aba já carrega a contagem
+            e usa a mesma cor da coluna correspondente no desktop, pra manter
+            a mesma linguagem visual entre os dois tamanhos de tela. */}
+        <div className="sm:hidden space-y-3">
+          <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-1 px-1">
+            {(
+              [
+                { key: "checkin", label: "Check-ins", icon: CalendarCheck, count: counts.checkin, tone: "emerald" },
+                { key: "checkout", label: "Checkouts", icon: CalendarX, count: counts.checkout, tone: "amber" },
+                { key: "stay", label: "Estadia", icon: BedDouble, count: counts.stay, tone: "sky" },
+                { key: "cleaning", label: "Limpeza", icon: Sparkles, count: counts.cleaning, tone: "violet" },
+                { key: "done", label: "Concluídos", icon: CheckCircle2, count: counts.done, tone: "zinc" },
+              ] as const
+            ).map((t) => {
+              const Icon = t.icon;
+              const active = mobileTab === t.key;
+              return (
+                <button
+                  key={t.key}
+                  type="button"
+                  onClick={() => setMobileTab(t.key)}
+                  className={`shrink-0 inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium whitespace-nowrap transition-colors ${
+                    active ? KANBAN_TONE_ACTIVE[t.tone] : "border-border text-muted-foreground"
+                  }`}
+                >
+                  <Icon className="size-3.5" />
+                  {t.label}
+                  <span className="opacity-75 tabular-nums">{t.count}</span>
+                </button>
+              );
+            })}
           </div>
-        ) : boardRows.length === 0 ? (
-          <div className="py-12 text-center text-sm text-muted-foreground">Nenhum registro no período.</div>
-        ) : (
-          <div className="relative space-y-6">
-            <ArrivalGroup
-              title=""
-              rows={boardRows}
-              kind={kind}
-              mode={mode}
-              onMark={(row) => {
-                if (mode === "done") return;
-                handleAdvance(row, mode);
-              }}
 
-              onRevert={
-                mode === "checkin"
-                  ? undefined
-                  : (row: ArrivalRow) => {
-                      const target = statusTarget(row);
-                      if (!target.logId && !target.reservationId) {
-                        toast.error("Não foi possível identificar esse card.");
-                        return;
-                      }
-                      setBusyRowId(row.logId);
-                      if (mode === "stay") patchList("checkin", (rows) => rows.map((r) => (r.logId === row.logId ? { ...r, status: "pending" } : r)));
-                      else if (mode === "checkout" || mode === "cleaning")
-                        patchList("checkout", (rows) => rows.map((r) => (r.logId === row.logId ? { ...r, status: "pending" } : r)));
-                      revert.mutate({ ...target, from: mode });
+          {mobileTab === "checkin" &&
+            (checkinListQ.isLoading ? <ColumnLoading /> : checkinPendingRows.length === 0 ? <ColumnEmpty /> : (
+              <ArrivalGroup title="" {...arrivalGroupPropsFor("checkin", checkinPendingRows)} />
+            ))}
+          {mobileTab === "checkout" &&
+            (checkoutListQ.isLoading ? <ColumnLoading /> : checkoutPendingRows.length === 0 ? <ColumnEmpty /> : (
+              <ArrivalGroup title="" {...arrivalGroupPropsFor("checkout", checkoutPendingRows)} />
+            ))}
+          {mobileTab === "stay" &&
+            (checkinListQ.isLoading ? <ColumnLoading /> : stayRows.length === 0 ? <ColumnEmpty /> : (
+              <ArrivalGroup title="" {...arrivalGroupPropsFor("stay", stayRows)} />
+            ))}
+          {mobileTab === "cleaning" &&
+            (checkoutListQ.isLoading ? <ColumnLoading /> : cleaningRows.length === 0 ? <ColumnEmpty /> : (
+              <ArrivalGroup title="" {...arrivalGroupPropsFor("cleaning", cleaningRows)} />
+            ))}
+          {mobileTab === "done" &&
+            (concludedQ.isLoading ? <ColumnLoading /> : concludedRows.length === 0 ? <ColumnEmpty /> : (
+              <ArrivalGroup title="" {...arrivalGroupPropsFor("done", concludedRows)} />
+            ))}
+        </div>
 
-                    }
-              }
-              onSyncIcal={(row) => {
-                const t = kind === "checkin" ? "15:00" : "11:00";
-                setBusyRowId(row.logId);
-                upsert.mutate({ ...statusTarget(row), kind, arrivalTimeOverride: t });
-                toast.success(`Horário alinhado ao iCal (${t}).`);
-              }}
-              onNote={(row, note) => { setBusyRowId(row.logId); upsert.mutate({ ...statusTarget(row), kind, note }); }}
-              onEditDates={(row, dates) => { setBusyRowId(row.logId); updateDates.mutate({ logId: row.logId, ...dates }); }}
-              onEditTime={(row, time) => handleEditTime(row, kind, time)}
-              busyRowId={busyRowId}
-              muted={mode === "stay" || mode === "cleaning"}
-              cleaningPendingPropIds={cleaningPendingPropIds}
-            />
-          </div>
-        )}
+        {/* Desktop/tablet: as 5 colunas lado a lado, como já estava. */}
+        <div className="hidden sm:grid sm:grid-cols-2 xl:grid-cols-5 gap-3 items-start">
+          <KanbanColumn title="Check-ins" icon={CalendarCheck} count={counts.checkin} tone="emerald">
+            {checkinListQ.isLoading ? (
+              <ColumnLoading />
+            ) : checkinPendingRows.length === 0 ? (
+              <ColumnEmpty />
+            ) : (
+              <ArrivalGroup title="" {...arrivalGroupPropsFor("checkin", checkinPendingRows)} />
+            )}
+          </KanbanColumn>
+
+          <KanbanColumn title="Checkouts" icon={CalendarX} count={counts.checkout} tone="amber">
+            {checkoutListQ.isLoading ? (
+              <ColumnLoading />
+            ) : checkoutPendingRows.length === 0 ? (
+              <ColumnEmpty />
+            ) : (
+              <ArrivalGroup title="" {...arrivalGroupPropsFor("checkout", checkoutPendingRows)} />
+            )}
+          </KanbanColumn>
+
+          <KanbanColumn title="Em Estadia" icon={BedDouble} count={counts.stay} tone="sky">
+            {checkinListQ.isLoading ? (
+              <ColumnLoading />
+            ) : stayRows.length === 0 ? (
+              <ColumnEmpty />
+            ) : (
+              <ArrivalGroup title="" {...arrivalGroupPropsFor("stay", stayRows)} />
+            )}
+          </KanbanColumn>
+
+          <KanbanColumn title="Em Limpeza" icon={Sparkles} count={counts.cleaning} tone="violet">
+            {checkoutListQ.isLoading ? (
+              <ColumnLoading />
+            ) : cleaningRows.length === 0 ? (
+              <ColumnEmpty />
+            ) : (
+              <ArrivalGroup title="" {...arrivalGroupPropsFor("cleaning", cleaningRows)} />
+            )}
+          </KanbanColumn>
+
+          <KanbanColumn title="Concluídos" icon={CheckCircle2} count={counts.done} tone="zinc">
+            {concludedQ.isLoading ? (
+              <ColumnLoading />
+            ) : concludedRows.length === 0 ? (
+              <ColumnEmpty />
+            ) : (
+              <ArrivalGroup title="" {...arrivalGroupPropsFor("done", concludedRows)} />
+            )}
+          </KanbanColumn>
+        </div>
       </section>
     </div>
   );
 }
 
 /* ------------------------- UI Building Blocks ------------------------- */
+
+const KANBAN_TONE: Record<string, string> = {
+  emerald: "text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 ring-emerald-500/20",
+  amber: "text-amber-600 dark:text-amber-400 bg-amber-500/10 ring-amber-500/20",
+  sky: "text-sky-600 dark:text-sky-400 bg-sky-500/10 ring-sky-500/20",
+  violet: "text-violet-600 dark:text-violet-400 bg-violet-500/10 ring-violet-500/20",
+  zinc: "text-muted-foreground bg-muted ring-border",
+};
+
+// Mesmo mapa de cor das colunas do desktop, só que como aba ativa (borda +
+// fundo sólido leve) — usa os tokens de tema do próprio Tailwind
+// (emerald/amber/sky/violet + text-muted-foreground), não cor fixa.
+const KANBAN_TONE_ACTIVE: Record<string, string> = {
+  emerald: "border-emerald-500 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
+  amber: "border-amber-500 bg-amber-500/10 text-amber-600 dark:text-amber-400",
+  sky: "border-sky-500 bg-sky-500/10 text-sky-600 dark:text-sky-400",
+  violet: "border-violet-500 bg-violet-500/10 text-violet-600 dark:text-violet-400",
+  zinc: "border-primary bg-primary/10 text-primary",
+};
+
+/** Uma coluna do quadro Kanban — cabeçalho fixo (título + contagem) e corpo
+ * com rolagem própria, adaptando a altura ao que a tela do usuário permitir. */
+function KanbanColumn({
+  title,
+  icon: Icon,
+  count,
+  tone,
+  children,
+}: {
+  title: string;
+  icon: React.ElementType;
+  count: number;
+  tone: "emerald" | "amber" | "sky" | "violet" | "zinc";
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="flex flex-col min-w-0 rounded-2xl border border-border/70 bg-background/40">
+      <div className="flex items-center gap-2 px-3 py-2.5 border-b border-border/60 shrink-0">
+        <div className={`size-7 rounded-lg grid place-items-center ring-1 shrink-0 ${KANBAN_TONE[tone]}`}>
+          <Icon className="size-3.5" />
+        </div>
+        <span className="text-sm font-semibold truncate">{title}</span>
+        <span className="ml-auto text-xs font-medium text-muted-foreground tabular-nums shrink-0">{count}</span>
+      </div>
+      <div className="flex-1 min-h-0 overflow-y-auto p-2.5 space-y-2.5 max-h-[70vh]">{children}</div>
+    </div>
+  );
+}
+
+function ColumnLoading() {
+  return (
+    <div className="py-8 grid place-items-center text-muted-foreground">
+      <Loader2 className="size-4 animate-spin" />
+    </div>
+  );
+}
+
+function ColumnEmpty() {
+  return <div className="py-8 text-center text-xs text-muted-foreground">Nada por aqui.</div>;
+}
 
 function KpiCard({
   label,
@@ -1440,82 +1615,6 @@ function RangeDropdown<T extends string>({
         ))}
       </DropdownMenuContent>
     </DropdownMenu>
-  );
-}
-
-function ModeDropdown<T extends string>({
-  value,
-  onChange,
-  options,
-}: {
-  value: T;
-  onChange: (v: T) => void;
-  options: Array<{ value: T; label: string; icon: React.ElementType; count: number }>;
-}) {
-  const current = options.find((o) => o.value === value) ?? options[0];
-  const CurrentIcon = current.icon;
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <button
-          type="button"
-          className="inline-flex items-center gap-1.5 rounded-lg border border-primary/20 bg-primary/[0.04] px-3 py-2 text-xs font-medium text-foreground/80 hover:bg-primary/[0.08] transition-colors"
-        >
-          <CurrentIcon className="size-3.5 shrink-0" />
-          <span>{current.label}</span>
-          <span className="tabular-nums text-muted-foreground">({current.count})</span>
-          <ChevronDown className="size-3.5 opacity-60" />
-        </button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className="min-w-[12rem]">
-        {options.map((o) => {
-          const Icon = o.icon;
-          const active = o.value === value;
-          return (
-            <DropdownMenuItem
-              key={o.value}
-              onClick={() => onChange(o.value)}
-              className={active ? "bg-primary/10 text-primary font-medium" : ""}
-            >
-              <Icon className="size-3.5 shrink-0" />
-              <span className="flex-1">{o.label}</span>
-              <span className="tabular-nums text-muted-foreground">({o.count})</span>
-            </DropdownMenuItem>
-          );
-        })}
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
-}
-
-function SegBtn({
-  active,
-  onClick,
-  icon: Icon,
-  count,
-  children,
-}: {
-  active: boolean;
-  onClick: () => void;
-  icon: React.ElementType;
-  count?: number;
-  children: React.ReactNode;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className={`w-full px-3 py-1.5 inline-flex items-center justify-start gap-1.5 rounded-lg border text-xs transition-colors font-medium ${
-        active
-          ? "bg-primary text-primary-foreground border-primary shadow-sm"
-          : "bg-primary/[0.04] text-foreground/75 border-primary/20 hover:text-foreground hover:bg-primary/[0.08]"
-      }`}
-    >
-      <Icon className="size-3.5 shrink-0" />
-      <span className="truncate">{children}</span>
-      {typeof count === "number" && (
-        <span className={`ml-1 tabular-nums ${active ? "opacity-90" : "text-muted-foreground"}`}>({count})</span>
-      )}
-    </button>
   );
 }
 
