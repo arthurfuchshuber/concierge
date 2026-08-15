@@ -2,7 +2,7 @@ import { PhoneActionButton } from "@/components/PhoneActionButton";
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import {
   CalendarCheck,
@@ -194,10 +194,19 @@ function DashboardPage() {
   // cabem as 5 colunas lado a lado). No desktop não é usado; as 5 colunas
   // aparecem todas ao mesmo tempo.
   const [mobileTab, setMobileTab] = useState<BoardMode>("checkin");
-  // "Detalhes da operação" aberto — compartilhado entre todas as colunas do
-  // Kanban, pra dar pra fechar sozinho quando o usuário rola qualquer coluna
-  // (ponto 8: fecha de forma sutil, acompanhando a rolagem).
-  const [expandedCardId, setExpandedCardId] = useState<string | null>(null);
+  // "Detalhes da operação" aberto — UM ESTADO POR COLUNA, não compartilhado.
+  // Se fosse um estado só pro quadro inteiro: rolar a coluna "Em Limpeza"
+  // fecharia um card aberto em "Check-ins", mesmo sendo hóspedes e colunas
+  // totalmente diferentes (ex.: mesmo imóvel com um hóspede saindo — em
+  // limpeza — e outro chegando — em check-in — ao mesmo tempo). Cada coluna
+  // só fecha o que está aberto NELA MESMA ao rolar.
+  const [expandedByColumn, setExpandedByColumn] = useState<Record<BoardMode, string | null>>({
+    checkin: null,
+    checkout: null,
+    stay: null,
+    cleaning: null,
+    done: null,
+  });
   // Card em ação (para feedback imediato no toque, sem travar o quadro inteiro).
   const [busyRowId, setBusyRowId] = useState<string | null>(null);
   // Engagement window follows the kanban range: tomorrow/all map to 7d/30d.
@@ -512,8 +521,8 @@ function DashboardPage() {
       busyRowId,
       muted: colMode === "stay" || colMode === "cleaning",
       cleaningPendingPropIds,
-      expandedId: expandedCardId,
-      onExpandedChange: setExpandedCardId,
+      expandedId: expandedByColumn[colMode],
+      onExpandedChange: (id: string | null) => setExpandedByColumn((prev) => ({ ...prev, [colMode]: id })),
     };
   }
 
@@ -749,7 +758,7 @@ function DashboardPage() {
             espaço disponível. */}
         <div className="hidden sm:flex gap-3 items-start overflow-x-auto snap-x pb-2 -mx-1 px-1">
           <div className="w-[262px] shrink-0 snap-start">
-            <KanbanColumn onScroll={() => setExpandedCardId(null)} title="Check-ins" icon={CalendarCheck} count={counts.checkin} tone="emerald">
+            <KanbanColumn onScroll={() => setExpandedByColumn((prev) => ({ ...prev, checkin: null }))} title="Check-ins" icon={CalendarCheck} count={counts.checkin} tone="emerald">
               {checkinListQ.isLoading ? (
                 <ColumnLoading />
               ) : checkinPendingRows.length === 0 ? (
@@ -761,7 +770,7 @@ function DashboardPage() {
           </div>
 
           <div className="w-[262px] shrink-0 snap-start">
-            <KanbanColumn onScroll={() => setExpandedCardId(null)} title="Checkouts" icon={CalendarX} count={counts.checkout} tone="amber">
+            <KanbanColumn onScroll={() => setExpandedByColumn((prev) => ({ ...prev, checkout: null }))} title="Checkouts" icon={CalendarX} count={counts.checkout} tone="amber">
               {checkoutListQ.isLoading ? (
                 <ColumnLoading />
               ) : checkoutPendingRows.length === 0 ? (
@@ -773,7 +782,7 @@ function DashboardPage() {
           </div>
 
           <div className="w-[262px] shrink-0 snap-start">
-            <KanbanColumn onScroll={() => setExpandedCardId(null)} title="Em Estadia" icon={BedDouble} count={counts.stay} tone="sky">
+            <KanbanColumn onScroll={() => setExpandedByColumn((prev) => ({ ...prev, stay: null }))} title="Em Estadia" icon={BedDouble} count={counts.stay} tone="sky">
               {checkinListQ.isLoading ? (
                 <ColumnLoading />
               ) : stayRows.length === 0 ? (
@@ -785,7 +794,7 @@ function DashboardPage() {
           </div>
 
           <div className="w-[262px] shrink-0 snap-start">
-            <KanbanColumn onScroll={() => setExpandedCardId(null)} title="Em Limpeza" icon={Sparkles} count={counts.cleaning} tone="violet">
+            <KanbanColumn onScroll={() => setExpandedByColumn((prev) => ({ ...prev, cleaning: null }))} title="Em Limpeza" icon={Sparkles} count={counts.cleaning} tone="violet">
               {checkoutListQ.isLoading ? (
                 <ColumnLoading />
               ) : cleaningRows.length === 0 ? (
@@ -797,7 +806,7 @@ function DashboardPage() {
           </div>
 
           <div className="w-[262px] shrink-0 snap-start">
-            <KanbanColumn onScroll={() => setExpandedCardId(null)} title="Concluídos" icon={CheckCircle2} count={counts.done} tone="zinc">
+            <KanbanColumn onScroll={() => setExpandedByColumn((prev) => ({ ...prev, done: null }))} title="Concluídos" icon={CheckCircle2} count={counts.done} tone="zinc">
               {concludedQ.isLoading ? (
                 <ColumnLoading />
               ) : concludedRows.length === 0 ? (
@@ -853,6 +862,35 @@ function KanbanColumn({
    * operação" sozinho, de forma sutil, acompanhando a rolagem do usuário. */
   onScroll?: () => void;
 }) {
+  const bodyRef = useRef<HTMLDivElement>(null);
+  const [maxHeight, setMaxHeight] = useState<number | undefined>(undefined);
+
+  // Mede os cards DE VERDADE em vez de supor uma altura fixa — assim o
+  // limite acompanha um card que cresce ao abrir "Detalhes da operação", e
+  // com 3 cards ou menos a coluna fica livre (nunca corta nada). Reage tanto
+  // a mudança na quantidade de cards quanto ao tamanho de qualquer um deles.
+  useLayoutEffect(() => {
+    const body = bodyRef.current;
+    if (!body) return;
+
+    function recalc() {
+      const cards = Array.from(body!.querySelectorAll<HTMLElement>(":scope .snap-start"));
+      if (cards.length <= 3) {
+        setMaxHeight(undefined);
+        return;
+      }
+      const first = cards[0].getBoundingClientRect();
+      const third = cards[2].getBoundingClientRect();
+      const PADDING_Y = 20; // p-2.5 em cima + embaixo
+      setMaxHeight(Math.ceil(third.bottom - first.top) + PADDING_Y);
+    }
+
+    recalc();
+    const ro = new ResizeObserver(recalc);
+    for (const card of body.querySelectorAll<HTMLElement>(":scope .snap-start")) ro.observe(card);
+    return () => ro.disconnect();
+  }, [count, children]);
+
   return (
     <div className="flex flex-col min-w-0 rounded-2xl border border-border/70 bg-background/40">
       <div className="flex items-center gap-2 px-3 py-2.5 border-b border-border/60 shrink-0">
@@ -862,7 +900,14 @@ function KanbanColumn({
         <span className="text-sm font-semibold truncate">{title}</span>
         <span className="ml-auto text-xs font-medium text-muted-foreground tabular-nums shrink-0">{count}</span>
       </div>
-      <div onScroll={onScroll} className="flex-1 min-h-0 overflow-y-auto snap-y p-2.5 space-y-2.5 max-h-[720px]">{children}</div>
+      <div
+        ref={bodyRef}
+        onScroll={onScroll}
+        style={maxHeight !== undefined ? { maxHeight } : undefined}
+        className="flex-1 min-h-0 overflow-y-auto snap-y snap-mandatory p-2.5 space-y-2.5"
+      >
+        {children}
+      </div>
     </div>
   );
 }
