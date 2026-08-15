@@ -70,6 +70,7 @@ import { Route as ApiPublicCronProactiveConciergeRouteImport } from './routes/ap
 import { Route as ApiPublicCronOpsPushRouteImport } from './routes/api/public/cron.ops-push'
 import { Route as ApiPublicCronLearningLoopRouteImport } from './routes/api/public/cron.learning-loop'
 import { Route as ApiPublicCronEvaluationSuiteRouteImport } from './routes/api/public/cron.evaluation-suite'
+import { Route as ApiPublicCronConversationRemindersRouteImport } from './routes/api/public/cron.conversation-reminders'
 import { Route as AuthenticatedAdminRecomendacoesSigmaCityKeyRouteImport } from './routes/_authenticated/admin.recomendacoes-sigma.$cityKey'
 import { Route as AuthenticatedAdminPropertiesIdRouteImport } from './routes/_authenticated/admin.properties.$id'
 import { Route as AuthenticatedAdminCidadesCityKeyRouteImport } from './routes/_authenticated/admin.cidades.$cityKey'
@@ -412,6 +413,12 @@ const ApiPublicCronEvaluationSuiteRoute =
     path: '/api/public/cron/evaluation-suite',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicCronConversationRemindersRoute =
+  ApiPublicCronConversationRemindersRouteImport.update({
+    id: '/api/public/cron/conversation-reminders',
+    path: '/api/public/cron/conversation-reminders',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const AuthenticatedAdminRecomendacoesSigmaCityKeyRoute =
   AuthenticatedAdminRecomendacoesSigmaCityKeyRouteImport.update({
     id: '/recomendacoes-sigma/$cityKey',
@@ -491,6 +498,7 @@ export interface FileRoutesByFullPath {
   '/admin/cidades/$cityKey': typeof AuthenticatedAdminCidadesCityKeyRoute
   '/admin/properties/$id': typeof AuthenticatedAdminPropertiesIdRoute
   '/admin/recomendacoes-sigma/$cityKey': typeof AuthenticatedAdminRecomendacoesSigmaCityKeyRoute
+  '/api/public/cron/conversation-reminders': typeof ApiPublicCronConversationRemindersRoute
   '/api/public/cron/evaluation-suite': typeof ApiPublicCronEvaluationSuiteRoute
   '/api/public/cron/learning-loop': typeof ApiPublicCronLearningLoopRoute
   '/api/public/cron/ops-push': typeof ApiPublicCronOpsPushRoute
@@ -556,6 +564,7 @@ export interface FileRoutesByTo {
   '/admin/cidades/$cityKey': typeof AuthenticatedAdminCidadesCityKeyRoute
   '/admin/properties/$id': typeof AuthenticatedAdminPropertiesIdRoute
   '/admin/recomendacoes-sigma/$cityKey': typeof AuthenticatedAdminRecomendacoesSigmaCityKeyRoute
+  '/api/public/cron/conversation-reminders': typeof ApiPublicCronConversationRemindersRoute
   '/api/public/cron/evaluation-suite': typeof ApiPublicCronEvaluationSuiteRoute
   '/api/public/cron/learning-loop': typeof ApiPublicCronLearningLoopRoute
   '/api/public/cron/ops-push': typeof ApiPublicCronOpsPushRoute
@@ -625,6 +634,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/cidades/$cityKey': typeof AuthenticatedAdminCidadesCityKeyRoute
   '/_authenticated/admin/properties/$id': typeof AuthenticatedAdminPropertiesIdRoute
   '/_authenticated/admin/recomendacoes-sigma/$cityKey': typeof AuthenticatedAdminRecomendacoesSigmaCityKeyRoute
+  '/api/public/cron/conversation-reminders': typeof ApiPublicCronConversationRemindersRoute
   '/api/public/cron/evaluation-suite': typeof ApiPublicCronEvaluationSuiteRoute
   '/api/public/cron/learning-loop': typeof ApiPublicCronLearningLoopRoute
   '/api/public/cron/ops-push': typeof ApiPublicCronOpsPushRoute
@@ -694,6 +704,7 @@ export interface FileRouteTypes {
     | '/admin/cidades/$cityKey'
     | '/admin/properties/$id'
     | '/admin/recomendacoes-sigma/$cityKey'
+    | '/api/public/cron/conversation-reminders'
     | '/api/public/cron/evaluation-suite'
     | '/api/public/cron/learning-loop'
     | '/api/public/cron/ops-push'
@@ -759,6 +770,7 @@ export interface FileRouteTypes {
     | '/admin/cidades/$cityKey'
     | '/admin/properties/$id'
     | '/admin/recomendacoes-sigma/$cityKey'
+    | '/api/public/cron/conversation-reminders'
     | '/api/public/cron/evaluation-suite'
     | '/api/public/cron/learning-loop'
     | '/api/public/cron/ops-push'
@@ -827,6 +839,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/cidades/$cityKey'
     | '/_authenticated/admin/properties/$id'
     | '/_authenticated/admin/recomendacoes-sigma/$cityKey'
+    | '/api/public/cron/conversation-reminders'
     | '/api/public/cron/evaluation-suite'
     | '/api/public/cron/learning-loop'
     | '/api/public/cron/ops-push'
@@ -873,6 +886,7 @@ export interface RootRouteChildren {
   ApiPublicLandingChatRoute: typeof ApiPublicLandingChatRoute
   ApiPublicPlacePhotoRoute: typeof ApiPublicPlacePhotoRoute
   OauthGoogleCalendarReturnRoute: typeof OauthGoogleCalendarReturnRoute
+  ApiPublicCronConversationRemindersRoute: typeof ApiPublicCronConversationRemindersRoute
   ApiPublicCronEvaluationSuiteRoute: typeof ApiPublicCronEvaluationSuiteRoute
   ApiPublicCronLearningLoopRoute: typeof ApiPublicCronLearningLoopRoute
   ApiPublicCronOpsPushRoute: typeof ApiPublicCronOpsPushRoute
@@ -1318,6 +1332,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicCronEvaluationSuiteRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/cron/conversation-reminders': {
+      id: '/api/public/cron/conversation-reminders'
+      path: '/api/public/cron/conversation-reminders'
+      fullPath: '/api/public/cron/conversation-reminders'
+      preLoaderRoute: typeof ApiPublicCronConversationRemindersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_authenticated/admin/recomendacoes-sigma/$cityKey': {
       id: '/_authenticated/admin/recomendacoes-sigma/$cityKey'
       path: '/recomendacoes-sigma/$cityKey'
@@ -1467,6 +1488,8 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicLandingChatRoute: ApiPublicLandingChatRoute,
   ApiPublicPlacePhotoRoute: ApiPublicPlacePhotoRoute,
   OauthGoogleCalendarReturnRoute: OauthGoogleCalendarReturnRoute,
+  ApiPublicCronConversationRemindersRoute:
+    ApiPublicCronConversationRemindersRoute,
   ApiPublicCronEvaluationSuiteRoute: ApiPublicCronEvaluationSuiteRoute,
   ApiPublicCronLearningLoopRoute: ApiPublicCronLearningLoopRoute,
   ApiPublicCronOpsPushRoute: ApiPublicCronOpsPushRoute,
