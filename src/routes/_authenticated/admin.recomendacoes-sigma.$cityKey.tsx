@@ -52,7 +52,7 @@ function SigmaPackEditor() {
   }
 
   return (
-    <div className="container mx-auto max-w-5xl px-4 sm:px-6 py-6 sm:py-10 space-y-6">
+    <div className="max-w-[1440px] mx-auto w-full px-6 lg:px-10 py-8 lg:py-10 space-y-6">
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <Link to="/admin/recomendacoes-sigma" className="text-xs text-muted-foreground hover:text-foreground inline-flex items-center gap-1">
           <ArrowLeft className="size-3.5" /> Voltar

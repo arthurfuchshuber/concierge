@@ -51,6 +51,9 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
 } from "@/components/ui/dropdown-menu";
 
 import {
@@ -545,7 +548,10 @@ function DashboardPage() {
       },
       onEditTime: (row: ArrivalRow, time: string | null) => handleEditTime(row, colKind, time),
       busyRowId,
-      muted: colMode === "stay" || colMode === "cleaning",
+      // Antes "Em Estadia"/"Em Limpeza" ficavam com opacity-70 (pra parecer
+      // menos urgente) — só que isso também fazia o card parecer menos card,
+      // sem o mesmo peso visual dos outros. Agora todos têm o mesmo layout.
+      muted: false,
       cleaningPendingPropIds,
       expandedId: expandedByColumn[colMode],
       onExpandedChange: (id: string | null) => setExpandedByColumn((prev) => ({ ...prev, [colMode]: id })),
@@ -2459,64 +2465,76 @@ function ArrivalCard({
             <Undo2 className="size-4" />
           </button>
         )}
-        {/* Nota + Silenciar juntos num só botão de menu — eram 2 botões
-            separados, ocupando espaço à toa numa coluna estreita. */}
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <button
-              type="button"
-              aria-label="Mais opções"
-              title="Nota interna e alertas"
-              className={`size-9 grid place-items-center rounded-lg border ${
-                isMutedNow
-                  ? "bg-amber-500/15 border-amber-500/50 text-amber-600 dark:text-amber-400"
-                  : "bg-background/60 border-border/50 hover:bg-primary/[0.08]"
-              }`}
-            >
-              <MoreVertical className="size-4" />
-            </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="max-h-72 overflow-y-auto min-w-[11rem]">
-            <DropdownMenuItem onClick={() => setNoteOpen((v) => !v)}>
-              <StickyNote className="size-3.5 shrink-0" /> {row.note ? "Editar nota" : "Adicionar nota"}
-            </DropdownMenuItem>
-            {isMutedNow && (
-              <DropdownMenuItem onClick={() => mute.mutate(null)}>
-                <Bell className="size-3.5 shrink-0" /> Reativar alertas
-              </DropdownMenuItem>
-            )}
-            {Array.from({ length: 24 }, (_, i) => i + 1).map((h) => (
-              <DropdownMenuItem key={h} onClick={() => mute.mutate(h)}>
-                <BellOff className="size-3.5 shrink-0" /> Silenciar por {h}h
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
 
-        {mapsHref && (
-          <div className="ml-auto flex items-center gap-1.5">
+        <div className="ml-auto flex items-center gap-1.5">
+            {mapsHref && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    type="button"
+                    aria-label="Opções do Maps"
+                    title={row.garageMapsUrl ? "Garagem no Maps" : "Endereço no Maps"}
+                    className="size-9 grid place-items-center rounded-lg bg-background/60 border border-border/50 hover:bg-primary/[0.08]"
+                  >
+                    <MapPin className="size-4" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="min-w-[12rem]">
+                  <DropdownMenuItem onClick={copyLink} disabled={!copyText}>
+                    <LinkIcon className="size-3.5 shrink-0" /> Copiar Link do Maps
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => window.open(mapsHref, "_blank", "noopener,noreferrer")}>
+                    <MapPin className="size-3.5 shrink-0" /> Abrir o Google Maps
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+
+            {/* Nota + Silenciar juntos num só botão de menu, agora ao lado
+                direito do Maps. O menu principal mostra só 2 opções —
+                "Adicionar nota" e "Silenciar notificações" — e as 24 opções
+                de período ficam escondidas num submenu, só aparecendo ao
+                passar/tocar em "Silenciar notificações". */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button
                   type="button"
-                  aria-label="Opções do Maps"
-                  title={row.garageMapsUrl ? "Garagem no Maps" : "Endereço no Maps"}
-                  className="size-9 grid place-items-center rounded-lg bg-background/60 border border-border/50 hover:bg-primary/[0.08]"
+                  aria-label="Mais opções"
+                  title="Nota interna e alertas"
+                  className={`size-9 grid place-items-center rounded-lg border ${
+                    isMutedNow
+                      ? "bg-amber-500/15 border-amber-500/50 text-amber-600 dark:text-amber-400"
+                      : "bg-background/60 border-border/50 hover:bg-primary/[0.08]"
+                  }`}
                 >
-                  <MapPin className="size-4" />
+                  <MoreVertical className="size-4" />
                 </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="min-w-[12rem]">
-                <DropdownMenuItem onClick={copyLink} disabled={!copyText}>
-                  <LinkIcon className="size-3.5 shrink-0" /> Copiar Link do Maps
+              <DropdownMenuContent align="end" className="min-w-[13rem]">
+                <DropdownMenuItem onClick={() => setNoteOpen((v) => !v)}>
+                  <StickyNote className="size-3.5 shrink-0" /> {row.note ? "Editar nota" : "Adicionar nota"}
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => window.open(mapsHref, "_blank", "noopener,noreferrer")}>
-                  <MapPin className="size-3.5 shrink-0" /> Abrir o Google Maps
-                </DropdownMenuItem>
+                {isMutedNow ? (
+                  <DropdownMenuItem onClick={() => mute.mutate(null)}>
+                    <Bell className="size-3.5 shrink-0" /> Reativar alertas
+                  </DropdownMenuItem>
+                ) : (
+                  <DropdownMenuSub>
+                    <DropdownMenuSubTrigger>
+                      <BellOff className="size-3.5 shrink-0" /> Silenciar notificações
+                    </DropdownMenuSubTrigger>
+                    <DropdownMenuSubContent className="max-h-72 overflow-y-auto min-w-[10rem]">
+                      {Array.from({ length: 24 }, (_, i) => i + 1).map((h) => (
+                        <DropdownMenuItem key={h} onClick={() => mute.mutate(h)}>
+                          <BellOff className="size-3.5 shrink-0" /> Por {h}h
+                        </DropdownMenuItem>
+                      ))}
+                    </DropdownMenuSubContent>
+                  </DropdownMenuSub>
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
-        )}
       </div>
 
       {/* Confirmação de check antecipado */}

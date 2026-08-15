@@ -58,7 +58,7 @@ function SigmaPacksIndex() {
   }
 
   return (
-    <div className="container mx-auto max-w-6xl px-4 sm:px-6 py-6 sm:py-10 space-y-6">
+    <div className="max-w-[1440px] mx-auto w-full px-6 lg:px-10 py-8 lg:py-10 space-y-6">
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
           <h1 className="font-display text-2xl sm:text-3xl flex items-center gap-2">

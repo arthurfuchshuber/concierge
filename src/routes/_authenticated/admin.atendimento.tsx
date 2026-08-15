@@ -110,7 +110,7 @@ function AtendimentoPage() {
 
   return (
     <div className="h-[calc(100vh-0px)] lg:h-screen flex flex-col">
-      <header className="border-b border-border px-4 lg:px-6 py-3 flex items-center gap-3 shrink-0">
+      <header className="border-b border-border px-6 lg:px-10 py-4 flex items-center gap-3 shrink-0">
         <Headphones className="size-5 text-primary" />
         <h1 className="font-display text-lg lg:text-xl flex-1 min-w-0 truncate">Central de atendimento</h1>
       </header>
