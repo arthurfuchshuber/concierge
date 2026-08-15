@@ -159,7 +159,7 @@ export function FloatingHandoffDock() {
     refetchInterval: 15_000,
     retry: false,
   });
-  const [queue, setQueue] = useState<Queue>("needs_human");
+  const [queue, setQueue] = useState<Queue>("all_active");
   const list = useQuery({
     queryKey: ["handoff-list", "dock", queue],
     queryFn: async () => {

@@ -446,9 +446,17 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
         ["--secondary-foreground" as never]: "#18181b",
         ["--popover" as never]: "#ffffff",
         ["--popover-foreground" as never]: "#18181b",
+        // Este painel já fixa seu próprio tema claro (acima) pra ficar
+        // estável independente do modo claro/escuro do resto do app — mas
+        // faltava fixar --primary/--primary-foreground também. Sem isso, o
+        // botão de enviar (bg-primary + texto branco fixo) podia herdar um
+        // --primary quase branco de um dos temas, deixando o ícone
+        // praticamente invisível sobre o próprio fundo.
+        ["--primary" as never]: "#7c1ad8",
+        ["--primary-foreground" as never]: "#ffffff",
       }}
     >
-      <div className={`border-b border-zinc-200 shrink-0 bg-zinc-50 ${inputFocused ? "px-3 py-1.5" : "p-3 space-y-2"}`}>
+      <div className={`sticky top-0 z-10 border-b border-zinc-200 shrink-0 bg-zinc-50 ${inputFocused ? "px-3 py-1.5" : "p-3 space-y-2"}`}>
         <div className={`flex gap-2 ${inputFocused ? "items-center" : "items-start justify-between"}`}>
           <div className="min-w-0 flex-1">
             <div className="flex min-w-0 items-center gap-1.5">
@@ -1022,7 +1030,7 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
               if (!text.trim() || send.isPending) return;
               send.mutate();
             }}
-            className="shrink-0 border-t border-border bg-surface"
+            className="sticky bottom-0 z-10 shrink-0 border-t border-border bg-surface"
             style={{
               paddingTop: "0.5rem",
               paddingBottom: "max(0.5rem, env(safe-area-inset-bottom))",

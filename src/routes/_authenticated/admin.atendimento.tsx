@@ -38,7 +38,7 @@ function AtendimentoPage() {
     retry: false,
   });
 
-  const [queue, setQueue] = useState<Queue>("needs_human");
+  const [queue, setQueue] = useState<Queue>("all_active");
   const [activeId, setActiveId] = useState<string | null>(conv ?? null);
   const [search, setSearch] = useState("");
 
