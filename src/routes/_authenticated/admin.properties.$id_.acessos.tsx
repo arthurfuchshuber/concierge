@@ -37,7 +37,7 @@ function AccessLogsPage() {
   });
 
   return (
-    <div className="px-6 lg:px-10 py-8 lg:py-10 max-w-7xl mx-auto w-full">
+    <div className="px-6 lg:px-10 py-8 lg:py-10 max-w-[1440px] mx-auto w-full">
       <button
         onClick={() => navigate({ to: "/admin/properties/$id", params: { id } })}
         className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground mb-5 transition-colors"

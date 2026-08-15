@@ -194,6 +194,10 @@ function DashboardPage() {
   // cabem as 5 colunas lado a lado). No desktop não é usado; as 5 colunas
   // aparecem todas ao mesmo tempo.
   const [mobileTab, setMobileTab] = useState<BoardMode>("checkin");
+  // "Detalhes da operação" aberto — compartilhado entre todas as colunas do
+  // Kanban, pra dar pra fechar sozinho quando o usuário rola qualquer coluna
+  // (ponto 8: fecha de forma sutil, acompanhando a rolagem).
+  const [expandedCardId, setExpandedCardId] = useState<string | null>(null);
   // Card em ação (para feedback imediato no toque, sem travar o quadro inteiro).
   const [busyRowId, setBusyRowId] = useState<string | null>(null);
   // Engagement window follows the kanban range: tomorrow/all map to 7d/30d.
@@ -508,6 +512,8 @@ function DashboardPage() {
       busyRowId,
       muted: colMode === "stay" || colMode === "cleaning",
       cleaningPendingPropIds,
+      expandedId: expandedCardId,
+      onExpandedChange: setExpandedCardId,
     };
   }
 
@@ -518,19 +524,7 @@ function DashboardPage() {
   function renderEngagementPanel(wrapperClassName: string) {
     if (counts.checkin === 0) return null;
     return (
-      <section className={`rounded-2xl border border-border bg-card p-4 sm:p-5 space-y-4 shadow-sm ${wrapperClassName}`}>
-        <div className="relative flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-start gap-2 min-w-0">
-            <div className="size-9 rounded-xl bg-primary/10 text-primary grid place-items-center shrink-0 ring-1 ring-primary/15">
-              <TrendingUp className="size-4" />
-            </div>
-            <div className="min-w-0">
-              <div className="text-sm font-semibold">Engajamento do guia</div>
-              <div className="text-xs text-muted-foreground">Comparativo com os check-ins do período</div>
-            </div>
-          </div>
-          <div className="text-xs text-muted-foreground tabular-nums">{rangeLabel[range]}</div>
-        </div>
+      <section className={`rounded-2xl border border-border bg-card p-4 sm:p-5 ${wrapperClassName}`}>
         <EngagementBars
           loading={engQ.isLoading}
           checkins={engQ.data?.checkinsInPeriod ?? 0}
@@ -543,7 +537,7 @@ function DashboardPage() {
   }
 
   return (
-    <div className="px-6 lg:px-10 py-8 lg:py-10 w-full space-y-6">
+    <div className="px-6 lg:px-10 py-8 lg:py-10 max-w-[1440px] mx-auto w-full space-y-6">
       <header>
         <h1 className="font-display text-3xl md:text-4xl flex items-center gap-2.5">
           <TrendingUp className="size-7 text-muted-foreground" /> Operação
@@ -555,47 +549,33 @@ function DashboardPage() {
 
       {/* KPIs */}
       <section className="space-y-3">
-        <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 items-stretch">
-          <div className="lg:col-start-1 lg:row-start-1">
-            <KpiCard
-              label="Check-ins Pendentes"
-              rows={checkinPendingRows}
-              icon={LogIn}
-              tone="primary"
-              loading={checkinListQ.isLoading}
-              onRefresh={() => checkinListQ.refetch()}
-              kind="checkin"
-              rangeLabel={rangeLabel[range]}
-              shadowTone="emerald"
-              onEditTime={handleEditTime}
-              onAdvance={(r) => handleAdvance(r, "checkin")}
-            />
-          </div>
-          {/* No desktop, Checkouts Pendentes fica abaixo de Check-ins Pendentes
-              (mesma coluna) — libera a coluna da direita pro Engajamento do
-              guia. No mobile continua lado a lado, como sempre foi. */}
-          <div className="lg:col-start-1 lg:row-start-2">
-            <KpiCard
-              label="Checkouts Pendentes"
-              rows={checkoutPendingRows}
-              icon={LogOut}
-              tone="primary"
-              loading={checkoutListQ.isLoading}
-              onRefresh={() => checkoutListQ.refetch()}
-              kind="checkout"
-              rangeLabel={rangeLabel[range]}
-              shadowTone="amber"
-              onEditTime={handleEditTime}
-              onAdvance={(r) => handleAdvance(r, "checkout")}
-            />
-          </div>
-          {/* Engajamento do guia — só no desktop ele mora aqui, ao lado dos
-              pendentes. No mobile a mesma seção aparece mais abaixo (função
-              renderEngagementPanel, chamada de novo lá embaixo — mesmo dado,
-              só posição diferente). */}
-          {renderEngagementPanel(
-            "hidden lg:flex lg:flex-col lg:col-start-2 lg:row-start-1 lg:row-span-2 lg:col-span-2",
-          )}
+        <div className="grid grid-cols-2 gap-3">
+          <KpiCard
+            label="Check-ins Pendentes"
+            rows={checkinPendingRows}
+            icon={LogIn}
+            tone="primary"
+            loading={checkinListQ.isLoading}
+            onRefresh={() => checkinListQ.refetch()}
+            kind="checkin"
+            rangeLabel={rangeLabel[range]}
+            shadowTone="emerald"
+            onEditTime={handleEditTime}
+            onAdvance={(r) => handleAdvance(r, "checkin")}
+          />
+          <KpiCard
+            label="Checkouts Pendentes"
+            rows={checkoutPendingRows}
+            icon={LogOut}
+            tone="primary"
+            loading={checkoutListQ.isLoading}
+            onRefresh={() => checkoutListQ.refetch()}
+            kind="checkout"
+            rangeLabel={rangeLabel[range]}
+            shadowTone="amber"
+            onEditTime={handleEditTime}
+            onAdvance={(r) => handleAdvance(r, "checkout")}
+          />
         </div>
 
         {/* Em Limpeza — faixa fina logo abaixo dos pendentes (só quando houver 1+) */}
@@ -665,9 +645,9 @@ function DashboardPage() {
       </section>
 
 
-      {/* No mobile, Engajamento do guia continua aqui embaixo (no desktop já
-          apareceu lá em cima, ao lado dos pendentes — mesma função). */}
-      {renderEngagementPanel("lg:hidden")}
+      {/* Engajamento do guia — volta a aparecer aqui embaixo, sempre, em
+          largura total (mobile e desktop). Versão discreta, sem cabeçalho. */}
+      {renderEngagementPanel("")}
       {/* Agenda macro de ocupação */}
       <OccupancyPanel
         loading={occupancyQ.isLoading}
@@ -709,7 +689,7 @@ function DashboardPage() {
             e usa a mesma cor da coluna correspondente no desktop, pra manter
             a mesma linguagem visual entre os dois tamanhos de tela. */}
         <div className="sm:hidden space-y-3">
-          <div className="flex gap-1.5 overflow-x-auto pb-3 -mx-1 px-1">
+          <div className="flex gap-1.5 overflow-x-auto snap-x pb-3 -mx-1 px-1">
             {(
               [
                 { key: "checkin", label: "Check-ins", icon: CalendarCheck, count: counts.checkin, tone: "emerald" },
@@ -726,7 +706,7 @@ function DashboardPage() {
                   key={t.key}
                   type="button"
                   onClick={() => setMobileTab(t.key)}
-                  className={`shrink-0 inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium whitespace-nowrap transition-colors ${
+                  className={`shrink-0 snap-start inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium whitespace-nowrap transition-colors ${
                     active ? KANBAN_TONE_ACTIVE[t.tone] : "border-border text-muted-foreground"
                   }`}
                 >
@@ -769,7 +749,7 @@ function DashboardPage() {
             espaço disponível. */}
         <div className="hidden sm:flex gap-3 items-start overflow-x-auto snap-x pb-2 -mx-1 px-1">
           <div className="w-[262px] shrink-0 snap-start">
-            <KanbanColumn title="Check-ins" icon={CalendarCheck} count={counts.checkin} tone="emerald">
+            <KanbanColumn onScroll={() => setExpandedCardId(null)} title="Check-ins" icon={CalendarCheck} count={counts.checkin} tone="emerald">
               {checkinListQ.isLoading ? (
                 <ColumnLoading />
               ) : checkinPendingRows.length === 0 ? (
@@ -781,7 +761,7 @@ function DashboardPage() {
           </div>
 
           <div className="w-[262px] shrink-0 snap-start">
-            <KanbanColumn title="Checkouts" icon={CalendarX} count={counts.checkout} tone="amber">
+            <KanbanColumn onScroll={() => setExpandedCardId(null)} title="Checkouts" icon={CalendarX} count={counts.checkout} tone="amber">
               {checkoutListQ.isLoading ? (
                 <ColumnLoading />
               ) : checkoutPendingRows.length === 0 ? (
@@ -793,7 +773,7 @@ function DashboardPage() {
           </div>
 
           <div className="w-[262px] shrink-0 snap-start">
-            <KanbanColumn title="Em Estadia" icon={BedDouble} count={counts.stay} tone="sky">
+            <KanbanColumn onScroll={() => setExpandedCardId(null)} title="Em Estadia" icon={BedDouble} count={counts.stay} tone="sky">
               {checkinListQ.isLoading ? (
                 <ColumnLoading />
               ) : stayRows.length === 0 ? (
@@ -805,7 +785,7 @@ function DashboardPage() {
           </div>
 
           <div className="w-[262px] shrink-0 snap-start">
-            <KanbanColumn title="Em Limpeza" icon={Sparkles} count={counts.cleaning} tone="violet">
+            <KanbanColumn onScroll={() => setExpandedCardId(null)} title="Em Limpeza" icon={Sparkles} count={counts.cleaning} tone="violet">
               {checkoutListQ.isLoading ? (
                 <ColumnLoading />
               ) : cleaningRows.length === 0 ? (
@@ -817,7 +797,7 @@ function DashboardPage() {
           </div>
 
           <div className="w-[262px] shrink-0 snap-start">
-            <KanbanColumn title="Concluídos" icon={CheckCircle2} count={counts.done} tone="zinc">
+            <KanbanColumn onScroll={() => setExpandedCardId(null)} title="Concluídos" icon={CheckCircle2} count={counts.done} tone="zinc">
               {concludedQ.isLoading ? (
                 <ColumnLoading />
               ) : concludedRows.length === 0 ? (
@@ -862,12 +842,16 @@ function KanbanColumn({
   count,
   tone,
   children,
+  onScroll,
 }: {
   title: string;
   icon: React.ElementType;
   count: number;
   tone: "emerald" | "amber" | "sky" | "violet" | "zinc";
   children: React.ReactNode;
+  /** Dispara ao rolar o corpo da coluna — usado pra recolher "Detalhes da
+   * operação" sozinho, de forma sutil, acompanhando a rolagem do usuário. */
+  onScroll?: () => void;
 }) {
   return (
     <div className="flex flex-col min-w-0 rounded-2xl border border-border/70 bg-background/40">
@@ -878,7 +862,7 @@ function KanbanColumn({
         <span className="text-sm font-semibold truncate">{title}</span>
         <span className="ml-auto text-xs font-medium text-muted-foreground tabular-nums shrink-0">{count}</span>
       </div>
-      <div className="flex-1 min-h-0 overflow-y-auto p-2.5 space-y-2.5 max-h-[70vh]">{children}</div>
+      <div onScroll={onScroll} className="flex-1 min-h-0 overflow-y-auto snap-y p-2.5 space-y-2.5 max-h-[720px]">{children}</div>
     </div>
   );
 }
@@ -1757,8 +1741,8 @@ function BarRow({
         </span>
       </div>
 
-      {/* Battery: red base, green fill overlay */}
-      <div className="h-2.5 rounded-full bg-rose-500/70 overflow-hidden ring-1 ring-rose-500/20">
+      {/* Battery: red base, green fill overlay — mais fina, versão discreta */}
+      <div className="h-1.5 rounded-full bg-rose-500/70 overflow-hidden ring-1 ring-rose-500/20">
         <div
           className="h-full bg-gradient-to-r from-emerald-500 to-emerald-400 transition-[width] duration-700"
           style={{ width: `${pct}%` }}
@@ -1829,6 +1813,8 @@ function ArrivalGroup({
   busyRowId,
   muted,
   cleaningPendingPropIds,
+  expandedId: expandedIdProp,
+  onExpandedChange,
 }: {
   title: string;
   rows: ArrivalRow[];
@@ -1844,9 +1830,16 @@ function ArrivalGroup({
   busyRowId?: string | null;
   muted?: boolean;
   cleaningPendingPropIds?: Map<string, "checkout" | "cleaning">;
+  /** Controlado de fora (pela coluna do Kanban) quando presente — permite
+   * recolher os "Detalhes da operação" ao rolar a coluna. Sem isso, cai de
+   * volta pro estado local de sempre. */
+  expandedId?: string | null;
+  onExpandedChange?: (id: string | null) => void;
 }) {
   // Somente UM card pode ficar com o quadro de detalhes aberto por vez.
-  const [openId, setOpenId] = useState<string | null>(null);
+  const [localOpenId, setLocalOpenId] = useState<string | null>(null);
+  const openId = onExpandedChange ? expandedIdProp ?? null : localOpenId;
+  const setOpenId = onExpandedChange ?? setLocalOpenId;
   // Antes esta lista ocupava a largura inteira da seção (fazia sentido um
   // grid responsivo de 2-3 colunas). Agora ArrivalGroup só é usado dentro de
   // colunas estreitas do Kanban (desktop) ou das abas (mobile) — nunca mais
@@ -2002,7 +1995,7 @@ function ArrivalCard({
 
   return (
     <div
-      className={`group relative flex flex-col rounded-2xl border p-4 gap-3 transition-all ${
+      className={`group relative snap-start flex flex-col rounded-2xl border p-4 gap-3 transition-all ${
         visualDone
           ? "bg-secondary/30 border-border/50"
           : isOverdue
@@ -2115,30 +2108,32 @@ function ArrivalCard({
           </AccordionTrigger>
           <AccordionContent className="pb-0">
             <div className="flex flex-col gap-3 pt-1">
-              {/* Padrão / Previsto */}
+              {/* Padrão / Previsto — cada um em uma linha só, rótulo à
+                  esquerda e valor à direita, bem mais compacto que os dois
+                  quadrados empilhados de antes. */}
               {mode !== "cleaning" && (
-                <div className="grid grid-cols-2 gap-2 text-xs">
-                  <div className="rounded-lg bg-background/50 border border-border/40 p-2 backdrop-blur-sm">
-                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground flex items-center justify-between">
-                      <span>Padrão</span>
+                <div className="flex flex-col gap-1.5 text-xs">
+                  <div className="flex items-center justify-between gap-2 rounded-lg bg-background/50 border border-border/40 px-2.5 py-1.5">
+                    <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider text-muted-foreground shrink-0">
+                      Padrão
                       <InfoHint title="Horário padrão">
                         Janela configurada na propriedade. Base para detectar divergências.
                       </InfoHint>
-                    </div>
-                    <div className="mt-0.5 tabular-nums">{stdWindow ?? "—"}</div>
+                    </span>
+                    <span className="tabular-nums font-medium truncate">{stdWindow ?? "—"}</span>
                   </div>
                   <div
-                    className={`rounded-lg p-2 backdrop-blur-sm ${divergent ? "bg-amber-500/10 border border-amber-500/30" : "bg-background/50 border border-border/40"}`}
+                    className={`flex items-center justify-between gap-2 rounded-lg px-2.5 py-1.5 ${divergent ? "bg-amber-500/10 border border-amber-500/30" : "bg-background/50 border border-border/40"}`}
                   >
-                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground flex items-center justify-between">
-                      <span>Previsto</span>
+                    <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider text-muted-foreground shrink-0">
+                      Previsto
                       <InfoHint title="Horário previsto">
                         Selecione o horário (30 em 30 min). A alteração reordena o kanban imediatamente.
                       </InfoHint>
-                    </div>
-                    <div className="mt-0.5">
+                    </span>
+                    <span className="w-24 shrink-0">
                       <TimeDropdown value={guestTime ?? null} disabled={busy} onChange={(v) => onEditTime(row, v)} />
-                    </div>
+                    </span>
                   </div>
                 </div>
               )}

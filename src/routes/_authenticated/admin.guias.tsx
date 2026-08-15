@@ -100,7 +100,7 @@ function GuiasTabs() {
         <Dashboard />
       </TabsContent>
       <TabsContent value="destinos" className="mt-0">
-        <div className="px-6 lg:px-10 py-24 max-w-7xl mx-auto w-full text-center">
+        <div className="px-6 lg:px-10 py-24 max-w-[1440px] mx-auto w-full text-center">
           <Compass className="size-8 mx-auto text-muted-foreground/60 mb-3" />
           <p className="font-display text-2xl">Em construção...</p>
           <p className="text-sm text-muted-foreground mt-1.5">
@@ -383,7 +383,7 @@ function Dashboard() {
 
 
   return (
-    <div className="px-6 lg:px-10 py-8 lg:py-10 max-w-7xl mx-auto w-full">
+    <div className="px-6 lg:px-10 py-8 lg:py-10 max-w-[1440px] mx-auto w-full">
       {readOnly && (
         <div className="mb-6 rounded-md border border-accent/30 bg-accent/10 px-4 py-3 flex items-center gap-3">
           <Eye className="size-4 text-accent shrink-0" />

@@ -9,6 +9,11 @@ export type HandoffGuestDetail = {
   reservationCode: string | null;
 };
 
+export type HandoffOwnerInfo = {
+  name: string | null;
+  phone: string | null;
+  phoneCountry: string | null;
+};
 
 export type HandoffConversationSummary = {
   id: string;
@@ -24,7 +29,7 @@ export type HandoffConversationSummary = {
   last_message_at: string;
   created_at: string | null;
   resolved_at: string | null;
-  properties: { id: string | null; name: string | null; owner_id: string | null; slug: string | null } | null;
+  properties: { id: string | null; name: string | null; owner_id: string | null; owner_contact_id: string | null; slug: string | null } | null;
 };
 
 export type HandoffReservationMatch = {
@@ -38,6 +43,8 @@ export type HandoffListResult = {
   details: Record<string, HandoffGuestDetail>;
   assignedNames?: Record<string, string>;
   reservations?: Record<string, HandoffReservationMatch>;
+  /** Proprietário do imóvel de cada conversa (chave = id da conversa). */
+  owners?: Record<string, HandoffOwnerInfo>;
   error?: string;
 };
 
@@ -71,19 +78,20 @@ function requiredString(value: unknown, fallback = ""): string {
 function normalizeProperty(value: unknown): HandoffConversationSummary["properties"] {
   const raw = Array.isArray(value) ? value[0] : value;
   if (!raw || typeof raw !== "object") return null;
-  const prop = raw as { id?: unknown; name?: unknown; owner_id?: unknown; slug?: unknown };
+  const prop = raw as { id?: unknown; name?: unknown; owner_id?: unknown; owner_contact_id?: unknown; slug?: unknown };
   return {
     id: nullableString(prop.id),
     name: nullableString(prop.name),
     owner_id: nullableString(prop.owner_id),
+    owner_contact_id: nullableString(prop.owner_contact_id),
     slug: nullableString(prop.slug),
   };
 }
 
 export function emptyHandoffListResult(error?: string): HandoffListResult {
   return error
-    ? { conversations: [], details: {}, assignedNames: {}, reservations: {}, error }
-    : { conversations: [], details: {}, assignedNames: {}, reservations: {} };
+    ? { conversations: [], details: {}, assignedNames: {}, reservations: {}, owners: {}, error }
+    : { conversations: [], details: {}, assignedNames: {}, reservations: {}, owners: {} };
 }
 
 

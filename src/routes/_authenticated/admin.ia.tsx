@@ -49,7 +49,7 @@ export const Route = createFileRoute("/_authenticated/admin/ia")({
 
 function IaGovernancePage() {
   return (
-    <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 py-6 space-y-6">
+    <div className="max-w-[1440px] mx-auto w-full px-4 sm:px-6 py-6 space-y-6">
       <header className="space-y-1">
         <h1 className="font-display text-2xl sm:text-3xl flex items-center gap-2">
           <BrainCircuit className="size-6 text-primary" />

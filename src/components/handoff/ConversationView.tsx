@@ -1127,6 +1127,7 @@ export function ConversationList({
   details,
   assignedNames,
   reservations,
+  owners,
   activeId,
   onSelect,
 }: {
@@ -1147,6 +1148,8 @@ export function ConversationList({
     string,
     { status: "confirmed" | "loose" | "missing" | "no_ical"; checkin: string | null; checkout: string | null }
   >;
+  /** Proprietário do imóvel de cada conversa — mesma fonte usada no Kanban. */
+  owners?: Record<string, { name: string | null; phone: string | null; phoneCountry: string | null }>;
   activeId: string | null;
   onSelect: (id: string) => void;
 }) {
@@ -1160,6 +1163,7 @@ export function ConversationList({
         const isActive = c.id === activeId;
         const urgent = c.handoff_urgency === "high";
         const d = details?.[c.id];
+        const owner = owners?.[c.id];
         const displayName = d?.name || c.guest_name || "Hóspede anônimo";
         const checkin = fmtCheckin(d?.checkinDate ?? null);
         const checkout = fmtCheckin(d?.checkoutDate ?? null);
@@ -1176,24 +1180,39 @@ export function ConversationList({
             className={`px-3 py-2.5 hover:bg-secondary transition-colors cursor-pointer ${isActive ? "bg-secondary" : ""}`}
             onClick={() => onSelect(c.id)}
           >
-            <div className="flex items-center gap-2">
-              {urgent && <span className="size-2 rounded-full bg-red-500 shrink-0" />}
-              <div className="text-sm font-medium truncate min-w-0 flex-1">{displayName}</div>
-              {d?.phone && (
-                <span className="shrink-0" onClick={(e) => e.stopPropagation()}>
-                  <PhoneActionButton phone={d.phone} country={d.phoneCountry} size={12} />
+            {/* Mesma ordem do card do Kanban: proprietário → imóvel → hóspede → datas → reserva. */}
+            {owner?.name && (
+              <div className="flex items-center gap-1.5 min-w-0">
+                <span className="shrink text-[11px] font-bold text-primary truncate min-w-0" title={owner.name}>
+                  {owner.name}
                 </span>
-              )}
+                <span className="shrink-0" onClick={(e) => e.stopPropagation()}>
+                  <PhoneActionButton phone={owner.phone} country={owner.phoneCountry} size={11} />
+                </span>
+              </div>
+            )}
+
+            <div className="text-[11px] text-muted-foreground truncate">{prop?.name ?? "—"}</div>
+
+            <div className="flex items-center gap-2 mt-0.5">
+              {urgent && <span className="size-2 rounded-full bg-red-500 shrink-0" />}
+              <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                <span className="shrink text-sm font-medium truncate min-w-0" title={displayName}>
+                  {displayName}
+                </span>
+                {d?.phone && (
+                  <span className="shrink-0" onClick={(e) => e.stopPropagation()}>
+                    <PhoneActionButton phone={d.phone} country={d.phoneCountry} size={12} />
+                  </span>
+                )}
+              </div>
               <span className="text-[10px] text-muted-foreground shrink-0">
                 {formatDistanceToNow(new Date(c.handoff_at ?? c.last_message_at), { locale: ptBR, addSuffix: false })}
               </span>
             </div>
-            <div className="text-[11px] text-muted-foreground truncate">{prop?.name ?? "—"}</div>
+
             {(checkin || checkout || d?.reservationCode) && (
               <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-muted-foreground">
-
-
-
                 {checkin && (
                   <span className="inline-flex items-center gap-1">
                     <Calendar className="size-3" /> In {checkin}

@@ -114,7 +114,7 @@ function AdminsPage() {
   }
 
   return (
-    <div className="px-6 lg:px-10 py-8 lg:py-10 max-w-7xl mx-auto w-full">
+    <div className="px-6 lg:px-10 py-8 lg:py-10 max-w-[1440px] mx-auto w-full">
       <div className="inline-flex items-center gap-2 text-[10px] uppercase tracking-[0.18em] text-accent font-semibold mb-2">
         <Shield className="size-3" /> Admin SaaS
       </div>

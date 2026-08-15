@@ -23,7 +23,7 @@ function StakeholdersPage() {
 
   return (
     <div className="min-h-screen">
-      <div className="px-6 lg:px-10 pt-8 lg:pt-10 pb-2 max-w-7xl mx-auto w-full">
+      <div className="px-6 lg:px-10 pt-8 lg:pt-10 pb-2 max-w-[1440px] mx-auto w-full">
         <h1 className="font-display text-3xl md:text-4xl tracking-tight">Stakeholders</h1>
         <p className="text-sm text-muted-foreground mt-1">
           Proprietários, hóspedes e prestadores da sua operação em um só lugar.
@@ -34,7 +34,7 @@ function StakeholdersPage() {
         onValueChange={(v) => navigate({ to: "/admin/stakeholders", search: { tab: coerceTab(v) } })}
         className="w-full"
       >
-        <div className="px-6 lg:px-10 max-w-7xl mx-auto w-full">
+        <div className="px-6 lg:px-10 max-w-[1440px] mx-auto w-full">
           <TabsList>
             <TabsTrigger value="proprietarios">
               <Building2 className="size-4" /> Proprietários
@@ -47,7 +47,7 @@ function StakeholdersPage() {
             </TabsTrigger>
           </TabsList>
         </div>
-        <div className="px-6 lg:px-10 max-w-7xl mx-auto w-full pt-6 pb-16">
+        <div className="px-6 lg:px-10 max-w-[1440px] mx-auto w-full pt-6 pb-16">
           <TabsContent value="proprietarios" className="mt-0">
             <StakeholderDirectory kind="owner" />
           </TabsContent>

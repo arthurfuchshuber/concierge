@@ -172,6 +172,7 @@ function AtendimentoPage() {
             details={details}
             assignedNames={list.data?.assignedNames ?? {}}
             reservations={list.data?.reservations ?? {}}
+            owners={list.data?.owners ?? {}}
 
             activeId={activeId}
             onSelect={setActiveId}

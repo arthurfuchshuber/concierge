@@ -8,7 +8,7 @@ import { listHandoffConversations, countPendingHandoffs, getAtendimentoAccess, r
 import { ConversationList, ConversationView, useMyUserId } from "@/components/handoff/ConversationView";
 import { listenToPushMessages } from "@/lib/push-client";
 import { HANDOFF_DOCK_OPEN_EVENT, type HandoffDockOpenDetail } from "@/lib/handoff-dock";
-import { Headphones, X, Minimize2, Maximize2, Expand, Shrink } from "lucide-react";
+import { Headphones, X, Minimize2, Maximize2, Expand, Shrink, ArrowLeft } from "lucide-react";
 import { QUEUES, type Queue } from "@/lib/handoff-queues";
 
 const DOCK_STATE_KEY = "handoff-dock-state-v1";
@@ -246,6 +246,7 @@ export function FloatingHandoffDock() {
   const details = list.data?.details ?? {};
   const assignedNames = list.data?.assignedNames ?? {};
   const reservations = list.data?.reservations ?? {};
+  const owners = list.data?.owners ?? {};
 
 
   const dock = (
@@ -357,7 +358,7 @@ export function FloatingHandoffDock() {
                   <div className="flex-1 min-h-0 overflow-y-auto">
                     <ConversationList
                       conversations={convs as any}
-                      details={details} assignedNames={assignedNames} reservations={reservations}
+                      details={details} assignedNames={assignedNames} reservations={reservations} owners={owners}
                       activeId={activeId}
                       onSelect={setActiveId}
                     />
@@ -398,7 +399,18 @@ export function FloatingHandoffDock() {
           >
             <div className="shrink-0 flex items-center justify-between gap-2 px-3 h-12 border-b border-border bg-secondary/40">
               <div className="flex items-center gap-2 min-w-0">
-                <Headphones className="size-4 text-primary shrink-0" />
+                {activeId ? (
+                  <button
+                    type="button"
+                    onClick={() => setActiveId(null)}
+                    className="size-7 -ml-1 grid place-items-center rounded-md hover:bg-secondary shrink-0"
+                    aria-label="Voltar para a lista de conversas"
+                  >
+                    <ArrowLeft className="size-4" />
+                  </button>
+                ) : (
+                  <Headphones className="size-4 text-primary shrink-0" />
+                )}
                 <span className="text-sm font-medium truncate">
                   Atendimento {count > 0 && <span className="ml-1 text-red-500">({count})</span>}
                 </span>
@@ -449,7 +461,7 @@ export function FloatingHandoffDock() {
                   <div className="flex-1 min-h-0 overflow-y-auto">
                     <ConversationList
                       conversations={convs as any}
-                      details={details} assignedNames={assignedNames} reservations={reservations}
+                      details={details} assignedNames={assignedNames} reservations={reservations} owners={owners}
                       activeId={activeId}
                       onSelect={setActiveId}
                     />

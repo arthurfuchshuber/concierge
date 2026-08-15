@@ -62,7 +62,7 @@ export const listHandoffConversations = createServerFn({ method: "POST" })
       let q = supabase
         .from("property_chat_conversations")
         .select(
-          "id, property_id, guest_session_id, guest_name, status, ai_paused, assigned_to, handoff_reason, handoff_urgency, handoff_at, last_message_at, created_at, resolved_at, properties:property_id(id, name, owner_id, slug)",
+          "id, property_id, guest_session_id, guest_name, status, ai_paused, assigned_to, handoff_reason, handoff_urgency, handoff_at, last_message_at, created_at, resolved_at, properties:property_id(id, name, owner_id, owner_contact_id, slug)",
         )
         .order("handoff_at", { ascending: false, nullsFirst: false })
         .order("last_message_at", { ascending: false })
@@ -407,6 +407,43 @@ export const listHandoffConversations = createServerFn({ method: "POST" })
       console.warn("reservation cross-check failed", e);
     }
 
+    // Proprietário de cada imóvel — mesmo padrão já usado no quadro de
+    // operação: properties.owner_contact_id → property_owners (nome/telefone).
+    const owners: Record<string, { name: string | null; phone: string | null; phoneCountry: string | null }> = {};
+    try {
+      const ownerContactIds = Array.from(
+        new Set(
+          deduped
+            .map((c) => c.properties?.owner_contact_id)
+            .filter((v): v is string => !!v),
+        ),
+      );
+      if (ownerContactIds.length > 0) {
+        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+        const { data: ownerRows } = await supabaseAdmin
+          .from("property_owners")
+          .select("id, name, trade_name, phone, phone_country")
+          .in("id", ownerContactIds);
+        const ownerById = new Map(
+          (ownerRows ?? []).map((o) => [
+            o.id as string,
+            {
+              name: (((o.trade_name as string | null) || (o.name as string | null) || "").trim()) || null,
+              phone: (o.phone as string | null) ?? null,
+              phoneCountry: (o.phone_country as string | null) ?? null,
+            },
+          ]),
+        );
+        for (const c of deduped) {
+          const ownerId = c.properties?.owner_contact_id;
+          const info = ownerId ? ownerById.get(ownerId) : undefined;
+          if (info) owners[c.id] = info;
+        }
+      }
+    } catch (e) {
+      console.warn("owner lookup for handoff conversations failed", e);
+    }
+
     return {
       conversations: deduped.map((c) =>
         isPreviewConv(c) ? { ...c, guest_name: "Hóspede de teste" } : c,
@@ -414,6 +451,7 @@ export const listHandoffConversations = createServerFn({ method: "POST" })
       details,
       assignedNames,
       reservations,
+      owners,
     };
   });
 

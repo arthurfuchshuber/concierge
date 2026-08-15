@@ -207,7 +207,7 @@ function AdminCityDetail() {
   }, {});
 
   return (
-    <div className="px-6 lg:px-10 py-8 lg:py-10 max-w-7xl mx-auto w-full space-y-8">
+    <div className="px-6 lg:px-10 py-8 lg:py-10 max-w-[1440px] mx-auto w-full space-y-8">
       <Link
         to="/admin/cidades"
         className="inline-flex items-center gap-1.5 text-[11px] uppercase tracking-[0.2em] text-muted-foreground hover:text-foreground font-semibold"
