@@ -79,7 +79,7 @@ function slugify(s: string) {
     .replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 60);
 }
 
-type ManualItem = { title: string; description: string; body: string };
+type ManualItem = { title: string; description: string; body: string; images: string[] };
 
 type Edited = {
   name: string;
