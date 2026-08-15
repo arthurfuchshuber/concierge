@@ -8,17 +8,64 @@ import { countPropertyOwners } from "@/lib/stakeholders.functions";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { listMyProperties, deleteProperty, duplicateProperty, listPropertiesForAccount, bulkUpdateProperties, countAccountGuides } from "@/lib/properties.functions";
+import {
+  listMyProperties,
+  deleteProperty,
+  duplicateProperty,
+  listPropertiesForAccount,
+  bulkUpdateProperties,
+  countAccountGuides,
+} from "@/lib/properties.functions";
 import { useMyPermissions } from "@/hooks/useMyPermissions";
 
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogTitle, DialogDescription, DialogFooter, DialogHeader } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+} from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
-import { Plus, ExternalLink, Pencil, Trash2, Lock, Globe, BookOpen, CreditCard, LayoutGrid, List, Link2, Check, AlertTriangle, MapPin, ChevronDown, ChevronRight, PenSquare, Search, X, Copy, Filter, MoreHorizontal } from "lucide-react";
+import {
+  Plus,
+  ExternalLink,
+  Pencil,
+  Trash2,
+  Lock,
+  Globe,
+  BookOpen,
+  CreditCard,
+  LayoutGrid,
+  List,
+  Link2,
+  Check,
+  AlertTriangle,
+  MapPin,
+  ChevronDown,
+  ChevronRight,
+  PenSquare,
+  Search,
+  X,
+  Copy,
+  Filter,
+  MoreHorizontal,
+} from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { useState, useMemo } from "react";
 type StatusFilter = "all" | "published" | "draft";
@@ -32,10 +79,7 @@ import { useImpersonation } from "@/hooks/useImpersonation";
 import { listMyAccounts } from "@/lib/active-account.functions";
 import { useAccess } from "@/lib/permissions/useAccess";
 
-
 import { Eye } from "lucide-react";
-
-
 
 function coerceGuiaTab(v: unknown): "imoveis" | "destinos" {
   return v === "destinos" ? "destinos" : "imoveis";
@@ -47,14 +91,17 @@ export const Route = createFileRoute("/_authenticated/admin/guias")({
   component: GuiasTabs,
 });
 
-
-
 // Calculates a guide completeness score 0-100 based on filled fields.
 // Uses only fields available in listMyProperties.
 function guideCompleteness(p: {
-  name?: string | null; tagline?: string | null; hero_image_url?: string | null;
-  address?: string | null; city?: string | null; wifi_ssid?: string | null;
-  checkin_time?: string | null; checkout_time?: string | null;
+  name?: string | null;
+  tagline?: string | null;
+  hero_image_url?: string | null;
+  address?: string | null;
+  city?: string | null;
+  wifi_ssid?: string | null;
+  checkin_time?: string | null;
+  checkout_time?: string | null;
 }): { score: number; label: string; color: string } {
   const checks = [
     !!p.name,
@@ -71,7 +118,6 @@ function guideCompleteness(p: {
   if (score >= 60) return { score, label: "Bom", color: "bg-amber-400" };
   return { score, label: "Incompleto", color: "bg-red-400" };
 }
-
 
 function GuiasTabsBar() {
   return (
@@ -115,7 +161,6 @@ function GuiasTabs() {
   );
 }
 
-
 function Dashboard() {
   const list = useServerFn(listMyProperties);
   const listAsUser = useServerFn(adminListUserPropertiesFull);
@@ -148,8 +193,7 @@ function Dashboard() {
   const createAccess = useAccess("tenant.guias.imoveis.criar", "criar");
   // Enquanto carrega, tratamos como "sem permissão" para nunca exibir UI de criação indevidamente.
   const canCreate = createAccess.loading ? false : createAccess.allowed;
-  const NO_PERMISSION_MSG =
-    "Você não tem permissão de acesso. Procure o administrador deste cadastro.";
+  const NO_PERMISSION_MSG = "Você não tem permissão de acesso. Procure o administrador deste cadastro.";
   function goCreate() {
     if (!canCreate) {
       toast.error(NO_PERMISSION_MSG);
@@ -157,9 +201,6 @@ function Dashboard() {
     }
     navigate({ to: "/admin/properties/$id", params: { id: "new" } });
   }
-
-
-
 
   const [view, setView] = useState<"grid" | "list">("grid");
   const [statCardsOpen, setStatCardsOpen] = useState(false);
@@ -255,17 +296,14 @@ function Dashboard() {
       setBulkPubBusy(false);
     }
   }
-  const { info: sub } = useSubscription({ impersonateUserId: impersonation && isSaasAdmin ? impersonation.userId : null });
+  const { info: sub } = useSubscription({
+    impersonateUserId: impersonation && isSaasAdmin ? impersonation.userId : null,
+  });
 
   // Admin sem guias próprios e SEM impersonação: nada de auto-redirect agora —
   // ele pode escolher manualmente um cliente pelo dropdown da sidebar.
   const { isAdmin } = useIsAdmin();
   void isAdmin;
-
-
-
-
-
 
   async function handleDelete(id: string, name: string) {
     try {
@@ -301,7 +339,6 @@ function Dashboard() {
     }
   }
 
-
   // Uso do plano é informação GLOBAL da conta: nunca depende de quantos
   // imóveis o usuário atual enxerga.
   const countGuidesFn = useServerFn(countAccountGuides);
@@ -321,7 +358,7 @@ function Dashboard() {
   const customCurrency = sub.customCurrency || "BRL";
   const planPrice = hasCustomPrice
     ? (sub.customPriceCents! / 100).toLocaleString("pt-BR", { style: "currency", currency: customCurrency })
-    : planConfig?.priceLabel ?? "—";
+    : (planConfig?.priceLabel ?? "—");
   const planLimit = sub.maxGuides;
   const remaining = Math.max(0, planLimit - count);
   const pct = planLimit > 0 ? Math.min(100, (count / planLimit) * 100) : 0;
@@ -344,11 +381,11 @@ function Dashboard() {
         .some((s) => String(s).toLowerCase().includes(q));
     });
     // Ordem pedida: cidade → título do guia → proprietário (alfabética pt-BR).
-    const cmp = (a: string, b: string) =>
-      a.localeCompare(b, "pt-BR", { sensitivity: "base", numeric: true });
+    const cmp = (a: string, b: string) => a.localeCompare(b, "pt-BR", { sensitivity: "base", numeric: true });
     const txt = (v: unknown) => String(v ?? "").trim();
     return [...rows].sort((a, b) => {
-      const ac = txt(a.city), bc = txt(b.city);
+      const ac = txt(a.city),
+        bc = txt(b.city);
       // Guias sem cidade vão para o fim, mantendo a lista legível.
       if (!ac !== !bc) return ac ? -1 : 1;
       return (
@@ -359,28 +396,29 @@ function Dashboard() {
     });
   }, [data, search, statusFilter, accessFilter]);
 
-
   // Trava: nenhum guia pode ser criado sem um proprietário cadastrado em
   // Stakeholders → Proprietários (fonte da verdade das propriedades).
   const ownersCountFn = useServerFnGuias(countPropertyOwners);
   const ownersCount = useQueryGuias({
     queryKey: ["property-owners-count"],
     queryFn: async () => {
-      try { return await ownersCountFn(); } catch { return { count: 0 }; }
+      try {
+        return await ownersCountFn();
+      } catch {
+        return { count: 0 };
+      }
     },
     staleTime: 30_000,
     retry: false,
   });
   const noOwners = (ownersCount.data?.count ?? 0) === 0;
 
-  const hasActiveFilters =
-    search.trim() !== "" || statusFilter !== "all" || accessFilter !== "all";
+  const hasActiveFilters = search.trim() !== "" || statusFilter !== "all" || accessFilter !== "all";
   function clearFilters() {
     setSearch("");
     setStatusFilter("all");
     setAccessFilter("all");
   }
-
 
   return (
     <div className="px-6 lg:px-10 py-8 lg:py-10 max-w-[1440px] mx-auto w-full">
@@ -388,13 +426,15 @@ function Dashboard() {
         <div className="mb-6 rounded-md border border-accent/30 bg-accent/10 px-4 py-3 flex items-center gap-3">
           <Eye className="size-4 text-accent shrink-0" />
           <div className="flex-1 text-sm">
-            Visualizando o painel de{" "}
-            <span className="font-semibold">{impersonation?.name ?? "—"}</span>
+            Visualizando o painel de <span className="font-semibold">{impersonation?.name ?? "—"}</span>
             <span className="text-muted-foreground"> · somente leitura</span>
           </div>
           <button
             type="button"
-            onClick={() => { clearImpersonation(); navigate({ to: "/admin/guias" }); }}
+            onClick={() => {
+              clearImpersonation();
+              navigate({ to: "/admin/guias" });
+            }}
             className="text-xs px-3 py-1.5 rounded-md border border-border bg-background/60 hover:bg-secondary"
           >
             Sair da visualização
@@ -406,7 +446,11 @@ function Dashboard() {
           <AlertTriangle className="size-4 text-amber-500 shrink-0" />
           <span className="flex-1">
             Cadastre ao menos um proprietário em{" "}
-            <Link to="/admin/stakeholders" search={{ tab: "proprietarios" as const }} className="underline underline-offset-2 font-medium">
+            <Link
+              to="/admin/stakeholders"
+              search={{ tab: "proprietarios" as const }}
+              className="underline underline-offset-2 font-medium"
+            >
               Stakeholders → Proprietários
             </Link>{" "}
             para liberar a criação de novos guias.
@@ -418,7 +462,7 @@ function Dashboard() {
       <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-8">
         <div>
           <h1 className="font-display text-3xl md:text-4xl leading-tight">
-            {readOnly ? `Painel de ${impersonation?.name ?? ""}` : "Bem-vindo de volta"}
+            {readOnly ? `Painel de ${impersonation?.name ?? ""}` : "Guias de Imóveis e Destinos"}
           </h1>
           <p className="text-sm text-muted-foreground mt-1.5">
             {readOnly
@@ -428,130 +472,147 @@ function Dashboard() {
         </div>
       </div>
 
-
-
       {/* Stat cards (collapsible) — apenas para o titular da conta */}
       {canSeePlan && (
-      <div className="mb-10">
-
-        <button
-          type="button"
-          onClick={() => setStatCardsOpen((v) => !v)}
-          className="w-full flex items-center justify-between gap-2 px-4 py-2.5 rounded-xl border border-border bg-card hover:bg-secondary/40 transition-colors mb-3"
-          aria-expanded={statCardsOpen}
-        >
-          <span className="text-sm font-medium text-foreground/80 flex items-center gap-2">
-            <CreditCard className="size-4 text-muted-foreground" />
-            Plano e uso · <span className="text-muted-foreground">{planName} · {count}{planLimit > 0 ? `/${planLimit >= 9999 ? "∞" : planLimit}` : ""}</span>
-          </span>
-          <ChevronDown className={`size-4 text-muted-foreground transition-transform ${statCardsOpen ? "rotate-180" : ""}`} />
-        </button>
-
-        {/* Barra elegante de uso de guias */}
-        {planLimit > 0 && (
-          <div className="mb-3 px-1">
-            <div className="flex items-center justify-between text-[11px] mb-1.5">
-              <span className="uppercase tracking-[0.14em] text-muted-foreground font-medium">Uso de guias</span>
-              <span className="tabular-nums text-foreground/80">
-                <span className="font-semibold text-foreground">{count}</span>
-                <span className="text-muted-foreground"> / {planLimit >= 9999 ? "∞" : planLimit}</span>
-              </span>
-            </div>
-            <div className="relative h-2 rounded-full bg-secondary/60 overflow-hidden ring-1 ring-inset ring-border/40">
-              <div
-                className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-accent/70 via-accent to-accent/90 shadow-[0_0_12px_-2px_oklch(from_var(--accent)_l_c_h/0.6)] transition-all duration-700 ease-out"
-                style={{ width: `${planLimit >= 9999 ? Math.min(100, (count / Math.max(count + 10, 20)) * 100) : pct}%` }}
-              />
-            </div>
-          </div>
-        )}
-
-        {statCardsOpen && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* Plano */}
-        <div className="rounded-2xl border border-border bg-card p-5">
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-sm font-medium text-muted-foreground">Seu Plano</span>
-            <CreditCard className="size-4 text-muted-foreground" />
-          </div>
-          <div className="flex items-baseline gap-2 flex-wrap">
-            <span className="text-2xl font-display">{planName}</span>
-            {sub.isTrialing && (
-              <span className="text-[10px] uppercase tracking-wider font-semibold text-accent bg-accent/10 px-2 py-0.5 rounded-full">Trial</span>
-            )}
-            {sub.isPastDue && (
-              <span className="text-[10px] uppercase tracking-wider font-semibold text-destructive bg-destructive/10 px-2 py-0.5 rounded-full">Pagamento falhou</span>
-            )}
-            {sub.cancelAtPeriodEnd && !sub.isPastDue && (
-              <span className="text-[10px] uppercase tracking-wider font-semibold text-amber-600 dark:text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full">Cancelamento agendado</span>
-            )}
-            {sub.isManual && (
-              <span className="text-[10px] uppercase tracking-wider font-semibold text-foreground/70 bg-secondary px-2 py-0.5 rounded-full">Contrato</span>
-            )}
-          </div>
-          <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-lg font-semibold">{planPrice}</span>
-            {(planConfig || hasCustomPrice) && <span className="text-xs text-muted-foreground">/mês</span>}
-            {hasCustomPrice && (
-              <span className="text-[10px] uppercase tracking-wider font-semibold text-accent">personalizado</span>
-            )}
-          </div>
-          {(trialLabel || renewalLabel) && (
-            <dl className="mt-3 grid grid-cols-2 gap-2 text-xs">
-              {trialLabel && (
-                <div>
-                  <dt className="text-muted-foreground">Trial até</dt>
-                  <dd className="font-medium tabular-nums">{trialLabel}</dd>
-                </div>
-              )}
-              {renewalLabel && !sub.isTrialing && (
-                <div>
-                  <dt className="text-muted-foreground">{sub.cancelAtPeriodEnd ? "Acesso até" : "Próxima renovação"}</dt>
-                  <dd className="font-medium tabular-nums">{renewalLabel}</dd>
-                </div>
-              )}
-            </dl>
-          )}
-          <Link
-            to={sub.plan ? "/admin/assinatura" : "/precos"}
-            className="text-xs text-accent hover:underline mt-3 inline-block"
+        <div className="mb-10">
+          <button
+            type="button"
+            onClick={() => setStatCardsOpen((v) => !v)}
+            className="w-full flex items-center justify-between gap-2 px-4 py-2.5 rounded-xl border border-border bg-card hover:bg-secondary/40 transition-colors mb-3"
+            aria-expanded={statCardsOpen}
           >
-            {sub.plan ? "Gerenciar assinatura" : "Ver planos"} →
-          </Link>
-        </div>
-
-        {/* Uso */}
-        <div className="rounded-2xl border border-border bg-card p-5">
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-sm font-medium text-muted-foreground">Uso de guias</span>
-            <BookOpen className="size-4 text-muted-foreground" />
-          </div>
-          <div className="text-2xl font-display">
-            {count}{" "}
-            <span className="text-sm text-muted-foreground font-sans">
-              / {planLimit ? (planLimit >= 9999 ? "ilimitado" : planLimit) : "—"}
+            <span className="text-sm font-medium text-foreground/80 flex items-center gap-2">
+              <CreditCard className="size-4 text-muted-foreground" />
+              Plano e uso ·{" "}
+              <span className="text-muted-foreground">
+                {planName} · {count}
+                {planLimit > 0 ? `/${planLimit >= 9999 ? "∞" : planLimit}` : ""}
+              </span>
             </span>
-            {sub.maxGuidesOverride != null && (
-              <span className="ml-2 text-[10px] uppercase tracking-wider font-semibold text-accent align-middle">contrato</span>
-            )}
-          </div>
-          <div className="mt-3 h-1.5 rounded-full bg-secondary overflow-hidden">
-            <div className="h-full bg-accent transition-all" style={{ width: `${pct}%` }} />
-          </div>
-          <p className="text-xs text-muted-foreground mt-2">
-            {planLimit > 0
-              ? planLimit >= 9999
-                ? "Sem limite de guias"
-                : `${remaining} guias restantes`
-              : "Assine um plano para criar guias"}
-          </p>
+            <ChevronDown
+              className={`size-4 text-muted-foreground transition-transform ${statCardsOpen ? "rotate-180" : ""}`}
+            />
+          </button>
+
+          {/* Barra elegante de uso de guias */}
+          {planLimit > 0 && (
+            <div className="mb-3 px-1">
+              <div className="flex items-center justify-between text-[11px] mb-1.5">
+                <span className="uppercase tracking-[0.14em] text-muted-foreground font-medium">Uso de guias</span>
+                <span className="tabular-nums text-foreground/80">
+                  <span className="font-semibold text-foreground">{count}</span>
+                  <span className="text-muted-foreground"> / {planLimit >= 9999 ? "∞" : planLimit}</span>
+                </span>
+              </div>
+              <div className="relative h-2 rounded-full bg-secondary/60 overflow-hidden ring-1 ring-inset ring-border/40">
+                <div
+                  className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-accent/70 via-accent to-accent/90 shadow-[0_0_12px_-2px_oklch(from_var(--accent)_l_c_h/0.6)] transition-all duration-700 ease-out"
+                  style={{
+                    width: `${planLimit >= 9999 ? Math.min(100, (count / Math.max(count + 10, 20)) * 100) : pct}%`,
+                  }}
+                />
+              </div>
+            </div>
+          )}
+
+          {statCardsOpen && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Plano */}
+              <div className="rounded-2xl border border-border bg-card p-5">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-sm font-medium text-muted-foreground">Seu Plano</span>
+                  <CreditCard className="size-4 text-muted-foreground" />
+                </div>
+                <div className="flex items-baseline gap-2 flex-wrap">
+                  <span className="text-2xl font-display">{planName}</span>
+                  {sub.isTrialing && (
+                    <span className="text-[10px] uppercase tracking-wider font-semibold text-accent bg-accent/10 px-2 py-0.5 rounded-full">
+                      Trial
+                    </span>
+                  )}
+                  {sub.isPastDue && (
+                    <span className="text-[10px] uppercase tracking-wider font-semibold text-destructive bg-destructive/10 px-2 py-0.5 rounded-full">
+                      Pagamento falhou
+                    </span>
+                  )}
+                  {sub.cancelAtPeriodEnd && !sub.isPastDue && (
+                    <span className="text-[10px] uppercase tracking-wider font-semibold text-amber-600 dark:text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full">
+                      Cancelamento agendado
+                    </span>
+                  )}
+                  {sub.isManual && (
+                    <span className="text-[10px] uppercase tracking-wider font-semibold text-foreground/70 bg-secondary px-2 py-0.5 rounded-full">
+                      Contrato
+                    </span>
+                  )}
+                </div>
+                <div className="mt-3 flex items-baseline gap-2">
+                  <span className="text-lg font-semibold">{planPrice}</span>
+                  {(planConfig || hasCustomPrice) && <span className="text-xs text-muted-foreground">/mês</span>}
+                  {hasCustomPrice && (
+                    <span className="text-[10px] uppercase tracking-wider font-semibold text-accent">
+                      personalizado
+                    </span>
+                  )}
+                </div>
+                {(trialLabel || renewalLabel) && (
+                  <dl className="mt-3 grid grid-cols-2 gap-2 text-xs">
+                    {trialLabel && (
+                      <div>
+                        <dt className="text-muted-foreground">Trial até</dt>
+                        <dd className="font-medium tabular-nums">{trialLabel}</dd>
+                      </div>
+                    )}
+                    {renewalLabel && !sub.isTrialing && (
+                      <div>
+                        <dt className="text-muted-foreground">
+                          {sub.cancelAtPeriodEnd ? "Acesso até" : "Próxima renovação"}
+                        </dt>
+                        <dd className="font-medium tabular-nums">{renewalLabel}</dd>
+                      </div>
+                    )}
+                  </dl>
+                )}
+                <Link
+                  to={sub.plan ? "/admin/assinatura" : "/precos"}
+                  className="text-xs text-accent hover:underline mt-3 inline-block"
+                >
+                  {sub.plan ? "Gerenciar assinatura" : "Ver planos"} →
+                </Link>
+              </div>
+
+              {/* Uso */}
+              <div className="rounded-2xl border border-border bg-card p-5">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-sm font-medium text-muted-foreground">Uso de guias</span>
+                  <BookOpen className="size-4 text-muted-foreground" />
+                </div>
+                <div className="text-2xl font-display">
+                  {count}{" "}
+                  <span className="text-sm text-muted-foreground font-sans">
+                    / {planLimit ? (planLimit >= 9999 ? "ilimitado" : planLimit) : "—"}
+                  </span>
+                  {sub.maxGuidesOverride != null && (
+                    <span className="ml-2 text-[10px] uppercase tracking-wider font-semibold text-accent align-middle">
+                      contrato
+                    </span>
+                  )}
+                </div>
+                <div className="mt-3 h-1.5 rounded-full bg-secondary overflow-hidden">
+                  <div className="h-full bg-accent transition-all" style={{ width: `${pct}%` }} />
+                </div>
+                <p className="text-xs text-muted-foreground mt-2">
+                  {planLimit > 0
+                    ? planLimit >= 9999
+                      ? "Sem limite de guias"
+                      : `${remaining} guias restantes`
+                    : "Assine um plano para criar guias"}
+                </p>
+              </div>
+            </div>
+          )}
         </div>
-        </div>
-        )}
-      </div>
       )}
-
-
 
       {canSeePlan && sub.isPastDue && (
         <div className="mb-6 rounded-2xl border border-destructive/30 bg-destructive/5 p-4 flex items-start gap-3">
@@ -562,14 +623,15 @@ function Dashboard() {
               Atualize seu método de pagamento para evitar a suspensão do acesso.
             </p>
           </div>
-          <Link to="/admin/assinatura" search={{ checkout: undefined }} className="text-xs font-medium px-3 py-1.5 rounded-full bg-destructive text-destructive-foreground hover:opacity-90">
+          <Link
+            to="/admin/assinatura"
+            search={{ checkout: undefined }}
+            className="text-xs font-medium px-3 py-1.5 rounded-full bg-destructive text-destructive-foreground hover:opacity-90"
+          >
             Resolver
           </Link>
         </div>
       )}
-
-
-
 
       <GuiasTabsBar />
 
@@ -593,13 +655,17 @@ function Dashboard() {
               </PopoverTrigger>
               <PopoverContent align="end" className="w-64 p-4 space-y-4">
                 <div>
-                  <div className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold mb-2">Status</div>
+                  <div className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold mb-2">
+                    Status
+                  </div>
                   <div className="flex flex-wrap gap-1.5">
-                    {([
-                      { v: "all", label: "Todos" },
-                      { v: "published", label: "Publicados" },
-                      { v: "draft", label: "Rascunhos" },
-                    ] as { v: StatusFilter; label: string }[]).map((opt) => (
+                    {(
+                      [
+                        { v: "all", label: "Todos" },
+                        { v: "published", label: "Publicados" },
+                        { v: "draft", label: "Rascunhos" },
+                      ] as { v: StatusFilter; label: string }[]
+                    ).map((opt) => (
                       <button
                         key={opt.v}
                         type="button"
@@ -612,13 +678,17 @@ function Dashboard() {
                   </div>
                 </div>
                 <div>
-                  <div className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold mb-2">Acesso</div>
+                  <div className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold mb-2">
+                    Acesso
+                  </div>
                   <div className="flex flex-wrap gap-1.5">
-                    {([
-                      { v: "all", label: "Todos" },
-                      { v: "public", label: "Público" },
-                      { v: "pin", label: "PIN" },
-                    ] as { v: AccessFilter; label: string }[]).map((opt) => (
+                    {(
+                      [
+                        { v: "all", label: "Todos" },
+                        { v: "public", label: "Público" },
+                        { v: "pin", label: "PIN" },
+                      ] as { v: AccessFilter; label: string }[]
+                    ).map((opt) => (
                       <button
                         key={opt.v}
                         type="button"
@@ -667,20 +737,17 @@ function Dashboard() {
                   !sub.plan
                     ? "Assine um plano para criar guias"
                     : noOwners
-                    ? "Cadastre um proprietário em Stakeholders antes de criar guias"
-                    : reachedLimit
-                    ? "Limite do seu plano atingido. Faça upgrade."
-                    : "Novo guia"
+                      ? "Cadastre um proprietário em Stakeholders antes de criar guias"
+                      : reachedLimit
+                        ? "Limite do seu plano atingido. Faça upgrade."
+                        : "Novo guia"
                 }
                 className="size-10 grid place-items-center rounded-full bg-secondary text-foreground border border-border hover:bg-secondary/70 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Plus className="size-4" />
               </button>
             )}
-
-
           </div>
-
         </div>
 
         {data && data.length > 0 && (
@@ -736,42 +803,42 @@ function Dashboard() {
             </p>
           </div>
         ) : (
-        <div className="rounded-2xl border border-accent/20 bg-card p-6">
-          <div className="flex items-center justify-between mb-5">
-            <div>
-              <p className="text-[10px] uppercase tracking-[0.2em] text-accent font-semibold mb-1">Primeiros passos</p>
-              <h3 className="font-display text-xl">Crie seu primeiro guia em minutos</h3>
-            </div>
-            <div className="text-right">
-              <span className="text-2xl font-display text-accent">01</span>
-              <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">/ 05</p>
-            </div>
-          </div>
-          <div className="space-y-3">
-            {([
-              { n: "01", label: "Cole o link do Google Maps da sua propriedade", done: false },
-              { n: "02", label: "Confira o endereço e adicione Wi-Fi", done: false },
-              { n: "03", label: "Configure os horários de check-in e check-out", done: false },
-              { n: "04", label: "Adicione recomendações de restaurantes e atrações", done: false },
-              { n: "05", label: "Publique e compartilhe o link com o hóspede", done: false },
-            ] as { n: string; label: string; done: boolean }[]).map((step) => (
-              <div key={step.n} className="flex items-center gap-3">
-                <span className="size-7 rounded-full border border-border text-[10px] font-mono text-muted-foreground grid place-items-center shrink-0">{step.n}</span>
-                <span className="text-[13.5px] text-foreground/80">{step.label}</span>
+          <div className="rounded-2xl border border-accent/20 bg-card p-6">
+            <div className="flex items-center justify-between mb-5">
+              <div>
+                <p className="text-[10px] uppercase tracking-[0.2em] text-accent font-semibold mb-1">
+                  Primeiros passos
+                </p>
+                <h3 className="font-display text-xl">Crie seu primeiro guia em minutos</h3>
               </div>
-            ))}
+              <div className="text-right">
+                <span className="text-2xl font-display text-accent">01</span>
+                <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">/ 05</p>
+              </div>
+            </div>
+            <div className="space-y-3">
+              {(
+                [
+                  { n: "01", label: "Cole o link do Google Maps da sua propriedade", done: false },
+                  { n: "02", label: "Confira o endereço e adicione Wi-Fi", done: false },
+                  { n: "03", label: "Configure os horários de check-in e check-out", done: false },
+                  { n: "04", label: "Adicione recomendações de restaurantes e atrações", done: false },
+                  { n: "05", label: "Publique e compartilhe o link com o hóspede", done: false },
+                ] as { n: string; label: string; done: boolean }[]
+              ).map((step) => (
+                <div key={step.n} className="flex items-center gap-3">
+                  <span className="size-7 rounded-full border border-border text-[10px] font-mono text-muted-foreground grid place-items-center shrink-0">
+                    {step.n}
+                  </span>
+                  <span className="text-[13.5px] text-foreground/80">{step.label}</span>
+                </div>
+              ))}
+            </div>
+            <Button className="mt-5 rounded-full" onClick={goCreate} disabled={!sub.plan}>
+              <Plus className="size-4 mr-1.5" /> Criar meu primeiro guia
+            </Button>
           </div>
-          <Button
-            className="mt-5 rounded-full"
-            onClick={goCreate}
-            disabled={!sub.plan}
-          >
-            <Plus className="size-4 mr-1.5" /> Criar meu primeiro guia
-          </Button>
-        </div>
         )
-
-
       ) : filtered.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-border bg-card/30 p-12 text-center">
           <div className="size-12 rounded-2xl bg-secondary grid place-items-center mx-auto mb-4">
@@ -788,7 +855,10 @@ function Dashboard() {
       ) : view === "grid" ? (
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filtered.map((p) => (
-            <div key={p.id} className="rounded-2xl border border-border bg-card overflow-hidden group hover:shadow-elevated transition-shadow">
+            <div
+              key={p.id}
+              className="rounded-2xl border border-border bg-card overflow-hidden group hover:shadow-elevated transition-shadow"
+            >
               <div className="aspect-[16/10] bg-secondary relative">
                 {p.hero_image_url ? (
                   <img src={p.hero_image_url} alt={p.name} className="w-full h-full object-cover" />
@@ -796,14 +866,24 @@ function Dashboard() {
                   <div className="w-full h-full grid place-items-center text-muted-foreground text-xs">Sem imagem</div>
                 )}
                 <span className="absolute top-3 left-3 glass rounded-full px-2.5 py-1 text-[10px] uppercase tracking-wider font-semibold inline-flex items-center gap-1">
-                  {p.access_mode === "pin" ? <><Lock className="size-2.5" /> PIN</> : <><Globe className="size-2.5" /> Público</>}
+                  {p.access_mode === "pin" ? (
+                    <>
+                      <Lock className="size-2.5" /> PIN
+                    </>
+                  ) : (
+                    <>
+                      <Globe className="size-2.5" /> Público
+                    </>
+                  )}
                 </span>
                 <div
                   className="absolute top-3 right-3 glass rounded-full pl-2.5 pr-1 py-1 flex items-center gap-2"
                   title={p.published ? "Publicado — clique para despublicar" : "Rascunho — clique para publicar"}
                   onClick={(e) => e.stopPropagation()}
                 >
-                  <span className={`text-[10px] uppercase tracking-wider font-semibold ${p.published ? "text-emerald-600" : "text-yellow-600"}`}>
+                  <span
+                    className={`text-[10px] uppercase tracking-wider font-semibold ${p.published ? "text-emerald-600" : "text-yellow-600"}`}
+                  >
                     {p.published ? "Publicado" : "Rascunho"}
                   </span>
                   <Switch
@@ -818,7 +898,10 @@ function Dashboard() {
               <div className="p-4">
                 {(p as any).ownerName && (
                   <div className="mb-1 flex items-center gap-1.5 min-w-0">
-                    <span className="min-w-0 max-w-full truncate text-[11px] font-bold text-primary" title={(p as any).ownerName}>
+                    <span
+                      className="min-w-0 max-w-full truncate text-[11px] font-bold text-primary"
+                      title={(p as any).ownerName}
+                    >
                       {(p as any).ownerName}
                     </span>
                     <PhoneActionButton
@@ -828,32 +911,45 @@ function Dashboard() {
                       className="shrink-0"
                     />
                   </div>
-
                 )}
                 <h3 className="font-semibold leading-tight truncate">{p.name}</h3>
                 {p.city && (
                   <p className="mt-0.5 truncate text-[11px] font-semibold text-yellow-500">
-                    {p.city}{p.country ? `, ${p.country}` : ""}
+                    {p.city}
+                    {p.country ? `, ${p.country}` : ""}
                   </p>
                 )}
-                <p className="text-xs text-muted-foreground mt-1 truncate">{p.tagline || `${p.city ?? ""}${p.country ? `, ${p.country}` : ""}`}</p>
+                <p className="text-xs text-muted-foreground mt-1 truncate">
+                  {p.tagline || `${p.city ?? ""}${p.country ? `, ${p.country}` : ""}`}
+                </p>
 
                 {(() => {
                   const c = guideCompleteness(p as any);
                   return (
                     <div className="mt-2.5 flex items-center gap-2">
                       <div className="flex-1 h-1 rounded-full bg-secondary overflow-hidden">
-                        <div className={`h-full rounded-full transition-all ${c.color}`} style={{ width: `${c.score}%` }} />
+                        <div
+                          className={`h-full rounded-full transition-all ${c.color}`}
+                          style={{ width: `${c.score}%` }}
+                        />
                       </div>
                       <span className="text-[10px] text-muted-foreground tabular-nums shrink-0">{c.score}%</span>
                     </div>
                   );
                 })()}
                 <div className="flex items-center gap-2 mt-3">
-                  <Link to="/admin/properties/$id" params={{ id: p.id }} className="flex-1 inline-flex items-center justify-center gap-1 text-xs font-medium bg-secondary rounded-full py-2 hover:bg-secondary/70">
+                  <Link
+                    to="/admin/properties/$id"
+                    params={{ id: p.id }}
+                    className="flex-1 inline-flex items-center justify-center gap-1 text-xs font-medium bg-secondary rounded-full py-2 hover:bg-secondary/70"
+                  >
                     <Pencil className="size-3" /> Editar
                   </Link>
-                  <button type="button" onClick={() => setViewSlug(p.slug)} className="flex-1 inline-flex items-center justify-center gap-1 text-xs font-medium bg-secondary rounded-full py-2 hover:bg-secondary/70">
+                  <button
+                    type="button"
+                    onClick={() => setViewSlug(p.slug)}
+                    className="flex-1 inline-flex items-center justify-center gap-1 text-xs font-medium bg-secondary rounded-full py-2 hover:bg-secondary/70"
+                  >
                     <ExternalLink className="size-3" /> Ver
                   </button>
                   <button
@@ -866,7 +962,10 @@ function Dashboard() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => { setDupTarget({ id: p.id, name: p.name }); setDupCopies(1); }}
+                    onClick={() => {
+                      setDupTarget({ id: p.id, name: p.name });
+                      setDupCopies(1);
+                    }}
                     title="Duplicar guia"
                     aria-label="Duplicar guia"
                     className="p-2 rounded-full hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"
@@ -875,7 +974,11 @@ function Dashboard() {
                   </button>
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
-                      <button title="Excluir" className="p-2 rounded-full hover:bg-destructive/10 text-muted-foreground hover:text-destructive" aria-label="Excluir">
+                      <button
+                        title="Excluir"
+                        className="p-2 rounded-full hover:bg-destructive/10 text-muted-foreground hover:text-destructive"
+                        aria-label="Excluir"
+                      >
                         <Trash2 className="size-3.5" />
                       </button>
                     </AlertDialogTrigger>
@@ -888,7 +991,10 @@ function Dashboard() {
                       </AlertDialogHeader>
                       <AlertDialogFooter>
                         <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                        <AlertDialogAction onClick={() => handleDelete(p.id, p.name)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                        <AlertDialogAction
+                          onClick={() => handleDelete(p.id, p.name)}
+                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        >
                           Excluir
                         </AlertDialogAction>
                       </AlertDialogFooter>
@@ -901,9 +1007,8 @@ function Dashboard() {
         </div>
       ) : (
         (() => {
-          const norm = (s?: string | null) =>
-            (s ?? "").toLowerCase().trim().replace(/\s+/g, " ");
-          const keyOf = (p: typeof filtered[number]) => {
+          const norm = (s?: string | null) => (s ?? "").toLowerCase().trim().replace(/\s+/g, " ");
+          const keyOf = (p: (typeof filtered)[number]) => {
             if (p.lat != null && p.lng != null) {
               return `geo:${Number(p.lat).toFixed(4)},${Number(p.lng).toFixed(4)}`;
             }
@@ -915,10 +1020,7 @@ function Dashboard() {
             const k = keyOf(p);
             if (!groups.has(k)) {
               groups.set(k, {
-                label:
-                  k === "none"
-                    ? "Sem endereço"
-                    : p.address || `${p.lat},${p.lng}`,
+                label: k === "none" ? "Sem endereço" : p.address || `${p.lat},${p.lng}`,
                 items: [],
               });
             }
@@ -983,7 +1085,10 @@ function Dashboard() {
                 const groupIds = grp.items.map((i) => i.id);
                 const allInGroupSelected = groupIds.every((id) => selected.has(id));
                 return (
-                  <div key={gk} className="rounded-2xl border border-border/70 bg-card/60 overflow-hidden backdrop-blur-[2px]">
+                  <div
+                    key={gk}
+                    className="rounded-2xl border border-border/70 bg-card/60 overflow-hidden backdrop-blur-[2px]"
+                  >
                     <button
                       type="button"
                       onClick={() => setExpandedGroup((cur) => (cur === gk ? null : gk))}
@@ -1044,7 +1149,9 @@ function Dashboard() {
                                 {p.hero_image_url ? (
                                   <img src={p.hero_image_url} alt="" className="w-full h-full object-cover" />
                                 ) : (
-                                  <div className="w-full h-full grid place-items-center text-[9px] text-muted-foreground">Sem foto</div>
+                                  <div className="w-full h-full grid place-items-center text-[9px] text-muted-foreground">
+                                    Sem foto
+                                  </div>
                                 )}
                               </button>
                               <button
@@ -1052,16 +1159,24 @@ function Dashboard() {
                                 onClick={() => navigate({ to: "/admin/properties/$id", params: { id: p.id } })}
                                 className="flex-1 min-w-0 text-left"
                               >
-                                <h3 className="font-medium text-[13.5px] leading-snug tracking-tight line-clamp-2 [text-wrap:balance]">{p.name}</h3>
+                                <h3 className="font-medium text-[13.5px] leading-snug tracking-tight line-clamp-2 [text-wrap:balance]">
+                                  {p.name}
+                                </h3>
                                 <div className="mt-1 flex items-center gap-1.5 text-[10.5px] text-muted-foreground/90 min-w-0">
                                   <span className="inline-flex items-center gap-1 shrink-0 uppercase tracking-[0.12em]">
-                                    {p.access_mode === "pin" ? <Lock className="size-2.5" /> : <Globe className="size-2.5" />}
+                                    {p.access_mode === "pin" ? (
+                                      <Lock className="size-2.5" />
+                                    ) : (
+                                      <Globe className="size-2.5" />
+                                    )}
                                     {p.access_mode === "pin" ? "PIN" : "Público"}
                                   </span>
                                   {!p.published && (
                                     <>
                                       <span className="text-muted-foreground/40">·</span>
-                                      <span className="uppercase tracking-[0.12em] text-yellow-600 dark:text-yellow-400">Rascunho</span>
+                                      <span className="uppercase tracking-[0.12em] text-yellow-600 dark:text-yellow-400">
+                                        Rascunho
+                                      </span>
                                     </>
                                   )}
                                 </div>
@@ -1096,12 +1211,19 @@ function Dashboard() {
                                     onClick={() => handleCopyLink(p.slug, p.id)}
                                     className="w-full flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] hover:bg-secondary transition-colors text-left"
                                   >
-                                    {copiedId === p.id ? <Check className="size-3.5 text-accent" /> : <Link2 className="size-3.5 text-muted-foreground" />}
+                                    {copiedId === p.id ? (
+                                      <Check className="size-3.5 text-accent" />
+                                    ) : (
+                                      <Link2 className="size-3.5 text-muted-foreground" />
+                                    )}
                                     {copiedId === p.id ? "Link copiado" : "Copiar link público"}
                                   </button>
                                   <button
                                     type="button"
-                                    onClick={() => { setDupTarget({ id: p.id, name: p.name }); setDupCopies(1); }}
+                                    onClick={() => {
+                                      setDupTarget({ id: p.id, name: p.name });
+                                      setDupCopies(1);
+                                    }}
                                     className="w-full flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] hover:bg-secondary transition-colors text-left"
                                   >
                                     <Copy className="size-3.5 text-muted-foreground" /> Duplicar
@@ -1129,12 +1251,22 @@ function Dashboard() {
         })()
       )}
 
-      <Dialog open={dupTarget !== null} onOpenChange={(o) => { if (!o && !dupBusy) { setDupTarget(null); setDupCopies(1); } }}>
+      <Dialog
+        open={dupTarget !== null}
+        onOpenChange={(o) => {
+          if (!o && !dupBusy) {
+            setDupTarget(null);
+            setDupCopies(1);
+          }
+        }}
+      >
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Duplicar guia</DialogTitle>
             <DialogDescription>
-              Vamos criar cópias de <span className="font-medium text-foreground">{dupTarget?.name}</span> com todas as configurações, mídias, recomendações, FAQs e contatos. As cópias são criadas como <span className="font-medium">rascunhos</span> para você revisar antes de publicar.
+              Vamos criar cópias de <span className="font-medium text-foreground">{dupTarget?.name}</span> com todas as
+              configurações, mídias, recomendações, FAQs e contatos. As cópias são criadas como{" "}
+              <span className="font-medium">rascunhos</span> para você revisar antes de publicar.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-2">
@@ -1163,7 +1295,14 @@ function Dashboard() {
             )}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => { setDupTarget(null); setDupCopies(1); }} disabled={dupBusy}>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setDupTarget(null);
+                setDupCopies(1);
+              }}
+              disabled={dupBusy}
+            >
               Cancelar
             </Button>
             <Button onClick={handleConfirmDuplicate} disabled={dupBusy || remaining <= 0}>
@@ -1183,15 +1322,19 @@ function Dashboard() {
         }}
       />
 
-
-      <Dialog open={viewSlug !== null} onOpenChange={(o) => { if (!o) closePreview(); }}>
+      <Dialog
+        open={viewSlug !== null}
+        onOpenChange={(o) => {
+          if (!o) closePreview();
+        }}
+      >
         <DialogContent
           className={
             previewMode === "desktop"
               ? "p-0 gap-0 overflow-hidden border-0 bg-transparent shadow-none sm:max-w-[1100px] w-[min(95vw,1100px)] [&>button]:hidden"
               : previewMode === "mobile"
-              ? "p-0 gap-0 overflow-hidden border-0 bg-transparent shadow-none sm:max-w-[400px] w-[min(92vw,400px)] [&>button]:hidden"
-              : "p-0 gap-0 overflow-hidden sm:max-w-[420px] w-[min(92vw,420px)] [&>button]:hidden"
+                ? "p-0 gap-0 overflow-hidden border-0 bg-transparent shadow-none sm:max-w-[400px] w-[min(92vw,400px)] [&>button]:hidden"
+                : "p-0 gap-0 overflow-hidden sm:max-w-[420px] w-[min(92vw,420px)] [&>button]:hidden"
           }
         >
           <DialogTitle className="sr-only">Pré-visualização do guia</DialogTitle>
@@ -1230,13 +1373,13 @@ function Dashboard() {
               </button>
             </div>
           ) : (
-            <div className={`flex flex-col ${previewMode === "desktop" ? "h-[85vh] max-h-[820px] rounded-2xl" : "h-[85vh] max-h-[820px] rounded-[2rem]"} overflow-hidden bg-background shadow-[0_30px_80px_-20px_rgba(0,0,0,0.45)] ring-1 ring-black/10`}>
+            <div
+              className={`flex flex-col ${previewMode === "desktop" ? "h-[85vh] max-h-[820px] rounded-2xl" : "h-[85vh] max-h-[820px] rounded-[2rem]"} overflow-hidden bg-background shadow-[0_30px_80px_-20px_rgba(0,0,0,0.45)] ring-1 ring-black/10`}
+            >
               <div className="flex items-center justify-between gap-3 px-4 h-9 bg-background/95 backdrop-blur border-b border-border/40 shrink-0">
                 <div className="flex items-center gap-2 min-w-0">
                   <span className="inline-flex size-1.5 rounded-full bg-emerald-500/80" />
-                  <p className="text-[11px] font-medium text-muted-foreground/80 truncate">
-                    /g/{viewSlug}
-                  </p>
+                  <p className="text-[11px] font-medium text-muted-foreground/80 truncate">/g/{viewSlug}</p>
                 </div>
                 <div className="flex items-center gap-1">
                   <button
@@ -1275,7 +1418,6 @@ function Dashboard() {
           )}
         </DialogContent>
       </Dialog>
-
     </div>
   );
 }
