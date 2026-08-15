@@ -194,6 +194,32 @@ function DashboardPage() {
   // cabem as 5 colunas lado a lado). No desktop não é usado; as 5 colunas
   // aparecem todas ao mesmo tempo.
   const [mobileTab, setMobileTab] = useState<BoardMode>("checkin");
+  // Largura das colunas do Kanban (desktop) — calculada de verdade a partir
+  // do espaço disponível, não um número fixo. Cabe quantas colunas couberem
+  // numa largura mínima confortável (240px), e essas colunas esticam pra
+  // preencher o espaço TODO, sem sobrar vão nem cortar a próxima coluna pela
+  // metade — reage ao recolher/expandir o menu lateral e a mudanças de tela.
+  const kanbanRowRef = useRef<HTMLDivElement>(null);
+  const [kanbanColWidth, setKanbanColWidth] = useState(262);
+  useLayoutEffect(() => {
+    const el = kanbanRowRef.current;
+    if (!el) return;
+    const GAP = 12; // gap-3
+    const MIN_COL = 240;
+    const TOTAL_COLS = 5;
+    function recalc() {
+      const containerWidth = el!.clientWidth;
+      if (containerWidth <= 0) return;
+      let n = Math.floor((containerWidth + GAP) / (MIN_COL + GAP));
+      n = Math.max(1, Math.min(TOTAL_COLS, n));
+      const w = (containerWidth - (n - 1) * GAP) / n;
+      setKanbanColWidth(Math.floor(w));
+    }
+    recalc();
+    const ro = new ResizeObserver(recalc);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
   // "Detalhes da operação" aberto — UM ESTADO POR COLUNA, não compartilhado.
   // Se fosse um estado só pro quadro inteiro: rolar a coluna "Em Limpeza"
   // fecharia um card aberto em "Check-ins", mesmo sendo hóspedes e colunas
@@ -756,8 +782,8 @@ function DashboardPage() {
             quanto espaço sobrava (ex.: menu recolhido ou não). Agora cada
             coluna tem sempre a mesma largura confortável, não importa o
             espaço disponível. */}
-        <div className="hidden sm:flex gap-3 items-start overflow-x-auto snap-x pb-2 -mx-1 px-1">
-          <div className="w-[262px] shrink-0 snap-start">
+        <div ref={kanbanRowRef} className="hidden sm:flex gap-3 items-start overflow-x-auto snap-x pb-2 -mx-1 px-1">
+          <div style={{ width: kanbanColWidth }} className="shrink-0 snap-start">
             <KanbanColumn onScroll={() => setExpandedByColumn((prev) => ({ ...prev, checkin: null }))} title="Check-ins" icon={CalendarCheck} count={counts.checkin} tone="emerald">
               {checkinListQ.isLoading ? (
                 <ColumnLoading />
@@ -769,7 +795,7 @@ function DashboardPage() {
             </KanbanColumn>
           </div>
 
-          <div className="w-[262px] shrink-0 snap-start">
+          <div style={{ width: kanbanColWidth }} className="shrink-0 snap-start">
             <KanbanColumn onScroll={() => setExpandedByColumn((prev) => ({ ...prev, checkout: null }))} title="Checkouts" icon={CalendarX} count={counts.checkout} tone="amber">
               {checkoutListQ.isLoading ? (
                 <ColumnLoading />
@@ -781,7 +807,7 @@ function DashboardPage() {
             </KanbanColumn>
           </div>
 
-          <div className="w-[262px] shrink-0 snap-start">
+          <div style={{ width: kanbanColWidth }} className="shrink-0 snap-start">
             <KanbanColumn onScroll={() => setExpandedByColumn((prev) => ({ ...prev, stay: null }))} title="Em Estadia" icon={BedDouble} count={counts.stay} tone="sky">
               {checkinListQ.isLoading ? (
                 <ColumnLoading />
@@ -793,7 +819,7 @@ function DashboardPage() {
             </KanbanColumn>
           </div>
 
-          <div className="w-[262px] shrink-0 snap-start">
+          <div style={{ width: kanbanColWidth }} className="shrink-0 snap-start">
             <KanbanColumn onScroll={() => setExpandedByColumn((prev) => ({ ...prev, cleaning: null }))} title="Em Limpeza" icon={Sparkles} count={counts.cleaning} tone="violet">
               {checkoutListQ.isLoading ? (
                 <ColumnLoading />
@@ -805,7 +831,7 @@ function DashboardPage() {
             </KanbanColumn>
           </div>
 
-          <div className="w-[262px] shrink-0 snap-start">
+          <div style={{ width: kanbanColWidth }} className="shrink-0 snap-start">
             <KanbanColumn onScroll={() => setExpandedByColumn((prev) => ({ ...prev, done: null }))} title="Concluídos" icon={CheckCircle2} count={counts.done} tone="zinc">
               {concludedQ.isLoading ? (
                 <ColumnLoading />
