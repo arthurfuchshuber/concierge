@@ -563,6 +563,7 @@ const SavePropertyInput = z.object({
     title: z.string().min(1).max(120),
     description: z.string().max(300).optional().nullable(),
     body: z.string().max(4000).optional().nullable(),
+    images: z.array(z.string().max(500)).max(12).optional().default([]),
   })).max(40).default([]),
   emergency: z.array(z.object({
     label: z.string().min(1).max(120),

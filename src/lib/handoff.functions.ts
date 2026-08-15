@@ -19,13 +19,17 @@ async function requireChatRespondForConversation(
   supabase: SupabaseClient,
   userId: string,
   conversationId: string,
+  knownOwnerId?: string | null,
 ): Promise<void> {
-  const { data: conv } = await supabase
-    .from("property_chat_conversations")
-    .select("property_id, properties:property_id(owner_id)")
-    .eq("id", conversationId)
-    .maybeSingle();
-  const ownerId = (conv?.properties as { owner_id?: string } | null)?.owner_id;
+  let ownerId = knownOwnerId;
+  if (ownerId === undefined) {
+    const { data: conv } = await supabase
+      .from("property_chat_conversations")
+      .select("property_id, properties:property_id(owner_id)")
+      .eq("id", conversationId)
+      .maybeSingle();
+    ownerId = (conv?.properties as { owner_id?: string } | null)?.owner_id;
+  }
   if (!ownerId) return; // conversa órfã: deixa a RLS decidir
   await requireMemberPermission(supabase, userId, ownerId, "chat_respond");
 }
@@ -901,40 +905,28 @@ export const sendHandoffMessage = createServerFn({ method: "POST" })
   .inputValidator(parseHandoffSendInput)
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    await requireChatRespondForConversation(supabase, userId, data.conversationId);
 
+    // Antes: até 3 consultas separadas buscavam a MESMA conversa+imóvel em
+    // momentos diferentes (permissão, checagem de assigned_to, expansão de
+    // tags) — cada uma é uma ida e volta de rede ao banco, em série. Isso
+    // sozinho já explicava vários segundos de demora sentidos ao enviar.
+    // Agora é uma consulta só, com todos os campos que qualquer uma das
+    // etapas abaixo precisa.
     const { data: cur } = await supabase
       .from("property_chat_conversations")
-      .select("assigned_to, handoff_reason, property_id, properties:property_id(owner_id, name)")
+      .select(
+        "assigned_to, handoff_reason, property_id, properties:property_id(owner_id, name, slug, checkin_time, checkin_time_max, checkout_time, checkout_time_min, wifi_ssid, wifi_password, gate_code, lock_code, pin_code, address, host_name, host_phone, house_rules, checkin_instructions, checkout_instructions, gate_instructions, lock_instructions, marketplace_links)",
+      )
       .eq("id", data.conversationId)
       .maybeSingle();
+    const joinedProperties = cur?.properties as Record<string, unknown> | Record<string, unknown>[] | null;
+    const propRow = Array.isArray(joinedProperties) ? (joinedProperties[0] ?? null) : joinedProperties;
+    const ownerId = (propRow?.owner_id as string | undefined) ?? null;
+
+    await requireChatRespondForConversation(supabase, userId, data.conversationId, ownerId);
+
     if (cur?.assigned_to && cur.assigned_to !== userId) {
       throw new Error("Esta conversa está sendo atendida por outro membro. Solicite acesso ou peça uma transferência.");
-    }
-
-    // Continuous Learning: se esta conversa foi escalada (handoff_reason preenchido — inclusive pelo
-    // guardrail determinístico de acesso, que nunca passa por ask_human_supervisor) e esta é a
-    // PRIMEIRA resposta humana desde a escalada, ela vira candidata a conhecimento reutilizável.
-    // Aprovação humana continua obrigatória antes de qualquer coisa entrar na memória de longo prazo.
-    let learnQuestion: string | null = null;
-    if (!data.internalNote && cur?.handoff_reason) {
-      const { count: priorHumanReplies } = await supabase
-        .from("property_chat_messages")
-        .select("id", { count: "exact", head: true })
-        .eq("conversation_id", data.conversationId)
-        .eq("sender_type", "human")
-        .eq("is_internal_note", false);
-      if (!priorHumanReplies) {
-        const { data: lastGuestMsg } = await supabase
-          .from("property_chat_messages")
-          .select("content")
-          .eq("conversation_id", data.conversationId)
-          .eq("role", "user")
-          .order("created_at", { ascending: false })
-          .limit(1)
-          .maybeSingle();
-        if (lastGuestMsg?.content) learnQuestion = lastGuestMsg.content as string;
-      }
     }
 
     // Fecha o ciclo do escalonamento "oficial" (tool ask_human_supervisor): quando a IA pergunta algo
@@ -943,7 +935,8 @@ export const sendHandoffMessage = createServerFn({ method: "POST" })
     // decisão do humano jamais voltava para o raciocínio da IA nas próximas mensagens. Em vez de criar
     // uma tela dedicada só para isso, aproveitamos o mesmo lugar onde o humano já responde de verdade
     // hoje (esta função): se houver pergunta(s) pendente(s) nesta conversa, a resposta enviada aqui
-    // também as resolve.
+    // também as resolve. Fire-and-forget: não faz sentido nenhum atrasar o envio da mensagem por causa
+    // disto.
     if (!data.internalNote) {
       void (async () => {
         try {
@@ -966,13 +959,6 @@ export const sendHandoffMessage = createServerFn({ method: "POST" })
     // Expande [[info:...]] com valores da propriedade e [[tag:...]] em links do guia.
     let content = data.content;
     try {
-      const { data: propConv } = await supabase
-        .from("property_chat_conversations")
-        .select("properties:property_id(slug, checkin_time, checkin_time_max, checkout_time, checkout_time_min, wifi_ssid, wifi_password, gate_code, lock_code, pin_code, address, host_name, host_phone, house_rules, checkin_instructions, checkout_instructions, gate_instructions, lock_instructions, marketplace_links)")
-        .eq("id", data.conversationId)
-        .maybeSingle();
-      const joinedProperties = propConv?.properties as Record<string, unknown> | Record<string, unknown>[] | null;
-      const propRow = Array.isArray(joinedProperties) ? (joinedProperties[0] ?? null) : joinedProperties;
       const slug = (propRow?.slug as string | undefined) ?? null;
       const { expandInfoTags, expandTagsAsMarkdown } = await import("@/lib/guide-tags");
       content = expandInfoTags(content, propRow as never, { markdownLinks: true });
@@ -996,52 +982,78 @@ export const sendHandoffMessage = createServerFn({ method: "POST" })
         .update({ ai_paused: true, status: "assigned", assigned_to: userId, last_message_at: new Date().toISOString() })
         .eq("id", data.conversationId);
 
-      // Continuous Learning: dispara a destilação da resposta humana (fire-and-forget, nunca bloqueia o envio).
-      if (learnQuestion) {
+      // Continuous Learning: se esta conversa foi escalada (handoff_reason preenchido — inclusive pelo
+      // guardrail determinístico de acesso, que nunca passa por ask_human_supervisor) e esta é a
+      // PRIMEIRA resposta humana desde a escalada, ela vira candidata a conhecimento reutilizável.
+      // Aprovação humana continua obrigatória antes de qualquer coisa entrar na memória de longo prazo.
+      //
+      // As duas consultas que decidem isso (contar respostas humanas prévias + buscar a última
+      // mensagem do hóspede) ANTES bloqueavam o envio da mensagem, mesmo só servindo para este bloco
+      // que já é fire-and-forget. Agora rodam aqui dentro, fora do caminho crítico.
+      if (cur?.handoff_reason) {
         void (async () => {
-          const joinedProps = cur?.properties as
-            | { owner_id?: string; name?: string }
-            | Array<{ owner_id?: string; name?: string }>
-            | null;
-          const propRow = Array.isArray(joinedProps) ? (joinedProps[0] ?? null) : joinedProps;
-          const ownerId = propRow?.owner_id;
-          if (!ownerId) return;
-          const { learnFromHumanAnswer } = await import("@/lib/ai/human-loop/learning.server");
-          await learnFromHumanAnswer({
-            supabase,
-            ownerId,
-            propertyId: cur?.property_id ?? null,
-            propertyName: propRow?.name ?? null,
-            agent: "handoff_resolution",
-            question: learnQuestion,
-            humanAnswer: content,
-          });
-        })().catch((e) => console.error("[learning] falha ao destilar resposta humana de handoff", e));
+          try {
+            const { count: priorHumanReplies } = await supabase
+              .from("property_chat_messages")
+              .select("id", { count: "exact", head: true })
+              .eq("conversation_id", data.conversationId)
+              .eq("sender_type", "human")
+              .eq("is_internal_note", false);
+            if (priorHumanReplies) return; // não é a primeira resposta humana desta escalada
+            const { data: lastGuestMsg } = await supabase
+              .from("property_chat_messages")
+              .select("content")
+              .eq("conversation_id", data.conversationId)
+              .eq("role", "user")
+              .order("created_at", { ascending: false })
+              .limit(1)
+              .maybeSingle();
+            const learnQuestion = (lastGuestMsg?.content as string | undefined) ?? null;
+            if (!learnQuestion || !ownerId) return;
+            const { learnFromHumanAnswer } = await import("@/lib/ai/human-loop/learning.server");
+            await learnFromHumanAnswer({
+              supabase,
+              ownerId,
+              propertyId: cur?.property_id ?? null,
+              propertyName: (propRow?.name as string | undefined) ?? null,
+              agent: "handoff_resolution",
+              question: learnQuestion,
+              humanAnswer: content,
+            });
+          } catch (e) {
+            console.error("[learning] falha ao destilar resposta humana de handoff", e);
+          }
+        })();
       }
 
       // Dispara push para o hóspede (se ele tiver ativado notificações).
-      try {
-        const { data: conv } = await supabase
-          .from("property_chat_conversations")
-          .select("id, properties:property_id(name, slug)")
-          .eq("id", data.conversationId)
-          .maybeSingle();
-        const propName = (conv?.properties as { name?: string } | null)?.name ?? "Anfitrião";
-        const slug = (conv?.properties as { slug?: string } | null)?.slug ?? "";
-        const { sendPushToGuest } = await import("@/lib/guest-push.server");
-        const preview = data.content.length > 120 ? `${data.content.slice(0, 117)}…` : data.content;
-        await sendPushToGuest(data.conversationId, {
-          title: `Nova mensagem — ${propName}`,
-          body: preview,
-          data: {
-            url: slug ? `/g/${slug}?chat=1` : "/",
-            conversationId: data.conversationId,
-            tag: `guest-reply-${data.conversationId}`,
-          },
-        });
-      } catch {
-        // Não bloqueia o envio se o push falhar.
-      }
+      // Fire-and-forget: isto inclui uma consulta extra e uma chamada de rede
+      // externa ao serviço de push — não faz sentido nenhum o envio da
+      // mensagem esperar por isso.
+      void (async () => {
+        try {
+          const { data: conv } = await supabase
+            .from("property_chat_conversations")
+            .select("id, properties:property_id(name, slug)")
+            .eq("id", data.conversationId)
+            .maybeSingle();
+          const propName = (conv?.properties as { name?: string } | null)?.name ?? "Anfitrião";
+          const slug = (conv?.properties as { slug?: string } | null)?.slug ?? "";
+          const { sendPushToGuest } = await import("@/lib/guest-push.server");
+          const preview = data.content.length > 120 ? `${data.content.slice(0, 117)}…` : data.content;
+          await sendPushToGuest(data.conversationId, {
+            title: `Nova mensagem — ${propName}`,
+            body: preview,
+            data: {
+              url: slug ? `/g/${slug}?chat=1` : "/",
+              conversationId: data.conversationId,
+              tag: `guest-reply-${data.conversationId}`,
+            },
+          });
+        } catch (e) {
+          console.error("[handoff] falha ao enviar push para o hóspede", e);
+        }
+      })();
     }
     return { ok: true };
   });

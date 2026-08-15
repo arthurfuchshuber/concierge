@@ -26,7 +26,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Section, SectionGroup } from "@/components/editor/Section";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Loader2, Sparkles, Plus, Trash2, MapPin, ArrowLeft, FileText, KeyRound, Home, Compass, LifeBuoy, Check, Eye, Image as ImageIcon, MapPinned, Clock, DoorOpen, Wifi, UserRound, BookOpen, ClipboardCheck, Shield, Globe, Power, Phone, HelpCircle, Sun, Moon, Palette, Lock, MessageSquare, LogOut, ChevronDown, Ticket, RefreshCw, Copy, Share2, X, MoveRight, ClipboardList, Car, IdCard, NotebookPen } from "lucide-react";
+import { Loader2, Sparkles, Plus, Trash2, MapPin, ArrowLeft, FileText, KeyRound, Home, Compass, LifeBuoy, Check, Eye, Image as ImageIcon, ImagePlus, MapPinned, Clock, DoorOpen, Wifi, UserRound, BookOpen, ClipboardCheck, Shield, Globe, Power, Phone, HelpCircle, Sun, Moon, Palette, Lock, MessageSquare, LogOut, ChevronDown, Ticket, RefreshCw, Copy, Share2, X, MoveRight, ClipboardList, Car, IdCard, NotebookPen } from "lucide-react";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { ImageUpload } from "@/components/ImageUpload";
 import { MediaUpload, type MediaItem } from "@/components/MediaUpload";
@@ -38,7 +38,7 @@ import { TimePicker } from "@/components/ui/time-picker";
 import { DateTimePicker } from "@/components/ui/date-picker";
 import { TagPicker, useTaxonomy, TAXONOMY_QUERY_KEY, NewCategoryDialog, NewTagDialog } from "@/components/admin/TagPicker";
 import { updatePoiCategory, reorderPoiCategories, deletePoiCategory } from "@/lib/poi-taxonomy.functions";
-import { PropertyDetailsEditor } from "@/components/admin/PropertyDetailsEditor";
+import { PropertyDetailsEditor, DetailImages } from "@/components/admin/PropertyDetailsEditor";
 import { PropertyTypeSelect } from "@/components/admin/PropertyTypeSelect";
 import { usePresence } from "@/hooks/usePresence";
 import { useRealtimeInvalidate } from "@/hooks/useRealtimeInvalidate";
@@ -147,7 +147,7 @@ type FormState = {
     property_type_id: string | null;
     guide_created: boolean;
   };
-  manual: { title: string; description: string; body: string }[];
+  manual: { title: string; description: string; body: string; images: string[] }[];
   emergency: { label: string; number: string }[];
   faqs: { question: string; answer: string; tags: string[] }[];
   checkout: { label: string }[];
@@ -501,6 +501,7 @@ function PropertyEditor() {
         title: (m.title as string) ?? "",
         description: (m.description as string) ?? "",
         body: (m.body as string) ?? "",
+        images: Array.isArray(m.images) ? (m.images as string[]) : [],
       })),
       emergency: (data.emergency ?? []).map((m: Record<string, unknown>) => ({
         label: (m.label as string) ?? "",
@@ -1366,7 +1367,7 @@ function PropertyEditor() {
             </Field>
           </Section>
 
-          <Section id="manual" icon={BookOpen} title="Manual da casa" desc="Instruções de equipamentos e funcionamento." collapsible action={<AddBtn onClick={() => setForm((f) => ({ ...f, manual: [...f.manual, { title: "", description: "", body: "" }] }))} />}>
+          <Section id="manual" icon={BookOpen} title="Manual da casa" desc="Instruções de equipamentos e funcionamento." collapsible>
             {form.manual.length === 0 ? (
               <EmptyHint text="Nenhum item ainda. Adicione instruções para ar-condicionado, TV, fechadura, etc." />
             ) : form.manual.map((m, i) => (
@@ -1374,8 +1375,16 @@ function PropertyEditor() {
                 <Input placeholder="Título (ex: Ar-condicionado)" value={m.title} maxLength={120} onChange={(e) => setForm((f) => ({ ...f, manual: f.manual.map((x, j) => j === i ? { ...x, title: e.target.value } : x) }))} />
                 <Input placeholder="Descrição curta" value={m.description} maxLength={300} onChange={(e) => setForm((f) => ({ ...f, manual: f.manual.map((x, j) => j === i ? { ...x, description: e.target.value } : x) }))} />
                 <TagMentionTextarea items={tagItems} placeholder="Instruções detalhadas" value={m.body} maxLength={4000} onChange={(e) => setForm((f) => ({ ...f, manual: f.manual.map((x, j) => j === i ? { ...x, body: e.target.value } : x) }))} />
+                <ManualItemImages
+                  images={m.images}
+                  propertyId={id}
+                  onChange={(next) => setForm((f) => ({ ...f, manual: f.manual.map((x, j) => (j === i ? { ...x, images: next } : x)) }))}
+                />
               </ItemCard>
             ))}
+            <div className="pt-1">
+              <AddBtn onClick={() => setForm((f) => ({ ...f, manual: [...f.manual, { title: "", description: "", body: "", images: [] }] }))} />
+            </div>
           </Section>
 
           <Section id="property-details" icon={NotebookPen} title="Detalhamento do Imóvel" desc="Base de conhecimento livre: micro detalhes que a IA usa e que não aparecem no guia." collapsible>
@@ -2221,6 +2230,75 @@ function EmptyHint({ text }: { text: string }) {
   return (
     <div className="rounded-xl border border-dashed border-border/70 bg-muted/30 px-4 py-5 text-center text-xs text-muted-foreground leading-relaxed">
       {text}
+    </div>
+  );
+}
+
+/** Upload de imagens por item do Manual da casa — guarda caminhos (não URLs
+ * assinadas, que expiram) e reaproveita o preview de PropertyDetailsEditor. */
+function ManualItemImages({
+  images,
+  propertyId,
+  onChange,
+}: {
+  images: string[];
+  propertyId: string;
+  onChange: (next: string[]) => void;
+}) {
+  const [uploading, setUploading] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  async function handleFiles(files: FileList) {
+    setUploading(true);
+    try {
+      const { data: u } = await supabase.auth.getUser();
+      if (!u.user) throw new Error("Não autenticado");
+      const added: string[] = [];
+      for (const file of Array.from(files).slice(0, 6 - images.length)) {
+        if (!file.type.startsWith("image/")) continue;
+        if (file.size > 10 * 1024 * 1024) {
+          toast.error(`${file.name}: imagem muito grande (máx 10MB)`);
+          continue;
+        }
+        const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
+        const path = `${u.user.id}/manual/${propertyId}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+        const { error } = await supabase.storage
+          .from("property-images")
+          .upload(path, file, { cacheControl: "3600", upsert: false, contentType: file.type });
+        if (error) throw error;
+        added.push(path);
+      }
+      onChange([...images, ...added]);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erro no upload");
+    } finally {
+      setUploading(false);
+      if (fileRef.current) fileRef.current.value = "";
+    }
+  }
+
+  return (
+    <div className="space-y-2 pt-1">
+      <input
+        ref={fileRef}
+        type="file"
+        accept="image/*"
+        multiple
+        className="hidden"
+        onChange={(e) => e.target.files && handleFiles(e.target.files)}
+      />
+      <DetailImages paths={images} onRemove={(p) => onChange(images.filter((x) => x !== p))} />
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        className="h-7 text-xs text-muted-foreground"
+        disabled={uploading || images.length >= 6}
+        onClick={() => fileRef.current?.click()}
+      >
+        {uploading ? <Loader2 className="size-3 animate-spin mr-1.5" /> : <ImagePlus className="size-3 mr-1.5" />}
+        {images.length > 0 ? "Adicionar foto" : "Anexar foto"}
+      </Button>
     </div>
   );
 }

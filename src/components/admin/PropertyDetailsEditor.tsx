@@ -2,9 +2,11 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { Loader2, ImagePlus, X, Check, Sparkles } from "lucide-react";
+import { Loader2, ImagePlus, X, Sparkles } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
+import { AutosaveIndicator } from "@/components/ui/autosave-indicator";
+import { useAutosave } from "@/hooks/useAutosave";
 import { AudioRecorderButton } from "@/components/handoff/AudioRecorderButton";
 import {
   listPropertyDetails,
@@ -20,7 +22,7 @@ async function blobToBase64(blob: Blob): Promise<string> {
   return btoa(bin);
 }
 
-function DetailImages({ paths, onRemove }: { paths: string[]; onRemove?: (p: string) => void }) {
+export function DetailImages({ paths, onRemove }: { paths: string[]; onRemove?: (p: string) => void }) {
   const { data: urls } = useQuery({
     queryKey: ["detail-images", paths],
     enabled: paths.length > 0,
@@ -71,8 +73,6 @@ export function PropertyDetailsEditor({ propertyId }: { propertyId: string }) {
   const [text, setText] = useState("");
   const [images, setImages] = useState<string[]>([]);
   const [loaded, setLoaded] = useState(false);
-  const [dirty, setDirty] = useState(false);
-  const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const taRef = useRef<HTMLTextAreaElement>(null);
@@ -105,6 +105,32 @@ export function PropertyDetailsEditor({ propertyId }: { propertyId: string }) {
     el.style.height = `${Math.max(el.scrollHeight, 180)}px`;
   }, [text, loaded]);
 
+  // Salva sozinho alguns instantes depois da última mudança — nada de botão
+  // "Salvar". `primaryId`/`legacyIds` são lidos de novo a cada chamada (via
+  // a ref interna do useAutosave), então o primeiro save (que cria o
+  // registro) não faz o segundo save tentar inserir de novo.
+  const autosave = useAutosave(
+    { text, images },
+    async (value) => {
+      if (!value.text.trim() && value.images.length === 0) return;
+      await saveFn({
+        data: {
+          id: primaryId,
+          propertyId,
+          title: null,
+          content: value.text.trim(),
+          images: value.images,
+          source: "text",
+        },
+      });
+      for (const id of legacyIds) {
+        await deleteFn({ data: { id, propertyId } });
+      }
+      qc.invalidateQueries({ queryKey: ["property-details", propertyId] });
+    },
+    { enabled: loaded },
+  );
+
   async function handleFiles(files: FileList) {
     setUploading(true);
     try {
@@ -126,7 +152,6 @@ export function PropertyDetailsEditor({ propertyId }: { propertyId: string }) {
         added.push(path);
       }
       setImages((prev) => [...prev, ...added]);
-      setDirty(true);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Erro no upload");
     } finally {
@@ -141,38 +166,7 @@ export function PropertyDetailsEditor({ propertyId }: { propertyId: string }) {
       data: { propertyId, audioBase64: base64, mimeType: audio.mime },
     });
     setText((prev) => (prev.trim() ? `${prev.trim()}\n\n${transcript}` : transcript));
-    setDirty(true);
     toast.success("Áudio transcrito");
-  }
-
-  async function save() {
-    if (!text.trim() && images.length === 0) {
-      toast.error("Escreva algo ou adicione uma imagem antes de salvar.");
-      return;
-    }
-    setSaving(true);
-    try {
-      await saveFn({
-        data: {
-          id: primaryId,
-          propertyId,
-          title: null,
-          content: text.trim(),
-          images,
-          source: "text",
-        },
-      });
-      for (const id of legacyIds) {
-        await deleteFn({ data: { id, propertyId } });
-      }
-      setDirty(false);
-      qc.invalidateQueries({ queryKey: ["property-details", propertyId] });
-      toast.success("Detalhamento salvo — a IA já aprendeu.");
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Não consegui salvar.");
-    } finally {
-      setSaving(false);
-    }
   }
 
   return (
@@ -195,10 +189,7 @@ export function PropertyDetailsEditor({ propertyId }: { propertyId: string }) {
             ref={taRef}
             value={text}
             maxLength={40000}
-            onChange={(e) => {
-              setText(e.target.value);
-              setDirty(true);
-            }}
+            onChange={(e) => setText(e.target.value)}
             placeholder="Ex: O aquecedor da piscina fica no armário externo à direita; leva cerca de 40 minutos para aquecer. A fechadura da porta dos fundos emperra quando chove — basta puxar e girar…"
             className="w-full resize-none rounded-xl border border-border bg-background px-4 py-3 text-sm leading-relaxed outline-none focus:border-primary/60 focus:ring-0 overflow-hidden"
           />
@@ -211,7 +202,7 @@ export function PropertyDetailsEditor({ propertyId }: { propertyId: string }) {
             className="hidden"
             onChange={(e) => e.target.files && handleFiles(e.target.files)}
           />
-          <DetailImages paths={images} onRemove={(p) => { setImages((prev) => prev.filter((x) => x !== p)); setDirty(true); }} />
+          <DetailImages paths={images} onRemove={(p) => setImages((prev) => prev.filter((x) => x !== p))} />
 
           <div className="flex flex-wrap items-center gap-2">
             <Button
@@ -229,10 +220,7 @@ export function PropertyDetailsEditor({ propertyId }: { propertyId: string }) {
               <span className="text-[11px] text-muted-foreground pr-2">Ditar</span>
             </div>
             <div className="ml-auto">
-              <Button type="button" size="sm" onClick={save} disabled={saving || !dirty}>
-                {saving ? <Loader2 className="size-3.5 animate-spin mr-1.5" /> : <Check className="size-3.5 mr-1.5" />}
-                Salvar detalhamento
-              </Button>
+              <AutosaveIndicator status={autosave.status} />
             </div>
           </div>
         </>

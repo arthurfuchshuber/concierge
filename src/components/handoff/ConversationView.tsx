@@ -1062,7 +1062,7 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
                 onCamera={() => cameraInputRef.current?.click()}
               />
               <div
-                className={`flex-1 min-w-0 flex items-center rounded-full border bg-background px-3 py-0.5 ${note ? "border-yellow-500/50" : "border-border"}`}
+                className={`flex-1 min-w-0 flex items-center rounded-full border bg-background px-3 min-h-9 ${note ? "border-yellow-500/50" : "border-border"}`}
               >
                 <TagMentionTextarea
                   value={text}
