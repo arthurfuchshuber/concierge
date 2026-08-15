@@ -174,7 +174,7 @@ async function runGuideChat(
         // will surface new agent messages via polling / realtime.
         const { data: convState } = await supabaseAdmin
           .from("property_chat_conversations")
-          .select("ai_paused, status")
+          .select("ai_paused, status, assigned_to")
           .eq("id", conversationId)
           .maybeSingle();
 
@@ -202,6 +202,28 @@ async function runGuideChat(
             .from("property_chat_conversations")
             .update({ last_message_at: new Date().toISOString(), guest_name: body.guestName ?? undefined })
             .eq("id", conversationId);
+
+          // Push pra CADA mensagem do hóspede numa conversa já assumida — antes
+          // só a mensagem que DISPARAVA o handoff gerava push; qualquer
+          // mensagem seguinte na mesma conversa (já com um humano) não
+          // avisava ninguém. Se há um responsável específico, só ele recebe;
+          // sem isso, cai pra todo o time notificável da propriedade.
+          try {
+            const { getPropertyNotifiableUsers, sendGuestReplyPush } = await import("@/lib/handoff.server");
+            const userIds = convState.assigned_to
+              ? [convState.assigned_to as string]
+              : await getPropertyNotifiableUsers(supabaseAdmin, prop.id);
+            await sendGuestReplyPush(supabaseAdmin, {
+              userIds,
+              conversationId,
+              propertyName: prop.name,
+              guestName: body.guestName ?? null,
+              guestMessage: body.message,
+            });
+          } catch (e) {
+            console.error("Guest reply push failed", e);
+          }
+
           return new Response(
             JSON.stringify({ conversationId, reply: "", handoff: true, humanMode: true }),
             { status: 200, headers: { "Content-Type": "application/json" } },

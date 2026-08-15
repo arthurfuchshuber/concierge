@@ -107,16 +107,73 @@ function saveCachedMessages(slug: string, conversationId: string | undefined, me
 }
 
 
-// Returns a time-of-day greeting and context hint based on current hour
-function getTimeContext(): { greeting: string; hint: string } {
-  const h = new Date().getHours();
-  if (h >= 5 && h < 12) return { greeting: "Bom dia", hint: "Posso sugerir cafés, padarias e um roteiro leve para começar bem o dia." };
-  if (h >= 12 && h < 18) return { greeting: "Boa tarde", hint: "Posso indicar restaurantes abertos agora, passeios próximos e experiências para hoje." };
-  if (h >= 18 && h < 23) return { greeting: "Boa noite", hint: "Posso recomendar jantar, drinks, delivery ou um programa especial perto daqui." };
-  return { greeting: "Olá", hint: "Posso resolver dúvidas da estadia e sugerir boas escolhas ao seu redor." };
+function addDaysISO(iso: string, days: number): string {
+  const [y, m, d] = iso.split("-").map(Number);
+  const dt = new Date(y, (m ?? 1) - 1, (d ?? 1) + days);
+  return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}-${String(dt.getDate()).padStart(2, "0")}`;
 }
 
-export function GuideAiChat({ slug, propertyName, guestName }: { slug: string; propertyName: string; guestName?: string | null }) {
+// Mensagem sugestiva do popup: prioriza a FASE real da reserva (check-in
+// chegando, dia do check-out) — só cai pro horário do dia genérico quando a
+// pessoa já está instalada e não há nada mais específico e útil a dizer.
+// Antes isso era só baseado na hora do relógio, sem noção nenhuma de onde o
+// hóspede estava na jornada da estadia.
+function getGuestContext(
+  checkinDate: string | null | undefined,
+  checkoutDate: string | null | undefined,
+): { greeting: string; question: string; hint: string; cta: string } {
+  const h = new Date().getHours();
+  const greeting = h >= 5 && h < 12 ? "Bom dia" : h >= 12 && h < 18 ? "Boa tarde" : h >= 18 && h < 23 ? "Boa noite" : "Olá";
+  const todayISO = (() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  })();
+
+  // Check-in hoje ou amanhã — fase "quase iniciando o check-in".
+  if (checkinDate && checkinDate >= todayISO && checkinDate <= addDaysISO(todayISO, 1) && (!checkoutDate || checkoutDate > todayISO)) {
+    return {
+      greeting,
+      question: "Você já leu as instruções de check-in?",
+      hint: "Toque aqui se tiver alguma dúvida — posso te ajudar agora mesmo.",
+      cta: "Tirar dúvidas do check-in →",
+    };
+  }
+  // Dia do check-out.
+  if (checkoutDate === todayISO) {
+    return {
+      greeting,
+      question: "Hoje é o seu dia de check-out.",
+      hint: "Precisa de ajuda com o horário ou os últimos detalhes antes de sair?",
+      cta: "Tirar dúvidas do check-out →",
+    };
+  }
+  // Em estadia (ou sem dados suficientes) — recomendação por horário do dia, como já era.
+  if (h >= 5 && h < 12) return { greeting, question: "Quer uma recomendação personalizada?", hint: "Posso sugerir cafés, padarias e um roteiro leve para começar bem o dia.", cta: "Pedir sugestões agora →" };
+  if (h >= 12 && h < 18) return { greeting, question: "Quer uma recomendação personalizada?", hint: "Posso indicar restaurantes abertos agora, passeios próximos e experiências para hoje.", cta: "Pedir sugestões agora →" };
+  if (h >= 18 && h < 23) return { greeting, question: "Quer uma recomendação personalizada?", hint: "Posso recomendar jantar, drinks, delivery ou um programa especial perto daqui.", cta: "Pedir sugestões agora →" };
+  return { greeting, question: "Quer uma recomendação personalizada?", hint: "Posso resolver dúvidas da estadia e sugerir boas escolhas ao seu redor.", cta: "Pedir sugestões agora →" };
+}
+
+export function GuideAiChat({
+  slug,
+  propertyName,
+  guestName,
+  checkinDate,
+  checkoutDate,
+  suppressNudge,
+}: {
+  slug: string;
+  propertyName: string;
+  guestName?: string | null;
+  /** Datas da reserva do hóspede (accessRec) — usadas pra deixar o popup
+   * sugestivo ciente da fase da estadia, não só do horário do relógio. */
+  checkinDate?: string | null;
+  checkoutDate?: string | null;
+  /** true quando qualquer outro popup/onboarding já está na tela (tour de
+   * primeiro acesso, diálogo de PIN, etc.) — nesse caso o popup sugestivo
+   * nunca aparece por cima; só quando a tela estiver limpa. */
+  suppressNudge?: boolean;
+}) {
   const [mounted, setMounted] = useState(false);
   const [open, setOpen] = useState(false);
   const [hasOpened, setHasOpened] = useState(false);
@@ -167,7 +224,7 @@ export function GuideAiChat({ slug, propertyName, guestName }: { slug: string; p
   const forceAiNextRef = useRef(false);
   const openRef = useRef(open);
   useEffect(() => { openRef.current = open; }, [open]);
-  const { greeting, hint } = getTimeContext();
+  const { greeting, question, hint, cta } = getGuestContext(checkinDate, checkoutDate);
 
   // Draggable launcher position (persistent). side + distance from bottom in px.
   const [pos, setPos] = useState<{ side: "left" | "right"; bottom: number }>(() => {
@@ -259,9 +316,20 @@ export function GuideAiChat({ slug, propertyName, guestName }: { slug: string; p
       // ignore
     }
     if (dismissed) return;
-    const t = setTimeout(() => setShowNudge(true), 2800);
+    // Nunca aparece por cima de outro popup/onboarding — só quando a tela
+    // estiver limpa. Se algo abrir enquanto esperava, cancela silenciosamente.
+    const t = setTimeout(() => {
+      if (!suppressNudge) setShowNudge(true);
+    }, 2800);
     return () => clearTimeout(t);
-  }, [slug]);
+  }, [slug, suppressNudge]);
+
+  // Se outro popup/onboarding aparecer DEPOIS que a sugestão já estava
+  // visível (ex.: o tour de primeiro acesso começa um instante depois), ela
+  // recolhe sozinha — nunca fica sobreposta.
+  useEffect(() => {
+    if (suppressNudge) setShowNudge(false);
+  }, [suppressNudge]);
 
   function persistDismissed() {
     try {
@@ -641,7 +709,7 @@ export function GuideAiChat({ slug, propertyName, guestName }: { slug: string; p
       )}
 
       {/* Proactive nudge bubble */}
-      {showNudge && !hasOpened && !pendingPreview && (
+      {showNudge && !hasOpened && !pendingPreview && !suppressNudge && (
         <div className="relative animate-in slide-in-from-bottom-2 fade-in duration-500 pointer-events-auto">
           <div className="max-w-[244px] rounded-2xl rounded-br-sm bg-background border border-border shadow-elevated px-4 py-3">
             <button
@@ -658,7 +726,7 @@ export function GuideAiChat({ slug, propertyName, guestName }: { slug: string; p
               {greeting}{guestName ? `, ${guestName.split(" ")[0]}` : ""}! 👋
             </p>
             <p className="text-[12px] text-foreground/85 mt-1 leading-snug font-medium">
-              Quer uma recomendação personalizada?
+              {question}
             </p>
             <p className="text-[12px] text-muted-foreground mt-1 leading-relaxed">{hint}</p>
             <button
@@ -666,7 +734,7 @@ export function GuideAiChat({ slug, propertyName, guestName }: { slug: string; p
               onClick={() => { setShowNudge(false); setOpen(true); }}
               className="mt-2.5 w-full text-[11.5px] font-semibold text-foreground hover:text-accent transition-colors text-left"
             >
-              Pedir sugestões agora →
+              {cta}
             </button>
           </div>
           <div className="absolute -bottom-1.5 right-5 size-3 bg-background border-r border-b border-border rotate-45" />
@@ -800,7 +868,11 @@ export function GuideAiChat({ slug, propertyName, guestName }: { slug: string; p
                         ),
                       }}
                     >
-                      {(m.id && autoTranslated[m.id]) || m.content}
+                      {/* Cada quebra de linha vira parágrafo separado (linha em
+                          branco) — em Markdown puro, uma quebra simples é só
+                          uma "quebra suave" dentro do mesmo parágrafo, sem
+                          nenhum espaçamento visual entre frases. */}
+                      {((m.id && autoTranslated[m.id]) || m.content).replace(/\n+/g, "\n\n")}
                     </ReactMarkdown>
                   )}
 

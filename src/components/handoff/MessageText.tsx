@@ -51,12 +51,17 @@ function richify(text: string, keyBase: string): ReactNode[] {
 
 
 export function MessageText({ text }: { text: string }) {
+  // Cada quebra de linha do texto original vira um espaçamento visual de
+  // parágrafo (linha em branco) — sem isso, frases em linhas separadas
+  // ficavam grudadas umas nas outras, só com o whitespace-pre-wrap do
+  // container respeitando a quebra simples, sem gerar nenhum respiro visual.
+  const spaced = text.replace(/\n+/g, "\n\n");
   const nodes: ReactNode[] = [];
   let last = 0;
   let m: RegExpExecArray | null;
   MD_LINK.lastIndex = 0;
-  while ((m = MD_LINK.exec(text))) {
-    if (m.index > last) nodes.push(...richify(text.slice(last, m.index), `p${m.index}`));
+  while ((m = MD_LINK.exec(spaced))) {
+    if (m.index > last) nodes.push(...richify(spaced.slice(last, m.index), `p${m.index}`));
     nodes.push(
       <a
         key={`l${m.index}`}
@@ -70,6 +75,6 @@ export function MessageText({ text }: { text: string }) {
     );
     last = m.index + m[0].length;
   }
-  if (last < text.length) nodes.push(...richify(text.slice(last), "tail"));
+  if (last < spaced.length) nodes.push(...richify(spaced.slice(last), "tail"));
   return <Fragment>{nodes}</Fragment>;
 }

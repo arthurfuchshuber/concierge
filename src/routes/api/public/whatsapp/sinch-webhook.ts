@@ -89,7 +89,7 @@ export const Route = createFileRoute("/api/public/whatsapp/sinch-webhook")({
         let aiPaused = false;
         const { data: existingConv } = await supabaseAdmin
           .from("property_chat_conversations")
-          .select("id, ai_paused")
+          .select("id, ai_paused, assigned_to")
           .eq("property_id", log.property_id)
           .eq("guest_session_id", guestSessionId)
           .maybeSingle();
@@ -161,7 +161,29 @@ export const Route = createFileRoute("/api/public/whatsapp/sinch-webhook")({
 
         // Se um humano já assumiu esta conversa (ai_paused), a mensagem fica
         // apenas registrada para o atendente ver no dock — a IA não responde.
+        // Antes disto, nenhuma mensagem seguinte do hóspede (depois da que
+        // disparou o handoff) avisava o atendente — mesmo mensagens novas
+        // por WhatsApp, silenciosamente sem push nenhum.
         if (aiPaused) {
+          try {
+            const { getPropertyNotifiableUsers, sendGuestReplyPush } = await import("@/lib/handoff.server");
+            const assignedTo = (existingConv as { assigned_to?: string | null } | null)?.assigned_to ?? null;
+            const userIds = assignedTo ? [assignedTo] : await getPropertyNotifiableUsers(supabaseAdmin, log.property_id as string);
+            const { data: propRow } = await supabaseAdmin
+              .from("properties")
+              .select("name")
+              .eq("id", log.property_id)
+              .maybeSingle();
+            await sendGuestReplyPush(supabaseAdmin, {
+              userIds,
+              conversationId: convId as string,
+              propertyName: propRow?.name ?? null,
+              guestName: (log.guest_name as string | null) ?? null,
+              guestMessage: inbound,
+            });
+          } catch (e) {
+            console.error("[sinch-webhook] guest reply push failed", e);
+          }
           return new Response("ok");
         }
 
