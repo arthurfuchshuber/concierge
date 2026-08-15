@@ -553,7 +553,7 @@ function DashboardPage() {
   }
 
   return (
-    <div className="px-6 lg:px-10 py-8 lg:py-10 max-w-7xl mx-auto w-full space-y-6">
+    <div className="px-6 lg:px-10 py-8 lg:py-10 w-full space-y-6">
       <header>
         <h1 className="font-display text-3xl md:text-4xl flex items-center gap-2.5">
           <TrendingUp className="size-7 text-muted-foreground" /> Operação
@@ -770,57 +770,73 @@ function DashboardPage() {
             ))}
         </div>
 
-        {/* Desktop/tablet: as 5 colunas lado a lado, como já estava. */}
-        <div className="hidden sm:grid sm:grid-cols-2 xl:grid-cols-5 gap-3 items-start">
-          <KanbanColumn title="Check-ins" icon={CalendarCheck} count={counts.checkin} tone="emerald">
-            {checkinListQ.isLoading ? (
-              <ColumnLoading />
-            ) : checkinPendingRows.length === 0 ? (
-              <ColumnEmpty />
-            ) : (
-              <ArrivalGroup title="" {...arrivalGroupPropsFor("checkin", checkinPendingRows)} />
-            )}
-          </KanbanColumn>
+        {/* Desktop/tablet: colunas com largura fixa e confortável, com
+            rolagem horizontal quando não couberem todas — igual Jira/Trello
+            de verdade. Antes o grid forçava sempre 5 colunas na mesma
+            largura da tela toda, então ficava ruim ou bom dependendo de
+            quanto espaço sobrava (ex.: menu recolhido ou não). Agora cada
+            coluna tem sempre a mesma largura confortável, não importa o
+            espaço disponível. */}
+        <div className="hidden sm:flex gap-3 items-start overflow-x-auto pb-2 -mx-1 px-1">
+          <div className="w-[262px] shrink-0">
+            <KanbanColumn title="Check-ins" icon={CalendarCheck} count={counts.checkin} tone="emerald">
+              {checkinListQ.isLoading ? (
+                <ColumnLoading />
+              ) : checkinPendingRows.length === 0 ? (
+                <ColumnEmpty />
+              ) : (
+                <ArrivalGroup title="" {...arrivalGroupPropsFor("checkin", checkinPendingRows)} />
+              )}
+            </KanbanColumn>
+          </div>
 
-          <KanbanColumn title="Checkouts" icon={CalendarX} count={counts.checkout} tone="amber">
-            {checkoutListQ.isLoading ? (
-              <ColumnLoading />
-            ) : checkoutPendingRows.length === 0 ? (
-              <ColumnEmpty />
-            ) : (
-              <ArrivalGroup title="" {...arrivalGroupPropsFor("checkout", checkoutPendingRows)} />
-            )}
-          </KanbanColumn>
+          <div className="w-[262px] shrink-0">
+            <KanbanColumn title="Checkouts" icon={CalendarX} count={counts.checkout} tone="amber">
+              {checkoutListQ.isLoading ? (
+                <ColumnLoading />
+              ) : checkoutPendingRows.length === 0 ? (
+                <ColumnEmpty />
+              ) : (
+                <ArrivalGroup title="" {...arrivalGroupPropsFor("checkout", checkoutPendingRows)} />
+              )}
+            </KanbanColumn>
+          </div>
 
-          <KanbanColumn title="Em Estadia" icon={BedDouble} count={counts.stay} tone="sky">
-            {checkinListQ.isLoading ? (
-              <ColumnLoading />
-            ) : stayRows.length === 0 ? (
-              <ColumnEmpty />
-            ) : (
-              <ArrivalGroup title="" {...arrivalGroupPropsFor("stay", stayRows)} />
-            )}
-          </KanbanColumn>
+          <div className="w-[262px] shrink-0">
+            <KanbanColumn title="Em Estadia" icon={BedDouble} count={counts.stay} tone="sky">
+              {checkinListQ.isLoading ? (
+                <ColumnLoading />
+              ) : stayRows.length === 0 ? (
+                <ColumnEmpty />
+              ) : (
+                <ArrivalGroup title="" {...arrivalGroupPropsFor("stay", stayRows)} />
+              )}
+            </KanbanColumn>
+          </div>
 
-          <KanbanColumn title="Em Limpeza" icon={Sparkles} count={counts.cleaning} tone="violet">
-            {checkoutListQ.isLoading ? (
-              <ColumnLoading />
-            ) : cleaningRows.length === 0 ? (
-              <ColumnEmpty />
-            ) : (
-              <ArrivalGroup title="" {...arrivalGroupPropsFor("cleaning", cleaningRows)} />
-            )}
-          </KanbanColumn>
+          <div className="w-[262px] shrink-0">
+            <KanbanColumn title="Em Limpeza" icon={Sparkles} count={counts.cleaning} tone="violet">
+              {checkoutListQ.isLoading ? (
+                <ColumnLoading />
+              ) : cleaningRows.length === 0 ? (
+                <ColumnEmpty />
+              ) : (
+                <ArrivalGroup title="" {...arrivalGroupPropsFor("cleaning", cleaningRows)} />
+              )}
+            </KanbanColumn>
+          </div>
 
-          <KanbanColumn title="Concluídos" icon={CheckCircle2} count={counts.done} tone="zinc">
-            {concludedQ.isLoading ? (
-              <ColumnLoading />
-            ) : concludedRows.length === 0 ? (
-              <ColumnEmpty />
-            ) : (
-              <ArrivalGroup title="" {...arrivalGroupPropsFor("done", concludedRows)} />
-            )}
-          </KanbanColumn>
+          <div className="w-[262px] shrink-0">
+            <KanbanColumn title="Concluídos" icon={CheckCircle2} count={counts.done} tone="zinc">
+              {concludedQ.isLoading ? (
+                <ColumnLoading />
+              ) : concludedRows.length === 0 ? (
+                <ColumnEmpty />
+              ) : (
+                <ArrivalGroup title="" {...arrivalGroupPropsFor("done", concludedRows)} />
+              )}
+            </KanbanColumn>
+          </div>
         </div>
       </section>
     </div>
