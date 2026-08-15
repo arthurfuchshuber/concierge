@@ -31,6 +31,7 @@ import {
   Undo2,
   Filter,
   LayoutGrid,
+  MoreVertical,
 
 } from "lucide-react";
 import { toast } from "sonner";
@@ -93,7 +94,6 @@ function ExtraGuests({
         title={`${guests.length} outro(s) hóspede(s) nesta reserva`}
       >
         +{guests.length}
-        <ChevronDown className={`size-3 transition-transform ${open ? "rotate-180" : ""}`} />
       </button>
       {open && (
         <ul className="absolute left-0 top-full z-30 mt-1 min-w-[180px] space-y-0.5 rounded-lg border border-border/50 bg-popover px-2 py-1.5 shadow-lg">
@@ -145,16 +145,6 @@ function todayISOSaoPaulo(): string {
   }).formatToParts(new Date());
   const pick = (t: string) => parts.find((p) => p.type === t)?.value ?? "";
   return `${pick("year")}-${pick("month")}-${pick("day")}`;
-}
-function initials(name: string) {
-  return (
-    name
-      .split(/\s+/)
-      .filter(Boolean)
-      .slice(0, 2)
-      .map((p) => p[0]?.toUpperCase() ?? "")
-      .join("") || "?"
-  );
 }
 
 /* ---------- Info tooltip ---------- */
@@ -777,8 +767,8 @@ function DashboardPage() {
             quanto espaço sobrava (ex.: menu recolhido ou não). Agora cada
             coluna tem sempre a mesma largura confortável, não importa o
             espaço disponível. */}
-        <div className="hidden sm:flex gap-3 items-start overflow-x-auto pb-2 -mx-1 px-1">
-          <div className="w-[262px] shrink-0">
+        <div className="hidden sm:flex gap-3 items-start overflow-x-auto snap-x pb-2 -mx-1 px-1">
+          <div className="w-[262px] shrink-0 snap-start">
             <KanbanColumn title="Check-ins" icon={CalendarCheck} count={counts.checkin} tone="emerald">
               {checkinListQ.isLoading ? (
                 <ColumnLoading />
@@ -790,7 +780,7 @@ function DashboardPage() {
             </KanbanColumn>
           </div>
 
-          <div className="w-[262px] shrink-0">
+          <div className="w-[262px] shrink-0 snap-start">
             <KanbanColumn title="Checkouts" icon={CalendarX} count={counts.checkout} tone="amber">
               {checkoutListQ.isLoading ? (
                 <ColumnLoading />
@@ -802,7 +792,7 @@ function DashboardPage() {
             </KanbanColumn>
           </div>
 
-          <div className="w-[262px] shrink-0">
+          <div className="w-[262px] shrink-0 snap-start">
             <KanbanColumn title="Em Estadia" icon={BedDouble} count={counts.stay} tone="sky">
               {checkinListQ.isLoading ? (
                 <ColumnLoading />
@@ -814,7 +804,7 @@ function DashboardPage() {
             </KanbanColumn>
           </div>
 
-          <div className="w-[262px] shrink-0">
+          <div className="w-[262px] shrink-0 snap-start">
             <KanbanColumn title="Em Limpeza" icon={Sparkles} count={counts.cleaning} tone="violet">
               {checkoutListQ.isLoading ? (
                 <ColumnLoading />
@@ -826,7 +816,7 @@ function DashboardPage() {
             </KanbanColumn>
           </div>
 
-          <div className="w-[262px] shrink-0">
+          <div className="w-[262px] shrink-0 snap-start">
             <KanbanColumn title="Concluídos" icon={CheckCircle2} count={counts.done} tone="zinc">
               {concludedQ.isLoading ? (
                 <ColumnLoading />
@@ -2049,17 +2039,9 @@ function ArrivalCard({
       )}
 
 
-      {/* Header: avatar + name + property + inline date range */}
+      {/* Header: nome + imóvel + data — sem avatar (ocupava espaço demais
+          numa coluna estreita de Kanban; o nome já identifica o hóspede). */}
       <div className="flex items-center gap-3">
-        <div
-          className={`size-11 rounded-xl grid place-items-center font-semibold shrink-0 ring-1 ${
-            isPendingFill
-              ? "bg-primary/5 text-primary/70 ring-primary/10"
-              : "bg-gradient-to-br from-primary/25 to-primary/5 text-primary ring-primary/15"
-          }`}
-        >
-          {isPendingFill ? <UserPlus className="size-5" /> : initials(row.guestName)}
-        </div>
         <div className="flex-1 min-w-0">
           <OwnerLine name={row.ownerName} phone={row.ownerPhone} country={row.ownerPhoneCountry} phonePosition="adjacent" />
           <div className="font-semibold truncate text-foreground" title={row.propertyName ?? undefined}>
@@ -2411,34 +2393,27 @@ function ArrivalCard({
             <Undo2 className="size-4" />
           </button>
         )}
-        <button
-          onClick={() => setNoteOpen((v) => !v)}
-          aria-label={row.note ? "Editar nota" : "Adicionar nota"}
-          title={row.note ? "Editar nota" : "Nota interna"}
-          className="size-9 grid place-items-center rounded-lg bg-background/60 border border-border/50 hover:bg-primary/[0.08]"
-        >
-          <StickyNote className="size-4" />
-        </button>
+        {/* Nota + Silenciar juntos num só botão de menu — eram 2 botões
+            separados, ocupando espaço à toa numa coluna estreita. */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button
               type="button"
-              aria-label="Silenciar alertas desta reserva"
-              title={
-                isMutedNow
-                  ? `Alertas silenciados até ${new Date(row.mutedUntil as string).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`
-                  : "Silenciar alertas de atraso desta reserva"
-              }
+              aria-label="Mais opções"
+              title="Nota interna e alertas"
               className={`size-9 grid place-items-center rounded-lg border ${
                 isMutedNow
                   ? "bg-amber-500/15 border-amber-500/50 text-amber-600 dark:text-amber-400"
                   : "bg-background/60 border-border/50 hover:bg-primary/[0.08]"
               }`}
             >
-              {isMutedNow ? <BellOff className="size-4" /> : <Bell className="size-4" />}
+              <MoreVertical className="size-4" />
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start" className="max-h-72 overflow-y-auto min-w-[11rem]">
+            <DropdownMenuItem onClick={() => setNoteOpen((v) => !v)}>
+              <StickyNote className="size-3.5 shrink-0" /> {row.note ? "Editar nota" : "Adicionar nota"}
+            </DropdownMenuItem>
             {isMutedNow && (
               <DropdownMenuItem onClick={() => mute.mutate(null)}>
                 <Bell className="size-3.5 shrink-0" /> Reativar alertas
@@ -2460,10 +2435,9 @@ function ArrivalCard({
                   type="button"
                   aria-label="Opções do Maps"
                   title={row.garageMapsUrl ? "Garagem no Maps" : "Endereço no Maps"}
-                  className="h-9 px-3 inline-flex items-center gap-1.5 rounded-lg bg-background/60 border border-border/50 hover:bg-primary/[0.08] text-sm font-medium"
+                  className="size-9 grid place-items-center rounded-lg bg-background/60 border border-border/50 hover:bg-primary/[0.08]"
                 >
-                  <MapPin className="size-4" /> Maps
-                  <ChevronDown className="size-3.5 opacity-60" />
+                  <MapPin className="size-4" />
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="min-w-[12rem]">
