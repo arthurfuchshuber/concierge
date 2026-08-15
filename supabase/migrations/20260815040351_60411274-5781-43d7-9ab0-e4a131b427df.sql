@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX IF NOT EXISTS guest_arrival_status_reservation_kind_full_uidx ON public.guest_arrival_status (reservation_id, kind);
