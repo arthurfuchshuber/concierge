@@ -2058,7 +2058,6 @@ function ArrivalCard({
   const visualDone = done && mode !== "cleaning";
   const isPendingFill = row.pendingFill;
   const todayISO = todayISOSaoPaulo();
-  const isToday = row.date === todayISO;
   const isOverdue = row.date < todayISO;
   const isFuture = row.date > todayISO;
   const blockReason = kind === "checkin" && !done && !isFuture ? (cleaningBlocked ?? null) : null;
@@ -2108,39 +2107,25 @@ function ArrivalCard({
 
   return (
     <div
-      className={`group relative snap-start flex flex-col rounded-2xl border p-4 gap-3 transition-all ${
+      className={`group relative snap-start flex flex-col rounded-lg border p-3 gap-2.5 transition-colors ${
         visualDone
-          ? "bg-secondary/30 border-border/50"
+          ? "bg-secondary/20 border-border/40 opacity-75"
           : isOverdue
-            ? "bg-[linear-gradient(135deg,color-mix(in_oklab,#ef4444_28%,transparent),color-mix(in_oklab,#ef4444_12%,transparent))] border-red-500/70 shadow-[0_12px_32px_-14px_rgba(239,68,68,0.55)] ring-1 ring-red-500/30"
+            ? "bg-secondary/40 border-border/60 hover:bg-secondary/60 border-l-[3px] border-l-red-500"
             : isFuture
-              ? "bg-[linear-gradient(135deg,color-mix(in_oklab,#f59e0b_22%,transparent),color-mix(in_oklab,#f59e0b_8%,transparent))] border-amber-500/60 shadow-[0_10px_28px_-16px_rgba(245,158,11,0.55)] ring-1 ring-amber-500/25"
-              : isToday
-                ? "bg-[linear-gradient(135deg,color-mix(in_oklab,var(--primary)_7%,transparent),color-mix(in_oklab,var(--primary)_2%,transparent))] border-primary/25 shadow-[0_10px_28px_-16px_color-mix(in_oklab,var(--primary)_28%,transparent),0_1px_4px_-2px_color-mix(in_oklab,var(--primary)_14%,transparent)] hover:shadow-[0_12px_32px_-16px_color-mix(in_oklab,var(--primary)_36%,transparent)] hover:-translate-y-0.5"
-                : "bg-[linear-gradient(135deg,color-mix(in_oklab,var(--primary)_5%,transparent),color-mix(in_oklab,var(--primary)_1%,transparent))] border-primary/15 shadow-sm hover:shadow-md hover:-translate-y-0.5"
+              ? "bg-secondary/40 border-border/60 hover:bg-secondary/60 border-l-[3px] border-l-amber-500"
+              : "bg-secondary/40 border-border/60 hover:bg-secondary/60"
       }`}
     >
-      {isOverdue && !visualDone && (
-        <div className="absolute -top-2.5 right-3 z-20 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider bg-red-500 text-white border border-red-600 shadow-md">
-          <AlertTriangle className="size-3" /> Atrasado
-        </div>
-      )}
-      {isFuture && !done && (
-        <div className="absolute -top-2.5 right-3 z-20 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider bg-amber-500 text-white border border-amber-600 shadow-md">
-          <AlertTriangle className="size-3" /> Data Futura
-        </div>
-      )}
-
-      {!done && (
-        <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-2xl">
+      {(isOverdue || isFuture) && !visualDone && (
+        <div className="flex items-center gap-1.5">
           <span
-            aria-hidden
-            className="absolute left-0 top-4 bottom-4 w-0.5 rounded-r bg-gradient-to-b from-primary/70 to-primary/30"
-          />
-          <span
-            aria-hidden
-            className={`absolute top-0 right-0 -translate-y-1/3 translate-x-1/3 rounded-full blur-2xl ${isToday ? "size-40 bg-primary/[0.14]" : "size-32 bg-primary/[0.07]"}`}
-          />
+            className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
+              isOverdue ? "bg-red-500/15 text-red-600 dark:text-red-400" : "bg-amber-500/15 text-amber-600 dark:text-amber-400"
+            }`}
+          >
+            <AlertTriangle className="size-2.5" /> {isOverdue ? "Atrasado" : "Data futura"}
+          </span>
         </div>
       )}
 
