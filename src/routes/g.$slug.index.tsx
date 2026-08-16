@@ -64,7 +64,6 @@ import { BottomNav, type BottomNavKey } from "@/components/guide/BottomNav";
 import waterfallImg from "@/assets/rec-waterfall.jpg";
 import conciergeLogo from "@/assets/concierge-logo.png";
 import { GuideAccessGate, readAccessRecord, consumeFirstAccessFlag, type AccessRecord } from "@/components/GuideAccessGate";
-import { FirstVisitTour } from "@/components/guide/FirstVisitTour";
 import { InlineTagText } from "@/components/tags/InlineTagText";
 import { slugForTag, expandInfoTags, type GuideTagKey } from "@/lib/guide-tags";
 import { toast } from "sonner";
@@ -353,7 +352,7 @@ function Guide({ data }: { data: GuideOk }) {
         scrollToId = raw;
       }
       if (target) {
-        setSection(target);
+        gotoSection(target);
         // Aguarda o próximo frame para o DOM da nova seção existir antes do scroll
         requestAnimationFrame(() => {
           if (scrollToId) {
@@ -770,7 +769,21 @@ function Guide({ data }: { data: GuideOk }) {
           theme={theme === "light" ? "light" : "dark"}
         />
       )}
-      <FirstVisitTour active={tourActive} onDone={() => setTourActive(false)} />
+      <PostAccessOnboarding
+        active={tourActive}
+        onDone={() => setTourActive(false)}
+        guestName={accessRec?.name ?? "hóspede"}
+        checkinDate={accessRec?.checkinDate ?? ""}
+        checkoutDate={accessRec?.checkoutDate ?? ""}
+        checkinTime={fmtOnbTime(p.checkin_time)}
+        checkoutTime={fmtOnbTime(p.checkout_time)}
+        address={(p.address as string | null) ?? null}
+        hasAccessPin={hasAccessPin}
+        hasCheckinSteps={!!(p.checkin_instructions || (Array.isArray(p.checkin_media) && p.checkin_media.length > 0))}
+        checkinInstructionsText={p.checkin_instructions ? String(p.checkin_instructions) : null}
+        hasAcesso={!!((p as any).gate_code_set || p.gate_code || (p as any).lock_code_set || p.lock_code)}
+        hasWifi={!!p.wifi_ssid}
+      />
       <div className="relative z-10 mx-auto w-full max-w-[490px] md:max-w-[520px]">
         <AnimatePresence mode="wait" initial={false}>
           {section === "home" ? (
@@ -2605,6 +2618,297 @@ function SubList({ children }: { children: React.ReactNode }) {
       {children}
     </Accordion>
   );
+}
+
+function fmtOnbTime(raw: unknown): string | null {
+  const m = String(raw ?? "").match(/^(\d{1,2}):(\d{2})/);
+  if (!m) return null;
+  return `${m[1].padStart(2, "0")}:${m[2]}`;
+}
+
+function fmtOnbDate(iso: string): string {
+  const [y, m, d] = iso.split("-").map(Number);
+  if (!y || !m || !d) return iso;
+  const dt = new Date(y, m - 1, d);
+  return dt.toLocaleDateString("pt-BR", { day: "2-digit", month: "short" });
+}
+
+/**
+ * Onboarding pós-formulário: substitui o antigo tour de spotlight (2 passos)
+ * por um fluxo guiado de verdade — confirma a estadia, mostra o passo a
+ * passo real, explica como as senhas funcionam (COM ou SEM código de
+ * visualização cadastrado pelo anfitrião — nunca afirma "libera sozinha"
+ * quando na verdade depende do anfitrião mandar o código), e termina
+ * perguntando diretamente se o check-in foi tranquilo. O chat só aparece
+ * como opção na ÚLTIMA etapa, nunca antes — o hóspede só precisa dele se
+ * realmente tiver dificuldade.
+ */
+function PostAccessOnboarding({
+  active,
+  onDone,
+  guestName,
+  checkinDate,
+  checkoutDate,
+  checkinTime,
+  checkoutTime,
+  address,
+  hasAccessPin,
+  hasCheckinSteps,
+  checkinInstructionsText,
+  hasAcesso,
+  hasWifi,
+}: {
+  active: boolean;
+  onDone: () => void;
+  guestName: string;
+  checkinDate: string;
+  checkoutDate: string;
+  checkinTime?: string | null;
+  checkoutTime?: string | null;
+  address?: string | null;
+  hasAccessPin: boolean;
+  hasCheckinSteps: boolean;
+  checkinInstructionsText?: string | null;
+  hasAcesso: boolean;
+  hasWifi: boolean;
+}) {
+  const [step, setStep] = useState<0 | 1 | 2 | 3>(0);
+  useEffect(() => {
+    if (active) setStep(0);
+  }, [active]);
+
+  if (!active) return null;
+
+  const firstName = guestName.split(" ")[0] || guestName;
+
+  function openDifficultyChat() {
+    window.dispatchEvent(
+      new CustomEvent("open-guide-chat", {
+        detail: { prompt: "Estou com dificuldade no check-in.", forceAi: true },
+      }),
+    );
+    onDone();
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-[70] bg-black/75 backdrop-blur-md flex items-center justify-center p-3"
+      role="dialog"
+      aria-modal="true"
+    >
+      <div className="w-full max-w-[440px] max-h-[92vh] overflow-y-auto rounded-[26px] border border-border bg-card/95 backdrop-blur-2xl shadow-[0_28px_70px_-18px_rgba(0,0,0,0.65)] p-6 sm:p-7">
+        {step < 3 && (
+          <div className="mb-4 flex items-center gap-1.5">
+            {[0, 1, 2].map((i) => (
+              <span
+                key={i}
+                className={cn(
+                  "h-1 rounded-full transition-all",
+                  i === step ? "w-6 bg-primary" : "w-3 bg-primary/30",
+                )}
+              />
+            ))}
+            <span className="ml-auto text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+              Passo {step + 1}/3
+            </span>
+          </div>
+        )}
+
+        {/* Passo 1: confirmação da estadia */}
+        {step === 0 && (
+          <>
+            <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-accent mb-1.5">
+              Tudo certo, {firstName}!
+            </p>
+            <DialogTitleFallback className="mb-1">Confere se está tudo certo</DialogTitleFallback>
+            <p className="text-[13px] leading-relaxed text-muted-foreground mb-5">
+              Se algo estiver errado, é só nos chamar no chat.
+            </p>
+
+            <div className="rounded-2xl border border-border bg-background/40 p-4 mb-3">
+              <div className="flex items-start justify-between pb-3 mb-3 border-b border-border gap-3">
+                <div>
+                  <p className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">Check-in</p>
+                  <p className="text-[14px] font-semibold">
+                    {fmtOnbDate(checkinDate)}
+                    {checkinTime ? ` · a partir das ${checkinTime}` : ""}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">Check-out</p>
+                  <p className="text-[14px] font-semibold">
+                    {fmtOnbDate(checkoutDate)}
+                    {checkoutTime ? ` · até ${checkoutTime}` : ""}
+                  </p>
+                </div>
+              </div>
+              {address && (
+                <div className="flex items-start gap-2">
+                  <MapPin className="size-4 text-muted-foreground shrink-0 mt-0.5" />
+                  <p className="text-[13px] text-muted-foreground leading-relaxed">{address}</p>
+                </div>
+              )}
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setStep(1)}
+              className="w-full h-[48px] rounded-2xl bg-primary text-primary-foreground font-semibold text-[14.5px]"
+            >
+              Está tudo certo →
+            </button>
+          </>
+        )}
+
+        {/* Passo 2: passo a passo real da chegada */}
+        {step === 1 && (
+          <>
+            <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-accent mb-1.5">
+              Onde tudo acontece
+            </p>
+            <DialogTitleFallback className="mb-1">Seu passo a passo de chegada</DialogTitleFallback>
+            <p className="text-[13px] leading-relaxed text-muted-foreground mb-4">
+              Isso também fica sempre disponível na aba <b className="text-foreground">Chegada</b>.
+            </p>
+
+            <div className="rounded-2xl border border-border bg-background/40 p-4 mb-5 max-h-[280px] overflow-y-auto">
+              {hasCheckinSteps && checkinInstructionsText ? (
+                <StepList text={checkinInstructionsText} dense compact />
+              ) : (
+                <p className="text-[13px] text-muted-foreground leading-relaxed">
+                  Assim que estiver na janela de check-in, o passo a passo completo aparece na aba Chegada.
+                </p>
+              )}
+            </div>
+
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setStep(0)}
+                className="h-[48px] px-5 rounded-2xl border border-border text-[14px] font-medium text-foreground/80"
+              >
+                ← Voltar
+              </button>
+              <button
+                type="button"
+                onClick={() => setStep(2)}
+                className="flex-1 h-[48px] rounded-2xl bg-primary text-primary-foreground font-semibold text-[14.5px]"
+              >
+                Entendi →
+              </button>
+            </div>
+          </>
+        )}
+
+        {/* Passo 3: como as senhas funcionam (condicional a ter código de visualização) */}
+        {step === 2 && (
+          <>
+            <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-accent mb-1.5">
+              Suas senhas de acesso
+            </p>
+            <DialogTitleFallback className="mb-1">
+              {hasAccessPin ? "Um código a mais protege sua senha" : "Sua senha libera sozinha"}
+            </DialogTitleFallback>
+
+            <div
+              className={cn(
+                "rounded-2xl border p-4 mb-4 flex items-start gap-3",
+                hasAccessPin
+                  ? "border-amber-500/30 bg-amber-500/10"
+                  : "border-emerald-500/30 bg-emerald-500/10",
+              )}
+            >
+              <span className="text-[16px] leading-none mt-0.5">{hasAccessPin ? "🔐" : "🔓"}</span>
+              <p className="text-[13px] leading-relaxed text-foreground/90">
+                {hasAccessPin ? (
+                  <>
+                    O anfitrião vai te enviar um <b>código de visualização</b> por algum canal (WhatsApp, e-mail
+                    ou mensagem) até a data do seu check-in. Com ele, você libera{" "}
+                    {hasAcesso && hasWifi ? "a senha de acesso e do Wi-Fi" : hasAcesso ? "a senha de acesso" : "o Wi-Fi"}{" "}
+                    na aba <b>Chegada → Senhas</b>.
+                  </>
+                ) : (
+                  <>
+                    Assim que a janela de check-in abrir,{" "}
+                    {hasAcesso && hasWifi ? "sua senha de acesso e a do Wi-Fi liberam" : hasAcesso ? "sua senha de acesso libera" : "o Wi-Fi libera"}{" "}
+                    sozinhas na aba <b>Chegada → Senhas</b> — sem precisar fazer nada.
+                  </>
+                )}
+              </p>
+            </div>
+
+            {(hasAcesso || hasWifi) && (
+              <div className="rounded-2xl border border-border bg-background/40 p-3 mb-5 space-y-2">
+                {hasAcesso && (
+                  <div className="flex items-center gap-2.5 text-[13px]">
+                    <span className="size-7 rounded-lg bg-secondary border border-border grid place-items-center text-[13px]">🔑</span>
+                    Senha de acesso ao imóvel
+                  </div>
+                )}
+                {hasWifi && (
+                  <div className="flex items-center gap-2.5 text-[13px]">
+                    <span className="size-7 rounded-lg bg-secondary border border-border grid place-items-center text-[13px]">📶</span>
+                    Senha do Wi-Fi
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setStep(1)}
+                className="h-[48px] px-5 rounded-2xl border border-border text-[14px] font-medium text-foreground/80"
+              >
+                ← Voltar
+              </button>
+              <button
+                type="button"
+                onClick={() => setStep(3)}
+                className="flex-1 h-[48px] rounded-2xl bg-primary text-primary-foreground font-semibold text-[14.5px]"
+              >
+                Perfeito →
+              </button>
+            </div>
+          </>
+        )}
+
+        {/* Passo 4: encerramento — pergunta direta, chat só aqui, por último */}
+        {step === 3 && (
+          <div className="text-center">
+            <div className="mx-auto mb-5 size-16 rounded-full bg-emerald-500/15 border-2 border-emerald-500 grid place-items-center text-[28px]">
+              ✓
+            </div>
+            <DialogTitleFallback className="mb-2">Tudo pronto, {firstName}!</DialogTitleFallback>
+            <p className="text-[13.5px] leading-relaxed text-muted-foreground mb-6 max-w-[300px] mx-auto">
+              Você já sabe onde encontrar o passo a passo e as senhas. Conseguiu fazer o check-in sem problema?
+            </p>
+
+            <div className="space-y-2.5">
+              <button
+                type="button"
+                onClick={onDone}
+                className="w-full h-[50px] rounded-2xl bg-primary text-primary-foreground font-semibold text-[14.5px]"
+              >
+                Consegui fazer o check-in! 🎉
+              </button>
+              <button
+                type="button"
+                onClick={openDifficultyChat}
+                className="w-full h-[50px] rounded-2xl border border-border text-foreground/85 font-semibold text-[14px]"
+              >
+                Estou com dificuldade no check-in
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function DialogTitleFallback({ children, className }: { children: React.ReactNode; className?: string }) {
+  return <h2 className={cn("font-serif text-[22px] leading-[1.15] tracking-tight text-foreground", className)}>{children}</h2>;
 }
 
 function StepList({ text, dense = false, compact = false }: { text: string; dense?: boolean; compact?: boolean }) {
