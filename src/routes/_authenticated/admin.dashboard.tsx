@@ -2107,14 +2107,12 @@ function ArrivalCard({
 
   return (
     <div
-      className={`group relative snap-start flex flex-col rounded-lg border p-3 gap-2.5 transition-colors ${
-        visualDone
-          ? "bg-secondary/20 border-border/40 opacity-75"
-          : isOverdue
-            ? "bg-secondary/40 border-border/60 hover:bg-secondary/60 border-l-[3px] border-l-red-500"
-            : isFuture
-              ? "bg-secondary/40 border-border/60 hover:bg-secondary/60 border-l-[3px] border-l-amber-500"
-              : "bg-secondary/40 border-border/60 hover:bg-secondary/60"
+      className={`group relative snap-start flex flex-col rounded border border-border/60 bg-secondary/40 hover:bg-secondary/60 p-3 gap-2.5 transition-colors ${
+        isOverdue && !visualDone
+          ? "border-l-[3px] border-l-red-500"
+          : isFuture && !visualDone
+            ? "border-l-[3px] border-l-amber-500"
+            : ""
       }`}
     >
       {(isOverdue || isFuture) && !visualDone && (
