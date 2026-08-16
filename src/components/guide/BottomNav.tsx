@@ -64,9 +64,7 @@ export function BottomNav({
                     className={cn(
                       "grid size-10 place-items-center rounded-2xl transition-all",
                       isActive
-                        ? isDark
-                          ? "bg-pink-500/20 text-pink-200 shadow-[0_0_18px_-6px_rgba(236,72,153,0.55)]"
-                          : "bg-pink-100 text-pink-700"
+                        ? "bg-gradient-to-br from-[#7C1AD8] to-[#E82DAE] text-white shadow-[0_4px_16px_-4px_rgba(232,45,174,0.55)]"
                         : isDark
                           ? "text-white/60 group-hover:text-white/90"
                           : "text-slate-700/70 group-hover:text-slate-950",

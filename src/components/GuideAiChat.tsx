@@ -751,15 +751,12 @@ export function GuideAiChat({
         }}
         aria-label="Abrir assistente do guia (arraste para reposicionar)"
         title="Peça dicas à IA · arraste para mover"
-        className="btn-shine group relative inline-flex items-center gap-2 px-4 sm:px-5 h-14 rounded-full bg-emerald-500 text-white shadow-[0_16px_38px_-14px_rgba(16,185,129,0.7)] hover:bg-emerald-600 hover:shadow-[0_20px_46px_-16px_rgba(16,185,129,0.85)] active:scale-95 transition-all pointer-events-auto cursor-grab active:cursor-grabbing touch-none select-none"
+        className="group relative inline-flex items-center justify-center size-14 rounded-full bg-gradient-to-br from-[#7C1AD8] to-[#E82DAE] text-white shadow-[0_0_0_8px_rgba(232,45,174,0.18),0_16px_38px_-14px_rgba(124,26,216,0.7)] hover:shadow-[0_0_0_10px_rgba(232,45,174,0.22),0_20px_46px_-16px_rgba(124,26,216,0.85)] active:scale-95 transition-all pointer-events-auto cursor-grab active:cursor-grabbing touch-none select-none"
       >
         {loading && (
           <span className="absolute -top-1 -right-1 size-3.5 rounded-full bg-amber-400 ring-2 ring-background animate-pulse" title="Pensando…" />
         )}
-        <MessageCircleMore className="relative size-5 group-hover:scale-110 transition-transform" strokeWidth={2.1} />
-        <span className="hidden sm:inline text-[13px] font-bold tracking-tight">
-          {loading ? "Pensando…" : "Pedir dicas à IA"}
-        </span>
+        <MessageCircleMore className="relative size-6 group-hover:scale-110 transition-transform" strokeWidth={2.1} />
       </button>
     </div>
   ) : null;
