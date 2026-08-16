@@ -119,7 +119,7 @@ function AtendimentoPage() {
           Converse com hóspedes que precisam de ajuda humana e acompanhe as filas de atendimento.
         </p>
       </header>
-      <div className="flex-1 min-h-0 flex">
+      <div className="flex-1 min-h-0 flex px-6 lg:px-10">
         {/* Filas */}
         <aside className="w-56 border-r border-border shrink-0 hidden md:flex flex-col">
           <nav className="p-2 space-y-1">
