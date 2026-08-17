@@ -1310,7 +1310,7 @@ function PrimaryButton({
       onClick={onClick}
       disabled={loading}
       className={cn(
-        "group relative w-full h-[52px] rounded-full text-[14.5px] font-semibold text-white border-0",
+        "group relative w-full h-[44px] rounded-full text-[13.5px] font-semibold text-white border-0",
         "bg-gradient-to-r from-[#7C1AD8] to-[#E82DAE] hover:brightness-110",
         "shadow-[0_10px_30px_-8px_rgba(232,45,174,0.55)]",
         "transition-all duration-200 hover:translate-y-[-1px]",
