@@ -791,7 +791,7 @@ function Step2(props: {
         {cfg.arrivalTime !== "off" && (
           <QuestionBlock
             icon="🕐"
-            title="Você tem previsão de chegada?"
+            title="Possui previsão de chegada?"
             required={cfg.arrivalTime === "required"}
             answer={arrivalAns}
             onAnswer={(v) => {
