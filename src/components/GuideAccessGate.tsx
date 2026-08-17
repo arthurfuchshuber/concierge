@@ -951,7 +951,7 @@ function Step2(props: {
         )}
       </div>
 
-      <div className="flex items-center gap-2 pt-5">
+      <div className="flex items-center gap-2 pt-4">
         <Button
           type="button"
           variant="ghost"
@@ -962,8 +962,7 @@ function Step2(props: {
         </Button>
         <div className="flex-1">
           <PrimaryButton loading={loading} onClick={onSubmit}>
-            {loading ? "Verificando…" : "Acessar guia"}
-            {!loading && <ArrowRight className="size-4 transition-transform duration-200 group-hover:translate-x-0.5" />}
+            {loading ? "Verificando…" : "Concluir cadastro →"}
           </PrimaryButton>
         </div>
       </div>
@@ -985,36 +984,36 @@ function QuestionBlock({
   asToggle?: boolean;
 }) {
   return (
-    <div className="rounded-[16px] border border-border p-3.5 transition-colors mb-2.5">
-      <div className="flex items-center gap-2.5 mb-3">
-        <span className="grid size-8 place-items-center rounded-full bg-[#a855f7]/12 text-[#c084fc] shrink-0 text-[15px]">
+    <div className="rounded-[18px] border border-border p-4 transition-colors">
+      <div className="flex items-start gap-2 mb-3.5">
+        <span aria-hidden className="text-[16px] leading-[1.25] shrink-0">
           {icon}
         </span>
         <div className="min-w-0 flex-1">
-          <div className="text-[13.5px] font-semibold leading-tight">{title}</div>
+          <div className="text-[15px] font-bold leading-tight text-foreground">{title}</div>
           {required && (
             <div className="text-[10px] uppercase tracking-wider text-[#c084fc]/70 mt-0.5">Obrigatório</div>
           )}
         </div>
       </div>
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2.5">
         <button
           type="button"
           onClick={() => onAnswer("yes")}
           className={cn(
-            "flex-1 h-9 rounded-[10px] text-[12.5px] font-semibold border transition-all",
+            "flex-1 h-[52px] rounded-[14px] text-[15px] font-bold border transition-all",
             answer === "yes"
               ? "bg-gradient-to-r from-[#7C1AD8] to-[#E82DAE] text-white border-transparent"
               : "border-border text-muted-foreground hover:text-foreground",
           )}
         >
-          {asToggle ? "Sim" : "Sim"}
+          Sim
         </button>
         <button
           type="button"
           onClick={() => onAnswer("no")}
           className={cn(
-            "flex-1 h-9 rounded-[10px] text-[12.5px] font-semibold border transition-all",
+            "flex-1 h-[52px] rounded-[14px] text-[15px] font-medium border transition-all",
             answer === "no"
               ? "bg-foreground/[0.1] text-foreground border-border"
               : "border-border text-muted-foreground hover:text-foreground",
@@ -1029,6 +1028,7 @@ function QuestionBlock({
     </div>
   );
 }
+
 
 function DocUploadCard({
   slug, index, total, defaultName, doc, onUpdate,
