@@ -673,7 +673,9 @@ export function GuideAccessGate({ slug, propertyId, propertyName, requireReserva
             <Step2
               cfg={cfg}
               slug={slug}
+              minArrivalTime={minArrivalTime}
               defaultName={titleCaseName(name)}
+
               arrivalAns={arrivalAns}
               setArrivalAns={setArrivalAns}
               arrivalTime={arrivalTime}
