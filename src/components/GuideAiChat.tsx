@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { ComposerPlusMenu } from "@/components/handoff/ComposerPlusMenu";
-import { MessageCircleMore, Send, X, Loader2, Paperclip, Copy, Check } from "lucide-react";
+import { MessageCircleMore, Send, X, Loader2, Paperclip, Copy, Check, CalendarDays, ArrowLeft } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { GuestNotificationsPrompt } from "@/components/GuestNotificationsPrompt";
@@ -19,6 +19,9 @@ type Msg = {
   createdAt?: string;
   senderType?: string;
   attachment?: AttachmentInfo | null;
+  /** Opções curtas de resposta rápida (botões) sugeridas pela IA — só faz
+   * sentido mostrar na última mensagem do assistente da conversa. */
+  quickReplies?: string[];
 };
 
 /** Código/senha em linha com botão de copiar ao lado. */
@@ -181,6 +184,11 @@ export function GuideAiChat({
   const [sessionId, setSessionId] = useState<string>("");
   const [conversationId, setConversationId] = useState<string | undefined>();
   const [messages, setMessages] = useState<Msg[]>([]);
+  const [showItinerary, setShowItinerary] = useState(false);
+  const [itineraryDays, setItineraryDays] = useState<
+    Array<{ date: string; items: Array<{ id: string; time: string | null; title: string; note: string | null }> }>
+  >([]);
+  const [itineraryLoading, setItineraryLoading] = useState(false);
   // Mensagens do atendente sempre no idioma do hóspede.
   const [autoTranslated, setAutoTranslated] = useState<Record<string, string>>({});
   const translatingRef = useRef<Set<string>>(new Set());
@@ -463,8 +471,27 @@ export function GuideAiChat({
   }
 
 
-  async function send() {
-    const text = input.trim();
+  async function openItinerary() {
+    setShowItinerary(true);
+    const name = isPreviewMode() ? PREVIEW_GUEST_NAME : (guestName ?? readAccessRecord(slug)?.name ?? "");
+    if (!name.trim()) {
+      setItineraryDays([]);
+      return;
+    }
+    setItineraryLoading(true);
+    try {
+      const res = await fetch(`/api/public/itinerary?slug=${encodeURIComponent(slug)}&guestName=${encodeURIComponent(name)}`);
+      const data = (await res.json().catch(() => ({}))) as { days?: typeof itineraryDays };
+      setItineraryDays(Array.isArray(data.days) ? data.days : []);
+    } catch {
+      setItineraryDays([]);
+    } finally {
+      setItineraryLoading(false);
+    }
+  }
+
+  async function send(overrideText?: string) {
+    const text = (overrideText ?? input).trim();
     if (!text || loading) return;
     const next = [...messages, { role: "user" as const, content: text }];
     const forceAi = forceAiNextRef.current;
@@ -487,16 +514,27 @@ export function GuideAiChat({
       const res = await fetch("/api/public/guide-chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ slug, sessionId, conversationId, message: text, guestName: effectiveGuestName, forceAi: forceAi || undefined, stream: true }),
+        body: JSON.stringify({
+          slug,
+          sessionId,
+          conversationId,
+          message: text,
+          guestName: effectiveGuestName,
+          forceAi: forceAi || undefined,
+          stream: true,
+          checkinDate: readAccessRecord(slug)?.checkinDate ?? undefined,
+          checkoutDate: readAccessRecord(slug)?.checkoutDate ?? undefined,
+          reservationCode: readAccessRecord(slug)?.code ?? undefined,
+        }),
       });
 
       const ctype = res.headers.get("Content-Type") ?? "";
       if (!res.ok || !res.body || !ctype.includes("text/event-stream")) {
         // Fallback: resposta JSON (erro de rate limit, validação, etc.)
-        const data = (await res.json().catch(() => ({}))) as { conversationId?: string; reply?: string; error?: string; handoff?: boolean; humanMode?: boolean };
+        const data = (await res.json().catch(() => ({}))) as { conversationId?: string; reply?: string; error?: string; handoff?: boolean; humanMode?: boolean; quickReplies?: string[] };
         if (data.conversationId) setConversationId(data.conversationId);
         const content = data.error || data.reply || "Não consegui responder agora.";
-        finishWith([...next, { role: "assistant" as const, content }], data.conversationId);
+        finishWith([...next, { role: "assistant" as const, content, quickReplies: data.quickReplies }], data.conversationId);
         lastFetchedAtRef.current = new Date().toISOString();
         return;
       }
@@ -509,6 +547,7 @@ export function GuideAiChat({
       let done = false;
       let humanModeEvent = false;
       let errorMsg: string | null = null;
+      let quickReplies: string[] = [];
 
       while (!done) {
         const chunk = await reader.read();
@@ -542,6 +581,7 @@ export function GuideAiChat({
             if (evt.conversationId) convId = String(evt.conversationId);
             humanModeEvent = !!evt.humanMode;
             acc = String(evt.reply ?? acc);
+            quickReplies = Array.isArray(evt.quickReplies) ? evt.quickReplies.map(String) : [];
             done = true;
           }
         }
@@ -559,7 +599,7 @@ export function GuideAiChat({
           convId,
         );
       } else {
-        finishWith([...next, { role: "assistant" as const, content: acc }], convId);
+        finishWith([...next, { role: "assistant" as const, content: acc, quickReplies }], convId);
         if (!openRef.current && acc.trim()) setPendingPreview(acc);
       }
 
@@ -596,6 +636,7 @@ export function GuideAiChat({
             content: string;
             senderType?: string;
             createdAt: string;
+            quickReplies?: string[];
             attachment?: AttachmentInfo | null;
           }[];
         };
@@ -626,6 +667,7 @@ export function GuideAiChat({
                 id: m.id,
                 createdAt: m.createdAt,
                 senderType: m.senderType,
+                quickReplies: m.quickReplies,
                 attachment: m.attachment ?? null,
               }));
             if (!additions.length) return prev;
@@ -789,6 +831,15 @@ export function GuideAiChat({
             </div>
             <button
               type="button"
+              onClick={() => (showItinerary ? setShowItinerary(false) : openItinerary())}
+              aria-label={showItinerary ? "Voltar ao chat" : "Ver meu roteiro"}
+              title="Meu roteiro"
+              className="grid size-9 place-items-center rounded-full hover:bg-zinc-100 text-zinc-500 hover:text-zinc-900 transition-colors"
+            >
+              {showItinerary ? <ArrowLeft className="size-4" /> : <CalendarDays className="size-4" />}
+            </button>
+            <button
+              type="button"
               onClick={() => setOpen(false)}
               aria-label="Fechar"
               className="grid size-9 place-items-center rounded-full hover:bg-zinc-100 text-zinc-500 hover:text-zinc-900 transition-colors"
@@ -799,6 +850,47 @@ export function GuideAiChat({
           </div>
         </div>
 
+        {showItinerary ? (
+          <div className="flex-1 overflow-y-auto px-4 py-5">
+            <p className="text-[10px] uppercase tracking-[0.24em] text-emerald-700/80 font-semibold mb-3">Meu roteiro</p>
+            {itineraryLoading ? (
+              <div className="flex items-center gap-2 text-zinc-500 text-[12.5px] py-6 justify-center">
+                <Loader2 className="size-3.5 animate-spin" /> carregando…
+              </div>
+            ) : itineraryDays.length === 0 ? (
+              <div className="text-center py-10">
+                <CalendarDays className="size-8 mx-auto text-zinc-300 mb-2" strokeWidth={1.5} />
+                <p className="text-[13px] text-zinc-500 max-w-[26ch] mx-auto leading-relaxed">
+                  Ainda não há nada marcado. Conversa comigo sobre passeios e vou anotando aqui conforme você for decidindo.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-5">
+                {itineraryDays.map((day) => (
+                  <div key={day.date}>
+                    <p className="text-[12px] font-semibold text-zinc-900 mb-2">
+                      {new Date(`${day.date}T12:00:00`).toLocaleDateString("pt-BR", { weekday: "short", day: "2-digit", month: "short" })}
+                    </p>
+                    <div className="space-y-1.5">
+                      {day.items.map((item) => (
+                        <div key={item.id} className="flex items-start gap-2.5 rounded-xl bg-zinc-50 border border-zinc-100 px-3 py-2.5">
+                          {item.time && (
+                            <span className="text-[11px] font-semibold text-emerald-700 shrink-0 mt-0.5 tabular-nums">{item.time}</span>
+                          )}
+                          <div className="min-w-0">
+                            <p className="text-[13px] text-zinc-900 leading-snug">{item.title}</p>
+                            {item.note && <p className="text-[11.5px] text-zinc-500 mt-0.5 leading-snug">{item.note}</p>}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        ) : (
+        <>
         {/* Messages */}
         <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-5 space-y-4">
           {messages.length === 0 && (
@@ -827,7 +919,13 @@ export function GuideAiChat({
 
             </div>
           )}
-          {messages.filter((m) => (m.content ?? "").trim().length > 0 || m.attachment).map((m, i) => (
+          {(() => {
+            const visible = messages.filter((m) => (m.content ?? "").trim().length > 0 || m.attachment);
+            const lastAssistantIdx = visible.reduce(
+              (acc, m, idx) => (m.role === "assistant" ? idx : acc),
+              -1,
+            );
+            return visible.map((m, i) => (
             <div key={m.id ?? i} className={`flex ${m.role === "user" ? "justify-end" : m.role === "system" ? "justify-center" : "justify-start"}`}>
               {m.role === "user" ? (
                 <div className="max-w-[85%] flex flex-col items-end gap-1">
@@ -843,7 +941,8 @@ export function GuideAiChat({
                   {m.content}
                 </div>
               ) : (
-                <div className="max-w-[88%] text-[13.5px] leading-relaxed text-zinc-800 prose prose-sm max-w-none [&_p]:my-1 [&_p]:leading-relaxed [&_strong]:font-semibold [&_strong]:text-zinc-900 [&_a]:text-emerald-700 [&_a]:underline [&_a]:underline-offset-2 [&_ul]:my-1 [&_ul]:pl-4 [&_ol]:my-1 [&_ol]:pl-4 [&_li]:my-0.5">
+                <div className="max-w-[88%] w-full flex flex-col items-start gap-2">
+                <div className="text-[13.5px] leading-relaxed text-zinc-800 prose prose-sm max-w-none [&_p]:my-1 [&_p]:leading-relaxed [&_strong]:font-semibold [&_strong]:text-zinc-900 [&_a]:text-emerald-700 [&_a]:underline [&_a]:underline-offset-2 [&_ul]:my-1 [&_ul]:pl-4 [&_ol]:my-1 [&_ol]:pl-4 [&_li]:my-0.5">
                   {m.senderType === "human" && (
                     <p className="text-[10px] uppercase tracking-[0.18em] text-emerald-700/85 font-semibold mb-1">Atendente</p>
                   )}
@@ -863,6 +962,18 @@ export function GuideAiChat({
                         code: ({ node, children, ...props }) => (
                           <CopyableCode {...props}>{children}</CopyableCode>
                         ),
+                        img: ({ node, alt, ...props }) => (
+                          <img
+                            {...props}
+                            alt={alt ?? ""}
+                            loading="lazy"
+                            className="block w-full max-w-[240px] rounded-xl border border-zinc-200 my-1.5 object-cover aspect-[4/3]"
+                            onError={(e) => {
+                              // Foto indisponível/expirada — some em vez de mostrar ícone quebrado.
+                              (e.currentTarget as HTMLImageElement).style.display = "none";
+                            }}
+                          />
+                        ),
                       }}
                     >
                       {/* Cada quebra de linha vira parágrafo separado (linha em
@@ -874,9 +985,30 @@ export function GuideAiChat({
                   )}
 
                 </div>
+                {/* Botões de resposta rápida — só na última mensagem do
+                    assistente, e só enquanto não há nada em andamento (senão
+                    o hóspede podia clicar num botão de uma pergunta antiga
+                    enquanto uma resposta nova já está chegando). O campo de
+                    digitar continua sempre disponível ao lado. */}
+                {!!m.quickReplies?.length && i === lastAssistantIdx && !loading && !streamingText && (
+                  <div className="flex flex-wrap gap-1.5 mt-0.5">
+                    {m.quickReplies.map((opt, oi) => (
+                      <button
+                        key={oi}
+                        type="button"
+                        onClick={() => send(opt)}
+                        className="px-3 py-1.5 rounded-full border border-emerald-600/30 bg-emerald-50 text-emerald-800 text-[12.5px] font-medium hover:bg-emerald-100 active:scale-[0.97] transition-all"
+                      >
+                        {opt}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                </div>
               )}
             </div>
-          ))}
+            ));
+          })()}
           {streamingText && (
             <div className="flex justify-start">
               <div className="max-w-[85%] rounded-2xl rounded-bl-md bg-zinc-100 dark:bg-zinc-800 px-3.5 py-2.5 text-[14px] leading-relaxed whitespace-pre-wrap">
@@ -893,6 +1025,8 @@ export function GuideAiChat({
           )}
 
         </div>
+        </>
+        )}
 
         <GuestNotificationsPrompt
           slug={slug}

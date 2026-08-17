@@ -23,6 +23,7 @@ import { buildAgentContext } from "./context.server";
 import { hybridRetrieve, renderPassages } from "./rag.server";
 import { buildGuestTools, type ToolContext } from "./tools.server";
 import { validateAnswer } from "./validate.server";
+import { suggestQuickReplies } from "./quick-replies.server";
 import { guestKeyOf, loadGuestMemory, updateGuestMemory } from "./memory.server";
 import { logAgentRun } from "./observability.server";
 import { buildGuestContext } from "./memory/guest-context.server";
@@ -91,6 +92,9 @@ export type OrchestratorResult = {
   toolsUsed: Array<{ name: string; args?: unknown; durationMs?: number; parallelBatch?: number }>;
   /** Fontes efetivamente consultadas (auditoria/avaliação). */
   sourcesUsed: string[];
+  /** Opções curtas de resposta rápida (botões) — [] quando a resposta não é
+   * uma pergunta de múltipla escolha. O hóspede sempre pode digitar livre. */
+  quickReplies: string[];
 };
 
 
@@ -142,6 +146,18 @@ export async function runHospitalityAgent(params: {
   const { intent, usage: intentUsage, model: intentModel } = await classifyIntent(params.message, params.history);
   usage = mergeUsage(usage, intentUsage);
   models.intent = intentModel;
+
+  // O "modo exploração" (mandato forte de só citar lugares vindos de
+  // list_recommendations/search_places) até aqui só ligava por um sinal
+  // "sticky" olhando o histórico — ou seja, a PRIMEIRA pergunta de recomendação
+  // de uma conversa nova nunca ativava, e o especialista respondia sem o
+  // mandato explícito de ferramenta, abrindo espaço para citar lugares de
+  // memória geral do modelo (exatamente o que a validação anti-alucinação
+  // pegou). Agora também ativa quando a classificação de intenção — que já
+  // roda de qualquer forma, no primeiro turno — identifica a pergunta como
+  // sobre a cidade ou pedido de recomendação.
+  const explorationMode =
+    params.explorationMode === true || intent.category === "cidade" || intent.category === "recomendacao";
 
   const guestKey = guestKeyOf(params.sessionId, params.guestName);
   rememberMessage(params.conversationId, "user", params.message);
@@ -197,6 +213,7 @@ export async function runHospitalityAgent(params: {
       channel,
       toolsUsed: handoff ? [{ name: "request_human_handoff" }] : [],
       sourcesUsed: ["guest_safety_policy"],
+      quickReplies: [],
     };
   }
 
@@ -249,7 +266,7 @@ export async function runHospitalityAgent(params: {
       message: params.message,
       intent,
       history: params.history,
-      explorationMode: params.explorationMode,
+      explorationMode,
       contextHint: guestContext.text.slice(0, 2500),
     }),
   ]);
@@ -362,6 +379,7 @@ export async function runHospitalityAgent(params: {
     property,
     conversationId: params.conversationId,
     guestName: params.guestName,
+    guestKey,
     sensitiveLocked: context.sensitiveLocked,
     collectSource: (entry) => {
       sources.push({ source: entry.source, title: entry.title, confidence: entry.confidence });
@@ -387,7 +405,7 @@ export async function runHospitalityAgent(params: {
 
   const instructions =
     PROMPTS.agent.text +
-    (params.explorationMode ? PROMPTS.exploration.text : "") +
+    (explorationMode ? PROMPTS.exploration.text : "") +
     `\n\n=== SEU PAPEL NESTA CONVERSA ===\n${renderAgentBriefing(agent)}` +
     (context.behavior
       ? `\n\nCOMPORTAMENTO DEFINIDO PELO ANFITRIÃO (prioridade máxima, siga estritamente)\n${context.behavior}`
@@ -436,6 +454,23 @@ export async function runHospitalityAgent(params: {
       durationMs: c.durationMs,
       parallelBatch: c.parallelBatch,
     }));
+
+    // O validador anti-alucinação só enxergava o TÍTULO da consulta de cada
+    // ferramenta (via collectSource), nunca o resultado de fato — então não
+    // tinha como confirmar se um lugar citado (nome, endereço, foto) veio
+    // mesmo da ferramenta ou foi inventado pelo modelo na hora de redigir.
+    // Agora o resultado real de cada chamada também vira evidência.
+    for (const call of run.toolCalls) {
+      if (call.result == null) continue;
+      try {
+        const serialized = JSON.stringify(call.result).slice(0, 2000);
+        if (serialized && serialized !== "{}" && serialized !== "[]") {
+          evidence.push(`[tool:${call.name}] ${serialized}`);
+        }
+      } catch {
+        /* resultado não serializável — ignora, não é motivo pra falhar a resposta */
+      }
+    }
   } catch (err) {
     errorMsg = err instanceof Error ? err.message : String(err);
     console.error("[agent] execução falhou", err);
@@ -463,12 +498,12 @@ export async function runHospitalityAgent(params: {
   stage("review", "Revisando os detalhes");
   // 6) Validação + 7) Reflection (puladas quando já escalamos para humano)
   const baseThresholds = thresholdsFor({
-    explorationMode: params.explorationMode,
+    explorationMode,
     category: intent.category,
     urgency: intent.urgency,
   });
   // O agente especialista pode exigir confiança maior que a categoria.
-  const thresholds = params.explorationMode
+  const thresholds = explorationMode
     ? baseThresholds
     : {
         auto: Math.max(baseThresholds.auto, agent.thresholds.auto),
@@ -562,7 +597,7 @@ export async function runHospitalityAgent(params: {
           : "planejador sinalizou necessidade de humano"
       : null;
 
-    if (!params.explorationMode && (tier === "handoff" || forcedHuman)) {
+    if (!explorationMode && (tier === "handoff" || forcedHuman)) {
       handoffReason =
         (forcedCause
           ? `${forcedCause} (confiança ${Math.round(confidence * 100)}%). `
@@ -572,13 +607,26 @@ export async function runHospitalityAgent(params: {
       handoffUrgency = intent.urgency === "high" ? "high" : "normal";
       reply = "";
       tier = "handoff";
-    } else if (tier === "hedged" && !params.explorationMode) {
+    } else if (tier === "hedged" && !explorationMode) {
       reply = `${reply}${hedgeNotice(intent.language)}`;
     }
 
   } else if (handoffReason) {
     tier = "handoff";
     confidence = 1;
+  }
+
+  // Sugestão de botões de resposta rápida — só quando há de fato uma resposta
+  // sendo enviada ao hóspede (handoff não envia texto, não faz sentido sugerir
+  // botão pra mensagem vazia). Roda em QUALQUER pergunta final da IA, não só
+  // no modo exploração — a própria etapa decide, olhando o texto, se faz
+  // sentido oferecer opções ou deixar só o campo de digitar.
+  let quickReplies: string[] = [];
+  if (reply) {
+    const qr = await suggestQuickReplies({ answer: reply, language: intent.language });
+    usage = mergeUsage(usage, qr.usage);
+    if (qr.model) models.quickReplies = qr.model;
+    quickReplies = qr.options;
   }
 
   // 9) Persistência de memória + observabilidade (não bloqueiam a resposta)
@@ -687,7 +735,7 @@ export async function runHospitalityAgent(params: {
         "reflection",
         "supervisor",
         "validation",
-        ...(params.explorationMode ? (["exploration"] as const) : []),
+        ...(explorationMode ? (["exploration"] as const) : []),
       ]),
       ...stampAgentPrompt(agent),
     },
@@ -867,6 +915,7 @@ export async function runHospitalityAgent(params: {
     channel,
     toolsUsed,
     sourcesUsed: [...new Set(sources.map((s) => s.source))],
+    quickReplies,
   };
 }
 

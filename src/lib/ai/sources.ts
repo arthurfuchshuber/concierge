@@ -32,6 +32,9 @@ export const SOURCE_CONFIDENCE: Record<string, number> = {
   maps: 0.94,
   recommendation: 0.94,
   city_reference: 0.9,
+  // Roteiro já confirmado com o hóspede — reflete escolhas já validadas
+  // (vindas de recommendation/maps ou confirmadas pelo próprio hóspede).
+  itinerary: 0.93,
   // Tier 4 — inferido / histórico
   guest_memory: 0.75,
   operational_memory: 0.8,
@@ -49,7 +52,7 @@ export const SOURCE_TIERS: Array<{ tier: number; label: string; sources: string[
     label: "Conteúdo oficial do anfitrião",
     sources: ["guide", "manual", "faq", "rules", "checkout", "procedures", "property_detail", "host_knowledge", "host_behavior", "tenant_knowledge"],
   },
-  { tier: 3, label: "APIs externas e curadoria", sources: ["calendar", "weather", "maps", "recommendation", "city_reference"] },
+  { tier: 3, label: "APIs externas e curadoria", sources: ["calendar", "weather", "maps", "recommendation", "city_reference", "itinerary"] },
   { tier: 4, label: "Inferido / histórico", sources: ["operational_memory", "guest_memory", "memory", "conversation", "global_intelligence"] },
 ];
 

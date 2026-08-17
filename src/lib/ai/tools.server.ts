@@ -12,6 +12,49 @@ type Admin = SupabaseClient;
 
 const MAPS_GATEWAY = "https://connector-gateway.lovable.dev/google_maps";
 
+/** Busca a primeira foto real (Google Places) de um lugar pelo nome — mesmo
+ * padrão usado no city-news, reaproveitado aqui pra ilustrar recomendações
+ * no chat. Limitado a poucos lugares por chamada (custo/latência). */
+async function firstPlacePhoto(name: string, city: string, regionCode: string): Promise<string | null> {
+  const key = process.env.LOVABLE_API_KEY;
+  const mapsKey = process.env.GOOGLE_MAPS_API_KEY_2 ?? process.env.GOOGLE_MAPS_API_KEY;
+  if (!key || !mapsKey) return null;
+  try {
+    const { throttledFetch } = await import("@/lib/places-throttle.server");
+    const body = JSON.stringify({
+      textQuery: `${name} ${city}`.slice(0, 120),
+      maxResultCount: 1,
+      languageCode: "pt-BR",
+      regionCode,
+    });
+    const fieldMask = "places.photos.name";
+    const res = await throttledFetch(
+      `${MAPS_GATEWAY}/places/v1/places:searchText`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${key}`,
+          "X-Connection-Api-Key": mapsKey,
+          "Content-Type": "application/json",
+          "X-Goog-FieldMask": fieldMask,
+        },
+        body,
+        signal: AbortSignal.timeout(6000),
+      },
+      `agent-rec-photo::${regionCode}::${body}`,
+    );
+    if (!res.ok) return null;
+    const j = (await res.json()) as { places?: Array<{ photos?: Array<{ name?: string }> }> };
+    const photoName = j.places?.[0]?.photos?.[0]?.name;
+    if (photoName && /^places\/[A-Za-z0-9_-]+\/photos\/[A-Za-z0-9_-]+$/.test(photoName)) {
+      return `/api/public/place-photo?name=${encodeURIComponent(photoName)}&w=600`;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 /** Schema estrito exigido pela Responses API. */
 function schema(properties: Record<string, unknown>, required: string[]) {
   return {
@@ -29,6 +72,8 @@ export type ToolContext = {
   property: Record<string, unknown>;
   conversationId: string | null;
   guestName: string | null;
+  /** Chave estável do hóspede (nome ou sessão) — usada pelo itinerário. */
+  guestKey: string;
   sensitiveLocked: boolean;
   /** Registra as fontes efetivamente consultadas (observabilidade + validação). */
   collectSource: (entry: { source: string; title?: string | null; confidence: number; content?: string }) => void;
@@ -173,10 +218,29 @@ export function buildGuestTools(ctx: ToolContext): AgentTool[] {
       const proximas = (recs ?? []).filter(matches).slice(0, 25);
       const cidade = ((cityRefs ?? []) as Array<Record<string, unknown>>).filter(matches).slice(0, 30);
 
+      // Ilustra só os primeiros de cada grupo com foto real — o resto fica
+      // sem foto (a IA não perde a lista, só não teria como decidir quais
+      // das 25+ opções valeriam a latência/custo de uma busca de foto cada).
+      const city = (ctx.property.city as string) ?? "";
+      const regionCode = ((ctx.property.country as string) ?? "BR").toUpperCase().slice(0, 2);
+      const withPhotos = async <T extends { name?: unknown }>(rows: T[], limit: number) => {
+        const enriched = await Promise.all(
+          rows.slice(0, limit).map(async (row) => ({
+            ...row,
+            foto: row.name ? await firstPlacePhoto(String(row.name), city, regionCode) : null,
+          })),
+        );
+        return [...enriched, ...rows.slice(limit)];
+      };
+      const [proximasComFoto, cidadeComFoto] = await Promise.all([
+        withPhotos(proximas, 4),
+        withPhotos(cidade, 4),
+      ]);
+
       if (proximas.length) ctx.collectSource({ source: "recommendation", title: "Recomendações próximas", confidence: confidenceOf("recommendation") });
       if (cidade.length) ctx.collectSource({ source: "city_reference", title: "Referências da cidade", confidence: confidenceOf("city_reference") });
 
-      return { proximas, cidade };
+      return { proximas: proximasComFoto, cidade: cidadeComFoto };
     },
   });
 
@@ -208,7 +272,8 @@ export function buildGuestTools(ctx: ToolContext): AgentTool[] {
               "Content-Type": "application/json",
               Authorization: `Bearer ${key}`,
               "X-Connection-Api-Key": mapsKey,
-              "X-Goog-FieldMask": "places.displayName,places.formattedAddress,places.rating,places.userRatingCount",
+              "X-Goog-FieldMask":
+                "places.displayName,places.formattedAddress,places.rating,places.userRatingCount,places.photos.name",
             },
             body,
           },
@@ -216,14 +281,28 @@ export function buildGuestTools(ctx: ToolContext): AgentTool[] {
         );
         if (!res.ok) return { disponivel: false };
         const json = (await res.json()) as {
-          places?: Array<{ displayName?: { text?: string }; formattedAddress?: string; rating?: number; userRatingCount?: number }>;
+          places?: Array<{
+            displayName?: { text?: string };
+            formattedAddress?: string;
+            rating?: number;
+            userRatingCount?: number;
+            photos?: Array<{ name?: string }>;
+          }>;
         };
-        const lugares = (json.places ?? []).map((p) => ({
-          nome: p.displayName?.text ?? "",
-          endereco: p.formattedAddress ?? null,
-          nota: p.rating ?? null,
-          avaliacoes: p.userRatingCount ?? null,
-        }));
+        const lugares = (json.places ?? []).map((p) => {
+          const photoName = p.photos?.[0]?.name;
+          const foto =
+            photoName && /^places\/[A-Za-z0-9_-]+\/photos\/[A-Za-z0-9_-]+$/.test(photoName)
+              ? `/api/public/place-photo?name=${encodeURIComponent(photoName)}&w=600`
+              : null;
+          return {
+            nome: p.displayName?.text ?? "",
+            endereco: p.formattedAddress ?? null,
+            nota: p.rating ?? null,
+            avaliacoes: p.userRatingCount ?? null,
+            foto,
+          };
+        });
         if (lugares.length) ctx.collectSource({ source: "maps", title: query, confidence: confidenceOf("maps") });
         return { disponivel: true, lugares };
       } catch (err) {
@@ -308,6 +387,80 @@ export function buildGuestTools(ctx: ToolContext): AgentTool[] {
         console.error("[tool get_city_news]", err);
         return { disponivel: false };
       }
+    },
+  });
+
+  tools.push({
+    name: "get_itinerary",
+    description:
+      "Lê o roteiro/itinerário que já foi montado com o hóspede até agora (dias e itens). Use antes de sugerir " +
+      "um novo item, pra não duplicar algo que já está lá, e sempre que o hóspede perguntar o que já foi planejado.",
+    parameters: schema({}, []),
+    execute: async () => {
+      const { getItinerary } = await import("./itinerary.server");
+      const days = await getItinerary({ supabase: ctx.supabase, propertyId: ctx.propertyId, guestKey: ctx.guestKey });
+      if (days.length) ctx.collectSource({ source: "itinerary", title: "Roteiro do hóspede", confidence: confidenceOf("itinerary") });
+      return { dias: days };
+    },
+  });
+
+  tools.push({
+    name: "add_itinerary_item",
+    description:
+      "Adiciona um item ao roteiro do hóspede num dia específico. Use quando o hóspede confirmar interesse em " +
+      "algo (\"vamos fazer isso no sábado\", \"quero ir nesse restaurante\") ou pedir explicitamente pra você " +
+      "montar/atualizar o roteiro — não adicione algo que o hóspede só mencionou de passagem sem confirmar.",
+    parameters: schema(
+      {
+        data: { type: "string", description: "Data no formato YYYY-MM-DD." },
+        horario: { type: ["string", "null"], description: "Horário HH:MM, ou null se não tiver hora definida." },
+        titulo: { type: "string", description: "Nome curto do item (ex.: 'Cataratas do Iguaçu — trilha das Cataratas')." },
+        nota: { type: ["string", "null"], description: "Detalhe curto opcional (ex.: 'levar protetor solar')." },
+        origem: {
+          type: "string",
+          enum: ["recommendation", "maps", "guest_request", "ai"],
+          description: "De onde veio a sugestão: recommendation/maps = veio de list_recommendations/search_places; guest_request = o próprio hóspede pediu; ai = sugestão sua sem ferramenta.",
+        },
+      },
+      ["data", "horario", "titulo", "nota", "origem"],
+    ),
+    execute: async (args) => {
+      const { addItineraryItem } = await import("./itinerary.server");
+      const days = await addItineraryItem({
+        supabase: ctx.supabase,
+        propertyId: ctx.propertyId,
+        ownerId: ctx.ownerId,
+        guestKey: ctx.guestKey,
+        guestName: ctx.guestName,
+        date: String(args.data ?? "").slice(0, 10),
+        time: typeof args.horario === "string" ? args.horario : null,
+        title: String(args.titulo ?? ""),
+        note: typeof args.nota === "string" ? args.nota : null,
+        source: (["recommendation", "maps", "guest_request", "ai"].includes(String(args.origem)) ? args.origem : "ai") as
+          | "recommendation"
+          | "maps"
+          | "guest_request"
+          | "ai",
+      });
+      return { ok: true, dias: days };
+    },
+  });
+
+  tools.push({
+    name: "remove_itinerary_item",
+    description: "Remove um item do roteiro do hóspede pelo id (obtido via get_itinerary). Use quando o hóspede desistir de algo ou pedir pra tirar do roteiro.",
+    parameters: schema({ item_id: { type: "string", description: "id do item, como retornado por get_itinerary." } }, ["item_id"]),
+    execute: async (args) => {
+      const { removeItineraryItem } = await import("./itinerary.server");
+      const { days, removed } = await removeItineraryItem({
+        supabase: ctx.supabase,
+        propertyId: ctx.propertyId,
+        ownerId: ctx.ownerId,
+        guestKey: ctx.guestKey,
+        guestName: ctx.guestName,
+        itemId: String(args.item_id ?? ""),
+      });
+      return { ok: removed, dias: days };
     },
   });
 
