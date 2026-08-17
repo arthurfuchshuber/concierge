@@ -27,13 +27,25 @@ export type NewsItem = {
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
+/** Janela editorial: hoje + próximos 8 dias. */
+export const NEWS_WINDOW_DAYS = 8;
+
+export function addDays(iso: string, days: number): string {
+  const [y, m, d] = iso.split("-").map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  dt.setUTCDate(dt.getUTCDate() + days);
+  return dt.toISOString().slice(0, 10);
+}
+
 /**
- * Regra de ouro do calendário: nada que já aconteceu chega ao hóspede.
+ * Regra de ouro do calendário: nada que já aconteceu chega ao hóspede, e nada
+ * distante demais (só a janela de hoje até +8 dias).
  * - Itens de categoria "evento" só passam com data confirmada.
- * - Um evento é válido enquanto (endDate ?? startDate) >= hoje.
+ * - Um evento é válido enquanto (endDate ?? startDate) >= hoje e começa até hoje+8.
  * - Itens perenes (restaurante, passeio, natureza…) não têm data e seguem válidos.
  */
 export function filterUpcoming(items: NewsItem[], today: string): NewsItem[] {
+  const horizon = addDays(today, NEWS_WINDOW_DAYS);
   return items.filter((it) => {
     const isEvent = (it.category ?? "").toLowerCase() === "evento";
     const start = it.startDate && ISO_DATE.test(it.startDate) ? it.startDate : null;
@@ -41,9 +53,11 @@ export function filterUpcoming(items: NewsItem[], today: string): NewsItem[] {
     const last = end ?? start;
     if (isEvent && !last) return false; // evento sem data confirmada nunca é exibido
     if (last && last < today) return false; // já aconteceu
+    if (start && start > horizon) return false; // fora da janela de 8 dias
     return true;
   });
 }
+
 
 export type CityNews = { items: NewsItem[] };
 
