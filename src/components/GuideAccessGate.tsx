@@ -998,9 +998,9 @@ function Step2(props: {
           type="button"
           variant="ghost"
           onClick={onBack}
-          className="h-12 rounded-full px-4 text-[13px] font-medium text-muted-foreground hover:text-foreground"
+          className="h-10 rounded-full border-0 px-3.5 text-[12.5px] font-medium text-muted-foreground hover:text-foreground"
         >
-          <ArrowLeft className="size-4 mr-1" /> Voltar
+          <ArrowLeft className="size-3.5 mr-1" /> Voltar
         </Button>
         <div className="flex-1">
           <PrimaryButton loading={loading} onClick={onSubmit}>
