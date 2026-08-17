@@ -63,7 +63,7 @@ import { propertyTimeZone, todayInTZ, zonedTimeToUtc } from "@/lib/property-time
 import { BottomNav, type BottomNavKey } from "@/components/guide/BottomNav";
 import waterfallImg from "@/assets/rec-waterfall.jpg";
 import conciergeLogo from "@/assets/concierge-logo.png";
-import { GuideAccessGate, readAccessRecord, hasPendingOnboarding, clearPendingOnboarding, type AccessRecord } from "@/components/GuideAccessGate";
+import { GuideAccessGate, readAccessRecord, clearAccessRecord, hasPendingOnboarding, clearPendingOnboarding, type AccessRecord } from "@/components/GuideAccessGate";
 import { InlineTagText } from "@/components/tags/InlineTagText";
 import { slugForTag, expandInfoTags, type GuideTagKey } from "@/lib/guide-tags";
 import { toast } from "sonner";
@@ -418,6 +418,7 @@ function Guide({ data }: { data: GuideOk }) {
   // e mostra o conteúdo do guia diretamente, sem exigir preenchimento.
   const [isPreview, setIsPreview] = useState(false);
   const [accessRec, setAccessRec] = useState<AccessRecord | null>(null);
+  const [formPrefill, setFormPrefill] = useState<AccessRecord | null>(null);
   const [tourActive, setTourActive] = useState(false);
   // Hidrata o registro do localStorage somente após mount (evita mismatch SSR
   // que descartava o registro e fazia o popup reaparecer a cada acesso).
@@ -797,6 +798,7 @@ function Guide({ data }: { data: GuideOk }) {
           timeZone={propertyTimeZone(p.city as string | null, (p as any).country as string | null)}
           theme={theme === "light" ? "light" : "dark"}
           navItems={guideNavItems}
+          prefill={formPrefill}
         />
       )}
       <PostAccessOnboarding
@@ -827,6 +829,9 @@ function Guide({ data }: { data: GuideOk }) {
           // não conta como "concluir", então o onboarding volta a disparar
           // assim que o hóspede confirmar os dados de novo.
           setTourActive(false);
+          setFormPrefill(accessRec);
+          // Sem limpar o registro salvo, o gate remonta e destrava na hora.
+          clearAccessRecord(slug);
           setAccessRec(null);
         }}
       />
@@ -2910,7 +2915,7 @@ function PostAccessOnboarding({
               <button
                 type="button"
                 onClick={onBackToForm}
-                className="h-[48px] px-5 rounded-2xl border border-border text-[14px] font-medium text-foreground/80"
+                className="h-[48px] px-5 rounded-2xl text-[14px] font-medium text-muted-foreground hover:text-foreground transition-colors"
               >
                 ← Voltar
               </button>
@@ -2950,7 +2955,7 @@ function PostAccessOnboarding({
               <button
                 type="button"
                 onClick={() => setStep(0)}
-                className="h-[48px] px-5 rounded-2xl border border-border text-[14px] font-medium text-foreground/80"
+                className="h-[48px] px-5 rounded-2xl text-[14px] font-medium text-muted-foreground hover:text-foreground transition-colors"
               >
                 ← Voltar
               </button>
@@ -3024,7 +3029,7 @@ function PostAccessOnboarding({
               <button
                 type="button"
                 onClick={() => setStep(1)}
-                className="h-[48px] px-5 rounded-2xl border border-border text-[14px] font-medium text-foreground/80"
+                className="h-[48px] px-5 rounded-2xl text-[14px] font-medium text-muted-foreground hover:text-foreground transition-colors"
               >
                 ← Voltar
               </button>
