@@ -226,7 +226,7 @@ ${feed}`;
       ],
       response_format: { type: "json_object" },
     }),
-    signal: AbortSignal.timeout(12000),
+    signal: AbortSignal.timeout(45000),
   });
   if (!r.ok) {
     console.error(`[city-news] AI Gateway respondeu ${r.status} (modelo ${AI_MODELS.cityPulse}): ${(await r.text().catch(() => "")).slice(0, 400)}`);
