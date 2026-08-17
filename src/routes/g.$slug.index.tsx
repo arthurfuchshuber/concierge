@@ -2667,7 +2667,10 @@ function OnboardingPasswordCard({
   ready,
   requestUnlock,
   onRevealed,
+  open,
+  onToggle,
 }: {
+
   icon: string;
   name: string;
   detail?: string | null;
