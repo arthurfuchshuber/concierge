@@ -1112,7 +1112,7 @@ function DocUploadCard({
 
 function FieldShell({ icon, children }: { icon?: React.ReactNode; children: React.ReactNode }) {
   return (
-    <div className="relative rounded-[12px] border border-border bg-foreground/[0.04] transition-colors focus-within:border-[#a855f7]/60 focus-within:bg-foreground/[0.06]">
+    <div className="relative rounded-[14px] border border-border bg-foreground/[0.04] transition-colors focus-within:border-[#a855f7]/60 focus-within:bg-foreground/[0.06]">
       {icon && (
         <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-accent">{icon}</span>
       )}
