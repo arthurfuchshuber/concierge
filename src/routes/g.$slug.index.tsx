@@ -2861,104 +2861,104 @@ function PostAccessOnboarding({
       role="region"
       aria-label="Onboarding de chegada"
     >
-      <div className="mx-auto w-full max-w-[490px] md:max-w-[520px] px-5 pt-8">
-        <div className="rounded-[26px] border border-[#a855f7]/25 bg-card/95 backdrop-blur-2xl shadow-[0_28px_70px_-18px_rgba(0,0,0,0.65),0_0_60px_-20px_rgba(232,45,174,0.3)] p-6 sm:p-7">
-        {step < 3 && (
-          <div className="mb-4 flex items-center gap-1.5">
-            {[0, 1, 2].map((i) => (
-              <span
-                key={i}
-                className={cn(
-                  "h-1 rounded-full transition-all",
-                  i === step ? "w-6 bg-gradient-to-r from-[#7C1AD8] to-[#E82DAE]" : "w-3 bg-[#a855f7]/25",
-                )}
-              />
-            ))}
-            <span className="ml-auto text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-              Passo {step + 1}/3
-            </span>
-          </div>
-        )}
-
+      <div className="mx-auto w-full max-w-[490px] md:max-w-[520px] px-5 pt-8 pb-28">
         {/* Passo 1: confirmação da estadia */}
         {step === 0 && (
           <>
-            <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-[#c084fc] mb-1.5">
+            <h2 className="text-[27px] font-bold leading-[1.15] tracking-tight text-foreground mb-1.5">
               Tudo certo, {firstName}!
-            </p>
-            <DialogTitleFallback className="mb-1">Confere se está tudo certo</DialogTitleFallback>
-            <p className="text-[13px] leading-relaxed text-muted-foreground mb-5">
-              Se algo estiver errado, é só nos chamar no chat.
+            </h2>
+            <p className="text-[15px] leading-relaxed text-muted-foreground mb-6">
+              Confere os dados e veja onde vai estar sua senha.
             </p>
 
-            <div className="rounded-2xl border border-border bg-background/40 p-4 mb-3">
-              <div className="flex items-start justify-between pb-3 mb-3 border-b border-border gap-3">
-                <div>
-                  <p className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">Check-in</p>
-                  <p className="text-[14px] font-semibold">
-                    {fmtOnbDate(checkinDate)}
-                    {checkinTime ? ` · a partir das ${checkinTime}` : ""}
-                  </p>
-                </div>
-                <div className="text-right">
-                  <p className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">Check-out</p>
-                  <p className="text-[14px] font-semibold">
-                    {fmtOnbDate(checkoutDate)}
-                    {checkoutTime ? ` · até ${checkoutTime}` : ""}
-                  </p>
-                </div>
+            <div className="rounded-[20px] border border-border/60 bg-secondary/40 px-5 mb-4">
+              <div className="flex items-center justify-between gap-3 py-4">
+                <span className="text-[15px] text-muted-foreground">Check-in</span>
+                <span className="text-[15px] font-bold text-right">
+                  {fmtOnbDate(checkinDate)}
+                  {checkinTime ? ` · a partir das ${shortOnbHour(checkinTime)}` : ""}
+                </span>
+              </div>
+              <div className="flex items-center justify-between gap-3 py-4 border-t border-border/60">
+                <span className="text-[15px] text-muted-foreground">Check-out</span>
+                <span className="text-[15px] font-bold text-right">
+                  {fmtOnbDate(checkoutDate)}
+                  {checkoutTime ? ` · até ${shortOnbHour(checkoutTime)}` : ""}
+                </span>
               </div>
               {address && (
-                <div className="flex items-start gap-2">
-                  <MapPin className="size-4 text-muted-foreground shrink-0 mt-0.5" />
-                  <p className="text-[13px] text-muted-foreground leading-relaxed">{address}</p>
+                <div className="flex items-center justify-between gap-3 py-4 border-t border-border/60">
+                  <span className="text-[15px] text-muted-foreground shrink-0">Endereço</span>
+                  <span className="text-[15px] font-bold text-right">{address}</span>
                 </div>
               )}
+            </div>
+
+            <div className="rounded-[20px] border border-[#a855f7]/25 bg-[#a855f7]/10 p-4 flex items-start gap-3 mb-6">
+              <span className="text-[18px] leading-none mt-0.5">🔑</span>
+              <p className="text-[14.5px] leading-relaxed text-foreground/85">
+                Na aba <b className="text-foreground">Chegada</b>, seu passo a passo e a senha aparecem sozinhos
+                assim que a janela de check-in abrir.
+              </p>
             </div>
 
             <button
               type="button"
               onClick={() => setStep(1)}
-              className="w-full h-[48px] rounded-2xl text-white font-semibold text-[14.5px] bg-gradient-to-r from-[#7C1AD8] to-[#E82DAE] shadow-[0_10px_30px_-8px_rgba(232,45,174,0.55)] hover:brightness-110 transition-all"
+              className="w-full h-[52px] rounded-2xl text-white font-semibold text-[15px] bg-gradient-to-r from-[#7C1AD8] to-[#E82DAE] shadow-[0_10px_30px_-8px_rgba(232,45,174,0.55)] hover:brightness-110 transition-all"
             >
               Está tudo certo →
             </button>
           </>
         )}
 
-        {/* Passo 2: passo a passo real da chegada */}
+        {/* Passo 2: passo a passo real da chegada (espelho da aba Chegada) */}
         {step === 1 && (
           <>
-            <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-[#c084fc] mb-1.5">
-              Onde tudo acontece
-            </p>
-            <DialogTitleFallback className="mb-1">Seu passo a passo de chegada</DialogTitleFallback>
-            <p className="text-[13px] leading-relaxed text-muted-foreground mb-4">
-              Isso também fica sempre disponível na aba <b className="text-foreground">Chegada</b>.
-            </p>
+            <OnbChegadaHeader propertyName={propertyName} city={city} tab="steps" onTab={(t) => setStep(t === "steps" ? 1 : 2)} />
 
-            <div className="rounded-2xl border border-border bg-background/40 p-4 mb-5 max-h-[280px] overflow-y-auto">
-              {hasCheckinSteps && checkinInstructionsText ? (
-                <StepList text={checkinInstructionsText} dense compact />
-              ) : (
-                <p className="text-[13px] text-muted-foreground leading-relaxed">
-                  Assim que estiver na janela de check-in, o passo a passo completo aparece na aba Chegada.
-                </p>
-              )}
-            </div>
+            {countdownLabel && (
+              <div className="rounded-[16px] border border-[#a855f7]/25 bg-[#a855f7]/10 px-4 py-3.5 mb-5 flex items-center gap-2.5">
+                <span className="text-[15px] leading-none">🕐</span>
+                <p className="text-[14px] leading-relaxed text-foreground/85">{countdownLabel}</p>
+              </div>
+            )}
+
+            {hasCheckinSteps && checkinInstructionsText ? (
+              <ol className="space-y-5 mb-6">
+                {parseOnbSteps(checkinInstructionsText).map((s, i) => (
+                  <li key={i} className="flex items-start gap-3">
+                    <span className="mt-0.5 grid size-7 shrink-0 place-items-center rounded-full bg-[#a855f7]/15 text-[13px] font-bold text-[#c084fc] tabular-nums">
+                      {i + 1}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[15.5px] font-bold leading-snug text-foreground">{s.title}</p>
+                      {s.desc && (
+                        <p className="text-[14.5px] leading-relaxed text-muted-foreground mt-0.5">{s.desc}</p>
+                      )}
+                    </div>
+                  </li>
+                ))}
+              </ol>
+            ) : (
+              <p className="text-[14.5px] text-muted-foreground leading-relaxed mb-6">
+                Assim que estiver na janela de check-in, o passo a passo completo aparece na aba Chegada.
+              </p>
+            )}
 
             <div className="flex gap-2">
               <button
                 type="button"
                 onClick={() => setStep(0)}
-                className="h-[48px] px-5 rounded-2xl border border-border text-[14px] font-medium text-foreground/80"
+                className="h-[52px] px-5 rounded-2xl border border-border text-[14px] font-medium text-foreground/80"
               >
                 ← Voltar
               </button>
               <button
                 type="button"
                 onClick={() => setStep(2)}
-                className="flex-1 h-[48px] rounded-2xl text-white font-semibold text-[14.5px] bg-gradient-to-r from-[#7C1AD8] to-[#E82DAE] shadow-[0_10px_30px_-8px_rgba(232,45,174,0.55)] hover:brightness-110 transition-all"
+                className="flex-1 h-[52px] rounded-2xl text-white font-semibold text-[15px] bg-gradient-to-r from-[#7C1AD8] to-[#E82DAE] shadow-[0_10px_30px_-8px_rgba(232,45,174,0.55)] hover:brightness-110 transition-all"
               >
                 Entendi →
               </button>
@@ -2966,13 +2966,10 @@ function PostAccessOnboarding({
           </>
         )}
 
-        {/* Passo 3: senhas de acesso — cards de verdade, com o mesmo mecanismo de PIN da página real */}
+        {/* Passo 3: senhas de acesso — mesmo layout da aba Chegada › Senhas */}
         {step === 2 && (
           <>
-            <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-[#c084fc] mb-1.5">
-              Suas senhas de acesso
-            </p>
-            <DialogTitleFallback className="mb-3">Chegada → Senhas</DialogTitleFallback>
+            <OnbChegadaHeader propertyName={propertyName} city={city} tab="pins" onTab={(t) => setStep(t === "steps" ? 1 : 2)} />
 
             {lockCode && (
               <OnboardingPasswordCard
@@ -2982,6 +2979,8 @@ function PostAccessOnboarding({
                 ready
                 requestUnlock={requestUnlock}
                 onRevealed={markPasswordsSeen}
+                open={openPin === "lock"}
+                onToggle={() => setOpenPin(openPin === "lock" ? null : "lock")}
               />
             )}
             {wifiPassword && (
@@ -2993,6 +2992,8 @@ function PostAccessOnboarding({
                 ready
                 requestUnlock={requestUnlock}
                 onRevealed={markPasswordsSeen}
+                open={openPin === "wifi"}
+                onToggle={() => setOpenPin(openPin === "wifi" ? null : "wifi")}
               />
             )}
             {gateCode && (
@@ -3003,12 +3004,14 @@ function PostAccessOnboarding({
                 ready
                 requestUnlock={requestUnlock}
                 onRevealed={markPasswordsSeen}
+                open={openPin === "gate"}
+                onToggle={() => setOpenPin(openPin === "gate" ? null : "gate")}
               />
             )}
 
-            <div className="rounded-2xl border border-[#a855f7]/25 bg-[#a855f7]/10 p-3.5 flex items-start gap-2.5 mt-1 mb-5">
-              <span className="text-[15px] leading-none mt-0.5">🔐</span>
-              <p className="text-[12px] leading-relaxed text-foreground/85">
+            <div className="rounded-[20px] border border-[#a855f7]/25 bg-[#a855f7]/10 p-4 flex items-start gap-3 mt-1 mb-6">
+              <span className="text-[17px] leading-none mt-0.5">🔐</span>
+              <p className="text-[14px] leading-relaxed text-foreground/85">
                 {hasAccessPin ? (
                   <>
                     Os valores ficam ocultos até você tocar em 👁 e confirmar o{" "}
@@ -3025,20 +3028,21 @@ function PostAccessOnboarding({
               <button
                 type="button"
                 onClick={() => setStep(1)}
-                className="h-[48px] px-5 rounded-2xl border border-border text-[14px] font-medium text-foreground/80"
+                className="h-[52px] px-5 rounded-2xl border border-border text-[14px] font-medium text-foreground/80"
               >
                 ← Voltar
               </button>
               <button
                 type="button"
                 onClick={() => setStep(3)}
-                className="flex-1 h-[48px] rounded-2xl text-white font-semibold text-[14.5px] bg-gradient-to-r from-[#7C1AD8] to-[#E82DAE] shadow-[0_10px_30px_-8px_rgba(232,45,174,0.55)] hover:brightness-110 transition-all"
+                className="flex-1 h-[52px] rounded-2xl text-white font-semibold text-[15px] bg-gradient-to-r from-[#7C1AD8] to-[#E82DAE] shadow-[0_10px_30px_-8px_rgba(232,45,174,0.55)] hover:brightness-110 transition-all"
               >
                 Perfeito →
               </button>
             </div>
           </>
         )}
+
 
         {/* Passo 4: encerramento — pergunta direta, chat só aqui, por último */}
         {step === 3 && (
