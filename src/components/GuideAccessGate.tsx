@@ -1255,19 +1255,19 @@ function RangeButton({
       type="button"
       disabled={locked}
       className={cn(
-        "relative w-full h-[62px] rounded-[14px] border bg-foreground/[0.04] px-3.5 text-left text-foreground",
+        "relative w-full h-[52px] rounded-[12px] border bg-foreground/[0.04] px-3 text-left text-foreground",
         "transition-colors hover:bg-foreground/[0.06] focus:outline-none",
         "flex flex-col justify-center disabled:cursor-default disabled:hover:bg-foreground/[0.04]",
         !locked && (open || filled) ? "border-[#a855f7]/70" : "border-border focus-visible:border-[#a855f7]/60",
       )}
     >
-      <span className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground font-semibold whitespace-nowrap">
+      <span className="text-[9.5px] uppercase tracking-[0.18em] text-muted-foreground font-semibold whitespace-nowrap">
         {label}
       </span>
-      <span className="text-[17px] font-bold flex items-center gap-1.5 mt-0.5 text-foreground">
+      <span className="text-[14.5px] font-bold flex items-center gap-1.5 mt-0.5 text-foreground">
         {value}
         {emoji && filled && (
-          <span aria-hidden className="text-[14px] leading-none">
+          <span aria-hidden className="text-[12px] leading-none">
             {emoji}
           </span>
         )}
