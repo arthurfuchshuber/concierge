@@ -3189,41 +3189,41 @@ function PostAccessOnboarding({
           {/* Passo 4: encerramento — pergunta direta, chat só aqui, por último */}
           {step === 3 && (
             <div className="text-center">
-              <div className="mx-auto mb-5 size-16 rounded-full bg-emerald-500/15 border-2 border-emerald-500 grid place-items-center text-[28px]">
+              <div className="mx-auto mb-4 size-13 rounded-full bg-emerald-500/15 border-2 border-emerald-500 grid place-items-center text-[22px]">
                 ✓
               </div>
-              <DialogTitleFallback className="mb-2">Tudo pronto, {firstName}!</DialogTitleFallback>
-              <p className="text-[13.5px] leading-relaxed text-muted-foreground mb-6 max-w-[300px] mx-auto">
+              <DialogTitleFallback className="mb-1.5 text-[19px]">Tudo pronto, {firstName}!</DialogTitleFallback>
+              <p className="text-[12.5px] leading-relaxed text-muted-foreground mb-5 max-w-[300px] mx-auto [text-wrap:auto]">
                 Você já sabe onde encontrar o passo a passo e as senhas. Conseguiu fazer o check-in sem problema?
               </p>
 
-              <div className="space-y-2.5">
+              <div className="space-y-2">
                 <button
                   type="button"
                   onClick={onDone}
-                  className="w-full h-[50px] rounded-2xl text-white font-semibold text-[14.5px] bg-gradient-to-r from-[#7C1AD8] to-[#E82DAE] shadow-[0_10px_30px_-8px_rgba(232,45,174,0.55)] hover:brightness-110 transition-all"
+                  className="w-full h-[44px] rounded-2xl text-white font-semibold text-[13px] bg-gradient-to-r from-[#7C1AD8] to-[#E82DAE] shadow-[0_10px_30px_-8px_rgba(232,45,174,0.55)] hover:brightness-110 transition-all"
                 >
                   Consegui fazer o check-in! 🎉
                 </button>
                 <button
                   type="button"
                   onClick={openDifficultyChat}
-                  className="w-full h-[50px] rounded-2xl border border-border text-foreground/85 font-semibold text-[14px]"
+                  className="w-full h-[44px] rounded-2xl border border-border text-foreground/85 font-semibold text-[12.5px]"
                 >
                   Estou com dificuldade no check-in
                 </button>
-                <div className="flex items-center gap-2 pt-1">
+                <div className="flex items-center gap-2 pt-0.5">
                   <button
                     type="button"
                     onClick={() => setStep(2)}
-                    className="h-[42px] px-4 rounded-2xl border border-border text-[13px] font-medium text-foreground/70"
+                    className="h-[38px] px-4 rounded-2xl border-0 text-[12.5px] font-medium text-muted-foreground hover:text-foreground transition-colors"
                   >
                     ← Voltar
                   </button>
                   <button
                     type="button"
                     onClick={onDone}
-                    className="flex-1 h-[42px] rounded-2xl text-[13px] font-medium text-muted-foreground hover:text-foreground transition-colors"
+                    className="flex-1 h-[38px] rounded-2xl text-[12.5px] font-medium text-muted-foreground hover:text-foreground transition-colors"
                   >
                     Vou fazer depois!
                   </button>
