@@ -578,13 +578,13 @@ export function GuideAccessGate({ slug, propertyId, propertyName, requireReserva
                 </div>
 
                 {resCheck.state === "matched" && (
-                  <div className="flex items-center gap-2 text-[12px] text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2">
-                    <CheckCircle2 className="size-4 shrink-0" />
+                  <div className="flex items-center gap-2 rounded-[14px] border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-[13.5px] font-medium text-emerald-300">
+                    <span className="shrink-0 text-[13px] leading-none">✓</span>
                     <span>Reserva Airbnb encontrada para estas datas.</span>
                   </div>
                 )}
                 {resCheck.state === "no-match" && (
-                  <div className="flex items-start gap-2 text-[12px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                  <div className="flex items-start gap-2 rounded-[14px] border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-[13px] text-amber-300">
                     <AlertTriangle className="size-4 shrink-0 mt-0.5" />
                     <span>
                       Não encontramos uma reserva Airbnb para estas datas.
@@ -604,6 +604,7 @@ export function GuideAccessGate({ slug, propertyId, propertyName, requireReserva
                     </span>
                   </div>
                 )}
+
 
 
                 <div className="sg-phone-input">
