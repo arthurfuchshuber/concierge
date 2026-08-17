@@ -148,7 +148,10 @@ type Props = {
    * do formulário, com "Chegada" travado (o hóspede não navega pra outra
    * aba antes de se identificar). */
   navItems?: Array<{ key: import("./guide/BottomNav").BottomNavKey; label: string }>;
+  /** Dados já informados anteriormente (ex.: hóspede voltou do onboarding). */
+  prefill?: AccessRecord | null;
 };
+
 
 
 function dateFromISODate(value: string): Date | null {
