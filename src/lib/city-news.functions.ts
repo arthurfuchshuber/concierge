@@ -56,14 +56,20 @@ type FirecrawlSearchResult = {
 
 async function firecrawlSearch(query: string, tbs: string = "qdr:w"): Promise<FirecrawlSearchResult[]> {
   const key = process.env.FIRECRAWL_API_KEY;
-  if (!key) return [];
+  if (!key) {
+    console.error("[city-news] FIRECRAWL_API_KEY ausente — busca de fontes desativada.");
+    return [];
+  }
   const r = await fetch("https://api.firecrawl.dev/v2/search", {
     method: "POST",
     headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
     body: JSON.stringify({ query, limit: 30, tbs, lang: "pt", country: "br" }),
     signal: AbortSignal.timeout(9000),
   });
-  if (!r.ok) return [];
+  if (!r.ok) {
+    console.error(`[city-news] Firecrawl respondeu ${r.status} para "${query}": ${(await r.text().catch(() => "")).slice(0, 300)}`);
+    return [];
+  }
   const j = (await r.json()) as { data?: FirecrawlSearchResult[] | { web?: FirecrawlSearchResult[] } };
   const list = Array.isArray(j.data)
     ? j.data
@@ -91,7 +97,12 @@ async function deepCitySearch(cityLabel: string, country: string | null): Promis
   ];
 
   const results = await Promise.all(
-    queries.map(({ q, tbs }) => firecrawlSearch(q, tbs).catch(() => [] as FirecrawlSearchResult[])),
+    queries.map(({ q, tbs }) =>
+      firecrawlSearch(q, tbs).catch((e) => {
+        console.error(`[city-news] Falha na busca "${q}":`, e instanceof Error ? e.message : e);
+        return [] as FirecrawlSearchResult[];
+      }),
+    ),
   );
 
   const seen = new Set<string>();
@@ -118,7 +129,11 @@ async function curateWithAi(params: {
   candidates: FirecrawlSearchResult[];
 }): Promise<NewsItem[]> {
   const key = process.env.LOVABLE_API_KEY;
-  if (!key || params.candidates.length === 0) return [];
+  if (!key) {
+    console.error("[city-news] LOVABLE_API_KEY ausente — curadoria por IA desativada.");
+    return [];
+  }
+  if (params.candidates.length === 0) return [];
   const langNames = { pt: "português brasileiro", en: "English", es: "español", fr: "français" } as const;
   const langName = langNames[params.lang as keyof typeof langNames] ?? "português brasileiro";
 
@@ -180,7 +195,10 @@ ${feed}`;
     }),
     signal: AbortSignal.timeout(12000),
   });
-  if (!r.ok) return [];
+  if (!r.ok) {
+    console.error(`[city-news] AI Gateway respondeu ${r.status} (modelo ${AI_MODELS.cityPulse}): ${(await r.text().catch(() => "")).slice(0, 400)}`);
+    return [];
+  }
   const j = (await r.json()) as { choices?: Array<{ message?: { content?: string } }> };
   const raw = j.choices?.[0]?.message?.content ?? "{}";
   let parsed: {
@@ -198,7 +216,8 @@ ${feed}`;
   } = {};
   try {
     parsed = JSON.parse(raw);
-  } catch {
+  } catch (e) {
+    console.error("[city-news] Resposta da IA não é JSON válido:", raw.slice(0, 300), e instanceof Error ? e.message : e);
     return [];
   }
   const items: NewsItem[] = (parsed.items ?? []).map((it) => {
@@ -417,11 +436,15 @@ export async function generateAndCacheCityNews(input: {
   let candidates: FirecrawlSearchResult[] = [];
   try {
     candidates = await deepCitySearch(input.cityLabel, input.country ?? null);
-  } catch {
+  } catch (e) {
+    console.error(`[city-news] deepCitySearch falhou para "${input.cityLabel}":`, e instanceof Error ? e.message : e);
     candidates = [];
   }
 
-  if (candidates.length === 0) return { items: null, cached: false, generated: false };
+  if (candidates.length === 0) {
+    console.warn(`[city-news] Nenhum candidato encontrado para "${input.cityLabel}" — nada a curar.`);
+    return { items: null, cached: false, generated: false };
+  }
 
   let items: NewsItem[] = [];
   try {
@@ -432,27 +455,35 @@ export async function generateAndCacheCityNews(input: {
       today,
       candidates,
     });
-  } catch {
+  } catch (e) {
+    console.error(`[city-news] curateWithAi falhou para "${input.cityLabel}":`, e instanceof Error ? e.message : e);
     items = [];
   }
-  if (items.length === 0) return { items: null, cached: false, generated: false };
+  if (items.length === 0) {
+    console.warn(`[city-news] IA não retornou itens válidos para "${input.cityLabel}" (${candidates.length} candidatos brutos).`);
+    return { items: null, cached: false, generated: false };
+  }
 
   // Verificação de calendário: lê a página da fonte de cada evento e só mantém
   // o que tem data confirmada de hoje em diante.
   try {
     items = await verifyEventDates(items, today);
-  } catch {
+  } catch (e) {
+    console.error(`[city-news] verifyEventDates falhou para "${input.cityLabel}" — descartando eventos:`, e instanceof Error ? e.message : e);
     // Sem verificação não há garantia de calendário — descartamos os eventos.
     items = items.filter((it) => (it.category ?? "").toLowerCase() !== "evento");
   }
   items = filterUpcoming(items, today);
-  if (items.length === 0) return { items: null, cached: false, generated: false };
+  if (items.length === 0) {
+    console.warn(`[city-news] Todos os itens de "${input.cityLabel}" foram descartados no filtro de calendário.`);
+    return { items: null, cached: false, generated: false };
+  }
 
   // Enriquece com fotos reais do Google Places (foto do lugar/atração/restaurante).
   try {
     items = await attachPlacePhotos(items, input.cityLabel, input.country ?? null);
-  } catch {
-    // segue sem fotos — o card usa fallback local por categoria
+  } catch (e) {
+    console.error(`[city-news] attachPlacePhotos falhou para "${input.cityLabel}" — segue sem fotos:`, e instanceof Error ? e.message : e);
   }
 
   await supabaseAdmin
