@@ -2786,6 +2786,66 @@ function fmtOnbDate(iso: string): string {
   return dt.toLocaleDateString("pt-BR", { day: "2-digit", month: "short" });
 }
 
+function shortOnbHour(raw: string): string {
+  const m = String(raw).match(/^(\d{1,2}):(\d{2})/);
+  if (!m) return String(raw);
+  return m[2] === "00" ? `${Number(m[1])}h` : `${m[1].padStart(2, "0")}:${m[2]}`;
+}
+
+function parseOnbSteps(text: string): Array<{ title: string; desc?: string }> {
+  return text
+    .split(/\r?\n/)
+    .map((l) => l.trim())
+    .filter(Boolean)
+    .map((l) => l.replace(/^\s*(?:\d+[.)\-\u00ba\u00b0]\s*|[-\u2022\u00b7*]\s*)/, "").trim())
+    .filter(Boolean)
+    .map((l) => {
+      const sep = l.match(/^(.{3,60}?)\s*(?:\u2014|\u2013|:)\s+(.+)$/);
+      if (sep) return { title: sep[1].trim(), desc: sep[2].trim() };
+      return { title: l };
+    });
+}
+
+function OnbChegadaHeader({
+  propertyName,
+  city,
+  tab,
+  onTab,
+}: {
+  propertyName?: string | null;
+  city?: string | null;
+  tab: "steps" | "pins";
+  onTab: (t: "steps" | "pins") => void;
+}) {
+  return (
+    <div className="mb-5">
+      <h2 className="text-[27px] font-bold leading-[1.15] tracking-tight text-foreground">Chegada</h2>
+      {(propertyName || city) && (
+        <p className="text-[14px] text-muted-foreground mt-0.5">
+          {[propertyName, city].filter(Boolean).join(" \u00b7 ")}
+        </p>
+      )}
+      <div className="mt-4 grid grid-cols-2 gap-1 rounded-[14px] border border-border/60 bg-secondary/40 p-1">
+        {(["steps", "pins"] as const).map((t) => (
+          <button
+            key={t}
+            type="button"
+            onClick={() => onTab(t)}
+            className={cn(
+              "h-[38px] rounded-[11px] text-[13.5px] font-semibold transition-colors",
+              tab === t
+                ? "bg-gradient-to-r from-[#7C1AD8] to-[#E82DAE] text-white shadow-[0_8px_20px_-10px_rgba(232,45,174,0.7)]"
+                : "text-muted-foreground hover:text-foreground",
+            )}
+          >
+            {t === "steps" ? "Passo a passo" : "Senhas"}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 /**
  * Onboarding pós-formulário: substitui o antigo tour de spotlight (2 passos)
  * por um fluxo guiado de verdade — confirma a estadia, mostra o passo a
@@ -2816,6 +2876,9 @@ function PostAccessOnboarding({
   markPasswordsSeen,
   theme,
   navItems,
+  propertyName,
+  city,
+  timeZone,
 }: {
   active: boolean;
   onDone: () => void;
@@ -2836,15 +2899,45 @@ function PostAccessOnboarding({
   markPasswordsSeen: () => void;
   theme: "dark" | "light";
   navItems: Array<{ key: BottomNavKey; label: string }>;
+  propertyName?: string | null;
+  city?: string | null;
+  timeZone: string;
 }) {
   const [step, setStep] = useState<0 | 1 | 2 | 3>(0);
+  const [openPin, setOpenPin] = useState<"lock" | "wifi" | "gate" | null>(null);
+  const [now, setNow] = useState<Date | null>(null);
   useEffect(() => {
     if (active) setStep(0);
   }, [active]);
+  useEffect(() => {
+    setNow(new Date());
+    const t = setInterval(() => setNow(new Date()), 60_000);
+    return () => clearInterval(t);
+  }, []);
 
   if (!active) return null;
 
   const firstName = guestName.split(" ")[0] || guestName;
+
+  let countdownLabel: string | null = null;
+  const cm = checkinTime ? String(checkinTime).match(/^(\d{1,2}):(\d{2})/) : null;
+  if (cm && now) {
+    const dp = checkinDate.split("-").map(Number);
+    if (dp.length === 3 && !dp.some(Number.isNaN)) {
+      const target = zonedTimeToUtc(dp[0], dp[1], dp[2], Number(cm[1]), Number(cm[2]), timeZone);
+      const diff = target.getTime() - now.getTime();
+      if (diff > 0) {
+        const h = Math.floor(diff / 3_600_000);
+        const min = Math.floor((diff % 3_600_000) / 60_000);
+        countdownLabel =
+          h >= 24
+            ? `Faltam ${Math.floor(h / 24)} dia(s) para o seu check-in \u00b7 a partir das ${shortOnbHour(checkinTime!)}`
+            : `Faltam ${h}h${String(min).padStart(2, "0")} para o seu check-in \u00b7 a partir das ${shortOnbHour(checkinTime!)}`;
+      } else {
+        countdownLabel = "Sua janela de check-in já está liberada.";
+      }
+    }
+  }
 
   function openDifficultyChat() {
     window.dispatchEvent(
