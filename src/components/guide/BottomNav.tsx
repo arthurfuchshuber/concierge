@@ -8,11 +8,17 @@ export function BottomNav({
   active,
   items,
   onSelect,
+  lockedTo,
 }: {
   theme: "dark" | "light";
   active: BottomNavKey;
   items: Array<{ key: BottomNavKey; label: string }>;
   onSelect: (key: BottomNavKey) => void;
+  /** Quando definido, só o item com esta key responde a toque — os demais
+   * ficam visualmente apagados e travados. Usado durante o onboarding
+   * pós-formulário: o hóspede vê o menu real, com "Chegada" selecionado,
+   * mas não consegue navegar pra outra aba até concluir as etapas. */
+  lockedTo?: BottomNavKey;
 }) {
   const isDark = theme === "dark";
   if (items.length === 0) return null;
@@ -49,14 +55,17 @@ export function BottomNav({
         <ul className="mx-auto flex max-w-[490px] items-stretch justify-around gap-1">
           {items.map((it) => {
             const isActive = it.key === active;
+            const isLocked = !!lockedTo && it.key !== lockedTo;
             return (
               <li key={it.key} className="flex-1 min-w-0">
                 <button
                   type="button"
-                  onClick={() => onSelect(it.key)}
+                  onClick={() => !isLocked && onSelect(it.key)}
+                  disabled={isLocked}
+                  aria-disabled={isLocked || undefined}
                   className={cn(
                     "group relative flex w-full flex-col items-center justify-center gap-1 py-1.5 rounded-2xl transition-all",
-                    "active:scale-[0.96]",
+                    isLocked ? "opacity-30 cursor-not-allowed" : "active:scale-[0.96]",
                   )}
                   aria-current={isActive ? "page" : undefined}
                 >

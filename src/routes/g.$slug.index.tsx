@@ -799,6 +799,17 @@ function Guide({ data }: { data: GuideOk }) {
         wifiSsid={p.wifi_ssid ? String(p.wifi_ssid) : null}
         requestUnlock={requestUnlock}
         markPasswordsSeen={markPasswordsSeen}
+        theme={theme === "light" ? "light" : "dark"}
+        navItems={(() => {
+          const items: Array<{ key: import("@/components/guide/BottomNav").BottomNavKey; label: string }> = [
+            { key: "home", label: "Início" },
+          ];
+          if (hasCheckinData) items.push({ key: "checkin", label: "Chegada" });
+          if (hasSaidaData) items.push({ key: "saida", label: "Saída" });
+          if (hasResidencia) items.push({ key: "residencia", label: "Residência" });
+          if (hasExplore) items.push({ key: "explore", label: "Explorar" });
+          return items;
+        })()}
       />
       <div className="relative z-10 mx-auto w-full max-w-[490px] md:max-w-[520px]">
         <AnimatePresence mode="wait" initial={false}>
@@ -2769,6 +2780,8 @@ function PostAccessOnboarding({
   wifiSsid,
   requestUnlock,
   markPasswordsSeen,
+  theme,
+  navItems,
 }: {
   active: boolean;
   onDone: () => void;
@@ -2787,6 +2800,8 @@ function PostAccessOnboarding({
   wifiSsid?: string | null;
   requestUnlock: (cb?: () => void) => void;
   markPasswordsSeen: () => void;
+  theme: "dark" | "light";
+  navItems: Array<{ key: BottomNavKey; label: string }>;
 }) {
   const [step, setStep] = useState<0 | 1 | 2 | 3>(0);
   useEffect(() => {
@@ -2808,11 +2823,12 @@ function PostAccessOnboarding({
 
   return (
     <div
-      className="fixed inset-0 z-[70] bg-black/75 backdrop-blur-md flex items-center justify-center p-3"
-      role="dialog"
-      aria-modal="true"
+      className="fixed inset-0 z-[70] bg-background overflow-y-auto"
+      role="region"
+      aria-label="Onboarding de chegada"
     >
-      <div className="w-full max-w-[440px] max-h-[92vh] overflow-y-auto rounded-[26px] border border-[#a855f7]/25 bg-card/95 backdrop-blur-2xl shadow-[0_28px_70px_-18px_rgba(0,0,0,0.65),0_0_60px_-20px_rgba(232,45,174,0.3)] p-6 sm:p-7">
+      <div className="mx-auto w-full max-w-[490px] md:max-w-[520px] px-5 pt-8">
+        <div className="rounded-[26px] border border-[#a855f7]/25 bg-card/95 backdrop-blur-2xl shadow-[0_28px_70px_-18px_rgba(0,0,0,0.65),0_0_60px_-20px_rgba(232,45,174,0.3)] p-6 sm:p-7">
         {step < 3 && (
           <div className="mb-4 flex items-center gap-1.5">
             {[0, 1, 2].map((i) => (
@@ -3035,7 +3051,9 @@ function PostAccessOnboarding({
             </div>
           </div>
         )}
+        </div>
       </div>
+      <BottomNav theme={theme} active="checkin" items={navItems} onSelect={() => {}} lockedTo="checkin" />
     </div>
   );
 }
