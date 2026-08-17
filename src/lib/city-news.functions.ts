@@ -194,8 +194,8 @@ PRIORIZE — turismo, hospitalidade e experiência:
 
 Se o resultado não for claramente local e positivo, descarte-o. NÃO há limite máximo de itens — inclua TODOS os itens realmente bons e distintos que encontrar. Prefira qualidade a quantidade, mas não deixe de fora um item excelente por medo de repetir categoria: pode haver vários itens da mesma categoria (ex: vários restaurantes, vários eventos), desde que cada um seja genuinamente interessante e distinto dos outros. Descarte apenas duplicatas óbvias e itens medianos.`;
   const user = `Cidade-alvo: ${params.cityLabel}${params.country ? `, ${params.country}` : ""}.
-HOJE é ${params.today}. Nunca selecione algo que já aconteceu.
-Selecione TODOS os itens EXCLUSIVAMENTE sobre esta cidade que sejam realmente bons e distintos para animar um hóspede HOJE. Sem teto — pode retornar 5, 15 ou 25 itens, o que importa é a qualidade e diversidade real de opções. Aceite múltiplos itens da mesma categoria quando forem experiências distintas (ex: 4 restaurantes diferentes, 3 eventos distintos).
+HOJE é ${params.today}. A janela válida vai de ${params.today} até ${addDays(params.today, NEWS_WINDOW_DAYS)} (hoje + ${NEWS_WINDOW_DAYS} dias). Nunca selecione algo que já aconteceu nem algo que só ocorre depois dessa janela.
+Selecione TODOS os itens EXCLUSIVAMENTE sobre esta cidade que sejam realmente bons e distintos para animar um hóspede nos próximos ${NEWS_WINDOW_DAYS} dias. Sem teto — pode retornar 5, 15 ou 25 itens, o que importa é a qualidade e diversidade real de opções. Aceite múltiplos itens da mesma categoria quando forem experiências distintas (ex: 4 restaurantes diferentes, 3 eventos distintos).
 
 Retorne JSON estrito: {"items":[{"title":"...","category":"...","summary":"...","emoji":"...","imageQuery":"...","sourceIndex":0,"startDate":null,"endDate":null,"venue":null}]}
 - title: até 9 palavras, tom convidativo e positivo (ex: "Festival de jazz ilumina o centro histórico"). Nunca copie o título original.
