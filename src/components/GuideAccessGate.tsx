@@ -907,22 +907,20 @@ function Step2(props: {
         )}
       </div>
 
-      <div className="flex items-center gap-2 pt-5">
-        <Button
+      <div className="pt-4">
+        <PrimaryButton loading={loading} onClick={onSubmit}>
+          {loading ? "Verificando…" : "Concluir cadastro"}
+          {!loading && <span className="text-[15px] leading-none">→</span>}
+        </PrimaryButton>
+        <button
           type="button"
-          variant="ghost"
           onClick={onBack}
-          className="h-12 rounded-full px-4 text-[13px] font-medium text-muted-foreground hover:text-foreground"
+          className="mx-auto mt-3 block text-[13px] font-medium text-muted-foreground hover:text-foreground"
         >
-          <ArrowLeft className="size-4 mr-1" /> Voltar
-        </Button>
-        <div className="flex-1">
-          <PrimaryButton loading={loading} onClick={onSubmit}>
-            {loading ? "Verificando…" : "Acessar guia"}
-            {!loading && <ArrowRight className="size-4 transition-transform duration-200 group-hover:translate-x-0.5" />}
-          </PrimaryButton>
-        </div>
+          ← Voltar
+        </button>
       </div>
+
     </>
   );
 }
