@@ -29,6 +29,7 @@ export const generalistAgent: AgentDefinition = {
     "search_places",
     "get_weather",
     "get_itinerary",
+    "set_reservation_mode",
     "add_itinerary_item",
     "remove_itinerary_item",
     "request_human_handoff",

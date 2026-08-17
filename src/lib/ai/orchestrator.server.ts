@@ -114,6 +114,12 @@ export async function runHospitalityAgent(params: {
   /** Gatilho proativo, quando a interação nasceu de uma ação antecipada. */
   proactiveTrigger?: string | null;
   autonomyLevel?: string | null;
+  /** Datas da reserva — usadas para vincular o roteiro (itinerário) à
+   * RESERVA, não ao hóspede individual: mais de uma pessoa pode estar
+   * conversando sobre a mesma reserva (casal, cada um pelo próprio
+   * celular), e todos precisam ver o mesmo roteiro compartilhado. */
+  checkinDate?: string | null;
+  checkoutDate?: string | null;
   /** Progresso em tempo real do pipeline (streaming para a UI do hóspede). */
   onStage?: (stage: { step: string; label: string }) => void;
 }): Promise<OrchestratorResult> {
@@ -372,6 +378,37 @@ export async function runHospitalityAgent(params: {
   let escalationId: string | null = null;
   let escalationQuestion: string | null = null;
 
+  // Chave do roteiro: só vira compartilhada por RESERVA quando TODAS as
+  // pessoas já vinculadas a ela votaram por tratar em grupo (consenso
+  // explícito, nunca forçado) — ver reservation-mode.server.ts. Sem
+  // consenso, cada hóspede continua com seu próprio roteiro isolado.
+  let reservationKey = guestKey;
+  let reservationModeContext = "";
+  if (params.checkinDate && params.checkoutDate && params.guestName) {
+    try {
+      const { getReservationMode } = await import("./reservation-mode.server");
+      const modeInfo = await getReservationMode({
+        supabase,
+        propertyId,
+        checkinDate: params.checkinDate,
+        checkoutDate: params.checkoutDate,
+        currentGuestName: params.guestName,
+      });
+      if (modeInfo.mode === "group") {
+        reservationKey = `${params.checkinDate}::${params.checkoutDate}`;
+      }
+      if (modeInfo.otherGuestNames.length > 0 && modeInfo.currentGuestHasNotVoted) {
+        reservationModeContext =
+          `\n\n[Outra(s) pessoa(s) também vinculada(s) a esta mesma reserva: ${modeInfo.otherGuestNames.join(", ")}. ` +
+          `Você ainda não perguntou se preferem tratar assuntos (como o roteiro da viagem) em conjunto ou ` +
+          `separadamente — pergunte isso de forma natural, uma única vez, na próxima resposta relevante ` +
+          `(não precisa ser a primeira coisa da conversa). Use set_reservation_mode para registrar a resposta.]`;
+      }
+    } catch (e) {
+      console.error("[orchestrator] getReservationMode falhou", e);
+    }
+  }
+
   const toolCtx: ToolContext = {
     supabase,
     ownerId,
@@ -380,6 +417,9 @@ export async function runHospitalityAgent(params: {
     conversationId: params.conversationId,
     guestName: params.guestName,
     guestKey,
+    reservationKey,
+    checkinDate: params.checkinDate ?? null,
+    checkoutDate: params.checkoutDate ?? null,
     sensitiveLocked: context.sensitiveLocked,
     collectSource: (entry) => {
       sources.push({ source: entry.source, title: entry.title, confidence: entry.confidence });
@@ -416,6 +456,7 @@ export async function runHospitalityAgent(params: {
     `\n\nRANKING PERMANENTE DE FONTES (em conflito, o tier menor sempre vence)\n${renderSourceRanking()}` +
     `\n\nCONTEXTO ATUAL\n${context.text}` +
     `\n\nCONTEXTO DO HÓSPEDE E MEMÓRIA (uso interno — nunca revele ao hóspede que existe histórico registrado)\n${guestContext.text}` +
+    reservationModeContext +
     renderHumanAnswers(humanAnswers) +
     `\n\nINTENÇÃO DETECTADA: ${intent.intent} (categoria=${intent.category}, urgência=${intent.urgency}, idioma=${intent.language})` +
     `\n\nPLANO DE EXECUÇÃO (definido pelo planejador)\n${renderPlan(plan)}` +

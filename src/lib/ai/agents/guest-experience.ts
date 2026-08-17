@@ -16,6 +16,7 @@ export const guestExperienceAgent: AgentDefinition = {
     "search_knowledge_base",
     "get_property_facts",
     "get_itinerary",
+    "set_reservation_mode",
     "add_itinerary_item",
     "remove_itinerary_item",
     "request_human_handoff",

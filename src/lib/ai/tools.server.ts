@@ -72,8 +72,13 @@ export type ToolContext = {
   property: Record<string, unknown>;
   conversationId: string | null;
   guestName: string | null;
-  /** Chave estável do hóspede (nome ou sessão) — usada pelo itinerário. */
+  /** Chave estável do hóspede (nome ou sessão) — usada pela memória pessoal. */
   guestKey: string;
+  /** Chave da RESERVA (datas de check-in/check-out) — usada pelo roteiro
+   * compartilhado, já que mais de uma pessoa pode estar na mesma reserva. */
+  reservationKey: string;
+  checkinDate: string | null;
+  checkoutDate: string | null;
   sensitiveLocked: boolean;
   /** Registra as fontes efetivamente consultadas (observabilidade + validação). */
   collectSource: (entry: { source: string; title?: string | null; confidence: number; content?: string }) => void;
@@ -391,6 +396,35 @@ export function buildGuestTools(ctx: ToolContext): AgentTool[] {
   });
 
   tools.push({
+    name: "set_reservation_mode",
+    description:
+      "Registra a escolha do hóspede sobre como tratar assuntos (como o roteiro da viagem) quando há mais de " +
+      "uma pessoa vinculada à mesma reserva: em conjunto (grupo) ou cada um separadamente (individual). Só " +
+      "chame depois que o PRÓPRIO hóspede responder claramente a essa pergunta — nunca decida por ele. O modo " +
+      "grupo só entra em vigor de verdade quando TODAS as pessoas da reserva votarem grupo; enquanto isso não " +
+      "acontece, cada um continua isolado — isso é esperado, não avise como se fosse um erro.",
+    parameters: schema(
+      {
+        modo: { type: "string", enum: ["individual", "group"], description: "O que o hóspede escolheu." },
+      },
+      ["modo"],
+    ),
+    execute: async (args) => {
+      if (!ctx.guestName || !ctx.checkinDate || !ctx.checkoutDate) return { ok: false };
+      const { setReservationVote } = await import("./reservation-mode.server");
+      await setReservationVote({
+        supabase: ctx.supabase,
+        propertyId: ctx.propertyId,
+        checkinDate: ctx.checkinDate,
+        checkoutDate: ctx.checkoutDate,
+        guestName: ctx.guestName,
+        vote: args.modo === "group" ? "group" : "individual",
+      });
+      return { ok: true };
+    },
+  });
+
+  tools.push({
     name: "get_itinerary",
     description:
       "Lê o roteiro/itinerário que já foi montado com o hóspede até agora (dias e itens). Use antes de sugerir " +
@@ -398,7 +432,7 @@ export function buildGuestTools(ctx: ToolContext): AgentTool[] {
     parameters: schema({}, []),
     execute: async () => {
       const { getItinerary } = await import("./itinerary.server");
-      const days = await getItinerary({ supabase: ctx.supabase, propertyId: ctx.propertyId, guestKey: ctx.guestKey });
+      const days = await getItinerary({ supabase: ctx.supabase, propertyId: ctx.propertyId, reservationKey: ctx.reservationKey });
       if (days.length) ctx.collectSource({ source: "itinerary", title: "Roteiro do hóspede", confidence: confidenceOf("itinerary") });
       return { dias: days };
     },
@@ -430,7 +464,7 @@ export function buildGuestTools(ctx: ToolContext): AgentTool[] {
         supabase: ctx.supabase,
         propertyId: ctx.propertyId,
         ownerId: ctx.ownerId,
-        guestKey: ctx.guestKey,
+        reservationKey: ctx.reservationKey,
         guestName: ctx.guestName,
         date: String(args.data ?? "").slice(0, 10),
         time: typeof args.horario === "string" ? args.horario : null,
@@ -456,7 +490,7 @@ export function buildGuestTools(ctx: ToolContext): AgentTool[] {
         supabase: ctx.supabase,
         propertyId: ctx.propertyId,
         ownerId: ctx.ownerId,
-        guestKey: ctx.guestKey,
+        reservationKey: ctx.reservationKey,
         guestName: ctx.guestName,
         itemId: String(args.item_id ?? ""),
       });
