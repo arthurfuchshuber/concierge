@@ -1032,22 +1032,22 @@ function QuestionBlock({
   asToggle?: boolean;
 }) {
   return (
-    <div className="rounded-[18px] border border-border p-4 transition-colors">
-      <div className="flex items-start gap-2 mb-3.5">
-        <span aria-hidden className="text-[16px] leading-[1.25] shrink-0">
+    <div className="rounded-[16px] border border-border p-3.5 transition-colors">
+      <div className="flex items-start gap-2 mb-3">
+        <span aria-hidden className="text-[14px] leading-[1.25] shrink-0">
           {icon}
         </span>
         <div className="min-w-0 flex-1">
-          <div className="text-[15px] font-bold leading-tight text-foreground">{title}</div>
-          {required && <div className="text-[10px] uppercase tracking-wider text-[#c084fc]/70 mt-0.5">Obrigatório</div>}
+          <div className="text-[13.5px] font-bold leading-snug text-foreground text-pretty">{title}</div>
+          {required && <div className="text-[9.5px] uppercase tracking-wider text-[#c084fc]/70 mt-0.5">Obrigatório</div>}
         </div>
       </div>
-      <div className="flex items-center gap-2.5">
+      <div className="flex items-center gap-2">
         <button
           type="button"
           onClick={() => onAnswer("yes")}
           className={cn(
-            "flex-1 h-[52px] rounded-[14px] text-[15px] font-bold border transition-all",
+            "flex-1 h-[42px] rounded-[12px] text-[13.5px] font-bold border transition-all",
             answer === "yes"
               ? "bg-gradient-to-r from-[#7C1AD8] to-[#E82DAE] text-white border-transparent"
               : "border-border text-muted-foreground hover:text-foreground",
@@ -1059,7 +1059,7 @@ function QuestionBlock({
           type="button"
           onClick={() => onAnswer("no")}
           className={cn(
-            "flex-1 h-[52px] rounded-[14px] text-[15px] font-medium border transition-all",
+            "flex-1 h-[42px] rounded-[12px] text-[13.5px] font-medium border transition-all",
             answer === "no"
               ? "bg-foreground/[0.1] text-foreground border-border"
               : "border-border text-muted-foreground hover:text-foreground",
