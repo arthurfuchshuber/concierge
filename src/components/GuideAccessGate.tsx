@@ -826,7 +826,7 @@ function Step2(props: {
         {/* Vehicles */}
         {cfg.vehicles !== "off" && (
           <QuestionBlock
-            icon={<Car className="size-4" />}
+            icon="🚗"
             title="Você virá de veículo?"
             required={cfg.vehicles === "required"}
             answer={vehicleAns}
@@ -896,7 +896,7 @@ function Step2(props: {
         {/* Documents */}
         {cfg.document !== "off" && (
           <QuestionBlock
-            icon={<FileText className="size-4" />}
+            icon="📄"
             title={cfg.documentScope === "all" ? "Anexar documento(s) pessoal(is)" : "Anexar documento pessoal"}
             required={cfg.document === "required"}
             asToggle
