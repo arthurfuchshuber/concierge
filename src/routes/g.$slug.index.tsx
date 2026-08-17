@@ -796,6 +796,7 @@ function Guide({ data }: { data: GuideOk }) {
             }
           }}
           timeZone={propertyTimeZone(p.city as string | null, (p as any).country as string | null)}
+          minArrivalTime={(p.checkin_time as string | null) ?? null}
           theme={theme === "light" ? "light" : "dark"}
           navItems={guideNavItems}
           prefill={formPrefill}
@@ -2857,8 +2858,14 @@ function PostAccessOnboarding({
       aria-label="Onboarding de chegada"
     >
       <div className="mx-auto w-full max-w-[490px] md:max-w-[520px] px-5 pt-8">
-        <div className="rounded-[26px] border border-[#a855f7]/25 bg-card/95 backdrop-blur-2xl shadow-[0_28px_70px_-18px_rgba(0,0,0,0.65),0_0_60px_-20px_rgba(232,45,174,0.3)] p-6 sm:p-7">
-        {step < 3 && (
+        <div
+          className={cn(
+            step === 0
+              ? ""
+              : "rounded-[26px] border border-[#a855f7]/25 bg-card/95 backdrop-blur-2xl shadow-[0_28px_70px_-18px_rgba(0,0,0,0.65),0_0_60px_-20px_rgba(232,45,174,0.3)] p-6 sm:p-7",
+          )}
+        >
+        {step > 0 && step < 3 && (
           <div className="mb-4 flex items-center gap-1.5">
             {[0, 1, 2].map((i) => (
               <span
@@ -2878,40 +2885,45 @@ function PostAccessOnboarding({
         {/* Passo 1: confirmação da estadia */}
         {step === 0 && (
           <>
-            <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-[#c084fc] mb-1.5">
+            <h2 className="text-[28px] font-bold leading-[1.12] tracking-tight text-foreground mb-1.5">
               Tudo certo, {firstName}!
-            </p>
-            <DialogTitleFallback className="mb-1">Confere se está tudo certo</DialogTitleFallback>
-            <p className="text-[13px] leading-relaxed text-muted-foreground mb-5">
-              Se algo estiver errado, é só nos chamar no chat.
+            </h2>
+            <p className="text-[16px] leading-relaxed text-muted-foreground mb-5">
+              Confere os dados e veja onde vai estar sua senha.
             </p>
 
-            <div className="rounded-2xl border border-border bg-background/40 p-4 mb-3">
-              <div className="flex items-start justify-between pb-3 mb-3 border-b border-border gap-3">
-                <div>
-                  <p className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">Check-in</p>
-                  <p className="text-[14px] font-semibold">
-                    {fmtOnbDate(checkinDate)}
-                    {checkinTime ? ` · a partir das ${checkinTime}` : ""}
-                  </p>
-                </div>
-                <div className="text-right">
-                  <p className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">Check-out</p>
-                  <p className="text-[14px] font-semibold">
-                    {fmtOnbDate(checkoutDate)}
-                    {checkoutTime ? ` · até ${checkoutTime}` : ""}
-                  </p>
-                </div>
+            <div className="rounded-[18px] border border-border bg-foreground/[0.03] px-4 mb-4">
+              <div className="flex items-center justify-between gap-3 py-3.5 border-b border-border">
+                <p className="text-[15px] text-muted-foreground">Check-in</p>
+                <p className="text-[15px] font-bold text-foreground text-right">
+                  {fmtOnbDate(checkinDate)}
+                  {checkinTime ? ` · a partir das ${checkinTime}` : ""}
+                </p>
+              </div>
+              <div className={cn("flex items-center justify-between gap-3 py-3.5", address && "border-b border-border")}>
+                <p className="text-[15px] text-muted-foreground">Check-out</p>
+                <p className="text-[15px] font-bold text-foreground text-right">
+                  {fmtOnbDate(checkoutDate)}
+                  {checkoutTime ? ` · até ${checkoutTime}` : ""}
+                </p>
               </div>
               {address && (
-                <div className="flex items-start gap-2">
-                  <MapPin className="size-4 text-muted-foreground shrink-0 mt-0.5" />
-                  <p className="text-[13px] text-muted-foreground leading-relaxed">{address}</p>
+                <div className="flex items-center justify-between gap-3 py-3.5">
+                  <p className="text-[15px] text-muted-foreground shrink-0">Endereço</p>
+                  <p className="text-[15px] font-bold text-foreground text-right">{address}</p>
                 </div>
               )}
             </div>
 
-            <div className="flex gap-2">
+            <div className="rounded-[18px] border border-[#a855f7]/35 bg-[#a855f7]/[0.08] p-4 flex items-start gap-3">
+              <span aria-hidden className="text-[20px] leading-none mt-0.5">🔑</span>
+              <p className="text-[15px] leading-[1.5] text-foreground/90">
+                Na aba <b className="font-bold text-foreground">Chegada</b>, seu passo a passo e a senha aparecem
+                sozinhos assim que a janela de check-in abrir.
+              </p>
+            </div>
+
+            <div className="flex gap-2 mt-5">
               <button
                 type="button"
                 onClick={onBackToForm}
@@ -2929,6 +2941,7 @@ function PostAccessOnboarding({
             </div>
           </>
         )}
+
 
         {/* Passo 2: passo a passo real da chegada */}
         {step === 1 && (

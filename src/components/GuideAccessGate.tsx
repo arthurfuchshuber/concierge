@@ -160,7 +160,7 @@ function dateFromISODate(value: string): Date | null {
   return new Date(y, m - 1, d, 12, 0, 0, 0);
 }
 
-export function GuideAccessGate({ slug, propertyId, propertyName, requireReservationCode, collection, onUnlock, theme = "dark", timeZone = "America/Sao_Paulo", navItems = [], prefill = null }: Props & { timeZone?: string }) {
+export function GuideAccessGate({ slug, propertyId, propertyName, requireReservationCode, collection, onUnlock, theme = "dark", timeZone = "America/Sao_Paulo", navItems = [], prefill = null, minArrivalTime = null }: Props & { timeZone?: string; minArrivalTime?: string | null }) {
   const themeClass = cn("sigma-public-guide", theme === "light" && "theme-light");
 
   const submit = useServerFn(recordGuideAccess);
@@ -505,16 +505,44 @@ export function GuideAccessGate({ slug, propertyId, propertyName, requireReserva
     }
   }
 
+  const reservationBanner =
+    resCheck.state === "matched" ? (
+      <div className="flex items-center gap-2 rounded-[14px] border border-emerald-500/35 bg-emerald-500/[0.08] px-3.5 py-3 text-[13px] font-medium text-emerald-400">
+        <span aria-hidden>✓</span>
+        <span>Reserva Airbnb encontrada para estas datas.</span>
+      </div>
+    ) : resCheck.state === "no-match" ? (
+      <div className="flex items-start gap-2 rounded-[14px] border border-amber-500/35 bg-amber-500/[0.08] px-3.5 py-3 text-[12.5px] text-amber-300">
+        <AlertTriangle className="size-4 shrink-0 mt-0.5" />
+        <span>
+          Não encontramos uma reserva Airbnb para estas datas.
+          {resCheck.suggestedCheckout && (
+            <>
+              {" "}Sua chegada bate com uma reserva, mas a saída é{" "}
+              <b>
+                {new Date(resCheck.suggestedCheckout + "T12:00:00").toLocaleDateString("pt-BR", {
+                  day: "2-digit",
+                  month: "short",
+                })}
+              </b>
+              . Confira se digitou corretamente.
+            </>
+          )}
+          {!resCheck.suggestedCheckout && " Confira se selecionou exatamente a entrada e saída liberadas no calendário."}
+        </span>
+      </div>
+    ) : null;
+
   return (
     <div
       className={cn(themeClass, "fixed inset-0 z-50 bg-background overflow-y-auto")}
       role="region"
       aria-label="Identificação do hóspede"
     >
-      <div className="mx-auto w-full max-w-[490px] md:max-w-[520px] px-5 pt-8">
+      <div className="mx-auto flex w-full max-w-[490px] md:max-w-[520px] min-h-[100dvh] items-center px-5 pt-6 pb-[110px]">
         <div
           className={cn(
-            "rounded-[26px] border border-[#a855f7]/25",
+            "w-full rounded-[26px] border border-[#a855f7]/25",
             "bg-card/95 text-card-foreground",
             "backdrop-blur-2xl backdrop-saturate-150",
             "shadow-[0_28px_70px_-18px_rgba(0,0,0,0.65),0_0_60px_-20px_rgba(232,45,174,0.3)]",
@@ -536,20 +564,20 @@ export function GuideAccessGate({ slug, propertyId, propertyName, requireReserva
           {step === 1 ? (
             <>
               <div className="mb-5 space-y-1.5">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-[#c084fc]">
+                <p className="text-[11px] font-bold uppercase tracking-[0.24em] text-[#c084fc]">
                   Boas-vindas
                 </p>
-                <h2 className="font-serif text-[24px] leading-[1.1] tracking-tight text-foreground">
+                <h2 className="text-[26px] font-bold leading-[1.12] tracking-tight text-foreground">
                   {propertyName}
                 </h2>
 
-                <p className="text-[13px] leading-relaxed text-muted-foreground">
+                <p className="text-[14px] leading-relaxed text-muted-foreground">
                   Rápido preenchimento para liberar o guia.
                 </p>
               </div>
 
-              <form onSubmit={handleStep1Next} className="space-y-4">
-                <FieldShell icon={<User2 className="size-[17px]" />}>
+              <form onSubmit={handleStep1Next} className="space-y-3">
+                <FieldShell icon={<span className="text-[17px] leading-none">👤</span>}>
                   <Label htmlFor="guest-name" className="sr-only">Nome</Label>
                   <Input
                     id="guest-name"
@@ -557,17 +585,18 @@ export function GuideAccessGate({ slug, propertyId, propertyName, requireReserva
                     onChange={(e) => setName(e.target.value)}
                     maxLength={200}
                     required
-                    className="h-[48px] rounded-[12px] pl-10 pr-3 text-[14.5px] bg-transparent border-transparent focus-visible:ring-0 focus-visible:border-transparent"
+                    className="h-[56px] rounded-[14px] pl-11 pr-3 text-[15.5px] font-medium bg-transparent border-transparent focus-visible:ring-0 focus-visible:border-transparent"
                     placeholder="Nome como aparece na reserva"
                   />
                 </FieldShell>
 
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-2 gap-2.5">
                   <RangeButton
                     themeClass={themeClass}
                     label="Chegada"
                     open={checkinPopoverOpen}
                     onOpenChange={setCheckinPopoverOpen}
+                    emoji="📅"
                     value={range?.from ? format(range.from, "dd MMM", { locale: ptBR }) : "—"}
                     popover={
                       <Calendar
@@ -597,35 +626,6 @@ export function GuideAccessGate({ slug, propertyId, propertyName, requireReserva
                   />
                 </div>
 
-                {resCheck.state === "matched" && (
-                  <div className="flex items-center gap-2 text-[12px] text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2">
-                    <CheckCircle2 className="size-4 shrink-0" />
-                    <span>Reserva Airbnb encontrada para estas datas.</span>
-                  </div>
-                )}
-                {resCheck.state === "no-match" && (
-                  <div className="flex items-start gap-2 text-[12px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-                    <AlertTriangle className="size-4 shrink-0 mt-0.5" />
-                    <span>
-                      Não encontramos uma reserva Airbnb para estas datas.
-                      {resCheck.suggestedCheckout && (
-                        <>
-                          {" "}Sua chegada bate com uma reserva, mas a saída é{" "}
-                          <b>
-                            {new Date(resCheck.suggestedCheckout + "T12:00:00").toLocaleDateString("pt-BR", {
-                              day: "2-digit",
-                              month: "short",
-                            })}
-                          </b>
-                          . Confira se digitou corretamente.
-                        </>
-                      )}
-                      {!resCheck.suggestedCheckout && " Confira se selecionou exatamente a entrada e saída liberadas no calendário."}
-                    </span>
-                  </div>
-                )}
-
-
                 <div className="sg-phone-input">
                   <PhoneInput
                     id="guest-phone"
@@ -640,6 +640,8 @@ export function GuideAccessGate({ slug, propertyId, propertyName, requireReserva
                   />
                 </div>
 
+                {reservationBanner}
+
                 {requireReservationCode && (
                   <FieldShell>
                     <Input
@@ -647,29 +649,33 @@ export function GuideAccessGate({ slug, propertyId, propertyName, requireReserva
                       onChange={(e) => setCode(e.target.value)}
                       maxLength={100}
                       required
-                      className="h-[48px] rounded-[12px] px-3 text-[14.5px] bg-transparent border-transparent focus-visible:ring-0"
+                      className="h-[56px] rounded-[14px] px-3 text-[15.5px] bg-transparent border-transparent focus-visible:ring-0"
                       placeholder="Código da reserva"
                     />
                   </FieldShell>
                 )}
 
 
-                <div className="flex items-center gap-1.5 pt-0.5 text-[11.5px] text-muted-foreground/85">
-                  <Lock className="size-3 text-primary/70" />
+                <div className="flex items-center gap-1.5 pt-0.5 text-[12.5px] text-muted-foreground/85">
+                  <span aria-hidden className="text-[13px] leading-none">🔒</span>
                   <span>Seus dados ficam seguros e privados.</span>
                 </div>
 
-                <PrimaryButton loading={loading}>
-                  {hasOptionals ? "Continuar" : "Acessar guia"}
-                  <ArrowRight className="size-4 transition-transform duration-200 group-hover:translate-x-0.5" />
-                </PrimaryButton>
+                <div className="pt-1.5">
+                  <PrimaryButton loading={loading}>
+                    {hasOptionals ? "Continuar →" : "Acessar guia →"}
+                  </PrimaryButton>
+                </div>
               </form>
             </>
+
           ) : (
             <Step2
               cfg={cfg}
               slug={slug}
+              minArrivalTime={minArrivalTime}
               defaultName={titleCaseName(name)}
+
               arrivalAns={arrivalAns}
               setArrivalAns={setArrivalAns}
               arrivalTime={arrivalTime}
@@ -701,6 +707,9 @@ export function GuideAccessGate({ slug, propertyId, propertyName, requireReserva
 function Step2(props: {
   cfg: CollectionConfig;
   slug: string;
+  /** Horário mínimo de check-in do imóvel — a previsão de chegada nunca
+   * pode ser anterior a ele. */
+  minArrivalTime?: string | null;
   defaultName: string;
   arrivalAns: "yes" | "no" | null;
   setArrivalAns: (v: "yes" | "no" | null) => void;
@@ -721,33 +730,41 @@ function Step2(props: {
   onSubmit: () => void;
 }) {
   const {
-    cfg, slug, defaultName,
+    cfg, slug, defaultName, minArrivalTime,
     arrivalAns, setArrivalAns, arrivalTime, setArrivalTime,
     vehicleAns, setVehicleAns, vehicleCount, setVehicleCount, vehicles, setVehicles,
     docCount, setDocCount, docs, setDocs,
     loading, onBack, onSubmit,
   } = props;
 
+  // Piso da previsão de chegada = horário mínimo de check-in do imóvel.
+  const minParsed = String(minArrivalTime ?? "").match(/^(\d{1,2}):(\d{2})/);
+  const minH = minParsed ? Number(minParsed[1]) : 0;
+  const minM = minParsed ? Number(minParsed[2]) : 0;
+  const hourOptions = Array.from({ length: 24 - minH }, (_, i) => String(minH + i).padStart(2, "0"));
+  const selectedH = arrivalTime.h ? Number(arrivalTime.h) : minH;
+  const minuteOptions = ["00", "15", "30", "45"].filter((m) => selectedH > minH || Number(m) >= minM);
+
   return (
     <>
       <div className="mb-5 space-y-1.5">
-        <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-[#c084fc]">
+        <p className="text-[11px] font-bold uppercase tracking-[0.24em] text-[#c084fc]">
           Últimos detalhes
         </p>
-        <h2 className="font-serif text-[24px] leading-[1.1] tracking-tight text-foreground">
+        <h2 className="text-[26px] font-bold leading-[1.12] tracking-tight text-foreground">
           Só mais algumas perguntas
         </h2>
 
-        <p className="text-[13px] leading-relaxed text-muted-foreground">
+        <p className="text-[14px] leading-relaxed text-muted-foreground">
           Isso ajuda o anfitrião a preparar sua chegada.
         </p>
       </div>
 
-      <div className="space-y-4">
+      <div className="space-y-3">
         {/* Arrival */}
         {cfg.arrivalTime !== "off" && (
           <QuestionBlock
-            icon={<Clock className="size-4" />}
+            icon="🕐"
             title="Você tem previsão de chegada?"
             required={cfg.arrivalTime === "required"}
             answer={arrivalAns}
@@ -757,37 +774,59 @@ function Step2(props: {
             }}
           >
             {arrivalAns === "yes" && (
-              <div className="mt-3 flex items-center gap-2">
-                <label className="text-[11px] uppercase tracking-widest text-muted-foreground font-semibold whitespace-nowrap">
+              <div className="mt-3.5 flex items-center gap-2">
+                <label className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground font-bold whitespace-nowrap">
                   Chegada por volta de
                 </label>
-                <Select
-                  value={arrivalTime.h !== "" && arrivalTime.m !== "" ? `${arrivalTime.h.padStart(2, "0")}:${arrivalTime.m.padStart(2, "0")}` : undefined}
-                  onValueChange={(v) => {
-                    const [h, m] = v.split(":");
-                    setArrivalTime({ h, m });
-                  }}
-                >
-                  <SelectTrigger className="ml-auto h-10 w-[100px] rounded-[10px] bg-transparent text-[14px]">
-                    <SelectValue placeholder="hh:mm" />
-                  </SelectTrigger>
-                  <SelectContent className="max-h-[280px]">
-                    {ARRIVAL_TIME_OPTIONS.map((t) => (
-                      <SelectItem key={t} value={t}>
-                        {t}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <div className="ml-auto flex items-center gap-1.5">
+                  <Select
+                    value={arrivalTime.h ? arrivalTime.h.padStart(2, "0") : undefined}
+                    onValueChange={(h) => {
+                      const nextM =
+                        Number(h) === minH && Number(arrivalTime.m || "0") < minM
+                          ? String(minM).padStart(2, "0")
+                          : (arrivalTime.m || "00").padStart(2, "0");
+                      setArrivalTime({ h, m: nextM });
+                    }}
+                  >
+                    <SelectTrigger className="h-11 w-[62px] justify-center rounded-[12px] border-border bg-foreground/[0.04] text-[16px] font-bold [&>svg]:hidden">
+                      <SelectValue placeholder="hh" />
+                    </SelectTrigger>
+                    <SelectContent className="max-h-[280px] min-w-[70px]">
+                      {hourOptions.map((h) => (
+                        <SelectItem key={h} value={h}>
+                          {h}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <span className="text-[16px] font-bold text-muted-foreground">:</span>
+                  <Select
+                    value={arrivalTime.m ? arrivalTime.m.padStart(2, "0") : undefined}
+                    onValueChange={(m) => setArrivalTime({ h: arrivalTime.h || String(minH).padStart(2, "0"), m })}
+                  >
+                    <SelectTrigger className="h-11 w-[62px] justify-center rounded-[12px] border-border bg-foreground/[0.04] text-[16px] font-bold [&>svg]:hidden">
+                      <SelectValue placeholder="mm" />
+                    </SelectTrigger>
+                    <SelectContent className="max-h-[280px] min-w-[70px]">
+                      {minuteOptions.map((m) => (
+                        <SelectItem key={m} value={m}>
+                          {m}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
             )}
           </QuestionBlock>
         )}
 
+
         {/* Vehicles */}
         {cfg.vehicles !== "off" && (
           <QuestionBlock
-            icon={<Car className="size-4" />}
+            icon="🚗"
             title="Você virá de veículo?"
             required={cfg.vehicles === "required"}
             answer={vehicleAns}
@@ -857,7 +896,7 @@ function Step2(props: {
         {/* Documents */}
         {cfg.document !== "off" && (
           <QuestionBlock
-            icon={<FileText className="size-4" />}
+            icon="📄"
             title={cfg.documentScope === "all" ? "Anexar documento(s) pessoal(is)" : "Anexar documento pessoal"}
             required={cfg.document === "required"}
             asToggle
@@ -912,7 +951,7 @@ function Step2(props: {
         )}
       </div>
 
-      <div className="flex items-center gap-2 pt-5">
+      <div className="flex items-center gap-2 pt-4">
         <Button
           type="button"
           variant="ghost"
@@ -923,8 +962,7 @@ function Step2(props: {
         </Button>
         <div className="flex-1">
           <PrimaryButton loading={loading} onClick={onSubmit}>
-            {loading ? "Verificando…" : "Acessar guia"}
-            {!loading && <ArrowRight className="size-4 transition-transform duration-200 group-hover:translate-x-0.5" />}
+            {loading ? "Verificando…" : "Concluir cadastro →"}
           </PrimaryButton>
         </div>
       </div>
@@ -946,36 +984,36 @@ function QuestionBlock({
   asToggle?: boolean;
 }) {
   return (
-    <div className="rounded-[16px] border border-border p-3.5 transition-colors mb-2.5">
-      <div className="flex items-center gap-2.5 mb-3">
-        <span className="grid size-8 place-items-center rounded-full bg-[#a855f7]/12 text-[#c084fc] shrink-0 text-[15px]">
+    <div className="rounded-[18px] border border-border p-4 transition-colors">
+      <div className="flex items-start gap-2 mb-3.5">
+        <span aria-hidden className="text-[16px] leading-[1.25] shrink-0">
           {icon}
         </span>
         <div className="min-w-0 flex-1">
-          <div className="text-[13.5px] font-semibold leading-tight">{title}</div>
+          <div className="text-[15px] font-bold leading-tight text-foreground">{title}</div>
           {required && (
             <div className="text-[10px] uppercase tracking-wider text-[#c084fc]/70 mt-0.5">Obrigatório</div>
           )}
         </div>
       </div>
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2.5">
         <button
           type="button"
           onClick={() => onAnswer("yes")}
           className={cn(
-            "flex-1 h-9 rounded-[10px] text-[12.5px] font-semibold border transition-all",
+            "flex-1 h-[52px] rounded-[14px] text-[15px] font-bold border transition-all",
             answer === "yes"
               ? "bg-gradient-to-r from-[#7C1AD8] to-[#E82DAE] text-white border-transparent"
               : "border-border text-muted-foreground hover:text-foreground",
           )}
         >
-          {asToggle ? "Sim" : "Sim"}
+          Sim
         </button>
         <button
           type="button"
           onClick={() => onAnswer("no")}
           className={cn(
-            "flex-1 h-9 rounded-[10px] text-[12.5px] font-semibold border transition-all",
+            "flex-1 h-[52px] rounded-[14px] text-[15px] font-medium border transition-all",
             answer === "no"
               ? "bg-foreground/[0.1] text-foreground border-border"
               : "border-border text-muted-foreground hover:text-foreground",
@@ -990,6 +1028,7 @@ function QuestionBlock({
     </div>
   );
 }
+
 
 function DocUploadCard({
   slug, index, total, defaultName, doc, onUpdate,
@@ -1139,25 +1178,27 @@ function FieldShell({ icon, children }: { icon?: React.ReactNode; children: Reac
   );
 }
 
-function RangeButton({ label, value, popover, locked = false, themeClass, open, onOpenChange }: { label: string; value: string; popover?: React.ReactNode; locked?: boolean; themeClass?: string; open?: boolean; onOpenChange?: (open: boolean) => void }) {
+function RangeButton({ label, value, popover, locked = false, themeClass, open, onOpenChange, emoji }: { label: string; value: string; popover?: React.ReactNode; locked?: boolean; themeClass?: string; open?: boolean; onOpenChange?: (open: boolean) => void; emoji?: string }) {
+  const filled = value !== "—";
   const button = (
     <button
       type="button"
       disabled={locked}
       className={cn(
-        "relative w-full h-[54px] rounded-[12px] border bg-foreground/[0.04] px-3 text-left text-foreground",
+        "relative w-full h-[62px] rounded-[14px] border bg-foreground/[0.04] px-3.5 text-left text-foreground",
         "transition-colors hover:bg-foreground/[0.06] focus:outline-none",
         "flex flex-col justify-center disabled:cursor-default disabled:hover:bg-foreground/[0.04]",
-        open ? "border-[#a855f7]/70" : "border-border focus-visible:border-[#a855f7]/60",
+        !locked && (open || filled) ? "border-[#a855f7]/70" : "border-border focus-visible:border-[#a855f7]/60",
       )}
     >
-      <span className="text-[9.5px] uppercase tracking-[0.2em] text-muted-foreground font-semibold whitespace-nowrap">{label}</span>
-      <span className="text-[14px] font-medium flex items-center gap-1.5 mt-0.5 text-foreground">
+      <span className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground font-semibold whitespace-nowrap">{label}</span>
+      <span className="text-[17px] font-bold flex items-center gap-1.5 mt-0.5 text-foreground">
         {value}
-        {!locked && <ChevronDown className="size-3 text-muted-foreground ml-auto" />}
+        {emoji && filled && <span aria-hidden className="text-[14px] leading-none">{emoji}</span>}
       </span>
     </button>
   );
+
 
   if (locked || !popover) return button;
 
