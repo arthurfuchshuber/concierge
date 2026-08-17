@@ -419,6 +419,10 @@ async function attachPlacePhotos(items: NewsItem[], cityLabel: string, country: 
   return items;
 }
 
+// Evita que vários hóspedes disparem a mesma geração ao mesmo tempo
+// (isso estourava o rate limit do Firecrawl e devolvia lista vazia a todos).
+const inflight = new Map<string, Promise<{ items: NewsItem[] | null; cached: boolean; generated: boolean }>>();
+
 // Núcleo compartilhado — usado pelo server fn e pelo cron diário.
 // Retorna { items, cached, generated } para o cron logar o que fez.
 export async function generateAndCacheCityNews(input: {
@@ -430,22 +434,32 @@ export async function generateAndCacheCityNews(input: {
 }): Promise<{ items: NewsItem[] | null; cached: boolean; generated: boolean }> {
   const lang = input.lang ?? "pt";
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const today = new Date().toISOString().slice(0, 10);
+  const { propertyTimeZone, todayInTZ } = await import("@/lib/property-timezone");
+  // A data tem que ser a da CIDADE, não UTC — senão o cache "vira o dia"
+  // às 21h locais e todo hóspede dispara uma geração nova do zero.
+  const today = todayInTZ(propertyTimeZone(input.cityLabel, input.country ?? null));
 
   if (!input.force) {
-    const { data: cached } = await supabaseAdmin
+    // Aceita o cache de hoje ou, na falta dele, o mais recente dos últimos dias —
+    // filtrado pela janela de calendário, nunca mostra nada vencido.
+    const { data: rows } = await supabaseAdmin
       .from("city_daily_news")
-      .select("items")
+      .select("items, date")
       .eq("city_key", input.cityKey)
-      .eq("date", today)
-      .maybeSingle();
-    if (cached?.items && Array.isArray(cached.items) && (cached.items as NewsItem[]).length > 0) {
-      let cachedItems = cached.items as NewsItem[];
+      .gte("date", addDays(today, -3))
+      .lte("date", today)
+      .order("date", { ascending: false })
+      .limit(3);
+    for (const row of (rows ?? []) as Array<{ items: unknown; date: string }>) {
+      if (!Array.isArray(row.items) || row.items.length === 0) continue;
+      let cachedItems = row.items as NewsItem[];
+      const isToday = row.date === today;
       // Migração one-shot: se o cache do dia ainda usa OG image antigo (URL http externa),
       // troca por fotos reais do Google Places e re-salva.
-      const needsPhotoMigration = cachedItems.some(
-        (it) => it.imageUrl && !it.imageUrl.startsWith("/api/public/place-photo"),
-      ) || cachedItems.every((it) => !it.imageUrl);
+      const needsPhotoMigration =
+        isToday &&
+        (cachedItems.some((it) => it.imageUrl && !it.imageUrl.startsWith("/api/public/place-photo")) ||
+          cachedItems.every((it) => !it.imageUrl));
       if (needsPhotoMigration) {
         try {
           cachedItems = await attachPlacePhotos(
@@ -461,10 +475,19 @@ export async function generateAndCacheCityNews(input: {
         }
       }
       cachedItems = filterUpcoming(cachedItems, today);
-      // Se sobrou algo válido, entregamos o cache; senão seguimos e geramos de novo.
+      // Se sobrou algo válido, entregamos o cache; senão tentamos o dia anterior.
       if (cachedItems.length > 0) return { items: cachedItems, cached: true, generated: false };
     }
+
+    // Sem cache aproveitável: gera, mas apenas uma vez por cidade/dia.
+    const lockKey = `${input.cityKey}:${today}`;
+    const running = inflight.get(lockKey);
+    if (running) return running;
+    const p = generateAndCacheCityNews({ ...input, force: true }).finally(() => inflight.delete(lockKey));
+    inflight.set(lockKey, p);
+    return p;
   }
+
 
   let candidates: FirecrawlSearchResult[] = [];
   try {
