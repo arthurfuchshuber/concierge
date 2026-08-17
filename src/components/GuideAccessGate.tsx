@@ -10,7 +10,15 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   CalendarIcon,
+  User2,
+  Lock,
+  ArrowRight,
+  ArrowLeft,
+  ChevronDown,
   Loader2,
+  Clock,
+  Car,
+  FileText,
   Camera,
   Paperclip,
   CheckCircle2,
@@ -521,7 +529,7 @@ export function GuideAccessGate({ slug, propertyId, propertyName, requireReserva
               </div>
 
               <form onSubmit={handleStep1Next} className="space-y-4">
-                <FieldShell icon={<span className="text-[17px] leading-none">👤</span>}>
+                <FieldShell icon={<User2 className="size-[17px]" />}>
                   <Label htmlFor="guest-name" className="sr-only">Nome</Label>
                   <Input
                     id="guest-name"
@@ -529,11 +537,10 @@ export function GuideAccessGate({ slug, propertyId, propertyName, requireReserva
                     onChange={(e) => setName(e.target.value)}
                     maxLength={200}
                     required
-                    className="h-[56px] rounded-[14px] pl-11 pr-3 text-[16px] font-medium bg-transparent border-transparent focus-visible:ring-0 focus-visible:border-transparent"
+                    className="h-[48px] rounded-[12px] pl-10 pr-3 text-[14.5px] bg-transparent border-transparent focus-visible:ring-0 focus-visible:border-transparent"
                     placeholder="Nome como aparece na reserva"
                   />
                 </FieldShell>
-
 
                 <div className="grid grid-cols-2 gap-2">
                   <RangeButton
@@ -571,13 +578,13 @@ export function GuideAccessGate({ slug, propertyId, propertyName, requireReserva
                 </div>
 
                 {resCheck.state === "matched" && (
-                  <div className="flex items-center gap-2 rounded-[14px] border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-[13.5px] font-medium text-emerald-300">
-                    <span className="shrink-0 text-[13px] leading-none">✓</span>
+                  <div className="flex items-center gap-2 text-[12px] text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2">
+                    <CheckCircle2 className="size-4 shrink-0" />
                     <span>Reserva Airbnb encontrada para estas datas.</span>
                   </div>
                 )}
                 {resCheck.state === "no-match" && (
-                  <div className="flex items-start gap-2 rounded-[14px] border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-[13px] text-amber-300">
+                  <div className="flex items-start gap-2 text-[12px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
                     <AlertTriangle className="size-4 shrink-0 mt-0.5" />
                     <span>
                       Não encontramos uma reserva Airbnb para estas datas.
@@ -597,7 +604,6 @@ export function GuideAccessGate({ slug, propertyId, propertyName, requireReserva
                     </span>
                   </div>
                 )}
-
 
 
                 <div className="sg-phone-input">
@@ -628,16 +634,15 @@ export function GuideAccessGate({ slug, propertyId, propertyName, requireReserva
                 )}
 
 
-                <div className="flex items-center gap-2 pt-0.5 text-[13px] text-muted-foreground/85">
-                  <span className="text-[13px] leading-none">🔒</span>
+                <div className="flex items-center gap-1.5 pt-0.5 text-[11.5px] text-muted-foreground/85">
+                  <Lock className="size-3 text-primary/70" />
                   <span>Seus dados ficam seguros e privados.</span>
                 </div>
 
                 <PrimaryButton loading={loading}>
                   {hasOptionals ? "Continuar" : "Acessar guia"}
-                  <span className="text-[15px] leading-none">→</span>
+                  <ArrowRight className="size-4 transition-transform duration-200 group-hover:translate-x-0.5" />
                 </PrimaryButton>
-
               </form>
             </>
           ) : (
@@ -722,7 +727,7 @@ function Step2(props: {
         {/* Arrival */}
         {cfg.arrivalTime !== "off" && (
           <QuestionBlock
-            icon="🕐"
+            icon={<Clock className="size-4" />}
             title="Você tem previsão de chegada?"
             required={cfg.arrivalTime === "required"}
             answer={arrivalAns}
@@ -732,39 +737,28 @@ function Step2(props: {
             }}
           >
             {arrivalAns === "yes" && (
-              <div className="mt-3.5 flex items-center gap-2">
-                <label className="text-[11.5px] uppercase tracking-[0.14em] text-muted-foreground font-bold whitespace-nowrap">
+              <div className="mt-3 flex items-center gap-2">
+                <label className="text-[11px] uppercase tracking-widest text-muted-foreground font-semibold whitespace-nowrap">
                   Chegada por volta de
                 </label>
-                <div className="ml-auto flex items-center gap-1.5">
-                  <Select
-                    value={arrivalTime.h !== "" ? arrivalTime.h.padStart(2, "0") : undefined}
-                    onValueChange={(h) => setArrivalTime({ h, m: arrivalTime.m || "00" })}
-                  >
-                    <SelectTrigger className="h-11 w-[64px] justify-center rounded-[12px] border-border bg-transparent text-[16px] font-bold [&>svg]:hidden">
-                      <SelectValue placeholder="hh" />
-                    </SelectTrigger>
-                    <SelectContent className="max-h-[280px]">
-                      {Array.from({ length: 24 }, (_, i) => String(i).padStart(2, "0")).map((h) => (
-                        <SelectItem key={h} value={h}>{h}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <span className="text-[16px] font-bold text-muted-foreground">:</span>
-                  <Select
-                    value={arrivalTime.m !== "" ? arrivalTime.m.padStart(2, "0") : undefined}
-                    onValueChange={(m) => setArrivalTime({ h: arrivalTime.h || "00", m })}
-                  >
-                    <SelectTrigger className="h-11 w-[64px] justify-center rounded-[12px] border-border bg-transparent text-[16px] font-bold [&>svg]:hidden">
-                      <SelectValue placeholder="mm" />
-                    </SelectTrigger>
-                    <SelectContent className="max-h-[280px]">
-                      {["00", "15", "30", "45"].map((m) => (
-                        <SelectItem key={m} value={m}>{m}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+                <Select
+                  value={arrivalTime.h !== "" && arrivalTime.m !== "" ? `${arrivalTime.h.padStart(2, "0")}:${arrivalTime.m.padStart(2, "0")}` : undefined}
+                  onValueChange={(v) => {
+                    const [h, m] = v.split(":");
+                    setArrivalTime({ h, m });
+                  }}
+                >
+                  <SelectTrigger className="ml-auto h-10 w-[100px] rounded-[10px] bg-transparent text-[14px]">
+                    <SelectValue placeholder="hh:mm" />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-[280px]">
+                    {ARRIVAL_TIME_OPTIONS.map((t) => (
+                      <SelectItem key={t} value={t}>
+                        {t}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             )}
           </QuestionBlock>
@@ -773,10 +767,9 @@ function Step2(props: {
         {/* Vehicles */}
         {cfg.vehicles !== "off" && (
           <QuestionBlock
-            icon="🚗"
+            icon={<Car className="size-4" />}
             title="Você virá de veículo?"
             required={cfg.vehicles === "required"}
-
             answer={vehicleAns}
             onAnswer={(v) => {
               setVehicleAns(v);
@@ -844,7 +837,7 @@ function Step2(props: {
         {/* Documents */}
         {cfg.document !== "off" && (
           <QuestionBlock
-            icon="🪪"
+            icon={<FileText className="size-4" />}
             title={cfg.documentScope === "all" ? "Anexar documento(s) pessoal(is)" : "Anexar documento pessoal"}
             required={cfg.document === "required"}
             asToggle
@@ -899,20 +892,22 @@ function Step2(props: {
         )}
       </div>
 
-      <div className="pt-4">
-        <PrimaryButton loading={loading} onClick={onSubmit}>
-          {loading ? "Verificando…" : "Concluir cadastro"}
-          {!loading && <span className="text-[15px] leading-none">→</span>}
-        </PrimaryButton>
-        <button
+      <div className="flex items-center gap-2 pt-5">
+        <Button
           type="button"
+          variant="ghost"
           onClick={onBack}
-          className="mx-auto mt-3 block text-[13px] font-medium text-muted-foreground hover:text-foreground"
+          className="h-12 rounded-full px-4 text-[13px] font-medium text-muted-foreground hover:text-foreground"
         >
-          ← Voltar
-        </button>
+          <ArrowLeft className="size-4 mr-1" /> Voltar
+        </Button>
+        <div className="flex-1">
+          <PrimaryButton loading={loading} onClick={onSubmit}>
+            {loading ? "Verificando…" : "Acessar guia"}
+            {!loading && <ArrowRight className="size-4 transition-transform duration-200 group-hover:translate-x-0.5" />}
+          </PrimaryButton>
+        </div>
       </div>
-
     </>
   );
 }
@@ -931,38 +926,39 @@ function QuestionBlock({
   asToggle?: boolean;
 }) {
   return (
-    <div className="rounded-[18px] border border-border p-4 transition-colors mb-3">
-      <div className="flex items-center gap-2 mb-3">
-        <span className="shrink-0 text-[16px] leading-none">{icon}</span>
+    <div className="rounded-[16px] border border-border p-3.5 transition-colors mb-2.5">
+      <div className="flex items-center gap-2.5 mb-3">
+        <span className="grid size-8 place-items-center rounded-full bg-[#a855f7]/12 text-[#c084fc] shrink-0 text-[15px]">
+          {icon}
+        </span>
         <div className="min-w-0 flex-1">
-          <div className="text-[15px] font-bold leading-tight">{title}</div>
+          <div className="text-[13.5px] font-semibold leading-tight">{title}</div>
           {required && (
             <div className="text-[10px] uppercase tracking-wider text-[#c084fc]/70 mt-0.5">Obrigatório</div>
           )}
         </div>
       </div>
-      <div className="flex items-center gap-2.5">
+      <div className="flex items-center gap-2">
         <button
           type="button"
           onClick={() => onAnswer("yes")}
           className={cn(
-            "flex-1 h-11 rounded-[12px] text-[14px] font-semibold border transition-all",
+            "flex-1 h-9 rounded-[10px] text-[12.5px] font-semibold border transition-all",
             answer === "yes"
               ? "bg-gradient-to-r from-[#7C1AD8] to-[#E82DAE] text-white border-transparent"
               : "border-border text-muted-foreground hover:text-foreground",
           )}
         >
-          Sim
+          {asToggle ? "Sim" : "Sim"}
         </button>
         <button
           type="button"
           onClick={() => onAnswer("no")}
           className={cn(
-            "flex-1 h-11 rounded-[12px] text-[14px] font-semibold border transition-all",
+            "flex-1 h-9 rounded-[10px] text-[12.5px] font-semibold border transition-all",
             answer === "no"
               ? "bg-foreground/[0.1] text-foreground border-border"
               : "border-border text-muted-foreground hover:text-foreground",
-
             required && "opacity-40 cursor-not-allowed",
           )}
           disabled={required}
@@ -1114,7 +1110,7 @@ function DocUploadCard({
 
 function FieldShell({ icon, children }: { icon?: React.ReactNode; children: React.ReactNode }) {
   return (
-    <div className="relative rounded-[14px] border border-border bg-foreground/[0.04] transition-colors focus-within:border-[#a855f7]/60 focus-within:bg-foreground/[0.06]">
+    <div className="relative rounded-[12px] border border-border bg-foreground/[0.04] transition-colors focus-within:border-[#a855f7]/60 focus-within:bg-foreground/[0.06]">
       {icon && (
         <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-accent">{icon}</span>
       )}
@@ -1124,26 +1120,24 @@ function FieldShell({ icon, children }: { icon?: React.ReactNode; children: Reac
 }
 
 function RangeButton({ label, value, popover, locked = false, themeClass, open, onOpenChange }: { label: string; value: string; popover?: React.ReactNode; locked?: boolean; themeClass?: string; open?: boolean; onOpenChange?: (open: boolean) => void }) {
-  const filled = value !== "—";
   const button = (
     <button
       type="button"
       disabled={locked}
       className={cn(
-        "relative w-full h-[64px] rounded-[14px] border bg-foreground/[0.04] px-3.5 text-left text-foreground",
+        "relative w-full h-[54px] rounded-[12px] border bg-foreground/[0.04] px-3 text-left text-foreground",
         "transition-colors hover:bg-foreground/[0.06] focus:outline-none",
-        "flex flex-col justify-center gap-1 disabled:cursor-default disabled:hover:bg-foreground/[0.04]",
-        open || (filled && !locked) ? "border-[#a855f7]/70" : "border-border focus-visible:border-[#a855f7]/60",
+        "flex flex-col justify-center disabled:cursor-default disabled:hover:bg-foreground/[0.04]",
+        open ? "border-[#a855f7]/70" : "border-border focus-visible:border-[#a855f7]/60",
       )}
     >
-      <span className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground font-semibold whitespace-nowrap">{label}</span>
-      <span className="text-[16px] font-bold flex items-center gap-1.5 text-foreground">
+      <span className="text-[9.5px] uppercase tracking-[0.2em] text-muted-foreground font-semibold whitespace-nowrap">{label}</span>
+      <span className="text-[14px] font-medium flex items-center gap-1.5 mt-0.5 text-foreground">
         {value}
-        {!locked && filled && <span className="text-[13px] leading-none">📅</span>}
+        {!locked && <ChevronDown className="size-3 text-muted-foreground ml-auto" />}
       </span>
     </button>
   );
-
 
   if (locked || !popover) return button;
 
