@@ -923,43 +923,45 @@ function QuestionBlock({
   asToggle?: boolean;
 }) {
   return (
-    <div className="rounded-[16px] border border-white/[0.08] bg-white/[0.02] p-3.5 transition-colors">
-      <div className="flex items-center gap-3">
-        <span className="grid size-8 place-items-center rounded-full bg-primary/12 text-primary shrink-0">{icon}</span>
+    <div className="rounded-[16px] border border-border p-3.5 transition-colors mb-2.5">
+      <div className="flex items-center gap-2.5 mb-3">
+        <span className="grid size-8 place-items-center rounded-full bg-[#a855f7]/12 text-[#c084fc] shrink-0 text-[15px]">
+          {icon}
+        </span>
         <div className="min-w-0 flex-1">
-          <div className="text-[13.5px] font-medium leading-tight truncate">{title}</div>
+          <div className="text-[13.5px] font-semibold leading-tight">{title}</div>
           {required && (
-            <div className="text-[10px] uppercase tracking-wider text-primary/70 mt-0.5">Obrigatório</div>
+            <div className="text-[10px] uppercase tracking-wider text-[#c084fc]/70 mt-0.5">Obrigatório</div>
           )}
         </div>
-        <div className="flex items-center gap-1 shrink-0">
-          <button
-            type="button"
-            onClick={() => onAnswer("yes")}
-            className={cn(
-              "px-3 h-8 rounded-full text-[12px] font-semibold border transition-all",
-              answer === "yes"
-                ? "bg-primary text-primary-foreground border-primary"
-                : "border-white/12 text-muted-foreground hover:text-foreground hover:border-white/25",
-            )}
-          >
-            {asToggle ? "Sim" : "Sim"}
-          </button>
-          <button
-            type="button"
-            onClick={() => onAnswer("no")}
-            className={cn(
-              "px-3 h-8 rounded-full text-[12px] font-semibold border transition-all",
-              answer === "no"
-                ? "bg-white/[0.12] text-foreground border-white/25"
-                : "border-white/12 text-muted-foreground hover:text-foreground hover:border-white/25",
-              required && "opacity-40 cursor-not-allowed",
-            )}
-            disabled={required}
-          >
-            Não
-          </button>
-        </div>
+      </div>
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => onAnswer("yes")}
+          className={cn(
+            "flex-1 h-9 rounded-[10px] text-[12.5px] font-semibold border transition-all",
+            answer === "yes"
+              ? "bg-gradient-to-r from-[#7C1AD8] to-[#E82DAE] text-white border-transparent"
+              : "border-border text-muted-foreground hover:text-foreground",
+          )}
+        >
+          {asToggle ? "Sim" : "Sim"}
+        </button>
+        <button
+          type="button"
+          onClick={() => onAnswer("no")}
+          className={cn(
+            "flex-1 h-9 rounded-[10px] text-[12.5px] font-semibold border transition-all",
+            answer === "no"
+              ? "bg-foreground/[0.1] text-foreground border-border"
+              : "border-border text-muted-foreground hover:text-foreground",
+            required && "opacity-40 cursor-not-allowed",
+          )}
+          disabled={required}
+        >
+          Não
+        </button>
       </div>
       {children}
     </div>

@@ -781,8 +781,12 @@ function Guide({ data }: { data: GuideOk }) {
         hasAccessPin={hasAccessPin}
         hasCheckinSteps={!!(p.checkin_instructions || (Array.isArray(p.checkin_media) && p.checkin_media.length > 0))}
         checkinInstructionsText={p.checkin_instructions ? String(p.checkin_instructions) : null}
-        hasAcesso={!!((p as any).gate_code_set || p.gate_code || (p as any).lock_code_set || p.lock_code)}
-        hasWifi={!!p.wifi_ssid}
+        lockCode={p.lock_code ? String(p.lock_code) : null}
+        gateCode={p.gate_code ? String(p.gate_code) : null}
+        wifiPassword={p.wifi_password ? String(p.wifi_password) : null}
+        wifiSsid={p.wifi_ssid ? String(p.wifi_ssid) : null}
+        requestUnlock={requestUnlock}
+        markPasswordsSeen={markPasswordsSeen}
       />
       <div className="relative z-10 mx-auto w-full max-w-[490px] md:max-w-[520px]">
         <AnimatePresence mode="wait" initial={false}>
@@ -2620,6 +2624,98 @@ function SubList({ children }: { children: React.ReactNode }) {
   );
 }
 
+function OnboardingPasswordCard({
+  icon,
+  name,
+  detail,
+  value,
+  ready,
+  requestUnlock,
+  onRevealed,
+}: {
+  icon: string;
+  name: string;
+  detail?: string | null;
+  value: string;
+  ready: boolean;
+  requestUnlock: (cb?: () => void) => void;
+  onRevealed: () => void;
+}) {
+  const [revealed, setRevealed] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  function reveal() {
+    if (revealed) {
+      setRevealed(false);
+      return;
+    }
+    requestUnlock(() => {
+      setRevealed(true);
+      onRevealed();
+    });
+  }
+
+  function copy() {
+    if (!revealed) {
+      requestUnlock(() => {
+        setRevealed(true);
+        onRevealed();
+        navigator.clipboard.writeText(value);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 1500);
+      });
+      return;
+    }
+    navigator.clipboard.writeText(value);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  }
+
+  return (
+    <div className="rounded-2xl border border-border bg-background/40 p-4 mb-3">
+      <div className="flex items-center gap-2.5 mb-3">
+        <span className="size-9 rounded-[11px] bg-secondary border border-border grid place-items-center text-[16px]">
+          {icon}
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className="text-[13.5px] font-bold">{name}</div>
+          {ready ? (
+            <div className="text-[10.5px] text-emerald-400 flex items-center gap-1">
+              <span className="size-1.5 rounded-full bg-emerald-400" /> Liberada agora
+            </div>
+          ) : (
+            <div className="text-[10.5px] text-muted-foreground">{detail}</div>
+          )}
+        </div>
+      </div>
+      {detail && ready && <div className="text-[10.5px] text-muted-foreground mb-1.5">{detail}</div>}
+      <div className="flex items-center justify-between gap-2 rounded-[11px] border border-border bg-secondary/60 px-3.5 py-2.5">
+        <span className="font-mono font-bold text-[15px] tracking-wider">
+          {revealed ? value : "•".repeat(Math.max(5, Math.min(value.length, 9)))}
+        </span>
+        <div className="flex items-center gap-1.5 shrink-0">
+          <button
+            type="button"
+            onClick={copy}
+            aria-label="Copiar"
+            className="size-8 rounded-[9px] bg-card border border-border grid place-items-center"
+          >
+            {copied ? "✓" : "📋"}
+          </button>
+          <button
+            type="button"
+            onClick={reveal}
+            aria-label="Mostrar"
+            className="size-8 rounded-[9px] grid place-items-center bg-gradient-to-br from-[#7C1AD8] to-[#E82DAE] text-white"
+          >
+            👁
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function fmtOnbTime(raw: unknown): string | null {
   const m = String(raw ?? "").match(/^(\d{1,2}):(\d{2})/);
   if (!m) return null;
@@ -2655,8 +2751,12 @@ function PostAccessOnboarding({
   hasAccessPin,
   hasCheckinSteps,
   checkinInstructionsText,
-  hasAcesso,
-  hasWifi,
+  lockCode,
+  gateCode,
+  wifiPassword,
+  wifiSsid,
+  requestUnlock,
+  markPasswordsSeen,
 }: {
   active: boolean;
   onDone: () => void;
@@ -2669,8 +2769,12 @@ function PostAccessOnboarding({
   hasAccessPin: boolean;
   hasCheckinSteps: boolean;
   checkinInstructionsText?: string | null;
-  hasAcesso: boolean;
-  hasWifi: boolean;
+  lockCode?: string | null;
+  gateCode?: string | null;
+  wifiPassword?: string | null;
+  wifiSsid?: string | null;
+  requestUnlock: (cb?: () => void) => void;
+  markPasswordsSeen: () => void;
 }) {
   const [step, setStep] = useState<0 | 1 | 2 | 3>(0);
   useEffect(() => {
@@ -2800,59 +2904,60 @@ function PostAccessOnboarding({
           </>
         )}
 
-        {/* Passo 3: como as senhas funcionam (condicional a ter código de visualização) */}
+        {/* Passo 3: senhas de acesso — cards de verdade, com o mesmo mecanismo de PIN da página real */}
         {step === 2 && (
           <>
             <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-[#c084fc] mb-1.5">
               Suas senhas de acesso
             </p>
-            <DialogTitleFallback className="mb-1">
-              {hasAccessPin ? "Um código a mais protege sua senha" : "Sua senha libera sozinha"}
-            </DialogTitleFallback>
+            <DialogTitleFallback className="mb-3">Chegada → Senhas</DialogTitleFallback>
 
-            <div
-              className={cn(
-                "rounded-2xl border p-4 mb-4 flex items-start gap-3",
-                hasAccessPin
-                  ? "border-amber-500/30 bg-amber-500/10"
-                  : "border-emerald-500/30 bg-emerald-500/10",
-              )}
-            >
-              <span className="text-[16px] leading-none mt-0.5">{hasAccessPin ? "🔐" : "🔓"}</span>
-              <p className="text-[13px] leading-relaxed text-foreground/90">
+            {lockCode && (
+              <OnboardingPasswordCard
+                icon="🔒"
+                name="Fechadura"
+                value={lockCode}
+                ready
+                requestUnlock={requestUnlock}
+                onRevealed={markPasswordsSeen}
+              />
+            )}
+            {wifiPassword && (
+              <OnboardingPasswordCard
+                icon="📶"
+                name="Wi-Fi"
+                detail={wifiSsid ? `Rede: ${wifiSsid}` : null}
+                value={wifiPassword}
+                ready
+                requestUnlock={requestUnlock}
+                onRevealed={markPasswordsSeen}
+              />
+            )}
+            {gateCode && (
+              <OnboardingPasswordCard
+                icon="🚪"
+                name="Portão da garagem"
+                value={gateCode}
+                ready
+                requestUnlock={requestUnlock}
+                onRevealed={markPasswordsSeen}
+              />
+            )}
+
+            <div className="rounded-2xl border border-[#a855f7]/25 bg-[#a855f7]/10 p-3.5 flex items-start gap-2.5 mt-1 mb-5">
+              <span className="text-[15px] leading-none mt-0.5">🔐</span>
+              <p className="text-[12px] leading-relaxed text-foreground/85">
                 {hasAccessPin ? (
                   <>
-                    O anfitrião vai te enviar um <b>código de visualização</b> por algum canal (WhatsApp, e-mail
-                    ou mensagem) até a data do seu check-in. Com ele, você libera{" "}
-                    {hasAcesso && hasWifi ? "a senha de acesso e do Wi-Fi" : hasAcesso ? "a senha de acesso" : "o Wi-Fi"}{" "}
-                    na aba <b>Chegada → Senhas</b>.
+                    Os valores ficam ocultos até você tocar em 👁 e confirmar o{" "}
+                    <b className="text-foreground">código enviado pelo anfitrião</b> — protege sua senha mesmo
+                    com o link em mãos de outra pessoa.
                   </>
                 ) : (
-                  <>
-                    Assim que a janela de check-in abrir,{" "}
-                    {hasAcesso && hasWifi ? "sua senha de acesso e a do Wi-Fi liberam" : hasAcesso ? "sua senha de acesso libera" : "o Wi-Fi libera"}{" "}
-                    sozinhas na aba <b>Chegada → Senhas</b> — sem precisar fazer nada.
-                  </>
+                  <>Toque em 👁 pra revelar cada valor. Fica oculto até você pedir, mesmo sem código extra.</>
                 )}
               </p>
             </div>
-
-            {(hasAcesso || hasWifi) && (
-              <div className="rounded-2xl border border-border bg-background/40 p-3 mb-5 space-y-2">
-                {hasAcesso && (
-                  <div className="flex items-center gap-2.5 text-[13px]">
-                    <span className="size-7 rounded-lg bg-secondary border border-border grid place-items-center text-[13px]">🔑</span>
-                    Senha de acesso ao imóvel
-                  </div>
-                )}
-                {hasWifi && (
-                  <div className="flex items-center gap-2.5 text-[13px]">
-                    <span className="size-7 rounded-lg bg-secondary border border-border grid place-items-center text-[13px]">📶</span>
-                    Senha do Wi-Fi
-                  </div>
-                )}
-              </div>
-            )}
 
             <div className="flex gap-2">
               <button
@@ -2899,6 +3004,22 @@ function PostAccessOnboarding({
               >
                 Estou com dificuldade no check-in
               </button>
+              <div className="flex items-center gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => setStep(2)}
+                  className="h-[42px] px-4 rounded-2xl border border-border text-[13px] font-medium text-foreground/70"
+                >
+                  ← Voltar
+                </button>
+                <button
+                  type="button"
+                  onClick={onDone}
+                  className="flex-1 h-[42px] rounded-2xl text-[13px] font-medium text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  Vou fazer depois!
+                </button>
+              </div>
             </div>
           </div>
         )}
