@@ -824,7 +824,7 @@ function Guide({ data }: { data: GuideOk }) {
         navItems={guideNavItems}
         propertyName={(p.name as string | null) ?? null}
         city={(p.city as string | null) ?? null}
-        timeZone={timeZone}
+        timeZone={propertyTimeZone(p.city as string | null, (p as any).country as string | null)}
 
       />
       <div className="relative z-10 mx-auto w-full max-w-[490px] md:max-w-[520px]">
