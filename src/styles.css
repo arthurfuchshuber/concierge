@@ -455,3 +455,20 @@ h1, h2, h3, h4, h5, h6, p, li, blockquote, figcaption, dt, dd { text-wrap: prett
 @media (prefers-reduced-motion: reduce) {
   .amber-mirror::after { animation: none; opacity: 0; }
 }
+
+/* Barra de rolagem sempre visível — sinaliza que há mais conteúdo abaixo. */
+.sg-always-scroll {
+  overflow-y: scroll;
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in oklab, #a855f7 55%, transparent) color-mix(in oklab, var(--foreground) 8%, transparent);
+  scrollbar-gutter: stable;
+}
+.sg-always-scroll::-webkit-scrollbar { width: 6px; }
+.sg-always-scroll::-webkit-scrollbar-track {
+  background: color-mix(in oklab, var(--foreground) 8%, transparent);
+  border-radius: 9999px;
+}
+.sg-always-scroll::-webkit-scrollbar-thumb {
+  background: color-mix(in oklab, #a855f7 55%, transparent);
+  border-radius: 9999px;
+}
