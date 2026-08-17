@@ -68,35 +68,46 @@ type FirecrawlSearchResult = {
   metadata?: { ogImage?: string; ogSiteName?: string };
 };
 
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
 async function firecrawlSearch(query: string, tbs: string = "qdr:w"): Promise<FirecrawlSearchResult[]> {
   const key = process.env.FIRECRAWL_API_KEY;
   if (!key) {
     console.error("[city-news] FIRECRAWL_API_KEY ausente — busca de fontes desativada.");
     return [];
   }
-  const r = await fetch("https://api.firecrawl.dev/v2/search", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ query, limit: 30, tbs, lang: "pt", country: "br" }),
-    signal: AbortSignal.timeout(9000),
-  });
-  if (!r.ok) {
-    console.error(`[city-news] Firecrawl respondeu ${r.status} para "${query}": ${(await r.text().catch(() => "")).slice(0, 300)}`);
-    return [];
+  // Firecrawl limita requisições por minuto: em 429 esperamos e tentamos de novo.
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const r = await fetch("https://api.firecrawl.dev/v2/search", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ query, limit: 20, tbs, lang: "pt", country: "br" }),
+      signal: AbortSignal.timeout(20000),
+    });
+    if (r.status === 429) {
+      await sleep(4000 * (attempt + 1));
+      continue;
+    }
+    if (!r.ok) {
+      console.error(`[city-news] Firecrawl respondeu ${r.status} para "${query}": ${(await r.text().catch(() => "")).slice(0, 300)}`);
+      return [];
+    }
+    const j = (await r.json()) as { data?: FirecrawlSearchResult[] | { web?: FirecrawlSearchResult[] } };
+    const list = Array.isArray(j.data)
+      ? j.data
+      : Array.isArray((j.data as { web?: FirecrawlSearchResult[] })?.web)
+        ? (j.data as { web?: FirecrawlSearchResult[] }).web!
+        : [];
+    return list.slice(0, 20);
   }
-  const j = (await r.json()) as { data?: FirecrawlSearchResult[] | { web?: FirecrawlSearchResult[] } };
-  const list = Array.isArray(j.data)
-    ? j.data
-    : Array.isArray((j.data as { web?: FirecrawlSearchResult[] })?.web)
-      ? (j.data as { web?: FirecrawlSearchResult[] }).web!
-      : [];
-  return list.slice(0, 30);
+  console.error(`[city-news] Firecrawl seguiu em 429 para "${query}" após 3 tentativas.`);
+  return [];
 }
 
 /**
- * Busca profunda: várias frentes em paralelo (agenda cultural, eventos
- * temporários, comércios locais com atrativos, gastronomia e experiências),
- * deduplicadas por URL. Cobre muito mais que uma única query genérica.
+ * Busca profunda: várias frentes (agenda cultural, eventos temporários,
+ * comércios locais com atrativos, gastronomia e experiências), deduplicadas por
+ * URL. Roda em lotes pequenos para respeitar o rate limit do Firecrawl.
  */
 async function deepCitySearch(cityLabel: string, country: string | null): Promise<FirecrawlSearchResult[]> {
   const city = `"${cityLabel}"${country ? ` ${country}` : ""}`;
@@ -110,14 +121,22 @@ async function deepCitySearch(cityLabel: string, country: string | null): Promis
     { q: `${city} workshop degustação experiência promoção comércio local turistas`, tbs: "qdr:m" },
   ];
 
-  const results = await Promise.all(
-    queries.map(({ q, tbs }) =>
-      firecrawlSearch(q, tbs).catch((e) => {
-        console.error(`[city-news] Falha na busca "${q}":`, e instanceof Error ? e.message : e);
-        return [] as FirecrawlSearchResult[];
-      }),
-    ),
-  );
+  const results: FirecrawlSearchResult[][] = [];
+  const BATCH = 3;
+  for (let i = 0; i < queries.length; i += BATCH) {
+    const batch = queries.slice(i, i + BATCH);
+    const part = await Promise.all(
+      batch.map(({ q, tbs }) =>
+        firecrawlSearch(q, tbs).catch((e) => {
+          console.error(`[city-news] Falha na busca "${q}":`, e instanceof Error ? e.message : e);
+          return [] as FirecrawlSearchResult[];
+        }),
+      ),
+    );
+    results.push(...part);
+    if (i + BATCH < queries.length) await sleep(1200);
+  }
+
 
   const seen = new Set<string>();
   const merged: FirecrawlSearchResult[] = [];
