@@ -2692,7 +2692,78 @@ function SubList({ children }: { children: React.ReactNode }) {
   );
 }
 
+/** Endereço curto: mantém até o CEP, removendo país e a sigla do estado. */
+function shortAddress(raw?: string | null): string {
+  const s = String(raw ?? "").trim();
+  if (!s) return "";
+  const cep = s.match(/\d{5}-?\d{3}/);
+  let out = s;
+  if (cep) out = s.slice(0, (cep.index ?? 0) + cep[0].length);
+  out = out
+    .split(",")
+    .map((p) => p.trim())
+    .filter((p) => p && !/^brasil$|^brazil$/i.test(p))
+    .map((p) => p.replace(/\s*[-–]\s*[A-Z]{2}\b/g, "").trim())
+    .filter(Boolean)
+    .join(", ");
+  return out.replace(/[\s,-]+$/, "");
+}
+
+/** Cabeçalho espelhado da aba "Chegada" (título, imóvel · cidade e abas). */
+function OnboardingArrivalHeader({
+  propertyName,
+  city,
+  tab,
+}: {
+  propertyName: string;
+  city: string | null;
+  tab: "steps" | "passwords";
+}) {
+  const subtitle = [propertyName, city].filter(Boolean).join(" · ");
+  return (
+    <div>
+      <h2 className="text-[28px] font-bold leading-[1.12] tracking-tight text-foreground">Chegada</h2>
+      {subtitle && <p className="mt-1 text-[15px] text-muted-foreground">{subtitle}</p>}
+      <div className="mt-4 grid grid-cols-2 gap-1.5 rounded-[18px] border border-border bg-foreground/[0.03] p-1.5">
+        {(["steps", "passwords"] as const).map((k) => (
+          <div
+            key={k}
+            aria-current={tab === k}
+            className={cn(
+              "h-[46px] grid place-items-center rounded-[14px] text-[15px] font-bold transition-colors",
+              tab === k
+                ? "text-white bg-gradient-to-r from-[#7C1AD8] to-[#E82DAE] shadow-[0_8px_24px_-10px_rgba(232,45,174,0.6)]"
+                : "text-muted-foreground",
+            )}
+          >
+            {k === "steps" ? "Passo a passo" : "Senhas"}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** Card de senha ainda bloqueada — cinza, sem valor, cadeado à direita. */
+function OnboardingLockedCard({ icon, name, detail }: { icon: string; name: string; detail: string }) {
+  return (
+    <div className="rounded-2xl border border-border bg-background/40 p-4 mb-3 flex items-center gap-2.5 opacity-60">
+      <span className="size-9 rounded-[11px] bg-secondary border border-border grid place-items-center text-[16px]">
+        {icon}
+      </span>
+      <div className="min-w-0 flex-1">
+        <div className="text-[13.5px] font-bold text-muted-foreground">{name}</div>
+        <div className="text-[11.5px] text-muted-foreground/80">{detail}</div>
+      </div>
+      <span aria-hidden className="text-[15px] leading-none">
+        🔒
+      </span>
+    </div>
+  );
+}
+
 function OnboardingPasswordCard({
+
   icon,
   name,
   detail,
