@@ -109,15 +109,44 @@ export async function buildAgentContext(params: {
   let stayPhase: AgentContext["stayPhase"] = "unknown";
   let checkinDate: string | null = null;
   const guestName = (params.guestName ?? "").trim();
-  if (guestName) {
-    const { data: log } = await supabase
+  {
+    type AccessLog = { guest_name: string; checkin_date: string; checkout_date: string | null };
+    const todayIso = new Date().toISOString().slice(0, 10);
+    const { data: rows } = await supabase
       .from("guide_access_logs")
       .select("guest_name, checkin_date, checkout_date")
       .eq("property_id", p.id as string)
-      .eq("guest_name", guestName)
       .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
+      .limit(60);
+    const logs = (rows ?? []) as AccessLog[];
+    const norm = (s: string) =>
+      s
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase()
+        .replace(/\s+/g, " ")
+        .trim();
+    const target = norm(guestName);
+    const covers = (l: AccessLog) => {
+      const ci = String(l.checkin_date).slice(0, 10);
+      const co = l.checkout_date ? String(l.checkout_date).slice(0, 10) : ci;
+      return todayIso >= ci && todayIso <= co;
+    };
+    // 1) nome exato (normalizado) → 2) primeiro nome → 3) reserva vigente hoje
+    // → 4) reserva mais recente. Antes exigíamos igualdade caractere a caractere,
+    // o que deixava a IA sem a reserva e livre para especular sobre a estadia.
+    let log: AccessLog | null = null;
+    if (target) {
+      log =
+        logs.find((l) => norm(l.guest_name) === target) ??
+        logs.find((l) => {
+          const a = norm(l.guest_name).split(" ")[0];
+          const b = target.split(" ")[0];
+          return !!a && !!b && a === b;
+        }) ??
+        null;
+    }
+    if (!log) log = logs.find(covers) ?? logs[0] ?? null;
     if (log?.checkin_date) {
       keys.push("reservation");
       const today = new Date().toISOString().slice(0, 10);
