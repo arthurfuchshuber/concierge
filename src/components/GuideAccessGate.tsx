@@ -106,6 +106,18 @@ export function readAccessRecord(slug: string): AccessRecord | null {
   }
 }
 
+/** Remove o registro salvo — usado quando o hóspede volta pro formulário
+ * a partir do onboarding (senão o gate reabre e destrava na hora). */
+export function clearAccessRecord(slug: string) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.removeItem(STORAGE_PREFIX + slug);
+  } catch {
+    /* noop */
+  }
+}
+
+
 export type CollectionConfig = {
   arrivalTime: "off" | "optional" | "required";
   vehicles: "off" | "optional" | "required";
