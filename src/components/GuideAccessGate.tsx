@@ -160,7 +160,7 @@ function dateFromISODate(value: string): Date | null {
   return new Date(y, m - 1, d, 12, 0, 0, 0);
 }
 
-export function GuideAccessGate({ slug, propertyId, propertyName, requireReservationCode, collection, onUnlock, theme = "dark", timeZone = "America/Sao_Paulo", navItems = [], prefill = null }: Props & { timeZone?: string }) {
+export function GuideAccessGate({ slug, propertyId, propertyName, requireReservationCode, collection, onUnlock, theme = "dark", timeZone = "America/Sao_Paulo", navItems = [], prefill = null, minArrivalTime = null }: Props & { timeZone?: string; minArrivalTime?: string | null }) {
   const themeClass = cn("sigma-public-guide", theme === "light" && "theme-light");
 
   const submit = useServerFn(recordGuideAccess);
