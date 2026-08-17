@@ -783,7 +783,17 @@ function Guide({ data }: { data: GuideOk }) {
               "off",
             documentScope: ((p as unknown as { document_scope?: string }).document_scope as "main" | "all") ?? "main",
           }}
-          onUnlock={setAccessRec}
+          onUnlock={(rec) => {
+            setAccessRec(rec);
+            // Submissão nova de verdade (não um refresh que já reidratou o
+            // accessRec no efeito de montagem) — dispara o onboarding aqui,
+            // na hora, em vez de depender só do efeito inicial (que já
+            // rodou antes do formulário existir e não roda de novo sozinho).
+            if (hasPendingOnboarding(slug)) {
+              gotoSection("checkin");
+              setTourActive(true);
+            }
+          }}
           timeZone={propertyTimeZone(p.city as string | null, (p as any).country as string | null)}
           theme={theme === "light" ? "light" : "dark"}
           navItems={guideNavItems}

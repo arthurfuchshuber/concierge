@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   CalendarIcon,
   User2,
@@ -35,6 +36,14 @@ import PhoneInput, { isValidPhoneNumber, type Country } from "react-phone-number
 import "react-phone-number-input/style.css";
 
 const STORAGE_PREFIX = "sg-access-";
+
+// Lista de horários de 15 em 15 minutos (00:00 até 23:45) para o dropdown de
+// "previsão de chegada" — evita digitação livre e horários inválidos.
+const ARRIVAL_TIME_OPTIONS: string[] = Array.from({ length: 24 * 4 }, (_, i) => {
+  const h = Math.floor(i / 4);
+  const m = (i % 4) * 15;
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+});
 const TOUR_PENDING_PREFIX = "sg-tour-pending-";
 
 /**
@@ -732,33 +741,24 @@ function Step2(props: {
                 <label className="text-[11px] uppercase tracking-widest text-muted-foreground font-semibold whitespace-nowrap">
                   Chegada por volta de
                 </label>
-                <div className="flex items-center gap-1 ml-auto">
-                  <Input
-                    inputMode="numeric"
-                    maxLength={2}
-                    value={arrivalTime.h}
-                    onChange={(e) => {
-                      const v = e.target.value.replace(/\D/g, "").slice(0, 2);
-                      const n = Math.min(23, parseInt(v || "0", 10));
-                      setArrivalTime({ ...arrivalTime, h: v === "" ? "" : String(n) });
-                    }}
-                    placeholder="hh"
-                    className="h-10 w-14 rounded-[10px] bg-transparent text-center text-[14px]"
-                  />
-                  <span className="text-muted-foreground">:</span>
-                  <Input
-                    inputMode="numeric"
-                    maxLength={2}
-                    value={arrivalTime.m}
-                    onChange={(e) => {
-                      const v = e.target.value.replace(/\D/g, "").slice(0, 2);
-                      const n = Math.min(59, parseInt(v || "0", 10));
-                      setArrivalTime({ ...arrivalTime, m: v === "" ? "" : String(n) });
-                    }}
-                    placeholder="mm"
-                    className="h-10 w-14 rounded-[10px] bg-transparent text-center text-[14px]"
-                  />
-                </div>
+                <Select
+                  value={arrivalTime.h !== "" && arrivalTime.m !== "" ? `${arrivalTime.h.padStart(2, "0")}:${arrivalTime.m.padStart(2, "0")}` : undefined}
+                  onValueChange={(v) => {
+                    const [h, m] = v.split(":");
+                    setArrivalTime({ h, m });
+                  }}
+                >
+                  <SelectTrigger className="ml-auto h-10 w-[100px] rounded-[10px] bg-transparent text-[14px]">
+                    <SelectValue placeholder="hh:mm" />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-[280px]">
+                    {ARRIVAL_TIME_OPTIONS.map((t) => (
+                      <SelectItem key={t} value={t}>
+                        {t}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             )}
           </QuestionBlock>
