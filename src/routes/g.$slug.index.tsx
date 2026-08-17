@@ -2811,6 +2811,9 @@ function PostAccessOnboarding({
   active,
   onDone,
   guestName,
+  propertyName,
+  city,
+
   checkinDate,
   checkoutDate,
   checkinTime,
