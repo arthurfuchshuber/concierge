@@ -2722,15 +2722,15 @@ function OnboardingArrivalHeader({
   const subtitle = [propertyName, city].filter(Boolean).join(" · ");
   return (
     <div>
-      <h2 className="text-[28px] font-bold leading-[1.12] tracking-tight text-foreground">Chegada</h2>
-      {subtitle && <p className="mt-1 text-[15px] text-muted-foreground">{subtitle}</p>}
-      <div className="mt-4 grid grid-cols-2 gap-1.5 rounded-[18px] border border-border bg-foreground/[0.03] p-1.5">
+      <h2 className="text-[22px] font-bold leading-[1.14] tracking-tight text-foreground">Chegada</h2>
+      {subtitle && <p className="mt-0.5 text-[12.5px] text-muted-foreground [text-wrap:auto]">{subtitle}</p>}
+      <div className="mt-3 grid grid-cols-2 gap-1.5 rounded-[15px] border border-border bg-foreground/[0.03] p-1">
         {(["steps", "passwords"] as const).map((k) => (
           <div
             key={k}
             aria-current={tab === k}
             className={cn(
-              "h-[46px] grid place-items-center rounded-[14px] text-[15px] font-bold transition-colors",
+              "h-[38px] grid place-items-center rounded-[12px] text-[13px] font-bold transition-colors",
               tab === k
                 ? "text-white bg-gradient-to-r from-[#7C1AD8] to-[#E82DAE] shadow-[0_8px_24px_-10px_rgba(232,45,174,0.6)]"
                 : "text-muted-foreground",
