@@ -117,7 +117,6 @@ export function clearAccessRecord(slug: string) {
   }
 }
 
-
 export type CollectionConfig = {
   arrivalTime: "off" | "optional" | "required";
   vehicles: "off" | "optional" | "required";
@@ -152,15 +151,25 @@ type Props = {
   prefill?: AccessRecord | null;
 };
 
-
-
 function dateFromISODate(value: string): Date | null {
   const [y, m, d] = value.split("-").map(Number);
   if (!y || !m || !d) return null;
   return new Date(y, m - 1, d, 12, 0, 0, 0);
 }
 
-export function GuideAccessGate({ slug, propertyId, propertyName, requireReservationCode, collection, onUnlock, theme = "dark", timeZone = "America/Sao_Paulo", navItems = [], prefill = null, minArrivalTime = null }: Props & { timeZone?: string; minArrivalTime?: string | null }) {
+export function GuideAccessGate({
+  slug,
+  propertyId,
+  propertyName,
+  requireReservationCode,
+  collection,
+  onUnlock,
+  theme = "dark",
+  timeZone = "America/Sao_Paulo",
+  navItems = [],
+  prefill = null,
+  minArrivalTime = null,
+}: Props & { timeZone?: string; minArrivalTime?: string | null }) {
   const themeClass = cn("sigma-public-guide", theme === "light" && "theme-light");
 
   const submit = useServerFn(recordGuideAccess);
@@ -186,12 +195,8 @@ export function GuideAccessGate({ slug, propertyId, propertyName, requireReserva
     | { state: "no-match"; suggestedCheckout?: string }
   >({ state: "idle" });
   const [calendarAvailability, setCalendarAvailability] = useState<
-    | { state: "loading" }
-    | { state: "ready"; hasIcal: boolean; periods: CalendarPeriod[] }
-    | { state: "unavailable" }
+    { state: "loading" } | { state: "ready"; hasIcal: boolean; periods: CalendarPeriod[] } | { state: "unavailable" }
   >({ state: "loading" });
-
-
 
   const cfg: CollectionConfig = collection ?? {
     arrivalTime: "off",
@@ -268,7 +273,6 @@ export function GuideAccessGate({ slug, propertyId, propertyName, requireReserva
     return dates;
   }, [reservationMap]);
 
-
   const isDateDisabled = (date: Date): boolean => {
     if (selectableDateSet) return !selectableDateSet.has(format(date, "yyyy-MM-dd"));
     // "Hoje" é o dia do imóvel (fuso da cidade), não o do aparelho do hóspede.
@@ -293,7 +297,6 @@ export function GuideAccessGate({ slug, propertyId, propertyName, requireReserva
     setCheckinPopoverOpen(false);
   };
 
-
   // Cross-check with Airbnb iCal reservations (soft warning)
   useEffect(() => {
     if (!range?.from || !range?.to) {
@@ -309,7 +312,8 @@ export function GuideAccessGate({ slug, propertyId, propertyName, requireReserva
         .then((r) => {
           if (cancelled) return;
           if (!r.hasIcal) return setResCheck({ state: "no-ical" });
-          if (r.matched) return setResCheck({ state: "matched", matchType: "matchType" in r ? r.matchType : "reservation" });
+          if (r.matched)
+            return setResCheck({ state: "matched", matchType: "matchType" in r ? r.matchType : "reservation" });
           setResCheck({
             state: "no-match",
             suggestedCheckout: "suggestedCheckout" in r ? r.suggestedCheckout : undefined,
@@ -325,14 +329,15 @@ export function GuideAccessGate({ slug, propertyId, propertyName, requireReserva
     };
   }, [range?.from, range?.to, slug, propertyId, checkReservation]);
 
-
-
   // sync vehicle rows with count
   useEffect(() => {
     setVehicles((prev) => {
       if (vehicleCount === prev.length) return prev;
       if (vehicleCount > prev.length) {
-        return [...prev, ...Array.from({ length: vehicleCount - prev.length }, () => ({ plate: "", model: "", color: "" }))];
+        return [
+          ...prev,
+          ...Array.from({ length: vehicleCount - prev.length }, () => ({ plate: "", model: "", color: "" })),
+        ];
       }
       return prev.slice(0, vehicleCount);
     });
@@ -387,9 +392,6 @@ export function GuideAccessGate({ slug, propertyId, propertyName, requireReserva
     return true;
   }
 
-
-
-
   async function finalizeSubmit() {
     if (!range?.from || !range?.to) return;
     if (resCheck.state === "checking") {
@@ -401,10 +403,11 @@ export function GuideAccessGate({ slug, propertyId, propertyName, requireReserva
       return;
     }
 
-
     // Required optional fields
     const arrivalStr =
-      arrivalAns === "yes" && arrivalTime.h ? `${arrivalTime.h.padStart(2, "0")}:${(arrivalTime.m || "00").padStart(2, "0")}` : "";
+      arrivalAns === "yes" && arrivalTime.h
+        ? `${arrivalTime.h.padStart(2, "0")}:${(arrivalTime.m || "00").padStart(2, "0")}`
+        : "";
     if (cfg.arrivalTime === "required" && !arrivalStr) {
       toast.error("Informe o horário previsto de chegada.");
       return;
@@ -470,7 +473,11 @@ export function GuideAccessGate({ slug, propertyId, propertyName, requireReserva
         },
       });
       if (!res.ok) {
-        toast.error("reason" in res && res.reason === "no_match" ? "As datas não correspondem ao calendário do anfitrião." : "Não foi possível registrar seu acesso.");
+        toast.error(
+          "reason" in res && res.reason === "no_match"
+            ? "As datas não correspondem ao calendário do anfitrião."
+            : "Não foi possível registrar seu acesso.",
+        );
         return;
       }
       const rec: AccessRecord = {
@@ -518,7 +525,8 @@ export function GuideAccessGate({ slug, propertyId, propertyName, requireReserva
           Não encontramos uma reserva Airbnb para estas datas.
           {resCheck.suggestedCheckout && (
             <>
-              {" "}Sua chegada bate com uma reserva, mas a saída é{" "}
+              {" "}
+              Sua chegada bate com uma reserva, mas a saída é{" "}
               <b>
                 {new Date(resCheck.suggestedCheckout + "T12:00:00").toLocaleDateString("pt-BR", {
                   day: "2-digit",
@@ -528,7 +536,8 @@ export function GuideAccessGate({ slug, propertyId, propertyName, requireReserva
               . Confira se digitou corretamente.
             </>
           )}
-          {!resCheck.suggestedCheckout && " Confira se selecionou exatamente a entrada e saída liberadas no calendário."}
+          {!resCheck.suggestedCheckout &&
+            " Confira se selecionou exatamente a entrada e saída liberadas no calendário."}
         </span>
       </div>
     ) : null;
@@ -549,12 +558,21 @@ export function GuideAccessGate({ slug, propertyId, propertyName, requireReserva
             "p-6 sm:p-7",
           )}
         >
-
           {/* Progress dots (só quando há step 2) */}
           {hasOptionals && (
             <div className="mb-4 flex items-center gap-1.5">
-              <span className={cn("h-1 rounded-full transition-all", step === 1 ? "w-6 bg-gradient-to-r from-[#7C1AD8] to-[#E82DAE]" : "w-3 bg-[#a855f7]/25")} />
-              <span className={cn("h-1 rounded-full transition-all", step === 2 ? "w-6 bg-gradient-to-r from-[#7C1AD8] to-[#E82DAE]" : "w-3 bg-[#a855f7]/25")} />
+              <span
+                className={cn(
+                  "h-1 rounded-full transition-all",
+                  step === 1 ? "w-6 bg-gradient-to-r from-[#7C1AD8] to-[#E82DAE]" : "w-3 bg-[#a855f7]/25",
+                )}
+              />
+              <span
+                className={cn(
+                  "h-1 rounded-full transition-all",
+                  step === 2 ? "w-6 bg-gradient-to-r from-[#7C1AD8] to-[#E82DAE]" : "w-3 bg-[#a855f7]/25",
+                )}
+              />
               <span className="ml-auto text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
                 Passo {step}/2
               </span>
@@ -564,12 +582,8 @@ export function GuideAccessGate({ slug, propertyId, propertyName, requireReserva
           {step === 1 ? (
             <>
               <div className="mb-5 space-y-1.5">
-                <p className="text-[11px] font-bold uppercase tracking-[0.24em] text-[#c084fc]">
-                  Boas-vindas
-                </p>
-                <h2 className="text-[26px] font-bold leading-[1.12] tracking-tight text-foreground">
-                  {propertyName}
-                </h2>
+                <p className="text-[11px] font-bold uppercase tracking-[0.24em] text-[#c084fc]">Boas-vindas</p>
+                <h2 className="text-[26px] font-bold leading-[1.12] tracking-tight text-foreground">{propertyName}</h2>
 
                 <p className="text-[14px] leading-relaxed text-muted-foreground">
                   Rápido preenchimento para liberar o guia.
@@ -578,7 +592,9 @@ export function GuideAccessGate({ slug, propertyId, propertyName, requireReserva
 
               <form onSubmit={handleStep1Next} className="space-y-3">
                 <FieldShell icon={<span className="text-[17px] leading-none">👤</span>}>
-                  <Label htmlFor="guest-name" className="sr-only">Nome</Label>
+                  <Label htmlFor="guest-name" className="sr-only">
+                    Nome
+                  </Label>
                   <Input
                     id="guest-name"
                     value={name}
@@ -614,7 +630,6 @@ export function GuideAccessGate({ slug, propertyId, propertyName, requireReserva
                           disabled: "rdp-disabled text-neutral-400",
                           outside: "rdp-outside text-neutral-300",
                         }}
-
                         className="guide-access-calendar p-3 pointer-events-auto"
                       />
                     }
@@ -655,27 +670,24 @@ export function GuideAccessGate({ slug, propertyId, propertyName, requireReserva
                   </FieldShell>
                 )}
 
-
                 <div className="flex items-center gap-1.5 pt-0.5 text-[12.5px] text-muted-foreground/85">
-                  <span aria-hidden className="text-[13px] leading-none">🔒</span>
+                  <span aria-hidden className="text-[13px] leading-none">
+                    🔒
+                  </span>
                   <span>Seus dados ficam seguros e privados.</span>
                 </div>
 
                 <div className="pt-1.5">
-                  <PrimaryButton loading={loading}>
-                    {hasOptionals ? "Continuar →" : "Acessar guia →"}
-                  </PrimaryButton>
+                  <PrimaryButton loading={loading}>{hasOptionals ? "Continuar →" : "Acessar guia →"}</PrimaryButton>
                 </div>
               </form>
             </>
-
           ) : (
             <Step2
               cfg={cfg}
               slug={slug}
               minArrivalTime={minArrivalTime}
               defaultName={titleCaseName(name)}
-
               arrivalAns={arrivalAns}
               setArrivalAns={setArrivalAns}
               arrivalTime={arrivalTime}
@@ -730,11 +742,27 @@ function Step2(props: {
   onSubmit: () => void;
 }) {
   const {
-    cfg, slug, defaultName, minArrivalTime,
-    arrivalAns, setArrivalAns, arrivalTime, setArrivalTime,
-    vehicleAns, setVehicleAns, vehicleCount, setVehicleCount, vehicles, setVehicles,
-    docCount, setDocCount, docs, setDocs,
-    loading, onBack, onSubmit,
+    cfg,
+    slug,
+    defaultName,
+    minArrivalTime,
+    arrivalAns,
+    setArrivalAns,
+    arrivalTime,
+    setArrivalTime,
+    vehicleAns,
+    setVehicleAns,
+    vehicleCount,
+    setVehicleCount,
+    vehicles,
+    setVehicles,
+    docCount,
+    setDocCount,
+    docs,
+    setDocs,
+    loading,
+    onBack,
+    onSubmit,
   } = props;
 
   // Piso da previsão de chegada = horário mínimo de check-in do imóvel.
@@ -748,9 +776,7 @@ function Step2(props: {
   return (
     <>
       <div className="mb-5 space-y-1.5">
-        <p className="text-[11px] font-bold uppercase tracking-[0.24em] text-[#c084fc]">
-          Últimos detalhes
-        </p>
+        <p className="text-[11px] font-bold uppercase tracking-[0.24em] text-[#c084fc]">Últimos detalhes</p>
         <h2 className="text-[26px] font-bold leading-[1.12] tracking-tight text-foreground">
           Só mais algumas perguntas
         </h2>
@@ -776,7 +802,7 @@ function Step2(props: {
             {arrivalAns === "yes" && (
               <div className="mt-3.5 flex items-center gap-2">
                 <label className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground font-bold whitespace-nowrap">
-                  Chegada por volta de
+                  Por volta de
                 </label>
                 <div className="ml-auto flex items-center gap-1.5">
                   <Select
@@ -822,7 +848,6 @@ function Step2(props: {
           </QuestionBlock>
         )}
 
-
         {/* Vehicles */}
         {cfg.vehicles !== "off" && (
           <QuestionBlock
@@ -867,7 +892,11 @@ function Step2(props: {
                     </div>
                     <Input
                       value={v.plate}
-                      onChange={(e) => setVehicles((arr) => arr.map((x, j) => (j === i ? { ...x, plate: e.target.value.toUpperCase() } : x)))}
+                      onChange={(e) =>
+                        setVehicles((arr) =>
+                          arr.map((x, j) => (j === i ? { ...x, plate: e.target.value.toUpperCase() } : x)),
+                        )
+                      }
                       placeholder="Placa"
                       className="h-9 rounded-[10px] bg-transparent uppercase"
                       maxLength={10}
@@ -875,13 +904,17 @@ function Step2(props: {
                     <div className="grid grid-cols-2 gap-1.5">
                       <Input
                         value={v.model}
-                        onChange={(e) => setVehicles((arr) => arr.map((x, j) => (j === i ? { ...x, model: e.target.value } : x)))}
+                        onChange={(e) =>
+                          setVehicles((arr) => arr.map((x, j) => (j === i ? { ...x, model: e.target.value } : x)))
+                        }
                         placeholder="Modelo"
                         className="h-9 rounded-[10px] bg-transparent"
                       />
                       <Input
                         value={v.color}
-                        onChange={(e) => setVehicles((arr) => arr.map((x, j) => (j === i ? { ...x, color: e.target.value } : x)))}
+                        onChange={(e) =>
+                          setVehicles((arr) => arr.map((x, j) => (j === i ? { ...x, color: e.target.value } : x)))
+                        }
                         placeholder="Cor"
                         className="h-9 rounded-[10px] bg-transparent"
                       />
@@ -900,7 +933,15 @@ function Step2(props: {
             title={cfg.documentScope === "all" ? "Anexar documento(s) pessoal(is)" : "Anexar documento pessoal"}
             required={cfg.document === "required"}
             asToggle
-            answer={docCount > 0 ? "yes" : cfg.document === "required" ? null : (docCount === 0 && cfg.document === "optional" ? null : null)}
+            answer={
+              docCount > 0
+                ? "yes"
+                : cfg.document === "required"
+                  ? null
+                  : docCount === 0 && cfg.document === "optional"
+                    ? null
+                    : null
+            }
             onAnswer={(v) => {
               if (v === "yes") setDocCount(Math.max(1, docCount || 1));
               else setDocCount(0);
@@ -940,9 +981,7 @@ function Step2(props: {
                     total={docCount}
                     defaultName={i === 0 ? defaultName : ""}
                     doc={d}
-                    onUpdate={(patch) =>
-                      setDocs((arr) => arr.map((x, j) => (j === i ? { ...x, ...patch } : x)))
-                    }
+                    onUpdate={(patch) => setDocs((arr) => arr.map((x, j) => (j === i ? { ...x, ...patch } : x)))}
                   />
                 ))}
               </div>
@@ -973,7 +1012,13 @@ function Step2(props: {
 /* ---------- Sub-components ---------- */
 
 function QuestionBlock({
-  icon, title, required, answer, onAnswer, children, asToggle,
+  icon,
+  title,
+  required,
+  answer,
+  onAnswer,
+  children,
+  asToggle,
 }: {
   icon: React.ReactNode;
   title: string;
@@ -991,9 +1036,7 @@ function QuestionBlock({
         </span>
         <div className="min-w-0 flex-1">
           <div className="text-[15px] font-bold leading-tight text-foreground">{title}</div>
-          {required && (
-            <div className="text-[10px] uppercase tracking-wider text-[#c084fc]/70 mt-0.5">Obrigatório</div>
-          )}
+          {required && <div className="text-[10px] uppercase tracking-wider text-[#c084fc]/70 mt-0.5">Obrigatório</div>}
         </div>
       </div>
       <div className="flex items-center gap-2.5">
@@ -1029,9 +1072,13 @@ function QuestionBlock({
   );
 }
 
-
 function DocUploadCard({
-  slug, index, total, defaultName, doc, onUpdate,
+  slug,
+  index,
+  total,
+  defaultName,
+  doc,
+  onUpdate,
 }: {
   slug: string;
   index: number;
@@ -1058,7 +1105,10 @@ function DocUploadCard({
         return;
       }
       const json = (await res.json()) as {
-        path: string; name: string | null; legible: boolean; reason: string;
+        path: string;
+        name: string | null;
+        legible: boolean;
+        reason: string;
       };
       onUpdate({
         uploading: false,
@@ -1077,10 +1127,13 @@ function DocUploadCard({
     <div className="rounded-xl border border-white/10 p-2.5 bg-white/[0.02]">
       <div className="flex items-center justify-between mb-1.5">
         <div className="text-[10.5px] uppercase tracking-wider text-muted-foreground/80 font-semibold whitespace-nowrap">
-          Hóspede {index + 1}{index === 0 ? " · principal" : ""}
+          Hóspede {index + 1}
+          {index === 0 ? " · principal" : ""}
         </div>
         {total > 1 && (
-          <div className="text-[10px] text-muted-foreground">{index + 1}/{total}</div>
+          <div className="text-[10px] text-muted-foreground">
+            {index + 1}/{total}
+          </div>
         )}
       </div>
       <Input
@@ -1119,9 +1172,7 @@ function DocUploadCard({
         <div
           className={cn(
             "rounded-[10px] p-2 flex items-start gap-2 border",
-            doc.legible === false
-              ? "border-amber-500/40 bg-amber-500/10"
-              : "border-emerald-500/30 bg-emerald-500/10",
+            doc.legible === false ? "border-amber-500/40 bg-amber-500/10" : "border-emerald-500/30 bg-emerald-500/10",
           )}
         >
           {doc.legible === false ? (
@@ -1170,15 +1221,31 @@ function DocUploadCard({
 function FieldShell({ icon, children }: { icon?: React.ReactNode; children: React.ReactNode }) {
   return (
     <div className="relative rounded-[12px] border border-border bg-foreground/[0.04] transition-colors focus-within:border-[#a855f7]/60 focus-within:bg-foreground/[0.06]">
-      {icon && (
-        <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-accent">{icon}</span>
-      )}
+      {icon && <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-accent">{icon}</span>}
       {children}
     </div>
   );
 }
 
-function RangeButton({ label, value, popover, locked = false, themeClass, open, onOpenChange, emoji }: { label: string; value: string; popover?: React.ReactNode; locked?: boolean; themeClass?: string; open?: boolean; onOpenChange?: (open: boolean) => void; emoji?: string }) {
+function RangeButton({
+  label,
+  value,
+  popover,
+  locked = false,
+  themeClass,
+  open,
+  onOpenChange,
+  emoji,
+}: {
+  label: string;
+  value: string;
+  popover?: React.ReactNode;
+  locked?: boolean;
+  themeClass?: string;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  emoji?: string;
+}) {
   const filled = value !== "—";
   const button = (
     <button
@@ -1191,22 +1258,25 @@ function RangeButton({ label, value, popover, locked = false, themeClass, open, 
         !locked && (open || filled) ? "border-[#a855f7]/70" : "border-border focus-visible:border-[#a855f7]/60",
       )}
     >
-      <span className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground font-semibold whitespace-nowrap">{label}</span>
+      <span className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground font-semibold whitespace-nowrap">
+        {label}
+      </span>
       <span className="text-[17px] font-bold flex items-center gap-1.5 mt-0.5 text-foreground">
         {value}
-        {emoji && filled && <span aria-hidden className="text-[14px] leading-none">{emoji}</span>}
+        {emoji && filled && (
+          <span aria-hidden className="text-[14px] leading-none">
+            {emoji}
+          </span>
+        )}
       </span>
     </button>
   );
-
 
   if (locked || !popover) return button;
 
   return (
     <Popover open={open} onOpenChange={onOpenChange}>
-      <PopoverTrigger asChild>
-        {button}
-      </PopoverTrigger>
+      <PopoverTrigger asChild>{button}</PopoverTrigger>
       <PopoverContent
         className={cn(
           themeClass,
@@ -1218,13 +1288,19 @@ function RangeButton({ label, value, popover, locked = false, themeClass, open, 
       >
         {popover}
       </PopoverContent>
-
     </Popover>
   );
 }
 
-
-function PrimaryButton({ loading, onClick, children }: { loading: boolean; onClick?: () => void; children: React.ReactNode }) {
+function PrimaryButton({
+  loading,
+  onClick,
+  children,
+}: {
+  loading: boolean;
+  onClick?: () => void;
+  children: React.ReactNode;
+}) {
   return (
     <Button
       type={onClick ? "button" : "submit"}
@@ -1246,4 +1322,3 @@ function PrimaryButton({ loading, onClick, children }: { loading: boolean; onCli
     </Button>
   );
 }
-
