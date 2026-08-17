@@ -2978,16 +2978,16 @@ function PostAccessOnboarding({
       role="region"
       aria-label="Onboarding de chegada"
     >
-      <div className="mx-auto w-full max-w-[490px] md:max-w-[520px] px-5 pt-8">
+      <div className="mx-auto w-full max-w-[490px] md:max-w-[520px] px-5 pt-6">
         <div
           className={cn(
             step === 0
               ? ""
-              : "rounded-[26px] border border-[#a855f7]/25 bg-card/95 backdrop-blur-2xl shadow-[0_28px_70px_-18px_rgba(0,0,0,0.65),0_0_60px_-20px_rgba(232,45,174,0.3)] p-6 sm:p-7",
+              : "rounded-[22px] border border-[#a855f7]/25 bg-card/95 backdrop-blur-2xl shadow-[0_28px_70px_-18px_rgba(0,0,0,0.65),0_0_60px_-20px_rgba(232,45,174,0.3)] p-5",
           )}
         >
           {step > 0 && step < 3 && (
-            <div className="mb-4 flex items-center gap-1.5">
+            <div className="mb-3 flex items-center gap-1.5">
               {[0, 1, 2].map((i) => (
                 <span
                   key={i}
@@ -2997,7 +2997,7 @@ function PostAccessOnboarding({
                   )}
                 />
               ))}
-              <span className="ml-auto text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+              <span className="ml-auto text-[9.5px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
                 Passo {step + 1}/3
               </span>
             </div>
@@ -3006,51 +3006,54 @@ function PostAccessOnboarding({
           {/* Passo 1: confirmação da estadia */}
           {step === 0 && (
             <>
-              <h2 className="text-[28px] font-bold leading-[1.12] tracking-tight text-foreground mb-1.5">
+              <h2 className="text-[22px] font-bold leading-[1.14] tracking-tight text-foreground mb-1">
                 Tudo certo, {firstName}!
               </h2>
-              <p className="text-[16px] leading-relaxed text-muted-foreground mb-5">
+              <p className="text-[13px] leading-relaxed text-muted-foreground mb-4 [text-wrap:auto]">
                 Confere os dados e veja onde vai estar sua senha.
               </p>
 
-              <div className="rounded-[18px] border border-border bg-foreground/[0.03] px-4 mb-4">
-                <div className="flex items-center justify-between gap-3 py-3.5 border-b border-border">
-                  <p className="text-[15px] text-muted-foreground">Check-in</p>
-                  <p className="text-[15px] font-bold text-foreground text-right">
+              <div className="rounded-[15px] border border-border bg-foreground/[0.03] px-3.5 mb-3">
+                <div className="flex items-center justify-between gap-3 py-2.5 border-b border-border">
+                  <p className="text-[12.5px] text-muted-foreground">Check-in</p>
+                  <p className="text-[12.5px] font-bold text-foreground text-right [text-wrap:auto]">
                     {fmtOnbDate(checkinDate)}
                     {checkinTime ? ` a partir das ${checkinTime}` : ""}
                   </p>
                 </div>
                 <div
                   className={cn(
-                    "flex items-center justify-between gap-3 py-3.5",
+                    "flex items-center justify-between gap-3 py-2.5",
                     shortAddress(address) && "border-b border-border",
                   )}
                 >
-                  <p className="text-[15px] text-muted-foreground">Check-out</p>
-                  <p className="text-[15px] font-bold text-foreground text-right">
+                  <p className="text-[12.5px] text-muted-foreground">Check-out</p>
+                  <p className="text-[12.5px] font-bold text-foreground text-right [text-wrap:auto]">
                     {fmtOnbDate(checkoutDate)}
                     {checkoutTime ? ` até ${checkoutTime}` : ""}
                   </p>
                 </div>
                 {shortAddress(address) && (
-                  <div className="flex items-center justify-between gap-3 py-3.5">
-                    <p className="text-[15px] text-muted-foreground shrink-0">Endereço</p>
-                    <p className="text-[15px] font-bold text-foreground text-right">{shortAddress(address)}</p>
+                  <div className="flex items-center justify-between gap-3 py-2.5">
+                    <p className="text-[12.5px] text-muted-foreground shrink-0">Endereço</p>
+                    <p className="text-[12.5px] font-bold text-foreground text-right [text-wrap:auto]">
+                      {shortAddress(address)}
+                    </p>
                   </div>
                 )}
               </div>
 
-              <div className="rounded-[18px] border border-[#a855f7]/35 bg-[#a855f7]/[0.08] p-4 flex items-start gap-3">
-                <span aria-hidden className="text-[20px] leading-none mt-0.5">
+              <div className="rounded-[15px] border border-[#a855f7]/35 bg-[#a855f7]/[0.08] p-3.5 flex items-start gap-2.5">
+                <span aria-hidden className="text-[16px] leading-none mt-0.5">
                   🔑
                 </span>
-                <p className="flex-1 text-[15px] leading-[1.5] text-foreground/90">
+                <p className="flex-1 text-[12.5px] leading-[1.5] text-foreground/90 [text-wrap:auto]">
                   Tudo que você precisa para entrar fica na aba{" "}
                   <b className="font-bold text-foreground">Chegada</b>: o passo a passo e as senhas, liberados
                   automaticamente no horário do seu check-in.
                 </p>
               </div>
+
 
               <div className="flex gap-2 mt-5">
                 <button
