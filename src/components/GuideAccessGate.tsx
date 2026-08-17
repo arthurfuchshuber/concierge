@@ -642,7 +642,7 @@ export function GuideAccessGate({
                   />
                 </div>
 
-                <div className="sg-phone-input rounded-[12px] border border-border bg-foreground/[0.04] px-1 transition-colors focus-within:border-[#a855f7]/60 focus-within:bg-foreground/[0.06]">
+                <div className="sg-phone-input">
                   <PhoneInput
                     id="guest-phone"
                     international
