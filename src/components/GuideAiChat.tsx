@@ -1084,7 +1084,7 @@ export function GuideAiChat({
             {input.trim() ? (
               <button
                 type="button"
-                onClick={send}
+                onClick={() => void send()}
                 disabled={loading || uploading}
                 aria-label="Enviar"
                 className="grid size-9 place-items-center rounded-full bg-emerald-600 text-white hover:bg-emerald-700 active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
