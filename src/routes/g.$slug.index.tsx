@@ -2696,7 +2696,7 @@ function PostAccessOnboarding({
       role="dialog"
       aria-modal="true"
     >
-      <div className="w-full max-w-[440px] max-h-[92vh] overflow-y-auto rounded-[26px] border border-border bg-card/95 backdrop-blur-2xl shadow-[0_28px_70px_-18px_rgba(0,0,0,0.65)] p-6 sm:p-7">
+      <div className="w-full max-w-[440px] max-h-[92vh] overflow-y-auto rounded-[26px] border border-[#a855f7]/25 bg-card/95 backdrop-blur-2xl shadow-[0_28px_70px_-18px_rgba(0,0,0,0.65),0_0_60px_-20px_rgba(232,45,174,0.3)] p-6 sm:p-7">
         {step < 3 && (
           <div className="mb-4 flex items-center gap-1.5">
             {[0, 1, 2].map((i) => (
@@ -2704,7 +2704,7 @@ function PostAccessOnboarding({
                 key={i}
                 className={cn(
                   "h-1 rounded-full transition-all",
-                  i === step ? "w-6 bg-primary" : "w-3 bg-primary/30",
+                  i === step ? "w-6 bg-gradient-to-r from-[#7C1AD8] to-[#E82DAE]" : "w-3 bg-[#a855f7]/25",
                 )}
               />
             ))}
@@ -2717,7 +2717,7 @@ function PostAccessOnboarding({
         {/* Passo 1: confirmação da estadia */}
         {step === 0 && (
           <>
-            <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-accent mb-1.5">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-[#c084fc] mb-1.5">
               Tudo certo, {firstName}!
             </p>
             <DialogTitleFallback className="mb-1">Confere se está tudo certo</DialogTitleFallback>
@@ -2753,7 +2753,7 @@ function PostAccessOnboarding({
             <button
               type="button"
               onClick={() => setStep(1)}
-              className="w-full h-[48px] rounded-2xl bg-primary text-primary-foreground font-semibold text-[14.5px]"
+              className="w-full h-[48px] rounded-2xl text-white font-semibold text-[14.5px] bg-gradient-to-r from-[#7C1AD8] to-[#E82DAE] shadow-[0_10px_30px_-8px_rgba(232,45,174,0.55)] hover:brightness-110 transition-all"
             >
               Está tudo certo →
             </button>
@@ -2763,7 +2763,7 @@ function PostAccessOnboarding({
         {/* Passo 2: passo a passo real da chegada */}
         {step === 1 && (
           <>
-            <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-accent mb-1.5">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-[#c084fc] mb-1.5">
               Onde tudo acontece
             </p>
             <DialogTitleFallback className="mb-1">Seu passo a passo de chegada</DialogTitleFallback>
@@ -2792,7 +2792,7 @@ function PostAccessOnboarding({
               <button
                 type="button"
                 onClick={() => setStep(2)}
-                className="flex-1 h-[48px] rounded-2xl bg-primary text-primary-foreground font-semibold text-[14.5px]"
+                className="flex-1 h-[48px] rounded-2xl text-white font-semibold text-[14.5px] bg-gradient-to-r from-[#7C1AD8] to-[#E82DAE] shadow-[0_10px_30px_-8px_rgba(232,45,174,0.55)] hover:brightness-110 transition-all"
               >
                 Entendi →
               </button>
@@ -2803,7 +2803,7 @@ function PostAccessOnboarding({
         {/* Passo 3: como as senhas funcionam (condicional a ter código de visualização) */}
         {step === 2 && (
           <>
-            <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-accent mb-1.5">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-[#c084fc] mb-1.5">
               Suas senhas de acesso
             </p>
             <DialogTitleFallback className="mb-1">
@@ -2865,7 +2865,7 @@ function PostAccessOnboarding({
               <button
                 type="button"
                 onClick={() => setStep(3)}
-                className="flex-1 h-[48px] rounded-2xl bg-primary text-primary-foreground font-semibold text-[14.5px]"
+                className="flex-1 h-[48px] rounded-2xl text-white font-semibold text-[14.5px] bg-gradient-to-r from-[#7C1AD8] to-[#E82DAE] shadow-[0_10px_30px_-8px_rgba(232,45,174,0.55)] hover:brightness-110 transition-all"
               >
                 Perfeito →
               </button>
@@ -2888,7 +2888,7 @@ function PostAccessOnboarding({
               <button
                 type="button"
                 onClick={onDone}
-                className="w-full h-[50px] rounded-2xl bg-primary text-primary-foreground font-semibold text-[14.5px]"
+                className="w-full h-[50px] rounded-2xl text-white font-semibold text-[14.5px] bg-gradient-to-r from-[#7C1AD8] to-[#E82DAE] shadow-[0_10px_30px_-8px_rgba(232,45,174,0.55)] hover:brightness-110 transition-all"
               >
                 Consegui fazer o check-in! 🎉
               </button>

@@ -481,10 +481,10 @@ export function GuideAccessGate({ slug, propertyId, propertyName, requireReserva
             "fixed left-1/2 top-1/2 z-50 w-[calc(100%-1.25rem)] max-w-[440px]",
             "-translate-x-1/2 -translate-y-1/2",
             "max-h-[92vh] overflow-y-auto",
-            "rounded-[26px] border border-border",
+            "rounded-[26px] border border-[#a855f7]/25",
             "bg-card/95 text-card-foreground",
             "backdrop-blur-2xl backdrop-saturate-150",
-            "shadow-[0_28px_70px_-18px_rgba(0,0,0,0.65)]",
+            "shadow-[0_28px_70px_-18px_rgba(0,0,0,0.65),0_0_60px_-20px_rgba(232,45,174,0.3)]",
             "p-6 sm:p-7",
             "data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-[0.97] data-[state=open]:duration-300",
             "focus:outline-none",
@@ -494,8 +494,8 @@ export function GuideAccessGate({ slug, propertyId, propertyName, requireReserva
           {/* Progress dots (só quando há step 2) */}
           {hasOptionals && (
             <div className="mb-4 flex items-center gap-1.5">
-              <span className={cn("h-1 rounded-full transition-all", step === 1 ? "w-6 bg-primary" : "w-3 bg-primary/40")} />
-              <span className={cn("h-1 rounded-full transition-all", step === 2 ? "w-6 bg-primary" : "w-3 bg-primary/40")} />
+              <span className={cn("h-1 rounded-full transition-all", step === 1 ? "w-6 bg-gradient-to-r from-[#7C1AD8] to-[#E82DAE]" : "w-3 bg-[#a855f7]/25")} />
+              <span className={cn("h-1 rounded-full transition-all", step === 2 ? "w-6 bg-gradient-to-r from-[#7C1AD8] to-[#E82DAE]" : "w-3 bg-[#a855f7]/25")} />
               <span className="ml-auto text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
                 Passo {step}/2
               </span>
@@ -505,7 +505,7 @@ export function GuideAccessGate({ slug, propertyId, propertyName, requireReserva
           {step === 1 ? (
             <>
               <div className="mb-5 space-y-1.5">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-accent">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-[#c084fc]">
                   Boas-vindas
                 </p>
                 <DialogPrimitive.Title className="font-serif text-[24px] leading-[1.1] tracking-tight text-foreground">
@@ -699,7 +699,7 @@ function Step2(props: {
   return (
     <>
       <div className="mb-5 space-y-1.5">
-        <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-accent">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-[#c084fc]">
           Últimos detalhes
         </p>
         <DialogPrimitive.Title className="font-serif text-[24px] leading-[1.1] tracking-tight text-foreground">
@@ -1105,7 +1105,7 @@ function DocUploadCard({
 
 function FieldShell({ icon, children }: { icon?: React.ReactNode; children: React.ReactNode }) {
   return (
-    <div className="relative rounded-[12px] border border-border bg-foreground/[0.04] transition-colors focus-within:border-accent/60 focus-within:bg-foreground/[0.06]">
+    <div className="relative rounded-[12px] border border-border bg-foreground/[0.04] transition-colors focus-within:border-[#a855f7]/60 focus-within:bg-foreground/[0.06]">
       {icon && (
         <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-accent">{icon}</span>
       )}
@@ -1120,9 +1120,10 @@ function RangeButton({ label, value, popover, locked = false, themeClass, open, 
       type="button"
       disabled={locked}
       className={cn(
-        "relative w-full h-[54px] rounded-[12px] border border-border bg-foreground/[0.04] px-3 text-left text-foreground",
-        "transition-colors hover:bg-foreground/[0.06] focus:outline-none focus-visible:border-accent/60",
+        "relative w-full h-[54px] rounded-[12px] border bg-foreground/[0.04] px-3 text-left text-foreground",
+        "transition-colors hover:bg-foreground/[0.06] focus:outline-none",
         "flex flex-col justify-center disabled:cursor-default disabled:hover:bg-foreground/[0.04]",
+        open ? "border-[#a855f7]/70" : "border-border focus-visible:border-[#a855f7]/60",
       )}
     >
       <span className="text-[9.5px] uppercase tracking-[0.2em] text-muted-foreground font-semibold whitespace-nowrap">{label}</span>
@@ -1164,9 +1165,9 @@ function PrimaryButton({ loading, onClick, children }: { loading: boolean; onCli
       onClick={onClick}
       disabled={loading}
       className={cn(
-        "group relative w-full h-[52px] rounded-full text-[14.5px] font-semibold",
-        "bg-accent text-accent-foreground hover:bg-accent/90",
-        "shadow-[0_10px_28px_-8px_color-mix(in_oklab,var(--accent)_55%,transparent)]",
+        "group relative w-full h-[52px] rounded-full text-[14.5px] font-semibold text-white border-0",
+        "bg-gradient-to-r from-[#7C1AD8] to-[#E82DAE] hover:brightness-110",
+        "shadow-[0_10px_30px_-8px_rgba(232,45,174,0.55)]",
         "transition-all duration-200 hover:translate-y-[-1px]",
         "active:translate-y-0 active:scale-[0.99]",
         "disabled:opacity-80 disabled:cursor-wait",
