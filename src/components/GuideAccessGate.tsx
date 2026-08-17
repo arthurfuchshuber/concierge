@@ -10,15 +10,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   CalendarIcon,
-  User2,
-  Lock,
-  ArrowRight,
-  ArrowLeft,
-  ChevronDown,
   Loader2,
-  Clock,
-  Car,
-  FileText,
   Camera,
   Paperclip,
   CheckCircle2,
@@ -852,7 +844,7 @@ function Step2(props: {
         {/* Documents */}
         {cfg.document !== "off" && (
           <QuestionBlock
-            icon={<FileText className="size-4" />}
+            icon="🪪"
             title={cfg.documentScope === "all" ? "Anexar documento(s) pessoal(is)" : "Anexar documento pessoal"}
             required={cfg.document === "required"}
             asToggle
