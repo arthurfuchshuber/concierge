@@ -707,6 +707,9 @@ export function GuideAccessGate({ slug, propertyId, propertyName, requireReserva
 function Step2(props: {
   cfg: CollectionConfig;
   slug: string;
+  /** Horário mínimo de check-in do imóvel — a previsão de chegada nunca
+   * pode ser anterior a ele. */
+  minArrivalTime?: string | null;
   defaultName: string;
   arrivalAns: "yes" | "no" | null;
   setArrivalAns: (v: "yes" | "no" | null) => void;
@@ -727,33 +730,41 @@ function Step2(props: {
   onSubmit: () => void;
 }) {
   const {
-    cfg, slug, defaultName,
+    cfg, slug, defaultName, minArrivalTime,
     arrivalAns, setArrivalAns, arrivalTime, setArrivalTime,
     vehicleAns, setVehicleAns, vehicleCount, setVehicleCount, vehicles, setVehicles,
     docCount, setDocCount, docs, setDocs,
     loading, onBack, onSubmit,
   } = props;
 
+  // Piso da previsão de chegada = horário mínimo de check-in do imóvel.
+  const minParsed = String(minArrivalTime ?? "").match(/^(\d{1,2}):(\d{2})/);
+  const minH = minParsed ? Number(minParsed[1]) : 0;
+  const minM = minParsed ? Number(minParsed[2]) : 0;
+  const hourOptions = Array.from({ length: 24 - minH }, (_, i) => String(minH + i).padStart(2, "0"));
+  const selectedH = arrivalTime.h ? Number(arrivalTime.h) : minH;
+  const minuteOptions = ["00", "15", "30", "45"].filter((m) => selectedH > minH || Number(m) >= minM);
+
   return (
     <>
       <div className="mb-5 space-y-1.5">
-        <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-[#c084fc]">
+        <p className="text-[11px] font-bold uppercase tracking-[0.24em] text-[#c084fc]">
           Últimos detalhes
         </p>
-        <h2 className="font-serif text-[24px] leading-[1.1] tracking-tight text-foreground">
+        <h2 className="text-[26px] font-bold leading-[1.12] tracking-tight text-foreground">
           Só mais algumas perguntas
         </h2>
 
-        <p className="text-[13px] leading-relaxed text-muted-foreground">
+        <p className="text-[14px] leading-relaxed text-muted-foreground">
           Isso ajuda o anfitrião a preparar sua chegada.
         </p>
       </div>
 
-      <div className="space-y-4">
+      <div className="space-y-3">
         {/* Arrival */}
         {cfg.arrivalTime !== "off" && (
           <QuestionBlock
-            icon={<Clock className="size-4" />}
+            icon="🕐"
             title="Você tem previsão de chegada?"
             required={cfg.arrivalTime === "required"}
             answer={arrivalAns}
@@ -763,32 +774,54 @@ function Step2(props: {
             }}
           >
             {arrivalAns === "yes" && (
-              <div className="mt-3 flex items-center gap-2">
-                <label className="text-[11px] uppercase tracking-widest text-muted-foreground font-semibold whitespace-nowrap">
+              <div className="mt-3.5 flex items-center gap-2">
+                <label className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground font-bold whitespace-nowrap">
                   Chegada por volta de
                 </label>
-                <Select
-                  value={arrivalTime.h !== "" && arrivalTime.m !== "" ? `${arrivalTime.h.padStart(2, "0")}:${arrivalTime.m.padStart(2, "0")}` : undefined}
-                  onValueChange={(v) => {
-                    const [h, m] = v.split(":");
-                    setArrivalTime({ h, m });
-                  }}
-                >
-                  <SelectTrigger className="ml-auto h-10 w-[100px] rounded-[10px] bg-transparent text-[14px]">
-                    <SelectValue placeholder="hh:mm" />
-                  </SelectTrigger>
-                  <SelectContent className="max-h-[280px]">
-                    {ARRIVAL_TIME_OPTIONS.map((t) => (
-                      <SelectItem key={t} value={t}>
-                        {t}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <div className="ml-auto flex items-center gap-1.5">
+                  <Select
+                    value={arrivalTime.h ? arrivalTime.h.padStart(2, "0") : undefined}
+                    onValueChange={(h) => {
+                      const nextM =
+                        Number(h) === minH && Number(arrivalTime.m || "0") < minM
+                          ? String(minM).padStart(2, "0")
+                          : (arrivalTime.m || "00").padStart(2, "0");
+                      setArrivalTime({ h, m: nextM });
+                    }}
+                  >
+                    <SelectTrigger className="h-11 w-[62px] justify-center rounded-[12px] border-border bg-foreground/[0.04] text-[16px] font-bold [&>svg]:hidden">
+                      <SelectValue placeholder="hh" />
+                    </SelectTrigger>
+                    <SelectContent className="max-h-[280px] min-w-[70px]">
+                      {hourOptions.map((h) => (
+                        <SelectItem key={h} value={h}>
+                          {h}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <span className="text-[16px] font-bold text-muted-foreground">:</span>
+                  <Select
+                    value={arrivalTime.m ? arrivalTime.m.padStart(2, "0") : undefined}
+                    onValueChange={(m) => setArrivalTime({ h: arrivalTime.h || String(minH).padStart(2, "0"), m })}
+                  >
+                    <SelectTrigger className="h-11 w-[62px] justify-center rounded-[12px] border-border bg-foreground/[0.04] text-[16px] font-bold [&>svg]:hidden">
+                      <SelectValue placeholder="mm" />
+                    </SelectTrigger>
+                    <SelectContent className="max-h-[280px] min-w-[70px]">
+                      {minuteOptions.map((m) => (
+                        <SelectItem key={m} value={m}>
+                          {m}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
             )}
           </QuestionBlock>
         )}
+
 
         {/* Vehicles */}
         {cfg.vehicles !== "off" && (
