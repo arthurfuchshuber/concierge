@@ -778,18 +778,18 @@ function Step2(props: {
 
   return (
     <>
-      <div className="mb-5 space-y-1.5">
-        <p className="text-[11px] font-bold uppercase tracking-[0.24em] text-[#c084fc]">Últimos detalhes</p>
-        <h2 className="text-[26px] font-bold leading-[1.12] tracking-tight text-foreground">
+      <div className="mb-4 space-y-1">
+        <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-[#c084fc]">Últimos detalhes</p>
+        <h2 className="text-[21px] font-bold leading-[1.14] tracking-tight text-foreground">
           Só mais algumas perguntas
         </h2>
 
-        <p className="text-[14px] leading-relaxed text-muted-foreground">
+        <p className="text-[12.5px] leading-relaxed text-muted-foreground">
           Isso ajuda o anfitrião a preparar sua chegada.
         </p>
       </div>
 
-      <div className="space-y-3">
+      <div className="space-y-2.5">
         {/* Arrival */}
         {cfg.arrivalTime !== "off" && (
           <QuestionBlock
@@ -803,11 +803,11 @@ function Step2(props: {
             }}
           >
             {arrivalAns === "yes" && (
-              <div className="mt-3.5 flex items-center gap-2">
-                <label className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground font-bold whitespace-nowrap">
+              <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
+                <label className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground font-bold whitespace-nowrap">
                   Por volta de
                 </label>
-                <div className="ml-auto flex items-center gap-1.5">
+                <div className="flex items-center gap-1.5">
                   <Select
                     value={arrivalTime.h ? arrivalTime.h.padStart(2, "0") : undefined}
                     onValueChange={(h) => {
@@ -818,7 +818,7 @@ function Step2(props: {
                       setArrivalTime({ h, m: nextM });
                     }}
                   >
-                    <SelectTrigger className="h-11 w-[62px] justify-center rounded-[12px] border-border bg-foreground/[0.04] text-[16px] font-bold [&>svg]:hidden">
+                    <SelectTrigger className="h-9 w-[54px] justify-center rounded-[10px] border-border bg-foreground/[0.04] text-[14px] font-bold [&>svg]:hidden">
                       <SelectValue placeholder="hh" />
                     </SelectTrigger>
                     <SelectContent className="max-h-[280px] min-w-[70px]">
@@ -829,12 +829,12 @@ function Step2(props: {
                       ))}
                     </SelectContent>
                   </Select>
-                  <span className="text-[16px] font-bold text-muted-foreground">:</span>
+                  <span className="text-[14px] font-bold text-muted-foreground">:</span>
                   <Select
                     value={arrivalTime.m ? arrivalTime.m.padStart(2, "0") : undefined}
                     onValueChange={(m) => setArrivalTime({ h: arrivalTime.h || String(minH).padStart(2, "0"), m })}
                   >
-                    <SelectTrigger className="h-11 w-[62px] justify-center rounded-[12px] border-border bg-foreground/[0.04] text-[16px] font-bold [&>svg]:hidden">
+                    <SelectTrigger className="h-9 w-[54px] justify-center rounded-[10px] border-border bg-foreground/[0.04] text-[14px] font-bold [&>svg]:hidden">
                       <SelectValue placeholder="mm" />
                     </SelectTrigger>
                     <SelectContent className="max-h-[280px] min-w-[70px]">
