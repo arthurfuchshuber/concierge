@@ -2963,6 +2963,16 @@ function PostAccessOnboarding({
 
   const firstName = guestName.split(" ")[0] || guestName;
 
+  // Antes das 8h do dia do check-in ainda não faz sentido perguntar "conseguiu
+  // fazer o check-in?" — o hóspede pode nem ter chegado na cidade ainda. Nessa
+  // janela, a etapa final vira só uma confirmação de que ele entendeu o
+  // fluxo, sem forçar uma resposta de sucesso/dificuldade que ainda não existe.
+  const beforeCheckinWindow = (() => {
+    const [y, m, d] = checkinDate.split("-").map(Number);
+    if (!y || !m || !d) return false;
+    return new Date() < new Date(y, m - 1, d, 8, 0, 0);
+  })();
+
   function openDifficultyChat() {
     window.dispatchEvent(
       new CustomEvent("open-guide-chat", {
@@ -2978,7 +2988,12 @@ function PostAccessOnboarding({
       role="region"
       aria-label="Onboarding de chegada"
     >
-      <div className="mx-auto w-full max-w-[490px] md:max-w-[520px] px-5 pt-6">
+      <div
+        className={cn(
+          "mx-auto w-full max-w-[490px] md:max-w-[520px] px-5",
+          step === 3 ? "min-h-[calc(100dvh-86px)] flex flex-col justify-center py-6" : "pt-6",
+        )}
+      >
         <div
           className={cn(
             step === 0
@@ -3194,38 +3209,45 @@ function PostAccessOnboarding({
               </div>
               <DialogTitleFallback className="mb-1.5 text-[19px]">Tudo pronto, {firstName}!</DialogTitleFallback>
               <p className="text-[12.5px] leading-relaxed text-muted-foreground mb-5 max-w-[300px] mx-auto [text-wrap:auto]">
-                Você já sabe onde encontrar o passo a passo e as senhas. Conseguiu fazer o check-in sem problema?
+                {beforeCheckinWindow
+                  ? "Você já sabe onde encontrar o passo a passo e as senhas quando chegar a hora."
+                  : "Você já sabe onde encontrar o passo a passo e as senhas. Conseguiu fazer o check-in sem problema?"}
               </p>
 
               <div className="space-y-2">
-                <button
-                  type="button"
-                  onClick={onDone}
-                  className="w-full h-[44px] rounded-2xl text-white font-semibold text-[13px] bg-gradient-to-r from-[#7C1AD8] to-[#E82DAE] shadow-[0_10px_30px_-8px_rgba(232,45,174,0.55)] hover:brightness-110 transition-all"
-                >
-                  Consegui fazer o check-in! 🎉
-                </button>
-                <button
-                  type="button"
-                  onClick={openDifficultyChat}
-                  className="w-full h-[44px] rounded-2xl border border-border text-foreground/85 font-semibold text-[12.5px]"
-                >
-                  Estou com dificuldade no check-in
-                </button>
-                <div className="flex items-center gap-2 pt-0.5">
+                {beforeCheckinWindow ? (
+                  <button
+                    type="button"
+                    onClick={onDone}
+                    className="w-full h-[44px] rounded-2xl text-white font-semibold text-[13px] bg-gradient-to-r from-[#7C1AD8] to-[#E82DAE] shadow-[0_10px_30px_-8px_rgba(232,45,174,0.55)] hover:brightness-110 transition-all"
+                  >
+                    Entendido. Estou pronto para o check-in!
+                  </button>
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      onClick={onDone}
+                      className="w-full h-[44px] rounded-2xl text-white font-semibold text-[13px] bg-gradient-to-r from-[#7C1AD8] to-[#E82DAE] shadow-[0_10px_30px_-8px_rgba(232,45,174,0.55)] hover:brightness-110 transition-all"
+                    >
+                      Consegui fazer o check-in! 🎉
+                    </button>
+                    <button
+                      type="button"
+                      onClick={openDifficultyChat}
+                      className="w-full h-[44px] rounded-2xl border border-border text-foreground/85 font-semibold text-[12.5px]"
+                    >
+                      Estou com dificuldade no check-in
+                    </button>
+                  </>
+                )}
+                <div className="flex items-center justify-center pt-0.5">
                   <button
                     type="button"
                     onClick={() => setStep(2)}
                     className="h-[38px] px-4 rounded-2xl border-0 text-[12.5px] font-medium text-muted-foreground hover:text-foreground transition-colors"
                   >
                     ← Voltar
-                  </button>
-                  <button
-                    type="button"
-                    onClick={onDone}
-                    className="flex-1 h-[38px] rounded-2xl text-[12.5px] font-medium text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    Vou fazer depois!
                   </button>
                 </div>
               </div>

@@ -963,8 +963,8 @@ function KanbanColumn({
   }, [count, children]);
 
   return (
-    <div className="flex flex-col min-w-0 rounded-2xl border border-border/70 bg-background/40">
-      <div className="flex items-center gap-2 px-3 py-2.5 border-b border-border/60 shrink-0">
+    <div className="flex flex-col min-w-0 rounded-2xl border border-border/70">
+      <div className="flex items-center gap-2 px-3 py-2.5 border-b border-border/60 shrink-0 bg-background/40 rounded-t-2xl">
         <div className={`size-7 rounded-lg grid place-items-center ring-1 shrink-0 ${KANBAN_TONE[tone]}`}>
           <Icon className="size-3.5" />
         </div>
@@ -2107,7 +2107,7 @@ function ArrivalCard({
 
   return (
     <div
-      className={`group relative snap-start flex flex-col rounded border border-border/60 bg-secondary/40 hover:bg-secondary/60 p-3 gap-2.5 transition-colors ${
+      className={`group relative snap-start flex flex-col rounded border border-border/60 bg-secondary/70 hover:bg-secondary/90 p-3 gap-2.5 transition-colors ${
         isOverdue && !visualDone
           ? "border-l-[3px] border-l-red-500"
           : isFuture && !visualDone
