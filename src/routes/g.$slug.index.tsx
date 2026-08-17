@@ -796,6 +796,7 @@ function Guide({ data }: { data: GuideOk }) {
             }
           }}
           timeZone={propertyTimeZone(p.city as string | null, (p as any).country as string | null)}
+          minArrivalTime={(p.checkin_time as string | null) ?? null}
           theme={theme === "light" ? "light" : "dark"}
           navItems={guideNavItems}
           prefill={formPrefill}
