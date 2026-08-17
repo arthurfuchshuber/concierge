@@ -2950,8 +2950,13 @@ function PostAccessOnboarding({
   onBackToForm: () => void;
 }) {
   const [step, setStep] = useState<0 | 1 | 2 | 3>(0);
+  /** Acordeão de senhas: todos recolhidos ao abrir, apenas um aberto por vez. */
+  const [openPwd, setOpenPwd] = useState<string | null>(null);
   useEffect(() => {
-    if (active) setStep(0);
+    if (active) {
+      setStep(0);
+      setOpenPwd(null);
+    }
   }, [active]);
 
   if (!active) return null;
