@@ -730,7 +730,7 @@ function Step2(props: {
         {/* Arrival */}
         {cfg.arrivalTime !== "off" && (
           <QuestionBlock
-            icon={<Clock className="size-4" />}
+            icon="🕐"
             title="Você tem previsão de chegada?"
             required={cfg.arrivalTime === "required"}
             answer={arrivalAns}
@@ -740,28 +740,39 @@ function Step2(props: {
             }}
           >
             {arrivalAns === "yes" && (
-              <div className="mt-3 flex items-center gap-2">
-                <label className="text-[11px] uppercase tracking-widest text-muted-foreground font-semibold whitespace-nowrap">
+              <div className="mt-3.5 flex items-center gap-2">
+                <label className="text-[11.5px] uppercase tracking-[0.14em] text-muted-foreground font-bold whitespace-nowrap">
                   Chegada por volta de
                 </label>
-                <Select
-                  value={arrivalTime.h !== "" && arrivalTime.m !== "" ? `${arrivalTime.h.padStart(2, "0")}:${arrivalTime.m.padStart(2, "0")}` : undefined}
-                  onValueChange={(v) => {
-                    const [h, m] = v.split(":");
-                    setArrivalTime({ h, m });
-                  }}
-                >
-                  <SelectTrigger className="ml-auto h-10 w-[100px] rounded-[10px] bg-transparent text-[14px]">
-                    <SelectValue placeholder="hh:mm" />
-                  </SelectTrigger>
-                  <SelectContent className="max-h-[280px]">
-                    {ARRIVAL_TIME_OPTIONS.map((t) => (
-                      <SelectItem key={t} value={t}>
-                        {t}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <div className="ml-auto flex items-center gap-1.5">
+                  <Select
+                    value={arrivalTime.h !== "" ? arrivalTime.h.padStart(2, "0") : undefined}
+                    onValueChange={(h) => setArrivalTime({ h, m: arrivalTime.m || "00" })}
+                  >
+                    <SelectTrigger className="h-11 w-[64px] justify-center rounded-[12px] border-border bg-transparent text-[16px] font-bold [&>svg]:hidden">
+                      <SelectValue placeholder="hh" />
+                    </SelectTrigger>
+                    <SelectContent className="max-h-[280px]">
+                      {Array.from({ length: 24 }, (_, i) => String(i).padStart(2, "0")).map((h) => (
+                        <SelectItem key={h} value={h}>{h}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <span className="text-[16px] font-bold text-muted-foreground">:</span>
+                  <Select
+                    value={arrivalTime.m !== "" ? arrivalTime.m.padStart(2, "0") : undefined}
+                    onValueChange={(m) => setArrivalTime({ h: arrivalTime.h || "00", m })}
+                  >
+                    <SelectTrigger className="h-11 w-[64px] justify-center rounded-[12px] border-border bg-transparent text-[16px] font-bold [&>svg]:hidden">
+                      <SelectValue placeholder="mm" />
+                    </SelectTrigger>
+                    <SelectContent className="max-h-[280px]">
+                      {["00", "15", "30", "45"].map((m) => (
+                        <SelectItem key={m} value={m}>{m}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
             )}
           </QuestionBlock>
@@ -770,9 +781,10 @@ function Step2(props: {
         {/* Vehicles */}
         {cfg.vehicles !== "off" && (
           <QuestionBlock
-            icon={<Car className="size-4" />}
+            icon="🚗"
             title="Você virá de veículo?"
             required={cfg.vehicles === "required"}
+
             answer={vehicleAns}
             onAnswer={(v) => {
               setVehicleAns(v);
