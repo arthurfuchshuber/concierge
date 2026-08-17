@@ -3055,18 +3055,18 @@ function PostAccessOnboarding({
               </div>
 
 
-              <div className="flex gap-2 mt-5">
+              <div className="flex gap-2 mt-4">
                 <button
                   type="button"
                   onClick={onBackToForm}
-                  className="h-[48px] px-5 rounded-2xl text-[14px] font-medium text-muted-foreground hover:text-foreground transition-colors"
+                  className="h-[42px] px-4 rounded-2xl border-0 text-[12.5px] font-medium text-muted-foreground hover:text-foreground transition-colors"
                 >
                   ← Voltar
                 </button>
                 <button
                   type="button"
                   onClick={() => setStep(1)}
-                  className="flex-1 h-[48px] rounded-2xl text-white font-semibold text-[14.5px] bg-gradient-to-r from-[#7C1AD8] to-[#E82DAE] shadow-[0_10px_30px_-8px_rgba(232,45,174,0.55)] hover:brightness-110 transition-all"
+                  className="flex-1 h-[42px] rounded-2xl text-white font-semibold text-[13px] bg-gradient-to-r from-[#7C1AD8] to-[#E82DAE] shadow-[0_10px_30px_-8px_rgba(232,45,174,0.55)] hover:brightness-110 transition-all"
                 >
                   Está tudo certo →
                 </button>
@@ -3079,11 +3079,11 @@ function PostAccessOnboarding({
             <>
               <OnboardingArrivalHeader propertyName={propertyName} city={city} tab="steps" />
 
-              <div className="mt-4 mb-5 max-h-[300px] overflow-y-auto sg-always-scroll pr-1">
+              <div className="mt-3 mb-4 max-h-[calc(100dvh-330px)] min-h-[140px] overflow-y-auto sg-always-scroll pr-1.5">
                 {hasCheckinSteps && checkinInstructionsText ? (
                   <StepList text={checkinInstructionsText} dense compact />
                 ) : (
-                  <p className="text-[13px] text-muted-foreground leading-relaxed">
+                  <p className="text-[12.5px] text-muted-foreground leading-relaxed [text-wrap:auto]">
                     Assim que estiver na janela de check-in, o passo a passo completo aparece na aba Chegada.
                   </p>
                 )}
@@ -3093,14 +3093,14 @@ function PostAccessOnboarding({
                 <button
                   type="button"
                   onClick={() => setStep(0)}
-                  className="h-[48px] px-5 rounded-2xl text-[14px] font-medium text-muted-foreground hover:text-foreground transition-colors"
+                  className="h-[42px] px-4 rounded-2xl border-0 text-[12.5px] font-medium text-muted-foreground hover:text-foreground transition-colors"
                 >
                   ← Voltar
                 </button>
                 <button
                   type="button"
                   onClick={() => setStep(2)}
-                  className="flex-1 h-[48px] rounded-2xl text-white font-semibold text-[14.5px] bg-gradient-to-r from-[#7C1AD8] to-[#E82DAE] shadow-[0_10px_30px_-8px_rgba(232,45,174,0.55)] hover:brightness-110 transition-all"
+                  className="flex-1 h-[42px] rounded-2xl text-white font-semibold text-[13px] bg-gradient-to-r from-[#7C1AD8] to-[#E82DAE] shadow-[0_10px_30px_-8px_rgba(232,45,174,0.55)] hover:brightness-110 transition-all"
                 >
                   Entendi →
                 </button>
@@ -3108,12 +3108,12 @@ function PostAccessOnboarding({
             </>
           )}
 
-          {/* Passo 3: senhas de acesso — cards de verdade, com o mesmo mecanismo de PIN da página real */}
+          {/* Passo 3: senhas de acesso — cards expansivos, um por vez */}
           {step === 2 && (
             <>
               <OnboardingArrivalHeader propertyName={propertyName} city={city} tab="passwords" />
 
-              <div className="mt-4">
+              <div className="mt-3">
                 {lockCode && (
                   <OnboardingPasswordCard
                     icon="🔒"
@@ -3122,6 +3122,8 @@ function PostAccessOnboarding({
                     ready
                     requestUnlock={requestUnlock}
                     onRevealed={markPasswordsSeen}
+                    expanded={openPwd === "lock"}
+                    onToggle={() => setOpenPwd((k) => (k === "lock" ? null : "lock"))}
                   />
                 )}
                 {wifiPassword && (
@@ -3133,6 +3135,8 @@ function PostAccessOnboarding({
                     ready
                     requestUnlock={requestUnlock}
                     onRevealed={markPasswordsSeen}
+                    expanded={openPwd === "wifi"}
+                    onToggle={() => setOpenPwd((k) => (k === "wifi" ? null : "wifi"))}
                   />
                 )}
                 {gateCode && (
@@ -3146,9 +3150,9 @@ function PostAccessOnboarding({
                 )}
               </div>
 
-              <div className="rounded-2xl border border-[#a855f7]/25 bg-[#a855f7]/10 p-3.5 flex items-start gap-2.5 mt-1 mb-5">
-                <span className="text-[15px] leading-none mt-0.5">🔐</span>
-                <p className="flex-1 text-[13px] leading-[1.55] text-foreground/85">
+              <div className="rounded-[15px] border border-[#a855f7]/25 bg-[#a855f7]/10 p-3.5 flex items-start gap-2.5 mt-1 mb-4">
+                <span className="text-[14px] leading-none mt-0.5">🔐</span>
+                <p className="flex-1 text-[12.5px] leading-[1.5] text-foreground/85 [text-wrap:auto]">
                   {hasAccessPin ? (
                     <>
                       Os valores ficam ocultos até você tocar em 👁 e confirmar o{" "}
@@ -3165,20 +3169,21 @@ function PostAccessOnboarding({
                 <button
                   type="button"
                   onClick={() => setStep(1)}
-                  className="h-[48px] px-5 rounded-2xl text-[14px] font-medium text-muted-foreground hover:text-foreground transition-colors"
+                  className="h-[42px] px-4 rounded-2xl border-0 text-[12.5px] font-medium text-muted-foreground hover:text-foreground transition-colors"
                 >
                   ← Voltar
                 </button>
                 <button
                   type="button"
                   onClick={() => setStep(3)}
-                  className="flex-1 h-[48px] rounded-2xl text-white font-semibold text-[14.5px] bg-gradient-to-r from-[#7C1AD8] to-[#E82DAE] shadow-[0_10px_30px_-8px_rgba(232,45,174,0.55)] hover:brightness-110 transition-all"
+                  className="flex-1 h-[42px] rounded-2xl text-white font-semibold text-[13px] bg-gradient-to-r from-[#7C1AD8] to-[#E82DAE] shadow-[0_10px_30px_-8px_rgba(232,45,174,0.55)] hover:brightness-110 transition-all"
                 >
                   Perfeito →
                 </button>
               </div>
             </>
           )}
+
 
 
           {/* Passo 4: encerramento — pergunta direta, chat só aqui, por último */}
