@@ -1120,24 +1120,26 @@ function FieldShell({ icon, children }: { icon?: React.ReactNode; children: Reac
 }
 
 function RangeButton({ label, value, popover, locked = false, themeClass, open, onOpenChange }: { label: string; value: string; popover?: React.ReactNode; locked?: boolean; themeClass?: string; open?: boolean; onOpenChange?: (open: boolean) => void }) {
+  const filled = value !== "—";
   const button = (
     <button
       type="button"
       disabled={locked}
       className={cn(
-        "relative w-full h-[54px] rounded-[12px] border bg-foreground/[0.04] px-3 text-left text-foreground",
+        "relative w-full h-[64px] rounded-[14px] border bg-foreground/[0.04] px-3.5 text-left text-foreground",
         "transition-colors hover:bg-foreground/[0.06] focus:outline-none",
-        "flex flex-col justify-center disabled:cursor-default disabled:hover:bg-foreground/[0.04]",
-        open ? "border-[#a855f7]/70" : "border-border focus-visible:border-[#a855f7]/60",
+        "flex flex-col justify-center gap-1 disabled:cursor-default disabled:hover:bg-foreground/[0.04]",
+        open || (filled && !locked) ? "border-[#a855f7]/70" : "border-border focus-visible:border-[#a855f7]/60",
       )}
     >
-      <span className="text-[9.5px] uppercase tracking-[0.2em] text-muted-foreground font-semibold whitespace-nowrap">{label}</span>
-      <span className="text-[14px] font-medium flex items-center gap-1.5 mt-0.5 text-foreground">
+      <span className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground font-semibold whitespace-nowrap">{label}</span>
+      <span className="text-[16px] font-bold flex items-center gap-1.5 text-foreground">
         {value}
-        {!locked && <ChevronDown className="size-3 text-muted-foreground ml-auto" />}
+        {!locked && filled && <span className="text-[13px] leading-none">📅</span>}
       </span>
     </button>
   );
+
 
   if (locked || !popover) return button;
 
