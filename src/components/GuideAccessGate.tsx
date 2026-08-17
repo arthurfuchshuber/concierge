@@ -1,8 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { recordGuideAccess, checkReservationBySlug, getGuideCalendarAvailability } from "@/lib/guide-access.functions";
-import { Dialog, DialogPortal, DialogOverlay } from "@/components/ui/dialog";
-import * as DialogPrimitive from "@radix-ui/react-dialog";
+import { BottomNav } from "@/components/guide/BottomNav";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -124,6 +123,10 @@ type Props = {
   collection?: CollectionConfig;
   onUnlock: (rec: AccessRecord) => void;
   theme?: "dark" | "light";
+  /** Itens do menu inferior real do guia — mostrado em tela cheia por trás
+   * do formulário, com "Chegada" travado (o hóspede não navega pra outra
+   * aba antes de se identificar). */
+  navItems?: Array<{ key: import("./guide/BottomNav").BottomNavKey; label: string }>;
 };
 
 
@@ -133,7 +136,7 @@ function dateFromISODate(value: string): Date | null {
   return new Date(y, m - 1, d, 12, 0, 0, 0);
 }
 
-export function GuideAccessGate({ slug, propertyId, propertyName, requireReservationCode, collection, onUnlock, theme = "dark", timeZone = "America/Sao_Paulo" }: Props & { timeZone?: string }) {
+export function GuideAccessGate({ slug, propertyId, propertyName, requireReservationCode, collection, onUnlock, theme = "dark", timeZone = "America/Sao_Paulo", navItems = [] }: Props & { timeZone?: string }) {
   const themeClass = cn("sigma-public-guide", theme === "light" && "theme-light");
 
   const submit = useServerFn(recordGuideAccess);
@@ -474,25 +477,19 @@ export function GuideAccessGate({ slug, propertyId, propertyName, requireReserva
   }
 
   return (
-    <Dialog open modal>
-      <DialogPortal>
-        <DialogOverlay className="bg-black/75 backdrop-blur-md data-[state=open]:duration-300 data-[state=closed]:duration-200" />
-        <DialogPrimitive.Content
-          onPointerDownOutside={(e) => e.preventDefault()}
-          onEscapeKeyDown={(e) => e.preventDefault()}
-          onOpenAutoFocus={(e) => e.preventDefault()}
+    <div
+      className={cn(themeClass, "fixed inset-0 z-50 bg-background overflow-y-auto")}
+      role="region"
+      aria-label="Identificação do hóspede"
+    >
+      <div className="mx-auto w-full max-w-[490px] md:max-w-[520px] px-5 pt-8">
+        <div
           className={cn(
-            themeClass,
-            "fixed left-1/2 top-1/2 z-50 w-[calc(100%-1.25rem)] max-w-[440px]",
-            "-translate-x-1/2 -translate-y-1/2",
-            "max-h-[92vh] overflow-y-auto",
             "rounded-[26px] border border-[#a855f7]/25",
             "bg-card/95 text-card-foreground",
             "backdrop-blur-2xl backdrop-saturate-150",
             "shadow-[0_28px_70px_-18px_rgba(0,0,0,0.65),0_0_60px_-20px_rgba(232,45,174,0.3)]",
             "p-6 sm:p-7",
-            "data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-[0.97] data-[state=open]:duration-300",
-            "focus:outline-none",
           )}
         >
 
@@ -513,13 +510,13 @@ export function GuideAccessGate({ slug, propertyId, propertyName, requireReserva
                 <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-[#c084fc]">
                   Boas-vindas
                 </p>
-                <DialogPrimitive.Title className="font-serif text-[24px] leading-[1.1] tracking-tight text-foreground">
+                <h2 className="font-serif text-[24px] leading-[1.1] tracking-tight text-foreground">
                   {propertyName}
-                </DialogPrimitive.Title>
+                </h2>
 
-                <DialogPrimitive.Description className="text-[13px] leading-relaxed text-muted-foreground">
+                <p className="text-[13px] leading-relaxed text-muted-foreground">
                   Rápido preenchimento para liberar o guia.
-                </DialogPrimitive.Description>
+                </p>
               </div>
 
               <form onSubmit={handleStep1Next} className="space-y-4">
@@ -663,9 +660,10 @@ export function GuideAccessGate({ slug, propertyId, propertyName, requireReserva
               onSubmit={finalizeSubmit}
             />
           )}
-        </DialogPrimitive.Content>
-      </DialogPortal>
-    </Dialog>
+        </div>
+      </div>
+      <BottomNav theme={theme} active="checkin" items={navItems} onSelect={() => {}} lockedTo="checkin" />
+    </div>
   );
 }
 
@@ -707,13 +705,13 @@ function Step2(props: {
         <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-[#c084fc]">
           Últimos detalhes
         </p>
-        <DialogPrimitive.Title className="font-serif text-[24px] leading-[1.1] tracking-tight text-foreground">
+        <h2 className="font-serif text-[24px] leading-[1.1] tracking-tight text-foreground">
           Só mais algumas perguntas
-        </DialogPrimitive.Title>
+        </h2>
 
-        <DialogPrimitive.Description className="text-[13px] leading-relaxed text-muted-foreground">
+        <p className="text-[13px] leading-relaxed text-muted-foreground">
           Isso ajuda o anfitrião a preparar sua chegada.
-        </DialogPrimitive.Description>
+        </p>
       </div>
 
       <div className="space-y-4">

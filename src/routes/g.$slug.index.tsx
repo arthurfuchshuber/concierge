@@ -745,6 +745,16 @@ function Guide({ data }: { data: GuideOk }) {
   const quickCards = cards.filter((c) => c.key !== "faq");
   const faqCard = cards.find((c) => c.key === "faq");
 
+  // Itens do menu inferior real — usados tanto na navegação normal do guia
+  // quanto no formulário de identificação e no onboarding pós-formulário
+  // (ambos agora em tela cheia, com o mesmo menu real embaixo, travado em
+  // "Chegada" até o hóspede terminar).
+  const guideNavItems: Array<{ key: BottomNavKey; label: string }> = [{ key: "home", label: "Início" }];
+  if (hasCheckinData) guideNavItems.push({ key: "checkin", label: "Chegada" });
+  if (hasSaidaData) guideNavItems.push({ key: "saida", label: "Saída" });
+  if (hasResidencia) guideNavItems.push({ key: "residencia", label: "Residência" });
+  if (hasExplore) guideNavItems.push({ key: "explore", label: "Explorar" });
+
   return (
     <div
       className={`sigma-public-guide relative min-h-screen bg-background text-foreground pb-10 overflow-x-hidden ${theme === "light" ? "theme-light" : ""}`}
@@ -776,6 +786,7 @@ function Guide({ data }: { data: GuideOk }) {
           onUnlock={setAccessRec}
           timeZone={propertyTimeZone(p.city as string | null, (p as any).country as string | null)}
           theme={theme === "light" ? "light" : "dark"}
+          navItems={guideNavItems}
         />
       )}
       <PostAccessOnboarding
@@ -800,16 +811,7 @@ function Guide({ data }: { data: GuideOk }) {
         requestUnlock={requestUnlock}
         markPasswordsSeen={markPasswordsSeen}
         theme={theme === "light" ? "light" : "dark"}
-        navItems={(() => {
-          const items: Array<{ key: import("@/components/guide/BottomNav").BottomNavKey; label: string }> = [
-            { key: "home", label: "Início" },
-          ];
-          if (hasCheckinData) items.push({ key: "checkin", label: "Chegada" });
-          if (hasSaidaData) items.push({ key: "saida", label: "Saída" });
-          if (hasResidencia) items.push({ key: "residencia", label: "Residência" });
-          if (hasExplore) items.push({ key: "explore", label: "Explorar" });
-          return items;
-        })()}
+        navItems={guideNavItems}
       />
       <div className="relative z-10 mx-auto w-full max-w-[490px] md:max-w-[520px]">
         <AnimatePresence mode="wait" initial={false}>
