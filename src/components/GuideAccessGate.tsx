@@ -929,39 +929,38 @@ function QuestionBlock({
   asToggle?: boolean;
 }) {
   return (
-    <div className="rounded-[16px] border border-border p-3.5 transition-colors mb-2.5">
-      <div className="flex items-center gap-2.5 mb-3">
-        <span className="grid size-8 place-items-center rounded-full bg-[#a855f7]/12 text-[#c084fc] shrink-0 text-[15px]">
-          {icon}
-        </span>
+    <div className="rounded-[18px] border border-border p-4 transition-colors mb-3">
+      <div className="flex items-center gap-2 mb-3">
+        <span className="shrink-0 text-[16px] leading-none">{icon}</span>
         <div className="min-w-0 flex-1">
-          <div className="text-[13.5px] font-semibold leading-tight">{title}</div>
+          <div className="text-[15px] font-bold leading-tight">{title}</div>
           {required && (
             <div className="text-[10px] uppercase tracking-wider text-[#c084fc]/70 mt-0.5">Obrigatório</div>
           )}
         </div>
       </div>
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2.5">
         <button
           type="button"
           onClick={() => onAnswer("yes")}
           className={cn(
-            "flex-1 h-9 rounded-[10px] text-[12.5px] font-semibold border transition-all",
+            "flex-1 h-11 rounded-[12px] text-[14px] font-semibold border transition-all",
             answer === "yes"
               ? "bg-gradient-to-r from-[#7C1AD8] to-[#E82DAE] text-white border-transparent"
               : "border-border text-muted-foreground hover:text-foreground",
           )}
         >
-          {asToggle ? "Sim" : "Sim"}
+          Sim
         </button>
         <button
           type="button"
           onClick={() => onAnswer("no")}
           className={cn(
-            "flex-1 h-9 rounded-[10px] text-[12.5px] font-semibold border transition-all",
+            "flex-1 h-11 rounded-[12px] text-[14px] font-semibold border transition-all",
             answer === "no"
               ? "bg-foreground/[0.1] text-foreground border-border"
               : "border-border text-muted-foreground hover:text-foreground",
+
             required && "opacity-40 cursor-not-allowed",
           )}
           disabled={required}
