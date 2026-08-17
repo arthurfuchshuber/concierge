@@ -514,10 +514,11 @@ export function GuideAccessGate({
 
   const reservationBanner =
     resCheck.state === "matched" ? (
-      <div className="flex items-center gap-2 rounded-[14px] border border-emerald-500/35 bg-emerald-500/[0.08] px-3.5 py-3 text-[13px] font-medium text-emerald-400">
+      <div className="flex items-center justify-center gap-2 rounded-[14px] border border-emerald-500/35 bg-emerald-500/[0.08] px-3.5 py-3 text-center text-[13px] font-medium text-emerald-400">
         <span aria-hidden>✓</span>
         <span>Reserva Airbnb encontrada para estas datas.</span>
       </div>
+
     ) : resCheck.state === "no-match" ? (
       <div className="flex items-start gap-2 rounded-[14px] border border-amber-500/35 bg-amber-500/[0.08] px-3.5 py-3 text-[12.5px] text-amber-300">
         <AlertTriangle className="size-4 shrink-0 mt-0.5" />
@@ -670,16 +671,17 @@ export function GuideAccessGate({
                   </FieldShell>
                 )}
 
-                <div className="flex items-center gap-1.5 pt-0.5 text-[12.5px] text-muted-foreground/85">
+                <div className="pt-1.5">
+                  <PrimaryButton loading={loading}>{hasOptionals ? "Continuar →" : "Acessar guia →"}</PrimaryButton>
+                </div>
+
+                <div className="flex items-center justify-center gap-1.5 pt-1 text-[12.5px] text-muted-foreground/85">
                   <span aria-hidden className="text-[13px] leading-none">
                     🔒
                   </span>
                   <span>Seus dados ficam seguros e privados.</span>
                 </div>
 
-                <div className="pt-1.5">
-                  <PrimaryButton loading={loading}>{hasOptionals ? "Continuar →" : "Acessar guia →"}</PrimaryButton>
-                </div>
               </form>
             </>
           ) : (

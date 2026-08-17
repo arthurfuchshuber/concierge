@@ -814,8 +814,11 @@ function Guide({ data }: { data: GuideOk }) {
           setTourActive(false);
         }}
         guestName={accessRec?.name ?? "hóspede"}
+        propertyName={(p.name as string | null) ?? ""}
+        city={(p.city as string | null) ?? null}
         checkinDate={accessRec?.checkinDate ?? ""}
         checkoutDate={accessRec?.checkoutDate ?? ""}
+
         checkinTime={fmtOnbTime(p.checkin_time)}
         checkoutTime={fmtOnbTime(p.checkout_time)}
         address={(p.address as string | null) ?? null}
@@ -2689,7 +2692,78 @@ function SubList({ children }: { children: React.ReactNode }) {
   );
 }
 
+/** Endereço curto: mantém até o CEP, removendo país e a sigla do estado. */
+function shortAddress(raw?: string | null): string {
+  const s = String(raw ?? "").trim();
+  if (!s) return "";
+  const cep = s.match(/\d{5}-?\d{3}/);
+  let out = s;
+  if (cep) out = s.slice(0, (cep.index ?? 0) + cep[0].length);
+  out = out
+    .split(",")
+    .map((p) => p.trim())
+    .filter((p) => p && !/^brasil$|^brazil$/i.test(p))
+    .map((p) => p.replace(/\s*[-–]\s*[A-Z]{2}\b/g, "").trim())
+    .filter(Boolean)
+    .join(", ");
+  return out.replace(/[\s,-]+$/, "");
+}
+
+/** Cabeçalho espelhado da aba "Chegada" (título, imóvel · cidade e abas). */
+function OnboardingArrivalHeader({
+  propertyName,
+  city,
+  tab,
+}: {
+  propertyName: string;
+  city: string | null;
+  tab: "steps" | "passwords";
+}) {
+  const subtitle = [propertyName, city].filter(Boolean).join(" · ");
+  return (
+    <div>
+      <h2 className="text-[28px] font-bold leading-[1.12] tracking-tight text-foreground">Chegada</h2>
+      {subtitle && <p className="mt-1 text-[15px] text-muted-foreground">{subtitle}</p>}
+      <div className="mt-4 grid grid-cols-2 gap-1.5 rounded-[18px] border border-border bg-foreground/[0.03] p-1.5">
+        {(["steps", "passwords"] as const).map((k) => (
+          <div
+            key={k}
+            aria-current={tab === k}
+            className={cn(
+              "h-[46px] grid place-items-center rounded-[14px] text-[15px] font-bold transition-colors",
+              tab === k
+                ? "text-white bg-gradient-to-r from-[#7C1AD8] to-[#E82DAE] shadow-[0_8px_24px_-10px_rgba(232,45,174,0.6)]"
+                : "text-muted-foreground",
+            )}
+          >
+            {k === "steps" ? "Passo a passo" : "Senhas"}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** Card de senha ainda bloqueada — cinza, sem valor, cadeado à direita. */
+function OnboardingLockedCard({ icon, name, detail }: { icon: string; name: string; detail: string }) {
+  return (
+    <div className="rounded-2xl border border-border bg-background/40 p-4 mb-3 flex items-center gap-2.5 opacity-60">
+      <span className="size-9 rounded-[11px] bg-secondary border border-border grid place-items-center text-[16px]">
+        {icon}
+      </span>
+      <div className="min-w-0 flex-1">
+        <div className="text-[13.5px] font-bold text-muted-foreground">{name}</div>
+        <div className="text-[11.5px] text-muted-foreground/80">{detail}</div>
+      </div>
+      <span aria-hidden className="text-[15px] leading-none">
+        🔒
+      </span>
+    </div>
+  );
+}
+
 function OnboardingPasswordCard({
+
   icon,
   name,
   detail,
@@ -2808,6 +2882,9 @@ function PostAccessOnboarding({
   active,
   onDone,
   guestName,
+  propertyName,
+  city,
+
   checkinDate,
   checkoutDate,
   checkinTime,
@@ -2829,6 +2906,9 @@ function PostAccessOnboarding({
   active: boolean;
   onDone: () => void;
   guestName: string;
+  propertyName: string;
+  city: string | null;
+
   checkinDate: string;
   checkoutDate: string;
   checkinTime?: string | null;
@@ -2918,7 +2998,10 @@ function PostAccessOnboarding({
                   </p>
                 </div>
                 <div
-                  className={cn("flex items-center justify-between gap-3 py-3.5", address && "border-b border-border")}
+                  className={cn(
+                    "flex items-center justify-between gap-3 py-3.5",
+                    shortAddress(address) && "border-b border-border",
+                  )}
                 >
                   <p className="text-[15px] text-muted-foreground">Check-out</p>
                   <p className="text-[15px] font-bold text-foreground text-right">
@@ -2926,10 +3009,10 @@ function PostAccessOnboarding({
                     {checkoutTime ? ` até ${checkoutTime}` : ""}
                   </p>
                 </div>
-                {address && (
+                {shortAddress(address) && (
                   <div className="flex items-center justify-between gap-3 py-3.5">
                     <p className="text-[15px] text-muted-foreground shrink-0">Endereço</p>
-                    <p className="text-[15px] font-bold text-foreground text-right">{address}</p>
+                    <p className="text-[15px] font-bold text-foreground text-right">{shortAddress(address)}</p>
                   </div>
                 )}
               </div>
@@ -2938,9 +3021,10 @@ function PostAccessOnboarding({
                 <span aria-hidden className="text-[20px] leading-none mt-0.5">
                   🔑
                 </span>
-                <p className="text-[15px] leading-[1.5] text-foreground/90">
-                  Na aba <b className="font-bold text-foreground">Chegada</b>, seu passo a passo e a senha aparecem
-                  sozinhos assim que a janela de check-in abrir.
+                <p className="flex-1 text-[15px] leading-[1.5] text-foreground/90">
+                  Tudo que você precisa para entrar fica na aba{" "}
+                  <b className="font-bold text-foreground">Chegada</b>: o passo a passo e as senhas, liberados
+                  automaticamente no horário do seu check-in.
                 </p>
               </div>
 
@@ -2966,15 +3050,9 @@ function PostAccessOnboarding({
           {/* Passo 2: passo a passo real da chegada */}
           {step === 1 && (
             <>
-              <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-[#c084fc] mb-1.5">
-                Onde tudo acontece
-              </p>
-              <DialogTitleFallback className="mb-1">Seu passo a passo de chegada</DialogTitleFallback>
-              <p className="text-[13px] leading-relaxed text-muted-foreground mb-4">
-                Isso também fica sempre disponível na aba <b className="text-foreground">Chegada</b>.
-              </p>
+              <OnboardingArrivalHeader propertyName={propertyName} city={city} tab="steps" />
 
-              <div className="rounded-2xl border border-border bg-background/40 p-4 mb-5 max-h-[280px] overflow-y-auto">
+              <div className="mt-4 mb-5 max-h-[300px] overflow-y-auto sg-always-scroll pr-1">
                 {hasCheckinSteps && checkinInstructionsText ? (
                   <StepList text={checkinInstructionsText} dense compact />
                 ) : (
@@ -3006,46 +3084,44 @@ function PostAccessOnboarding({
           {/* Passo 3: senhas de acesso — cards de verdade, com o mesmo mecanismo de PIN da página real */}
           {step === 2 && (
             <>
-              <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-[#c084fc] mb-1.5">
-                Suas senhas de acesso
-              </p>
-              <DialogTitleFallback className="mb-3">Chegada → Senhas</DialogTitleFallback>
+              <OnboardingArrivalHeader propertyName={propertyName} city={city} tab="passwords" />
 
-              {lockCode && (
-                <OnboardingPasswordCard
-                  icon="🔒"
-                  name="Fechadura"
-                  value={lockCode}
-                  ready
-                  requestUnlock={requestUnlock}
-                  onRevealed={markPasswordsSeen}
-                />
-              )}
-              {wifiPassword && (
-                <OnboardingPasswordCard
-                  icon="📶"
-                  name="Wi-Fi"
-                  detail={wifiSsid ? `Rede: ${wifiSsid}` : null}
-                  value={wifiPassword}
-                  ready
-                  requestUnlock={requestUnlock}
-                  onRevealed={markPasswordsSeen}
-                />
-              )}
-              {gateCode && (
-                <OnboardingPasswordCard
-                  icon="🚪"
-                  name="Portão da garagem"
-                  value={gateCode}
-                  ready
-                  requestUnlock={requestUnlock}
-                  onRevealed={markPasswordsSeen}
-                />
-              )}
+              <div className="mt-4">
+                {lockCode && (
+                  <OnboardingPasswordCard
+                    icon="🔒"
+                    name="Fechadura"
+                    value={lockCode}
+                    ready
+                    requestUnlock={requestUnlock}
+                    onRevealed={markPasswordsSeen}
+                  />
+                )}
+                {wifiPassword && (
+                  <OnboardingPasswordCard
+                    icon="📶"
+                    name="Wi-Fi"
+                    detail={wifiSsid ? `Rede: ${wifiSsid}` : null}
+                    value={wifiPassword}
+                    ready
+                    requestUnlock={requestUnlock}
+                    onRevealed={markPasswordsSeen}
+                  />
+                )}
+                {gateCode && (
+                  <OnboardingLockedCard
+                    icon="🚪"
+                    name="Portão da garagem"
+                    detail={
+                      checkinTime ? `Libera junto com a fechadura, às ${checkinTime}` : "Libera junto com a fechadura"
+                    }
+                  />
+                )}
+              </div>
 
               <div className="rounded-2xl border border-[#a855f7]/25 bg-[#a855f7]/10 p-3.5 flex items-start gap-2.5 mt-1 mb-5">
                 <span className="text-[15px] leading-none mt-0.5">🔐</span>
-                <p className="text-[12px] leading-relaxed text-foreground/85">
+                <p className="flex-1 text-[13px] leading-[1.55] text-foreground/85">
                   {hasAccessPin ? (
                     <>
                       Os valores ficam ocultos até você tocar em 👁 e confirmar o{" "}
@@ -3076,6 +3152,7 @@ function PostAccessOnboarding({
               </div>
             </>
           )}
+
 
           {/* Passo 4: encerramento — pergunta direta, chat só aqui, por último */}
           {step === 3 && (
