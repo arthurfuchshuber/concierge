@@ -822,6 +822,10 @@ function Guide({ data }: { data: GuideOk }) {
         markPasswordsSeen={markPasswordsSeen}
         theme={theme === "light" ? "light" : "dark"}
         navItems={guideNavItems}
+        propertyName={(p.name as string | null) ?? null}
+        city={(p.city as string | null) ?? null}
+        timeZone={timeZone}
+
       />
       <div className="relative z-10 mx-auto w-full max-w-[490px] md:max-w-[520px]">
         <AnimatePresence mode="wait" initial={false}>
