@@ -31,6 +31,7 @@ import { Route as OauthGoogleCalendarReturnRouteImport } from './routes/oauth.go
 import { Route as GSlugExplorarRouteImport } from './routes/g.$slug.explorar'
 import { Route as ApiPublicPlacePhotoRouteImport } from './routes/api/public/place-photo'
 import { Route as ApiPublicLandingChatRouteImport } from './routes/api/public/landing-chat'
+import { Route as ApiPublicItineraryRouteImport } from './routes/api/public/itinerary'
 import { Route as ApiPublicGuideChatUploadRouteImport } from './routes/api/public/guide-chat-upload'
 import { Route as ApiPublicGuideChatRouteImport } from './routes/api/public/guide-chat'
 import { Route as ApiPublicGuestPushRouteImport } from './routes/api/public/guest-push'
@@ -187,6 +188,11 @@ const ApiPublicPlacePhotoRoute = ApiPublicPlacePhotoRouteImport.update({
 const ApiPublicLandingChatRoute = ApiPublicLandingChatRouteImport.update({
   id: '/api/public/landing-chat',
   path: '/api/public/landing-chat',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicItineraryRoute = ApiPublicItineraryRouteImport.update({
+  id: '/api/public/itinerary',
+  path: '/api/public/itinerary',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiPublicGuideChatUploadRoute =
@@ -489,6 +495,7 @@ export interface FileRoutesByFullPath {
   '/api/public/guest-push': typeof ApiPublicGuestPushRoute
   '/api/public/guide-chat': typeof ApiPublicGuideChatRoute
   '/api/public/guide-chat-upload': typeof ApiPublicGuideChatUploadRoute
+  '/api/public/itinerary': typeof ApiPublicItineraryRoute
   '/api/public/landing-chat': typeof ApiPublicLandingChatRoute
   '/api/public/place-photo': typeof ApiPublicPlacePhotoRoute
   '/g/$slug/explorar': typeof GSlugExplorarRoute
@@ -555,6 +562,7 @@ export interface FileRoutesByTo {
   '/api/public/guest-push': typeof ApiPublicGuestPushRoute
   '/api/public/guide-chat': typeof ApiPublicGuideChatRoute
   '/api/public/guide-chat-upload': typeof ApiPublicGuideChatUploadRoute
+  '/api/public/itinerary': typeof ApiPublicItineraryRoute
   '/api/public/landing-chat': typeof ApiPublicLandingChatRoute
   '/api/public/place-photo': typeof ApiPublicPlacePhotoRoute
   '/g/$slug/explorar': typeof GSlugExplorarRoute
@@ -625,6 +633,7 @@ export interface FileRoutesById {
   '/api/public/guest-push': typeof ApiPublicGuestPushRoute
   '/api/public/guide-chat': typeof ApiPublicGuideChatRoute
   '/api/public/guide-chat-upload': typeof ApiPublicGuideChatUploadRoute
+  '/api/public/itinerary': typeof ApiPublicItineraryRoute
   '/api/public/landing-chat': typeof ApiPublicLandingChatRoute
   '/api/public/place-photo': typeof ApiPublicPlacePhotoRoute
   '/g/$slug/explorar': typeof GSlugExplorarRoute
@@ -695,6 +704,7 @@ export interface FileRouteTypes {
     | '/api/public/guest-push'
     | '/api/public/guide-chat'
     | '/api/public/guide-chat-upload'
+    | '/api/public/itinerary'
     | '/api/public/landing-chat'
     | '/api/public/place-photo'
     | '/g/$slug/explorar'
@@ -761,6 +771,7 @@ export interface FileRouteTypes {
     | '/api/public/guest-push'
     | '/api/public/guide-chat'
     | '/api/public/guide-chat-upload'
+    | '/api/public/itinerary'
     | '/api/public/landing-chat'
     | '/api/public/place-photo'
     | '/g/$slug/explorar'
@@ -830,6 +841,7 @@ export interface FileRouteTypes {
     | '/api/public/guest-push'
     | '/api/public/guide-chat'
     | '/api/public/guide-chat-upload'
+    | '/api/public/itinerary'
     | '/api/public/landing-chat'
     | '/api/public/place-photo'
     | '/g/$slug/explorar'
@@ -883,6 +895,7 @@ export interface RootRouteChildren {
   ApiPublicGuestPushRoute: typeof ApiPublicGuestPushRoute
   ApiPublicGuideChatRoute: typeof ApiPublicGuideChatRoute
   ApiPublicGuideChatUploadRoute: typeof ApiPublicGuideChatUploadRoute
+  ApiPublicItineraryRoute: typeof ApiPublicItineraryRoute
   ApiPublicLandingChatRoute: typeof ApiPublicLandingChatRoute
   ApiPublicPlacePhotoRoute: typeof ApiPublicPlacePhotoRoute
   OauthGoogleCalendarReturnRoute: typeof OauthGoogleCalendarReturnRoute
@@ -1057,6 +1070,13 @@ declare module '@tanstack/react-router' {
       path: '/api/public/landing-chat'
       fullPath: '/api/public/landing-chat'
       preLoaderRoute: typeof ApiPublicLandingChatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/itinerary': {
+      id: '/api/public/itinerary'
+      path: '/api/public/itinerary'
+      fullPath: '/api/public/itinerary'
+      preLoaderRoute: typeof ApiPublicItineraryRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/guide-chat-upload': {
@@ -1485,6 +1505,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicGuestPushRoute: ApiPublicGuestPushRoute,
   ApiPublicGuideChatRoute: ApiPublicGuideChatRoute,
   ApiPublicGuideChatUploadRoute: ApiPublicGuideChatUploadRoute,
+  ApiPublicItineraryRoute: ApiPublicItineraryRoute,
   ApiPublicLandingChatRoute: ApiPublicLandingChatRoute,
   ApiPublicPlacePhotoRoute: ApiPublicPlacePhotoRoute,
   OauthGoogleCalendarReturnRoute: OauthGoogleCalendarReturnRoute,
