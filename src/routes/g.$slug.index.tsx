@@ -814,8 +814,11 @@ function Guide({ data }: { data: GuideOk }) {
           setTourActive(false);
         }}
         guestName={accessRec?.name ?? "hóspede"}
+        propertyName={(p.name as string | null) ?? ""}
+        city={(p.city as string | null) ?? null}
         checkinDate={accessRec?.checkinDate ?? ""}
         checkoutDate={accessRec?.checkoutDate ?? ""}
+
         checkinTime={fmtOnbTime(p.checkin_time)}
         checkoutTime={fmtOnbTime(p.checkout_time)}
         address={(p.address as string | null) ?? null}
