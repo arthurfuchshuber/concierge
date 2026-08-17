@@ -3046,7 +3046,7 @@ function PostAccessOnboarding({
 
         {/* Passo 4: encerramento — pergunta direta, chat só aqui, por último */}
         {step === 3 && (
-          <div className="text-center">
+          <div className="rounded-[26px] border border-[#a855f7]/25 bg-card/95 backdrop-blur-2xl shadow-[0_28px_70px_-18px_rgba(0,0,0,0.65),0_0_60px_-20px_rgba(232,45,174,0.3)] p-6 sm:p-7 text-center">
             <div className="mx-auto mb-5 size-16 rounded-full bg-emerald-500/15 border-2 border-emerald-500 grid place-items-center text-[28px]">
               ✓
             </div>
