@@ -2747,15 +2747,15 @@ function OnboardingArrivalHeader({
 /** Card de senha ainda bloqueada — cinza, sem valor, cadeado à direita. */
 function OnboardingLockedCard({ icon, name, detail }: { icon: string; name: string; detail: string }) {
   return (
-    <div className="rounded-2xl border border-border bg-background/40 p-4 mb-3 flex items-center gap-2.5 opacity-60">
-      <span className="size-9 rounded-[11px] bg-secondary border border-border grid place-items-center text-[16px]">
+    <div className="rounded-[14px] border border-border bg-background/40 px-3 py-2.5 mb-2 flex items-center gap-2.5 opacity-60">
+      <span className="size-8 rounded-[10px] bg-secondary border border-border grid place-items-center text-[14px]">
         {icon}
       </span>
       <div className="min-w-0 flex-1">
-        <div className="text-[13.5px] font-bold text-muted-foreground">{name}</div>
-        <div className="text-[11.5px] text-muted-foreground/80">{detail}</div>
+        <div className="text-[12.5px] font-bold text-muted-foreground">{name}</div>
+        <div className="text-[10.5px] text-muted-foreground/80 [text-wrap:auto]">{detail}</div>
       </div>
-      <span aria-hidden className="text-[15px] leading-none">
+      <span aria-hidden className="text-[13px] leading-none">
         🔒
       </span>
     </div>
@@ -2763,7 +2763,6 @@ function OnboardingLockedCard({ icon, name, detail }: { icon: string; name: stri
 }
 
 function OnboardingPasswordCard({
-
   icon,
   name,
   detail,
@@ -2771,6 +2770,8 @@ function OnboardingPasswordCard({
   ready,
   requestUnlock,
   onRevealed,
+  expanded,
+  onToggle,
 }: {
   icon: string;
   name: string;
@@ -2779,9 +2780,15 @@ function OnboardingPasswordCard({
   ready: boolean;
   requestUnlock: (cb?: () => void) => void;
   onRevealed: () => void;
+  expanded: boolean;
+  onToggle: () => void;
 }) {
   const [revealed, setRevealed] = useState(false);
   const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    if (!expanded) setRevealed(false);
+  }, [expanded]);
 
   function reveal() {
     if (revealed) {
@@ -2811,46 +2818,58 @@ function OnboardingPasswordCard({
   }
 
   return (
-    <div className="rounded-2xl border border-border bg-background/40 p-4 mb-3">
-      <div className="flex items-center gap-2.5 mb-3">
-        <span className="size-9 rounded-[11px] bg-secondary border border-border grid place-items-center text-[16px]">
+    <div className="rounded-[14px] border border-border bg-background/40 mb-2 overflow-hidden">
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={expanded}
+        className="w-full flex items-center gap-2.5 px-3 py-2.5 text-left"
+      >
+        <span className="size-8 rounded-[10px] bg-secondary border border-border grid place-items-center text-[14px]">
           {icon}
         </span>
         <div className="min-w-0 flex-1">
-          <div className="text-[13.5px] font-bold">{name}</div>
+          <div className="text-[12.5px] font-bold">{name}</div>
           {ready ? (
-            <div className="text-[10.5px] text-emerald-400 flex items-center gap-1">
+            <div className="text-[10px] text-emerald-400 flex items-center gap-1">
               <span className="size-1.5 rounded-full bg-emerald-400" /> Liberada agora
             </div>
           ) : (
-            <div className="text-[10.5px] text-muted-foreground">{detail}</div>
+            <div className="text-[10px] text-muted-foreground [text-wrap:auto]">{detail}</div>
           )}
         </div>
-      </div>
-      {detail && ready && <div className="text-[10.5px] text-muted-foreground mb-1.5">{detail}</div>}
-      <div className="flex items-center justify-between gap-2 rounded-[11px] border border-border bg-secondary/60 px-3.5 py-2.5">
-        <span className="font-mono font-bold text-[15px] tracking-wider">
-          {revealed ? value : "•".repeat(Math.max(5, Math.min(value.length, 9)))}
-        </span>
-        <div className="flex items-center gap-1.5 shrink-0">
-          <button
-            type="button"
-            onClick={copy}
-            aria-label="Copiar"
-            className="size-8 rounded-[9px] bg-card border border-border grid place-items-center"
-          >
-            {copied ? "✓" : "📋"}
-          </button>
-          <button
-            type="button"
-            onClick={reveal}
-            aria-label="Mostrar"
-            className="size-8 rounded-[9px] grid place-items-center bg-gradient-to-br from-[#7C1AD8] to-[#E82DAE] text-white"
-          >
-            👁
-          </button>
+        <ChevronDown
+          className={cn("size-4 shrink-0 text-muted-foreground transition-transform", expanded && "rotate-180")}
+        />
+      </button>
+      {expanded && (
+        <div className="px-3 pb-3">
+          {detail && ready && <div className="text-[10px] text-muted-foreground mb-1.5 [text-wrap:auto]">{detail}</div>}
+          <div className="flex items-center justify-between gap-2 rounded-[10px] border border-border bg-secondary/60 px-3 py-2">
+            <span className="font-mono font-bold text-[13.5px] tracking-wider">
+              {revealed ? value : "•".repeat(Math.max(5, Math.min(value.length, 9)))}
+            </span>
+            <div className="flex items-center gap-1.5 shrink-0">
+              <button
+                type="button"
+                onClick={copy}
+                aria-label="Copiar"
+                className="size-7 rounded-[8px] bg-card border border-border grid place-items-center text-[12px]"
+              >
+                {copied ? "✓" : "📋"}
+              </button>
+              <button
+                type="button"
+                onClick={reveal}
+                aria-label="Mostrar"
+                className="size-7 rounded-[8px] grid place-items-center bg-gradient-to-br from-[#7C1AD8] to-[#E82DAE] text-white text-[12px]"
+              >
+                👁
+              </button>
+            </div>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
