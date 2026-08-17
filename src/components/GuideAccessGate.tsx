@@ -552,11 +552,11 @@ export function GuideAccessGate({
       <div className="mx-auto flex w-full max-w-[490px] md:max-w-[520px] min-h-[100dvh] items-center px-5 pt-6 pb-[110px]">
         <div
           className={cn(
-            "w-full rounded-[26px] border border-[#a855f7]/25",
+            "w-full rounded-[22px] border border-[#a855f7]/25",
             "bg-card/95 text-card-foreground",
             "backdrop-blur-2xl backdrop-saturate-150",
             "shadow-[0_28px_70px_-18px_rgba(0,0,0,0.65),0_0_60px_-20px_rgba(232,45,174,0.3)]",
-            "p-6 sm:p-7",
+            "p-5 sm:p-5.5",
           )}
         >
           {/* Progress dots (só quando há step 2) */}
