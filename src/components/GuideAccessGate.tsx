@@ -529,7 +529,7 @@ export function GuideAccessGate({ slug, propertyId, propertyName, requireReserva
               </div>
 
               <form onSubmit={handleStep1Next} className="space-y-4">
-                <FieldShell icon={<User2 className="size-[17px]" />}>
+                <FieldShell icon={<span className="text-[17px] leading-none">👤</span>}>
                   <Label htmlFor="guest-name" className="sr-only">Nome</Label>
                   <Input
                     id="guest-name"
@@ -537,10 +537,11 @@ export function GuideAccessGate({ slug, propertyId, propertyName, requireReserva
                     onChange={(e) => setName(e.target.value)}
                     maxLength={200}
                     required
-                    className="h-[48px] rounded-[12px] pl-10 pr-3 text-[14.5px] bg-transparent border-transparent focus-visible:ring-0 focus-visible:border-transparent"
+                    className="h-[56px] rounded-[14px] pl-11 pr-3 text-[16px] font-medium bg-transparent border-transparent focus-visible:ring-0 focus-visible:border-transparent"
                     placeholder="Nome como aparece na reserva"
                   />
                 </FieldShell>
+
 
                 <div className="grid grid-cols-2 gap-2">
                   <RangeButton
