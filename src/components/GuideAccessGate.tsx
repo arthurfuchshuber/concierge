@@ -582,17 +582,17 @@ export function GuideAccessGate({
 
           {step === 1 ? (
             <>
-              <div className="mb-5 space-y-1.5">
-                <p className="text-[11px] font-bold uppercase tracking-[0.24em] text-[#c084fc]">Boas-vindas</p>
-                <h2 className="text-[26px] font-bold leading-[1.12] tracking-tight text-foreground">{propertyName}</h2>
+              <div className="mb-4 space-y-1">
+                <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-[#c084fc]">Boas-vindas</p>
+                <h2 className="text-[21px] font-bold leading-[1.14] tracking-tight text-foreground">{propertyName}</h2>
 
-                <p className="text-[14px] leading-relaxed text-muted-foreground">
+                <p className="text-[12.5px] leading-relaxed text-muted-foreground">
                   Rápido preenchimento para liberar o guia.
                 </p>
               </div>
 
-              <form onSubmit={handleStep1Next} className="space-y-3">
-                <FieldShell icon={<span className="text-[17px] leading-none">👤</span>}>
+              <form onSubmit={handleStep1Next} className="space-y-2.5">
+                <FieldShell icon={<span className="text-[15px] leading-none">👤</span>}>
                   <Label htmlFor="guest-name" className="sr-only">
                     Nome
                   </Label>
@@ -602,7 +602,7 @@ export function GuideAccessGate({
                     onChange={(e) => setName(e.target.value)}
                     maxLength={200}
                     required
-                    className="h-[56px] rounded-[14px] pl-11 pr-3 text-[15.5px] font-medium bg-transparent border-transparent focus-visible:ring-0 focus-visible:border-transparent"
+                    className="h-[46px] rounded-[12px] pl-10 pr-3 text-[14px] font-medium bg-transparent border-transparent focus-visible:ring-0 focus-visible:border-transparent"
                     placeholder="Nome como aparece na reserva"
                   />
                 </FieldShell>
