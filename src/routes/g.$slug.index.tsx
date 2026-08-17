@@ -2675,6 +2675,8 @@ function OnboardingPasswordCard({
   ready: boolean;
   requestUnlock: (cb?: () => void) => void;
   onRevealed: () => void;
+  open?: boolean;
+  onToggle?: () => void;
 }) {
   const [revealed, setRevealed] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -2706,25 +2708,42 @@ function OnboardingPasswordCard({
     setTimeout(() => setCopied(false), 1500);
   }
 
+  const collapsible = typeof open === "boolean";
+  const expanded = collapsible ? open : true;
+
   return (
     <div className="rounded-2xl border border-border bg-background/40 p-4 mb-3">
-      <div className="flex items-center gap-2.5 mb-3">
-        <span className="size-9 rounded-[11px] bg-secondary border border-border grid place-items-center text-[16px]">
+      <button
+        type="button"
+        onClick={collapsible ? onToggle : undefined}
+        aria-expanded={expanded}
+        className={cn("flex w-full items-center gap-2.5 text-left", collapsible ? "cursor-pointer" : "cursor-default")}
+      >
+        <span className="size-9 rounded-[11px] bg-secondary border border-border grid place-items-center text-[16px] shrink-0">
           {icon}
         </span>
         <div className="min-w-0 flex-1">
-          <div className="text-[13.5px] font-bold">{name}</div>
+          <div className="text-[14px] font-bold">{name}</div>
           {ready ? (
-            <div className="text-[10.5px] text-emerald-400 flex items-center gap-1">
+            <div className="text-[11px] text-emerald-400 flex items-center gap-1">
               <span className="size-1.5 rounded-full bg-emerald-400" /> Liberada agora
             </div>
           ) : (
-            <div className="text-[10.5px] text-muted-foreground">{detail}</div>
+            <div className="text-[11px] text-muted-foreground">{detail}</div>
           )}
         </div>
-      </div>
-      {detail && ready && <div className="text-[10.5px] text-muted-foreground mb-1.5">{detail}</div>}
-      <div className="flex items-center justify-between gap-2 rounded-[11px] border border-border bg-secondary/60 px-3.5 py-2.5">
+        {collapsible && (
+          <ChevronDown
+            className={cn(
+              "size-4 shrink-0 text-muted-foreground/70 transition-transform duration-200",
+              expanded && "rotate-180",
+            )}
+            strokeWidth={2}
+          />
+        )}
+      </button>
+      {expanded && detail && ready && <div className="text-[11px] text-muted-foreground mt-3 mb-1.5">{detail}</div>}
+      <div className={cn("flex items-center justify-between gap-2 rounded-[11px] border border-border bg-secondary/60 px-3.5 py-2.5", expanded ? (detail && ready ? "" : "mt-3") : "hidden")}>
         <span className="font-mono font-bold text-[15px] tracking-wider">
           {revealed ? value : "•".repeat(Math.max(5, Math.min(value.length, 9)))}
         </span>
