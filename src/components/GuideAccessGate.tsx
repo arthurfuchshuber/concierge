@@ -665,22 +665,23 @@ export function GuideAccessGate({
                       onChange={(e) => setCode(e.target.value)}
                       maxLength={100}
                       required
-                      className="h-[56px] rounded-[14px] px-3 text-[15.5px] bg-transparent border-transparent focus-visible:ring-0"
+                      className="h-[46px] rounded-[12px] px-3 text-[14px] bg-transparent border-transparent focus-visible:ring-0"
                       placeholder="Código da reserva"
                     />
                   </FieldShell>
                 )}
 
-                <div className="pt-1.5">
+                <div className="pt-1">
                   <PrimaryButton loading={loading}>{hasOptionals ? "Continuar →" : "Acessar guia →"}</PrimaryButton>
                 </div>
 
-                <div className="flex items-center justify-center gap-1.5 pt-1 text-[12.5px] text-muted-foreground/85">
-                  <span aria-hidden className="text-[13px] leading-none">
+                <div className="flex items-center justify-center gap-1.5 pt-0.5 text-[11.5px] text-muted-foreground/85">
+                  <span aria-hidden className="text-[12px] leading-none">
                     🔒
                   </span>
                   <span>Seus dados ficam seguros e privados.</span>
                 </div>
+
 
               </form>
             </>
