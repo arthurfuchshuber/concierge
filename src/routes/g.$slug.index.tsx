@@ -2835,6 +2835,9 @@ function PostAccessOnboarding({
   active: boolean;
   onDone: () => void;
   guestName: string;
+  propertyName: string;
+  city: string | null;
+
   checkinDate: string;
   checkoutDate: string;
   checkinTime?: string | null;
