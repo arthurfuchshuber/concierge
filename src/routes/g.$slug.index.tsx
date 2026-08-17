@@ -63,7 +63,7 @@ import { propertyTimeZone, todayInTZ, zonedTimeToUtc } from "@/lib/property-time
 import { BottomNav, type BottomNavKey } from "@/components/guide/BottomNav";
 import waterfallImg from "@/assets/rec-waterfall.jpg";
 import conciergeLogo from "@/assets/concierge-logo.png";
-import { GuideAccessGate, readAccessRecord, consumeFirstAccessFlag, type AccessRecord } from "@/components/GuideAccessGate";
+import { GuideAccessGate, readAccessRecord, hasPendingOnboarding, clearPendingOnboarding, type AccessRecord } from "@/components/GuideAccessGate";
 import { InlineTagText } from "@/components/tags/InlineTagText";
 import { slugForTag, expandInfoTags, type GuideTagKey } from "@/lib/guide-tags";
 import { toast } from "sonner";
@@ -419,19 +419,12 @@ function Guide({ data }: { data: GuideOk }) {
   const [isPreview, setIsPreview] = useState(false);
   const [accessRec, setAccessRec] = useState<AccessRecord | null>(null);
   const [tourActive, setTourActive] = useState(false);
-  // Dispara o tour guiado só na primeira vez que ESTA reserva libera o acesso
-  // (nunca em visitas de retorno, que reidratam o accessRec direto do
-  // localStorage sem passar pela submissão do formulário).
-  useEffect(() => {
-    if (!accessRec) return;
-    if (consumeFirstAccessFlag(slug)) {
-      gotoSection("checkin");
-      const t = setTimeout(() => setTourActive(true), 450);
-      return () => clearTimeout(t);
-    }
-  }, [accessRec, slug]);
   // Hidrata o registro do localStorage somente após mount (evita mismatch SSR
   // que descartava o registro e fazia o popup reaparecer a cada acesso).
+  // Decide, na MESMA passada, se o onboarding pós-formulário ainda está
+  // pendente — sem isso, a home "piscava" por trás do formulário/onboarding
+  // por uma fração de segundo antes de qualquer decisão ser tomada, e um
+  // segundo efeito com delay artificial (450ms) só piorava a janela de flash.
   const [gateReady, setGateReady] = useState(false);
   useEffect(() => {
     const preview = new URLSearchParams(window.location.search).get("preview") === "1";
@@ -450,10 +443,23 @@ function Guide({ data }: { data: GuideOk }) {
       return;
     }
     const rec = readAccessRecord(slug);
-    if (rec) setAccessRec(rec);
+    if (rec) {
+      setAccessRec(rec);
+      // Onboarding pendente desta reserva (nunca concluído, ou a tela foi
+      // atualizada no meio dele) — continua obrigatório até o hóspede
+      // passar por todas as etapas, mesmo depois de um refresh.
+      if (hasPendingOnboarding(slug)) {
+        gotoSection("checkin");
+        setTourActive(true);
+      }
+    }
     setGateReady(true);
   }, [slug]);
   const needsGate = gateReady && !accessRec && !isPreview;
+  // Enquanto o estado real ainda não foi decidido (gateReady === false), a
+  // página de fundo fica coberta — nunca "pisca" a home por trás do
+  // formulário ou do onboarding, em nenhuma etapa.
+  const hidePageBehindOverlay = !gateReady;
 
   // (Wi-Fi e senhas de acesso agora seguem apenas a regra de check-out às
   // 15h00 — `checkinLocked` abaixo. A antiga regra "12h após check-in" foi
@@ -743,6 +749,9 @@ function Guide({ data }: { data: GuideOk }) {
     <div
       className={`sigma-public-guide relative min-h-screen bg-background text-foreground pb-10 overflow-x-hidden ${theme === "light" ? "theme-light" : ""}`}
     >
+      {hidePageBehindOverlay && (
+        <div className="fixed inset-0 z-[80] bg-background" aria-hidden />
+      )}
       {needsGate && (
         <GuideAccessGate
           slug={slug}
@@ -771,7 +780,10 @@ function Guide({ data }: { data: GuideOk }) {
       )}
       <PostAccessOnboarding
         active={tourActive}
-        onDone={() => setTourActive(false)}
+        onDone={() => {
+          clearPendingOnboarding(slug);
+          setTourActive(false);
+        }}
         guestName={accessRec?.name ?? "hóspede"}
         checkinDate={accessRec?.checkinDate ?? ""}
         checkoutDate={accessRec?.checkoutDate ?? ""}

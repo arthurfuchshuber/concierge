@@ -39,16 +39,21 @@ const STORAGE_PREFIX = "sg-access-";
 const TOUR_PENDING_PREFIX = "sg-tour-pending-";
 
 /**
- * Consome (lê e apaga) a flag de "primeiro acesso de verdade" desta reserva.
- * Chamado uma única vez pela página do guia ao detectar que o acesso foi
- * liberado — se retornar true, é a hora de mostrar o tour guiado.
+ * Checa (sem apagar) se o onboarding pós-formulário desta reserva ainda está
+ * pendente. Diferente do antigo "consome e apaga na hora": aqui a flag
+ * SOBREVIVE a um refresh no meio do onboarding — o hóspede não consegue
+ * escapar pra página principal atualizando a tela enquanto não passar por
+ * todas as etapas. Só quem apaga a flag é `clearPendingOnboarding`, chamada
+ * quando o hóspede realmente termina (qualquer um dos botões finais).
  */
-export function consumeFirstAccessFlag(slug: string): boolean {
+export function hasPendingOnboarding(slug: string): boolean {
   if (typeof window === "undefined") return false;
-  const key = TOUR_PENDING_PREFIX + slug;
-  const pending = window.localStorage.getItem(key) === "1";
-  if (pending) window.localStorage.removeItem(key);
-  return pending;
+  return window.localStorage.getItem(TOUR_PENDING_PREFIX + slug) === "1";
+}
+
+export function clearPendingOnboarding(slug: string): void {
+  if (typeof window === "undefined") return;
+  window.localStorage.removeItem(TOUR_PENDING_PREFIX + slug);
 }
 
 export type AccessRecord = {
