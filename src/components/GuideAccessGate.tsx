@@ -552,11 +552,11 @@ export function GuideAccessGate({
       <div className="mx-auto flex w-full max-w-[490px] md:max-w-[520px] min-h-[100dvh] items-center px-5 pt-6 pb-[110px]">
         <div
           className={cn(
-            "w-full rounded-[26px] border border-[#a855f7]/25",
+            "w-full rounded-[22px] border border-[#a855f7]/25",
             "bg-card/95 text-card-foreground",
             "backdrop-blur-2xl backdrop-saturate-150",
             "shadow-[0_28px_70px_-18px_rgba(0,0,0,0.65),0_0_60px_-20px_rgba(232,45,174,0.3)]",
-            "p-6 sm:p-7",
+            "p-5 sm:p-5.5",
           )}
         >
           {/* Progress dots (só quando há step 2) */}
@@ -582,17 +582,17 @@ export function GuideAccessGate({
 
           {step === 1 ? (
             <>
-              <div className="mb-5 space-y-1.5">
-                <p className="text-[11px] font-bold uppercase tracking-[0.24em] text-[#c084fc]">Boas-vindas</p>
-                <h2 className="text-[26px] font-bold leading-[1.12] tracking-tight text-foreground">{propertyName}</h2>
+              <div className="mb-4 space-y-1">
+                <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-[#c084fc]">Boas-vindas</p>
+                <h2 className="text-[21px] font-bold leading-[1.14] tracking-tight text-foreground">{propertyName}</h2>
 
-                <p className="text-[14px] leading-relaxed text-muted-foreground">
+                <p className="text-[12.5px] leading-relaxed text-muted-foreground">
                   Rápido preenchimento para liberar o guia.
                 </p>
               </div>
 
-              <form onSubmit={handleStep1Next} className="space-y-3">
-                <FieldShell icon={<span className="text-[17px] leading-none">👤</span>}>
+              <form onSubmit={handleStep1Next} className="space-y-2.5">
+                <FieldShell icon={<span className="text-[15px] leading-none">👤</span>}>
                   <Label htmlFor="guest-name" className="sr-only">
                     Nome
                   </Label>
@@ -602,7 +602,7 @@ export function GuideAccessGate({
                     onChange={(e) => setName(e.target.value)}
                     maxLength={200}
                     required
-                    className="h-[56px] rounded-[14px] pl-11 pr-3 text-[15.5px] font-medium bg-transparent border-transparent focus-visible:ring-0 focus-visible:border-transparent"
+                    className="h-[46px] rounded-[12px] pl-10 pr-3 text-[14px] font-medium bg-transparent border-transparent focus-visible:ring-0 focus-visible:border-transparent"
                     placeholder="Nome como aparece na reserva"
                   />
                 </FieldShell>
@@ -665,22 +665,23 @@ export function GuideAccessGate({
                       onChange={(e) => setCode(e.target.value)}
                       maxLength={100}
                       required
-                      className="h-[56px] rounded-[14px] px-3 text-[15.5px] bg-transparent border-transparent focus-visible:ring-0"
+                      className="h-[46px] rounded-[12px] px-3 text-[14px] bg-transparent border-transparent focus-visible:ring-0"
                       placeholder="Código da reserva"
                     />
                   </FieldShell>
                 )}
 
-                <div className="pt-1.5">
+                <div className="pt-1">
                   <PrimaryButton loading={loading}>{hasOptionals ? "Continuar →" : "Acessar guia →"}</PrimaryButton>
                 </div>
 
-                <div className="flex items-center justify-center gap-1.5 pt-1 text-[12.5px] text-muted-foreground/85">
-                  <span aria-hidden className="text-[13px] leading-none">
+                <div className="flex items-center justify-center gap-1.5 pt-0.5 text-[11.5px] text-muted-foreground/85">
+                  <span aria-hidden className="text-[12px] leading-none">
                     🔒
                   </span>
                   <span>Seus dados ficam seguros e privados.</span>
                 </div>
+
 
               </form>
             </>
@@ -777,18 +778,18 @@ function Step2(props: {
 
   return (
     <>
-      <div className="mb-5 space-y-1.5">
-        <p className="text-[11px] font-bold uppercase tracking-[0.24em] text-[#c084fc]">Últimos detalhes</p>
-        <h2 className="text-[26px] font-bold leading-[1.12] tracking-tight text-foreground">
+      <div className="mb-4 space-y-1">
+        <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-[#c084fc]">Últimos detalhes</p>
+        <h2 className="text-[21px] font-bold leading-[1.14] tracking-tight text-foreground">
           Só mais algumas perguntas
         </h2>
 
-        <p className="text-[14px] leading-relaxed text-muted-foreground">
+        <p className="text-[12.5px] leading-relaxed text-muted-foreground">
           Isso ajuda o anfitrião a preparar sua chegada.
         </p>
       </div>
 
-      <div className="space-y-3">
+      <div className="space-y-2.5">
         {/* Arrival */}
         {cfg.arrivalTime !== "off" && (
           <QuestionBlock
@@ -802,11 +803,11 @@ function Step2(props: {
             }}
           >
             {arrivalAns === "yes" && (
-              <div className="mt-3.5 flex items-center gap-2">
-                <label className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground font-bold whitespace-nowrap">
+              <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
+                <label className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground font-bold whitespace-nowrap">
                   Por volta de
                 </label>
-                <div className="ml-auto flex items-center gap-1.5">
+                <div className="flex items-center gap-1.5">
                   <Select
                     value={arrivalTime.h ? arrivalTime.h.padStart(2, "0") : undefined}
                     onValueChange={(h) => {
@@ -817,7 +818,7 @@ function Step2(props: {
                       setArrivalTime({ h, m: nextM });
                     }}
                   >
-                    <SelectTrigger className="h-11 w-[62px] justify-center rounded-[12px] border-border bg-foreground/[0.04] text-[16px] font-bold [&>svg]:hidden">
+                    <SelectTrigger className="h-9 w-[54px] justify-center rounded-[10px] border-border bg-foreground/[0.04] text-[14px] font-bold [&>svg]:hidden">
                       <SelectValue placeholder="hh" />
                     </SelectTrigger>
                     <SelectContent className="max-h-[280px] min-w-[70px]">
@@ -828,12 +829,12 @@ function Step2(props: {
                       ))}
                     </SelectContent>
                   </Select>
-                  <span className="text-[16px] font-bold text-muted-foreground">:</span>
+                  <span className="text-[14px] font-bold text-muted-foreground">:</span>
                   <Select
                     value={arrivalTime.m ? arrivalTime.m.padStart(2, "0") : undefined}
                     onValueChange={(m) => setArrivalTime({ h: arrivalTime.h || String(minH).padStart(2, "0"), m })}
                   >
-                    <SelectTrigger className="h-11 w-[62px] justify-center rounded-[12px] border-border bg-foreground/[0.04] text-[16px] font-bold [&>svg]:hidden">
+                    <SelectTrigger className="h-9 w-[54px] justify-center rounded-[10px] border-border bg-foreground/[0.04] text-[14px] font-bold [&>svg]:hidden">
                       <SelectValue placeholder="mm" />
                     </SelectTrigger>
                     <SelectContent className="max-h-[280px] min-w-[70px]">
@@ -997,9 +998,9 @@ function Step2(props: {
           type="button"
           variant="ghost"
           onClick={onBack}
-          className="h-12 rounded-full px-4 text-[13px] font-medium text-muted-foreground hover:text-foreground"
+          className="h-10 rounded-full border-0 px-3.5 text-[12.5px] font-medium text-muted-foreground hover:text-foreground"
         >
-          <ArrowLeft className="size-4 mr-1" /> Voltar
+          <ArrowLeft className="size-3.5 mr-1" /> Voltar
         </Button>
         <div className="flex-1">
           <PrimaryButton loading={loading} onClick={onSubmit}>
@@ -1031,22 +1032,22 @@ function QuestionBlock({
   asToggle?: boolean;
 }) {
   return (
-    <div className="rounded-[18px] border border-border p-4 transition-colors">
-      <div className="flex items-start gap-2 mb-3.5">
-        <span aria-hidden className="text-[16px] leading-[1.25] shrink-0">
+    <div className="rounded-[16px] border border-border p-3.5 transition-colors">
+      <div className="flex items-start gap-2 mb-3">
+        <span aria-hidden className="text-[14px] leading-[1.25] shrink-0">
           {icon}
         </span>
         <div className="min-w-0 flex-1">
-          <div className="text-[15px] font-bold leading-tight text-foreground">{title}</div>
-          {required && <div className="text-[10px] uppercase tracking-wider text-[#c084fc]/70 mt-0.5">Obrigatório</div>}
+          <div className="text-[13.5px] font-bold leading-snug text-foreground text-pretty">{title}</div>
+          {required && <div className="text-[9.5px] uppercase tracking-wider text-[#c084fc]/70 mt-0.5">Obrigatório</div>}
         </div>
       </div>
-      <div className="flex items-center gap-2.5">
+      <div className="flex items-center gap-2">
         <button
           type="button"
           onClick={() => onAnswer("yes")}
           className={cn(
-            "flex-1 h-[52px] rounded-[14px] text-[15px] font-bold border transition-all",
+            "flex-1 h-[42px] rounded-[12px] text-[13.5px] font-bold border transition-all",
             answer === "yes"
               ? "bg-gradient-to-r from-[#7C1AD8] to-[#E82DAE] text-white border-transparent"
               : "border-border text-muted-foreground hover:text-foreground",
@@ -1058,7 +1059,7 @@ function QuestionBlock({
           type="button"
           onClick={() => onAnswer("no")}
           className={cn(
-            "flex-1 h-[52px] rounded-[14px] text-[15px] font-medium border transition-all",
+            "flex-1 h-[42px] rounded-[12px] text-[13.5px] font-medium border transition-all",
             answer === "no"
               ? "bg-foreground/[0.1] text-foreground border-border"
               : "border-border text-muted-foreground hover:text-foreground",
@@ -1254,19 +1255,19 @@ function RangeButton({
       type="button"
       disabled={locked}
       className={cn(
-        "relative w-full h-[62px] rounded-[14px] border bg-foreground/[0.04] px-3.5 text-left text-foreground",
+        "relative w-full h-[52px] rounded-[12px] border bg-foreground/[0.04] px-3 text-left text-foreground",
         "transition-colors hover:bg-foreground/[0.06] focus:outline-none",
         "flex flex-col justify-center disabled:cursor-default disabled:hover:bg-foreground/[0.04]",
         !locked && (open || filled) ? "border-[#a855f7]/70" : "border-border focus-visible:border-[#a855f7]/60",
       )}
     >
-      <span className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground font-semibold whitespace-nowrap">
+      <span className="text-[9.5px] uppercase tracking-[0.18em] text-muted-foreground font-semibold whitespace-nowrap">
         {label}
       </span>
-      <span className="text-[17px] font-bold flex items-center gap-1.5 mt-0.5 text-foreground">
+      <span className="text-[14.5px] font-bold flex items-center gap-1.5 mt-0.5 text-foreground">
         {value}
         {emoji && filled && (
-          <span aria-hidden className="text-[14px] leading-none">
+          <span aria-hidden className="text-[12px] leading-none">
             {emoji}
           </span>
         )}
@@ -1309,7 +1310,7 @@ function PrimaryButton({
       onClick={onClick}
       disabled={loading}
       className={cn(
-        "group relative w-full h-[52px] rounded-full text-[14.5px] font-semibold text-white border-0",
+        "group relative w-full h-[44px] rounded-full text-[13.5px] font-semibold text-white border-0",
         "bg-gradient-to-r from-[#7C1AD8] to-[#E82DAE] hover:brightness-110",
         "shadow-[0_10px_30px_-8px_rgba(232,45,174,0.55)]",
         "transition-all duration-200 hover:translate-y-[-1px]",

@@ -2722,15 +2722,15 @@ function OnboardingArrivalHeader({
   const subtitle = [propertyName, city].filter(Boolean).join(" · ");
   return (
     <div>
-      <h2 className="text-[28px] font-bold leading-[1.12] tracking-tight text-foreground">Chegada</h2>
-      {subtitle && <p className="mt-1 text-[15px] text-muted-foreground">{subtitle}</p>}
-      <div className="mt-4 grid grid-cols-2 gap-1.5 rounded-[18px] border border-border bg-foreground/[0.03] p-1.5">
+      <h2 className="text-[22px] font-bold leading-[1.14] tracking-tight text-foreground">Chegada</h2>
+      {subtitle && <p className="mt-0.5 text-[12.5px] text-muted-foreground [text-wrap:auto]">{subtitle}</p>}
+      <div className="mt-3 grid grid-cols-2 gap-1.5 rounded-[15px] border border-border bg-foreground/[0.03] p-1">
         {(["steps", "passwords"] as const).map((k) => (
           <div
             key={k}
             aria-current={tab === k}
             className={cn(
-              "h-[46px] grid place-items-center rounded-[14px] text-[15px] font-bold transition-colors",
+              "h-[38px] grid place-items-center rounded-[12px] text-[13px] font-bold transition-colors",
               tab === k
                 ? "text-white bg-gradient-to-r from-[#7C1AD8] to-[#E82DAE] shadow-[0_8px_24px_-10px_rgba(232,45,174,0.6)]"
                 : "text-muted-foreground",
@@ -2747,15 +2747,15 @@ function OnboardingArrivalHeader({
 /** Card de senha ainda bloqueada — cinza, sem valor, cadeado à direita. */
 function OnboardingLockedCard({ icon, name, detail }: { icon: string; name: string; detail: string }) {
   return (
-    <div className="rounded-2xl border border-border bg-background/40 p-4 mb-3 flex items-center gap-2.5 opacity-60">
-      <span className="size-9 rounded-[11px] bg-secondary border border-border grid place-items-center text-[16px]">
+    <div className="rounded-[14px] border border-border bg-background/40 px-3 py-2.5 mb-2 flex items-center gap-2.5 opacity-60">
+      <span className="size-8 rounded-[10px] bg-secondary border border-border grid place-items-center text-[14px]">
         {icon}
       </span>
       <div className="min-w-0 flex-1">
-        <div className="text-[13.5px] font-bold text-muted-foreground">{name}</div>
-        <div className="text-[11.5px] text-muted-foreground/80">{detail}</div>
+        <div className="text-[12.5px] font-bold text-muted-foreground">{name}</div>
+        <div className="text-[10.5px] text-muted-foreground/80 [text-wrap:auto]">{detail}</div>
       </div>
-      <span aria-hidden className="text-[15px] leading-none">
+      <span aria-hidden className="text-[13px] leading-none">
         🔒
       </span>
     </div>
@@ -2763,7 +2763,6 @@ function OnboardingLockedCard({ icon, name, detail }: { icon: string; name: stri
 }
 
 function OnboardingPasswordCard({
-
   icon,
   name,
   detail,
@@ -2771,6 +2770,8 @@ function OnboardingPasswordCard({
   ready,
   requestUnlock,
   onRevealed,
+  expanded,
+  onToggle,
 }: {
   icon: string;
   name: string;
@@ -2779,9 +2780,15 @@ function OnboardingPasswordCard({
   ready: boolean;
   requestUnlock: (cb?: () => void) => void;
   onRevealed: () => void;
+  expanded: boolean;
+  onToggle: () => void;
 }) {
   const [revealed, setRevealed] = useState(false);
   const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    if (!expanded) setRevealed(false);
+  }, [expanded]);
 
   function reveal() {
     if (revealed) {
@@ -2811,46 +2818,58 @@ function OnboardingPasswordCard({
   }
 
   return (
-    <div className="rounded-2xl border border-border bg-background/40 p-4 mb-3">
-      <div className="flex items-center gap-2.5 mb-3">
-        <span className="size-9 rounded-[11px] bg-secondary border border-border grid place-items-center text-[16px]">
+    <div className="rounded-[14px] border border-border bg-background/40 mb-2 overflow-hidden">
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={expanded}
+        className="w-full flex items-center gap-2.5 px-3 py-2.5 text-left"
+      >
+        <span className="size-8 rounded-[10px] bg-secondary border border-border grid place-items-center text-[14px]">
           {icon}
         </span>
         <div className="min-w-0 flex-1">
-          <div className="text-[13.5px] font-bold">{name}</div>
+          <div className="text-[12.5px] font-bold">{name}</div>
           {ready ? (
-            <div className="text-[10.5px] text-emerald-400 flex items-center gap-1">
+            <div className="text-[10px] text-emerald-400 flex items-center gap-1">
               <span className="size-1.5 rounded-full bg-emerald-400" /> Liberada agora
             </div>
           ) : (
-            <div className="text-[10.5px] text-muted-foreground">{detail}</div>
+            <div className="text-[10px] text-muted-foreground [text-wrap:auto]">{detail}</div>
           )}
         </div>
-      </div>
-      {detail && ready && <div className="text-[10.5px] text-muted-foreground mb-1.5">{detail}</div>}
-      <div className="flex items-center justify-between gap-2 rounded-[11px] border border-border bg-secondary/60 px-3.5 py-2.5">
-        <span className="font-mono font-bold text-[15px] tracking-wider">
-          {revealed ? value : "•".repeat(Math.max(5, Math.min(value.length, 9)))}
-        </span>
-        <div className="flex items-center gap-1.5 shrink-0">
-          <button
-            type="button"
-            onClick={copy}
-            aria-label="Copiar"
-            className="size-8 rounded-[9px] bg-card border border-border grid place-items-center"
-          >
-            {copied ? "✓" : "📋"}
-          </button>
-          <button
-            type="button"
-            onClick={reveal}
-            aria-label="Mostrar"
-            className="size-8 rounded-[9px] grid place-items-center bg-gradient-to-br from-[#7C1AD8] to-[#E82DAE] text-white"
-          >
-            👁
-          </button>
+        <ChevronDown
+          className={cn("size-4 shrink-0 text-muted-foreground transition-transform", expanded && "rotate-180")}
+        />
+      </button>
+      {expanded && (
+        <div className="px-3 pb-3">
+          {detail && ready && <div className="text-[10px] text-muted-foreground mb-1.5 [text-wrap:auto]">{detail}</div>}
+          <div className="flex items-center justify-between gap-2 rounded-[10px] border border-border bg-secondary/60 px-3 py-2">
+            <span className="font-mono font-bold text-[13.5px] tracking-wider">
+              {revealed ? value : "•".repeat(Math.max(5, Math.min(value.length, 9)))}
+            </span>
+            <div className="flex items-center gap-1.5 shrink-0">
+              <button
+                type="button"
+                onClick={copy}
+                aria-label="Copiar"
+                className="size-7 rounded-[8px] bg-card border border-border grid place-items-center text-[12px]"
+              >
+                {copied ? "✓" : "📋"}
+              </button>
+              <button
+                type="button"
+                onClick={reveal}
+                aria-label="Mostrar"
+                className="size-7 rounded-[8px] grid place-items-center bg-gradient-to-br from-[#7C1AD8] to-[#E82DAE] text-white text-[12px]"
+              >
+                👁
+              </button>
+            </div>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
@@ -2931,8 +2950,13 @@ function PostAccessOnboarding({
   onBackToForm: () => void;
 }) {
   const [step, setStep] = useState<0 | 1 | 2 | 3>(0);
+  /** Acordeão de senhas: todos recolhidos ao abrir, apenas um aberto por vez. */
+  const [openPwd, setOpenPwd] = useState<string | null>(null);
   useEffect(() => {
-    if (active) setStep(0);
+    if (active) {
+      setStep(0);
+      setOpenPwd(null);
+    }
   }, [active]);
 
   if (!active) return null;
@@ -2954,16 +2978,16 @@ function PostAccessOnboarding({
       role="region"
       aria-label="Onboarding de chegada"
     >
-      <div className="mx-auto w-full max-w-[490px] md:max-w-[520px] px-5 pt-8">
+      <div className="mx-auto w-full max-w-[490px] md:max-w-[520px] px-5 pt-6">
         <div
           className={cn(
             step === 0
               ? ""
-              : "rounded-[26px] border border-[#a855f7]/25 bg-card/95 backdrop-blur-2xl shadow-[0_28px_70px_-18px_rgba(0,0,0,0.65),0_0_60px_-20px_rgba(232,45,174,0.3)] p-6 sm:p-7",
+              : "rounded-[22px] border border-[#a855f7]/25 bg-card/95 backdrop-blur-2xl shadow-[0_28px_70px_-18px_rgba(0,0,0,0.65),0_0_60px_-20px_rgba(232,45,174,0.3)] p-5",
           )}
         >
           {step > 0 && step < 3 && (
-            <div className="mb-4 flex items-center gap-1.5">
+            <div className="mb-3 flex items-center gap-1.5">
               {[0, 1, 2].map((i) => (
                 <span
                   key={i}
@@ -2973,7 +2997,7 @@ function PostAccessOnboarding({
                   )}
                 />
               ))}
-              <span className="ml-auto text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+              <span className="ml-auto text-[9.5px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
                 Passo {step + 1}/3
               </span>
             </div>
@@ -2982,64 +3006,67 @@ function PostAccessOnboarding({
           {/* Passo 1: confirmação da estadia */}
           {step === 0 && (
             <>
-              <h2 className="text-[28px] font-bold leading-[1.12] tracking-tight text-foreground mb-1.5">
+              <h2 className="text-[22px] font-bold leading-[1.14] tracking-tight text-foreground mb-1">
                 Tudo certo, {firstName}!
               </h2>
-              <p className="text-[16px] leading-relaxed text-muted-foreground mb-5">
+              <p className="text-[13px] leading-relaxed text-muted-foreground mb-4 [text-wrap:auto]">
                 Confere os dados e veja onde vai estar sua senha.
               </p>
 
-              <div className="rounded-[18px] border border-border bg-foreground/[0.03] px-4 mb-4">
-                <div className="flex items-center justify-between gap-3 py-3.5 border-b border-border">
-                  <p className="text-[15px] text-muted-foreground">Check-in</p>
-                  <p className="text-[15px] font-bold text-foreground text-right">
+              <div className="rounded-[15px] border border-border bg-foreground/[0.03] px-3.5 mb-3">
+                <div className="flex items-center justify-between gap-3 py-2.5 border-b border-border">
+                  <p className="text-[12.5px] text-muted-foreground">Check-in</p>
+                  <p className="text-[12.5px] font-bold text-foreground text-right [text-wrap:auto]">
                     {fmtOnbDate(checkinDate)}
                     {checkinTime ? ` a partir das ${checkinTime}` : ""}
                   </p>
                 </div>
                 <div
                   className={cn(
-                    "flex items-center justify-between gap-3 py-3.5",
+                    "flex items-center justify-between gap-3 py-2.5",
                     shortAddress(address) && "border-b border-border",
                   )}
                 >
-                  <p className="text-[15px] text-muted-foreground">Check-out</p>
-                  <p className="text-[15px] font-bold text-foreground text-right">
+                  <p className="text-[12.5px] text-muted-foreground">Check-out</p>
+                  <p className="text-[12.5px] font-bold text-foreground text-right [text-wrap:auto]">
                     {fmtOnbDate(checkoutDate)}
                     {checkoutTime ? ` até ${checkoutTime}` : ""}
                   </p>
                 </div>
                 {shortAddress(address) && (
-                  <div className="flex items-center justify-between gap-3 py-3.5">
-                    <p className="text-[15px] text-muted-foreground shrink-0">Endereço</p>
-                    <p className="text-[15px] font-bold text-foreground text-right">{shortAddress(address)}</p>
+                  <div className="flex items-center justify-between gap-3 py-2.5">
+                    <p className="text-[12.5px] text-muted-foreground shrink-0">Endereço</p>
+                    <p className="text-[12.5px] font-bold text-foreground text-right [text-wrap:auto]">
+                      {shortAddress(address)}
+                    </p>
                   </div>
                 )}
               </div>
 
-              <div className="rounded-[18px] border border-[#a855f7]/35 bg-[#a855f7]/[0.08] p-4 flex items-start gap-3">
-                <span aria-hidden className="text-[20px] leading-none mt-0.5">
+              <div className="rounded-[15px] border border-[#a855f7]/35 bg-[#a855f7]/[0.08] p-3.5 flex items-start gap-2.5">
+                <span aria-hidden className="text-[16px] leading-none mt-0.5">
                   🔑
                 </span>
-                <p className="flex-1 text-[15px] leading-[1.5] text-foreground/90">
+                <p className="flex-1 text-[12.5px] leading-[1.5] text-foreground/90 [text-wrap:auto]">
                   Tudo que você precisa para entrar fica na aba{" "}
                   <b className="font-bold text-foreground">Chegada</b>: o passo a passo e as senhas, liberados
                   automaticamente no horário do seu check-in.
                 </p>
               </div>
 
-              <div className="flex gap-2 mt-5">
+
+              <div className="flex gap-2 mt-4">
                 <button
                   type="button"
                   onClick={onBackToForm}
-                  className="h-[48px] px-5 rounded-2xl text-[14px] font-medium text-muted-foreground hover:text-foreground transition-colors"
+                  className="h-[42px] px-4 rounded-2xl border-0 text-[12.5px] font-medium text-muted-foreground hover:text-foreground transition-colors"
                 >
                   ← Voltar
                 </button>
                 <button
                   type="button"
                   onClick={() => setStep(1)}
-                  className="flex-1 h-[48px] rounded-2xl text-white font-semibold text-[14.5px] bg-gradient-to-r from-[#7C1AD8] to-[#E82DAE] shadow-[0_10px_30px_-8px_rgba(232,45,174,0.55)] hover:brightness-110 transition-all"
+                  className="flex-1 h-[42px] rounded-2xl text-white font-semibold text-[13px] bg-gradient-to-r from-[#7C1AD8] to-[#E82DAE] shadow-[0_10px_30px_-8px_rgba(232,45,174,0.55)] hover:brightness-110 transition-all"
                 >
                   Está tudo certo →
                 </button>
@@ -3052,11 +3079,11 @@ function PostAccessOnboarding({
             <>
               <OnboardingArrivalHeader propertyName={propertyName} city={city} tab="steps" />
 
-              <div className="mt-4 mb-5 max-h-[300px] overflow-y-auto sg-always-scroll pr-1">
+              <div className="mt-3 mb-4 max-h-[calc(100dvh-330px)] min-h-[140px] overflow-y-auto sg-always-scroll pr-1.5">
                 {hasCheckinSteps && checkinInstructionsText ? (
                   <StepList text={checkinInstructionsText} dense compact />
                 ) : (
-                  <p className="text-[13px] text-muted-foreground leading-relaxed">
+                  <p className="text-[12.5px] text-muted-foreground leading-relaxed [text-wrap:auto]">
                     Assim que estiver na janela de check-in, o passo a passo completo aparece na aba Chegada.
                   </p>
                 )}
@@ -3066,14 +3093,14 @@ function PostAccessOnboarding({
                 <button
                   type="button"
                   onClick={() => setStep(0)}
-                  className="h-[48px] px-5 rounded-2xl text-[14px] font-medium text-muted-foreground hover:text-foreground transition-colors"
+                  className="h-[42px] px-4 rounded-2xl border-0 text-[12.5px] font-medium text-muted-foreground hover:text-foreground transition-colors"
                 >
                   ← Voltar
                 </button>
                 <button
                   type="button"
                   onClick={() => setStep(2)}
-                  className="flex-1 h-[48px] rounded-2xl text-white font-semibold text-[14.5px] bg-gradient-to-r from-[#7C1AD8] to-[#E82DAE] shadow-[0_10px_30px_-8px_rgba(232,45,174,0.55)] hover:brightness-110 transition-all"
+                  className="flex-1 h-[42px] rounded-2xl text-white font-semibold text-[13px] bg-gradient-to-r from-[#7C1AD8] to-[#E82DAE] shadow-[0_10px_30px_-8px_rgba(232,45,174,0.55)] hover:brightness-110 transition-all"
                 >
                   Entendi →
                 </button>
@@ -3081,12 +3108,12 @@ function PostAccessOnboarding({
             </>
           )}
 
-          {/* Passo 3: senhas de acesso — cards de verdade, com o mesmo mecanismo de PIN da página real */}
+          {/* Passo 3: senhas de acesso — cards expansivos, um por vez */}
           {step === 2 && (
             <>
               <OnboardingArrivalHeader propertyName={propertyName} city={city} tab="passwords" />
 
-              <div className="mt-4">
+              <div className="mt-3">
                 {lockCode && (
                   <OnboardingPasswordCard
                     icon="🔒"
@@ -3095,6 +3122,8 @@ function PostAccessOnboarding({
                     ready
                     requestUnlock={requestUnlock}
                     onRevealed={markPasswordsSeen}
+                    expanded={openPwd === "lock"}
+                    onToggle={() => setOpenPwd((k) => (k === "lock" ? null : "lock"))}
                   />
                 )}
                 {wifiPassword && (
@@ -3106,6 +3135,8 @@ function PostAccessOnboarding({
                     ready
                     requestUnlock={requestUnlock}
                     onRevealed={markPasswordsSeen}
+                    expanded={openPwd === "wifi"}
+                    onToggle={() => setOpenPwd((k) => (k === "wifi" ? null : "wifi"))}
                   />
                 )}
                 {gateCode && (
@@ -3119,9 +3150,9 @@ function PostAccessOnboarding({
                 )}
               </div>
 
-              <div className="rounded-2xl border border-[#a855f7]/25 bg-[#a855f7]/10 p-3.5 flex items-start gap-2.5 mt-1 mb-5">
-                <span className="text-[15px] leading-none mt-0.5">🔐</span>
-                <p className="flex-1 text-[13px] leading-[1.55] text-foreground/85">
+              <div className="rounded-[15px] border border-[#a855f7]/25 bg-[#a855f7]/10 p-3.5 flex items-start gap-2.5 mt-1 mb-4">
+                <span className="text-[14px] leading-none mt-0.5">🔐</span>
+                <p className="flex-1 text-[12.5px] leading-[1.5] text-foreground/85 [text-wrap:auto]">
                   {hasAccessPin ? (
                     <>
                       Os valores ficam ocultos até você tocar em 👁 e confirmar o{" "}
@@ -3138,14 +3169,14 @@ function PostAccessOnboarding({
                 <button
                   type="button"
                   onClick={() => setStep(1)}
-                  className="h-[48px] px-5 rounded-2xl text-[14px] font-medium text-muted-foreground hover:text-foreground transition-colors"
+                  className="h-[42px] px-4 rounded-2xl border-0 text-[12.5px] font-medium text-muted-foreground hover:text-foreground transition-colors"
                 >
                   ← Voltar
                 </button>
                 <button
                   type="button"
                   onClick={() => setStep(3)}
-                  className="flex-1 h-[48px] rounded-2xl text-white font-semibold text-[14.5px] bg-gradient-to-r from-[#7C1AD8] to-[#E82DAE] shadow-[0_10px_30px_-8px_rgba(232,45,174,0.55)] hover:brightness-110 transition-all"
+                  className="flex-1 h-[42px] rounded-2xl text-white font-semibold text-[13px] bg-gradient-to-r from-[#7C1AD8] to-[#E82DAE] shadow-[0_10px_30px_-8px_rgba(232,45,174,0.55)] hover:brightness-110 transition-all"
                 >
                   Perfeito →
                 </button>
@@ -3154,44 +3185,45 @@ function PostAccessOnboarding({
           )}
 
 
+
           {/* Passo 4: encerramento — pergunta direta, chat só aqui, por último */}
           {step === 3 && (
             <div className="text-center">
-              <div className="mx-auto mb-5 size-16 rounded-full bg-emerald-500/15 border-2 border-emerald-500 grid place-items-center text-[28px]">
+              <div className="mx-auto mb-4 size-13 rounded-full bg-emerald-500/15 border-2 border-emerald-500 grid place-items-center text-[22px]">
                 ✓
               </div>
-              <DialogTitleFallback className="mb-2">Tudo pronto, {firstName}!</DialogTitleFallback>
-              <p className="text-[13.5px] leading-relaxed text-muted-foreground mb-6 max-w-[300px] mx-auto">
+              <DialogTitleFallback className="mb-1.5 text-[19px]">Tudo pronto, {firstName}!</DialogTitleFallback>
+              <p className="text-[12.5px] leading-relaxed text-muted-foreground mb-5 max-w-[300px] mx-auto [text-wrap:auto]">
                 Você já sabe onde encontrar o passo a passo e as senhas. Conseguiu fazer o check-in sem problema?
               </p>
 
-              <div className="space-y-2.5">
+              <div className="space-y-2">
                 <button
                   type="button"
                   onClick={onDone}
-                  className="w-full h-[50px] rounded-2xl text-white font-semibold text-[14.5px] bg-gradient-to-r from-[#7C1AD8] to-[#E82DAE] shadow-[0_10px_30px_-8px_rgba(232,45,174,0.55)] hover:brightness-110 transition-all"
+                  className="w-full h-[44px] rounded-2xl text-white font-semibold text-[13px] bg-gradient-to-r from-[#7C1AD8] to-[#E82DAE] shadow-[0_10px_30px_-8px_rgba(232,45,174,0.55)] hover:brightness-110 transition-all"
                 >
                   Consegui fazer o check-in! 🎉
                 </button>
                 <button
                   type="button"
                   onClick={openDifficultyChat}
-                  className="w-full h-[50px] rounded-2xl border border-border text-foreground/85 font-semibold text-[14px]"
+                  className="w-full h-[44px] rounded-2xl border border-border text-foreground/85 font-semibold text-[12.5px]"
                 >
                   Estou com dificuldade no check-in
                 </button>
-                <div className="flex items-center gap-2 pt-1">
+                <div className="flex items-center gap-2 pt-0.5">
                   <button
                     type="button"
                     onClick={() => setStep(2)}
-                    className="h-[42px] px-4 rounded-2xl border border-border text-[13px] font-medium text-foreground/70"
+                    className="h-[38px] px-4 rounded-2xl border-0 text-[12.5px] font-medium text-muted-foreground hover:text-foreground transition-colors"
                   >
                     ← Voltar
                   </button>
                   <button
                     type="button"
                     onClick={onDone}
-                    className="flex-1 h-[42px] rounded-2xl text-[13px] font-medium text-muted-foreground hover:text-foreground transition-colors"
+                    className="flex-1 h-[38px] rounded-2xl text-[12.5px] font-medium text-muted-foreground hover:text-foreground transition-colors"
                   >
                     Vou fazer depois!
                   </button>
