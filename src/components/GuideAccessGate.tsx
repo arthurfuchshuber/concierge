@@ -106,6 +106,18 @@ export function readAccessRecord(slug: string): AccessRecord | null {
   }
 }
 
+/** Remove o registro salvo — usado quando o hóspede volta pro formulário
+ * a partir do onboarding (senão o gate reabre e destrava na hora). */
+export function clearAccessRecord(slug: string) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.removeItem(STORAGE_PREFIX + slug);
+  } catch {
+    /* noop */
+  }
+}
+
+
 export type CollectionConfig = {
   arrivalTime: "off" | "optional" | "required";
   vehicles: "off" | "optional" | "required";
@@ -136,7 +148,10 @@ type Props = {
    * do formulário, com "Chegada" travado (o hóspede não navega pra outra
    * aba antes de se identificar). */
   navItems?: Array<{ key: import("./guide/BottomNav").BottomNavKey; label: string }>;
+  /** Dados já informados anteriormente (ex.: hóspede voltou do onboarding). */
+  prefill?: AccessRecord | null;
 };
+
 
 
 function dateFromISODate(value: string): Date | null {
@@ -145,18 +160,23 @@ function dateFromISODate(value: string): Date | null {
   return new Date(y, m - 1, d, 12, 0, 0, 0);
 }
 
-export function GuideAccessGate({ slug, propertyId, propertyName, requireReservationCode, collection, onUnlock, theme = "dark", timeZone = "America/Sao_Paulo", navItems = [] }: Props & { timeZone?: string }) {
+export function GuideAccessGate({ slug, propertyId, propertyName, requireReservationCode, collection, onUnlock, theme = "dark", timeZone = "America/Sao_Paulo", navItems = [], prefill = null }: Props & { timeZone?: string }) {
   const themeClass = cn("sigma-public-guide", theme === "light" && "theme-light");
 
   const submit = useServerFn(recordGuideAccess);
   const checkReservation = useServerFn(checkReservationBySlug);
   const loadAvailability = useServerFn(getGuideCalendarAvailability);
   const [step, setStep] = useState<1 | 2>(1);
-  const [name, setName] = useState("");
-  const [code, setCode] = useState("");
-  const [range, setRange] = useState<{ from?: Date; to?: Date } | undefined>();
-  const [phone, setPhone] = useState<string | undefined>();
-  const [country, setCountry] = useState<Country>("BR");
+  const [name, setName] = useState(prefill?.name ?? "");
+  const [code, setCode] = useState(prefill?.code ?? "");
+  const [range, setRange] = useState<{ from?: Date; to?: Date } | undefined>(() => {
+    const from = prefill?.checkinDate ? dateFromISODate(prefill.checkinDate) : null;
+    const to = prefill?.checkoutDate ? dateFromISODate(prefill.checkoutDate) : null;
+    return from || to ? { from: from ?? undefined, to: to ?? undefined } : undefined;
+  });
+  const [phone, setPhone] = useState<string | undefined>(prefill?.phone ?? undefined);
+  const [country, setCountry] = useState<Country>((prefill?.phoneCountry as Country) ?? "BR");
+
   const [loading, setLoading] = useState(false);
   const [resCheck, setResCheck] = useState<
     | { state: "idle" }
