@@ -642,7 +642,7 @@ export function GuideAccessGate({
                   />
                 </div>
 
-                <div className="sg-phone-input">
+                <div className="sg-phone-input rounded-[12px] border border-border bg-foreground/[0.04] px-1 transition-colors focus-within:border-[#a855f7]/60 focus-within:bg-foreground/[0.06]">
                   <PhoneInput
                     id="guest-phone"
                     international
@@ -671,16 +671,17 @@ export function GuideAccessGate({
                   </FieldShell>
                 )}
 
-                <div className="flex items-center gap-1.5 pt-0.5 text-[12.5px] text-muted-foreground/85">
+                <div className="pt-1.5">
+                  <PrimaryButton loading={loading}>{hasOptionals ? "Continuar →" : "Acessar guia →"}</PrimaryButton>
+                </div>
+
+                <div className="flex items-center justify-center gap-1.5 pt-1 text-[12.5px] text-muted-foreground/85">
                   <span aria-hidden className="text-[13px] leading-none">
                     🔒
                   </span>
                   <span>Seus dados ficam seguros e privados.</span>
                 </div>
 
-                <div className="pt-1.5">
-                  <PrimaryButton loading={loading}>{hasOptionals ? "Continuar →" : "Acessar guia →"}</PrimaryButton>
-                </div>
               </form>
             </>
           ) : (
