@@ -505,16 +505,44 @@ export function GuideAccessGate({ slug, propertyId, propertyName, requireReserva
     }
   }
 
+  const reservationBanner =
+    resCheck.state === "matched" ? (
+      <div className="flex items-center gap-2 rounded-[14px] border border-emerald-500/35 bg-emerald-500/[0.08] px-3.5 py-3 text-[13px] font-medium text-emerald-400">
+        <span aria-hidden>✓</span>
+        <span>Reserva Airbnb encontrada para estas datas.</span>
+      </div>
+    ) : resCheck.state === "no-match" ? (
+      <div className="flex items-start gap-2 rounded-[14px] border border-amber-500/35 bg-amber-500/[0.08] px-3.5 py-3 text-[12.5px] text-amber-300">
+        <AlertTriangle className="size-4 shrink-0 mt-0.5" />
+        <span>
+          Não encontramos uma reserva Airbnb para estas datas.
+          {resCheck.suggestedCheckout && (
+            <>
+              {" "}Sua chegada bate com uma reserva, mas a saída é{" "}
+              <b>
+                {new Date(resCheck.suggestedCheckout + "T12:00:00").toLocaleDateString("pt-BR", {
+                  day: "2-digit",
+                  month: "short",
+                })}
+              </b>
+              . Confira se digitou corretamente.
+            </>
+          )}
+          {!resCheck.suggestedCheckout && " Confira se selecionou exatamente a entrada e saída liberadas no calendário."}
+        </span>
+      </div>
+    ) : null;
+
   return (
     <div
       className={cn(themeClass, "fixed inset-0 z-50 bg-background overflow-y-auto")}
       role="region"
       aria-label="Identificação do hóspede"
     >
-      <div className="mx-auto w-full max-w-[490px] md:max-w-[520px] px-5 pt-8">
+      <div className="mx-auto flex w-full max-w-[490px] md:max-w-[520px] min-h-[100dvh] items-center px-5 pt-6 pb-[110px]">
         <div
           className={cn(
-            "rounded-[26px] border border-[#a855f7]/25",
+            "w-full rounded-[26px] border border-[#a855f7]/25",
             "bg-card/95 text-card-foreground",
             "backdrop-blur-2xl backdrop-saturate-150",
             "shadow-[0_28px_70px_-18px_rgba(0,0,0,0.65),0_0_60px_-20px_rgba(232,45,174,0.3)]",
@@ -536,20 +564,20 @@ export function GuideAccessGate({ slug, propertyId, propertyName, requireReserva
           {step === 1 ? (
             <>
               <div className="mb-5 space-y-1.5">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-[#c084fc]">
+                <p className="text-[11px] font-bold uppercase tracking-[0.24em] text-[#c084fc]">
                   Boas-vindas
                 </p>
-                <h2 className="font-serif text-[24px] leading-[1.1] tracking-tight text-foreground">
+                <h2 className="text-[26px] font-bold leading-[1.12] tracking-tight text-foreground">
                   {propertyName}
                 </h2>
 
-                <p className="text-[13px] leading-relaxed text-muted-foreground">
+                <p className="text-[14px] leading-relaxed text-muted-foreground">
                   Rápido preenchimento para liberar o guia.
                 </p>
               </div>
 
-              <form onSubmit={handleStep1Next} className="space-y-4">
-                <FieldShell icon={<User2 className="size-[17px]" />}>
+              <form onSubmit={handleStep1Next} className="space-y-3">
+                <FieldShell icon={<span className="text-[17px] leading-none">👤</span>}>
                   <Label htmlFor="guest-name" className="sr-only">Nome</Label>
                   <Input
                     id="guest-name"
@@ -557,17 +585,18 @@ export function GuideAccessGate({ slug, propertyId, propertyName, requireReserva
                     onChange={(e) => setName(e.target.value)}
                     maxLength={200}
                     required
-                    className="h-[48px] rounded-[12px] pl-10 pr-3 text-[14.5px] bg-transparent border-transparent focus-visible:ring-0 focus-visible:border-transparent"
+                    className="h-[56px] rounded-[14px] pl-11 pr-3 text-[15.5px] font-medium bg-transparent border-transparent focus-visible:ring-0 focus-visible:border-transparent"
                     placeholder="Nome como aparece na reserva"
                   />
                 </FieldShell>
 
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-2 gap-2.5">
                   <RangeButton
                     themeClass={themeClass}
                     label="Chegada"
                     open={checkinPopoverOpen}
                     onOpenChange={setCheckinPopoverOpen}
+                    emoji="📅"
                     value={range?.from ? format(range.from, "dd MMM", { locale: ptBR }) : "—"}
                     popover={
                       <Calendar
@@ -597,35 +626,6 @@ export function GuideAccessGate({ slug, propertyId, propertyName, requireReserva
                   />
                 </div>
 
-                {resCheck.state === "matched" && (
-                  <div className="flex items-center gap-2 text-[12px] text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2">
-                    <CheckCircle2 className="size-4 shrink-0" />
-                    <span>Reserva Airbnb encontrada para estas datas.</span>
-                  </div>
-                )}
-                {resCheck.state === "no-match" && (
-                  <div className="flex items-start gap-2 text-[12px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-                    <AlertTriangle className="size-4 shrink-0 mt-0.5" />
-                    <span>
-                      Não encontramos uma reserva Airbnb para estas datas.
-                      {resCheck.suggestedCheckout && (
-                        <>
-                          {" "}Sua chegada bate com uma reserva, mas a saída é{" "}
-                          <b>
-                            {new Date(resCheck.suggestedCheckout + "T12:00:00").toLocaleDateString("pt-BR", {
-                              day: "2-digit",
-                              month: "short",
-                            })}
-                          </b>
-                          . Confira se digitou corretamente.
-                        </>
-                      )}
-                      {!resCheck.suggestedCheckout && " Confira se selecionou exatamente a entrada e saída liberadas no calendário."}
-                    </span>
-                  </div>
-                )}
-
-
                 <div className="sg-phone-input">
                   <PhoneInput
                     id="guest-phone"
@@ -640,6 +640,8 @@ export function GuideAccessGate({ slug, propertyId, propertyName, requireReserva
                   />
                 </div>
 
+                {reservationBanner}
+
                 {requireReservationCode && (
                   <FieldShell>
                     <Input
@@ -647,24 +649,26 @@ export function GuideAccessGate({ slug, propertyId, propertyName, requireReserva
                       onChange={(e) => setCode(e.target.value)}
                       maxLength={100}
                       required
-                      className="h-[48px] rounded-[12px] px-3 text-[14.5px] bg-transparent border-transparent focus-visible:ring-0"
+                      className="h-[56px] rounded-[14px] px-3 text-[15.5px] bg-transparent border-transparent focus-visible:ring-0"
                       placeholder="Código da reserva"
                     />
                   </FieldShell>
                 )}
 
 
-                <div className="flex items-center gap-1.5 pt-0.5 text-[11.5px] text-muted-foreground/85">
-                  <Lock className="size-3 text-primary/70" />
+                <div className="flex items-center gap-1.5 pt-0.5 text-[12.5px] text-muted-foreground/85">
+                  <span aria-hidden className="text-[13px] leading-none">🔒</span>
                   <span>Seus dados ficam seguros e privados.</span>
                 </div>
 
-                <PrimaryButton loading={loading}>
-                  {hasOptionals ? "Continuar" : "Acessar guia"}
-                  <ArrowRight className="size-4 transition-transform duration-200 group-hover:translate-x-0.5" />
-                </PrimaryButton>
+                <div className="pt-1.5">
+                  <PrimaryButton loading={loading}>
+                    {hasOptionals ? "Continuar →" : "Acessar guia →"}
+                  </PrimaryButton>
+                </div>
               </form>
             </>
+
           ) : (
             <Step2
               cfg={cfg}
