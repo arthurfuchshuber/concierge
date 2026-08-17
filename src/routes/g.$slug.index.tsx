@@ -822,6 +822,13 @@ function Guide({ data }: { data: GuideOk }) {
         markPasswordsSeen={markPasswordsSeen}
         theme={theme === "light" ? "light" : "dark"}
         navItems={guideNavItems}
+        onBackToForm={() => {
+          // A flag de onboarding pendente continua lá — reabrir o formulário
+          // não conta como "concluir", então o onboarding volta a disparar
+          // assim que o hóspede confirmar os dados de novo.
+          setTourActive(false);
+          setAccessRec(null);
+        }}
       />
       <div className="relative z-10 mx-auto w-full max-w-[490px] md:max-w-[520px]">
         <AnimatePresence mode="wait" initial={false}>
@@ -2794,6 +2801,7 @@ function PostAccessOnboarding({
   markPasswordsSeen,
   theme,
   navItems,
+  onBackToForm,
 }: {
   active: boolean;
   onDone: () => void;
@@ -2814,6 +2822,10 @@ function PostAccessOnboarding({
   markPasswordsSeen: () => void;
   theme: "dark" | "light";
   navItems: Array<{ key: BottomNavKey; label: string }>;
+  /** Volta pro formulário de identificação — só existe na 1ª etapa do
+   * onboarding (Confirmação), já que é a única sem uma etapa anterior DENTRO
+   * do próprio onboarding pra voltar. */
+  onBackToForm: () => void;
 }) {
   const [step, setStep] = useState<0 | 1 | 2 | 3>(0);
   useEffect(() => {
@@ -2894,13 +2906,22 @@ function PostAccessOnboarding({
               )}
             </div>
 
-            <button
-              type="button"
-              onClick={() => setStep(1)}
-              className="w-full h-[48px] rounded-2xl text-white font-semibold text-[14.5px] bg-gradient-to-r from-[#7C1AD8] to-[#E82DAE] shadow-[0_10px_30px_-8px_rgba(232,45,174,0.55)] hover:brightness-110 transition-all"
-            >
-              Está tudo certo →
-            </button>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={onBackToForm}
+                className="h-[48px] px-5 rounded-2xl border border-border text-[14px] font-medium text-foreground/80"
+              >
+                ← Voltar
+              </button>
+              <button
+                type="button"
+                onClick={() => setStep(1)}
+                className="flex-1 h-[48px] rounded-2xl text-white font-semibold text-[14.5px] bg-gradient-to-r from-[#7C1AD8] to-[#E82DAE] shadow-[0_10px_30px_-8px_rgba(232,45,174,0.55)] hover:brightness-110 transition-all"
+              >
+                Está tudo certo →
+              </button>
+            </div>
           </>
         )}
 
