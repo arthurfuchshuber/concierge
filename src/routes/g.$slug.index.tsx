@@ -3089,7 +3089,6 @@ function PostAccessOnboarding({
             </div>
           </div>
         )}
-        </div>
       </div>
       <BottomNav theme={theme} active="checkin" items={navItems} onSelect={() => {}} lockedTo="checkin" />
     </div>
