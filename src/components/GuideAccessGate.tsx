@@ -636,15 +636,16 @@ export function GuideAccessGate({ slug, propertyId, propertyName, requireReserva
                 )}
 
 
-                <div className="flex items-center gap-1.5 pt-0.5 text-[11.5px] text-muted-foreground/85">
-                  <Lock className="size-3 text-primary/70" />
+                <div className="flex items-center gap-2 pt-0.5 text-[13px] text-muted-foreground/85">
+                  <span className="text-[13px] leading-none">🔒</span>
                   <span>Seus dados ficam seguros e privados.</span>
                 </div>
 
                 <PrimaryButton loading={loading}>
                   {hasOptionals ? "Continuar" : "Acessar guia"}
-                  <ArrowRight className="size-4 transition-transform duration-200 group-hover:translate-x-0.5" />
+                  <span className="text-[15px] leading-none">→</span>
                 </PrimaryButton>
+
               </form>
             </>
           ) : (
