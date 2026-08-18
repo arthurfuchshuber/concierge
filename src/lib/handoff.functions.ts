@@ -1179,12 +1179,28 @@ export const deleteHandoffMessage = createServerFn({ method: "POST" })
 
 export const countPendingHandoffs = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
+  .inputValidator((i: unknown) => ({
+    accountOwnerId:
+      typeof (i as { accountOwnerId?: unknown })?.accountOwnerId === "string"
+        ? ((i as { accountOwnerId: string }).accountOwnerId)
+        : undefined,
+  }))
+  .handler(async ({ data, context }) => {
     try {
-      const { supabase } = context;
+      const { supabase, userId } = context;
+      // Mesmo isolamento da listagem: só imóveis da conta ativa.
+      const { resolveAuthorizedAccountOwnerId } = await import("@/lib/account-scope.server");
+      const accountId = await resolveAuthorizedAccountOwnerId(supabase, userId, data.accountOwnerId);
+      const { data: scopedProps } = await supabase
+        .from("properties")
+        .select("id")
+        .eq("owner_id", accountId);
+      const scopedPropIds = (scopedProps ?? []).map((p) => String(p.id));
+      if (scopedPropIds.length === 0) return { count: 0 };
       const { count, error } = await supabase
         .from("property_chat_conversations")
         .select("id", { count: "exact", head: true })
+        .in("property_id", scopedPropIds)
         .eq("status", "needs_human");
       if (error) {
         console.error("countPendingHandoffs failed", error);

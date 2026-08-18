@@ -6,6 +6,7 @@
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { GuestMemory } from "./memory.server";
+import { propertyTimeZone, todayInTZ, zonedTimeToUtc } from "@/lib/property-timezone";
 
 type Admin = SupabaseClient;
 
@@ -17,28 +18,26 @@ export type AgentContext = {
   stayPhase: "pre_checkin" | "checkin_day" | "in_stay" | "checkout_day" | "post_checkout" | "unknown";
 };
 
-const TZ = "America/Sao_Paulo";
-
-/** Offset (em minutos) do fuso de São Paulo para uma data UTC. */
-function tzOffsetMinutes(date: Date): number {
-  const asTz = new Date(date.toLocaleString("en-US", { timeZone: TZ }));
-  const asUtc = new Date(date.toLocaleString("en-US", { timeZone: "UTC" }));
-  return (asTz.getTime() - asUtc.getTime()) / 60000;
-}
-
-/** 17:00 (horário de São Paulo) do dia anterior ao check-in, em UTC. */
-function pinReleaseAt(checkinDate: string): Date {
+/** 17:00 (horário local do imóvel) do dia anterior ao check-in, em UTC. */
+function pinReleaseAt(checkinDate: string, tz: string): Date {
   const [y, m, d] = checkinDate.split("-").map(Number);
-  const base = Date.UTC(y ?? 1970, (m ?? 1) - 1, d ?? 1, 17, 0, 0) - 86_400_000;
-  const guess = new Date(base);
-  return new Date(base - tzOffsetMinutes(guess) * 60000);
+  const prev = new Date(
+    Date.UTC(y ?? 1970, (m ?? 1) - 1, d ?? 1) - 86_400_000,
+  );
+  return zonedTimeToUtc(
+    prev.getUTCFullYear(),
+    prev.getUTCMonth() + 1,
+    prev.getUTCDate(),
+    17,
+    0,
+    tz,
+  );
 }
 
-function nowInfo(): string {
-
+function nowInfo(tz: string): string {
   const now = new Date();
   const fmt = new Intl.DateTimeFormat("pt-BR", {
-    timeZone: "America/Sao_Paulo",
+    timeZone: tz,
     dateStyle: "full",
     timeStyle: "short",
   });
@@ -55,7 +54,13 @@ export async function buildAgentContext(params: {
   const keys: string[] = ["datetime", "property"];
   const lines: string[] = [];
 
-  lines.push(`## Momento atual\n${nowInfo()} (fuso America/Sao_Paulo)`);
+  // O "agora" e o "hoje" seguem o fuso da CIDADE do imóvel: em UTC, das 21h
+  // à meia-noite no Brasil o dia já virava e a IA errava a fase da estadia.
+  const tz = propertyTimeZone(
+    typeof p.city === "string" ? p.city : null,
+    typeof p.country === "string" ? p.country : null,
+  );
+  lines.push(`## Momento atual\n${nowInfo(tz)} (fuso ${tz})`);
 
   lines.push(`\n## Residência\nNome: ${p.name ?? ""}`);
   if (p.tagline) lines.push(String(p.tagline));
@@ -111,7 +116,7 @@ export async function buildAgentContext(params: {
   const guestName = (params.guestName ?? "").trim();
   {
     type AccessLog = { guest_name: string; checkin_date: string; checkout_date: string | null };
-    const todayIso = new Date().toISOString().slice(0, 10);
+    const todayIso = todayInTZ(tz);
     const { data: rows } = await supabase
       .from("guide_access_logs")
       .select("guest_name, checkin_date, checkout_date")
@@ -149,7 +154,7 @@ export async function buildAgentContext(params: {
     if (!log) log = logs.find(covers) ?? logs[0] ?? null;
     if (log?.checkin_date) {
       keys.push("reservation");
-      const today = new Date().toISOString().slice(0, 10);
+      const today = todayIso;
       const ci = String(log.checkin_date).slice(0, 10);
       checkinDate = ci;
       const co = log.checkout_date ? String(log.checkout_date).slice(0, 10) : null;
@@ -188,10 +193,10 @@ export async function buildAgentContext(params: {
           "Explique que ela é liberada a partir das 17:00 do dia anterior ao check-in e peça que ele confirme os dados de check-in no guia.",
       );
     } else {
-      const releaseAt = pinReleaseAt(checkinDate);
+      const releaseAt = pinReleaseAt(checkinDate, tz);
       const released = Date.now() >= releaseAt.getTime();
       const releaseLabel = new Intl.DateTimeFormat("pt-BR", {
-        timeZone: TZ,
+        timeZone: tz,
         day: "2-digit",
         month: "2-digit",
       }).format(releaseAt);

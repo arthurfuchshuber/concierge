@@ -8,8 +8,8 @@ export const Route = createFileRoute("/api/public/cron/ops-push")({
   server: {
     handlers: {
       POST: async ({ request }) => {
-        const cronSecret = process.env["CRON_SECRET"];
-        if (!cronSecret || request.headers.get("x-cron-secret") !== cronSecret) {
+        const { isValidCronSecret } = await import("@/lib/cron-auth.server");
+        if (!isValidCronSecret(request)) {
           return new Response("Unauthorized", { status: 401 });
         }
 

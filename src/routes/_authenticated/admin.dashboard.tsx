@@ -1368,7 +1368,7 @@ function OccupancyPanel({
     };
   }, [openAgenda]);
 
-  const todayISO = new Date().toISOString().slice(0, 10);
+  const todayISO = todayISOSaoPaulo();
 
   const dayList = useMemo(() => {
     const out: string[] = [];
