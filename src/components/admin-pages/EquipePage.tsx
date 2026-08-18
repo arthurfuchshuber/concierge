@@ -481,7 +481,24 @@ function EquipePage() {
           </AccordionTrigger>
           <AccordionContent className="pb-0">
             <div className="px-4 lg:px-6 pb-5 pt-2 border-t border-border/60">
+              {(team.data?.invites?.length ?? 0) > 0 && (
+                <div className="flex justify-end pt-3">
+                  <button
+                    onClick={() => resendAll.mutate()}
+                    disabled={resendAll.isPending}
+                    className="text-xs px-3 py-1.5 rounded-lg bg-primary text-primary-foreground font-medium inline-flex items-center gap-1.5 disabled:opacity-60"
+                  >
+                    {resendAll.isPending ? (
+                      <Loader2 className="size-3 animate-spin" />
+                    ) : (
+                      <SendIcon className="size-3" />
+                    )}
+                    Reenviar todos os convites
+                  </button>
+                </div>
+              )}
               <div className="divide-y divide-border">
+
                 {team.data?.invites?.length === 0 && <div className="text-sm text-muted-foreground py-2">Nenhum convite pendente.</div>}
                 {(team.data?.invites ?? []).map((i) => {
                   const isResending = resend.isPending && resend.variables === (i.id as string);
