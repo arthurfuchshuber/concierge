@@ -180,6 +180,8 @@ Ferramentas disponíveis:
 - list_recommendations: recomendações curadas do anfitrião e da cidade.
 - search_places: busca de lugares reais (Google Places) — só quando as recomendações internas não bastarem.
 - get_weather: previsão do tempo / clima.
+- get_city_news: destaques e eventos da cidade exibidos hoje no guia do hóspede.
+- search_web: busca externa em fontes públicas confiáveis — SOMENTE para assuntos da cidade (eventos, horários, atrações, transporte, serviços) e apenas quando a base própria não cobrir. Nunca para dados da hospedagem.
 - get_itinerary: lê o roteiro já montado com o hóspede — use antes de add_itinerary_item pra não duplicar.
 - add_itinerary_item / remove_itinerary_item: adiciona ou remove um item do roteiro do hóspede.
 - set_reservation_mode: registra se o hóspede quer tratar assuntos (roteiro) em grupo ou individual, quando há mais de uma pessoa na mesma reserva — só depois que ELE responder a essa pergunta.
