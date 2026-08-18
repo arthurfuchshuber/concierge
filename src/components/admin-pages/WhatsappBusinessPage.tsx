@@ -14,15 +14,15 @@ import { CopyButton } from "@/components/CopyButton";
 import { ExternalLink, Loader2, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
-export function WhatsappBusinessPage() {
+export function WhatsappBusinessPage({ accountOwnerId = null, readOnly = false }: { accountOwnerId?: string | null; readOnly?: boolean }) {
   const getFn = useServerFn(getMyWhatsappConfig);
   const saveFn = useServerFn(saveMyWhatsappConfig);
   const disconnectFn = useServerFn(disconnectMyWhatsappConfig);
   const qc = useQueryClient();
 
   const q = useQuery({
-    queryKey: ["whatsapp-config"],
-    queryFn: () => getFn(),
+    queryKey: ["whatsapp-config", accountOwnerId],
+    queryFn: () => getFn({ data: { ownerId: accountOwnerId } }),
   });
 
   const [form, setForm] = useState({
@@ -84,7 +84,7 @@ export function WhatsappBusinessPage() {
         </p>
       )}
 
-      <div className="grid gap-3 sm:grid-cols-2">
+      {!readOnly && <div className="grid gap-3 sm:grid-cols-2">
         <div>
           <Label className="text-xs">Número emissor</Label>
           <Input
@@ -118,7 +118,7 @@ export function WhatsappBusinessPage() {
             onChange={(e) => setForm((f) => ({ ...f, apiToken: e.target.value }))}
           />
         </div>
-      </div>
+      </div>}
 
       <details className="rounded-xl border border-border bg-secondary/30 px-3 py-2 group">
         <summary className="text-xs cursor-pointer text-muted-foreground list-none flex items-center justify-between">
@@ -147,7 +147,7 @@ export function WhatsappBusinessPage() {
         </div>
       </details>
 
-      <div className="flex items-center justify-between gap-3">
+      {!readOnly && <div className="flex items-center justify-between gap-3">
         <Button
           variant="ghost"
           size="sm"
@@ -161,7 +161,7 @@ export function WhatsappBusinessPage() {
           {save.isPending ? <Loader2 className="size-4 mr-2 animate-spin" /> : null}
           Salvar
         </Button>
-      </div>
+      </div>}
     </div>
   );
 }

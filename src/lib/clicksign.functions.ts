@@ -372,12 +372,16 @@ export const syncMyClicksignDocuments = createServerFn({ method: "POST" })
 
 export const listMyClicksignDocuments = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
+  .inputValidator((raw) => z.object({ ownerId: z.string().uuid().nullish() }).parse(raw ?? {}))
+  .handler(async ({ data: input, context }) => {
     const { supabase, userId } = context;
-    const { data } = await supabase
+    const { resolveAuthorizedAccountOwnerId } = await import("@/lib/account-scope.server");
+    const ownerId = await resolveAuthorizedAccountOwnerId(supabase, userId, input.ownerId);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data } = await supabaseAdmin
       .from("clicksign_documents")
       .select("id, document_key, name, status, signers, url_signed, url_original, finished_at, stakeholder_type, stakeholder_id, guest_name, synced_at")
-      .or(`account_owner_id.eq.${userId}`)
+      .eq("account_owner_id", ownerId)
       .order("finished_at", { ascending: false, nullsFirst: false })
       .limit(200);
     return { documents: data ?? [] };

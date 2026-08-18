@@ -258,9 +258,9 @@ export function IntegracoesPage() {
                         {waActive ? "Gerenciar conexão" : "Conectar"}
                       </Button>
                     ) : cfg.key === "gcal" ? (
-                      <GoogleCalendarPanel />
+                      <GoogleCalendarPanel accountOwnerId={accountOwnerId} readOnly={!!accountOwnerId} />
                     ) : (
-                      <ClicksignPanel />
+                      <ClicksignPanel accountOwnerId={accountOwnerId} readOnly={!!accountOwnerId} />
                     )}
                   </div>
                 )}
@@ -275,7 +275,7 @@ export function IntegracoesPage() {
           <DialogHeader>
             <DialogTitle className="font-display text-xl">WhatsApp Business</DialogTitle>
           </DialogHeader>
-          <WhatsappBusinessPage />
+          <WhatsappBusinessPage accountOwnerId={accountOwnerId} readOnly={!!accountOwnerId} />
         </DialogContent>
       </Dialog>
     </div>

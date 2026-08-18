@@ -50,7 +50,7 @@ const VINCULO: Record<string, string> = {
   guest: "Hóspede",
 };
 
-export function ClicksignPanel() {
+export function ClicksignPanel({ accountOwnerId = null, readOnly = false }: { accountOwnerId?: string | null; readOnly?: boolean }) {
   const getFn = useServerFn(getMyClicksignConfig);
   const saveFn = useServerFn(saveMyClicksignConfig);
   const discFn = useServerFn(disconnectMyClicksign);
@@ -67,7 +67,11 @@ export function ClicksignPanel() {
   // Apenas um quadrante aberto por vez; todos recolhidos ao abrir.
   const [section, setSection] = useState<string>("");
 
-  const cfg = useQuery({ queryKey: ["clicksign-config"], queryFn: () => getFn(), retry: false });
+  const cfg = useQuery({
+    queryKey: ["clicksign-config", accountOwnerId],
+    queryFn: () => getFn({ data: { ownerId: accountOwnerId } }),
+    retry: false,
+  });
   const connected = !!cfg.data?.hasToken;
 
   const refreshData = useMutation({
@@ -103,8 +107,8 @@ export function ClicksignPanel() {
   };
 
   const docs = useQuery({
-    queryKey: ["clicksign-docs"],
-    queryFn: () => listFn(),
+    queryKey: ["clicksign-docs", accountOwnerId],
+    queryFn: () => listFn({ data: { ownerId: accountOwnerId } }),
     enabled: connected,
   });
 
@@ -170,7 +174,7 @@ export function ClicksignPanel() {
         onValueChange={setSection}
         className="space-y-2"
       >
-        <AccordionItem
+        {!readOnly && <AccordionItem
           value="api"
           className="rounded-xl border border-border bg-secondary/30 px-3"
         >
@@ -197,7 +201,7 @@ export function ClicksignPanel() {
               </a>
             </p>
           </AccordionContent>
-        </AccordionItem>
+        </AccordionItem>}
 
         {connected && (
           <AccordionItem

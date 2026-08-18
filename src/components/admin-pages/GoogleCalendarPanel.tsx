@@ -49,7 +49,7 @@ function waitForOAuthCompletion(popup: Window) {
   });
 }
 
-export function GoogleCalendarPanel() {
+export function GoogleCalendarPanel({ accountOwnerId = null, readOnly = false }: { accountOwnerId?: string | null; readOnly?: boolean }) {
   const statusFn = useServerFn(getMyGoogleCalendarStatus);
   const startFn = useServerFn(startGoogleCalendarConnect);
   const discFn = useServerFn(disconnectMyGoogleCalendar);
@@ -60,19 +60,23 @@ export function GoogleCalendarPanel() {
   const [calendarId, setCalendarId] = useState("all");
   const [linkTarget, setLinkTarget] = useState<LinkTarget | null>(null);
 
-  const status = useQuery({ queryKey: ["gcal-status"], queryFn: () => statusFn(), retry: false });
+  const status = useQuery({
+    queryKey: ["gcal-status", accountOwnerId],
+    queryFn: () => statusFn({ data: { ownerId: accountOwnerId } }),
+    retry: false,
+  });
   const connected = !!status.data?.connected;
 
   const cals = useQuery({
-    queryKey: ["gcal-calendars"],
-    queryFn: () => calsFn(),
+    queryKey: ["gcal-calendars", accountOwnerId],
+    queryFn: () => calsFn({ data: { ownerId: accountOwnerId } }),
     enabled: connected,
     retry: false,
   });
 
   const events = useQuery({
-    queryKey: ["gcal-events", calendarId],
-    queryFn: () => eventsFn({ data: { calendarId } }),
+    queryKey: ["gcal-events", accountOwnerId, calendarId],
+    queryFn: () => eventsFn({ data: { calendarId, ownerId: accountOwnerId } }),
     enabled: connected,
     retry: false,
   });
@@ -124,7 +128,7 @@ export function GoogleCalendarPanel() {
           Conecte a conta Google desta operação para importar agendas, eventos e os arquivos de gravação e transcrição
           gerados pelo Google Meet.
         </p>
-        <Button
+        {!readOnly && <Button
           size="sm"
           className="h-8 rounded-full text-xs"
           onClick={() => connect.mutate()}
@@ -132,7 +136,7 @@ export function GoogleCalendarPanel() {
         >
           {connect.isPending ? <Loader2 className="mr-1 size-3.5 animate-spin" /> : <Plug className="mr-1 size-3.5" />}
           Conectar com Google
-        </Button>
+        </Button>}
       </div>
     );
   }
