@@ -101,6 +101,30 @@ export const createStakeholderProvisionalAccess = createServerFn({ method: "POST
 
     let memberUserId = await findUserIdByEmail(data.email);
     if (memberUserId) {
+      // SEGURANÇA: só é permitido redefinir a senha de quem JÁ pertence a esta
+      // conta (membro ou convite pendente). Sem esta trava, informar o e-mail
+      // de um usuário de outra empresa sobrescreveria a senha dele — sequestro
+      // de conta a partir de um cadastro de stakeholder.
+      const [{ data: existingMember }, { data: pendingInvite }] = await Promise.all([
+        supabaseAdmin
+          .from("account_members")
+          .select("id")
+          .eq("owner_id", userId)
+          .eq("member_user_id", memberUserId)
+          .maybeSingle(),
+        supabaseAdmin
+          .from("account_member_invites")
+          .select("id")
+          .eq("owner_id", userId)
+          .eq("email", data.email)
+          .eq("status", "pending")
+          .maybeSingle(),
+      ]);
+      if (!existingMember && !pendingInvite && memberUserId !== userId) {
+        throw new Error(
+          "Este e-mail já pertence a um usuário de outra conta. Peça que ele acesse com a senha atual ou use outro e-mail.",
+        );
+      }
       const { error } = await supabaseAdmin.auth.admin.updateUserById(memberUserId, {
         password: data.password,
         user_metadata: { must_change_password: true },

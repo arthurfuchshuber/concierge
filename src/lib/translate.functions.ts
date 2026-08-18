@@ -27,6 +27,19 @@ const InputSchema = z.object({
 export const translateMessage = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => InputSchema.parse(input))
   .handler(async ({ data }) => {
+    // Endpoint público: sem freio por IP viraria proxy gratuito de LLM.
+    const { getRequestIP } = await import("@tanstack/react-start/server");
+    const { allowPublicRate } = await import("@/lib/public-rate-limit.server");
+    let ip = "anon";
+    try {
+      ip = getRequestIP({ xForwardedFor: true }) ?? "anon";
+    } catch {
+      ip = "anon";
+    }
+    if (!allowPublicRate(`translate:${ip}`, 40, 60_000)) {
+      throw new Error("Muitas traduções em pouco tempo. Tente novamente em instantes.");
+    }
+
     const apiKey = process.env.LOVABLE_API_KEY;
     if (!apiKey) throw new Error("Tradução indisponível no momento.");
 
