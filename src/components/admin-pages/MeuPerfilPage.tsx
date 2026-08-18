@@ -11,6 +11,7 @@ import {
 import { Camera, Loader2, Trash2, User as UserIcon, Mail, Save, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 import { formatCPF } from "@/lib/masks";
+import { useImpersonation } from "@/hooks/useImpersonation";
 
 export function MeuPerfilPage() {
   const getFn = useServerFn(getMyProfile);
@@ -20,8 +21,15 @@ export function MeuPerfilPage() {
   const emailFn = useServerFn(requestEmailChange);
   const qc = useQueryClient();
   const fileRef = useRef<HTMLInputElement>(null);
+  const { impersonation } = useImpersonation();
+  const accountOwnerId = impersonation?.userId ?? null;
 
-  const q = useQuery({ queryKey: ["my-profile"], queryFn: () => getFn(), staleTime: 60_000 });
+  const q = useQuery({
+    queryKey: ["account-profile", accountOwnerId],
+    queryFn: () => getFn({ data: { ownerId: accountOwnerId } }),
+    staleTime: 0,
+    refetchOnMount: "always",
+  });
 
   const [fullName, setFullName] = useState("");
   const [tradeName, setTradeName] = useState("");
@@ -29,6 +37,8 @@ export function MeuPerfilPage() {
   const [jobTitle, setJobTitle] = useState("");
   const [email, setEmail] = useState("");
   const [emailOriginal, setEmailOriginal] = useState("");
+  const [phone, setPhone] = useState("");
+  const [phoneCountry, setPhoneCountry] = useState("");
   const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
@@ -40,6 +50,8 @@ export function MeuPerfilPage() {
     setJobTitle(p?.job_title ?? "");
     setEmail(q.data.email ?? "");
     setEmailOriginal(q.data.email ?? "");
+    setPhone(p?.phone ?? "");
+    setPhoneCountry(p?.phone_country ?? "");
   }, [q.data]);
 
   const save = useMutation({
@@ -50,20 +62,23 @@ export function MeuPerfilPage() {
           trade_name: tradeName.trim() || null,
           birth_date: birthDate,
           job_title: jobTitle.trim() || null,
+          phone: phone.trim() || null,
+          phone_country: phoneCountry.trim() || null,
+          ownerId: accountOwnerId,
         },
       }),
     onSuccess: async () => {
       toast.success("Perfil atualizado");
       if (email && email !== emailOriginal) {
         try {
-          await emailFn({ data: { email } });
+          await emailFn({ data: { email, ownerId: accountOwnerId } });
           toast.info("Enviamos um link de confirmação para o novo e-mail.");
           setEmailOriginal(email);
         } catch (e) {
           toast.error("Perfil salvo, mas falhou ao alterar e-mail: " + (e as Error).message);
         }
       }
-      qc.invalidateQueries({ queryKey: ["my-profile"] });
+      qc.invalidateQueries({ queryKey: ["account-profile", accountOwnerId] });
     },
     onError: (e) => toast.error((e as Error).message),
   });
@@ -95,9 +110,10 @@ export function MeuPerfilPage() {
         data: {
           fileBase64: b64,
           contentType: file.type as "image/png" | "image/jpeg" | "image/webp",
+          ownerId: accountOwnerId,
         },
       });
-      await qc.invalidateQueries({ queryKey: ["my-profile"] });
+      await qc.invalidateQueries({ queryKey: ["account-profile", accountOwnerId] });
       toast.success("Foto atualizada");
     } catch (err) {
       toast.error((err as Error).message);
@@ -108,8 +124,8 @@ export function MeuPerfilPage() {
 
   async function onRemoveAvatar() {
     try {
-      await removeFn();
-      await qc.invalidateQueries({ queryKey: ["my-profile"] });
+      await removeFn({ data: { ownerId: accountOwnerId } });
+      await qc.invalidateQueries({ queryKey: ["account-profile", accountOwnerId] });
       toast.success("Foto removida");
     } catch (err) {
       toast.error((err as Error).message);
@@ -137,7 +153,7 @@ export function MeuPerfilPage() {
     <div className="w-full space-y-6">
       <div className="flex items-center gap-2">
         <UserIcon className="size-5 text-primary" />
-        <h1 className="font-display text-2xl">Meu perfil</h1>
+        <h1 className="font-display text-2xl">{impersonation ? "Perfil da conta" : "Meu perfil"}</h1>
       </div>
 
       {/* Avatar */}
@@ -239,6 +255,28 @@ export function MeuPerfilPage() {
               maxLength={80}
               className="input"
               placeholder="Ex.: Gerente de reservas"
+            />
+          </Field>
+        </div>
+
+        <div className="grid sm:grid-cols-[8rem_1fr] gap-4">
+          <Field label="País / DDI">
+            <input
+              value={phoneCountry}
+              onChange={(e) => setPhoneCountry(e.target.value)}
+              maxLength={8}
+              className="input"
+              placeholder="Ex.: BR / +55"
+            />
+          </Field>
+          <Field label="Telefone">
+            <input
+              type="tel"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              maxLength={30}
+              className="input"
+              placeholder="Telefone cadastrado na conta"
             />
           </Field>
         </div>
