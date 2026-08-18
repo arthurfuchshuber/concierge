@@ -22,7 +22,7 @@ import { CancellationReviewDialog } from "@/components/stakeholders/Cancellation
 import { listMyPendingInvites } from "@/lib/pending-invites.functions";
 import { useAreaAccess } from "@/lib/permissions/useAreaAccess";
 import { useActiveAccount } from "@/hooks/useActiveAccount";
-import { useImpersonationQuerySync } from "@/hooks/useImpersonation";
+import { useImpersonation, useImpersonationQuerySync } from "@/hooks/useImpersonation";
 import { ROUTE_PERMISSION_LIST, permissionForPath } from "@/lib/permissions/routeAreas";
 import { AccessDenied } from "@/components/permissions/AreaGate";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -80,10 +80,12 @@ function AdminLayout() {
     staleTime: 5 * 60_000,
     retry: false,
   });
+  const { impersonation } = useImpersonation();
+  const activeAccountId = impersonation?.userId;
   const pending = useQuery({
-    queryKey: ["handoff-pending-count"],
+    queryKey: ["handoff-pending-count", activeAccountId ?? "self"],
     queryFn: async () => {
-      try { return await pendingFn(); } catch { return { count: 0 }; }
+      try { return await pendingFn({ data: { accountOwnerId: activeAccountId } }); } catch { return { count: 0 }; }
     },
     enabled: access.data?.allowed === true,
     refetchInterval: 15_000,

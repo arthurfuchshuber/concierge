@@ -400,7 +400,7 @@ function Dashboard() {
   // Stakeholders → Proprietários (fonte da verdade das propriedades).
   const ownersCountFn = useServerFnGuias(countPropertyOwners);
   const ownersCount = useQueryGuias({
-    queryKey: ["property-owners-count"],
+    queryKey: ["property-owners-count", impersonation?.userId ?? "self"],
     queryFn: async () => {
       try {
         return await ownersCountFn();
