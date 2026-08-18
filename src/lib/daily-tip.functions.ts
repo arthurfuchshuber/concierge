@@ -107,7 +107,8 @@ export const getDailyTip = createServerFn({ method: "POST" })
     if (!prop) return null;
     if (!prop.city && (prop.lat == null || prop.lng == null)) return null;
 
-    const today = new Date().toISOString().slice(0, 10);
+    const { propertyTimeZone, todayInTZ } = await import("@/lib/property-timezone");
+    const today = todayInTZ(propertyTimeZone(prop.city, prop.country));
     const { data: cached } = await supabaseAdmin
       .from("property_daily_tips")
       .select("content")

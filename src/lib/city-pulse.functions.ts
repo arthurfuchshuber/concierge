@@ -71,7 +71,9 @@ export const getCityPulse = createServerFn({ method: "POST" })
   .handler(async ({ data }): Promise<CityPulse | null> => {
     if (!data.cityLabel) return null;
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const today = new Date().toISOString().slice(0, 10);
+    // "Hoje" precisa ser o dia local da cidade, não o dia UTC.
+    const { propertyTimeZone, todayInTZ } = await import("@/lib/property-timezone");
+    const today = todayInTZ(propertyTimeZone(data.cityLabel, data.country ?? null));
 
     const { data: cached } = await supabaseAdmin
       .from("city_daily_pulse")
