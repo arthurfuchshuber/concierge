@@ -55,6 +55,16 @@ export function useImpersonationQuerySync() {
       // cache em memória (e não apenas invalidamos) para que nenhum dado de
       // outra conta continue na tela enquanto a nova consulta responde.
       queryClient.clear();
+      // O cache offline do aparelho também é descartado: ele foi gravado sob
+      // a empresa anterior e não pode reidratar na próxima abertura.
+      try {
+        const keys: string[] = [];
+        for (let i = 0; i < window.localStorage.length; i++) {
+          const k = window.localStorage.key(i) ?? "";
+          if (k.startsWith("cia-cache-v2:") || k === "cia-cache-v1") keys.push(k);
+        }
+        keys.forEach((k) => window.localStorage.removeItem(k));
+      } catch { /* noop */ }
     };
     window.addEventListener(EVT, handler);
     window.addEventListener("storage", handler);
