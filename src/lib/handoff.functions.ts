@@ -45,6 +45,20 @@ export const listHandoffConversations = createServerFn({ method: "POST" })
     try {
       const { supabase, userId } = context;
 
+      // Isolamento por empresa: só as conversas dos imóveis da conta ativa.
+      const { resolveAuthorizedAccountOwnerId } = await import("@/lib/account-scope.server");
+      const accountId = await resolveAuthorizedAccountOwnerId(
+        supabase,
+        userId,
+        data.accountOwnerId,
+      );
+      const { data: scopedProps } = await supabase
+        .from("properties")
+        .select("id")
+        .eq("owner_id", accountId);
+      const scopedPropIds = (scopedProps ?? []).map((p) => String(p.id));
+      if (scopedPropIds.length === 0) return emptyHandoffListResult();
+
       // Auto-encerra conversas sem atividade há mais de 1 hora → resolvidas.
       // Mesmo critério para IA e para conversas já assumidas por um humano.
       try {
@@ -53,6 +67,7 @@ export const listHandoffConversations = createServerFn({ method: "POST" })
           .from("property_chat_conversations")
           .update({ status: "resolved", resolved_at: new Date().toISOString() })
           .in("status", ["ai", "assigned", "needs_human"])
+          .in("property_id", scopedPropIds)
           .lt("last_message_at", cutoff);
       } catch (e) {
         // não bloqueia leitura
@@ -64,6 +79,7 @@ export const listHandoffConversations = createServerFn({ method: "POST" })
         .select(
           "id, property_id, guest_session_id, guest_name, status, ai_paused, assigned_to, handoff_reason, handoff_urgency, handoff_at, last_message_at, created_at, resolved_at, properties:property_id(id, name, owner_id, owner_contact_id, slug)",
         )
+        .in("property_id", scopedPropIds)
         .order("handoff_at", { ascending: false, nullsFirst: false })
         .order("last_message_at", { ascending: false })
         .limit(data.limit);

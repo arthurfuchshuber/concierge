@@ -11,6 +11,7 @@ import { ConversationList, ConversationView, useMyUserId } from "@/components/ha
 import { Headphones, MessagesSquare, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { QUEUES, type Queue } from "@/lib/handoff-queues";
+import { useImpersonation } from "@/hooks/useImpersonation";
 
 
 const searchSchema = z.object({
@@ -38,6 +39,8 @@ function AtendimentoPage() {
     retry: false,
   });
 
+  const { impersonation } = useImpersonation();
+  const activeAccountId = impersonation?.userId ?? null;
   const [queue, setQueue] = useState<Queue>("all_active");
   const [activeId, setActiveId] = useState<string | null>(conv ?? null);
   const [search, setSearch] = useState("");
@@ -46,10 +49,10 @@ function AtendimentoPage() {
   useEffect(() => { if (conv) setActiveId(conv); }, [conv]);
 
   const list = useQuery({
-    queryKey: ["handoff-list", queue],
+    queryKey: ["handoff-list", queue, activeAccountId ?? "self"],
     queryFn: async () => {
       try {
-        return await listFn({ data: { queue, limit: 100 } });
+        return await listFn({ data: { queue, limit: 100, accountOwnerId: activeAccountId } });
       }
       catch { return { conversations: [], details: {} }; }
     },
