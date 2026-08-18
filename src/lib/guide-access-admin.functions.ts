@@ -100,11 +100,20 @@ export const listGuideAccessLogs = createServerFn({ method: "GET" })
 // agregando todas as propriedades do anfitrião (owner) atual.
 export const listOwnerGuestForms = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
+  .inputValidator((i: unknown) =>
+    z.object({ accountOwnerId: z.string().uuid().optional().nullable() }).parse(i ?? {}),
+  )
+  .handler(async ({ data, context }) => {
+    const { resolveAuthorizedAccountOwnerId } = await import("@/lib/account-scope.server");
+    const accountId = await resolveAuthorizedAccountOwnerId(
+      context.supabase,
+      context.userId,
+      data.accountOwnerId,
+    );
     const { data: props, error: propErr } = await context.supabase
       .from("properties")
       .select("id, name, portaria_email")
-      .eq("owner_id", context.userId);
+      .eq("owner_id", accountId);
     if (propErr) throw propErr;
     const propList = props ?? [];
     if (propList.length === 0) return { logs: [], properties: [] };
@@ -153,6 +162,7 @@ export const listOwnerGuestForms = createServerFn({ method: "GET" })
     const signed = (await signGuestDocs(enriched as unknown as { guest_documents: unknown }[])) as unknown as EnrichedLog[];
 
     return {
+      accountId,
       logs: signed,
       properties: propList.map((p) => ({
         id: p.id,

@@ -25,6 +25,7 @@ import {
   type TenantKnowledgeRow,
 } from "@/lib/knowledge-governance.functions";
 import { listLearningQueue, reviewLearningCandidate } from "@/lib/ai-learning.functions";
+import { useImpersonation } from "@/hooks/useImpersonation";
 
 export const Route = createFileRoute("/_authenticated/admin/ia")({
   head: () => ({
@@ -95,12 +96,14 @@ function KnowledgeTab() {
   const archiveFn = useServerFn(archiveOperationKnowledge);
   const [form, setForm] = useState<typeof EMPTY_KNOWLEDGE | null>(null);
   const [saving, setSaving] = useState(false);
+  const { impersonation } = useImpersonation();
+  const tenantId = impersonation?.userId;
 
   const { data, isLoading } = useQuery({
-    queryKey: ["ia-operation-knowledge"],
+    queryKey: ["ia-operation-knowledge", tenantId ?? "self"],
     queryFn: async () => {
       try {
-        return await listFn({ data: { status: "active" } });
+        return await listFn({ data: { status: "active", tenantId } });
       } catch {
         return [] as TenantKnowledgeRow[];
       }
@@ -112,7 +115,7 @@ function KnowledgeTab() {
     if (!form) return;
     setSaving(true);
     try {
-      await saveFn({ data: { ...form, id: form.id } });
+      await saveFn({ data: { ...form, id: form.id, tenantId } });
       toast.success("Conhecimento salvo — a IA já pode usá-lo.");
       setForm(null);
       await qc.invalidateQueries({ queryKey: ["ia-operation-knowledge"] });
@@ -125,7 +128,7 @@ function KnowledgeTab() {
 
   async function archive(id: string) {
     try {
-      await archiveFn({ data: { id } });
+      await archiveFn({ data: { id, tenantId } });
       toast.success("Conhecimento arquivado");
       await qc.invalidateQueries({ queryKey: ["ia-operation-knowledge"] });
     } catch {
@@ -262,12 +265,14 @@ function QueueTab() {
   const listFn = useServerFn(listLearningQueue);
   const reviewFn = useServerFn(reviewLearningCandidate);
   const [busy, setBusy] = useState<string | null>(null);
+  const { impersonation } = useImpersonation();
+  const tenantId = impersonation?.userId;
 
   const { data, isLoading } = useQuery({
-    queryKey: ["ia-learning-queue"],
+    queryKey: ["ia-learning-queue", tenantId ?? "self"],
     queryFn: async () => {
       try {
-        return await listFn({ data: { status: "pending" } });
+        return await listFn({ data: { status: "pending", tenantId } });
       } catch {
         return [] as Array<Record<string, unknown>>;
       }
@@ -280,7 +285,7 @@ function QueueTab() {
   async function review(id: string, action: "approve" | "reject") {
     setBusy(id);
     try {
-      await reviewFn({ data: { candidateId: id, action } });
+      await reviewFn({ data: { candidateId: id, action, tenantId } });
       toast.success(action === "approve" ? "Aprendizado aprovado e aplicado" : "Aprendizado descartado");
       await qc.invalidateQueries({ queryKey: ["ia-learning-queue"] });
     } catch (e) {
