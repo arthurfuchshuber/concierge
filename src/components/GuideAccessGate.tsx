@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from "react";
+import { zonedTimeToUtc } from "@/lib/property-timezone";
 import { useServerFn } from "@tanstack/react-start";
 import { recordGuideAccess, checkReservationBySlug, getGuideCalendarAvailability } from "@/lib/guide-access.functions";
 import { BottomNav } from "@/components/guide/BottomNav";
