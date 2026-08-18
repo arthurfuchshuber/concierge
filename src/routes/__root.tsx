@@ -20,7 +20,44 @@ import { supabase } from "../integrations/supabase/client";
 import { META_PIXEL_ID, initMetaPixel, metaPixelPageView } from "../lib/meta-pixel";
 import { startTrail, trackPageView } from "../lib/trail";
 
+/** Prefixo das chaves de cache offline (uma por usuário). */
+const CACHE_PREFIX = "cia-cache-v2:";
+
+/**
+ * Lê o id do usuário da sessão do Supabase de forma síncrona, direto do
+ * localStorage — o cache precisa saber de quem é ANTES de reidratar a tela.
+ */
+function currentAuthUserIdSync(): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    for (let i = 0; i < window.localStorage.length; i++) {
+      const k = window.localStorage.key(i) ?? "";
+      if (!k.startsWith("sb-") || !k.endsWith("-auth-token")) continue;
+      const raw = window.localStorage.getItem(k);
+      if (!raw) continue;
+      const parsed = JSON.parse(raw.startsWith("base64-") ? atob(raw.slice(7)) : raw);
+      const id = parsed?.user?.id ?? parsed?.currentSession?.user?.id ?? null;
+      if (id) return String(id);
+    }
+  } catch { /* noop */ }
+  return null;
+}
+
+/** Apaga todo cache offline guardado no aparelho (qualquer usuário). */
+function purgePersistedCache() {
+  if (typeof window === "undefined") return;
+  try {
+    const keys: string[] = [];
+    for (let i = 0; i < window.localStorage.length; i++) {
+      const k = window.localStorage.key(i) ?? "";
+      if (k.startsWith(CACHE_PREFIX) || k === "cia-cache-v1") keys.push(k);
+    }
+    keys.forEach((k) => window.localStorage.removeItem(k));
+  } catch { /* noop */ }
+}
+
 function NotFoundComponent() {
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-6">
       <div className="max-w-md text-center">
@@ -144,11 +181,19 @@ function RootComponent() {
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
       if (event !== "SIGNED_IN" && event !== "SIGNED_OUT" && event !== "USER_UPDATED") return;
+      if (event === "SIGNED_OUT") {
+        // Nada do usuário anterior pode sobreviver no aparelho: sem isso, o
+        // próximo login enxergava a última visão em cache de outra empresa.
+        purgePersistedCache();
+        try { window.sessionStorage.removeItem("sg-impersonate"); } catch { /* noop */ }
+        queryClient.clear();
+      }
       router.invalidate();
       if (event !== "SIGNED_OUT") queryClient.invalidateQueries();
     });
     return () => subscription.unsubscribe();
   }, [router, queryClient]);
+
 
   // Tratamento global de PERMISSION_DENIED (não quebra a aplicação).
   useEffect(() => installPermissionDeniedHandler(), []);
@@ -218,9 +263,17 @@ function RootComponent() {
     "ops-",
   ];
 
+  // O cache offline é POR USUÁRIO. Com uma chave única, o próximo login no
+  // mesmo aparelho reidratava a última visão da conta anterior (vazamento
+  // entre empresas). A chave carrega o id do usuário da sessão atual.
   const persister = typeof window !== "undefined"
-    ? createSyncStoragePersister({ storage: window.localStorage, key: "cia-cache-v1", throttleTime: 1000 })
+    ? createSyncStoragePersister({
+        storage: window.localStorage,
+        key: `${CACHE_PREFIX}${currentAuthUserIdSync() ?? "anon"}`,
+        throttleTime: 1000,
+      })
     : null;
+
 
   const content = (
     <I18nProvider>
