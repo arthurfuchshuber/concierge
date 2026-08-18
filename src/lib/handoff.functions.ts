@@ -45,6 +45,20 @@ export const listHandoffConversations = createServerFn({ method: "POST" })
     try {
       const { supabase, userId } = context;
 
+      // Isolamento por empresa: só as conversas dos imóveis da conta ativa.
+      const { resolveAuthorizedAccountOwnerId } = await import("@/lib/account-scope.server");
+      const accountId = await resolveAuthorizedAccountOwnerId(
+        supabase,
+        userId,
+        data.accountOwnerId,
+      );
+      const { data: scopedProps } = await supabase
+        .from("properties")
+        .select("id")
+        .eq("owner_id", accountId);
+      const scopedPropIds = (scopedProps ?? []).map((p) => String(p.id));
+      if (scopedPropIds.length === 0) return emptyHandoffListResult();
+
       // Auto-encerra conversas sem atividade há mais de 1 hora → resolvidas.
       // Mesmo critério para IA e para conversas já assumidas por um humano.
       try {
