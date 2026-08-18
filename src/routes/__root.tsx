@@ -144,11 +144,19 @@ function RootComponent() {
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
       if (event !== "SIGNED_IN" && event !== "SIGNED_OUT" && event !== "USER_UPDATED") return;
+      if (event === "SIGNED_OUT") {
+        // Nada do usuário anterior pode sobreviver no aparelho: sem isso, o
+        // próximo login enxergava a última visão em cache de outra empresa.
+        purgePersistedCache();
+        try { window.sessionStorage.removeItem("sg-impersonate"); } catch { /* noop */ }
+        queryClient.clear();
+      }
       router.invalidate();
       if (event !== "SIGNED_OUT") queryClient.invalidateQueries();
     });
     return () => subscription.unsubscribe();
   }, [router, queryClient]);
+
 
   // Tratamento global de PERMISSION_DENIED (não quebra a aplicação).
   useEffect(() => installPermissionDeniedHandler(), []);
