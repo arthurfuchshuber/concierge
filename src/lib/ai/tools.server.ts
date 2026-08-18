@@ -132,22 +132,47 @@ export function buildGuestTools(ctx: ToolContext): AgentTool[] {
     execute: async () => {
       const p = ctx.property;
       const mask = (v: unknown) => (ctx.sensitiveLocked ? "[BLOQUEADO POR SENHA — hóspede deve liberar no guia]" : (v ?? null));
+      // Instruções operacionais podem trazer o código escrito na frase: com o
+      // guia bloqueado, qualquer sequência numérica sai antes de chegar à IA.
+      const maskDigits = (v: unknown) => {
+        if (!v) return null;
+        const text = String(v);
+        return ctx.sensitiveLocked
+          ? text.replace(/\d[\d\s.-]{2,}/g, "[BLOQUEADO — liberar no guia]")
+          : text;
+      };
       ctx.collectSource({ source: "property", title: "Dados da residência", confidence: confidenceOf("property") });
       return {
         nome: p.name ?? null,
         cidade: p.city ?? null,
+        estado: p.state ?? null,
+        pais: p.country ?? null,
         endereco: p.address ?? null,
         como_chegar: p.address_note ?? null,
+        mapa: p.maps_url ?? null,
+        garagem: p.garage_maps_url ?? null,
+        vagas_veiculo: p.vehicles_max ?? null,
         checkin: p.checkin_time ?? null,
         checkin_max: p.checkin_time_max ?? null,
         checkout: p.checkout_time ?? null,
+        checkout_min: p.checkout_time_min ?? null,
         instrucoes_checkin: p.checkin_instructions ?? null,
+        observacoes_checkin: p.checkin_note ?? null,
         instrucoes_checkout: p.checkout_instructions ?? null,
+        observacoes_checkout: p.checkout_note ?? null,
         regras: p.house_rules ?? null,
         wifi_rede: p.wifi_ssid ?? null,
         wifi_senha: mask(p.wifi_password),
-        codigo_portao: mask(p.gate_code),
-        codigo_fechadura: mask(p.lock_code),
+        entrada_portao: {
+          nome: p.gate_label ?? null,
+          instrucoes: maskDigits(p.gate_instructions),
+          codigo: mask(p.gate_code),
+        },
+        fechadura: {
+          nome: p.lock_label ?? null,
+          instrucoes: maskDigits(p.lock_instructions),
+          codigo: mask(p.lock_code),
+        },
         anfitriao: p.host_name ?? null,
         telefone_anfitriao: "[Contate o anfitrião pela plataforma de reserva]",
       };
