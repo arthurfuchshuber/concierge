@@ -10,6 +10,7 @@ import { listenToPushMessages } from "@/lib/push-client";
 import { HANDOFF_DOCK_OPEN_EVENT, type HandoffDockOpenDetail } from "@/lib/handoff-dock";
 import { Headphones, X, Minimize2, Maximize2, Expand, Shrink, ArrowLeft } from "lucide-react";
 import { QUEUES, type Queue } from "@/lib/handoff-queues";
+import { useImpersonation } from "@/hooks/useImpersonation";
 
 const DOCK_STATE_KEY = "handoff-dock-state-v1";
 const DOCK_POSITION_KEY = "handoff-dock-position-v1";
@@ -63,6 +64,8 @@ function playBeep() {
 export function FloatingHandoffDock() {
   const accessFn = useServerFn(getAtendimentoAccess);
   const listFn = useServerFn(listHandoffConversations);
+  const { impersonation } = useImpersonation();
+  const activeAccountId = impersonation?.userId ?? null;
   const countFn = useServerFn(countPendingHandoffs);
   const resolveFn = useServerFn(resolveConversationForGuest);
   const qc = useQueryClient();
@@ -161,9 +164,9 @@ export function FloatingHandoffDock() {
   });
   const [queue, setQueue] = useState<Queue>("all_active");
   const list = useQuery({
-    queryKey: ["handoff-list", "dock", queue],
+    queryKey: ["handoff-list", "dock", queue, activeAccountId ?? "self"],
     queryFn: async () => {
-      try { return await listFn({ data: { queue, limit: 30 } }); }
+      try { return await listFn({ data: { queue, limit: 30, accountOwnerId: activeAccountId } }); }
       catch { return { conversations: [], details: {} }; }
     },
     enabled: allowed,
