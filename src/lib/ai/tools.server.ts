@@ -132,22 +132,47 @@ export function buildGuestTools(ctx: ToolContext): AgentTool[] {
     execute: async () => {
       const p = ctx.property;
       const mask = (v: unknown) => (ctx.sensitiveLocked ? "[BLOQUEADO POR SENHA — hóspede deve liberar no guia]" : (v ?? null));
+      // Instruções operacionais podem trazer o código escrito na frase: com o
+      // guia bloqueado, qualquer sequência numérica sai antes de chegar à IA.
+      const maskDigits = (v: unknown) => {
+        if (!v) return null;
+        const text = String(v);
+        return ctx.sensitiveLocked
+          ? text.replace(/\d[\d\s.-]{2,}/g, "[BLOQUEADO — liberar no guia]")
+          : text;
+      };
       ctx.collectSource({ source: "property", title: "Dados da residência", confidence: confidenceOf("property") });
       return {
         nome: p.name ?? null,
         cidade: p.city ?? null,
+        estado: p.state ?? null,
+        pais: p.country ?? null,
         endereco: p.address ?? null,
         como_chegar: p.address_note ?? null,
+        mapa: p.maps_url ?? null,
+        garagem: p.garage_maps_url ?? null,
+        vagas_veiculo: p.vehicles_max ?? null,
         checkin: p.checkin_time ?? null,
         checkin_max: p.checkin_time_max ?? null,
         checkout: p.checkout_time ?? null,
+        checkout_min: p.checkout_time_min ?? null,
         instrucoes_checkin: p.checkin_instructions ?? null,
+        observacoes_checkin: p.checkin_note ?? null,
         instrucoes_checkout: p.checkout_instructions ?? null,
+        observacoes_checkout: p.checkout_note ?? null,
         regras: p.house_rules ?? null,
         wifi_rede: p.wifi_ssid ?? null,
         wifi_senha: mask(p.wifi_password),
-        codigo_portao: mask(p.gate_code),
-        codigo_fechadura: mask(p.lock_code),
+        entrada_portao: {
+          nome: p.gate_label ?? null,
+          instrucoes: maskDigits(p.gate_instructions),
+          codigo: mask(p.gate_code),
+        },
+        fechadura: {
+          nome: p.lock_label ?? null,
+          instrucoes: maskDigits(p.lock_instructions),
+          codigo: mask(p.lock_code),
+        },
         anfitriao: p.host_name ?? null,
         telefone_anfitriao: "[Contate o anfitrião pela plataforma de reserva]",
       };
@@ -316,6 +341,103 @@ export function buildGuestTools(ctx: ToolContext): AgentTool[] {
       }
     },
   });
+
+  tools.push({
+    name: "search_web",
+    description:
+      "Busca na internet em fontes públicas confiáveis (sites oficiais de turismo, prefeitura, veículos de " +
+      "imprensa, sites dos próprios estabelecimentos). Use SOMENTE depois de consultar search_knowledge_base, " +
+      "list_recommendations e get_city_news sem encontrar a resposta, e apenas para assuntos EXTERNOS ao imóvel: " +
+      "eventos, horários de funcionamento, atrações, transporte, feriados e serviços da cidade. NUNCA use para " +
+      "dados da hospedagem (regras, senhas, horários de check-in, reserva) — esses só vêm da base oficial. " +
+      "Sempre diga ao hóspede que a informação veio de fonte externa e pode mudar.",
+    parameters: schema(
+      {
+        consulta: {
+          type: "string",
+          description: "Pergunta objetiva a pesquisar. Não inclua nome, telefone ou dados do hóspede.",
+        },
+        recente: {
+          type: ["boolean", "null"],
+          description: "true quando a resposta depende de algo desta semana (evento, agenda, horário sazonal).",
+        },
+      },
+      ["consulta", "recente"],
+    ),
+    execute: async (args) => {
+      const key = process.env.FIRECRAWL_API_KEY;
+      if (!key) return { disponivel: false, motivo: "busca externa indisponível" };
+      const city = (ctx.property.city as string) ?? "";
+      const consulta = String(args.consulta ?? "").slice(0, 180).trim();
+      if (consulta.length < 3) return { disponivel: false };
+      const query = city ? `${consulta} ${city}` : consulta;
+      // Domínios que nunca servem de fonte para o hóspede (conteúdo gerado por
+      // usuário, agregadores de reserva e redes sociais).
+      const BLOCKED =
+        /(facebook|instagram|tiktok|twitter|x\.com|pinterest|reddit|quora|booking\.com|airbnb|expedia|despegar|hoteis\.com|tripadvisor\.[a-z.]+\/ShowUserReviews)/i;
+      try {
+        const res = await fetch("https://api.firecrawl.dev/v2/search", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            query,
+            limit: 8,
+            lang: "pt",
+            country: "br",
+            ...(args.recente ? { tbs: "qdr:w" } : {}),
+          }),
+          signal: AbortSignal.timeout(15000),
+        });
+        if (!res.ok) {
+          console.error(`[tool search_web] Firecrawl ${res.status}`);
+          return { disponivel: false };
+        }
+        const j = (await res.json()) as {
+          data?: Array<{ url?: string; title?: string; description?: string }> | { web?: Array<{ url?: string; title?: string; description?: string }> };
+        };
+        const list = Array.isArray(j.data) ? j.data : (j.data?.web ?? []);
+        const seen = new Set<string>();
+        const resultados = list
+          .filter((r) => r.url && !BLOCKED.test(r.url))
+          .filter((r) => {
+            let host = "";
+            try {
+              host = new URL(r.url!).hostname;
+            } catch {
+              return false;
+            }
+            if (seen.has(host)) return false;
+            seen.add(host);
+            return true;
+          })
+          .slice(0, 5)
+          .map((r) => ({
+            titulo: r.title ?? null,
+            resumo: (r.description ?? "").slice(0, 400),
+            link: r.url,
+            fonte: (() => {
+              try {
+                return new URL(r.url!).hostname.replace(/^www\./, "");
+              } catch {
+                return null;
+              }
+            })(),
+          }));
+        if (!resultados.length) return { disponivel: false };
+        ctx.collectSource({ source: "web", title: `Busca externa: ${consulta}`, confidence: confidenceOf("web") });
+        return {
+          disponivel: true,
+          aviso:
+            "Fonte externa: confirme com o hóspede que horários e datas podem mudar e cite de onde veio a informação.",
+          resultados,
+        };
+      } catch (err) {
+        console.error("[tool search_web]", err);
+        return { disponivel: false };
+      }
+    },
+  });
+
 
   tools.push({
     name: "get_weather",
