@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 // ---------------------------------------------------------------------------
 // Stakeholders = Proprietários (property_owners) + Prestadores (service_providers).
@@ -172,7 +173,8 @@ export const saveStakeholder = createServerFn({ method: "POST" })
     const { supabase, userId } = context;
     const { enforce } = await import("@/lib/permissions/permission.enforce.server");
     await enforce(userId, "stakeholders.write", { resource: data.id ?? null });
-    const accountId = await resolveAccountOwnerId(supabase, userId);
+    const { resolveAuthorizedAccountOwnerId } = await import("@/lib/account-scope.server");
+    const accountId = await resolveAuthorizedAccountOwnerId(supabase, userId);
     const { kind, id, category, categories, ...rest } = data;
 
     // Validação real do documento no servidor (dígitos verificadores oficiais).
@@ -259,7 +261,8 @@ export const deleteStakeholder = createServerFn({ method: "POST" })
     const { supabase, userId } = context;
     const { enforce } = await import("@/lib/permissions/permission.enforce.server");
     await enforce(userId, "stakeholders.delete", { resource: data.id });
-    const accountId = await resolveAccountOwnerId(supabase, userId);
+    const { resolveAuthorizedAccountOwnerId } = await import("@/lib/account-scope.server");
+    const accountId = await resolveAuthorizedAccountOwnerId(supabase, userId);
     const { error } = await supabase
       .from(TABLE[data.kind])
       .delete()
@@ -276,7 +279,8 @@ export const getStakeholderDetail = createServerFn({ method: "GET" })
     const { supabase, userId } = context;
     const { enforce } = await import("@/lib/permissions/permission.enforce.server");
     await enforce(userId, "stakeholders.read", { resource: data.id });
-    const accountId = await resolveAccountOwnerId(supabase, userId);
+    const { resolveAuthorizedAccountOwnerId } = await import("@/lib/account-scope.server");
+    const accountId = await resolveAuthorizedAccountOwnerId(supabase, userId);
     const [{ data: row }, { data: events }, { data: activities }] = await Promise.all([
       supabase.from(TABLE[data.kind]).select("*").eq("id", data.id).eq("account_owner_id", accountId).maybeSingle(),
       supabase
@@ -366,7 +370,8 @@ export const linkPropertyToOwner = createServerFn({ method: "POST" })
     const { supabase, userId } = context;
     const { enforce } = await import("@/lib/permissions/permission.enforce.server");
     await enforce(userId, "stakeholders.vinculo-imovel", { resource: data.ownerId, propertyId: data.propertyId });
-    const accountId = await resolveAccountOwnerId(supabase, userId);
+    const { resolveAuthorizedAccountOwnerId } = await import("@/lib/account-scope.server");
+    const accountId = await resolveAuthorizedAccountOwnerId(supabase, userId);
     const { data: owner } = await supabase
       .from("property_owners")
       .select("id, name")
@@ -405,7 +410,8 @@ export const addStakeholderNote = createServerFn({ method: "POST" })
   .inputValidator((i: unknown) => NoteInput.parse(i))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    const accountId = await resolveAccountOwnerId(supabase, userId);
+    const { resolveAuthorizedAccountOwnerId } = await import("@/lib/account-scope.server");
+    const accountId = await resolveAuthorizedAccountOwnerId(supabase, userId);
     const { error } = await supabase.from("stakeholder_events").insert({
       account_owner_id: accountId,
       stakeholder_type: data.kind,
@@ -434,7 +440,8 @@ export const saveStakeholderActivity = createServerFn({ method: "POST" })
   .inputValidator((i: unknown) => ActivityInput.parse(i))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    const accountId = await resolveAccountOwnerId(supabase, userId);
+    const { resolveAuthorizedAccountOwnerId } = await import("@/lib/account-scope.server");
+    const accountId = await resolveAuthorizedAccountOwnerId(supabase, userId);
     const payload = {
       account_owner_id: accountId,
       stakeholder_type: data.kind,
@@ -481,7 +488,8 @@ export const setStakeholderActivityStatus = createServerFn({ method: "POST" })
   .inputValidator((i: unknown) => ActivityStatusInput.parse(i))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    const accountId = await resolveAccountOwnerId(supabase, userId);
+    const { resolveAuthorizedAccountOwnerId } = await import("@/lib/account-scope.server");
+    const accountId = await resolveAuthorizedAccountOwnerId(supabase, userId);
     const { error } = await supabase
       .from("stakeholder_activities")
       .update({ status: data.status })
@@ -496,7 +504,8 @@ export const deleteStakeholderActivity = createServerFn({ method: "POST" })
   .inputValidator((i: unknown) => z.object({ id: z.string().uuid() }).parse(i))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    const accountId = await resolveAccountOwnerId(supabase, userId);
+    const { resolveAuthorizedAccountOwnerId } = await import("@/lib/account-scope.server");
+    const accountId = await resolveAuthorizedAccountOwnerId(supabase, userId);
     const { error } = await supabase
       .from("stakeholder_activities")
       .delete()
@@ -511,7 +520,8 @@ export const countPropertyOwners = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { supabase, userId } = context;
-    const accountId = await resolveAccountOwnerId(supabase, userId);
+    const { resolveAuthorizedAccountOwnerId } = await import("@/lib/account-scope.server");
+    const accountId = await resolveAuthorizedAccountOwnerId(supabase, userId);
     const { count } = await supabase
       .from("property_owners")
       .select("id", { count: "exact", head: true })
@@ -548,7 +558,8 @@ export const setStakeholderStatus = createServerFn({ method: "POST" })
     const { supabase, userId } = context;
     const { enforce } = await import("@/lib/permissions/permission.enforce.server");
     await enforce(userId, "stakeholders.write", { resource: data.id });
-    const accountId = await resolveAccountOwnerId(supabase, userId);
+    const { resolveAuthorizedAccountOwnerId } = await import("@/lib/account-scope.server");
+    const accountId = await resolveAuthorizedAccountOwnerId(supabase, userId);
     const when = new Date(
       /^\d{4}-\d{2}-\d{2}$/.test(data.changed_at) ? `${data.changed_at}T12:00:00` : data.changed_at,
     );
@@ -606,7 +617,8 @@ export const listPendingCancellations = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { supabase, userId } = context;
-    const accountId = await resolveAccountOwnerId(supabase, userId);
+    const { resolveAuthorizedAccountOwnerId } = await import("@/lib/account-scope.server");
+    const accountId = await resolveAuthorizedAccountOwnerId(supabase, userId);
     await promoteDueStages(supabase, accountId);
     const nowIso = new Date().toISOString();
     const [owners, providers] = await Promise.all(
@@ -645,7 +657,8 @@ export const resolveScheduledCancellation = createServerFn({ method: "POST" })
     const { supabase, userId } = context;
     const { enforce } = await import("@/lib/permissions/permission.enforce.server");
     await enforce(userId, "stakeholders.write", { resource: data.id });
-    const accountId = await resolveAccountOwnerId(supabase, userId);
+    const { resolveAuthorizedAccountOwnerId } = await import("@/lib/account-scope.server");
+    const accountId = await resolveAuthorizedAccountOwnerId(supabase, userId);
     const nowIso = new Date().toISOString();
 
     const { error } = await supabase
