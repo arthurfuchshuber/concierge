@@ -365,6 +365,7 @@ const LinkInput = z.object({
   ownerId: z.string().uuid(),
   propertyId: z.string().uuid(),
   link: z.boolean(),
+  accountOwnerId: z.string().uuid().optional().nullable(),
 });
 
 // Vincula (ou desvincula) uma residência ao proprietário.
@@ -376,7 +377,7 @@ export const linkPropertyToOwner = createServerFn({ method: "POST" })
     const { enforce } = await import("@/lib/permissions/permission.enforce.server");
     await enforce(userId, "stakeholders.vinculo-imovel", { resource: data.ownerId, propertyId: data.propertyId });
     const { resolveAuthorizedAccountOwnerId } = await import("@/lib/account-scope.server");
-    const accountId = await resolveAuthorizedAccountOwnerId(supabase, userId);
+    const accountId = await resolveAuthorizedAccountOwnerId(supabase, userId, data.accountOwnerId);
     const { data: owner } = await supabase
       .from("property_owners")
       .select("id, name")
@@ -408,6 +409,7 @@ const NoteInput = z.object({
   kind: Kind,
   id: z.string().uuid(),
   message: z.string().trim().min(1).max(2000),
+  accountOwnerId: z.string().uuid().optional().nullable(),
 });
 
 export const addStakeholderNote = createServerFn({ method: "POST" })
@@ -416,7 +418,7 @@ export const addStakeholderNote = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
     const { resolveAuthorizedAccountOwnerId } = await import("@/lib/account-scope.server");
-    const accountId = await resolveAuthorizedAccountOwnerId(supabase, userId);
+    const accountId = await resolveAuthorizedAccountOwnerId(supabase, userId, data.accountOwnerId);
     const { error } = await supabase.from("stakeholder_events").insert({
       account_owner_id: accountId,
       stakeholder_type: data.kind,
@@ -556,6 +558,7 @@ export const setStakeholderStatus = createServerFn({ method: "POST" })
           "canceled",
         ]),
         changed_at: z.string().trim().min(4).max(40),
+        accountOwnerId: z.string().uuid().optional().nullable(),
       })
       .parse(i),
   )
@@ -564,7 +567,7 @@ export const setStakeholderStatus = createServerFn({ method: "POST" })
     const { enforce } = await import("@/lib/permissions/permission.enforce.server");
     await enforce(userId, "stakeholders.write", { resource: data.id });
     const { resolveAuthorizedAccountOwnerId } = await import("@/lib/account-scope.server");
-    const accountId = await resolveAuthorizedAccountOwnerId(supabase, userId);
+    const accountId = await resolveAuthorizedAccountOwnerId(supabase, userId, data.accountOwnerId);
     const when = new Date(
       /^\d{4}-\d{2}-\d{2}$/.test(data.changed_at) ? `${data.changed_at}T12:00:00` : data.changed_at,
     );

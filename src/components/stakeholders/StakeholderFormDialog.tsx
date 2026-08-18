@@ -128,12 +128,14 @@ export function StakeholderFormDialog({
   open,
   onOpenChange,
   initial,
+  accountOwnerId,
   onSaved,
 }: {
   kind: StakeholderKind;
   open: boolean;
   onOpenChange: (o: boolean) => void;
   initial?: StakeholderFormValues | null;
+  accountOwnerId?: string | null;
   onSaved?: (id: string, isNew: boolean, form: StakeholderFormValues) => void;
 }) {
   const saveFn = useServerFn(saveStakeholder);
@@ -300,6 +302,7 @@ export function StakeholderFormDialog({
       const res = await saveFn({
         data: {
           kind,
+          accountOwnerId,
           id: form.id ?? undefined,
           person_type: form.person_type,
           doc_type: isPJ ? "cnpj" : "cpf",
