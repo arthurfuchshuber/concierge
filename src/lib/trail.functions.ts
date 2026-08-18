@@ -34,36 +34,52 @@ type Payload = {
 };
 
 
-const MAX_EVENTS = 200;
+const MAX_EVENTS = 50;
 
-function decodeUserId(token: string | null): string | null {
-  if (!token) return null;
+/**
+ * Identidade VERIFICADA do autor.
+ *
+ * Antes o token era apenas decodificado em base64 — qualquer pessoa poderia
+ * forjar `sub`/`email` e gravar rastro em nome de outro usuário. Agora o token
+ * é validado pelo serviço de autenticação; se não for válido, o evento entra
+ * como visitante anônimo.
+ */
+async function verifiedActor(
+  authHeader: string | null,
+): Promise<{ userId: string | null; email: string | null }> {
+  const token = (authHeader ?? "").replace(/^Bearer\s+/i, "").trim();
+  if (!token) return { userId: null, email: null };
   try {
-    const raw = token.replace(/^Bearer\s+/i, "");
-    const part = raw.split(".")[1];
-    if (!part) return null;
-    const json = JSON.parse(
-      Buffer.from(part.replace(/-/g, "+").replace(/_/g, "/"), "base64").toString("utf-8"),
-    ) as { sub?: string; email?: string };
-    return json.sub ?? null;
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data, error } = await supabaseAdmin.auth.getUser(token);
+    if (error || !data.user) return { userId: null, email: null };
+    return { userId: data.user.id, email: data.user.email ?? null };
   } catch {
-    return null;
+    return { userId: null, email: null };
   }
 }
 
-function decodeEmail(token: string | null): string | null {
-  if (!token) return null;
-  try {
-    const raw = token.replace(/^Bearer\s+/i, "");
-    const part = raw.split(".")[1];
-    if (!part) return null;
-    const json = JSON.parse(
-      Buffer.from(part.replace(/-/g, "+").replace(/_/g, "/"), "base64").toString("utf-8"),
-    ) as { email?: string };
-    return json.email ?? null;
-  } catch {
-    return null;
+/**
+ * Freio simples por origem: o endpoint é público (o hóspede não tem login),
+ * então limitamos a quantidade de lotes por minuto para que ninguém consiga
+ * inflar a trilha de auditoria.
+ */
+const RATE_WINDOW_MS = 60_000;
+const RATE_MAX_BATCHES = 30;
+const rateBuckets = new Map<string, { count: number; resetAt: number }>();
+
+function allowRate(key: string): boolean {
+  const now = Date.now();
+  const bucket = rateBuckets.get(key);
+  if (!bucket || bucket.resetAt <= now) {
+    rateBuckets.set(key, { count: 1, resetAt: now + RATE_WINDOW_MS });
+    if (rateBuckets.size > 5000) {
+      for (const [k, v] of rateBuckets) if (v.resetAt <= now) rateBuckets.delete(k);
+    }
+    return true;
   }
+  bucket.count += 1;
+  return bucket.count <= RATE_MAX_BATCHES;
 }
 
 export const ingestTrail = createServerFn({ method: "POST" })
@@ -79,8 +95,7 @@ export const ingestTrail = createServerFn({ method: "POST" })
 
     const { getRequestHeader, getRequestIP } = await import("@tanstack/react-start/server");
     const auth = getRequestHeader("authorization") ?? null;
-    const userId = decodeUserId(auth);
-    const email = decodeEmail(auth);
+    const { userId, email } = await verifiedActor(auth);
     const userAgent = getRequestHeader("user-agent") ?? null;
     let ip: string | null = null;
     try {
@@ -88,6 +103,11 @@ export const ingestTrail = createServerFn({ method: "POST" })
     } catch {
       ip = null;
     }
+
+    if (!allowRate(userId ?? data.deviceId ?? ip ?? "anon")) {
+      return { ok: true, stored: 0, throttled: true };
+    }
+
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { logSystemEvents } = await import("@/lib/ai/audit/events.server");
