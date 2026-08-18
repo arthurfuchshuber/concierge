@@ -53,29 +53,83 @@ function pushChunk(out: Chunk[], chunk: Chunk) {
   }
 }
 
+/**
+ * Textos operacionais (portão, fechadura, chegada) podem conter o código
+ * escrito no meio da frase. Quando o guia está protegido por senha, qualquer
+ * sequência numérica é removida ANTES de virar chunk — assim o RAG nunca
+ * devolve um código que o hóspede ainda não liberou.
+ */
+function maskDigitsIfLocked(value: unknown, locked: boolean): string | null {
+  if (!value) return null;
+  const text = String(value);
+  if (!locked) return text;
+  return text.replace(/\d[\d\s.-]{2,}/g, "[BLOQUEADO — liberar no guia]");
+}
+
 async function collectChunks(supabase: Admin, propertyId: string, prop: Record<string, unknown>) {
   const chunks: Chunk[] = [];
   const name = String(prop.name ?? "");
+  const locked =
+    typeof prop.access_codes_pin === "string" && (prop.access_codes_pin as string).trim().length > 0;
 
   const facts: Array<[string, unknown]> = [
     ["Cidade", prop.city],
+    ["Estado", prop.state],
+    ["País", prop.country],
     ["Endereço", prop.address],
     ["Como chegar", prop.address_note],
+    ["Localização no mapa", prop.maps_url],
+    ["Garagem / estacionamento", prop.garage_maps_url],
     ["Horário de check-in", prop.checkin_time],
     ["Horário limite de check-in", prop.checkin_time_max],
     ["Horário de check-out", prop.checkout_time],
+    ["Horário mínimo de check-out", prop.checkout_time_min],
     ["Instruções de check-in", prop.checkin_instructions],
+    ["Observações do check-in", prop.checkin_note],
     ["Instruções de check-out", prop.checkout_instructions],
+    ["Observações do check-out", prop.checkout_note],
     ["Regras do espaço", prop.house_rules],
     ["Rede Wi-Fi", prop.wifi_ssid],
+    ["Vagas de veículo", prop.vehicles_max],
     ["Anfitrião", prop.host_name],
     ["Descrição", prop.tagline],
+    [
+      `Entrada / ${prop.gate_label ? String(prop.gate_label) : "portão"}`,
+      maskDigitsIfLocked(prop.gate_instructions, locked),
+    ],
+    [
+      `Fechadura / ${prop.lock_label ? String(prop.lock_label) : "porta"}`,
+      maskDigitsIfLocked(prop.lock_instructions, locked),
+    ],
   ];
   for (const [label, value] of facts) {
     if (value) pushChunk(chunks, { source: "property", sourceId: label, title: `${name} — ${label}`, content: `${label}: ${value}` });
   }
 
-  const [manual, faqs, recommendations, checkout, emergency, details, knowledge, behavior] = await Promise.all([
+  const cityKeyValue = await (async () => {
+    try {
+      const { cityKey } = await import("@/lib/city-key");
+      return cityKey(typeof prop.city === "string" ? prop.city : null);
+    } catch {
+      return null;
+    }
+  })();
+
+  const [
+    manual,
+    faqs,
+    recommendations,
+    checkout,
+    emergency,
+    details,
+    knowledge,
+    behavior,
+    hostFaqs,
+    tenantKnowledge,
+    propertyType,
+    cityFaqs,
+    cityRecs,
+  ] = await Promise.all([
     supabase.from("property_manual_items").select("id, title, description, body").eq("property_id", propertyId),
     supabase.from("property_faqs").select("id, question, answer").eq("property_id", propertyId),
     supabase.from("property_recommendations").select("id, name, category, type, distance_text, note").eq("property_id", propertyId),
@@ -84,7 +138,72 @@ async function collectChunks(supabase: Admin, propertyId: string, prop: Record<s
     supabase.from("property_details").select("id, title, content").eq("property_id", propertyId),
     supabase.from("host_knowledge").select("id, title, body, scope_property_id").eq("owner_id", prop.owner_id as string).eq("enabled", true),
     supabase.from("host_behavior").select("id, title, body, scope_property_id").eq("owner_id", prop.owner_id as string).eq("enabled", true),
+    supabase.from("host_faqs").select("id, question, answer, scope_property_id").eq("owner_id", prop.owner_id as string),
+    supabase
+      .from("ai_tenant_knowledge")
+      .select("id, category, content, property_id, status")
+      .eq("owner_id", prop.owner_id as string)
+      .eq("status", "active"),
+    prop.property_type_id
+      ? supabase.from("property_types").select("label").eq("id", prop.property_type_id as string).maybeSingle()
+      : Promise.resolve({ data: null }),
+    cityKeyValue
+      ? supabase.from("sigma_city_faqs").select("id, question, answer").eq("city_key", cityKeyValue)
+      : Promise.resolve({ data: [] }),
+    cityKeyValue
+      ? supabase
+          .from("sigma_city_recommendations")
+          .select("id, name, category, address, note, opening_hours")
+          .eq("city_key", cityKeyValue)
+      : Promise.resolve({ data: [] }),
   ]);
+
+  const typeLabel = (propertyType as { data?: { label?: string } | null }).data?.label;
+  if (typeLabel) {
+    pushChunk(chunks, {
+      source: "property",
+      sourceId: "Tipo de imóvel",
+      title: `${name} — Tipo de imóvel`,
+      content: `Tipo de imóvel: ${typeLabel}`,
+    });
+  }
+
+  for (const f of ((hostFaqs as { data?: unknown }).data ?? []) as Array<Record<string, unknown>>) {
+    if (f.scope_property_id && f.scope_property_id !== propertyId) continue;
+    pushChunk(chunks, {
+      source: "faq",
+      sourceId: String(f.id),
+      title: String(f.question ?? "FAQ do anfitrião"),
+      content: `Pergunta: ${f.question}\nResposta: ${f.answer}`,
+    });
+  }
+  for (const k of ((tenantKnowledge as { data?: unknown }).data ?? []) as Array<Record<string, unknown>>) {
+    if (k.property_id && k.property_id !== propertyId) continue;
+    pushChunk(chunks, {
+      source: "tenant_knowledge",
+      sourceId: String(k.id),
+      title: String(k.category ?? "Conhecimento da empresa"),
+      content: String(k.content ?? ""),
+    });
+  }
+  for (const f of ((cityFaqs as { data?: unknown }).data ?? []) as Array<Record<string, unknown>>) {
+    pushChunk(chunks, {
+      source: "city_reference",
+      sourceId: String(f.id),
+      title: String(f.question ?? "Dúvida sobre a cidade"),
+      content: `Pergunta: ${f.question}\nResposta: ${f.answer}`,
+    });
+  }
+  for (const r of ((cityRecs as { data?: unknown }).data ?? []) as Array<Record<string, unknown>>) {
+    pushChunk(chunks, {
+      source: "city_reference",
+      sourceId: String(r.id),
+      title: String(r.name ?? "Recomendação da cidade"),
+      content: [r.name, r.category, r.address, r.note, Array.isArray(r.opening_hours) ? (r.opening_hours as string[]).join("; ") : null]
+        .filter(Boolean)
+        .join(" — "),
+    });
+  }
 
   for (const m of (manual.data ?? []) as Array<Record<string, unknown>>) {
     pushChunk(chunks, {
