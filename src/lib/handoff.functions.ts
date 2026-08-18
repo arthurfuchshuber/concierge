@@ -67,6 +67,7 @@ export const listHandoffConversations = createServerFn({ method: "POST" })
           .from("property_chat_conversations")
           .update({ status: "resolved", resolved_at: new Date().toISOString() })
           .in("status", ["ai", "assigned", "needs_human"])
+          .in("property_id", scopedPropIds)
           .lt("last_message_at", cutoff);
       } catch (e) {
         // não bloqueia leitura
