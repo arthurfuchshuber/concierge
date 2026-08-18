@@ -432,7 +432,7 @@ export function buildGuestTools(ctx: ToolContext): AgentTool[] {
     parameters: schema({}, []),
     execute: async () => {
       const { getItinerary } = await import("./itinerary.server");
-      const days = await getItinerary({ supabase: ctx.supabase, propertyId: ctx.propertyId, reservationKey: ctx.reservationKey });
+      const days = await getItinerary({ supabase: ctx.supabase, propertyId: ctx.propertyId, guestKey: ctx.guestKey });
       if (days.length) ctx.collectSource({ source: "itinerary", title: "Roteiro do hóspede", confidence: confidenceOf("itinerary") });
       return { dias: days };
     },
@@ -464,7 +464,7 @@ export function buildGuestTools(ctx: ToolContext): AgentTool[] {
         supabase: ctx.supabase,
         propertyId: ctx.propertyId,
         ownerId: ctx.ownerId,
-        reservationKey: ctx.reservationKey,
+        guestKey: ctx.guestKey,
         guestName: ctx.guestName,
         date: String(args.data ?? "").slice(0, 10),
         time: typeof args.horario === "string" ? args.horario : null,
@@ -490,7 +490,7 @@ export function buildGuestTools(ctx: ToolContext): AgentTool[] {
         supabase: ctx.supabase,
         propertyId: ctx.propertyId,
         ownerId: ctx.ownerId,
-        reservationKey: ctx.reservationKey,
+        guestKey: ctx.guestKey,
         guestName: ctx.guestName,
         itemId: String(args.item_id ?? ""),
       });
