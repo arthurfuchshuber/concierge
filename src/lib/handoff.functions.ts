@@ -31,6 +31,11 @@ async function requireChatRespondForConversation(
     ownerId = (conv?.properties as { owner_id?: string } | null)?.owner_id;
   }
   if (!ownerId) return; // conversa órfã: deixa a RLS decidir
+  // O atendimento humano é recurso de plano pago: validamos aqui (caminho de
+  // escrita) e não só na consulta de UI, senão o dono da conta contornaria o
+  // bloqueio chamando a função direto.
+  const { assertFeature } = await import("@/lib/plan-guard.server");
+  await assertFeature(supabase, userId, "humanHandoff", { ownerId });
   await requireMemberPermission(supabase, userId, ownerId, "chat_respond");
 }
 
