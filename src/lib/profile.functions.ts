@@ -11,13 +11,6 @@ export const getMyProfile = createServerFn({ method: "GET" })
     const { supabase, userId } = context;
     const { resolveAuthorizedAccountOwnerId } = await import("@/lib/account-scope.server");
     const ownerId = await resolveAuthorizedAccountOwnerId(supabase, userId, data.ownerId);
-    if (ownerId !== userId) {
-      const { data: isAdmin, error: roleError } = await supabase.rpc("has_role", {
-        _user_id: userId,
-        _role: "admin",
-      });
-      if (roleError || !isAdmin) throw new Error("Apenas o titular ou um administrador pode alterar este perfil.");
-    }
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const [{ data: profile, error }, { data: authUser, error: authError }] = await Promise.all([
       supabaseAdmin
@@ -60,7 +53,7 @@ export const updateMyProfile = createServerFn({ method: "POST" })
         _user_id: userId,
         _role: "admin",
       });
-      if (roleError || !isAdmin) throw new Error("Apenas o titular ou um administrador pode alterar esta foto.");
+      if (roleError || !isAdmin) throw new Error("Apenas o titular ou um administrador pode alterar este perfil.");
     }
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { error } = await supabaseAdmin
@@ -96,7 +89,7 @@ export const uploadMyAvatar = createServerFn({ method: "POST" })
         _user_id: userId,
         _role: "admin",
       });
-      if (roleError || !isAdmin) throw new Error("Apenas o titular ou um administrador pode remover esta foto.");
+      if (roleError || !isAdmin) throw new Error("Apenas o titular ou um administrador pode alterar esta foto.");
     }
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const ext = data.contentType === "image/png" ? "png" : data.contentType === "image/webp" ? "webp" : "jpg";
@@ -131,6 +124,13 @@ export const removeMyAvatar = createServerFn({ method: "POST" })
     const { supabase, userId } = context;
     const { resolveAuthorizedAccountOwnerId } = await import("@/lib/account-scope.server");
     const ownerId = await resolveAuthorizedAccountOwnerId(supabase, userId, data.ownerId);
+    if (ownerId !== userId) {
+      const { data: isAdmin, error: roleError } = await supabase.rpc("has_role", {
+        _user_id: userId,
+        _role: "admin",
+      });
+      if (roleError || !isAdmin) throw new Error("Apenas o titular ou um administrador pode remover esta foto.");
+    }
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { error } = await supabaseAdmin.from("profiles").update({ avatar_url: null }).eq("id", ownerId);
     if (error) throw new Error(error.message);
