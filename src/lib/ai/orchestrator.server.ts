@@ -47,6 +47,7 @@ import { aggregateSourceWeight, confidenceOf, renderSourceRanking } from "./sour
 import {
   aggregateConfidence,
   hedgeNotice,
+  isSensitiveContext,
   thresholdsFor,
   tierFor,
   type ConfidenceTier,
@@ -97,6 +98,10 @@ export type OrchestratorResult = {
   quickReplies: string[];
 };
 
+
+/** Pedido explícito de humano — único gatilho que sempre escala, em qualquer tema. */
+const EXPLICIT_HUMAN_REQUEST =
+  /\b(falar|conversar|conversa)\s+com\s+(algu[eé]m|uma?\s+pessoa|humano|atendente|anfitri[ãa]o|propriet[áa]ri[oa]|respons[áa]vel|gerente|suporte)|quero\s+(um\s+)?(humano|atendente|anfitri[ãa]o)|chama(r)?\s+(o\s+)?(anfitri[ãa]o|respons[áa]vel|algu[eé]m)|tem\s+algu[eé]m\s+a[íi]|me\s+transfere|atendimento\s+humano/i;
 
 export async function runHospitalityAgent(params: {
   supabase: Admin;
@@ -626,31 +631,46 @@ export async function runHospitalityAgent(params: {
     });
     tier = tierFor(confidence, thresholds);
 
-    const forcedHuman =
-      (!finalValidation.approved && finalValidation.needsHuman) ||
-      reflection.needsHuman ||
-      plan.needsHuman;
-    const forcedCause = forcedHuman
-      ? finalValidation.needsHuman
-        ? "validação anti-alucinação pediu humano"
-        : reflection.needsHuman
-          ? "autoavaliação pediu humano"
-          : "planejador sinalizou necessidade de humano"
-      : null;
+    // AUTONOMIA: o concierge só entrega a conversa a um humano quando o assunto
+    // é realmente sensível (acesso, dinheiro, emergência, problema no imóvel) ou
+    // quando o hóspede pede um humano de forma explícita. Dúvida comum com
+    // confiança mediana NÃO vira handoff: sai com ressalva, como faria um
+    // atendente experiente que responde e sugere confirmar.
+    const explicitHuman = EXPLICIT_HUMAN_REQUEST.test(params.message);
+    const sensitive = isSensitiveContext({
+      category: intent.category,
+      urgency: intent.urgency,
+      riskLevel: plan.riskLevel,
+    });
+    const requestedHuman = finalValidation.needsHuman || reflection.needsHuman || plan.needsHuman;
+    const forcedHuman = explicitHuman || (sensitive && requestedHuman);
+    const forcedCause = explicitHuman
+      ? "hóspede pediu atendimento humano"
+      : forcedHuman
+        ? finalValidation.needsHuman
+          ? "validação anti-alucinação pediu humano em tema sensível"
+          : reflection.needsHuman
+            ? "autoavaliação pediu humano em tema sensível"
+            : "planejador sinalizou necessidade de humano em tema sensível"
+        : null;
 
-    if (!explorationMode && (tier === "handoff" || forcedHuman)) {
+    if (!explorationMode && (forcedHuman || (sensitive && tier === "handoff"))) {
       handoffReason =
         (forcedCause
           ? `${forcedCause} (confiança ${Math.round(confidence * 100)}%). `
-          : `Confiança insuficiente (${Math.round(confidence * 100)}%, nível=handoff). `) +
+          : `Confiança insuficiente em tema sensível (${Math.round(confidence * 100)}%). `) +
         `${finalValidation.reason || reflection.issues.join("; ") || "inconsistência"}. ` +
         `Pergunta: ${params.message.slice(0, 160)}`;
       handoffUrgency = intent.urgency === "high" ? "high" : "normal";
       reply = "";
       tier = "handoff";
-    } else if (tier === "hedged" && !explorationMode) {
+    } else if (tier !== "auto" && !explorationMode) {
+      // Confiança mediana ou baixa fora de tema sensível: responde mesmo assim,
+      // com a ressalva padrão — nunca deixa o hóspede sem resposta.
       reply = `${reply}${hedgeNotice(intent.language)}`;
+      tier = "hedged";
     }
+
 
   } else if (handoffReason) {
     tier = "handoff";
