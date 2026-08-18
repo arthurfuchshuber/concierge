@@ -45,3 +45,15 @@ export async function resolveAuthorizedAccountOwnerId(
   if (ownerIds.length === 1) return ownerIds[0];
   return userId;
 }
+/**
+ * Perfil pessoal: nunca herda a conta por vínculo implícito de equipe.
+ * Só usa outro titular quando explicitamente solicitado (impersonação) e autorizado.
+ */
+export async function resolveProfileOwnerId(
+  supabase: SupabaseClient,
+  userId: string,
+  requestedOwnerId?: string | null,
+): Promise<string> {
+  if (!requestedOwnerId || requestedOwnerId === userId) return userId;
+  return resolveAuthorizedAccountOwnerId(supabase, userId, requestedOwnerId);
+}
