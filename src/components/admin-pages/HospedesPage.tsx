@@ -6,6 +6,7 @@ import { listOwnerGuestForms, savePortariaEmail } from "@/lib/guide-access-admin
 import { toast } from "sonner";
 import { CopyButton } from "@/components/CopyButton";
 import { openHandoffDock } from "@/lib/handoff-dock";
+import { useImpersonation } from "@/hooks/useImpersonation";
 
 
 function fmt(iso: string) {
@@ -67,9 +68,11 @@ function buildEmailBody(r: Row) {
 export function HospedesPage({ embedded = false }: { embedded?: boolean } = {}) {
   const listFn = useServerFn(listOwnerGuestForms);
   const saveFn = useServerFn(savePortariaEmail);
+  const { impersonation } = useImpersonation();
+  const activeAccountId = impersonation?.userId ?? null;
   const { data, isLoading, refetch } = useQuery({
-    queryKey: ["owner-guest-forms"],
-    queryFn: () => listFn(),
+    queryKey: ["owner-guest-forms", activeAccountId ?? "self"],
+    queryFn: () => listFn({ data: { accountOwnerId: activeAccountId } }),
   });
 
   const [query, setQuery] = useState("");
@@ -78,7 +81,11 @@ export function HospedesPage({ embedded = false }: { embedded?: boolean } = {}) 
   const [emailField, setEmailField] = useState("");
   const [saveDefault, setSaveDefault] = useState(false);
 
-  const rows: Row[] = useMemo(() => (data?.logs ?? []) as Row[], [data]);
+  const belongsToActiveAccount = !activeAccountId || data?.accountId === activeAccountId;
+  const rows: Row[] = useMemo(
+    () => (belongsToActiveAccount ? (data?.logs ?? []) : []) as Row[],
+    [belongsToActiveAccount, data],
+  );
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return rows;
