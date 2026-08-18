@@ -177,7 +177,9 @@ export const getGuideCalendarAvailability = createServerFn({ method: "POST" })
       .select("checkin_date, checkout_date, raw_summary, status")
       .eq("property_id", prop.id)
       .eq("source", "airbnb")
-      .gte("checkin_date", today)
+      // Estadias em andamento também ocupam o calendário: filtramos pelo
+      // checkout, não pelo checkin.
+      .gte("checkout_date", today)
       .order("checkin_date", { ascending: true })
       .limit(500);
 

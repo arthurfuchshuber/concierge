@@ -20,6 +20,7 @@ export const resolvePaddlePrice = createServerFn({ method: "GET" })
   .inputValidator((data: { priceId: string; environment: PaddleEnv }) =>
     z.object({ priceId: z.string().min(1).max(80), environment: PaddleEnvSchema }).parse(data),
   )
+  .middleware([requireSupabaseAuth])
   .handler(async ({ data }) => {
     const response = await gatewayFetch(
       data.environment,
