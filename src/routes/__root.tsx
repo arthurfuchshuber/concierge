@@ -44,6 +44,19 @@ function currentAuthUserIdSync(): string | null {
 }
 
 /** Apaga todo cache offline guardado no aparelho (qualquer usuário). */
+/** Empresa ativa no painel (impersonação) — participa da chave do cache. */
+function activeAccountIdSync(): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.sessionStorage.getItem("sg-impersonate");
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as { userId?: string } | null;
+    return parsed?.userId ? String(parsed.userId) : null;
+  } catch {
+    return null;
+  }
+}
+
 function purgePersistedCache() {
   if (typeof window === "undefined") return;
   try {
@@ -269,7 +282,7 @@ function RootComponent() {
   const persister = typeof window !== "undefined"
     ? createSyncStoragePersister({
         storage: window.localStorage,
-        key: `${CACHE_PREFIX}${currentAuthUserIdSync() ?? "anon"}`,
+        key: `${CACHE_PREFIX}${currentAuthUserIdSync() ?? "anon"}:${activeAccountIdSync() ?? "own"}`,
         throttleTime: 1000,
       })
     : null;

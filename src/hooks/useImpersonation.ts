@@ -51,7 +51,10 @@ export function useImpersonationQuerySync() {
   const queryClient = useQueryClient();
   useEffect(() => {
     const handler = () => {
-      queryClient.invalidateQueries();
+      // Trocar de empresa não pode reaproveitar NADA da anterior: limpamos o
+      // cache em memória (e não apenas invalidamos) para que nenhum dado de
+      // outra conta continue na tela enquanto a nova consulta responde.
+      queryClient.clear();
     };
     window.addEventListener(EVT, handler);
     window.addEventListener("storage", handler);
