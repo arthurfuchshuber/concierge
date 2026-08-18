@@ -99,6 +99,10 @@ export type OrchestratorResult = {
 };
 
 
+/** Pedido explícito de humano — único gatilho que sempre escala, em qualquer tema. */
+const EXPLICIT_HUMAN_REQUEST =
+  /\b(falar|conversar|conversa)\s+com\s+(algu[eé]m|uma?\s+pessoa|humano|atendente|anfitri[ãa]o|propriet[áa]ri[oa]|respons[áa]vel|gerente|suporte)|quero\s+(um\s+)?(humano|atendente|anfitri[ãa]o)|chama(r)?\s+(o\s+)?(anfitri[ãa]o|respons[áa]vel|algu[eé]m)|tem\s+algu[eé]m\s+a[íi]|me\s+transfere|atendimento\s+humano/i;
+
 export async function runHospitalityAgent(params: {
   supabase: Admin;
   property: Record<string, unknown>;
