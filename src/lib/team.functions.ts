@@ -221,9 +221,12 @@ export const getTeamInviteLink = createServerFn({ method: "POST" })
     if (inv.status !== "pending") throw new Error("Este convite não está mais pendente.");
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { resolveSiteUrl } = await import("@/lib/team-invite-email.server");
     const email = inv.email as string;
     const existingUserId = await findUserIdByEmail(email);
-    const redirectTo = `${resolveSiteUrl()}/definir-senha`;
+    const redirectTo = existingUserId
+      ? `${resolveSiteUrl()}/painel`
+      : `${resolveSiteUrl()}/definir-senha`;
     const { data: link, error: linkErr } = await supabaseAdmin.auth.admin.generateLink(
       existingUserId
         ? { type: "magiclink", email, options: { redirectTo } }
@@ -234,6 +237,60 @@ export const getTeamInviteLink = createServerFn({ method: "POST" })
     if (!url) throw new Error("Não foi possível gerar o link de acesso.");
     return { ok: true, url, email };
   });
+
+/**
+ * Reenvia o e-mail de convite para TODOS os convites pendentes da conta,
+ * renovando a validade de cada um.
+ */
+export const resendAllPendingInvites = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase, userId } = context;
+    const { enforce } = await import("@/lib/permissions/permission.enforce.server");
+    await enforce(userId, "equipe.write", {});
+
+    const { data: invites, error } = await supabase
+      .from("account_member_invites")
+      .select("id, email, expires_at")
+      .eq("owner_id", userId)
+      .eq("status", "pending");
+    if (error) throw new Error(error.message);
+
+    const { data: inviter } = await supabase
+      .from("profiles")
+      .select("full_name, trade_name")
+      .eq("id", userId)
+      .maybeSingle();
+    const inviterName =
+      ((inviter?.trade_name as string) || (inviter?.full_name as string)) ?? null;
+
+    const newExpiry = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+    let sent = 0;
+    const failed: Array<{ email: string; error: string }> = [];
+
+    for (const inv of invites ?? []) {
+      const email = inv.email as string;
+      try {
+        await supabase
+          .from("account_member_invites")
+          .update({ expires_at: newExpiry })
+          .eq("id", inv.id as string)
+          .eq("owner_id", userId);
+        const existingUserId = await findUserIdByEmail(email);
+        await sendAccountInviteEmail(email, inviterName, {
+          existingUser: !!existingUserId,
+          expiresAt: newExpiry,
+          inviteId: inv.id as string,
+        });
+        sent += 1;
+      } catch (e) {
+        failed.push({ email, error: (e as Error).message });
+      }
+    }
+
+    return { ok: true, total: (invites ?? []).length, sent, failed };
+  });
+
 
 
 const MemberOpInput = z.object({ memberId: z.string().uuid() });
