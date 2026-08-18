@@ -104,6 +104,25 @@ function EquipePage() {
       setTimeout(() => setFeedback(null), 5000);
     },
   });
+  const resendAll = useMutation({
+    mutationFn: async () => resendAllFn({}),
+    onSuccess: (res) => {
+      const r = res as { total: number; sent: number; failed: Array<{ email: string }> };
+      qc.invalidateQueries({ queryKey: ["my-team"] });
+      if (r.sent > 0) {
+        toast.success(
+          `${r.sent} de ${r.total} convite(s) reenviado(s) por e-mail.` +
+            (r.failed.length ? ` ${r.failed.length} falharam.` : ""),
+        );
+      } else if (r.total === 0) {
+        toast.info("Não há convites pendentes.");
+      } else {
+        toast.error("Nenhum e-mail pôde ser enviado agora.");
+      }
+    },
+    onError: (e) => toast.error("Falha ao reenviar: " + (e as Error).message),
+  });
+
   const remove = useMutation({
     mutationFn: async (id: string) => removeFn({ data: { memberId: id } }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["my-team"] }),
