@@ -72,7 +72,9 @@ export function propertyTimeZone(
 ): string {
   const c = norm(city);
   if (c) {
-    const key = Object.keys(CITY_TZ).find((k) => c === k || c.startsWith(`${k} `) || c.includes(k));
+    // Só match exato ou por palavra inicial: "includes" solto fazia
+    // "Porto Alegre"/"Porto Seguro" cair no fuso de Portugal.
+    const key = Object.keys(CITY_TZ).find((k) => c === k || c.startsWith(`${k} `));
     if (key) return CITY_TZ[key];
   }
   const co = norm(country);

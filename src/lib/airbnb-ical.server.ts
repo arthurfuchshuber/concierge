@@ -242,8 +242,10 @@ export async function syncPropertyIcal(propertyId: string, icalUrl: string, feed
     }
 
     // Remove past reservations that vanished from the feed (Airbnb only exposes future window).
+    // Guarda de segurança: um feed vazio/truncado não pode apagar reservas reais.
     const uids = events.map((e) => e.uid);
     let removed = 0;
+    const canPrune = events.length > 0;
     const { data: staleFuture } = await supabaseAdmin
       .from("property_reservations")
       .select("id, external_uid")
@@ -251,8 +253,22 @@ export async function syncPropertyIcal(propertyId: string, icalUrl: string, feed
       .eq("source", "airbnb")
       .eq("feed_index", feedIndex)
       .gte("checkout_date", new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().slice(0, 10));
-    const toDelete = (staleFuture ?? []).filter((r) => !uids.includes(r.external_uid)).map((r) => r.id);
-    if (toDelete.length > 0) {
+    const existingFuture = staleFuture ?? [];
+    const toDelete = canPrune
+      ? existingFuture.filter((r) => !uids.includes(r.external_uid)).map((r) => r.id)
+      : [];
+    // Se o feed sumiu com mais da metade das reservas futuras, é sinal de
+    // resposta parcial do Airbnb — não apagamos nada e registramos o alerta.
+    const suspicious =
+      existingFuture.length >= 4 && toDelete.length > Math.floor(existingFuture.length / 2);
+    if (suspicious) {
+      console.warn("airbnb-ical: prune suspeito ignorado", {
+        propertyId,
+        feedIndex,
+        existing: existingFuture.length,
+        wouldDelete: toDelete.length,
+      });
+    } else if (toDelete.length > 0) {
       const { error: delErr } = await supabaseAdmin
         .from("property_reservations")
         .delete()
