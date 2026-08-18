@@ -208,10 +208,16 @@ export const listPropertiesForAccount = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { enforce } = await import("@/lib/permissions/permission.enforce.server");
     await enforce(context.userId, "imoveis.read");
+    const { resolveAuthorizedAccountOwnerId } = await import("@/lib/account-scope.server");
+    const accountId = await resolveAuthorizedAccountOwnerId(
+      context.supabase,
+      context.userId,
+      data.ownerId,
+    );
     const { data: rows, error } = await context.supabase
       .from("properties")
       .select("id, slug, name, tagline, hero_image_url, gallery_images, access_mode, pin_expires_at, published, city, country, address, lat, lng, updated_at, wifi_ssid, checkin_time, checkout_time, owner_contact_id")
-      .eq("owner_id", data.ownerId)
+      .eq("owner_id", accountId)
       .order("updated_at", { ascending: false });
     if (error) throw (await import("@/lib/db-errors.server")).safeDbError("properties", error);
     // Recorte por residências atendidas: sem vínculo, a lista fica vazia.

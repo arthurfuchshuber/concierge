@@ -144,7 +144,7 @@ export function StakeholderDirectory({ kind }: { kind: StakeholderKind }) {
 
   async function remove(id: string) {
     try {
-      await delFn({ data: { kind, id } });
+      await delFn({ data: { kind, id, accountOwnerId: activeAccountId } });
       toast.success("Cadastro removido.");
       qc.invalidateQueries({ queryKey });
       qc.invalidateQueries({ queryKey: ["property-owners-count"] });
@@ -301,6 +301,7 @@ export function StakeholderDirectory({ kind }: { kind: StakeholderKind }) {
         open={formOpen}
         onOpenChange={setFormOpen}
         initial={form}
+        accountOwnerId={activeAccountId}
         onSaved={afterSaved}
       />
 
@@ -342,7 +343,7 @@ export function StakeholderDirectory({ kind }: { kind: StakeholderKind }) {
       {/* Detail */}
       <Sheet open={!!detailId} onOpenChange={(o) => !o && setDetailId(null)}>
         <SheetContent side="right" className="w-full sm:max-w-3xl overflow-y-auto p-0">
-          {detailId && <StakeholderDetailSheet kind={kind} id={detailId} onEdit={() => {
+          {detailId && <StakeholderDetailSheet kind={kind} id={detailId} accountOwnerId={activeAccountId} onEdit={() => {
             const row = rows.find((r) => r.id === detailId);
             if (row) { setDetailId(null); openEdit(row); }
           }} />}

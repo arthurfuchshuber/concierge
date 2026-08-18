@@ -56,6 +56,15 @@ async function accessiblePropertyIds(
   ownerId?: string | null,
   userId?: string | null,
 ): Promise<string[]> {
+  let authorizedOwnerId = ownerId ?? null;
+  if (userId && ownerId) {
+    const { resolveAuthorizedAccountOwnerId } = await import("@/lib/account-scope.server");
+    authorizedOwnerId = await resolveAuthorizedAccountOwnerId(
+      supabase as never,
+      userId,
+      ownerId,
+    );
+  }
   // RLS on properties already scopes to owner + active account members.
   const query = (
     supabase as unknown as {
@@ -68,7 +77,7 @@ async function accessiblePropertyIds(
   )
     .from("properties")
     .select("id");
-  const { data } = ownerId ? await query.eq("owner_id", ownerId) : await query;
+  const { data } = authorizedOwnerId ? await query.eq("owner_id", authorizedOwnerId) : await query;
   const ids = (data ?? []).map((r) => r.id);
   if (!userId) return ids;
   // Recorte por residências atendidas: sem vínculo, o membro não vê nada.
