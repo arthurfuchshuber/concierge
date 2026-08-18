@@ -22,12 +22,14 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as GSlugRouteImport } from './routes/g.$slug'
+import { Route as EmailUnsubscribeRouteImport } from './routes/email/unsubscribe'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
 import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } from './routes/[.well-known]/oauth-protected-resource'
 import { Route as Char91DotmcpChar93ListToolsRouteImport } from './routes/[.mcp]/list-tools'
 import { Route as GSlugIndexRouteImport } from './routes/g.$slug.index'
 import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin.index'
 import { Route as OauthGoogleCalendarReturnRouteImport } from './routes/oauth.google-calendar.return'
+import { Route as LovableEmailSuppressionRouteImport } from './routes/lovable/email/suppression'
 import { Route as GSlugExplorarRouteImport } from './routes/g.$slug.explorar'
 import { Route as ApiPublicPlacePhotoRouteImport } from './routes/api/public/place-photo'
 import { Route as ApiPublicLandingChatRouteImport } from './routes/api/public/landing-chat'
@@ -57,6 +59,8 @@ import { Route as Char91DotmcpChar93InvokeToolToolRouteImport } from './routes/[
 import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable.oauth.consent'
 import { Route as AuthenticatedAdminRecomendacoesSigmaIndexRouteImport } from './routes/_authenticated/admin.recomendacoes-sigma.index'
 import { Route as AuthenticatedAdminCidadesIndexRouteImport } from './routes/_authenticated/admin.cidades.index'
+import { Route as LovableEmailTransactionalSendRouteImport } from './routes/lovable/email/transactional/send'
+import { Route as LovableEmailTransactionalPreviewRouteImport } from './routes/lovable/email/transactional/preview'
 import { Route as LovableEmailQueueProcessRouteImport } from './routes/lovable/email/queue/process'
 import { Route as LovableEmailAuthWebhookRouteImport } from './routes/lovable/email/auth/webhook'
 import { Route as LovableEmailAuthPreviewRouteImport } from './routes/lovable/email/auth/preview'
@@ -142,6 +146,11 @@ const GSlugRoute = GSlugRouteImport.update({
   path: '/g/$slug',
   getParentRoute: () => rootRouteImport,
 } as any)
+const EmailUnsubscribeRoute = EmailUnsubscribeRouteImport.update({
+  id: '/email/unsubscribe',
+  path: '/email/unsubscribe',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
   id: '/admin',
   path: '/admin',
@@ -175,6 +184,11 @@ const OauthGoogleCalendarReturnRoute =
     path: '/oauth/google-calendar/return',
     getParentRoute: () => rootRouteImport,
   } as any)
+const LovableEmailSuppressionRoute = LovableEmailSuppressionRouteImport.update({
+  id: '/lovable/email/suppression',
+  path: '/lovable/email/suppression',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const GSlugExplorarRoute = GSlugExplorarRouteImport.update({
   id: '/explorar',
   path: '/explorar',
@@ -339,6 +353,18 @@ const AuthenticatedAdminCidadesIndexRoute =
     path: '/cidades/',
     getParentRoute: () => AuthenticatedAdminRoute,
   } as any)
+const LovableEmailTransactionalSendRoute =
+  LovableEmailTransactionalSendRouteImport.update({
+    id: '/lovable/email/transactional/send',
+    path: '/lovable/email/transactional/send',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const LovableEmailTransactionalPreviewRoute =
+  LovableEmailTransactionalPreviewRouteImport.update({
+    id: '/lovable/email/transactional/preview',
+    path: '/lovable/email/transactional/preview',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const LovableEmailQueueProcessRoute =
   LovableEmailQueueProcessRouteImport.update({
     id: '/lovable/email/queue/process',
@@ -471,6 +497,7 @@ export interface FileRoutesByFullPath {
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/admin': typeof AuthenticatedAdminRouteWithChildren
+  '/email/unsubscribe': typeof EmailUnsubscribeRoute
   '/g/$slug': typeof GSlugRouteWithChildren
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
@@ -499,6 +526,7 @@ export interface FileRoutesByFullPath {
   '/api/public/landing-chat': typeof ApiPublicLandingChatRoute
   '/api/public/place-photo': typeof ApiPublicPlacePhotoRoute
   '/g/$slug/explorar': typeof GSlugExplorarRoute
+  '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
   '/oauth/google-calendar/return': typeof OauthGoogleCalendarReturnRoute
   '/admin/': typeof AuthenticatedAdminIndexRoute
   '/g/$slug/': typeof GSlugIndexRoute
@@ -520,6 +548,8 @@ export interface FileRoutesByFullPath {
   '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
   '/lovable/email/auth/webhook': typeof LovableEmailAuthWebhookRoute
   '/lovable/email/queue/process': typeof LovableEmailQueueProcessRoute
+  '/lovable/email/transactional/preview': typeof LovableEmailTransactionalPreviewRoute
+  '/lovable/email/transactional/send': typeof LovableEmailTransactionalSendRoute
   '/admin/cidades/': typeof AuthenticatedAdminCidadesIndexRoute
   '/admin/recomendacoes-sigma/': typeof AuthenticatedAdminRecomendacoesSigmaIndexRoute
   '/admin/properties/$id/acessos': typeof AuthenticatedAdminPropertiesIdAcessosRoute
@@ -539,6 +569,7 @@ export interface FileRoutesByTo {
   '/termos': typeof TermosRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
+  '/email/unsubscribe': typeof EmailUnsubscribeRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/admin/administrativo': typeof AuthenticatedAdminAdministrativoRoute
@@ -566,6 +597,7 @@ export interface FileRoutesByTo {
   '/api/public/landing-chat': typeof ApiPublicLandingChatRoute
   '/api/public/place-photo': typeof ApiPublicPlacePhotoRoute
   '/g/$slug/explorar': typeof GSlugExplorarRoute
+  '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
   '/oauth/google-calendar/return': typeof OauthGoogleCalendarReturnRoute
   '/admin': typeof AuthenticatedAdminIndexRoute
   '/g/$slug': typeof GSlugIndexRoute
@@ -587,6 +619,8 @@ export interface FileRoutesByTo {
   '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
   '/lovable/email/auth/webhook': typeof LovableEmailAuthWebhookRoute
   '/lovable/email/queue/process': typeof LovableEmailQueueProcessRoute
+  '/lovable/email/transactional/preview': typeof LovableEmailTransactionalPreviewRoute
+  '/lovable/email/transactional/send': typeof LovableEmailTransactionalSendRoute
   '/admin/cidades': typeof AuthenticatedAdminCidadesIndexRoute
   '/admin/recomendacoes-sigma': typeof AuthenticatedAdminRecomendacoesSigmaIndexRoute
   '/admin/properties/$id/acessos': typeof AuthenticatedAdminPropertiesIdAcessosRoute
@@ -609,6 +643,7 @@ export interface FileRoutesById {
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRouteWithChildren
+  '/email/unsubscribe': typeof EmailUnsubscribeRoute
   '/g/$slug': typeof GSlugRouteWithChildren
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
@@ -637,6 +672,7 @@ export interface FileRoutesById {
   '/api/public/landing-chat': typeof ApiPublicLandingChatRoute
   '/api/public/place-photo': typeof ApiPublicPlacePhotoRoute
   '/g/$slug/explorar': typeof GSlugExplorarRoute
+  '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
   '/oauth/google-calendar/return': typeof OauthGoogleCalendarReturnRoute
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
   '/g/$slug/': typeof GSlugIndexRoute
@@ -658,6 +694,8 @@ export interface FileRoutesById {
   '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
   '/lovable/email/auth/webhook': typeof LovableEmailAuthWebhookRoute
   '/lovable/email/queue/process': typeof LovableEmailQueueProcessRoute
+  '/lovable/email/transactional/preview': typeof LovableEmailTransactionalPreviewRoute
+  '/lovable/email/transactional/send': typeof LovableEmailTransactionalSendRoute
   '/_authenticated/admin/cidades/': typeof AuthenticatedAdminCidadesIndexRoute
   '/_authenticated/admin/recomendacoes-sigma/': typeof AuthenticatedAdminRecomendacoesSigmaIndexRoute
   '/_authenticated/admin/properties/$id_/acessos': typeof AuthenticatedAdminPropertiesIdAcessosRoute
@@ -680,6 +718,7 @@ export interface FileRouteTypes {
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
     | '/admin'
+    | '/email/unsubscribe'
     | '/g/$slug'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
@@ -708,6 +747,7 @@ export interface FileRouteTypes {
     | '/api/public/landing-chat'
     | '/api/public/place-photo'
     | '/g/$slug/explorar'
+    | '/lovable/email/suppression'
     | '/oauth/google-calendar/return'
     | '/admin/'
     | '/g/$slug/'
@@ -729,6 +769,8 @@ export interface FileRouteTypes {
     | '/lovable/email/auth/preview'
     | '/lovable/email/auth/webhook'
     | '/lovable/email/queue/process'
+    | '/lovable/email/transactional/preview'
+    | '/lovable/email/transactional/send'
     | '/admin/cidades/'
     | '/admin/recomendacoes-sigma/'
     | '/admin/properties/$id/acessos'
@@ -748,6 +790,7 @@ export interface FileRouteTypes {
     | '/termos'
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
+    | '/email/unsubscribe'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
     | '/admin/administrativo'
@@ -775,6 +818,7 @@ export interface FileRouteTypes {
     | '/api/public/landing-chat'
     | '/api/public/place-photo'
     | '/g/$slug/explorar'
+    | '/lovable/email/suppression'
     | '/oauth/google-calendar/return'
     | '/admin'
     | '/g/$slug'
@@ -796,6 +840,8 @@ export interface FileRouteTypes {
     | '/lovable/email/auth/preview'
     | '/lovable/email/auth/webhook'
     | '/lovable/email/queue/process'
+    | '/lovable/email/transactional/preview'
+    | '/lovable/email/transactional/send'
     | '/admin/cidades'
     | '/admin/recomendacoes-sigma'
     | '/admin/properties/$id/acessos'
@@ -817,6 +863,7 @@ export interface FileRouteTypes {
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
     | '/_authenticated/admin'
+    | '/email/unsubscribe'
     | '/g/$slug'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
@@ -845,6 +892,7 @@ export interface FileRouteTypes {
     | '/api/public/landing-chat'
     | '/api/public/place-photo'
     | '/g/$slug/explorar'
+    | '/lovable/email/suppression'
     | '/oauth/google-calendar/return'
     | '/_authenticated/admin/'
     | '/g/$slug/'
@@ -866,6 +914,8 @@ export interface FileRouteTypes {
     | '/lovable/email/auth/preview'
     | '/lovable/email/auth/webhook'
     | '/lovable/email/queue/process'
+    | '/lovable/email/transactional/preview'
+    | '/lovable/email/transactional/send'
     | '/_authenticated/admin/cidades/'
     | '/_authenticated/admin/recomendacoes-sigma/'
     | '/_authenticated/admin/properties/$id_/acessos'
@@ -887,6 +937,7 @@ export interface RootRouteChildren {
   TermosRoute: typeof TermosRoute
   Char91DotmcpChar93ListToolsRoute: typeof Char91DotmcpChar93ListToolsRoute
   Char91DotwellKnownChar93OauthProtectedResourceRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
+  EmailUnsubscribeRoute: typeof EmailUnsubscribeRoute
   GSlugRoute: typeof GSlugRouteWithChildren
   DotlovableOauthConsentRoute: typeof DotlovableOauthConsentRoute
   Char91DotmcpChar93InvokeToolToolRoute: typeof Char91DotmcpChar93InvokeToolToolRoute
@@ -898,6 +949,7 @@ export interface RootRouteChildren {
   ApiPublicItineraryRoute: typeof ApiPublicItineraryRoute
   ApiPublicLandingChatRoute: typeof ApiPublicLandingChatRoute
   ApiPublicPlacePhotoRoute: typeof ApiPublicPlacePhotoRoute
+  LovableEmailSuppressionRoute: typeof LovableEmailSuppressionRoute
   OauthGoogleCalendarReturnRoute: typeof OauthGoogleCalendarReturnRoute
   ApiPublicCronConversationRemindersRoute: typeof ApiPublicCronConversationRemindersRoute
   ApiPublicCronEvaluationSuiteRoute: typeof ApiPublicCronEvaluationSuiteRoute
@@ -914,6 +966,8 @@ export interface RootRouteChildren {
   LovableEmailAuthPreviewRoute: typeof LovableEmailAuthPreviewRoute
   LovableEmailAuthWebhookRoute: typeof LovableEmailAuthWebhookRoute
   LovableEmailQueueProcessRoute: typeof LovableEmailQueueProcessRoute
+  LovableEmailTransactionalPreviewRoute: typeof LovableEmailTransactionalPreviewRoute
+  LovableEmailTransactionalSendRoute: typeof LovableEmailTransactionalSendRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -1009,6 +1063,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof GSlugRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/email/unsubscribe': {
+      id: '/email/unsubscribe'
+      path: '/email/unsubscribe'
+      fullPath: '/email/unsubscribe'
+      preLoaderRoute: typeof EmailUnsubscribeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_authenticated/admin': {
       id: '/_authenticated/admin'
       path: '/admin'
@@ -1049,6 +1110,13 @@ declare module '@tanstack/react-router' {
       path: '/oauth/google-calendar/return'
       fullPath: '/oauth/google-calendar/return'
       preLoaderRoute: typeof OauthGoogleCalendarReturnRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/lovable/email/suppression': {
+      id: '/lovable/email/suppression'
+      path: '/lovable/email/suppression'
+      fullPath: '/lovable/email/suppression'
+      preLoaderRoute: typeof LovableEmailSuppressionRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/g/$slug/explorar': {
@@ -1253,6 +1321,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/admin/cidades/'
       preLoaderRoute: typeof AuthenticatedAdminCidadesIndexRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/lovable/email/transactional/send': {
+      id: '/lovable/email/transactional/send'
+      path: '/lovable/email/transactional/send'
+      fullPath: '/lovable/email/transactional/send'
+      preLoaderRoute: typeof LovableEmailTransactionalSendRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/lovable/email/transactional/preview': {
+      id: '/lovable/email/transactional/preview'
+      path: '/lovable/email/transactional/preview'
+      fullPath: '/lovable/email/transactional/preview'
+      preLoaderRoute: typeof LovableEmailTransactionalPreviewRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/lovable/email/queue/process': {
       id: '/lovable/email/queue/process'
@@ -1497,6 +1579,7 @@ const rootRouteChildren: RootRouteChildren = {
   Char91DotmcpChar93ListToolsRoute: Char91DotmcpChar93ListToolsRoute,
   Char91DotwellKnownChar93OauthProtectedResourceRoute:
     Char91DotwellKnownChar93OauthProtectedResourceRoute,
+  EmailUnsubscribeRoute: EmailUnsubscribeRoute,
   GSlugRoute: GSlugRouteWithChildren,
   DotlovableOauthConsentRoute: DotlovableOauthConsentRoute,
   Char91DotmcpChar93InvokeToolToolRoute: Char91DotmcpChar93InvokeToolToolRoute,
@@ -1508,6 +1591,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicItineraryRoute: ApiPublicItineraryRoute,
   ApiPublicLandingChatRoute: ApiPublicLandingChatRoute,
   ApiPublicPlacePhotoRoute: ApiPublicPlacePhotoRoute,
+  LovableEmailSuppressionRoute: LovableEmailSuppressionRoute,
   OauthGoogleCalendarReturnRoute: OauthGoogleCalendarReturnRoute,
   ApiPublicCronConversationRemindersRoute:
     ApiPublicCronConversationRemindersRoute,
@@ -1527,6 +1611,8 @@ const rootRouteChildren: RootRouteChildren = {
   LovableEmailAuthPreviewRoute: LovableEmailAuthPreviewRoute,
   LovableEmailAuthWebhookRoute: LovableEmailAuthWebhookRoute,
   LovableEmailQueueProcessRoute: LovableEmailQueueProcessRoute,
+  LovableEmailTransactionalPreviewRoute: LovableEmailTransactionalPreviewRoute,
+  LovableEmailTransactionalSendRoute: LovableEmailTransactionalSendRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
