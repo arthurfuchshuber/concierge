@@ -104,8 +104,17 @@ export async function sendOpsPush(
   // Violação de unicidade => já enviado nesta janela
   if (dedupeError) return { sent: 0, skipped: true };
 
+  // Se nada for enviado agora, apagamos a marca de dedupe para que a próxima
+  // execução do cron possa tentar de novo (senão o aviso se perderia).
+  const releaseDedupe = async () => {
+    await admin.from("ops_push_log").delete().eq("dedupe_key", opts.dedupeKey);
+  };
+
   const userIds = opts.userIds ?? (await getAccountNotifiableUsers(admin, opts.ownerId));
-  if (userIds.length === 0) return { sent: 0, skipped: false };
+  if (userIds.length === 0) {
+    await releaseDedupe();
+    return { sent: 0, skipped: false };
+  }
 
 
   const { data: subs } = await admin
@@ -113,17 +122,26 @@ export async function sendOpsPush(
     .select("id, endpoint, p256dh, auth")
     .in("user_id", userIds)
     .eq("enabled", true);
-  if (!subs || subs.length === 0) return { sent: 0, skipped: false };
+  if (!subs || subs.length === 0) {
+    await releaseDedupe();
+    return { sent: 0, skipped: false };
+  }
 
-  const res = await sendPushToSubscriptions(
-    subs.map((s) => ({
-      id: s.id as string,
-      endpoint: s.endpoint as string,
-      p256dh: s.p256dh as string,
-      auth: s.auth as string,
-    })),
-    opts.payload,
-  );
+  let res: { sent: number; stale: string[] };
+  try {
+    res = await sendPushToSubscriptions(
+      subs.map((s) => ({
+        id: s.id as string,
+        endpoint: s.endpoint as string,
+        p256dh: s.p256dh as string,
+        auth: s.auth as string,
+      })),
+      opts.payload,
+    );
+  } catch (err) {
+    await releaseDedupe();
+    throw err;
+  }
   if (res.stale.length) await admin.from("push_subscriptions").delete().in("id", res.stale);
 
   await admin.from("ops_push_log").update({ sent_count: res.sent }).eq("dedupe_key", opts.dedupeKey);
