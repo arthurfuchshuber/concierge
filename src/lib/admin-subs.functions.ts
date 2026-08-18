@@ -83,12 +83,8 @@ export const adminListCustomers = createServerFn({ method: "GET" })
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-    // Auth users (paginated). For now, take first 1000.
-    const { data: usersData, error: usersErr } = await supabaseAdmin.auth.admin.listUsers({
-      page: 1,
-      perPage: 1000,
-    });
-    if (usersErr) throw new Error("Erro ao listar usuários");
+    // Todas as páginas de usuários (sem teto de 1000).
+    const usersData = { users: await (await import("@/lib/admin-users.server")).listAllAuthUsers() };
 
     const { data: profiles } = await supabaseAdmin
       .from("profiles")
@@ -536,7 +532,7 @@ export const adminListSaasAdmins = createServerFn({ method: "GET" })
       .in("id", ids);
     const profileMap = new Map((profiles ?? []).map((p) => [p.id, ((p as { trade_name?: string | null }).trade_name) || p.full_name]));
 
-    const { data: usersData } = await supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 1000 });
+    const usersData = { users: await (await import("@/lib/admin-users.server")).listAllAuthUsers() };
     const userMap = new Map((usersData?.users ?? []).map((u) => [u.id, u]));
 
     const admins: SaasAdminRow[] = ids.map((id) => {
@@ -670,7 +666,7 @@ export const adminListInvites = createServerFn({ method: "GET" })
     const inviterIds = Array.from(new Set(rows.map((r) => r.invited_by).filter(Boolean) as string[]));
     const emailMap = new Map<string, string>();
     if (inviterIds.length) {
-      const { data: usersData } = await supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 1000 });
+      const usersData = { users: await (await import("@/lib/admin-users.server")).listAllAuthUsers() };
       for (const u of usersData?.users ?? []) {
         if (u.email) emailMap.set(u.id, u.email);
       }
@@ -788,7 +784,7 @@ export const adminListAuditLogs = createServerFn({ method: "POST" })
     const missing = Array.from(new Set(rowList.filter((r) => r.user_id && !r.user_email).map((r) => r.user_id as string)));
     const emailMap = new Map<string, string>();
     if (missing.length) {
-      const { data: usersData } = await supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 1000 });
+      const usersData = { users: await (await import("@/lib/admin-users.server")).listAllAuthUsers() };
       for (const u of usersData?.users ?? []) {
         if (u.email) emailMap.set(u.id, u.email);
       }

@@ -13,9 +13,8 @@ const EmailInput = z.object({ email: z.string().trim().toLowerCase().email().max
 
 async function findUserIdByEmail(email: string): Promise<string | null> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const { data, error } = await supabaseAdmin.auth.admin.listUsers({ perPage: 200 });
-  if (error) return null;
-  return data.users.find((u) => (u.email ?? "").toLowerCase() === email)?.id ?? null;
+  const found = await (await import("@/lib/admin-users.server")).findAuthUserByEmail(email);
+  return found?.id ?? null;
 }
 
 /** Situação de acesso do e-mail dentro da conta atual. */

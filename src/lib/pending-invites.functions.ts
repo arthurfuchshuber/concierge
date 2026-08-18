@@ -52,7 +52,7 @@ export const listMyPendingInvites = createServerFn({ method: "GET" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const [{ data: profs }, { data: users }] = await Promise.all([
       supabaseAdmin.from("profiles").select("id, full_name, trade_name").in("id", ownerIds),
-      supabaseAdmin.auth.admin.listUsers({ perPage: 200 }),
+      (async () => ({ data: { users: await (await import("@/lib/admin-users.server")).listAllAuthUsers() } }))(),
     ]);
     const nameById = new Map<string, string | null>();
     const emailById = new Map<string, string | null>();

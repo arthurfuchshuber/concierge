@@ -22,16 +22,18 @@ export type MemberPermission = (typeof MEMBER_PERMISSIONS)[number];
 
 // Defaults mirror the SQL function `has_member_permission`.
 // New members entram com tudo em VIEW e nada em EDIT.
+// Nada é herdado: um membro só tem o que o titular conceder explicitamente
+// (mesma regra aplicada no banco pela função has_member_permission).
 const DEFAULTS: Record<MemberPermission, boolean> = {
-  library_view: true,
+  library_view: false,
   library_edit: false,
-  ai_view: true,
+  ai_view: false,
   ai_train: false,
-  chat_view: true,
+  chat_view: false,
   chat_respond: false,
-  operation_view: true,
+  operation_view: false,
   operation_edit: false,
-  guests_view: true,
+  guests_view: false,
   guests_edit: false,
   clients_manage: false,
   trial_manage: false,
@@ -155,21 +157,26 @@ export const PERMISSION_FEATURE: Record<MemberPermission, keyof PlanFeatures | n
 };
 
 // Owner lists team members + full permission matrix
+const ScopeInput = z.object({ accountOwnerId: z.string().uuid().optional() }).optional();
+
 export const listMemberPermissions = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
+  .inputValidator((i: unknown) => ScopeInput.parse(i) ?? {})
+  .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
+    const { resolveAuthorizedAccountOwnerId } = await import("@/lib/account-scope.server");
+    const ownerId = await resolveAuthorizedAccountOwnerId(supabase, userId, data?.accountOwnerId ?? null);
     const { data: members } = await supabase
       .from("account_members")
       .select("id, member_user_id, role, status, created_at")
-      .eq("owner_id", userId)
+      .eq("owner_id", ownerId)
       .eq("status", "active")
       .order("created_at", { ascending: true });
 
     const { data: rows } = await supabase
       .from("account_member_permissions")
       .select("member_user_id, permission, granted")
-      .eq("owner_id", userId);
+      .eq("owner_id", ownerId);
 
     const ids = (members ?? []).map((m) => m.member_user_id as string);
     let profiles: Record<string, { email: string | null; full_name: string | null }> = {};
@@ -178,7 +185,7 @@ export const listMemberPermissions = createServerFn({ method: "GET" })
       const { data: profs } = await supabaseAdmin.from("profiles").select("id, full_name, trade_name").in("id", ids);
       for (const p of profs ?? [])
         profiles[p.id as string] = { email: null, full_name: ((p.trade_name as string) || (p.full_name as string)) ?? null };
-      const { data: users } = await supabaseAdmin.auth.admin.listUsers({ perPage: 200 });
+      const users = { users: await (await import("@/lib/admin-users.server")).listAllAuthUsers() };
       for (const u of users?.users ?? []) {
         if (ids.includes(u.id))
           profiles[u.id] = { email: u.email ?? null, full_name: profiles[u.id]?.full_name ?? null };
@@ -201,6 +208,7 @@ export const listMemberPermissions = createServerFn({ method: "GET" })
   });
 
 const UpdateInput = z.object({
+  accountOwnerId: z.string().uuid().optional(),
   memberUserId: z.string().uuid(),
   permission: z.enum(MEMBER_PERMISSIONS),
   granted: z.boolean(),
@@ -211,13 +219,15 @@ export const updateMemberPermission = createServerFn({ method: "POST" })
   .inputValidator((i: unknown) => UpdateInput.parse(i))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
+    const { resolveAuthorizedAccountOwnerId } = await import("@/lib/account-scope.server");
+    const ownerId = await resolveAuthorizedAccountOwnerId(supabase, userId, data.accountOwnerId ?? null);
     const { enforce } = await import("@/lib/permissions/permission.enforce.server");
     await enforce(userId, "equipe.permissoes", { });
     // Ensure the target is actually a member of this account
     const { data: m } = await supabase
       .from("account_members")
       .select("id")
-      .eq("owner_id", userId)
+      .eq("owner_id", ownerId)
       .eq("member_user_id", data.memberUserId)
       .eq("status", "active")
       .maybeSingle();
@@ -228,7 +238,7 @@ export const updateMemberPermission = createServerFn({ method: "POST" })
     const requiredFeature = PERMISSION_FEATURE[data.permission];
     if (data.granted && requiredFeature) {
       const { resolveUserPlan } = await import("@/lib/plan-guard.server");
-      const plan = await resolveUserPlan(supabase, userId);
+      const plan = await resolveUserPlan(supabase, ownerId);
       if (!plan.features[requiredFeature]) {
         throw new Error("Esta permissão não está disponível no seu plano atual.");
       }
@@ -246,7 +256,7 @@ export const updateMemberPermission = createServerFn({ method: "POST" })
       updated_at: string;
     }[] = [
       {
-        owner_id: userId,
+        owner_id: ownerId,
         member_user_id: data.memberUserId,
         permission: data.permission,
         granted: data.granted,
@@ -257,7 +267,7 @@ export const updateMemberPermission = createServerFn({ method: "POST" })
     if (area) {
       if (data.permission === area.edit && data.granted) {
         rowsToUpsert.push({
-          owner_id: userId,
+          owner_id: ownerId,
           member_user_id: data.memberUserId,
           permission: area.view,
           granted: true,
@@ -266,7 +276,7 @@ export const updateMemberPermission = createServerFn({ method: "POST" })
         });
       } else if (data.permission === area.view && !data.granted) {
         rowsToUpsert.push({
-          owner_id: userId,
+          owner_id: ownerId,
           member_user_id: data.memberUserId,
           permission: area.edit,
           granted: false,
@@ -286,7 +296,7 @@ export const updateMemberPermission = createServerFn({ method: "POST" })
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
       const { logSystemEvent } = await import("@/lib/ai/audit/events.server");
       await logSystemEvent(supabaseAdmin, {
-        tenantId: userId,
+        tenantId: ownerId,
         userId,
         actorType: "OWNER",
         actorId: userId,

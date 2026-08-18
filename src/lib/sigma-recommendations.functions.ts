@@ -459,7 +459,7 @@ export const adminListPublishedGuidesForSigma = createServerFn({ method: "POST" 
         .select("id, name, slug, city, state, country, owner_id, updated_at, hero_image_url, sigma_pack_city_key")
         .eq("published", true)
         .order("updated_at", { ascending: false }),
-      supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 1000 }),
+      (async () => ({ data: { users: await (await import("@/lib/admin-users.server")).listAllAuthUsers() } }))(),
     ]);
     if (error) throw new Error("Erro ao carregar guias publicados.");
     const emailByUser = new Map((usersData.data?.users ?? []).map((u) => [u.id, u.email ?? null]));

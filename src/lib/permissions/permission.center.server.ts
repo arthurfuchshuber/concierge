@@ -182,7 +182,7 @@ async function profilesFor(ids: string[]) {
     };
   }
   try {
-    const { data: users } = await client.auth.admin.listUsers({ perPage: 200 });
+    const users = { users: await (await import("@/lib/admin-users.server")).listAllAuthUsers() };
     for (const u of users?.users ?? []) {
       if (!ids.includes(u.id)) continue;
       out[u.id] = { name: out[u.id]?.name ?? null, email: u.email ?? null };

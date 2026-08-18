@@ -1,4 +1,5 @@
 import { useServerFn } from "@tanstack/react-start";
+import { useImpersonation } from "@/hooks/useImpersonation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState, useEffect, useMemo } from "react";
 import {
@@ -57,15 +58,18 @@ function EquipePage() {
   const removeFn = useServerFn(removeTeamMember);
   const updateRoleFn = useServerFn(updateTeamMemberRole);
   const qc = useQueryClient();
+  const { impersonation } = useImpersonation();
+  const acctId = impersonation?.userId ?? null;
+  const scope = acctId ? { accountOwnerId: acctId } : {};
   const { info: sub } = useSubscription();
   const planFeatures = sub.features;
   const planName = sub.plan ? sub.plan.charAt(0).toUpperCase() + sub.plan.slice(1) : "atual";
 
   const access = useQuery({ queryKey: ["handoff-access"], queryFn: () => accessFn(), staleTime: 5 * 60_000 });
-  const team = useQuery({ queryKey: ["my-team"], queryFn: () => listFn(), enabled: access.data?.allowed === true });
+  const team = useQuery({ queryKey: ["my-team", acctId], queryFn: () => listFn({ data: scope }), enabled: access.data?.allowed === true });
   const perms = useQuery({
-    queryKey: ["member-permissions"],
-    queryFn: () => permsFn(),
+    queryKey: ["member-permissions", acctId],
+    queryFn: () => permsFn({ data: scope }),
     enabled: access.data?.allowed === true,
   });
 
@@ -82,22 +86,22 @@ function EquipePage() {
 
 
   const invite = useMutation({
-    mutationFn: async () => inviteFn({ data: { email: email.trim().toLowerCase(), role } }),
+    mutationFn: async () => inviteFn({ data: { ...scope, email: email.trim().toLowerCase(), role } }),
     onSuccess: (res) => {
       setEmail("");
-      qc.invalidateQueries({ queryKey: ["my-team"] });
+      qc.invalidateQueries({ queryKey: ["my-team", acctId] });
       setFeedback(res?.emailSent ? "Convite enviado por email." : "Convite criado, mas o email não foi enviado. Use “Reenviar”.");
       setTimeout(() => setFeedback(null), 4500);
     },
   });
   const revoke = useMutation({
-    mutationFn: async (id: string) => revokeFn({ data: { inviteId: id } }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["my-team"] }),
+    mutationFn: async (id: string) => revokeFn({ data: { ...scope, inviteId: id } }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["my-team", acctId] }),
   });
   const resend = useMutation({
-    mutationFn: async (id: string) => resendFn({ data: { inviteId: id } }),
+    mutationFn: async (id: string) => resendFn({ data: { ...scope, inviteId: id } }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["my-team"] });
+      qc.invalidateQueries({ queryKey: ["my-team", acctId] });
       setFeedback("Convite reenviado.");
       setTimeout(() => setFeedback(null), 3500);
     },
@@ -107,10 +111,10 @@ function EquipePage() {
     },
   });
   const resendAll = useMutation({
-    mutationFn: async () => resendAllFn({}),
+    mutationFn: async () => resendAllFn({ data: scope }),
     onSuccess: (res) => {
       const r = res as { total: number; sent: number; failed: Array<{ email: string }> };
-      qc.invalidateQueries({ queryKey: ["my-team"] });
+      qc.invalidateQueries({ queryKey: ["my-team", acctId] });
       if (r.sent > 0) {
         toast.success(
           `${r.sent} de ${r.total} convite(s) reenviado(s) por e-mail.` +
@@ -126,13 +130,13 @@ function EquipePage() {
   });
 
   const remove = useMutation({
-    mutationFn: async (id: string) => removeFn({ data: { memberId: id } }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["my-team"] }),
+    mutationFn: async (id: string) => removeFn({ data: { ...scope, memberId: id } }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["my-team", acctId] }),
   });
   const changeRole = useMutation({
-    mutationFn: async (v: { id: string; r: "owner" | "agent" | "viewer" }) => updateRoleFn({ data: { memberId: v.id, role: v.r } }),
+    mutationFn: async (v: { id: string; r: "owner" | "agent" | "viewer" }) => updateRoleFn({ data: { ...scope, memberId: v.id, role: v.r } }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["my-team"] });
+      qc.invalidateQueries({ queryKey: ["my-team", acctId] });
       toast.success("Permissão atualizada");
     },
     onError: (e) => toast.error("Falha ao atualizar: " + (e as Error).message),
@@ -140,10 +144,10 @@ function EquipePage() {
 
   const updPerm = useMutation({
     mutationFn: (v: { memberUserId: string; permission: MemberPermission; granted: boolean }) =>
-      updPermFn({ data: v }),
+      updPermFn({ data: { ...scope, ...v } }),
     onMutate: async (v) => {
-      await qc.cancelQueries({ queryKey: ["member-permissions"] });
-      const prev = qc.getQueryData<any>(["member-permissions"]);
+      await qc.cancelQueries({ queryKey: ["member-permissions", acctId] });
+      const prev = qc.getQueryData<any>(["member-permissions", acctId]);
       if (prev?.matrix?.[v.memberUserId]) {
         // Cascade espelho do servidor: ligar EDIT liga VIEW; desligar VIEW desliga EDIT.
         const area = PERMISSION_AREAS.find((a) => a.view === v.permission || a.edit === v.permission);
@@ -152,7 +156,7 @@ function EquipePage() {
           if (v.permission === area.edit && v.granted) patch[area.view] = true;
           else if (v.permission === area.view && !v.granted) patch[area.edit] = false;
         }
-        qc.setQueryData(["member-permissions"], {
+        qc.setQueryData(["member-permissions", acctId], {
           ...prev,
           matrix: {
             ...prev.matrix,
@@ -163,11 +167,11 @@ function EquipePage() {
       return { prev };
     },
     onError: (_e, _v, ctx) => {
-      if (ctx?.prev) qc.setQueryData(["member-permissions"], ctx.prev);
+      if (ctx?.prev) qc.setQueryData(["member-permissions", acctId], ctx.prev);
       toast.error("Não foi possível salvar a permissão.");
     },
     onSettled: () => {
-      qc.invalidateQueries({ queryKey: ["member-permissions"] });
+      qc.invalidateQueries({ queryKey: ["member-permissions", acctId] });
       qc.invalidateQueries({ queryKey: ["my-permissions"] });
     },
   });
