@@ -226,9 +226,17 @@ function RootComponent() {
     "ops-",
   ];
 
+  // O cache offline é POR USUÁRIO. Com uma chave única, o próximo login no
+  // mesmo aparelho reidratava a última visão da conta anterior (vazamento
+  // entre empresas). A chave carrega o id do usuário da sessão atual.
   const persister = typeof window !== "undefined"
-    ? createSyncStoragePersister({ storage: window.localStorage, key: "cia-cache-v1", throttleTime: 1000 })
+    ? createSyncStoragePersister({
+        storage: window.localStorage,
+        key: `${CACHE_PREFIX}${currentAuthUserIdSync() ?? "anon"}`,
+        throttleTime: 1000,
+      })
     : null;
+
 
   const content = (
     <I18nProvider>
