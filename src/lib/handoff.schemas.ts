@@ -120,6 +120,8 @@ const HandoffListInput = z.object({
     .enum(["needs_human", "assigned_to_me", "all_active", "ai_only", "all", "resolved"])
     .default("needs_human"),
   limit: z.number().int().min(1).max(200).default(50),
+  /** Empresa ativa no painel: o servidor valida o vínculo antes de usar. */
+  accountOwnerId: z.string().uuid().optional().nullable(),
 });
 
 
