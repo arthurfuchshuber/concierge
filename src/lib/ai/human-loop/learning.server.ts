@@ -92,16 +92,42 @@ export async function distillHumanDecision(params: {
   }
 }
 
+/** Chave estável para evitar candidatas duplicadas do mesmo aprendizado. */
+function buildDedupeKey(ownerId: string, propertyId: string | null, text: string): string {
+  const norm = text
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9 ]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 180);
+  return `${ownerId}:${propertyId ?? "global"}:${norm}`;
+}
+
 /** Grava a candidata pendente de aprovação. Nunca escreve na memória direto. */
 export async function queueLearningCandidate(params: {
   supabase: Admin;
   ownerId: string;
   propertyId: string | null;
   escalationId?: string | null;
+  conversationId?: string | null;
   agent?: string;
   distilled: Distilled;
 }): Promise<string | null> {
   try {
+    const dedupeKey = buildDedupeKey(params.ownerId, params.propertyId, params.distilled.proposedMemory);
+
+    // Mesmo aprendizado já pendente/aprovado? Não cria ruído na fila.
+    const { data: dup } = await params.supabase
+      .from("ai_learning_candidates")
+      .select("id")
+      .eq("owner_id", params.ownerId)
+      .eq("dedupe_key", dedupeKey)
+      .in("approval_status", ["pending", "approved"])
+      .limit(1);
+    if (dup?.length) return null;
+
     const { data, error } = await params.supabase
       .from("ai_learning_candidates")
       .insert({
@@ -109,6 +135,8 @@ export async function queueLearningCandidate(params: {
         tenant_id: params.ownerId,
         property_id: params.propertyId,
         source_escalation_id: params.escalationId ?? null,
+        source_conversation_id: params.conversationId ?? null,
+        dedupe_key: dedupeKey,
         agent_type: params.agent ?? null,
         title: params.distilled.title,
         proposed_memory: params.distilled.proposedMemory,
@@ -141,6 +169,7 @@ export async function learnFromHumanAnswer(params: {
   propertyId: string | null;
   propertyName?: string | null;
   escalationId?: string | null;
+  conversationId?: string | null;
   agent?: string;
   question: string;
   humanAnswer: string;
@@ -158,6 +187,7 @@ export async function learnFromHumanAnswer(params: {
     ownerId: params.ownerId,
     propertyId: params.propertyId,
     escalationId: params.escalationId,
+    conversationId: params.conversationId,
     agent: params.agent,
     distilled,
   });

@@ -1036,49 +1036,38 @@ export const sendHandoffMessage = createServerFn({ method: "POST" })
         .update({ ai_paused: true, status: "assigned", assigned_to: userId, last_message_at: new Date().toISOString() })
         .eq("id", data.conversationId);
 
-      // Continuous Learning: se esta conversa foi escalada (handoff_reason preenchido — inclusive pelo
-      // guardrail determinístico de acesso, que nunca passa por ask_human_supervisor) e esta é a
-      // PRIMEIRA resposta humana desde a escalada, ela vira candidata a conhecimento reutilizável.
-      // Aprovação humana continua obrigatória antes de qualquer coisa entrar na memória de longo prazo.
-      //
-      // As duas consultas que decidem isso (contar respostas humanas prévias + buscar a última
-      // mensagem do hóspede) ANTES bloqueavam o envio da mensagem, mesmo só servindo para este bloco
-      // que já é fire-and-forget. Agora rodam aqui dentro, fora do caminho crítico.
-      if (cur?.handoff_reason) {
-        void (async () => {
-          try {
-            const { count: priorHumanReplies } = await supabase
-              .from("property_chat_messages")
-              .select("id", { count: "exact", head: true })
-              .eq("conversation_id", data.conversationId)
-              .eq("sender_type", "human")
-              .eq("is_internal_note", false);
-            if (priorHumanReplies) return; // não é a primeira resposta humana desta escalada
-            const { data: lastGuestMsg } = await supabase
-              .from("property_chat_messages")
-              .select("content")
-              .eq("conversation_id", data.conversationId)
-              .eq("role", "user")
-              .order("created_at", { ascending: false })
-              .limit(1)
-              .maybeSingle();
-            const learnQuestion = (lastGuestMsg?.content as string | undefined) ?? null;
-            if (!learnQuestion || !ownerId) return;
-            const { learnFromHumanAnswer } = await import("@/lib/ai/human-loop/learning.server");
-            await learnFromHumanAnswer({
-              supabase,
-              ownerId,
-              propertyId: cur?.property_id ?? null,
-              propertyName: (propRow?.name as string | undefined) ?? null,
-              agent: "handoff_resolution",
-              question: learnQuestion,
-              humanAnswer: content,
-            });
-          } catch (e) {
-            console.error("[learning] falha ao destilar resposta humana de handoff", e);
-          }
-        })();
-      }
+      // Continuous Learning: TODA resposta humana ao hóspede (não só a primeira após uma
+      // escalada) vira candidata a conhecimento reutilizável. Dedupe por conteúdo destilado
+      // evita ruído na fila. Aprovação humana continua obrigatória antes de entrar na memória.
+      void (async () => {
+        try {
+          const { data: lastGuestMsg } = await supabase
+            .from("property_chat_messages")
+            .select("content")
+            .eq("conversation_id", data.conversationId)
+            .eq("role", "user")
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          const learnQuestion = (lastGuestMsg?.content as string | undefined) ?? null;
+          if (!learnQuestion || !ownerId) return;
+          // Mensagens muito curtas ("ok", "obrigado") não carregam conhecimento.
+          if (learnQuestion.trim().length < 8 || content.trim().length < 15) return;
+          const { learnFromHumanAnswer } = await import("@/lib/ai/human-loop/learning.server");
+          await learnFromHumanAnswer({
+            supabase,
+            ownerId,
+            propertyId: cur?.property_id ?? null,
+            propertyName: (propRow?.name as string | undefined) ?? null,
+            conversationId: data.conversationId,
+            agent: cur?.handoff_reason ? "handoff_resolution" : "human_reply",
+            question: learnQuestion,
+            humanAnswer: content,
+          });
+        } catch (e) {
+          console.error("[learning] falha ao destilar resposta humana de handoff", e);
+        }
+      })();
 
       // Dispara push para o hóspede (se ele tiver ativado notificações).
       // Fire-and-forget: isto inclui uma consulta extra e uma chamada de rede
