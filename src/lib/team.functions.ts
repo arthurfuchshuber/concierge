@@ -187,12 +187,14 @@ export const resendTeamInvite = createServerFn({ method: "POST" })
     // they already have a Sigma account. We simply refresh the expiration and
     // (optionally) resend the branded invite e-mail.
     const existingUserId = await findUserIdByEmail(inv.email as string);
-    if (existingUserId) {
-      await sendExistingUserAccessEmail(inv.email as string);
-      return { ok: true, autoAccepted: false, existingUser: true, emailSent: true };
-    }
-    await sendAccountInviteEmail(inv.email as string, ((inviter?.trade_name as string) || (inviter?.full_name as string)) ?? null);
-    return { ok: true, autoAccepted: false, emailSent: true };
+    const inviterName = ((inviter?.trade_name as string) || (inviter?.full_name as string)) ?? null;
+    await sendAccountInviteEmail(inv.email as string, inviterName, {
+      existingUser: !!existingUserId,
+      expiresAt: newExpiry,
+      inviteId: inv.id as string,
+    });
+    return { ok: true, autoAccepted: false, existingUser: !!existingUserId, emailSent: true };
+
 
 
 
