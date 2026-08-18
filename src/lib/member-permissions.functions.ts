@@ -178,7 +178,7 @@ export const listMemberPermissions = createServerFn({ method: "GET" })
       const { data: profs } = await supabaseAdmin.from("profiles").select("id, full_name, trade_name").in("id", ids);
       for (const p of profs ?? [])
         profiles[p.id as string] = { email: null, full_name: ((p.trade_name as string) || (p.full_name as string)) ?? null };
-      const { data: users } = await supabaseAdmin.auth.admin.listUsers({ perPage: 200 });
+      const users = { users: await (await import("@/lib/admin-users.server")).listAllAuthUsers() };
       for (const u of users?.users ?? []) {
         if (ids.includes(u.id))
           profiles[u.id] = { email: u.email ?? null, full_name: profiles[u.id]?.full_name ?? null };

@@ -31,7 +31,7 @@ export const listMyTeam = createServerFn({ method: "GET" })
         .in("id", ids);
       for (const p of profs ?? []) emails[p.id as string] = { email: null, full_name: ((p.trade_name as string) || (p.full_name as string)) ?? null };
       // Fetch emails
-      const { data: users } = await supabaseAdmin.auth.admin.listUsers({ perPage: 200 });
+      const users = { users: await (await import("@/lib/admin-users.server")).listAllAuthUsers() };
       for (const u of users?.users ?? []) {
         if (ids.includes(u.id)) emails[u.id] = { email: u.email ?? null, full_name: emails[u.id]?.full_name ?? null };
       }
@@ -47,9 +47,7 @@ const InviteInput = z.object({
 async function findUserIdByEmail(email: string): Promise<string | null> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   // getUserByEmail via listUsers filter (admin API doesn't expose direct lookup)
-  const { data, error } = await supabaseAdmin.auth.admin.listUsers({ perPage: 200 });
-  if (error) return null;
-  const found = data.users.find((u) => (u.email ?? "").toLowerCase() === email.toLowerCase());
+  const found = await (await import("@/lib/admin-users.server")).findAuthUserByEmail(email);
   return found?.id ?? null;
 }
 

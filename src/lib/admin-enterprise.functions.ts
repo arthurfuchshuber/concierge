@@ -307,7 +307,7 @@ export const adminListEnterpriseSubscriptions = createServerFn({ method: "GET" }
     if (!rows?.length) return { items: [] };
 
     const userIds = Array.from(new Set(rows.map((r) => r.user_id).filter(Boolean)));
-    const { data: usersData } = await supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 1000 });
+    const usersData = { users: await (await import("@/lib/admin-users.server")).listAllAuthUsers() };
     const userMap = new Map((usersData?.users ?? []).map((u) => [u.id, u.email]));
     void userIds;
 

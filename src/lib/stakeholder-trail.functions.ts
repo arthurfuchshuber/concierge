@@ -181,7 +181,7 @@ export const getStakeholderSystemTrail = createServerFn({ method: "POST" })
     if (!email) return { items: [], linked: false };
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data: users } = await supabaseAdmin.auth.admin.listUsers({ perPage: 1000 });
+    const users = { users: await (await import("@/lib/admin-users.server")).listAllAuthUsers() };
     const personId = users?.users.find((u) => (u.email ?? "").toLowerCase() === email)?.id ?? null;
     if (!personId) return { items: [], linked: false };
 
