@@ -46,6 +46,7 @@ import {
 } from "./StakeholderFormDialog";
 import { PROVIDER_CATEGORIES, type StakeholderKind } from "./constants";
 import { statusLabel, statusChip, effectiveStatus } from "@/lib/stakeholder-status";
+import { useImpersonation } from "@/hooks/useImpersonation";
 
 export { PROVIDER_CATEGORIES };
 export type { StakeholderKind };
@@ -57,6 +58,8 @@ export function StakeholderDirectory({ kind }: { kind: StakeholderKind }) {
   const qc = useQueryClient();
   const listFn = useServerFn(listStakeholders);
   const delFn = useServerFn(deleteStakeholder);
+  const { impersonation } = useImpersonation();
+  const activeAccountId = impersonation?.userId ?? null;
 
   const [view, setView] = useState<"list" | "kanban">("list");
   const [q, setQ] = useState("");
@@ -67,10 +70,10 @@ export function StakeholderDirectory({ kind }: { kind: StakeholderKind }) {
   const [createdOwner, setCreatedOwner] = useState<{ id: string; name: string } | null>(null);
 
 
-  const queryKey = ["stakeholders", kind];
+  const queryKey = ["stakeholders", activeAccountId ?? "self", kind];
   const { data, isLoading } = useQuery({
     queryKey,
-    queryFn: () => listFn({ data: { kind } }),
+    queryFn: () => listFn({ data: { kind, accountOwnerId: activeAccountId } }),
     staleTime: 15_000,
   });
 
@@ -94,8 +97,11 @@ export function StakeholderDirectory({ kind }: { kind: StakeholderKind }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [kind]);
 
-  const rows: Row[] = data?.rows ?? [];
-  const activities = data?.activities ?? [];
+  // Defesa adicional contra reidratação de uma chave antiga: resultados de
+  // outra conta nunca são pintados, nem por um único frame.
+  const belongsToActiveAccount = !activeAccountId || data?.accountId === activeAccountId;
+  const rows: Row[] = belongsToActiveAccount ? (data?.rows ?? []) : [];
+  const activities = belongsToActiveAccount ? (data?.activities ?? []) : [];
 
   const filtered = useMemo(() => {
     const term = q.trim().toLowerCase();
@@ -138,7 +144,7 @@ export function StakeholderDirectory({ kind }: { kind: StakeholderKind }) {
 
   async function remove(id: string) {
     try {
-      await delFn({ data: { kind, id } });
+      await delFn({ data: { kind, id, accountOwnerId: activeAccountId } });
       toast.success("Cadastro removido.");
       qc.invalidateQueries({ queryKey });
       qc.invalidateQueries({ queryKey: ["property-owners-count"] });
@@ -295,6 +301,7 @@ export function StakeholderDirectory({ kind }: { kind: StakeholderKind }) {
         open={formOpen}
         onOpenChange={setFormOpen}
         initial={form}
+        accountOwnerId={activeAccountId}
         onSaved={afterSaved}
       />
 
@@ -336,7 +343,7 @@ export function StakeholderDirectory({ kind }: { kind: StakeholderKind }) {
       {/* Detail */}
       <Sheet open={!!detailId} onOpenChange={(o) => !o && setDetailId(null)}>
         <SheetContent side="right" className="w-full sm:max-w-3xl overflow-y-auto p-0">
-          {detailId && <StakeholderDetailSheet kind={kind} id={detailId} onEdit={() => {
+          {detailId && <StakeholderDetailSheet kind={kind} id={detailId} accountOwnerId={activeAccountId} onEdit={() => {
             const row = rows.find((r) => r.id === detailId);
             if (row) { setDetailId(null); openEdit(row); }
           }} />}

@@ -101,10 +101,12 @@ const STAGE_OPTIONS: Array<{ value: StageValue; label: string; hint: string }> =
 export function StakeholderDetailSheet({
   kind,
   id,
+  accountOwnerId,
   onEdit,
 }: {
   kind: StakeholderKind;
   id: string;
+  accountOwnerId?: string | null;
   onEdit: () => void;
 }) {
   const qc = useQueryClient();
@@ -167,7 +169,7 @@ export function StakeholderDetailSheet({
     try {
       const finalStatus =
         statusDraft.status === "active" && statusDraft.stage ? statusDraft.stage : statusDraft.status;
-      await statusFn({ data: { kind, id, status: finalStatus, changed_at: statusDraft.date } });
+      await statusFn({ data: { kind, id, accountOwnerId, status: finalStatus, changed_at: statusDraft.date } });
       setStatusDraft(null);
       qc.invalidateQueries({ queryKey });
       qc.invalidateQueries({ queryKey: ["stakeholders", kind] });
@@ -199,10 +201,10 @@ export function StakeholderDetailSheet({
     }
   }
 
-  const queryKey = ["stakeholder-detail", kind, id];
+  const queryKey = ["stakeholder-detail", accountOwnerId ?? "self", kind, id];
   const { data, isLoading } = useQuery({
     queryKey,
-    queryFn: () => detailFn({ data: { kind, id } }),
+    queryFn: () => detailFn({ data: { kind, id, accountOwnerId } }),
     // O refetchInterval de 20s continua como rede de segurança — o Realtime
     // abaixo já cobre o caso comum (instantâneo), isto só cobre eventos que
     // por algum motivo não chegaram pelo canal (rede instável, por exemplo).
@@ -256,7 +258,7 @@ export function StakeholderDetailSheet({
     if (!note.trim()) return;
     setBusy(true);
     try {
-      await noteFn({ data: { kind, id, message: note.trim() } });
+      await noteFn({ data: { kind, id, accountOwnerId, message: note.trim() } });
       setNote("");
       qc.invalidateQueries({ queryKey });
     } catch (e) {
@@ -272,7 +274,7 @@ export function StakeholderDetailSheet({
   async function toggleLink(propertyId: string, link: boolean) {
     setBusy(true);
     try {
-      await linkFn({ data: { ownerId: id, propertyId, link } });
+      await linkFn({ data: { ownerId: id, propertyId, link, accountOwnerId } });
       qc.invalidateQueries({ queryKey });
       qc.invalidateQueries({ queryKey: ["stakeholders", kind] });
       // Bidirecional: se o editor do imóvel (aba "A casa") estiver aberto em
@@ -301,7 +303,7 @@ export function StakeholderDetailSheet({
     if (!transferTargetId) return;
     setBusy(true);
     try {
-      await linkFn({ data: { ownerId: transferTargetId, propertyId, link: true } });
+      await linkFn({ data: { ownerId: transferTargetId, propertyId, link: true, accountOwnerId } });
       qc.invalidateQueries({ queryKey });
       qc.invalidateQueries({ queryKey: ["stakeholders", kind] });
       qc.invalidateQueries({ queryKey: ["property", propertyId] });
