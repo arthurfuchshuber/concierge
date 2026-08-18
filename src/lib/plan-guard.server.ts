@@ -179,7 +179,7 @@ export async function assertCanCreateGuide(
 export async function assertFeature(
   supabase: SupabaseClient,
   userId: string,
-  feature: "autoImport" | "ai" | "customBrand",
+  feature: keyof PlanFeatures,
   opts?: { ownerId?: string | null; propertyId?: string | null },
 ): Promise<void> {
   const plan = await resolveEffectivePlan(supabase, userId, opts);
