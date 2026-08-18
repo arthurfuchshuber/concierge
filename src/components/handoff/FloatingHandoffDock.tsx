@@ -154,9 +154,9 @@ export function FloatingHandoffDock() {
   }
 
   const pendingQ = useQuery({
-    queryKey: ["handoff-pending-count"],
+    queryKey: ["handoff-pending-count", activeAccountId ?? "self"],
     queryFn: async () => {
-      try { return await countFn(); } catch { return { count: 0 }; }
+      try { return await countFn({ data: { accountOwnerId: activeAccountId } }); } catch { return { count: 0 }; }
     },
     enabled: allowed,
     refetchInterval: 15_000,
