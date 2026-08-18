@@ -135,6 +135,14 @@ export function MeuPerfilPage() {
   const avatar = q.data?.profile?.avatar_url ?? null;
   const initials = (fullName || email || "?").slice(0, 2).toUpperCase();
   const cpfDigits = q.data?.profile?.cpf ?? "";
+  const createdAt = q.data?.profile?.created_at
+    ? new Intl.DateTimeFormat("pt-BR", { dateStyle: "long" }).format(new Date(q.data.profile.created_at))
+    : "";
+  const onboardingCompletedAt = q.data?.profile?.onboarding_completed_at
+    ? new Intl.DateTimeFormat("pt-BR", { dateStyle: "long", timeStyle: "short" }).format(
+        new Date(q.data.profile.onboarding_completed_at),
+      )
+    : "";
 
   const canSave =
     fullName.trim().length > 0 &&
@@ -280,6 +288,21 @@ export function MeuPerfilPage() {
             />
           </Field>
         </div>
+
+        {(createdAt || onboardingCompletedAt) && (
+          <div className="grid sm:grid-cols-2 gap-4">
+            {createdAt && (
+              <Field label="Conta criada em">
+                <input value={createdAt} readOnly disabled className="input opacity-70 cursor-not-allowed" />
+              </Field>
+            )}
+            {onboardingCompletedAt && (
+              <Field label="Cadastro concluído em">
+                <input value={onboardingCompletedAt} readOnly disabled className="input opacity-70 cursor-not-allowed" />
+              </Field>
+            )}
+          </div>
+        )}
 
         <div className="grid sm:grid-cols-2 gap-4">
           <Field label="CPF" hint="Alteração apenas via suporte">
