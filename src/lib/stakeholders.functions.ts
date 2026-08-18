@@ -1,7 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
-import type { SupabaseClient } from "@supabase/supabase-js";
 
 // ---------------------------------------------------------------------------
 // Stakeholders = Proprietários (property_owners) + Prestadores (service_providers).
@@ -17,34 +16,18 @@ const TABLE: Record<KindT, "property_owners" | "service_providers"> = {
   provider: "service_providers",
 };
 
-// A conta ativa: a própria (se o usuário tem guias) ou a única conta da qual
-// ele é membro ativo. Mantém a Fase 1 simples e previsível.
-async function resolveAccountOwnerId(
-  supabase: SupabaseClient,
-  userId: string,
-): Promise<string> {
-  const [{ data: own }, { data: memberships }] = await Promise.all([
-    supabase.from("properties").select("id").eq("owner_id", userId).limit(1),
-    supabase
-      .from("account_members")
-      .select("owner_id")
-      .eq("member_user_id", userId)
-      .eq("status", "active"),
-  ]);
-  if ((own ?? []).length > 0) return userId;
-  const ids = Array.from(new Set((memberships ?? []).map((m) => m.owner_id as string)));
-  if (ids.length === 1) return ids[0];
-  return userId;
-}
-
-const ListInput = z.object({ kind: Kind });
+const ListInput = z.object({
+  kind: Kind,
+  accountOwnerId: z.string().uuid().optional().nullable(),
+});
 
 export const listStakeholders = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((i: unknown) => ListInput.parse(i))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    const accountId = await resolveAccountOwnerId(supabase, userId);
+    const { resolveAuthorizedAccountOwnerId } = await import("@/lib/account-scope.server");
+    const accountId = await resolveAuthorizedAccountOwnerId(supabase, userId, data.accountOwnerId);
     const { data: rows, error } = await supabase
       .from(TABLE[data.kind])
       .select("*")

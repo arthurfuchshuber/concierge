@@ -46,6 +46,7 @@ import {
 } from "./StakeholderFormDialog";
 import { PROVIDER_CATEGORIES, type StakeholderKind } from "./constants";
 import { statusLabel, statusChip, effectiveStatus } from "@/lib/stakeholder-status";
+import { useImpersonation } from "@/hooks/useImpersonation";
 
 export { PROVIDER_CATEGORIES };
 export type { StakeholderKind };
@@ -57,6 +58,8 @@ export function StakeholderDirectory({ kind }: { kind: StakeholderKind }) {
   const qc = useQueryClient();
   const listFn = useServerFn(listStakeholders);
   const delFn = useServerFn(deleteStakeholder);
+  const { impersonation } = useImpersonation();
+  const activeAccountId = impersonation?.userId ?? null;
 
   const [view, setView] = useState<"list" | "kanban">("list");
   const [q, setQ] = useState("");
@@ -67,10 +70,10 @@ export function StakeholderDirectory({ kind }: { kind: StakeholderKind }) {
   const [createdOwner, setCreatedOwner] = useState<{ id: string; name: string } | null>(null);
 
 
-  const queryKey = ["stakeholders", kind];
+  const queryKey = ["stakeholders", activeAccountId ?? "self", kind];
   const { data, isLoading } = useQuery({
     queryKey,
-    queryFn: () => listFn({ data: { kind } }),
+    queryFn: () => listFn({ data: { kind, accountOwnerId: activeAccountId } }),
     staleTime: 15_000,
   });
 
@@ -94,8 +97,11 @@ export function StakeholderDirectory({ kind }: { kind: StakeholderKind }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [kind]);
 
-  const rows: Row[] = data?.rows ?? [];
-  const activities = data?.activities ?? [];
+  // Defesa adicional contra reidratação de uma chave antiga: resultados de
+  // outra conta nunca são pintados, nem por um único frame.
+  const belongsToActiveAccount = !activeAccountId || data?.accountId === activeAccountId;
+  const rows: Row[] = belongsToActiveAccount ? (data?.rows ?? []) : [];
+  const activities = belongsToActiveAccount ? (data?.activities ?? []) : [];
 
   const filtered = useMemo(() => {
     const term = q.trim().toLowerCase();
