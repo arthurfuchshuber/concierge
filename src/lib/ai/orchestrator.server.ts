@@ -47,6 +47,7 @@ import { aggregateSourceWeight, confidenceOf, renderSourceRanking } from "./sour
 import {
   aggregateConfidence,
   hedgeNotice,
+  isSensitiveContext,
   thresholdsFor,
   tierFor,
   type ConfidenceTier,
