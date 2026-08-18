@@ -67,7 +67,6 @@ import { Route as ApiPublicCronSaasAlertsRouteImport } from './routes/api/public
 import { Route as ApiPublicCronRefreshRecommendationsRouteImport } from './routes/api/public/cron.refresh-recommendations'
 import { Route as ApiPublicCronRefreshCityReferencesRouteImport } from './routes/api/public/cron.refresh-city-references'
 import { Route as ApiPublicCronRefreshCityNewsRouteImport } from './routes/api/public/cron.refresh-city-news'
-import { Route as ApiPublicCronProactiveNudgesRouteImport } from './routes/api/public/cron.proactive-nudges'
 import { Route as ApiPublicCronProactiveConciergeRouteImport } from './routes/api/public/cron.proactive-concierge'
 import { Route as ApiPublicCronOpsPushRouteImport } from './routes/api/public/cron.ops-push'
 import { Route as ApiPublicCronLearningLoopRouteImport } from './routes/api/public/cron.learning-loop'
@@ -397,12 +396,6 @@ const ApiPublicCronRefreshCityNewsRoute =
     path: '/api/public/cron/refresh-city-news',
     getParentRoute: () => rootRouteImport,
   } as any)
-const ApiPublicCronProactiveNudgesRoute =
-  ApiPublicCronProactiveNudgesRouteImport.update({
-    id: '/api/public/cron/proactive-nudges',
-    path: '/api/public/cron/proactive-nudges',
-    getParentRoute: () => rootRouteImport,
-  } as any)
 const ApiPublicCronProactiveConciergeRoute =
   ApiPublicCronProactiveConciergeRouteImport.update({
     id: '/api/public/cron/proactive-concierge',
@@ -517,7 +510,6 @@ export interface FileRoutesByFullPath {
   '/api/public/cron/learning-loop': typeof ApiPublicCronLearningLoopRoute
   '/api/public/cron/ops-push': typeof ApiPublicCronOpsPushRoute
   '/api/public/cron/proactive-concierge': typeof ApiPublicCronProactiveConciergeRoute
-  '/api/public/cron/proactive-nudges': typeof ApiPublicCronProactiveNudgesRoute
   '/api/public/cron/refresh-city-news': typeof ApiPublicCronRefreshCityNewsRoute
   '/api/public/cron/refresh-city-references': typeof ApiPublicCronRefreshCityReferencesRoute
   '/api/public/cron/refresh-recommendations': typeof ApiPublicCronRefreshRecommendationsRoute
@@ -585,7 +577,6 @@ export interface FileRoutesByTo {
   '/api/public/cron/learning-loop': typeof ApiPublicCronLearningLoopRoute
   '/api/public/cron/ops-push': typeof ApiPublicCronOpsPushRoute
   '/api/public/cron/proactive-concierge': typeof ApiPublicCronProactiveConciergeRoute
-  '/api/public/cron/proactive-nudges': typeof ApiPublicCronProactiveNudgesRoute
   '/api/public/cron/refresh-city-news': typeof ApiPublicCronRefreshCityNewsRoute
   '/api/public/cron/refresh-city-references': typeof ApiPublicCronRefreshCityReferencesRoute
   '/api/public/cron/refresh-recommendations': typeof ApiPublicCronRefreshRecommendationsRoute
@@ -657,7 +648,6 @@ export interface FileRoutesById {
   '/api/public/cron/learning-loop': typeof ApiPublicCronLearningLoopRoute
   '/api/public/cron/ops-push': typeof ApiPublicCronOpsPushRoute
   '/api/public/cron/proactive-concierge': typeof ApiPublicCronProactiveConciergeRoute
-  '/api/public/cron/proactive-nudges': typeof ApiPublicCronProactiveNudgesRoute
   '/api/public/cron/refresh-city-news': typeof ApiPublicCronRefreshCityNewsRoute
   '/api/public/cron/refresh-city-references': typeof ApiPublicCronRefreshCityReferencesRoute
   '/api/public/cron/refresh-recommendations': typeof ApiPublicCronRefreshRecommendationsRoute
@@ -729,7 +719,6 @@ export interface FileRouteTypes {
     | '/api/public/cron/learning-loop'
     | '/api/public/cron/ops-push'
     | '/api/public/cron/proactive-concierge'
-    | '/api/public/cron/proactive-nudges'
     | '/api/public/cron/refresh-city-news'
     | '/api/public/cron/refresh-city-references'
     | '/api/public/cron/refresh-recommendations'
@@ -797,7 +786,6 @@ export interface FileRouteTypes {
     | '/api/public/cron/learning-loop'
     | '/api/public/cron/ops-push'
     | '/api/public/cron/proactive-concierge'
-    | '/api/public/cron/proactive-nudges'
     | '/api/public/cron/refresh-city-news'
     | '/api/public/cron/refresh-city-references'
     | '/api/public/cron/refresh-recommendations'
@@ -868,7 +856,6 @@ export interface FileRouteTypes {
     | '/api/public/cron/learning-loop'
     | '/api/public/cron/ops-push'
     | '/api/public/cron/proactive-concierge'
-    | '/api/public/cron/proactive-nudges'
     | '/api/public/cron/refresh-city-news'
     | '/api/public/cron/refresh-city-references'
     | '/api/public/cron/refresh-recommendations'
@@ -917,7 +904,6 @@ export interface RootRouteChildren {
   ApiPublicCronLearningLoopRoute: typeof ApiPublicCronLearningLoopRoute
   ApiPublicCronOpsPushRoute: typeof ApiPublicCronOpsPushRoute
   ApiPublicCronProactiveConciergeRoute: typeof ApiPublicCronProactiveConciergeRoute
-  ApiPublicCronProactiveNudgesRoute: typeof ApiPublicCronProactiveNudgesRoute
   ApiPublicCronRefreshCityNewsRoute: typeof ApiPublicCronRefreshCityNewsRoute
   ApiPublicCronRefreshCityReferencesRoute: typeof ApiPublicCronRefreshCityReferencesRoute
   ApiPublicCronRefreshRecommendationsRoute: typeof ApiPublicCronRefreshRecommendationsRoute
@@ -1338,13 +1324,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicCronRefreshCityNewsRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/public/cron/proactive-nudges': {
-      id: '/api/public/cron/proactive-nudges'
-      path: '/api/public/cron/proactive-nudges'
-      fullPath: '/api/public/cron/proactive-nudges'
-      preLoaderRoute: typeof ApiPublicCronProactiveNudgesRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/api/public/cron/proactive-concierge': {
       id: '/api/public/cron/proactive-concierge'
       path: '/api/public/cron/proactive-concierge'
@@ -1536,7 +1515,6 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicCronLearningLoopRoute: ApiPublicCronLearningLoopRoute,
   ApiPublicCronOpsPushRoute: ApiPublicCronOpsPushRoute,
   ApiPublicCronProactiveConciergeRoute: ApiPublicCronProactiveConciergeRoute,
-  ApiPublicCronProactiveNudgesRoute: ApiPublicCronProactiveNudgesRoute,
   ApiPublicCronRefreshCityNewsRoute: ApiPublicCronRefreshCityNewsRoute,
   ApiPublicCronRefreshCityReferencesRoute:
     ApiPublicCronRefreshCityReferencesRoute,
