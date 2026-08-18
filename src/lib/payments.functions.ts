@@ -8,6 +8,7 @@ import {
   planFromPriceId,
   type PlanKey,
 } from "@/lib/payments.shared";
+import { resolveAuthorizedAccountOwnerId } from "@/lib/account-scope.server";
 
 // Re-export shared helpers so existing `@/lib/payments.functions` importers keep working.
 export { PLANS, planFromProductId, planFromPriceId };
@@ -69,24 +70,14 @@ export const getAccountSubscription = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    if (data.ownerId !== userId) {
-      // Verifica se o usuário é membro ativo desta conta.
-      const { data: m } = await supabase
-        .from("account_members")
-        .select("id")
-        .eq("owner_id", data.ownerId)
-        .eq("member_user_id", userId)
-        .eq("status", "active")
-        .maybeSingle();
-      if (!m) throw new Error("Você não tem acesso a esta conta.");
-    }
+    const ownerId = await resolveAuthorizedAccountOwnerId(supabase, userId, data.ownerId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: rows, error } = await supabaseAdmin
       .from("subscriptions")
       .select(
         "id, paddle_subscription_id, paddle_customer_id, product_id, price_id, status, current_period_start, current_period_end, cancel_at_period_end, environment, is_manual, custom_price_cents, custom_currency, trial_ends_at, max_guides_override, admin_notes, created_at",
       )
-      .eq("user_id", data.ownerId)
+      .eq("user_id", ownerId)
       .order("created_at", { ascending: false });
     if (error) throw new Error("Não foi possível carregar a assinatura da conta.");
     const list = rows ?? [];
@@ -101,14 +92,16 @@ export const getAccountSubscription = createServerFn({ method: "POST" })
 
 export const createPortalSession = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: { environment: PaddleEnv }) =>
-    z.object({ environment: PaddleEnvSchema }).parse(data),
+  .inputValidator((data: { environment: PaddleEnv; ownerId?: string | null }) =>
+    z.object({ environment: PaddleEnvSchema, ownerId: z.string().uuid().nullish() }).parse(data),
   )
   .handler(async ({ data, context }) => {
-    const { data: sub, error } = await context.supabase
+    const ownerId = await resolveAuthorizedAccountOwnerId(context.supabase, context.userId, data.ownerId);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: sub, error } = await supabaseAdmin
       .from("subscriptions")
       .select("paddle_subscription_id, paddle_customer_id, environment")
-      .eq("user_id", context.userId)
+      .eq("user_id", ownerId)
       .eq("environment", data.environment)
       .order("created_at", { ascending: false })
       .limit(1)
@@ -141,16 +134,27 @@ export type PaymentRow = {
   invoiceUrl: string | null;
 };
 
+export type PaymentMethodSummary = {
+  type: string;
+  brand: string | null;
+  last4: string | null;
+  expiryMonth: number | null;
+  expiryYear: number | null;
+  cardholderName: string | null;
+};
+
 export const listMyPayments = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: { environment: PaddleEnv }) =>
-    z.object({ environment: PaddleEnvSchema }).parse(data),
+  .inputValidator((data: { environment: PaddleEnv; ownerId?: string | null }) =>
+    z.object({ environment: PaddleEnvSchema, ownerId: z.string().uuid().nullish() }).parse(data),
   )
   .handler(async ({ data, context }): Promise<{ payments: PaymentRow[] }> => {
-    const { data: sub } = await context.supabase
+    const ownerId = await resolveAuthorizedAccountOwnerId(context.supabase, context.userId, data.ownerId);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: sub } = await supabaseAdmin
       .from("subscriptions")
       .select("paddle_customer_id, environment")
-      .eq("user_id", context.userId)
+      .eq("user_id", ownerId)
       .eq("environment", data.environment)
       .order("created_at", { ascending: false })
       .limit(1)
@@ -185,6 +189,58 @@ export const listMyPayments = createServerFn({ method: "GET" })
       return { payments };
     } catch {
       return { payments: [] };
+    }
+  });
+
+export const getAccountPaymentMethod = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: { environment: PaddleEnv; ownerId?: string | null }) =>
+    z.object({ environment: PaddleEnvSchema, ownerId: z.string().uuid().nullish() }).parse(data),
+  )
+  .handler(async ({ data, context }): Promise<{ paymentMethod: PaymentMethodSummary | null }> => {
+    const ownerId = await resolveAuthorizedAccountOwnerId(context.supabase, context.userId, data.ownerId);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: sub } = await supabaseAdmin
+      .from("subscriptions")
+      .select("paddle_customer_id, environment")
+      .eq("user_id", ownerId)
+      .eq("environment", data.environment)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    const customerId = sub?.paddle_customer_id;
+    if (!customerId || (!customerId.startsWith("ctm_") && !customerId.startsWith("cus_"))) {
+      return { paymentMethod: null };
+    }
+    try {
+      const response = await gatewayFetch(data.environment, `/customers/${encodeURIComponent(customerId)}/payment-methods`);
+      if (!response.ok) return { paymentMethod: null };
+      const json = await response.json() as {
+        data?: Array<{
+          type?: string;
+          card?: {
+            type?: string;
+            last4?: string;
+            expiry_month?: number;
+            expiry_year?: number;
+            cardholder_name?: string;
+          };
+        }>;
+      };
+      const method = json.data?.[0];
+      if (!method) return { paymentMethod: null };
+      return {
+        paymentMethod: {
+          type: method.type ?? "card",
+          brand: method.card?.type ?? null,
+          last4: method.card?.last4 ?? null,
+          expiryMonth: method.card?.expiry_month ?? null,
+          expiryYear: method.card?.expiry_year ?? null,
+          cardholderName: method.card?.cardholder_name ?? null,
+        },
+      };
+    } catch {
+      return { paymentMethod: null };
     }
   });
 
